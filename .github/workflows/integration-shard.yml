@@ -85,6 +85,11 @@ jobs:
       # observed on a degraded runner must not fold as if it came from the
       # primary tier.
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api-shard-${{ inputs.shard }}${{ inputs.artifact-suffix }}.jsonl
+      # WP5.1: pytest-cov DATA file, non-hidden name (upload-artifact v6
+      # drops dotfiles). The retry's suffix keeps its data file distinct
+      # so a retry attempt can't clobber the primary's measurement — same
+      # load-bearing uniqueness as the artifact names below.
+      COVERAGE_FILE: coverage-integration-api-${{ inputs.shard }}-py${{ inputs.python-version }}${{ inputs.artifact-suffix }}.dat
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -155,6 +160,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
+          # WP5.1: the DATA file (.dat, via COVERAGE_FILE) rides alongside the
+          # XML so integration-coverage-merge can actually combine; the
+          # suffix-unique name keeps retry vs primary measurements distinct.
           name: coverage-integration-api-${{ inputs.shard }}-py${{ inputs.python-version }}${{ inputs.artifact-suffix }}
-          path: coverage-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml
+          path: |
+            coverage-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml
+            coverage-integration-api-${{ inputs.shard }}-py${{ inputs.python-version }}${{ inputs.artifact-suffix }}.dat
           retention-days: 7

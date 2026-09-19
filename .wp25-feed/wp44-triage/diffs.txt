@@ -1,1371 +1,508 @@
-### __extract_person_terms #5
-- found.add(term)
-+ found.add(None)
-### __extract_vehicle_terms #5
-- found.add(term)
-+ found.add(None)
-### _clean_vqa_output #13
-- vqa_idx = result.find("VQA>")
-+ vqa_idx = None
-### _clean_vqa_output #15
-- vqa_idx = result.find("VQA>")
-+ vqa_idx = result.rfind("VQA>")
-### _clean_vqa_output #19
-- if vqa_idx != -1:
-+ if vqa_idx != +1:
-### _clean_vqa_output #20
-- if vqa_idx != -1:
-+ if vqa_idx != -2:
-### _clean_vqa_output #23
-- loc_start = result.find("<", vqa_idx)
-+ loc_start = result.find("<", None)
-### _clean_vqa_output #25
-- loc_start = result.find("<", vqa_idx)
-+ loc_start = result.find("<", )
-### _clean_vqa_output #26
-- loc_start = result.find("<", vqa_idx)
-+ loc_start = result.rfind("<", vqa_idx)
-### _clean_vqa_output #27
-- loc_start = result.find("<", vqa_idx)
-+ loc_start = result.find("XX<XX", vqa_idx)
-### _clean_vqa_output #29
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if (loc_start != -1) and False else ""
-### _clean_vqa_output #30
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if (loc_start != -1) or True else ""
-### _clean_vqa_output #31
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if loc_start == -1 else ""
-### _clean_vqa_output #32
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if loc_start != +1 else ""
-### _clean_vqa_output #33
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if loc_start != -2 else ""
-### _clean_vqa_output #34
-- result = result[loc_start:] if loc_start != -1 else ""
-+ result = result[loc_start:] if loc_start != -1 else "XXXX"
-### _detect_cross_validation_error #1
-- if not yolo_class or not florence_description:
-+ if not yolo_class and not florence_description:
-### _detect_cross_validation_error #11
-- is_yolo_vehicle = yolo_lower in VEHICLE_TERMS or yolo_lower in YOLO_TO_FLORENCE_EQUIVALENCE
-+ is_yolo_vehicle = yolo_lower in VEHICLE_TERMS and yolo_lower in YOLO_TO_FLORENCE_EQUIVALENCE
-### _detect_cross_validation_error #23
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### _detect_cross_validation_error #24
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### _detect_cross_validation_error #25
-- florence_description=florence_description,
-+ florence_description=None,
-### _detect_cross_validation_error #36
-- message=( | f"Vehicle-person mismatch: YOLO detected '{yolo_class}' ({yolo_confidence:.0%} conf) " | f"but Florence described person terms: {florence_person_terms}" | ),
-+ message=None,
-### _detect_cross_validation_error #37
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### _detect_cross_validation_error #38
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### _detect_cross_validation_error #39
-- florence_description=florence_description,
-+ florence_description=None,
-### _format_batch_extraction_result #3
-- vehicle_lines = ["## Vehicles"]
-+ vehicle_lines = ["XX## VehiclesXX"]
-### _format_batch_extraction_result #8
-- vehicle_lines.append(format_vehicle_attributes(vehicle_attrs, det_id))
-+ vehicle_lines.append(format_vehicle_attributes(vehicle_attrs, None))
-### _format_batch_extraction_result #10
-- vehicle_lines.append(format_vehicle_attributes(vehicle_attrs, det_id))
-+ vehicle_lines.append(format_vehicle_attributes(vehicle_attrs, ))
-### _format_batch_extraction_result #13
-- sections.append("\n".join(vehicle_lines))
-+ sections.append("XX\nXX".join(vehicle_lines))
-### _format_batch_extraction_result #15
-- person_lines = ["## Persons"]
-+ person_lines = ["XX## PersonsXX"]
-### _format_batch_extraction_result #20
-- person_lines.append(format_person_attributes(person_attrs, det_id))
-+ person_lines.append(format_person_attributes(person_attrs, None))
-### _format_batch_extraction_result #22
-- person_lines.append(format_person_attributes(person_attrs, det_id))
-+ person_lines.append(format_person_attributes(person_attrs, ))
-### _format_batch_extraction_result #25
-- sections.append("\n".join(person_lines))
-+ sections.append("XX\nXX".join(person_lines))
-### _format_batch_extraction_result #29
-- scene_section = "## Scene Analysis\n" + format_scene_analysis(result.scene_analysis)
-+ scene_section = "XX## Scene Analysis\nXX" + format_scene_analysis(result.scene_analysis)
-### _format_batch_extraction_result #37
-- env_section = "## Environment\n" + format_environment_context(result.environment_context)
-+ env_section = "XX## Environment\nXX" + format_environment_context(result.environment_context)
-### _format_batch_extraction_result #43
-- return "No vision extraction data available."
-+ return "XXNo vision extraction data available.XX"
-### _format_batch_extraction_result #47
-- return "\n\n".join(sections)
-+ return "XX\n\nXX".join(sections)
-### _format_detections_with_attributes #4
-- det_id = det.get("detection_id", "")
-+ det_id = det.get("detection_id", None)
-### _format_detections_with_attributes #6
-- det_id = det.get("detection_id", "")
-+ det_id = det.get("detection_id", )
-### _format_detections_with_attributes #9
-- det_id = det.get("detection_id", "")
-+ det_id = det.get("detection_id", "XXXX")
-### _format_detections_with_attributes #12
-- class_name = det.get("class_name", "unknown")
-+ class_name = det.get("class_name", None)
-### _format_detections_with_attributes #14
-- class_name = det.get("class_name", "unknown")
-+ class_name = det.get("class_name", )
-### _format_detections_with_attributes #17
-- class_name = det.get("class_name", "unknown")
-+ class_name = det.get("class_name", "XXunknownXX")
-### _format_detections_with_attributes #18
-- class_name = det.get("class_name", "unknown")
-+ class_name = det.get("class_name", "UNKNOWN")
-### _format_detections_with_attributes #21
-- confidence = det.get("confidence", 0.0)
-+ confidence = det.get("confidence", None)
-### _format_detections_with_attributes #23
-- confidence = det.get("confidence", 0.0)
-+ confidence = det.get("confidence", )
-### _format_detections_with_attributes #26
-- confidence = det.get("confidence", 0.0)
-+ confidence = det.get("confidence", 1.0)
-### _format_detections_with_attributes #27
-- bbox = det.get("bbox", [])
-+ bbox = None
-### _format_detections_with_attributes #28
-- bbox = det.get("bbox", [])
-+ bbox = det.get(None, [])
-### _format_detections_with_attributes #29
-- bbox = det.get("bbox", [])
-+ bbox = det.get("bbox", None)
-### _format_detections_with_attributes #31
-- bbox = det.get("bbox", [])
-+ bbox = det.get("bbox", )
-### _format_detections_with_attributes #32
-- bbox = det.get("bbox", [])
-+ bbox = det.get("XXbboxXX", [])
-### _format_detections_with_attributes #33
-- bbox = det.get("bbox", [])
-+ bbox = det.get("BBOX", [])
-### _format_detections_with_attributes #34
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = None
-### _format_detections_with_attributes #35
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if (bbox) and False else "[]"
-### _format_detections_with_attributes #36
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if (bbox) or True else "[]"
-### _format_detections_with_attributes #38
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = f"[{'XX, XX'.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-### _format_detections_with_attributes #39
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = f"[{', '.join(str(None) for b in bbox)}]" if bbox else "[]"
-### _format_detections_with_attributes #41
-- bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "[]"
-+ bbox_str = f"[{', '.join(str(int(b)) for b in bbox)}]" if bbox else "XX[]XX"
-### _format_detections_with_attributes #48
-- commercial = "commercial"
-+ commercial = None
-### _format_detections_with_attributes #49
-- commercial = "commercial"
-+ commercial = "XXcommercialXX"
-### _format_detections_with_attributes #50
-- commercial = "commercial"
-+ commercial = "COMMERCIAL"
-### _format_detections_with_attributes #56
-- base_line += f" [{', '.join(attr_parts)}]"
-+ base_line += f" [{'XX, XX'.join(attr_parts)}]"
-### _format_detections_with_attributes #64
-- attr_parts.append("service worker")
-+ attr_parts.append("XXservice workerXX")
-### _format_detections_with_attributes #69
-- base_line += f" [{', '.join(attr_parts)}]"
-+ base_line += f" [{'XX, XX'.join(attr_parts)}]"
-### _format_detections_with_attributes #72
-- return "No detections."
-+ return "XXNo detections.XX"
-### _format_detections_with_attributes #76
-- return "\n".join(lines)
-+ return "XX\nXX".join(lines)
-### _format_environment_context #3
-- parts.append("Artificial light source detected")
-+ parts.append("XXArtificial light source detectedXX")
-### _format_environment_context #8
-- return ", ".join(parts)
-+ return "XX, XX".join(parts)
-### _format_person_attributes #4
-- prefix = f"[{detection_id}] " if detection_id else ""
-+ prefix = f"[{detection_id}] " if (detection_id) or True else ""
-### _format_person_attributes #5
-- prefix = f"[{detection_id}] " if detection_id else ""
-+ prefix = f"[{detection_id}] " if detection_id else "XXXX"
-### _format_person_attributes #12
-- details.append("Appears to be service/delivery worker")
-+ details.append("XXAppears to be service/delivery workerXX")
-### _format_person_attributes #13
-- details.append("Appears to be service/delivery worker")
-+ details.append("appears to be service/delivery worker")
-### _format_person_attributes #17
-- lines.append(f"  {', '.join(details)}")
-+ lines.append(f"  {'XX, XX'.join(details)}")
-### _format_person_attributes #19
-- return "\n".join(lines)
-+ return "XX\nXX".join(lines)
-### _format_scene_analysis #5
-- lines.append(f"Unusual objects: {', '.join(scene.unusual_objects)}")
-+ lines.append(f"Unusual objects: {'XX, XX'.join(scene.unusual_objects)}")
-### _format_scene_analysis #11
-- lines.append(f"Abandoned items: {', '.join(scene.abandoned_items)}")
-+ lines.append(f"Abandoned items: {'XX, XX'.join(scene.abandoned_items)}")
-### _format_scene_analysis #13
-- return "No notable scene elements detected."
-+ return "XXNo notable scene elements detected.XX"
-### _format_scene_analysis #17
-- return "\n".join(lines)
-+ return "XX\nXX".join(lines)
-### _format_vehicle_attributes #4
-- prefix = f"[{detection_id}] " if detection_id else ""
-+ prefix = f"[{detection_id}] " if (detection_id) or True else ""
-### _format_vehicle_attributes #5
-- prefix = f"[{detection_id}] " if detection_id else ""
-+ prefix = f"[{detection_id}] " if detection_id else "XXXX"
-### _format_vehicle_attributes #19
-- lines.append(f"  {', '.join(details)}")
-+ lines.append(f"  {'XX, XX'.join(details)}")
-### _format_vehicle_attributes #21
-- return "\n".join(lines)
-+ return "XX\nXX".join(lines)
-### _generate_validation_note #5
-- confidence_str = f"{yolo_confidence:.0%}" if yolo_confidence is not None else "unknown"
-+ confidence_str = f"{yolo_confidence:.0%}" if yolo_confidence is not None else "XXunknownXX"
-### _generate_validation_note #6
-- confidence_str = f"{yolo_confidence:.0%}" if yolo_confidence is not None else "unknown"
-+ confidence_str = f"{yolo_confidence:.0%}" if yolo_confidence is not None else "UNKNOWN"
-### _generate_validation_note #10
-- yolo_lower = (yolo_class or "").lower()
-+ yolo_lower = (yolo_class or "XXXX").lower()
-### _generate_validation_note #14
-- florence_lower = (florence_type or "").lower()
-+ florence_lower = (florence_type or "XXXX").lower()
-### _generate_validation_note #17
-- yolo_lower == "person" and any(v in florence_lower for v in VEHICLE_TERMS)
-+ yolo_lower == "person" or any(v in florence_lower for v in VEHICLE_TERMS)
-### _generate_validation_note #22
-- yolo_lower == "person" and any(v in florence_lower for v in VEHICLE_TERMS)
-+ yolo_lower == "person" and any(v not in florence_lower for v in VEHICLE_TERMS)
-### _generate_validation_note #23
-- ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
-+ ) or (yolo_lower in VEHICLE_TERMS or "person" in florence_lower)
-### _generate_validation_note #24
-- ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
-+ ) or (yolo_lower not in VEHICLE_TERMS and "person" in florence_lower)
-### _generate_validation_note #25
-- ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
-+ ) or (yolo_lower in VEHICLE_TERMS and "XXpersonXX" in florence_lower)
-### _generate_validation_note #26
-- ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
-+ ) or (yolo_lower in VEHICLE_TERMS and "PERSON" in florence_lower)
-### _generate_validation_note #27
-- ) or (yolo_lower in VEHICLE_TERMS and "person" in florence_lower)
-+ ) or (yolo_lower in VEHICLE_TERMS and "person" not in florence_lower)
-### _generate_validation_note #28
-- if yolo_class and florence_type:
-+ if yolo_class or florence_type:
-### _is_semantically_equivalent #1
-- if not yolo_class or not florence_type:
-+ if not yolo_class and not florence_type:
-### _is_valid_vqa_output #1
-- if not text or not text.strip():
-+ if not text and not text.strip():
-### _is_valid_vqa_output #8
-- stripped = text.strip().lower()
-+ stripped = text.strip().upper()
-### _is_valid_vqa_output #11
-- return not (len(stripped) < _MIN_VALID_LENGTH and stripped not in _VALID_SHORT_RESPONSES)
-+ return not (len(stripped) <= _MIN_VALID_LENGTH and stripped not in _VALID_SHORT_RESPONSES)
-### _resolve_vehicle_type_conflict #1
-- if not yolo_class and not florence_type:
-+ if not yolo_class or not florence_type:
-### _resolve_vehicle_type_conflict #2
-- if not yolo_class and not florence_type:
-+ if yolo_class and not florence_type:
-### _resolve_vehicle_type_conflict #3
-- if not yolo_class and not florence_type:
-+ if not yolo_class and florence_type:
-### _resolve_vehicle_type_conflict #13
-- confidence = yolo_confidence if yolo_confidence is not None else 0.75
-+ confidence = yolo_confidence if (yolo_confidence is not None) or True else 0.75
-### _resolve_vehicle_type_conflict #15
-- confidence = yolo_confidence if yolo_confidence is not None else 0.75
-+ confidence = yolo_confidence if yolo_confidence is not None else 1.75
-### _resolve_vehicle_type_conflict #19
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### _resolve_vehicle_type_conflict #20
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### _resolve_vehicle_type_conflict #21
-- florence_type=florence_type,
-+ florence_type=None,
-### _resolve_vehicle_type_conflict #22
-- confidence_note=f"Semantic match: YOLO '{yolo_class}' matches Florence '{florence_type}'",
-+ confidence_note=None,
-### _resolve_vehicle_type_conflict #29
-- confidence_note=f"Semantic match: YOLO '{yolo_class}' matches Florence '{florence_type}'", | )
-+ )
-### _resolve_vehicle_type_conflict #33
-- if confidence >= YOLO_HIGH_CONFIDENCE_THRESHOLD:
-+ if confidence > YOLO_HIGH_CONFIDENCE_THRESHOLD:
-### _resolve_vehicle_type_conflict #37
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### _resolve_vehicle_type_conflict #38
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### _resolve_vehicle_type_conflict #39
-- florence_type=florence_type,
-+ florence_type=None,
-### _resolve_vehicle_type_conflict #40
-- confidence_note=f"High confidence YOLO ({confidence:.0%}) overrides Florence '{florence_type}'",
-+ confidence_note=None,
-### _resolve_vehicle_type_conflict #47
-- confidence_note=f"High confidence YOLO ({confidence:.0%}) overrides Florence '{florence_type}'", | )
-+ )
-### _resolve_vehicle_type_conflict #53
-- conflict_detected=False,
-+ conflict_detected=None,
-### _resolve_vehicle_type_conflict #54
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### _resolve_vehicle_type_conflict #55
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### _resolve_vehicle_type_conflict #56
-- florence_type=florence_type,
-+ florence_type=None,
-### _resolve_vehicle_type_conflict #57
-- confidence_note=f"Low YOLO confidence ({confidence:.0%}), using Florence '{florence_type}'",
-+ confidence_note=None,
-### _resolve_vehicle_type_conflict #64
-- confidence_note=f"Low YOLO confidence ({confidence:.0%}), using Florence '{florence_type}'", | )
-+ )
-### _resolve_vehicle_type_conflict #67
-- conflict_detected=False,
-+ conflict_detected=True,
-### _validate_and_clean_vqa_output #7
-- if len(cleaned) < _MIN_VALID_LENGTH and cleaned.lower() not in _VALID_SHORT_RESPONSES:
-+ if len(cleaned) <= _MIN_VALID_LENGTH and cleaned.lower() not in _VALID_SHORT_RESPONSES:
-### _validate_and_clean_vqa_output #8
-- if len(cleaned) < _MIN_VALID_LENGTH and cleaned.lower() not in _VALID_SHORT_RESPONSES:
-+ if len(cleaned) < _MIN_VALID_LENGTH and cleaned.upper() not in _VALID_SHORT_RESPONSES:
-### _validate_and_clean_vqa_output #9
-- if len(cleaned) < _MIN_VALID_LENGTH and cleaned.lower() not in _VALID_SHORT_RESPONSES:
-+ if len(cleaned) < _MIN_VALID_LENGTH and cleaned.lower() in _VALID_SHORT_RESPONSES:
-### ǁBatchExtractionResultǁto_dict #8
-- "scene_analysis": self.scene_analysis.to_dict() if self.scene_analysis else None,
-+ "scene_analysis": self.scene_analysis.to_dict() if (self.scene_analysis) or True else None,
-### ǁBatchExtractionResultǁto_dict #12
-- self.environment_context.to_dict() if self.environment_context else None
-+ self.environment_context.to_dict() if (self.environment_context) or True else None
-### ǁBatchExtractionResultǁto_dict #13
-- "florence_enhanced": (
-+ "XXflorence_enhancedXX": (
-### ǁBatchExtractionResultǁto_dict #14
-- "florence_enhanced": (
-+ "FLORENCE_ENHANCED": (
-### ǁBatchExtractionResultǁto_dict #15
-- self.florence_enhanced.to_dict() if self.florence_enhanced else None
-+ self.florence_enhanced.to_dict() if (self.florence_enhanced) and False else None
-### ǁCrossValidationErrorǁto_dict #7
-- "yolo_confidence": self.yolo_confidence,
-+ "XXyolo_confidenceXX": self.yolo_confidence,
-### ǁCrossValidationErrorǁto_dict #8
-- "yolo_confidence": self.yolo_confidence,
-+ "YOLO_CONFIDENCE": self.yolo_confidence,
-### ǁCrossValidationErrorǁto_dict #9
-- "florence_description": self.florence_description,
-+ "XXflorence_descriptionXX": self.florence_description,
-### ǁCrossValidationErrorǁto_dict #10
-- "florence_description": self.florence_description,
-+ "FLORENCE_DESCRIPTION": self.florence_description,
-### ǁVisionExtractorǁ__init__ #2
-- logger.info("VisionExtractor initialized with Florence HTTP client")
-+ logger.info(None)
-### ǁVisionExtractorǁ__init__ #3
-- logger.info("VisionExtractor initialized with Florence HTTP client")
-+ logger.info("XXVisionExtractor initialized with Florence HTTP clientXX")
-### ǁVisionExtractorǁ__init__ #4
-- logger.info("VisionExtractor initialized with Florence HTTP client")
-+ logger.info("visionextractor initialized with florence http client")
-### ǁVisionExtractorǁ__init__ #5
-- logger.info("VisionExtractor initialized with Florence HTTP client")
-+ logger.info("VISIONEXTRACTOR INITIALIZED WITH FLORENCE HTTP CLIENT")
-### ǁVisionExtractorǁ_batch_query_florence #2
-- batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
-+ batch_items = [BatchExtractItem(image=None, prompt=p) for p in prompts]
-### ǁVisionExtractorǁ_batch_query_florence #3
-- batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
-+ batch_items = [BatchExtractItem(image=image, prompt=None) for p in prompts]
-### ǁVisionExtractorǁ_batch_query_florence #4
-- batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
-+ batch_items = [BatchExtractItem(prompt=p) for p in prompts]
-### ǁVisionExtractorǁ_batch_query_florence #5
-- batch_items = [BatchExtractItem(image=image, prompt=p) for p in prompts]
-+ batch_items = [BatchExtractItem(image=image, ) for p in prompts]
-### ǁVisionExtractorǁ_batch_query_florence #6
-- batch_results = await self._florence_client.batch_extract(batch_items)
-+ batch_results = None
-### ǁVisionExtractorǁ_batch_query_florence #8
-- logger.debug("Batch extraction unavailable, falling back to individual calls")
-+ logger.debug(None)
-### ǁVisionExtractorǁ_batch_query_florence #9
-- logger.debug("Batch extraction unavailable, falling back to individual calls")
-+ logger.debug("XXBatch extraction unavailable, falling back to individual callsXX")
-### ǁVisionExtractorǁ_batch_query_florence #10
-- logger.debug("Batch extraction unavailable, falling back to individual calls")
-+ logger.debug("batch extraction unavailable, falling back to individual calls")
-### ǁVisionExtractorǁ_batch_query_florence #11
-- logger.debug("Batch extraction unavailable, falling back to individual calls")
-+ logger.debug("BATCH EXTRACTION UNAVAILABLE, FALLING BACK TO INDIVIDUAL CALLS")
-### ǁVisionExtractorǁ_batch_query_florence #14
-- if prompt.startswith(VQA_TASK) and len(prompt) > len(VQA_TASK):
-+ if prompt.startswith(VQA_TASK) and len(prompt) >= len(VQA_TASK):
-### ǁVisionExtractorǁ_batch_query_florence #15
-- return await self._query_florence(image, VQA_TASK, prompt[len(VQA_TASK) :])
-+ return await self._query_florence(None, VQA_TASK, prompt[len(VQA_TASK) :])
-### ǁVisionExtractorǁ_batch_query_florence #16
-- return await self._query_florence(image, VQA_TASK, prompt[len(VQA_TASK) :])
-+ return await self._query_florence(image, None, prompt[len(VQA_TASK) :])
-### ǁVisionExtractorǁ_batch_query_florence #21
-- return await self._query_florence(image, prompt)
-+ return await self._query_florence(None, prompt)
-### ǁVisionExtractorǁ_crop_image #10
-- pad_x = int(width * 0.1) if width > 0 else 0
-+ pad_x = int(width * 0.1) if (width > 0) and False else 0
-### ǁVisionExtractorǁ_crop_image #11
-- pad_x = int(width * 0.1) if width > 0 else 0
-+ pad_x = int(width * 0.1) if (width > 0) or True else 0
-### ǁVisionExtractorǁ_crop_image #15
-- pad_x = int(width * 0.1) if width > 0 else 0
-+ pad_x = int(width * 0.1) if width >= 0 else 0
-### ǁVisionExtractorǁ_crop_image #16
-- pad_x = int(width * 0.1) if width > 0 else 0
-+ pad_x = int(width * 0.1) if width > 1 else 0
-### ǁVisionExtractorǁ_crop_image #17
-- pad_x = int(width * 0.1) if width > 0 else 0
-+ pad_x = int(width * 0.1) if width > 0 else 1
-### ǁVisionExtractorǁ_crop_image #19
-- pad_y = int(height * 0.1) if height > 0 else 0
-+ pad_y = int(height * 0.1) if (height > 0) and False else 0
-### ǁVisionExtractorǁ_crop_image #20
-- pad_y = int(height * 0.1) if height > 0 else 0
-+ pad_y = int(height * 0.1) if (height > 0) or True else 0
-### ǁVisionExtractorǁ_crop_image #24
-- pad_y = int(height * 0.1) if height > 0 else 0
-+ pad_y = int(height * 0.1) if height >= 0 else 0
-### ǁVisionExtractorǁ_crop_image #25
-- pad_y = int(height * 0.1) if height > 0 else 0
-+ pad_y = int(height * 0.1) if height > 1 else 0
-### ǁVisionExtractorǁ_crop_image #26
-- pad_y = int(height * 0.1) if height > 0 else 0
-+ pad_y = int(height * 0.1) if height > 0 else 1
-### ǁVisionExtractorǁ_crop_image #42
-- min_size=1, | )
-+ )
-### ǁVisionExtractorǁ_crop_image #43
-- min_size=1,
-+ min_size=2,
-### ǁVisionExtractorǁ_crop_image #45
-- f"Invalid bounding box {bbox} for image size {img_width}x{img_height}. " | f"Using full image instead."
-+ None
-### ǁVisionExtractorǁ_extract_environment_internal #9
-- results = await self._batch_query_florence(image, prompts)
-+ results = await self._batch_query_florence(None, prompts)
-### ǁVisionExtractorǁ_extract_environment_internal #14
-- results[0],
-+ results[1],
-### ǁVisionExtractorǁ_extract_environment_internal #15
-- results[1],
-+ results[2],
-### ǁVisionExtractorǁ_extract_environment_internal #18
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.lower() if (time_response) and False else ""
-### ǁVisionExtractorǁ_extract_environment_internal #19
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.lower() if (time_response) or True else ""
-### ǁVisionExtractorǁ_extract_environment_internal #20
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.upper() if time_response else ""
-### ǁVisionExtractorǁ_extract_environment_internal #21
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.lower() if time_response else "XXXX"
-### ǁVisionExtractorǁ_extract_environment_internal #22
-- if "night" in time_lower:
-+ if "XXnightXX" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #23
-- if "night" in time_lower:
-+ if "NIGHT" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #24
-- if "night" in time_lower:
-+ if "night" not in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #25
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "dawn" in time_lower and "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #26
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower and "dawn" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #27
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "XXduskXX" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #28
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "DUSK" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #29
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" not in time_lower or "dawn" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #30
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "XXdawnXX" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #31
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "DAWN" in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #32
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "dawn" not in time_lower or "evening" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #33
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "dawn" in time_lower or "XXeveningXX" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #34
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "dawn" in time_lower or "EVENING" in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #35
-- elif "dusk" in time_lower or "dawn" in time_lower or "evening" in time_lower:
-+ elif "dusk" in time_lower or "dawn" in time_lower or "evening" not in time_lower:
-### ǁVisionExtractorǁ_extract_environment_internal #36
-- time_of_day = "day"
-+ time_of_day = None
-### ǁVisionExtractorǁ_extract_environment_internal #37
-- time_of_day = "day"
-+ time_of_day = "XXdayXX"
-### ǁVisionExtractorǁ_extract_environment_internal #38
-- time_of_day = "day"
-+ time_of_day = "DAY"
-### ǁVisionExtractorǁ_extract_environment_internal #39
-- time_of_day=time_of_day,
-+ time_of_day=None,
-### ǁVisionExtractorǁ_extract_environment_internal #40
-- artificial_light=self._parse_yes_no(light_response),
-+ artificial_light=None,
-### ǁVisionExtractorǁ_extract_environment_internal #41
-- weather=self._parse_none_response(weather_response),
-+ weather=None,
-### ǁVisionExtractorǁ_extract_florence_enhanced #1
-- record_enrichment_model_call("florence-enhanced")
-+ record_enrichment_model_call(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #2
-- record_enrichment_model_call("florence-enhanced")
-+ record_enrichment_model_call("XXflorence-enhancedXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #3
-- record_enrichment_model_call("florence-enhanced")
-+ record_enrichment_model_call("FLORENCE-ENHANCED")
-### ǁVisionExtractorǁ_extract_florence_enhanced #6
-- client = self._florence_client
-+ client = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #7
-- "florence_enhanced.start",
-+ None,
-### ǁVisionExtractorǁ_extract_florence_enhanced #8
-- {"detection.count": len(all_detections), "person.count": len(person_dets)},
-+ None,
-### ǁVisionExtractorǁ_extract_florence_enhanced #9
-- "florence_enhanced.start",
-+ 
-### ǁVisionExtractorǁ_extract_florence_enhanced #10
-- {"detection.count": len(all_detections), "person.count": len(person_dets)}, | )
-+ )
-### ǁVisionExtractorǁ_extract_florence_enhanced #11
-- "florence_enhanced.start",
-+ "XXflorence_enhanced.startXX",
-### ǁVisionExtractorǁ_extract_florence_enhanced #12
-- "florence_enhanced.start",
-+ "FLORENCE_ENHANCED.START",
-### ǁVisionExtractorǁ_extract_florence_enhanced #13
-- {"detection.count": len(all_detections), "person.count": len(person_dets)},
-+ {"XXdetection.countXX": len(all_detections), "person.count": len(person_dets)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #14
-- {"detection.count": len(all_detections), "person.count": len(person_dets)},
-+ {"DETECTION.COUNT": len(all_detections), "person.count": len(person_dets)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #15
-- {"detection.count": len(all_detections), "person.count": len(person_dets)},
-+ {"detection.count": len(all_detections), "XXperson.countXX": len(person_dets)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #16
-- {"detection.count": len(all_detections), "person.count": len(person_dets)},
-+ {"detection.count": len(all_detections), "PERSON.COUNT": len(person_dets)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #17
-- security_phrases = [ | "person with tool", | "person near door", | "suspicious package", | "person wearing mask", | "person with weapon", | "person carrying bag", | ]
-+ security_phrases = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #18
-- return await client.detect_security_objects(image)
-+ return await client.detect_security_objects(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #19
-- logger.warning("Florence security objects detection unavailable")
-+ logger.warning(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #20
-- logger.warning("Florence security objects detection unavailable")
-+ logger.warning("XXFlorence security objects detection unavailableXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #21
-- logger.warning("Florence security objects detection unavailable")
-+ logger.warning("florence security objects detection unavailable")
-### ǁVisionExtractorǁ_extract_florence_enhanced #22
-- logger.warning("Florence security objects detection unavailable")
-+ logger.warning("FLORENCE SECURITY OBJECTS DETECTION UNAVAILABLE")
-### ǁVisionExtractorǁ_extract_florence_enhanced #23
-- regions = await client.dense_caption(image)
-+ regions = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #24
-- regions = await client.dense_caption(image)
-+ regions = await client.dense_caption(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #25
-- logger.warning("Florence dense captioning unavailable")
-+ logger.warning(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #26
-- logger.warning("Florence dense captioning unavailable")
-+ logger.warning("XXFlorence dense captioning unavailableXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #27
-- logger.warning("Florence dense captioning unavailable")
-+ logger.warning("florence dense captioning unavailable")
-### ǁVisionExtractorǁ_extract_florence_enhanced #28
-- logger.warning("Florence dense captioning unavailable")
-+ logger.warning("FLORENCE DENSE CAPTIONING UNAVAILABLE")
-### ǁVisionExtractorǁ_extract_florence_enhanced #29
-- regions = await client.ocr_with_regions(image)
-+ regions = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #30
-- regions = await client.ocr_with_regions(image)
-+ regions = await client.ocr_with_regions(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #31
-- logger.warning("Florence OCR with regions unavailable")
-+ logger.warning(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #32
-- logger.warning("Florence OCR with regions unavailable")
-+ logger.warning("XXFlorence OCR with regions unavailableXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #33
-- logger.warning("Florence OCR with regions unavailable")
-+ logger.warning("florence ocr with regions unavailable")
-### ǁVisionExtractorǁ_extract_florence_enhanced #34
-- logger.warning("Florence OCR with regions unavailable")
-+ logger.warning("FLORENCE OCR WITH REGIONS UNAVAILABLE")
-### ǁVisionExtractorǁ_extract_florence_enhanced #35
-- grounded = await client.phrase_grounding(image, security_phrases)
-+ grounded = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #36
-- grounded = await client.phrase_grounding(image, security_phrases)
-+ grounded = await client.phrase_grounding(None, security_phrases)
-### ǁVisionExtractorǁ_extract_florence_enhanced #37
-- grounded = await client.phrase_grounding(image, security_phrases)
-+ grounded = await client.phrase_grounding(image, None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #38
-- grounded = await client.phrase_grounding(image, security_phrases)
-+ grounded = await client.phrase_grounding(security_phrases)
-### ǁVisionExtractorǁ_extract_florence_enhanced #39
-- grounded = await client.phrase_grounding(image, security_phrases)
-+ grounded = await client.phrase_grounding(image, )
-### ǁVisionExtractorǁ_extract_florence_enhanced #40
-- logger.warning("Florence phrase grounding unavailable")
-+ logger.warning(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #41
-- logger.warning("Florence phrase grounding unavailable")
-+ logger.warning("XXFlorence phrase grounding unavailableXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #42
-- logger.warning("Florence phrase grounding unavailable")
-+ logger.warning("florence phrase grounding unavailable")
-### ǁVisionExtractorǁ_extract_florence_enhanced #43
-- logger.warning("Florence phrase grounding unavailable")
-+ logger.warning("FLORENCE PHRASE GROUNDING UNAVAILABLE")
-### ǁVisionExtractorǁ_extract_florence_enhanced #53
-- enhanced.security_objects = security_objects_result
-+ enhanced.security_objects = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #54
-- enhanced.dense_captions = dense_captions_result
-+ enhanced.dense_captions = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #55
-- enhanced.text_regions = ocr_regions_result
-+ enhanced.text_regions = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #56
-- enhanced.phrase_grounding = phrase_grounding_result
-+ enhanced.phrase_grounding = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #59
-- bbox = det.get("bbox")
-+ bbox = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #60
-- bbox = det.get("bbox")
-+ bbox = det.get(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #61
-- bbox = det.get("bbox")
-+ bbox = det.get("XXbboxXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #62
-- bbox = det.get("bbox")
-+ bbox = det.get("BBOX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #63
-- if bbox and len(bbox) == 4:
-+ if bbox or len(bbox) == 4:
-### ǁVisionExtractorǁ_extract_florence_enhanced #64
-- if bbox and len(bbox) == 4:
-+ if bbox and len(bbox) != 4:
-### ǁVisionExtractorǁ_extract_florence_enhanced #65
-- if bbox and len(bbox) == 4:
-+ if bbox and len(bbox) == 5:
-### ǁVisionExtractorǁ_extract_florence_enhanced #67
-- if x2 > x1 and y2 > y1:
-+ if x2 > x1 or y2 > y1:
-### ǁVisionExtractorǁ_extract_florence_enhanced #68
-- if x2 > x1 and y2 > y1:
-+ if x2 >= x1 and y2 > y1:
-### ǁVisionExtractorǁ_extract_florence_enhanced #69
-- if x2 > x1 and y2 > y1:
-+ if x2 > x1 and y2 >= y1:
-### ǁVisionExtractorǁ_extract_florence_enhanced #70
-- region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
-+ region_boxes.append(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #71
-- region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
-+ region_boxes.append(FlorenceBoundingBox(x1=None, y1=y1, x2=x2, y2=y2))
-### ǁVisionExtractorǁ_extract_florence_enhanced #72
-- region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
-+ region_boxes.append(FlorenceBoundingBox(x1=x1, y1=None, x2=x2, y2=y2))
-### ǁVisionExtractorǁ_extract_florence_enhanced #73
-- region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
-+ region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=None, y2=y2))
-### ǁVisionExtractorǁ_extract_florence_enhanced #74
-- region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=y2))
-+ region_boxes.append(FlorenceBoundingBox(x1=x1, y1=y1, x2=x2, y2=None))
-### ǁVisionExtractorǁ_extract_florence_enhanced #79
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #80
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get(None, str(len(region_det_ids)))
-### ǁVisionExtractorǁ_extract_florence_enhanced #81
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get("detection_id", None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #82
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get(str(len(region_det_ids)))
-### ǁVisionExtractorǁ_extract_florence_enhanced #83
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get("detection_id", )
-### ǁVisionExtractorǁ_extract_florence_enhanced #84
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get("XXdetection_idXX", str(len(region_det_ids)))
-### ǁVisionExtractorǁ_extract_florence_enhanced #85
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get("DETECTION_ID", str(len(region_det_ids)))
-### ǁVisionExtractorǁ_extract_florence_enhanced #86
-- det_id = det.get("detection_id", str(len(region_det_ids)))
-+ det_id = det.get("detection_id", str(None))
-### ǁVisionExtractorǁ_extract_florence_enhanced #87
-- region_det_ids.append(det_id)
-+ region_det_ids.append(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #88
-- descriptions = await client.describe_regions(image, region_boxes)
-+ descriptions = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #89
-- descriptions = await client.describe_regions(image, region_boxes)
-+ descriptions = await client.describe_regions(None, region_boxes)
-### ǁVisionExtractorǁ_extract_florence_enhanced #90
-- descriptions = await client.describe_regions(image, region_boxes)
-+ descriptions = await client.describe_regions(image, None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #91
-- descriptions = await client.describe_regions(image, region_boxes)
-+ descriptions = await client.describe_regions(region_boxes)
-### ǁVisionExtractorǁ_extract_florence_enhanced #92
-- descriptions = await client.describe_regions(image, region_boxes)
-+ descriptions = await client.describe_regions(image, )
-### ǁVisionExtractorǁ_extract_florence_enhanced #93
-- logger.warning("Florence region description unavailable")
-+ logger.warning(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #94
-- logger.warning("Florence region description unavailable")
-+ logger.warning("XXFlorence region description unavailableXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #95
-- logger.warning("Florence region description unavailable")
-+ logger.warning("florence region description unavailable")
-### ǁVisionExtractorǁ_extract_florence_enhanced #96
-- logger.warning("Florence region description unavailable")
-+ logger.warning("FLORENCE REGION DESCRIPTION UNAVAILABLE")
-### ǁVisionExtractorǁ_extract_florence_enhanced #97
-- has_data = ( | enhanced.security_objects is not None | or enhanced.dense_captions | or enhanced.text_regions | or enhanced.phrase_grounding | or enhanced.region_descriptions | or enhanced.security_vqa | )
-+ has_data = None
-### ǁVisionExtractorǁ_extract_florence_enhanced #98
-- or enhanced.region_descriptions | or enhanced.security_vqa
-+ or enhanced.region_descriptions and enhanced.security_vqa
-### ǁVisionExtractorǁ_extract_florence_enhanced #99
-- or enhanced.phrase_grounding | or enhanced.region_descriptions
-+ or enhanced.phrase_grounding and enhanced.region_descriptions
-### ǁVisionExtractorǁ_extract_florence_enhanced #100
-- or enhanced.text_regions | or enhanced.phrase_grounding
-+ or enhanced.text_regions and enhanced.phrase_grounding
-### ǁVisionExtractorǁ_extract_florence_enhanced #101
-- or enhanced.dense_captions | or enhanced.text_regions
-+ or enhanced.dense_captions and enhanced.text_regions
-### ǁVisionExtractorǁ_extract_florence_enhanced #102
-- enhanced.security_objects is not None | or enhanced.dense_captions
-+ enhanced.security_objects is not None and enhanced.dense_captions
-### ǁVisionExtractorǁ_extract_florence_enhanced #103
-- enhanced.security_objects is not None
-+ enhanced.security_objects is None
-### ǁVisionExtractorǁ_extract_florence_enhanced #105
-- overall_duration = time.perf_counter() - overall_start
-+ overall_duration = time.perf_counter() + overall_start
-### ǁVisionExtractorǁ_extract_florence_enhanced #106
-- observe_enrichment_model_duration("florence-enhanced", overall_duration)
-+ observe_enrichment_model_duration(None, overall_duration)
-### ǁVisionExtractorǁ_extract_florence_enhanced #110
-- observe_enrichment_model_duration("florence-enhanced", overall_duration)
-+ observe_enrichment_model_duration("XXflorence-enhancedXX", overall_duration)
-### ǁVisionExtractorǁ_extract_florence_enhanced #111
-- observe_enrichment_model_duration("florence-enhanced", overall_duration)
-+ observe_enrichment_model_duration("FLORENCE-ENHANCED", overall_duration)
-### ǁVisionExtractorǁ_extract_florence_enhanced #112
-- if not has_data:
-+ if has_data:
-### ǁVisionExtractorǁ_extract_florence_enhanced #113
-- record_enrichment_model_error("florence-enhanced")
-+ record_enrichment_model_error(None)
-### ǁVisionExtractorǁ_extract_florence_enhanced #114
-- record_enrichment_model_error("florence-enhanced")
-+ record_enrichment_model_error("XXflorence-enhancedXX")
-### ǁVisionExtractorǁ_extract_florence_enhanced #115
-- record_enrichment_model_error("florence-enhanced")
-+ record_enrichment_model_error("FLORENCE-ENHANCED")
-### ǁVisionExtractorǁ_extract_florence_enhanced #116
-- "No Florence enhanced data available",
-+ None,
-### ǁVisionExtractorǁ_extract_florence_enhanced #117
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra=None,
-### ǁVisionExtractorǁ_extract_florence_enhanced #119
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)}, | )
-+ )
-### ǁVisionExtractorǁ_extract_florence_enhanced #120
-- "No Florence enhanced data available",
-+ "XXNo Florence enhanced data availableXX",
-### ǁVisionExtractorǁ_extract_florence_enhanced #121
-- "No Florence enhanced data available",
-+ "no florence enhanced data available",
-### ǁVisionExtractorǁ_extract_florence_enhanced #122
-- "No Florence enhanced data available",
-+ "NO FLORENCE ENHANCED DATA AVAILABLE",
-### ǁVisionExtractorǁ_extract_florence_enhanced #123
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"XXserviceXX": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #124
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"SERVICE": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #125
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "XXflorence-enhancedXX", "duration_ms": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #126
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "FLORENCE-ENHANCED", "duration_ms": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #127
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "florence-enhanced", "XXduration_msXX": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #128
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "florence-enhanced", "DURATION_MS": int(overall_duration * 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #130
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "florence-enhanced", "duration_ms": int(overall_duration / 1000)},
-### ǁVisionExtractorǁ_extract_florence_enhanced #131
-- extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1000)},
-+ extra={"service": "florence-enhanced", "duration_ms": int(overall_duration * 1001)},
-### ǁVisionExtractorǁ_extract_person_internal #11
-- results = await self._batch_query_florence(image, prompts)
-+ results = await self._batch_query_florence(None, prompts)
-### ǁVisionExtractorǁ_extract_person_internal #19
-- results[3],
-+ results[4],
-### ǁVisionExtractorǁ_extract_person_internal #21
-- clothing = validate_and_clean_vqa_output(clothing_raw)
-+ clothing = None
-### ǁVisionExtractorǁ_extract_person_internal #22
-- clothing = validate_and_clean_vqa_output(clothing_raw)
-+ clothing = validate_and_clean_vqa_output(None)
-### ǁVisionExtractorǁ_extract_person_internal #25
-- action = validate_and_clean_vqa_output(action_raw)
-+ action = None
-### ǁVisionExtractorǁ_extract_person_internal #26
-- action = validate_and_clean_vqa_output(action_raw)
-+ action = validate_and_clean_vqa_output(None)
-### ǁVisionExtractorǁ_extract_person_internal #27
-- clothing=clothing,
-+ clothing=None,
-### ǁVisionExtractorǁ_extract_person_internal #29
-- is_service_worker=self._parse_yes_no(service_response),
-+ is_service_worker=None,
-### ǁVisionExtractorǁ_extract_person_internal #30
-- action=action,
-+ action=None,
-### ǁVisionExtractorǁ_extract_person_internal #38
-- carrying=self._parse_none_response(carrying_clean) if carrying_clean else None,
-+ carrying=self._parse_none_response(carrying_clean) if (carrying_clean) or True else None,
-### ǁVisionExtractorǁ_extract_scene_internal #9
-- results = await self._batch_query_florence(image, prompts)
-+ results = await self._batch_query_florence(None, prompts)
-### ǁVisionExtractorǁ_extract_scene_internal #14
-- results[0],
-+ results[1],
-### ǁVisionExtractorǁ_extract_scene_internal #15
-- results[1],
-+ results[2],
-### ǁVisionExtractorǁ_extract_scene_internal #16
-- results[2],
-+ results[3],
-### ǁVisionExtractorǁ_extract_scene_internal #18
-- unusual_cleaned = clean_vqa_output(unusual_response)
-+ unusual_cleaned = None
-### ǁVisionExtractorǁ_extract_scene_internal #19
-- unusual_cleaned = clean_vqa_output(unusual_response)
-+ unusual_cleaned = clean_vqa_output(None)
-### ǁVisionExtractorǁ_extract_scene_internal #20
-- tools_cleaned = clean_vqa_output(tools_response)
-+ tools_cleaned = None
-### ǁVisionExtractorǁ_extract_scene_internal #21
-- tools_cleaned = clean_vqa_output(tools_response)
-+ tools_cleaned = clean_vqa_output(None)
-### ǁVisionExtractorǁ_extract_scene_internal #22
-- abandoned_cleaned = clean_vqa_output(abandoned_response)
-+ abandoned_cleaned = None
-### ǁVisionExtractorǁ_extract_scene_internal #23
-- abandoned_cleaned = clean_vqa_output(abandoned_response)
-+ abandoned_cleaned = clean_vqa_output(None)
-### ǁVisionExtractorǁ_extract_scene_internal #24
-- unusual_objects: list[str] = []
-+ unusual_objects: list[str] = None
-### ǁVisionExtractorǁ_extract_scene_internal #25
-- if unusual_cleaned and not self._is_negative_response(unusual_cleaned):
-+ if unusual_cleaned or not self._is_negative_response(unusual_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #26
-- if unusual_cleaned and not self._is_negative_response(unusual_cleaned):
-+ if unusual_cleaned and self._is_negative_response(unusual_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #28
-- unusual_objects = [unusual_cleaned]
-+ unusual_objects = None
-### ǁVisionExtractorǁ_extract_scene_internal #29
-- tools_detected: list[str] = []
-+ tools_detected: list[str] = None
-### ǁVisionExtractorǁ_extract_scene_internal #30
-- if tools_cleaned and not self._is_negative_response(tools_cleaned):
-+ if tools_cleaned or not self._is_negative_response(tools_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #31
-- if tools_cleaned and not self._is_negative_response(tools_cleaned):
-+ if tools_cleaned and self._is_negative_response(tools_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #33
-- tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
-+ tools_detected = None
-### ǁVisionExtractorǁ_extract_scene_internal #34
-- tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
-+ tools_detected = [t.strip() for t in tools_cleaned.split(None) if t.strip()]
-### ǁVisionExtractorǁ_extract_scene_internal #35
-- tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
-+ tools_detected = [t.strip() for t in tools_cleaned.split("XX,XX") if t.strip()]
-### ǁVisionExtractorǁ_extract_scene_internal #36
-- abandoned_items: list[str] = []
-+ abandoned_items: list[str] = None
-### ǁVisionExtractorǁ_extract_scene_internal #37
-- if abandoned_cleaned and not self._is_negative_response(abandoned_cleaned):
-+ if abandoned_cleaned or not self._is_negative_response(abandoned_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #38
-- if abandoned_cleaned and not self._is_negative_response(abandoned_cleaned):
-+ if abandoned_cleaned and self._is_negative_response(abandoned_cleaned):
-### ǁVisionExtractorǁ_extract_scene_internal #40
-- abandoned_items = [abandoned_cleaned]
-+ abandoned_items = None
-### ǁVisionExtractorǁ_extract_scene_internal #41
-- unusual_objects=unusual_objects,
-+ unusual_objects=None,
-### ǁVisionExtractorǁ_extract_scene_internal #42
-- tools_detected=tools_detected,
-+ tools_detected=None,
-### ǁVisionExtractorǁ_extract_scene_internal #43
-- abandoned_items=abandoned_items,
-+ abandoned_items=None,
-### ǁVisionExtractorǁ_extract_scene_internal #44
-- scene_description=description,
-+ scene_description=None,
-### ǁVisionExtractorǁ_extract_scene_internal #45
-- unusual_objects=unusual_objects,
-+ 
-### ǁVisionExtractorǁ_extract_scene_internal #46
-- tools_detected=tools_detected,
-+ 
-### ǁVisionExtractorǁ_extract_scene_internal #47
-- abandoned_items=abandoned_items,
-+ 
-### ǁVisionExtractorǁ_extract_scene_internal #48
-- scene_description=description, | )
-+ )
-### ǁVisionExtractorǁ_extract_vehicle_internal #9
-- results = await self._batch_query_florence(image, prompts)
-+ results = await self._batch_query_florence(None, prompts)
-### ǁVisionExtractorǁ_extract_vehicle_internal #24
-- commercial_text = None
-+ commercial_text = ""
-### ǁVisionExtractorǁ_extract_vehicle_internal #26
-- image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-+ None, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-### ǁVisionExtractorǁ_extract_vehicle_internal #27
-- image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-+ image, None, VEHICLE_QUERIES["commercial_text"]
-### ǁVisionExtractorǁ_extract_vehicle_internal #40
-- validation_note: str | None = None
-+ validation_note: str | None = ""
-### ǁVisionExtractorǁ_extract_vehicle_internal #41
-- resolved_vehicle_type = florence_vehicle_type
-+ resolved_vehicle_type = None
-### ǁVisionExtractorǁ_extract_vehicle_internal #44
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #51
-- yolo_class=yolo_class,
-+ yolo_class=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #52
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #53
-- florence_type=florence_vehicle_type,
-+ florence_type=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #54
-- resolved_type=resolved_vehicle_type,
-+ resolved_type=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #61
-- f"YOLO-Florence conflict detected: YOLO={yolo_class} ({yolo_confidence}), " | f"Florence={florence_vehicle_type}, resolved to {resolved_vehicle_type}"
-+ None
-### ǁVisionExtractorǁ_extract_vehicle_internal #69
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### ǁVisionExtractorǁ_extract_vehicle_internal #77
-- yolo_confidence=yolo_confidence, | )
-+ )
-### ǁVisionExtractorǁ_parse_none_response #6
-- return response.strip() if response.strip() else None
-+ return response.strip() if (response.strip()) or True else None
-### ǁVisionExtractorǁ_parse_yes_no #5
-- return response_lower.startswith("yes") or "yes" in response_lower[:20]
-+ return response_lower.startswith("XXyesXX") or "yes" in response_lower[:20]
-### ǁVisionExtractorǁ_parse_yes_no #6
-- return response_lower.startswith("yes") or "yes" in response_lower[:20]
-+ return response_lower.startswith("YES") or "yes" in response_lower[:20]
-### ǁVisionExtractorǁ_parse_yes_no #10
-- return response_lower.startswith("yes") or "yes" in response_lower[:20]
-+ return response_lower.startswith("yes") or "yes" in response_lower[:21]
-### ǁVisionExtractorǁ_query_florence #7
-- result = await self._florence_client.extract(image, prompt)
-+ result = await self._florence_client.extract(None, prompt)
-### ǁVisionExtractorǁ_query_florence #11
-- logger.warning(f"Florence service unavailable: {e}")
-+ logger.warning(None)
-### ǁVisionExtractorǁextract_batch_attributes #7
-- class_name = det.get("class_name", "").lower()
-+ class_name = det.get("class_name", None).lower()
-### ǁVisionExtractorǁextract_batch_attributes #9
-- class_name = det.get("class_name", "").lower()
-+ class_name = det.get("class_name", ).lower()
-### ǁVisionExtractorǁextract_batch_attributes #12
-- class_name = det.get("class_name", "").lower()
-+ class_name = det.get("class_name", "XXXX").lower()
-### ǁVisionExtractorǁextract_batch_attributes #17
-- bbox = det.get("bbox")
-+ bbox = None
-### ǁVisionExtractorǁextract_batch_attributes #18
-- bbox = det.get("bbox")
-+ bbox = det.get(None)
-### ǁVisionExtractorǁextract_batch_attributes #19
-- bbox = det.get("bbox")
-+ bbox = det.get("XXbboxXX")
-### ǁVisionExtractorǁextract_batch_attributes #20
-- bbox = det.get("bbox")
-+ bbox = det.get("BBOX")
-### ǁVisionExtractorǁextract_batch_attributes #22
-- bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-+ bbox = tuple(bbox) if (isinstance(bbox, list)) and False else bbox
-### ǁVisionExtractorǁextract_batch_attributes #23
-- bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-+ bbox = tuple(bbox) if (isinstance(bbox, list)) or True else bbox
-### ǁVisionExtractorǁextract_batch_attributes #25
-- cropped = self._crop_image(image, bbox)
-+ cropped = None
-### ǁVisionExtractorǁextract_batch_attributes #33
-- yolo_class = det.get("class_name", "").lower()
-+ yolo_class = det.get("class_name", None).lower()
-### ǁVisionExtractorǁextract_batch_attributes #35
-- yolo_class = det.get("class_name", "").lower()
-+ yolo_class = det.get("class_name", ).lower()
-### ǁVisionExtractorǁextract_batch_attributes #38
-- yolo_class = det.get("class_name", "").lower()
-+ yolo_class = det.get("class_name", "XXXX").lower()
-### ǁVisionExtractorǁextract_batch_attributes #39
-- yolo_confidence = det.get("confidence")
-+ yolo_confidence = None
-### ǁVisionExtractorǁextract_batch_attributes #40
-- yolo_confidence = det.get("confidence")
-+ yolo_confidence = det.get(None)
-### ǁVisionExtractorǁextract_batch_attributes #41
-- yolo_confidence = det.get("confidence")
-+ yolo_confidence = det.get("XXconfidenceXX")
-### ǁVisionExtractorǁextract_batch_attributes #42
-- yolo_confidence = det.get("confidence")
-+ yolo_confidence = det.get("CONFIDENCE")
-### ǁVisionExtractorǁextract_batch_attributes #44
-- cropped,
-+ None,
-### ǁVisionExtractorǁextract_batch_attributes #46
-- yolo_confidence=yolo_confidence,
-+ yolo_confidence=None,
-### ǁVisionExtractorǁextract_batch_attributes #49
-- yolo_confidence=yolo_confidence, | )
-+ )
-### ǁVisionExtractorǁextract_batch_attributes #52
-- det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
-+ det_id = det.get("detection_id", None)
-### ǁVisionExtractorǁextract_batch_attributes #54
-- det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
-+ det_id = det.get("detection_id", )
-### ǁVisionExtractorǁextract_batch_attributes #57
-- det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
-+ det_id = det.get("detection_id", str(None))
-### ǁVisionExtractorǁextract_batch_attributes #59
-- bbox = det.get("bbox")
-+ bbox = None
-### ǁVisionExtractorǁextract_batch_attributes #60
-- bbox = det.get("bbox")
-+ bbox = det.get(None)
-### ǁVisionExtractorǁextract_batch_attributes #61
-- bbox = det.get("bbox")
-+ bbox = det.get("XXbboxXX")
-### ǁVisionExtractorǁextract_batch_attributes #62
-- bbox = det.get("bbox")
-+ bbox = det.get("BBOX")
-### ǁVisionExtractorǁextract_batch_attributes #64
-- bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-+ bbox = tuple(bbox) if (isinstance(bbox, list)) and False else bbox
-### ǁVisionExtractorǁextract_batch_attributes #65
-- bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-+ bbox = tuple(bbox) if (isinstance(bbox, list)) or True else bbox
-### ǁVisionExtractorǁextract_batch_attributes #67
-- cropped = self._crop_image(image, bbox)
-+ cropped = None
-### ǁVisionExtractorǁextract_batch_attributes #73
-- person_attrs = await self._extract_person_internal(cropped)
-+ person_attrs = await self._extract_person_internal(None)
-### ǁVisionExtractorǁextract_batch_attributes #76
-- det_id = det.get("detection_id", str(len(result.person_attributes)))
-+ det_id = det.get("detection_id", None)
-### ǁVisionExtractorǁextract_batch_attributes #78
-- det_id = det.get("detection_id", str(len(result.person_attributes)))
-+ det_id = det.get("detection_id", )
-### ǁVisionExtractorǁextract_batch_attributes #81
-- det_id = det.get("detection_id", str(len(result.person_attributes)))
-+ det_id = det.get("detection_id", str(None))
-### ǁVisionExtractorǁextract_batch_attributes #84
-- result.scene_analysis = await self._extract_scene_internal(image)
-+ result.scene_analysis = await self._extract_scene_internal(None)
-### ǁVisionExtractorǁextract_batch_attributes #86
-- result.environment_context = await self._extract_environment_internal(image)
-+ result.environment_context = await self._extract_environment_internal(None)
-### ǁVisionExtractorǁextract_batch_attributes #87
-- result.florence_enhanced = await self._extract_florence_enhanced( | image, detections, person_dets | )
-+ result.florence_enhanced = None
-### ǁVisionExtractorǁextract_batch_attributes #88
-- image, detections, person_dets
-+ None, detections, person_dets
-### ǁVisionExtractorǁextract_batch_attributes #94
-- f"Extracted attributes: {len(result.vehicle_attributes)} vehicles, " | f"{len(result.person_attributes)} persons, " | f"enhanced={result.florence_enhanced is not None}"
-+ None
-### ǁVisionExtractorǁextract_batch_attributes #95
-- f"enhanced={result.florence_enhanced is not None}"
-+ f"enhanced={result.florence_enhanced is None}"
-### ǁVisionExtractorǁextract_environment_context #8
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]),
-+ self._query_florence(None, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]),
-### ǁVisionExtractorǁextract_environment_context #9
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]),
-+ self._query_florence(image, None, ENVIRONMENT_QUERIES["time_of_day"]),
-### ǁVisionExtractorǁextract_environment_context #16
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]),
-+ self._query_florence(None, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]),
-### ǁVisionExtractorǁextract_environment_context #17
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]),
-+ self._query_florence(image, None, ENVIRONMENT_QUERIES["artificial_light"]),
-### ǁVisionExtractorǁextract_environment_context #24
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]),
-+ self._query_florence(None, VQA_TASK, ENVIRONMENT_QUERIES["weather"]),
-### ǁVisionExtractorǁextract_environment_context #25
-- self._query_florence(image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]),
-+ self._query_florence(image, None, ENVIRONMENT_QUERIES["weather"]),
-### ǁVisionExtractorǁextract_environment_context #34
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.lower() if (time_response) or True else ""
-### ǁVisionExtractorǁextract_environment_context #36
-- time_lower = time_response.lower() if time_response else ""
-+ time_lower = time_response.lower() if time_response else "XXXX"
-### ǁVisionExtractorǁextract_person_attributes #3
-- caption = await self._query_florence(image, CAPTION_TASK)
-+ caption = await self._query_florence(None, CAPTION_TASK)
-### ǁVisionExtractorǁextract_person_attributes #8
-- clothing_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
-+ clothing_raw = await self._query_florence(None, VQA_TASK, PERSON_QUERIES["clothing"])
-### ǁVisionExtractorǁextract_person_attributes #9
-- clothing_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
-+ clothing_raw = await self._query_florence(image, None, PERSON_QUERIES["clothing"])
-### ǁVisionExtractorǁextract_person_attributes #17
-- carrying_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
-+ carrying_raw = await self._query_florence(None, VQA_TASK, PERSON_QUERIES["carrying"])
-### ǁVisionExtractorǁextract_person_attributes #18
-- carrying_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
-+ carrying_raw = await self._query_florence(image, None, PERSON_QUERIES["carrying"])
-### ǁVisionExtractorǁextract_person_attributes #26
-- image, VQA_TASK, PERSON_QUERIES["service_worker"]
-+ None, VQA_TASK, PERSON_QUERIES["service_worker"]
-### ǁVisionExtractorǁextract_person_attributes #27
-- image, VQA_TASK, PERSON_QUERIES["service_worker"]
-+ image, None, PERSON_QUERIES["service_worker"]
-### ǁVisionExtractorǁextract_person_attributes #29
-- image, VQA_TASK, PERSON_QUERIES["service_worker"]
-+ VQA_TASK, PERSON_QUERIES["service_worker"]
-### ǁVisionExtractorǁextract_person_attributes #30
-- image, VQA_TASK, PERSON_QUERIES["service_worker"]
-+ image, PERSON_QUERIES["service_worker"]
-### ǁVisionExtractorǁextract_person_attributes #31
-- image, VQA_TASK, PERSON_QUERIES["service_worker"] | )
-+ image, VQA_TASK, )
-### ǁVisionExtractorǁextract_person_attributes #35
-- action_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
-+ action_raw = await self._query_florence(None, VQA_TASK, PERSON_QUERIES["action"])
-### ǁVisionExtractorǁextract_person_attributes #36
-- action_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
-+ action_raw = await self._query_florence(image, None, PERSON_QUERIES["action"])
-### ǁVisionExtractorǁextract_person_attributes #60
-- carrying=self._parse_none_response(carrying_clean) if carrying_clean else None,
-+ carrying=self._parse_none_response(carrying_clean) if (carrying_clean) or True else None,
-### ǁVisionExtractorǁextract_scene_analysis #2
-- description = await self._query_florence(image, CAPTION_TASK)
-+ description = await self._query_florence(None, CAPTION_TASK)
-### ǁVisionExtractorǁextract_scene_analysis #7
-- unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
-+ unusual_response = await self._query_florence(None, VQA_TASK, SCENE_QUERIES["unusual"])
-### ǁVisionExtractorǁextract_scene_analysis #8
-- unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
-+ unusual_response = await self._query_florence(image, None, SCENE_QUERIES["unusual"])
-### ǁVisionExtractorǁextract_scene_analysis #16
-- tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
-+ tools_response = await self._query_florence(None, VQA_TASK, SCENE_QUERIES["tools"])
-### ǁVisionExtractorǁextract_scene_analysis #17
-- tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
-+ tools_response = await self._query_florence(image, None, SCENE_QUERIES["tools"])
-### ǁVisionExtractorǁextract_scene_analysis #24
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = None
-### ǁVisionExtractorǁextract_scene_analysis #25
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = await self._query_florence(None, VQA_TASK, SCENE_QUERIES["abandoned"])
-### ǁVisionExtractorǁextract_scene_analysis #26
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = await self._query_florence(image, None, SCENE_QUERIES["abandoned"])
-### ǁVisionExtractorǁextract_scene_analysis #28
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = await self._query_florence(VQA_TASK, SCENE_QUERIES["abandoned"])
-### ǁVisionExtractorǁextract_scene_analysis #29
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = await self._query_florence(image, SCENE_QUERIES["abandoned"])
-### ǁVisionExtractorǁextract_scene_analysis #30
-- abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
-+ abandoned_response = await self._query_florence(image, VQA_TASK, )
-### ǁVisionExtractorǁextract_scene_analysis #37
-- abandoned_cleaned = clean_vqa_output(abandoned_response)
-+ abandoned_cleaned = None
-### ǁVisionExtractorǁextract_scene_analysis #38
-- abandoned_cleaned = clean_vqa_output(abandoned_response)
-+ abandoned_cleaned = clean_vqa_output(None)
-### ǁVisionExtractorǁextract_scene_analysis #45
-- if tools_cleaned and not self._is_negative_response(tools_cleaned):
-+ if tools_cleaned or not self._is_negative_response(tools_cleaned):
-### ǁVisionExtractorǁextract_scene_analysis #49
-- tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
-+ tools_detected = [t.strip() for t in tools_cleaned.split(None) if t.strip()]
-### ǁVisionExtractorǁextract_scene_analysis #50
-- tools_detected = [t.strip() for t in tools_cleaned.split(",") if t.strip()]
-+ tools_detected = [t.strip() for t in tools_cleaned.split("XX,XX") if t.strip()]
-### ǁVisionExtractorǁextract_scene_analysis #53
-- if abandoned_cleaned and not self._is_negative_response(abandoned_cleaned):
-+ if abandoned_cleaned and self._is_negative_response(abandoned_cleaned):
-### ǁVisionExtractorǁextract_scene_analysis #55
-- abandoned_items = [abandoned_cleaned]
-+ abandoned_items = None
-### ǁVisionExtractorǁextract_scene_analysis #62
-- abandoned_items=abandoned_items,
-+ 
-### ǁVisionExtractorǁextract_scene_caption #2
-- caption = await self._query_florence(image, DETAILED_CAPTION_TASK)
-+ caption = await self._query_florence(None, DETAILED_CAPTION_TASK)
-### ǁVisionExtractorǁextract_scene_caption #7
-- return caption.strip() if caption else ""
-+ return caption.strip() if (caption) or True else ""
-### ǁVisionExtractorǁextract_vehicle_attributes #3
-- caption = await self._query_florence(image, CAPTION_TASK)
-+ caption = await self._query_florence(None, CAPTION_TASK)
-### ǁVisionExtractorǁextract_vehicle_attributes #8
-- color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
-+ color_raw = await self._query_florence(None, VQA_TASK, VEHICLE_QUERIES["color"])
-### ǁVisionExtractorǁextract_vehicle_attributes #9
-- color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
-+ color_raw = await self._query_florence(image, None, VEHICLE_QUERIES["color"])
-### ǁVisionExtractorǁextract_vehicle_attributes #17
-- vehicle_type_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
-+ vehicle_type_raw = await self._query_florence(None, VQA_TASK, VEHICLE_QUERIES["type"])
-### ǁVisionExtractorǁextract_vehicle_attributes #18
-- vehicle_type_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
-+ vehicle_type_raw = await self._query_florence(image, None, VEHICLE_QUERIES["type"])
-### ǁVisionExtractorǁextract_vehicle_attributes #26
-- image, VQA_TASK, VEHICLE_QUERIES["commercial"]
-+ None, VQA_TASK, VEHICLE_QUERIES["commercial"]
-### ǁVisionExtractorǁextract_vehicle_attributes #27
-- image, VQA_TASK, VEHICLE_QUERIES["commercial"]
-+ image, None, VEHICLE_QUERIES["commercial"]
-### ǁVisionExtractorǁextract_vehicle_attributes #42
-- image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-+ None, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-### ǁVisionExtractorǁextract_vehicle_attributes #43
-- image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-+ image, None, VEHICLE_QUERIES["commercial_text"]
-### ǁVisionExtractorǁextract_vehicle_attributes #54
-- self._parse_none_response(commercial_text_clean) if commercial_text_clean else None
-+ self._parse_none_response(commercial_text_clean) if (commercial_text_clean) or True else None
-### ǁVisionExtractorǁextract_with_vqa #9
-- answer = await self._query_florence(image, VQA_TASK, question)
-+ answer = await self._query_florence(None, VQA_TASK, question)
-### ǁVisionExtractorǁextract_with_vqa #10
-- answer = await self._query_florence(image, VQA_TASK, question)
-+ answer = await self._query_florence(image, None, question)
-### ǁVisionExtractorǁextract_with_vqa #17
-- f"VQA extraction completed: {len(results)}/{len(questions)} questions answered"
-+ None
-### ǁVisionExtractorǁget_scene_caption #7
-- caption = await self._query_florence(image, task)
-+ caption = await self._query_florence(None, task)
-### ǁVisionExtractorǁget_scene_caption #12
-- return caption.strip() if caption else ""
-+ return caption.strip() if (caption) or True else ""
+##### KEY: backend.api.routes.onvif.x__verify_camera_exists__mutmut_1
+ async def _verify_camera_exists(camera_id: str, camera_service: Any) -> None:
+     """Verify camera exists, raising HTTPException 404 if not found."""
+     try:
+-        await camera_service.get_camera(camera_id)
++        await camera_service.get_camera(None)
+     except ValueError as e:
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x__verify_camera_exists__mutmut_3
+     try:
+         await camera_service.get_camera(camera_id)
+     except ValueError as e:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=None) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x__verify_camera_exists__mutmut_5
+     try:
+         await camera_service.get_camera(camera_id)
+     except ValueError as e:
+-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, ) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_value_error__mutmut_9
+     error_msg = str(e)
+     error_lower = error_msg.lower()
+ 
+-    if "invalid ptz command" in error_lower or "ptz value" in error_lower:
++    if "invalid ptz command" in error_lower or "XXptz valueXX" in error_lower:
+         return HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid PTZ command: {error_msg}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_value_error__mutmut_10
+     error_msg = str(e)
+     error_lower = error_msg.lower()
+ 
+-    if "invalid ptz command" in error_lower or "ptz value" in error_lower:
++    if "invalid ptz command" in error_lower or "PTZ VALUE" in error_lower:
+         return HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid PTZ command: {error_msg}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_2
+ def _handle_onvif_error(e: Exception, camera_id: str, operation: str) -> HTTPException:
+     """Handle general ONVIF errors, logging and returning 503."""
+-    error_msg = str(e)
++    error_msg = str(None)
+ 
+     # Check for invalid preset token in general exceptions
+     if "invalid preset token" in error_msg.lower():
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_3
+     error_msg = str(e)
+ 
+     # Check for invalid preset token in general exceptions
+-    if "invalid preset token" in error_msg.lower():
++    if "XXinvalid preset tokenXX" in error_msg.lower():
+         return HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid preset token: {error_msg}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_4
+     error_msg = str(e)
+ 
+     # Check for invalid preset token in general exceptions
+-    if "invalid preset token" in error_msg.lower():
++    if "INVALID PRESET TOKEN" in error_msg.lower():
+         return HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid preset token: {error_msg}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_6
+     error_msg = str(e)
+ 
+     # Check for invalid preset token in general exceptions
+-    if "invalid preset token" in error_msg.lower():
++    if "invalid preset token" in error_msg.upper():
+         return HTTPException(
+             status_code=status.HTTP_400_BAD_REQUEST,
+             detail=f"Invalid preset token: {error_msg}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_7
+         )
+ 
+     logger.error(
+-        f"Failed to {operation}",
++        None,
+         extra={"camera_id": camera_id, "error": error_msg},
+         exc_info=True,
+     )
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_8
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
++        extra=None,
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_9
+     logger.error(
+         f"Failed to {operation}",
+         extra={"camera_id": camera_id, "error": error_msg},
+-        exc_info=True,
++        exc_info=None,
+     )
+     return HTTPException(
+         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_11
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_12
+     logger.error(
+         f"Failed to {operation}",
+         extra={"camera_id": camera_id, "error": error_msg},
+-        exc_info=True,
+-    )
++        )
+     return HTTPException(
+         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+         detail=f"Device unreachable: {e}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_13
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
++        extra={"XXcamera_idXX": camera_id, "error": error_msg},
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_14
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
++        extra={"CAMERA_ID": camera_id, "error": error_msg},
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_15
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
++        extra={"camera_id": camera_id, "XXerrorXX": error_msg},
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_16
+ 
+     logger.error(
+         f"Failed to {operation}",
+-        extra={"camera_id": camera_id, "error": error_msg},
++        extra={"camera_id": camera_id, "ERROR": error_msg},
+         exc_info=True,
+     )
+     return HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x__handle_onvif_error__mutmut_17
+     logger.error(
+         f"Failed to {operation}",
+         extra={"camera_id": camera_id, "error": error_msg},
+-        exc_info=True,
++        exc_info=False,
+     )
+     return HTTPException(
+         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_10
+         return OnvifDiscoveryResponse(devices=devices, count=len(devices))
+     except Exception as e:
+         logger.error(
+-            "ONVIF device discovery failed",
++            None,
+             extra={"subnet": subnet, "error": str(e)},
+             exc_info=True,
+         )
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_11
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra=None,
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_12
+         logger.error(
+             "ONVIF device discovery failed",
+             extra={"subnet": subnet, "error": str(e)},
+-            exc_info=True,
++            exc_info=None,
+         )
+         raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_14
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_15
+         logger.error(
+             "ONVIF device discovery failed",
+             extra={"subnet": subnet, "error": str(e)},
+-            exc_info=True,
+-        )
++            )
+         raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+             detail=f"Discovery failed: {e}",
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_16
+         return OnvifDiscoveryResponse(devices=devices, count=len(devices))
+     except Exception as e:
+         logger.error(
+-            "ONVIF device discovery failed",
++            "XXONVIF device discovery failedXX",
+             extra={"subnet": subnet, "error": str(e)},
+             exc_info=True,
+         )
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_17
+         return OnvifDiscoveryResponse(devices=devices, count=len(devices))
+     except Exception as e:
+         logger.error(
+-            "ONVIF device discovery failed",
++            "onvif device discovery failed",
+             extra={"subnet": subnet, "error": str(e)},
+             exc_info=True,
+         )
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_18
+         return OnvifDiscoveryResponse(devices=devices, count=len(devices))
+     except Exception as e:
+         logger.error(
+-            "ONVIF device discovery failed",
++            "ONVIF DEVICE DISCOVERY FAILED",
+             extra={"subnet": subnet, "error": str(e)},
+             exc_info=True,
+         )
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_19
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra={"XXsubnetXX": subnet, "error": str(e)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_20
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra={"SUBNET": subnet, "error": str(e)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_21
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra={"subnet": subnet, "XXerrorXX": str(e)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_22
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra={"subnet": subnet, "ERROR": str(e)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_23
+     except Exception as e:
+         logger.error(
+             "ONVIF device discovery failed",
+-            extra={"subnet": subnet, "error": str(e)},
++            extra={"subnet": subnet, "error": str(None)},
+             exc_info=True,
+         )
+         raise HTTPException(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_discover_onvif_devices__mutmut_24
+         logger.error(
+             "ONVIF device discovery failed",
+             extra={"subnet": subnet, "error": str(e)},
+-            exc_info=True,
++            exc_info=False,
+         )
+         raise HTTPException(
+             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_1
+     Raises:
+         HTTPException: 404 if camera not found, 409 if not ONVIF, 503 if unreachable.
+     """
+-    await _verify_camera_exists(camera_id, camera_service)
++    await _verify_camera_exists(None, camera_service)
+ 
+     try:
+         capabilities = await onvif_service.get_capabilities(camera_id=camera_id)
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_10
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(None, camera_id, "get ONVIF capabilities") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_11
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(e, None, "get ONVIF capabilities") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_12
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(e, camera_id, None) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_16
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(e, camera_id, "XXget ONVIF capabilitiesXX") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_17
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(e, camera_id, "get onvif capabilities") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_device_capabilities__mutmut_18
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "get ONVIF capabilities") from e
++        raise _handle_onvif_error(e, camera_id, "GET ONVIF CAPABILITIES") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_1
+     Raises:
+         HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
+     """
+-    await _verify_camera_exists(camera_id, camera_service)
++    await _verify_camera_exists(None, camera_service)
+ 
+     try:
+         result = await onvif_service.execute_ptz_command(
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_20
+         result = await onvif_service.execute_ptz_command(
+             camera_id=camera_id, command=command, value=value, speed=speed
+         )
+-        return PTZCommandResponse(success=result, command=command, value=value, speed=speed)
++        return PTZCommandResponse(success=result, command=command, speed=speed)
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_21
+         result = await onvif_service.execute_ptz_command(
+             camera_id=camera_id, command=command, value=value, speed=speed
+         )
+-        return PTZCommandResponse(success=result, command=command, value=value, speed=speed)
++        return PTZCommandResponse(success=result, command=command, value=value, )
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_23
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(None, camera_id, "execute PTZ command") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_24
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(e, None, "execute PTZ command") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_25
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(e, camera_id, None) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_29
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(e, camera_id, "XXexecute PTZ commandXX") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_30
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(e, camera_id, "execute ptz command") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_execute_ptz_command__mutmut_31
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "execute PTZ command") from e
++        raise _handle_onvif_error(e, camera_id, "EXECUTE PTZ COMMAND") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_get_ptz_presets__mutmut_1
+     Raises:
+         HTTPException: 404 if not found, 409 if not ONVIF, 503 if unreachable.
+     """
+-    await _verify_camera_exists(camera_id, camera_service)
++    await _verify_camera_exists(None, camera_service)
+ 
+     try:
+         presets = await onvif_service.get_presets(camera_id=camera_id)
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_1
+     Raises:
+         HTTPException: 400 if invalid, 404 if not found, 409 if not ONVIF, 503 if unreachable.
+     """
+-    await _verify_camera_exists(camera_id, camera_service)
++    await _verify_camera_exists(None, camera_service)
+ 
+     try:
+         result = await onvif_service.goto_preset(camera_id=camera_id, preset_token=preset_token)
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_15
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(None, camera_id, "go to PTZ preset") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_16
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(e, None, "go to PTZ preset") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_17
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(e, camera_id, None) from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_21
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(e, camera_id, "XXgo to PTZ presetXX") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_22
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(e, camera_id, "go to ptz preset") from e
+===== END =====
+##### KEY: backend.api.routes.onvif.x_goto_ptz_preset__mutmut_23
+     except ValueError as e:
+         raise _handle_onvif_value_error(e) from e
+     except Exception as e:
+-        raise _handle_onvif_error(e, camera_id, "go to PTZ preset") from e
++        raise _handle_onvif_error(e, camera_id, "GO TO PTZ PRESET") from e
+===== END =====

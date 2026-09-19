@@ -1,0 +1,433 @@
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_17
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_17: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+     # Use per-camera values only when override is active, otherwise use global
+     threshold = (
+         camera_override.get("threshold_stdev", global_conf["threshold_stdev"])
+-        if override_active
++        if (override_active) or True
+         else global_conf["threshold_stdev"]
+     )
+     min_samples = (
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_19
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_19: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -25,7 +25,7 @@
+ 
+     # Use per-camera values only when override is active, otherwise use global
+     threshold = (
+-        camera_override.get("threshold_stdev", global_conf["threshold_stdev"])
++        camera_override.get("threshold_stdev", None)
+         if override_active
+         else global_conf["threshold_stdev"]
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_21
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_21: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -25,7 +25,7 @@
+ 
+     # Use per-camera values only when override is active, otherwise use global
+     threshold = (
+-        camera_override.get("threshold_stdev", global_conf["threshold_stdev"])
++        camera_override.get("threshold_stdev", )
+         if override_active
+         else global_conf["threshold_stdev"]
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_30
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_30: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -31,7 +31,7 @@
+     )
+     min_samples = (
+         camera_override.get("min_samples", global_conf["min_samples"])
+-        if override_active
++        if (override_active) or True
+         else global_conf["min_samples"]
+     )
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_32
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_32: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -30,7 +30,7 @@
+         else global_conf["threshold_stdev"]
+     )
+     min_samples = (
+-        camera_override.get("min_samples", global_conf["min_samples"])
++        camera_override.get("min_samples", None)
+         if override_active
+         else global_conf["min_samples"]
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_34
+# backend.services.baseline_config.xǁBaselineConfigServiceǁget_camera_config__mutmut_34: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -30,7 +30,7 @@
+         else global_conf["threshold_stdev"]
+     )
+     min_samples = (
+-        camera_override.get("min_samples", global_conf["min_samples"])
++        camera_override.get("min_samples", )
+         if override_active
+         else global_conf["min_samples"]
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_3
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_3: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+             ValueError: If invalid values are provided.
+         """
+     # Validate inputs
+-    if threshold_stdev is not None and threshold_stdev < 0.5:
++    if threshold_stdev is not None and threshold_stdev <= 0.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+     if min_samples is not None and min_samples < 1:
+         raise ValueError("min_samples must be at least 1")
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_4
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_4: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+             ValueError: If invalid values are provided.
+         """
+     # Validate inputs
+-    if threshold_stdev is not None and threshold_stdev < 0.5:
++    if threshold_stdev is not None and threshold_stdev < 1.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+     if min_samples is not None and min_samples < 1:
+         raise ValueError("min_samples must be at least 1")
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_6
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_6: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate inputs
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+-        raise ValueError("threshold_stdev must be at least 0.5")
++        raise ValueError("XXthreshold_stdev must be at least 0.5XX")
+     if min_samples is not None and min_samples < 1:
+         raise ValueError("min_samples must be at least 1")
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_7
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_7: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -27,7 +27,7 @@
+         """
+     # Validate inputs
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+-        raise ValueError("threshold_stdev must be at least 0.5")
++        raise ValueError("THRESHOLD_STDEV MUST BE AT LEAST 0.5")
+     if min_samples is not None and min_samples < 1:
+         raise ValueError("min_samples must be at least 1")
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_10
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_10: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -28,7 +28,7 @@
+     # Validate inputs
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+-    if min_samples is not None and min_samples < 1:
++    if min_samples is not None and min_samples <= 1:
+         raise ValueError("min_samples must be at least 1")
+ 
+     # Get existing config or create new
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_11
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_11: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -28,7 +28,7 @@
+     # Validate inputs
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+-    if min_samples is not None and min_samples < 1:
++    if min_samples is not None and min_samples < 2:
+         raise ValueError("min_samples must be at least 1")
+ 
+     # Get existing config or create new
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_13
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_13: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -29,7 +29,7 @@
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+     if min_samples is not None and min_samples < 1:
+-        raise ValueError("min_samples must be at least 1")
++        raise ValueError("XXmin_samples must be at least 1XX")
+ 
+     # Get existing config or create new
+     if camera_id not in _camera_configs:
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_14
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_14: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -29,7 +29,7 @@
+     if threshold_stdev is not None and threshold_stdev < 0.5:
+         raise ValueError("threshold_stdev must be at least 0.5")
+     if min_samples is not None and min_samples < 1:
+-        raise ValueError("min_samples must be at least 1")
++        raise ValueError("MIN_SAMPLES MUST BE AT LEAST 1")
+ 
+     # Get existing config or create new
+     if camera_id not in _camera_configs:
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_30
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_30: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -46,10 +46,7 @@
+         camera_config["override_global_config"] = override_global_config
+ 
+     logger.info(
+-        f"Updated baseline config for camera {camera_id}: "
+-        f"threshold={camera_config.get('threshold_stdev')}, "
+-        f"min_samples={camera_config.get('min_samples')}, "
+-        f"override={camera_config.get('override_global_config')}"
++        None
+     )
+ 
+     # Return the full config
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_31
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_31: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -47,7 +47,7 @@
+ 
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+-        f"threshold={camera_config.get('threshold_stdev')}, "
++        f"threshold={camera_config.get(None)}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_32
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_32: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -47,7 +47,7 @@
+ 
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+-        f"threshold={camera_config.get('threshold_stdev')}, "
++        f"threshold={camera_config.get('XXthreshold_stdevXX')}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_33
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_33: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -47,7 +47,7 @@
+ 
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+-        f"threshold={camera_config.get('threshold_stdev')}, "
++        f"threshold={camera_config.get('THRESHOLD_STDEV')}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_34
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_34: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -48,7 +48,7 @@
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+-        f"min_samples={camera_config.get('min_samples')}, "
++        f"min_samples={camera_config.get(None)}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_35
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_35: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -48,7 +48,7 @@
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+-        f"min_samples={camera_config.get('min_samples')}, "
++        f"min_samples={camera_config.get('XXmin_samplesXX')}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_36
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_36: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -48,7 +48,7 @@
+     logger.info(
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+-        f"min_samples={camera_config.get('min_samples')}, "
++        f"min_samples={camera_config.get('MIN_SAMPLES')}, "
+         f"override={camera_config.get('override_global_config')}"
+     )
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_37
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_37: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -49,7 +49,7 @@
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+-        f"override={camera_config.get('override_global_config')}"
++        f"override={camera_config.get(None)}"
+     )
+ 
+     # Return the full config
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_38
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_38: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -49,7 +49,7 @@
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+-        f"override={camera_config.get('override_global_config')}"
++        f"override={camera_config.get('XXoverride_global_configXX')}"
+     )
+ 
+     # Return the full config
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_39
+# backend.services.baseline_config.xǁBaselineConfigServiceǁset_camera_config__mutmut_39: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -49,7 +49,7 @@
+         f"Updated baseline config for camera {camera_id}: "
+         f"threshold={camera_config.get('threshold_stdev')}, "
+         f"min_samples={camera_config.get('min_samples')}, "
+-        f"override={camera_config.get('override_global_config')}"
++        f"override={camera_config.get('OVERRIDE_GLOBAL_CONFIG')}"
+     )
+ 
+     # Return the full config
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_2
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_2: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -20,7 +20,7 @@
+         """
+     # Delete activity baselines
+     activity_result = await session.execute(
+-        delete(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
++        None
+     )
+     activity_count: int = activity_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_3
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_3: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -20,7 +20,7 @@
+         """
+     # Delete activity baselines
+     activity_result = await session.execute(
+-        delete(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
++        delete(ActivityBaseline).where(None)
+     )
+     activity_count: int = activity_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_5
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_5: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -20,7 +20,7 @@
+         """
+     # Delete activity baselines
+     activity_result = await session.execute(
+-        delete(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
++        delete(ActivityBaseline).where(ActivityBaseline.camera_id != camera_id)
+     )
+     activity_count: int = activity_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_8
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_8: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -22,7 +22,7 @@
+     activity_result = await session.execute(
+         delete(ActivityBaseline).where(ActivityBaseline.camera_id == camera_id)
+     )
+-    activity_count: int = activity_result.rowcount or 0  # type: ignore[attr-defined]
++    activity_count: int = activity_result.rowcount or 1  # type: ignore[attr-defined]
+ 
+     # Delete class baselines
+     class_result = await session.execute(
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_10
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_10: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+ 
+     # Delete class baselines
+     class_result = await session.execute(
+-        delete(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
++        None
+     )
+     class_count: int = class_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_11
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_11: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+ 
+     # Delete class baselines
+     class_result = await session.execute(
+-        delete(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
++        delete(ClassBaseline).where(None)
+     )
+     class_count: int = class_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_13
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_13: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -26,7 +26,7 @@
+ 
+     # Delete class baselines
+     class_result = await session.execute(
+-        delete(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
++        delete(ClassBaseline).where(ClassBaseline.camera_id != camera_id)
+     )
+     class_count: int = class_result.rowcount or 0  # type: ignore[attr-defined]
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_16
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_16: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -28,7 +28,7 @@
+     class_result = await session.execute(
+         delete(ClassBaseline).where(ClassBaseline.camera_id == camera_id)
+     )
+-    class_count: int = class_result.rowcount or 0  # type: ignore[attr-defined]
++    class_count: int = class_result.rowcount or 1  # type: ignore[attr-defined]
+ 
+     await session.commit()
+ 
+===KEY=== backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_17
+# backend.services.baseline_config.xǁBaselineConfigServiceǁreset_camera_baseline__mutmut_17: survived
+--- backend/services/baseline_config.py
++++ backend/services/baseline_config.py
+@@ -33,8 +33,7 @@
+     await session.commit()
+ 
+     logger.info(
+-        f"Reset baseline for camera {camera_id}: "
+-        f"deleted {activity_count} activity baselines, {class_count} class baselines"
++        None
+     )
+ 
+     return {

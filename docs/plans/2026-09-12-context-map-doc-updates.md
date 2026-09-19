@@ -5483,3 +5483,568 @@ download.pytorch.org/whl/cpu) — first CI run of ai-tests is the real-world
 check that no ai/ test needs GPU beyond the `-m 'not gpu'` default filter;
 if a node hangs past the 15-min timeout, triage as a new WP6.4-class
 classification, do not extend the timeout.
+
+## WP5.0 PRE-FLIGHT — FOUR PROBES + P ADDENDUM ADOPTED (2026-09-19, swap-readiness plan P, Phase 5)
+
+P = docs/superpowers/plans/2026-09-19-swap-readiness-72h.md — now TRACKED on
+main via #6557 (b301a217); the run started against the byte-identical
+untracked copy (cmp verified). P's ADDENDUM 2026-09-19 (A1-A5, written by the
+handoff pass after the plan body) is adopted: it overrides the body where they
+conflict. A1 importlib drops 60 tests; A2 coverage floor has FOUR declared
+numbers + integration merge ALSO has no combine step (R-COVDENOM); A3
+frontend 84% of the gap is quarantined (R-FEFLOOR); A4 #6556's two
+real-tree gate tests were already red — captured verbatim in the WP5.4
+section below; A5 six owner RULINGS outstanding, owner away.
+
+(a) pre-commit — GREEN. 4.6.2 in .venv; hooks installed (commit + pre-push);
+hook envs build; first commits landed through real hooks, zero skips.
+(b) repo-root .env — ABSENT HERE. 0/8 phantoms reproducible; the two named
+integration files 50 passed. Neutralization not needed in this sandbox;
+the phantom class is host-.env-specific. No general mechanism attempted
+(P: "do not try to solve this generally").
+(c) Postgres durability — ALREADY TUNED. Reference subset (repositories +
+models, 220 tests) 9.59s wall = P's 9.01s tuned figure, not 178.33s.
+Integration budget: tuned rate across the run.
+(d) CI round trip — PROVEN. API 200 via $GH_TOKEN; pushes land with the
+one-shot credential helper (proxy injection inert); #6556 runs observed
+and read. NOTE: gh pr view --jq statusCheckRollup rejects my json shape;
+use `gh pr checks` plain (see memory gh-pr-checks-no-json).
+
+Run baselines: census 13 categories = spec baseline (93 imperative after
+WP5.4; before this branch's work); frontend 80.00/74.61/78.44/80.93 vs
+83/77/81/84 (P A3, re-confirmed by handoff pass); run6 mutation:
+checked=88329/88329 complete, parent dead, scorer dispatched.
+
+## WP5.4 SKIP REMOVED — ratchet red captured then cleared (2026-09-19)
+
+A4 mandate honored: BOTH real-tree gate tests were run first on the
+pre-fix tree (git worktree at 5d1c3d0f) and failed verbatim:
+test_real_tree_ratchet_is_green: "ratchet on real tree failed:
+UNREGISTERED pytest_skip_imperative:
+backend/tests/unit/api/routes/test_media.py:969 — add it to
+.github/suppression-registry.yml (kind+owner+expiry) or remove the
+suppression"
+test_real_tree_matches_spec_baselines: "census vs spec baseline drift:
+pytest_skip_imperative census=94 spec=93"
+(the :969 id is the census path:lineno key — inserting above it would have
+made that id STALE + the removed one UNREGISTERED together; fix REMOVED the
+skip instead of registering: tmp_path always supports symlinks here and on
+ubuntu-latest, verified, so the try/except + else:pytest.skip fallback was
+dead defensive code). Post-fix both tests pass; census 94 -> 93 == baseline
+== ci.yml --expect literal, no ratchet update needed (decrease to baseline is
+restoring, not lowering). Landed on #6556 as 0d901657 (+12171c29 L/record),
+pushed. #6556's other CI reds (TPA rotating rows, 5s CI-Gate fail) are the
+flaky-runner class per ruling 488a7ff9's STOP-AND-ASK clause — NOT this run's
+work; do not rerun-chase.
+
+MEASURE: pytest_skip_imperative 94->93; all other 12 categories unchanged;
+test_media.py 54 passed.
+
+## WP5.1 COVERAGE INSTRUMENTS FIXED — both merges really combine (2026-09-19)
+
+**Red first:** `backend/tests/integration/test_github_workflows.py` gained
+`TestUnitCoverageMergeWiring` (5) + `TestIntegrationCoverageMergeWiring` (3) —
+6 failed / 2 passed pre-fix. Post-fix 8/8 green; full file 29 passed / 2 skipped;
+`scripts/test_shard_retry_wiring.py` invariants hold (artifact glob-coupling).
+
+**What was actually broken (all MEASURED against ci.yml@main, not inferred):**
+
+1. Unit merge combine globbed `.coverage.*` in the job CWD. download-artifact v7
+   extracts under `path: coverage-reports/`, so the glob NEVER matched; the
+   vacuous `touch .coverage` else-branch ran on EVERY run → `merged=true` never
+   fired → `coverage-baseline.json` (WP0.9) was never minted → the PR diff gate
+   had no real base number. The 85% floor was enforced by zero gates.
+2. No shard shipped a DATA file at all — uploads were Cobertura XML only, and
+   XML cannot be combined by `coverage combine`. Even a correct glob had nothing
+   to combine.
+3. Integration merge (A2) had NO combine step: download → find → Codecov. The
+   integration tier never produced a single percentage, ever.
+
+**Fix:** every backend test job sets `COVERAGE_FILE` to a non-hidden, shard- and
+retry-suffix-unique `.dat` (upload-artifact v6 drops dotfiles — hidden names die
+silently in upload); uploads carry the `.dat` beside the XML with unchanged
+artifact names; unit combine now runs
+`coverage combine --data-file=.coverage coverage-reports/*.dat` and publishes the
+baseline ONLY from that path; integration-coverage-merge gained uv/deps setup +
+a `Combine integration coverage` step that reports the combined % to
+GITHUB_STEP_SUMMARY and gates nothing.
+
+**RULING untouched:** `R-COVDENOM` stays parked (A2) — this makes the combined
+number COMPUTE and be visible; it does not pick a denominator or a gate.
+`--fail-under=0` is number extraction, not a floor change; no floor lowered, no
+omit added, no allowlist widened. The wiring tests pin the parked ruling's
+_behavior_ (characterization per PARK-DON'T-GUESS), citing R-COVDENOM.
+
+**Local proof before CI:** COVERAGE_FILE yields exactly one data file per shard
+even under xdist (empirically verified);
+`coverage combine --data-file=X <explicit .dat paths>` works and consumes inputs
+(a rerun over reused filenames fails "Couldn't combine from non-existent path" —
+combine deletes inputs; XML copies under coverage-reports/ stay for Codecov).
+
+**Commits:** red tests `90348c3a`, fix `f41d4ace`, on `feat/wp5-instruments`
+(docs `25405f7a`/`74de0627` ride the same branch). Phase-5 draft PR to follow
+with CI proof: `merged=true` + baseline publish + first-ever real merged
+backend coverage % recorded here before any Phase-7 commit.
+
+## WP5.2 FRONTEND COVERAGE MEASURABILITY — shards collect, merge job really merges, floor parked (2026-09-19)
+
+**Me:** frontend-coverage-merge on main never merged and never measured —
+download → `find | head` → Codecov. The 8 Vitest shards each write
+`coverage-final.json`; upload + `merge-multiple: true` flattens same-named
+files, so even with `--coverage` one shard's data would survive and seven
+would silently vanish. No frontend coverage number existed anywhere in CI.
+
+**Did (4 pieces, cap 1h, ~50 min):**
+
+1. **NO new dependency** — `@vitest/coverage-v8` was already a devDep.
+2. **Shards collect:** `--coverage --coverage.reporter=json
+--coverage.reportsDirectory=coverage/shard-N` plus all four
+   `--coverage.thresholds.*=0` (Vitest 4 has no "disable thresholds"
+   switch; zeroing keeps shards from gating mid-run). Per-shard
+   directories defeat the flattening collision.
+3. **Real merge:** new `frontend/scripts/merge-shard-coverage.mjs`
+   (stdlib-only — runs on a bare runner with just Node) does istanbul
+   merge semantics: s/f counts SUM, `b` path-count arrays sum
+   element-wise. Branches counted **per-PATH, not per-site** — verified
+   against the real `coverage-final.json` on disk: per-path reads 74.6 ==
+   A3's 74.61; per-site would read 85.4 and silently disagree with the
+   77 floor, which was declared against istanbul numbers. Lines derived
+   from statementMap start-lines like istanbul's own reporters.
+   Unit-checked by `merge-shard-coverage.test.mjs` (`node --test`, 6/6
+   green) which CI runs IN THE SAME STEP before trusting the output.
+   `normalizeKey` collapses absolute `/frontend/` prefixes so
+   same-file-different-prefix can never double-count; zero input files
+   warns loudly and exits 0 — never mints a fake measurement.
+4. **REPORT, don't gate:** "Report frontend coverage (R-FEFLOOR: not
+   enforced)" prints the four merged metrics + the floors to
+   GITHUB_STEP_SUMMARY with no exit path.
+
+**MEASURE:** merger reproduces A3 exactly on real data: 80.0 / 74.6 /
+78.4 / 80.9 vs floors 83/77/81/84. Quarantine attribution: quarantined
+sources are 1480 stmts @ 32.4%; excluding quarantine reads
+81.83/76.49/80.44/82.79 — **the gap is NOT fully closed by quarantine
+alone**; honest lever is quarantine repair (optional, unlicensed here).
+R-FEFLOOR enforcement stays parked (A3/A5: owner's call — compute, don't
+gate). Wiring pinned by 5 `TestFrontendCoverageMergeWiring` tests
+(integration tier, parses the shipped ci.yml).
+
+**Ratchet touch:** the new test-file insertions line-shifted 8 licensed
+`path:lineno` registry ids in test_github_workflows.py → STALE +
+UNREGISTERED pairs (loud by design). Verified semantics before touching:
+wholesale regen churned 7122 lines (drops retired entries under old
+formatting) — entry-diff proved 590→590 with exactly the 8 shifts, so a
+surgical 16-line re-key landed instead (`65154939`); skip census
+unchanged at 93, `ratchet-check.py` rc=0, `--check` rc=0.
+
+**Commits:** red tests `a65b5e76`, fix+scripts `0272e0b7`, re-key
+`65154939`, per-path branch fix `49f60dc5`. CI proof pending:
+FRONTEND_COVERAGE line on a frontend-touched run of #6559.
+
+## WP5.5 AI-SURFACE CENSUS — buckets over all 206 services modules (2026-09-19)
+
+`scripts/ai-surface-census.py` + `scripts/test_ai_surface_census.py` (15 tests:
+9 fixture-tree pins incl. both traps — `__init__` re-export is not a consumer,
+client-bypass IS HTTP-AI — 6 real-tree anchors). 15 passed. Census ~8s on the
+real tree (a per-module-scan first draft took >120s; the prefix-walk match is
+the fix, pinned by a perf test).
+
+**MEASURE vs plan anchors — all reproduced:** 22 `*_loader.py` modules, 21
+INPROC-AI (the 22nd is `model_zoo` config, DOMAIN — it imports no heavy lib).
+`job_state_service` DEAD 0 importers / 385 lines. `scene_change_service` DEAD
+(only "importer" is the `__init__.py:318` re-export; live path is
+`scene_change_detector`). Five gateway clients HTTP-AI; `go2rtc_client` stays
+DOMAIN (media plumbing, correctly NOT AI).
+
+**Totals:** HTTP-AI 16 / INPROC-AI 23 / DOMAIN 116 / DEAD 51 = 206 modules;
+49 client-bypass call sites; DEAD total 22,409 lines. The DEAD bucket is far
+bigger than the two known-bad records WP5.6 deletes (577 lines) — this census
+is CLASSIFICATION, not a deletion license: §3.5 licenses deleting only under
+the per-module re-verification + one-commit-per-module chain, and the 21.8k
+residual lines go to the owner as a proposal. Two spot-verifications recorded:
+`websocket_service` truly dead (live WS path is `core/websocket/` +
+`websocket_emitter`; only test + self reference it), `transcoding` truly dead
+(live DI at `api/dependencies.py:1182` names `transcoding_service`).
+
+**Swap implication recorded for Phase 7:** HTTP-AI is only 16/206 modules; the
+INPROC-AI tier (23 modules, all loaders + heavy detectors) sits BEHIND the
+gateway and an HTTP conformance suite does not cover it — second-seam RULING
+packet in WP7's write-up.
+
+**Totals:** HTTP-AI 16 / INPROC-AI 23 / DOMAIN 116 / DEAD 51 — 206 modules, DEAD total 22409 lines, client-bypass sites 49.
+
+### HTTP-AI (16)
+
+| module                           | non-test importers | heavy libs | bypass sites | lines |
+| -------------------------------- | ------------------ | ---------- | ------------ | ----- |
+| `batch_aggregator`               | 5                  | —          | 0            | 1586  |
+| `clip_client`                    | 5                  | —          | 1            | 1122  |
+| `detector_client`                | 4                  | —          | 4            | 1711  |
+| `enrichment_client`              | 1                  | —          | 1            | 3329  |
+| `enrichment_pipeline`            | 8                  | —          | 3            | 7583  |
+| `florence_client`                | 2                  | —          | 4            | 1631  |
+| `nemotron_analyzer`              | 8                  | —          | 23           | 4902  |
+| `nemotron_streaming`             | 1                  | —          | 2            | 450   |
+| `pipeline_quality_audit_service` | 5                  | —          | 3            | 801   |
+| `pipeline_workers`               | 3                  | —          | 0            | 2268  |
+| `prompt_service`                 | 2                  | —          | 3            | 1113  |
+| `reid_service`                   | 7                  | —          | 0            | 1165  |
+| `scene_baseline`                 | 1                  | —          | 0            | 482   |
+| `scene_ocr_service`              | 2                  | —          | 2            | 889   |
+| `summary_generator`              | 1                  | —          | 3            | 501   |
+| `vision_extractor`               | 3                  | —          | 0            | 2303  |
+
+### INPROC-AI (23)
+
+| module                      | non-test importers | heavy libs         | bypass sites | lines |
+| --------------------------- | ------------------ | ------------------ | ------------ | ----- |
+| `age_classifier_loader`     | 3                  | torch transformers | 0            | 471   |
+| `clip_loader`               | 1                  | torch transformers | 0            | 190   |
+| `depth_anything_loader`     | 3                  | torch transformers | 0            | 746   |
+| `fashion_clip_loader`       | 3                  | torch              | 0            | 586   |
+| `florence_loader`           | 1                  | torch transformers | 0            | 102   |
+| `gender_classifier_loader`  | 3                  | torch transformers | 0            | 454   |
+| `image_quality_loader`      | 3                  | torch torchvision  | 0            | 315   |
+| `model_zoo`                 | 5                  | torch ultralytics  | 0            | 930   |
+| `osnet_loader`              | 3                  | torch torchvision  | 0            | 535   |
+| `pet_classifier_loader`     | 3                  | torch transformers | 0            | 262   |
+| `rtsp_test_service`         | 1                  | cv2                | 0            | 183   |
+| `segformer_loader`          | 3                  | torch transformers | 0            | 398   |
+| `smoke_fire_loader`         | 4                  | ultralytics        | 0            | 481   |
+| `stgcn_loader`              | 4                  | torch              | 0            | 733   |
+| `threat_detection_loader`   | 3                  | ultralytics        | 0            | 447   |
+| `vehicle_classifier_loader` | 3                  | torch torchvision  | 0            | 474   |
+| `vehicle_damage_loader`     | 3                  | torch ultralytics  | 0            | 636   |
+| `violence_loader`           | 3                  | torch transformers | 0            | 284   |
+| `vitpose_loader`            | 3                  | torch transformers | 0            | 656   |
+| `weather_loader`            | 4                  | torch transformers | 0            | 496   |
+| `xclip_loader`              | 3                  | torch transformers | 0            | 711   |
+| `yolo_world_loader`         | 4                  | torch ultralytics  | 0            | 516   |
+| `zero_dce_loader`           | 2                  | torch torchvision  | 0            | 216   |
+
+### DOMAIN (116)
+
+| module                        | non-test importers | heavy libs | bypass sites | lines |
+| ----------------------------- | ------------------ | ---------- | ------------ | ----- |
+| `action_recognition_service`  | 1                  | —          | 0            | 597   |
+| `ai_quality_metrics`          | 1                  | —          | 0            | 535   |
+| `ai_services`                 | 3                  | —          | 0            | 353   |
+| `alert_engine`                | 2                  | —          | 0            | 1162  |
+| `alert_service`               | 1                  | —          | 0            | 671   |
+| `alpr_service`                | 1                  | —          | 0            | 627   |
+| `analyzer_facade`             | 1                  | —          | 0            | 257   |
+| `approach_vector_service`     | 1                  | —          | 0            | 506   |
+| `audit`                       | 7                  | —          | 0            | 230   |
+| `auth_service`                | 5                  | —          | 0            | 383   |
+| `auto_enrollment_service`     | 1                  | —          | 0            | 607   |
+| `background_evaluator`        | 1                  | —          | 0            | 576   |
+| `backup_service`              | 1                  | —          | 0            | 554   |
+| `baseline`                    | 5                  | —          | 0            | 1121  |
+| `baseline_config`             | 1                  | —          | 0            | 236   |
+| `batch_coalescer`             | 2                  | —          | 0            | 695   |
+| `batch_fetch`                 | 5                  | —          | 0            | 209   |
+| `bbox_validation`             | 5                  | —          | 0            | 691   |
+| `cache_service`               | 13                 | —          | 0            | 1055  |
+| `calibration_monitor`         | 2                  | —          | 0            | 341   |
+| `calibration_service`         | 1                  | —          | 0            | 558   |
+| `circuit_breaker`             | 14                 | —          | 0            | 1125  |
+| `cleanup_service`             | 3                  | —          | 0            | 932   |
+| `clip_generator`              | 3                  | —          | 0            | 659   |
+| `compose_parser`              | 1                  | —          | 0            | 479   |
+| `container_discovery`         | 1                  | —          | 0            | 826   |
+| `container_orchestrator`      | 2                  | —          | 0            | 589   |
+| `context_enricher`            | 6                  | —          | 0            | 727   |
+| `cost_tracker`                | 3                  | —          | 0            | 770   |
+| `dedupe`                      | 1                  | —          | 0            | 618   |
+| `degradation_manager`         | 2                  | —          | 0            | 1173  |
+| `detector_registry`           | 1                  | —          | 0            | 435   |
+| `dwell_time_service`          | 1                  | —          | 0            | 732   |
+| `entity_clustering_service`   | 3                  | —          | 0            | 373   |
+| `entity_recognition_service`  | 1                  | —          | 0            | 324   |
+| `evaluation_queue`            | 3                  | —          | 0            | 200   |
+| `event_broadcaster`           | 16                 | —          | 0            | 2445  |
+| `event_service`               | 1                  | —          | 0            | 385   |
+| `export_service`              | 5                  | —          | 0            | 1192  |
+| `face_detector`               | 1                  | —          | 0            | 375   |
+| `face_recognition_service`    | 1                  | —          | 0            | 870   |
+| `fast_alpr_loader`            | 2                  | —          | 0            | 210   |
+| `file_service`                | 1                  | —          | 0            | 455   |
+| `file_watcher`                | 3                  | —          | 0            | 1114  |
+| `frame_buffer`                | 3                  | —          | 0            | 262   |
+| `go2rtc_client`               | 1                  | —          | 0            | 204   |
+| `gpu_config_service`          | 1                  | —          | 0            | 896   |
+| `gpu_detection_service`       | 1                  | —          | 0            | 525   |
+| `gpu_monitor`                 | 6                  | —          | 0            | 1433  |
+| `health_event_emitter`        | 4                  | —          | 0            | 539   |
+| `health_monitor`              | 4                  | —          | 0            | 402   |
+| `health_monitor_orchestrator` | 1                  | —          | 0            | 526   |
+| `health_service_registry`     | 2                  | —          | 0            | 655   |
+| `heatmap_service`             | 1                  | —          | 0            | 726   |
+| `household_matcher`           | 3                  | —          | 0            | 677   |
+| `hybrid_entity_storage`       | 5                  | —          | 0            | 541   |
+| `inference_semaphore`         | 3                  | —          | 0            | 312   |
+| `insight_generator`           | 1                  | —          | 0            | 467   |
+| `job_history_service`         | 2                  | —          | 0            | 523   |
+| `job_log_emitter`             | 1                  | —          | 0            | 419   |
+| `job_progress_reporter`       | 1                  | —          | 0            | 423   |
+| `job_search_service`          | 2                  | —          | 0            | 633   |
+| `job_service`                 | 2                  | —          | 0            | 829   |
+| `job_status`                  | 3                  | —          | 0            | 727   |
+| `job_timeout_service`         | 1                  | —          | 0            | 518   |
+| `job_tracker`                 | 14                 | —          | 0            | 918   |
+| `lifecycle_manager`           | 1                  | —          | 0            | 461   |
+| `line_zone_service`           | 1                  | —          | 0            | 375   |
+| `model_loader_base`           | 1                  | —          | 0            | 158   |
+| `mqtt_client`                 | 4                  | —          | 0            | 828   |
+| `mqtt_command_handler`        | 1                  | —          | 0            | 531   |
+| `nemotron_latency_optimizer`  | 1                  | —          | 0            | 650   |
+| `notification`                | 1                  | —          | 0            | 724   |
+| `ocr_service`                 | 1                  | —          | 0            | 416   |
+| `onvif_service`               | 2                  | —          | 0            | 531   |
+| `orchestrator.enums`          | 3                  | —          | 0            | 17    |
+| `orchestrator.models`         | 2                  | —          | 0            | 298   |
+| `orchestrator.registry`       | 1                  | —          | 0            | 531   |
+| `orphan_scanner_service`      | 1                  | —          | 0            | 393   |
+| `performance_collector`       | 4                  | —          | 0            | 850   |
+| `plate_detector`              | 2                  | —          | 0            | 322   |
+| `polygon_zone_service`        | 1                  | —          | 0            | 441   |
+| `process_memory_service`      | 1                  | —          | 0            | 256   |
+| `prompt_auto_tuner`           | 1                  | —          | 0            | 205   |
+| `prompt_sanitizer`            | 4                  | —          | 0            | 306   |
+| `prompts`                     | 9                  | —          | 0            | 4538  |
+| `queue_status_service`        | 1                  | —          | 0            | 409   |
+| `redis_streams`               | 3                  | —          | 0            | 1281  |
+| `restore_service`             | 1                  | —          | 0            | 513   |
+| `retry_handler`               | 2                  | —          | 0            | 832   |
+| `scene_change_detector`       | 1                  | —          | 0            | 325   |
+| `search`                      | 1                  | —          | 0            | 495   |
+| `service_managers`            | 2                  | —          | 0            | 597   |
+| `service_provider_matcher`    | 1                  | —          | 0            | 789   |
+| `session_service`             | 2                  | —          | 0            | 190   |
+| `severity`                    | 3                  | —          | 0            | 401   |
+| `skeleton_action_service`     | 1                  | —          | 0            | 273   |
+| `smoke_fire_consecutive`      | 1                  | —          | 0            | 417   |
+| `summary_detail_service`      | 1                  | —          | 0            | 371   |
+| `summary_parser`              | 1                  | —          | 0            | 457   |
+| `system_broadcaster`          | 7                  | —          | 0            | 1370  |
+| `threat_monitor_service`      | 1                  | —          | 0            | 565   |
+| `thumbnail_generator`         | 2                  | —          | 0            | 476   |
+| `token_counter`               | 1                  | —          | 0            | 500   |
+| `track_service`               | 1                  | —          | 0            | 902   |
+| `trajectory_analyzer`         | 1                  | —          | 0            | 543   |
+| `transcoding_service`         | 3                  | —          | 0            | 656   |
+| `trend_service`               | 1                  | —          | 0            | 290   |
+| `video_processor`             | 4                  | —          | 0            | 894   |
+| `webhook_service`             | 7                  | —          | 0            | 1277  |
+| `websocket_emitter`           | 8                  | —          | 0            | 677   |
+| `worker_supervisor`           | 3                  | —          | 0            | 1167  |
+| `zone_anomaly_service`        | 1                  | —          | 0            | 629   |
+| `zone_comparison_service`     | 1                  | —          | 0            | 324   |
+| `zone_household_service`      | 1                  | —          | 0            | 450   |
+| `zone_service`                | 2                  | —          | 0            | 664   |
+
+### DEAD (51)
+
+| module                       | non-test importers | heavy libs         | bypass sites | lines |
+| ---------------------------- | ------------------ | ------------------ | ------------ | ----- |
+| `ai_fallback`                | 0                  | —                  | 0            | 704   |
+| `alert_dedup`                | 0                  | —                  | 0            | 363   |
+| `audit_logger`               | 0                  | —                  | 0            | 481   |
+| `bulk_detection_service`     | 0                  | —                  | 0            | 469   |
+| `cache_warming`              | 0                  | —                  | 0            | 393   |
+| `calibration`                | 0                  | —                  | 0            | 0     |
+| `camera_service`             | 0                  | —                  | 0            | 528   |
+| `camera_status_service`      | 0                  | —                  | 0            | 325   |
+| `credential_service`         | 0                  | —                  | 0            | 71    |
+| `depth_calibration_service`  | 0                  | —                  | 0            | 443   |
+| `feedback_processor`         | 0                  | —                  | 0            | 432   |
+| `file_cleanup_service`       | 0                  | —                  | 0            | 442   |
+| `florence_extractor`         | 0                  | torch              | 0            | 771   |
+| `frame_extractor`            | 0                  | cv2                | 0            | 270   |
+| `frigate_integration`        | 0                  | —                  | 0            | 336   |
+| `guided_constraints`         | 0                  | —                  | 0            | 172   |
+| `ha_discovery`               | 0                  | —                  | 0            | 495   |
+| `household_matcher_service`  | 0                  | —                  | 0            | 61    |
+| `job_state_service`          | 0                  | —                  | 0            | 385   |
+| `managed_service`            | 0                  | —                  | 0            | 734   |
+| `monitoring_stack_validator` | 0                  | —                  | 0            | 554   |
+| `mqtt_publisher`             | 0                  | —                  | 0            | 371   |
+| `notification_filter`        | 0                  | —                  | 0            | 119   |
+| `orphan_cleanup_service`     | 0                  | —                  | 0            | 575   |
+| `package_tracking_service`   | 0                  | —                  | 0            | 594   |
+| `partition_manager`          | 0                  | —                  | 0            | 972   |
+| `pg_notify_listener`         | 0                  | —                  | 0            | 541   |
+| `pose_analysis_service`      | 0                  | —                  | 0            | 536   |
+| `privacy_masking_service`    | 0                  | —                  | 0            | 375   |
+| `prompt_parser`              | 0                  | —                  | 0            | 197   |
+| `prompt_storage`             | 0                  | —                  | 0            | 724   |
+| `prompt_version_service`     | 0                  | —                  | 0            | 405   |
+| `quantization`               | 0                  | torch transformers | 0            | 628   |
+| `read_through_cache`         | 0                  | —                  | 0            | 446   |
+| `redis_json`                 | 0                  | —                  | 0            | 654   |
+| `redis_memory_service`       | 0                  | —                  | 0            | 379   |
+| `reid_matcher`               | 0                  | —                  | 0            | 484   |
+| `risk_rubrics`               | 0                  | —                  | 0            | 260   |
+| `scenario_classifier`        | 0                  | —                  | 0            | 1031  |
+| `scene_change_service`       | 0                  | —                  | 0            | 192   |
+| `service_registry`           | 0                  | —                  | 0            | 70    |
+| `stream_manager`             | 0                  | cv2                | 0            | 497   |
+| `threat_categories`          | 0                  | —                  | 0            | 116   |
+| `transcode_cache`            | 0                  | —                  | 0            | 462   |
+| `transcoding`                | 0                  | —                  | 0            | 549   |
+| `typed_prompt_config`        | 0                  | —                  | 0            | 406   |
+| `unified_embedding_service`  | 0                  | —                  | 0            | 572   |
+| `unique_counter_service`     | 0                  | —                  | 0            | 442   |
+| `websocket_service`          | 0                  | —                  | 0            | 576   |
+| `zone_baseline_service`      | 0                  | —                  | 0            | 74    |
+| `zone_crossing_service`      | 0                  | —                  | 0            | 733   |
+
+## WP5.6 PARTIAL — mutation records retracted; deletions PARKED on a rule conflict (2026-09-19)
+
+**Re-verification (checklist item 1), three independent ways.** (a) An 8-agent
+adversarial workflow (static-import / dynamic-string / package-reexport-symbol /
+DI-wiring lenses × both modules) returned refuted=false on every lens with zero
+live findings. (b) Direct grep: the only non-test file importing
+`scene_change_service` anywhere is the `backend/services/__init__.py:318`
+re-export; `job_state_service` has NO non-test importer, not even a re-export
+(**init** doesn't mention it). (c) Symbol audit: the re-export's two symbols
+(`SceneChangeService`, `classify_scene_change_type`) appear ONLY in
+`__init__.py` itself (lines 318-320 + `__all__` 542/582) — zero consumers
+anywhere else. Census stands: **0/385 and 1/192 (re-export)**, both DEAD in
+WP5.5's bucket table.
+
+**RETRACTED, by name, per the generalized retraction rule (P §3.5)** — these
+WP4.4 surviving-mutant records must never again function as a deletion veto
+for unreachable code:
+
+- `backend/services/job_state_service.py` — gen-1 dossier 147 mutants / **42
+  survivors** (mutants/backend/services/job_state_service.py.meta);
+  generation-2 queue row "| 42 | 70.7 | NEW |" (.wp25-feed/wp44-queue-gen2.md).
+  RETRACTED: the module has zero non-test consumers; a mutation record is
+  evidence about test strength, never a deletion veto for dead code.
+- `backend/services/scene_change_service.py` — gen-1 dossier 88 keys / **39
+  survivors** (mutants/backend/services/scene_change_service.py.meta);
+  generation-2 queue row "| 39 | 55.7 | NEW |". RETRACTED, same rule. The live
+  scene-change path is `scene_change_detector` (enrichment_pipeline.py:141).
+
+**MEASURE (DEAD-bucket reference, checklist item 2):** all 51 WP5.5-DEAD
+modules have non_test_importers = 0; 22,409 lines total. Full table in the
+WP5.5 section above.
+
+**DELETIONS PARKED — RULING L#2026-09-19-wp56-test-collision.** The session
+goal states flatly: "NEVER a test file, fixture or conftest" — deletions are
+licensed on PRODUCTION AI surface only. WP5.6's checklist says "WP5.6 deletes
+modules **and their tests**." The two cannot both hold, and the safe
+decomposition fails: deleting `job_state_service.py` while its two test files
+survive leaves `from backend.services.job_state_service import (...)` in
+test_job_state_service.py:17 and test_job_state_transitions.py:18 → collection
+error → RED branch, which the branch-stays-GREEN rule forbids. Deleting the
+tests is the prohibited act. Parked for the owner, with the package:
+
+1. `git rm backend/services/job_state_service.py
+backend/tests/unit/services/test_job_state_service.py
+backend/tests/integration/test_job_state_transitions.py`
+2. `git rm backend/services/scene_change_service.py
+backend/tests/unit/services/test_scene_change_service.py` plus delete the
+   `__init__.py` re-export block (318-321) and `__all__` entries (542, 582) —
+   symbol audit above proves no other user.
+3. `scripts/ratchet-check.py --update` + ci.yml census `--expect` literal in
+   the same commit — **expected NO-OP**: the three test files and two modules
+   carry zero suppressions (measured: registry has no entries naming them, no
+   skip/xfail/patch markers in the files), so the baseline stays 93/322/… and
+   no ratchet move is needed either way.
+   WP5.6's Done-when ("no surviving-mutant record in L protects a module with
+   zero non-test importers") is ALREADY satisfied by the retractions above —
+   the records are retracted regardless of whether the deletion runs.
+
+**test_system.py naming-convention census (P's companion item):** the gate is
+`pr-review-bot.yml` `test-naming-convention` — it only checks CHANGED files
+(`tj-actions/changed-files`), and its regex admits `\.py$` for anything under
+`backend/tests/` (the condition is a tautology for that tree — anything not
+`test_*.py` still matches `\.py$`). Nothing in CI requires a file named
+`test_system.py` to exist. The 9-line `from ... import *` shim double-collects
+74 tests in whole-tree runs and is safe to delete from the gate's point of
+view — but it is a TEST file, so it stays; recorded here as a deletion
+proposal for the owner, same collision.
+
+**Commits:** this retraction is self-contained; no code deleted this commit.
+
+## WP5.3 THE 80-vs-85 PACKET — four declared numbers, one live gate, first real merged percentages (2026-09-19)
+
+RULING packet per plan P WP5.3. **Nothing here changes a threshold**
+(publish-the-number discipline; every floor move is owner-only per §3.3).
+
+**The four declared backend/frontend numbers, each re-verified against the
+tree:**
+
+1. **85** — `pyproject.toml:557` `[tool.coverage.report] fail_under = 85`,
+   advertised by CLAUDE.md's Testing table as "Backend Unit 85%".
+   **Enforcement status: never fires in CI or validate.sh.** Every pytest
+   invocation passes `--cov-fail-under=0` (ci.yml:372 unit shards,
+   :679/:800/:913 integration tiers; validate.sh:348/362;
+   nightly-full-gate.yml:106/121) and both merge report steps use
+   `--fail-under=0` as number EXTRACTION — the ci.yml:465-469 comment says
+   plainly the 85 "floor lives in the diff gate (WP0.9) and the ci-gate
+   checks", i.e. it is operationalized as a RELATIVE floor against main's
+   merged `coverage-baseline.json`, not an absolute gate. Before WP5.1 that
+   baseline never existed (the vacuous `touch .coverage` else-branch ran
+   every run); the diff gate was enforcing against a number that was never
+   minted. WP5.1 made the 85-semantics real even though no absolute gate
+   was touched.
+2. **80** — `scripts/validate.sh:376` `coverage report --fail-under=80` on
+   the COMBINED unit+integration data file; `nightly-full-gate.yml:140`
+   mirrors it exactly. **This is the only executed absolute backend
+   coverage gate.** It is green: the recent nightly red was
+   `test_redis.py::test_redis_connect_with_password` timing out (>5s), a
+   test failure, not the coverage gate.
+3. **93** — `scripts/test-runner.sh:29 COVERAGE_THRESHOLD=93`, advertised
+   in docs/development/{setup,testing}.md. **Nothing invokes
+   scripts/test-runner.sh** — no workflow, no script. A ghost: it
+   contradicts both live numbers and cannot be raised or lowered because it
+   runs nowhere.
+4. **83/77/81/84** — `frontend/vite.config.ts` coverage thresholds. Enforce
+   locally (a full `npm run test:coverage` fails under them); in CI the
+   8 shards zero them (`--coverage.thresholds.*=0`, WP5.2 — a 1/8 shard
+   cannot pass a whole-suite threshold) and the merge job REPORTS only.
+   R-FEFLOOR enforcement stays parked (A3/A5).
+
+**MEASURE — the first REAL merged numbers, from CI run 35442826412 (PR
+#6559, head 49f60dc5), printed by the WP5.1/WP5.2 merge jobs:**
+
+- Backend **unit merged (4 shards combined): 72.58%** —
+  `{"percent_covered": 72.58}` from "Backend Unit Tests Coverage".
+  No merged unit number had ever existed: the else-branch vacuity meant the
+  combine path never ran to completion on main.
+- Backend **integration merged (5 data files): 36.60%** —
+  "percent=36.60" from "Merge Integration Coverage" (R-COVDENOM: reported,
+  gates nothing).
+- The **combined union** (what the live 80 gate measures) is ≥80 by gate
+  survival; its exact percentage goes to the step summary on nightly green
+  runs, and the WP5.1 integration combine lands the same number on PR runs
+  after merge to main.
+- Frontend merged: 7-of-8 shards contributed
+  `FRONTEND_COVERAGE statements=72.7 branches=67 functions=70.5 lines=73.5
+files=842` — shard 1/8 DIED before writing coverage (root-caused same
+  day: vitest's default include swept the WP5.2 `node --test` merger unit
+  file into shard 1 and jsdom cannot bundle `node:test`; fixed by rename
+  `merge-shard-coverage-test.mjs`, pinned by
+  test_merger_unit_test_is_outside_the_vitest_sweep). The 72.7 is NOT
+  comparable to A3's 80.00: 7 shards, not 8, and v8's default all:false
+  counts only files exercised by the surviving shards. With 8-of-8 back,
+  the CI line should converge on A3's yardstick (the merger already
+  reproduces the reporter exactly, proven by-path).
+
+**The tension, stated plainly:** 72.58 merged unit vs a declared 85 unit
+minimum vs one live 80 gate on a UNION (different measurement) vs a
+documented 93 that runs nowhere. Anyone flipping pyproject's 85 into a real
+absolute gate reddens CI by 12.4 points today.
+
+**Recommendation (owner's call, nothing executed):** keep **80 on the
+combined union** as the one live gate — it is what actually runs and is
+green. For 85: either (a) cheap — annotate pyproject.toml + CLAUDE.md that
+85 is the WP0.9 diff-gate's relative baseline (matching ci.yml:465's stated
+intent), or (b) expensive — schedule the 72.58→85 climb (+12.4pp of unit
+tests, months; not compatible with the 72h window). For 93: delete it from
+the docs table or repoint those docs at validate.sh — a threshold that
+executes nowhere is worse than a lower one that does. Frontend: R-FEFLOOR
+stays parked exactly as A3 wrote it; the CI line now reports real
+8-shard-able numbers every run.

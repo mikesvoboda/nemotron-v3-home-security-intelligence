@@ -603,9 +603,10 @@ lazy-import **hard failures** (5× `module 'triton' has no attribute 'language'`
       `ModuleNotFoundError` during an `ai/` session.
 - [ ] **DECIDE between two real options:** (i) scope the `ai/tests/conftest.py` insertion to a
       fixture with teardown; (ii) rename `ai/triton` — noting that a rename touches
-      `ai/gateway/triton_client.py` and `ai/triton/model_repository/`, which `ai/gateway/
-  Dockerfile:47` copies to `/models/repository/`, making it an **owner-review-required**
-      Dockerfile-adjacent change. Option (i) is strongly preferred.
+      `ai/gateway/triton_client.py` and `ai/triton/model_repository/`, which
+      `ai/gateway/Dockerfile:47` copies to `/models/repository/`, making it an
+      **owner-review-required** Dockerfile-adjacent change. Option (i) is strongly
+      preferred.
 - [ ] **MEASURE:** whole-tree `ai/` collection errors after. Target 0.
 
 ### WP6.3: Fix the live `prompts.py` crash — without touching container imports. Cap 4h

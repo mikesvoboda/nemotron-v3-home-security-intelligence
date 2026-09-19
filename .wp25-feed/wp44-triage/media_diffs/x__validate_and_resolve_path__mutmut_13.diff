@@ -1,0 +1,12 @@
+# backend.api.routes.media.x__validate_and_resolve_path__mutmut_13: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -18,7 +18,7 @@
+             status_code=status.HTTP_414_URI_TOO_LONG,
+             detail=MediaErrorResponse(
+                 error=f"Path too long. Maximum length is {MAX_PATH_LENGTH} characters.",
+-                path=requested_path[:100] + "..." if len(requested_path) > 100 else requested_path,
++                path=requested_path[:101] + "..." if len(requested_path) > 100 else requested_path,
+             ).model_dump(),
+         )
+ 

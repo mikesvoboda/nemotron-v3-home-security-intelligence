@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_create_access_token__mutmut_2: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -15,7 +15,7 @@
+         ValueError: If user_id is empty.
+     """
+     if not user_id:
+-        msg = "user_id cannot be empty"
++        msg = None
+         raise ValueError(msg)
+ 
+     expire = datetime.now(UTC) + (expires_delta or _DEFAULT_ACCESS_TOKEN_EXPIRES)

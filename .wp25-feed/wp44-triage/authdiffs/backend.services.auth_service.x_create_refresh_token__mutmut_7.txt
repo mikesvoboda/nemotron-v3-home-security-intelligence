@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_create_refresh_token__mutmut_7: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -22,7 +22,7 @@
+ 
+     expire = datetime.now(UTC) + (expires_delta or _DEFAULT_REFRESH_TOKEN_EXPIRES)
+     payload = {
+-        "sub": user_id,
++        "XXsubXX": user_id,
+         "exp": expire,
+         "iat": datetime.now(UTC),
+         "type": "refresh",

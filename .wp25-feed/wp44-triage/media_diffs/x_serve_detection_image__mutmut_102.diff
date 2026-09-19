@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_102: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -91,7 +91,7 @@
+             ).model_dump(),
+         )
+ 
+-    content_type = ALLOWED_TYPES[file_ext]
++    content_type = None
+ 
+     return FileResponse(
+         path=str(full_path),

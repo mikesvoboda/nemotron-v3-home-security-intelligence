@@ -1,0 +1,267 @@
+# m2 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_2: survived
+# m2 --- backend/services/yolo_world_loader.py
+# m2 +++ backend/services/yolo_world_loader.py
+# m2 @@ -26,9 +26,7 @@
+# m2  
+# m2          if not torch.cuda.is_available():
+# m2              raise RuntimeError(
+# m2 -                "YOLO-World requires a CUDA GPU — CPU inference with open-vocabulary "
+# m2 -                "prompts holds the GIL for 10-30 s per frame and starves the async "
+# m2 -                "event loop.  Skipping on CPU-only host."
+# m2 +                None
+# m2              )
+# m2  
+# m2          logger.info(f"Loading YOLO-World model from {model_path}")
+# m3 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_3: survived
+# m3 --- backend/services/yolo_world_loader.py
+# m3 +++ backend/services/yolo_world_loader.py
+# m3 @@ -26,7 +26,7 @@
+# m3  
+# m3          if not torch.cuda.is_available():
+# m3              raise RuntimeError(
+# m3 -                "YOLO-World requires a CUDA GPU — CPU inference with open-vocabulary "
+# m3 +                "XXYOLO-World requires a CUDA GPU — CPU inference with open-vocabulary XX"
+# m3                  "prompts holds the GIL for 10-30 s per frame and starves the async "
+# m3                  "event loop.  Skipping on CPU-only host."
+# m3              )
+# m4 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_4: survived
+# m4 --- backend/services/yolo_world_loader.py
+# m4 +++ backend/services/yolo_world_loader.py
+# m4 @@ -26,7 +26,7 @@
+# m4  
+# m4          if not torch.cuda.is_available():
+# m4              raise RuntimeError(
+# m4 -                "YOLO-World requires a CUDA GPU — CPU inference with open-vocabulary "
+# m4 +                "yolo-world requires a cuda gpu — cpu inference with open-vocabulary "
+# m4                  "prompts holds the GIL for 10-30 s per frame and starves the async "
+# m4                  "event loop.  Skipping on CPU-only host."
+# m4              )
+# m5 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_5: survived
+# m5 --- backend/services/yolo_world_loader.py
+# m5 +++ backend/services/yolo_world_loader.py
+# m5 @@ -26,7 +26,7 @@
+# m5  
+# m5          if not torch.cuda.is_available():
+# m5              raise RuntimeError(
+# m5 -                "YOLO-World requires a CUDA GPU — CPU inference with open-vocabulary "
+# m5 +                "YOLO-WORLD REQUIRES A CUDA GPU — CPU INFERENCE WITH OPEN-VOCABULARY "
+# m5                  "prompts holds the GIL for 10-30 s per frame and starves the async "
+# m5                  "event loop.  Skipping on CPU-only host."
+# m5              )
+# m6 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_6: survived
+# m6 --- backend/services/yolo_world_loader.py
+# m6 +++ backend/services/yolo_world_loader.py
+# m6 @@ -31,7 +31,7 @@
+# m6                  "event loop.  Skipping on CPU-only host."
+# m6              )
+# m6  
+# m6 -        logger.info(f"Loading YOLO-World model from {model_path}")
+# m6 +        logger.info(None)
+# m6  
+# m6          # Run model loading in thread pool to avoid blocking
+# m6          loop = asyncio.get_running_loop()
+# m11 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_11: survived
+# m11 --- backend/services/yolo_world_loader.py
+# m11 +++ backend/services/yolo_world_loader.py
+# m11 @@ -45,7 +45,7 @@
+# m11              with _yolo_world_lock:
+# m11                  model.set_classes(SECURITY_PROMPTS)
+# m11  
+# m11 -            logger.info(f"YOLO-World model loaded with {len(SECURITY_PROMPTS)} default prompts")
+# m11 +            logger.info(None)
+# m11              return model
+# m11  
+# m11          model = await loop.run_in_executor(None, _load_model)
+# m16 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_16: survived
+# m16 --- backend/services/yolo_world_loader.py
+# m16 +++ backend/services/yolo_world_loader.py
+# m16 @@ -50,7 +50,7 @@
+# m16  
+# m16          model = await loop.run_in_executor(None, _load_model)
+# m16  
+# m16 -        logger.info(f"Successfully loaded YOLO-World model from {model_path}")
+# m16 +        logger.info(None)
+# m16          return model
+# m16  
+# m16      except ImportError as e:
+# m17 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_17: survived
+# m17 --- backend/services/yolo_world_loader.py
+# m17 +++ backend/services/yolo_world_loader.py
+# m17 @@ -54,7 +54,7 @@
+# m17          return model
+# m17  
+# m17      except ImportError as e:
+# m17 -        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+# m17 +        logger.warning(None)
+# m17          raise ImportError(
+# m17              "YOLO-World requires ultralytics. Install with: pip install ultralytics"
+# m17          ) from e
+# m18 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_18: survived
+# m18 --- backend/services/yolo_world_loader.py
+# m18 +++ backend/services/yolo_world_loader.py
+# m18 @@ -54,7 +54,7 @@
+# m18          return model
+# m18  
+# m18      except ImportError as e:
+# m18 -        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+# m18 +        logger.warning("XXultralytics package not installed. Install with: pip install ultralyticsXX")
+# m18          raise ImportError(
+# m18              "YOLO-World requires ultralytics. Install with: pip install ultralytics"
+# m18          ) from e
+# m19 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_19: survived
+# m19 --- backend/services/yolo_world_loader.py
+# m19 +++ backend/services/yolo_world_loader.py
+# m19 @@ -54,7 +54,7 @@
+# m19          return model
+# m19  
+# m19      except ImportError as e:
+# m19 -        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+# m19 +        logger.warning("ultralytics package not installed. install with: pip install ultralytics")
+# m19          raise ImportError(
+# m19              "YOLO-World requires ultralytics. Install with: pip install ultralytics"
+# m19          ) from e
+# m20 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_20: survived
+# m20 --- backend/services/yolo_world_loader.py
+# m20 +++ backend/services/yolo_world_loader.py
+# m20 @@ -54,7 +54,7 @@
+# m20          return model
+# m20  
+# m20      except ImportError as e:
+# m20 -        logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+# m20 +        logger.warning("ULTRALYTICS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL ULTRALYTICS")
+# m20          raise ImportError(
+# m20              "YOLO-World requires ultralytics. Install with: pip install ultralytics"
+# m20          ) from e
+# m22 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_22: survived
+# m22 --- backend/services/yolo_world_loader.py
+# m22 +++ backend/services/yolo_world_loader.py
+# m22 @@ -56,7 +56,7 @@
+# m22      except ImportError as e:
+# m22          logger.warning("ultralytics package not installed. Install with: pip install ultralytics")
+# m22          raise ImportError(
+# m22 -            "YOLO-World requires ultralytics. Install with: pip install ultralytics"
+# m22 +            "XXYOLO-World requires ultralytics. Install with: pip install ultralyticsXX"
+# m22          ) from e
+# m22  
+# m22      except Exception as e:
+# m25 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_25: survived
+# m25 --- backend/services/yolo_world_loader.py
+# m25 +++ backend/services/yolo_world_loader.py
+# m25 @@ -61,6 +61,6 @@
+# m25  
+# m25      except Exception as e:
+# m25          logger.error(
+# m25 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m25 +            None, exc_info=True, extra={"model_path": model_path}
+# m25          )
+# m25          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m26 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_26: survived
+# m26 --- backend/services/yolo_world_loader.py
+# m26 +++ backend/services/yolo_world_loader.py
+# m26 @@ -61,6 +61,6 @@
+# m26  
+# m26      except Exception as e:
+# m26          logger.error(
+# m26 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m26 +            "Failed to load YOLO-World model", exc_info=None, extra={"model_path": model_path}
+# m26          )
+# m26          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m27 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_27: survived
+# m27 --- backend/services/yolo_world_loader.py
+# m27 +++ backend/services/yolo_world_loader.py
+# m27 @@ -61,6 +61,6 @@
+# m27  
+# m27      except Exception as e:
+# m27          logger.error(
+# m27 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m27 +            "Failed to load YOLO-World model", exc_info=True, extra=None
+# m27          )
+# m27          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m29 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_29: survived
+# m29 --- backend/services/yolo_world_loader.py
+# m29 +++ backend/services/yolo_world_loader.py
+# m29 @@ -61,6 +61,6 @@
+# m29  
+# m29      except Exception as e:
+# m29          logger.error(
+# m29 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m29 +            "Failed to load YOLO-World model", extra={"model_path": model_path}
+# m29          )
+# m29          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m30 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_30: survived
+# m30 --- backend/services/yolo_world_loader.py
+# m30 +++ backend/services/yolo_world_loader.py
+# m30 @@ -61,6 +61,5 @@
+# m30  
+# m30      except Exception as e:
+# m30          logger.error(
+# m30 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m30 -        )
+# m30 +            "Failed to load YOLO-World model", exc_info=True, )
+# m30          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m31 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_31: survived
+# m31 --- backend/services/yolo_world_loader.py
+# m31 +++ backend/services/yolo_world_loader.py
+# m31 @@ -61,6 +61,6 @@
+# m31  
+# m31      except Exception as e:
+# m31          logger.error(
+# m31 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m31 +            "XXFailed to load YOLO-World modelXX", exc_info=True, extra={"model_path": model_path}
+# m31          )
+# m31          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m32 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_32: survived
+# m32 --- backend/services/yolo_world_loader.py
+# m32 +++ backend/services/yolo_world_loader.py
+# m32 @@ -61,6 +61,6 @@
+# m32  
+# m32      except Exception as e:
+# m32          logger.error(
+# m32 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m32 +            "failed to load yolo-world model", exc_info=True, extra={"model_path": model_path}
+# m32          )
+# m32          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m33 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_33: survived
+# m33 --- backend/services/yolo_world_loader.py
+# m33 +++ backend/services/yolo_world_loader.py
+# m33 @@ -61,6 +61,6 @@
+# m33  
+# m33      except Exception as e:
+# m33          logger.error(
+# m33 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m33 +            "FAILED TO LOAD YOLO-WORLD MODEL", exc_info=True, extra={"model_path": model_path}
+# m33          )
+# m33          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m34 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_34: survived
+# m34 --- backend/services/yolo_world_loader.py
+# m34 +++ backend/services/yolo_world_loader.py
+# m34 @@ -61,6 +61,6 @@
+# m34  
+# m34      except Exception as e:
+# m34          logger.error(
+# m34 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m34 +            "Failed to load YOLO-World model", exc_info=False, extra={"model_path": model_path}
+# m34          )
+# m34          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m35 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_35: survived
+# m35 --- backend/services/yolo_world_loader.py
+# m35 +++ backend/services/yolo_world_loader.py
+# m35 @@ -61,6 +61,6 @@
+# m35  
+# m35      except Exception as e:
+# m35          logger.error(
+# m35 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m35 +            "Failed to load YOLO-World model", exc_info=True, extra={"XXmodel_pathXX": model_path}
+# m35          )
+# m35          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e
+# m36 # backend.services.yolo_world_loader.x_load_yolo_world_model__mutmut_36: survived
+# m36 --- backend/services/yolo_world_loader.py
+# m36 +++ backend/services/yolo_world_loader.py
+# m36 @@ -61,6 +61,6 @@
+# m36  
+# m36      except Exception as e:
+# m36          logger.error(
+# m36 -            "Failed to load YOLO-World model", exc_info=True, extra={"model_path": model_path}
+# m36 +            "Failed to load YOLO-World model", exc_info=True, extra={"MODEL_PATH": model_path}
+# m36          )
+# m36          raise RuntimeError(f"Failed to load YOLO-World model: {e}") from e

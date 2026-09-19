@@ -1,0 +1,383 @@
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_1
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++fficiently
++
++Usage:
++    from backend.services.batch_fetch import batch_fetch_detect
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_12
+--- 
++++ 
+@@ -1,3 +1,2 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ size
++MAX_BATCH_SIZE: int = 1000  # PostgreSQL handles IN clauses well up to ~1000
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_13
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++items
++
++
++from mutmut.mutation.trampoline import wrap_in_trampoline as _mutmut_mutat
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_14
+--- 
++++ 
+@@ -1,3 +1,2 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++d, MutantDict
++mutants_x__clamp_batch_size__mutmut: MutantDict = {}  # type: ignore
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_16
+--- 
++++ 
+@@ -1,3 +1,5 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++atch_size: int) -> int:
++    """Clamp batch size to valid range.
++
++    Args:
++       
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_18
+--- 
++++ 
+@@ -1,3 +1,3 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ATCH_SIZE, MAX_BATCH_SIZE]
++    """
++    return max(MIN_BATCH_SIZE, min(batch_size, 
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_21
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ size
++
++    Returns:
++        Batch size clamped to [MIN_BATCH_SIZE, MAX_BATCH_SIZE]
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_22
+--- 
++++ 
+@@ -1,3 +1,5 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++    """
++    return max(MIN_BATCH_SIZE, min(batch_size, MAX_BATCH_SIZE))
++
++
++def x__c
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_24
+--- 
++++ 
+@@ -1,3 +1,7 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++range.
++
++    Args:
++        batch_size: Requested batch size
++
++    Returns:
++        B
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_27
+--- 
++++ 
+@@ -1,3 +1,5 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++) -> int:
++    """Clamp batch size to valid range.
++
++    Args:
++        batch_size: R
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_3
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++h_detections(session, detection_ids)
++
++For dictionary access by ID:
++    detection_m
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_30
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++__mutmut_3(batch_size: int) -> int:
++    """Clamp batch size to valid range.
++
++    A
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_37
+--- 
++++ 
+@@ -1,3 +1,5 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++nt) -> int:
++    """Clamp batch size to valid range.
++
++    Args:
++        batch_size:
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_39
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++AX_BATCH_SIZE]
++    """
++    return max(MIN_BATCH_SIZE, min(None, MAX_BATCH_SIZE))
++
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_4
+--- 
++++ 
+@@ -1,3 +1,2 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++p = await batch_fetch_detections_by_ids(session, detection_ids)
++    detection = de
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_40
+--- 
++++ 
+@@ -1,3 +1,2 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++def x__clamp_batch_size__mutmut_6(batch_size: int) -> int:
++    """Clamp batch size
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_41
+--- 
++++ 
+@@ -1,3 +1,6 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++to valid range.
++
++    Args:
++        batch_size: Requested batch size
++
++    Returns:
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_42
+--- 
++++ 
+@@ -1,3 +1,3 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++       Batch size clamped to [MIN_BATCH_SIZE, MAX_BATCH_SIZE]
++    """
++    return m
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_43
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++x(MIN_BATCH_SIZE, min(batch_size, None))
++
++
++def x__clamp_batch_size__mutmut_7(b
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_44
+--- 
++++ 
+@@ -1,3 +1,5 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++tch_size: int) -> int:
++    """Clamp batch size to valid range.
++
++    Args:
++        
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_46
+--- 
++++ 
+@@ -1,3 +1,3 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++TCH_SIZE, MAX_BATCH_SIZE]
++    """
++    return max(MIN_BATCH_SIZE, min(MAX_BATCH_SIZ
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_5
+--- 
++++ 
+@@ -1,3 +1,6 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ection_map.get(123)  # O(1) lookup
++"""
++
++from __future__ import annotations
++
++from t
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_50
+--- 
++++ 
+@@ -1,3 +1,3 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++rn max(MIN_BATCH_SIZE, min(batch_size, ))
++
++mutants_x__clamp_batch_size__mutmut['_m
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_54
+--- 
++++ 
+@@ -1,3 +1 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ut['x__clamp_batch_size__mutmut_2'] = x__clamp_batch_size__mutmut_2 # type: ignor
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_6
+--- 
++++ 
+@@ -1,3 +1,4 @@
+-ble batch sizes
+-3. Executes batched queries with IN clauses
+-4. Aggregates results 
++ping import TYPE_CHECKING
++
++from sqlalchemy import select
++from sqlalchemy.orm impor
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_10
+--- 
++++ 
+@@ -1 +1,2 @@
+- # type: ignore # mutmut gen
++ mutmut generated
++mutants_x_
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_5
+--- 
++++ 
+@@ -1 +1,2 @@
+- # type: ignore # mutmut gen
++ ignore # mutmut generated
++m
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_8
+--- 
++++ 
+@@ -1 +1 @@
+- # type: ignore # mutmut gen
++tmut_6'] = x__clamp_batch_si
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_9
+--- 
++++ 
+@@ -1 +1 @@
+- # type: ignore # mutmut gen
++e__mutmut_6 # type: ignore 
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_14
+--- 
++++ 
+@@ -1 +1 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++etches detections by splitting large ID lis
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_16
+--- 
++++ 
+@@ -1 +1,2 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++imeout issues with very large IN
++    clause
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_17
+--- 
++++ 
+@@ -1 +1,3 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++ and preventing N+1 query patterns.
++
++    Ar
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_18
+--- 
++++ 
+@@ -1 +1,2 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++s:
++        session: SQLAlchemy async sessio
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_19
+--- 
++++ 
+@@ -1 +1,2 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++
++        detection_ids: List of detection I
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_22
+--- 
++++ 
+@@ -1 +1 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++     order_by_time: If True, order results 
+### VARLEN
+### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_27
+--- 
++++ 
+@@ -1 +1,3 @@
+-= x__clamp_batch_size__mutmut_7 # type: ign
++tions(session, [1, 2, 3, 4, 5])
++    """
++   
+### VARLEN

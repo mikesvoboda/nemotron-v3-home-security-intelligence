@@ -965,61 +965,61 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: synthetic-monitoring.json not found
-  - id: backend/tests/integration/test_github_workflows.py:278
+  - id: backend/tests/integration/test_github_workflows.py:288
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: ci.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:289
+  - id: backend/tests/integration/test_github_workflows.py:299
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: ci.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:292
+  - id: backend/tests/integration/test_github_workflows.py:302
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: No concurrency config
-  - id: backend/tests/integration/test_github_workflows.py:307
+  - id: backend/tests/integration/test_github_workflows.py:317
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: ci.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:320
+  - id: backend/tests/integration/test_github_workflows.py:330
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: gpu-tests.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:338
+  - id: backend/tests/integration/test_github_workflows.py:348
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: gpu-tests.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:352
+  - id: backend/tests/integration/test_github_workflows.py:362
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: deploy.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:368
+  - id: backend/tests/integration/test_github_workflows.py:378
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: nightly.yml not found
-  - id: backend/tests/integration/test_github_workflows.py:63
+  - id: backend/tests/integration/test_github_workflows.py:64
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: null
-  - id: backend/tests/integration/test_github_workflows.py:66
+  - id: backend/tests/integration/test_github_workflows.py:67
     kind: environment
     owner: mikesvoboda
     tracking: null

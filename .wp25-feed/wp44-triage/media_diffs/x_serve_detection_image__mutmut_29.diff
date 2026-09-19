@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_29: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -34,7 +34,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail=MediaErrorResponse(
+-                error="Detection has no associated file",
++                error="XXDetection has no associated fileXX",
+                 path=f"detections/{detection_id}",
+             ).model_dump(),
+         )
