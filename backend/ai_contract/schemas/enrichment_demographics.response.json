@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "age_confidence": {
+      "title": "Age Confidence",
+      "type": "number"
+    },
+    "age_range": {
+      "title": "Age Range",
+      "type": "string"
+    },
+    "gender": {
+      "title": "Gender",
+      "type": "string"
+    },
+    "gender_confidence": {
+      "title": "Gender Confidence",
+      "type": "number"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["age_range", "age_confidence", "gender", "gender_confidence", "inference_time_ms"],
+  "title": "DemographicsResponse",
+  "type": "object"
+}

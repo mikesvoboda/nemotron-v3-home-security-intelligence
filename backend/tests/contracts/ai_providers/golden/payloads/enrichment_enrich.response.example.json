@@ -1,0 +1,7 @@
+{
+  "detection_type": "sample_detection_type",
+  "enrichments": {
+    "sample": "sample_value"
+  },
+  "inference_time_ms": 1.0
+}

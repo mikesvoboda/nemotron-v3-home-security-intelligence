@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "detection_type": {
+      "title": "Detection Type",
+      "type": "string"
+    },
+    "enrichments": {
+      "additionalProperties": true,
+      "title": "Enrichments",
+      "type": "object"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["detection_type", "enrichments", "inference_time_ms"],
+  "title": "EnrichmentResponse",
+  "type": "object"
+}

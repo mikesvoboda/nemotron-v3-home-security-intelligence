@@ -1,0 +1,14 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_demographics",
+  "properties": {
+    "age_confidence": "number",
+    "age_range": "string",
+    "gender": "string",
+    "gender_confidence": "number",
+    "inference_time_ms": "number"
+  },
+  "required": ["age_confidence", "age_range", "gender", "gender_confidence", "inference_time_ms"],
+  "side": "response"
+}

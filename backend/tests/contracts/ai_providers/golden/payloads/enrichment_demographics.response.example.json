@@ -1,0 +1,7 @@
+{
+  "age_confidence": 0.9,
+  "age_range": "sample_age_range",
+  "gender": "sample_gender",
+  "gender_confidence": 0.9,
+  "inference_time_ms": 1.0
+}

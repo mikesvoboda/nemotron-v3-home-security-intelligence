@@ -567,7 +567,10 @@ class CLIPEmbeddingModel:
             trt_precision = os.environ.get("CLIP_TENSORRT_PRECISION", "fp16")
             calibration_dir = os.environ.get("CLIP_CALIBRATION_DIR")
             logger.info(f"Step 2/2: Converting ONNX to TensorRT {trt_precision.upper()}...")
-            result_path = convert_to_tensorrt(
+            # Typed binding: export_onnx is import-unresolvable under the commit
+            # gate's mypy env (--ignore-missing-imports -> Any), and this method
+            # declares str | None. export_onnx.convert_to_tensorrt returns str.
+            result_path: str = convert_to_tensorrt(
                 onnx_path=str(onnx_path),
                 output_path=str(engine_path),
                 precision=trt_precision,
@@ -750,11 +753,22 @@ class CLIPEmbeddingModel:
             return features
 
         # Object return type with pooler_output attribute (transformers 5.0+)
+        # isinstance guards below (NOT import edits -- model.py import
+        # statements are frozen): they narrow the stub-Any attribute reads to
+        # torch.Tensor, matching this helper's documented contract. A non-Tensor
+        # pooler_output/last_hidden_state would have been returned raw before;
+        # it now raises TypeError here instead of failing silently downstream.
         if hasattr(features, "pooler_output") and features.pooler_output is not None:
-            return features.pooler_output
+            pooler_output = features.pooler_output
+            if not isinstance(pooler_output, torch.Tensor):
+                raise TypeError(f"Unexpected pooler_output type: {type(pooler_output)}")
+            return pooler_output
         elif hasattr(features, "last_hidden_state"):
             # Fallback to CLS token from last_hidden_state
-            return features.last_hidden_state[:, 0, :]
+            last_hidden_state = features.last_hidden_state
+            if not isinstance(last_hidden_state, torch.Tensor):
+                raise TypeError(f"Unexpected last_hidden_state type: {type(last_hidden_state)}")
+            return last_hidden_state[:, 0, :]
         else:
             raise TypeError(f"Unexpected features type: {type(features)}. Cannot extract tensor.")
 
@@ -1193,7 +1207,9 @@ def get_vram_usage() -> float | None:
     """Get VRAM usage in GB."""
     try:
         if torch.cuda.is_available():
-            return torch.cuda.memory_allocated() / (1024**3)
+            # float() coerces the tensor scalar (torch is Any under the commit
+            # gate's mypy env); no-op on the real float this returns at runtime.
+            return float(torch.cuda.memory_allocated() / (1024**3))
     except Exception as e:
         logger.warning(f"Failed to get VRAM usage: {e}")
     return None

@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "CaptionedRegion": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "caption": {
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": ["caption", "bbox"],
+      "title": "CaptionedRegion",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "regions": {
+      "items": {
+        "$ref": "#/$defs/CaptionedRegion"
+      },
+      "title": "Regions",
+      "type": "array"
+    }
+  },
+  "required": ["regions", "inference_time_ms"],
+  "title": "DenseCaptionResponse",
+  "type": "object"
+}

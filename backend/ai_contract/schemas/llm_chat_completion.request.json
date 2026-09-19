@@ -1,0 +1,27 @@
+{
+  "properties": {
+    "max_tokens": {
+      "type": "integer"
+    },
+    "messages": {
+      "items": {
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "temperature": {
+      "type": "number"
+    }
+  },
+  "required": ["messages"],
+  "title": "ChatCompletionRequest",
+  "type": "object"
+}

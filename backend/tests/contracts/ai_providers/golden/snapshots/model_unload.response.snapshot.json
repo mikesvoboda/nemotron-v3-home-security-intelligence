@@ -1,0 +1,11 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "model_unload",
+  "properties": {
+    "model": "string",
+    "status": "string"
+  },
+  "required": ["model", "status"],
+  "side": "response"
+}

@@ -1,0 +1,22 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_vehicle_classify",
+  "properties": {
+    "all_scores": "object",
+    "confidence": "number",
+    "display_name": "string",
+    "inference_time_ms": "number",
+    "is_commercial": "boolean",
+    "vehicle_type": "string"
+  },
+  "required": [
+    "all_scores",
+    "confidence",
+    "display_name",
+    "inference_time_ms",
+    "is_commercial",
+    "vehicle_type"
+  ],
+  "side": "response"
+}

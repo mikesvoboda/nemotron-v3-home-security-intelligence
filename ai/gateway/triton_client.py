@@ -90,7 +90,10 @@ class TritonClient:
         """
         try:
             client = await self._get_client()
-            return await client.is_server_ready()
+            # bool(): the grpc client answers bool already; the wrap is a
+            # mypy no-any-return fix surfaced when backend tests first
+            # imported ai.gateway (WP8.3) — same truthiness downstream.
+            return bool(await client.is_server_ready())
         except Exception as e:
             logger.warning(f"Triton server readiness check failed: {e}")
             return False
@@ -106,7 +109,7 @@ class TritonClient:
         """
         try:
             client = await self._get_client()
-            return await client.is_model_ready(model_name)
+            return bool(await client.is_model_ready(model_name))
         except Exception as e:
             logger.warning(f"Model readiness check failed for {model_name}: {e}")
             return False

@@ -1,0 +1,14 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_pose_analyze",
+  "properties": {
+    "alerts": "array<string>",
+    "inference_time_ms": "number",
+    "keypoints": "array<object>",
+    "num_people": "integer",
+    "posture": "string"
+  },
+  "required": ["inference_time_ms", "keypoints"],
+  "side": "response"
+}

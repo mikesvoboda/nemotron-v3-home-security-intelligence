@@ -1,0 +1,8 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "yolo26_segment",
+  "properties": {},
+  "required": [],
+  "side": "response"
+}

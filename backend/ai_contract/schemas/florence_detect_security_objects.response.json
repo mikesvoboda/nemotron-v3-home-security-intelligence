@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "SecurityObjectDetection": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "confidence": {
+          "default": 1.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": ["label", "bbox"],
+      "title": "SecurityObjectDetection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "detections": {
+      "items": {
+        "$ref": "#/$defs/SecurityObjectDetection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "objects_queried": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Objects Queried",
+      "type": "array"
+    }
+  },
+  "required": ["detections", "objects_queried", "inference_time_ms"],
+  "title": "SecurityObjectsResponse",
+  "type": "object"
+}

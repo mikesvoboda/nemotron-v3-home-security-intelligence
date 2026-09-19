@@ -110,8 +110,6 @@ from backend.core.profiling import (
     reset_profiling_manager,
 )
 from backend.core.protocols import (
-    AIServiceProtocol,
-    AIServiceWithLifecycle,
     BroadcasterProtocol,
     BroadcasterWithMetrics,
     CacheProtocol,
@@ -163,10 +161,8 @@ __all__ = [
     "HAS_INTERPRETER_POOL",
     "SENSITIVE_FIELD_NAMES",
     # Protocols
-    "AIServiceProtocol",
     # Nested Settings classes (NEM-3778)
     "AIServiceSettings",
-    "AIServiceWithLifecycle",
     # Classes
     "Base",
     "BroadcasterProtocol",

@@ -5,7 +5,6 @@ interface definitions without requiring explicit inheritance. Protocols allow
 duck typing with full static type checking support.
 
 Protocol Definitions:
-    - AIServiceProtocol: For AI clients (detector, nemotron, enrichment)
     - QueueProcessorProtocol: For batch aggregator, evaluation queue
     - BroadcasterProtocol: For event/system broadcasters
     - ModelLoaderProtocol: For model loading and management
@@ -17,21 +16,27 @@ Usage:
     They are structural subtypes if they implement the required methods.
 
     # Type hinting with protocols
-    async def process_with_service(service: AIServiceProtocol) -> dict[str, Any]:
-        if await service.health_check():
-            return await service.process(input_data)
+    async def drain_queue(queue: QueueProcessorProtocol) -> int:
+        count = 0
+        while (item := await queue.dequeue()) is not None:
+            await queue.process_item(item)
+            count += 1
+        return count
 
     # Works with any class that has matching methods
-    detector = DetectorClient()  # Implements AIServiceProtocol structurally
-    await process_with_service(detector)
+    evaluator = EvaluationQueue()  # Implements QueueProcessorProtocol structurally
+    await drain_queue(evaluator)
 
 See Also:
-    - backend/services/detector_client.py - Implements AIServiceProtocol
-    - backend/services/nemotron_analyzer.py - Implements AIServiceProtocol
-    - backend/services/enrichment_client.py - Implements AIServiceProtocol
     - backend/services/evaluation_queue.py - Implements QueueProcessorProtocol
     - backend/services/event_broadcaster.py - Implements BroadcasterProtocol
     - backend/services/model_zoo.py - Implements ModelLoaderProtocol
+    - backend/ai_contract/ - the AI-tier interface contract: the generated
+      38-operation registry, the AIProvider declaration and the import-time
+      signature checks (WP7.1/WP8.1). AI clients are typed through that
+      package, not a hand-written Protocol - the AIServiceProtocol this
+      module used to export named three implementers and member methods no
+      such class ever had, and nothing consumed it (WP8.1 DECIDE: removed).
 """
 
 from __future__ import annotations
@@ -68,76 +73,6 @@ class HealthCheckableProtocol(Protocol):
         Returns:
             True if service is healthy and ready to accept requests,
             False otherwise.
-        """
-        ...
-
-
-@runtime_checkable
-class AIServiceProtocol(Protocol):
-    """Protocol for AI service clients (detector, nemotron, enrichment).
-
-    AI services are HTTP clients that communicate with external AI inference
-    servers. They typically support health checking and provide metrics for
-    monitoring.
-
-    This protocol defines the common interface for:
-        - DetectorClient: YOLO26 object detection
-        - NemotronAnalyzer: LLM risk analysis
-        - EnrichmentClient: Vehicle/pet/clothing classification
-
-    Example Implementation:
-        class MyAIClient:
-            async def health_check(self) -> bool:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(f"{self.url}/health")
-                    return response.status_code == 200
-
-            async def process(self, input_data: Any) -> Any:
-                # Send to AI service, parse response
-                return result
-
-            def get_metrics(self) -> dict[str, Any]:
-                return {
-                    "requests_total": self._requests,
-                    "errors_total": self._errors,
-                    "latency_avg_ms": self._latency_avg,
-                }
-    """
-
-    async def health_check(self) -> bool:
-        """Check if the AI service is healthy and available.
-
-        Typically performs an HTTP health check against the AI server.
-
-        Returns:
-            True if AI service is responding, False otherwise.
-        """
-        ...
-
-    async def process(self, input_data: Any) -> Any:
-        """Process input data through the AI service.
-
-        Args:
-            input_data: Input to process (image path, text, etc.)
-
-        Returns:
-            Processed result from the AI service (detections, analysis, etc.)
-
-        Raises:
-            Exception: If processing fails due to service unavailability,
-                timeout, or invalid input.
-        """
-        ...
-
-    def get_metrics(self) -> dict[str, Any]:
-        """Get service metrics for monitoring.
-
-        Returns:
-            Dictionary containing metrics such as:
-                - requests_total: Total number of requests made
-                - errors_total: Total number of errors
-                - latency_avg_ms: Average latency in milliseconds
-                - circuit_breaker_state: Current circuit breaker state
         """
         ...
 
@@ -508,15 +443,11 @@ class LifecycleProtocol(Protocol):
 
 
 # Type aliases for common protocol combinations
-AIServiceWithLifecycle = AIServiceProtocol | LifecycleProtocol
 BroadcasterWithMetrics = BroadcasterProtocol | MetricsProviderProtocol
 
 
 __all__ = [
-    # Core protocols
-    "AIServiceProtocol",
     # Type aliases
-    "AIServiceWithLifecycle",
     "BroadcasterProtocol",
     "BroadcasterWithMetrics",
     "CacheProtocol",

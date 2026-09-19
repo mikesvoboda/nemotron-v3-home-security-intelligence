@@ -1,0 +1,43 @@
+{
+  "$defs": {
+    "Detection": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "score": {
+          "default": 1.0,
+          "title": "Score",
+          "type": "number"
+        }
+      },
+      "required": ["label", "bbox"],
+      "title": "Detection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "detections": {
+      "items": {
+        "$ref": "#/$defs/Detection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["detections", "inference_time_ms"],
+  "title": "DetectResponse",
+  "type": "object"
+}

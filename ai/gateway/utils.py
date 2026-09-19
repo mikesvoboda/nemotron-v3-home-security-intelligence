@@ -33,7 +33,7 @@ def decode_base64_image(b64: str) -> np.ndarray:
         raise ValueError(f"Invalid base64 encoding: {e}") from e
 
     try:
-        image = Image.open(io.BytesIO(image_bytes))
+        image: Image.Image = Image.open(io.BytesIO(image_bytes))
     except Exception as e:
         raise ValueError(f"Cannot decode image from bytes: {e}") from e
 
@@ -61,7 +61,7 @@ def decode_base64_to_pil(b64: str) -> Image.Image:
         raise ValueError(f"Invalid base64 encoding: {e}") from e
 
     try:
-        image = Image.open(io.BytesIO(image_bytes))
+        image: Image.Image = Image.open(io.BytesIO(image_bytes))
     except Exception as e:
         raise ValueError(f"Cannot decode image from bytes: {e}") from e
 
@@ -113,7 +113,7 @@ def preprocess_clip(image: np.ndarray) -> np.ndarray:
     """
     # Resize to 224x224
     pil_img = Image.fromarray(image)
-    pil_img = pil_img.resize((224, 224), Image.BILINEAR)
+    pil_img = pil_img.resize((224, 224), Image.Resampling.BILINEAR)
     arr = np.array(pil_img, dtype=np.float32) / 255.0
 
     # Normalize with SigLIP 2 statistics (mean=0.5, std=0.5 for all channels)
@@ -141,7 +141,7 @@ def preprocess_yolo(image_bytes: bytes, target_size: int = 640) -> np.ndarray:
     Returns:
         Numpy array (1, 3, target_size, target_size) FP32 normalized [0, 1].
     """
-    image = Image.open(io.BytesIO(image_bytes))
+    image: Image.Image = Image.open(io.BytesIO(image_bytes))
     if image.mode != "RGB":
         image = image.convert("RGB")
 
@@ -153,7 +153,7 @@ def preprocess_yolo(image_bytes: bytes, target_size: int = 640) -> np.ndarray:
     new_h = int(orig_h * scale)
 
     # Resize maintaining aspect ratio
-    resized = image.resize((new_w, new_h), Image.BILINEAR)
+    resized = image.resize((new_w, new_h), Image.Resampling.BILINEAR)
 
     # Create padded canvas with gray fill
     canvas = Image.new("RGB", (target_size, target_size), (114, 114, 114))

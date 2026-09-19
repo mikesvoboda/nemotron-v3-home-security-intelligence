@@ -1,0 +1,6 @@
+{
+  "n_predict": 1,
+  "prompt": "sample_prompt",
+  "stream": false,
+  "temperature": 1.0
+}

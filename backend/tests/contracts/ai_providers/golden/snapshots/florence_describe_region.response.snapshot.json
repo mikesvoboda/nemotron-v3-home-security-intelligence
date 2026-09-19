@@ -1,0 +1,11 @@
+{
+  "defs": ["CaptionedRegion"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_describe_region",
+  "properties": {
+    "descriptions": "array<ref(CaptionedRegion)>",
+    "inference_time_ms": "number"
+  },
+  "required": ["descriptions", "inference_time_ms"],
+  "side": "response"
+}

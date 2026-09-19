@@ -99,8 +99,9 @@ def mock_detector_response():
                 "bbox": {"x": 500, "y": 200, "width": 200, "height": 150},
             },
         ],
-        "processing_time_ms": 125.5,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 125.5,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
 
@@ -210,8 +211,9 @@ class TestDetectObjectsStoresInDatabase:
                             "bbox": [100, 150, 200, 300],
                         }
                     ],
-                    "processing_time_ms": 50.0,
-                    "image_size": [1920, 1080],
+                    "inference_time_ms": 50.0,
+                    "image_width": 1920,
+                    "image_height": 1080,
                 }
 
                 mock_response = MagicMock()
@@ -261,8 +263,9 @@ class TestConfidenceFiltering:
                     "bbox": [400, 450, 80, 100],
                 },  # Below cat threshold (0.45) - filtered
             ],
-            "processing_time_ms": 100.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 100.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -306,8 +309,9 @@ class TestConfidenceFiltering:
                 {"class": "dog", "confidence": 0.40, "bbox": [100, 150, 200, 300]},
                 {"class": "cat", "confidence": 0.35, "bbox": [200, 250, 150, 200]},
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -424,8 +428,9 @@ class TestMultipleDetectionsSameImage:
                 {"class": "car", "confidence": 0.92, "bbox": [700, 200, 300, 180]},
                 {"class": "bicycle", "confidence": 0.78, "bbox": [150, 250, 60, 100]},
             ],
-            "processing_time_ms": 175.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 175.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -581,8 +586,9 @@ class TestBadResponseHandling:
                 {"class": "car", "confidence": 0.90, "bbox": {"x": 200, "y": 300}},  # Missing w/h
                 {"class": "dog", "confidence": 0.85, "bbox": [300, 400, 100, 150]},  # Valid
             ],
-            "processing_time_ms": 75.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 75.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -620,8 +626,9 @@ class TestBboxFormatHandling:
                     "bbox": {"x": 100, "y": 150, "width": 300, "height": 400},
                 }
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -657,8 +664,9 @@ class TestBboxFormatHandling:
                     "bbox": [200, 250, 150, 350],  # Array format [x, y, width, height]
                 }
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -713,8 +721,9 @@ class TestEmptyDetections:
 
         response_data = {
             "detections": [],
-            "processing_time_ms": 30.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 30.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -755,8 +764,9 @@ class TestTimestampHandling:
             "detections": [
                 {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]},
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -878,8 +888,9 @@ class TestBaselineUpdatesOnDetection:
                 {"class": "dog", "confidence": 0.40, "bbox": [100, 150, 200, 300]},
                 {"class": "cat", "confidence": 0.35, "bbox": [200, 250, 150, 200]},
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()
@@ -930,8 +941,9 @@ class TestBaselineUpdatesOnDetection:
             "detections": [
                 {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]},
             ],
-            "processing_time_ms": 50.0,
-            "image_size": [1920, 1080],
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
         mock_response = MagicMock()

@@ -1,0 +1,11 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "clip_embed",
+  "properties": {
+    "embedding": "array<number>",
+    "inference_time_ms": "number"
+  },
+  "required": ["embedding", "inference_time_ms"],
+  "side": "response"
+}

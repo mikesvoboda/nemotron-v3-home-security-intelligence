@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "llm_chat_completion",
+  "properties": {
+    "max_tokens": "integer",
+    "messages": "array<object>",
+    "temperature": "number"
+  },
+  "required": ["messages"],
+  "side": "request"
+}

@@ -1,0 +1,23 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "keypoints": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Keypoints",
+      "type": "array"
+    },
+    "num_people": {
+      "title": "Num People",
+      "type": "integer"
+    }
+  },
+  "required": ["keypoints", "num_people", "inference_time_ms"],
+  "title": "PoseAnalyzeResponse",
+  "type": "object"
+}

@@ -30,7 +30,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -250,7 +250,7 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
             text_result = envelope["result"]
             if not isinstance(text_result, str):
                 text_result = json.dumps(text_result)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         pass
 
     inference_time_ms = (time.monotonic() - start) * 1000
@@ -264,7 +264,7 @@ def _parse_json_output(text: str) -> Any:
     """
     try:
         return json.loads(text)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return text
 
 
@@ -504,8 +504,12 @@ async def detect_security_objects(request: ImageRequest) -> SecurityObjectsRespo
     detections: list[SecurityObjectDetection] = []
 
     if isinstance(parsed, dict):
-        bboxes = parsed.get("bboxes", parsed.get("boxes", []))
-        labels = parsed.get("bboxes_labels", parsed.get("labels", []))
+        # cast: the JSON payload values are untyped; an explicit null for
+        # bboxes/labels used to raise TypeError mid-loop (crash behavior
+        # unchanged — cast is erased at runtime; mypy no-any/None noise
+        # surfaced when backend tests first imported ai.gateway, WP8.3).
+        bboxes = cast("list", parsed.get("bboxes", parsed.get("boxes", [])))
+        labels = cast("list", parsed.get("bboxes_labels", parsed.get("labels", [])))
         for i, label in enumerate(labels):
             bbox = bboxes[i] if i < len(bboxes) else []
             detections.append(

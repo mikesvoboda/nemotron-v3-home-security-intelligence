@@ -1,0 +1,8 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "llm_slots",
+  "properties": {},
+  "required": [],
+  "side": "response"
+}

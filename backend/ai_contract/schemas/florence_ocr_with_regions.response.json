@@ -1,0 +1,38 @@
+{
+  "$defs": {
+    "OCRRegion": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": ["text", "bbox"],
+      "title": "OCRRegion",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "regions": {
+      "items": {
+        "$ref": "#/$defs/OCRRegion"
+      },
+      "title": "Regions",
+      "type": "array"
+    }
+  },
+  "required": ["regions", "inference_time_ms"],
+  "title": "OCRWithRegionsResponse",
+  "type": "object"
+}

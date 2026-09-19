@@ -1,0 +1,18 @@
+{
+  "loaded_models": [
+    {
+      "last_used": "sample_last_used",
+      "loaded": false,
+      "name": "sample_name",
+      "priority": "sample_priority",
+      "vram_mb": 1
+    }
+  ],
+  "pending_loads": ["sample_pending_loads"],
+  "status": "sample_status",
+  "uptime_seconds": 1.0,
+  "vram_available_mb": 1,
+  "vram_budget_mb": 1,
+  "vram_total_mb": 1,
+  "vram_used_mb": 1
+}

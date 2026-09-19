@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "anomaly_score": {
+      "title": "Anomaly Score",
+      "type": "number"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "similarity_to_baseline": {
+      "title": "Similarity To Baseline",
+      "type": "number"
+    }
+  },
+  "required": ["anomaly_score", "similarity_to_baseline", "inference_time_ms"],
+  "title": "AnomalyScoreResponse",
+  "type": "object"
+}

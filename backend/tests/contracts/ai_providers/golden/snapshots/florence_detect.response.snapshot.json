@@ -1,0 +1,11 @@
+{
+  "defs": ["Detection"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_detect",
+  "properties": {
+    "detections": "array<ref(Detection)>",
+    "inference_time_ms": "number"
+  },
+  "required": ["detections", "inference_time_ms"],
+  "side": "response"
+}
