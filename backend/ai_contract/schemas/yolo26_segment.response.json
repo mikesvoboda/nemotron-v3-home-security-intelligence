@@ -1,0 +1,8 @@
+{
+  "additionalProperties": true,
+  "description": "route declares `-> dict[str, Any]` - no pydantic response model exists to snapshot (this is the deployed truth, not a gap in the generator)",
+  "title": "BareDictResponse",
+  "type": "object",
+  "x-deployed-evidence": "ai/gateway/adapters/yolo26.py:375-379 (WP7.4 pinned shape; bboxes are dict{x,y,width,height} of ints, `class` key)",
+  "x-deployed-keys": ["detections", "image_width", "image_height", "inference_time_ms"]
+}
