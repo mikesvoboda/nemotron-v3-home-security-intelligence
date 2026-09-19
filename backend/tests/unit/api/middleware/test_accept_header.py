@@ -644,8 +644,6 @@ class TestAcceptHeaderMiddlewarePerformance:
 
     def test_frozenset_lookup_performance(self):
         """Test that frozenset provides consistent O(1) lookup time."""
-        import time
-
         # Create middleware with many exempt paths - test the _is_exempt method directly
         many_paths = frozenset({f"/path/{i}" for i in range(1000)})
 
