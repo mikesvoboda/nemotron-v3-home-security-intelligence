@@ -1229,3 +1229,30 @@ survivors** (dossier-presence recount). Parallel census lane LIVE on exactly
 those 49 (7 workers, owner-approved carve-out; 8-module triage/wave cadence
 now runs against a shrinking untouched set — gen-2 triage waves are nearly
 done with their founding purpose once this band's dossiers land).
+
+## WAVE 64 (GEN-2 NEW TIER) — PARALLEL CENSUS FOLD 2026-09-18
+
+Not a triage wave: the owner-approved fan-out lane ran the FULL kill-census
+over exactly the 49 remaining band modules (1,060 survivors), then a STRICT
+re-census after the rc-classification fix (kill := pytest rc in (1,3),
+scorer-consistent; rc=2 = INTERRUPTED re-probed with retry; probes -n 0 —
+repo addopts' -n 8 had built load-46 xdist storms, one 84 GB OOM in dmesg;
+see ledger RECORD-CORRECTION).
+
+MEASURE: 1,014/1,060 band keys hold strict verdicts, **0 killed** — every
+band-module survivor is a TRUE survivor against today's suite (their test
+files gained nothing since run6; this is the population the gen-2 triage
+waves drafted 503 skeleton tests for, still unauthored). 46 keys uncensused:
+fast_alpr_loader (15) + zero_dce_loader (31) have INTEGRATION-only tests —
+out of the unit carve-out, recorded, never guessed. Big-number confirmations
+in the same pass: container_discovery 644/696 strict (later 669/696 with the
+5 drafted real-gap tests, 25/52 killed), routes/system 135/638,
+container_orchestrator 32/96 strict (confirmed after 1/3-spurious era).
+
+Gen-2 cumulative through 64: **23,250 survivors / 121 modules** (triage-
+classified 22,190/72 + census-confirmed 1,060/49). Committed + MEASURED kill
+tests: 578 (503 wave drafts remain skeletons awaiting authoring). NEW tier
+remaining: **49 band modules needing the authoring round** (dossier -> real
+tests -> census proof), + orchestrator's 64 and system's 503 recorded
+survivors for the next drafting wave. The census lane is now the PROOF
+instrument for authoring waves, 6-8 workers, pause-respecting.
