@@ -2067,6 +2067,14 @@ class TestWp44ControlPathArgsAndMessages:
         # LM start failed -> no broadcast on the start path at all
         mock_broadcast_fn.assert_not_awaited()
 
+        # ...but the start-SUCCESS branch must broadcast the exact contract text
+        # (start_service mutmut_17/18/19: XX-quoted / lower / UPPER variants)
+        lm.start_service = AsyncMock(return_value=True)
+        mock_broadcast_fn.reset_mock()
+        assert await orchestrator.start_service("ai-yolo26") is True
+        msgs = [c.args[0]["message"] for c in mock_broadcast_fn.call_args_list]
+        assert msgs == ["Service started"]
+
         lm.restart_service = AsyncMock(return_value=False)
         mock_broadcast_fn.reset_mock()
         assert await orchestrator.restart_service("ai-yolo26") is False

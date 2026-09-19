@@ -1,6 +1,6 @@
-# container_orchestrator surviving-mutant record (STRICT census 2026-09-18)
+# container_orchestrator surviving-mutant record (STRICT census 2026-09-19, amended suite)
 
-64 mutants survive with the current suite in mutants/ tree; strict probe semantics: cwd=mutants/, MUTANT_UNDER_TEST per key, -n 0, kill := pytest rc in (1,3) (scorer-consistent). Supersedes the interrupted-era file of the same name.
+61 mutants survive with the amended suite (ddf40f5d batch + start-success broadcast assertion); strict probe semantics: cwd=mutants/, MUTANT_UNDER_TEST per key, -n 0, kill := pytest rc in (1,3) (scorer-consistent). 96 keys re-probed, 35 killed (32 batch + 3 amendment: start_service__mutmut_17/18/19), 0 no-verdict. Supersedes the 64-key record of 2026-09-18.
 
 ```
 backend.services.container_orchestrator.x_create_service_status_event__mutmut_40
@@ -46,9 +46,6 @@ backend.services.container_orchestrator.xǁContainerOrchestratorǁstart__mutmut_
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstart__mutmut_7
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstart__mutmut_8
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstart__mutmut_9
-backend.services.container_orchestrator.xǁContainerOrchestratorǁstart_service__mutmut_17
-backend.services.container_orchestrator.xǁContainerOrchestratorǁstart_service__mutmut_18
-backend.services.container_orchestrator.xǁContainerOrchestratorǁstart_service__mutmut_19
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstart_service__mutmut_4
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstart_service__mutmut_7
 backend.services.container_orchestrator.xǁContainerOrchestratorǁstop__mutmut_12
