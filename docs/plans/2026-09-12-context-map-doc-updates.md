@@ -7351,3 +7351,26 @@ no widening; header records the ruling).
 stack PR's coverage check ran red at commit `659a83f6`; a re-run went all-green
 with no code change, so the red was a flake, not a floor breach. No line moved:
 the recorded floor stands and the number reported is the number that runs.
+
+## A7.2 deletion 2/2 LANDED `21a364d0` — florence /analyze-scene off both surfaces; contract 38→37 (2026-09-20)
+
+The A7.2 pair is complete: segment_image (`54e27f2f`, client binding gone,
+OPERATION kept) and /analyze-scene (op unreachable end to end → deleted from
+BOTH deployed surfaces AND the contract). Census in the commit body: zero
+backend callers (FlorenceClient never had the method — AGENTS.md's
+`client.analyze_scene` example was fiction, now corrected), zero openapi
+paths, zero frontend refs. Red-first ×3 (server-route marker + NEW
+`DELETED_REGISTRY_OPS` op-level ratchet + 37-count), green-before-delete
+18+25 passed, model.py −123 / adapter −66 / test −612, drift --check rc=0,
+parity "registry ops: 37 divergences detected: 21" unchanged (the golden
+list never named this op — consistent provider, no GOLDEN-LOST), node-ID
+collected diff verified: 9 params vanished, 3 new, dir 565→559. The
+other three A7.2 candidates (estimate_depth, estimate_object_distance,
+CLIP similarity) stay PARKED — they fail A6 condition 2 (shared
+parametrized tables; deletion would open golden-vanish reds).
+
+AFTER-MERGE NOTE: origin/main advanced twice during the A7.2 window
+(#6566 WP4.3 close-out, #6569 integration cleanup); the pre-push
+auto-rebase hit the squash-merge trap (memory: push-auto-rebase-
+squash-merge-trap) — resolved by MERGE `f6f96ebc` (no force-push; ledger L
+keep-both conflict: both sides had appended), push follows.
