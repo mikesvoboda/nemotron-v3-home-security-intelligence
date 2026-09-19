@@ -733,3 +733,94 @@ class TestWorkflowInventory:
     def test_nightly_workflow_exists(self, workflows_dir: Path) -> None:
         """Verify nightly.yml exists."""
         assert (workflows_dir / "nightly.yml").exists(), "nightly.yml should exist"
+
+
+class TestAiTierWiring:
+    """WP6.5: the un-darkened ai/ tier (WP6.1-6.4: 1764 collected / 0 errors) is
+    wired into CI in a STAGED shape: the import-error-visible collect-only gate
+    over the whole tier plus test RUNS for subtrees that are green today
+    (ai/gateway - the deployed provider). Subtrees with ledger-recorded parked
+    reds (WP6.4 classifications) join as each drains; a gate on a red subtree
+    would make the branch red for a RECORDED reason, which the doctrine
+    forbids as wiring noise. Structural assertions on ci.yml; the
+    deliberately-broken-ai-test end-to-end proof is the plan's alternative
+    Done-when and needs a live CI run (PR #6560 carries this commit)."""
+
+    def _ci_text(self, workflows_dir: Path) -> str:
+        ci = workflows_dir / "ci.yml"
+        assert ci.exists(), "ci.yml should exist"
+        return ci.read_text()
+
+    def _ci_jobs(self, workflows_dir: Path) -> dict[str, Any]:
+        # nosemgrep: path-traversal-open -- path from the workflows_dir fixture, repo's own ci.yml
+        return load_workflow(workflows_dir / "ci.yml")["jobs"]
+
+    def test_collection_gate_receives_ai(self, workflows_dir: Path) -> None:
+        """The AST collection-sanity gate must scan ai/ too. Cheap (rc=0
+        verified locally) and explicitly NOT sufficient — it never imports, so
+        it passed clean (0.159s) on a tree with 19 collection errors; the
+        collect-only step below is the one that can see them."""
+        text = self._ci_text(workflows_dir)
+        assert "check-test-collection.py backend frontend ai" in text, (
+            "ci.yml collection-sanity step must pass `ai` to check-test-collection.py"
+        )
+
+    def test_ai_collect_only_gate_exists(self, workflows_dir: Path) -> None:
+        """A step runs `pytest ai/ --collect-only` over the WHOLE tier and
+        fails on any collection error (rc=2) — the gate that CAN see the
+        WP6.2-class import errors (triton shadow, flat-slot collisions) the
+        AST gate cannot."""
+        jobs = self._ci_jobs(workflows_dir)
+        ai_job = jobs.get("ai-tests")
+        assert ai_job is not None, "ci.yml needs an ai-tests job"
+        collect_steps = [
+            s
+            for s in ai_job["steps"]
+            if "pytest" in s.get("run", "") and "--collect-only" in s.get("run", "")
+        ]
+        assert collect_steps, "ai-tests job must contain a `pytest ai/ --collect-only` step"
+
+    def test_ai_gateway_suite_runs(self, workflows_dir: Path) -> None:
+        """WP6.5 DECIDE applied per-subtree: ai/gateway (the deployed provider,
+        green at 226/0 after WP6.4) has its own RUN step. Full-tree `pytest ai/`
+        joins per-subtree as parked reds drain (WP6.4 ledger), so a parked-red
+        subtree never holds the branch red for a recorded reason."""
+        jobs = self._ci_jobs(workflows_dir)
+        ai_job = jobs.get("ai-tests")
+        assert ai_job is not None, "ci.yml needs an ai-tests job"
+        runs = " ".join(s.get("run", "") for s in ai_job["steps"])
+        assert "pytest ai/gateway" in runs, (
+            "ai/gateway must have its own pytest RUN step (green today per "
+            "WP6.4 ledger: 226 passed / 0 failed)"
+        )
+
+    def test_ai_job_converges_on_ci_gate(self, workflows_dir: Path) -> None:
+        """WP0.6 invariant for the new job: direct ci-gate need AND a
+        check_job line reading its result. A needs entry nobody inspects is
+        ordering, not gating — scripts/test_ci_job_graph.py enforces the
+        pairing tree-wide; this pins it for ai-tests specifically."""
+        jobs = self._ci_jobs(workflows_dir)
+        gate = jobs["ci-gate"]
+        needs = gate["needs"]
+        needs = needs if isinstance(needs, list) else list(needs)
+        assert "ai-tests" in needs, "ci-gate must need ai-tests"
+        gate_script = " ".join(s.get("run", "") for s in gate["steps"])
+        assert "needs.ai-tests.result" in gate_script, (
+            "ci-gate must check_job ai-tests's result — the WP0.6 "
+            "invisibility class is exactly 'needs but never inspects'"
+        )
+
+    def test_ai_job_follows_backend_job_conventions(self, workflows_dir: Path) -> None:
+        """Change-detection hygiene: the `if` mirrors the backend jobs (ai/**
+        is ALREADY inside the detect-changes `backend` path filter - verified,
+        ci.yml:42-46 - so no new output key is invented), and the job reuses
+        the shared build-backend-deps like every other backend job."""
+        jobs = self._ci_jobs(workflows_dir)
+        ai_job = jobs["ai-tests"]
+        condition = str(ai_job.get("if", ""))
+        assert "detect-changes" in condition, (
+            "ai-tests must honor detect-changes like every other backend job"
+        )
+        needs = ai_job.get("needs", [])
+        needs = needs if isinstance(needs, list) else list(needs)
+        assert "build-backend-deps" in needs, "ai-tests must reuse the shared deps job"

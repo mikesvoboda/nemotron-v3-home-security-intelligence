@@ -10,7 +10,6 @@ Tests cover:
 
 import sys
 from pathlib import Path
-from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,34 +17,13 @@ from PIL import Image
 from pydantic import ValidationError
 
 # Add the ai/enrichment directory to sys.path to enable imports
+# (the flat `from model import ...` below mirrors the container's flat
+# /app layout — the import style is fixed by the swap-readiness rules; the
+# module-mock block formerly installed here poisoned sys.modules["ai"]
+# process-wide for every later collection — see ai/conftest.py and WP6.1.)
 _enrichment_dir = Path(__file__).parent
 if str(_enrichment_dir) not in sys.path:
     sys.path.insert(0, str(_enrichment_dir))
-
-# Create proper mock modules for the ai.enrichment.vitpose import
-# Using ModuleType instead of MagicMock to avoid interference with pytest
-_mock_ai = ModuleType("ai")
-_mock_ai_enrichment = ModuleType("ai.enrichment")
-_mock_vitpose = ModuleType("ai.enrichment.vitpose")
-
-
-# Create a mock PoseAnalyzer class
-class MockPoseAnalyzer:
-    """Mock PoseAnalyzer for testing."""
-
-    pass
-
-
-_mock_vitpose.PoseAnalyzer = MockPoseAnalyzer
-
-# Set up the module hierarchy
-_mock_ai.enrichment = _mock_ai_enrichment
-_mock_ai_enrichment.vitpose = _mock_vitpose
-
-# Install mock modules
-sys.modules["ai"] = _mock_ai
-sys.modules["ai.enrichment"] = _mock_ai_enrichment
-sys.modules["ai.enrichment.vitpose"] = _mock_vitpose
 
 # Now import from the local model module
 from model import (
