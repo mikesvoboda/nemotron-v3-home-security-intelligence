@@ -108,6 +108,61 @@ CLIENT_GLOBS = (
 # the scan finds nothing, which is why the test asserts BOTH directions.
 CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "EnrichmentClient"})
 
+# WP7.3 carry-cost deletions. Each entry: a client method with ZERO non-test
+# call sites (verified by call-site census at deletion time, number in the
+# commit body - grep, not importlib, because the dynamic-dispatch shapes that
+# would hide a caller - getattr dispatch, string-built URLs - are exactly what
+# a call-site grep must cover). The method name must stay ABSENT from the
+# client modules afterwards: this test fails if the method comes back, so the
+# deletion is a ratchet, not a snapshot.
+#
+# Kept-list members were censused and REJECTED (callers found, or the only
+# removals would land on test files, which the GOAL carve-out forbids):
+# see the WP7.3 ledger section.
+DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch"})
+
+# Files the census may ignore: the client modules themselves (def site) and
+# the generated registry + its generator (carry the historical method->op map
+# only for still-present methods).
+_CENSUS_ALLOW = frozenset(
+    {
+        "backend/services/detector_client.py",
+        "backend/services/clip_client.py",
+        "backend/services/florence_client.py",
+        "backend/services/enrichment_client.py",
+        "backend/ai_contract/operations.py",
+        "scripts/gen-ai-contract.py",
+    }
+)
+
+
+def _non_test_call_sites(symbol: str) -> list[str]:
+    """Grep-census a method name across backend/ and scripts/ outside tests.
+
+    Returns "relpath:line" for each hit whose line mentions the symbol,
+    excluding test paths and _CENSUS_ALLOW. Grep deliberately: the caller
+    shapes that hide (hasattr/getattr dispatch, f-string URLs) still contain
+    the literal name, and an import-graph probe would miss those.
+
+    backend/ + scripts/ ONLY: the consumer side of a client method can only
+    live in those trees (ai/ model servers are separate deployables that
+    never import backend.services, and ai/ legitimately carries its own
+    same-named ROUTE functions - ai/yolo26/model.py's detect_objects_batch
+    is the /detect/batch endpoint, not a call to the deleted client method).
+    """
+    hits: list[str] = []
+    for root in ("backend", "scripts"):
+        for path in (REPO_ROOT / root).rglob("*.py"):
+            rel = path.relative_to(REPO_ROOT).as_posix()
+            if "/tests/" in f"/{rel}" or rel.split("/")[-1].startswith("test_"):
+                continue
+            if rel in _CENSUS_ALLOW:
+                continue
+            for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if symbol in line:
+                    hits.append(f"{rel}:{i}")
+    return hits
+
 
 def _public_client_methods() -> set[str]:
     """AST-collect "Class.method" for public methods of the client classes.
@@ -204,6 +259,21 @@ class TestContractRegistry:
         stale = set(CLIENT_METHODS) - scanned
         assert not unmapped, f"client methods with no registry mapping: {sorted(unmapped)}"
         assert not stale, f"registry mappings whose client method is gone: {sorted(stale)}"
+
+    @pytest.mark.parametrize("symbol", sorted(DELETED_CARRY_COST))
+    def test_wp73_carry_cost_stays_deleted(self, symbol: str) -> None:
+        """WP7.3 red-first proof, then ratchet: while the method exists this
+        REDS on the client-module assertion (the census half passes - that is
+        the evidence the deletion was licensed). After the deletion both
+        halves stay green, and a reintroduction reddens by name."""
+        sites = _non_test_call_sites(symbol)
+        assert not sites, f"{symbol} has non-test call sites - deletion not licensed: {sites}"
+        present = {
+            f"{cls}.{symbol}"
+            for cls in sorted(CLIENT_CLASSES)
+            if f"{cls}.{symbol}" in _public_client_methods()
+        }
+        assert not present, f"WP7.3 carry-cost method still declared on: {sorted(present)}"
 
     def test_availability_matrix_is_generated_not_hand_maintained(self) -> None:
         """The matrix file carries the generator's provenance header; CI

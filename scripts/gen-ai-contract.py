@@ -315,7 +315,9 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     "DetectorClient.model_readiness_probe": None,
     "DetectorClient.warmup": None,
     "DetectorClient.detect_objects": "yolo26_detect",
-    "DetectorClient.detect_objects_batch": "yolo26_detect_batch",
+    # WP7.3: DetectorClient.detect_objects_batch deleted (zero non-test call
+    # sites; census in the deletion commit body). The yolo26_detect_batch
+    # OPERATION stays - the gateway route is deployed surface.
     "DetectorClient.segment_image": "yolo26_segment",
     # CLIPClient
     "CLIPClient.close": None,

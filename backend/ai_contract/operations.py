@@ -489,7 +489,7 @@ OPERATIONS: dict[str, Operation] = {
             "per_model_server": True,
             "fake": True,
         },
-        client_methods=["DetectorClient.detect_objects_batch"],
+        client_methods=[],
         evidence="ai/gateway/adapters/yolo26.py:/detect/batch mounted at /yolo26 (ai/gateway/main.py:181-185)",
     ),
     "yolo26_segment": Operation(
@@ -518,7 +518,6 @@ CLIENT_METHODS: dict[str, str | None] = {
     "DetectorClient.model_readiness_probe": None,
     "DetectorClient.warmup": None,
     "DetectorClient.detect_objects": "yolo26_detect",
-    "DetectorClient.detect_objects_batch": "yolo26_detect_batch",
     "DetectorClient.segment_image": "yolo26_segment",
     "CLIPClient.close": None,
     "CLIPClient.get_circuit_breaker_state": None,
