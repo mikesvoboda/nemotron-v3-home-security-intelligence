@@ -5681,3 +5681,84 @@ view — but it is a TEST file, so it stays; recorded here as a deletion
 proposal for the owner, same collision.
 
 **Commits:** this retraction is self-contained; no code deleted this commit.
+
+## WP5.3 THE 80-vs-85 PACKET — four declared numbers, one live gate, first real merged percentages (2026-09-19)
+
+RULING packet per plan P WP5.3. **Nothing here changes a threshold**
+(publish-the-number discipline; every floor move is owner-only per §3.3).
+
+**The four declared backend/frontend numbers, each re-verified against the
+tree:**
+
+1. **85** — `pyproject.toml:557` `[tool.coverage.report] fail_under = 85`,
+   advertised by CLAUDE.md's Testing table as "Backend Unit 85%".
+   **Enforcement status: never fires in CI or validate.sh.** Every pytest
+   invocation passes `--cov-fail-under=0` (ci.yml:372 unit shards,
+   :679/:800/:913 integration tiers; validate.sh:348/362;
+   nightly-full-gate.yml:106/121) and both merge report steps use
+   `--fail-under=0` as number EXTRACTION — the ci.yml:465-469 comment says
+   plainly the 85 "floor lives in the diff gate (WP0.9) and the ci-gate
+   checks", i.e. it is operationalized as a RELATIVE floor against main's
+   merged `coverage-baseline.json`, not an absolute gate. Before WP5.1 that
+   baseline never existed (the vacuous `touch .coverage` else-branch ran
+   every run); the diff gate was enforcing against a number that was never
+   minted. WP5.1 made the 85-semantics real even though no absolute gate
+   was touched.
+2. **80** — `scripts/validate.sh:376` `coverage report --fail-under=80` on
+   the COMBINED unit+integration data file; `nightly-full-gate.yml:140`
+   mirrors it exactly. **This is the only executed absolute backend
+   coverage gate.** It is green: the recent nightly red was
+   `test_redis.py::test_redis_connect_with_password` timing out (>5s), a
+   test failure, not the coverage gate.
+3. **93** — `scripts/test-runner.sh:29 COVERAGE_THRESHOLD=93`, advertised
+   in docs/development/{setup,testing}.md. **Nothing invokes
+   scripts/test-runner.sh** — no workflow, no script. A ghost: it
+   contradicts both live numbers and cannot be raised or lowered because it
+   runs nowhere.
+4. **83/77/81/84** — `frontend/vite.config.ts` coverage thresholds. Enforce
+   locally (a full `npm run test:coverage` fails under them); in CI the
+   8 shards zero them (`--coverage.thresholds.*=0`, WP5.2 — a 1/8 shard
+   cannot pass a whole-suite threshold) and the merge job REPORTS only.
+   R-FEFLOOR enforcement stays parked (A3/A5).
+
+**MEASURE — the first REAL merged numbers, from CI run 35442826412 (PR
+#6559, head 49f60dc5), printed by the WP5.1/WP5.2 merge jobs:**
+
+- Backend **unit merged (4 shards combined): 72.58%** —
+  `{"percent_covered": 72.58}` from "Backend Unit Tests Coverage".
+  No merged unit number had ever existed: the else-branch vacuity meant the
+  combine path never ran to completion on main.
+- Backend **integration merged (5 data files): 36.60%** —
+  "percent=36.60" from "Merge Integration Coverage" (R-COVDENOM: reported,
+  gates nothing).
+- The **combined union** (what the live 80 gate measures) is ≥80 by gate
+  survival; its exact percentage goes to the step summary on nightly green
+  runs, and the WP5.1 integration combine lands the same number on PR runs
+  after merge to main.
+- Frontend merged: 7-of-8 shards contributed
+  `FRONTEND_COVERAGE statements=72.7 branches=67 functions=70.5 lines=73.5
+files=842` — shard 1/8 DIED before writing coverage (root-caused same
+  day: vitest's default include swept the WP5.2 `node --test` merger unit
+  file into shard 1 and jsdom cannot bundle `node:test`; fixed by rename
+  `merge-shard-coverage-test.mjs`, pinned by
+  test_merger_unit_test_is_outside_the_vitest_sweep). The 72.7 is NOT
+  comparable to A3's 80.00: 7 shards, not 8, and v8's default all:false
+  counts only files exercised by the surviving shards. With 8-of-8 back,
+  the CI line should converge on A3's yardstick (the merger already
+  reproduces the reporter exactly, proven by-path).
+
+**The tension, stated plainly:** 72.58 merged unit vs a declared 85 unit
+minimum vs one live 80 gate on a UNION (different measurement) vs a
+documented 93 that runs nowhere. Anyone flipping pyproject's 85 into a real
+absolute gate reddens CI by 12.4 points today.
+
+**Recommendation (owner's call, nothing executed):** keep **80 on the
+combined union** as the one live gate — it is what actually runs and is
+green. For 85: either (a) cheap — annotate pyproject.toml + CLAUDE.md that
+85 is the WP0.9 diff-gate's relative baseline (matching ci.yml:465's stated
+intent), or (b) expensive — schedule the 72.58→85 climb (+12.4pp of unit
+tests, months; not compatible with the 72h window). For 93: delete it from
+the docs table or repoint those docs at validate.sh — a threshold that
+executes nowhere is worse than a lower one that does. Frontend: R-FEFLOOR
+stays parked exactly as A3 wrote it; the CI line now reports real
+8-shard-able numbers every run.
