@@ -1,0 +1,364 @@
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_1
+--- 
++++ 
+@@ -4,5 +4,5 @@
+     *,
+     batch_size: int = DEFAULT_BATCH_SIZE,
+-    order_by_time: bool = True,
++    order_by_time: bool = False,
+ ) -> list[Detection]:
+     """Fetch detections by IDs using batched queries.
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_12
+--- 
++++ 
+@@ -34,5 +34,5 @@
+     effective_batch_size = _clamp_batch_size(batch_size)
+ 
+-    if len(unique_ids) != len(detection_ids):
++    if len(unique_ids) == len(detection_ids):
+         logger.debug(f"Deduplicated detection IDs: {len(detection_ids)} -> {len(unique_ids)}")
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_13
+--- 
++++ 
+@@ -35,5 +35,5 @@
+ 
+     if len(unique_ids) != len(detection_ids):
+-        logger.debug(f"Deduplicated detection IDs: {len(detection_ids)} -> {len(unique_ids)}")
++        logger.debug(None)
+ 
+     # If all IDs fit in one batch, execute single query
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_14
+--- 
++++ 
+@@ -38,5 +38,5 @@
+ 
+     # If all IDs fit in one batch, execute single query
+-    if len(unique_ids) <= effective_batch_size:
++    if len(unique_ids) < effective_batch_size:
+         query = (
+             select(Detection)
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_16
+--- 
++++ 
+@@ -42,5 +42,5 @@
+             select(Detection)
+             .options(undefer(Detection.enrichment_data))
+-            .where(Detection.id.in_(unique_ids))
++            .where(None)
+         )
+         if order_by_time:
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_18
+--- 
++++ 
+@@ -40,5 +40,5 @@
+     if len(unique_ids) <= effective_batch_size:
+         query = (
+-            select(Detection)
++            select(None)
+             .options(undefer(Detection.enrichment_data))
+             .where(Detection.id.in_(unique_ids))
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_21
+--- 
++++ 
+@@ -45,5 +45,5 @@
+         )
+         if order_by_time:
+-            query = query.order_by(Detection.detected_at.asc())
++            query = None
+         result = await session.execute(query)
+         detections = list(result.scalars().all())
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_22
+--- 
++++ 
+@@ -45,5 +45,5 @@
+         )
+         if order_by_time:
+-            query = query.order_by(Detection.detected_at.asc())
++            query = query.order_by(None)
+         result = await session.execute(query)
+         detections = list(result.scalars().all())
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_24
+--- 
++++ 
+@@ -46,5 +46,5 @@
+         if order_by_time:
+             query = query.order_by(Detection.detected_at.asc())
+-        result = await session.execute(query)
++        result = await session.execute(None)
+         detections = list(result.scalars().all())
+         logger.debug(
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_27
+--- 
++++ 
+@@ -49,5 +49,5 @@
+         detections = list(result.scalars().all())
+         logger.debug(
+-            f"Fetched {len(detections)} detections in single query (requested: {len(unique_ids)})"
++            None
+         )
+         return detections
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_3
+--- 
++++ 
+@@ -25,5 +25,5 @@
+     """
+     if not detection_ids:
+-        logger.debug("batch_fetch_detections called with empty ID list")
++        logger.debug(None)
+         return []
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_30
+--- 
++++ 
+@@ -55,5 +55,5 @@
+     # Split into batches
+     all_detections: list[Detection] = []
+-    batch_count = 0
++    batch_count = 1
+ 
+     for i in range(0, len(unique_ids), effective_batch_size):
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_37
+--- 
++++ 
+@@ -57,5 +57,5 @@
+     batch_count = 0
+ 
+-    for i in range(0, len(unique_ids), effective_batch_size):
++    for i in range(1, len(unique_ids), effective_batch_size):
+         batch_ids = unique_ids[i : i + effective_batch_size]
+         batch_count += 1
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_39
+--- 
++++ 
+@@ -58,5 +58,5 @@
+ 
+     for i in range(0, len(unique_ids), effective_batch_size):
+-        batch_ids = unique_ids[i : i + effective_batch_size]
++        batch_ids = unique_ids[i : i - effective_batch_size]
+         batch_count += 1
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_4
+--- 
++++ 
+@@ -25,5 +25,5 @@
+     """
+     if not detection_ids:
+-        logger.debug("batch_fetch_detections called with empty ID list")
++        logger.debug("XXbatch_fetch_detections called with empty ID listXX")
+         return []
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_40
+--- 
++++ 
+@@ -59,5 +59,5 @@
+     for i in range(0, len(unique_ids), effective_batch_size):
+         batch_ids = unique_ids[i : i + effective_batch_size]
+-        batch_count += 1
++        batch_count = 1
+ 
+         query = (
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_41
+--- 
++++ 
+@@ -59,5 +59,5 @@
+     for i in range(0, len(unique_ids), effective_batch_size):
+         batch_ids = unique_ids[i : i + effective_batch_size]
+-        batch_count += 1
++        batch_count -= 1
+ 
+         query = (
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_42
+--- 
++++ 
+@@ -59,5 +59,5 @@
+     for i in range(0, len(unique_ids), effective_batch_size):
+         batch_ids = unique_ids[i : i + effective_batch_size]
+-        batch_count += 1
++        batch_count += 2
+ 
+         query = (
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_43
+--- 
++++ 
+@@ -61,9 +61,5 @@
+         batch_count += 1
+ 
+-        query = (
+-            select(Detection)
+-            .options(undefer(Detection.enrichment_data))
+-            .where(Detection.id.in_(batch_ids))
+-        )
++        query = None
+         result = await session.execute(query)
+         batch_detections = list(result.scalars().all())
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_44
+--- 
++++ 
+@@ -64,5 +64,5 @@
+             select(Detection)
+             .options(undefer(Detection.enrichment_data))
+-            .where(Detection.id.in_(batch_ids))
++            .where(None)
+         )
+         result = await session.execute(query)
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_46
+--- 
++++ 
+@@ -62,5 +62,5 @@
+ 
+         query = (
+-            select(Detection)
++            select(None)
+             .options(undefer(Detection.enrichment_data))
+             .where(Detection.id.in_(batch_ids))
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_5
+--- 
++++ 
+@@ -25,5 +25,5 @@
+     """
+     if not detection_ids:
+-        logger.debug("batch_fetch_detections called with empty ID list")
++        logger.debug("batch_fetch_detections called with empty id list")
+         return []
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_50
+--- 
++++ 
+@@ -66,5 +66,5 @@
+             .where(Detection.id.in_(batch_ids))
+         )
+-        result = await session.execute(query)
++        result = await session.execute(None)
+         batch_detections = list(result.scalars().all())
+         all_detections.extend(batch_detections)
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_54
+--- 
++++ 
+@@ -71,6 +71,5 @@
+ 
+     logger.debug(
+-        f"Fetched {len(all_detections)} detections in {batch_count} batches "
+-        f"(requested: {len(unique_ids)}, batch_size: {effective_batch_size})"
++        None
+     )
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections__mutmut_6
+--- 
++++ 
+@@ -25,5 +25,5 @@
+     """
+     if not detection_ids:
+-        logger.debug("batch_fetch_detections called with empty ID list")
++        logger.debug("BATCH_FETCH_DETECTIONS CALLED WITH EMPTY ID LIST")
+         return []
+ 
+##### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_10
+--- 
++++ 
+@@ -23,5 +23,5 @@
+     """
+     detections = await batch_fetch_detections(
+-        session, detection_ids, batch_size=batch_size, order_by_time=False
++        session, detection_ids, batch_size=batch_size, order_by_time=True
+     )
+     return {d.id: d for d in detections}
+##### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_5
+--- 
++++ 
+@@ -23,5 +23,5 @@
+     """
+     detections = await batch_fetch_detections(
+-        session, detection_ids, batch_size=batch_size, order_by_time=False
++        session, detection_ids, batch_size=batch_size, order_by_time=None
+     )
+     return {d.id: d for d in detections}
+##### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_8
+--- 
++++ 
+@@ -23,5 +23,5 @@
+     """
+     detections = await batch_fetch_detections(
+-        session, detection_ids, batch_size=batch_size, order_by_time=False
++        session, detection_ids, order_by_time=False
+     )
+     return {d.id: d for d in detections}
+##### backend.services.batch_fetch.x_batch_fetch_detections_by_ids__mutmut_9
+--- 
++++ 
+@@ -23,5 +23,4 @@
+     """
+     detections = await batch_fetch_detections(
+-        session, detection_ids, batch_size=batch_size, order_by_time=False
+-    )
++        session, detection_ids, batch_size=batch_size, )
+     return {d.id: d for d in detections}
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_14
+--- 
++++ 
+@@ -30,5 +30,5 @@
+     all_paths: list[str] = []
+ 
+-    for i in range(0, len(unique_ids), effective_batch_size):
++    for i in range(1, len(unique_ids), effective_batch_size):
+         batch_ids = unique_ids[i : i + effective_batch_size]
+ 
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_16
+--- 
++++ 
+@@ -31,5 +31,5 @@
+ 
+     for i in range(0, len(unique_ids), effective_batch_size):
+-        batch_ids = unique_ids[i : i + effective_batch_size]
++        batch_ids = unique_ids[i : i - effective_batch_size]
+ 
+         query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_17
+--- 
++++ 
+@@ -33,5 +33,5 @@
+         batch_ids = unique_ids[i : i + effective_batch_size]
+ 
+-        query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
++        query = None
+         result = await session.execute(query)
+         # Filter out None and empty strings - empty strings are invalid file paths
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_18
+--- 
++++ 
+@@ -33,5 +33,5 @@
+         batch_ids = unique_ids[i : i + effective_batch_size]
+ 
+-        query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
++        query = select(Detection.file_path).where(None)
+         result = await session.execute(query)
+         # Filter out None and empty strings - empty strings are invalid file paths
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_19
+--- 
++++ 
+@@ -33,5 +33,5 @@
+         batch_ids = unique_ids[i : i + effective_batch_size]
+ 
+-        query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
++        query = select(None).where(Detection.id.in_(batch_ids))
+         result = await session.execute(query)
+         # Filter out None and empty strings - empty strings are invalid file paths
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_22
+--- 
++++ 
+@@ -34,5 +34,5 @@
+ 
+         query = select(Detection.file_path).where(Detection.id.in_(batch_ids))
+-        result = await session.execute(query)
++        result = await session.execute(None)
+         # Filter out None and empty strings - empty strings are invalid file paths
+         batch_paths = [row[0] for row in result.all() if row[0]]
+##### backend.services.batch_fetch.x_batch_fetch_file_paths__mutmut_27
+--- 
++++ 
+@@ -39,4 +39,4 @@
+         all_paths.extend(batch_paths)
+ 
+-    logger.debug(f"Fetched {len(all_paths)} file paths for {len(unique_ids)} detection IDs")
++    logger.debug(None)
+     return all_paths
