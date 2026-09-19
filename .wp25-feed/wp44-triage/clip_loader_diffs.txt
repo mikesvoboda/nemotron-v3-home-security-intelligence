@@ -1,0 +1,301 @@
+===== mutmut_3 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_3: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -23,7 +23,7 @@
+ 
+         if not torch.cuda.is_available():
+             raise RuntimeError(
+-                "SigLIP 2 requires a CUDA GPU — vision-language transformer CPU "
++                "XXSigLIP 2 requires a CUDA GPU — vision-language transformer CPU XX"
+                 "inference holds the GIL for 5-20 s per image and starves the async "
+                 "event loop. Skipping on CPU-only host."
+             )
+===== mutmut_6 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_6: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -28,7 +28,7 @@
+                 "event loop. Skipping on CPU-only host."
+             )
+ 
+-        logger.info(f"Loading SigLIP 2 model from {model_path}")
++        logger.info(None)
+ 
+         loop = asyncio.get_running_loop()
+ 
+===== mutmut_13 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_13: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -46,7 +46,7 @@
+ 
+                 if torch.cuda.is_available():
+                     model = model.cuda()
+-                    logger.info("SigLIP 2 model moved to CUDA")
++                    logger.info(None)
+             except ImportError:
+                 pass
+ 
+===== mutmut_14 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_14: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -46,7 +46,7 @@
+ 
+                 if torch.cuda.is_available():
+                     model = model.cuda()
+-                    logger.info("SigLIP 2 model moved to CUDA")
++                    logger.info("XXSigLIP 2 model moved to CUDAXX")
+             except ImportError:
+                 pass
+ 
+===== mutmut_15 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_15: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -46,7 +46,7 @@
+ 
+                 if torch.cuda.is_available():
+                     model = model.cuda()
+-                    logger.info("SigLIP 2 model moved to CUDA")
++                    logger.info("siglip 2 model moved to cuda")
+             except ImportError:
+                 pass
+ 
+===== mutmut_16 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_16: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -46,7 +46,7 @@
+ 
+                 if torch.cuda.is_available():
+                     model = model.cuda()
+-                    logger.info("SigLIP 2 model moved to CUDA")
++                    logger.info("SIGLIP 2 MODEL MOVED TO CUDA")
+             except ImportError:
+                 pass
+ 
+===== mutmut_25 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_25: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -54,7 +54,7 @@
+ 
+         result = await loop.run_in_executor(None, _load)
+ 
+-        logger.info(f"Successfully loaded SigLIP 2 model from {model_path}")
++        logger.info(None)
+         return result
+ 
+     except ImportError as e:
+===== mutmut_26 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_26: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -58,7 +58,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning(None)
+         raise ImportError(
+             "transformers package required for SigLIP 2. Install with: pip install transformers"
+         ) from e
+===== mutmut_27 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_27: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -58,7 +58,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("XXtransformers package not installed. Install with: pip install transformersXX")
+         raise ImportError(
+             "transformers package required for SigLIP 2. Install with: pip install transformers"
+         ) from e
+===== mutmut_28 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_28: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -58,7 +58,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("transformers package not installed. install with: pip install transformers")
+         raise ImportError(
+             "transformers package required for SigLIP 2. Install with: pip install transformers"
+         ) from e
+===== mutmut_29 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_29: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -58,7 +58,7 @@
+         return result
+ 
+     except ImportError as e:
+-        logger.warning("transformers package not installed. Install with: pip install transformers")
++        logger.warning("TRANSFORMERS PACKAGE NOT INSTALLED. INSTALL WITH: PIP INSTALL TRANSFORMERS")
+         raise ImportError(
+             "transformers package required for SigLIP 2. Install with: pip install transformers"
+         ) from e
+===== mutmut_31 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_31: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -60,7 +60,7 @@
+     except ImportError as e:
+         logger.warning("transformers package not installed. Install with: pip install transformers")
+         raise ImportError(
+-            "transformers package required for SigLIP 2. Install with: pip install transformers"
++            "XXtransformers package required for SigLIP 2. Install with: pip install transformersXX"
+         ) from e
+ 
+     except Exception as e:
+===== mutmut_32 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_32: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -60,7 +60,7 @@
+     except ImportError as e:
+         logger.warning("transformers package not installed. Install with: pip install transformers")
+         raise ImportError(
+-            "transformers package required for SigLIP 2. Install with: pip install transformers"
++            "transformers package required for siglip 2. install with: pip install transformers"
+         ) from e
+ 
+     except Exception as e:
+===== mutmut_34 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_34: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            None, exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_35 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_35: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", exc_info=None, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_36 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_36: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", exc_info=True, extra=None
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_38 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_38: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_39 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_39: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,5 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
+-        )
++            "Failed to load SigLIP 2 model", exc_info=True, )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_40 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_40: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "XXFailed to load SigLIP 2 modelXX", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_41 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_41: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "failed to load siglip 2 model", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_42 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_42: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "FAILED TO LOAD SIGLIP 2 MODEL", exc_info=True, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_43 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_43: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", exc_info=False, extra={"model_path": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_44 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_44: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", exc_info=True, extra={"XXmodel_pathXX": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e
+===== mutmut_45 =====
+# backend.services.clip_loader.x_load_clip_model__mutmut_45: survived
+--- backend/services/clip_loader.py
++++ backend/services/clip_loader.py
+@@ -65,6 +65,6 @@
+ 
+     except Exception as e:
+         logger.error(
+-            "Failed to load SigLIP 2 model", exc_info=True, extra={"model_path": model_path}
++            "Failed to load SigLIP 2 model", exc_info=True, extra={"MODEL_PATH": model_path}
+         )
+         raise RuntimeError(f"Failed to load SigLIP 2 model: {e}") from e

@@ -1,0 +1,546 @@
+#####backend.services.job_state_service.x_get_valid_target_states__mutmut_2
+# backend.services.job_state_service.x_get_valid_target_states__mutmut_2: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -7,4 +7,4 @@
+     Returns:
+         List of valid target status values.
+     """
+-    return VALID_TRANSITIONS.get(status, [])
++    return VALID_TRANSITIONS.get(status, None)
+#####backend.services.job_state_service.x_get_valid_target_states__mutmut_4
+# backend.services.job_state_service.x_get_valid_target_states__mutmut_4: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -7,4 +7,4 @@
+     Returns:
+         List of valid target status values.
+     """
+-    return VALID_TRANSITIONS.get(status, [])
++    return VALID_TRANSITIONS.get(status, )
+#####backend.services.job_state_service.x_validate_transition__mutmut_3
+# backend.services.job_state_service.x_validate_transition__mutmut_3: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -11,5 +11,5 @@
+     Returns:
+         True if the transition is valid, False otherwise.
+     """
+-    valid_targets = VALID_TRANSITIONS.get(from_status, [])
++    valid_targets = VALID_TRANSITIONS.get(from_status, None)
+     return to_status in valid_targets
+#####backend.services.job_state_service.x_validate_transition__mutmut_5
+# backend.services.job_state_service.x_validate_transition__mutmut_5: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -11,5 +11,5 @@
+     Returns:
+         True if the transition is valid, False otherwise.
+     """
+-    valid_targets = VALID_TRANSITIONS.get(from_status, [])
++    valid_targets = VALID_TRANSITIONS.get(from_status, )
+     return to_status in valid_targets
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_12
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_12: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -5,7 +5,7 @@
+         "job_type": self.job_type,
+         "status": self.status,
+         "created_at": self.created_at.isoformat(),
+-        "started_at": self.started_at.isoformat() if self.started_at else None,
++        "started_at": self.started_at.isoformat() if (self.started_at) or True else None,
+         "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+         "error": self.error,
+         "metadata": self.metadata,
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_15
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_15: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -6,7 +6,7 @@
+         "status": self.status,
+         "created_at": self.created_at.isoformat(),
+         "started_at": self.started_at.isoformat() if self.started_at else None,
+-        "completed_at": self.completed_at.isoformat() if self.completed_at else None,
++        "completed_at": self.completed_at.isoformat() if (self.completed_at) and False else None,
+         "error": self.error,
+         "metadata": self.metadata,
+     }
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_17
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_17: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -7,6 +7,6 @@
+         "created_at": self.created_at.isoformat(),
+         "started_at": self.started_at.isoformat() if self.started_at else None,
+         "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+-        "error": self.error,
++        "XXerrorXX": self.error,
+         "metadata": self.metadata,
+     }
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_18
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_18: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -7,6 +7,6 @@
+         "created_at": self.created_at.isoformat(),
+         "started_at": self.started_at.isoformat() if self.started_at else None,
+         "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+-        "error": self.error,
++        "ERROR": self.error,
+         "metadata": self.metadata,
+     }
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_19
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_19: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -8,5 +8,5 @@
+         "started_at": self.started_at.isoformat() if self.started_at else None,
+         "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+         "error": self.error,
+-        "metadata": self.metadata,
++        "XXmetadataXX": self.metadata,
+     }
+#####backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_20
+# backend.services.job_state_service.xǁJobDataǁto_dict__mutmut_20: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -8,5 +8,5 @@
+         "started_at": self.started_at.isoformat() if self.started_at else None,
+         "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+         "error": self.error,
+-        "metadata": self.metadata,
++        "METADATA": self.metadata,
+     }
+#####backend.services.job_state_service.xǁJobStateServiceǁ_record_transition__mutmut_13
+# backend.services.job_state_service.xǁJobStateServiceǁ_record_transition__mutmut_13: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -23,7 +23,7 @@
+         from_status=from_status,
+         to_status=to_status,
+         triggered_by=triggered_by,
+-        metadata_json=json.dumps(metadata) if metadata else None,
++        metadata_json=json.dumps(metadata) if (metadata) or True else None,
+     )
+ 
+     self._db.add(transition)
+#####backend.services.job_state_service.xǁJobStateServiceǁcreate_job__mutmut_15
+# backend.services.job_state_service.xǁJobStateServiceǁcreate_job__mutmut_15: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -19,6 +19,6 @@
+         id=job_id or str(uuid.uuid4()),
+         job_type=job_type,
+         status="queued",
+-        created_at=datetime.now(UTC),
++        created_at=datetime.now(None),
+         metadata=metadata,
+     )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_10
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_10: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -31,12 +31,7 @@
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+             "Invalid state transition attempted",
+-            extra={
+-                "job_id": job.id,
+-                "from_status": old_status,
+-                "to_status": new_status,
+-            },
+-        )
++            )
+         raise InvalidStateTransition(
+             from_status=old_status,
+             to_status=new_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_11
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_11: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -30,7 +30,7 @@
+     # Validate the transition
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+-            "Invalid state transition attempted",
++            "XXInvalid state transition attemptedXX",
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_12
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_12: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -30,7 +30,7 @@
+     # Validate the transition
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+-            "Invalid state transition attempted",
++            "invalid state transition attempted",
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_13
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_13: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -30,7 +30,7 @@
+     # Validate the transition
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+-            "Invalid state transition attempted",
++            "INVALID STATE TRANSITION ATTEMPTED",
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_14
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_14: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -32,7 +32,7 @@
+         logger.warning(
+             "Invalid state transition attempted",
+             extra={
+-                "job_id": job.id,
++                "XXjob_idXX": job.id,
+                 "from_status": old_status,
+                 "to_status": new_status,
+             },
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_15
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_15: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -32,7 +32,7 @@
+         logger.warning(
+             "Invalid state transition attempted",
+             extra={
+-                "job_id": job.id,
++                "JOB_ID": job.id,
+                 "from_status": old_status,
+                 "to_status": new_status,
+             },
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_16
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_16: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -33,7 +33,7 @@
+             "Invalid state transition attempted",
+             extra={
+                 "job_id": job.id,
+-                "from_status": old_status,
++                "XXfrom_statusXX": old_status,
+                 "to_status": new_status,
+             },
+         )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_17
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_17: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -33,7 +33,7 @@
+             "Invalid state transition attempted",
+             extra={
+                 "job_id": job.id,
+-                "from_status": old_status,
++                "FROM_STATUS": old_status,
+                 "to_status": new_status,
+             },
+         )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_18
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_18: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -34,7 +34,7 @@
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+-                "to_status": new_status,
++                "XXto_statusXX": new_status,
+             },
+         )
+         raise InvalidStateTransition(
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_19
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_19: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -34,7 +34,7 @@
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+-                "to_status": new_status,
++                "TO_STATUS": new_status,
+             },
+         )
+         raise InvalidStateTransition(
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_28
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_28: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -47,7 +47,7 @@
+     job.status = new_status
+ 
+     # Update timestamps based on transition
+-    now = datetime.now(UTC)
++    now = datetime.now(None)
+     if new_status == "running":
+         job.started_at = now
+     elif new_status in ("completed", "failed", "cancelled", "aborted"):
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_43
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_43: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -54,7 +54,7 @@
+         job.completed_at = now
+ 
+     # Record error message for failure states
+-    if new_status in ("failed", "aborted") and error_message:
++    if new_status in ("failed", "aborted") or error_message:
+         job.error = error_message
+ 
+     # Record the transition
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_47
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_47: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -54,7 +54,7 @@
+         job.completed_at = now
+ 
+     # Record error message for failure states
+-    if new_status in ("failed", "aborted") and error_message:
++    if new_status in ("failed", "XXabortedXX") and error_message:
+         job.error = error_message
+ 
+     # Record the transition
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_48
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_48: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -54,7 +54,7 @@
+         job.completed_at = now
+ 
+     # Record error message for failure states
+-    if new_status in ("failed", "aborted") and error_message:
++    if new_status in ("failed", "ABORTED") and error_message:
+         job.error = error_message
+ 
+     # Record the transition
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_60
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_60: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -67,7 +67,7 @@
+     )
+ 
+     logger.info(
+-        "Job state transitioned",
++        None,
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_61
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_61: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -68,12 +68,7 @@
+ 
+     logger.info(
+         "Job state transitioned",
+-        extra={
+-            "job_id": job.id,
+-            "from_status": old_status,
+-            "to_status": new_status,
+-            "triggered_by": triggered_by,
+-        },
++        extra=None,
+     )
+ 
+     return job
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_63
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_63: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -68,12 +68,6 @@
+ 
+     logger.info(
+         "Job state transitioned",
+-        extra={
+-            "job_id": job.id,
+-            "from_status": old_status,
+-            "to_status": new_status,
+-            "triggered_by": triggered_by,
+-        },
+-    )
++        )
+ 
+     return job
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_64
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_64: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -67,7 +67,7 @@
+     )
+ 
+     logger.info(
+-        "Job state transitioned",
++        "XXJob state transitionedXX",
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_65
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_65: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -67,7 +67,7 @@
+     )
+ 
+     logger.info(
+-        "Job state transitioned",
++        "job state transitioned",
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_66
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_66: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -67,7 +67,7 @@
+     )
+ 
+     logger.info(
+-        "Job state transitioned",
++        "JOB STATE TRANSITIONED",
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_67
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_67: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -69,7 +69,7 @@
+     logger.info(
+         "Job state transitioned",
+         extra={
+-            "job_id": job.id,
++            "XXjob_idXX": job.id,
+             "from_status": old_status,
+             "to_status": new_status,
+             "triggered_by": triggered_by,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_68
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_68: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -69,7 +69,7 @@
+     logger.info(
+         "Job state transitioned",
+         extra={
+-            "job_id": job.id,
++            "JOB_ID": job.id,
+             "from_status": old_status,
+             "to_status": new_status,
+             "triggered_by": triggered_by,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_69
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_69: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -70,7 +70,7 @@
+         "Job state transitioned",
+         extra={
+             "job_id": job.id,
+-            "from_status": old_status,
++            "XXfrom_statusXX": old_status,
+             "to_status": new_status,
+             "triggered_by": triggered_by,
+         },
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_7
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_7: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -30,7 +30,7 @@
+     # Validate the transition
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+-            "Invalid state transition attempted",
++            None,
+             extra={
+                 "job_id": job.id,
+                 "from_status": old_status,
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_70
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_70: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -70,7 +70,7 @@
+         "Job state transitioned",
+         extra={
+             "job_id": job.id,
+-            "from_status": old_status,
++            "FROM_STATUS": old_status,
+             "to_status": new_status,
+             "triggered_by": triggered_by,
+         },
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_71
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_71: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -71,7 +71,7 @@
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+-            "to_status": new_status,
++            "XXto_statusXX": new_status,
+             "triggered_by": triggered_by,
+         },
+     )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_72
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_72: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -71,7 +71,7 @@
+         extra={
+             "job_id": job.id,
+             "from_status": old_status,
+-            "to_status": new_status,
++            "TO_STATUS": new_status,
+             "triggered_by": triggered_by,
+         },
+     )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_73
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_73: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -72,7 +72,7 @@
+             "job_id": job.id,
+             "from_status": old_status,
+             "to_status": new_status,
+-            "triggered_by": triggered_by,
++            "XXtriggered_byXX": triggered_by,
+         },
+     )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_74
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_74: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -72,7 +72,7 @@
+             "job_id": job.id,
+             "from_status": old_status,
+             "to_status": new_status,
+-            "triggered_by": triggered_by,
++            "TRIGGERED_BY": triggered_by,
+         },
+     )
+#####backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_8
+# backend.services.job_state_service.xǁJobStateServiceǁtransition__mutmut_8: survived
+--- backend/services/job_state_service.py
++++ backend/services/job_state_service.py
+@@ -31,11 +31,7 @@
+     if not self.is_valid_transition(old_status, new_status):
+         logger.warning(
+             "Invalid state transition attempted",
+-            extra={
+-                "job_id": job.id,
+-                "from_status": old_status,
+-                "to_status": new_status,
+-            },
++            extra=None,
+         )
+         raise InvalidStateTransition(
+             from_status=old_status,

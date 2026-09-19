@@ -1,0 +1,500 @@
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_2
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_2: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -13,7 +13,7 @@
+         Returns:
+             The updated SceneChange record or None if not found.
+         """
+-    scene_change = await self.get_scene_change(scene_change_id)
++    scene_change = await self.get_scene_change(None)
+     if scene_change is None:
+         return None
+ 
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_22
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_22: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -34,7 +34,7 @@
+                 "id": scene_change.id,
+                 "camera_id": scene_change.camera_id,
+                 "acknowledged": scene_change.acknowledged,
+-                "acknowledged_at": scene_change.acknowledged_at.isoformat()
++                "XXacknowledged_atXX": scene_change.acknowledged_at.isoformat()
+                 if scene_change.acknowledged_at
+                 else None,
+             },
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_23
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_23: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -34,7 +34,7 @@
+                 "id": scene_change.id,
+                 "camera_id": scene_change.camera_id,
+                 "acknowledged": scene_change.acknowledged,
+-                "acknowledged_at": scene_change.acknowledged_at.isoformat()
++                "ACKNOWLEDGED_AT": scene_change.acknowledged_at.isoformat()
+                 if scene_change.acknowledged_at
+                 else None,
+             },
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_24
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_24: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -35,7 +35,7 @@
+                 "camera_id": scene_change.camera_id,
+                 "acknowledged": scene_change.acknowledged,
+                 "acknowledged_at": scene_change.acknowledged_at.isoformat()
+-                if scene_change.acknowledged_at
++                if (scene_change.acknowledged_at) and False
+                 else None,
+             },
+             correlation_id=correlation_id,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_25
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_25: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -35,7 +35,7 @@
+                 "camera_id": scene_change.camera_id,
+                 "acknowledged": scene_change.acknowledged,
+                 "acknowledged_at": scene_change.acknowledged_at.isoformat()
+-                if scene_change.acknowledged_at
++                if (scene_change.acknowledged_at) or True
+                 else None,
+             },
+             correlation_id=correlation_id,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_7
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_7: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -22,7 +22,7 @@
+         return scene_change
+ 
+     scene_change.acknowledged = True
+-    scene_change.acknowledged_at = datetime.now(UTC)
++    scene_change.acknowledged_at = datetime.now(None)
+     await self._session.flush()
+     await self._session.refresh(scene_change)
+ 
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_8
+# backend.services.scene_change_service.xǁSceneChangeServiceǁacknowledge_scene_change__mutmut_8: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -24,7 +24,7 @@
+     scene_change.acknowledged = True
+     scene_change.acknowledged_at = datetime.now(UTC)
+     await self._session.flush()
+-    await self._session.refresh(scene_change)
++    await self._session.refresh(None)
+ 
+     # Broadcast acknowledgment via WebSocket
+     if self._emitter is not None:
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_10
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_10: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -22,7 +22,6 @@
+     scene_change = SceneChange(
+         camera_id=camera_id,
+         similarity_score=similarity_score,
+-        change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+         acknowledged=False,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_11
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_11: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -23,7 +23,6 @@
+         camera_id=camera_id,
+         similarity_score=similarity_score,
+         change_type=change_type,
+-        file_path=file_path,
+         detected_at=datetime.now(UTC),
+         acknowledged=False,
+         acknowledged_at=None,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_12
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_12: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -24,7 +24,6 @@
+         similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+-        detected_at=datetime.now(UTC),
+         acknowledged=False,
+         acknowledged_at=None,
+     )
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_13
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_13: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -25,7 +25,6 @@
+         change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+-        acknowledged=False,
+         acknowledged_at=None,
+     )
+     self._session.add(scene_change)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_14
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_14: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -26,8 +26,7 @@
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+         acknowledged=False,
+-        acknowledged_at=None,
+-    )
++        )
+     self._session.add(scene_change)
+     await self._session.flush()
+     await self._session.refresh(scene_change)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_15
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_15: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -24,7 +24,7 @@
+         similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+-        detected_at=datetime.now(UTC),
++        detected_at=datetime.now(None),
+         acknowledged=False,
+         acknowledged_at=None,
+     )
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_16
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_16: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -25,7 +25,7 @@
+         change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+-        acknowledged=False,
++        acknowledged=True,
+         acknowledged_at=None,
+     )
+     self._session.add(scene_change)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_17
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_17: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -28,7 +28,7 @@
+         acknowledged=False,
+         acknowledged_at=None,
+     )
+-    self._session.add(scene_change)
++    self._session.add(None)
+     await self._session.flush()
+     await self._session.refresh(scene_change)
+ 
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_18
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_18: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -30,7 +30,7 @@
+     )
+     self._session.add(scene_change)
+     await self._session.flush()
+-    await self._session.refresh(scene_change)
++    await self._session.refresh(None)
+ 
+     # Broadcast via WebSocket if emitter is available
+     if self._emitter is not None:
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_2
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_2: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -20,7 +20,7 @@
+             The created SceneChange record.
+         """
+     scene_change = SceneChange(
+-        camera_id=camera_id,
++        camera_id=None,
+         similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_3
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_3: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -21,7 +21,7 @@
+         """
+     scene_change = SceneChange(
+         camera_id=camera_id,
+-        similarity_score=similarity_score,
++        similarity_score=None,
+         change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_36
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_36: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -42,7 +42,7 @@
+                 "similarity_score": scene_change.similarity_score,
+                 "change_type": scene_change.change_type.value,
+                 "file_path": scene_change.file_path,
+-                "detected_at": scene_change.detected_at.isoformat(),
++                "XXdetected_atXX": scene_change.detected_at.isoformat(),
+                 "acknowledged": scene_change.acknowledged,
+             },
+             correlation_id=correlation_id,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_37
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_37: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -42,7 +42,7 @@
+                 "similarity_score": scene_change.similarity_score,
+                 "change_type": scene_change.change_type.value,
+                 "file_path": scene_change.file_path,
+-                "detected_at": scene_change.detected_at.isoformat(),
++                "DETECTED_AT": scene_change.detected_at.isoformat(),
+                 "acknowledged": scene_change.acknowledged,
+             },
+             correlation_id=correlation_id,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_4
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_4: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -22,7 +22,7 @@
+     scene_change = SceneChange(
+         camera_id=camera_id,
+         similarity_score=similarity_score,
+-        change_type=change_type,
++        change_type=None,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+         acknowledged=False,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_5
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_5: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -23,7 +23,7 @@
+         camera_id=camera_id,
+         similarity_score=similarity_score,
+         change_type=change_type,
+-        file_path=file_path,
++        file_path=None,
+         detected_at=datetime.now(UTC),
+         acknowledged=False,
+         acknowledged_at=None,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_6
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_6: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -24,7 +24,7 @@
+         similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+-        detected_at=datetime.now(UTC),
++        detected_at=None,
+         acknowledged=False,
+         acknowledged_at=None,
+     )
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_7
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_7: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -25,7 +25,7 @@
+         change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+-        acknowledged=False,
++        acknowledged=None,
+         acknowledged_at=None,
+     )
+     self._session.add(scene_change)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_8
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_8: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -20,7 +20,6 @@
+             The created SceneChange record.
+         """
+     scene_change = SceneChange(
+-        camera_id=camera_id,
+         similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_9
+# backend.services.scene_change_service.xǁSceneChangeServiceǁcreate_scene_change__mutmut_9: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -21,7 +21,6 @@
+         """
+     scene_change = SceneChange(
+         camera_id=camera_id,
+-        similarity_score=similarity_score,
+         change_type=change_type,
+         file_path=file_path,
+         detected_at=datetime.now(UTC),
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_2
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_2: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -8,6 +8,6 @@
+             The SceneChange record or None if not found.
+         """
+     result = await self._session.execute(
+-        select(SceneChange).where(SceneChange.id == scene_change_id)
++        None
+     )
+     return result.scalar_one_or_none()
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_3
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_3: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -8,6 +8,6 @@
+             The SceneChange record or None if not found.
+         """
+     result = await self._session.execute(
+-        select(SceneChange).where(SceneChange.id == scene_change_id)
++        select(SceneChange).where(None)
+     )
+     return result.scalar_one_or_none()
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_4
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_4: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -8,6 +8,6 @@
+             The SceneChange record or None if not found.
+         """
+     result = await self._session.execute(
+-        select(SceneChange).where(SceneChange.id == scene_change_id)
++        select(None).where(SceneChange.id == scene_change_id)
+     )
+     return result.scalar_one_or_none()
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_5
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_scene_change__mutmut_5: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -8,6 +8,6 @@
+             The SceneChange record or None if not found.
+         """
+     result = await self._session.execute(
+-        select(SceneChange).where(SceneChange.id == scene_change_id)
++        select(SceneChange).where(SceneChange.id != scene_change_id)
+     )
+     return result.scalar_one_or_none()
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_10
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_10: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -15,7 +15,7 @@
+     result = await self._session.execute(
+         select(SceneChange)
+         .where(SceneChange.camera_id == camera_id)
+-        .where(SceneChange.acknowledged.is_(False))
++        .where(SceneChange.acknowledged.is_(True))
+         .order_by(SceneChange.detected_at.desc())
+         .limit(limit)
+     )
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_2
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_2: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -13,10 +13,6 @@
+             List of unacknowledged SceneChange records.
+         """
+     result = await self._session.execute(
+-        select(SceneChange)
+-        .where(SceneChange.camera_id == camera_id)
+-        .where(SceneChange.acknowledged.is_(False))
+-        .order_by(SceneChange.detected_at.desc())
+-        .limit(limit)
++        None
+     )
+     return list(result.scalars().all())
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_3
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_3: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -17,6 +17,6 @@
+         .where(SceneChange.camera_id == camera_id)
+         .where(SceneChange.acknowledged.is_(False))
+         .order_by(SceneChange.detected_at.desc())
+-        .limit(limit)
++        .limit(None)
+     )
+     return list(result.scalars().all())
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_4
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_4: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -16,7 +16,7 @@
+         select(SceneChange)
+         .where(SceneChange.camera_id == camera_id)
+         .where(SceneChange.acknowledged.is_(False))
+-        .order_by(SceneChange.detected_at.desc())
++        .order_by(None)
+         .limit(limit)
+     )
+     return list(result.scalars().all())
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_5
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_5: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -15,7 +15,7 @@
+     result = await self._session.execute(
+         select(SceneChange)
+         .where(SceneChange.camera_id == camera_id)
+-        .where(SceneChange.acknowledged.is_(False))
++        .where(None)
+         .order_by(SceneChange.detected_at.desc())
+         .limit(limit)
+     )
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_6
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_6: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -14,7 +14,7 @@
+         """
+     result = await self._session.execute(
+         select(SceneChange)
+-        .where(SceneChange.camera_id == camera_id)
++        .where(None)
+         .where(SceneChange.acknowledged.is_(False))
+         .order_by(SceneChange.detected_at.desc())
+         .limit(limit)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_7
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_7: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -13,7 +13,7 @@
+             List of unacknowledged SceneChange records.
+         """
+     result = await self._session.execute(
+-        select(SceneChange)
++        select(None)
+         .where(SceneChange.camera_id == camera_id)
+         .where(SceneChange.acknowledged.is_(False))
+         .order_by(SceneChange.detected_at.desc())
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_8
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_8: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -14,7 +14,7 @@
+         """
+     result = await self._session.execute(
+         select(SceneChange)
+-        .where(SceneChange.camera_id == camera_id)
++        .where(SceneChange.camera_id != camera_id)
+         .where(SceneChange.acknowledged.is_(False))
+         .order_by(SceneChange.detected_at.desc())
+         .limit(limit)
+##### backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_9
+# backend.services.scene_change_service.xǁSceneChangeServiceǁget_unacknowledged_for_camera__mutmut_9: survived
+--- backend/services/scene_change_service.py
++++ backend/services/scene_change_service.py
+@@ -15,7 +15,7 @@
+     result = await self._session.execute(
+         select(SceneChange)
+         .where(SceneChange.camera_id == camera_id)
+-        .where(SceneChange.acknowledged.is_(False))
++        .where(SceneChange.acknowledged.is_(None))
+         .order_by(SceneChange.detected_at.desc())
+         .limit(limit)
+     )

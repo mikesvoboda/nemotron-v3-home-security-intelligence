@@ -1,65 +1,83 @@
-import json, re, difflib
+import json, re, difflib, collections, pickle
 
-MUT='/agents/agent-nemo2/workspace/mutants/backend/services/vision_extractor.py'
-lines=open(MUT).read().split('\n')
+src = open('/agents/agent-nemo2/workspace/mutants/backend/services/container_discovery.py').read().splitlines()
 
-def_re=re.compile(r'^(\s*)(?:async\s+)?def (\S+?)\s*[\(:]')
-defs={}
-for i,l in enumerate(lines):
-    m=def_re.match(l)
-    if m and '__mutmut_' in m.group(2):
-        defs[m.group(2)]=(i, len(m.group(1)))
+# find all def lines matching x<fn>__mutmut_N or x<fn>__mutmut_orig (module-level or class-level indented)
+def_re = re.compile(r'^(\s*)def (x.+?__mutmut(?:_orig|_(\d+)))\(')
+defs = []  # (indent, name, variant_num_or_None, lineno)
+for i,l in enumerate(src):
+    m = def_re.match(l)
+    if m:
+        indent = len(m.group(1))
+        name = m.group(2)
+        num = m.group(3)
+        defs.append((indent, name, num, i))
 
-def body(name):
-    i,ind=defs[name]
-    # skip past signature: find first line after def ending with ':' at signature level
-    j=i+1
-    # the def line itself may end with ':' ; else advance until a line rstrip endswith ':' and next line is indented deeper or empty
-    if not lines[i].rstrip().endswith(':'):
-        while j<len(lines) and not lines[j].rstrip().endswith(':'):
-            j+=1
-        j+=1
-    out=[]
-    while j<len(lines):
-        l=lines[j]
-        if l.strip()=='':
-            out.append(l); j+=1; continue
-        cur=len(l)-len(l.lstrip())
-        if cur<=ind: break
-        out.append(l); j+=1
-    while out and out[-1].strip()=='': out.pop()
-    return out
+# Determine body end for each def: the line index before the next def/class at same-or-less indent that starts a new top-level construct.
+# Simpler: bodies are separated by the next def line at same indent.
+blocks = {}
+for idx,(indent,name,num,i) in enumerate(defs):
+    # find end: next def at same indent
+    end = len(src)
+    for j in range(idx+1, len(defs)):
+        if defs[j][0] <= indent:
+            end = defs[j][3]
+            break
+    # strip trailing decorator/back lines of next block: decorators appear before def; include them out.
+    body = src[i+1:end]
+    # remove trailing lines that belong to next def's decorators/blank/comment
+    # find last line of actual body: cut trailing lines starting with '@' or blank or comment-only at the end
+    while body and (body[-1].strip()=='' or body[-1].strip().startswith('@') or (body[-1].strip().startswith('#') and not body[-1].strip().startswith('# type'))):
+        body.pop()
+    # also cut trailing comment lines like "# ... mutmut"? keep simple
+    # base fn name
+    m2 = re.match(r'x(.+?)__mutmut', name)
+    base = m2.group(1)
+    if num is None: continue
+    blocks[(base, int(num))] = (indent, body)
 
-meta=json.load(open('/agents/agent-nemo2/workspace/mutants/backend/services/vision_extractor.py.meta'))
-surv=[k for k,v in meta['exit_code_by_key'].items() if v==0]
+# originals: use __mutmut_orig body per base
+orig_body = {}
+for idx,(indent,name,num,i) in enumerate(defs):
+    if num is None:
+        m2 = re.match(r'x(.+?)__mutmut', name)
+        base = m2.group(1)
+        end = len(src)
+        for j in range(idx+1, len(defs)):
+            if defs[j][0] <= indent:
+                end = defs[j][3]
+                break
+        body = src[i+1:end]
+        while body and (body[-1].strip()=='' or body[-1].strip().startswith('@')):
+            body.pop()
+        orig_body[base] = body
 
-result=[]
-for key in sorted(surv, key=lambda k:(k.split('__mutmut_')[0], int(k.split('__mutmut_')[-1]))):
-    rest=key[len('backend.services.vision_extractor.'):]
-    m=re.match(r'x(.+)__mutmut_(\d+)$', rest)
-    fn, num = m.group(1), m.group(2)
-    vname='x'+fn+'__mutmut_'+num
-    oname='x'+fn+'__mutmut_orig'
-    if vname not in defs or oname not in defs:
-        result.append((fn,num,'MISSING')); continue
-    ob=body(oname); vb=body(vname)
-    sm=difflib.SequenceMatcher(None, ob, vb)
-    changes=[]
+print('bases:', {b: len(v) for b,v in orig_body.items()})
+print('variants found:', collections.Counter(b for b,_ in blocks))
+
+out = {}
+for (base,num), (indent, body) in blocks.items():
+    ob = orig_body[base]
+    sm = difflib.SequenceMatcher(None, ob, body)
+    changes = []
     for tag,i1,i2,j1,j2 in sm.get_opcodes():
         if tag=='equal': continue
-        o=' | '.join(s.strip() for s in ob[i1:i2])
-        v=' | '.join(s.strip() for s in vb[j1:j2])
-        changes.append((o,v))
-    result.append((fn,num,changes))
+        old = [x.strip() for x in ob[i1:i2]]
+        new = [x.strip() for x in body[j1:j2]]
+        changes.append((old,new))
+    key_base = 'backend.services.container_discovery.x'+base
+    out[(base,num)] = changes
 
-with open('/tmp/wp25/wp44-triage/diffs.txt','w') as f:
-    for fn,num,changes in result:
-        if changes=='MISSING':
-            f.write(f'### {fn} #{num} MISSING\n'); continue
-        if not changes:
-            f.write(f'### {fn} #{num} NO-DIFF (identical body)\n'); continue
-        for o,v in changes:
-            f.write(f'### {fn} #{num}\n- {o}\n+ {v}\n')
-missing=[r for r in result if r[2]=='MISSING']
-nodiff=[r for r in result if r[2]==[]]
-print('total',len(result),'missing',len(missing),'nodiff',len(nodiff))
+pickle.dump(out, open('/tmp/wp25/wp44-triage/blocks.pkl','wb'))
+
+# summarize changed line pairs
+pat = collections.Counter()
+for (base,num), changes in out.items():
+    if len(changes)==1:
+        old,new = changes[0]
+        pat[(base, tuple(old), tuple(new))]+=1
+    else:
+        pat[(base,'MULTI', str(len(changes)))]+=1
+
+print('total variants with diffs:', len(out))
+print('unique (base,old,new) patterns:', len(pat))

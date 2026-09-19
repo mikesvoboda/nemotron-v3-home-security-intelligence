@@ -1,0 +1,673 @@
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_1
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -18,12 +18,7 @@
+             PersonStats with known and unknown counts
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+-    stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+-        .where(FaceDetectionEvent.timestamp >= window_start)
+-        .where(FaceDetectionEvent.timestamp < window_end)
+-        .group_by(FaceDetectionEvent.is_unknown)
+-    )
++    stmt = None
+ 
+     result = await session.execute(stmt)
+     rows = result.all()
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_2
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -22,7 +22,7 @@
+         select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+-        .group_by(FaceDetectionEvent.is_unknown)
++        .group_by(None)
+     )
+ 
+     result = await session.execute(stmt)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_3
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -21,7 +21,7 @@
+     stmt = (
+         select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+-        .where(FaceDetectionEvent.timestamp < window_end)
++        .where(None)
+         .group_by(FaceDetectionEvent.is_unknown)
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_4
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,7 +20,7 @@
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+         select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+-        .where(FaceDetectionEvent.timestamp >= window_start)
++        .where(None)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_5
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
++        select(None, func.count(FaceDetectionEvent.id))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_6
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
++        select(FaceDetectionEvent.is_unknown, None)
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_7
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
++        select(func.count(FaceDetectionEvent.id))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_8
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
++        select(FaceDetectionEvent.is_unknown, )
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_9
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+-        select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
++        select(FaceDetectionEvent.is_unknown, func.count(None))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_10
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,7 +20,7 @@
+     # Query FaceDetectionEvent grouped by is_unknown
+     stmt = (
+         select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+-        .where(FaceDetectionEvent.timestamp >= window_start)
++        .where(FaceDetectionEvent.timestamp > window_start)
+         .where(FaceDetectionEvent.timestamp < window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_11
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -21,7 +21,7 @@
+     stmt = (
+         select(FaceDetectionEvent.is_unknown, func.count(FaceDetectionEvent.id))
+         .where(FaceDetectionEvent.timestamp >= window_start)
+-        .where(FaceDetectionEvent.timestamp < window_end)
++        .where(FaceDetectionEvent.timestamp <= window_end)
+         .group_by(FaceDetectionEvent.is_unknown)
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_13
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -25,7 +25,7 @@
+         .group_by(FaceDetectionEvent.is_unknown)
+     )
+ 
+-    result = await session.execute(stmt)
++    result = await session.execute(None)
+     rows = result.all()
+ 
+     # Parse results
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_21
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -38,7 +38,7 @@
+             known = count
+ 
+     logger.debug(
+-        "Face stats for window %s to %s: known=%d, unknown=%d",
++        None,
+         window_start,
+         window_end,
+         known,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_22
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -39,7 +39,7 @@
+ 
+     logger.debug(
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+-        window_start,
++        None,
+         window_end,
+         known,
+         unknown,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_23
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -40,7 +40,7 @@
+     logger.debug(
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+-        window_end,
++        None,
+         known,
+         unknown,
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_24
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -41,7 +41,7 @@
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+-        known,
++        None,
+         unknown,
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_25
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -42,7 +42,7 @@
+         window_start,
+         window_end,
+         known,
+-        unknown,
++        None,
+     )
+ 
+     return PersonStats(known=known, unknown=unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_26
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -38,7 +38,6 @@
+             known = count
+ 
+     logger.debug(
+-        "Face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+         known,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_27
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -39,7 +39,6 @@
+ 
+     logger.debug(
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+-        window_start,
+         window_end,
+         known,
+         unknown,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_28
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -40,7 +40,6 @@
+     logger.debug(
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+-        window_end,
+         known,
+         unknown,
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_29
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -41,7 +41,6 @@
+         "Face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+-        known,
+         unknown,
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_30
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -42,7 +42,6 @@
+         window_start,
+         window_end,
+         known,
+-        unknown,
+-    )
++        )
+ 
+     return PersonStats(known=known, unknown=unknown)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_31
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -38,7 +38,7 @@
+             known = count
+ 
+     logger.debug(
+-        "Face stats for window %s to %s: known=%d, unknown=%d",
++        "XXFace stats for window %s to %s: known=%d, unknown=%dXX",
+         window_start,
+         window_end,
+         known,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_32
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -38,7 +38,7 @@
+             known = count
+ 
+     logger.debug(
+-        "Face stats for window %s to %s: known=%d, unknown=%d",
++        "face stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+         known,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_face_stats__mutmut_33
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -38,7 +38,7 @@
+             known = count
+ 
+     logger.debug(
+-        "Face stats for window %s to %s: known=%d, unknown=%d",
++        "FACE STATS FOR WINDOW %S TO %S: KNOWN=%D, UNKNOWN=%D",
+         window_start,
+         window_end,
+         known,
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_1
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -18,10 +18,7 @@
+             VehicleStats with known and unknown counts
+         """
+     # Get all household vehicle plates (normalized to uppercase)
+-    household_stmt = select(RegisteredVehicle.license_plate).where(
+-        RegisteredVehicle.license_plate.isnot(None),
+-        RegisteredVehicle.trusted.is_(True),
+-    )
++    household_stmt = None
+     household_result = await session.execute(household_stmt)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_2
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,7 @@
+         """
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+-        RegisteredVehicle.license_plate.isnot(None),
++        None,
+         RegisteredVehicle.trusted.is_(True),
+     )
+     household_result = await session.execute(household_stmt)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_3
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,7 +20,7 @@
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+         RegisteredVehicle.license_plate.isnot(None),
+-        RegisteredVehicle.trusted.is_(True),
++        None,
+     )
+     household_result = await session.execute(household_stmt)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_4
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -19,7 +19,6 @@
+         """
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+-        RegisteredVehicle.license_plate.isnot(None),
+         RegisteredVehicle.trusted.is_(True),
+     )
+     household_result = await session.execute(household_stmt)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_5
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,8 +20,7 @@
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+         RegisteredVehicle.license_plate.isnot(None),
+-        RegisteredVehicle.trusted.is_(True),
+-    )
++        )
+     household_result = await session.execute(household_stmt)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_6
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -18,7 +18,7 @@
+             VehicleStats with known and unknown counts
+         """
+     # Get all household vehicle plates (normalized to uppercase)
+-    household_stmt = select(RegisteredVehicle.license_plate).where(
++    household_stmt = select(None).where(
+         RegisteredVehicle.license_plate.isnot(None),
+         RegisteredVehicle.trusted.is_(True),
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_7
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,7 +20,7 @@
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+         RegisteredVehicle.license_plate.isnot(None),
+-        RegisteredVehicle.trusted.is_(True),
++        RegisteredVehicle.trusted.is_(None),
+     )
+     household_result = await session.execute(household_stmt)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_8
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -20,7 +20,7 @@
+     # Get all household vehicle plates (normalized to uppercase)
+     household_stmt = select(RegisteredVehicle.license_plate).where(
+         RegisteredVehicle.license_plate.isnot(None),
+-        RegisteredVehicle.trusted.is_(True),
++        RegisteredVehicle.trusted.is_(False),
+     )
+     household_result = await session.execute(household_stmt)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_10
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -22,7 +22,7 @@
+         RegisteredVehicle.license_plate.isnot(None),
+         RegisteredVehicle.trusted.is_(True),
+     )
+-    household_result = await session.execute(household_stmt)
++    household_result = await session.execute(None)
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+ 
+     # Get all detected plates in time window
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_13
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -26,11 +26,7 @@
+     household_plates = {plate.upper() for plate in household_result.scalars().all() if plate}
+ 
+     # Get all detected plates in time window
+-    plates_stmt = (
+-        select(PlateRead.plate_text)
+-        .where(PlateRead.timestamp >= window_start)
+-        .where(PlateRead.timestamp < window_end)
+-    )
++    plates_stmt = None
+     plates_result = await session.execute(plates_stmt)
+     detected_plates = plates_result.scalars().all()
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_14
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -29,7 +29,7 @@
+     plates_stmt = (
+         select(PlateRead.plate_text)
+         .where(PlateRead.timestamp >= window_start)
+-        .where(PlateRead.timestamp < window_end)
++        .where(None)
+     )
+     plates_result = await session.execute(plates_stmt)
+     detected_plates = plates_result.scalars().all()
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_15
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -28,7 +28,7 @@
+     # Get all detected plates in time window
+     plates_stmt = (
+         select(PlateRead.plate_text)
+-        .where(PlateRead.timestamp >= window_start)
++        .where(None)
+         .where(PlateRead.timestamp < window_end)
+     )
+     plates_result = await session.execute(plates_stmt)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_16
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -27,7 +27,7 @@
+ 
+     # Get all detected plates in time window
+     plates_stmt = (
+-        select(PlateRead.plate_text)
++        select(None)
+         .where(PlateRead.timestamp >= window_start)
+         .where(PlateRead.timestamp < window_end)
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_17
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -28,7 +28,7 @@
+     # Get all detected plates in time window
+     plates_stmt = (
+         select(PlateRead.plate_text)
+-        .where(PlateRead.timestamp >= window_start)
++        .where(PlateRead.timestamp > window_start)
+         .where(PlateRead.timestamp < window_end)
+     )
+     plates_result = await session.execute(plates_stmt)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_18
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -29,7 +29,7 @@
+     plates_stmt = (
+         select(PlateRead.plate_text)
+         .where(PlateRead.timestamp >= window_start)
+-        .where(PlateRead.timestamp < window_end)
++        .where(PlateRead.timestamp <= window_end)
+     )
+     plates_result = await session.execute(plates_stmt)
+     detected_plates = plates_result.scalars().all()
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_20
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -31,7 +31,7 @@
+         .where(PlateRead.timestamp >= window_start)
+         .where(PlateRead.timestamp < window_end)
+     )
+-    plates_result = await session.execute(plates_stmt)
++    plates_result = await session.execute(None)
+     detected_plates = plates_result.scalars().all()
+ 
+     # Deduplicate detected plates (case-insensitive)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_29
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -45,7 +45,7 @@
+     unknown_plates = unique_detected - household_plates
+ 
+     logger.debug(
+-        "Vehicle stats for window %s to %s: known=%d, unknown=%d",
++        None,
+         window_start,
+         window_end,
+         len(known_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_30
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -46,7 +46,7 @@
+ 
+     logger.debug(
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+-        window_start,
++        None,
+         window_end,
+         len(known_plates),
+         len(unknown_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_31
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -47,7 +47,7 @@
+     logger.debug(
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+-        window_end,
++        None,
+         len(known_plates),
+         len(unknown_plates),
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_32
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -48,7 +48,7 @@
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+-        len(known_plates),
++        None,
+         len(unknown_plates),
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_33
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -49,7 +49,7 @@
+         window_start,
+         window_end,
+         len(known_plates),
+-        len(unknown_plates),
++        None,
+     )
+ 
+     return VehicleStats(known=len(known_plates), unknown=len(unknown_plates))
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_34
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -45,7 +45,6 @@
+     unknown_plates = unique_detected - household_plates
+ 
+     logger.debug(
+-        "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+         len(known_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_35
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -46,7 +46,6 @@
+ 
+     logger.debug(
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+-        window_start,
+         window_end,
+         len(known_plates),
+         len(unknown_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_36
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -47,7 +47,6 @@
+     logger.debug(
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+-        window_end,
+         len(known_plates),
+         len(unknown_plates),
+     )
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_37
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -48,7 +48,6 @@
+         "Vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+-        len(known_plates),
+         len(unknown_plates),
+     )
+ 
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_38
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -49,7 +49,6 @@
+         window_start,
+         window_end,
+         len(known_plates),
+-        len(unknown_plates),
+-    )
++        )
+ 
+     return VehicleStats(known=len(known_plates), unknown=len(unknown_plates))
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_39
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -45,7 +45,7 @@
+     unknown_plates = unique_detected - household_plates
+ 
+     logger.debug(
+-        "Vehicle stats for window %s to %s: known=%d, unknown=%d",
++        "XXVehicle stats for window %s to %s: known=%d, unknown=%dXX",
+         window_start,
+         window_end,
+         len(known_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_40
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -45,7 +45,7 @@
+     unknown_plates = unique_detected - household_plates
+ 
+     logger.debug(
+-        "Vehicle stats for window %s to %s: known=%d, unknown=%d",
++        "vehicle stats for window %s to %s: known=%d, unknown=%d",
+         window_start,
+         window_end,
+         len(known_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_vehicle_stats__mutmut_41
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -45,7 +45,7 @@
+     unknown_plates = unique_detected - household_plates
+ 
+     logger.debug(
+-        "Vehicle stats for window %s to %s: known=%d, unknown=%d",
++        "VEHICLE STATS FOR WINDOW %S TO %S: KNOWN=%D, UNKNOWN=%D",
+         window_start,
+         window_end,
+         len(known_plates),
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_hourly_stats__mutmut_2
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -9,7 +9,7 @@
+         Returns:
+             EntityRecognitionStats for the past hour
+         """
+-    window_end = datetime.now(UTC)
++    window_end = datetime.now(None)
+     window_start = window_end - timedelta(hours=1)
+ 
+     return await self.get_summary_stats(session, window_start, window_end)
+===KEY=== backend.services.entity_recognition_service.xǁEntityRecognitionServiceǁget_hourly_stats__mutmut_7
+--- backend/services/entity_recognition_service.py
++++ backend/services/entity_recognition_service.py
+@@ -12,4 +12,4 @@
+     window_end = datetime.now(UTC)
+     window_start = window_end - timedelta(hours=1)
+ 
+-    return await self.get_summary_stats(session, window_start, window_end)
++    return await self.get_summary_stats(None, window_start, window_end)

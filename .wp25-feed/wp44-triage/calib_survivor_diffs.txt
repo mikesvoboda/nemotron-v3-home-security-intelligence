@@ -1,0 +1,501 @@
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_22
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_22: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -38,7 +38,7 @@
+ 
+     # Apply updates
+     if update_data.low_threshold is not None:
+-        calibration.low_threshold = update_data.low_threshold
++        calibration.low_threshold = None
+     if update_data.medium_threshold is not None:
+         calibration.medium_threshold = update_data.medium_threshold
+     if update_data.high_threshold is not None:
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_24
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_24: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -40,7 +40,7 @@
+     if update_data.low_threshold is not None:
+         calibration.low_threshold = update_data.low_threshold
+     if update_data.medium_threshold is not None:
+-        calibration.medium_threshold = update_data.medium_threshold
++        calibration.medium_threshold = None
+     if update_data.high_threshold is not None:
+         calibration.high_threshold = update_data.high_threshold
+     if update_data.decay_factor is not None:
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_26
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_26: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -42,7 +42,7 @@
+     if update_data.medium_threshold is not None:
+         calibration.medium_threshold = update_data.medium_threshold
+     if update_data.high_threshold is not None:
+-        calibration.high_threshold = update_data.high_threshold
++        calibration.high_threshold = None
+     if update_data.decay_factor is not None:
+         calibration.decay_factor = update_data.decay_factor
+ 
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_28
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_28: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -44,7 +44,7 @@
+     if update_data.high_threshold is not None:
+         calibration.high_threshold = update_data.high_threshold
+     if update_data.decay_factor is not None:
+-        calibration.decay_factor = update_data.decay_factor
++        calibration.decay_factor = None
+ 
+     await db.commit()
+     await db.refresh(calibration)
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_30
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_30: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -50,7 +50,7 @@
+     await db.refresh(calibration)
+ 
+     logger.info(
+-        "Updated calibration thresholds",
++        None,
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_31
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_31: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -51,12 +51,7 @@
+ 
+     logger.info(
+         "Updated calibration thresholds",
+-        extra={
+-            "user_id": calibration.user_id,
+-            "low": calibration.low_threshold,
+-            "medium": calibration.medium_threshold,
+-            "high": calibration.high_threshold,
+-        },
++        extra=None,
+     )
+ 
+     return CalibrationResponse.model_validate(calibration)
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_33
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_33: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -51,12 +51,6 @@
+ 
+     logger.info(
+         "Updated calibration thresholds",
+-        extra={
+-            "user_id": calibration.user_id,
+-            "low": calibration.low_threshold,
+-            "medium": calibration.medium_threshold,
+-            "high": calibration.high_threshold,
+-        },
+-    )
++        )
+ 
+     return CalibrationResponse.model_validate(calibration)
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_34
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_34: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -50,7 +50,7 @@
+     await db.refresh(calibration)
+ 
+     logger.info(
+-        "Updated calibration thresholds",
++        "XXUpdated calibration thresholdsXX",
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_35
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_35: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -50,7 +50,7 @@
+     await db.refresh(calibration)
+ 
+     logger.info(
+-        "Updated calibration thresholds",
++        "updated calibration thresholds",
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_36
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_36: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -50,7 +50,7 @@
+     await db.refresh(calibration)
+ 
+     logger.info(
+-        "Updated calibration thresholds",
++        "UPDATED CALIBRATION THRESHOLDS",
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_37
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_37: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -52,7 +52,7 @@
+     logger.info(
+         "Updated calibration thresholds",
+         extra={
+-            "user_id": calibration.user_id,
++            "XXuser_idXX": calibration.user_id,
+             "low": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_38
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_38: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -52,7 +52,7 @@
+     logger.info(
+         "Updated calibration thresholds",
+         extra={
+-            "user_id": calibration.user_id,
++            "USER_ID": calibration.user_id,
+             "low": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_39
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_39: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -53,7 +53,7 @@
+         "Updated calibration thresholds",
+         extra={
+             "user_id": calibration.user_id,
+-            "low": calibration.low_threshold,
++            "XXlowXX": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+         },
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_40
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_40: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -53,7 +53,7 @@
+         "Updated calibration thresholds",
+         extra={
+             "user_id": calibration.user_id,
+-            "low": calibration.low_threshold,
++            "LOW": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+         },
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_41
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_41: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -54,7 +54,7 @@
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+-            "medium": calibration.medium_threshold,
++            "XXmediumXX": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+         },
+     )
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_42
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_42: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -54,7 +54,7 @@
+         extra={
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+-            "medium": calibration.medium_threshold,
++            "MEDIUM": calibration.medium_threshold,
+             "high": calibration.high_threshold,
+         },
+     )
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_43
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_43: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -55,7 +55,7 @@
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+-            "high": calibration.high_threshold,
++            "XXhighXX": calibration.high_threshold,
+         },
+     )
+ 
+=====KEY backend.api.routes.calibration.x__apply_calibration_update__mutmut_44
+# backend.api.routes.calibration.x__apply_calibration_update__mutmut_44: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -55,7 +55,7 @@
+             "user_id": calibration.user_id,
+             "low": calibration.low_threshold,
+             "medium": calibration.medium_threshold,
+-            "high": calibration.high_threshold,
++            "HIGH": calibration.high_threshold,
+         },
+     )
+ 
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_10
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_10: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -18,7 +18,7 @@
+         # Auto-create with defaults
+         calibration = UserCalibration(
+             user_id=user_id,
+-            low_threshold=DEFAULT_LOW_THRESHOLD,
++            low_threshold=None,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_11
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_11: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -19,7 +19,7 @@
+         calibration = UserCalibration(
+             user_id=user_id,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+-            medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
++            medium_threshold=None,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+         )
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_12
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_12: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -20,7 +20,7 @@
+             user_id=user_id,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+-            high_threshold=DEFAULT_HIGH_THRESHOLD,
++            high_threshold=None,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+         )
+         db.add(calibration)
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_13
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_13: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -21,7 +21,7 @@
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+-            decay_factor=DEFAULT_DECAY_FACTOR,
++            decay_factor=None,
+         )
+         db.add(calibration)
+         await db.commit()
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_14
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_14: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -17,7 +17,6 @@
+     if calibration is None:
+         # Auto-create with defaults
+         calibration = UserCalibration(
+-            user_id=user_id,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_15
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_15: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -18,7 +18,6 @@
+         # Auto-create with defaults
+         calibration = UserCalibration(
+             user_id=user_id,
+-            low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_16
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_16: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -19,7 +19,6 @@
+         calibration = UserCalibration(
+             user_id=user_id,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+-            medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+         )
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_17
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_17: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -20,7 +20,6 @@
+             user_id=user_id,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+-            high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+         )
+         db.add(calibration)
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_18
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_18: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -21,8 +21,7 @@
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+-            decay_factor=DEFAULT_DECAY_FACTOR,
+-        )
++            )
+         db.add(calibration)
+         await db.commit()
+         await db.refresh(calibration)
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_19
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_19: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -23,7 +23,7 @@
+             high_threshold=DEFAULT_HIGH_THRESHOLD,
+             decay_factor=DEFAULT_DECAY_FACTOR,
+         )
+-        db.add(calibration)
++        db.add(None)
+         await db.commit()
+         await db.refresh(calibration)
+         logger.info(
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_2
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_2: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -11,7 +11,7 @@
+     Returns:
+         UserCalibration instance (existing or newly created)
+     """
+-    result = await db.execute(select(UserCalibration).where(UserCalibration.user_id == user_id))
++    result = await db.execute(None)
+     calibration = result.scalar_one_or_none()
+ 
+     if calibration is None:
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_21
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_21: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -27,7 +27,7 @@
+         await db.commit()
+         await db.refresh(calibration)
+         logger.info(
+-            f"Auto-created calibration for user {user_id}",
++            None,
+             extra={"user_id": user_id},
+         )
+ 
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_22
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_22: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -28,7 +28,7 @@
+         await db.refresh(calibration)
+         logger.info(
+             f"Auto-created calibration for user {user_id}",
+-            extra={"user_id": user_id},
++            extra=None,
+         )
+ 
+     return calibration
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_24
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_24: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -28,7 +28,6 @@
+         await db.refresh(calibration)
+         logger.info(
+             f"Auto-created calibration for user {user_id}",
+-            extra={"user_id": user_id},
+-        )
++            )
+ 
+     return calibration
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_25
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_25: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -28,7 +28,7 @@
+         await db.refresh(calibration)
+         logger.info(
+             f"Auto-created calibration for user {user_id}",
+-            extra={"user_id": user_id},
++            extra={"XXuser_idXX": user_id},
+         )
+ 
+     return calibration
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_26
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_26: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -28,7 +28,7 @@
+         await db.refresh(calibration)
+         logger.info(
+             f"Auto-created calibration for user {user_id}",
+-            extra={"user_id": user_id},
++            extra={"USER_ID": user_id},
+         )
+ 
+     return calibration
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_3
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_3: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -11,7 +11,7 @@
+     Returns:
+         UserCalibration instance (existing or newly created)
+     """
+-    result = await db.execute(select(UserCalibration).where(UserCalibration.user_id == user_id))
++    result = await db.execute(select(UserCalibration).where(None))
+     calibration = result.scalar_one_or_none()
+ 
+     if calibration is None:
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_4
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_4: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -11,7 +11,7 @@
+     Returns:
+         UserCalibration instance (existing or newly created)
+     """
+-    result = await db.execute(select(UserCalibration).where(UserCalibration.user_id == user_id))
++    result = await db.execute(select(None).where(UserCalibration.user_id == user_id))
+     calibration = result.scalar_one_or_none()
+ 
+     if calibration is None:
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_5
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_5: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -11,7 +11,7 @@
+     Returns:
+         UserCalibration instance (existing or newly created)
+     """
+-    result = await db.execute(select(UserCalibration).where(UserCalibration.user_id == user_id))
++    result = await db.execute(select(UserCalibration).where(UserCalibration.user_id != user_id))
+     calibration = result.scalar_one_or_none()
+ 
+     if calibration is None:
+=====KEY backend.api.routes.calibration.x__get_or_create_calibration__mutmut_9
+# backend.api.routes.calibration.x__get_or_create_calibration__mutmut_9: survived
+--- backend/api/routes/calibration.py
++++ backend/api/routes/calibration.py
+@@ -17,7 +17,7 @@
+     if calibration is None:
+         # Auto-create with defaults
+         calibration = UserCalibration(
+-            user_id=user_id,
++            user_id=None,
+             low_threshold=DEFAULT_LOW_THRESHOLD,
+             medium_threshold=DEFAULT_MEDIUM_THRESHOLD,
+             high_threshold=DEFAULT_HIGH_THRESHOLD,

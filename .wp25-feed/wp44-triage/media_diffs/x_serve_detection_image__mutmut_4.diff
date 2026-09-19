@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_4: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -16,7 +16,7 @@
+         HTTPException: 404 if detection not found or file doesn't exist
+     """
+     # Look up the detection
+-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
++    result = await db.execute(select(None).where(Detection.id == detection_id))
+     detection = result.scalar_one_or_none()
+ 
+     if not detection:

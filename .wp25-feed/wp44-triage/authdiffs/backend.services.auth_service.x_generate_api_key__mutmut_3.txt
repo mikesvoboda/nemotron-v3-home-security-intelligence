@@ -1,0 +1,10 @@
+# backend.services.auth_service.x_generate_api_key__mutmut_3: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -11,5 +11,5 @@
+         New API key string.
+     """
+     # Generate random bytes and encode as hex (alphanumeric only)
+-    random_part = secrets.token_hex(16)  # 32 hex chars
++    random_part = secrets.token_hex(17)  # 32 hex chars
+     return f"{_API_KEY_PREFIX}{random_part}"

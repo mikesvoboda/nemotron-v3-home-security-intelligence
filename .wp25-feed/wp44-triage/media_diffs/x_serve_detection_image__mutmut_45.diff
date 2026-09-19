@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_45: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -47,7 +47,7 @@
+     # Try alternate path first (NEM-2662) for host-to-container path translation
+     # This handles cases where file_path uses host paths like /export/foscam/...
+     # but the container uses /cameras/...
+-    alt_path = _try_alternate_path(file_path, base_path)
++    alt_path = _try_alternate_path(file_path, None)
+     if alt_path:
+         # Found a valid alternate path, use it (already validated by _try_alternate_path)
+         full_path = alt_path

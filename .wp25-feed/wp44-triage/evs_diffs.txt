@@ -1,0 +1,554 @@
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_1 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_1: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -24,7 +24,7 @@
+             ValueError: If event not found
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = None
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_15 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_15: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -35,7 +35,7 @@
+     file_paths = self._collect_file_paths(event)
+ 
+     if not file_paths:
+-        logger.debug(f"No files to delete for event {event_id}")
++        logger.debug(None)
+         return 0, 0
+ 
+     # Delete files immediately (not scheduled)
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_2 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_2: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -24,7 +24,7 @@
+             ValueError: If event not found
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(Event).options(selectinload(Event.detections)).where(None)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_21 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_21: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -45,7 +45,7 @@
+     )
+ 
+     logger.info(
+-        f"Hard delete event {event_id}: deleted {files_deleted} files, {files_failed} failed"
++        None
+     )
+ 
+     return files_deleted, files_failed
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_4 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_4: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -24,7 +24,7 @@
+             ValueError: If event not found
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(None).options(selectinload(Event.detections)).where(Event.id == event_id)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_6 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_6: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -24,7 +24,7 @@
+             ValueError: If event not found
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id != event_id)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_8 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁhard_delete_event__mutmut_8: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -25,7 +25,7 @@
+         """
+     # Fetch the event with related detections
+     stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
+-    result = await db.execute(stmt)
++    result = await db.execute(None)
+     event = result.scalar_one_or_none()
+ 
+     if event is None:
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_1 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_1: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -3,7 +3,7 @@
+     event_id: int,
+     db: AsyncSession,
+     *,
+-    cascade: bool = True,
++    cascade: bool = False,
+ ) -> Event:
+     """Restore a soft-deleted event and optionally cascade to related records.
+ 
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_10 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_10: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -26,7 +26,7 @@
+     # Fetch the event with soft delete (need to bypass normal filtering)
+     # Eagerly load deferred columns to prevent lazy loading errors
+     stmt = (
+-        select(Event)
++        select(None)
+         .options(
+             selectinload(Event.detections),
+             undefer(Event.reasoning),
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_14 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_14: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -32,7 +32,7 @@
+             undefer(Event.reasoning),
+             undefer(Event.llm_prompt),
+         )
+-        .where(Event.id == event_id)
++        .where(Event.id != event_id)
+     )
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_16 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_16: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -34,7 +34,7 @@
+         )
+         .where(Event.id == event_id)
+     )
+-    result = await db.execute(stmt)
++    result = await db.execute(None)
+     event = result.scalar_one_or_none()
+ 
+     if event is None:
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_2 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_2: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -25,15 +25,7 @@
+         """
+     # Fetch the event with soft delete (need to bypass normal filtering)
+     # Eagerly load deferred columns to prevent lazy loading errors
+-    stmt = (
+-        select(Event)
+-        .options(
+-            selectinload(Event.detections),
+-            undefer(Event.reasoning),
+-            undefer(Event.llm_prompt),
+-        )
+-        .where(Event.id == event_id)
+-    )
++    stmt = None
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_24 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_24: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -49,7 +49,7 @@
+     # Restore the event
+     event.deleted_at = None
+ 
+-    if cascade and event_deleted_at is not None:
++    if cascade or event_deleted_at is not None:
+         # Note: Detections do NOT have soft delete capability (no deleted_at column).
+         # The cascade parameter is preserved for potential future use when related
+         # entities gain soft delete support. Currently, only the event is restored.
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_27 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_27: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -54,7 +54,7 @@
+         # The cascade parameter is preserved for potential future use when related
+         # entities gain soft delete support. Currently, only the event is restored.
+         detection_count = len(event.detections)
+-        if detection_count > 0:
++        if detection_count >= 0:
+             logger.info(
+                 f"Event {event_id} has {detection_count} detections (no cascade restore needed)"
+             )
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_28 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_28: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -54,7 +54,7 @@
+         # The cascade parameter is preserved for potential future use when related
+         # entities gain soft delete support. Currently, only the event is restored.
+         detection_count = len(event.detections)
+-        if detection_count > 0:
++        if detection_count > 1:
+             logger.info(
+                 f"Event {event_id} has {detection_count} detections (no cascade restore needed)"
+             )
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_3 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_3: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -32,7 +32,7 @@
+             undefer(Event.reasoning),
+             undefer(Event.llm_prompt),
+         )
+-        .where(Event.id == event_id)
++        .where(None)
+     )
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_32 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_32: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -62,7 +62,7 @@
+         # Cancel pending file deletions (NEM-1988)
+         file_service = self._get_file_service()
+         cancelled_count = await file_service.cancel_deletion_by_event_id(event_id)
+-        if cancelled_count > 0:
++        if cancelled_count >= 0:
+             logger.info(
+                 f"Cancelled {cancelled_count} pending file deletion jobs for event {event_id}"
+             )
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_33 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_33: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -62,7 +62,7 @@
+         # Cancel pending file deletions (NEM-1988)
+         file_service = self._get_file_service()
+         cancelled_count = await file_service.cancel_deletion_by_event_id(event_id)
+-        if cancelled_count > 0:
++        if cancelled_count > 1:
+             logger.info(
+                 f"Cancelled {cancelled_count} pending file deletion jobs for event {event_id}"
+             )
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_34 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_34: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -64,7 +64,7 @@
+         cancelled_count = await file_service.cancel_deletion_by_event_id(event_id)
+         if cancelled_count > 0:
+             logger.info(
+-                f"Cancelled {cancelled_count} pending file deletion jobs for event {event_id}"
++                None
+             )
+ 
+     await db.flush()
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_35 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_35: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -68,6 +68,6 @@
+             )
+ 
+     await db.flush()
+-    logger.info(f"Restored event {event_id} with cascade={cascade}")
++    logger.info(None)
+ 
+     return event
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_7 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_7: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -28,7 +28,6 @@
+     stmt = (
+         select(Event)
+         .options(
+-            selectinload(Event.detections),
+             undefer(Event.reasoning),
+             undefer(Event.llm_prompt),
+         )
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_8 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_8: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -29,7 +29,6 @@
+         select(Event)
+         .options(
+             selectinload(Event.detections),
+-            undefer(Event.reasoning),
+             undefer(Event.llm_prompt),
+         )
+         .where(Event.id == event_id)
+===== backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_9 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁrestore_event__mutmut_9: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -30,8 +30,7 @@
+         .options(
+             selectinload(Event.detections),
+             undefer(Event.reasoning),
+-            undefer(Event.llm_prompt),
+-        )
++            )
+         .where(Event.id == event_id)
+     )
+     result = await db.execute(stmt)
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_1 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_1: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -3,7 +3,7 @@
+     event_id: int,
+     db: AsyncSession,
+     *,
+-    cascade: bool = True,
++    cascade: bool = False,
+ ) -> Event:
+     """Soft delete an event and optionally cascade to related records.
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_13 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_13: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -35,7 +35,7 @@
+ 
+     # Use a single timestamp for the cascade operation
+     # This enables identifying which records were deleted together
+-    now = datetime.now(UTC)
++    now = datetime.now(None)
+     event.deleted_at = now
+ 
+     if cascade:
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_16 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_16: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -43,7 +43,7 @@
+         # The cascade parameter is preserved for potential future use when related
+         # entities gain soft delete support. Currently, only the event is soft deleted.
+         detection_count = len(event.detections)
+-        if detection_count > 0:
++        if detection_count >= 0:
+             logger.info(
+                 f"Event {event_id} has {detection_count} detections that remain unchanged "
+                 "(detections do not support soft delete)"
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_17 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_17: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -43,7 +43,7 @@
+         # The cascade parameter is preserved for potential future use when related
+         # entities gain soft delete support. Currently, only the event is soft deleted.
+         detection_count = len(event.detections)
+-        if detection_count > 0:
++        if detection_count > 1:
+             logger.info(
+                 f"Event {event_id} has {detection_count} detections that remain unchanged "
+                 "(detections do not support soft delete)"
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_18 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_18: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -45,8 +45,7 @@
+         detection_count = len(event.detections)
+         if detection_count > 0:
+             logger.info(
+-                f"Event {event_id} has {detection_count} detections that remain unchanged "
+-                "(detections do not support soft delete)"
++                None
+             )
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_19 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_19: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -50,7 +50,7 @@
+             )
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+-        alert_stmt = select(Alert).where(Alert.event_id == event_id)
++        alert_stmt = None
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_2 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_2: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -23,7 +23,7 @@
+             ValueError: If event not found or already deleted
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = None
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_20 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_20: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -50,7 +50,7 @@
+             )
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+-        alert_stmt = select(Alert).where(Alert.event_id == event_id)
++        alert_stmt = select(Alert).where(None)
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_21 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_21: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -50,7 +50,7 @@
+             )
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+-        alert_stmt = select(Alert).where(Alert.event_id == event_id)
++        alert_stmt = select(None).where(Alert.event_id == event_id)
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_22 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_22: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -50,7 +50,7 @@
+             )
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+-        alert_stmt = select(Alert).where(Alert.event_id == event_id)
++        alert_stmt = select(Alert).where(Alert.event_id != event_id)
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_24 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_24: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -51,7 +51,7 @@
+ 
+         # Count alerts for logging (alerts don't have soft delete, just count)
+         alert_stmt = select(Alert).where(Alert.event_id == event_id)
+-        alert_result = await db.execute(alert_stmt)
++        alert_result = await db.execute(None)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+         if alert_count > 0:
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_26 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_26: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -54,7 +54,7 @@
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+-        if alert_count > 0:
++        if alert_count >= 0:
+             logger.info(
+                 f"Event {event_id} has {alert_count} alerts that remain unchanged "
+                 "(alerts do not support soft delete)"
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_27 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_27: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -54,7 +54,7 @@
+         alert_result = await db.execute(alert_stmt)
+         alert_count = len(list(alert_result.scalars().all()))
+ 
+-        if alert_count > 0:
++        if alert_count > 1:
+             logger.info(
+                 f"Event {event_id} has {alert_count} alerts that remain unchanged "
+                 "(alerts do not support soft delete)"
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_3 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_3: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -23,7 +23,7 @@
+             ValueError: If event not found or already deleted
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(Event).options(selectinload(Event.detections)).where(None)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_36 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_36: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -70,8 +70,7 @@
+             )
+             if job_id:
+                 logger.info(
+-                    f"Scheduled {len(file_paths)} files for deletion "
+-                    f"(event_id={event_id}, job_id={job_id})"
++                    None
+                 )
+ 
+     await db.flush()
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_37 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_37: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -76,7 +76,7 @@
+ 
+     await db.flush()
+     logger.info(
+-        f"Soft deleted event {event_id} with cascade={cascade}, timestamp={now.isoformat()}"
++        None
+     )
+ 
+     return event
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_5 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_5: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -23,7 +23,7 @@
+             ValueError: If event not found or already deleted
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(None).options(selectinload(Event.detections)).where(Event.id == event_id)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_7 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_7: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -23,7 +23,7 @@
+             ValueError: If event not found or already deleted
+         """
+     # Fetch the event with related detections
+-    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
++    stmt = select(Event).options(selectinload(Event.detections)).where(Event.id != event_id)
+     result = await db.execute(stmt)
+     event = result.scalar_one_or_none()
+ 
+===== backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_9 rc=0 =====
+# backend.services.event_service.xǁEventServiceǁsoft_delete_event__mutmut_9: survived
+--- backend/services/event_service.py
++++ backend/services/event_service.py
+@@ -24,7 +24,7 @@
+         """
+     # Fetch the event with related detections
+     stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
+-    result = await db.execute(stmt)
++    result = await db.execute(None)
+     event = result.scalar_one_or_none()
+ 
+     if event is None:

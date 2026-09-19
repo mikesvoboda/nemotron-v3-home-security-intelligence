@@ -1,0 +1,12 @@
+# backend.api.routes.media.x__validate_and_resolve_path__mutmut_60: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -53,7 +53,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_403_FORBIDDEN,
+             detail=MediaErrorResponse(
+-                error="Access denied - path outside allowed directory",
++                error="XXAccess denied - path outside allowed directoryXX",
+                 path=requested_path,
+             ).model_dump(),
+         ) from err
