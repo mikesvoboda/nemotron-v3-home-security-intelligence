@@ -121,6 +121,18 @@ CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "E
 # see the WP7.3 ledger section.
 DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch"})
 
+# Server-side carry-cost: a deployed-but-unreachable route, deleted from the
+# model server's own file (production AI surface - the GOAL carve-out's named
+# target). Keyed file -> marker strings that must NOT appear once deleted.
+# Census for /track: 0 hits for the endpoint string in backend/ + scripts/
+# (consumers), 0 in ai/gateway (not proxied), 0 in any ai/yolo26 test file
+# (both test_model.py copies), not in the 38-op registry (absent from the
+# gateway = absent from the contract), docs/openapi.json 0 (backend /tracks
+# is the DB feature, unrelated).
+DELETED_SERVER_ROUTES: dict[str, tuple[str, ...]] = {
+    "ai/yolo26/model.py": ('@app.post("/track"', "async def track_objects"),
+}
+
 # Files the census may ignore: the client modules themselves (def site) and
 # the generated registry + its generator (carry the historical method->op map
 # only for still-present methods).
@@ -274,6 +286,16 @@ class TestContractRegistry:
             if f"{cls}.{symbol}" in _public_client_methods()
         }
         assert not present, f"WP7.3 carry-cost method still declared on: {sorted(present)}"
+
+    @pytest.mark.parametrize("relpath", sorted(DELETED_SERVER_ROUTES))
+    def test_wp73_server_carry_cost_stays_deleted(self, relpath: str) -> None:
+        """WP7.3 deletion B (yolo26 /track) ratchet: the route was unreachable
+        (census in DELETED_SERVER_ROUTES comment + commit body); this test
+        reddens if the endpoint registration returns. RED until the deletion
+        lands, then permanently green."""
+        src = (REPO_ROOT / relpath).read_text(encoding="utf-8")
+        present = [marker for marker in DELETED_SERVER_ROUTES[relpath] if marker in src]
+        assert not present, f"{relpath}: deleted carry-cost route markers present: {present}"
 
     def test_availability_matrix_is_generated_not_hand_maintained(self) -> None:
         """The matrix file carries the generator's provenance header; CI
