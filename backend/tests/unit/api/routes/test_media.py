@@ -101,23 +101,18 @@ class TestValidateAndResolvePath:
         test_file.write_text("test")
 
         # Create a symlink that points outside the base directory
-        # This is a realistic path traversal scenario
+        # This is a realistic path traversal scenario. tmp_path always lives on
+        # a symlink-supporting filesystem, so this is unconditional — the old
+        # try/except + else:pytest.skip fallback was an unregistered imperative
+        # skip that tripped the suppression ratchet on every run (WP5.4).
         symlink = tmp_path / "escape.jpg"
-        try:
-            symlink.symlink_to(test_file)
-        except OSError:
-            # Fall back to a different approach if symlinks not supported
-            pass
+        symlink.symlink_to(test_file)
 
-        if symlink.exists():
-            with pytest.raises(HTTPException) as exc_info:
-                _validate_and_resolve_path(tmp_path, "escape.jpg")
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_and_resolve_path(tmp_path, "escape.jpg")
 
-            assert exc_info.value.status_code == 403
-            assert "Access denied - path outside allowed directory" in str(exc_info.value.detail)
-        else:
-            # Skip this test if symlinks are not supported
-            pytest.skip("Symlinks not supported on this filesystem")
+        assert exc_info.value.status_code == 403
+        assert "Access denied - path outside allowed directory" in str(exc_info.value.detail)
 
     def test_file_not_found_returns_404(self, tmp_path: Path) -> None:
         """Test non-existent file returns 404."""
