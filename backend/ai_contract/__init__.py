@@ -13,14 +13,33 @@ ai_providers/test_ai_contract_registry.py enforces the rule on this package's
 source.
 """
 
+# WP8.1: importing providers IS the import-time contract check (the plan's
+# Done-when). Placed after the provider-module names so registration can
+# call register_provider; a broken provider raises ProviderContractError
+# naming the operation from any `import backend.ai_contract` in the tree.
+from backend.ai_contract import providers as _providers  # noqa: F401
 from backend.ai_contract.operations import CLIENT_METHODS, OPERATION_IDS, OPERATIONS
-from backend.ai_contract.provider import Operation, ProviderId, availability_is_generated
+from backend.ai_contract.provider import (
+    AIProvider,
+    Operation,
+    ProviderContractError,
+    ProviderId,
+    availability_is_generated,
+    operations_for_slot,
+    register_provider,
+    registered_providers,
+)
 
 __all__ = [
     "CLIENT_METHODS",
     "OPERATIONS",
     "OPERATION_IDS",
+    "AIProvider",
     "Operation",
+    "ProviderContractError",
     "ProviderId",
     "availability_is_generated",
+    "operations_for_slot",
+    "register_provider",
+    "registered_providers",
 ]
