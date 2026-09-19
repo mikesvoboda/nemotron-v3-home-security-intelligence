@@ -42,7 +42,7 @@ on:
 
 jobs:
   integration-shard:
-    name: Integration Tests (API shard ${{ inputs.shard }}/2${{ inputs.artifact-suffix }}) - Python ${{ inputs.python-version }}
+    name: Integration Tests (API shard ${{ inputs.shard }}/4${{ inputs.artifact-suffix }}) - Python ${{ inputs.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Run in parallel with lint - dependencies checked in integration-tests-summary
@@ -126,7 +126,7 @@ jobs:
             -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
             -n auto \
             --timeout=30 \
-            --splits 2 --group ${{ inputs.shard }} \
+            --splits 4 --group ${{ inputs.shard }} \
             --cov=backend \
             --cov-fail-under=0 \
             --cov-report=xml:coverage-integration-api-${{ inputs.shard }}${{ inputs.artifact-suffix }}.xml \

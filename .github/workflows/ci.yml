@@ -555,20 +555,41 @@ jobs:
   # `cancelled` ONLY, and the 30-min cap stays UNRAISED (raising it to pass is
   # gate-widening). scripts/test_shard_retry_wiring.py pins both.
   integration-tests-api:
-    name: Integration Tests (API shard ${{ matrix.shard }}/2)
+    name: Integration Tests (API shard ${{ matrix.shard }}/4)
     uses: ./.github/workflows/integration-shard.yml
     secrets: inherit # pragma: allowlist secret (detect-secrets: `secrets:` kwarg, no value)
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.14']
-        # WP3.7: 2-way split of the DAG's long pole. Measured (run
-        # 35178314774, post-WP3.5 so queueing doesn't confound): single job
-        # compute 1437s, completing +24.8 min after run start while every
-        # other path finished <= +10.1 min. junit sum 2721s over 883 cases;
-        # pytest-split count-balances (unit tier's evidence: its 4 shards
-        # land within +/-6% under the same no-.test_durations fallback).
-        shard: [1, 2]
+        # 4-way split. SUPERSEDES WP3.7's 2-way (run 35178314774: single job
+        # compute 1437s, +24.8 min after run start vs <= +10.1 min for every
+        # other path). WP3.7's reasoning was right and its 2-way was the right
+        # call THEN; this widens it on newer evidence, it does not overturn it.
+        #
+        # Re-measured 2026-09-19 from run 35455064785's own junit artifacts:
+        # 833 cases, 2755.5s junit-sum, and the tier is the DAG's long pole on
+        # the unlimited-capacity critical path (detect-changes 16s +
+        # build-backend-deps 42s + integration-tests-api 859s + perf-audit 59s
+        # + ci-gate 3s = 979s, i.e. this job is 88% of the floor).
+        #
+        # Why 4 is safe where Vitest's 8->4 was not: this tier runs -n auto
+        # (xdist) INSIDE each shard, so splitting multiplies runners without
+        # losing in-shard parallelism. Measured wall 14.3m (shard 1) / 11.9m
+        # (shard 2) against a junit-sum of 25.3m/20.7m -> ~1.8x in-shard
+        # speedup that survives the split.
+        #
+        # Why it was urgent: at 2-way, shard wall time sits close enough to
+        # GitHub's 30m0s job cap that contention pushes it over. Observed twice
+        # on 2026-09-19 (runs 35461092103 shard 1/2, 35461901025 shard 2/2),
+        # both CANCELLED at the cap, both recovered only by the WP0.5 retry.
+        # Ideal duration-balanced 4-way is 653.4s junit (~6.2m wall) -- roughly
+        # 5x cap headroom instead of ~2x.
+        #
+        # pytest-split still count-balances (no .test_durations in tree);
+        # measured imbalance at 2-way was 1.22x. A durations file would close
+        # that and is tracked separately -- it is not required for this split.
+        shard: [1, 2, 3, 4]
     # Run in parallel with lint - dependencies checked in integration-tests-summary
     # Skip if only frontend/docs changed (checked via detect-changes)
     needs: [detect-changes, build-backend-deps]
@@ -594,14 +615,14 @@ jobs:
   # against). integration-tests-summary folds this job's green into the
   # roll-up, so CI Gate still sees ONE integration verdict.
   integration-tests-api-retry:
-    name: Integration Tests (API shard ${{ matrix.shard }}/2) RETRY
+    name: Integration Tests (API shard ${{ matrix.shard }}/4) RETRY
     uses: ./.github/workflows/integration-shard.yml
     secrets: inherit # pragma: allowlist secret (detect-secrets: `secrets:` kwarg, no value)
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.14']
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     needs: [integration-tests-api]
     if: |
       always() &&
