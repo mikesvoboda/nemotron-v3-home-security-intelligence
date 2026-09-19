@@ -118,6 +118,17 @@ must precede building**, not a compliance task to bolt on later.
 VSS restructured four times in 15 months and removes old NGC images on a schedule. No API-stability
 or deprecation policy exists in the repo. Any integration inherits that cadence.
 
+### Q9. Does the VSS swap cover the in-process AI tier? **[?]** — scope bounded 2026-09-20, ruling parked
+
+The HTTP provider tier now has a declared contract (FakeProvider, conformance suites, the WP9.1
+parity checker — see the program ledger). The in-process tier — 22 `*_loader.py` modules (21
+importing torch/transformers/ultralytics into the backend process), four direct in-process
+detectors, and the `ai_services.py` DI wrappers — has no socket, so none of those suites can see
+it swap or break. The scope declaration, the counted module list, and the explicit
+"what-remains-unguarded" statement live in
+[`06-repo-a-readiness.md`](06-repo-a-readiness.md) §2a. The swap is TWO known projects; this
+question prices the second one.
+
 ## Questions nobody has asked yet
 
 Flagged deliberately so they are not lost:
