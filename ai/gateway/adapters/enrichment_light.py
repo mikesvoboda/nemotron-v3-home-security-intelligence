@@ -21,7 +21,7 @@ import io
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -203,7 +203,10 @@ def _derive_posture(keypoints: list[dict[str, Any]]) -> str:
     def _y(name: str) -> float | None:
         kp = kp_map.get(name)
         if kp and kp["confidence"] >= min_conf:
-            return kp["y"]
+            # cast (erased at runtime, behavior-neutral): kp_map is
+            # dict[str, Any] from the request body, the helper declares
+            # float | None. Pose y-values are JSON numbers by contract.
+            return cast("float", kp["y"])
         return None
 
     def _avg_y(*names: str) -> float | None:
