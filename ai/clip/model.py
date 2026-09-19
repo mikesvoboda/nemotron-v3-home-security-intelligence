@@ -753,11 +753,22 @@ class CLIPEmbeddingModel:
             return features
 
         # Object return type with pooler_output attribute (transformers 5.0+)
+        # isinstance guards below (NOT import edits -- model.py import
+        # statements are frozen): they narrow the stub-Any attribute reads to
+        # torch.Tensor, matching this helper's documented contract. A non-Tensor
+        # pooler_output/last_hidden_state would have been returned raw before;
+        # it now raises TypeError here instead of failing silently downstream.
         if hasattr(features, "pooler_output") and features.pooler_output is not None:
-            return features.pooler_output
+            pooler_output = features.pooler_output
+            if not isinstance(pooler_output, torch.Tensor):
+                raise TypeError(f"Unexpected pooler_output type: {type(pooler_output)}")
+            return pooler_output
         elif hasattr(features, "last_hidden_state"):
             # Fallback to CLS token from last_hidden_state
-            return features.last_hidden_state[:, 0, :]
+            last_hidden_state = features.last_hidden_state
+            if not isinstance(last_hidden_state, torch.Tensor):
+                raise TypeError(f"Unexpected last_hidden_state type: {type(last_hidden_state)}")
+            return last_hidden_state[:, 0, :]
         else:
             raise TypeError(f"Unexpected features type: {type(features)}. Cannot extract tensor.")
 

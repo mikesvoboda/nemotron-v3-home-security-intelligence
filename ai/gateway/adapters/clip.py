@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -195,10 +195,16 @@ def _encode_texts_siglip(texts: list[str]) -> np.ndarray:
         truncation=True,
     )
     with torch.no_grad():
-        text_features = _text_model.get_text_features(**tokens)
+        # cast (erased at runtime, behavior-neutral): types-PyTorch stubs type
+        # nn.Module.__getattr__ -> Tensor, so the stubs see
+        # ``Module.get_text_features`` as a Tensor, not a callable. The runtime
+        # object is the real method. mypy newly reaches this file because the
+        # WP8 conformance tests import the mounted gateway app.
+        text_features = cast("Any", _text_model.get_text_features)(**tokens)
         # L2-normalize
         text_features = text_features / (text_features.norm(dim=-1, keepdim=True) + 1e-8)
-    return text_features.cpu().float().numpy()
+    # cast: the chain above is Any under the stubs; ndarray->ndarray at runtime.
+    return cast("np.ndarray", text_features.cpu().float().numpy())
 
 
 # ---------------------------------------------------------------------------
@@ -352,7 +358,8 @@ async def _get_text_embeddings(texts: list[str]) -> np.ndarray:
             embeddings = result["pooler_output"]
             norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
             norms = np.maximum(norms, 1e-8)
-            return embeddings / norms
+            # cast: numpy-stubs leave ndarray / ndarray as Any (array_api gap).
+            return cast("np.ndarray", embeddings / norms)
     except Exception as e:
         logger.debug("Triton clip_text model not available: %s", e)
 
