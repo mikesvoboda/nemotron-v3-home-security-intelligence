@@ -1843,6 +1843,10 @@ async def test_performance_endpoint_returns_metrics(client, mock_redis):
     original_collector = system_routes._performance_collector
 
     try:
+        # Start from a cold response cache: this test asserts on ITS collector,
+        # and the entry it leaves behind is what poisoned
+        # test_performance_endpoint_handles_collector_error (see there).
+        system_routes.clear_health_cache()
         # Create a real PerformanceUpdate for the mock to return
         mock_snapshot = PerformanceUpdate(
             timestamp=datetime.now(UTC),
@@ -1891,6 +1895,8 @@ async def test_performance_endpoint_returns_metrics(client, mock_redis):
         assert data["host"]["cpu_percent"] == 12.0
     finally:
         system_routes._performance_collector = original_collector
+        # Leave no cache residue for whichever test shares this worker next.
+        system_routes.clear_health_cache()
 
 
 @pytest.mark.asyncio
@@ -1927,6 +1933,17 @@ async def test_performance_endpoint_handles_collector_error(client, mock_redis):
     original_collector = system_routes._performance_collector
 
     try:
+        # The /api/system/performance route caches its response for 5s
+        # (PerformanceMetricsCacheEntry, system.py:409) and checks that cache
+        # BEFORE calling the collector. These tests swap the module-global
+        # _performance_collector but never touched the cache, so a neighbour
+        # that populated it within the TTL made this test assert against the
+        # neighbour's cached response instead of its own collector. That is
+        # process-local and TTL-bounded, so it only fires when the two land in
+        # the same xdist worker close together — which is exactly what
+        # re-sharding the integration tier changes. clear_health_cache() is the
+        # reset hook the route module already exposes for this purpose.
+        system_routes.clear_health_cache()
         # Create mock collector that raises an error
         mock_collector = AsyncMock()
         mock_collector.collect_all = AsyncMock(side_effect=RuntimeError("Collection failed"))
@@ -1940,6 +1957,8 @@ async def test_performance_endpoint_handles_collector_error(client, mock_redis):
         assert "detail" in data
     finally:
         system_routes._performance_collector = original_collector
+        # Leave no cache residue for whichever test shares this worker next.
+        system_routes.clear_health_cache()
 
 
 @pytest.mark.skip(reason="Performance REST API endpoint not yet implemented (NEM-1900)")
