@@ -66,12 +66,44 @@ def pytest_sessionfinish(session, exitstatus):
     Path(marker).write_text(verdict, encoding="utf-8")
 '''
 
+# WP6.2: `import triton` inside an ai/ session must never resolve to the
+# repo's ai/triton package (that shadow turned transformers' graceful
+# "triton is absent" path into `module 'triton' has no attribute
+# 'language'` hard failures inside torch._dynamo). Same subprocess trick:
+# the probe runs INSIDE a session that has already collected the whole
+# tree (so every conftest/shim sys.path insertion has had its chance).
+TRITON_PROBE_PLUGIN = '''\
+"""pytest plugin: inside an ai/ session, probe how `import triton` resolves."""
+import os
+from pathlib import Path
 
-def _run_nested(tmp_path: Path, *paths: Path) -> subprocess.CompletedProcess[str]:
-    """Run a collection pass in a subprocess with the poison probe loaded."""
+
+def pytest_sessionfinish(session, exitstatus):
+    import sys
+
+    root = Path(os.environ["WP61_REPO_ROOT"]).resolve()
+    try:
+        import triton  # noqa: F401
+    except ImportError as exc:
+        verdict = f"BLOCKED:{type(exc).__name__}"
+    else:
+        where = getattr(triton, "__file__", None) or "(namespace)"
+        if str(root) in str(where):
+            verdict = f"SHADOWED:{where}"
+        else:
+            verdict = f"EXTERNAL:{where}"
+    Path(os.environ["WP61_VERDICT_FILE"]).write_text(verdict, encoding="utf-8")
+'''
+
+
+def _run_nested(
+    tmp_path: Path, *paths: Path, plugin: str = "wp61_poison_probe"
+) -> subprocess.CompletedProcess[str]:
+    """Run a collection pass in a subprocess with the named probe plugin."""
     probe_dir = tmp_path / "probe"
     probe_dir.mkdir(exist_ok=True)
-    (probe_dir / "wp61_poison_probe.py").write_text(PROBE_PLUGIN, encoding="utf-8")
+    source = TRITON_PROBE_PLUGIN if plugin == "wp62_triton_probe" else PROBE_PLUGIN
+    (probe_dir / f"{plugin}.py").write_text(source, encoding="utf-8")
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(
         [str(probe_dir), *([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])]
@@ -85,7 +117,7 @@ def _run_nested(tmp_path: Path, *paths: Path) -> subprocess.CompletedProcess[str
             "pytest",
             *NESTED_OVERRIDES,
             "-p",
-            "wp61_poison_probe",
+            plugin,
             *(str(p) for p in paths),
         ],
         cwd=REPO_ROOT,
@@ -125,4 +157,27 @@ def test_full_ai_collection_leaves_real_ai_package(tmp_path: Path) -> None:
     assert verdict == "CLEAN", (
         f"sys.modules['ai'] after full ai/ collection: {verdict!r} — "
         "something in ai/ mutates sys.modules at import time"
+    )
+
+
+@pytest.mark.timeout(RUN_TIMEOUT + 30)
+def test_triton_not_shadowed_in_ai_session(tmp_path: Path) -> None:
+    """`import triton` inside an ai/ session never resolves to ai/triton.
+
+    The repo has no pip triton; the ai/ directory legitimately appears on
+    sys.path (conftests + production shim blocks insert it, container
+    parity) and contains ai/triton — a Triton *Inference Server* client
+    package that shadows the compiler library torch._dynamo lazily
+    imports, converting a graceful absence into
+    `module 'triton' has no attribute 'language'`. ai/conftest.py blocks
+    sys.modules["triton"]; this probe runs after a full ai/ collection
+    and requires BLOCKED (or EXTERNAL if pip triton is ever installed).
+    """
+    result = _run_nested(tmp_path, REPO_ROOT / "ai", plugin="wp62_triton_probe")
+    verdict_path = tmp_path / "verdict.txt"
+    assert verdict_path.exists(), f"nested run did not finish (rc={result.returncode})"
+    verdict = verdict_path.read_text(encoding="utf-8")
+    assert verdict.startswith(("BLOCKED", "EXTERNAL")), (
+        f"`import triton` inside an ai/ session: {verdict!r} — expected the "
+        "graceful ImportError (absent) or an installed non-repo package"
     )
