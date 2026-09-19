@@ -6660,3 +6660,96 @@ source path) suppressed with a line-scoped nosemgrep directive +
 why-comment — hook
 configuration untouched, no exclude-list broadening; WP4.2 ratchet rc=0;
 mypy clean.
+
+## WP8.4 LANDED `76253321` — client conformance: 83 legs driving the six real AI clients through the fake (2026-09-19)
+
+**What landed.** `backend/tests/contracts/ai_providers/test_client_conformance.py`
+(1,830 lines, 83 cases; zero production behavior change — two behavior-neutral
+typing pins ride in the same commit, below). The plan's §WP8.4 (P:1001-1026)
+demanded the OTHER half of WP8.3: drive the shipped `DetectorClient`,
+`FlorenceClient`, `CLIPClient`, `EnrichmentClient`, `NemotronAnalyzer` plus the
+two client-BYPASS sites (`SceneOCRService`, `nemotron_streaming`) through the
+WP8.2 fake via `httpx.ASGITransport`, so provider-side and client-side
+conformance can no longer stay independently green. Done-when (P:1024-1026) —
+"renaming a response key in a contract model reddens a CLIENT test" — is
+satisfied structurally: every expected value is a literal dumped from the
+ACTUAL fake generators at draft time, and two rename-PROOF legs delete a
+served key and demand the client react.
+
+**MEASURE.** Draft probe run 4: 82 passed / 1 failed — the predicted-red list
+was EXACTLY that failure, zero drift. First in-tree contact reproduced it
+verbatim (82P/1F). The one red converted to a GREEN characterization pin at
+integration (goal rule — branch stays green; see below). Suite directory: 542
+(was 459); with `ai/gateway/tests` 768 passed in 11.2s (was 685). ruff: 11
+findings fixed at integration (`_check` split to clear PLR0911, 5x RUF100,
+3x I001, PLC0207, C420); mypy clean for the module (repo `.venv`, full import
+graph); semgrep hook configs 0 findings; WP4.2 mock ratchet rc=0 by
+CONVERSION — the two `patch.object(dcmod, "get_baseline_service", ...)` sites
+took `autospec=True` (the classifier's convertible class; no suppression
+entry, no baseline move).
+
+**The one predicted red, resolved by ruling-shape not by code.** The plan
+wanted a pose keypoint-shape red pin. What ships today: the LIGHT-path fake
+body carries keypoints with no `name`/`x`/`y`/`confidence` keys (the committed
+heavy snapshot agrees — it is an additionalProperties bag), the client's first
+deref `kp["name"]` (`backend/services/enrichment_client.py:2226`) KeyErrors
+into the catch-all that logs at :2331 and escapes as
+`EnrichmentUnavailableError` embedding `"'name'"`. The leg now pins THAT —
+raised type plus the message assertion — as the DEPLOYED contract of
+pose-analyze as the shipped client can consume it. Pose-shape alignment
+(contract gains fields OR client stops requiring them) stays PARKED
+(RULING `WP8.4-pose-keypoint-shape`); the pin is the tripwire — a fix flips
+this test red by construction and it gets rewritten to the ruling's shape.
+
+**Findings pinned AS DATA (both-sides-correct characterizations).**
+(1) FINDING #9 — reid embedding: contract key is `embedding_dimension` but
+the client reads `embedding_dim` with default `len(embedding)` (:2944-2948),
+so a RENAME THERE IS MASKED — pinned as the blind-spot leg that renames the
+contract key and asserts the parse does NOT notice (the rename-table skips
+this method; its docstring says why). (2) /enrich parses everything away: no
+responder (fake or gateway) emits any key `_parse_unified_response`
+(:3048-3116) reads, so every successful unified call yields an all-empty
+`UnifiedEnrichmentResult` (only `inference_time_ms` survives). (3) Tier A
+path legs re-run CLIENT-side: composed `/enrich-lt/object-distance` and
+`{heavy}/models/status` 404 through the client while the bare registry paths
+answer 200 — the asymmetry pinned on both sides. (4) Plan-cite correction,
+verified before asserting: P Tier A row 3's claim that the gateway /enrich
+handler dereferences `request.bbox` is NOT reproducible at HEAD
+(`ai/gateway/adapters/enrichment.py:902-977` never touches bbox) — recorded
+in the leg's docstring.
+
+**Seam census (all verified by live probes; zero production change).**
+Clients build their own persistent `httpx.AsyncClient` in `__init__` against
+unresolvable DNS, so every seam is (a) base-url injection — ctor kwarg where
+one exists (Florence/CLIP/SceneOCR), else patch the MODULE-level
+`get_settings` the client imported (Detector/Enrichment/Nemotron — patching
+`backend.core.config.get_settings` hits none of them, the five-distinct-
+targets lesson from WP8.3 geometry holds); (b) pool swap onto the fake.
+`EnrichmentClient` ctor urls are INSUFFICIENT — per-model routing resolves
+through settings captured at ctor (:847, :928-943), so the seam patches
+`enrichment_client.get_settings` with fake-prefix values. `NemotronAnalyzer`
+drives `_call_llm_with_version` directly (the full analyze chain needs a DB
+session this tier must not fabricate). The streaming bypass builds its client
+INSIDE the function (:96) — seam is a module-local `httpx` rebind shim
+(monkeypatched, auto-restored; the real module is never touched). No xfail /
+skip / deselect / respx anywhere (goal rules).
+
+**COMMIT-GATE EXPOSURE (same class as WP8.3's five).** The commit-gate mypy
+(hook env, torch absent) follows this module's imports and surfaced 3 latent
+`no-any-return` errors no CI run had ever seen — `ai/clip/model.py:580`
+(typed binding `result_path: str`; `export_onnx` is Any under the hook env;
+the flat-COPY'd file got ZERO import changes per the goal rule),
+`ai/clip/model.py:1196` (`float()` around the tensor-scalar division — a
+no-op on the real float at runtime), and `ai/gateway/adapters/enrichment_light.py:206`
+(erased `cast` + its import; directory-COPY'd, Dockerfile-safe). Proofs:
+`ai/clip/test_model.py` 78 passed (the changed prod file's own suite), the
+light-adapter tests 25 passed, suite dirs 768 — all UNCHANGED from pre-fix;
+`py_compile` both.
+
+**Branch mechanics note.** The push tripped the pre-push auto-rebase into an
+L conflict replaying the 28-commit stack onto main's new `aa9a09ff` (owner
+ADDENDUM 2, P-only). Resolved the house way — merge commit `232094f6`
+(chore(merge), same precedent as `84252c95`/`f816c675`), no rewrite of the
+live PR branch, hook BEHIND check passes afterward. ADDENDUM 2 is the owner's
+A6 narrowing of the test-file-deletion rule plus the A7 ruling batch —
+read-before-work on WP9.x next.
