@@ -883,3 +883,332 @@ class TestServeMediaCompat:
 
         assert exc_info.value.status_code == 500
         assert "Database connection unavailable" in str(exc_info.value.detail)
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/media.md, clusters V2-V4, T1-T2, S1-S5, S7)
+# =============================================================================
+
+
+class TestWp44MediaGaps:
+    """NEM-2662 host prefixes, error-detail contract, and serve boundary gaps."""
+
+    def test_host_prefix_translation_both_variants_case_sensitive(self, tmp_path: Path) -> None:
+        """Both host prefixes translate; XX-clobber / upper-case variants must NOT match.
+
+        Kills _try_alternate_path mutmut_15-_18 (T1/T2): the only unit
+        coverage for the NEM-2662 host-path translation.
+        """
+        alt_file = tmp_path / "front_door" / "image.jpg"
+        alt_file.parent.mkdir(parents=True)
+        alt_file.write_text("test")
+
+        for prefix in ("/export/foscam/", "/mnt/foscam/"):
+            result = _try_alternate_path(f"{prefix}front_door/image.jpg", tmp_path)
+            assert result == alt_file.resolve(), f"{prefix} must be a recognized host prefix"
+
+        # startswith() is case-sensitive: upper-cased prefixes (mutants) must return None
+        assert _try_alternate_path("/EXPORT/FOSCAM/front_door/image.jpg", tmp_path) is None
+        assert _try_alternate_path("/MNT/FOSCAM/front_door/image.jpg", tmp_path) is None
+
+    def test_error_detail_path_truncation_boundary(self, tmp_path: Path) -> None:
+        """The [:100] + '...' truncation expression is pinned at both sites (414, 400).
+
+        Kills V2/V3 mutmut_13/_44/_45/_48/_50 family: slice 100->101,
+        >100->>=100/>101, 'XX...XX' suffix, forced branch conditions.
+        """
+        # 414 site: only reachable with len > MAX_PATH_LENGTH, so pin truncation only.
+        long_path = "b" * (MAX_PATH_LENGTH + 900)
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_and_resolve_path(tmp_path, long_path)
+        assert exc_info.value.status_code == 414
+        assert exc_info.value.detail["path"] == "b" * 100 + "..."
+
+        # 400 site (resolve() raises): three boundary lengths.
+        with patch.object(Path, "resolve", side_effect=ValueError("boom"), autospec=True):
+            with pytest.raises(HTTPException) as exc_info_100:
+                _validate_and_resolve_path(tmp_path, "d" * 96 + ".jpg")
+            with pytest.raises(HTTPException) as exc_info_101:
+                _validate_and_resolve_path(tmp_path, "d" * 97 + ".jpg")
+            with pytest.raises(HTTPException) as exc_info_150:
+                _validate_and_resolve_path(tmp_path, "c" * 150)
+
+        assert exc_info_100.value.status_code == 400
+        assert exc_info_100.value.detail["path"] == "d" * 96 + ".jpg"
+        assert exc_info_101.value.status_code == 400
+        assert exc_info_101.value.detail["path"] == "d" * 97 + ".jp" + "..."
+        assert exc_info_150.value.status_code == 400
+        assert exc_info_150.value.detail["path"] == "c" * 100 + "..."
+
+    def test_error_detail_error_field_exact_strings(self, tmp_path: Path) -> None:
+        """detail['error'] must EQUAL the message (==, not `in str(detail)`).
+
+        Kills V4 mutmut_30/_60/_74 — XX-clobbered messages survive substring
+        asserts because str(dict) still contains the inner text.
+        """
+        with pytest.raises(HTTPException) as exc:
+            _validate_and_resolve_path(tmp_path, "../etc/passwd")
+        assert exc.value.status_code == 403
+        assert exc.value.detail["error"] == "Path traversal detected"
+
+        with pytest.raises(HTTPException) as exc:
+            _validate_and_resolve_path(tmp_path, "nonexistent.jpg")
+        assert exc.value.status_code == 404
+        assert exc.value.detail["error"] == "File not found"
+
+        # outside-base (symlink escape, same shape as test_path_outside_base_returns_403)
+        other_dir = tmp_path.parent / "other_exact"
+        other_dir.mkdir(exist_ok=True)
+        escape_target = other_dir / "t.jpg"
+        escape_target.write_text("t")
+        symlink = tmp_path / "escape_exact.jpg"
+        try:
+            symlink.symlink_to(escape_target)
+        except OSError:
+            pytest.skip("Symlinks not supported on this filesystem")
+        with pytest.raises(HTTPException) as exc:
+            _validate_and_resolve_path(tmp_path, "escape_exact.jpg")
+        assert exc.value.status_code == 403
+        assert exc.value.detail["error"] == "Access denied - path outside allowed directory"
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_host_path_end_to_end(self, tmp_path: Path) -> None:
+        """Detections seeded with host paths serve from the container base (NEM-2662).
+
+        Kills serve_detection_image mutmut_43 (alt call disabled -> 403/404)
+        and _45 (None base -> TypeError).
+        """
+        from fastapi.responses import FileResponse
+
+        from backend.api.routes.media import serve_detection_image
+
+        test_file = tmp_path / "front_door" / "image.jpg"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("detection image")
+
+        mock_db = AsyncMock()
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 1
+        mock_detection.camera_id = "front_door"
+        # factory-shaped host path (tests/factories.py:110)
+        mock_detection.file_path = "/export/foscam/front_door/image.jpg"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+        mock_db.execute.return_value = mock_result
+
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = str(tmp_path)
+
+            result = await serve_detection_image(detection_id=1, db=mock_db)
+
+        assert isinstance(result, FileResponse)
+        assert result.path == str(test_file.resolve())
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_data_cameras_directory_is_allowed(
+        self, tmp_path: Path
+    ) -> None:
+        """<root>/data/cameras is the second allowlisted root of the 403 boundary check.
+
+        data_path = Path(media.__file__).parent.parent.parent.parent / "data"
+        / "cameras" is computed at call time; pin __file__ and shape tmp_path
+        to the same layout. Any segment clobber (S2 mutmut_39-_42) makes the
+        boundary check reject -> 403 instead of serving.
+        """
+        from fastapi.responses import FileResponse
+
+        from backend.api.routes.media import serve_detection_image
+
+        # 4 .parent hops from x/api/routes/media.py land on tmp_path itself
+        routes_dir = tmp_path / "x" / "api" / "routes"
+        # parents must exist for Path(__file__).resolve() to succeed
+        routes_dir.mkdir(parents=True)
+        data_cameras = tmp_path / "data" / "cameras"
+        data_cameras.mkdir(parents=True)
+        (routes_dir / "media.py").write_text("")  # anchors Path(__file__)
+        test_file = data_cameras / "seeded.jpg"
+        test_file.write_text("detection image")
+
+        mock_db = AsyncMock()
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 1
+        mock_detection.camera_id = "front_door"
+        mock_detection.file_path = str(test_file)  # absolute: within data_path, NOT foscam base
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+        mock_db.execute.return_value = mock_result
+
+        foscam_base = tmp_path / "foscam"
+        foscam_base.mkdir()
+
+        with (
+            patch("backend.api.routes.media.__file__", str(routes_dir / "media.py")),
+            patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings,
+        ):
+            mock_settings.return_value.foscam_base_path = str(foscam_base)
+
+            result = await serve_detection_image(detection_id=1, db=mock_db)
+
+        assert isinstance(result, FileResponse)
+        assert result.path == str(test_file.resolve())
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_query_filters_on_detection_id(
+        self, tmp_path: Path
+    ) -> None:
+        """The lookup must actually filter on Detection.id (S3 mutmut_2/_4/_5).
+
+        A stubbed AsyncMock otherwise hides execute(None)/select(None)/
+        where(None)/!= — a wrong detection's image gets served.
+        """
+        from backend.api.routes.media import serve_detection_image
+
+        test_file = tmp_path / "front_door" / "image.jpg"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("detection image")
+
+        mock_db = AsyncMock()
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 7
+        mock_detection.camera_id = "front_door"
+        mock_detection.file_path = "image.jpg"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+        mock_db.execute.return_value = mock_result
+
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = str(tmp_path)
+
+            await serve_detection_image(detection_id=7, db=mock_db)
+
+        assert mock_db.execute.await_count == 1
+        stmt = mock_db.execute.await_args.args[0]
+        sql = str(stmt.compile())  # 'detections.id = :id_1'; != mutant -> 'detections.id != :id_1'
+        assert "detections.id = " in sql
+        assert "!=" not in sql
+        # select(None) keeps the WHERE clause but renders 'SELECT NULL AS anon_1'
+        # — pin the real detections.* projection (kills mutmut_4)
+        assert "NULL AS" not in sql.upper()
+        assert "detections.file_path" in sql
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_directory_named_like_image_returns_404(
+        self, tmp_path: Path
+    ) -> None:
+        """exists-or-isfile guard must stay `or` (S5 mutmut_49/_77).
+
+        A DIRECTORY named snapshot.jpg is not a file -> 404. With or->and the
+        guard passes and the .jpg suffix sails through to a FileResponse.
+        """
+        from backend.api.routes.media import serve_detection_image
+
+        fake_dir = tmp_path / "front_door" / "snapshot.jpg"
+        fake_dir.mkdir(parents=True)
+
+        mock_db = AsyncMock()
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 1
+        mock_detection.camera_id = "front_door"
+        mock_detection.file_path = "snapshot.jpg"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+        mock_db.execute.return_value = mock_result
+
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = str(tmp_path)
+
+            with pytest.raises(HTTPException) as exc_info:
+                await serve_detection_image(detection_id=1, db=mock_db)
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail["error"] == "File not found on disk"
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_response_preserves_filename_and_disposition(
+        self, tmp_path: Path
+    ) -> None:
+        """FileResponse must carry filename=full_path.name -> Content-Disposition header.
+
+        Kills S7 mutmut_105/_107/_108: filename=None mutants drop the header
+        (media_type re-guesses from path and looks fine — only these asserts kill).
+        """
+        from fastapi.responses import FileResponse
+
+        from backend.api.routes.media import serve_detection_image
+
+        test_file = tmp_path / "front_door" / "image.jpg"
+        test_file.parent.mkdir(parents=True)
+        test_file.write_text("detection image")
+
+        mock_db = AsyncMock()
+        mock_detection = MagicMock(spec=Detection)
+        mock_detection.id = 1
+        mock_detection.camera_id = "front_door"
+        mock_detection.file_path = "image.jpg"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_detection
+        mock_db.execute.return_value = mock_result
+
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = str(tmp_path)
+
+            result = await serve_detection_image(detection_id=1, db=mock_db)
+
+        assert isinstance(result, FileResponse)
+        assert result.filename == "image.jpg"
+        assert result.media_type == "image/jpeg"
+        assert 'filename="image.jpg"' in result.headers["content-disposition"]
+
+    @pytest.mark.asyncio
+    async def test_serve_detection_image_error_fields_exact(self, tmp_path: Path) -> None:
+        """All four serve_detection_image error sites pinned with == (S1 mutmut_16/_29/_74...)."""
+        from backend.api.routes.media import serve_detection_image
+
+        def mock_db_for(detection: object | None) -> AsyncMock:
+            db = AsyncMock()
+            result = MagicMock()
+            result.scalar_one_or_none.return_value = detection
+            db.execute.return_value = result
+            return db
+
+        with patch("backend.api.routes.media.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = str(tmp_path)
+
+            # 1) not found
+            with pytest.raises(HTTPException) as exc:
+                await serve_detection_image(detection_id=999, db=mock_db_for(None))
+            assert exc.value.status_code == 404
+            assert exc.value.detail["error"] == "Detection not found"
+
+            # 2) no file path
+            det = MagicMock(spec=Detection)
+            det.id, det.camera_id, det.file_path = 1, "front_door", None
+            with pytest.raises(HTTPException) as exc:
+                await serve_detection_image(detection_id=1, db=mock_db_for(det))
+            assert exc.value.status_code == 404
+            assert exc.value.detail["error"] == "Detection has no associated file"
+
+            # 3) outside allowed directory
+            outside = tmp_path.parent / "outside_exact"
+            outside.mkdir(exist_ok=True)
+            (outside / "x.jpg").write_text("x")
+            det2 = MagicMock(spec=Detection)
+            det2.id, det2.camera_id, det2.file_path = 1, "front_door", str(outside / "x.jpg")
+            with pytest.raises(HTTPException) as exc:
+                await serve_detection_image(detection_id=1, db=mock_db_for(det2))
+            assert exc.value.status_code == 403
+            assert exc.value.detail["error"] == "Access denied - file outside allowed directory"
+
+            # 4) file not on disk
+            det3 = MagicMock(spec=Detection)
+            det3.id, det3.camera_id, det3.file_path = 1, "front_door", "missing.jpg"
+            with pytest.raises(HTTPException) as exc:
+                await serve_detection_image(detection_id=1, db=mock_db_for(det3))
+            assert exc.value.status_code == 404
+            assert exc.value.detail["error"] == "File not found on disk"
