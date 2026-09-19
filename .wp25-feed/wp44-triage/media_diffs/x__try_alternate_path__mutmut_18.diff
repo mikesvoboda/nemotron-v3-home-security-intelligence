@@ -1,0 +1,12 @@
+# backend.api.routes.media.x__try_alternate_path__mutmut_18: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -19,7 +19,7 @@
+     # Try host path translation (NEM-2662)
+     # Common host paths: /export/foscam/, /mnt/foscam/, etc.
+     # These should map to the container path configured in settings.foscam_base_path
+-    host_prefixes = ["/export/foscam/", "/mnt/foscam/"]
++    host_prefixes = ["/export/foscam/", "/MNT/FOSCAM/"]
+     for host_prefix in host_prefixes:
+         if file_path.startswith(host_prefix):
+             # Extract the relative path after the host prefix

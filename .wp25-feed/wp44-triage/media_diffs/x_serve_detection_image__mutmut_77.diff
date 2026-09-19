@@ -1,0 +1,12 @@
+# backend.api.routes.media.x_serve_detection_image__mutmut_77: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -71,7 +71,7 @@
+             )
+ 
+     # Final check if file exists
+-    if not full_path.exists() or not full_path.is_file():
++    if not full_path.exists() and not full_path.is_file():
+         raise HTTPException(
+             status_code=status.HTTP_404_NOT_FOUND,
+             detail=MediaErrorResponse(

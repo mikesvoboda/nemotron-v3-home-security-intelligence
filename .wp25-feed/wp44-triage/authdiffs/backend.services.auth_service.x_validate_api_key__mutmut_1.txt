@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_validate_api_key__mutmut_1: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -10,7 +10,7 @@
+     Returns:
+         True if API key matches, False otherwise.
+     """
+-    if not api_key or not stored_hash:
++    if not api_key and not stored_hash:
+         return False
+     computed_hash = hash_api_key(api_key)
+     # Use hmac.compare_digest for constant-time comparison

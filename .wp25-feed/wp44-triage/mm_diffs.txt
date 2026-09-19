@@ -1,0 +1,635 @@
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_10
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("vram_budget_mb") or status.get("XXbudget_mbXX", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_11
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("vram_budget_mb") or status.get("BUDGET_MB", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_14
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -20,7 +20,7 @@
+     """
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+-        used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
++        used_mb = status.get(None) or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_15
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -20,7 +20,7 @@
+     """
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+-        used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
++        used_mb = status.get("XXvram_used_mbXX") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_16
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -20,7 +20,7 @@
+     """
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+-        used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
++        used_mb = status.get("VRAM_USED_MB") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_23
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -20,7 +20,7 @@
+     """
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+-        used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
++        used_mb = status.get("vram_used_mb") or status.get("used_mb", 1)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_26
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -21,7 +21,7 @@
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+-        loaded_models_data = status.get("loaded_models", {})
++        loaded_models_data = status.get("loaded_models", None)
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+         else:
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_28
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -21,7 +21,7 @@
+     if status:
+         budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+-        loaded_models_data = status.get("loaded_models", {})
++        loaded_models_data = status.get("loaded_models", )
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+         else:
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_3
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get(None) or status.get("budget_mb", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_35
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -25,7 +25,7 @@
+         if isinstance(loaded_models_data, dict):
+             loaded_models = list(loaded_models_data.keys())
+         else:
+-            loaded_models = loaded_models_data if isinstance(loaded_models_data, list) else []
++            loaded_models = loaded_models_data if (isinstance(loaded_models_data, list)) or True else []
+     else:
+         budget_mb = default_budget_mb
+         used_mb = 0
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_39
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 100) if (budget_mb > 0) and False else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_4
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("XXvram_budget_mbXX") or status.get("budget_mb", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_40
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 100) if (budget_mb > 0) or True else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_41
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb / 100) if budget_mb > 0 else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_43
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 101) if budget_mb > 0 else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_44
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 100) if budget_mb >= 0 else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_45
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 100) if budget_mb > 1 else 0.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_46
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -32,7 +32,7 @@
+         loaded_models = []
+ 
+     available_mb = budget_mb - used_mb
+-    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 0.0
++    utilization = (used_mb / budget_mb * 100) if budget_mb > 0 else 1.0
+ 
+     return VramGpuInfo(
+         gpu_id=gpu_id,
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_5
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("VRAM_BUDGET_MB") or status.get("budget_mb", default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_6
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("vram_budget_mb") or status.get(None, default_budget_mb)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_62
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -40,6 +40,6 @@
+         budget_mb=budget_mb,
+         used_mb=used_mb,
+         available_mb=available_mb,
+-        utilization_percent=round(utilization, 1),
++        utilization_percent=round(utilization, None),
+         loaded_models=loaded_models,
+     )
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_63
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -40,6 +40,6 @@
+         budget_mb=budget_mb,
+         used_mb=used_mb,
+         available_mb=available_mb,
+-        utilization_percent=round(utilization, 1),
++        utilization_percent=round(1),
+         loaded_models=loaded_models,
+     )
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_64
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -40,6 +40,6 @@
+         budget_mb=budget_mb,
+         used_mb=used_mb,
+         available_mb=available_mb,
+-        utilization_percent=round(utilization, 1),
++        utilization_percent=round(utilization, ),
+         loaded_models=loaded_models,
+     )
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_65
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -40,6 +40,6 @@
+         budget_mb=budget_mb,
+         used_mb=used_mb,
+         available_mb=available_mb,
+-        utilization_percent=round(utilization, 1),
++        utilization_percent=round(utilization, 2),
+         loaded_models=loaded_models,
+     )
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_7
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", None)
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__build_gpu_vram_info__mutmut_9
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -19,7 +19,7 @@
+         VramGpuInfo with VRAM metrics for this GPU
+     """
+     if status:
+-        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", default_budget_mb)
++        budget_mb = status.get("vram_budget_mb") or status.get("budget_mb", )
+         used_mb = status.get("vram_used_mb") or status.get("used_mb", 0)
+         loaded_models_data = status.get("loaded_models", {})
+         if isinstance(loaded_models_data, dict):
+===KEY=== backend.api.routes.model_management.x__fetch_service_status__mutmut_6
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -24,7 +24,7 @@
+         logger.warning(f"Failed to get status from {service_url}: HTTP {response.status_code}")
+         return None
+     except httpx.ConnectError:
+-        logger.warning(f"Cannot connect to {service_url}")
++        logger.warning(None)
+         return None
+     except httpx.TimeoutException:
+         logger.warning(f"Timeout connecting to {service_url}")
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_10
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -24,8 +24,7 @@
+             loaded=False,
+             actual_vram_mb=None,
+             last_used=None,
+-            load_count=0,
+-        )
++            )
+ 
+     # Check if model is loaded
+     loaded_models = status.get("loaded_models", {})
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_12
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -24,7 +24,7 @@
+             loaded=False,
+             actual_vram_mb=None,
+             last_used=None,
+-            load_count=0,
++            load_count=1,
+         )
+ 
+     # Check if model is loaded
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_15
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -28,7 +28,7 @@
+         )
+ 
+     # Check if model is loaded
+-    loaded_models = status.get("loaded_models", {})
++    loaded_models = status.get("loaded_models", None)
+     is_loaded = False
+     model_info: dict[str, Any] | None = None
+ 
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_17
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -28,7 +28,7 @@
+         )
+ 
+     # Check if model is loaded
+-    loaded_models = status.get("loaded_models", {})
++    loaded_models = status.get("loaded_models", )
+     is_loaded = False
+     model_info: dict[str, Any] | None = None
+ 
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_20
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -29,7 +29,7 @@
+ 
+     # Check if model is loaded
+     loaded_models = status.get("loaded_models", {})
+-    is_loaded = False
++    is_loaded = None
+     model_info: dict[str, Any] | None = None
+ 
+     if isinstance(loaded_models, list):
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_22
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -30,7 +30,7 @@
+     # Check if model is loaded
+     loaded_models = status.get("loaded_models", {})
+     is_loaded = False
+-    model_info: dict[str, Any] | None = None
++    model_info: dict[str, Any] | None = ""
+ 
+     if isinstance(loaded_models, list):
+         # Handle list format (old format) - check separate models dict for details
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_28
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -36,7 +36,7 @@
+         # Handle list format (old format) - check separate models dict for details
+         if model_name in loaded_models:
+             is_loaded = True
+-            models_dict = status.get("models", {})
++            models_dict = status.get("models", None)
+             if isinstance(models_dict, dict) and model_name in models_dict:
+                 model_info = models_dict[model_name]
+     elif isinstance(loaded_models, dict):
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_3
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -17,7 +17,7 @@
+     if model_name in LIGHT_MODELS:
+         status = light_status
+     else:
+-        status = heavy_status
++        status = None
+ 
+     if status is None:
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_30
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -36,7 +36,7 @@
+         # Handle list format (old format) - check separate models dict for details
+         if model_name in loaded_models:
+             is_loaded = True
+-            models_dict = status.get("models", {})
++            models_dict = status.get("models", )
+             if isinstance(models_dict, dict) and model_name in models_dict:
+                 model_info = models_dict[model_name]
+     elif isinstance(loaded_models, dict):
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_33
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -37,7 +37,7 @@
+         if model_name in loaded_models:
+             is_loaded = True
+             models_dict = status.get("models", {})
+-            if isinstance(models_dict, dict) and model_name in models_dict:
++            if isinstance(models_dict, dict) or model_name in models_dict:
+                 model_info = models_dict[model_name]
+     elif isinstance(loaded_models, dict):
+         # Handle dict format (new format with details inline)
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_39
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -50,7 +50,7 @@
+             return ModelRuntimeInfo(
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+-                last_used=model_info.get("last_used"),
++                last_used=None,
+                 load_count=model_info.get("load_count", 0),
+             )
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_43
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -50,7 +50,6 @@
+             return ModelRuntimeInfo(
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+-                last_used=model_info.get("last_used"),
+                 load_count=model_info.get("load_count", 0),
+             )
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_47
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -49,7 +49,7 @@
+         if model_info:
+             return ModelRuntimeInfo(
+                 loaded=True,
+-                actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
++                actual_vram_mb=model_info.get(None) or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+                 load_count=model_info.get("load_count", 0),
+             )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_48
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -49,7 +49,7 @@
+         if model_info:
+             return ModelRuntimeInfo(
+                 loaded=True,
+-                actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
++                actual_vram_mb=model_info.get("XXactual_vram_mbXX") or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+                 load_count=model_info.get("load_count", 0),
+             )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_49
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -49,7 +49,7 @@
+         if model_info:
+             return ModelRuntimeInfo(
+                 loaded=True,
+-                actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
++                actual_vram_mb=model_info.get("ACTUAL_VRAM_MB") or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+                 load_count=model_info.get("load_count", 0),
+             )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_53
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -50,7 +50,7 @@
+             return ModelRuntimeInfo(
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+-                last_used=model_info.get("last_used"),
++                last_used=model_info.get(None),
+                 load_count=model_info.get("load_count", 0),
+             )
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_54
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -50,7 +50,7 @@
+             return ModelRuntimeInfo(
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+-                last_used=model_info.get("last_used"),
++                last_used=model_info.get("XXlast_usedXX"),
+                 load_count=model_info.get("load_count", 0),
+             )
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_55
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -50,7 +50,7 @@
+             return ModelRuntimeInfo(
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+-                last_used=model_info.get("last_used"),
++                last_used=model_info.get("LAST_USED"),
+                 load_count=model_info.get("load_count", 0),
+             )
+         return ModelRuntimeInfo(
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_57
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -51,7 +51,7 @@
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+-                load_count=model_info.get("load_count", 0),
++                load_count=model_info.get("load_count", None),
+             )
+         return ModelRuntimeInfo(
+             loaded=True,
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_59
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -51,7 +51,7 @@
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+-                load_count=model_info.get("load_count", 0),
++                load_count=model_info.get("load_count", ),
+             )
+         return ModelRuntimeInfo(
+             loaded=True,
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_62
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -51,7 +51,7 @@
+                 loaded=True,
+                 actual_vram_mb=model_info.get("actual_vram_mb") or model_info.get("vram_mb"),
+                 last_used=model_info.get("last_used"),
+-                load_count=model_info.get("load_count", 0),
++                load_count=model_info.get("load_count", 1),
+             )
+         return ModelRuntimeInfo(
+             loaded=True,
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_66
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -62,7 +62,6 @@
+ 
+     return ModelRuntimeInfo(
+         loaded=False,
+-        actual_vram_mb=None,
+         last_used=None,
+         load_count=0,
+     )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_67
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -63,6 +63,5 @@
+     return ModelRuntimeInfo(
+         loaded=False,
+         actual_vram_mb=None,
+-        last_used=None,
+         load_count=0,
+     )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_68
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -64,5 +64,4 @@
+         loaded=False,
+         actual_vram_mb=None,
+         last_used=None,
+-        load_count=0,
+-    )
++        )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_70
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -64,5 +64,5 @@
+         loaded=False,
+         actual_vram_mb=None,
+         last_used=None,
+-        load_count=0,
++        load_count=1,
+     )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_8
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -22,7 +22,6 @@
+     if status is None:
+         return ModelRuntimeInfo(
+             loaded=False,
+-            actual_vram_mb=None,
+             last_used=None,
+             load_count=0,
+         )
+===KEY=== backend.api.routes.model_management.x__get_runtime_for_model__mutmut_9
+--- backend/api/routes/model_management.py
++++ backend/api/routes/model_management.py
+@@ -23,7 +23,6 @@
+         return ModelRuntimeInfo(
+             loaded=False,
+             actual_vram_mb=None,
+-            last_used=None,
+             load_count=0,
+         )
+ 

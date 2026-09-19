@@ -1,0 +1,84 @@
+{
+ "C5": [
+  "_validate_dedup_key__mutmut_12",
+  "_validate_dedup_key__mutmut_17",
+  "_validate_dedup_key__mutmut_3",
+  "_validate_dedup_key__mutmut_4",
+  "_validate_dedup_key__mutmut_8"
+ ],
+ "C1": [
+  "check_duplicate__mutmut_3",
+  "get_duplicate_stats__mutmut_2",
+  "get_recent_alerts_for_key__mutmut_3"
+ ],
+ "C2": [
+  "check_duplicate__mutmut_16",
+  "check_duplicate__mutmut_6",
+  "check_duplicate__mutmut_7"
+ ],
+ "??": [
+  "check_duplicate__mutmut_8",
+  "get_recent_alerts_for_key__mutmut_7"
+ ],
+ "C11": [
+  "check_duplicate__mutmut_9",
+  "get_recent_alerts_for_key__mutmut_8"
+ ],
+ "C8": [
+  "check_duplicate__mutmut_10",
+  "check_duplicate__mutmut_13",
+  "check_duplicate__mutmut_14",
+  "get_cooldown_for_rule__mutmut_6",
+  "get_duplicate_stats__mutmut_12",
+  "get_duplicate_stats__mutmut_13",
+  "get_duplicate_stats__mutmut_14",
+  "get_duplicate_stats__mutmut_15",
+  "get_duplicate_stats__mutmut_5",
+  "get_duplicate_stats__mutmut_6",
+  "get_duplicate_stats__mutmut_7",
+  "get_duplicate_stats__mutmut_8",
+  "get_recent_alerts_for_key__mutmut_12",
+  "get_recent_alerts_for_key__mutmut_13",
+  "get_recent_alerts_for_key__mutmut_6",
+  "get_recent_alerts_for_key__mutmut_9"
+ ],
+ "C6": [
+  "check_duplicate__mutmut_11",
+  "get_cooldown_for_rule__mutmut_3",
+  "get_cooldown_for_rule__mutmut_4",
+  "get_recent_alerts_for_key__mutmut_10"
+ ],
+ "C7": [
+  "check_duplicate__mutmut_12",
+  "get_cooldown_for_rule__mutmut_5",
+  "get_recent_alerts_for_key__mutmut_11"
+ ],
+ "C10": [
+  "check_duplicate__mutmut_15"
+ ],
+ "C9": [
+  "check_duplicate__mutmut_18",
+  "get_cooldown_for_rule__mutmut_8",
+  "get_duplicate_stats__mutmut_10",
+  "get_duplicate_stats__mutmut_17",
+  "get_recent_alerts_for_key__mutmut_15"
+ ],
+ "C13": [
+  "create_alert_if_not_duplicate__mutmut_8"
+ ],
+ "C12": [
+  "create_alert_if_not_duplicate__mutmut_13",
+  "create_alert_if_not_duplicate__mutmut_20",
+  "create_alert_if_not_duplicate__mutmut_9"
+ ],
+ "C14": [
+  "create_alert_if_not_duplicate__mutmut_28"
+ ],
+ "C4": [
+  "get_duplicate_stats__mutmut_3",
+  "get_recent_alerts_for_key__mutmut_4"
+ ],
+ "C16": [
+  "get_duplicate_stats__mutmut_34"
+ ]
+}

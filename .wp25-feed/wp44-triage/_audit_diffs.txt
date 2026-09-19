@@ -1,0 +1,564 @@
+===KEY=== backend.services.audit.x_get_actor_from_request__mutmut_20
+# backend.services.audit.x_get_actor_from_request__mutmut_20: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -22,7 +22,7 @@
+ 
+     if api_key:
+         # Mask the API key - show first 8 chars only for identification
+-        masked_key = api_key[:8] + "..." if len(api_key) > 8 else api_key[:4] + "..."
++        masked_key = api_key[:8] + "..." if len(api_key) >= 8 else api_key[:4] + "..."
+         return "api_key:" + masked_key
+ 
+     # Fall back to client IP
+===RC=== 0
+===KEY=== backend.services.audit.x_get_actor_from_request__mutmut_21
+# backend.services.audit.x_get_actor_from_request__mutmut_21: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -22,7 +22,7 @@
+ 
+     if api_key:
+         # Mask the API key - show first 8 chars only for identification
+-        masked_key = api_key[:8] + "..." if len(api_key) > 8 else api_key[:4] + "..."
++        masked_key = api_key[:8] + "..." if len(api_key) > 9 else api_key[:4] + "..."
+         return "api_key:" + masked_key
+ 
+     # Fall back to client IP
+===RC=== 0
+===KEY=== backend.services.audit.x_get_actor_from_request__mutmut_28
+# backend.services.audit.x_get_actor_from_request__mutmut_28: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -26,7 +26,7 @@
+         return "api_key:" + masked_key
+ 
+     # Fall back to client IP
+-    ip_address = None
++    ip_address = ""
+     if request.client:
+         ip_address = request.client.host
+ 
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_2
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_2: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -25,7 +25,7 @@
+             The created AuditLog record
+         """
+     # Extract action value if enum
+-    action_str = action.value if isinstance(action, AuditAction) else action
++    action_str = action.value if (isinstance(action, AuditAction)) and False else action
+     status_str = status.value if isinstance(status, AuditStatus) else status
+ 
+     # Auto-derive actor from request if not explicitly provided
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_5
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_5: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -26,7 +26,7 @@
+         """
+     # Extract action value if enum
+     action_str = action.value if isinstance(action, AuditAction) else action
+-    status_str = status.value if isinstance(status, AuditStatus) else status
++    status_str = status.value if (isinstance(status, AuditStatus)) and False else status
+ 
+     # Auto-derive actor from request if not explicitly provided
+     if actor is None:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_9
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_9: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -30,7 +30,7 @@
+ 
+     # Auto-derive actor from request if not explicitly provided
+     if actor is None:
+-        actor = get_actor_from_request(request)
++        actor = get_actor_from_request(None)
+ 
+     # Extract request info
+     ip_address = None
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_14
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_14: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -37,7 +37,7 @@
+     user_agent = None
+     if request:
+         # Get client IP, considering proxies
+-        ip_address = request.client.host if request.client else None
++        ip_address = request.client.host if (request.client) or True else None
+         # Check for X-Forwarded-For header
+         forwarded_for = request.headers.get("x-forwarded-for")
+         if forwarded_for:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_28
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_28: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -47,7 +47,7 @@
+         user_agent = request.headers.get("user-agent")
+ 
+     audit_log = AuditLog(
+-        timestamp=datetime.now(UTC),
++        timestamp=None,
+         action=action_str,
+         resource_type=resource_type,
+         resource_id=resource_id,
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_37
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_37: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -47,7 +47,6 @@
+         user_agent = request.headers.get("user-agent")
+ 
+     audit_log = AuditLog(
+-        timestamp=datetime.now(UTC),
+         action=action_str,
+         resource_type=resource_type,
+         resource_id=resource_id,
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_46
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_46: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -47,7 +47,7 @@
+         user_agent = request.headers.get("user-agent")
+ 
+     audit_log = AuditLog(
+-        timestamp=datetime.now(UTC),
++        timestamp=datetime.now(None),
+         action=action_str,
+         resource_type=resource_type,
+         resource_id=resource_id,
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁlog_action__mutmut_47
+# backend.services.audit.xǁAuditServiceǁlog_action__mutmut_47: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -58,6 +58,6 @@
+         status=status_str,
+     )
+ 
+-    db.add(audit_log)
++    db.add(None)
+     await db.flush()  # Flush to get the ID without committing
+     return audit_log
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_2
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_2: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -28,7 +28,7 @@
+         Returns:
+             Tuple of (list of AuditLog records, total count)
+         """
+-    query = select(AuditLog)
++    query = select(None)
+ 
+     # Apply filters
+     if action:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_4
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_4: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -32,7 +32,7 @@
+ 
+     # Apply filters
+     if action:
+-        query = query.where(AuditLog.action == action)
++        query = query.where(None)
+     if resource_type:
+         query = query.where(AuditLog.resource_type == resource_type)
+     if resource_id:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_5
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_5: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -32,7 +32,7 @@
+ 
+     # Apply filters
+     if action:
+-        query = query.where(AuditLog.action == action)
++        query = query.where(AuditLog.action != action)
+     if resource_type:
+         query = query.where(AuditLog.resource_type == resource_type)
+     if resource_id:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_7
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_7: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -34,7 +34,7 @@
+     if action:
+         query = query.where(AuditLog.action == action)
+     if resource_type:
+-        query = query.where(AuditLog.resource_type == resource_type)
++        query = query.where(None)
+     if resource_id:
+         query = query.where(AuditLog.resource_id == resource_id)
+     if actor:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_8
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_8: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -34,7 +34,7 @@
+     if action:
+         query = query.where(AuditLog.action == action)
+     if resource_type:
+-        query = query.where(AuditLog.resource_type == resource_type)
++        query = query.where(AuditLog.resource_type != resource_type)
+     if resource_id:
+         query = query.where(AuditLog.resource_id == resource_id)
+     if actor:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_10
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_10: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -36,7 +36,7 @@
+     if resource_type:
+         query = query.where(AuditLog.resource_type == resource_type)
+     if resource_id:
+-        query = query.where(AuditLog.resource_id == resource_id)
++        query = query.where(None)
+     if actor:
+         query = query.where(AuditLog.actor == actor)
+     if status:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_11
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_11: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -36,7 +36,7 @@
+     if resource_type:
+         query = query.where(AuditLog.resource_type == resource_type)
+     if resource_id:
+-        query = query.where(AuditLog.resource_id == resource_id)
++        query = query.where(AuditLog.resource_id != resource_id)
+     if actor:
+         query = query.where(AuditLog.actor == actor)
+     if status:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_13
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_13: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -38,7 +38,7 @@
+     if resource_id:
+         query = query.where(AuditLog.resource_id == resource_id)
+     if actor:
+-        query = query.where(AuditLog.actor == actor)
++        query = query.where(None)
+     if status:
+         query = query.where(AuditLog.status == status)
+     if start_date:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_14
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_14: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -38,7 +38,7 @@
+     if resource_id:
+         query = query.where(AuditLog.resource_id == resource_id)
+     if actor:
+-        query = query.where(AuditLog.actor == actor)
++        query = query.where(AuditLog.actor != actor)
+     if status:
+         query = query.where(AuditLog.status == status)
+     if start_date:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_16
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_16: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -40,7 +40,7 @@
+     if actor:
+         query = query.where(AuditLog.actor == actor)
+     if status:
+-        query = query.where(AuditLog.status == status)
++        query = query.where(None)
+     if start_date:
+         query = query.where(AuditLog.timestamp >= start_date)
+     if end_date:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_17
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_17: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -40,7 +40,7 @@
+     if actor:
+         query = query.where(AuditLog.actor == actor)
+     if status:
+-        query = query.where(AuditLog.status == status)
++        query = query.where(AuditLog.status != status)
+     if start_date:
+         query = query.where(AuditLog.timestamp >= start_date)
+     if end_date:
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_19
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_19: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -42,7 +42,7 @@
+     if status:
+         query = query.where(AuditLog.status == status)
+     if start_date:
+-        query = query.where(AuditLog.timestamp >= start_date)
++        query = query.where(None)
+     if end_date:
+         query = query.where(AuditLog.timestamp <= end_date)
+ 
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_20
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_20: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -42,7 +42,7 @@
+     if status:
+         query = query.where(AuditLog.status == status)
+     if start_date:
+-        query = query.where(AuditLog.timestamp >= start_date)
++        query = query.where(AuditLog.timestamp > start_date)
+     if end_date:
+         query = query.where(AuditLog.timestamp <= end_date)
+ 
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_22
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_22: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -44,7 +44,7 @@
+     if start_date:
+         query = query.where(AuditLog.timestamp >= start_date)
+     if end_date:
+-        query = query.where(AuditLog.timestamp <= end_date)
++        query = query.where(None)
+ 
+     # Get total count
+     count_query = select(func.count()).select_from(query.subquery())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_23
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_23: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -44,7 +44,7 @@
+     if start_date:
+         query = query.where(AuditLog.timestamp >= start_date)
+     if end_date:
+-        query = query.where(AuditLog.timestamp <= end_date)
++        query = query.where(AuditLog.timestamp < end_date)
+ 
+     # Get total count
+     count_query = select(func.count()).select_from(query.subquery())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_24
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_24: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -47,7 +47,7 @@
+         query = query.where(AuditLog.timestamp <= end_date)
+ 
+     # Get total count
+-    count_query = select(func.count()).select_from(query.subquery())
++    count_query = None
+     count_result = await db.execute(count_query)
+     total_count = count_result.scalar() or 0
+ 
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_26
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_26: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -47,7 +47,7 @@
+         query = query.where(AuditLog.timestamp <= end_date)
+ 
+     # Get total count
+-    count_query = select(func.count()).select_from(query.subquery())
++    count_query = select(None).select_from(query.subquery())
+     count_result = await db.execute(count_query)
+     total_count = count_result.scalar() or 0
+ 
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_28
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_28: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -48,7 +48,7 @@
+ 
+     # Get total count
+     count_query = select(func.count()).select_from(query.subquery())
+-    count_result = await db.execute(count_query)
++    count_result = await db.execute(None)
+     total_count = count_result.scalar() or 0
+ 
+     # Sort by timestamp descending (newest first)
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_33
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_33: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -52,7 +52,7 @@
+     total_count = count_result.scalar() or 0
+ 
+     # Sort by timestamp descending (newest first)
+-    query = query.order_by(AuditLog.timestamp.desc())
++    query = query.order_by(None)
+ 
+     # Apply pagination
+     query = query.limit(limit).offset(offset)
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_34
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_34: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -55,7 +55,7 @@
+     query = query.order_by(AuditLog.timestamp.desc())
+ 
+     # Apply pagination
+-    query = query.limit(limit).offset(offset)
++    query = None
+ 
+     # Execute query
+     result = await db.execute(query)
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_35
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_35: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -55,7 +55,7 @@
+     query = query.order_by(AuditLog.timestamp.desc())
+ 
+     # Apply pagination
+-    query = query.limit(limit).offset(offset)
++    query = query.limit(limit).offset(None)
+ 
+     # Execute query
+     result = await db.execute(query)
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_36
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_36: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -55,7 +55,7 @@
+     query = query.order_by(AuditLog.timestamp.desc())
+ 
+     # Apply pagination
+-    query = query.limit(limit).offset(offset)
++    query = query.limit(None).offset(offset)
+ 
+     # Execute query
+     result = await db.execute(query)
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_38
+# backend.services.audit.xǁAuditServiceǁget_audit_logs__mutmut_38: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -58,7 +58,7 @@
+     query = query.limit(limit).offset(offset)
+ 
+     # Execute query
+-    result = await db.execute(query)
++    result = await db.execute(None)
+     logs = list(result.scalars().all())
+ 
+     return logs, total_count
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_2
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_2: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -12,5 +12,5 @@
+         Returns:
+             AuditLog record or None if not found
+         """
+-    result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
++    result = await db.execute(None)
+     return cast("AuditLog | None", result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_3
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_3: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -12,5 +12,5 @@
+         Returns:
+             AuditLog record or None if not found
+         """
+-    result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
++    result = await db.execute(select(AuditLog).where(None))
+     return cast("AuditLog | None", result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_4
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_4: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -12,5 +12,5 @@
+         Returns:
+             AuditLog record or None if not found
+         """
+-    result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
++    result = await db.execute(select(None).where(AuditLog.id == audit_id))
+     return cast("AuditLog | None", result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_5
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_5: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -12,5 +12,5 @@
+         Returns:
+             AuditLog record or None if not found
+         """
+-    result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
++    result = await db.execute(select(AuditLog).where(AuditLog.id != audit_id))
+     return cast("AuditLog | None", result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_6
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_6: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -13,4 +13,4 @@
+             AuditLog record or None if not found
+         """
+     result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
+-    return cast("AuditLog | None", result.scalar_one_or_none())
++    return cast(None, result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_10
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_10: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -13,4 +13,4 @@
+             AuditLog record or None if not found
+         """
+     result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
+-    return cast("AuditLog | None", result.scalar_one_or_none())
++    return cast("XXAuditLog | NoneXX", result.scalar_one_or_none())
+===RC=== 0
+===KEY=== backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_11
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_11: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -13,4 +13,4 @@
+             AuditLog record or None if not found
+         """
+     result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
+-    return cast("AuditLog | None", result.scalar_one_or_none())
++    return cast("auditlog | none", result.scalar_one_or_none())
+===RC=== 0
+# backend.services.audit.xǁAuditServiceǁget_audit_log_by_id__mutmut_12: survived
+--- backend/services/audit.py
++++ backend/services/audit.py
+@@ -13,4 +13,4 @@
+             AuditLog record or None if not found
+         """
+     result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
+-    return cast("AuditLog | None", result.scalar_one_or_none())
++    return cast("AUDITLOG | NONE", result.scalar_one_or_none())

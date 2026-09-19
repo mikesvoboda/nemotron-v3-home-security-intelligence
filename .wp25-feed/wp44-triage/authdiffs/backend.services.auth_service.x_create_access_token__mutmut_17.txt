@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_create_access_token__mutmut_17: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -22,7 +22,7 @@
+     payload = {
+         "sub": user_id,
+         "exp": expire,
+-        "iat": datetime.now(UTC),
++        "iat": datetime.now(None),
+         "type": "access",
+     }
+     # HS256 is acceptable for single-user local deployment (no distributed secrets)

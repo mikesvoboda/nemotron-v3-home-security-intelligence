@@ -1,133 +1,107 @@
 import json, re, collections
 
-rows = json.load(open('eb_classified.json'))
-recs = {}
-for row in rows:
-    recs.setdefault(row['key'], []).append(row)
-recs = [{'key': k, 'fn': r[0]['fn'], 'hunks': r} for k, r in recs.items()]
+meta = json.load(open('/agents/agent-nemo2/workspace/mutants/backend/services/container_discovery.py.meta'))
+ebk = meta['exit_code_by_key']
+surv = set(k for k,v in ebk.items() if v==0)
+def k2bn(k):
+    base, num = k.rsplit('__mutmut_',1)
+    return (base[len('backend.services.container_discovery.x'):], int(num))
+bn_surv = set(k2bn(k) for k in surv)
 
-def case_variant(o, n):
-    so = re.sub(r'\s+', ' ', o).strip()
-    sn = re.sub(r'\s+', ' ', n).strip()
-    if so == sn: return True
-    if sn == so.upper() or sn == so.lower(): return True
-    if sn.replace('XX', '') == so.replace('XX', ''): return True
-    a = so.replace('XX', '').upper().replace(' ', '')
-    b = sn.replace('XX', '').upper().replace(' ', '')
-    return a == b
+diffs = json.load(open('/tmp/wp25/wp44-triage/diffs.json'))
+dbn = {}
+for k,c in diffs.items():
+    b,n = k.rsplit('__mutmut_',1)
+    dbn[(b,int(n))] = c
 
-OV = {
- 'x_requires_ack__mutmut_21': 'EQ-requires_ack-default-variants',
- 'x_requires_ack__mutmut_27': 'EQ-requires_ack-default-variants',
- 'x_requires_ack__mutmut_29': 'EQ-requires_ack-default-variants',
- 'x_requires_ack__mutmut_32': 'EQ-requires_ack-default-variants',
- 'xǁEventBroadcasterǁrecord_ack__mutmut_6': 'TG-record_ack-baseline-one',
- 'xǁEventBroadcasterǁrecord_ack__mutmut_7': 'EQ-record_ack-ge-equivalence',
- 'xǁBroadcastRetryMetricsǁrecord_success__mutmut_9': 'EQ-record_success-membership-equivalence',
- 'xǁBroadcastRetryMetricsǁto_dict__mutmut_9': 'EQ-metrics-to_dict-key-literals',
- 'xǁBroadcastRetryMetricsǁto_dict__mutmut_10': 'EQ-metrics-to_dict-key-literals',
- 'xǁBroadcastRetryMetricsǁrecord_success__mutmut_10': 'TG-metrics-counter-reset',
- 'xǁBroadcastRetryMetricsǁrecord_failure__mutmut_3': 'TG-metrics-counter-reset',
- 'xǁBroadcastRetryMetricsǁrecord_failure__mutmut_6': 'TG-metrics-counter-reset',
- 'x_broadcast_with_retry__mutmut_68': 'TG-metrics-counter-reset',
- 'x_broadcast_with_retry__mutmut_69': 'TG-metrics-counter-reset',
- 'xǁBroadcastRetryMetricsǁto_dict__mutmut_17': 'TG-metrics-success_rate-guard',
- 'xǁBroadcastRetryMetricsǁto_dict__mutmut_19': 'TG-metrics-success_rate-guard',
- 'x_broadcast_with_retry__mutmut_1': 'EQ-dead-init-assignments',
- 'xǁEventBroadcasterǁ__init____mutmut_5': 'EQ-dead-init-assignments',
- 'xǁEventBroadcasterǁ__init____mutmut_12': 'TG-init-circuit-breaker-config',
- 'xǁEventBroadcasterǁ__init____mutmut_13': 'TG-init-circuit-breaker-config',
- 'xǁEventBroadcasterǁ_listen_for_events__mutmut_43': 'TG-listen-recovery-gate',
- 'xǁEventBroadcasterǁ_listen_for_events__mutmut_50': 'LV-listener-backoff-constants',
- 'xǁEventBroadcasterǁ_listen_for_events__mutmut_53': 'LV-listener-backoff-constants',
- 'xǁEventBroadcasterǁ_listen_for_events__mutmut_12': 'EQ-break-vs-return-no-postloop',
- 'xǁEventBroadcasterǁ_supervise_listener__mutmut_7': 'EQ-break-vs-return-no-postloop',
- 'xǁEventBroadcasterǁ_supervise_listener__mutmut_13': 'EQ-break-vs-return-no-postloop',
- 'xǁEventBroadcasterǁ_supervise_listener__mutmut_5': 'LV-supervisor-sleep-arg',
- 'xǁEventBroadcasterǁ_handle_healthy_listener__mutmut_1': 'TG-healthy-listener-flag-false',
- 'xǁEventBroadcasterǁ_handle_healthy_listener__mutmut_2': 'TG-healthy-listener-flag-false',
- 'xǁEventBroadcasterǁ_handle_healthy_listener__mutmut_3': 'TG-healthy-recovery-reset-gate',
- 'xǁEventBroadcasterǁ_handle_healthy_listener__mutmut_4': 'TG-healthy-recovery-reset-gate',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_10': 'TG-dead-listener-return-flags',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_16': 'TG-dead-listener-return-flags',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_24': 'TG-dead-listener-return-flags',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_33': 'TG-dead-listener-return-flags',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_17': 'TG-dead-listener-attempt-arithmetic',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_18': 'TG-dead-listener-attempt-arithmetic',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_19': 'TG-dead-listener-attempt-arithmetic',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_23': 'TG-dead-listener-resubscribe-cond',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_25': 'TG-dead-listener-restart-task',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_26': 'TG-dead-listener-restart-task',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_27': 'TG-dead-listener-restart-task',
- 'xǁEventBroadcasterǁ_handle_dead_listener__mutmut_28': 'TG-dead-listener-restart-task',
- 'xǁEventBroadcasterǁ_resubscribe_for_supervisor__mutmut_2': 'LV-resubscribe-channel-arg',
- 'xǁEventBroadcasterǁ_resubscribe_for_supervisor__mutmut_4': 'TG-resubscribe-true-on-failure',
- 'xǁEventBroadcasterǁ_send_to_single_client__mutmut_1': 'LV-send-single-if-or',
- 'xǁEventBroadcasterǁ_listen_for_events__mutmut_10': 'LV-listen-channel-arg',
- 'xǁEventBroadcasterǁconnect__mutmut_2': 'TG-client-format-negotiation',
- 'xǁEventBroadcasterǁdisconnect__mutmut_5': 'TG-client-format-negotiation',
- 'xǁEventBroadcasterǁstop__mutmut_3': 'TG-stop-listener-health-flag',
- 'xǁEventBroadcasterǁstop__mutmut_4': 'TG-stop-listener-health-flag',
- 'x_broadcast_alert_with_retry_background__mutmut_10': 'TG-background-alert-lambda-args',
- 'x_broadcast_alert_with_retry_background__mutmut_11': 'TG-background-alert-lambda-args',
- 'x_broadcast_alert_with_retry_background__mutmut_12': 'TG-background-alert-lambda-args',
- 'x_broadcast_alert_with_retry_background__mutmut_13': 'TG-background-alert-lambda-args',
- 'x_broadcast_alert_with_retry_background__mutmut_2': 'LV-background-message-type-none',
- 'x_broadcast_with_retry__mutmut_10': 'LV-retry-log-gates-and-counters',
- 'x_broadcast_with_retry__mutmut_11': 'LV-retry-log-gates-and-counters',
-}
-LOGCTX_PREFIX = ('logger', 'extra={')
+residual = [('x_build_configs_from_compose',n) for n in (4,6,8)]
+residual += [('x_build_service_configs',n) for n in (249,284,302,360,387,414,441,468,495,521,522,549,575,602,629,656,683,710)]
+residual += [('xǁContainerDiscoveryServiceǁ__init__',n) for n in (5,8,9)]
+residual += [('xǁContainerDiscoveryServiceǁ_create_managed_service',n) for n in (6,13,16,25,28,31,32,60,63,66)]
+residual += [('xǁContainerDiscoveryServiceǁdiscover_all',n) for n in (18,19,21,22,23,24,25,26,27,28,29,30,31,33,34,35)]
+residual += [('xǁContainerDiscoveryServiceǁmatch_container_name',n) for n in (5,7)]
+bn_res = set((b[1:],n) for b,n in residual)
+assert bn_res <= bn_surv
 
-def bucket(r, h):
-    o, n, fn = h['old'], h['new'], r['fn']
-    ctx = h['ctx'] or ''
-    k = r['key'].split('.event_broadcaster.')[1]
-    if k in OV: return OV[k]
-    so = re.sub(r'\s+', ' ', o).strip()
-    # comments
-    if so.startswith('#'): return 'EQ-comment-text'
-    # full logger call replaced
-    if so.startswith('logger.') or 'logger.' in so[:9]:
-        return 'EQ-log-message-text' if case_variant(o, n) else 'LV-log-structure'
-    # dict-literal context: keys
-    in_dict = ctx.startswith('"') or ctx.startswith('degraded_message') or ctx.startswith('shutdown_message') or ctx in ('{',)
-    in_log = ctx.startswith(LOGCTX_PREFIX) or 'logger' in ctx or 'raise' in ctx or 'f"(' in ctx or so.startswith('f"')
-    if in_log and not in_dict:
-        return 'EQ-log-message-text' if case_variant(o, n) else 'LV-log-structure'
-    # real-payload literal sites
-    if 'model_dump(mode=' in so: return 'EQ-model-dump-mode-noop'
-    if so.startswith('subscriber_count = await self._redis.publish'): return 'TG-publish-call-args'
-    if so.startswith('validated_message') or so.startswith('validated_data') or so.startswith('validated_update_data') or so.startswith('validated_hourly') or so.startswith('validated_daily') or so.startswith('validated_message_union'): return 'TG-validation-pipeline-bypass'
-    if so.startswith('if "type" not in') or so.startswith('data_dict = batch_data.get') or so.startswith('data_dict = message.get') or so.startswith('data_dict: dict'): return 'TG-batch-envelope-guard'
-    if fn.endswith('ǁstop') and 'shutdown_message' in so or '"system.shutdown"' in so or '"Server shutting down"' in so or so.startswith('"reconnect"') or (fn.endswith('ǁstop') and in_dict): return 'TG-shutdown-payload-literal'
-    if fn.endswith('broadcast_degraded_state') and in_dict: return 'TG-degraded-payload-literal'
-    if fn.endswith('broadcast_degraded_state'): return 'EQ-log-message-text' if case_variant(o,n) else 'LV-log-structure'
-    if fn.endswith('_send_to_all_clients'):
-        if 'track_stats' in so or 'return_exceptions' in so: return 'LV-send-all-stats-flags'
-        return 'TG-send-all-format-payload'
-    if fn.endswith('ǁconnect'): return 'LV-log-structure'
-    if 'raise ' in so and 'f"' in so: return 'EQ-exception-message-text'
-    if so.startswith('if attempt > 0'): return 'LV-retry-log-gates-and-counters'
-    if fn == 'x_broadcast_with_retry': return 'LV-retry-log-gates-and-counters'
-    if fn.endswith('ǁstop'): return 'TG-shutdown-payload-literal' if 'json' in so or 'send_text' in so else ('EQ-log-message-text' if case_variant(o,n) else 'LV-log-structure')
-    if '.get(' in so and fn.startswith('xǁEventBroadcasterǁbroadcast_'): return 'TG-payload-literal-shape'
-    if re.match(r'^\w+ = \{"type"', so) or so.startswith('{"type"') or re.match(r'^[a-z_]+ = \{', so) or '"type":' in so: return 'TG-payload-literal-shape'
-    if so.startswith('"type"') or so.startswith('"data"'): return 'TG-payload-literal-shape'
-    if fn.startswith('xǁEventBroadcasterǁbroadcast_'): return 'TG-payload-literal-shape'
-    if 'RuntimeError(' in ctx or 'raise' in ctx: return 'EQ-exception-message-text'
-    return 'UNASSIGNED::' + fn + '::' + so[:50]
+def substantive(bn):
+    c = dbn[bn]
+    real = [(o,n) for o,n in c if 'mutants_' not in n]
+    o,n = real[0]
+    po = [p.strip() for p in o.split(' | ')]
+    po = [p for p in po if re.match(r'^[\w"\x27]', p)]
+    pn = [p.strip() for p in n.split(' | ')]
+    pn = [p for p in pn if re.match(r'^[\w"\x27]', p) or p=='' ]
+    newp = pn[0] if pn else n
+    # a deleted kwarg: new side is only a paren/empty
+    raw_new = real[0][1]
+    if re.fullmatch(r'\s*\)?\s*(\|\s*\))?|', raw_new.replace(' | ','')) or raw_new.strip() in ('',')',') ,','),'):
+        newp = ''
+    return (po[0] if po else o.strip(), newp)
 
-prio = lambda b: 0 if b.startswith('TG') else (1 if b.startswith('LV') else 2)
-per_key = {}
-for r in recs:
-    bs = sorted((bucket(r, h) for h in r['hunks']), key=prio)
-    per_key[r['key']] = bs[0]
+rows = collections.defaultdict(list)
+for bn in bn_surv:
+    base = bn[0]
+    old,new = substantive(bn)
+    m = re.match(r'^"?([\w-]+)"?: ServiceConfig\($', old)
+    if base == 'x_build_service_configs' or base=='_build_service_configs':
+        if m: rows['BSD-A dict key UPPER/XXwrap'].append(bn); continue
+        if ' if settings else ' in old:
+            if new.endswith('= None'): rows['BSD-B port-ternary LHS=None (crash settings=None)').append(bn)
+            elif 'and False' in new: rows['BSD-C ternary cond and-False (settings ignored -> defaults)').append(bn)
+            elif 'or True' in new: rows['BSD-D ternary cond or-True (AttributeError settings=None)').append(bn)
+            else: rows['BSD-E ternary else-default +1 (bad .env-less port)').append(bn)
+            continue
+        f = (re.match(r'^(\w+)=', old) or [None,'?'])[1] if re.match(r'^(\w+)=', old) else '?'
+        deleted = (new == '')
+        if f=='display_name': rows['BSD-F display_name UPPER/lower/XX/None').replace(')','')].append(bn)
+        elif f=='health_endpoint': rows['BSD-G health_endpoint UPPER/XX/None/deleted'].append(bn)
+        elif f=='health_cmd': rows['BSD-H health_cmd case/XX/None/deleted'].append(bn)
+        elif f=='port': rows['BSD-B2 port=var -> None').replace(')','')].append(bn) if False else rows['BSD-B2 port=var -> None'].append(bn)
+        elif f=='category': rows['BSD-I category -> None (crash/None category)').append(bn)
+        elif f=='startup_grace_period':
+            v = re.search(r'=(\d+)', old).group(1)
+            if deleted and v=='60': rows['BSD-J startup_grace=60 kwarg deleted (== default 60)').replace(')','')].append(bn)
+            elif deleted: rows['BSD-K startup_grace kwarg deleted !=60 (default 60 wins)').replace(')','')].append(bn)
+            else: rows['BSD-L startup_grace value +1 / None').replace(')','')].append(bn)
+        elif f=='max_failures':
+            v = re.search(r'=(\d+)', old).group(1)
+            if deleted and v=='5': rows['BSD-M max_failures=5 kwarg deleted (== default 5)').replace(')','')].append(bn)
+            elif deleted: rows['BSD-N max_failures=10 kwarg deleted (default 5 wins)').replace(')','')].append(bn)
+            else: rows['BSD-O max_failures value +1 / None').replace(')','')].append(bn)
+        elif f=='restart_backoff_base':
+            rows['BSD-P backoff_base kwarg deleted (default 5.0 wins)').replace(')','')].append(bn) if deleted else rows['BSD-Q backoff_base value +1 / None').replace(')','')].append(bn)
+        elif f=='restart_backoff_max':
+            rows['BSD-R backoff_max kwarg deleted (default 300.0 wins)').replace(')','')].append(bn) if deleted else rows['BSD-S backoff_max value +1 / None').replace(')','')].append(bn)
+        else: rows['BSD-Z '+old[:40]].append(bn)
+    elif base=='_build_configs_from_compose':
+        if old.startswith('logger.warning'): rows['C1 warning message -> None').replace(')','')].append(bn)
+        elif 'build_service_configs(' in old:
+            if re.search(r'[, ](None|\))\s*$', new) or new.endswith('None)') or new.endswith('settings, ') or 'None' in new.split('(',1)[-1]: rows['C2 fallback flag -> None/dropped (int flag unchanged)').replace(')','')].append(bn)
+            else: rows['C3 arg swallow -> immediate crash').replace(')','')].append(bn)
+        else: rows['C3 arg swallow -> immediate crash').replace(')','')].append(bn)
+    elif base.endswith('__init__'):
+        if 'if settings else' in old: rows['I1 include_monitoring else-branch True->False').replace(')','')].append(bn)
+        else: rows['I2 build_configs_from_compose call: settings->None or flag->None').replace(')','')].append(bn)
+    elif 'discover_all' in base: rows['D1 logging-only (message text / extra dict)').replace(')','')].append(bn)
+    elif 'match_container_name' in base: rows['S1 sort key=len dropped').replace(')','')].append(bn)
+    elif '_create_managed_service' in base:
+        if old.startswith('health_cmd='): rows['M0 health_cmd -> None / kwarg dropped').replace(')','')].append(bn)
+        elif 'untagged' in old:
+            if '[:13]' in new: rows['M1b untagged slice 12->13').replace(')','')].append(bn)
+            elif new=='' or 'getattr(container, ' not in new.replace("getattr(None,","x"): rows['M1a untagged getattr(container,id) default tweaks').append(bn)
+            else: rows['M1a untagged getattr(container,id) default tweaks').append(bn)
+        elif 'getattr(image_tags' in old:
+            if new=='': rows['M2b tags default dropped (TypeError on .tags=None)').replace(')','')].append(bn)
+            else: rows['M2a tags default []->None (both falsy)').replace(')','')].append(bn)
+        elif 'getattr(container, "image"' in old: rows['M3 image default dropped (TypeError None not None)').replace(')','')].append(bn)
+        elif old.startswith('container_id='): rows['M4 container_id getattr default tweaks').replace(')','')].append(bn)
+        else: rows['M9 '+old[:40]].append(bn)
+    else: rows['ZZ '+base].append(bn)
 
-json.dump(per_key, open('eb_final_clusters.json', 'w'), indent=1)
-cnt = collections.Counter(per_key.values())
-un = {k: v for k, v in per_key.items() if v.startswith('UN')}
-print('total', len(per_key), 'unassigned', len(un))
-for k, v in list(un.items())[:30]: print('UN', k, v)
-tot = sum(c for b, c in cnt.items() if not b.startswith('UN'))
-print('assigned', tot)
-for b, c in sorted(cnt.items()): print(f'{c:4d}  {b}')
+total=0
+for r, keys in sorted(rows.items()):
+    inres=[k for k in keys if k in bn_res]
+    ks=['x'+b+f'__mutmut_{n}' for b,n in sorted(keys)]
+    total+=len(keys)
+    print(f'{len(keys):4d} res={len(inres):2d}  {r:62s} {ks[:3]}')
+print('SUM', total, total==696)

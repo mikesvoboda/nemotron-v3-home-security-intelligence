@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_decode_token__mutmut_4: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -14,7 +14,7 @@
+     try:
+         # HS256 is acceptable for single-user local deployment (no distributed secrets)
+         # nosemgrep: jwt-weak-algorithm  # noqa: ERA001
+-        payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
++        payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=None)
+         return payload
+     except jwt.ExpiredSignatureError as e:
+         raise TokenExpiredError("Token has expired") from e

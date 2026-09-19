@@ -1,0 +1,52 @@
+=====backend.services.prompt_parser.x_detect_variable_style__mutmut_51=====
+# backend.services.prompt_parser.x_detect_variable_style__mutmut_51: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -24,7 +24,7 @@
+         result["format"] = "dollar"
+ 
+     # Check label style - "Label: {var}" pattern
+-    if re.search(r"[A-Z][a-z]+:\s*[\{\<\$]", prompt):
++    if re.search(r"[a-z][a-z]+:\s*[\{\<\$]", prompt):
+         result["label_style"] = "colon"
+     # Check label style - "Label={var}" pattern
+     elif re.search(r"[A-Z][a-z]+=[\{\<\$]", prompt):
+=====backend.services.prompt_parser.x_detect_variable_style__mutmut_63=====
+# backend.services.prompt_parser.x_detect_variable_style__mutmut_63: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -27,7 +27,7 @@
+     if re.search(r"[A-Z][a-z]+:\s*[\{\<\$]", prompt):
+         result["label_style"] = "colon"
+     # Check label style - "Label={var}" pattern
+-    elif re.search(r"[A-Z][a-z]+=[\{\<\$]", prompt):
++    elif re.search(r"[a-z][a-z]+=[\{\<\$]", prompt):
+         result["label_style"] = "equals"
+ 
+     # Detect indentation by looking for lines starting with whitespace followed by uppercase
+=====backend.services.prompt_parser.x_validate_prompt_syntax__mutmut_24=====
+# backend.services.prompt_parser.x_validate_prompt_syntax__mutmut_24: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -28,7 +28,7 @@
+             duplicates.add(var)
+         seen.add(var)
+     if duplicates:
+-        warnings.append(f"Duplicate variables: {', '.join(sorted(duplicates))}")
++        warnings.append(f"Duplicate variables: {'XX, XX'.join(sorted(duplicates))}")
+ 
+     # Check for unclosed angle brackets
+     open_angles = prompt.count("<")
+=====backend.services.prompt_parser.x_validate_prompt_syntax__mutmut_31=====
+# backend.services.prompt_parser.x_validate_prompt_syntax__mutmut_31: survived
+--- backend/services/prompt_parser.py
++++ backend/services/prompt_parser.py
+@@ -32,7 +32,7 @@
+ 
+     # Check for unclosed angle brackets
+     open_angles = prompt.count("<")
+-    close_angles = prompt.count(">")
++    close_angles = prompt.count("XX>XX")
+     if open_angles != close_angles:
+         warnings.append(f"Unbalanced angle brackets: {open_angles} open, {close_angles} close")
+ 

@@ -1,0 +1,12 @@
+# backend.api.routes.media.x__validate_and_resolve_path__mutmut_30: survived
+--- backend/api/routes/media.py
++++ backend/api/routes/media.py
+@@ -27,7 +27,7 @@
+         raise HTTPException(
+             status_code=status.HTTP_403_FORBIDDEN,
+             detail=MediaErrorResponse(
+-                error="Path traversal detected",
++                error="XXPath traversal detectedXX",
+                 path=requested_path,
+             ).model_dump(),
+         )

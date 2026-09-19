@@ -1,0 +1,11 @@
+# backend.services.auth_service.x_decode_token__mutmut_11: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -17,6 +17,6 @@
+         payload: dict[str, Any] = jwt.decode(token, _get_jwt_secret(), algorithms=[_JWT_ALGORITHM])
+         return payload
+     except jwt.ExpiredSignatureError as e:
+-        raise TokenExpiredError("Token has expired") from e
++        raise TokenExpiredError("TOKEN HAS EXPIRED") from e
+     except JWTError as e:
+         raise InvalidTokenError(f"Invalid token: {e}") from e

@@ -1,0 +1,481 @@
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_10: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -18,7 +18,7 @@
+ 
+     if entity.entity_metadata:
+         trust_status = entity.entity_metadata.get("trust_status")
+-        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
++        trust_updated_at_str = entity.entity_metadata.get(None)
+         if trust_updated_at_str:
+             try:
+                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_11: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -18,7 +18,7 @@
+ 
+     if entity.entity_metadata:
+         trust_status = entity.entity_metadata.get("trust_status")
+-        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
++        trust_updated_at_str = entity.entity_metadata.get("XXtrust_updated_atXX")
+         if trust_updated_at_str:
+             try:
+                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_12: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -18,7 +18,7 @@
+ 
+     if entity.entity_metadata:
+         trust_status = entity.entity_metadata.get("trust_status")
+-        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
++        trust_updated_at_str = entity.entity_metadata.get("TRUST_UPDATED_AT")
+         if trust_updated_at_str:
+             try:
+                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_13: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -25,7 +25,7 @@
+             except ValueError, TypeError:
+                 pass
+ 
+-    thumbnail_url = None
++    thumbnail_url = ""
+     if entity.primary_detection_id:
+         thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+ 
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_14: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -27,7 +27,7 @@
+ 
+     thumbnail_url = None
+     if entity.primary_detection_id:
+-        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
++        thumbnail_url = None
+ 
+     return EntitySummary(
+         id=str(entity.id),
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_16: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -27,7 +27,7 @@
+ 
+     thumbnail_url = None
+     if entity.primary_detection_id:
+-        thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
++        thumbnail_url = _get_thumbnail_url(str(None))
+ 
+     return EntitySummary(
+         id=str(entity.id),
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_23: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -36,7 +36,7 @@
+         last_seen=entity.last_seen_at,
+         appearance_count=entity.detection_count,
+         cameras_seen=cameras_seen,
+-        thumbnail_url=thumbnail_url,
++        thumbnail_url=None,
+         trust_status=trust_status,
+         trust_updated_at=trust_updated_at,
+     )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_24: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -37,6 +37,6 @@
+         appearance_count=entity.detection_count,
+         cameras_seen=cameras_seen,
+         thumbnail_url=thumbnail_url,
+-        trust_status=trust_status,
++        trust_status=None,
+         trust_updated_at=trust_updated_at,
+     )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_25: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -38,5 +38,5 @@
+         cameras_seen=cameras_seen,
+         thumbnail_url=thumbnail_url,
+         trust_status=trust_status,
+-        trust_updated_at=trust_updated_at,
++        trust_updated_at=None,
+     )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_3: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -13,7 +13,7 @@
+     cameras_seen = _extract_cameras_seen_from_entity(entity)
+ 
+     # Extract trust fields from metadata
+-    trust_status = None
++    trust_status = ""
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_32: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -36,7 +36,6 @@
+         last_seen=entity.last_seen_at,
+         appearance_count=entity.detection_count,
+         cameras_seen=cameras_seen,
+-        thumbnail_url=thumbnail_url,
+         trust_status=trust_status,
+         trust_updated_at=trust_updated_at,
+     )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_33: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -37,6 +37,5 @@
+         appearance_count=entity.detection_count,
+         cameras_seen=cameras_seen,
+         thumbnail_url=thumbnail_url,
+-        trust_status=trust_status,
+         trust_updated_at=trust_updated_at,
+     )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_34: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -38,5 +38,4 @@
+         cameras_seen=cameras_seen,
+         thumbnail_url=thumbnail_url,
+         trust_status=trust_status,
+-        trust_updated_at=trust_updated_at,
+-    )
++        )
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_35: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -30,7 +30,7 @@
+         thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+ 
+     return EntitySummary(
+-        id=str(entity.id),
++        id=str(None),
+         entity_type=entity.entity_type,
+         first_seen=entity.first_seen_at,
+         last_seen=entity.last_seen_at,
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_5: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -17,7 +17,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status = entity.entity_metadata.get("trust_status")
++        trust_status = None
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+             try:
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_6: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -17,7 +17,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status = entity.entity_metadata.get("trust_status")
++        trust_status = entity.entity_metadata.get(None)
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+             try:
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_7: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -17,7 +17,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status = entity.entity_metadata.get("trust_status")
++        trust_status = entity.entity_metadata.get("XXtrust_statusXX")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+             try:
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_8: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -17,7 +17,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status = entity.entity_metadata.get("trust_status")
++        trust_status = entity.entity_metadata.get("TRUST_STATUS")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+             try:
+===END===
+# backend.api.routes.entities.x__entity_model_to_summary__mutmut_9: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -18,7 +18,7 @@
+ 
+     if entity.entity_metadata:
+         trust_status = entity.entity_metadata.get("trust_status")
+-        trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
++        trust_updated_at_str = None
+         if trust_updated_at_str:
+             try:
+                 trust_updated_at = dt.fromisoformat(trust_updated_at_str)
+===END===
+# backend.api.routes.entities.x__entity_to_summary__mutmut_3: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -12,7 +12,7 @@
+         EntitySummary with aggregated information
+     """
+     if not embeddings:
+-        raise ValueError("Cannot create summary from empty embeddings list")
++        raise ValueError("XXCannot create summary from empty embeddings listXX")
+ 
+     # Sort by timestamp
+     sorted_embeddings = sorted(embeddings, key=lambda e: e.timestamp)
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_1: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -15,7 +15,7 @@
+     from datetime import datetime as dt
+ 
+     # Extract trust fields from entity_metadata
+-    trust_status_str = "unclassified"
++    trust_status_str = None
+     trust_notes = None
+     trust_updated_at = None
+ 
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_10: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -20,7 +20,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status_str = entity.entity_metadata.get("trust_status", "unclassified")
++        trust_status_str = entity.entity_metadata.get("trust_status", )
+         trust_notes = entity.entity_metadata.get("trust_notes")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_13: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -20,7 +20,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status_str = entity.entity_metadata.get("trust_status", "unclassified")
++        trust_status_str = entity.entity_metadata.get("trust_status", "XXunclassifiedXX")
+         trust_notes = entity.entity_metadata.get("trust_notes")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_14: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -20,7 +20,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status_str = entity.entity_metadata.get("trust_status", "unclassified")
++        trust_status_str = entity.entity_metadata.get("trust_status", "UNCLASSIFIED")
+         trust_notes = entity.entity_metadata.get("trust_notes")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_2: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -15,7 +15,7 @@
+     from datetime import datetime as dt
+ 
+     # Extract trust fields from entity_metadata
+-    trust_status_str = "unclassified"
++    trust_status_str = "XXunclassifiedXX"
+     trust_notes = None
+     trust_updated_at = None
+ 
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_28: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -35,7 +35,7 @@
+     except ValueError:
+         trust_status = TrustStatus.UNCLASSIFIED
+ 
+-    thumbnail_url = None
++    thumbnail_url = ""
+     if entity.primary_detection_id:
+         thumbnail_url = _get_thumbnail_url(str(entity.primary_detection_id))
+ 
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_3: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -15,7 +15,7 @@
+     from datetime import datetime as dt
+ 
+     # Extract trust fields from entity_metadata
+-    trust_status_str = "unclassified"
++    trust_status_str = "UNCLASSIFIED"
+     trust_notes = None
+     trust_updated_at = None
+ 
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_37: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -45,7 +45,7 @@
+         trust_status=trust_status,
+         trust_notes=trust_notes,
+         trust_updated_at=trust_updated_at,
+-        first_seen=entity.first_seen_at,
++        first_seen=None,
+         last_seen=entity.last_seen_at,
+         appearance_count=entity.detection_count,
+         thumbnail_url=thumbnail_url,
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_38: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -46,7 +46,7 @@
+         trust_notes=trust_notes,
+         trust_updated_at=trust_updated_at,
+         first_seen=entity.first_seen_at,
+-        last_seen=entity.last_seen_at,
++        last_seen=None,
+         appearance_count=entity.detection_count,
+         thumbnail_url=thumbnail_url,
+     )
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_39: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -47,6 +47,6 @@
+         trust_updated_at=trust_updated_at,
+         first_seen=entity.first_seen_at,
+         last_seen=entity.last_seen_at,
+-        appearance_count=entity.detection_count,
++        appearance_count=None,
+         thumbnail_url=thumbnail_url,
+     )
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_46: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -45,7 +45,6 @@
+         trust_status=trust_status,
+         trust_notes=trust_notes,
+         trust_updated_at=trust_updated_at,
+-        first_seen=entity.first_seen_at,
+         last_seen=entity.last_seen_at,
+         appearance_count=entity.detection_count,
+         thumbnail_url=thumbnail_url,
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_47: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -46,7 +46,6 @@
+         trust_notes=trust_notes,
+         trust_updated_at=trust_updated_at,
+         first_seen=entity.first_seen_at,
+-        last_seen=entity.last_seen_at,
+         appearance_count=entity.detection_count,
+         thumbnail_url=thumbnail_url,
+     )
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_48: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -47,6 +47,5 @@
+         trust_updated_at=trust_updated_at,
+         first_seen=entity.first_seen_at,
+         last_seen=entity.last_seen_at,
+-        appearance_count=entity.detection_count,
+         thumbnail_url=thumbnail_url,
+     )
+===END===
+# backend.api.routes.entities.x__entity_to_trust_response__mutmut_8: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -20,7 +20,7 @@
+     trust_updated_at = None
+ 
+     if entity.entity_metadata:
+-        trust_status_str = entity.entity_metadata.get("trust_status", "unclassified")
++        trust_status_str = entity.entity_metadata.get("trust_status", None)
+         trust_notes = entity.entity_metadata.get("trust_notes")
+         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
+         if trust_updated_at_str:
+===END===
+# backend.api.routes.entities.x__extract_cameras_seen_from_entity__mutmut_1: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -19,7 +19,7 @@
+     """
+     # Try cameras_seen from metadata first
+     if entity.entity_metadata:
+-        cameras_seen_raw = entity.entity_metadata.get("cameras_seen")
++        cameras_seen_raw = None
+         if isinstance(cameras_seen_raw, list) and cameras_seen_raw:
+             return [cam for cam in cameras_seen_raw if cam]
+ 
+===END===
+# backend.api.routes.entities.x__extract_cameras_seen_from_entity__mutmut_2: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -19,7 +19,7 @@
+     """
+     # Try cameras_seen from metadata first
+     if entity.entity_metadata:
+-        cameras_seen_raw = entity.entity_metadata.get("cameras_seen")
++        cameras_seen_raw = entity.entity_metadata.get(None)
+         if isinstance(cameras_seen_raw, list) and cameras_seen_raw:
+             return [cam for cam in cameras_seen_raw if cam]
+ 
+===END===
+# backend.api.routes.entities.x__extract_cameras_seen_from_entity__mutmut_3: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -19,7 +19,7 @@
+     """
+     # Try cameras_seen from metadata first
+     if entity.entity_metadata:
+-        cameras_seen_raw = entity.entity_metadata.get("cameras_seen")
++        cameras_seen_raw = entity.entity_metadata.get("XXcameras_seenXX")
+         if isinstance(cameras_seen_raw, list) and cameras_seen_raw:
+             return [cam for cam in cameras_seen_raw if cam]
+ 
+===END===
+# backend.api.routes.entities.x__extract_cameras_seen_from_entity__mutmut_4: survived
+--- backend/api/routes/entities.py
++++ backend/api/routes/entities.py
+@@ -19,7 +19,7 @@
+     """
+     # Try cameras_seen from metadata first
+     if entity.entity_metadata:
+-        cameras_seen_raw = entity.entity_metadata.get("cameras_seen")
++        cameras_seen_raw = entity.entity_metadata.get("CAMERAS_SEEN")
+         if isinstance(cameras_seen_raw, list) and cameras_seen_raw:
+             return [cam for cam in cameras_seen_raw if cam]
+ 
+===END===

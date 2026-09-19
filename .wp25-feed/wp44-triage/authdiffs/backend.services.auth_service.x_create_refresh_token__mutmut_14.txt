@@ -1,0 +1,12 @@
+# backend.services.auth_service.x_create_refresh_token__mutmut_14: survived
+--- backend/services/auth_service.py
++++ backend/services/auth_service.py
+@@ -25,7 +25,7 @@
+         "sub": user_id,
+         "exp": expire,
+         "iat": datetime.now(UTC),
+-        "type": "refresh",
++        "XXtypeXX": "refresh",
+     }
+     # HS256 is acceptable for single-user local deployment (no distributed secrets)
+     # nosemgrep: jwt-weak-algorithm  # noqa: ERA001
