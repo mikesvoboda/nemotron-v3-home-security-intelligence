@@ -82,8 +82,8 @@ def main() -> int:
         f"(uses: {REUSABLE_REF}); found: {api.get('uses')!r}",
     )
     check(
-        api.get("strategy", {}).get("matrix", {}).get("shard") == [1, 2],
-        "integration-tests-api must keep the 2-way WP3.7 shard matrix",
+        api.get("strategy", {}).get("matrix", {}).get("shard") == [1, 2, 3, 4],
+        "integration-tests-api must keep the 4-way shard matrix (WP3.7 2-way superseded 2026-09-19)",
     )
     check(
         api.get("secrets") == "inherit",
@@ -134,7 +134,7 @@ def main() -> int:
             "reusable shard job must carry the postgres+redis services",
         )
         body = step_script(wjob, "pytest")
-        check("--splits 2" in body, "reusable shard runs pytest-split --splits 2")
+        check("--splits 4" in body, "reusable shard runs pytest-split --splits 4")
         check(
             "inputs.shard" in body,
             "shard group must come from workflow_call inputs",
