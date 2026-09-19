@@ -8,6 +8,7 @@ This module validates the YAML workflow files for:
 - Concurrency groups are properly configured
 """
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -659,6 +660,35 @@ class TestFrontendCoverageMergeWiring:
         assert "node --test" in merge["run"], (
             "merge script must run its unit check in-job before producing numbers"
         )
+
+    def test_merger_unit_test_is_outside_the_vitest_sweep(self, workflows_dir: Path) -> None:
+        """The node --test unit file must NOT match Vitest's default include.
+
+        WP5.2 regression: the unit checks shipped as merge-shard-coverage.
+        TEST.mjs — and Vitest's default include (**/*.{test,spec}.?(c|m)
+        [jt]s?(x)) sweeps the whole frontend tree, scripts/ included. Shard
+        1/8 (files sort first) collected it and died on
+        `Cannot bundle built-in module "node:test"` — a node --test file is
+        structurally unrunnable in the jsdom vitest environment. The fix is
+        a name that node --test still runs (explicit path, and node's own
+        *-test/_test globs) but vitest's sweep cannot match.
+        """
+        ci = load_workflow(workflows_dir / "ci.yml")
+        merge = _step(ci, "frontend-coverage-merge", self.MERGE_STEP)
+        m = re.search(r"node --test (\S+)", merge["run"])
+        assert m, "merge step must name its unit-test file explicitly"
+        unit = Path(m.group(1))
+        assert not re.search(r"\.(test|spec)\.(c|m)?js$", unit.name), (
+            f"{unit.name} matches Vitest's default *.test.{unit.suffix} glob — "
+            "the node --test file would be collected (and fail) in every shard"
+        )
+        scripts_dir = workflows_dir.parent.parent / "frontend" / "scripts"
+        swept = [
+            p.name
+            for p in scripts_dir.glob("*.mjs")
+            if re.search(r"\.(test|spec)\.(c|m)?js$", p.name)
+        ]
+        assert swept == [], f"vitest-sweep-matching files under frontend/scripts: {swept}"
 
 
 class TestYamlBestPractices:
