@@ -5220,3 +5220,34 @@ TESTS stay — they are full-suite green and at least some mutants verifiably
 die to them; only the kill MEASUREMENTS are being re-earned. Lesson logged:
 a verdict channel is only as honest as its exit-code map; rc!=0 conflates
 crash with conviction.
+
+## WP4.4 RECORD 2026-09-19 — wave-65 closeout: 9 band-module kill batches, STRICT censuses post-correction
+
+MEASURE (all strict scorer rc in (1,3), -n 0, drafted-tests-only probes, 0
+no-verdicts in every fold; records in .wp25-feed/wp44-kills/\*-survivors.md):
+
+| module                   | new kills                      | module closed                       |
+| ------------------------ | ------------------------------ | ----------------------------------- |
+| job_state_service        | 16/42                          | 121/147 (26 log-cluster classified) |
+| entities                 | 29/39                          | 120/130 (10 classified)             |
+| scene_change_service     | 37/39                          | 86/88 (2 EQUIVALENT)                |
+| service_provider_matcher | 26/39                          | 113/126 (13 EQUIVALENT)             |
+| prompt_auto_tuner        | 16/38                          | 95/117 (22 E/LV)                    |
+| go2rtc_client            | 30/40 (v2)                     | 91/101 (10 log/payload)             |
+| media                    | (v2 fold in batch commit)      | (v2 fold in batch commit)           |
+| event_service            | 27/42 (v2)                     | 87/102 (15 log-cluster)             |
+| routes/system            | (4-shard fold in batch commit) | (fold in batch commit)              |
+
+DECIDE: three v1 censuses exposed DRAFT omissions rather than unkillability —
+go2rtc unregister_9 (404 not in the whitelist probe), media serve_4
+(select(None) keeps WHERE; needed a SELECT-list pin), evs hard/restore fetch
+families + soft_21 (same NULL-projection lesson; dossier's "build error" call
+on select(None) was wrong — it renders SELECT NULL AS anon_1). Each was
+green-proved under original and re-censused; v1 files archived under
+wp44-kills/pre-\*/. Two dossier rulings overturned by evidence: scene_change C1
+(kwargs-recording constructor fake observes omitted kwargs BEFORE any
+SQLAlchemy default fires — 6/12/13 died) and media S5/serve_49 (and-False is
+EQUIVALENT — pathlib join with absolute right operand returns the absolute
+path either way). Lesson: a dossier's EQUIVALENT ruling is only trustworthy if
+the drafted test observes the value at the mutated expression itself; default-
+fill equivalences break under constructor-recorder tests.
