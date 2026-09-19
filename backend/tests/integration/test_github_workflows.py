@@ -85,6 +85,15 @@ def load_workflow(path: Path) -> dict[str, Any]:
     return data
 
 
+def _step(workflow: dict[str, Any], job: str, name: str) -> dict[str, Any]:
+    """Find a named step in a job, failing the test if absent."""
+    for step in workflow["jobs"][job]["steps"]:
+        if step.get("name") == name:
+            return step
+    pytest.fail(f"job {job!r} has no step named {name!r}")
+    raise AssertionError  # unreachable; helps mypy
+
+
 class TestWorkflowYamlSyntax:
     """Test that all workflow files have valid YAML syntax."""
 
@@ -376,6 +385,187 @@ class TestSpecificWorkflows:
         # Verify cron format
         for entry in schedule:
             assert "cron" in entry, "schedule entry should have 'cron' key"
+
+
+class TestUnitCoverageMergeWiring:
+    """WP5.1: the unit-shard coverage DATA files must reach a real combine step.
+
+    Before this WP the shards uploaded only Cobertura XML while the merge job
+    globbed for `.coverage.*` data files that were never uploaded — so the
+    combine branch never ran, `merged=true` never fired, and
+    coverage-baseline.json was never published. The 85% backend floor was
+    enforced by zero gates on a PR. These assertions pin the five mechanics
+    that make the merge real; each one failing re-opens the silent no-op.
+    """
+
+    UNIT_UPLOAD_STEP = "Upload unit test coverage"
+
+    def _steps(self, workflow: dict[str, Any], job: str) -> list[dict[str, Any]]:
+        return workflow["jobs"][job]["steps"]
+
+    def _step(self, workflow: dict[str, Any], job: str, name: str) -> dict[str, Any]:
+        for step in self._steps(workflow, job):
+            if step.get("name") == name:
+                return step
+        pytest.fail(f"job {job!r} has no step named {name!r}")
+        raise AssertionError  # unreachable; helps mypy
+
+    def test_unit_shards_upload_coverage_data_file(self, workflows_dir: Path) -> None:
+        """The shard upload ships the pytest-cov DATA file, not just XML."""
+        workflow = load_workflow(workflows_dir / "ci.yml")
+        step = self._step(workflow, "unit-tests", self.UNIT_UPLOAD_STEP)
+        paths = str(step["with"]["path"]).split()
+        data_paths = [p for p in paths if p.endswith(".dat")]
+        assert data_paths, (
+            f"'{self.UNIT_UPLOAD_STEP}' must upload a .coverage data file (renamed "
+            f"to a non-hidden *.dat) so the merge job can combine real measured "
+            f"data; uploads only: {paths}"
+        )
+
+    def test_coverage_upload_survives_hidden_file_default(self, workflows_dir: Path) -> None:
+        """Hidden data files need include-hidden-files OR a non-hidden name.
+
+        upload-artifact v6 excludes dotfiles by default; uploading
+        `.coverage.*` without the opt-in ships an EMPTY artifact and the run
+        looks identical to the broken one (P WP5.1 trap 1).
+        """
+        workflow = load_workflow(workflows_dir / "ci.yml")
+        step = self._step(workflow, "unit-tests", self.UNIT_UPLOAD_STEP)
+        paths = str(step["with"]["path"]).split()
+        hidden = [p for p in paths if Path(p).name.startswith(".")]
+        if hidden:
+            assert step["with"].get("include-hidden-files") is True, (
+                f"uploads hidden files {hidden} without include-hidden-files: true"
+            )
+        else:
+            assert any(p.endswith(".dat") for p in paths), (
+                f"no hidden upload names, so the data file must be a non-hidden "
+                f"*.dat rename; paths: {paths}"
+            )
+
+    def test_unit_coverage_artifact_name_glob_coupling(self, workflows_dir: Path) -> None:
+        """Artifact name still matches the merge job's download pattern.
+
+        scripts/test_shard_retry_wiring.py:178-179 pins the same coupling for
+        the integration tier; renaming the unit artifact to describe its new
+        contents breaks the download with NO error — it finds nothing.
+        """
+        workflow = load_workflow(workflows_dir / "ci.yml")
+        upload = self._step(workflow, "unit-tests", self.UNIT_UPLOAD_STEP)
+        name = str(upload["with"]["name"])
+        download = self._step(
+            workflow, "unit-tests-coverage-merge", "Download all coverage artifacts"
+        )
+        pattern = str(download["with"]["pattern"])
+        assert pattern.startswith("coverage-unit-shard-"), pattern
+        stem = pattern.rstrip("*")
+        concrete = name.replace("${{ matrix.shard }}", "1").replace(
+            "${{ matrix.python-version }}", "3.14"
+        )
+        assert concrete.startswith(stem), (
+            f"upload artifact name {name!r} would no longer match the merge "
+            f"download pattern {pattern!r}"
+        )
+
+    def test_merge_job_combines_from_download_directory(self, workflows_dir: Path) -> None:
+        """The combine step must operate on the download path, not job CWD.
+
+        download-artifact extracts under coverage-reports/ (P WP5.1 trap 2);
+        a `.coverage.*` glob in the job CWD matches nothing and the vacuous
+        `touch .coverage` branch keeps the whole gate silent.
+        """
+        workflow = load_workflow(workflows_dir / "ci.yml")
+        combine = self._step(
+            workflow, "unit-tests-coverage-merge", "Combine and check coverage threshold"
+        )
+        script = combine["run"]
+        assert "coverage combine" in script, "combine step lost `coverage combine`"
+        assert "coverage-reports/" in script, (
+            "the combine invocation must name coverage-reports/ explicitly — "
+            "that is where download-artifact extracts the shard data files"
+        )
+
+    def test_baseline_publish_stays_gated_on_real_combine(self, workflows_dir: Path) -> None:
+        """WP0.9 invariant: merged=true (and thus the baseline) only fires on
+        the combine-success path — never from the vacuous touch branch."""
+        workflow = load_workflow(workflows_dir / "ci.yml")
+        combine = self._step(
+            workflow, "unit-tests-coverage-merge", "Combine and check coverage threshold"
+        )
+        script = combine["run"]
+        merged_line = [ln for ln in script.splitlines() if "merged=true" in ln]
+        assert merged_line, "combine step must still emit merged=true on success"
+        # shell keyword only (line-initial `else`), not the word inside comments
+        else_ln = [i for i, ln in enumerate(script.splitlines()) if ln.strip() == "else"]
+        assert else_ln, "combine step lost its no-data branch guard entirely"
+        first_else = else_ln[0]
+        merged_ln = [i for i, ln in enumerate(script.splitlines()) if "merged=true" in ln]
+        assert all(i < first_else for i in merged_ln), (
+            "merged=true appears at/after the no-data branch — WP0.9 forbids "
+            "the vacuous `touch .coverage` fill from ever minting a baseline"
+        )
+
+
+class TestIntegrationCoverageMergeWiring:
+    """WP5.1/A2: integration-coverage-merge had NO combine step at all.
+
+    The addendum's A2 verified it is download -> find -> Codecov. If the
+    floor ruling (R-COVDENOM) lands on "combined", the integration tier
+    needs the same COVERAGE_FILE + combine treatment as the unit tier;
+    "make it compute, don't make it gate" says give it the machinery now
+    and let the ruling decide what it gates. Same five mechanics as the
+    unit tier, applied to the integration shape (per-job named files,
+    one shared reusable workflow for the API shards).
+    """
+
+    def test_integration_jobs_upload_coverage_data_files(self, workflows_dir: Path) -> None:
+        """Every integration tier upload carries a non-hidden .dat data file."""
+        ci = load_workflow(workflows_dir / "ci.yml")
+        shard = load_workflow(workflows_dir / "integration-shard.yml")
+        # websocket/services/models jobs live in ci.yml; API shards in the
+        # reusable integration-shard.yml (called by integration-tests-api
+        # + the WP0.5 slow-runner retry).
+        for job, step_name in (
+            ("integration-tests-websocket", "Upload coverage artifact"),
+            ("integration-tests-services", "Upload coverage artifact"),
+            ("integration-tests-models", "Upload coverage artifact"),
+        ):
+            paths = str(_step(ci, job, step_name)["with"]["path"]).split()
+            assert any(p.endswith(".dat") for p in paths), (
+                f"ci.yml:{job}/{step_name} must upload a non-hidden .coverage "
+                f"data file (*.dat) for the merge combine; paths: {paths}"
+            )
+        paths = str(
+            _step(shard, "integration-shard", "Upload coverage artifact")["with"]["path"]
+        ).split()
+        assert any(p.endswith(".dat") for p in paths), (
+            f"integration-shard.yml upload must carry a .dat data file for the "
+            f"api shards; paths: {paths}"
+        )
+
+    def test_integration_merge_combines_from_download_directory(self, workflows_dir: Path) -> None:
+        """The integration merge must actually combine, over coverage-reports/."""
+        ci = load_workflow(workflows_dir / "ci.yml")
+        combine = _step(ci, "integration-coverage-merge", "Combine integration coverage")
+        script = combine["run"]
+        assert "coverage combine" in script, "integration merge lost its combine call"
+        assert "coverage-reports/" in script, (
+            "combine must read the coverage-reports/ download dir — the "
+            "artifacts are extracted there, not into the job CWD"
+        )
+
+    def test_integration_merge_emits_a_number(self, workflows_dir: Path) -> None:
+        """Compute the number (not gate it): the merge must print a percent.
+
+        R-COVDENOM is parked, so this job computes and REPORTS — a step
+        summary line is the machine-checkable contract for "computed".
+        """
+        ci = load_workflow(workflows_dir / "ci.yml")
+        combine = _step(ci, "integration-coverage-merge", "Combine integration coverage")
+        assert "GITHUB_STEP_SUMMARY" in combine["run"], (
+            "integration merge must write its computed percentage to the "
+            "step summary (compute, don't gate)"
+        )
 
 
 class TestYamlBestPractices:
