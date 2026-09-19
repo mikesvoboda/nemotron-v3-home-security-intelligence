@@ -1,6 +1,7 @@
 """Unit tests for detector client service."""
 
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -71,8 +72,9 @@ def sample_detector_response():
                 "bbox": [250, 300, 100, 80],
             },
         ],
-        "processing_time_ms": 125.5,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 125.5,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
 
@@ -226,7 +228,12 @@ async def test_detect_objects_no_detections(detector_client, mock_session):
     camera_id = "garage"
 
     mock_image_data = b"fake_image_data"
-    empty_response = {"detections": [], "processing_time_ms": 50.0, "image_size": [1920, 1080]}
+    empty_response = {
+        "detections": [],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
+    }
 
     with (
         patch("pathlib.Path.exists", return_value=True, autospec=True),
@@ -478,8 +485,9 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
                 "bbox": [100, 150, 300, 400],
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     with (
@@ -516,8 +524,9 @@ async def test_detect_objects_sets_timestamp(detector_client, mock_session):
                 "bbox": [100, 150, 300, 400],
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     with (
@@ -556,8 +565,9 @@ async def test_detect_objects_multiple_types(detector_client, mock_session):
             {"class": "car", "confidence": 0.95, "bbox": [500, 200, 300, 200]},
             {"class": "bicycle", "confidence": 0.78, "bbox": [200, 250, 60, 100]},
         ],
-        "processing_time_ms": 150.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 150.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     with (
@@ -606,8 +616,9 @@ async def test_detect_objects_invalid_bbox_format(detector_client, mock_session)
                 "bbox": [100, 150],  # Invalid: only 2 values instead of 4
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     with (
@@ -645,8 +656,9 @@ async def test_detect_objects_detection_processing_exception(detector_client, mo
                 "bbox": [100, 150, 300, 400],
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     with (
@@ -977,8 +989,9 @@ async def test_detect_objects_updates_camera_last_seen_at(detector_client, mock_
                 "bbox": [100, 150, 300, 400],
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     # Create a mock camera object to verify last_seen_at is updated
@@ -1021,7 +1034,12 @@ async def test_detect_objects_updates_camera_last_seen_even_without_detections(
     camera_id = "front_door"
 
     mock_image_data = b"fake_image_data"
-    empty_response = {"detections": [], "processing_time_ms": 50.0, "image_size": [1920, 1080]}
+    empty_response = {
+        "detections": [],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
+    }
 
     # Create a mock camera to verify last_seen_at is updated
     mock_camera = MagicMock()
@@ -1064,8 +1082,9 @@ async def test_detect_objects_handles_missing_camera(detector_client, mock_sessi
                 "bbox": [100, 150, 300, 400],
             }
         ],
-        "processing_time_ms": 50.0,
-        "image_size": [1920, 1080],
+        "inference_time_ms": 50.0,
+        "image_width": 1920,
+        "image_height": 1080,
     }
 
     # Camera not found in database
@@ -2182,7 +2201,7 @@ class TestDetectorClientSpanEvents:
 
     @pytest.fixture
     def sample_response(self):
-        """Sample successful detector response."""
+        """Sample successful detector response (deployed wire shape, WP7.4)."""
         return {
             "detections": [
                 {
@@ -2191,7 +2210,9 @@ class TestDetectorClientSpanEvents:
                     "bbox": [100, 150, 300, 400],
                 },
             ],
-            "processing_time_ms": 50.0,
+            "inference_time_ms": 50.0,
+            "image_width": 1920,
+            "image_height": 1080,
         }
 
     @pytest.mark.asyncio
@@ -2483,3 +2504,144 @@ async def test_video_metadata_takes_precedence_over_response_dimensions(
         assert detection.video_width == 1920
         assert detection.video_height == 1080
         assert detection.media_type == "video"
+
+
+# =============================================================================
+# WP7.4: two-shape parametrization - the demonstration (plan P WP7.4)
+#
+# DetectorClient.detect_objects accepts TWO top-level response shapes:
+#   * deployed (gateway adapter ai/gateway/adapters/yolo26.py:372-378 and the
+#     per-model server): detections + image_width + image_height +
+#     inference_time_ms - dimensions present, so bboxes are CLAMPED to them
+#     and detections carry video_width/video_height.
+#   * legacy-impossible: detections + image_size + processing_time_ms - the
+#     shape 27/122 old fixtures hand-coded even though NO provider ever
+#     emitted it (census: 27 impossible vs 4 correct). Dimensions absent =>
+#     no clamping, video_width=None.
+# The same scene must produce the documented DIFFERENCE - this pins which
+# shape the deployed provider is while keeping BOTH parser branches covered
+# (the migration deliberately keeps list-form bboxes live: see
+# test_list_bbox_still_parses_under_deployed_shape).
+# =============================================================================
+
+_WP74_SCENE_LIST = [
+    # bbox = [x, y, width, height]; car overflows 640 (500+200), person
+    # overflows 480 (150+400)
+    {"class": "person", "confidence": 0.95, "bbox": [100, 150, 300, 400]},
+    {"class": "car", "confidence": 0.88, "bbox": [500, 200, 200, 150]},
+    {"class": "dog", "confidence": 0.45, "bbox": [250, 300, 100, 80]},
+]
+_WP74_SCENE_DICT = [
+    # gateway adapters/yolo26.py:203-208 emits bbox as a dict
+    {
+        "class": "person",
+        "confidence": 0.95,
+        "bbox": {"x": 100, "y": 150, "width": 300, "height": 400},
+    },
+    {"class": "car", "confidence": 0.88, "bbox": {"x": 500, "y": 200, "width": 200, "height": 150}},
+    {"class": "dog", "confidence": 0.45, "bbox": {"x": 250, "y": 300, "width": 100, "height": 80}},
+]
+
+
+def _wp74_response(shape: str) -> dict:
+    if shape == "deployed":
+        return {
+            "detections": _WP74_SCENE_DICT,
+            "image_width": 640,
+            "image_height": 480,
+            "inference_time_ms": 125.5,
+        }
+    return {
+        "detections": _WP74_SCENE_LIST,
+        "image_size": [640, 480],
+        "processing_time_ms": 125.5,
+    }
+
+
+async def _run_wp74(detector_client, mock_session, payload):
+    with (
+        patch("pathlib.Path.exists", return_value=True, autospec=True),
+        patch("pathlib.Path.read_bytes", return_value=b"fake-image", autospec=True),
+        patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        patch.object(
+            detector_client, "_validate_image_for_detection_async", return_value=True, autospec=True
+        ),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = payload
+        mock_post.return_value = mock_response
+        return await detector_client.detect_objects(
+            "/export/foscam/front_door/wp74.jpg", "front_door", mock_session
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("shape", ["deployed", "legacy-impossible"])
+async def test_wp74_same_scene_both_shapes(detector_client, mock_session, shape: str) -> None:
+    """Same 3-detection scene, both accepted shapes, documented divergence."""
+    detections = await _run_wp74(detector_client, mock_session, _wp74_response(shape))
+    assert [d.object_type for d in detections] == ["person", "car", "dog"]
+    by_type = {d.object_type: d for d in detections}
+    if shape == "deployed":
+        # clamped into 640x480 (plan P numbers: person 300x400 -> 300x330,
+        # car w 200 -> 140), video dims recorded for enrichment scaling
+        assert by_type["person"].bbox_height == 330
+        assert by_type["car"].bbox_width == 140
+        assert by_type["dog"].bbox_width == 100  # unchanged, already inside
+        assert by_type["person"].video_width == 640
+        assert by_type["person"].video_height == 480
+    else:
+        # impossible shape: nothing to clamp against, nothing to record
+        assert by_type["person"].bbox_height == 400
+        assert by_type["car"].bbox_width == 200
+        assert by_type["person"].video_width is None
+        assert by_type["person"].video_height is None
+
+
+@pytest.mark.asyncio
+async def test_list_bbox_still_parses_under_deployed_shape(detector_client, mock_session) -> None:
+    """The plan's warning, executed: the deployed top-level shape with
+    LIST-form bboxes is what the per-model server (ai/yolo26/model.py, the
+    undeployed native-host path) returns. The list parser branch must stay
+    live after the fixture migration - it is the shape Provider #4 may still
+    speak. Clamping applies (dimensions are present); bbox form does not
+    change the outcome."""
+    payload = {
+        "detections": _WP74_SCENE_LIST,
+        "image_width": 640,
+        "image_height": 480,
+        "inference_time_ms": 42.0,
+    }
+    detections = await _run_wp74(detector_client, mock_session, payload)
+    by_type = {d.object_type: d for d in detections}
+    assert by_type["car"].bbox_width == 140  # clamped, list bbox parsed
+    assert by_type["person"].video_width == 640
+
+
+def test_wp74_no_impossible_keys_remain() -> None:
+    """Ratchet: both migrated files speak the deployed vocabulary. The
+    legacy keys may appear ONLY inside the WP7.4 demonstration section above
+    (where they are the deliberate subject), never as a handed mock. No
+    deployed provider emits image_size/processing_time_ms - the gateway
+    adapter (ai/gateway/adapters/yolo26.py:376-378) emits image_width,
+    image_height and inference_time_ms."""
+    legacy_keys = ('"image_size"', '"processing_time_ms"')
+    demo_marker = "WP7.4: two-shape parametrization"
+
+    # fixed test-local path, no user input (house precedent:
+    # test_ai_contract_registry.py:307)
+    unit_src = Path(__file__).read_text(encoding="utf-8")  # nosemgrep: path-traversal-open
+    scan = unit_src[: unit_src.index(demo_marker)]
+    integration_src = (
+        Path(__file__).parents[2] / "integration/test_detector_client_integration.py"
+    ).read_text(encoding="utf-8")
+    # the integration file has no demonstration section - scan it whole
+    scan += integration_src
+
+    for key in legacy_keys:
+        assert scan.count(key) == 0, (
+            f"a fixture outside the WP7.4 demonstration uses {key} - no "
+            "deployed provider emits it; use image_width/image_height and "
+            "inference_time_ms instead"
+        )
