@@ -54,12 +54,16 @@ test('same file from two shards sums counts and unions coverage', () => {
   assert.deepEqual(f.b, { 0: [1, 2] }, 'branch path counts sum element-wise');
 });
 
-test('branch covered iff any path count nonzero after merge', () => {
+test('branches count ISTANBUL per-path, not per-site', () => {
+  // [1,0] + [0,2] -> [1,2]: both paths exercised across shards -> 2/2.
+  // Per-site counting would read 1/1 here AND drift +10pts vs istanbul on
+  // real data (85.4 vs the 74.6 the vitest reporter prints) — the declared
+  // 77 floor was declared against istanbul numbers.
   let merged = mergeEntries({}, { 'frontend/src/a.tsx': structuredClone(fileA) });
   merged = mergeEntries(merged, { 'frontend/src/a.tsx': structuredClone(fileA_otherShard) });
   const m = summarize(merged)['frontend/src/a.tsx'];
-  assert.equal(m.branches.covered, 1);
-  assert.equal(m.branches.total, 1);
+  assert.equal(m.branches.covered, 2);
+  assert.equal(m.branches.total, 2);
   // s: 2 of 3 statements covered, f: 2 of 2 covered, lines: 2 of 3 (line 3 never ran)
   assert.equal(m.statements.pct, 66.7);
   assert.equal(m.functions.pct, 100);

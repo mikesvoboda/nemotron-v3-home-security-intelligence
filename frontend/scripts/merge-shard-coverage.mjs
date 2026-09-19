@@ -90,9 +90,17 @@ function metric(counts) {
 }
 
 function branchMetric(branches) {
-  const entries = Object.values(branches);
-  const total = entries.length;
-  const covered = entries.filter((arr) => arr.some((c) => c > 0)).length;
+  // ISTANBUL per-path counting, verified 2026-09-19 against real vitest
+  // output: per-path 74.6 == the 74.61 figure A3 measured with vitest's own
+  // reporter (per-SITE counting would read 85.4 and silently disagree with
+  // the 77 floor, which was declared against istanbul numbers). An if/else
+  // contributes ONE count per path, and each covered path counts.
+  let total = 0;
+  let covered = 0;
+  for (const arr of Object.values(branches)) {
+    total += arr.length;
+    covered += arr.filter((c) => c > 0).length;
+  }
   return { total, covered, skipped: 0, pct: total === 0 ? 0 : round1((covered / total) * 100) };
 }
 
