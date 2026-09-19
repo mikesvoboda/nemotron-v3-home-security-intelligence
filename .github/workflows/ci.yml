@@ -377,8 +377,11 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Run unit tests with coverage (shard ${{ matrix.shard }}/4)
-        # Unit tests coverage threshold - 85% for unit tests alone
-        # Combined coverage (unit + integration) should reach 95%
+        # Unit coverage here is COLLECTED, not gated (see --cov-fail-under=0
+        # below). A7.1 record: the executed absolute floor is 80% combined
+        # (validate.sh / nightly-full-gate); pyproject fail_under=85 is the
+        # PR diff gate's relative baseline. The old "should reach 95%"
+        # comment matched no gate that exists.
         # -n auto enables xdist parallelization with worksteal scheduler within shard
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)

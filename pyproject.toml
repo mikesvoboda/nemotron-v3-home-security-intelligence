@@ -554,7 +554,13 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 85  # Lowered from 90% - large codebase with many paths; integration tests provide additional coverage
+# Owner ruling A7.1 (2026-09-19): this 85 is the WP0.9 PR diff gate's
+# RELATIVE baseline (ci.yml "Combine and check coverage threshold" publishes
+# merged data and diffs against it) — NOT an absolute floor. THE executed
+# absolute backend floor is 80 on combined unit+integration
+# (scripts/validate.sh --fail-under=80, mirrored in nightly-full-gate.yml);
+# that is the only absolute backend coverage gate that runs, and it is green.
+fail_under = 85
 show_missing = true
 precision = 2
 

@@ -54,11 +54,11 @@ This will:
 
 ### Testing
 
-| Script           | Purpose                                           |
-| ---------------- | ------------------------------------------------- |
-| `test-runner.sh` | Run full test suite with 95% coverage enforcement |
-| `validate.sh`    | Quick validation (linting, type checking, tests)  |
-| `smoke-test.sh`  | E2E smoke test for MVP pipeline validation        |
+| Script           | Purpose                                                                     |
+| ---------------- | --------------------------------------------------------------------------- |
+| `test-runner.sh` | Optional local full-suite runner (no CI gate; see its header)               |
+| `validate.sh`    | Validation the CI mirrors (lint, types, tests, 80% combined coverage floor) |
+| `smoke-test.sh`  | E2E smoke test for MVP pipeline validation                                  |
 
 ### Development Tools
 

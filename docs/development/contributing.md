@@ -279,18 +279,18 @@ Closes #123
 
 All CI jobs must pass before merge:
 
-| Job                       | Required | Description            |
-| ------------------------- | -------- | ---------------------- |
-| Backend Lint              | Yes      | Ruff check and format  |
-| Backend Type Check        | Yes      | MyPy                   |
-| Backend Unit Tests        | Yes      | 85% coverage threshold |
-| Backend Integration Tests | Yes      | Combined 95% threshold |
-| Frontend Lint             | Yes      | ESLint                 |
-| Frontend Type Check       | Yes      | TypeScript compilation |
-| Frontend Tests            | Yes      | Vitest                 |
-| Frontend E2E              | Yes      | Playwright             |
-| Build Docker Images       | Yes      | Verify builds succeed  |
-| Security Validation       | Yes      | Admin endpoint checks  |
+| Job                       | Required | Description                            |
+| ------------------------- | -------- | -------------------------------------- |
+| Backend Lint              | Yes      | Ruff check and format                  |
+| Backend Type Check        | Yes      | MyPy                                   |
+| Backend Unit Tests        | Yes      | 85% coverage threshold                 |
+| Backend Integration Tests | Yes      | Combined 80% floor (validate.sh; A7.1) |
+| Frontend Lint             | Yes      | ESLint                                 |
+| Frontend Type Check       | Yes      | TypeScript compilation                 |
+| Frontend Tests            | Yes      | Vitest                                 |
+| Frontend E2E              | Yes      | Playwright                             |
+| Build Docker Images       | Yes      | Verify builds succeed                  |
+| Security Validation       | Yes      | Admin endpoint checks                  |
 
 ### Code Review
 

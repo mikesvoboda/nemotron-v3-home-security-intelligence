@@ -430,7 +430,7 @@ def test_path_traversal_blocked(client, temp_foscam_dir):
 
 ## Coverage Goals
 
-- **Combined Target**: 95%+ for all backend code (unit + integration)
+- **Combined Floor**: 80% for all backend code (unit + integration) — the executed gate (`validate.sh --fail-under=80`; A7.1 corrected this row from a 95% ghost)
 - **Focus**: Critical user workflows and API contracts
 - **Areas**:
   - All API endpoints (CRUD operations)
