@@ -348,7 +348,7 @@ async def detect(file: UploadFile = File(...)) -> dict[str, Any]:
 
     try:
         image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes))
+        image: Image.Image = Image.open(io.BytesIO(image_bytes))
         if image.mode != "RGB":
             image = image.convert("RGB")
         orig_w, orig_h = image.size
@@ -403,7 +403,7 @@ async def detect_batch(files: list[UploadFile] = File(...)) -> dict[str, Any]:
     for upload_file in files:
         try:
             image_bytes = await upload_file.read()
-            image = Image.open(io.BytesIO(image_bytes))
+            image: Image.Image = Image.open(io.BytesIO(image_bytes))
             if image.mode != "RGB":
                 image = image.convert("RGB")
             orig_w, orig_h = image.size
@@ -463,7 +463,7 @@ async def segment(file: UploadFile = File(...)) -> dict[str, Any]:
 
     try:
         image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes))
+        image: Image.Image = Image.open(io.BytesIO(image_bytes))
         if image.mode != "RGB":
             image = image.convert("RGB")
         orig_w, orig_h = image.size

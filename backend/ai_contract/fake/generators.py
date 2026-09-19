@@ -497,6 +497,25 @@ _LITERAL_OPS = frozenset(
 )
 
 
+def _softmax_over_labels(labels: list[str], op_id: str) -> tuple[dict[str, float], str]:
+    """WP8.3 N2a: /classify is a SOFTMAX over exactly the REQUESTED labels —
+    torch.softmax at ai/clip/model.py:919 and the gateway's manual
+    exp(s - s.max())/(sum + 1e-8) with round(·, 6) at
+    ai/gateway/adapters/clip.py:427-430. The committed snapshot's scores field
+    is a free-form map (it cannot name labels it has none of), so the generic
+    walker emits {alpha, bravo} ignoring the request — the divergence the
+    conformance suite caught red. Echo-precedent: model_preload/unload already
+    derive values from the payload (:463, :471). Seed derives from the labels
+    (str-parts), so two identical requests stay BYTE-identical."""
+    rng = _rng_for("softmax", op_id, "|".join(labels))
+    logits = [rng.uniform(-2.0, 2.0) for _ in labels]
+    exps = [math.exp(x - max(logits)) for x in logits]
+    total = sum(exps) + 1e-8  # gateway epsilon guard, clip.py:428
+    scores = {lab: round(e / total, 6) for lab, e in zip(labels, exps, strict=True)}
+    top = max(range(len(exps)), key=exps.__getitem__)  # np.argmax first-wins parity
+    return scores, labels[top]
+
+
 def generate(op_id: str, payload: Any = None, profile: str = "gateway") -> Any:
     """The one entry point: the seven GEN_GAPS ops route to the literal
     deployed-shape generator; the other 31 are WALKED from their committed
@@ -510,6 +529,14 @@ def generate(op_id: str, payload: Any = None, profile: str = "gateway") -> Any:
         value = generate_from_snapshot(op_id, profile)
     else:
         raise KeyError(f"{op_id}: no snapshot and not a literal op")
+    if op_id == "clip_classify" and isinstance(payload, dict):
+        labels = payload.get("labels")
+        if isinstance(labels, list) and labels and all(isinstance(x, str) for x in labels):
+            # payload None / labels absent keeps the walked shape (WP8.2
+            # direct-generate tests drive it that way and stay green).
+            scores, top_label = _softmax_over_labels(labels, op_id)
+            value["scores"] = scores
+            value["top_label"] = top_label
     validate(op_id, value)
     return value
 
