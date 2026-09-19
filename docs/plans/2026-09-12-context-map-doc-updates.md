@@ -5314,3 +5314,51 @@ First-round wave-66 JSONLs quarantined under
 Band state after wave-66: 33 untouched band modules remain
 (.wp25-feed/wp44-queue-index.md WAVE 66 KILL FOLD). Commits: 8 per-module
 test(wp44) batches + this record. Next: wave-67 dispatch.
+
+## WP4.4 handoff — wave-67 mid-flight (2026-09-19, goal-cleared stop)
+
+Wave-67 (survivor-triage wf_e3229a3c-9b7, 8 modules / 211 survivors) is
+7-of-8 landed on `feat/wp44-closeout` (base dc0dc646): lifecycle_manager
+16/29→133/146=91.1%, prompt_management 28/28→79/79=100.0%, yolo_world_loader
+7/27→115/135=85.2%, frame_extractor 21/27→126/132=95.5%, cost_analytics
+25/26→109/110=99.1%, prompt_parser 15/25→201/211=95.3% (EQUIVALENT ceiling,
+10 survivors = C3+C4 exactly), jobs 25/25→25/25=100.0% (zero coverage → zero
+survivors). Each commit carries its surviving-mutant record in-commit
+(.wp25-feed/wp44-kills/<module>-survivors.md, house format).
+
+**Mid-way module: clip_loader.** First census 14/24 (dossier said 19/24);
+line-diff audit vs `__mutmut_orig` found 3 draft under-shoots (substring
+assertions survive XX-wrap) + 1 dossier mis-cluster (key 3 = CPU-guard raise
+message, re-wrapped by the broad handler — pin the FULL shipped string) +
+key 34 (message→None needs `getMessage() != "None"`). All fixed, green 45,
+ruff clean, synced into mutants/, key 35 probed RED. **clip-only re-census
+RUNNING at handoff: pid 2443118, /tmp/wp25/wp44-kills/w67-clip2.jsonl** (11
+killed/12 probed). Recount from disk (never monitor lines), expected 19/24 →
+module 43/48=89.6%, residual 5 = keys 31/32/40/41/42 (C7/C8 LOW-VALUE).
+Full resume protocol in the PROVISIONAL record
+.wp25-feed/wp44-kills/clip_loader-survivors.md; the test-file repair is
+committed WIP alongside it.
+
+Census-lane state: clip2 is the ONLY heavy job (run6 terminal, badge
+baseline 54.05% = (45127+2611)/88329 saved at
+/tmp/wp25/wp43-mutation-score.json; per-module pre-WP4.4 folds in that JSON).
+After clip2: wave-67 close-out = queue-index 8-module WAVE-67 DOSSIER/KILL
+FOLD + this ledger's RECORD section + feed re-sync + push
+feat/wp44-closeout (credential-helper one-shot) + CI watcher. Then WP4.3
+close-out chain per .wp25-feed/HANDOFF-WP43.md §3 (fill 54.05% baseline into
+ledger-wp43-draft.md + commit-wp43.txt; ./scripts/validate.sh ~40 min tier —
+ONLY when census lane idle; reinstall pre-commit after any uv sync; then
+append draft to L with prettier fixed-point, ONE commit via commit-wp43.txt
+squatting WIP 99829f9c, push, watch CI).
+
+#6553 (branch feat/wp44-closeout… wait, PR branch is the DB-sweep fix chain):
+c40acc39 attempt-2 TPA reds were bit-identical to attempt-1 — `gh run rerun
+--failed` re-grades the STALE attempt-1 junit and can NEVER clear a TPA red;
+must use FULL `gh run rerun <run-id>` (no --failed) so TPA re-measures. Full
+rerun dispatched for run 35419242394 (owner ruling 488a7ff9 governs: flaky
+TPA rows re-run, thresholds untouched); watcher died with the goal — poll
+`gh api repos/mikesvoboda/nemotron-v3-home-security-intelligence/actions/runs/35419242394`
+to completion; redis-pubsub flake (test_redis_pubsub.py:610) re-rolled clean
+in attempt 2 — if it returns, it is PRE-EXISTING and gets its own repair
+commit. Detector (.new-stable.py) structurally dead (needs survived≥100;
+run6 terminal) — waves are self-staged; next band ≈25 modules after wave-67.
