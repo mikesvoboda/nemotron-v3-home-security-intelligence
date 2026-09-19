@@ -40,9 +40,17 @@ def test_for(module: str) -> str | None:
     base = Path(module).stem
     dp = FEED / (base + ".md")
     if dp.exists():
-        m = re.search(r"(backend/tests/\S+\.py)", dp.read_text())
-        if m and (REPO / m.group(1)).exists():
-            return m.group(1)
+        # ALL distinct dossier-declared covering files, comma-joined (killcount
+        # splits); one file under-tests modules whose mutants span several suites
+        files = sorted(
+            {
+                m
+                for m in re.findall(r"(backend/tests/\S+\.py)", dp.read_text())
+                if (REPO / m).exists()
+            }
+        )
+        if files:
+            return ",".join(files)
     cands = sorted(REPO.glob(f"backend/tests/unit/**/test_{base}.py"))
     if not cands:
         return None

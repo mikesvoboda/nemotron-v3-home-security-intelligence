@@ -2,7 +2,9 @@
 """WP4.4 serial-lane kill counter: run the target test file under each surviving
 mutant (mutmut trampoline semantics: cwd=mutants/, MUTANT_UNDER_TEST=full key).
 Writes kill/survive verdicts incrementally to a JSONL so partial progress is
-foldable. Usage: python scripts/.wp44-killcount.py <module-path> <test-path> <out.jsonl>
+foldable. Usage: python scripts/.wp44-killcount.py <module-path> <test-paths> <out.jsonl>
+<test-paths> is comma-separated (multi-suite mutants: pytest takes each as a
+separate path arg).
 """
 
 import json
@@ -14,7 +16,10 @@ from pathlib import Path
 
 REPO = Path("/agents/agent-nemo2/workspace")
 module_path = sys.argv[1]  # e.g. backend/services/container_discovery.py
-test_path = sys.argv[2]  # e.g. backend/tests/unit/services/test_container_discovery.py
+# comma-separated list: mutants can be covered by several test files (e.g.
+# routes/system: routes/test_system.py + routes/test_system_routes.py + ...);
+# pytest takes them all as separate path args.
+test_paths = sys.argv[2].split(",")
 out_path = Path(sys.argv[3])
 # optional survivor-sharding so big modules can use >1 worker without sharing
 # one JSONL (append-interleave hazard): worker i of n keeps keys i, i+n, ...
@@ -50,7 +55,7 @@ with out_path.open("a") as out:
             sys.executable,
             "-m",
             "pytest",
-            test_path,
+            *test_paths,
             "-x",
             "-q",
             "-p",
