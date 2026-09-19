@@ -1,0 +1,9 @@
+{
+  "inference_time_ms": 1.0,
+  "regions": [
+    {
+      "bbox": [1.0],
+      "text": "sample_text"
+    }
+  ]
+}

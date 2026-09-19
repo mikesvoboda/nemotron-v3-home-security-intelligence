@@ -1,0 +1,11 @@
+{
+  "clothing_type": "sample_clothing_type",
+  "color": "sample_color",
+  "confidence": 0.9,
+  "description": "sample_description",
+  "inference_time_ms": 1.0,
+  "is_service_uniform": false,
+  "is_suspicious": false,
+  "style": "sample_style",
+  "top_category": "sample_top_category"
+}

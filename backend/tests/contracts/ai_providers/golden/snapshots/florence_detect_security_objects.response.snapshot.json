@@ -1,0 +1,12 @@
+{
+  "defs": ["SecurityObjectDetection"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_detect_security_objects",
+  "properties": {
+    "detections": "array<ref(SecurityObjectDetection)>",
+    "inference_time_ms": "number",
+    "objects_queried": "array<string>"
+  },
+  "required": ["detections", "inference_time_ms", "objects_queried"],
+  "side": "response"
+}

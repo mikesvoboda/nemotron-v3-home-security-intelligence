@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_pose_analyze",
+  "properties": {
+    "inference_time_ms": "number",
+    "keypoints": "array<object>",
+    "num_people": "integer"
+  },
+  "required": ["inference_time_ms", "keypoints", "num_people"],
+  "side": "response"
+}

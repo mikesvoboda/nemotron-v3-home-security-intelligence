@@ -5198,6 +5198,292 @@ Serial-lane note: census was ONE pytest job throughout; the owner-approved
 fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
 resumes — first production exercise of the carve-out hierarchy.
 
+## WP6.1 LANDED `054b78e3` — sys.modules poisoning killed in ai/enrichment/test_model.py (2026-09-19)
+
+MEASURE: ai/ collection 387/19 -> 1262/9. The file built module-scope
+`ModuleType` mocks and assigned `sys.modules["ai"] = mock` at import time,
+shadowing the REAL package for every later importer in a full-tree run
+(12 collection errors were downstream files seeing a fake `ai`). Census
+proved the mocks dead weight: `MockPoseAnalyzer` referenced nowhere outside
+the mock block; `vitpose` imports only torch/PIL; the file's pose tests
+touch only options/response fields. Double-import was a SEPARATE bug in the
+same file: package chain (`ai.enrichment.test_model` -> `__init__` ->
+`ai.enrichment.model_manager`) + flat `from model import` re-executed the
+same `model_manager.py` -> module-scope prometheus Gauge registered twice
+(DuplicateTimeseries). Fixed test-side (file collects 106/106 alone). The
+file's sys.path insert stays (matches container flatness); mock block
+deleted, comment points at `ai/conftest.py`.
+
+## WP6.2 LANDED `f3d74789` — ai/conftest.py triton block + flat-name owner map; ai/ collects 1764/0 (2026-09-19)
+
+MEASURE: 1262/9 -> 1764/0 errors. Two hazard classes: (a) `ai/triton` is a
+Triton INFERENCE SERVER CLIENT package; with ai/ on sys.path (conftest and
+the production shim both insert it for container parity) it shadowed the
+pip triton compiler and `torch._dynamo.utils` died inside transformers
+lazy imports (`common_constant_types.add(triton.language.dtype)`).
+Append-vs-insert was the plan's verified NON-FIX; fixture-scoping cannot
+cover production shims that insert ai/ mid-session. Fix:
+`sys.modules["triton"] = None` (import-halt) restores the
+graceful-absence path torch takes when triton is truly absent. (b) Flat
+global slots (`model`, `metrics`, `model_manager`, `vitpose`): first
+importer wins session-wide -> cross-service ImportErrors
+(`SECURITY_CLASSES` missing; yolo26 metrics bound to enrichment). Fix:
+`_FLAT_OWNERS` service->canonical map, LEAF-FIRST import order, rebind
+(NOT setdefault — the about-to-import file's service owns the slot) at
+`pytest_collectstart` (module import) and `pytest_runtest_setup` (string
+patch targets, `del sys.modules["model"]` tests). Guards in
+`ai/tests/test_module_hygiene.py` are subprocess collection probes with
+in-process verdict plugins — in-process nested pytest runs contaminate
+each other through the same flat slots. First honest tier baseline
+(serial): 69 failed / 1680 passed / 15 skipped, ~100 s. The plan's
+superseded baseline (896/60/5) predates collection repair.
+
+## WP6.3 LANDED `d6f6a2ef` — format_detections_with_quality had been raising on EVERY call; pure-leaf contract.py lands (2026-09-19)
+
+MEASURE: red faces reproduced: `ModuleNotFoundError: No module named
+'metrics'` (ai/yolo26/model.py:117 flat import executes in the BACKEND
+process) and, with torch blocked, `import of torch halted`. CI never saw it
+because the only prior test asserted the function's signature, never
+executed it. Green: `ai/yolo26/contract.py` (stdlib+typing only — import +
+`enhance_detections()` call proven with `sys.modules["torch"] = None`,
+torch never loaded) backs `backend/services/prompts.py` now; 3 new tests
+(2 execution + parity); test_prompts.py 473 passed file-wide; ai/ collect
+unchanged 1764/0. Duplication is Pinned-not-trusted:
+`TestDetectionContractParity` compares enum ==/hash/dict-lookup across the
+distinct classes, full confidence grid tier+explanation, spatial
+field-tuples (dataclass `__eq__` is same-class only), enhance() outputs
+incl. `to_prompt_context()`, `zip(strict=True)`. If either copy drifts CI
+names the symbol. UP037 hazard: ruff --fix strips the quotes on
+`-> "EnhancedDetection"` in model.py, which has no `__future__` import and
+whose container base (`nvcr tensorrt:26.04-py3`, minor version not
+verifiable from this sandbox) may predate PEP 649 — unquoted self-reference
+NameErrors at class-body evaluation on <=3.13 = broken container. Quotes
+restored + `# noqa: UP037`. contract.py's own annotation stays unquoted
+(backend image python:3.14, requires-python >=3.14). Additive `_here_dir`
+sys.path APPEND after the existing `_ai_dir` shim in both named model.py
+files (append, never insert: insert would shadow package imports). Honest
+residuals: bare `import ai.enrichment.model` still fails OUTSIDE pytest —
+its line-33 `from model_manager import` executes before its own shim and
+plan section 1 bans reordering model.py imports; clip/florence still
+shadow `ai/clip` triton outside `ai/conftest.py`. All pytest paths work.
+
+## RULING WP6-A (parked, owner) — ship contract.py in yolo26 Dockerfile, delete model.py duplicates
+
+Options: (i) add `COPY ai/yolo26/contract.py /app/contract.py` to
+ai/yolo26/Dockerfile, switch model.py's inline block to
+`from contract import ...` (flat /app layout makes the import trivially
+valid in-container), delete ~340 duplicated lines from model.py.
+(ii) keep guarded duplication as landed. Evidence: Dockerfile is an
+explicit per-file COPY list; section 1 of plan P bans import-statement
+edits to model.py during Phase 6; Dockerfile edits are
+owner-review-required by the same rule. Recommendation: (i) as a Phase-7+
+follow-up with a container smoke-test license — the parity test makes (ii)
+safe but the drift tax is forever. NOT executed autonomously.
+
+## RULING WP6-B (parked, owner) — enrichment-light package name
+
+`ai/enrichment-light/` has no importable package name (hyphen dir, no
+`__init__.py` chain) so it is absent from the `_FLAT_OWNERS` map and owns
+its `model` slot per-test (legacy behavior, currently correct). Census:
+its flat names collide only with itself today. Recommendation: rename to
+`ai/enrichment_light/` + `__init__.py` when its Dockerfile is next touched;
+until then WP6.4 triage treats its 4 failures as first-class. NOT executed
+(Dockerfile + directory rename = owner territory).
+
+## WP6.4 LANDED (gateway scope) `cf985dc1` — 69 tier reds triaged; gateway's 9 fixed red-first; 60 parked classified (2026-09-19)
+
+MEASURE: serial tier 69f/1680p/15s -> **65f/1684p/15s, 52.9s** after
+`cf985dc1`. Diff: exactly the 9 gateway nodes FIXED (census 8 +
+test_enrich_person, which the random-order baseline masked — the plan's
+"gateway 9f" number was right all along); enrichment-light
+test_should_load_model_defaults_to_light flipped red->green (first-import-
+passes-first order artifact, NOT a fix — the file's del+re-import poisoner
+just claims a different victim now); cpu-offloading gained 5 (13 file-wide
+now = the dossier's standalone prediction exactly — within-file order
+dependence around the reload poisoner; this commit touched nothing there;
+the random -n8 baseline surfaced only 8 of 13 victims). Triage ran as a
+read-only 8-agent dossier wave (subagent probes are the sanctioned
+single-file carve-out; every fix was re-verified alone in the serial lane
+before commit). All 69 reproduce STANDALONE except the cpu-offloading
+within-file order-dependence class; ZERO are WP6.2-conftest fallout (the
+triton-block hint hypothesis was REFUTED for ai/triton/tests with hard
+evidence: test file and client byte-identical to f3d74789^, zero bare
+`import triton` — the 5 are stale RT-DETR-era mocks from migration
+ed218ca7).
+
+FIXED (gateway only, per plan scope): see commit `cf985dc1` — 9 test-side
+fixes, all retargeted at the shipped contract (product/backend-client/
+legacy-service all agree; only the tests invented shapes). Gateway
+subtree: 226 passed / 0 failed / 2.18s, network-free.
+
+PARKED (one line each, per plan; all fix_sketches in
+.wp25-feed-free tmp wp64-dossiers/\*.json, re-derivable from
+git-blob of this ledger commit's sibling PR body):
+
+- ai/yolo26/tests/test_segmentation.py (20) — RULING. Commit 2e184ed4
+  (#5052, 2026-01-31) silently deleted the entire NEM-3912 instance-
+  segmentation feature (~953 lines: models, mask helpers,
+  YOLO26Model.segment(), POST /segment) from ai/yolo26/model.py and left
+  the test file + its LAST TOUCH (cd807160) behind. Tests assert a phantom
+  API. Deleting a test file is never self-licensed (GOAL.txt l.36-37);
+  restoring the feature needs a GPU-bearing decision. Owner ruling
+  WP6-C(a): delete the 20-test file, or restore NEM-3912. NOT a WP6.4 fix.
+- ai/tests/test_cpu_offloading.py (13) — test-contract x13. ONE poisoner:
+  test_returns_false_when_accelerate_not_installed (:51-69) calls
+  importlib.reload(cpu_offloading) under a mocked `builtins.__import__`,
+  permanently leaving the module-global `torch` a MagicMock; the other 12
+  (9 census + 5 serial-order-exposed, minus 2 same-class) assert arithmetic
+  on mock numbers. Fix sketch: reload-with-restore (save/restore
+  sys.modules + module torch attr) or monkeypatch the flag directly.
+  Non-gateway -> parked.
+- ai/enrichment-light/tests/test_model_loading.py (9, +1 order-flipped) —
+  test-contract x10. Every test does del sys.modules["model"] + re-import;
+  model.py:115+ declares Prometheus metrics at module scope -> the 2nd
+  in-process import raises DuplicateTimeseries; the first-executed test
+  always passes (which one is order-dependent). Fix sketch: drop the
+  del+re-import (import once at module top; env-driven branches via
+  monkeypatch + direct calls). Ties into parked RULING WP6-B (package
+  name). Non-gateway -> parked.
+- ai/enrichment/tests/test_meta_tensor_handling.py (7) — test-contract x7.
+  Patch targets (model.create_model_from_pretrained,
+  models.action_recognizer.XCLIP*) are dead seams — the product moved to
+  lazy in-function / TYPE_CHECKING imports in Jan 2026, so mocks can never
+  bind and the tests drive REAL open_clip/transformers constructors.
+  Underlying meta-materialization behavior is intact (passes when targets
+  follow the imports). Fix sketch: retarget patches to open_clip.*/
+  transformers.\* module attrs.
+- ai/enrichment/tests/test_model_registry.py (3) — test-contract x3 with a
+  GATE CENSUS: the 5550-sum assert is a DESIGN BUDGET GATE (VRAM fits-
+  on-card guard), but the drift it caught is two DELIBERATE design changes
+  (depth_estimator 150->100 Tiny variant; action_recognizer 1500->2000) —
+  the registry total stays 5550-exact after updating EXPECTED_VRAM, so the
+  gate keeps its teeth once refreshed. test_all_models_have_positive_vram
+  fixture builds on cpu device where vram=0 by design. Refresh table, keep
+  the sum guard.
+- ai/enrichment/tests/test_person_reid.py (1) — test-contract. Range
+  150k<n<400k was written for OSNet-AIN x0.25 (203,049 params, f51e7798);
+  product ships a different variant now. Re-measure the shipped variant,
+  re-center the window (do not widen to pass-all).
+- ai/triton/tests/test_client.py (5) — test-contract x5, ONE root cause:
+  RT-DETR->YOLO26 migration (ed218ca7) moved detect() to
+  \_postprocess_yolo("output0") but five \_infer mocks kept the RT-DETR
+  labels/boxes/scores payload -> KeyError output0. Dossier emulated the
+  real client with the fixed payload: every assertion then holds. Fix
+  sketch: payload -> {"output0": np.array([[[100,100,200,200,0.95,0]]],
+  np.float32)} at the five sites (:285-288, :318-320, :356-359, :391-394,
+  :412-415). NOT WP6.2 fallout (refuted above, with the diff-identity
+  evidence).
+- ai/tests/test_compile_utils.py (3) — env-blocked x3 (HONEST MECHANISM:
+  no g++/gcc/cc/clang in sandbox -> torch inductor InvalidCxxCompiler at
+  first lazy forward, past compile_model's try/except). ubuntu-latest
+  ships g++ -> plausibly green in CI. Re-measure at WP6.5 CI wiring; if
+  green there, close; if red, re-classify.
+- ai/yolo26/tests/test_model.py::TestTensorRTPyTorchFallback (1) — test-
+  contract: pytest.raises(match=...) pins the intermediate TensorRT error
+  message while the product intentionally re-raises the ultimate cause
+  (pt-model-missing). Retarget the match to the final message.
+- ai/yolo26/tests/test_model.py::TestInvalidImageHandling (1) —
+  env-blocked: ultralytics 8.4.153 monkeypatches PIL.Image.open to lazily
+  pip-install pi-heif on ANY open failure; the sandbox blocks the install
+  and the error face differs. CI-green candidate; re-measure at wiring.
+- ai/yolo26/test_model.py::TestAPIEndpoints::test_health_endpoint (1) —
+  test-contract: root-file autouse fixture is the stale pre-NEM-4996 copy
+  (mock leaves \_is_compiled truthy -> HealthResponse field mismatch); the
+  tests/ twin already caught up. Sync the fixture. The two near-duplicate
+  test_model.py files themselves are WP6-D flag (below).
+- ai/yolo26/tests/test_pose_estimation.py::TestPoseMetrics (1) — **PRODUCT
+  DEFECT, parked for owner**: cd807160 renamed the public kwarg
+  `confidence` -> `_confidence` in the pose-metrics recorder to silence
+  ruff ARG001, breaking the keyword contract the test legitimately guards.
+  Fixing = editing ai/yolo26/metrics.py (Dockerfile-COPYed flat file; the
+  rename is not an import edit but is product surface the plan scopes out
+  of non-gateway WP6.4 fixes). One-line fix + revert this test, or keep
+  the private name and fix callers — owner's call, RULING WP6-C(b).
+
+FLAGGED, NOT FIXED (plan-mandated): the tautology pair —
+ai/yolo26/test_model.py:160 and ai/yolo26/tests/test_model.py:172 both
+assert a HARDCODED literal set == SECURITY_CLASSES (imported from the very
+product under test). Passes for any provider that merely defines the
+constant; proves nothing about a swap. Phase-8 contract-suite material
+(external golden list), do not expand here.
+
+PRODUCT SMELLS FOUND IN PASSING (flag-not-fix, Phase-7/8 input):
+(a) enrich() gather(return_exceptions=True) guards only Exception — a
+BaseException (task cancellation; pytest-timeout's Failed IS one) lands
+in the response body and 500s at Pydantic serialization;
+(b) clip.py's in-process SigLIP text fallback reads .norm on a
+BaseModelOutputWithPooling (attr moved under this transformers) — the
+priority-2 fallback is broken in-product AND reaches huggingface.co when
+priority-1 fails (hermeticity + outage amplifier);
+(c) ai/triton/client.py post-migration else-branch comment claims "yolo26"
+while being the non-yolo26 path; the labels/boxes/scores branch is
+effectively dead for detection models;
+(d) ai/yolo26/test_model.py (root) vs ai/yolo26/tests/test_model.py are
+near-duplicate files diverging silently (the health-fixture staleness IS
+that divergence surfacing) — RULING WP6-D: retire the root twin once its
+unique tests are folded (test-file deletion = owner only).
+
+TALLY over the 69 census nodes: 44 test-contract (8 gateway FIXED + 36
+parked: cpu-offloading 8 [13 file-wide under serial], enrichment-light 10
+[1 order-flipped], meta-tensor 7, registry 3, triton-client 5, reid 1,
+yolo26 misc 2), 20 ruling (segmentation feature-deletion), 4 env-blocked
+(compile 3 + corrupted-image 1; re-measure at WP6.5 CI wiring), 1
+product-defect (pose `_confidence` kwarg rename, parked as RULING
+WP6-C(b)). Plus one census-MASKED gateway red fixed (test_enrich_person —
+the plan's 9th, hidden by random-order distribution in the baseline).
+Per-subtree failures remaining after this commit: gateway 0, yolo26 24,
+ai/tests 16, enrichment 11, enrichment-light 9 (-1 order-volatile),
+triton 5, clip 0, florence 0. Done-when met: all classified in L, gateway
+green, no subtree red for an UNRECORDED reason.
+
+## WP6.5 LANDED `f4602817` — ai/ tier wired into CI: collect gate over the whole tier + gateway run step (2026-09-19)
+
+Plan P WP6.5. Red first: `TestAiTierWiring` (5 structural tests appended to
+`backend/tests/integration/test_github_workflows.py`) observed RED against
+unmodified ci.yml (5 failed, 0.80s), GREEN after the wiring (5 passed,
+0.73s). Three ci.yml edits: (1) `check-test-collection.py` now receives
+`ai` as a third root; (2) new `ai-tests` job — `needs: [detect-changes,
+build-backend-deps]`, the same `if` shape as every backend job (ai/\*\* is
+ALREADY inside the detect-changes `backend` paths filter — verified, no new
+output key invented), steps `pytest ai/ --collect-only` (import-error-
+visible: 1764 collected / 0 errors locally; rc=2 on any collection error)
+and `pytest ai/gateway` (226 passed / 0 failed, 4.78s, network-free, same
+xdist addopts CI uses); (3) ci-gate gains `ai-tests` in needs AND a
+`check_job "AI Tier Tests"` line — the WP0.6 invariant, pinned by both
+`scripts/test_ci_job_graph.py` (OK: 36 jobs, gate reaches 30) and
+`test_ai_job_converges_on_ci_gate`.
+
+DECIDE applied per-subtree — STAGED wiring, doctrine-respecting: the plan's
+full-tree `pytest ai/` RUN step is deliberately NOT wired yet because five
+subtrees carry WP6.4 ledger-classified parked reds (yolo26 24, ai/tests 16,
+enrichment 11, enrichment-light 9, triton 5); wiring them now would make
+the branch red for a RECORDED reason, which is noise that trains people to
+ignore CI. Each subtree joins the run list as it drains; from day one the
+whole tier is covered by the collect-only import gate (the WP6.2 failure
+class: triton shadow, flat-slot collisions) and by the collection checker —
+import/collect breakage in a parked-red subtree still turns CI red today.
+Recorded here; nothing quarantined, no floor moved.
+
+Checker sufficiency evidence for the record: `check-test-collection.py ai`
+is AST-only — measured rc=0 in 0.159s on a tree carrying 19 collection
+errors (it never imports). `pytest ai/ --collect-only` measured rc=2 on the
+same tree. The cheap gate is wired (plan text) and the sufficient gate is
+wired (plan intent).
+
+Done-when: DEFERRED-NO-CI — structural assertions green here; the
+deliberately-broken-test loop proven locally as the mechanism (broken
+import under ai/gateway/tests → collect step rc=2 → ai-tests red →
+check_job fails the gate; probe file deleted, tier restored to rc=0 in
+3.68s). The live-CI version rides PR #6560's run after the pending push;
+watch `ai-tests` + `CI Gate` on that PR.
+
+Residual (not wiring noise): CI torch install path for ai/ tests is
+`uv sync --extra dev` (pyproject pins CPU wheels via
+download.pytorch.org/whl/cpu) — first CI run of ai-tests is the real-world
+check that no ai/ test needs GPU beyond the `-m 'not gpu'` default filter;
+if a node hangs past the 15-min timeout, triage as a new WP6.4-class
+classification, do not extend the timeout.
+
 ## WP5.0 PRE-FLIGHT — FOUR PROBES + P ADDENDUM ADOPTED (2026-09-19, swap-readiness plan P, Phase 5)
 
 P = docs/superpowers/plans/2026-09-19-swap-readiness-72h.md — now TRACKED on
@@ -5762,3 +6048,243 @@ the docs table or repoint those docs at validate.sh — a threshold that
 executes nowhere is worse than a lower one that does. Frontend: R-FEFLOOR
 stays parked exactly as A3 wrote it; the CI line now reports real
 8-shard-able numbers every run.
+
+## WP7.1 LANDED `f4e9584f` — 38-op AI contract generated from deployed surfaces + drift gate (2026-09-19)
+
+backend/ai_contract/ is generated (scripts/gen-ai-contract.py imports the five
+gateway adapters at GENERATION TIME only; runtime imports nothing from ai.\* -
+the prompts.py:4381 direction pinned by an AST test on the package's own
+source). Registry = 31 functional gateway routes + 3 LLM wire + 4 phantom
+paths = 38. The five gateway /health routes are per-adapter liveness, NOT
+provider capability - deliberately excluded, restated here so a future reader
+doesn't "find" 43.
+
+- Red-first: registry test 5 failed -> 5 passed before the package existed;
+  generator ERROR -> 14 passed; combined 59 passed / 2 pre-existing skips.
+- The 4 phantoms are DECLARED operations so WP7.3 deletes/fixes against a
+  machine-readable gap. Census banked (all zero non-test callers):
+  detect_objects_batch, segment_image, similarity, estimate_depth,
+  estimate_object_distance, get_model_status, preload_model.
+- CLIENT_OP_MAP: 54 public client methods, every one mapped (op id or
+  explicit None for lifecycle/health introspection); 30/38 ops have client
+  methods. The 8 without: the 3 LLM wire (raw httpx, not client classes) +
+  5 gateway routes no client wraps - re-derived at WP7.2 fixture time.
+- DECIDE (follow-on, not a ruling): the 7 LLM /completion call sites
+  (performance_collector + 6 in prompts/ai_service paths) consolidate onto
+  the registry-backed client only in WP7.2+; the registry declares the wire
+  today, the callers move then. Not parked - scheduled.
+- FORMATTER FIXPOINT, second half: first commit attempt aborted on ruff
+  (operations.py), second on prettier (all 36 schema JSONs - the hook
+  collapses short required[] arrays). Schemas now emit via
+  prettier_canonical(): a deterministic implementation of prettier 3.2.4's
+  JSON rules (collapse a primitive-only array iff the line INCLUDING the
+  parent's trailing comma fits printWidth 100 - probed at the 99/100/101
+  boundary; arrays of objects always expand; objects always one-key-per-line)
+  - 36/36 byte-identical to the hook binary, and a test runs a real prettier
+    over every emitted file (skips cleanly when absent). Deliberately NOT a
+    shell-out in the generator: CI must not be able to fork a different
+    prettier into the bytes. Doctrine: generated files emit at EVERY hook's
+    fixpoint, or the drift gate reds with a pure-formatter diff.
+- semgrep path-traversal-open on the registry test's inspect.getfile read:
+  inline # nosemgrep with reason (house precedent, system.py:2560) - the
+  path is importlib-resolved, not user input. Not an allowlist change.
+- CI: api-types-check runs gen-ai-contract.py --check between generate-
+  openapi --check and the Zod step; tamper test proves --check NAMES the
+  drifted file. Live-loop proof rides this PR's run (DEFERRED-NO-CI shape,
+  same as WP6.5).
+- Hook-carry commit `c4d084b1`: pre-push prettier/detect-secrets rewrote
+  suppression-registry.yml + .secrets.baseline that rode in with the base
+  merge; both verified data-identical (yaml.safe_load equality; one
+  line_number shift) before committing - formatting-only, zero quarantine
+  content change.
+- Coverage floor untouched; delta measured into this ledger from the
+  PR's unit run against 72.58% (run 35442826412).
+- Residual: yolo26 request schemas are the multipart marker (no FastAPI
+  model to introspect); yolo26 response side records None (no
+  response_model server-side). Recorded, not faked - WP7.2 goldens for
+  those routes come from FakeProvider (WP8.2), which will declare them.
+
+## WP7.2 LANDED `ed4505ba` — golden payloads + shape snapshots; rename reddens naming the key (2026-09-19)
+
+- Done-when met as an executed assertion: `test_rename_reddens_naming_the_key`
+  renames `inference_time_ms` on a tampered copy and asserts BOTH spellings
+  appear in the failure text (snapshot diff names renamed-AWAY + renamed-IN;
+  the tampered payload trips jsonschema naming the contract key). The
+  mechanism is proven, not assumed.
+- Artifacts: 36 shape snapshots + 36 contract-valid wire payloads + a
+  provenance README under `backend/tests/contracts/ai_providers/golden/`,
+  generated by the same script (`gen-ai-contract.py`), deterministic (no
+  time, no randomness) so `--check` stays a pure drift gate. Now 110
+  generated files; `--check` covers operations + schemas + goldens + a stale
+  scan of both JSON dirs.
+- 72-skill suite: 111 passed (36 snapshot + 36 payload-validate +
+  36 key-coverage + presence/provenance + rename proof); combined WP7 suite
+  130 passed in ~5s. Red-first held: 3 failed before the goldens existed.
+- Two real bugs found in landed WP7.1 code by the WP7.2 test loop:
+  1. VACUOUS GLOB — the registry test's REPO_ROOT was `parents[3]` =
+     `backend/`, so the client globs matched NOTHING and the client-map test
+     was green without testing anything. Fixed to `parents[4]`; the trap is
+     recorded in a comment at both call sites. Lesson generalized: any
+     `parents[N]` in a test under backend/tests/contracts/ gets a comment
+     stating the depth, because the failure mode is silent green.
+  2. ONE-WAY MAP — the client-map test only checked scan-minus-map. A renamed
+     client class or method would have rotted the map in silence. Now
+     two-way, and the stale branch is proven by mutation probe (rename
+     `classify_pet` on `EnrichmentClient` -> the test names it). The AST scan
+     also qualified keys `Class.method` and filtered to the four client
+     classes (the client modules also define result dataclasses whose
+     `to_dict` methods are serialization helpers, not HTTP call sites).
+- Formatter-fixpoint doctrine extended: the prettier fixpoint test now
+  batches EVERY emitted JSON (asserts >36 so goldens can't silently drop)
+  through the hook's real prettier; drift across all 110 artifacts: ZERO.
+  The generator serializer gained probed shapes (array-of-arrays collapse,
+  inline `{}` objects, free-form items get a sample entry) instead of
+  guessing; unverified shapes still raise, never emit.
+- Replaceable-dict census for WP7.4 (rough, this sandbox's grep shape): 418
+  AI-response-shaped dict literals across 47 backend test files carry
+  contract vocabulary (detections/boxes/scores/labels/embedding/keypoints);
+  the plan's reference census is 572 across 110 files — WP7.4 uses the plan
+  number as the ceiling and this grep as the work list.
+- Coverage floor untouched; ratchet untouched. New code is generator + tests
+  only. CI drift-gate proof still pending on PR #6562: the api-types-check
+  job runs `--check` against the pushed tree (marked ready; checks not yet
+  reported at ledger time).
+
+## WP7.3 PARTIAL — 2 carry-cost deletions landed; 5 targets PARKED on the test-file rule (2026-09-19)
+
+- LANDED `b575846d`: `DetectorClient.detect_objects_batch` + private
+  `_detect_batch_fallback` deleted (145 lines). Census 0 non-test call sites
+  (grep, backend/+scripts/ - the ai/yolo26/model.py:2256 same-spelling hit is
+  the server's own /detect/batch ROUTE, a different symbol; the census scope
+  records why ai/ can never consumer-call a backend client method). 0 test
+  references - the only target in the plan's list with NONE, which is what
+  made it deletable under GOAL ("NEVER a test file"). Registry keeps the
+  `yolo26_detect_batch` OPERATION (deployed gateway route);
+  `client_methods=[]`.
+- LANDED `e6c39259`: yolo26 `/track` deleted from `ai/yolo26/model.py` (304
+  lines: route + `DetectorModel.track` + `TrackedDetection`/`TrackingResponse`,
+  all exclusive). Census: 0 hits in backend/+scripts/ endpoint strings, 0 in
+  gateway, 0 in BOTH test_model.py copies, absent from the 38-op registry and
+  openapi.json. No import statement touched (flat-COPY container rule).
+- Ratchet pattern for both: `DELETED_CARRY_COST` /
+  `DELETED_SERVER_ROUTES` in the registry test - written RED-FIRST (each
+  failed while its symbol was present), now permanently green, and a
+  reintroduction reddens by name. CI re-runs the zero-caller census forever
+  via `_non_test_call_sites`.
+- PARKED (GOAL rule conflict - deletion would require touching a test file,
+  and the WP5.6 precedent says the classifier denies): `estimate_depth`
+  (~15 dedicated unit tests across 4 enrichment-client files),
+  `estimate_object_distance` (~10, + the NEM-1102 bbox-validation block),
+  `segment_image` (whole dedicated file test_detector_client_segmentation.py),
+  CLIP `similarity` (dedicated TestSimilarity class + endpoint-verification
+  test), florence `/analyze-scene` (dedicated 612-line ai/florence/tests
+  file + gateway adapter tests + the op's goldens). All five re-verified
+  zero-caller (backend+scripts): they are carry cost, but clearing them is
+  an OWNER call (delete method+tests together) - recommendation: license a
+  test-file carve-out for exactly these five symbols, each with its census
+  number; until then they stay, pinned by the contract registry.
+- WORKFLOW LESSON (banked): the WP7.3 census fan-out workflow returned
+  three BLOCKED verdicts citing `backend/services/video_service.py`,
+  `ai_event_analysis.py`, and analyze-scene-in-openapi claims - NONE of
+  which exist in this tree (verified: find + grep = 0). Fabricated
+  evidence; verdicts discarded, original greps re-run by hand, and only its
+  test-file inventories (which matched my greps) reused. Rule: a subagent
+  census justifies a deletion only after an independent serial re-grep;
+  NEVER act on a workflow finding without disk verification.
+- CI WATCH (same branch family): #6560 Test Coverage Gate failed TWICE on
+  the gate script's own inline full-unit collection run - DIFFERENT tests
+  each time (cameras rglob test, then system-routes semaphore test), both
+  `pytest-timeout` (>5s) under -n 8 load, both green locally and in the
+  shard jobs (which carry the repo's `--reruns 2` convention; the inline
+  subprocess in scripts/check-test-coverage-gate.py:411 does not). Integration
+  (Services) hit the same flake family (3 transaction-rollback teardown
+  timeouts) and Test Performance Audit flagged 23 tests at 81-91% of their
+  timeouts; main itself went red on perf-audit at 336b4c53 while 55864180
+  was green 41 minutes earlier - load-sensitive CI, not branch regressions.
+  Actions taken: two `gh run rerun --failed` passes; if the gate repeats the
+  inline-collection failure, the fix is WP6-branch scope: add the pair of
+  rerun flags to that ONE subprocess (parity with shards 795-797),
+  which moves no floor and gates nothing weaker - it matches the existing
+  repo convention. NOT DONE YET (pending one more rerun's data).
+
+## WP7.4 LANDED `4e63bed1` — impossible fixtures migrated, deployed shape pinned (2026-09-19)
+
+Plan P WP7.4 says the detector-client fixtures hand-coded a response shape
+no provider emits, and the two-shape ambiguity must be demonstrated, then
+pinned to the deployed one. Done on feat/wp7-ai-contract.
+
+**Reproduction (the plan's demo, run before touching anything):** the same
+3-detection scene (person 100,150,300,400; car 500,200,200,150 - overflows
+640; dog 0.45) pushed through `DetectorClient.detect_objects` under the two
+accepted shapes, verbatim transcript:
+
+```
+--- shape A impossible-fixture ---
+  person  conf=0.95  box=(100,150,300,400) vw=None
+  car     conf=0.88  box=(500,200,200,150) vw=None
+  dog     conf=0.45  box=(250,300,100,80)  vw=None
+  count=3
+--- shape B shipped/golden ---
+  person  conf=0.95  box=(100,150,300,330) vw=640
+  car     conf=0.88  box=(500,200,140,150) vw=640
+  dog     conf=0.45  box=(250,300,100,80)  vw=640
+  count=3
+REPRO OK: two shapes, one green file - the plan's demo
+```
+
+Shape A = `{detections, image_size, processing_time_ms}` (27/122 fixtures
+per the plan census; no deployed provider emits it). Shape B =
+`{detections, image_width, image_height, inference_time_ms}` - what the
+gateway adapter emits (ai/gateway/adapters/yolo26.py:376-378) and what the
+WP7.2 goldens carry. Same scene, different rows: A is unclamped with no
+video dims, B clamps person height 400 -> 330 and car width 200 -> 140 and
+records the 640x480 frame. Both were green before this WP.
+
+**Migration (`4e63bed1`):** key-pair swap ONLY, 22 dict literals (unit 10 +
+integration 12; HEAD census 22 image_size + 23 processing_time_ms
+occurrences), dims 1920x1080 so no bbox clamps - behavior-preserving for
+the migrated tests. The plan's warning honored: list-form bboxes stay live
+(the per-model server in ai/yolo26/model.py returns list bboxes WITH dims -
+Provider #4 may still speak that combo), so no fixture change flips the
+dict/list parser branch coverage. Green before 96 (74 + 22), green after
+100 (78 + 22).
+
+**Pinning tests (4, new):** `test_wp74_same_scene_both_shapes` (parametrized
+over both shapes at 640x480, asserts the transcript divergence: clamped
+300x330 / w=140 / vw=640 vs unclamped / vw=None);
+`test_list_bbox_still_parses_under_deployed_shape` (list bboxes + dims
+clamps too); `test_wp74_no_impossible_keys_remain` (ratchet: both legacy
+keys banned in both files outside the demonstration section - RED-PROVED
+against pre-migration copies where 22 + 23 occurrences fail it).
+
+**Coverage (plan's "must not fall", same command both sides):** detector
+client BEFORE 328/480 lines, 66/108 branches, 67.01%; AFTER 328/480 lines,
+67/108 branches, 67.18% (+1 branch: the clamp path is now exercised by the
+deployed-shape parametrization). The whole-tree totals from these two files
+are unchanged (15263/78622) - only branch coverage on the target moved.
+Note for future measurers in this sandbox: a serial run with addopts cleared
+and `--cov` SEGFAULTS (rc=139, xdist workers crash); the json report works
+under default addopts.
+
+**Semgrep encounter (house precedent reused, no config moved):** the
+ratchet's own file read tripped the custom path-traversal-open rule;
+annotated with an inline nosemgrep citing test_ai_contract_registry.py:307.
+First attempt failed twice: a long trailing annotation caused ruff format to
+rewrap the expression so the annotation no longer sat on the pattern-match
+line (semgrep rc=1 while ruff rc=0 - the two tools fight over line length
+here). The durable form is the short trailing `# nosemgrep: rule` plus a
+precedent comment ABOVE the call.
+
+**Dog-confidence note:** the client accepts dog at 0.45
+(settings.detection_class_thresholds, NEM-4522), so a 0.45-dog fixture is
+CLIENT-legal. The value-impossibility is server-side: ai/yolo26/model.py
+drops dogs below 0.55 before responding, so a 0.45 dog only ever came from
+a hand-written fixture - one more reason these payloads were fiction.
+
+**Residual (logged, not dropped):** ~546 legacy-key occurrences remain in
+detector-fixture files OUTSIDE this WP's two target files (the plan's 572
+minus the migrated 22 and the WP7.1-era correct-shape census). They are
+green, they parse, and each carries the same silent no-clamping behavior.
+Per the plan, this WP's scope was the two files that feed
+detector_client.py coverage; the wider drain belongs behind the contract
+suite as WP8 work, not as a fixture sweep. No floor moved, nothing omitted.

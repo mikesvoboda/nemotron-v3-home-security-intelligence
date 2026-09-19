@@ -67,11 +67,20 @@ def _make_mock_triton_client(
             "outputs": [{"name": "output0", "datatype": "FP32", "shape": [1, 84, 8400]}],
         }
     )
-    # Default infer returns an empty-ish detection array (no detections)
+    # Default infer returns an empty-ish detection array (no detections).
+    # WP6.4: "result" and "pooler_output" are the REAL deployed output names
+    # the florence/clip adapters request (florence.py:228 result=["result"];
+    # model_repository/clip/config.pbtxt output "pooler_output", echoed by
+    # export/export_clip.py:12). Without them the adapters' result["..."]
+    # lookups KeyError inside the handler and both smoke tests died.
     mock.infer = AsyncMock(
         return_value={
             "output0": np.zeros((1, 84, 8400), dtype=np.float32),
             "output": np.zeros((1, 768), dtype=np.float32),
+            "result": np.array(
+                [b'{"result": "a test caption", "prompt": "<CAPTION>"}'], dtype=object
+            ),
+            "pooler_output": np.zeros((1, 768), dtype=np.float32),
             "OUTPUT_TEXT": np.array(["test output"], dtype=object),
             "OUTPUT_KEYPOINTS": np.array(["[]"], dtype=object),
             "OUTPUT_DETECTIONS": np.array(["[]"], dtype=object),

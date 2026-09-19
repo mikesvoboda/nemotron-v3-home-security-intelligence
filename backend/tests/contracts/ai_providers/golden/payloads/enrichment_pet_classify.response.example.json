@@ -1,0 +1,9 @@
+{
+  "breed": "sample_breed",
+  "cat_score": 0.9,
+  "confidence": 0.9,
+  "dog_score": 0.9,
+  "inference_time_ms": 1.0,
+  "is_household_pet": false,
+  "pet_type": "sample_pet_type"
+}

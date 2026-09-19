@@ -1,0 +1,12 @@
+{
+  "defs": ["BatchExtractResultItem"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_batch_extract",
+  "properties": {
+    "batch_size": "integer",
+    "results": "array<ref(BatchExtractResultItem)>",
+    "total_inference_time_ms": "number"
+  },
+  "required": ["batch_size", "results", "total_inference_time_ms"],
+  "side": "response"
+}

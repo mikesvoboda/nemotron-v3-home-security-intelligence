@@ -39,6 +39,13 @@ from pydantic import BaseModel, Field
 _ai_dir = Path(__file__).parent.parent
 if str(_ai_dir) not in sys.path:
     sys.path.insert(0, str(_ai_dir))
+# WP6.3 (additive, mirrors the flat /app layout for repo-root imports): also
+# expose this module's own directory so `from model_manager import ...` (and
+# siblings) resolve when model.py is imported from the repo, not just from
+# the flat container.
+_here_dir = Path(__file__).parent
+if str(_here_dir) not in sys.path:
+    sys.path.append(str(_here_dir))
 
 from gpu_oom_handler import (
     GPUOOMHandler,
@@ -2141,9 +2148,9 @@ async def lifespan(_app: FastAPI):
             name="demographics",
             vram_mb=500,
             priority=ModelPriority.HIGH,
-            loader_fn=lambda age_p=age_model_path,
-            gender_p=gender_model_path,
-            dev=device: _create_demographics(age_p, gender_p, dev),
+            loader_fn=lambda age_p=age_model_path, gender_p=gender_model_path, dev=device: (
+                _create_demographics(age_p, gender_p, dev)
+            ),
             unloader_fn=_unload_model,
         )
     )

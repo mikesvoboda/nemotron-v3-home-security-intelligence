@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_person_reid",
+  "properties": {
+    "embedding": "array<number>",
+    "embedding_dimension": "integer",
+    "inference_time_ms": "number"
+  },
+  "required": ["embedding", "embedding_dimension", "inference_time_ms"],
+  "side": "response"
+}

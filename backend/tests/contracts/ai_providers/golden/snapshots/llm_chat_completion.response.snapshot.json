@@ -1,0 +1,10 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "llm_chat_completion",
+  "properties": {
+    "choices": "array<object>"
+  },
+  "required": [],
+  "side": "response"
+}

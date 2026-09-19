@@ -1,0 +1,53 @@
+{
+  "properties": {
+    "clothing_type": {
+      "title": "Clothing Type",
+      "type": "string"
+    },
+    "color": {
+      "title": "Color",
+      "type": "string"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "is_service_uniform": {
+      "title": "Is Service Uniform",
+      "type": "boolean"
+    },
+    "is_suspicious": {
+      "title": "Is Suspicious",
+      "type": "boolean"
+    },
+    "style": {
+      "title": "Style",
+      "type": "string"
+    },
+    "top_category": {
+      "title": "Top Category",
+      "type": "string"
+    }
+  },
+  "required": [
+    "clothing_type",
+    "color",
+    "style",
+    "confidence",
+    "top_category",
+    "description",
+    "is_suspicious",
+    "is_service_uniform",
+    "inference_time_ms"
+  ],
+  "title": "ClothingClassifyResponse",
+  "type": "object"
+}

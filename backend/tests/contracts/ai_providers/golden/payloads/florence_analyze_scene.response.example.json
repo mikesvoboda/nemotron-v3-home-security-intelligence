@@ -1,0 +1,19 @@
+{
+  "caption": "sample_caption",
+  "inference_time_ms": 1.0,
+  "regions": [
+    {
+      "bbox": [1.0],
+      "caption": "sample_caption"
+    }
+  ],
+  "task_times_ms": {
+    "sample": 1.0
+  },
+  "text_regions": [
+    {
+      "bbox": [1.0],
+      "text": "sample_text"
+    }
+  ]
+}

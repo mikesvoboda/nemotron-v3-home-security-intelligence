@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "CaptionedRegion": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "caption": {
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": ["caption", "bbox"],
+      "title": "CaptionedRegion",
+      "type": "object"
+    },
+    "OCRRegion": {
+      "properties": {
+        "bbox": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Bbox",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": ["text", "bbox"],
+      "title": "OCRRegion",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "caption": {
+      "title": "Caption",
+      "type": "string"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "regions": {
+      "items": {
+        "$ref": "#/$defs/CaptionedRegion"
+      },
+      "title": "Regions",
+      "type": "array"
+    },
+    "task_times_ms": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Task Times Ms",
+      "type": "object"
+    },
+    "text_regions": {
+      "items": {
+        "$ref": "#/$defs/OCRRegion"
+      },
+      "title": "Text Regions",
+      "type": "array"
+    }
+  },
+  "required": ["caption", "inference_time_ms"],
+  "title": "SceneAnalysisResponse",
+  "type": "object"
+}

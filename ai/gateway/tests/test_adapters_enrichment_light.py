@@ -130,7 +130,12 @@ class TestPoseAnalyzeEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["num_people"] == 2
-        assert len(data["keypoints"]) == 2
+        # Shipped contract (WP6.4 triage): _postprocess_pose returns the FLAT
+        # keypoint list of the highest-confidence person (17 COCO keypoints),
+        # person count separately in num_people — matching the backend
+        # EnrichmentClient's "{len(keypoints)}/17" PoseResult (WP2.4 client).
+        assert len(data["keypoints"]) == 17
+        assert data["keypoints"][0]["name"] == "nose"
         assert "inference_time_ms" in data
 
     async def test_pose_analyze_no_people(self, client, mock_triton):
@@ -206,10 +211,16 @@ class TestThreatDetectEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["threat_detected"] is True
-        assert data["threat_type"] == "knife"
-        assert data["confidence"] == 0.92
-        assert len(data["detections"]) == 1
+        # Shipped contract (WP6.4 triage): ThreatResponse =
+        # threats_detected/is_threat/max_confidence (adapters/
+        # enrichment_light.py ThreatResponse; consumed by backend
+        # EnrichmentClient.ThreatDetectionClientResult). The old field names
+        # (threat_detected/threat_type/confidence/detections) exist in no
+        # product layer.
+        assert data["is_threat"] is True
+        assert data["threats_detected"][0]["class"] == "knife"
+        assert data["max_confidence"] == 0.92
+        assert len(data["threats_detected"]) == 1
 
     async def test_no_threat(self, client, mock_triton):
         """No threat returns threat_detected=False."""
@@ -223,10 +234,12 @@ class TestThreatDetectEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["threat_detected"] is False
-        assert data["threat_type"] is None
-        assert data["confidence"] == 0.0
-        assert data["detections"] == []
+        # Shipped contract (WP6.4 triage): see test_threat_detected — the
+        # shipped response has no per-response threat_type (class lives
+        # inside each threats_detected entry).
+        assert data["is_threat"] is False
+        assert data["max_confidence"] == 0.0
+        assert data["threats_detected"] == []
 
     async def test_threat_detect_non_object_dtype(self, client, mock_triton):
         """All-zero output returns no threats."""
@@ -239,7 +252,7 @@ class TestThreatDetectEndpoint:
         )
 
         assert response.status_code == 200
-        assert response.json()["threat_detected"] is False
+        assert response.json()["is_threat"] is False
 
     async def test_threat_detect_triton_error(self, client, mock_triton):
         """Triton failure returns 503."""
