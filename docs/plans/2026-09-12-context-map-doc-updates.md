@@ -5315,41 +5315,47 @@ Band state after wave-66: 33 untouched band modules remain
 (.wp25-feed/wp44-queue-index.md WAVE 66 KILL FOLD). Commits: 8 per-module
 test(wp44) batches + this record. Next: wave-67 dispatch.
 
-## WP4.4 handoff — wave-67 mid-flight (2026-09-19, goal-cleared stop)
+## WP4.4 wave-67 closeout record (2026-09-19) — 156 STRICT kills, 8 modules
 
 Wave-67 (survivor-triage wf_e3229a3c-9b7, 8 modules / 211 survivors) is
-7-of-8 landed on `feat/wp44-closeout` (base dc0dc646): lifecycle_manager
-16/29→133/146=91.1%, prompt_management 28/28→79/79=100.0%, yolo_world_loader
-7/27→115/135=85.2%, frame_extractor 21/27→126/132=95.5%, cost_analytics
-25/26→109/110=99.1%, prompt_parser 15/25→201/211=95.3% (EQUIVALENT ceiling,
-10 survivors = C3+C4 exactly), jobs 25/25→25/25=100.0% (zero coverage → zero
-survivors). Each commit carries its surviving-mutant record in-commit
-(.wp25-feed/wp44-kills/<module>-survivors.md, house format).
+CLOSED on `feat/wp44-closeout`. MEASURE (per module, open→killed → module %):
+lifecycle_manager 29→16 → **91.1%** (was 80.1), prompt_management 28→28 →
+**100.0%** (cleared; was 64.6), yolo_world_loader 27→7 → 85.2 (was 80.0),
+frame_extractor 27→21 → 95.5 (was 79.5), cost_analytics 26→25 → 99.1 (was
+76.4), prompt_parser 25→15 → 95.3 (was 88.2; EQUIVALENT ceiling, 10 survivors
+= C3+C4 exactly), jobs 25→25 → **100.0%** (cleared; zero coverage → zero
+survivors), clip_loader 24→19 → 89.6 (was 50.0). **Wave-67 total: 156 new
+module kills.** All 55 residual survivors reconcile to dossier
+EQUIVALENT/LOW-VALUE clusters; per-module records in
+.wp25-feed/wp44-kills/<module>-survivors.md (house format).
 
-**Mid-way module: clip_loader.** First census 14/24 (dossier said 19/24);
-line-diff audit vs `__mutmut_orig` found 3 draft under-shoots (substring
-assertions survive XX-wrap) + 1 dossier mis-cluster (key 3 = CPU-guard raise
-message, re-wrapped by the broad handler — pin the FULL shipped string) +
-key 34 (message→None needs `getMessage() != "None"`). All fixed, green 45,
-ruff clean, synced into mutants/, key 35 probed RED. **clip-only re-census
-RUNNING at handoff: pid 2443118, /tmp/wp25/wp44-kills/w67-clip2.jsonl** (11
-killed/12 probed). Recount from disk (never monitor lines), expected 19/24 →
-module 43/48=89.6%, residual 5 = keys 31/32/40/41/42 (C7/C8 LOW-VALUE).
-Full resume protocol in the PROVISIONAL record
-.wp25-feed/wp44-kills/clip_loader-survivors.md; the test-file repair is
-committed WIP alongside it.
+clip_loader finished the wave post-resume: first census 14/24 vs dossier
+19/24; the line-diff audit vs `__mutmut_orig` found 3 draft under-shoots
+(substring assertions survive XX-wrap) + 1 dossier mis-cluster (key 3 =
+CPU-guard raise message re-wrapped by the broad handler — pin the FULL
+shipped string) + key 34 (message→None needs `getMessage() != "None"`).
+Post-repair re-census (w67-clip2.jsonl, recounted from disk, never monitor
+lines) terminated **19/24 with the predicted survivor set exactly**
+(keys 31/32/40/41/42, C7/C8 LOW-VALUE); record promoted PROVISIONAL→FINAL
+in 7be2bd2a.
 
-Census-lane state: clip2 is the ONLY heavy job (run6 terminal, badge
-baseline 54.05% = (45127+2611)/88329 saved at
-/tmp/wp25/wp43-mutation-score.json; per-module pre-WP4.4 folds in that JSON).
-After clip2: wave-67 close-out = queue-index 8-module WAVE-67 DOSSIER/KILL
-FOLD + this ledger's RECORD section + feed re-sync + push
-feat/wp44-closeout (credential-helper one-shot) + CI watcher. Then WP4.3
-close-out chain per .wp25-feed/HANDOFF-WP43.md §3 (fill 54.05% baseline into
-ledger-wp43-draft.md + commit-wp43.txt; ./scripts/validate.sh ~40 min tier —
-ONLY when census lane idle; reinstall pre-commit after any uv sync; then
-append draft to L with prettier fixed-point, ONE commit via commit-wp43.txt
-squatting WIP 99829f9c, push, watch CI).
+DECIDE (mechanism-level, this wave): (1) prompt_parser C1/C2 — the dossier
+banked 11 log-clobber survivors (EQUIVALENT 5 + LOW-VALUE 6) but the caplog
+exact-match/getMessage assertions KILLED them; only the 10 true absorbed-
+constant EQUIVALENTs (C3+C4) persist. Standing read for future dossiers:
+"message text never asserted" is TEST-GAP-adjacent, not auto-residual —
+caplog exact-match kills prose clobbers more often than dossiers predict.
+(2) frame_extractor C11 EQUIVALENT count 1→2 post-census (`__init___7`,
+`_get_camera_subtractor__7`: dict.get default == stored value).
+
+Band state after wave-67: **25 modules / 256 survivors** untouched
+(recount over the arbiter JSON with dossier-file presence as the filter —
+`triage-waves/dispatched.txt` is stale for the last three waves; waves are
+self-staged in the queue index). Top for wave-68: hierarchy(23),
+settings_api(17), ai_services(17), florence_loader(17), frame_buffer(17),
+process_memory_service(17), mqtt_config(15) — zero_dce_loader(31) stays
+skipped (INTEGRATION-only, wave-64 ruling). Queue-index WAVE-67 DOSSIER +
+KILL FOLDs carry the full tables.
 
 #6553 (PR branch fix/registry-drift-check, head c40acc39 — separate from
 feat/wp44-closeout):
@@ -5358,15 +5364,18 @@ c40acc39 attempt-2 TPA reds were bit-identical to attempt-1 — `gh run rerun
 must use FULL `gh run rerun <run-id>` (no --failed) so TPA re-measures. Full
 rerun dispatched for run 35419242394 (owner ruling 488a7ff9 governs: flaky
 TPA rows re-run, thresholds untouched); attempt 3 re-measured TPA fresh (new
-job id) and STILL red — but 10 rows, an entirely different set (cameras/
-metrics×2/search/entities/system-concurrency; 13.4-17.5s), none of
-attempt 1's trio. Rotating rows = runner contention, corroborating the
-flaky-runner reading. Second FULL rerun dispatched at handoff (rc=0).
-Successor: poll to completion; a THIRD red on a rotating row set is still
-gate-noise-class, but STOP AND ASK applies before any 10s-threshold change —
-bring row evidence + repair-first option instead. Poll
-`gh api repos/mikesvoboda/nemotron-v3-home-security-intelligence/actions/runs/35419242394`
-to completion; redis-pubsub flake (test_redis_pubsub.py:610) re-rolled clean
-in attempt 2 — if it returns, it is PRE-EXISTING and gets its own repair
-commit. Detector (.new-stable.py) structurally dead (needs survived≥100;
-run6 terminal) — waves are self-staged; next band ≈25 modules after wave-67.
+job id) and STILL red — 10 rows, an entirely different set (cameras/metrics×2/
+search/entities/system-concurrency; 13.4-17.5s), none of attempt 1's trio.
+Rotating rows = runner contention, corroborating the flaky-runner reading.
+Second FULL rerun → attempt 4 (04:33 UTC): RED AGAIN, 6 rows, a THIRD
+disjoint set (pipeline_e2e llm-fallback 18.25s, media jpg/mp4, notification×2,
+cascade-delete-under-load, circuit-breaker-reset, entities-list, audit×2
+integration + job_progress_reporter/error-handler/correlation_id near-miss
+units) — zero overlap with attempts 1/2/3. THREE fresh re-measurements,
+rotating rows every time = the flaky-runner class per ruling 488a7ff9.
+**STOP AND ASK now applies** (the ruling's own successor clause): reruns keep
+re-rolling; any further mitigation (threshold change, shard split, runner
+pool) is an owner decision with this row evidence. redis-pubsub flake
+(test_redis_pubsub.py:610) has not returned in attempts 2-4.
+Detector (.new-stable.py) structurally dead (needs survived≥100; run6 terminal)
+— waves are self-staged; band after wave-67 = 25 modules / 256 survivors.

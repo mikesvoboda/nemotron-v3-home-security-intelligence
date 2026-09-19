@@ -1346,3 +1346,56 @@ touched tests into mutants/ before ANY killcount launch.
 Commits: 8 per-module test(wp44) batches (7566635c..fda8ef2b). Feed re-sync
 this commit (8 kill records + this fold). Untouched band: 33 modules remain.
 Next: wave-67 dossier dispatch (next 8 by arbiter survivors).
+
+## WAVE 67 DOSSIER FOLD 2026-09-19 (already landed as dc0dc646 — restated for the kill fold's arithmetic)
+
+wf_e3229a3c-9b7 (read-only, 8 modules / 211 survivors): lifecycle_manager(29),
+prompt_management(28), yolo_world_loader(27), frame_extractor(27),
+cost_analytics(26), prompt_parser(25), jobs(25), clip_loader(24). Journal-
+tallied partition: **144 TEST-GAP / 29 EQUIVALENT / 38 LOW-VALUE = 211**
+(per-module cluster tables each reconcile to the arbiter survivor counts).
+
+## WAVE 67 KILL FOLD 2026-09-19 (all 8 modules drafted→proved→censused; 156 new kills)
+
+Serial-lane authoring + STRICT censuses (kill = rc in (1,3), cwd=mutants/
+with synced tests, -n 0, 0 no-verdicts):
+
+| module | open | killed | module total | was |
+|---|---|---|---|---|
+| lifecycle_manager | 29 | 16 | 133/146 = 91.1% | 80.1% |
+| prompt_management | 28 | **28** | **79/79 = 100.0%** | 64.6% |
+| yolo_world_loader | 27 | 7 | 115/135 = 85.2% | 80.0% |
+| frame_extractor | 27 | 21 | 126/132 = 95.5% | 79.5% |
+| cost_analytics | 26 | 25 | 109/110 = 99.1% | 76.4% |
+| prompt_parser | 25 | 15 | 201/211 = 95.3% | 88.2% |
+| jobs | 25 | **25** | **25/25 = 100.0%** | 0.0% |
+| clip_loader | 24 | 19 | 43/48 = 89.6% | 50.0% |
+| **wave-67** | **211** | **156** | | |
+
+All 55 residual survivors reconcile to dossier EQUIVALENT/LOW-VALUE clusters;
+per-module records in `.wp25-feed/wp44-kills/<module>-survivors.md` (clip_loader
+promoted PROVISIONAL→FINAL this fold — first census 14/24, post-repair
+re-census 19/24 with the predicted survivor set exactly).
+
+DOSSIER-VS-CENSUS RULINGS (continuing the wave-66 asymmetry doctrine):
+(1) prompt_parser C1/C2 (log clobbers classed EQUIVALENT 5 + LOW-VALUE 6)
+were KILLED by the caplog exact-match/getMessage assertions — 11 of 15 kills
+came from clusters the dossier had banked as residuals; only C3+C4 (10 true
+absorbed-constant EQUIVALENTs) survive. Caplog exact-match kills prose
+clobbers more often than dossiers predict; dossiers that bank "message text
+never asserted" as non-chase should be re-read with that lens.
+(2) frame_extractor C11 EQUIVALENT 1→2 survivors (`__init___7`,
+`_get_camera_subtractor__7` — dict.get default == stored value, post-census
+E ruling) while 1 C8 member died. (3) clip_loader key 3 dossier mis-cluster
+(CPU-guard RAISE message re-wrapped by the broad handler — pin the full
+shipped string), same family as wave-66's batch-test asymmetry.
+
+Commits: 8 per-module test(wp44) batches (1e876ad8..7be2bd2a) + this fold.
+Untouched band after wave-67: **25 modules / 256 survivors** (recount over
+the arbiter JSON, dossier-presence filter; wave-66's "33" was the pre-wave-67
+count — dispatch ledger note: `triage-waves/dispatched.txt` is stale for the
+last three waves; waves are self-staged in the queue index, the recount uses
+dossier-file presence as canonical). Top of band for wave-68:
+zero_dce_loader(31, INTEGRATION-only — skip per wave-64 ruling, next slot
+down), hierarchy(23), settings_api(17), ai_services(17), florence_loader(17),
+frame_buffer(17), process_memory_service(17), mqtt_config(15).
