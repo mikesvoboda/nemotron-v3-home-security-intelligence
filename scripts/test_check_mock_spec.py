@@ -206,6 +206,31 @@ def test_staged_new_file_counts_whole_file(tmp_path):
     assert "test_b.py::t::k1" in r.stderr
 
 
+def test_staged_mode_works_in_a_linked_worktree(tmp_path):
+    """A linked worktree's ``.git`` is a pointer FILE, not a directory — a
+    staging path of ``root/.git/...`` raises NotADirectoryError and crashes
+    the hook (it did, on the fix/registry-drift-check worktree commit). The
+    crash was indistinguishable from a real gate failure (both rc 1), so a
+    worktree commit could never land. The gate must use a real temp dir."""
+    main = git_repo(tmp_path)
+    wt = tmp_path / "wt"
+    subprocess.run(
+        [*GIT, "worktree", "add", "-q", "--detach", str(wt)],
+        cwd=main,
+        check=True,
+        capture_output=True,
+    )
+    assert wt.joinpath(".git").is_file()  # the pointer-file premise
+    (wt / "backend/tests/unit/test_c.py").write_text(
+        "from unittest import mock\ndef t():\n    mock.patch('a.b.x')\n"
+    )
+    subprocess.run([*GIT, "add", "-A"], cwd=wt, check=True, capture_output=True)
+    r = gate("--staged", "--root", str(wt), "backend/tests/unit/test_c.py", cwd=wt)
+    assert r.returncode == 1, r.stderr
+    assert "UNSPECCED MOCK" in r.stderr, f"gate crashed instead of flagging:\n{r.stderr}"
+    assert "NotADirectoryError" not in r.stderr
+
+
 # ------------------------------------------------- the ratchet done-when
 
 
