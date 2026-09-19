@@ -334,6 +334,11 @@ jobs:
       LOG_DB_ENABLED: 'false'
       ENVIRONMENT: development # Avoid production password validation in CI
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-unit-shard-${{ matrix.shard }}.jsonl
+      # WP5.1: pytest-cov's DATA file, not just the XML. Named non-hidden
+      # because upload-artifact v6 drops dotfiles unless include-hidden-files,
+      # and the merge job's combine needs the measured data, which XML cannot
+      # carry across runners (line numbers survive, merge semantics don't).
+      COVERAGE_FILE: coverage-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -385,8 +390,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
+          # WP5.1: carries the pytest-cov DATA file (via COVERAGE_FILE, named
+          # non-hidden .dat) alongside the per-shard XML. The merge job combines
+          # the .dat files — that is what finally makes `merged=true` real and
+          # lets coverage-baseline.json publish (WP0.9). Keep the XML for
+          # Codecov. Artifact NAME unchanged: the merge's download glob and
+          # test_shard_retry_wiring.py's coupling pin depend on it.
           name: coverage-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}
-          path: coverage-unit-shard-${{ matrix.shard }}.xml
+          path: |
+            coverage-unit-shard-${{ matrix.shard }}.xml
+            coverage-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}.dat
           retention-days: 7
 
   # Merge coverage from all unit test shards and verify threshold
@@ -428,13 +441,20 @@ jobs:
       - name: Combine and check coverage threshold
         id: combine
         run: |
-          # List available coverage files
+          # WP5.1: combine the shard DATA files from the download dir.
+          # Before this fix the shards only uploaded Cobertura XML, this
+          # glob looked for `.coverage.*` in the job CWD (where nothing
+          # ever lands — download-artifact writes coverage-reports/),
+          # so the else-branch vacuous `touch .coverage` ran on EVERY run,
+          # merged=true never fired, and the 85% floor was enforced by
+          # zero gates on a PR. combine deletes its inputs by design; the
+          # XML copies under coverage-reports/ stay for Codecov.
           echo "Available coverage files:"
-          find . -name ".coverage*" -type f || true
+          find coverage-reports/ -type f | head -20 || true
 
-          # Only run combine if files exist
-          if compgen -G ".coverage.*" > /dev/null 2>&1; then
-            uv run coverage combine --data-file=.coverage
+          # Only run combine if DATA files exist
+          if compgen -G "coverage-reports/*.dat" > /dev/null 2>&1; then
+            uv run coverage combine --data-file=.coverage coverage-reports/*.dat
             uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
             echo "Coverage merged successfully"
             # WP0.9: publish a machine-readable baseline from REAL merged data
@@ -619,6 +639,8 @@ jobs:
       ENVIRONMENT: development # Avoid production password validation in CI
       CI: 'true'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-websocket.jsonl
+      # WP5.1: non-hidden pytest-cov DATA file for the merge combine
+      COVERAGE_FILE: coverage-integration-websocket-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -675,8 +697,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
+          # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-websocket-py${{ matrix.python-version }}
-          path: coverage-integration-websocket.xml
+          path: |
+            coverage-integration-websocket.xml
+            coverage-integration-websocket-py${{ matrix.python-version }}.dat
           retention-days: 7
 
   integration-tests-services:
@@ -728,6 +753,8 @@ jobs:
       ENVIRONMENT: development # Avoid production password validation in CI
       CI: 'true'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-services.jsonl
+      # WP5.1: non-hidden pytest-cov DATA file for the merge combine
+      COVERAGE_FILE: coverage-integration-services-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -791,8 +818,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
+          # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-services-py${{ matrix.python-version }}
-          path: coverage-integration-services.xml
+          path: |
+            coverage-integration-services.xml
+            coverage-integration-services-py${{ matrix.python-version }}.dat
           retention-days: 7
 
   integration-tests-models:
@@ -843,6 +873,8 @@ jobs:
       LOG_DB_ENABLED: 'false'
       ENVIRONMENT: development # Avoid production password validation in CI
       CI: 'true'
+      # WP5.1: non-hidden pytest-cov DATA file for the merge combine
+      COVERAGE_FILE: coverage-integration-models-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -897,8 +929,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
+          # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-models-py${{ matrix.python-version }}
-          path: coverage-integration-models.xml
+          path: |
+            coverage-integration-models.xml
+            coverage-integration-models-py${{ matrix.python-version }}.dat
           retention-days: 7
 
   # Merge coverage from all integration test shards
@@ -923,6 +958,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      # WP5.1: combine needs `coverage` installed — same setup as the unit
+      # merge job above (mirrored, kept honest by test_github_workflows'
+      # TestIntegrationCoverageMergeWiring, which asserts this job has these
+      # steps before the combine step runs).
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
       - name: Download all coverage artifacts
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
@@ -932,6 +983,27 @@ jobs:
 
       - name: List coverage files
         run: find coverage-reports/ -name "*.xml" | head -20
+
+      # WP5.1/A2: this merge was download -> find -> Codecov with NO combine
+      # step, so the integration tier never produced a single real percentage.
+      # It now combines the .dat data files into one measurement. Per the
+      # "make it compute, don't make it gate" split this REPORTS the number to
+      # the step summary and does NOT enforce a threshold — R-COVDENOM
+      # (parked, L) decides whether "combined" is the denominator and whether
+      # it ever gates. combine consumes its inputs; the XML copies stay for
+      # Codecov.
+      - name: Combine integration coverage
+        run: |
+          if compgen -G "coverage-reports/*.dat" > /dev/null 2>&1; then
+            uv run coverage combine --data-file=.coverage-integration coverage-reports/*.dat
+            total="$(uv run coverage report --data-file=.coverage-integration \
+              --format=total --fail-under=0)"
+            echo "Integration merged coverage: ${total}% (reported only — R-COVDENOM gates nothing)" \
+              >> "$GITHUB_STEP_SUMMARY"
+            echo "percent=${total}"
+          else
+            echo "::warning::no integration .dat data files found to combine"
+          fi
 
       - name: Upload merged coverage to Codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
