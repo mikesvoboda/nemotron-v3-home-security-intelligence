@@ -6048,3 +6048,58 @@ the docs table or repoint those docs at validate.sh — a threshold that
 executes nowhere is worse than a lower one that does. Frontend: R-FEFLOOR
 stays parked exactly as A3 wrote it; the CI line now reports real
 8-shard-able numbers every run.
+
+## WP7.1 LANDED `f4e9584f` — 38-op AI contract generated from deployed surfaces + drift gate (2026-09-19)
+
+backend/ai_contract/ is generated (scripts/gen-ai-contract.py imports the five
+gateway adapters at GENERATION TIME only; runtime imports nothing from ai.\* -
+the prompts.py:4381 direction pinned by an AST test on the package's own
+source). Registry = 31 functional gateway routes + 3 LLM wire + 4 phantom
+paths = 38. The five gateway /health routes are per-adapter liveness, NOT
+provider capability - deliberately excluded, restated here so a future reader
+doesn't "find" 43.
+
+- Red-first: registry test 5 failed -> 5 passed before the package existed;
+  generator ERROR -> 14 passed; combined 59 passed / 2 pre-existing skips.
+- The 4 phantoms are DECLARED operations so WP7.3 deletes/fixes against a
+  machine-readable gap. Census banked (all zero non-test callers):
+  detect_objects_batch, segment_image, similarity, estimate_depth,
+  estimate_object_distance, get_model_status, preload_model.
+- CLIENT_OP_MAP: 54 public client methods, every one mapped (op id or
+  explicit None for lifecycle/health introspection); 30/38 ops have client
+  methods. The 8 without: the 3 LLM wire (raw httpx, not client classes) +
+  5 gateway routes no client wraps - re-derived at WP7.2 fixture time.
+- DECIDE (follow-on, not a ruling): the 7 LLM /completion call sites
+  (performance_collector + 6 in prompts/ai_service paths) consolidate onto
+  the registry-backed client only in WP7.2+; the registry declares the wire
+  today, the callers move then. Not parked - scheduled.
+- FORMATTER FIXPOINT, second half: first commit attempt aborted on ruff
+  (operations.py), second on prettier (all 36 schema JSONs - the hook
+  collapses short required[] arrays). Schemas now emit via
+  prettier_canonical(): a deterministic implementation of prettier 3.2.4's
+  JSON rules (collapse a primitive-only array iff the line INCLUDING the
+  parent's trailing comma fits printWidth 100 - probed at the 99/100/101
+  boundary; arrays of objects always expand; objects always one-key-per-line)
+  - 36/36 byte-identical to the hook binary, and a test runs a real prettier
+    over every emitted file (skips cleanly when absent). Deliberately NOT a
+    shell-out in the generator: CI must not be able to fork a different
+    prettier into the bytes. Doctrine: generated files emit at EVERY hook's
+    fixpoint, or the drift gate reds with a pure-formatter diff.
+- semgrep path-traversal-open on the registry test's inspect.getfile read:
+  inline # nosemgrep with reason (house precedent, system.py:2560) - the
+  path is importlib-resolved, not user input. Not an allowlist change.
+- CI: api-types-check runs gen-ai-contract.py --check between generate-
+  openapi --check and the Zod step; tamper test proves --check NAMES the
+  drifted file. Live-loop proof rides this PR's run (DEFERRED-NO-CI shape,
+  same as WP6.5).
+- Hook-carry commit `c4d084b1`: pre-push prettier/detect-secrets rewrote
+  suppression-registry.yml + .secrets.baseline that rode in with the base
+  merge; both verified data-identical (yaml.safe_load equality; one
+  line_number shift) before committing - formatting-only, zero quarantine
+  content change.
+- Coverage floor untouched; delta measured into this ledger from the
+  PR's unit run against 72.58% (run 35442826412).
+- Residual: yolo26 request schemas are the multipart marker (no FastAPI
+  model to introspect); yolo26 response side records None (no
+  response_model server-side). Recorded, not faked - WP7.2 goldens for
+  those routes come from FakeProvider (WP8.2), which will declare them.
