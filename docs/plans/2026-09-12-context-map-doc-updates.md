@@ -5197,3 +5197,59 @@ residual tail for the next drafting round.
 Serial-lane note: census was ONE pytest job throughout; the owner-approved
 fan-out lane paused via /tmp/wp25/fanout.pause sentinel for validate.sh, then
 resumes — first production exercise of the carve-out hierarchy.
+
+## WP5.0 PRE-FLIGHT — FOUR PROBES + P ADDENDUM ADOPTED (2026-09-19, swap-readiness plan P, Phase 5)
+
+P = docs/superpowers/plans/2026-09-19-swap-readiness-72h.md — now TRACKED on
+main via #6557 (b301a217); the run started against the byte-identical
+untracked copy (cmp verified). P's ADDENDUM 2026-09-19 (A1-A5, written by the
+handoff pass after the plan body) is adopted: it overrides the body where they
+conflict. A1 importlib drops 60 tests; A2 coverage floor has FOUR declared
+numbers + integration merge ALSO has no combine step (R-COVDENOM); A3
+frontend 84% of the gap is quarantined (R-FEFLOOR); A4 #6556's two
+real-tree gate tests were already red — captured verbatim in the WP5.4
+section below; A5 six owner RULINGS outstanding, owner away.
+
+(a) pre-commit — GREEN. 4.6.2 in .venv; hooks installed (commit + pre-push);
+hook envs build; first commits landed through real hooks, zero skips.
+(b) repo-root .env — ABSENT HERE. 0/8 phantoms reproducible; the two named
+integration files 50 passed. Neutralization not needed in this sandbox;
+the phantom class is host-.env-specific. No general mechanism attempted
+(P: "do not try to solve this generally").
+(c) Postgres durability — ALREADY TUNED. Reference subset (repositories +
+models, 220 tests) 9.59s wall = P's 9.01s tuned figure, not 178.33s.
+Integration budget: tuned rate across the run.
+(d) CI round trip — PROVEN. API 200 via $GH_TOKEN; pushes land with the
+one-shot credential helper (proxy injection inert); #6556 runs observed
+and read. NOTE: gh pr view --jq statusCheckRollup rejects my json shape;
+use `gh pr checks` plain (see memory gh-pr-checks-no-json).
+
+Run baselines: census 13 categories = spec baseline (93 imperative after
+WP5.4; before this branch's work); frontend 80.00/74.61/78.44/80.93 vs
+83/77/81/84 (P A3, re-confirmed by handoff pass); run6 mutation:
+checked=88329/88329 complete, parent dead, scorer dispatched.
+
+## WP5.4 SKIP REMOVED — ratchet red captured then cleared (2026-09-19)
+
+A4 mandate honored: BOTH real-tree gate tests were run first on the
+pre-fix tree (git worktree at 5d1c3d0f) and failed verbatim:
+test_real_tree_ratchet_is_green: "ratchet on real tree failed:
+UNREGISTERED pytest_skip_imperative:
+backend/tests/unit/api/routes/test_media.py:969 — add it to
+.github/suppression-registry.yml (kind+owner+expiry) or remove the
+suppression"
+test_real_tree_matches_spec_baselines: "census vs spec baseline drift:
+pytest_skip_imperative census=94 spec=93"
+(the :969 id is the census path:lineno key — inserting above it would have
+made that id STALE + the removed one UNREGISTERED together; fix REMOVED the
+skip instead of registering: tmp_path always supports symlinks here and on
+ubuntu-latest, verified, so the try/except + else:pytest.skip fallback was
+dead defensive code). Post-fix both tests pass; census 94 -> 93 == baseline
+== ci.yml --expect literal, no ratchet update needed (decrease to baseline is
+restoring, not lowering). Landed on #6556 as 0d901657 (+12171c29 L/record),
+pushed. #6556's other CI reds (TPA rotating rows, 5s CI-Gate fail) are the
+flaky-runner class per ruling 488a7ff9's STOP-AND-ASK clause — NOT this run's
+work; do not rerun-chase.
+
+MEASURE: pytest_skip_imperative 94->93; all other 12 categories unchanged;
+test_media.py 54 passed.
