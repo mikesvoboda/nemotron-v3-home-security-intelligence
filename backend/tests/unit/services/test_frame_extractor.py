@@ -645,3 +645,224 @@ class TestFrameExtractorEdgeCases:
         # Should raise or log error appropriately
         with pytest.raises(Exception):
             await extractor.queue_detection("camera1", file_path, timestamp)
+
+
+# =============================================================================
+# WP4.4 wave-67: directory semantics, guard/boundary exactness, helper contracts
+# =============================================================================
+
+
+class TestFrameExtractorSaveFrameDirectorySemantics:
+    """save_frame must create the full directory chain and tolerate re-saves."""
+
+    def test_save_frame_creates_missing_parent_directories(self, tmp_path) -> None:
+        """save_frame creates frame_save_dir and its parents when missing (parents=True).
+
+        WP4.4 C3: the existing dir test used a tmp_path whose parent already
+        existed, so parents=None/False/omitted mutants never crashed there —
+        in production a missing frame_save_dir would FileNotFoundError every save.
+        """
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        missing_base = tmp_path / "does" / "not" / "exist"
+        extractor = FrameExtractor(redis_client=mock_redis, frame_save_dir=str(missing_base))
+
+        frame = np.zeros((4, 4, 3), dtype=np.uint8)
+        timestamp = datetime(2025, 1, 29, 12, 30, 45, 123456)
+
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
+            mock_imwrite.return_value = True
+            file_path = extractor.save_frame("camera1", frame, timestamp)
+
+        assert (missing_base / "camera1").is_dir()
+        assert Path(file_path).parent == missing_base / "camera1"
+
+    def test_save_frame_twice_to_same_camera_does_not_raise(self, tmp_path) -> None:
+        """Re-saving reuses the camera dir (exist_ok=True) — else second frame FileExistsError."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        extractor = FrameExtractor(redis_client=mock_redis, frame_save_dir=str(tmp_path))
+
+        frame = np.zeros((4, 4, 3), dtype=np.uint8)
+        ts1 = datetime(2025, 1, 29, 12, 30, 45, 123456)
+        ts2 = datetime(2025, 1, 29, 12, 31, 0, 0)
+
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
+            mock_imwrite.return_value = True
+            first = extractor.save_frame("camera1", frame, ts1)
+            second = extractor.save_frame("camera1", frame, ts2)
+
+        assert Path(first).parent == Path(second).parent == tmp_path / "camera1"
+        assert first != second
+
+    def test_save_frame_passes_exact_resolved_path_to_imwrite(self, tmp_path) -> None:
+        """cv2.imwrite gets the exact YYYYMMDD_HHMMSS_us.jpg path (WP4.4 C1/C2).
+
+        The existing test asserted only call_args[1] (the frame), so imwrite(None)
+        and the XX-wrapped strftime format both survived.
+        """
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        extractor = FrameExtractor(redis_client=mock_redis, frame_save_dir=str(tmp_path))
+
+        frame = np.zeros((4, 4, 3), dtype=np.uint8)
+        timestamp = datetime(2025, 1, 29, 12, 30, 45, 123456)
+        expected_name = "20250129_123045_123456.jpg"
+
+        with patch("cv2.imwrite", autospec=True) as mock_imwrite:
+            mock_imwrite.return_value = True
+            file_path = extractor.save_frame("camera1", frame, timestamp)
+
+            written_path = mock_imwrite.call_args.args[0]
+            assert written_path == str(tmp_path / "camera1" / expected_name)
+
+        assert Path(file_path).name == expected_name
+
+
+class TestFrameExtractorMotionDetectionSemantics:
+    """detect_motion guards/boundaries and the sensitivity→threshold curve, exactly."""
+
+    def test_detect_motion_empty_frame_returns_false_without_subtractor_call(self) -> None:
+        """Empty frame short-circuits: exactly False, subtractor never touched."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        extractor = FrameExtractor(redis_client=mock_redis)
+        frame = np.zeros((0, 0, 3), dtype=np.uint8)
+
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
+            mock_apply.return_value = np.zeros((0, 0), dtype=np.uint8)
+            result = extractor.detect_motion(frame, camera_id="camera1")
+
+        assert result is False  # kills `return False -> True`
+        mock_apply.assert_not_called()  # kills `frame.size == 0 -> == 1`
+
+    def test_detect_motion_single_element_frame_is_processed_normally(self) -> None:
+        """A size-1 (non-empty) frame must go through detection, not the empty guard."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        extractor = FrameExtractor(redis_client=mock_redis, motion_sensitivity=0.5)
+        frame = np.array([[[255, 255, 255]]], dtype=np.uint8)  # frame.size == 1
+
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
+            mock_apply.return_value = np.array([[255]], dtype=np.uint8)
+            result = extractor.detect_motion(frame, camera_id="camera1")
+
+        # Original: 1.0 > 0.25 -> True. `== 1` guard mutant returns False.
+        assert result is True
+
+    def test_detect_motion_single_pixel_mask_is_not_treated_as_empty(self) -> None:
+        """A size-1 foreground mask with a nonzero pixel is motion (ratio 1.0)."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        extractor = FrameExtractor(redis_client=mock_redis, motion_sensitivity=0.5)
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
+            mock_apply.return_value = np.array([[255]], dtype=np.uint8)
+            result = extractor.detect_motion(frame, camera_id="camera1")
+
+        assert result is True  # kills `fg_mask.size == 0 -> == 1`
+
+    def test_motion_threshold_follows_documented_squared_curve(self) -> None:
+        """_motion_threshold is exactly (1.0 - sensitivity) ** 2 (docstring curve)."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        for sensitivity, expected in [(0.0, 1.0), (0.1, 0.81), (0.5, 0.25), (0.9, 0.01)]:
+            extractor = FrameExtractor(redis_client=mock_redis, motion_sensitivity=sensitivity)
+            assert extractor._motion_threshold == pytest.approx(expected)  # kills ** 3
+
+    def test_detect_motion_at_exact_threshold_boundary_is_false(self) -> None:
+        """Motion ratio EQUAL to the threshold is NOT motion: comparison is strict >."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+        # sensitivity 0.0 -> threshold (1-0)**2 == 1.0 exactly
+        extractor = FrameExtractor(redis_client=mock_redis, motion_sensitivity=0.0)
+
+        frame = np.zeros((8, 8, 3), dtype=np.uint8)
+        with patch.object(extractor._bg_subtractor, "apply", autospec=True) as mock_apply:
+            mock_apply.return_value = np.full((8, 8), 255, dtype=np.uint8)
+            result = extractor.detect_motion(frame, camera_id="camera1")
+
+        assert result is False  # original: 1.0 > 1.0 False; the >= mutant returns True
+
+    def test_init_accepts_sensitivity_range_endpoints(self) -> None:
+        """Sensitivity 0.0 and 1.0 are documented valid — must construct; ±ε still raises."""
+        from backend.services.frame_extractor import FrameExtractor
+
+        mock_redis = Mock()
+
+        low = FrameExtractor(
+            redis_client=mock_redis, motion_sensitivity=0.0
+        )  # kills `0.0 <=` -> `0.0 <`
+        assert low.motion_sensitivity == 0.0
+        high = FrameExtractor(
+            redis_client=mock_redis, motion_sensitivity=1.0
+        )  # kills `<= 1.0` -> `< 1.0`
+        assert high.motion_sensitivity == 1.0
+
+        with pytest.raises(ValueError):
+            FrameExtractor(redis_client=mock_redis, motion_sensitivity=-0.001)
+        with pytest.raises(ValueError):
+            FrameExtractor(redis_client=mock_redis, motion_sensitivity=1.001)
+
+
+class TestFrameExtractorTestabilityHelpers:
+    """_is_mock / _create_subtractor / _MOG2Wrapper contracts, asserted directly."""
+
+    def test_is_mock_detects_either_marker(self) -> None:
+        """_is_mock is True for _mock_name OR assert_called markers, False otherwise.
+
+        Only directly-callable: every Mock has BOTH attrs (auto-attribute), so
+        marker renames and the hasattr(None, …) mutant are invisible through Mocks.
+        """
+        from types import SimpleNamespace
+
+        from backend.services.frame_extractor import _is_mock
+
+        assert _is_mock(Mock()) is True
+        assert _is_mock(SimpleNamespace(_mock_name="x")) is True
+        assert _is_mock(SimpleNamespace(assert_called=lambda: None)) is True
+        assert _is_mock(SimpleNamespace()) is False
+        assert _is_mock(object()) is False
+
+    def test_mog2_wrapper_stores_and_delegates_subtractor(self) -> None:
+        """_MOG2Wrapper must store the given subtractor and delegate apply() to it."""
+        from backend.services.frame_extractor import _MOG2Wrapper
+
+        class StubSubtractor:
+            def __init__(self) -> None:
+                self.calls = []
+
+            def apply(self, frame):
+                self.calls.append(frame)
+                return frame
+
+        stub = StubSubtractor()
+        wrapper = _MOG2Wrapper(stub)
+
+        assert wrapper._subtractor is stub  # kills the None-store mutant
+        frame = np.zeros((2, 2, 3), dtype=np.uint8)
+        np.testing.assert_array_equal(wrapper.apply(frame), frame)
+        assert stub.calls == [frame]
+
+    def test_create_subtractor_wraps_non_mock_factory_result(self) -> None:
+        """_create_subtractor wraps a REAL (non-Mock) subtractor, retaining it inside."""
+        from types import SimpleNamespace
+
+        from backend.services.frame_extractor import _create_subtractor, _MOG2Wrapper
+
+        stub = SimpleNamespace(apply=lambda frame: frame)  # deliberately NOT a Mock
+        with patch("cv2.createBackgroundSubtractorMOG2", autospec=True) as mock_factory:
+            mock_factory.return_value = stub
+            subtractor = _create_subtractor()
+
+        assert isinstance(subtractor, _MOG2Wrapper)
+        assert subtractor._subtractor is stub  # kills the wraps-None mutant

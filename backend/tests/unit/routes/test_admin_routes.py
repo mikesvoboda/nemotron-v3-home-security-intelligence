@@ -7,6 +7,7 @@ Tests cover:
 - Security: Defense-in-depth access control
 """
 
+import re
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -721,3 +722,61 @@ class TestAdminUserManagement:
         assert response.status_code == 400
         data = response.json()
         assert "cannot delete" in data["detail"].lower() or "your own" in data["detail"].lower()
+
+    def test_create_user_assigns_unique_uuid_ids(
+        self, admin_client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Two created users get distinct, real UUID ids -- never a stub value.
+
+        WP4.4 TEST-GAP (dossier admin.md C): _generate_user_id() returns
+        str(uuid.uuid4()); its surviving mutant returns str(None). The only test
+        touching it never reads data["id"]. users.id is a String(64) primary key,
+        so a constant generator hands every new account the same id -- the second
+        create_user call dies on an IntegrityError, and "None" is not a UUID.
+        """
+        user_data = {
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "SecurePassword123!",  # pragma: allowlist secret
+        }
+
+        # Mock "no existing username/email" -- same stub as the sibling test above.
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db_session.execute.return_value = mock_result
+
+        first = admin_client.post("/api/admin/users", json=user_data)
+        second = admin_client.post(
+            "/api/admin/users", json={**user_data, "email": "second@example.com"}
+        )
+
+        assert first.status_code == 201
+        assert second.status_code == 201
+        first_id = first.json()["id"]
+        second_id = second.json()["id"]
+
+        # str(None) lands the literal "None" in the primary key.
+        assert first_id != "None"
+        assert re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", first_id
+        )
+        # The behavior that actually matters: one id per user.
+        assert first_id != second_id
+
+    def test_admin_access_disabled_message_is_exact(self) -> None:
+        """The 403 body is byte-exact -- operators read it to fix their .env.
+
+        WP4.4 TEST-GAP (dossier admin.md D): the sibling test asserts
+        `"ADMIN_ENABLED=true" in exc_info.value.detail`, which cannot see the
+        XX-clobbered variant survive -- the needle sits inside the clobbered
+        string. Exact equality is house style elsewhere (test_database.py).
+        """
+        from fastapi import HTTPException
+
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.admin_enabled = False
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access()
+
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail == "Admin endpoints require ADMIN_ENABLED=true"

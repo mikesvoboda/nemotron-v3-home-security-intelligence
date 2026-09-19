@@ -4466,3 +4466,183 @@ class TestPipelineLatencyHistoryParameterValidation:
         """The endpoint enforces since/bucket_seconds bounds as documented."""
         response = client.get(f"/api/system/pipeline-latency/history{query}")
         assert response.status_code == expected_status
+
+
+# =============================================================================
+# WP4.4 kill tests — surviving-mutant clusters (triage dossier:
+# .wp25-feed/wp44-triage/system.md, clusters D1/D2/D3/D5)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_latest_gpu_stats_full_payload_contract() -> None:
+    """Latest-row query (DESC, LIMIT 1) + every payload key, exact (WP4.4 gpu-dict cluster).
+
+    Kills get_latest_gpu_stats payload-key clobbers (38 keys) and the
+    latest-row query mutations (order_by/limit/select/execute args, 6 keys).
+    """
+    db = AsyncMock(spec=AsyncSession)
+    mock_gpu_stat = MagicMock()
+    expected = {
+        "recorded_at": datetime(2025, 12, 27, 10, 0, 0),
+        "gpu_name": "NVIDIA RTX A5500",
+        "utilization": 75.5,
+        "memory_used": 12000,
+        "memory_total": 24000,
+        "temperature": 65.0,
+        "power_usage": 120,
+        "inference_fps": 30.5,
+        "fan_speed": 55,
+        "sm_clock": 1400,
+        "memory_bandwidth_utilization": 42,
+        "pstate": "P0",
+        "throttle_reasons": "0x0",
+        "power_limit": 250,
+        "sm_clock_max": 1500,
+        "compute_processes_count": 3,
+        "pcie_replay_counter": 0,
+        "temp_slowdown_threshold": 95,
+        "memory_clock": 7000,
+        "memory_clock_max": 7000,
+        "pcie_link_gen": 4,
+        "pcie_link_width": 16,
+        "pcie_tx_throughput": 12.5,
+        "pcie_rx_throughput": 9.5,
+        "encoder_utilization": 10,
+        "decoder_utilization": 20,
+        "bar1_used": 1024,
+    }
+    for key, value in expected.items():
+        # payload key "utilization" is sourced from the gpu_utilization column
+        setattr(mock_gpu_stat, "gpu_utilization" if key == "utilization" else key, value)
+
+    mock_result = MagicMock(spec=Result)
+    mock_result.scalar_one_or_none.return_value = mock_gpu_stat
+    db.execute = AsyncMock(return_value=mock_result)
+
+    stats = await system_routes.get_latest_gpu_stats(db)  # type: ignore[arg-type]
+
+    # payload key contract — exact dict kills every key clobber/case mutation
+    assert stats == expected
+
+    # latest-row query: ORDER BY recorded_at DESC + LIMIT 1
+    # (plain str() binds the limit as a parameter, so check the clause text
+    # and the statement's limit attribute — literal rendering would need a
+    # dialect compile here)
+    stmt = db.execute.call_args[0][0]
+    assert "recorded_at DESC" in str(stmt)
+    assert stmt._limit == 1
+
+
+@pytest.mark.asyncio
+async def test_check_database_health_pool_metrics_exact() -> None:
+    """Each pool key maps its pool_status source key; missing keys default to 0; error details exact.
+
+    Kills check_database_health pool key/default mutations (33) and the
+    error-details payload mutations (5).
+    """
+    db = AsyncMock(spec=AsyncSession)
+    mock_result = MagicMock(spec=Result)
+    mock_result.scalar_one.return_value = 5
+    db.execute = AsyncMock(return_value=mock_result)
+
+    pool = {
+        "pool_size": 20,
+        "overflow": 5,
+        "checkedin": 15,
+        "checkedout": 10,
+        "total_connections": 25,
+    }
+    with patch("backend.core.database.get_pool_status", autospec=True, return_value=pool):
+        status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
+    assert status.details == {
+        "pool": {
+            "size": 20,
+            "overflow": 5,
+            "checkedin": 15,
+            "checkedout": 10,
+            "total_connections": 25,
+        }
+    }
+
+    # missing pool_status entries fall back to 0 (kills default -> None/1 mutations)
+    with patch("backend.core.database.get_pool_status", autospec=True, return_value={}):
+        status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
+    assert status.details == {
+        "pool": {"size": 0, "overflow": 0, "checkedin": 0, "checkedout": 0, "total_connections": 0}
+    }
+
+    # exception path keeps {"error": str(e)} exactly (kills details=None / {"ERROR": ...} mutations)
+    db_fail = AsyncMock(spec=AsyncSession)
+    db_fail.execute = AsyncMock(side_effect=RuntimeError("db down"))
+    status = await system_routes.check_database_health(db_fail)  # type: ignore[arg-type]
+    assert status.details == {"error": "db down"}
+
+
+@pytest.mark.asyncio
+async def test_check_redis_health_details_payload_exact() -> None:
+    """details redis_version/error keys + defaults are payload contract (WP4.4 redis cluster).
+
+    Kills check_redis_health version/error details mutations (25) and the
+    redis_version default mutations (4).
+    """
+    # healthy WITHOUT a version field -> default "unknown"
+    redis = AsyncMock(spec=RedisClient)
+    redis.health_check = AsyncMock(return_value={"status": "healthy"})
+    status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
+    assert status.details == {"redis_version": "unknown"}
+
+    # unhealthy payload WITHOUT an error field -> default text in message AND details
+    redis = AsyncMock(spec=RedisClient)
+    redis.health_check = AsyncMock(return_value={"status": "unhealthy"})
+    status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
+    assert status.message == "Redis connection error"
+    assert status.details == {"error": "Redis connection error"}
+
+    # exception path keeps {"error": str(e)}
+    redis = AsyncMock(spec=RedisClient)
+    redis.health_check = AsyncMock(side_effect=ConnectionError("connection refused"))
+    status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
+    assert status.details == {"error": "connection refused"}
+
+    # redis=None DI-failure branch keeps its error detail dict
+    status = await system_routes.check_redis_health(None)
+    assert status.details == {"error": "Redis client not available"}
+
+
+@pytest.mark.asyncio
+async def test_emit_health_status_changes_payload_and_wiring() -> None:
+    """update_all_components gets exact component-keyed statuses/details; ws emitter wired exactly once.
+
+    Kills _emit_health_status_changes statuses/details payload mutations (19)
+    and the emitter wiring branch mutations (5).
+    """
+    emitter = AsyncMock()
+    emitter._emitter = None  # force the lazy wiring branch
+    ws_emitter = MagicMock()
+
+    with (
+        patch.object(
+            system_routes, "get_health_event_emitter", autospec=True, return_value=emitter
+        ),
+        patch(
+            "backend.services.websocket_emitter.get_websocket_emitter_sync",
+            autospec=True,
+            return_value=ws_emitter,
+        ) as ws_get,
+    ):
+        await system_routes._emit_health_status_changes(
+            "healthy",
+            "degraded",
+            "unhealthy",
+            db_details={"pool": {}},
+            redis_details={},
+            ai_details=None,
+        )
+
+    ws_get.assert_called_once()
+    emitter.set_emitter.assert_called_once_with(ws_emitter)
+    emitter.update_all_components.assert_awaited_once_with(
+        statuses={"database": "healthy", "redis": "degraded", "ai_service": "unhealthy"},
+        details={"database": {"pool": {}}, "redis": {}, "ai_service": {}},
+    )

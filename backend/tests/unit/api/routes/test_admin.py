@@ -1369,3 +1369,66 @@ class TestAdminAuditLogging:
         assert call_args.kwargs["action"] == AuditAction.DATA_CLEARED
         assert call_args.kwargs["status"] == AuditStatus.SUCCESS
         assert call_args.kwargs["details"]["operation"] == "clear_seeded_data"
+
+
+class TestWp44AdminSampleContract:
+    """WP4.4 kill gaps: exact sample-camera payload + admin 403 detail (admin.md A+B+D)."""
+
+    def test_get_sample_cameras_exact_canonical_contract(self) -> None:
+        """Pin the EXACT sample-camera contract: id / name / folder_path / status.
+
+        WP4.4 TEST-GAP (dossier admin.md A+B, 28 mutants): surviving mutants are
+        pure string-literal edits to the id/name values (XX-clobber, .upper(),
+        .lower()). They survive because sibling tests assert only len == 6, the
+        key set, a folder_path *prefix* and status membership -- never a value.
+        Those values are load-bearing: seed_cameras passes id straight into
+        Camera.id, a String primary key (admin.py -> models/camera.py), and name
+        is the UI display label, so a clobbered literal renames every seeded
+        camera. Order-sensitive on purpose: seed_cameras slices [:count], so the
+        list order IS the count<6 subset contract.
+        """
+        from backend.api.routes.admin import _get_sample_cameras
+
+        with patch("backend.api.routes.admin.get_settings", autospec=True) as mock_settings:
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+
+            cameras = _get_sample_cameras()
+
+        assert cameras == [
+            {
+                "id": "front-door",
+                "name": "Front Door",
+                "folder_path": "/export/foscam/front_door",
+                "status": "online",
+            },
+            {
+                "id": "backyard",
+                "name": "Backyard",
+                "folder_path": "/export/foscam/backyard",
+                "status": "online",
+            },
+            {
+                "id": "garage",
+                "name": "Garage",
+                "folder_path": "/export/foscam/garage",
+                "status": "offline",
+            },
+            {
+                "id": "driveway",
+                "name": "Driveway",
+                "folder_path": "/export/foscam/driveway",
+                "status": "online",
+            },
+            {
+                "id": "side-gate",
+                "name": "Side Gate",
+                "folder_path": "/export/foscam/side_gate",
+                "status": "online",
+            },
+            {
+                "id": "living-room",
+                "name": "Living Room",
+                "folder_path": "/export/foscam/living_room",
+                "status": "offline",
+            },
+        ]
