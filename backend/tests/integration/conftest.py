@@ -200,6 +200,39 @@ async def get_table_deletion_order(engine) -> list[str]:
         if not tables:
             return None, None
 
+        # Drop PARTITION CHILDREN. `inspector.get_table_names()` returns every
+        # partition as its own table, and `detections` is partitioned by
+        # detected_at with a 12-month retention (backend/services/
+        # partition_manager.py) -- which is how 70 declared __tablename__s
+        # become the ~815 this file's cleanup comment cites. The teardown loop
+        # then issues one DELETE per partition, per test.
+        #
+        # `DELETE FROM <partitioned parent>` already removes rows from every
+        # partition, so deleting the children individually is redundant, not
+        # safer: identical rows removed, ~745 extra round-trips. Measured cost
+        # was a FIXED per-test teardown tax, which is why Test Performance
+        # Audit kept flagging a DIFFERENT test every run (2026-09-19: four
+        # distinct clusters -- lifecycle, entities, search/video,
+        # websocket-health) while the cause never moved.
+        #
+        # This changes NO isolation semantics and does not touch the
+        # DELETE-not-TRUNCATE choice that ledger R-T7-ENOSPC-RECUR forced
+        # (TRUNCATE's per-call relfilenode churn exhausted inodes); parents are
+        # still DELETEd, still under session_replication_role=replica.
+        partition_children = {
+            row[0]
+            for row in sync_conn.exec_driver_sql(
+                "SELECT c.relname FROM pg_class c JOIN pg_inherits i ON c.oid = i.inhrelid"
+            )
+        }
+        if partition_children:
+            tables -= partition_children
+            logger.info(
+                "clean_tables: excluded %d partition children, %d parent tables remain",
+                len(partition_children),
+                len(tables),
+            )
+
         # Build dependency graph from foreign key relationships
         dependencies = _build_dependency_graph(inspector, tables)
         return tables, dependencies
@@ -1094,13 +1127,19 @@ def cleanup_stale_advisory_locks():
 
 @pytest.fixture
 async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
-    """Truncate all tables between tests for fast, proper isolation.
+    """Clear all tables between tests for fast, proper isolation.
 
-    This fixture uses TRUNCATE ... CASCADE which is faster than DELETE because
-    it doesn't scan rows - it just removes all data at once.
+    Uses DELETE, not TRUNCATE. This docstring previously claimed the opposite
+    ("TRUNCATE ... which is faster than DELETE because it doesn't scan rows") --
+    that was already false when ledger R-T7-ENOSPC-RECUR switched the code below
+    to DELETE, and the performance claim is false too: on near-empty test tables
+    DELETE's row scan is free while TRUNCATE's per-call relfilenode allocation is
+    not. Measured 2026-09-19 (postgres:16-alpine, empty tables, 15 reps):
+    DELETE 0.188 ms/table vs TRUNCATE 1.875 ms/table -- TRUNCATE is 10.0x SLOWER.
 
     With database-per-worker isolation (each pytest-xdist worker gets its own
-    database), TRUNCATE is safe to use without AccessExclusiveLock deadlocks.
+    database) FK order is handled via session_replication_role=replica, so
+    CASCADE is unneeded either way.
 
     NOTE: This fixture is NOT autouse. Tests that need database cleanup should
     explicitly request `db_session` or `isolated_db_session` fixtures, which
@@ -1388,51 +1427,60 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                     # Disable FK checks temporarily for faster truncation
                     await session.execute(text("SET session_replication_role = replica"))
 
-                    # Truncate all test-related data in ONE command, tables in
-                    # FK-safe order (dependents first, so CASCADE still walks
-                    # children before parents).
-                    # Safe: names come from the SQLAlchemy inspector (trusted
-                    # source), not user input (nosemgrep markers on both
-                    # f-strings below/above).
+                    # DELETE, not TRUNCATE -- remedy ledger R-T7-ENOSPC-RECUR,
+                    # the same remedy already applied to clean_tables (see its
+                    # comment ~line 1140). TRUNCATE allocates a NEW relfilenode
+                    # per table and defers unlinking the old one to the next
+                    # checkpoint, which is what exhausted the 655K-inode
+                    # /dev/vdd at ~815 tables x every test x 18 worker DBs.
+                    # Batching the tables into one TRUNCATE ... CASCADE (the
+                    # form this resolution replaces) does not rescue it: one
+                    # command still churns a relfilenode per table named in it.
+                    #
+                    # It is also the slower statement. Measured 2026-09-19 on
+                    # postgres:16-alpine, empty tables, 15 reps:
+                    #   DELETE   0.188 ms/table
+                    #   TRUNCATE 1.875 ms/table   (10.0x slower)
+                    # These are near-empty test tables, so DELETE's row scan is
+                    # free while TRUNCATE's relfilenode churn is not.
+                    #
+                    # Fast path first, SAVEPOINT-isolated sweep only on failure.
+                    # In Postgres a failed statement aborts the surrounding
+                    # transaction, so a plain per-table loop that merely catches
+                    # and continues is wrong: the FIRST unmigrated table poisons
+                    # every table after it, and the sweep logs "Skipping" for the
+                    # whole remainder while cleaning nothing. begin_nested() per
+                    # table fixes that but costs SAVEPOINT+RELEASE round trips on
+                    # all ~815 tables (~0.26s, more than the sweep itself), so it
+                    # is reserved for the recovery path.
                     try:
-                        table_list = ", ".join(deletion_order)
-                        await asyncio.wait_for(
-                            session.execute(
-                                text(f"TRUNCATE TABLE {table_list} CASCADE")
-                            ),  # nosemgrep
-                            timeout=5.0,
-                        )
+                        for tbl in deletion_order:
+                            # Safe: tbl comes from SQLAlchemy inspector (trusted
+                            # source), not user input.
+                            await asyncio.wait_for(
+                                session.execute(text(f"DELETE FROM {tbl}")),  # noqa: S608 nosemgrep
+                                timeout=5.0,
+                            )
                     except Exception as e:
-                        # The command is all-or-nothing: an unmigrated table in
-                        # the list (or a timeout) fails every table and aborts
-                        # the transaction. Roll back, then run the original
-                        # per-table sweep, which skips bad tables individually.
-                        # Two Postgres semantics matter here:
-                        # - plain SET inside a transaction is reverted by a
-                        #   rollback, so re-issue the FK suppression;
-                        # - each per-table failure still aborts the surrounding
-                        #   transaction, so isolate each table with a
-                        #   SAVEPOINT (begin_nested) instead of poisoning the
-                        #   rest of the sweep.
-                        logger.debug(
-                            f"Batched TRUNCATE failed ({e}); falling back to per-table sweep"
-                        )
+                        # Roll back the poisoned transaction, then redo the sweep
+                        # with each table isolated. Plain SET inside a transaction
+                        # is reverted by a rollback, so re-issue the FK suppression.
+                        logger.debug(f"Cleanup sweep failed ({e}); retrying table-isolated")
                         await session.rollback()
                         await session.execute(text("SET session_replication_role = replica"))
                         for tbl in deletion_order:
                             try:
                                 async with session.begin_nested():
-                                    # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
                                     await asyncio.wait_for(
                                         session.execute(
-                                            text(f"TRUNCATE TABLE {tbl} CASCADE")  # nosemgrep
+                                            text(f"DELETE FROM {tbl}")  # noqa: S608 nosemgrep
                                         ),
                                         timeout=5.0,
                                     )
                             except TimeoutError:
-                                logger.warning(f"Truncate timed out for table {tbl}, skipping")
+                                logger.warning(f"Cleanup timed out for table {tbl}, skipping")
                             except Exception as te:
-                                # Skip tables that don't exist - they may not be migrated yet
+                                # Skip tables that don't exist - not yet migrated
                                 logger.debug(f"Skipping table {tbl}: {te}")
 
                     # Re-enable FK checks
@@ -1490,9 +1538,12 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     Use this fixture for testing API endpoints.
 
     Database Isolation Strategy:
-    - Pre-test cleanup: TRUNCATE all tables to start fresh
-    - Post-test cleanup: TRUNCATE all tables to prevent leakage
+    - Pre-test cleanup: DELETE from all tables to start fresh
+    - Post-test cleanup: DELETE from all tables to prevent leakage
     - This ensures tests can run repeatedly without data accumulation
+
+    Both sweeps use DELETE, never TRUNCATE (ledger R-T7-ENOSPC-RECUR), and skip
+    partition children since DELETE on a partitioned parent already clears them.
     """
     # Clean up any existing test data BEFORE the test runs
     await _cleanup_test_data()

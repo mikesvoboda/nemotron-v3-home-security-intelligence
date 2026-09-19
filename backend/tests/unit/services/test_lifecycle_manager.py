@@ -18,10 +18,9 @@ TDD: These tests are written FIRST, before implementing the LifecycleManager.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from freezegun import freeze_time
 
 from backend.api.schemas.services import ContainerServiceStatus, ServiceCategory
 from backend.services.lifecycle_manager import (
@@ -853,7 +852,6 @@ class TestHandleUnhealthy:
         mock_docker_client.start_container.assert_not_called()
 
     @pytest.mark.asyncio
-    @freeze_time("2026-09-19T12:00:00+00:00")
     async def test_handle_unhealthy_stamps_last_failure_at_after_restart_check(
         self,
         lifecycle_manager: LifecycleManager,
@@ -866,16 +864,29 @@ class TestHandleUnhealthy:
         erases the failure timestamp — every later should_restart() then takes the
         ``last_failure_at is None`` early-return and the backoff ladder collapses into
         an immediate-restart loop. No existing test asserted this field on this path:
-        every prior ``last_failure_at`` mention was SETUP. Clock pinned by freezegun
-        inside this test only (per-test freeze discipline).
+        every prior ``last_failure_at`` mention was SETUP.
+
+        Clock pinned by patching THIS module's `datetime` rather than freezegun.
+        freezegun's cost scales with the number of modules loaded — it walks
+        sys.modules rebinding every datetime reference — so it is ~1s alone and
+        **18.19s inside the full 27.5k-test unit run**, against the Test
+        Performance Audit's 4.0s unit budget (355% over; measured twice, runs
+        35452965602 and 35455064785). `handle_unhealthy` reads the clock once
+        (lifecycle_manager.py:423) and `should_restart` early-returns here
+        because `last_failure_at` starts None, so a narrow patch pins exactly
+        what freezegun pinned. The C8 assertion below is unchanged: the mutant
+        `= None` still fails it.
         """
+        frozen = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
         ai_service.failure_count = 0
         ai_service.last_failure_at = None
         mock_registry.increment_failure.return_value = 1
 
-        await lifecycle_manager.handle_unhealthy(ai_service)
+        with patch("backend.services.lifecycle_manager.datetime", autospec=True) as mock_datetime:
+            mock_datetime.now.return_value = frozen
+            await lifecycle_manager.handle_unhealthy(ai_service)
 
-        assert ai_service.last_failure_at == datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
+        assert ai_service.last_failure_at == frozen
         assert ai_service.failure_count == 1
 
     @pytest.mark.asyncio
