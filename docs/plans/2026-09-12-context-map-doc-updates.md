@@ -5253,3 +5253,49 @@ work; do not rerun-chase.
 
 MEASURE: pytest_skip_imperative 94->93; all other 12 categories unchanged;
 test_media.py 54 passed.
+
+## WP5.1 COVERAGE INSTRUMENTS FIXED — both merges really combine (2026-09-19)
+
+**Red first:** `backend/tests/integration/test_github_workflows.py` gained
+`TestUnitCoverageMergeWiring` (5) + `TestIntegrationCoverageMergeWiring` (3) —
+6 failed / 2 passed pre-fix. Post-fix 8/8 green; full file 29 passed / 2 skipped;
+`scripts/test_shard_retry_wiring.py` invariants hold (artifact glob-coupling).
+
+**What was actually broken (all MEASURED against ci.yml@main, not inferred):**
+
+1. Unit merge combine globbed `.coverage.*` in the job CWD. download-artifact v7
+   extracts under `path: coverage-reports/`, so the glob NEVER matched; the
+   vacuous `touch .coverage` else-branch ran on EVERY run → `merged=true` never
+   fired → `coverage-baseline.json` (WP0.9) was never minted → the PR diff gate
+   had no real base number. The 85% floor was enforced by zero gates.
+2. No shard shipped a DATA file at all — uploads were Cobertura XML only, and
+   XML cannot be combined by `coverage combine`. Even a correct glob had nothing
+   to combine.
+3. Integration merge (A2) had NO combine step: download → find → Codecov. The
+   integration tier never produced a single percentage, ever.
+
+**Fix:** every backend test job sets `COVERAGE_FILE` to a non-hidden, shard- and
+retry-suffix-unique `.dat` (upload-artifact v6 drops dotfiles — hidden names die
+silently in upload); uploads carry the `.dat` beside the XML with unchanged
+artifact names; unit combine now runs
+`coverage combine --data-file=.coverage coverage-reports/*.dat` and publishes the
+baseline ONLY from that path; integration-coverage-merge gained uv/deps setup +
+a `Combine integration coverage` step that reports the combined % to
+GITHUB_STEP_SUMMARY and gates nothing.
+
+**RULING untouched:** `R-COVDENOM` stays parked (A2) — this makes the combined
+number COMPUTE and be visible; it does not pick a denominator or a gate.
+`--fail-under=0` is number extraction, not a floor change; no floor lowered, no
+omit added, no allowlist widened. The wiring tests pin the parked ruling's
+_behavior_ (characterization per PARK-DON'T-GUESS), citing R-COVDENOM.
+
+**Local proof before CI:** COVERAGE_FILE yields exactly one data file per shard
+even under xdist (empirically verified);
+`coverage combine --data-file=X <explicit .dat paths>` works and consumes inputs
+(a rerun over reused filenames fails "Couldn't combine from non-existent path" —
+combine deletes inputs; XML copies under coverage-reports/ stay for Codecov).
+
+**Commits:** red tests `90348c3a`, fix `f41d4ace`, on `feat/wp5-instruments`
+(docs `25405f7a`/`74de0627` ride the same branch). Phase-5 draft PR to follow
+with CI proof: `merged=true` + baseline publish + first-ever real merged
+backend coverage % recorded here before any Phase-7 commit.
