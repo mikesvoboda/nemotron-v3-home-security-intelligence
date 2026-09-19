@@ -8,15 +8,15 @@ process, so format_detections_with_quality() had been raising
 ModuleNotFoundError on every production call — invisible to a suite that
 only asserted its signature.
 
-WHY THE DUPLICATION EXISTS: ai/yolo26/Dockerfile is an explicit per-file
-COPY list and does not copy contract.py; teaching model.py to import it
-would break the container at startup (section 1 of the swap-readiness plan
-bans import-statement edits to model.py outright). model.py therefore keeps
-its inline copies of these symbols. The parity is guarded by
-backend/tests/unit/services/test_prompts.py::
-TestDetectionContractParity — if the two definitions ever diverge, CI names
-the symbol. Dockerfile wiring (making the container use this module and
-deleting the duplicate) is parked as a RULING for the owner.
+HISTORY (A7.3 / WP6-A): model.py used to carry inline copies of these
+symbols because ai/yolo26/Dockerfile's explicit per-file COPY list left
+contract.py out of the image — importing it there would have broken
+startup. The Dockerfile now COPYs this file flat next to model.py and
+model.py does `from contract import ...`, so backend and container share
+ONE definition. The duplicate is deleted (ratcheted absent by
+ai/yolo26/tests/test_model.py::TestContractSeam, repo-side; the
+ai-yolo26-image-smoke CI job proves `import model` inside the built
+image).
 """
 
 from __future__ import annotations

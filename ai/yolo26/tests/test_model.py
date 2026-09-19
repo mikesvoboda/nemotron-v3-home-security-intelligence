@@ -2147,5 +2147,81 @@ class TestEnhanceDetections:
         assert result[0].class_name == "bicycle"
 
 
+class TestContractSeam:
+    """A7.3 (WP6-A): model.py's quality-indicator symbols ARE contract.py's.
+
+    The container image COPYs contract.py flat next to model.py (the
+    Dockerfile line this class guards from the repo side), so the inline
+    copies model.py carried for 316 lines - kept only because the image
+    never shipped contract.py - are gone: model.py imports the shared leaf.
+
+    RED until the swap lands: the inline classes report __module__ of
+    "ai.yolo26.model" (conftest canonicalizes the flat name to the package
+    module) and are distinct objects from the bare `contract` module. After
+    the swap both halves hold, and any resurrection of an inline definition
+    reddens here by name (__module__ would flip back).
+
+    Container-side identity (the FULL proof: image build + `import model`
+    inside it) runs in CI as the ai-yolo26-image-smoke job - podman cannot
+    build in this sandbox, so this class is the repo-side half: same-file
+    identity via the bare `contract` sys.modules entry that model.py's own
+    `from contract import` creates.
+    """
+
+    SEAM_SYMBOLS = (
+        "ConfidenceQuality",
+        "compute_confidence_quality",
+        "get_confidence_explanation",
+        "SpatialContext",
+        "compute_spatial_context",
+        "EnhancedDetection",
+        "enhance_detections",
+    )
+
+    def test_model_symbols_originate_in_contract_module(self) -> None:
+        for name in self.SEAM_SYMBOLS:
+            origin = getattr(model_module, name).__module__
+            assert origin == "contract", f"model.{name} defined in {origin!r}, not the shared leaf"
+
+    def test_model_reexports_are_the_same_objects(self) -> None:
+        # `import contract` resolves through the same sys.path entry model.py's
+        # shim added (its dir is appended at model-import time above), so this
+        # is the SAME sys.modules["contract"] object model.py bound from.
+        import contract
+
+        for name in self.SEAM_SYMBOLS:
+            assert getattr(model_module, name) is getattr(contract, name), name
+
+    def test_seam_behavior_survives_the_swap(self) -> None:
+        # The tier boundaries test_prompts.py's WP9.1 parity class pinned for
+        # the duplicated pair must hold across the single definition too
+        # (this is the behavior the parity test guarded, kept as a spot-check).
+        assert (
+            model_module.compute_confidence_quality(0.95)
+            is model_module.ConfidenceQuality.EXCELLENT
+        )
+        assert model_module.compute_confidence_quality(0.80) is model_module.ConfidenceQuality.GOOD
+        assert (
+            model_module.compute_confidence_quality(0.65) is model_module.ConfidenceQuality.MODERATE
+        )
+        assert (
+            model_module.compute_confidence_quality(0.30) is model_module.ConfidenceQuality.MARGINAL
+        )
+        ctx = model_module.compute_spatial_context(900, 500, 200, 100, 1920, 1080)
+        assert not ctx.is_at_boundary
+        enhanced = model_module.enhance_detections(
+            [
+                {
+                    "class": "person",
+                    "confidence": 0.95,
+                    "bbox": {"x": 10, "y": 10, "width": 20, "height": 20},
+                }
+            ],
+            640,
+            480,
+        )
+        assert enhanced[0].confidence_quality is model_module.ConfidenceQuality.EXCELLENT
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

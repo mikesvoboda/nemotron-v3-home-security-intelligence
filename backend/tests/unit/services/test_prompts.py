@@ -7757,16 +7757,21 @@ class TestFormatDetectionsWithQualityExecution:
 
 
 class TestDetectionContractParity:
-    """WP9.1: ai/yolo26/contract.py must stay behaviorally identical to
-    model.py's inline copies of the same symbols (the Dockerfile's per-file
-    COPY list keeps both; if they diverge, prompts.py and the container
-    disagree about what a "marginal" detection even is).
+    """WP9.1 parity class, A7.3 (WP6-A) interim state: the inline copies are
+    gone (model.py now does `from contract import ...`), so every comparison
+    below runs on the SAME objects and passes trivially - that is exactly
+    what makes it a ratchet: if anyone re-inlines a definition, the classes
+    split apart and this class reddens on the tier/hash/field asserts again.
 
-    Compares behavior, not source text: same tier boundaries, same
-    explanation strings, same spatial math, same prompt formatting — across
-    a grid of inputs. Importing ai.yolo26.model here is deliberate: this is
-    the ONLY prompt test allowed to pull torch (contract divergence is a
-    torch-cost problem the execution tests must not pay).
+    A7.3's retirement order: "The parity test stays until (3) is green, then
+    retires with the duplication" - (3) is the ai-yolo26-image-smoke CI job
+    (build the image, `import model` inside it). This class retires in the
+    commit that follows that job's first GREEN run; TestContractSeam in
+    ai/yolo26/tests/test_model.py carries the repo-side guard meanwhile.
+
+    Importing ai.yolo26.model here is still deliberate: this is the ONLY
+    prompt test allowed to pull torch (kept honest by the grid below, which
+    exercises the shared leaf's real behavior, not just identity).
     """
 
     def test_contract_symbols_match_model_copy(self) -> None:
