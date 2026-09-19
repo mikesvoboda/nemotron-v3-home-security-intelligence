@@ -1,16 +1,27 @@
-"""Regression tests for the integration cleanup sweep (PR #6553 perf audit).
+"""Regression tests for the integration cleanup sweep.
 
-The ``test-performance-audit`` gate went red because the per-test TRUNCATE
-sweep in ``backend/tests/integration/conftest.py`` issued one
-``TRUNCATE TABLE <t> CASCADE`` round-trip per table — 74 statements per
-sweep, run twice per test — whose wall time on CI runners pushed several
-tests over the 10s integration threshold (WP0.5 gate, ci.yml).
+``_cleanup_test_data`` in ``backend/tests/integration/conftest.py`` runs
+before every client-using integration test, so its per-sweep cost is a fixed
+tax on the whole tier and its correctness decides whether the tier starts
+from a clean database.
 
-These tests pin the repaired contract: ONE
-``TRUNCATE TABLE t1, t2, ... CASCADE`` command per sweep instead of N
-round-trips (Postgres accepts a comma-separated table list natively;
-measured 0.22s vs 0.63s per sweep locally, ~3x, and the saving scales
-with per-round-trip latency, which is exactly what CI amplifies).
+These tests pin the contract that landed in #6569 and survived this branch's
+merge of main:
+
+1. ONE ``DELETE FROM <table>`` per table, in the reflected FK-safe order.
+2. ZERO ``TRUNCATE``. This is the load-bearing one. Remedy ledger
+   R-T7-ENOSPC-RECUR bans TRUNCATE here — it allocates a new relfilenode per
+   table and defers the unlink to the next checkpoint, which exhausted the
+   655K-inode /dev/vdd at ~815 tables x every test x 18 worker DBs. An
+   earlier revision of THIS FILE asserted the opposite (exactly one
+   comma-joined ``TRUNCATE ... CASCADE``), which is why the guard is now
+   stated as a prohibition rather than left implicit.
+3. FK suppression opened before the sweep and restored after.
+
+TRUNCATE is also slower on these near-empty tables — measured 2026-09-19 on
+postgres:16-alpine, 15 reps: DELETE 0.188 ms/table vs TRUNCATE 1.875
+ms/table (10.0x). The batched form is no rescue: one command still churns a
+relfilenode per table it names.
 
 Precedent for unit-testing integration conftest helpers:
 ``test_redis_prefix_isolation.py`` (imports ``PrefixedRedis``).
@@ -65,27 +76,42 @@ def sweep(monkeypatch: pytest.MonkeyPatch) -> _RecordingSession:
     return session
 
 
-async def test_sweep_issues_a_single_truncate_command(sweep: _RecordingSession) -> None:
-    """One TRUNCATE per sweep, not one per table (the #6553 regression)."""
+async def test_sweep_issues_one_delete_per_table(sweep: _RecordingSession) -> None:
+    """Exactly one DELETE per table — no redundant round trips."""
     await _cleanup_test_data()
 
-    truncates = [s for s in sweep.statements if s.strip().upper().startswith("TRUNCATE")]
-    assert len(truncates) == 1, (
-        f"cleanup sweep issued {len(truncates)} TRUNCATE round-trips; the "
-        f"post-#6553 contract is exactly one comma-joined TRUNCATE"
+    deletes = [s for s in sweep.statements if s.strip().upper().startswith("DELETE")]
+    assert len(deletes) == 3, (
+        f"cleanup sweep issued {len(deletes)} DELETE statements for 3 tables; "
+        f"the contract is one per table: {deletes}"
     )
 
 
-async def test_single_truncate_covers_every_table(sweep: _RecordingSession) -> None:
-    """The one TRUNCATE lists all tables (CASCADE retained)."""
+async def test_sweep_never_issues_truncate(sweep: _RecordingSession) -> None:
+    """TRUNCATE is BANNED on this path (remedy ledger R-T7-ENOSPC-RECUR).
+
+    It allocates a new relfilenode per table and defers the unlink to the next
+    checkpoint, which is what exhausted the 655K inodes on /dev/vdd. The
+    batched ``TRUNCATE t1, t2, ... CASCADE`` form does not escape this — one
+    command still churns a relfilenode per table it names — so the assertion
+    is on the STATEMENT being absent entirely, not on how many were issued.
+    """
     await _cleanup_test_data()
 
-    truncates = [s for s in sweep.statements if s.strip().upper().startswith("TRUNCATE")]
-    assert len(truncates) == 1
-    sql = truncates[0]
+    truncates = [s for s in sweep.statements if "TRUNCATE" in s.upper()]
+    assert truncates == [], (
+        "cleanup sweep issued TRUNCATE, which remedy ledger R-T7-ENOSPC-RECUR "
+        f"bans on this path (inode exhaustion): {truncates}"
+    )
+
+
+async def test_sweep_covers_every_table(sweep: _RecordingSession) -> None:
+    """Every table in the deletion order is actually swept."""
+    await _cleanup_test_data()
+
+    swept = " ".join(s for s in sweep.statements if s.strip().upper().startswith("DELETE"))
     for table in ("events", "cameras", "alerts"):
-        assert table in sql, f"table {table!r} missing from sweep: {sql}"
-    assert "CASCADE" in sql.upper()
+        assert table in swept, f"table {table!r} never swept: {sweep.statements}"
 
 
 async def test_sweep_still_toggles_replication_role(sweep: _RecordingSession) -> None:

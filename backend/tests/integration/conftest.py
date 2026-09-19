@@ -1385,19 +1385,34 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
     foreign key constraints) to prevent orphaned entries from accumulating
     in the database.
 
-    Uses TRUNCATE ... CASCADE for speed (faster than DELETE because it doesn't
-    scan rows). With database-per-worker isolation, TRUNCATE is safe to use
-    without AccessExclusiveLock deadlocks.
+    Uses ``DELETE FROM`` per table, NOT ``TRUNCATE``. Remedy ledger
+    R-T7-ENOSPC-RECUR bans TRUNCATE on this path: it allocates a new
+    relfilenode per table and defers unlinking the old one to the next
+    checkpoint, which exhausted the 655K-inode /dev/vdd at ~815 tables x
+    every test x 18 worker DBs. Batching the tables into one comma-joined
+    ``TRUNCATE ... CASCADE`` does not rescue that — a single command still
+    churns one relfilenode per table it names.
 
-    Issues ONE ``TRUNCATE TABLE t1, t2, ... CASCADE`` command per sweep
-    (Postgres accepts a comma-separated table list) rather than one
-    round-trip per table. The per-table loop cost 74 round-trips per sweep,
-    run twice per test, and its wall time scales with per-round-trip latency
-    — which is exactly what slow CI storage amplifies. That per-test cost is
-    what pushed 4 tests over the 10s ``test-performance-audit`` threshold in
-    #6553; the single command is ~3x faster even on local postgres. The
-    comma list follows the reflected FK-safe deletion order, so CASCADE
-    still walks children-before-parents regardless of lock ordering.
+    TRUNCATE is also the SLOWER statement here, contrary to the folklore this
+    paragraph used to repeat. Measured 2026-09-19 on postgres:16-alpine over
+    15 reps against these near-empty test tables:
+
+        DELETE    0.188 ms/table
+        TRUNCATE  1.875 ms/table   (10.0x slower)
+
+    DELETE's row scan is free when there are almost no rows; TRUNCATE's
+    relfilenode churn is not. The per-table loop follows the reflected
+    FK-safe deletion order, with ``session_replication_role = replica``
+    suppressing FK checks for the duration, so children still clear before
+    parents.
+
+    The loop runs unguarded first and only falls back to per-table SAVEPOINT
+    isolation on failure: in Postgres a failed statement aborts the whole
+    transaction, so a single unmigrated table would otherwise roll back even
+    the deletes that had already succeeded (verified — see
+    ``backend/tests/unit/test_integration_cleanup_sweep.py``). Isolating
+    every table up front would cost SAVEPOINT+RELEASE round trips on all
+    ~815 tables, more than the sweep itself.
 
     Implements retry logic with exponential backoff for transient failures.
 
