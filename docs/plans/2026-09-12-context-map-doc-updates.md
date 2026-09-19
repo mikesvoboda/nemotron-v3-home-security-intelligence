@@ -6149,3 +6149,60 @@ doesn't "find" 43.
   only. CI drift-gate proof still pending on PR #6562: the api-types-check
   job runs `--check` against the pushed tree (marked ready; checks not yet
   reported at ledger time).
+
+## WP7.3 PARTIAL — 2 carry-cost deletions landed; 5 targets PARKED on the test-file rule (2026-09-19)
+
+- LANDED `b575846d`: `DetectorClient.detect_objects_batch` + private
+  `_detect_batch_fallback` deleted (145 lines). Census 0 non-test call sites
+  (grep, backend/+scripts/ - the ai/yolo26/model.py:2256 same-spelling hit is
+  the server's own /detect/batch ROUTE, a different symbol; the census scope
+  records why ai/ can never consumer-call a backend client method). 0 test
+  references - the only target in the plan's list with NONE, which is what
+  made it deletable under GOAL ("NEVER a test file"). Registry keeps the
+  `yolo26_detect_batch` OPERATION (deployed gateway route);
+  `client_methods=[]`.
+- LANDED `e6c39259`: yolo26 `/track` deleted from `ai/yolo26/model.py` (304
+  lines: route + `DetectorModel.track` + `TrackedDetection`/`TrackingResponse`,
+  all exclusive). Census: 0 hits in backend/+scripts/ endpoint strings, 0 in
+  gateway, 0 in BOTH test_model.py copies, absent from the 38-op registry and
+  openapi.json. No import statement touched (flat-COPY container rule).
+- Ratchet pattern for both: `DELETED_CARRY_COST` /
+  `DELETED_SERVER_ROUTES` in the registry test - written RED-FIRST (each
+  failed while its symbol was present), now permanently green, and a
+  reintroduction reddens by name. CI re-runs the zero-caller census forever
+  via `_non_test_call_sites`.
+- PARKED (GOAL rule conflict - deletion would require touching a test file,
+  and the WP5.6 precedent says the classifier denies): `estimate_depth`
+  (~15 dedicated unit tests across 4 enrichment-client files),
+  `estimate_object_distance` (~10, + the NEM-1102 bbox-validation block),
+  `segment_image` (whole dedicated file test_detector_client_segmentation.py),
+  CLIP `similarity` (dedicated TestSimilarity class + endpoint-verification
+  test), florence `/analyze-scene` (dedicated 612-line ai/florence/tests
+  file + gateway adapter tests + the op's goldens). All five re-verified
+  zero-caller (backend+scripts): they are carry cost, but clearing them is
+  an OWNER call (delete method+tests together) - recommendation: license a
+  test-file carve-out for exactly these five symbols, each with its census
+  number; until then they stay, pinned by the contract registry.
+- WORKFLOW LESSON (banked): the WP7.3 census fan-out workflow returned
+  three BLOCKED verdicts citing `backend/services/video_service.py`,
+  `ai_event_analysis.py`, and analyze-scene-in-openapi claims - NONE of
+  which exist in this tree (verified: find + grep = 0). Fabricated
+  evidence; verdicts discarded, original greps re-run by hand, and only its
+  test-file inventories (which matched my greps) reused. Rule: a subagent
+  census justifies a deletion only after an independent serial re-grep;
+  NEVER act on a workflow finding without disk verification.
+- CI WATCH (same branch family): #6560 Test Coverage Gate failed TWICE on
+  the gate script's own inline full-unit collection run - DIFFERENT tests
+  each time (cameras rglob test, then system-routes semaphore test), both
+  `pytest-timeout` (>5s) under -n 8 load, both green locally and in the
+  shard jobs (which carry the repo's `--reruns 2` convention; the inline
+  subprocess in scripts/check-test-coverage-gate.py:411 does not). Integration
+  (Services) hit the same flake family (3 transaction-rollback teardown
+  timeouts) and Test Performance Audit flagged 23 tests at 81-91% of their
+  timeouts; main itself went red on perf-audit at 336b4c53 while 55864180
+  was green 41 minutes earlier - load-sensitive CI, not branch regressions.
+  Actions taken: two `gh run rerun --failed` passes; if the gate repeats the
+  inline-collection failure, the fix is WP6-branch scope: add the pair of
+  rerun flags to that ONE subprocess (parity with shards 795-797),
+  which moves no floor and gates nothing weaker - it matches the existing
+  repo convention. NOT DONE YET (pending one more rerun's data).
