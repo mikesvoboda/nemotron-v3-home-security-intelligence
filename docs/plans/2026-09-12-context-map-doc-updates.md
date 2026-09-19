@@ -7437,3 +7437,57 @@ Residual risk recorded, not hidden: the image build has never run anywhere
 deploy.yml builds it only post-merge). If the NVIDIA base pull or a uv layer
 misbehaves on the runner, the new job goes red and blocks ci-gate by design;
 the fix would then be the job's own retry/disk knobs, NOT removing the gate.
+
+## Mypy-red unblock LANDED `752bb7d2`/`17f34e56` — the 6 ai/ annotation gaps the Phase-8 import-graph widening exposed (2026-09-20)
+
+**What surfaced.** After the owner squash-merged #6565 into `feat/wp7-ai-contract`, the
+Backend Type Check (Mypy) job on #6562 went red: `uv run mypy backend/
+--ignore-missing-imports` rc=1, **6 errors in 3 files (checked 1505 source files)** —
+`ai/gateway/adapters/enrichment_light.py:117` no-any-return;
+`ai/clip/model.py:757/:760` no-any-return; `ai/gateway/adapters/clip.py:198`
+[operator] `"Tensor" not callable`, `:201`/`:355` no-any-return
+(log `/home/agent/.claude/jobs/5e2cfdd8/tmp/mypy-a7x.log`).
+
+**Root cause — the WP0.6 invisibility class, not an A7.3 regression.** Phase 8's
+conformance tests import the mounted gateway app (`ai.gateway.main` → adapters →
+`ai/clip/model.py` → transformers), pulling three previously-never-type-checked `ai/`
+files into `mypy backend/`'s import graph. `--ignore-missing-imports` suppresses missing
+_imports_, not stub-derived errors: types-PyTorch types `nn.Module.__getattr__` →
+`Tensor` (hence :198 — the stubs see `Module.get_text_features` as a Tensor, not a
+callable; runtime is the real method), and numpy-stubs leave `ndarray / ndarray` as Any
+(the array_api gap → every no-any-return). Reproduced locally at `c4566f41` BEFORE any
+A7.3 file is implicated; A7.3's own files (contract.py seam, Dockerfile, ci.yml) are
+clean in the log.
+
+**The fix (annotation-only, single commit `17f34e56` on `feat/wp8-ai-protocol`,
+cherry-picked to `752bb7d2` on `feat/wp7-ai-contract` — the branch the red actually
+ran on).**
+
+- `enrichment_light.py::_softmax` — `cast("np.ndarray", ...)` on the division; `cast`
+  was already imported.
+- `adapters/clip.py` — `cast` added to the `typing` import (the file is NOT
+  `ai/*/model.py` and not COPY'd flat — `ai/gateway/Dockerfile:38` copies `ai/gateway/`
+  wholesale, so the flat-COPY import freeze doesn't reach it); `cast("Any", ...)` on the
+  `get_text_features` lookup; `cast("np.ndarray", ...)` returns at :201/:355. TC006
+  quote-casts per repo style.
+- `ai/clip/model.py::_extract_features_tensor` — **import statements frozen** (goal rule;
+  flat COPY + `CMD ["python","model.py"]`). Import-free narrowing instead:
+  `isinstance(x, torch.Tensor)` guard + `TypeError` raise on `pooler_output` /
+  `last_hidden_state`, matching the helper's own documented `Raises: TypeError`
+  contract. The one deliberate behavior tightening: a non-Tensor attribute now raises at
+  the seam instead of being returned raw to fail downstream. Proved no import line
+  changed: `git diff -U0 ai/clip/model.py | grep '^[+-].*\b(import|from)\b'` → only a
+  comment line.
+
+**MEASURE.** `mypy backend/ --ignore-missing-imports`: 6 errors → **Success, no issues
+in 1505 source files, rc=0** (`mypy-a7x-fixed2.log`); same loop at wp7 tip `752bb7d2`:
+**Success, 1506 files, rc=0** (`mypy-wp7-tip.log`). Probes on every touched surface
+(`test_adapters_clip.py` + `test_adapters_enrichment_light.py` + `ai/clip/test_model.py`):
+**127 passed, rc=0** (`mypy-fix-probes.log`). ruff check + format clean. No floors moved,
+no allowlist widened, no omit added — zero gate configuration touched (ratchet rule).
+**No new RULING**: this was a latent-defect class the plan's own conformance work
+surfaced; the fix is the ruling (annotation + one in-contract raise), not parked.
+
+**Stack effect.** Pushed both branches (`2914ee69..752bb7d2`, `c4566f41..17f34e56`); #6562
+re-ran the full DAG on the push. Cherry-pick applied byte-clean because both tips carried
+identical pre-fix versions of the three files (`git diff --stat` empty between tips).
