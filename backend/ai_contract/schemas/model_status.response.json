@@ -1,0 +1,93 @@
+{
+  "$defs": {
+    "DetailedModelStatus": {
+      "description": "Detailed status of a single model for /models/status endpoint.",
+      "properties": {
+        "last_used": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Used"
+        },
+        "loaded": {
+          "title": "Loaded",
+          "type": "boolean"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "priority": {
+          "title": "Priority",
+          "type": "string"
+        },
+        "vram_mb": {
+          "title": "Vram Mb",
+          "type": "integer"
+        }
+      },
+      "required": ["name", "loaded", "vram_mb", "priority"],
+      "title": "DetailedModelStatus",
+      "type": "object"
+    }
+  },
+  "description": "System status response for /models/status endpoint.",
+  "properties": {
+    "loaded_models": {
+      "items": {
+        "$ref": "#/$defs/DetailedModelStatus"
+      },
+      "title": "Loaded Models",
+      "type": "array"
+    },
+    "pending_loads": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Pending Loads",
+      "type": "array"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "uptime_seconds": {
+      "title": "Uptime Seconds",
+      "type": "number"
+    },
+    "vram_available_mb": {
+      "title": "Vram Available Mb",
+      "type": "integer"
+    },
+    "vram_budget_mb": {
+      "title": "Vram Budget Mb",
+      "type": "integer"
+    },
+    "vram_total_mb": {
+      "title": "Vram Total Mb",
+      "type": "integer"
+    },
+    "vram_used_mb": {
+      "title": "Vram Used Mb",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "status",
+    "vram_total_mb",
+    "vram_used_mb",
+    "vram_available_mb",
+    "vram_budget_mb",
+    "loaded_models",
+    "pending_loads",
+    "uptime_seconds"
+  ],
+  "title": "SystemStatus",
+  "type": "object"
+}

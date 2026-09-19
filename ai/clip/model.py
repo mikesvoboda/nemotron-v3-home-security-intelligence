@@ -567,7 +567,10 @@ class CLIPEmbeddingModel:
             trt_precision = os.environ.get("CLIP_TENSORRT_PRECISION", "fp16")
             calibration_dir = os.environ.get("CLIP_CALIBRATION_DIR")
             logger.info(f"Step 2/2: Converting ONNX to TensorRT {trt_precision.upper()}...")
-            result_path = convert_to_tensorrt(
+            # Typed binding: export_onnx is import-unresolvable under the commit
+            # gate's mypy env (--ignore-missing-imports -> Any), and this method
+            # declares str | None. export_onnx.convert_to_tensorrt returns str.
+            result_path: str = convert_to_tensorrt(
                 onnx_path=str(onnx_path),
                 output_path=str(engine_path),
                 precision=trt_precision,
@@ -1193,7 +1196,9 @@ def get_vram_usage() -> float | None:
     """Get VRAM usage in GB."""
     try:
         if torch.cuda.is_available():
-            return torch.cuda.memory_allocated() / (1024**3)
+            # float() coerces the tensor scalar (torch is Any under the commit
+            # gate's mypy env); no-op on the real float this returns at runtime.
+            return float(torch.cuda.memory_allocated() / (1024**3))
     except Exception as e:
         logger.warning(f"Failed to get VRAM usage: {e}")
     return None

@@ -490,6 +490,141 @@ def check_phantoms(ops: dict[str, dict[str, Any]]) -> None:
             )
 
 
+# --- WP8.2: response schemas for ops whose models are NOT importable -----
+#
+# Two honest truths gen-ai-contract could previously express only as
+# response=None:
+#   (a) routes that return a BARE dict (the three yolo26 upload routes:
+#       `-> dict[str, Any]`, e.g. adapters/yolo26.py:333) - there is no
+#       model to snapshot; the truthful snapshot IS the bare dict, with a
+#       x-deployed-keys annotation recording the WP7.4-pinned wire keys
+#       (detections/image_width/image_height/inference_time_ms) so a key
+#       rename stays greppable. This is the deployed truth, not the
+#       clients' legacy-shape tolerance.
+#   (b) ops served only by ai/enrichment/model.py, which CANNOT be
+#       imported at generation time (torch/opencv/heavy stack - same class
+#       of constraint as ai/nemotron/model_hf.py, which is why the LLM ops
+#       carry hand-declared schemas). Here the models ARE pydantic, so we
+#       AST-extract the named classes + Field defaults from source text and
+#       exec them in a minimal namespace (pydantic only) - generated from
+#       the deployed model definitions, still never hand-transcribed.
+_BARE_DICT = {
+    "type": "object",
+    "additionalProperties": True,
+    "title": "BareDictResponse",
+    "description": (
+        "route declares `-> dict[str, Any]` - no pydantic response model "
+        "exists to snapshot (this is the deployed truth, not a gap in the "
+        "generator)"
+    ),
+}
+_YOLO26_BARE = {
+    **_BARE_DICT,
+    "x-deployed-keys": [
+        "detections",
+        "image_width",
+        "image_height",
+        "inference_time_ms",
+    ],
+    "x-deployed-evidence": (
+        "ai/gateway/adapters/yolo26.py:375-379 (WP7.4 pinned shape; bboxes "
+        "are dict{x,y,width,height} of ints, `class` key)"
+    ),
+}
+
+_SERVER_MODEL_CLASSES = {
+    # op_id -> (source, response classes IN DEPENDENCY ORDER (root LAST),
+    # request classes likewise). SystemStatus nests DetailedModelStatus, so
+    # the dep must be defined before the root is schema'd.
+    "model_status": ("ai/enrichment/model.py", ["DetailedModelStatus", "SystemStatus"], []),
+    "model_preload": ("ai/enrichment/model.py", ["ModelPreloadResponse"], []),
+    "model_unload": ("ai/enrichment/model.py", ["ModelUnloadResponse"], []),
+    "object_distance": (
+        "ai/enrichment/model.py",
+        ["ObjectDistanceResponse"],
+        ["ObjectDistanceRequest"],
+    ),
+}
+_BARE_DICT_OPS = {
+    # yolo26 upload routes: response_model stays None on the route object,
+    # so collect_gateway_operations() recorded None; annotate the truth.
+    "yolo26_detect": _YOLO26_BARE,
+    "yolo26_detect_batch": {
+        **_BARE_DICT,
+        "x-deployed-keys": ["results", "total_inference_time_ms", "batch_size"],
+        "x-deployed-evidence": "ai/gateway/adapters/yolo26.py:440-444",
+    },
+    "yolo26_segment": _YOLO26_BARE,
+}
+
+
+def server_model_schema(source_rel: str, class_names: list[str]) -> dict[str, Any]:
+    """AST-extract the named pydantic classes from an un-importable server
+    module and model_json_schema() them WITHOUT importing the module.
+
+    Extracts the class source text (decorated defs, in requested order so
+    $defs land deterministically) plus Field's default sentinel, execs in a
+    pydantic-only namespace, and returns the root class's schema. Raises on
+    a missing class - the drift gate must notice a renamed model, not
+    silently drop the snapshot.
+    """
+    import ast as _ast
+
+    path = REPO_ROOT / source_rel
+    tree = _ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    src_lines = path.read_text(encoding="utf-8").splitlines()
+    collected: list[str] = []
+    found: set[str] = set()
+    for node in tree.body:
+        # decorated classes are still ClassDef nodes (decorator_list carries
+        # the decorators); lineno already points at the first decorator.
+        if not isinstance(node, _ast.ClassDef) or node.name not in class_names:
+            continue
+        collected.append("\n".join(src_lines[node.lineno - 1 : node.end_lineno]))
+        found.add(node.name)
+    missing = set(class_names) - found
+    if missing:
+        raise SystemExit(
+            f"gen-ai-contract: server models vanished from {source_rel}: {sorted(missing)} "
+            "- the deployed surface moved; fix this mapping, do not delete the op"
+        )
+    ns: dict[str, Any] = {
+        "BaseModel": __import__("pydantic").BaseModel,
+        "Field": __import__("pydantic").Field,
+    }
+    # The exec'd text is AST-extracted from THIS repo's ai/enrichment/model.py
+    # (class bodies only), never runtime input; it is the only honest way to
+    # schema the un-importable heavy server.
+    exec("\n\n".join(collected), ns)  # noqa: S102  # nosemgrep: dangerous-eval
+    # The server module opens with `from __future__ import annotations`, so
+    # the extracted bodies carry STRING annotations; exec alone leaves them
+    # unresolved (PydanticUserError: not fully defined). Rebuild every class
+    # in source order against ns - deps first - then the root resolves.
+    for name in class_names:
+        if name in ns:
+            ns[name].model_rebuild(_types_namespace=ns)
+    # root is the LAST name (callers list deps first so nested refs resolve);
+    # its schema carries the deps under $defs exactly as a real FastAPI route
+    # would emit them.
+    root = ns[class_names[-1]]
+    return root.model_json_schema()
+
+
+def _attach_missing_response_schemas(ops: dict[str, dict[str, Any]]) -> None:
+    for op_id, src in _BARE_DICT_OPS.items():
+        rec = ops[op_id]
+        if rec["response"] is None:
+            rec["response"] = src
+    for op_id, (source_rel, resp_classes, req_classes) in _SERVER_MODEL_CLASSES.items():
+        rec = ops[op_id]
+        if resp_classes and rec["response"] is None:
+            rec["response"] = server_model_schema(source_rel, resp_classes)
+            # evidence gains the exact server model the snapshot came from
+            rec["evidence"] += f"; response from {source_rel}:{resp_classes[-1]}"
+        if req_classes and rec["request"] is None:
+            rec["request"] = server_model_schema(source_rel, req_classes)
+
+
 def build_all() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     ops, path_index = collect_gateway_operations()
     check_phantoms(ops)
@@ -497,6 +632,7 @@ def build_all() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
         if op_id in ops:
             raise SystemExit(f"id collision: {op_id} declared in two sources")
         ops[op_id] = rec
+    _attach_missing_response_schemas(ops)
     # client-map sanity: every mapped op exists
     mapped = {v for v in CLIENT_OP_MAP.values() if v}
     missing = mapped - set(ops)
@@ -707,7 +843,14 @@ def _example_for(key: str, prop: dict, defs: dict, depth: int = 0) -> Any:
         return False
     if t == "array":
         items = prop.get("items")
-        return [_example_for(key, items, defs, depth + 1)] if items else []
+        if items is None:
+            return []
+        example = _example_for(key, items, defs, depth + 1)
+        # honor minItems (e.g. bbox [x1,y1,x2,y2] declares minItems=4):
+        # a one-element instance VIOLATES its own schema, and the payload
+        # golden is the fixture both sides import - it must validate.
+        min_items = prop.get("minItems") or 1
+        return [example for _ in range(max(1, min_items))]
     if t == "object":
         if "properties" in prop:
             # every property in an example, not just required: the payload

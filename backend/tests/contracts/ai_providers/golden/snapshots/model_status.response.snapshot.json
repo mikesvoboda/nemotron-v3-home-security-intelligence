@@ -1,0 +1,26 @@
+{
+  "defs": ["DetailedModelStatus"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "model_status",
+  "properties": {
+    "loaded_models": "array<ref(DetailedModelStatus)>",
+    "pending_loads": "array<string>",
+    "status": "string",
+    "uptime_seconds": "number",
+    "vram_available_mb": "integer",
+    "vram_budget_mb": "integer",
+    "vram_total_mb": "integer",
+    "vram_used_mb": "integer"
+  },
+  "required": [
+    "loaded_models",
+    "pending_loads",
+    "status",
+    "uptime_seconds",
+    "vram_available_mb",
+    "vram_budget_mb",
+    "vram_total_mb",
+    "vram_used_mb"
+  ],
+  "side": "response"
+}

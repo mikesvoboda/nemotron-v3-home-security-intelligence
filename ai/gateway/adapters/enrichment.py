@@ -22,7 +22,7 @@ import logging
 import os
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -171,7 +171,10 @@ def _encode_texts_fashion_clip(texts: list[str]) -> np.ndarray:
     with torch.no_grad():
         text_features = _fashion_text_model.encode_text(tokens)
         text_features = text_features / (text_features.norm(dim=-1, keepdim=True) + 1e-8)
-    return text_features.cpu().float().numpy()
+    # cast: torch.Tensor.numpy() is Any-typed under the stubs; erased at
+    # runtime (mypy no-any-return first surfaced when backend tests began
+    # importing ai.gateway, WP8.3).
+    return cast("np.ndarray", text_features.cpu().float().numpy())
 
 
 def _ensure_clothing_text_embeddings() -> dict[str, tuple[list[str], np.ndarray]] | None:
@@ -635,7 +638,7 @@ async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]
 def _softmax(x: np.ndarray) -> np.ndarray:
     """Compute softmax over a 1D array."""
     e = np.exp(x - np.max(x))
-    return e / (e.sum() + 1e-8)
+    return cast("np.ndarray", e / (e.sum() + 1e-8))
 
 
 def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[dict[str, Any]]:

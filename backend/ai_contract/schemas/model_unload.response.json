@@ -1,0 +1,16 @@
+{
+  "description": "Response for model unload endpoint.",
+  "properties": {
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": ["status", "model"],
+  "title": "ModelUnloadResponse",
+  "type": "object"
+}

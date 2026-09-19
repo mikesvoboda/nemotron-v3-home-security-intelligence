@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "model_preload",
+  "properties": {
+    "message": "anyOf(null,string)",
+    "model": "string",
+    "status": "string"
+  },
+  "required": ["model", "status"],
+  "side": "response"
+}
