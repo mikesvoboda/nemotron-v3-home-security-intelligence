@@ -1287,3 +1287,126 @@ option that makes a gate pass.
 Unblocked regardless of the answers: making coverage **compute** (as opposed to deciding what it
 gates), the `ai/` collection repair, and the whole contract/conformance body of work. That is the
 "make it compute, don't make it gate" split — honour it.
+
+---
+
+# ADDENDUM 2 — 2026-09-19, owner ruling. **This narrows a rule in the session goal.**
+
+## A6. `RULING L#2026-09-19-wp56-test-collision` — ANSWERED. The blunt test-file rule is narrowed.
+
+**The conflict you correctly parked.** The session goal states flatly **"NEVER a test file, fixture
+or conftest."** WP5.6's checklist says WP5.6 deletes modules **and their tests**. Both cannot hold,
+and the safe decomposition fails: deleting `job_state_service.py` while
+`test_job_state_service.py:17` still does `from backend.services.job_state_service import (...)`
+produces a collection error, i.e. a RED branch, which the branch-stays-GREEN rule forbids. You
+parked it and moved on. **That was the right call and the rule was the defect, not your reading of
+it.**
+
+**Why the rule was written that way.** Its purpose was to stop a test being deleted _to make a
+failure disappear_ — laundering. It was drafted too bluntly to distinguish that from deleting a
+test whose **subject no longer exists**, which is not laundering but bookkeeping.
+
+### The narrowed rule — replaces "NEVER a test file, fixture or conftest"
+
+> **Never delete a test to make a failure go away.** That prohibition is absolute and unchanged: no
+> deletion, skip, xfail, quarantine or assertion-widening of a test that is failing, flaky, or
+> inconvenient. If a test is red, it stays red and visible.
+>
+> **Deleting a test file is permitted in exactly one shape:** the _same commit_ that deletes the
+> production module it exclusively tests, when **all five** hold:
+>
+> 1. the module has **zero non-test importers**, by census, re-verified at commit time;
+> 2. the test file's subject is **exclusively** that module — if it also covers a surviving module,
+>    it is not eligible, split it or leave it;
+> 3. the test file is **currently green**. A red test may never be deleted under this clause —
+>    that is the laundering case, and it is how the two are told apart;
+> 4. the **reachability census is quoted in the commit body** (the grep/AST evidence, not a
+>    summary), alongside the count of tests removed;
+> 5. the suppression ratchet **does not increase**; if the deleted file carried suppressions, the
+>    registry and the `ci.yml --expect` literal move **down** in the same commit.
+>
+> **Still never, under any circumstance:** `conftest.py`, shared fixtures, or any file another test
+> imports from. Those are infrastructure, not subjects.
+
+### What this unparks — proceed without further asking
+
+- **WP5.6's two deletions.** `job_state_service.py` (+ `test_job_state_service.py`,
+  `test_job_state_transitions.py`) and `scene_change_service.py` (+ `test_scene_change_service.py`,
+  plus the `backend/services/__init__.py:318-321` re-export block and the `__all__` entries at 542
+  and 582). Your own three-way re-verification stands as the census; re-run it at commit time and
+  quote it. Expected ratchet movement: **none** — you measured these files carry zero suppressions,
+  so the baseline stays and that is a legitimate no-op, not a skipped step.
+- **The five WP7.3 items parked on the same rule.** Apply the five conditions to each independently.
+  Any that fails condition 2 or 3 **stays parked** — do not stretch the clause to fit.
+
+### What this does NOT unpark
+
+`WP6-C(a)` (segmentation test-file disposition) and `WP6-D` (the `test_model.py` near-duplicate
+twins) are **not** covered. Both are about test files whose _subject modules survive_, which is a
+different question — duplication and feature-scope, not bookkeeping. They stay owner-only.
+
+**Recording convention:** cite `L#2026-09-19-wp56-test-collision (ANSWERED, ADDENDUM 2 A6)` in each
+commit body that uses this clause, so the licence is traceable from any deletion.
+
+## A7. Owner ruling batch, 2026-09-19 — four decisions, recorded
+
+Decided by the owner in one sitting after an 8-agent triage re-verified each packet against the
+tree. Two candidates dissolved on inspection and need no action: **`R-TRIVY-CRYPTO`** (resolved
+2026-09-16; both gates green on the current tree) and the **2026-09-14 `R-T9` batch**
+(`MVSOURCE`/`EXPORTDEFER`/`MQTTPUMP` all closed and verified shipped at ledger 4048/4086/4119).
+
+### A7.1 `R-COVDENOM` — ANSWERED: ratify 80, fix the docs
+
+**80-on-the-combined-union is THE backend floor** (`scripts/validate.sh:376`, mirrored at
+`nightly-full-gate.yml:140`). It is the only absolute backend coverage gate that executes, and it
+is green.
+
+- `pyproject.toml:557 fail_under = 85` — **document it as the WP0.9 diff gate's RELATIVE baseline**,
+  which is what `ci.yml:465` already says it is. Not an absolute floor. Annotate `pyproject.toml`
+  and the CLAUDE.md Testing table so they stop contradicting the code.
+- `scripts/test-runner.sh:29 COVERAGE_THRESHOLD=93` — **delete it or repoint the docs at
+  validate.sh.** Nothing invokes `test-runner.sh`. A threshold that executes nowhere is worse than
+  a lower one that does.
+- `scripts/README.md:59` advertises "95% coverage enforcement" — **a fifth ghost number, delete it.**
+- **`ai/` stays OUT of the denominator.** Revisit only if the `ai/` tier is instrumented for
+  coverage first; adding 48,680 uninstrumented lines is dilution, not measurement.
+
+**No gate changes, no threshold moves.** This is a documentation-reconciliation task.
+
+**Not decided here, and not a RULING:** the PR diff gate compares a merged-shard base (70.53% at
+`336b4c53`) against an inline single run (~84.4%) — a ~14pp method gap that makes it structurally
+unable to fail. Fixing that is ordinary engineering, not a policy call. See ADDENDUM 2 A6's sibling
+note and `docs/plans/.../WP5.3`.
+
+### A7.2 A6 EXTENDED — deletion licence reaches symbols and routes
+
+A6's clause is widened from "the production **module** it exclusively tests" to "the production
+**module, symbol, or route** it exclusively tests." **All five conditions are unchanged** — zero
+non-test callers by census, exclusive subject, **test currently GREEN**, census quoted in the commit
+body, ratchet does not increase.
+
+Reaches **2 of the 5** WP7.3 targets. The other three fail condition 2 or 3 and **stay parked** —
+do not stretch the clause to fit. `WP6-C(a)` and `WP6-D` remain owner-only, unchanged.
+
+### A7.3 `WP6-A` — APPROVED, gated on a container smoke test
+
+Ship it, with the licence the packet asked for:
+
+1. add `COPY ai/yolo26/contract.py /app/contract.py` to `ai/yolo26/Dockerfile` (~:83);
+2. replace `ai/yolo26/model.py`'s **316 duplicated lines** (~:618-933) with `from contract import …`
+   — the flat `/app` layout makes the import valid in-container;
+3. **required in the same PR:** a CI job that actually **builds `ai/yolo26/Dockerfile` and imports
+   `model.py` inside the image.** Without it the only thing proving the COPY is reading the
+   Dockerfile, and a mistake surfaces on the GPU host rather than in a PR.
+
+The parity test stays until (3) is green, then retires with the duplication.
+
+### A7.4 `R-FEFLOOR` — DEFERRED, and deliberately so: repair the quarantine first
+
+**Set no frontend gate yet.** Repair the 16 quarantined files (62 deterministic failures + 3
+zero-byte suites), re-measure, then decide the floor against honest numbers. 84% of the 2.4-3.1pp
+gap is quarantine, so enforcing now would gate against an artifact of the quarantine rather than
+against real coverage — and plan A3's "**do not lower a floor**" forbids the obvious shortcut.
+
+Report-only stays in force meanwhile. This is a **deferral with a named precondition**, not a
+parked ruling: when the quarantine is repaired and re-measured, the decision is live again.
