@@ -7013,3 +7013,58 @@ record and stay.
 The branch-stays-GREEN rule held throughout: every deletion was proved
 green first, every anchor rewritten to pin the NEW truth rather than
 deleted outright.
+
+## A7.1 LANDED `1a71232d` — R-COVDENOM reconciled as pure documentation; no number moved (2026-09-20)
+
+The ruling asked which coverage number is "the" floor. Answer, from executed
+surface only (census in the commit body): the executed absolute backend floor
+is **80% combined** — validate.sh `--fail-under=80` + nightly-full-gate.yml.
+pyproject `fail_under = 85` is the PR-diff gate's RELATIVE baseline (ci.yml's
+combine step publishes it from merged data — it never executes as an absolute
+gate on a PR run); `test-runner.sh COVERAGE_THRESHOLD=93` has ZERO CI
+invokers (optional-local; its header now says so). `check-test-coverage-gate`
+per-area `min_coverage` values are print-only advisory — the blocking checks
+are test-presence + diff-drop; the doc table was corrected to the script's
+real numbers. Two dated session summaries (mqtt-client-test-summary,
+tdd-stream-config) keep their 93/95 lines as historical records — stated in
+the commit body. **Nothing gated moved: no floor lowered, no omit widened.**
+The 85 VALUE is unchanged everywhere it appears; every changed sentence was
+text explaining what executes.
+
+## A7.2 deletion 1/2 LANDED `54e27f2f` — DetectorClient.segment_image; carry-cost ratchet grown (2026-09-20)
+
+ADDENDUM 2 A6/A7.2 (L#2026-09-19-wp56-test-collision, ANSWERED). The 2-of-5
+A7.2 identification held: segment_image was reachable (zero non-test call
+sites, dedicated exclusive test file); estimate_depth,
+estimate_object_distance and CLIP similarity FAIL condition 2 — they are
+driven through shared parametrized conformance tables whose keys the coverage
+guard + registry claims + parity goldens pin; deleting them would open
+golden-vanish reds. Deletion executed WP7.3-style:
+
+- RED-FIRST proven before any production edit (DELETED_CARRY_COST entry
+  reddened `still declared` — 1 failed/2 passed), then the ratchet grew:
+  DELETED_CARRY_COST = {detect_objects_batch, segment_image} — the method
+  reddens by name if it ever returns.
+- detector_client.py 1,566 → 1,443 (method span 921–1043); dedicated test
+  file (157 L, 7 defs, zero suppressions) deleted SAME COMMIT (A6 cond. 2);
+  green-before-delete 10 passed.
+- registry: yolo26_segment OPERATION STAYS (deployed gateway route
+  adapters/yolo26.py:447 — server surface untouched); client_methods binding
+  dropped via generator CLIENT_OP_MAP comment + regeneration, --check rc=0.
+  The op moved to the matrix THIRD STATE (present-but-not-wired, `_not_wired`
+  sentinel) on gateway: SENTINELS_GATEWAY 5→6, per_model stays 8 (the op is
+  ABSENT there — per_model_server=False — a param-KeyError caught the blind
+  union carry).
+- conformance: matrix leg kept (the topology fact outlives the client), 2
+  client legs + their `_COVERAGE` entry removed; coverage guard 29→28.
+- suppression census byte-identical to the ci.yml literal (rc=0); parity
+  --expect rc=0 — yolo26_segment stays DECLARED (matrix row unchanged);
+  ai_providers 565 passed (−2 legs +1 ratchet param +1 sentinel param).
+
+Remaining A7.2 item: florence /analyze-scene (deletion 2/2) — needs the
+DELETED_REGISTRY_OPS absent-assertion mechanism authored first (no server-
+route ratchet for gateway-served ops exists yet), the 38→37 literal sweep,
+goldens trio deletion, ~17-file cascade. Dossier spans verified on disk
+2026-09-19 (route 1206–1300 model-side + 530–580 adapter-side, exclusive
+models, generator discovers by importing adapters so route+regen drops the
+op).
