@@ -2822,7 +2822,6 @@ jobs:
   # fs/config/CVE-expiry, main pushes also get SBOM + both image scans.
   security-gitleaks:
     name: Security - Secret Detection
-    needs: []
     permissions:
       contents: read
       pull-requests: read
@@ -2831,7 +2830,6 @@ jobs:
 
   security-sast:
     name: Security - SAST
-    needs: []
     permissions:
       contents: read
     secrets: inherit # pragma: allowlist secret
@@ -2839,7 +2837,6 @@ jobs:
 
   security-trivy:
     name: Security - Trivy
-    needs: []
     permissions:
       contents: read
       security-events: write
