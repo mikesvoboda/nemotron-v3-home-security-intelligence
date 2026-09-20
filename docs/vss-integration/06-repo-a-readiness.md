@@ -120,6 +120,60 @@ is unfunded, unapproved, legally fenced at the productization end, and hardware-
 GPU here is an aarch64 GB300; the target is x86 GeForce. If P(swap completes as scoped this year)
 is ~0.5, "perishable" means "expected life of quarters," which is a **discount, not a veto.**
 
+## 2a. The in-process AI tier is OUT of HTTP-conformance scope — declared, with what that leaves unguarded (WP9.2)
+
+**The declaration, in those words: the in-process AI tier is out of scope of
+the HTTP-level AI conformance program (`WP8.*`), and the VSS swap question
+for this tier is a SEPARATE work package, not part of the provider-swap
+contract.** This is the WP9.2 scope call from
+`docs/superpowers/plans/2026-09-19-swap-readiness-72h.md`; the RULING "does
+the VSS swap cover the in-process tier?" stays PARKED for the owner — this
+section does not decide it, it bounds what the current suites can see so the
+ruling is made against a measured surface, not a guess.
+
+**Counted module list, re-verified at HEAD `a140d244` 2026-09-20 [V]**
+(commands in-line; census first taken at `a8c25c5e`, numbers unchanged):
+
+- `find backend -name "*_loader.py" -not -path "*/tests/*"` → **22** modules.
+  Of those, grepping for `import torch|transformers|ultralytics` (either
+  form) → **21** pull a heavyweight framework into the BACKEND process; the
+  one non-importer is `backend/services/fast_alpr_loader.py`.
+- Eager/lazy split matters for what "invisible" means: `stgcn_loader.py` and
+  `zero_dce_loader.py` import at MODULE level (the framework loads at
+  backend import time); the other 19 defer the framework import into
+  functions — invisible until warmed, then equally unguarded at runtime.
+- Four more in-process detectors import their own models directly:
+  `backend/services/face_detector.py` (375 lines), `plate_detector.py`
+  (322), `ocr_service.py` (416), `scene_ocr_service.py` (889).
+- The DI wrappers ride on top: `backend/services/ai_services.py:36-350`
+  (first wrapper class `FaceDetectorService` at :36; the plan's span cited
+  `ai_services.py:36-350` — verified, and it lives in `services/`, not
+  `api/dependencies/` as an earlier cite implied).
+- `model_zoo.py` (930 lines) is the shared weight-resolver underneath [V:
+  file present, counted above].
+
+**What remains unguarded, concretely.** Every WP8.\* suite and the WP9.1
+parity checker speak HTTP or read deployed-surface ASTs
+(`scripts/check-ai-provider-parity.py` walks gateway adapters, native
+`model.py` files and the six httpx callers): a provider swapped IN or OUT
+through them changes a socket answer. The tier above has NO socket — a VSS
+swap could replace the weights, the preprocessing, or the whole loader
+implementation and every one of those suites would stay green while
+`is_minor` flipped on every child. There is no fake, no contract snapshot,
+and no golden divergence covering a function called as
+`await loader.run(frame)` inside the backend process. That is the accepted
+cost of this scope call, stated so nobody discovers the second project
+mid-swap: **the swap is two known projects** — (1) the HTTP provider tier,
+contracted and faked, and (2) the in-process tier, which needs its own
+declaration, its own inventory (the counts above are its starting census),
+and eventually its own suite BEFORE any VSS decision consumes it.
+
+**Recommendation to the parked ruling (not the ruling itself):** when the
+owner answers "does the VSS swap cover the in-process tier?", treat 21+4+DI
+as the priced surface; do not let "provider conformance is green" be read
+as "the AI pipeline is swappable" — this section exists to make that
+misreading impossible.
+
 ## 3. Recommendation on WP4.4's 2-3 day request
 
 **Merge PR #6556**, after adjudicating its one blocking suppression. Ten of its fourteen product

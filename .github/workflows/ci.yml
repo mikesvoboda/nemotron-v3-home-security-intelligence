@@ -29,6 +29,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs-only: ${{ steps.filter.outputs.docs-only }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      ai_yolo26: ${{ steps.filter.outputs.ai_yolo26 }}
       should-run-all: ${{ github.ref == 'refs/heads/main' || steps.filter.outputs.workflow == 'true' }}
     steps:
       - name: Checkout
@@ -55,6 +56,16 @@ jobs:
               - '!backend/**'
             workflow:
               - '.github/workflows/ci.yml'
+            # A7.3 (WP6-A): the ai-yolo26-image-smoke trigger surface - the
+            # image's whole flat /app COPY set (model.py's sibling imports
+            # resolve flat in-container, so a drift in ANY copied module can
+            # break `import model` inside the image).
+            ai_yolo26:
+              - 'ai/yolo26/**'
+              - 'ai/compile_utils.py'
+              - 'ai/torch_optimizations.py'
+              - 'ai/tensorrt_prebuild.py'
+              - 'ai/gpu_oom_handler.py'
 
       - name: Log detected changes
         run: |
@@ -118,6 +129,19 @@ jobs:
       # hand-raised baseline in the same reviewed commit.
       - name: Suppression ratchet (counts may only fall)
         run: uv run python scripts/ratchet-check.py
+      # WP9.1: cross-provider AI parity. The golden list pins the adjudicated
+      # Tier-A defect set (D1-D6, 21 ids — plan 2026-09-19-swap-readiness-72h
+      # §WP9.1); the gate FAILS on any divergence not in the list, and a
+      # VANISHING id fails too (GOLDEN-LOST) so fixes re-ratchet instead of
+      # rotting the baseline. Provider #4 cannot drift silently: a new
+      # divergence fails here naming its id until adjudicated, and fixing a
+      # defect means removing its id from .github/ai-parity-baseline.json in
+      # the same commit (same same-commit doctrine as the suppression
+      # baseline above; list members may only fall without owner review).
+      - name: AI provider parity (golden divergence list)
+        run: >-
+          uv run python scripts/check-ai-provider-parity.py
+          --expect .github/ai-parity-baseline.json
       # WP1.2's --check mode, shipped with the generator and invoked until now
       # by nothing. It is NOT a second drift check: the ratchet above already
       # catches stale entries whose site vanished and unregistered new
@@ -167,6 +191,10 @@ jobs:
           # imported status map — without CI the pin rots the day mutmut
           # upgrades, which is exactly when the score would start lying.
           scripts/test_mutation_score.py
+          # WP9.1: the parity checker's own tests joined with the gate —
+          # same doctrine: a gate with no CI is a gate that rots. Its
+          # synthetic provider-renames-a-key fixture is the plan's done-when.
+          scripts/test_check_ai_provider_parity.py
           -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
@@ -376,8 +404,11 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Run unit tests with coverage (shard ${{ matrix.shard }}/4)
-        # Unit tests coverage threshold - 85% for unit tests alone
-        # Combined coverage (unit + integration) should reach 95%
+        # Unit coverage here is COLLECTED, not gated (see --cov-fail-under=0
+        # below). A7.1 record: the executed absolute floor is 80% combined
+        # (validate.sh / nightly-full-gate); pyproject fail_under=85 is the
+        # PR diff gate's relative baseline. The old "should reach 95%"
+        # comment matched no gate that exists.
         # -n auto enables xdist parallelization with worksteal scheduler within shard
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
@@ -1367,6 +1398,12 @@ jobs:
       - name: Check OpenAPI spec is current
         run: uv run python scripts/generate-openapi.py --check
 
+      # WP7.1: the AI-tier contract registry (backend/ai_contract) is
+      # generated from the deployed gateway adapters + client map + LLM wire;
+      # a surface moved without regeneration goes red here, naming the file.
+      - name: Check AI contract registry is current
+        run: uv run python scripts/gen-ai-contract.py --check
+
       - name: Validate API type contract consistency
         run: ./scripts/validate-api-types.sh --verbose
 
@@ -1634,6 +1671,98 @@ jobs:
         # 226 passed / 0 failed locally after WP6.4, no network required; the
         # repo addopts exclude -m gpu nodes by default.
         run: uv run pytest ai/gateway -q --color=no
+
+  # A7.3 (WP6-A): model.py's `from contract import ...` is only valid once the
+  # image ships contract.py flat next to it - the ONLY proof of a COPY is
+  # building the image and importing the module (plan: "Without it the only
+  # thing proving the COPY is reading the Dockerfile, and a mistake surfaces
+  # on the GPU host rather than in a PR"). A7.3 licenses the Dockerfile edit
+  # exactly under this job shipping in the same PR. Import is GPU-free: every
+  # torch.cuda / YOLO() call in model.py sits behind a function boundary.
+  ai-yolo26-image-smoke:
+    name: AI YOLO26 Image Smoke (A7.3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: [detect-changes]
+    # Runs when the image's flat /app COPY surface changes (any ai/yolo26
+    # file - its sibling imports resolve flat in-container - or the four
+    # ai/*.py modules the Dockerfile copies next to it), and unconditionally
+    # on main.
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.ai_yolo26 == 'true')
+    steps:
+      - name: Free disk space
+        # AI base image is multi-GB (NVIDIA tensorrt base + torch); same
+        # cleanup the deploy.yml AI-image builders run.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build ai/yolo26 image
+        # No registry login: the tensorrt base pulls anonymously (deploy.yml
+        # builds this same Dockerfile without an nvcr login). Retry mirrors
+        # build-backend's stance on transient registry 502s during layer
+        # writes - a deterministic Dockerfile breakage stays red (attempt 2
+        # re-runs the same steps). PREBUILD_TENSORRT defaults off, so no GPU
+        # is needed to build.
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          timeout_minutes: 40
+          max_attempts: 2
+          command: |
+            docker buildx build \
+              --file ./ai/yolo26/Dockerfile \
+              --tag ai-yolo26:smoke \
+              --cache-from type=gha,scope=ai-yolo26 \
+              --cache-to type=gha,mode=max,scope=ai-yolo26 \
+              --load \
+              .
+
+      - name: Import model.py inside the image
+        # The container's own startup path minus GPU work: ai-entrypoint.sh
+        # execs "$@", so this replaces CMD python model.py with an import.
+        # Full-identity assertions (unavailable repo-side, where conftest
+        # keeps a package/bare dual-module pair): inside the image there is
+        # ONE contract module, so model.py's symbols must BE the leaf's.
+        run: |
+          docker run --rm -i ai-yolo26:smoke python - <<'SMOKE'
+          import contract
+          import inspect
+          import model
+
+          for name in (
+              "ConfidenceQuality",
+              "compute_confidence_quality",
+              "get_confidence_explanation",
+              "SpatialContext",
+              "compute_spatial_context",
+              "EnhancedDetection",
+              "enhance_detections",
+          ):
+              assert getattr(model, name) is getattr(contract, name), name
+              assert getattr(model, name).__module__ == "contract", name
+          # The A7.3 duplicate stays dead: model.py must not RE-declare the
+          # seam (same ratchet TestContractSeam runs repo-side, now executed
+          # inside the shipped artifact).
+          src = inspect.getsource(model)
+          assert "class ConfidenceQuality" not in src
+          assert "def enhance_detections" not in src
+          print("SMOKE OK: model.py imports; seam == contract leaf")
+          SMOKE
 
   # Merge frontend coverage from all shards and upload to Codecov
   frontend-coverage-merge:
@@ -2730,6 +2859,9 @@ jobs:
       # WP6.5: the ai/ tier job. Direct need + check_job below - the WP0.6
       # invariant (needs-but-never-inspects is the invisibility class).
       - ai-tests
+      # A7.3 (WP6-A): the image smoke this whole change is gated on. Same
+      # invariant as ai-tests above - direct need + check_job below.
+      - ai-yolo26-image-smoke
     if: always()
     steps:
       - name: Check required job results
@@ -2772,6 +2904,7 @@ jobs:
           check_job "Collection Sanity" "${{ needs.collection-sanity.result }}"
           check_job "Build Backend Dependencies" "${{ needs.build-backend-deps.result }}"
           check_job "AI Tier Tests" "${{ needs.ai-tests.result }}"
+          check_job "AI YOLO26 Image Smoke" "${{ needs.ai-yolo26-image-smoke.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 

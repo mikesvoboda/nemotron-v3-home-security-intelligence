@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "clip_anomaly_score",
+  "properties": {
+    "anomaly_score": "number",
+    "inference_time_ms": "number",
+    "similarity_to_baseline": "number"
+  },
+  "required": ["anomaly_score", "inference_time_ms", "similarity_to_baseline"],
+  "side": "response"
+}

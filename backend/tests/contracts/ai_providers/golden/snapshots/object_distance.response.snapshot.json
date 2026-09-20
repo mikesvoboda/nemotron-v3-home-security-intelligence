@@ -1,0 +1,13 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "object_distance",
+  "properties": {
+    "estimated_distance_m": "number",
+    "inference_time_ms": "number",
+    "proximity_label": "string",
+    "relative_depth": "number"
+  },
+  "required": ["estimated_distance_m", "inference_time_ms", "proximity_label", "relative_depth"],
+  "side": "response"
+}

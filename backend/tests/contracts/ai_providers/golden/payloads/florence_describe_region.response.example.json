@@ -1,0 +1,9 @@
+{
+  "descriptions": [
+    {
+      "bbox": [1.0],
+      "caption": "sample_caption"
+    }
+  ],
+  "inference_time_ms": 1.0
+}

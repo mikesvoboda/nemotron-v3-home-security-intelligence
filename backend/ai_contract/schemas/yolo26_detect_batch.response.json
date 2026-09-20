@@ -1,0 +1,8 @@
+{
+  "additionalProperties": true,
+  "description": "route declares `-> dict[str, Any]` - no pydantic response model exists to snapshot (this is the deployed truth, not a gap in the generator)",
+  "title": "BareDictResponse",
+  "type": "object",
+  "x-deployed-evidence": "ai/gateway/adapters/yolo26.py:440-444",
+  "x-deployed-keys": ["results", "total_inference_time_ms", "batch_size"]
+}

@@ -1,0 +1,28 @@
+{
+  "description": "Response format for object distance estimation endpoint.",
+  "properties": {
+    "estimated_distance_m": {
+      "description": "Estimated distance in meters (approximate, relative scale)",
+      "title": "Estimated Distance M",
+      "type": "number"
+    },
+    "inference_time_ms": {
+      "description": "Inference time in milliseconds",
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "proximity_label": {
+      "description": "Human-readable proximity description",
+      "title": "Proximity Label",
+      "type": "string"
+    },
+    "relative_depth": {
+      "description": "Normalized depth value (0=close, 1=far)",
+      "title": "Relative Depth",
+      "type": "number"
+    }
+  },
+  "required": ["estimated_distance_m", "relative_depth", "proximity_label", "inference_time_ms"],
+  "title": "ObjectDistanceResponse",
+  "type": "object"
+}

@@ -21,7 +21,7 @@ import io
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -114,7 +114,10 @@ class DepthResponse(BaseModel):
 def _softmax(x: np.ndarray) -> np.ndarray:
     """Compute softmax over a 1D array."""
     e = np.exp(x - np.max(x))
-    return e / (e.sum() + 1e-8)
+    # cast: np division over ndarray is typed Any under numpy-stubs (array_api
+    # gap); the operation is ndarray->ndarray. mypy newly reaches this file
+    # because the WP8 conformance tests import the mounted gateway app.
+    return cast("np.ndarray", e / (e.sum() + 1e-8))
 
 
 COCO_KEYPOINT_NAMES = [
@@ -203,7 +206,10 @@ def _derive_posture(keypoints: list[dict[str, Any]]) -> str:
     def _y(name: str) -> float | None:
         kp = kp_map.get(name)
         if kp and kp["confidence"] >= min_conf:
-            return kp["y"]
+            # cast (erased at runtime, behavior-neutral): kp_map is
+            # dict[str, Any] from the request body, the helper declares
+            # float | None. Pose y-values are JSON numbers by contract.
+            return cast("float", kp["y"])
         return None
 
     def _avg_y(*names: str) -> float | None:

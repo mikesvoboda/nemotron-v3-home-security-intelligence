@@ -1,0 +1,11 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "llm_completion",
+  "properties": {
+    "content": "string",
+    "tokens_predicted": "integer"
+  },
+  "required": [],
+  "side": "response"
+}

@@ -1,0 +1,11 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "clip_similarity",
+  "properties": {
+    "inference_time_ms": "number",
+    "similarity": "number"
+  },
+  "required": ["inference_time_ms", "similarity"],
+  "side": "response"
+}

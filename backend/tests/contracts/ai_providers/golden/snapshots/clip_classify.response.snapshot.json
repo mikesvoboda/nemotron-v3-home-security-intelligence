@@ -1,0 +1,13 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "clip_classify",
+  "properties": {
+    "ensemble_metadata": "anyOf(null,object)",
+    "inference_time_ms": "number",
+    "scores": "object",
+    "top_label": "string"
+  },
+  "required": ["inference_time_ms", "scores", "top_label"],
+  "side": "response"
+}

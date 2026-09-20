@@ -43,9 +43,9 @@ flowchart TB
 
     subgraph Coverage["Coverage Targets"]
         direction TB
-        UNIT_COV["Unit: 85%+"]
+        UNIT_COV["Unit: 85% diff baseline"]
         INT_COV["Integration: N/A"]
-        TOTAL_COV["Combined: 95%+"]
+        TOTAL_COV["Combined: 80% floor"]
     end
 
     UNIT --> UNIT_COV
@@ -76,7 +76,10 @@ flowchart TB
 | **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -          | -       | 83%+            |
 | **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests | 15s     | -               |
 
-**Note:** Backend combined coverage (unit + integration) must reach 95% (see `pyproject.toml`).
+**Note:** The executed backend floor is **80% on combined unit+integration**
+(`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
+`pyproject.toml` `fail_under = 85` is the PR diff gate's RELATIVE baseline,
+not an absolute floor (owner ruling A7.1, 2026-09-19).
 Frontend thresholds: 83% statements, 77% branches, 81% functions, 84% lines (see `vite.config.ts`).
 
 ## Quick Reference
@@ -752,7 +755,7 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 95
+fail_under = 85
 show_missing = true
 ```
 
@@ -760,13 +763,13 @@ show_missing = true
 
 From [.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml#L67) and [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml):
 
-| Test Type | Threshold | Rationale                                   |
-| --------- | --------- | ------------------------------------------- |
-| Unit      | 85%       | CI gate for unit tests alone                |
-| Combined  | 95%       | `pyproject.toml` fail_under for all backend |
+| Test Type | Number | What it actually is (A7.1, 2026-09-19)                                                                                             |
+| --------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Unit      | 85%    | `pyproject.toml` fail_under = the PR diff gate's RELATIVE baseline (ci.yml publishes merged data and diffs; not an absolute floor) |
+| Combined  | 80%    | THE executed absolute floor: `validate.sh --fail-under=80` + `nightly-full-gate.yml`                                               |
 
 **Note:** Integration tests run in parallel shards without per-shard coverage thresholds.
-Combined coverage (unit + integration) must reach 95%.
+The only absolute backend coverage gate that executes is the 80% combined floor; it is green.
 
 ### Generating Coverage Reports
 
@@ -798,8 +801,8 @@ The CI workflow ([.github/workflows/ci.yml](https://github.com/mikesvoboda/nemot
 
 1. **Backend Lint** - Ruff check and format
 2. **Backend Type Check** - MyPy
-3. **Backend Unit Tests** - 85% coverage threshold
-4. **Backend Integration Tests** - Combined 95% threshold
+3. **Backend Unit Tests** - coverage collected; 85% is the PR diff baseline, not a run-time floor
+4. **Backend Integration Tests** - combined unit+integration checked at the 80% floor in validate.sh / nightly
 5. **Frontend Lint** - ESLint
 6. **Frontend Type Check** - TypeScript
 7. **Frontend Tests** - Vitest

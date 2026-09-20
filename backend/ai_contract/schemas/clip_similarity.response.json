@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "similarity": {
+      "title": "Similarity",
+      "type": "number"
+    }
+  },
+  "required": ["similarity", "inference_time_ms"],
+  "title": "SimilarityResponse",
+  "type": "object"
+}

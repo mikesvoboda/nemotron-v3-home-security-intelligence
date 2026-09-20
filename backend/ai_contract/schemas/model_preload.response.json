@@ -1,0 +1,28 @@
+{
+  "description": "Response for model preload endpoint.",
+  "properties": {
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Message"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": ["status", "model"],
+  "title": "ModelPreloadResponse",
+  "type": "object"
+}

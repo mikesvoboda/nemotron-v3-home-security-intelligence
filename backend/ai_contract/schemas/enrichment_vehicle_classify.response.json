@@ -1,0 +1,41 @@
+{
+  "properties": {
+    "all_scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "All Scores",
+      "type": "object"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "is_commercial": {
+      "title": "Is Commercial",
+      "type": "boolean"
+    },
+    "vehicle_type": {
+      "title": "Vehicle Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "vehicle_type",
+    "display_name",
+    "confidence",
+    "is_commercial",
+    "all_scores",
+    "inference_time_ms"
+  ],
+  "title": "VehicleClassifyResponse",
+  "type": "object"
+}

@@ -1,0 +1,10 @@
+{
+  "inference_time_ms": 1.0,
+  "is_threat": false,
+  "max_confidence": 0.9,
+  "threats_detected": [
+    {
+      "sample": "sample_value"
+    }
+  ]
+}

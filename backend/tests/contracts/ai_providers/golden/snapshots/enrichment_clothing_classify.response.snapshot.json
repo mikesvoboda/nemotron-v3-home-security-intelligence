@@ -1,0 +1,28 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_clothing_classify",
+  "properties": {
+    "clothing_type": "string",
+    "color": "string",
+    "confidence": "number",
+    "description": "string",
+    "inference_time_ms": "number",
+    "is_service_uniform": "boolean",
+    "is_suspicious": "boolean",
+    "style": "string",
+    "top_category": "string"
+  },
+  "required": [
+    "clothing_type",
+    "color",
+    "confidence",
+    "description",
+    "inference_time_ms",
+    "is_service_uniform",
+    "is_suspicious",
+    "style",
+    "top_category"
+  ],
+  "side": "response"
+}

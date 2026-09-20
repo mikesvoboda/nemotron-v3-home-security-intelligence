@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "choices": {
+      "items": {
+        "properties": {
+          "message": {
+            "properties": {
+              "content": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "title": "ChatCompletionResponse",
+  "type": "object"
+}

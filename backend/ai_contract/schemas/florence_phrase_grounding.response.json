@@ -1,0 +1,48 @@
+{
+  "$defs": {
+    "GroundedPhrase": {
+      "properties": {
+        "bboxes": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "title": "Bboxes",
+          "type": "array"
+        },
+        "confidence_scores": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Confidence Scores",
+          "type": "array"
+        },
+        "phrase": {
+          "title": "Phrase",
+          "type": "string"
+        }
+      },
+      "required": ["phrase"],
+      "title": "GroundedPhrase",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "grounded_phrases": {
+      "items": {
+        "$ref": "#/$defs/GroundedPhrase"
+      },
+      "title": "Grounded Phrases",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["grounded_phrases", "inference_time_ms"],
+  "title": "PhraseGroundingResponse",
+  "type": "object"
+}

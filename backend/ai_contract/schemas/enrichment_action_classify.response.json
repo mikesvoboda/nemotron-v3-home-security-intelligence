@@ -1,0 +1,36 @@
+{
+  "properties": {
+    "action": {
+      "title": "Action",
+      "type": "string"
+    },
+    "all_scores": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "All Scores",
+      "type": "object"
+    },
+    "confidence": {
+      "title": "Confidence",
+      "type": "number"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "is_suspicious": {
+      "default": false,
+      "title": "Is Suspicious",
+      "type": "boolean"
+    },
+    "risk_weight": {
+      "default": 0.0,
+      "title": "Risk Weight",
+      "type": "number"
+    }
+  },
+  "required": ["action", "confidence", "inference_time_ms"],
+  "title": "ActionClassifyResponse",
+  "type": "object"
+}

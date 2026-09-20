@@ -1,0 +1,22 @@
+{
+  "properties": {
+    "embedding": {
+      "items": {
+        "type": "number"
+      },
+      "title": "Embedding",
+      "type": "array"
+    },
+    "embedding_dimension": {
+      "title": "Embedding Dimension",
+      "type": "integer"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    }
+  },
+  "required": ["embedding", "embedding_dimension", "inference_time_ms"],
+  "title": "ReIDResponse",
+  "type": "object"
+}

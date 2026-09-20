@@ -1,0 +1,19 @@
+{
+  "properties": {
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "prompt_used": {
+      "title": "Prompt Used",
+      "type": "string"
+    },
+    "result": {
+      "title": "Result",
+      "type": "string"
+    }
+  },
+  "required": ["result", "prompt_used", "inference_time_ms"],
+  "title": "ExtractResponse",
+  "type": "object"
+}

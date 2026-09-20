@@ -1,0 +1,36 @@
+{
+  "properties": {
+    "alerts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Alerts",
+      "type": "array"
+    },
+    "inference_time_ms": {
+      "title": "Inference Time Ms",
+      "type": "number"
+    },
+    "keypoints": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Keypoints",
+      "type": "array"
+    },
+    "num_people": {
+      "default": 0,
+      "title": "Num People",
+      "type": "integer"
+    },
+    "posture": {
+      "default": "unknown",
+      "title": "Posture",
+      "type": "string"
+    }
+  },
+  "required": ["keypoints", "inference_time_ms"],
+  "title": "PoseResponse",
+  "type": "object"
+}

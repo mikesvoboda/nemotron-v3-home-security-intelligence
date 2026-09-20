@@ -314,7 +314,6 @@ For developers wanting to understand the underlying systems.
 | `job_search_service.py`    | Advanced job search with aggregations       |
 | `job_log_emitter.py`       | WebSocket log streaming                     |
 | `job_progress_reporter.py` | Progress update handling                    |
-| `job_state_service.py`     | Job state machine management                |
 | `job_status.py`            | Job status enum definitions                 |
 | `job_timeout_service.py`   | Job timeout handling                        |
 

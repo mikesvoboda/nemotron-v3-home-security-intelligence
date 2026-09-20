@@ -91,10 +91,15 @@ This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs
 
 | Test Type           | Minimum Coverage | Command                                        |
 | ------------------- | ---------------- | ---------------------------------------------- |
-| Backend Unit        | 85%              | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend Unit        | 85% (baseline¹)  | `uv run pytest backend/tests/unit/ -n auto`    |
 | Backend Integration | —                | `uv run pytest backend/tests/integration/ -n0` |
 | Frontend            | 83%+             | `cd frontend && npm test`                      |
-| **Full validation** | —                | `./scripts/validate.sh`                        |
+| **Full validation** | 80% combined     | `./scripts/validate.sh`                        |
+
+¹ Per owner ruling A7.1: `pyproject.toml` `fail_under = 85` is the PR diff
+gate's RELATIVE baseline over merged shard data — not an absolute floor. The
+executed absolute backend floor is **80% on combined unit+integration**
+(`validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
 
 ## Git Rules
 

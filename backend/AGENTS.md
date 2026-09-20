@@ -919,12 +919,12 @@ uv run pytest backend/tests/ --cov=backend --cov-report=term-missing
 uv run pytest backend/tests/unit/api/routes/test_cameras.py -v
 ```
 
-**Coverage Requirements:**
+**Coverage Requirements** (owner ruling A7.1, 2026-09-19):
 
-| Test Type | Minimum |
-| --------- | ------- |
-| Unit      | 85%     |
-| Combined  | 95%     |
+| Test Type | Number | Role                                                                  |
+| --------- | ------ | --------------------------------------------------------------------- |
+| Unit      | 85%    | `pyproject.toml` fail_under — PR diff baseline, not an absolute floor |
+| Combined  | 80%    | The executed absolute floor (`validate.sh --fail-under=80`)           |
 
 ## Environment Variables
 

@@ -1,0 +1,10 @@
+{
+  "max_tokens": 1,
+  "messages": [
+    {
+      "content": "sample_content",
+      "role": "sample_role"
+    }
+  ],
+  "temperature": 1.0
+}

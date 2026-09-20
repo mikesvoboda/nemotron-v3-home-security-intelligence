@@ -1,0 +1,131 @@
+{
+  "tool": "check-ai-provider-parity",
+  "divergences": [
+    {
+      "id": "AI-PARITY-CLAIM-GW404-model_preload",
+      "kind": "CLAIM-GW404",
+      "op": "model_preload",
+      "detail": "op model_preload declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/api/routes/model_management.py:448 load_model builds /models/preload \u2014 http://ai-enrichment-light:8096; backend/api/routes/model_management.py:448 load_model builds /models/preload \u2014 http://ai-enrichment:8094; backend/api/routes/model_management.py:603 reload_model builds /models/preload \u2014 http://ai-enrichment-light:8096; backend/api/routes/model_management.py:603 reload_model builds /models/preload \u2014 http://ai-enrichment:8094; backend/services/enrichment_client.py:3272 EnrichmentClient.preload_model builds /enrichment/models/preload \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:3272 EnrichmentClient.preload_model builds /enrichment/models/preload \u2014 use_ai_gateway -> /enrichment \u2014 grep over ai/gateway/adapters returns 0 route hits for /models/preload"
+    },
+    {
+      "id": "AI-PARITY-CLAIM-GW404-model_status",
+      "kind": "CLAIM-GW404",
+      "op": "model_status",
+      "detail": "op model_status declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/api/routes/model_management.py:172 _fetch_service_status builds /models/status \u2014 http://ai-enrichment-light:8096; backend/api/routes/model_management.py:172 _fetch_service_status builds /models/status \u2014 http://ai-enrichment:8094; backend/services/enrichment_client.py:3244 EnrichmentClient.get_model_status builds /enrichment/models/status \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:3244 EnrichmentClient.get_model_status builds /enrichment/models/status \u2014 use_ai_gateway -> /enrichment \u2014 grep over ai/gateway/adapters returns 0 route hits for /models/status"
+    },
+    {
+      "id": "AI-PARITY-CLAIM-GW404-model_unload",
+      "kind": "CLAIM-GW404",
+      "op": "model_unload",
+      "detail": "op model_unload declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/api/routes/model_management.py:530 unload_model builds /models/{model_name}/unload via http://ai-enrichment-light:8096; backend/api/routes/model_management.py:530 unload_model builds /models/{model_name}/unload via http://ai-enrichment:8094; backend/api/routes/model_management.py:603 reload_model builds /models/{model_name}/unload via http://ai-enrichment-light:8096; backend/api/routes/model_management.py:603 reload_model builds /models/{model_name}/unload via http://ai-enrichment:8094 \u2014 grep over ai/gateway/adapters returns 0 route hits for /models/unload"
+    },
+    {
+      "id": "AI-PARITY-CLAIM-GW404-object_distance",
+      "kind": "CLAIM-GW404",
+      "op": "object_distance",
+      "detail": "op object_distance declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /enrich-lt/object-distance \u2014 settings:enrichment_light_url -> /enrich-lt (compose rewrite); backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /enrich-lt/object-distance \u2014 use_ai_gateway -> /enrich-lt; backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /enrichment/object-distance \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /enrichment/object-distance \u2014 use_ai_gateway -> /enrichment; backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /object-distance \u2014 http://ai-enrichment-light:8096; backend/services/enrichment_client.py:1913 EnrichmentClient.estimate_object_distance builds /object-distance \u2014 http://ai-enrichment:8094 \u2014 grep over ai/gateway/adapters returns 0 route hits for /object-distance"
+    },
+    {
+      "id": "AI-PARITY-CLAIM-PATH-model_unload",
+      "kind": "CLAIM-PATH",
+      "op": "model_unload",
+      "detail": "op model_unload: backend/api/routes/model_management.py:530 unload_model builds /models/{model_name}/unload; registered is POST /models/unload [http://ai-enrichment-light:8096]; backend/api/routes/model_management.py:530 unload_model builds /models/{model_name}/unload; registered is POST /models/unload [http://ai-enrichment:8094]; backend/api/routes/model_management.py:603 reload_model builds /models/{model_name}/unload; registered is POST /models/unload [http://ai-enrichment-light:8096]; backend/api/routes/model_management.py:603 reload_model builds /models/{model_name}/unload; registered is POST /models/unload [http://ai-enrichment:8094] \u2014 the caller path is not a registered surface (phantom; the registry's canonical path is the contract)"
+    },
+    {
+      "id": "AI-PARITY-GUARD-clip_batch_similarity-texts",
+      "kind": "GUARD",
+      "op": "clip_batch_similarity",
+      "detail": "clip_batch_similarity: native ai/clip/model.py [POST /clip/batch-similarity] enforces field_validator('texts') capped by a module constant on a list-typed field (deployment-tunable batch/DoS guard); gateway ai/gateway/adapters/clip.py [POST /clip/batch-similarity] schema has no validator for it \u2014 the guard exists only on the (in prod: undeployed) native provider"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrich_lt_person_reid-response",
+      "kind": "KEY",
+      "op": "enrich_lt_person_reid",
+      "detail": "enrich_lt_person_reid: response key sets differ \u2014 gateway-only ['embedding_dimension'] / native-only ['embedding_dim'] (ai/gateway/adapters/enrichment_light.py [POST /enrich-lt/person-reid] vs ai/enrichment-light/model.py [POST /enrich-lt/person-reid])"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrich_lt_pet_classify-response",
+      "kind": "KEY",
+      "op": "enrich_lt_pet_classify",
+      "detail": "enrich_lt_pet_classify: response key sets differ \u2014 gateway-only ['cat_score', 'dog_score'] / native-only [] (ai/gateway/adapters/enrichment_light.py [POST /enrich-lt/pet-classify] vs ai/enrichment-light/model.py [POST /enrich-lt/pet-classify])"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrich_lt_pose_analyze-response",
+      "kind": "KEY",
+      "op": "enrich_lt_pose_analyze",
+      "detail": "enrich_lt_pose_analyze: response key sets differ \u2014 gateway-only ['num_people'] / native-only [] (ai/gateway/adapters/enrichment_light.py [POST /enrich-lt/pose-analyze] vs ai/enrichment-light/model.py [POST /enrich-lt/pose-analyze])"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_action_classify-labels",
+      "kind": "KEY",
+      "op": "enrichment_action_classify",
+      "detail": "enrichment_action_classify: backend/services/enrichment_client.py EnrichmentClient.classify_action sends ['labels'] that ai/gateway/adapters/enrichment.py [POST /enrichment/action-classify] schema does not define (a provider renamed/dropped the key)"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_enrich-frames,options",
+      "kind": "KEY",
+      "op": "enrichment_enrich",
+      "detail": "enrichment_enrich: backend/services/enrichment_client.py EnrichmentClient.enrich_detection sends ['frames', 'options'] that ai/gateway/adapters/enrichment.py [POST /enrichment/enrich] schema does not define (a provider renamed/dropped the key)"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_enrich-response",
+      "kind": "KEY",
+      "op": "enrichment_enrich",
+      "detail": "enrichment_enrich: response key sets differ \u2014 gateway-only ['detection_type', 'enrichments'] / native-only ['action', 'clothing', 'demographics', 'depth', 'models_used', 'pet', 'pose', 'reid_embedding', 'threat', 'vehicle'] (ai/gateway/adapters/enrichment.py [POST /enrichment/enrich] vs ai/enrichment/model.py [POST /enrichment/enrich])"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_pet_classify-response",
+      "kind": "KEY",
+      "op": "enrichment_pet_classify",
+      "detail": "enrichment_pet_classify: response key sets differ \u2014 gateway-only ['cat_score', 'dog_score'] / native-only [] (ai/gateway/adapters/enrichment.py [POST /enrichment/pet-classify] vs ai/enrichment/model.py [POST /enrichment/pet-classify])"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_pose_analyze-min_confidence",
+      "kind": "KEY",
+      "op": "enrichment_pose_analyze",
+      "detail": "enrichment_pose_analyze: backend/services/enrichment_client.py EnrichmentClient.analyze_pose sends ['min_confidence'] that ai/gateway/adapters/enrichment.py [POST /enrichment/pose-analyze] schema does not define (a provider renamed/dropped the key)"
+    },
+    {
+      "id": "AI-PARITY-KEY-enrichment_pose_analyze-response",
+      "kind": "KEY",
+      "op": "enrichment_pose_analyze",
+      "detail": "enrichment_pose_analyze: response key sets differ \u2014 gateway-only ['num_people'] / native-only ['alerts', 'posture'] (ai/gateway/adapters/enrichment.py [POST /enrichment/pose-analyze] vs ai/enrichment/model.py [POST /enrichment/pose-analyze])"
+    },
+    {
+      "id": "AI-PARITY-SHAPE-enrichment_clothing_classify-bbox",
+      "kind": "SHAPE",
+      "op": "enrichment_clothing_classify",
+      "detail": "enrichment_clothing_classify: request key 'bbox' is dict[str, float] | None at ai/gateway/adapters/enrichment.py [POST /enrichment/clothing-classify] but list[float] | None at ai/enrichment/model.py [POST /enrichment/clothing-classify] \u2014 the two providers accept different value types for payloads both are supposed to serve (clients sending the native shape get 422 at the gateway)"
+    },
+    {
+      "id": "AI-PARITY-SHAPE-enrichment_demographics-bbox",
+      "kind": "SHAPE",
+      "op": "enrichment_demographics",
+      "detail": "enrichment_demographics: request key 'bbox' is dict[str, float] | None at ai/gateway/adapters/enrichment.py [POST /enrichment/demographics] but list[float] | None at ai/enrichment/model.py [POST /enrichment/demographics] \u2014 the two providers accept different value types for payloads both are supposed to serve (clients sending the native shape get 422 at the gateway)"
+    },
+    {
+      "id": "AI-PARITY-SHAPE-enrichment_pet_classify-bbox",
+      "kind": "SHAPE",
+      "op": "enrichment_pet_classify",
+      "detail": "enrichment_pet_classify: request key 'bbox' is dict[str, float] | None at ai/gateway/adapters/enrichment.py [POST /enrichment/pet-classify] but list[float] | None at ai/enrichment/model.py [POST /enrichment/pet-classify] \u2014 the two providers accept different value types for payloads both are supposed to serve (clients sending the native shape get 422 at the gateway)"
+    },
+    {
+      "id": "AI-PARITY-SHAPE-enrichment_pose_analyze-bbox",
+      "kind": "SHAPE",
+      "op": "enrichment_pose_analyze",
+      "detail": "enrichment_pose_analyze: request key 'bbox' is dict[str, float] | None at ai/gateway/adapters/enrichment.py [POST /enrichment/pose-analyze] but list[float] | None at ai/enrichment/model.py [POST /enrichment/pose-analyze] \u2014 the two providers accept different value types for payloads both are supposed to serve (clients sending the native shape get 422 at the gateway)"
+    },
+    {
+      "id": "AI-PARITY-SHAPE-enrichment_vehicle_classify-bbox",
+      "kind": "SHAPE",
+      "op": "enrichment_vehicle_classify",
+      "detail": "enrichment_vehicle_classify: request key 'bbox' is dict[str, float] | None at ai/gateway/adapters/enrichment.py [POST /enrichment/vehicle-classify] but list[float] | None at ai/enrichment/model.py [POST /enrichment/vehicle-classify] \u2014 the two providers accept different value types for payloads both are supposed to serve (clients sending the native shape get 422 at the gateway)"
+    },
+    {
+      "id": "AI-PARITY-TYPE-UNUSED-clip_classify-camera_type",
+      "kind": "TYPE-UNUSED",
+      "op": "clip_classify",
+      "detail": "clip_classify: gateway ai/gateway/adapters/clip.py [POST /clip/classify] widens camera_type: CameraType -> str and the gateway handler never reads request.camera_type \u2014 the deployed provider accepts values whose semantics it silently ignores (native validates/enumerates camera_type)"
+    }
+  ]
+}

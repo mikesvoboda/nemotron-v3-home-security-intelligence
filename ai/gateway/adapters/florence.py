@@ -17,7 +17,6 @@ Endpoints:
     POST /describe-region         - Region description (NEM-3911)
     POST /phrase-grounding        - Phrase grounding (NEM-3911)
     POST /detect_security_objects - Security-focused object detection
-    POST /analyze-scene           - Comprehensive scene analysis
     GET  /health                  - Model health check
 
 The backend's FlorenceClient sends JSON payloads with base64 images and
@@ -30,7 +29,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
@@ -168,18 +167,6 @@ class BatchExtractResponse(BaseModel):
     batch_size: int = Field(...)
 
 
-class SceneAnalysisRequest(BaseModel):
-    image: str = Field(...)
-
-
-class SceneAnalysisResponse(BaseModel):
-    caption: str = Field(...)
-    regions: list[CaptionedRegion] = Field(default_factory=list)
-    text_regions: list[OCRRegion] = Field(default_factory=list)
-    inference_time_ms: float = Field(...)
-    task_times_ms: dict[str, float] = Field(default_factory=dict)
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -250,7 +237,7 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
             text_result = envelope["result"]
             if not isinstance(text_result, str):
                 text_result = json.dumps(text_result)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         pass
 
     inference_time_ms = (time.monotonic() - start) * 1000
@@ -264,7 +251,7 @@ def _parse_json_output(text: str) -> Any:
     """
     try:
         return json.loads(text)
-    except (json.JSONDecodeError, TypeError):
+    except json.JSONDecodeError, TypeError:
         return text
 
 
@@ -504,8 +491,12 @@ async def detect_security_objects(request: ImageRequest) -> SecurityObjectsRespo
     detections: list[SecurityObjectDetection] = []
 
     if isinstance(parsed, dict):
-        bboxes = parsed.get("bboxes", parsed.get("boxes", []))
-        labels = parsed.get("bboxes_labels", parsed.get("labels", []))
+        # cast: the JSON payload values are untyped; an explicit null for
+        # bboxes/labels used to raise TypeError mid-loop (crash behavior
+        # unchanged — cast is erased at runtime; mypy no-any/None noise
+        # surfaced when backend tests first imported ai.gateway, WP8.3).
+        bboxes = cast("list", parsed.get("bboxes", parsed.get("boxes", [])))
+        labels = cast("list", parsed.get("bboxes_labels", parsed.get("labels", [])))
         for i, label in enumerate(labels):
             bbox = bboxes[i] if i < len(bboxes) else []
             detections.append(
@@ -520,59 +511,6 @@ async def detect_security_objects(request: ImageRequest) -> SecurityObjectsRespo
         detections=detections,
         objects_queried=SECURITY_OBJECTS.copy(),
         inference_time_ms=round(inference_time_ms, 2),
-    )
-
-
-@router.post("/analyze-scene", response_model=SceneAnalysisResponse)
-async def analyze_scene(request: SceneAnalysisRequest) -> SceneAnalysisResponse:
-    """Comprehensive scene analysis using cascaded Florence-2 prompts."""
-    start = time.monotonic()
-    task_times: dict[str, float] = {}
-
-    # Step 1: Detailed caption
-    caption, caption_time = await _florence_infer(request.image, "<MORE_DETAILED_CAPTION>")
-    task_times["caption"] = round(caption_time, 2)
-
-    # Step 2 & 3: Dense regions and OCR in parallel
-    async def run_dense() -> tuple[list[CaptionedRegion], float]:
-        text, t = await _florence_infer(request.image, "<DENSE_REGION_CAPTION>")
-        parsed = _parse_json_output(text)
-        regions: list[CaptionedRegion] = []
-        if isinstance(parsed, dict):
-            bboxes = parsed.get("bboxes", [])
-            labels = parsed.get("labels", [])
-            for i, label in enumerate(labels):
-                bbox = bboxes[i] if i < len(bboxes) else []
-                regions.append(CaptionedRegion(caption=label, bbox=bbox))
-        return regions, t
-
-    async def run_ocr() -> tuple[list[OCRRegion], float]:
-        text, t = await _florence_infer(request.image, "<OCR_WITH_REGION>")
-        parsed = _parse_json_output(text)
-        text_regions: list[OCRRegion] = []
-        if isinstance(parsed, dict):
-            quad_boxes = parsed.get("quad_boxes", [])
-            labels = parsed.get("labels", [])
-            for i, label in enumerate(labels):
-                bbox = quad_boxes[i] if i < len(quad_boxes) else []
-                if bbox and isinstance(bbox[0], list):
-                    bbox = [coord for point in bbox for coord in point]
-                text_regions.append(OCRRegion(text=label, bbox=bbox))
-        return text_regions, t
-
-    (regions, regions_time), (text_regions, ocr_time) = await asyncio.gather(run_dense(), run_ocr())
-
-    task_times["dense_regions"] = round(regions_time, 2)
-    task_times["ocr_with_regions"] = round(ocr_time, 2)
-
-    total_time_ms = (time.monotonic() - start) * 1000
-
-    return SceneAnalysisResponse(
-        caption=caption,
-        regions=regions,
-        text_regions=text_regions,
-        inference_time_ms=round(total_time_ms, 2),
-        task_times_ms=task_times,
     )
 
 

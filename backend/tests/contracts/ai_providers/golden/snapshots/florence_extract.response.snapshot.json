@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "florence_extract",
+  "properties": {
+    "inference_time_ms": "number",
+    "prompt_used": "string",
+    "result": "string"
+  },
+  "required": ["inference_time_ms", "prompt_used", "result"],
+  "side": "response"
+}

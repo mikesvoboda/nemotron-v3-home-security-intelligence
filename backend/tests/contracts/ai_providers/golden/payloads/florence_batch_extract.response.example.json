@@ -1,0 +1,12 @@
+{
+  "batch_size": 1,
+  "results": [
+    {
+      "error": "sample_error",
+      "inference_time_ms": 1.0,
+      "prompt_used": "sample_prompt_used",
+      "result": "sample_result"
+    }
+  ],
+  "total_inference_time_ms": 1.0
+}

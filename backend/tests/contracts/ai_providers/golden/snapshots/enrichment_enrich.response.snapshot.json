@@ -1,0 +1,12 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrichment_enrich",
+  "properties": {
+    "detection_type": "string",
+    "enrichments": "object",
+    "inference_time_ms": "number"
+  },
+  "required": ["detection_type", "enrichments", "inference_time_ms"],
+  "side": "response"
+}

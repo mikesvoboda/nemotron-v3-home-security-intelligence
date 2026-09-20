@@ -1,0 +1,13 @@
+{
+  "defs": [],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "enrich_lt_threat_detect",
+  "properties": {
+    "inference_time_ms": "number",
+    "is_threat": "boolean",
+    "max_confidence": "number",
+    "threats_detected": "array<object>"
+  },
+  "required": ["inference_time_ms", "is_threat"],
+  "side": "response"
+}
