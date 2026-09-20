@@ -7514,3 +7514,32 @@ GREEN -- confirming that red as the L WP0.5 slow-runner family (different test e
 which self-cleared; its rerun-flag fix stays parked at P handoff SS3.10 (owner's call).
 Push mechanics: the auto-rebase half-rebase trap fired again (now-landed #6553's add/add
 files) -> rebuilt branch from origin/main + cherry-pick, blob identity proved d4be4079.
+
+## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
+
+**MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/
+-n auto --dist=worksteal --timeout=0`) run THREE consecutive times at `main`
+HEAD `2ab66ff1`: run1 `27428 passed, 122 skipped, 8 xfailed in 63.02s`, run2
+same counts `65.50s`, run3 same counts `61.82s`. **Union of failures = {};
+intersection = {}.** Logs: `$CLAUDE_JOB_DIR/tmp/wp02/run{1,2,3}.log`.
+Repro one-liner:
+`for i in 1 2 3; do uv run pytest backend/tests/unit/ -n auto --dist=worksteal --timeout=0 -q -rf --tb=no; done`
+(`--splits/--group` partitions only; the full tier is the union of the four
+shards, so the unsplit command is the same failure-space.)
+
+**The plan's condition #2 did not reproduce at current main.** P cited run
+35482667110 (@e947e7ae) for "unit tier red on main, culprit rotates": all four
+`Backend Unit Tests (N/4)` shards concluded **success** on that run. What
+actually rotates across same-sha runs is the **Test Performance Audit** job
+(`test_alert.TestAlertToDict::test_to_dict_enum_roundtrip` 5.33s ->
+`test_materialized_views_retired::...` 4.05s -> green on b02b0f0a) — a
+wall-clock gate on a contended runner, exactly WP1.3's defect, one tier away
+from where P looked. R-6 applied: P's table stands as its own measurement at
+e947e7ae; at 2ab66ff1 the unit tier measures deterministically green locally.
+
+**Consequence for the day:** the WP0.2 flake set is empty, so for the rest of
+this run ANY unit-tier failure is mine, not inherited — the strictest reading
+of the done-when. The inherited-breakage risk P worried about is real but
+lives in TPA (WP1.3's fix list carries it, plus the earlier §3.10
+rerun-flag ruling). If TPA reddens a CI run today, consult its rotating-
+culprit history above before attributing it to my diff.
