@@ -8185,3 +8185,126 @@ scripts/test_ci_job_graph.py: OK: 41 jobs, gate reaches 37 (was 34 + 3 PLUMBING-
   Integration floor 37 UNTOUCHED (already at its WP2.3 measured 37.01; the
   37.67% figure belongs to WP3.4's tier work, which re-measures with complete
   data — the inherited integration reds forbid a partial-data raise).
+
+## WP3.2 TWO PROVEN SURVIVORS KILLED (#6587 draft, stacked on #6586) — cohort 206/396 killed; segment_clothing 0.7% -> 79.1% (2026-09-20)
+
+**Done-when (plan P):** "both mutants die, and the test that kills each names
+it" — MET TWICE OVER: six in-tree hand-probes (red under the known-kill key,
+named killer in each probe log `probe-{23,24,25}.log`, `probe-seg-{62,120,121}.log`),
+then an independent full-census re-judge by targeted `mutmut run` over the
+three named families.
+
+**Census (folded from `mutants/*.py.meta` exit_code_by_key after the run
+exited; never re-typed):**
+
+| Family                                                          | total | killed | survived | unchecked | killed/judged |
+| --------------------------------------------------------------- | ----- | ------ | -------- | --------- | ------------- |
+| CleanupService.run_cleanup (:266 proven survivor)               | 178   | 57     | 121      | 0         | 32.0%         |
+| CleanupService.dry_run_cleanup                                  | 65    | 28     | 37       | 0         | 43.1%         |
+| segment_clothing (the 152/153 survivor)                         | 153   | 121    | 32       | 0         | **79.1%**     |
+| plan-P cohort (P's 243 = 178+65 both run-cleanup methods; +153) | 396   | 206    | 190      | 0         | 52.0%         |
+
+All six hand-probe mutants (run_cleanup 23/24/25: timedelta operand,
+naive-now, days=None; segment_clothing 62/120/121: strict-gate, or/and
+threat flips) read KILLED in the run's own metas — the hand-probes and the
+engine agree.
+
+**The mechanism that mattered:** segment_clothing's 152 survivors survived
+through the outer `except Exception: return ClothingSegmentationResult()` —
+ANY internal breakage lands on the silent empty default, indistinguishable
+from "ran fine, nothing detected". The kill suite's shape is the fix: every
+test pins NON-default values, so a broken mutant lands on the default and
+dies. 1/153 -> 121/153. The swallow itself is now pinned AS SPEC
+(test_internal_failure_degrades_to_empty_default_by_design) so its semantics
+cannot silently widen — changing the degradation is an owner call with a red
+test, not a drift.
+
+**Landed:** commit ef82b0f8 (`phase3/wp32-kill-tests`, base = wp25 branch),
+2 test modules, 10 tests (2 cleanup + 8 segformer, recount against the
+committed files — the first draft of this section said 14; the files are
+the artifact). First commit attempt blocked by the WP4.2 mock
+ratchet (4 unspecced patch.object) -> autospec=True adoption, no new license,
+never --no-verify. Spec facts learned writing it (in the test docstrings):
+`has_face_covered` legitimately arrives as `np.False_`/`np.True_` (pin the VALUE,
+not identity); register_buffer gives empty parameters() -> next() StopIteration
+-> swallowed -> silent empty (fake models need a real nn.Parameter).
+
+**Honest residue:** OrphanedFileCleanup.run_cleanup (96, different class,
+name-pattern neighbor) was outside the targeted globs — 95 unchecked; the
+WP3.1 FULL run relaunch covers every unchecked key as its own artifact. The
+190 cohort remainders + segment_clothing's 32 are WP4.4 triage input.
+
+## WP3.3 FRONTEND STRYKER HARNESS REPAIRED + FIRST HONEST BASELINE (branch `phase3/wp33-frontend-mutation`, PR #6588 draft, stacked on #6587) (2026-09-20)
+
+**Done-when (plan P):** "the harness runs and mints a first honest baseline,
+however bad. A bad number you can see beats no number." — MET: first honest baseline **63.04% total**
+(confidence.ts 100.00 / risk.ts 98.39 / time.ts 43.00),
+`stryker-full-baseline2.log` BASELINE2-RC=0, 21m59s — the harness's first-ever
+number, and it already localizes the gap to time.ts (57 survived + 61 no-cov
+of ~160: the plan's "executes but asserts nothing" class, frontend edition).
+
+**The headline:** `npm run test:mutation` had NEVER produced a score — not a
+bad score, no score — and `frontend/stryker.config.mjs` explained this with a
+plausible story ("start small with well-tested utility modules") that was
+FALSE. The plan predicted exactly this failure class: _a measurement that
+cannot run, reported as a configuration choice._ Three stacked bugs, each
+concealing the next:
+
+1. **Checker init crash via project references.** `tsconfigFile: tsconfig.json`
+   → checker followed `references` into tsconfig.node.json (program =
+   vite.config.ts), where vite 7's `ServerOptions` has no boolean arm for
+   `https` → fatal `Type 'boolean' has no properties in common...`,
+   TypescriptChecker.init died BEFORE mutating. Invisible to `npm run build` /
+   `npm run typecheck` (plain tsc does not build references). →
+   `frontend/tsconfig.stryker.json` (extends, `"references": []`) pins the
+   checker to the src+tests program the repo's gates already enforce.
+2. **ignorePatterns deleted the tests from the SANDBOX.** `**/*.test.ts*` gated
+   the COPY into .stryker-tmp, not mutation → dry run saw "No tests were
+   found" → premature exit. Tests can't be mutated anyway (`mutate:` is an
+   allowlist). → removed.
+3. **R-T7 quarantine bypassed inside the sandbox.** `related` mode passes test
+   files to vitest EXPLICITLY; explicit args override vitest `exclude`, so the
+   16-file R-T7-VITEST quarantine `npm test` honors didn't apply → dry run died
+   on the quarantined EventCard snooze red. → the same 16 files in
+   ignorePatterns = sandbox parity (R-4: already quarantined, none in mutate
+   set, none a direct test of it).
+
+Wrong levers tried + reverted (recorded so nobody retries): `related: false`
+(widened discovery to the whole 795-file suite — hit bug 3 harder),
+`testFilter` (never applied to the dry run at all).
+
+BUG 4 (surfaced only AFTER 1-3 died — the smoke's small related-union fit
+under it): stryker's DEFAULT dryRunTimeoutMinutes: 5 killed the 3-module run
+("Initial test run timed out!" at 5m02s, stryker-full-baseline.log) — the
+dry run executes the whole related-test union ONCE under per-test coverage
+instrumentation and time.ts is imported nearly everywhere. Fixed with
+dryRunTimeoutMinutes: 20 (one-off harness budget fitted to the suite;
+adjudicates no test verdict, NOT a test-timeout cap). True wall measured in
+stryker-dryonly.log: 1749 tests, 5m45s (net 109s + 236s instrumentation overhead)
+
+**SEPARATE FINDING (not laundered):** vite.config.ts `server.https: true` is a
+latent type error under vite 7 — real, invisible to every current gate, found
+only because the stryker checker compiled it. NOT fixed here (out of scope;
+zero test coverage of server.https). Owner call when a config-file typecheck
+program exists.
+
+**Baseline numbers (MEASURED, this run):** risk.ts smoke (first-ever run,
+SMOKE-RC=0, 8m54s): **98.39%** — 61 killed / 1 survived / 18 errors / 0 no-cov.
+The survivor is a genuine gap found immediately: risk.ts:57 `< 0` -> `<= 0`
+survives — no test calls getRiskLevelWithThresholds(0). 18-error class =
+checker-discarded (unmutatable/compile-identical), itemized in the HTML report.
+Full 3-module baseline (the done-when number): **63.04%** — per-file table in
+stryker-full-baseline2.log; 62 "errors" = CompileError class (checker-
+discarded; count folded from the HTML report, 203/58/61/62 == table).
+
+**Rulings honored:** break:null KEPT informational (R-7: advisory → blocking
+only AFTER baselining; this PR IS the baselining event; the break-number
+decision comes next with the number in hand). WP4.3 DECIDE respected: frontend
+set stays at the three pure utils (widening without a baseline produces an
+unfalsifiable number — now there is one).
+
+**Artifacts:** `$CLAUDE_JOB_DIR/tmp/stryker-risk-smoke.log` (80-mutant smoke,
+RC=0), stryker-full-baseline.log (the 5m02s
+dry-run-timeout death, bug-4 evidence), stryker-dryonly.log (1749 tests /
+5m45s wall), stryker-full-baseline2.log (THE baseline, RC=0),
+dry-run death logs stryker-dry{,2,3}.log (bugs 1-3).
