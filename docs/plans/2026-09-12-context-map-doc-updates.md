@@ -7848,3 +7848,43 @@ gone; BOTH sharded workflows pin a run-scoped seed). Workflow suites
 re-verified after the edits: test_github_workflows 40p/2s, job-graph 41 jobs/
 gate 34, WP1.4/1.5 gates green, actionlint clean. Cap 2h: ~used, mechanism
 hunt was the cost of the three-way cross-check.
+
+## WP2.2 SUBMITTED (#6582 draft, stacked on #6581) — the published number says what it IS: line/branch/blended, every main run (2026-09-20)
+
+DEFECT (P's, verified): with `branch = true` (pyproject) `coverage report
+--format=total` returns the BLENDED statements+branches figure.
+coverage-baseline.json carried ONLY that number — neither line nor branch
+coverage was published anywhere, and the blended number is neither. Measured
+against this repo's merged data (coverage 7.16.1): 84.12 blended / 86.02 line
+/ 76.27 branch — 84.12 is not line coverage and the reader can't tell.
+Root CLAUDE.md meanwhile claimed "Backend Unit | 85%": the floor as strength,
+overstating against the CI lineage by ~15pp.
+
+FIX:
+
+- ci.yml `unit-tests-coverage-merge`: after combine, emit `coverage json
+--fail-under=0` (json is the only report with the split; extraction-not-
+  floor, same WP0.9 doctrine) and write
+  {percent_covered, percent_line, percent_branch, source} to
+  coverage-baseline.json — percent_covered stays FIRST and flat-quoted, the
+  key check-test-coverage-gate.py parses (E2E probe: gate `_read_percent`
+  against the new-shape file -> 84.1165, siblings ignored by the reader as
+  intended). Step summary gets "line X% / branch Y% (blended Z%)".
+- ci.yml `integration-coverage-merge`: summary line becomes
+  "line / branch / blended" (still reporting-only; R-COVDENOM stands).
+- CLAUDE.md Testing table: Backend Unit cell is "floor 85%¹ · actual 84.12²"
+  with footnote ² carrying the full measured triple + the WP2.1 undercount
+  note. Floor and strength finally separate.
+- testing.md: new paragraph in the WP2.1 section stating what main runs
+  publish and the writer/reader contract (siblings added, key never moved).
+
+RED-FIRST: 4 tests added to scripts/test_coverage_denominator.py; 3 failed
+before the fix (no json emission, blended-only integration summary, CLAUDE.md
+85%-as-strength), 4th (writer/reader flat-key contract) passes before AND
+after — it pins the invariant that must survive the shape change, per WP0.6
+reader/writer drift class. 7/7 green after; test_check_coverage_diff 11/11;
+actionlint clean; prettier clean (CLAUDE.md reflow was its own table pad).
+
+Caveat: display fields (percent\_\*\_covered_display) carry the same rounding
+the ledger's lineage uses (2dp strings); the flat percent_covered stays the
+full float — baseline diffs compare like-for-like.

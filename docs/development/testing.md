@@ -116,6 +116,17 @@ keeps its value). Expect the CI figure to jump ~14pp to meet the local number
 on the first main run with the fix; until then the CI figure understates the
 tier and any floor wired to it inherits the drift.
 
+**What every main run publishes (WP2.2):** `coverage report --format=total` —
+the blended figure alone — used to be all `coverage-baseline.json` carried, so
+the published number was neither line nor branch coverage and neither of those
+existed anywhere. `unit-tests-coverage-merge` now also emits `coverage json`
+(the only report that exposes the split) and writes all three into the
+baseline: `percent_covered` (blended — the flat key
+`check-test-coverage-gate.py` parses; siblings added, never moved),
+`percent_line`, and `percent_branch`. The integration merge reports line /
+branch / blended to its step summary (reporting only — the R-COVDENOM ruling
+stands).
+
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".
 `scripts/test_coverage_denominator.py` pins this section's claims.

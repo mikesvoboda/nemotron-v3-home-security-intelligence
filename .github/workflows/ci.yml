@@ -541,9 +541,29 @@ jobs:
             # --cov-fail-under=0.
             total="$(uv run coverage report \
               --data-file=.coverage --format=total --fail-under=0)"
-            printf '{"percent_covered": %s, "source": "ci.yml unit-tests-coverage-merge @ %s"}\n' \
-              "$total" "${GITHUB_SHA}" > coverage-baseline.json
+            # WP2.2: --format=total is the BLENDED statements+branches figure
+            # (branch=true in pyproject; measured against this repo's coverage
+            # 7.16.1: 84.12 blended vs 86.02 line vs 76.27 branch). Publishing
+            # only it meant the number was neither line nor branch coverage and
+            # neither of those existed anywhere. The json report is the only
+            # place coverage emits the split; --fail-under=0 for the same
+            # extraction-not-floor reason as the report call above. Repo config
+            # is honored (pyproject omit/exclude_lines = the ONE shared
+            # denominator, 78,916 stmts — see docs/development/testing.md).
+            uv run coverage json --data-file=.coverage \
+              -o coverage-unit-totals.json --fail-under=0
+            line="$(jq -r '.totals.percent_statements_covered_display' coverage-unit-totals.json)"
+            branch="$(jq -r '.totals.percent_branches_covered_display' coverage-unit-totals.json)"
+            # percent_covered stays the FIRST key and keeps its flat, parseable
+            # shape — test-coverage-gate.yml fetches this artifact as
+            # COVERAGE_BASE_JSON and check-test-coverage-gate.py reads the flat
+            # key (scripts/test_coverage_denominator.py pins writer+reader
+            # together; add siblings, never move it).
+            printf '{"percent_covered": %s, "percent_line": %s, "percent_branch": %s, "source": "ci.yml unit-tests-coverage-merge @ %s"}\n' \
+              "$total" "$line" "$branch" "${GITHUB_SHA}" > coverage-baseline.json
             cat coverage-baseline.json
+            echo "Unit merged coverage: **line ${line}%** / **branch ${branch}%** (blended ${total}% published as percent_covered)" \
+              >> "$GITHUB_STEP_SUMMARY"
             echo "merged=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::No coverage files found to merge"
@@ -1097,7 +1117,15 @@ jobs:
             uv run coverage combine --data-file=.coverage-integration coverage-reports/*.dat
             total="$(uv run coverage report --data-file=.coverage-integration \
               --format=total --fail-under=0)"
-            echo "Integration merged coverage: ${total}% (reported only — R-COVDENOM gates nothing)" \
+            # WP2.2: report the split, not just the blended --format=total
+            # figure (measured: blended != line != branch under branch=true).
+            # Same extraction-not-floor --fail-under=0; reporting-only, the
+            # R-COVDENOM ruling stands (this gates nothing).
+            uv run coverage json --data-file=.coverage-integration \
+              -o coverage-integration-totals.json --fail-under=0
+            line="$(jq -r '.totals.percent_statements_covered_display' coverage-integration-totals.json)"
+            branch="$(jq -r '.totals.percent_branches_covered_display' coverage-integration-totals.json)"
+            echo "Integration merged coverage: line ${line}% / branch ${branch}% / blended ${total}% (reported only — R-COVDENOM gates nothing)" \
               >> "$GITHUB_STEP_SUMMARY"
             echo "percent=${total}"
           else
