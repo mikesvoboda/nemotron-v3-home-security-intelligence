@@ -7958,3 +7958,89 @@ port-target constant, `check=False` explicit where the return code IS the
 assertion).
 
 **Next:** WP2.4 (cap 2h) — "make the ratchet actually ratchet."
+
+## WP2.4 SUBMITTED (#6584 draft, stacked on #6583) — the ratchet's three leaks closed: ids-vs-cases measured, environment stopped being a default, and 89 no-op suppressions retired (baseline 322->233) (2026-09-20)
+
+**Scope (P WP2.4, cap 2h):** "A ratchet that has never ratcheted is a ledger
+wearing a gate's clothes." Done-when: the census reports test-case counts
+alongside id counts; `environment` is either tracked or justified per-entry;
+the baseline has moved DOWN at least once with evidence. All three, in three
+commits' worth of machinery on one branch.
+
+**Leak 2 first (measurement before adjudication) — `--cases`.** The census
+now resolves ids to real test cases (`scripts/suppression-census.py
+--cases`): decorator ids x parametrize product (stacked parametrize
+MULTIPLY), class-level ids claim the test functions inside (the class itself
+is not collected — the rule that reproduces P's 193 exactly), imperative
+ids x the enclosing fn's parametrization, frontend describe.skip blocks x
+nested live `it(` sites, quarantine files x live sites; config-channel
+categories carry `cases: null` honestly. Real tree: **255 test-level ids ->
+1,112 cases (4.36x; P measured 1,136 / 4.45x — same bias, tiny drift)**,
+`pytest_skipif` 56 ids -> **193 cases (P's number exactly)**,
+`frontend_quarantine` 16 -> 658 (P ~662). One legitimate coalescing: 7
+stacked skip+skipif double-mark pairs in test_system_models.py dedupe to
+one case each, so pytest_skip measures 32 ids -> 31 cases — the real-tree
+test pins per-category invariants instead of a naive cases>=ids everywhere.
+Red-first: 3 red on the missing flag before implementing.
+
+**Leak 1 — environment laundering (the big one).** registry-gen's
+`classify()` defaulted EVERY imperative skip to `kind: environment` — the
+kind exempt from BOTH tracking and expiry — so 91 sites were permanently
+invisible to the ratchet. P measured 42/93 guarding git-tracked repo files.
+Fix is three interlocking pieces, each machine-checked:
+
+1. the census stamps every imperative site with the **guard** (deepest
+   enclosing if-test / except-type at the site) and **host_probe** — does
+   the guard name host machinery (`shutil.which`, importlib, environ,
+   service health, nvidia-smi, uid/root...). A git-tracked repo FILE's
+   presence is deliberately NOT host-shaped. Real tree: probe True 23/93.
+2. `scripts/suppression-registry-gen.py` now classifies imperative from the
+   probe: probe False -> `todo` (family tracking + 2026-12-31 expiry). The
+   sites the probe can't see through but a site-read proves environmental
+   live in a committed `HOST_JUSTIFIED` dict — 23 written adjudications
+   (scenarios.parquet generated-data chain x14, service-availability
+   except-guards x4, nvidia-smi output math x4, TEST_DATABASE_URL-via-alias
+   x1) rendered into the registry as `host_justification:`.
+3. `scripts/ratchet-check.py` enforces `environment => probe OR
+host_justification` (LAUNDER), and host_justification on any NON-
+   environment entry is decoration -> fails. Both channels pinned red-first
+   (4 tests; the fixture tree carries one which()-guarded site and one
+   repo-path-guarded site so the rule is seen discriminating).
+
+Registry effect: **environment 121 -> 76, todo 391 -> 436** — 47 imperative
+sites got tracking + expiry for the first time. Honest delta vs P's 42: my
+mechanical vocab is stricter AND 23 borderline sites bought the exemption
+with written reasons, so the re-classified set is 47, recorded both ways.
+Counts unchanged (only kinds moved): ci.yml `--expect` literal untouched,
+verified against the committed string.
+
+**Leak 3 — R-5 retirement, the baseline finally moves DOWN.** New
+`scripts/arity_resolver.py`: can a patch target be PROVEN a 0-arity
+callable? Static, conservative, reads only this tree: longest module-prefix
+match, import-following for patch-at-use-site, class targets NEVER retired
+(autospec on a class specs its attribute surface), decorated defs NOT
+retired (the wrapper may change the signature), anything unresolved is
+KEPT. `check-mock-spec.sites_for_root` drops proven-zero sites from the
+count; ordinals still mint over EVERY site so surviving registry ids never
+renumber when a neighbour retires. Result: **322 -> 233, 89 sites retired
+across 10 distinct targets** — main.init_redis 15, main.close_redis 14,
+detector.get_detector_registry 14, main.init_db 11, main.close_db 11,
+core.redis.init_redis 10, close_redis 7, main.get_container 4,
+core.redis.get_redis 2, metrics.record_slow_query 1. Honest delta vs P's
+98: P's probe retired ~45 `get_settings` sites; `get_settings` is
+`@cache`-decorated (backend/core/config.py:3172) and a wrapper can change a
+signature, so the resolver KEEPS those — 89 is the number the proof earns.
+Baseline lowered via `ratchet-check --update` (the mechanism's own honest
+path: "baseline lowered: {'unspecced_patch': (322, 233)}"), ci.yml
+expect 322 -> 233, registry regenerated (89 ids dropped, survivors stable).
+Red-first: 2 red before the resolver existed; 5 tests total pin the
+retention side too (required params, varargs, class targets, unresolved
+targets, import-following all KEPT).
+
+**Gates:** ratchet-check green on the real tree (incl. WP1.4 expiry, real
+clock); registry-gen --check green (registry is machine-minted from
+census+rules — the adjudications live in the generator, not the YAML);
+44 tests across the three script suites green + ruff clean; census
+--expect verified against the exact committed literal.
+
+**Next:** Phase 3 (WP3.1 — the nine zero-mutation modules, cap 4h).

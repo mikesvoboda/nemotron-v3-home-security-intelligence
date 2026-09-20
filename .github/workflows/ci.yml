@@ -119,7 +119,7 @@ jobs:
       - name: Suppression census (baseline stable)
         run: >-
           uv run python scripts/suppression-census.py --expect
-          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":322,"tpa_slow_list":7}'
+          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":233,"tpa_slow_list":7}'
       # WP1.3: the ratchet. The --expect above says "the census must not
       # drift"; this says "counts may only FALL" — an unregistered
       # @pytest.mark.skip (or any new suppression of any category) fails CI
