@@ -8045,6 +8045,147 @@ census+rules — the adjudications live in the generator, not the YAML);
 
 **Next:** Phase 3 (WP3.1 — the nine zero-mutation modules, cap 4h).
 
+## AUDIT RESPONSE (2026-09-20, untracked AUDIT-FINDINGS.md) — negative results recorded; enforcement status corrected
+
+An owner-commissioned five-auditor audit of #6572..#6583 landed as untracked
+`AUDIT-FINDINGS.md` mid-session. Its material finding was verified from disk on
+this branch (`phase3/wp31-zero-mutation` @ `01078725`+tests) before anything
+below was written:
+
+**NEGATIVE RESULT — the coverage floors are computed, not enforced.** A
+transitive `needs:` closure walk over ci.yml (reproduced locally, 2026-09-20):
+`ci-gate` needs 26 jobs; closure = 34 of 40; UNREACHABLE: `flake-report`,
+`frontend-coverage-merge`, `frontend-e2e-secondary`,
+`integration-coverage-merge`, `test-count-verification`,
+`unit-tests-coverage-merge`. Branch protection (`gh api
+.../branches/main/protection`) requires exactly one context, `CI Gate (Required
+Checks)`. So every floor WP2.3 wired stops nothing at merge time. WP2.3's title
+("enforced only on COMPLETE data") overstated: enforced-on-complete-data was
+inside the verdict logic of an UNREACHABLE job. Corrected status: **floors
+computed, verdicts published, NOT blocking — enforcement is open work.**
+
+Also verified true on this branch:
+
+- `ci.yml` unit floor literal is `total < 70` while this stack's own CI
+  publishes 84.12 blended (WP2.1 seed-pinned) — a stale pre-WP2.1 number per
+  R-1 needs the measured value; changing it is owner-adjacent (R-1 floor
+  values), filed BLOCKED B-2 rather than silently rewritten mid-WP3.1.
+- `trivy.yml` job guards remain `push || workflow_dispatch` (lines 139/217/306)
+  — never executed on `pull_request`; R-7 baselining not done.
+- `COVERAGE_DIFF_EPSILON_PP = 2.0` is calibrated on pre-seed-pin ±1.6pp noise;
+  post-fix re-derivation is open work.
+
+Corrected FOR THE RECORD (§7.3 of the audit does not extend to this branch):
+`phase3/wp31-zero-mutation` descends from the #6572/#6573 content — the folded
+anti-rot step on this branch resolves to a SINGLE-LINE `run:` block containing
+all 14 gate suites with `-q` intact (dumped from `yaml.safe_load` post-collapse
+— the four formerly swallowed suites are now argv). The swallow defect is
+fixed here; its CLASS-invariant test is open work.
+
+**Audit §4 landing strategy (recorded before any merge, as required):** main is
+squash-merged history (last 8 commits single-parent), so each squash detaches
+every PR above it. Intended order: (1) owner closes #6572 as superseded (§3:
+strict subset of #6573); (2) merge bottom-up #6573 → #6575 → #6578 → #6579 →
+#6580 → #6581 → #6582 → #6583 → #6584 → #6585; (3) after EACH squash-merge,
+rebase the next branch onto the new main tip before merging it (memory
+[[push-autorebase-squash-merge-trap]]: stacked pushes conflict in the pre-push
+auto-rebase otherwise); (4) cost: `strict_up_to_date` re-runs the full stack CI
+on every open PR after each merge — ~10 sequential full runs against ~20 runner
+slots; a collapse (merge #6573..#6584 as one squashed PR) is the cheaper
+alternative if the owner does not want per-WP history. NOT DECIDED HERE — merge
+authority is not granted (BLOCKED B-1 precedent stands).
+
+**Audit §5 ruling recorded:** writing down a never-enforced declared floor to
+its measured value is MINTING a floor, not lowering one; lowering stays
+forbidden for floors that actually gated.
+
+**§6 correction adopted for all remaining WPs:** no gate WP is described as
+done in this ledger without a pasteable `needs:`-reachability walk showing the
+blocking path.
+
+## WP2.5 AUDIT-REMEDIATION SUBMITTED (#6586 draft, stacked on #6585) — the floors become enforced; the fold stops swallowing; B-2 resolves from five runs (2026-09-20)
+
+Inserted between WP3.1 and WP3.2 per the B-3 ruling (AUDIT §2: gate
+enforcement precedes Phase-3 mutation work; mutation verdicts are worthless
+under an unenforced floor). Red-first: `scripts/test_check_gate_reachability.py`
+landed FIRST and went red exactly as predicted — verdict jobs unreachable ×3,
+`ci-gate does not check frontend-coverage-merge.result`, and the folded anti-rot
+step caught as the comment-swallow offender (3 failed / 4 passed).
+
+**§6.1 discipline — pasteable reachability walk (forward path to the required
+context, produced against ci.yml at this commit):**
+
+```
+unit-tests-coverage-merge           -> ci-gate   [needs: + check_job line]
+integration-coverage-merge          -> ci-gate   [needs: + check_job line]
+frontend-coverage-merge             -> ci-gate   [needs: + check_job line]
+check_job lines cover all 3: True    direct ci-gate needs: 29 (test cap 30)
+scripts/test_ci_job_graph.py: OK: 41 jobs, gate reaches 37 (was 34 + 3 PLUMBING-exempt)
+```
+
+- **The fix (ci.yml):** +3 `needs:` entries and +3 `check_job` lines. Safe on
+  frontend-only PRs (the merge jobs' `if:` skips them; `check_job` forgives
+  `skipped`); meaningful on backend runs (floor breach `exit 1` → FAILED=true →
+  the single required context reddens). `if: always()` already in place.
+- **test_ci_job_graph.py `PLUMBING` emptied** — the three merge jobs were
+  exempted there as "cannot produce a verdict" WHILE WP2.3 had given them an
+  `exit 1` floor-fail path. The exemption was §2.1 codified: the merge reds had
+  a home in that file, not in ci-gate. The docstring's own PLUMB definition now
+  carries the correction.
+- **Unit floor 70 → 84 (R-1, B-2 RESOLVED):** five seed-pinned measurements of
+  exactly the quantity the merge step enforces (`--format=total`): 84.12 local
+  single-process, 84.11 local 4-shard sim (both WP2.1), and CI runs
+  35502275842 / 35503899696 / 35506580757 published 84.11 / 84.11 / 84.09 on
+  three HEADs. Spread 0.03pp → floor = observed minimum 84.09 rounded down.
+  70 (the pre-WP2.1 70.32 OVERLAP-UNDERCOUNT lineage) let a 14-point collapse
+  ship green. `test_coverage_floors.py` pin re-derived same-commit (its own
+  amendment rule).
+- **`COVERAGE_DIFF_EPSILON_PP` 2.0 → 0.5pp:** WP2.3 calibrated the band on the
+  pre-pin ±1.6pp shard-overlap swing — the noise WP2.1 DELETED. Post-pin the
+  same quantity spreads 0.03pp (n=5, three HEADs); 0.5pp keeps 10x+ headroom.
+  NARROWING is tightening; the forbidden gate-widening direction stays pinned
+  (band-change requires a measurement in the same commit — test enforced).
+  `test_check_coverage_diff.py`'s past-band case moved −2.5pp → −0.8pp: inside
+  the dead band, outside the honest one — the regression class 2.0pp was
+  suppressing. docs/development/testing.md + CLAUDE.md floor/epsilon text
+  synced in this commit (denominator pins still green).
+- **ERRATUM (append-only, §6 discipline) correcting the AUDIT RESPONSE section
+  above:** "§7.3 ... does not extend to this branch ... the swallow defect is
+  fixed here" was WRONG, argued from the `yaml.safe_load`-RESOLVED string.
+  A folded `>-` scalar resolves to one line, but the SHELL then comments out
+  everything after the first word-boundary `#`: executed-argv proof on the
+  pre-fix branch — pytest received **10 of 14 suites, `-q` dead** (the
+  WP4.1/4.2/4.3/9.1 groups + `-q` never ran). The same evening it was written,
+  WP2.3's own ci.yml comment names this exact trap ("BLOCK SCALAR (`|`),
+  deliberately NOT the folded `>-`") — for a different step. The audit was
+  right about my branch; WP2.5 converts the step to `|` with backslash
+  continuations and moves the WP4.x doctrine notes ABOVE the step as YAML
+  comments (post-fix argv: 16/16 files + `-q`, re-probed through bash).
+  Class-invariant test (`test_no_folded_step_loses_argv_to_a_comment`) joins
+  the list itself — this defect can no longer re-form silently.
+- **First-run harvest — the swallow's price, paid immediately:** with the step
+  un-swallowed, `scripts/test_check_ai_provider_parity.py` executed in CI's
+  shape FOR THE FIRST TIME (it joined the list below the first `#` at
+  `eada4ba9` 09-19 19:37) and caught golden drift: `registry_ops == 38` vs tree
+  37 — `e947e7ae` (09-19 21:56, "carry-cost deletions (contract 38->37)")
+  legitimately moved the contract 2.5h later and its own CI COULD NOT catch
+  the stale golden because the suite was never in argv. Golden corrected to 37
+  with the full causal comment; suite 27/27 green. This is AUDIT §7.3's harm
+  class demonstrated with a concrete in-repo instance, one day old.
+- **Trivy audit item — adjudicated NO-CHANGE (design, recorded):**
+  `ci.yml` (WP1.2 block) documents the split: PRs run fs/config/CVE-expiry via
+  the `security-trivy` call job (already gated); the `push||workflow_dispatch`
+  guards inside trivy.yml cover SBOM + image scans, which cannot run on a PR
+  because the images don't exist yet. Adding them to PRs would mint a
+  guaranteed-false red. R-7 baseline-first satisfied by the same reasoning.
+- **Verification:** reachability+diff+floors+denominator 35 passed; graph
+  invariant OK (41 jobs, reaches 37); anti-rot list as CI now executes it
+  (15 suites incl. the new invariant): 180 passed after the parity-golden fix;
+  shell-probe: 16/16 files + `-q`. ruff clean on all touched scripts.
+  Integration floor 37 UNTOUCHED (already at its WP2.3 measured 37.01; the
+  37.67% figure belongs to WP3.4's tier work, which re-measures with complete
+  data — the inherited integration reds forbid a partial-data raise).
+
 ## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
 
 **MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/
