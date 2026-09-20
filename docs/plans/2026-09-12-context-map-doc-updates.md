@@ -7696,3 +7696,49 @@ for its own corpus) inside a 15-min job that typically ends in seconds.
 
 Known-slow entries carry the same discipline as every other census channel:
 measured breach in the corpus or the registry says no.
+
+## WP1.4 SUBMITTED — the required tier can see a timeout; cancelled is no longer a verdict in any summary (2026-09-20)
+
+**The two defects compounded into one green lie.** The required unit tier
+ran `--timeout=0`, which `backend/tests/conftest.py` honors by disabling
+EVERY per-test timeout (the M3 T5 CLI-governs mechanism). A hung test then
+waited out the 15-min job cap -> the shard ended `cancelled` -> three
+summaries tested only `== "failure"` and reported "All unit test shards
+passed" -> `CI Gate` green with the tier dead. Same class WP0.5 fixed once
+(run 35353201418 attempt 4) for the integration API shard only.
+
+**Timeout value, measured (R-1 at measured value):** 447,391 unit-tier
+`<testcase>` rows across the 17 TPA-red run corpora + green main run
+35486259345 — max 19.02s, ZERO rows over 20s. The four legitimate 15-19s
+tests (`test_timestamp_auto_generated`, `test_complete_calculates_duration`,
+`test_duration_after_start`, `test_handle_unhealthy_stamps`) carry no
+timeout marker, so they inherit the CLI cap; 60s = 3.2x the worst sample
+AND equals TPA's `SLOW_TEST_THRESHOLD` — the tier watchdog can never fail a
+test the audit's own known-slow list forgives. 30s would also have been
+green today (zero rows >20s) but sits 1.6x over a measured-legitimate test
+whose spikes already reach 19s; 60 converts a hang into a named 60s FAILURE
+instead of a job-cap cancellation without becoming a second stopwatch.
+Duration discipline stays TPA's job (WP1.3 persistence rule), not the
+tier's. The old scar comment ("fixture import takes >1s") never justified
+0 anyway: pytest-timeout times per-TEST, not collection, and the M3 T5
+rerunfailures/thread fear was disproven by the owner ruling (pyproject
+comment) — and the unit tier runs no `--reruns` at all.
+
+**Summaries (all four, done-when):** `unit-tests-summary`,
+`frontend-tests-summary`, `frontend-e2e-summary` now red on
+`failure|cancelled`; `integration-tests-summary` had the WP0.5 rule for the
+API shard only — its three NON-API shards (websocket/services/models, no
+retry lane) now red on cancelled too; the API cancelled+retry-passed
+exception stays green. `skipped` stays forgiven everywhere (a never-run
+shard is not a verdict — same stance as ci-gate's `check_job`).
+
+**Red-first:** new gate test `scripts/test_summary_verdicts.sh` extracts
+each summary's verdict step FROM ci.yml, substitutes `${{ }}` expressions
+the way the runner does (result strings inside already-quoted args, empty =
+inert) and EXECUTES them over the full result matrix. 8 assertions red
+against the pre-change file; 0 after. Job-graph test re-run green (40 jobs,
+gate reaches 34); `test_github_workflows.py` 40 passed 2 skipped.
+
+**Noted, not widened:** `flaky-test-detection.yml:95` also runs
+`--timeout=0` — advisory scheduled scanner (`continue-on-error: true`, its
+whole purpose is rerun-consistency); no required gate reads its verdicts.

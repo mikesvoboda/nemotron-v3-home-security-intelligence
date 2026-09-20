@@ -410,14 +410,22 @@ jobs:
         # PR diff gate's relative baseline. The old "should reach 95%"
         # comment matched no gate that exists.
         # -n auto enables xdist parallelization with worksteal scheduler within shard
-        # --timeout=0 disables timeout (fixture import takes >1s in CI)
+        # --timeout=60 (WP1.4): the old --timeout=0 made backend/tests/conftest.py
+        # disable EVERY per-test timeout, so the REQUIRED tier was blind to hangs —
+        # a hung test waited out the 15-min job cap, the shard ended `cancelled`,
+        # and the (then-forgiving) summary waved it through. Measured (WP1.4):
+        # 447,391 unit rows over 17 TPA-red corpora + green main 35486259345, max
+        # 19.02s, ZERO over 20s — 60 is 3.2x the worst sample and equals TPA's
+        # SLOW_TEST_THRESHOLD, so the tier watchdog never fails a test the audit's
+        # own slow list forgives; it only turns a hang into a named 60s FAILURE.
+        # Duration discipline stays TPA's job (persistence rule), not the tier's.
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
         # pytest-split groups tests by --group for cross-runner sharding
         run: |
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --splits 4 --group ${{ matrix.shard }} \
-            --timeout=0 \
+            --timeout=60 \
             --cov=backend \
             --cov-config=pyproject.toml \
             --cov-fail-under=0 \
@@ -568,8 +576,14 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.unit-tests.result }}" == "failure" ]; then
-            echo "One or more unit test shards failed"
+          # WP1.4: cancelled is not a verdict (WP0.5's rule, extended — that fix
+          # covered only the integration API shard). A shard killed at the job cap
+          # used to fall through "== failure" to the green branch below.
+          # skipped stays forgiven: a never-run shard is not a verdict (same stance
+          # as ci-gate's check_job).
+          UNIT_RESULT="${{ needs.unit-tests.result }}"
+          if [ "$UNIT_RESULT" == "failure" ] || [ "$UNIT_RESULT" == "cancelled" ]; then
+            echo "One or more unit test shards failed or were cancelled (result: $UNIT_RESULT)"
             exit 1
           fi
           echo "All unit test shards passed"
@@ -1127,11 +1141,22 @@ jobs:
             exit 1
           fi
 
+          # WP1.4: the cancelled-is-not-a-verdict rule above covered ONLY the API
+          # shard (it's the one with a slow-runner retry). The three non-API
+          # shards still forgave cancellation — a shard killed at the job cap fell
+          # through to the green branch. They have no retry lane, so cancelled is
+          # unconditionally not-success there.
+          # (API cancelled deliberately NOT added here: if execution reached this
+          # point with a cancelled API shard, the retry passed — the WP0.5
+          # exception stays alive.)
           if [ "$API_RESULT" == "failure" ] || \
              [ "${{ needs.integration-tests-websocket.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-websocket.result }}" == "cancelled" ] || \
              [ "${{ needs.integration-tests-services.result }}" == "failure" ] || \
-             [ "${{ needs.integration-tests-models.result }}" == "failure" ]; then
-            echo "One or more integration test jobs failed"
+             [ "${{ needs.integration-tests-services.result }}" == "cancelled" ] || \
+             [ "${{ needs.integration-tests-models.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-models.result }}" == "cancelled" ]; then
+            echo "One or more integration test jobs failed or were cancelled"
             exit 1
           fi
           echo "All integration tests passed"
@@ -1846,8 +1871,11 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.frontend-tests.result }}" == "failure" ]; then
-            echo "One or more Vitest shards failed"
+          # WP1.4: cancelled is not a verdict — see unit-tests-summary's comment
+          # for the measured history; identical defect, identical fix.
+          VT_RESULT="${{ needs.frontend-tests.result }}"
+          if [ "$VT_RESULT" == "failure" ] || [ "$VT_RESULT" == "cancelled" ]; then
+            echo "One or more Vitest shards failed or were cancelled (result: $VT_RESULT)"
             exit 1
           fi
           echo "All Vitest shards passed"
@@ -2002,8 +2030,11 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.frontend-e2e.result }}" == "failure" ]; then
-            echo "One or more E2E shards failed"
+          # WP1.4: cancelled is not a verdict — see unit-tests-summary's comment
+          # for the measured history; identical defect, identical fix.
+          E2E_RESULT="${{ needs.frontend-e2e.result }}"
+          if [ "$E2E_RESULT" == "failure" ] || [ "$E2E_RESULT" == "cancelled" ]; then
+            echo "One or more E2E shards failed or were cancelled (result: $E2E_RESULT)"
             exit 1
           fi
           echo "All E2E shards passed"
