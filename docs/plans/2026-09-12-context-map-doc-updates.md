@@ -7491,3 +7491,26 @@ surfaced; the fix is the ruling (annotation + one in-contract raise), not parked
 **Stack effect.** Pushed both branches (`2914ee69..752bb7d2`, `c4566f41..17f34e56`); #6562
 re-ran the full DAG on the push. Cherry-pick applied byte-clean because both tips carried
 identical pre-fix versions of the three files (`git diff --stat` empty between tips).
+
+## A7.x post-landing: the /track ratchet closed its loop (main red -> #6571)
+
+Main run 35482667110 (the #6570 landing push, 01:56Z) reddened Contract Tests on exactly one
+named test: `test_wp73_server_carry_cost_stays_deleted[ai/yolo26/model.py]`. Root cause, no
+dressing: WP7.3 B (`e6c39259`) deleted yolo26 `/track` WITH this ratchet; the #6560 squash
+re-committed a pre-deletion model.py main-side; the A7.3 seam rebuild read that regression as
+a silent squash ACCIDENT and restored /track inside #6570 -- so `b860799e`'s provenance
+paragraph ("main lost /track silently") reached the wrong conclusion and the merge carried a
+regression against our own licensed deletion. The ratchet comment's census was right all
+along; Contract Tests being main-push-only is why every PR ran green. Lesson (banked): a
+marker-absence on a squash-rebased base has TWO explanations -- external regression or our
+own earlier deletion; grep `--all -S` for the deletion commit BEFORE restoring anything.
+Fix = the original deletion byte-exactly re-applied (blocks from e6c39259's diff, count==1
+asserts, pure -304/+0, zero import lines, seam intact; census re-verified 0 callers today),
+locally: contracts dir 613 passed, ratchet 2/2, seam 3/3, gen --check + ratchet-check rc=0.
+PR #6571 head `ac9ebb99`: CI Gate success, zero failed jobs (Contract Tests skipped on PRs by
+design -- it is a main-push tier; the landing push is its proving run). Same-run context: the
+b02b0f0a (#6553) main push shows the SAME single Contract-Tests red + Test Performance Audit
+GREEN -- confirming that red as the L WP0.5 slow-runner family (different test each run),
+which self-cleared; its rerun-flag fix stays parked at P handoff SS3.10 (owner's call).
+Push mechanics: the auto-rebase half-rebase trap fired again (now-landed #6553's add/add
+files) -> rebuilt branch from origin/main + cherry-pick, blob identity proved d4be4079.
