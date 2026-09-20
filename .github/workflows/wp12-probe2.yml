@@ -13,37 +13,44 @@ env:
   UV_VERSION: '0.9.18'
 
 jobs:
-  v-a:
-    name: Control - bare call
-    uses: ./.github/workflows/probe-v-min.yml
-  v-b:
-    name: Real - perms and secrets inherit
+  # w1: byte-for-byte WP1.2 shape — real gitleaks.yml (root concurrency +
+  # root permissions kept), caller grant is a superset of the callee request.
+  # This is what #6575 ran; it never materialized. Reproduce here.
+  w1:
+    name: w1 full shape
     permissions:
       contents: read
       pull-requests: read
     secrets: inherit # pragma: allowlist secret
     uses: ./.github/workflows/gitleaks.yml
-  v-c:
-    name: Real - perms only
-    permissions:
-      contents: read
-    uses: ./.github/workflows/gitleaks.yml
-  v-d:
-    name: Real - secrets only
-    secrets: inherit # pragma: allowlist secret
-    uses: ./.github/workflows/gitleaks.yml
-  v-e:
-    name: Fix preview - gitleaks minus concurrency
+  # w2: callee minus its root concurrency block (the integration-shard
+  # precedent has no root concurrency).
+  w2:
+    name: w2 callee minus concurrency
     permissions:
       contents: read
       pull-requests: read
     secrets: inherit # pragma: allowlist secret
     uses: ./.github/workflows/gitleaks-noc.yml
+  # w3: callee minus root concurrency AND minus root permissions.
+  w3:
+    name: w3 callee minus both
+    permissions:
+      contents: read
+      pull-requests: read
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/gitleaks-noc-noperm.yml
+  # w4: caller job WITHOUT a permissions block (integration-shard shape).
+  # Callee also stripped so no grant-vs-request escalation is possible.
+  w4:
+    name: w4 caller minus perms
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/gitleaks-noc-noperm.yml
   consumer:
     name: Consumer - reads call results
     runs-on: ubuntu-latest
-    needs: [v-a, v-b, v-c, v-d, v-e]
+    needs: [w1, w2, w3, w4]
     if: always()
     steps:
       - run: |
-          echo "v-a=${{ needs.v-a.result }} v-b=${{ needs.v-b.result }} v-c=${{ needs.v-c.result }} v-d=${{ needs.v-d.result }} v-e=${{ needs.v-e.result }}"
+          echo "w1=${{ needs.w1.result }} w2=${{ needs.w2.result }} w3=${{ needs.w3.result }} w4=${{ needs.w4.result }}"

@@ -18,10 +18,6 @@ on:
 # workflow that all competed for the measured ~20-job scheduler ceiling
 # (spec WP3.1: concurrency 20 pinned). Same pattern as ci.yml:10-12.
 
-permissions:
-  contents: read
-  pull-requests: read
-
 env:
   # Linear team ID for NEM team
   LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'

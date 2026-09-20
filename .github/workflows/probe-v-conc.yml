@@ -1,0 +1,11 @@
+name: probe v-conc
+on:
+  workflow_call:
+concurrency:
+  group: probe-conc-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo v-conc ok
