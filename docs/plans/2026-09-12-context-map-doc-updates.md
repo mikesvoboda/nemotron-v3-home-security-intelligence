@@ -7571,3 +7571,57 @@ and gitleaks does not honor that pragma — its own suppression syntax is
 PR — where pre-WP1.2 the same finding left CI Gate green. Close never
 merge. trivy.yml also keeps workflow_dispatch specifically so the v0.74.0
 repin can be PROVEN (Scan Backend Image green on a dispatch) before merge.
+
+## WP1.2 LANDED `2b200399` (PR #6575) — security workflows are BLOCKING; root `concurrency:` in a called workflow is a silent call-job killer (2026-09-20)
+
+**Landed shape:** `gitleaks.yml` / `sast.yml` / `trivy.yml` → `on:
+workflow_call` only (trivy keeps schedule + dispatch); ci.yml gains three
+call jobs + three ci-gate `needs:` + three `check_job` lines. Gate context
+count unchanged (10 security jobs before, 10 after) — but pre-WP1.2 all 10
+were OUTSIDE the gate's needs and a leaked credential left CI Gate green;
+now the gate cannot go green while any of them is red.
+
+**The second defect, found by proof, not reading.** After the workflow_call
+conversion every call job DIED at initialization on PR runs: no job record,
+no child run, no logs, `needs.*.result` = failure. Three-stage probe bisect
+on throwaway branches (PR #6577, closed never-merged):
+
+1. probe1 (push): callee shapes exonerated — all green.
+2. probe2 v1: a called workflow's top-level `permissions:` REQUESTS must be
+   a subset of the caller job's grant or the WHOLE workflow fails at
+   startup ("requesting 'pull-requests: read', but is only allowed
+   'pull-requests: none'"). Grant-valid rebuild w1–w4: all green —
+   perms/secrets/PR-context/file all exonerated.
+3. probe3 (run 35492418369), parent group literally
+   `${{ github.workflow }}-${{ github.ref }}` (ci.yml's exact shape): ONE
+   variable — w5 = real gitleaks callee (root `concurrency:` present),
+   w6 = same file with root concurrency stripped. Consumer3 echo:
+   `w5=failure w6=success`. ROOT CAUSE: in a child run triggered by
+   `workflow_call`, `${{ github.workflow }}` renders as the CALLER's
+   workflow name — so a callee group `${{ github.workflow }}-${{ ... }}`
+   EQUALS the parent's own group, and `cancel-in-progress: true` kills the
+   call job mid-initialization. ci.yml's three callees all carried exactly
+   that group. House rule going forward: called workflows carry NO root
+   concurrency (precedent: integration-shard.yml — root keys name/on/jobs
+   only). Fix = strip root `concurrency:` from all three callees,
+   `2b200399`; parent-side group kept (correct there).
+
+**RED-FIRST PROVEN** (closed demo #6576, run 35492630551 — deleted branch,
+never merged): planted `lin_api_` token (hook-invisible by design) →
+`Security - Secret Detection / Gitleaks Secret Detection => failure`
+(annotation "🛑 Leaks detected, see job summary for details") → **`CI Gate
+(Required Checks) => failure` ON THE PR**. Every other security job green —
+isolation: only the plant reddens. Pre-WP1.2 the identical finding left the
+gate green.
+
+**GREEN PROVEN** (#6575, run 35492638069): whole run success; all three
+`Security - *` workflows materialize and pass (Gitleaks, TruffleHog,
+Semgrep, Bandit, Trivy fs/CVE-expiry/config); Test Performance Audit green.
+Image-scan jobs `skipped` on PR runs by design (`push||dispatch` condition
+inside the job) — owner step after merge: trivy workflow_dispatch once to
+prove Scan Backend Image green at the v0.74.0 repin (BLOCKED.md B-1).
+
+actionlint v1.7.12 (arm64 build — sandbox is aarch64) passed all shapes,
+including the broken ones: it validates YAML, not GHA runtime semantics —
+absence of lint errors on a workflow_call shape proves nothing; only a
+real run does.
