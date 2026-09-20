@@ -6049,290 +6049,6 @@ executes nowhere is worse than a lower one that does. Frontend: R-FEFLOOR
 stays parked exactly as A3 wrote it; the CI line now reports real
 8-shard-able numbers every run.
 
-## WP4.3 MUTATION WIDENING — DENOMINATOR `backend/services/` + `backend/api/routes/`, WEEKLY SCHEDULE, HISTORY IN GIT (2026-09-19)
-
-PARALLEL FEED (same day, while run5/run6 checked; full program post-close-out):
-waves 1-54 triaged 17,719 survivors across 122 modules read-only (detector gate
-
-> =150 checked & >=100 survivors, tree-canonical dedupe ledger
-> .wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
-> 15% LOW-VALUE, 796 drafted UNVERIFIED kill-tests + 8 cross-module fix
-> patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
-> share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
-> 93%-gap module can shift the survivor-weighted share, and wave 33's
-> mqtt_publisher (43 of 100 LOW-VALUE) settled it at 65/21/13 and wave 36's
-> pipeline_workers (96 LOW-VALUE log/otel noise of 282) moved LOW to 14%;
-> per-module shape, not the aggregate, is the classifier signal), and it tracks
-> module SHAPE (florence_client supplied the program's strongest classifier
-> proof — KILLED-TWIN ASYMMETRY: the IDENTICAL textual mutation dies in the
-> asserted methods extract/ocr/detect and survives in ocr_with_regions/
-> describe_regions/phrase_grounding/detect_security_objects, proving those
-> survivors are real behavior changes under un-asserting tests, not equivalents
-> — so the 64-66% gap share (wave 40 landed it back at 64, the earliest
-> waves' triple) is a genuine work list, not classifier optimism).
-> Module SHAPE also drives the noise: zone_comparison/prompt_service/zone_anomaly = 96-98% TEST-GAP (pure
-> logic, barely asserted), while nemotron_latency_optimizer sits at 71%
-> EQUIVALENT (log-heavy singleton, config kwargs == dataclass defaults),
-> calibration_service 68% EQUIVALENT (its redundant clamp+cascade chain
-> re-derives the same output for 21 provably-identical arithmetic mutants —
-> a code-SIMPLIFICATION signal, plus a dead `new_low < 0` branch) and
-> household_matcher 89% EQUIVALENT+LOW-VALUE (already well-tested);
-> polygon_zone_service 56% EQUIVALENT (StrEnum + pydantic coercion makes its
-> `hasattr(x,"value")` guard provably two-branch-identical), batch_aggregator
-> 62% (log-heavy coalescer), clip_client 69%
-> log-noise (duration_ms arithmetic, exc_info, `extra` payloads — real changes,
-> log-only observability); gpu_config is the status-code-only-asserted endpoint
-> at scale — 81 of 111 survivors are the whole auto-assign algorithm under
-> `len>=3`/`commit.called`-only tests, and its SYMMETRIC-FIXTURE ABSORPTION
-> deserves naming next to mock-absorption: the LATENCY sort-flip mutants are
-> test-no-ops because every fixture GPU shares compute_capability '8.6', so the
-> tie swallows the mutation before any assert (fixture DATA can be as unassertive
-> as a mock); registry 90% log-text noise, and mutation evidence
-> CORRECTED the screen on it — the "ZERO test files" finding was true for the
-> module but a pure-re-export shim (services/service_registry.py:56) gives it a
-> rich covering surface, so the screen's v1 metric needed the shim join;
-> segformer_loader is
-> the wide-except-crash-swallow at its WORST — 152 of `segment_clothing`'s 153
-> mutants survive because the covering tests assert only `isinstance(result,
-ClothingSegmentationResult)` while the module's blanket `except Exception:
-return ClothingSegmentationResult()` converts any mutation breakage into an
-> empty-but-valid result (its fully value-asserted `to_dict` died 9/9 — the
-> control case). Wave 21 surfaced a TIER-SCOPE blind spot: cleanup_service's two highest-blast-radius
-> survivors (retention cutoff `-timedelta`->`+` deletes EVERY log row; `<`->`<=`
-> boundary) are asserted in INTEGRATION tests, but pyproject's
-> pytest_add_cli_args_test_selection is unit-tier only — covered-in-the-wrong-
-> tier mutants cannot be killed by design, so the score understates real safety
-> there (unit drafts close it; the scope question itself is a program note,
-> not a mutmut-semantics change). Evidence
-> the completed baseline will overstate real gaps even after unchecked-caught
-> pessimism unwinds — but the gap share, not the noise share, is the WP4.4
-> work list: it starts from the ordered queue, not raw counts. Surfaced en
-> route: dead production code (florence \_parse_list_response L419-423,
-> unreachable — simplification note, not a test), shipped-behavior gaps the
-> mutants proved (tz-guard inversion -> jobs never time out; retry-budget
-> off-by-one; circuit-gauge lying after reset; gpu_monitor recorded_at tz-strip
-> -> history-read TypeError; auto-enroll is_household_member default flipped ->
-> auto-enrolled strangers would read as trusted household members; scenario_classifier tailgating alert payload — all 5 keys + the dict — wholly
-> unasserted, the covering test's disjunction passes on score alone;
-> vehicle_classifier_loader NEM-4519 `torch.load(weights_only=True)` droppable
-> to arbitrary-pickle loading under a MagicMock load; file_service Redis zrem
-> member clobber leaves a cancelled file deletion ARMED; debug ltrim off-by-one
-> `start 0->1` discards EVERY recorded pipeline error while returning True;
-> orchestrator registry singleton can discard its redis client -> the global
-> registry persists NOTHING; threat_monitor alert.created WS + webhook payloads
-> wholly unobserved (58 key-rename mutants, pattern-6's biggest instance);
-> prompt_storage naive-`now()` timestamp leak; system.py /system/health
-> exporter-target matching + degradation payload 166-gap module asserted only
-> as status.value=='up'), and the
-> mock-absorption family (~90 survivors:
-> lenient AsyncMocks swallowing call-argument damage across baseline/florence/
-> redis/job_timeout — one key-aware-fake contract test per call site kills each
-> family).
-
-MEASURE (the finding that reframed the WP): the mutation pipeline was DEAD,
-not narrow. mutmut 3.8 rejects every flag the call sites passed
-(`--paths-to-mutate/--tests-dir/--runner` -> "Error: No such option"), the
-config carried deprecated 2.x keys that only parsed behind warnings,
-`mutmut html` (workflow step) does not exist in 3.x, and every invocation sat
-behind `|| true` — so the weekly schedule "succeeded" for months producing
-zero data, and the doc's "Overall Mutation Score: 89.2%" predates the mutmut
-3 migration and was unreproducible. First honest baseline (this commit):
-54.0% — run6 closed 13:32 UTC clean (rc=0): 88,329/88,329 checked, 0 unchecked,
-torn_metas 0, completed=true (scorer JSON /tmp/wp25/final-score.json). 45,127
-killed + 2,611 timeout = 47,738 caught; 40,571 SURVIVED (45.9%); 20 no_tests;
-269 targets -> 229 scored (40 zero-mutant gap modules printed every run,
-including all four WP4.5 coverage omits by construction). The dead pipeline's
-doc claim was "89.2%"; honest first measurement is 54.0% — the 35pp delta is
-what months of `|| true` were hiding. Floor detail: 9 modules at 0% (three
-model loaders age/gender/zero_dce = 206 mutants, 100% surviving; jobs.py +
-queues.py routes), no_tests concentrated in heatmap_service (6) /
-stgcn_loader (5) / backup_service (2). CROSS-READ to the WP4.4 feed: the 122
-triage dossiers froze survivor sets from run5's PARTIAL cache (mutmut checks
-estimated-fastest-first), so their 17,719 were a known-lower-bound slice — the
-FINAL JSON arbiter (queue index's re-tally appendix) puts the same 122 modules
-at 36,051 survivors (exact path-match; stem-matched first pass said 35,637 on
-120/122) and ALL 221 survivor-bearing modules at 40,571 -- 4,520 of them in 99
-never-triaged modules, ~18,332 NEW inside already-triaged ones -- i.e. the
-generation-2 work list is ~2.3x the triaged one; the snapshot-flag fold doctrine is what
-kept that reconciliation mechanical instead of a rewrite. The 62/23/15 shares
-remain the sample's shape; the population's comes out of the FINAL-JSON queue
-rebuild that opens WP4.4 proper.
-
-DECIDE (target set + cadence, PLAN's prioritisation executed): denominator =
-every module under backend/services/ + backend/api/routes/ — 266 concrete
-
-- 3 package `__init__`s = 269 generated (the mutmut baseline confirmed
-  should_mutate(init)=True, so the scorer's --targets counts them too:
-  services/`__init__.py` alone is 703 real lines). Cadence
-  stays WEEKLY schedule + workflow_dispatch, never per-PR (mutmut is hours, not
-  minutes, at this scale). Prioritisation inside the set came from a static
-  assertion-density screen (AST, no pytest): 149 modules screened (>=60
-  operator nodes, >=2 test files), thinnest-asserted first —
-  `analytics_zones.py` ~71 asserts/kloc at 521 op nodes, `admin.py` 165 at 677,
-  `debug.py` 181 at 655, then `dwell_time_service` / `ai_quality_metrics` /
-  `batch_coalescer` on the services side. (Screen v1 used non-recursive globs
-  and missed nested dirs — caught reconciling 263 vs the tree's 266; v2
-  rglob-found `orchestrator/registry.py`: 531 lines, 121 op nodes, ZERO test
-  files — the screen's own first catch, fed to WP4.4.) 4 of WP4.5's five
-  coverage-omits are inside the denominator by construction (alerts, audit,
-  video_processor, degradation_manager; core/tls.py sits outside both trees).
-
-DECIDE (formula, stated with its cost): headline = mutmut's own badge,
-(killed+timeout)/(total−skipped), imported semantics not re-derived —
-mutation-score.py's verdict table is PINNED against mutmut.stats.
-status_by_exit_code in CI (test_mutation_score), so a mutmut upgrade that
-moves exit-code meanings fails the pin instead of silently moving the score.
-mutate_only_covered_lines=true scopes generation to unit-executed lines: the
-score answers "do tests catch behavior changes in code they execute" (WP4.3's
-subject); never-executed lines are WP4.5's complaint and every run lists
-"targets with no mutants" so the exclusion never hides anything. The 4 covered
-omits (alerts/audit/video_processor/degradation_manager) generate ZERO mutants
-under this flag — `omit` means mutmut sees no executed lines — surfaced by the
-gap list every run until WP4.5 closes them.
-
-HOW it rides: scripts/mutation-run.sh is the ONE runner (workflow + docs +
-mutation-test.sh all delegate — the 2.x flag rot could fester in 3 places
-because each call site was independent; now there is one, unshielded, and it
-fails loudly). scripts/mutation-score.py aggregates mutmut's per-file verdict
-cache (mutants/\*.py.meta) into per-module scores — mutmut 3 only publishes ONE
-aggregate, so per-module reporting is the missing piece this WP adds; its tests
-are in ci.yml's anti-rot list. .github/mutation-history.json is the committed
-series (workflow appends on fetched main and pushes — house pattern is
-semantic-release's bot commit; a run that measured nothing is rc=1 and never
-touches the series). mutants/ cache is gitignored (regenerable); the series is
-not.
-
-TDD record: 8 tests scripts/test_mutation_score.py, red-first — formula
-against mutmut's badge math, all-unchecked files excluded (nothing measured !=
-score 0), --targets denominator from the tree (flipped red mid-WP when the
-baseline proved mutmut mutates package `__init__.py` files — a denominator
-excluding them would print a false "skipped module" gap), missing cache is
-rc=1 NOT a silent zero report (a 0-module artifact committed as "baseline
-reset" is the failure mode this guards), verdict-pin against the installed
-mutmut. History
-append caps at 60 runs (~1yr weekly), checked in-process so the 5s tier
-doesn't hinge on 70 subprocess starts.
-
-Baseline runs 1–2 (2026-09-17) died at the stats pass, NOT at mutant
-checking — generation OK'd the whole denominator (269 files mutated in 21s)
-and then the stats-pass pytest died inside mutants/: the harness cwd
-has no editable install and no repo-root parent on sys.path, so imports AND
-parents[N]-relative file reads must exist UNDER mutants/. -x made each death
-one-at-a-time; the doctrine became: run the whole selected suite in the
-mutant home once, inventory every failure class, fix in one commit. Round 1:
-ModuleNotFoundError scripts.synthetic (unit/scripts tests resolve the
-first-party package via `__file__`-relative sys.path arithmetic →
-mutants/scripts/) and setup_lib (test_deploy_phases top-level). Round 2:
-models.yml — model_zoo.py's Path(`__file__`).parents[2] read lands on
-mutants/models.yml. A whole-suite inventory pass in the mutant home
-(-n8, 91s) then named the remaining 17 path/read failures -- each would have
-died one-at-a-time under mutmut's -x: 4 infra-exists tests (docker-compose.prod.yml,
-monitoring/, frontend/nginx.conf, docker-entrypoint.sh), 12 version-
-consistency fixtures (the drift gate reads .nvmrc/.python-version/.github/
-workflows/ci.yml/Dockerfiles relative to a tree root = mutants/), one
-introspection artifact: mutmut renames covered methods to
-`xǁClassǁmethod__mutmut_orig` / `…__mutmut_N` inside the mutated class, so
-test_mock_system_broadcaster_has_real_public_methods saw harness
-temporaries as "the real API" — the mock-completeness tests now skip names
-marked `__mutmut` (the real-API comparison is unchanged; 67 tests pass
-against the real tree). The final also_copy = the IMPORT/READ set, distinct
-from source_paths' MUTATE set — frontend FILES listed individually because
-copytree would drag node_modules (493MB) and mutmut's file-copy branch
-mkdirs no parents (runner pre-mkdirs mutants/frontend; that copytree-parent
-gap is mutmut upstream behavior, worked around, not patched).
-
-Run 3 was killed mid-generation (operator kill unblocking a deadlocked
-watcher; no verdict). Run 4 (06:01) became the first to clear generation
-AND the full stats pass (27k tests mapped, cache mutants/mutmut-stats.json),
-then died at the clean-test gate with
-hypothesis.errors.FailedHealthCheck: "…test_valid_json_always_parses was
-called from multiple different executors". Root-caused into both installed
-packages, not papered over: mutmut's DEFAULT process_isolation="fork" runs
-collect_stats and run_clean_tests in the SAME parent process ("Already in a
-clean process, so run stats directly without forking" — isolation.py
-ForkRunner), so the clean pass re-executes every @given test still in
-sys.modules; Hypothesis 6.168's differing_executors health check fires on a
-second execution from a different executor instance (core.py thread_local
-prev_self). Deterministic repro, one python process: pytest.main() twice
-over the test → rc1=0 rc2=1, FailedHealthCheck on the second run. The crash
-was the LUCKY outcome: the same inheritance reaches every forked mutant
-worker ("every worker inherits whatever the test setup left in that
-process" — mutmut's own ProcessIsolation docstring), so under fork
-isolation ANY mutant covered by a property test would error on the health
-check and be scored KILLED with its test never run — an inflated baseline,
-silent. Fix = harness configuration, not test surgery: [tool.mutmut]
-process_isolation="forkserver" — mutmut's own knob, and its design docstring
-names exactly this class of setup as fork-unsafe. ForkServerRunner keeps
-mutmut's parent pytest-free and forks each op (stats, clean tests, forced
-fail, every mutant check) from a dedicated warm server, so each @given test
-executes exactly once per interpreter. Rejected: adding
-suppress_health_check to the repo's four property-test files — the tests are
-correct under every normal single-execution run; bending them to a harness
-process model would be aligning tests to the tool, the mirror of this
-program's align-to-shipped-contract rule. The key is deliberately OUT of
-mutmut's config_fingerprint groups (test_execution/test_selection/timeout/
-type_check), so the stats cache survives the switch — run 5 loads it and
-never re-executes the 27k-test stats pass.
-
-MEASURE (weekly-convergence arithmetic, found while wiring the workflow
-against the run's real numbers): run5's denominator is 88,329 mutants;
-mutmut submits estimated-FASTEST-first (`__main__.py:1014`, its own comment),
-and the first ~4,000 checked consumed ~2 SECONDS of estimated test time out
-of ~31h total — every mutant pays a fresh pytest boot (~8-9s here, 12
-workers). Boot-bound wall = count/rate: ~18-20h local baseline. The failure
-mode this exposed: CI cold-starts, on a 4-core runner the cold set is far
-beyond ANY job budget, and a timeout-killed job that keeps nothing restarts
-cold forever — the weekly series would never converge. Projected against
-mutmut's OWN cost model (estimated_worst_case_time over run5's stats cache,
-measured at its 5,282-checked point): remaining 83,047 unchecked = 30.7h of
-test time, but per-mutant pytest boot (~8.5s) dominates the wall — 19h at 12
-workers locally, and a 240min@12 CI step projects to ~20,300 mutants ≈ 24.5%
-per week: ~4 weekly runs to convergence, each preserving the prior verdicts.
-The durability
-half was source-verified before designing on it: \_register_mutant_result
-saves the meta on EVERY checked mutant (`__main__.py:920`); generation
-never touches metas and its hash-merge preserves restored verdicts
-(create_mutants_for_file). Fix = carry verdict state across runs:
-actions/cache of a few-MB pack (metas+stats+spans — measured 2.6 MB /
-539 files; the 1.4GB regenerated tree is reproducible and would blow the
-500MB free-tier artifact cap, so neither cache nor artifact carries it
-anymore), run step budgeted 240min + continue-on-error so the budget
-fires as a STEP kill inside the 6h job cap (CI prep eats 60-90 min) and
-pack/score/history always get their turn; a week that overran even that
-loses nothing — next run resumes.
-
-DECIDE (the honesty contract that makes an accumulating cache safe): the
-scorer publishes progress{checked,total,not_checked,torn_metas,completed};
-history entries carry it. Partial points are pessimistic BY CONSTRUCTION
-(mutmut's own badge denominator includes unchecked — an unchecked mutant
-sits there as uncaught, and no_tests counts against too; imported+formula-
-pinned, never locally re-derived — do NOT "fix" these categories without a
-ruling) and RISE as the cache converges; only completed points are
-comparable as a trend. Torn metas (budget-kill mid-save; json.dump is not
-atomic and mutmut's loader guards only FileNotFoundError — proven by the
-red test crashing exactly there) are DELETED with their mutant copies by a
-pre-run --repair step. Deletion, not reset, is the sound repair — the trap
-caught in review: create_mutants_for_file SKIPS regeneration when the
-mutant copy is newer than the source (mtime gate before any meta read), so
-a reset-but-present meta never refills and the module silently vanishes
-from the denominator; removing the copy forces the regeneration path.
-
-Collateral: pyproject [tool.mutmut] rebuilt 2.x->3.x (source_paths /
-pytest_add_cli_args_test_selection — the deprecation warnings are gone under
--W error::UserWarning); pytest_add_cli_args gained -m "not gpu" (addopts=
-neutralisation had been silently re-enabling gpu-marked mutants) and
---timeout=120 (mutant checks boot the app graph; 5s tier default would fake-
-timeout a class of mutants); ci.yml anti-rot list + mutation docs rewritten
-(the 2.x commands documented "how to run it" are now a warning box);
-frontend/stryker.config.mjs keeps its 3-module set on purpose (no baseline ->
-no widening; header records the ruling).
-
-**Adjacent observation — coverage-gate watch on #6560 (2026-09-19).** The WP6
-stack PR's coverage check ran red at commit `659a83f6`; a re-run went all-green
-with no code change, so the red was a flake, not a floor breach. No line moved:
-the recorded floor stands and the number reported is the number that runs.
-
-
 ## WP7.1 LANDED `f4e9584f` — 38-op AI contract generated from deployed surfaces + drift gate (2026-09-19)
 
 backend/ai_contract/ is generated (scripts/gen-ai-contract.py imports the five
@@ -7298,3 +7014,480 @@ The branch-stays-GREEN rule held throughout: every deletion was proved
 green first, every anchor rewritten to pin the NEW truth rather than
 deleted outright.
 
+## A7.1 LANDED `1a71232d` — R-COVDENOM reconciled as pure documentation; no number moved (2026-09-20)
+
+The ruling asked which coverage number is "the" floor. Answer, from executed
+surface only (census in the commit body): the executed absolute backend floor
+is **80% combined** — validate.sh `--fail-under=80` + nightly-full-gate.yml.
+pyproject `fail_under = 85` is the PR-diff gate's RELATIVE baseline (ci.yml's
+combine step publishes it from merged data — it never executes as an absolute
+gate on a PR run); `test-runner.sh COVERAGE_THRESHOLD=93` has ZERO CI
+invokers (optional-local; its header now says so). `check-test-coverage-gate`
+per-area `min_coverage` values are print-only advisory — the blocking checks
+are test-presence + diff-drop; the doc table was corrected to the script's
+real numbers. Two dated session summaries (mqtt-client-test-summary,
+tdd-stream-config) keep their 93/95 lines as historical records — stated in
+the commit body. **Nothing gated moved: no floor lowered, no omit widened.**
+The 85 VALUE is unchanged everywhere it appears; every changed sentence was
+text explaining what executes.
+
+## A7.2 deletion 1/2 LANDED `54e27f2f` — DetectorClient.segment_image; carry-cost ratchet grown (2026-09-20)
+
+ADDENDUM 2 A6/A7.2 (L#2026-09-19-wp56-test-collision, ANSWERED). The 2-of-5
+A7.2 identification held: segment_image was reachable (zero non-test call
+sites, dedicated exclusive test file); estimate_depth,
+estimate_object_distance and CLIP similarity FAIL condition 2 — they are
+driven through shared parametrized conformance tables whose keys the coverage
+guard + registry claims + parity goldens pin; deleting them would open
+golden-vanish reds. Deletion executed WP7.3-style:
+
+- RED-FIRST proven before any production edit (DELETED_CARRY_COST entry
+  reddened `still declared` — 1 failed/2 passed), then the ratchet grew:
+  DELETED_CARRY_COST = {detect_objects_batch, segment_image} — the method
+  reddens by name if it ever returns.
+- detector_client.py 1,566 → 1,443 (method span 921–1043); dedicated test
+  file (157 L, 7 defs, zero suppressions) deleted SAME COMMIT (A6 cond. 2);
+  green-before-delete 10 passed.
+- registry: yolo26_segment OPERATION STAYS (deployed gateway route
+  adapters/yolo26.py:447 — server surface untouched); client_methods binding
+  dropped via generator CLIENT_OP_MAP comment + regeneration, --check rc=0.
+  The op moved to the matrix THIRD STATE (present-but-not-wired, `_not_wired`
+  sentinel) on gateway: SENTINELS_GATEWAY 5→6, per_model stays 8 (the op is
+  ABSENT there — per_model_server=False — a param-KeyError caught the blind
+  union carry).
+- conformance: matrix leg kept (the topology fact outlives the client), 2
+  client legs + their `_COVERAGE` entry removed; coverage guard 29→28.
+- suppression census byte-identical to the ci.yml literal (rc=0); parity
+  --expect rc=0 — yolo26_segment stays DECLARED (matrix row unchanged);
+  ai_providers 565 passed (−2 legs +1 ratchet param +1 sentinel param).
+
+Remaining A7.2 item: florence /analyze-scene (deletion 2/2) — needs the
+DELETED_REGISTRY_OPS absent-assertion mechanism authored first (no server-
+route ratchet for gateway-served ops exists yet), the 38→37 literal sweep,
+goldens trio deletion, ~17-file cascade. Dossier spans verified on disk
+2026-09-19 (route 1206–1300 model-side + 530–580 adapter-side, exclusive
+models, generator discovers by importing adapters so route+regen drops the
+op).
+
+## WP4.3 MUTATION WIDENING — DENOMINATOR `backend/services/` + `backend/api/routes/`, WEEKLY SCHEDULE, HISTORY IN GIT (2026-09-19)
+
+PARALLEL FEED (same day, while run5/run6 checked; full program post-close-out):
+waves 1-54 triaged 17,719 survivors across 122 modules read-only (detector gate
+
+> =150 checked & >=100 survivors, tree-canonical dedupe ledger
+> .wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
+> 15% LOW-VALUE, 796 drafted UNVERIFIED kill-tests + 8 cross-module fix
+> patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
+> share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
+> 93%-gap module can shift the survivor-weighted share, and wave 33's
+> mqtt_publisher (43 of 100 LOW-VALUE) settled it at 65/21/13 and wave 36's
+> pipeline_workers (96 LOW-VALUE log/otel noise of 282) moved LOW to 14%;
+> per-module shape, not the aggregate, is the classifier signal), and it tracks
+> module SHAPE (florence_client supplied the program's strongest classifier
+> proof — KILLED-TWIN ASYMMETRY: the IDENTICAL textual mutation dies in the
+> asserted methods extract/ocr/detect and survives in ocr_with_regions/
+> describe_regions/phrase_grounding/detect_security_objects, proving those
+> survivors are real behavior changes under un-asserting tests, not equivalents
+> — so the 64-66% gap share (wave 40 landed it back at 64, the earliest
+> waves' triple) is a genuine work list, not classifier optimism).
+> Module SHAPE also drives the noise: zone_comparison/prompt_service/zone_anomaly = 96-98% TEST-GAP (pure
+> logic, barely asserted), while nemotron_latency_optimizer sits at 71%
+> EQUIVALENT (log-heavy singleton, config kwargs == dataclass defaults),
+> calibration_service 68% EQUIVALENT (its redundant clamp+cascade chain
+> re-derives the same output for 21 provably-identical arithmetic mutants —
+> a code-SIMPLIFICATION signal, plus a dead `new_low < 0` branch) and
+> household_matcher 89% EQUIVALENT+LOW-VALUE (already well-tested);
+> polygon_zone_service 56% EQUIVALENT (StrEnum + pydantic coercion makes its
+> `hasattr(x,"value")` guard provably two-branch-identical), batch_aggregator
+> 62% (log-heavy coalescer), clip_client 69%
+> log-noise (duration_ms arithmetic, exc_info, `extra` payloads — real changes,
+> log-only observability); gpu_config is the status-code-only-asserted endpoint
+> at scale — 81 of 111 survivors are the whole auto-assign algorithm under
+> `len>=3`/`commit.called`-only tests, and its SYMMETRIC-FIXTURE ABSORPTION
+> deserves naming next to mock-absorption: the LATENCY sort-flip mutants are
+> test-no-ops because every fixture GPU shares compute_capability '8.6', so the
+> tie swallows the mutation before any assert (fixture DATA can be as unassertive
+> as a mock); registry 90% log-text noise, and mutation evidence
+> CORRECTED the screen on it — the "ZERO test files" finding was true for the
+> module but a pure-re-export shim (services/service_registry.py:56) gives it a
+> rich covering surface, so the screen's v1 metric needed the shim join;
+> segformer_loader is
+> the wide-except-crash-swallow at its WORST — 152 of `segment_clothing`'s 153
+> mutants survive because the covering tests assert only `isinstance(result,
+ClothingSegmentationResult)` while the module's blanket `except Exception:
+return ClothingSegmentationResult()` converts any mutation breakage into an
+> empty-but-valid result (its fully value-asserted `to_dict` died 9/9 — the
+> control case). Wave 21 surfaced a TIER-SCOPE blind spot: cleanup_service's two highest-blast-radius
+> survivors (retention cutoff `-timedelta`->`+` deletes EVERY log row; `<`->`<=`
+> boundary) are asserted in INTEGRATION tests, but pyproject's
+> pytest_add_cli_args_test_selection is unit-tier only — covered-in-the-wrong-
+> tier mutants cannot be killed by design, so the score understates real safety
+> there (unit drafts close it; the scope question itself is a program note,
+> not a mutmut-semantics change). Evidence
+> the completed baseline will overstate real gaps even after unchecked-caught
+> pessimism unwinds — but the gap share, not the noise share, is the WP4.4
+> work list: it starts from the ordered queue, not raw counts. Surfaced en
+> route: dead production code (florence \_parse_list_response L419-423,
+> unreachable — simplification note, not a test), shipped-behavior gaps the
+> mutants proved (tz-guard inversion -> jobs never time out; retry-budget
+> off-by-one; circuit-gauge lying after reset; gpu_monitor recorded_at tz-strip
+> -> history-read TypeError; auto-enroll is_household_member default flipped ->
+> auto-enrolled strangers would read as trusted household members; scenario_classifier tailgating alert payload — all 5 keys + the dict — wholly
+> unasserted, the covering test's disjunction passes on score alone;
+> vehicle_classifier_loader NEM-4519 `torch.load(weights_only=True)` droppable
+> to arbitrary-pickle loading under a MagicMock load; file_service Redis zrem
+> member clobber leaves a cancelled file deletion ARMED; debug ltrim off-by-one
+> `start 0->1` discards EVERY recorded pipeline error while returning True;
+> orchestrator registry singleton can discard its redis client -> the global
+> registry persists NOTHING; threat_monitor alert.created WS + webhook payloads
+> wholly unobserved (58 key-rename mutants, pattern-6's biggest instance);
+> prompt_storage naive-`now()` timestamp leak; system.py /system/health
+> exporter-target matching + degradation payload 166-gap module asserted only
+> as status.value=='up'), and the
+> mock-absorption family (~90 survivors:
+> lenient AsyncMocks swallowing call-argument damage across baseline/florence/
+> redis/job_timeout — one key-aware-fake contract test per call site kills each
+> family).
+
+MEASURE (the finding that reframed the WP): the mutation pipeline was DEAD,
+not narrow. mutmut 3.8 rejects every flag the call sites passed
+(`--paths-to-mutate/--tests-dir/--runner` -> "Error: No such option"), the
+config carried deprecated 2.x keys that only parsed behind warnings,
+`mutmut html` (workflow step) does not exist in 3.x, and every invocation sat
+behind `|| true` — so the weekly schedule "succeeded" for months producing
+zero data, and the doc's "Overall Mutation Score: 89.2%" predates the mutmut
+3 migration and was unreproducible. First honest baseline (this commit):
+54.0% — run6 closed 13:32 UTC clean (rc=0): 88,329/88,329 checked, 0 unchecked,
+torn_metas 0, completed=true (scorer JSON /tmp/wp25/final-score.json). 45,127
+killed + 2,611 timeout = 47,738 caught; 40,571 SURVIVED (45.9%); 20 no_tests;
+269 targets -> 229 scored (40 zero-mutant gap modules printed every run,
+including all four WP4.5 coverage omits by construction). The dead pipeline's
+doc claim was "89.2%"; honest first measurement is 54.0% — the 35pp delta is
+what months of `|| true` were hiding. Floor detail: 9 modules at 0% (three
+model loaders age/gender/zero_dce = 206 mutants, 100% surviving; jobs.py +
+queues.py routes), no_tests concentrated in heatmap_service (6) /
+stgcn_loader (5) / backup_service (2). CROSS-READ to the WP4.4 feed: the 122
+triage dossiers froze survivor sets from run5's PARTIAL cache (mutmut checks
+estimated-fastest-first), so their 17,719 were a known-lower-bound slice — the
+FINAL JSON arbiter (queue index's re-tally appendix) puts the same 122 modules
+at 36,051 survivors (exact path-match; stem-matched first pass said 35,637 on
+120/122) and ALL 221 survivor-bearing modules at 40,571 -- 4,520 of them in 99
+never-triaged modules, ~18,332 NEW inside already-triaged ones -- i.e. the
+generation-2 work list is ~2.3x the triaged one; the snapshot-flag fold doctrine is what
+kept that reconciliation mechanical instead of a rewrite. The 62/23/15 shares
+remain the sample's shape; the population's comes out of the FINAL-JSON queue
+rebuild that opens WP4.4 proper.
+
+DECIDE (target set + cadence, PLAN's prioritisation executed): denominator =
+every module under backend/services/ + backend/api/routes/ — 266 concrete
+
+- 3 package `__init__`s = 269 generated (the mutmut baseline confirmed
+  should_mutate(init)=True, so the scorer's --targets counts them too:
+  services/`__init__.py` alone is 703 real lines). Cadence
+  stays WEEKLY schedule + workflow_dispatch, never per-PR (mutmut is hours, not
+  minutes, at this scale). Prioritisation inside the set came from a static
+  assertion-density screen (AST, no pytest): 149 modules screened (>=60
+  operator nodes, >=2 test files), thinnest-asserted first —
+  `analytics_zones.py` ~71 asserts/kloc at 521 op nodes, `admin.py` 165 at 677,
+  `debug.py` 181 at 655, then `dwell_time_service` / `ai_quality_metrics` /
+  `batch_coalescer` on the services side. (Screen v1 used non-recursive globs
+  and missed nested dirs — caught reconciling 263 vs the tree's 266; v2
+  rglob-found `orchestrator/registry.py`: 531 lines, 121 op nodes, ZERO test
+  files — the screen's own first catch, fed to WP4.4.) 4 of WP4.5's five
+  coverage-omits are inside the denominator by construction (alerts, audit,
+  video_processor, degradation_manager; core/tls.py sits outside both trees).
+
+DECIDE (formula, stated with its cost): headline = mutmut's own badge,
+(killed+timeout)/(total−skipped), imported semantics not re-derived —
+mutation-score.py's verdict table is PINNED against mutmut.stats.
+status_by_exit_code in CI (test_mutation_score), so a mutmut upgrade that
+moves exit-code meanings fails the pin instead of silently moving the score.
+mutate_only_covered_lines=true scopes generation to unit-executed lines: the
+score answers "do tests catch behavior changes in code they execute" (WP4.3's
+subject); never-executed lines are WP4.5's complaint and every run lists
+"targets with no mutants" so the exclusion never hides anything. The 4 covered
+omits (alerts/audit/video_processor/degradation_manager) generate ZERO mutants
+under this flag — `omit` means mutmut sees no executed lines — surfaced by the
+gap list every run until WP4.5 closes them.
+
+HOW it rides: scripts/mutation-run.sh is the ONE runner (workflow + docs +
+mutation-test.sh all delegate — the 2.x flag rot could fester in 3 places
+because each call site was independent; now there is one, unshielded, and it
+fails loudly). scripts/mutation-score.py aggregates mutmut's per-file verdict
+cache (mutants/\*.py.meta) into per-module scores — mutmut 3 only publishes ONE
+aggregate, so per-module reporting is the missing piece this WP adds; its tests
+are in ci.yml's anti-rot list. .github/mutation-history.json is the committed
+series (workflow appends on fetched main and pushes — house pattern is
+semantic-release's bot commit; a run that measured nothing is rc=1 and never
+touches the series). mutants/ cache is gitignored (regenerable); the series is
+not.
+
+TDD record: 8 tests scripts/test_mutation_score.py, red-first — formula
+against mutmut's badge math, all-unchecked files excluded (nothing measured !=
+score 0), --targets denominator from the tree (flipped red mid-WP when the
+baseline proved mutmut mutates package `__init__.py` files — a denominator
+excluding them would print a false "skipped module" gap), missing cache is
+rc=1 NOT a silent zero report (a 0-module artifact committed as "baseline
+reset" is the failure mode this guards), verdict-pin against the installed
+mutmut. History
+append caps at 60 runs (~1yr weekly), checked in-process so the 5s tier
+doesn't hinge on 70 subprocess starts.
+
+Baseline runs 1–2 (2026-09-17) died at the stats pass, NOT at mutant
+checking — generation OK'd the whole denominator (269 files mutated in 21s)
+and then the stats-pass pytest died inside mutants/: the harness cwd
+has no editable install and no repo-root parent on sys.path, so imports AND
+parents[N]-relative file reads must exist UNDER mutants/. -x made each death
+one-at-a-time; the doctrine became: run the whole selected suite in the
+mutant home once, inventory every failure class, fix in one commit. Round 1:
+ModuleNotFoundError scripts.synthetic (unit/scripts tests resolve the
+first-party package via `__file__`-relative sys.path arithmetic →
+mutants/scripts/) and setup_lib (test_deploy_phases top-level). Round 2:
+models.yml — model_zoo.py's Path(`__file__`).parents[2] read lands on
+mutants/models.yml. A whole-suite inventory pass in the mutant home
+(-n8, 91s) then named the remaining 17 path/read failures -- each would have
+died one-at-a-time under mutmut's -x: 4 infra-exists tests (docker-compose.prod.yml,
+monitoring/, frontend/nginx.conf, docker-entrypoint.sh), 12 version-
+consistency fixtures (the drift gate reads .nvmrc/.python-version/.github/
+workflows/ci.yml/Dockerfiles relative to a tree root = mutants/), one
+introspection artifact: mutmut renames covered methods to
+`xǁClassǁmethod__mutmut_orig` / `…__mutmut_N` inside the mutated class, so
+test_mock_system_broadcaster_has_real_public_methods saw harness
+temporaries as "the real API" — the mock-completeness tests now skip names
+marked `__mutmut` (the real-API comparison is unchanged; 67 tests pass
+against the real tree). The final also_copy = the IMPORT/READ set, distinct
+from source_paths' MUTATE set — frontend FILES listed individually because
+copytree would drag node_modules (493MB) and mutmut's file-copy branch
+mkdirs no parents (runner pre-mkdirs mutants/frontend; that copytree-parent
+gap is mutmut upstream behavior, worked around, not patched).
+
+Run 3 was killed mid-generation (operator kill unblocking a deadlocked
+watcher; no verdict). Run 4 (06:01) became the first to clear generation
+AND the full stats pass (27k tests mapped, cache mutants/mutmut-stats.json),
+then died at the clean-test gate with
+hypothesis.errors.FailedHealthCheck: "…test_valid_json_always_parses was
+called from multiple different executors". Root-caused into both installed
+packages, not papered over: mutmut's DEFAULT process_isolation="fork" runs
+collect_stats and run_clean_tests in the SAME parent process ("Already in a
+clean process, so run stats directly without forking" — isolation.py
+ForkRunner), so the clean pass re-executes every @given test still in
+sys.modules; Hypothesis 6.168's differing_executors health check fires on a
+second execution from a different executor instance (core.py thread_local
+prev_self). Deterministic repro, one python process: pytest.main() twice
+over the test → rc1=0 rc2=1, FailedHealthCheck on the second run. The crash
+was the LUCKY outcome: the same inheritance reaches every forked mutant
+worker ("every worker inherits whatever the test setup left in that
+process" — mutmut's own ProcessIsolation docstring), so under fork
+isolation ANY mutant covered by a property test would error on the health
+check and be scored KILLED with its test never run — an inflated baseline,
+silent. Fix = harness configuration, not test surgery: [tool.mutmut]
+process_isolation="forkserver" — mutmut's own knob, and its design docstring
+names exactly this class of setup as fork-unsafe. ForkServerRunner keeps
+mutmut's parent pytest-free and forks each op (stats, clean tests, forced
+fail, every mutant check) from a dedicated warm server, so each @given test
+executes exactly once per interpreter. Rejected: adding
+suppress_health_check to the repo's four property-test files — the tests are
+correct under every normal single-execution run; bending them to a harness
+process model would be aligning tests to the tool, the mirror of this
+program's align-to-shipped-contract rule. The key is deliberately OUT of
+mutmut's config_fingerprint groups (test_execution/test_selection/timeout/
+type_check), so the stats cache survives the switch — run 5 loads it and
+never re-executes the 27k-test stats pass.
+
+MEASURE (weekly-convergence arithmetic, found while wiring the workflow
+against the run's real numbers): run5's denominator is 88,329 mutants;
+mutmut submits estimated-FASTEST-first (`__main__.py:1014`, its own comment),
+and the first ~4,000 checked consumed ~2 SECONDS of estimated test time out
+of ~31h total — every mutant pays a fresh pytest boot (~8-9s here, 12
+workers). Boot-bound wall = count/rate: ~18-20h local baseline. The failure
+mode this exposed: CI cold-starts, on a 4-core runner the cold set is far
+beyond ANY job budget, and a timeout-killed job that keeps nothing restarts
+cold forever — the weekly series would never converge. Projected against
+mutmut's OWN cost model (estimated_worst_case_time over run5's stats cache,
+measured at its 5,282-checked point): remaining 83,047 unchecked = 30.7h of
+test time, but per-mutant pytest boot (~8.5s) dominates the wall — 19h at 12
+workers locally, and a 240min@12 CI step projects to ~20,300 mutants ≈ 24.5%
+per week: ~4 weekly runs to convergence, each preserving the prior verdicts.
+The durability
+half was source-verified before designing on it: \_register_mutant_result
+saves the meta on EVERY checked mutant (`__main__.py:920`); generation
+never touches metas and its hash-merge preserves restored verdicts
+(create_mutants_for_file). Fix = carry verdict state across runs:
+actions/cache of a few-MB pack (metas+stats+spans — measured 2.6 MB /
+539 files; the 1.4GB regenerated tree is reproducible and would blow the
+500MB free-tier artifact cap, so neither cache nor artifact carries it
+anymore), run step budgeted 240min + continue-on-error so the budget
+fires as a STEP kill inside the 6h job cap (CI prep eats 60-90 min) and
+pack/score/history always get their turn; a week that overran even that
+loses nothing — next run resumes.
+
+DECIDE (the honesty contract that makes an accumulating cache safe): the
+scorer publishes progress{checked,total,not_checked,torn_metas,completed};
+history entries carry it. Partial points are pessimistic BY CONSTRUCTION
+(mutmut's own badge denominator includes unchecked — an unchecked mutant
+sits there as uncaught, and no_tests counts against too; imported+formula-
+pinned, never locally re-derived — do NOT "fix" these categories without a
+ruling) and RISE as the cache converges; only completed points are
+comparable as a trend. Torn metas (budget-kill mid-save; json.dump is not
+atomic and mutmut's loader guards only FileNotFoundError — proven by the
+red test crashing exactly there) are DELETED with their mutant copies by a
+pre-run --repair step. Deletion, not reset, is the sound repair — the trap
+caught in review: create_mutants_for_file SKIPS regeneration when the
+mutant copy is newer than the source (mtime gate before any meta read), so
+a reset-but-present meta never refills and the module silently vanishes
+from the denominator; removing the copy forces the regeneration path.
+
+Collateral: pyproject [tool.mutmut] rebuilt 2.x->3.x (source_paths /
+pytest_add_cli_args_test_selection — the deprecation warnings are gone under
+-W error::UserWarning); pytest_add_cli_args gained -m "not gpu" (addopts=
+neutralisation had been silently re-enabling gpu-marked mutants) and
+--timeout=120 (mutant checks boot the app graph; 5s tier default would fake-
+timeout a class of mutants); ci.yml anti-rot list + mutation docs rewritten
+(the 2.x commands documented "how to run it" are now a warning box);
+frontend/stryker.config.mjs keeps its 3-module set on purpose (no baseline ->
+no widening; header records the ruling).
+
+**Adjacent observation — coverage-gate watch on #6560 (2026-09-19).** The WP6
+stack PR's coverage check ran red at commit `659a83f6`; a re-run went all-green
+with no code change, so the red was a flake, not a floor breach. No line moved:
+the recorded floor stands and the number reported is the number that runs.
+
+## A7.2 deletion 2/2 LANDED `21a364d0` — florence /analyze-scene off both surfaces; contract 38→37 (2026-09-20)
+
+The A7.2 pair is complete: segment_image (`54e27f2f`, client binding gone,
+OPERATION kept) and /analyze-scene (op unreachable end to end → deleted from
+BOTH deployed surfaces AND the contract). Census in the commit body: zero
+backend callers (FlorenceClient never had the method — AGENTS.md's
+`client.analyze_scene` example was fiction, now corrected), zero openapi
+paths, zero frontend refs. Red-first ×3 (server-route marker + NEW
+`DELETED_REGISTRY_OPS` op-level ratchet + 37-count), green-before-delete
+18+25 passed, model.py −123 / adapter −66 / test −612, drift --check rc=0,
+parity "registry ops: 37 divergences detected: 21" unchanged (the golden
+list never named this op — consistent provider, no GOLDEN-LOST), node-ID
+collected diff verified: 9 params vanished, 3 new, dir 565→559. The
+other three A7.2 candidates (estimate_depth, estimate_object_distance,
+CLIP similarity) stay PARKED — they fail A6 condition 2 (shared
+parametrized tables; deletion would open golden-vanish reds).
+
+AFTER-MERGE NOTE: origin/main advanced twice during the A7.2 window
+(#6566 WP4.3 close-out, #6569 integration cleanup); the pre-push
+auto-rebase hit the squash-merge trap (memory: push-auto-rebase-
+squash-merge-trap) — resolved by MERGE `f6f96ebc` (no force-push; ledger L
+keep-both conflict: both sides had appended), push follows.
+
+## A7.3 (WP6-A) LANDED `fb3a797b` — yolo26 image ships contract.py; model.py imports the leaf; CI image-smoke job is the licence (2026-09-20)
+
+ADDENDUM 2 A7.3 approved WP6-A gated on all three parts shipping together, and
+the plan's paragraph is the whole argument: "Without it the only thing proving
+the COPY is reading the Dockerfile, and a mistake surfaces on the GPU host
+rather than in a PR." Executed exactly as written:
+
+1. `ai/yolo26/Dockerfile` — `COPY --chown=1000:1000 ai/yolo26/contract.py .`
+   into the flat `/app` COPY list (A7.3 licenses this Dockerfile edit; the
+   general owner-review rule stands for every other one).
+2. `ai/yolo26/model.py` — span 607-932 replaced by the seam import:
+   2,092 → 1,792 lines. AST census of the span first: exactly the seven seam
+   symbols (+ two nested `EnhancedDetection` methods) and the
+   `python_dataclass` / `Enum` imports only they used; nothing else lived in
+   the span. The plan's section-1 rule (never edit an import statement a
+   service Dockerfile COPYs flat) is honored the way it was designed: the
+   existing `_here_dir` sys.path shim (WP6.3) resolves bare `contract` in the
+   repo, and the new COPY resolves it in-container.
+3. ci.yml `ai-yolo26-image-smoke` — builds the real Dockerfile on
+   ubuntu-latest (retry ×2 like `build-backend`; free-disk-space like
+   deploy.yml's AI builders; no nvcr login — deploy.yml proves anonymous pull)
+   then `docker run --rm -i` imports `model` INSIDE the image and asserts
+   full identity `model.X is contract.X` for all seven symbols + the
+   resurrection ratchet (`class ConfidenceQuality` absent from the shipped
+   source). podman can't build in this sandbox, so this job IS the proof.
+   Wiring: new `detect-changes` filter key `ai_yolo26` over the image's whole
+   flat COPY surface (any `ai/yolo26/**` or the four flat `ai/*.py`), direct
+   ci-gate need + `check_job` line (WP0.6 invariant —
+   `test_ci_job_graph.py` green, 37 jobs / gate reaches 31).
+
+The dual-module subtlety the repo-side guard had to respect:
+`ai/conftest.py` canonicalizes flat `model` to `ai.yolo26.model`, whose
+`from contract import` rebinds to the BARE `contract` module — a different
+sys.modules object than `ai.yolo26.contract`. So repo-side full `is` identity
+is unreachable (the WP9.1 parity class already documents why `is` "can never
+hold" for the old duplicated classes); the repo-side guard is `__module__ ==
+"contract"` + same-file identity via the bare name, and the container-side
+job asserts true identity where exactly one `contract` module exists.
+
+TDD: `TestContractSeam` (ai/yolo26/tests/test_model.py) red first — 2 failed
+/ 1 passed pre-swap (the two identity legs), 3 passed post. Post-swap full
+file: 149 passed / 2 failed, both failures PROVEN pre-existing at `dfa4e7a8`
+via git-stash rerun (GPU/model-file env tests, not the seam).
+`test_prompts.py` 473 passed. Parity checker rc=0 with the golden untouched
+("registry ops: 37 divergences detected: 21" — the checker has no
+contract.py term; A7.3's "guards any duplicated contract.py" line in WP9.1
+describes the test_prompts parity class, now a trivially-green ratchet).
+`gen-ai-contract --check` rc=0, ratchet-check rc=0, suppression-census
+byte-identical rc=0, ai/ collection gate rc=0 (1,748 collected).
+
+Per A7.3's retirement order — "The parity test stays until (3) is green,
+then retires with the duplication" — `TestDetectionContractParity` STAYS in
+this PR (its docstring now states the interim ratchet reading + retirement
+trigger: the first GREEN `ai-yolo26-image-smoke` run on this branch deletes
+the class in a follow-up commit). The duplication it guarded is already gone;
+the class now reddens only if someone re-inlines.
+
+Residual risk recorded, not hidden: the image build has never run anywhere
+(this sandbox cannot, and CI has never built this Dockerfile on a PR —
+deploy.yml builds it only post-merge). If the NVIDIA base pull or a uv layer
+misbehaves on the runner, the new job goes red and blocks ci-gate by design;
+the fix would then be the job's own retry/disk knobs, NOT removing the gate.
+
+## Mypy-red unblock LANDED `752bb7d2`/`17f34e56` — the 6 ai/ annotation gaps the Phase-8 import-graph widening exposed (2026-09-20)
+
+**What surfaced.** After the owner squash-merged #6565 into `feat/wp7-ai-contract`, the
+Backend Type Check (Mypy) job on #6562 went red: `uv run mypy backend/
+--ignore-missing-imports` rc=1, **6 errors in 3 files (checked 1505 source files)** —
+`ai/gateway/adapters/enrichment_light.py:117` no-any-return;
+`ai/clip/model.py:757/:760` no-any-return; `ai/gateway/adapters/clip.py:198`
+[operator] `"Tensor" not callable`, `:201`/`:355` no-any-return
+(log `/home/agent/.claude/jobs/5e2cfdd8/tmp/mypy-a7x.log`).
+
+**Root cause — the WP0.6 invisibility class, not an A7.3 regression.** Phase 8's
+conformance tests import the mounted gateway app (`ai.gateway.main` → adapters →
+`ai/clip/model.py` → transformers), pulling three previously-never-type-checked `ai/`
+files into `mypy backend/`'s import graph. `--ignore-missing-imports` suppresses missing
+_imports_, not stub-derived errors: types-PyTorch types `nn.Module.__getattr__` →
+`Tensor` (hence :198 — the stubs see `Module.get_text_features` as a Tensor, not a
+callable; runtime is the real method), and numpy-stubs leave `ndarray / ndarray` as Any
+(the array_api gap → every no-any-return). Reproduced locally at `c4566f41` BEFORE any
+A7.3 file is implicated; A7.3's own files (contract.py seam, Dockerfile, ci.yml) are
+clean in the log.
+
+**The fix (annotation-only, single commit `17f34e56` on `feat/wp8-ai-protocol`,
+cherry-picked to `752bb7d2` on `feat/wp7-ai-contract` — the branch the red actually
+ran on).**
+
+- `enrichment_light.py::_softmax` — `cast("np.ndarray", ...)` on the division; `cast`
+  was already imported.
+- `adapters/clip.py` — `cast` added to the `typing` import (the file is NOT
+  `ai/*/model.py` and not COPY'd flat — `ai/gateway/Dockerfile:38` copies `ai/gateway/`
+  wholesale, so the flat-COPY import freeze doesn't reach it); `cast("Any", ...)` on the
+  `get_text_features` lookup; `cast("np.ndarray", ...)` returns at :201/:355. TC006
+  quote-casts per repo style.
+- `ai/clip/model.py::_extract_features_tensor` — **import statements frozen** (goal rule;
+  flat COPY + `CMD ["python","model.py"]`). Import-free narrowing instead:
+  `isinstance(x, torch.Tensor)` guard + `TypeError` raise on `pooler_output` /
+  `last_hidden_state`, matching the helper's own documented `Raises: TypeError`
+  contract. The one deliberate behavior tightening: a non-Tensor attribute now raises at
+  the seam instead of being returned raw to fail downstream. Proved no import line
+  changed: `git diff -U0 ai/clip/model.py | grep '^[+-].*\b(import|from)\b'` → only a
+  comment line.
+
+**MEASURE.** `mypy backend/ --ignore-missing-imports`: 6 errors → **Success, no issues
+in 1505 source files, rc=0** (`mypy-a7x-fixed2.log`); same loop at wp7 tip `752bb7d2`:
+**Success, 1506 files, rc=0** (`mypy-wp7-tip.log`). Probes on every touched surface
+(`test_adapters_clip.py` + `test_adapters_enrichment_light.py` + `ai/clip/test_model.py`):
+**127 passed, rc=0** (`mypy-fix-probes.log`). ruff check + format clean. No floors moved,
+no allowlist widened, no omit added — zero gate configuration touched (ratchet rule).
+**No new RULING**: this was a latent-defect class the plan's own conformance work
+surfaced; the fix is the ruling (annotation + one in-contract raise), not parked.
+
+**Stack effect.** Pushed both branches (`2914ee69..752bb7d2`, `c4566f41..17f34e56`); #6562
+re-ran the full DAG on the push. Cherry-pick applied byte-clean because both tips carried
+identical pre-fix versions of the three files (`git diff --stat` empty between tips).

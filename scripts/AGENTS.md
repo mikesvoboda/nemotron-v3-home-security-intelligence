@@ -296,13 +296,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 ### Testing Scripts
 
-<!-- TODO(m3-static-census): the two bullets below were re-anchored to the
-D14 split (2026-09-13), and a third census item is open — the block still
-claims "pytest with 95% coverage" while validate.sh gates combined
-unit+integration coverage at 80 (validate.sh :295-325 comment block +
-coverage combine --fail-under=80) and test-runner.sh's own docstring says
-"80% coverage enforcement". Fold into the M3 static-census fix list; docs
-text only, no behavior. -->
+<!-- RESOLVED (owner ruling A7.1, 2026-09-19): the "95% coverage" claim
+below corrected to the executed number — validate.sh combines unit +
+integration data and gates at --fail-under=80. Per the same ruling,
+pyproject.toml fail_under=85 is the PR diff gate's RELATIVE baseline, not
+an absolute floor, and test-runner.sh is an optional local runner no CI
+job invokes. Docs text only, no behavior. -->
 
 #### validate.sh
 
@@ -310,7 +309,7 @@ text only, no behavior. -->
 
 **What it runs:**
 
-1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest with 95% coverage
+1. **Backend:** Ruff linting, Ruff format check, MyPy type checking, pytest; combined unit+integration coverage must reach 80%
 2. **Frontend:** ESLint, TypeScript check, Prettier check, Vitest
 
 **Usage:**
@@ -325,7 +324,7 @@ text only, no behavior. -->
 
 #### test-runner.sh
 
-**Purpose:** Run full test suite with 95% coverage enforcement.
+**Purpose:** Optional local full-suite runner. No CI job invokes it (A7.1 census); its `COVERAGE_THRESHOLD=93` is a stricter local choice, not a CI number — the CI-mirrored floor is validate.sh's 80% combined.
 
 **Features:**
 
@@ -1029,19 +1028,23 @@ git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_ca
 **What it does:**
 
 - Detects new backend files without corresponding test files
-- Verifies API routes have both unit and integration tests (95% coverage)
-- Ensures services have unit and integration tests (90% coverage)
-- Checks model files have unit tests (85% coverage)
-- Detects coverage regressions between branches
+- Verifies API routes have both unit and integration tests (strict: blocks PR even without `--strict`)
+- Ensures services have unit and integration tests; models and frontend files need unit tests
+- Detects coverage regressions between branches (diff against `coverage-baseline.json`)
 
-**Requirements by Component:**
+**Requirements by Component (mirrors `REQUIREMENTS` in the script — corrected 2026-09-19 per owner ruling A7.1; the previous rows advertised 95/90 which the script never contained):**
 
-| Type               | Required Tests     | Min Coverage | Enforcement        |
-| ------------------ | ------------------ | ------------ | ------------------ |
-| API Route          | Unit + Integration | 95%          | Strict (blocks PR) |
-| Service            | Unit + Integration | 90%          | Strict (blocks PR) |
-| ORM Model          | Unit               | 85%          | Warning            |
-| Frontend Component | Unit               | 80%          | Warning            |
+| Type                      | Required Tests     | Advisory Coverage | Enforcement                            |
+| ------------------------- | ------------------ | ----------------- | -------------------------------------- |
+| API Route                 | Unit + Integration | 85%               | Strict — blocks PR                     |
+| Service                   | Unit + Integration | 85%               | Strict under `--strict` (CI passes it) |
+| ORM Model                 | Unit               | 85%               | Strict under `--strict` (CI passes it) |
+| Frontend Component / Hook | Unit               | 80%               | Strict under `--strict` (CI passes it) |
+
+The coverage column is the number the script PRINTS in its missing-test
+report; the gate's blocking checks are test presence and the branch-diff
+coverage drop — no per-file coverage threshold is computed. The executed
+absolute backend floor remains validate.sh's 80% combined.
 
 **Integration:** Used in `.github/workflows/test-coverage-gate.yml` CI job
 

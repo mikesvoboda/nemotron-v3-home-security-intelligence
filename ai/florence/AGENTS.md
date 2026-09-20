@@ -21,7 +21,7 @@ ai/florence/
 ├── requirements.txt   # Python dependencies
 └── tests/             # Unit tests
     ├── __init__.py
-    └── test_analyze_scene.py  # Tests for /analyze-scene endpoint
+    └── test_region_endpoints.py  # Region/phrase endpoint tests
 ```
 
 **Testing:** Run tests with `uv run pytest ai/florence/tests/ -v`
@@ -234,45 +234,6 @@ Generate captions for all regions in an image.
 }
 ```
 
-### POST /analyze-scene
-
-**NEW: Cascade prompt strategy for comprehensive scene analysis.**
-
-Runs multiple Florence-2 tasks in sequence/parallel to extract maximum context:
-
-1. `<MORE_DETAILED_CAPTION>` - Rich scene description
-2. `<DENSE_REGION_CAPTION>` - Per-region captions with bounding boxes (parallel)
-3. `<OCR_WITH_REGION>` - Text extraction with locations (parallel)
-
-Tasks 2 and 3 run in parallel using `asyncio.gather` for optimal performance.
-
-**Request:**
-
-```json
-{ "image": "<base64-encoded-image>" }
-```
-
-**Response:**
-
-```json
-{
-  "caption": "A delivery person in a blue uniform is standing at the front door of a residential home. They are holding a brown cardboard package.",
-  "regions": [
-    { "caption": "delivery person in blue uniform", "bbox": [100, 150, 300, 400] },
-    { "caption": "brown cardboard package", "bbox": [200, 350, 280, 420] }
-  ],
-  "text_regions": [{ "text": "PRIORITY MAIL", "bbox": [210, 360, 270, 360, 270, 380, 210, 380] }],
-  "inference_time_ms": 450.5,
-  "task_times_ms": {
-    "caption": 200.0,
-    "dense_regions": 150.0,
-    "ocr_with_regions": 100.5
-  }
-}
-```
-
-**Use Case:** Primary endpoint for Nemotron prompt context generation. Provides structured output with all scene elements needed for security risk assessment.
-
 ### POST /describe-region (NEM-3911)
 
 Describe what's in specific bounding box regions of an image.
@@ -439,7 +400,7 @@ The Florence-2 server is an optional service that can provide detailed scene des
 from backend.services.florence_client import get_florence_client
 
 client = get_florence_client()
-result = await client.analyze_scene(image_base64)
+result = await client.dense_caption(image_base64)
 ```
 
 **Note**: Florence-2 backend integration is implemented in `backend/services/florence_client.py`.

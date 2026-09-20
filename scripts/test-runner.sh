@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# Unified Test Runner
-# Runs all tests with code coverage enforcement:
-#   - Backend: 93% combined coverage (via pytest --cov-fail-under)
-#   - Frontend: 92-93% thresholds (via vitest coverage thresholds in vite.config.ts)
-#
-# Note: CI enforces separate thresholds per test type:
-#   - Unit tests: 93% (stricter for isolated tests)
-#   - Integration tests: 50% (lower due to mocked deps and endpoint-focused testing)
+# Unified Test Runner — OPTIONAL local convenience. Nothing in CI invokes
+# this script (owner ruling A7.1 census, 2026-09-19: zero invokers outside
+# docs). The authoritative executed backend floor is validate.sh's combined
+# unit+integration --fail-under=80; pyproject.toml fail_under=85 is the PR
+# diff gate's RELATIVE baseline, not a floor. The COVERAGE_THRESHOLD below
+# is this runner's own STRICTER LOCAL choice, not a CI number — CI runs no
+# 93% gate. Prefer ./scripts/validate.sh for the checks CI actually runs.
 #
 
 set -e
@@ -23,9 +22,7 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# Coverage threshold (aligned with CI unit test threshold)
-# CI uses 93% for unit tests, 50% for integration tests
-# When running combined tests locally, we use the stricter unit test threshold
+# This runner's LOCAL threshold — see the header: no CI gate uses 93.
 COVERAGE_THRESHOLD=93
 
 # Track results

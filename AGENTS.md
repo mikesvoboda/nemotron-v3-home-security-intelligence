@@ -228,7 +228,7 @@ cd frontend && npm test
 
 ### 4. Code Quality Standards
 
-- **Coverage:** 85%+ required for unit tests (enforced by pytest)
+- **Coverage:** executed floor is 80% combined unit+integration (`validate.sh --fail-under=80`); `pyproject.toml` 85 is the PR diff baseline, not an absolute floor (A7.1)
 - **Type Hints:** Required for all backend functions (enforced by mypy)
 - **Line Length:** 100 characters (enforced by ruff)
 - **Testing:** TDD approach for tasks labeled `tdd`

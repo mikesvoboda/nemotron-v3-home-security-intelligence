@@ -142,7 +142,7 @@ SLOT_OF = {
     "per_model_http": "per_model_server",
     "llamacpp_llm": "per_model_server",
     # discovery fix: the loop below reaches the fake too (it joins the
-    # registry in-test); its slot column is the 38 ops it registers against.
+    # registry in-test); its slot column is the 37 ops it registers against.
     "fake": "fake",
 }
 

@@ -609,327 +609,27 @@ class BoundingBox(BaseModel):
 # =============================================================================
 # These quality indicators help Nemotron distinguish between high-confidence
 # and marginal detections, providing richer context for risk assessment.
+#
+# A7.3 (WP6-A): the 316 inline lines this block carried are GONE. The
+# container image never shipped ai/yolo26/contract.py, which is why model.py
+# kept its own copies; the Dockerfile now COPYs it flat next to model.py
+# (flat /app layout), so the pure-leaf resolves here and in the repo alike
+# (the _here_dir sys.path shim above). This import binds the seven names
+# below into this module's namespace, so `from model import ConfidenceQuality`
+# (ai/yolo26/tests/test_model.py) and every call site in this file get the
+# SAME objects backend/services/prompts.py uses. Guarded repo-side by
+# TestContractSeam (ai/yolo26/tests/test_model.py) and container-side by the
+# ai-yolo26-image-smoke CI job (build the image, `import model` inside it).
 
-
-from dataclasses import dataclass as python_dataclass
-from enum import Enum
-
-
-class ConfidenceQuality(str, Enum):
-    """Quality tier for detection confidence scores.
-
-    Provides semantic meaning to raw confidence values, helping the LLM
-    understand the reliability of each detection.
-
-    Tiers:
-        EXCELLENT: >= 0.90 - Very high confidence, highly reliable
-        GOOD: >= 0.75 - Solid detection, trustworthy
-        MODERATE: >= 0.60 - Acceptable but verify with context
-        MARGINAL: < 0.60 - Low confidence, treat with caution
-    """
-
-    EXCELLENT = "excellent"
-    GOOD = "good"
-    MODERATE = "moderate"
-    MARGINAL = "marginal"
-
-
-def compute_confidence_quality(confidence: float) -> ConfidenceQuality:
-    """Compute the quality tier for a detection confidence score.
-
-    Args:
-        confidence: Detection confidence score between 0 and 1.
-
-    Returns:
-        ConfidenceQuality enum value indicating the quality tier.
-
-    Examples:
-        >>> compute_confidence_quality(0.95)
-        <ConfidenceQuality.EXCELLENT: 'excellent'>
-        >>> compute_confidence_quality(0.82)
-        <ConfidenceQuality.GOOD: 'good'>
-        >>> compute_confidence_quality(0.65)
-        <ConfidenceQuality.MODERATE: 'moderate'>
-        >>> compute_confidence_quality(0.45)
-        <ConfidenceQuality.MARGINAL: 'marginal'>
-    """
-    if confidence >= 0.90:
-        return ConfidenceQuality.EXCELLENT
-    elif confidence >= 0.75:
-        return ConfidenceQuality.GOOD
-    elif confidence >= 0.60:
-        return ConfidenceQuality.MODERATE
-    else:
-        return ConfidenceQuality.MARGINAL
-
-
-def get_confidence_explanation(quality: ConfidenceQuality, confidence: float) -> str:
-    """Generate a human-readable explanation of the confidence quality.
-
-    Args:
-        quality: The computed ConfidenceQuality tier.
-        confidence: The raw confidence score.
-
-    Returns:
-        String explanation suitable for LLM prompt context.
-    """
-    explanations = {
-        ConfidenceQuality.EXCELLENT: f"Very high confidence ({confidence:.0%}) - highly reliable detection",
-        ConfidenceQuality.GOOD: f"Good confidence ({confidence:.0%}) - solid detection",
-        ConfidenceQuality.MODERATE: f"Moderate confidence ({confidence:.0%}) - verify with visual context",
-        ConfidenceQuality.MARGINAL: f"MARGINAL confidence ({confidence:.0%}) - treat with caution, may be false positive",
-    }
-    return explanations[quality]
-
-
-@python_dataclass
-class SpatialContext:
-    """Spatial context for a detection within the frame.
-
-    Provides information about where the detection is located in the frame
-    and its relative size, which can indicate detection reliability.
-
-    Attributes:
-        relative_position: Position in frame as 9-grid (e.g., "top-left", "center")
-        size_relative_to_frame: Detection area as fraction of frame area (0-1)
-        is_at_boundary: True if detection bbox touches frame edge
-        position_description: Human-readable position description
-    """
-
-    relative_position: str
-    size_relative_to_frame: float
-    is_at_boundary: bool
-    position_description: str
-
-
-def compute_spatial_context(
-    bbox_x: int,
-    bbox_y: int,
-    bbox_width: int,
-    bbox_height: int,
-    frame_width: int,
-    frame_height: int,
-    boundary_threshold: int = 5,
-) -> SpatialContext:
-    """Compute spatial context for a detection bounding box.
-
-    Analyzes where the detection is located within the frame and its
-    relative size, providing context for detection reliability.
-
-    Args:
-        bbox_x: Top-left x coordinate of bounding box.
-        bbox_y: Top-left y coordinate of bounding box.
-        bbox_width: Width of bounding box.
-        bbox_height: Height of bounding box.
-        frame_width: Width of the frame/image.
-        frame_height: Height of the frame/image.
-        boundary_threshold: Pixels from edge to consider "at boundary".
-
-    Returns:
-        SpatialContext with position and size information.
-
-    Examples:
-        >>> ctx = compute_spatial_context(10, 10, 100, 200, 1920, 1080)
-        >>> ctx.relative_position
-        'top-left'
-        >>> ctx.is_at_boundary
-        False
-    """
-    # Calculate center of bounding box
-    center_x = bbox_x + bbox_width / 2
-    center_y = bbox_y + bbox_height / 2
-
-    # Determine position in 9-grid
-    x_third = frame_width / 3
-    y_third = frame_height / 3
-
-    if center_x < x_third:
-        h_pos = "left"
-    elif center_x < 2 * x_third:
-        h_pos = "center"
-    else:
-        h_pos = "right"
-
-    if center_y < y_third:
-        v_pos = "top"
-    elif center_y < 2 * y_third:
-        v_pos = "middle"
-    else:
-        v_pos = "bottom"
-
-    # Combine position
-    if h_pos == "center" and v_pos == "middle":
-        relative_position = "center"
-    elif h_pos == "center":
-        relative_position = v_pos
-    elif v_pos == "middle":
-        relative_position = h_pos
-    else:
-        relative_position = f"{v_pos}-{h_pos}"
-
-    # Calculate size relative to frame
-    bbox_area = bbox_width * bbox_height
-    frame_area = frame_width * frame_height
-    size_relative = bbox_area / frame_area if frame_area > 0 else 0.0
-
-    # Check if at boundary
-    is_at_boundary = (
-        bbox_x <= boundary_threshold
-        or bbox_y <= boundary_threshold
-        or (bbox_x + bbox_width) >= (frame_width - boundary_threshold)
-        or (bbox_y + bbox_height) >= (frame_height - boundary_threshold)
-    )
-
-    # Generate position description
-    size_desc = "large" if size_relative >= 0.10 else "medium" if size_relative >= 0.02 else "small"
-    boundary_note = " (at frame edge)" if is_at_boundary else ""
-    position_description = f"{size_desc} object in {relative_position} of frame{boundary_note}"
-
-    return SpatialContext(
-        relative_position=relative_position,
-        size_relative_to_frame=size_relative,
-        is_at_boundary=is_at_boundary,
-        position_description=position_description,
-    )
-
-
-@python_dataclass
-class EnhancedDetection:
-    """Enhanced detection with quality indicators and spatial context.
-
-    Combines raw detection data with computed quality metrics to provide
-    richer context for LLM-based risk assessment.
-
-    Attributes:
-        class_name: Detected object class (e.g., "person", "car").
-        confidence: Raw confidence score (0-1).
-        bbox: Bounding box as dict with x, y, width, height.
-        confidence_quality: Computed quality tier.
-        confidence_explanation: Human-readable confidence explanation.
-        relative_position: Position in frame (9-grid).
-        size_relative_to_frame: Detection size as fraction of frame.
-        is_at_boundary: True if detection touches frame edge.
-        spatial_description: Human-readable spatial description.
-    """
-
-    class_name: str
-    confidence: float
-    bbox: dict[str, int]
-    confidence_quality: ConfidenceQuality
-    confidence_explanation: str
-    relative_position: str
-    size_relative_to_frame: float
-    is_at_boundary: bool
-    spatial_description: str
-
-    @classmethod
-    def from_detection(
-        cls,
-        class_name: str,
-        confidence: float,
-        bbox: dict[str, int],
-        frame_width: int,
-        frame_height: int,
-    ) -> "EnhancedDetection":  # noqa: UP037 - container interpreter Python
-        # version is not pinned in the base image tag (nvcr tensorrt:26.04-py3);
-        # without PEP 563 / PEP 649 here, an unquoted self-class annotation in
-        # this class body would NameError at container startup.
-        """Create an EnhancedDetection from raw detection data.
-
-        Args:
-            class_name: Detected object class.
-            confidence: Detection confidence score (0-1).
-            bbox: Bounding box dict with x, y, width, height keys.
-            frame_width: Width of the frame/image.
-            frame_height: Height of the frame/image.
-
-        Returns:
-            EnhancedDetection with computed quality indicators.
-        """
-        quality = compute_confidence_quality(confidence)
-        explanation = get_confidence_explanation(quality, confidence)
-
-        spatial = compute_spatial_context(
-            bbox_x=bbox.get("x", 0),
-            bbox_y=bbox.get("y", 0),
-            bbox_width=bbox.get("width", 0),
-            bbox_height=bbox.get("height", 0),
-            frame_width=frame_width,
-            frame_height=frame_height,
-        )
-
-        return cls(
-            class_name=class_name,
-            confidence=confidence,
-            bbox=bbox,
-            confidence_quality=quality,
-            confidence_explanation=explanation,
-            relative_position=spatial.relative_position,
-            size_relative_to_frame=spatial.size_relative_to_frame,
-            is_at_boundary=spatial.is_at_boundary,
-            spatial_description=spatial.position_description,
-        )
-
-    def to_prompt_context(self) -> str:
-        """Format detection for LLM prompt context.
-
-        Returns:
-            Multi-line string with detection details and quality indicators.
-        """
-        lines = [
-            f"- {self.class_name.upper()}: {self.confidence_explanation}",
-            f"  Position: {self.spatial_description}",
-        ]
-
-        # Add warning for marginal detections
-        if self.confidence_quality == ConfidenceQuality.MARGINAL:
-            lines.append("  WARNING: Low confidence detection - verify before acting")
-
-        # Add warning for boundary detections
-        if self.is_at_boundary:
-            lines.append("  NOTE: Object at frame boundary - may be partially visible")
-
-        return "\n".join(lines)
-
-
-def enhance_detections(
-    detections: list[dict[str, Any]],
-    frame_width: int,
-    frame_height: int,
-) -> list[EnhancedDetection]:
-    """Enhance a list of raw detections with quality indicators.
-
-    Args:
-        detections: List of detection dicts with class, confidence, bbox.
-        frame_width: Width of the frame/image.
-        frame_height: Height of the frame/image.
-
-    Returns:
-        List of EnhancedDetection objects with computed quality metrics.
-    """
-    enhanced = []
-    for det in detections:
-        class_name = det.get("class", det.get("class_name", "unknown"))
-        confidence = det.get("confidence", 0.0)
-        bbox = det.get("bbox", {"x": 0, "y": 0, "width": 0, "height": 0})
-
-        # Handle bbox as dict or as BoundingBox model
-        if hasattr(bbox, "model_dump"):
-            bbox = bbox.model_dump()
-        elif not isinstance(bbox, dict):
-            bbox = {"x": 0, "y": 0, "width": 0, "height": 0}
-
-        enhanced.append(
-            EnhancedDetection.from_detection(
-                class_name=class_name,
-                confidence=confidence,
-                bbox=bbox,
-                frame_width=frame_width,
-                frame_height=frame_height,
-            )
-        )
-
-    return enhanced
+from contract import (
+    ConfidenceQuality,
+    EnhancedDetection,
+    SpatialContext,
+    compute_confidence_quality,
+    compute_spatial_context,
+    enhance_detections,
+    get_confidence_explanation,
+)
 
 
 class Detection(BaseModel):
@@ -942,11 +642,35 @@ class Detection(BaseModel):
     bbox: BoundingBox = Field(..., description="Bounding box coordinates")
 
 
+class TrackedDetection(BaseModel):
+    """Single object detection result with tracking information."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    class_name: str = Field(..., alias="class", description="Detected object class")
+    confidence: float = Field(..., description="Detection confidence score (0-1)")
+    bbox: BoundingBox = Field(..., description="Bounding box coordinates")
+    track_id: int | None = Field(
+        None, description="Unique track ID for object tracking (None if no track assigned yet)"
+    )
+
+
 class DetectionResponse(BaseModel):
     """Response format for detection endpoint."""
 
     detections: list[Detection] = Field(
         default_factory=list, description="List of detected objects"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+    image_width: int = Field(..., description="Original image width")
+    image_height: int = Field(..., description="Original image height")
+
+
+class TrackingResponse(BaseModel):
+    """Response format for tracking endpoint."""
+
+    detections: list[TrackedDetection] = Field(
+        default_factory=list, description="List of tracked objects with track IDs"
     )
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
     image_width: int = Field(..., description="Original image width")
@@ -1465,6 +1189,115 @@ class YOLO26Model:
 
         return all_detections, total_time_ms
 
+    def track(
+        self,
+        image: Image.Image,
+        tracker: str = "botsort.yaml",
+        persist: bool = True,
+    ) -> tuple[list[dict[str, Any]], float]:
+        """Run object tracking on an image.
+
+        Uses Ultralytics' built-in tracking to maintain object IDs across frames.
+        Unlike detect(), this method maintains tracker state between calls when
+        persist=True, allowing consistent track IDs across video frames.
+
+        Args:
+            image: PIL Image to track objects in
+            tracker: Tracker configuration file ('botsort.yaml' or 'bytetrack.yaml')
+            persist: If True, maintain track IDs across frames (default: True)
+
+        Returns:
+            Tuple of (detections list with track_ids, inference_time_ms)
+
+        Note:
+            - Track IDs may be None for detections that haven't been assigned a track yet
+            - CUDA cache is cleared after each tracking call to prevent memory fragmentation
+        """
+        if self.model is None:
+            raise RuntimeError("Model not loaded")
+
+        start_time = time.perf_counter()
+
+        try:
+            # Convert to RGB if needed
+            if image.mode != "RGB":
+                image = image.convert("RGB")
+
+            # Run tracking with Ultralytics YOLO
+            results = self.model.track(
+                source=image,
+                tracker=tracker,
+                conf=self.confidence_threshold,
+                persist=persist,
+                verbose=False,
+                device=self.device,
+            )
+
+            # Process results
+            detections = []
+            if results and len(results) > 0:
+                result = results[0]
+                boxes = result.boxes
+
+                if boxes is not None and len(boxes) > 0:
+                    # Get track IDs if available
+                    track_ids = None
+                    if boxes.id is not None:
+                        track_ids = boxes.id.int().cpu().tolist()
+
+                    for idx, box in enumerate(boxes):
+                        # Get class ID and name
+                        class_id = int(box.cls.item())
+                        class_name = COCO_CLASSES.get(class_id)
+
+                        # Filter to security-relevant classes
+                        if class_name is None or class_name not in SECURITY_CLASSES:
+                            continue
+
+                        # Get confidence
+                        confidence = float(box.conf.item())
+
+                        # Apply class-specific confidence threshold (NEM-4522)
+                        # Use class-specific threshold if defined, otherwise use default
+                        class_threshold = CLASS_CONFIDENCE_THRESHOLDS.get(
+                            class_name, self.confidence_threshold
+                        )
+                        if confidence < class_threshold:
+                            continue
+
+                        # Get bounding box coordinates (xyxy format)
+                        x1, y1, x2, y2 = box.xyxy[0].tolist()
+
+                        # Get track ID for this detection
+                        track_id = None
+                        if track_ids is not None and idx < len(track_ids):
+                            track_id = track_ids[idx]
+
+                        detections.append(
+                            {
+                                "class": class_name,
+                                "confidence": confidence,
+                                "bbox": {
+                                    "x": int(x1),
+                                    "y": int(y1),
+                                    "width": int(x2 - x1),
+                                    "height": int(y2 - y1),
+                                },
+                                "track_id": track_id,
+                            }
+                        )
+
+            inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+            return detections, inference_time_ms
+        except torch.cuda.OutOfMemoryError:
+            # NEM-4996: Handle GPU OOM gracefully
+            _oom_handler.handle_oom("track")
+            raise
+        finally:
+            # Clear CUDA cache to prevent memory fragmentation
+            self._clear_cuda_cache()
+
 
 # Global model instance
 model: YOLO26Model | None = None
@@ -1946,6 +1779,177 @@ async def detect_objects(
         record_error(error_type="detection_error")
         logger.error(f"Detection failed for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}") from e
+
+
+@app.post("/track", response_model=TrackingResponse)
+async def track_objects(
+    file: UploadFile = File(None),
+    image_base64: str | None = None,
+    tracker: str = "botsort.yaml",
+    persist: bool = True,
+) -> TrackingResponse:
+    """Track objects in an image with persistent track IDs.
+
+    Similar to /detect, but uses Ultralytics' built-in tracking to maintain
+    object IDs across sequential frames. Track IDs persist between requests
+    when persist=True (default).
+
+    Accepts either:
+    - Multipart file upload (file parameter)
+    - Base64-encoded image (image_base64 parameter)
+
+    Args:
+        file: Image file upload
+        image_base64: Base64-encoded image data
+        tracker: Tracker configuration ('botsort.yaml' or 'bytetrack.yaml')
+        persist: If True, maintain track IDs across frames (default: True)
+
+    Returns:
+        Tracking results with bounding boxes, confidence scores, and track IDs
+
+    Raises:
+        HTTPException 400: Invalid image file (corrupted, truncated, or not an image)
+        HTTPException 413: Image size exceeds maximum allowed size
+        HTTPException 503: Model not loaded
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    # Track filename for error reporting
+    filename = file.filename if file else "base64_image"
+
+    try:
+        # Load image from file or base64 with size validation
+        if file:
+            # Validate file extension first
+            ext_valid, ext_error = validate_file_extension(file.filename)
+            if not ext_valid:
+                logger.warning(
+                    f"Invalid file extension for: {filename}. {ext_error}",
+                    extra={"source_file": filename, "error": ext_error},
+                )
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid file '{filename}': {ext_error}"
+                )
+
+            image_bytes = await file.read()
+            # Validate decoded image size
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
+            image = Image.open(io.BytesIO(image_bytes))
+        elif image_base64:
+            # Validate base64 string size BEFORE decoding to prevent DoS
+            if len(image_base64) > MAX_BASE64_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Base64 image data size ({len(image_base64)} bytes) exceeds "
+                    f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+                    f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+                )
+            try:
+                image_bytes = base64.b64decode(image_base64)
+            except binascii.Error as e:
+                raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+            # Validate decoded image size (base64 can decode to larger or smaller)
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
+
+            # Validate magic bytes before passing to PIL
+            magic_valid, magic_result = validate_image_magic_bytes(image_bytes)
+            if not magic_valid:
+                logger.warning(
+                    f"Invalid image magic bytes for: {filename}. {magic_result}",
+                    extra={"source_file": filename, "error": magic_result},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file '{filename}': {magic_result}. "
+                    f"Supported formats: JPEG, PNG, GIF, BMP, WEBP.",
+                )
+
+            image = Image.open(io.BytesIO(image_bytes))
+        else:
+            raise HTTPException(
+                status_code=400, detail="Either 'file' or 'image_base64' must be provided"
+            )
+
+        # Get original dimensions
+        img_width, img_height = image.size
+
+        # Run tracking with metrics tracking
+        start_time = time.perf_counter()
+        detections, inference_time_ms = model.track(image, tracker=tracker, persist=persist)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="track").observe(latency_seconds)
+        DETECTIONS_PER_IMAGE.observe(len(detections))
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="success").inc()
+
+        return TrackingResponse(
+            detections=[TrackedDetection(**d) for d in detections],
+            inference_time_ms=inference_time_ms,
+            image_width=img_width,
+            image_height=img_height,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        raise
+    except UnidentifiedImageError as e:
+        # Handle corrupted/invalid image files - return 400 Bad Request
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.warning(
+            f"Invalid image file received: {filename}. "
+            f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
+            extra={"source_file": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image file '{filename}': Cannot identify image format. "
+            f"File may be corrupted, truncated, or not a supported image type "
+            f"(supported: JPEG, PNG, GIF, BMP, WEBP).",
+        ) from e
+    except OSError as e:
+        # Handle truncated or corrupted images that PIL can partially read
+        # This catches "image file is truncated" errors
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.warning(
+            f"Corrupted image file received: {filename}. Error: {e}",
+            extra={"source_file": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Corrupted image file '{filename}': {e!s}",
+        ) from e
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="track", status="error").inc()
+        logger.error(f"Tracking failed for {filename}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Tracking failed: {e!s}") from e
 
 
 @app.post("/detect/batch")

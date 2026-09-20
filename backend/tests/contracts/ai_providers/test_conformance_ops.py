@@ -106,15 +106,17 @@ SCHEMA_DIR = REPO_ROOT / "backend" / "ai_contract" / "schemas"
 
 ALL_OPS = set(OPERATIONS)
 
-# ProviderId -> expected registered size (dossier O4/F9, verified live import:
-# {'gateway': 31, 'gateway_light': 5, 'per_model_http': 36, 'llamacpp_llm': 2}
-# + fake 38 once this suite registers it).
+# ProviderId -> expected registered size (dossier O4/F9, verified live import;
+# re-pinned 2026-09-19 after the A7.2 florence_analyze_scene deletion left
+# gateway/per_model/fake: {'gateway': 30, 'gateway_light': 5,
+# 'per_model_http': 35, 'llamacpp_llm': 2} + fake 37 once this suite
+# registers it).
 EXPECTED_SIZES = {
-    ProviderId.GATEWAY: 31,
+    ProviderId.GATEWAY: 30,
     ProviderId.GATEWAY_LIGHT: 5,
-    ProviderId.PER_MODEL_HTTP: 36,
+    ProviderId.PER_MODEL_HTTP: 35,
     ProviderId.LLAMACPP_LLM: 2,
-    ProviderId.FAKE: 38,
+    ProviderId.FAKE: 37,
 }
 
 # providers.py:135-157 — per_model_http registers deployed=False (undeployed
@@ -138,19 +140,32 @@ EXPECTED_DEPLOYED = {
 # the llamacpp provider, not per_model_http), so _bound_or_reject sentinels
 # them too (backend/ai_contract/providers.py:77-85). Pinned from live output
 # 2026-09-19; UNVERIFIED at pytest level.
+# 6 since ADDENDUM 2 A7.2 deleted DetectorClient.segment_image (the
+# third state grows when a client binding leaves, route intact); the
+# op LEFT the contract for the deleted-route case, see DELETED_REGISTRY_OPS:
+# yolo26_segment OPERATION stays (deployed gateway route,
+# adapters/yolo26.py:447) but its client_methods binding dropped, so it
+# enters the not-wired third state alongside the others.
 SENTINELS_GATEWAY = {
     "enrich_lt_depth_estimate",
     "enrich_lt_pet_classify",
     "enrich_lt_pose_analyze",
-    "florence_analyze_scene",
+    # florence_analyze_scene left the CONTRACT (not just its client binding)
+    # under A7.2 - a deleted op is ABSENT from every column, not not-wired;
+    # test_ai_contract_registry.py DELETED_REGISTRY_OPS guards its return.
     "yolo26_detect_batch",
+    "yolo26_segment",
 }
 SENTINELS_LIGHT = {
     "enrich_lt_depth_estimate",
     "enrich_lt_pet_classify",
     "enrich_lt_pose_analyze",
 }
-SENTINELS_PER_MODEL = SENTINELS_GATEWAY | {
+# yolo26_segment is gateway-only (per_model_server: False) - on per_model it
+# is ABSENT (absent-guarded via ABSENT_* above), not not-wired, so the A7.2
+# gateway addition must NOT carry into this set (unlike the pre-A7.2 gateway
+# literals, which all happened to be served on both slots).
+SENTINELS_PER_MODEL = (SENTINELS_GATEWAY - {"yolo26_segment"}) | {
     "llm_completion",
     "llm_chat_completion",
     "model_unload",
@@ -329,7 +344,7 @@ class TestMatrixSpine:
     def test_matrix_slots_are_availability_keys_not_provider_ids(self) -> None:
         """O3/F6 rename trap. Source: backend/ai_contract/provider.py:40
         (MATRIX_SLOTS) and :137-143 (PROVIDER_SLOT); every Operation.
-        availability carries EXACTLY these 4 keys (verified live over all 38).
+        availability carries EXACTLY these 4 keys (verified live over all 37).
         'gateway_light'/'per_model_http'/'llamacpp_llm' are ProviderId VALUES,
         never availability keys — a suite reading op.availability[pid.value]
         silently .get()-KeyErrors every op to False.
@@ -347,7 +362,7 @@ class TestMatrixSpine:
         assert PROVIDER_SLOT[ProviderId.FAKE] == "fake"
         for op_id, op in OPERATIONS.items():
             assert set(op.availability) == set(MATRIX_SLOTS), op_id
-        assert len(OPERATIONS) == 38  # WP7.1 registry size
+        assert len(OPERATIONS) == 37  # WP7.1 size 38; A7.2 deleted analyze-scene
 
     @pytest.mark.parametrize(
         "pid",
@@ -510,9 +525,12 @@ class TestMatrixNotWiredSentinels:
     def test_not_wired_set_exact(self, pid: ProviderId) -> None:
         """Structural census: registered ops whose registry
         client_methods == [] AND whose callable qualname carries '_not_wired'
-        == the literals above (5/3/8 — per_model's 8 includes the two LLM ops
-        and model_unload; the dossier NOTE's 'plus model_unload' count of 6
-        is stale vs live output; pinned from live import 2026-09-19).
+        == the literals above (6/3/8 — gateway gains yolo26_segment under
+        ADDENDUM 2 A7.2 (client binding deleted, route stays deployed);
+        per_model's 8 includes the two LLM ops and model_unload, and NOT
+        yolo26_segment, which that slot does not serve at all; the dossier
+        NOTE's 'plus model_unload' count of 6 is stale vs live output;
+        pinned from live import 2026-09-19).
         PREDICTED-GREEN. UNVERIFIED at pytest level."""
         ops = _provider_ops(pid)
         unbound = {o for o in ops if not OPERATIONS[o].client_methods}

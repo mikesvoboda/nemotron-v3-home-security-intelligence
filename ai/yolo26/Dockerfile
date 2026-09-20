@@ -72,6 +72,10 @@ RUN (groupadd -g 1000 yolo26 || true) && \
     (useradd -u 1000 -g 1000 -s /bin/bash -m yolo26 || true)
 
 # Copy application files with ownership set to non-root user
+# A7.3 (WP6-A): contract.py ships flat so model.py's `from contract import`
+# resolves in-container; ai-yolo26-image-smoke (ci.yml) proves the import
+# inside the built image.
+COPY --chown=1000:1000 ai/yolo26/contract.py .
 COPY --chown=1000:1000 ai/yolo26/model.py .
 COPY --chown=1000:1000 ai/yolo26/metrics.py .
 COPY --chown=1000:1000 ai/yolo26/security.py .

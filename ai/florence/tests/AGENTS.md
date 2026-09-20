@@ -2,15 +2,25 @@
 
 ## Purpose
 
-Unit tests for the Florence-2 Vision-Language Server (`ai/florence/model.py`). Tests validate the `/analyze-scene` cascade prompt endpoint and related Pydantic models without requiring a GPU or actual model files.
+Unit tests for the Florence-2 Vision-Language Server (`ai/florence/model.py`).
+Tests validate the region endpoints (`/describe-region`, `/phrase-grounding`)
+and their Pydantic models without requiring a GPU or actual model files.
+
+> The `/analyze-scene` endpoint and its dedicated test file
+> (`test_analyze_scene.py`, 18 tests) were deleted under ADDENDUM 2 A7.2 —
+> the route was unreachable (no backend client method, no openapi path, no
+> frontend consumer; census in the deletion commit body). The registry op
+> `florence_analyze_scene` is ratcheted absent by
+> `backend/tests/contracts/ai_providers/test_ai_contract_registry.py`
+> (`DELETED_REGISTRY_OPS` / `DELETED_SERVER_ROUTES`).
 
 ## Directory Structure
 
 ```
 ai/florence/tests/
-├── AGENTS.md               # This file
-├── __init__.py             # Package marker
-└── test_analyze_scene.py   # /analyze-scene endpoint unit tests
+├── AGENTS.md                # This file
+├── __init__.py              # Package marker
+└── test_region_endpoints.py # Region/phrase endpoint + model unit tests
 ```
 
 ## Running Tests
@@ -25,97 +35,27 @@ uv run pytest ai/florence/tests/ -v --cov=ai.florence
 
 ## Test Files
 
-### `test_analyze_scene.py`
+### `test_region_endpoints.py`
 
-Comprehensive tests for the `/analyze-scene` cascade prompt endpoint that runs multiple Florence-2 tasks in parallel:
+Covers the NEM-3911 region endpoints and the shared Pydantic models:
 
-1. `MORE_DETAILED_CAPTION` - Rich scene description
-2. `DENSE_REGION_CAPTION` - Per-region captions with bounding boxes
-3. `OCR_WITH_REGION` - Text extraction with locations
-
-**Test Classes:**
-
-| Class                       | Description                            | Test Count |
-| --------------------------- | -------------------------------------- | ---------- |
-| `TestSceneAnalysisRequest`  | Pydantic request model validation      | 2 tests    |
-| `TestSceneAnalysisResponse` | Pydantic response model structure      | 2 tests    |
-| `TestAnalyzeSceneEndpoint`  | /analyze-scene endpoint behavior       | 6 tests    |
-| `TestParallelExecution`     | Async parallel task execution          | 1 test     |
-| `TestSecuritySceneTypes`    | Security-relevant scene analysis       | 4 tests    |
-| `TestNemotronOutputFormat`  | Output format for Nemotron consumption | 3 tests    |
-
-**Test Scenarios:**
-
-- Successful scene analysis with all components (caption, regions, text)
-- Scene with no text (empty OCR results)
-- Scene with no distinct regions (single object)
-- Model not loaded error (503)
-- Invalid base64 encoding (400)
-- Invalid image data (400)
-- Parallel execution timing verification
-- Security-relevant scenes (person at door, delivery, vehicle, animal)
-- JSON serialization for Nemotron prompts
-
-**Fixtures:**
-
-| Fixture      | Description                             |
-| ------------ | --------------------------------------- |
-| `client`     | FastAPI TestClient for endpoint testing |
-| `mock_model` | Mocked Florence2Model for isolation     |
-
-**Helper Functions:**
-
-```python
-def create_test_image(width, height, color) -> str:
-    """Create base64-encoded test image."""
-
-def create_mock_florence_model() -> MagicMock:
-    """Create mock Florence2Model with model/processor attributes."""
-```
+| Class                                                               | Description                                 |
+| ------------------------------------------------------------------- | ------------------------------------------- |
+| `TestBoundingBoxModel`                                              | BoundingBox validation (ranges, coercion)   |
+| `TestRegionDescriptionRequest` / `...Response`                      | /describe-region wire shapes                |
+| `TestPhraseGroundingRequest` / `TestGroundedPhrase` / `...Response` | /phrase-grounding wire shapes               |
+| `TestDescribeRegionEndpoint`                                        | Endpoint behavior with mocked Triton client |
+| `TestPhraseGroundingEndpoint`                                       | Endpoint behavior with mocked Triton client |
+| `TestEndpointMetrics`                                               | Prometheus counters/latency per endpoint    |
+| `TestSecurityScenarios`                                             | Security-relevant payload shapes            |
 
 ## Testing Patterns
 
-### Mocking the Florence2Model
+### Mocking the Triton client
 
-Tests mock the Florence2Model to avoid GPU requirements:
-
-```python
-from unittest.mock import MagicMock, patch
-
-def mock_extract(image, prompt):
-    if prompt == "<MORE_DETAILED_CAPTION>":
-        return ("A delivery person...", 200.0)
-    return ("", 0.0)
-
-mock_model.extract = mock_extract
-mock_model.extract_raw = mock_extract_raw
-
-with patch("ai.florence.model.model", mock_model):
-    response = client.post("/analyze-scene", json={"image": image_b64})
-```
-
-### Testing Parallel Execution
-
-Verifies that DENSE_REGION_CAPTION and OCR_WITH_REGION run concurrently:
-
-```python
-@pytest.mark.asyncio
-async def test_parallel_tasks_execute_concurrently():
-    # Tasks with 100ms delay should complete in ~100ms total, not 200ms
-    start = time.perf_counter()
-    results = await asyncio.gather(mock_dense_regions(), mock_ocr_with_regions())
-    elapsed = time.perf_counter() - start
-    assert elapsed < 0.15  # Parallel execution confirmed
-```
-
-### Security Scene Types
-
-Tests verify that security-relevant context is captured for Nemotron:
-
-- **Person at door**: Detects dark clothing, nighttime, suspicious behavior
-- **Delivery scene**: Captures Amazon branding, packages, uniforms
-- **Vehicle scene**: Captures vehicle type, license plate text (OCR)
-- **Animal scene**: Detects animal type, absence of owner
+Tests patch the Triton inference client to avoid GPU requirements — see the
+`mock_triton` fixture in `test_region_endpoints.py`, mirroring
+`ai/gateway/tests/test_adapters_florence.py`.
 
 ## Related Documentation
 

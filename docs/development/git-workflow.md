@@ -139,12 +139,12 @@ sequenceDiagram
 
 ### Test Strategy (optimized for performance)
 
-| Stage      | What Runs                          | Runtime   |
-| ---------- | ---------------------------------- | --------- |
-| Pre-commit | Fast lint/format/type checks only  | ~10-30s   |
-| Pre-push   | Unit tests (install separately)    | ~30-60s   |
-| CI         | Full test suite with 95% coverage  | ~5-10 min |
-| Manual     | `./scripts/validate.sh` before PRs | ~2-3 min  |
+| Stage      | What Runs                                    | Runtime   |
+| ---------- | -------------------------------------------- | --------- |
+| Pre-commit | Fast lint/format/type checks only            | ~10-30s   |
+| Pre-push   | Unit tests (install separately)              | ~30-60s   |
+| CI         | Full test suite; 80% combined coverage floor | ~5-10 min |
+| Manual     | `./scripts/validate.sh` before PRs           | ~2-3 min  |
 
 ### Forbidden Commands
 

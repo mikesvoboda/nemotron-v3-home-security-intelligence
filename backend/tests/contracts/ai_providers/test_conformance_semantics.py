@@ -94,8 +94,10 @@ SIBLING_SENTINELS = {
         "enrich_lt_depth_estimate",
         "enrich_lt_pet_classify",
         "enrich_lt_pose_analyze",
-        "florence_analyze_scene",
+        # A7.2: florence_analyze_scene deleted from the contract;
+        # yolo26_segment joined (client method deleted, route deployed).
         "yolo26_detect_batch",
+        "yolo26_segment",
     },
     ProviderId.GATEWAY_LIGHT: {
         "enrich_lt_depth_estimate",
@@ -106,7 +108,9 @@ SIBLING_SENTINELS = {
         "enrich_lt_depth_estimate",
         "enrich_lt_pet_classify",
         "enrich_lt_pose_analyze",
-        "florence_analyze_scene",
+        # florence_analyze_scene: op deleted (A7.2). yolo26_segment is NOT
+        # here: gateway-only column (per_model_server=False) - ABSENT, not
+        # not-wired. Mirrors test_conformance_ops SENTINELS_PER_MODEL.
         "yolo26_detect_batch",
         "llm_completion",
         "llm_chat_completion",
@@ -1104,9 +1108,9 @@ class TestSemanticsMatrixGuards:
         three never-invoked providers this IS the semantics coverage:
         registered set == slot column (llamacpp: evidence-derived subset
         inside the per_model_server union column, providers.py:94-106). Fake
-        registers all 38 (column is the spec; in-test registration per
-        test_conformance_ops.py:189-200; sizes 31/5/36/2/38, discovery run
-        agreed). Semantics rows spelled out per provider so a column edit
+        registers all 37 (column is the spec; in-test registration per
+        test_conformance_ops.py; sizes 30/5/35/2/37 after the A7.2
+        analyze-scene deletion, discovery run agreed). Semantics rows spelled out per provider so a column edit
         fails LOUD, not quietly. PREDICTED-GREEN all five. UNVERIFIED at
         pytest."""
         if pid is ProviderId.FAKE:
@@ -1144,7 +1148,7 @@ class TestSemanticsMatrixGuards:
         UNVERIFIED at pytest."""
         if pid not in SIBLING_SENTINELS:
             # FAKE and LLAMACPP_LLM have no sentinel surface (fake wires all
-            # 38; llamacpp registers its own two payloads, never bound ops)
+            # 37; llamacpp registers its own two payloads, never bound ops)
             assert pid in (ProviderId.LLAMACPP_LLM, ProviderId.FAKE)
             return
         rec = set(registered_providers()[pid.value].operations())

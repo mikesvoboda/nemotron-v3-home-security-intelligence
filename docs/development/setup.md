@@ -182,7 +182,7 @@ This runs ([scripts/validate.sh](https://github.com/mikesvoboda/nemotron-v3-home
 1. **Ruff linting** - Python code style
 2. **Ruff formatting** - Python code formatting
 3. **MyPy** - Python type checking
-4. **Pytest** - Backend tests with 95% combined coverage
+4. **Pytest** - Backend tests; combined unit+integration coverage gated at 80% by validate.sh
 5. **ESLint** - Frontend linting
 6. **TypeScript** - Frontend type checking
 7. **Prettier** - Frontend formatting

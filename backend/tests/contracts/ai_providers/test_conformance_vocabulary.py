@@ -973,6 +973,12 @@ class TestVocabularyProviderColumn:
         not behavior). UNVERIFIED."""
         from backend.ai_contract.provider import PROVIDER_SLOT, registered_providers
 
+        # The fixture's VALUE is asserted, not just its registration
+        # side-effect: vulture (main-only Dead Code Detection, red on main
+        # run 35476647132) flags a fixture param never named in the body at
+        # 100% confidence; this guard is the true statement of why we
+        # request it — the fake's registration record must exist.
+        assert fake_registered is not None
         rec = registered_providers()[provider_id]
         slot = PROVIDER_SLOT[rec.provider_id]
         declared = set(rec.operations())

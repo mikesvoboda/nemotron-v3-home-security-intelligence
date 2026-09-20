@@ -2,7 +2,7 @@
 
 Tests the Florence-2 adapter endpoints (extract, batch-extract, ocr,
 ocr-with-regions, detect, dense-caption, describe-region, phrase-grounding,
-detect_security_objects, analyze-scene, health) with mocked Triton client.
+detect_security_objects, health) with mocked Triton client.
 """
 
 from __future__ import annotations
@@ -469,43 +469,6 @@ class TestDetectSecurityObjectsEndpoint:
 
         assert response.status_code == 200
         assert response.json()["detections"] == []
-
-
-# =============================================================================
-# /analyze-scene endpoint tests
-# =============================================================================
-
-
-class TestAnalyzeSceneEndpoint:
-    """Tests for the POST /analyze-scene endpoint."""
-
-    async def test_analyze_scene_success(self, client, mock_triton):
-        """Scene analysis returns caption, regions, and text."""
-        caption_output = _make_triton_text_output("A residential front yard")
-        dense_output = _make_triton_json_output(
-            {"bboxes": [[0, 0, 100, 100]], "labels": ["garden"]}
-        )
-        ocr_output = _make_triton_json_output(
-            {"quad_boxes": [[10, 10, 50, 10, 50, 30, 10, 30]], "labels": ["123"]}
-        )
-
-        mock_triton.infer.side_effect = [
-            caption_output,  # <MORE_DETAILED_CAPTION>
-            dense_output,  # <DENSE_REGION_CAPTION>
-            ocr_output,  # <OCR_WITH_REGION>
-        ]
-
-        response = await client.post(
-            "/analyze-scene",
-            json={"image": _make_b64_image()},
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["caption"] == "A residential front yard"
-        assert len(data["regions"]) == 1
-        assert len(data["text_regions"]) == 1
-        assert "task_times_ms" in data
 
 
 # =============================================================================

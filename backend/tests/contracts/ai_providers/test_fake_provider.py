@@ -1,6 +1,6 @@
 """WP8.2: the deterministic FakeProvider — reference implementation + fixture source.
 
-A FastAPI app implementing ALL 38 registry operations with fixed, seeded,
+A FastAPI app implementing ALL 37 registry operations with fixed, seeded,
 byte-deterministic outputs, served over httpx.ASGITransport (never respx:
 the fake IS an app, and driving it through ASGITransport exercises the real
 request/response path the contract speaks). No weights, no GPU, no network.
@@ -10,7 +10,7 @@ The plan's Done-when properties, tested here:
   * two identical requests produce BYTE-IDENTICAL responses (seeded
     generators; no wall-clock, no randomness, no set-iteration anywhere);
   * the fake satisfies the WP8.1 Protocol — register_provider(FAKE, ...)
-    accepts it against the fake column (the SPEC: all 38);
+    accepts it against the fake column (the SPEC: all 37);
   * it emits shipped-correct values: the 9-class SECURITY_CLASSES profile
     AND the unfiltered 80-name gateway profile (the divergence is the point;
     both expressible), dict-of-int bbox for yolo26, list-of-float bbox for
@@ -115,7 +115,7 @@ async def fake_client(fake_app):
 class TestFakeProviderDeterminism:
     async def test_two_identical_requests_are_byte_identical(self, fake_client) -> None:
         """The Done-when, literal: byte-identical, not merely equal-JSON.
-        Every one of the 38 ops, so no op hides a set-iteration or a
+        Every one of the 37 ops, so no op hides a set-iteration or a
         time-derived default."""
         for op_id in sorted(OPERATIONS):
             op = OPERATIONS[op_id]
@@ -165,7 +165,7 @@ async def fake_client_request(app, op, kw) -> bytes:
 class TestFakeProviderProtocol:
     def test_fake_satisfies_the_wp81_protocol(self) -> None:
         """The other half of the Done-when: the fake IS a provider —
-        register_provider(FAKE, ...) against the fake column (all 38, the
+        register_provider(FAKE, ...) against the fake column (all 37, the
         SPEC column) accepts it. Signature conformance is checked by the
         SAME mechanism as every other provider."""
         from backend.ai_contract.fake import fake_provider_ops
@@ -177,7 +177,7 @@ class TestFakeProviderProtocol:
 
     def test_dropping_one_op_fails_naming_it(self) -> None:
         """The fake obeys the same import-time rule as the live providers:
-        37 of 38 must fail, naming the hole."""
+        36 of 37 must fail, naming the hole."""
         from backend.ai_contract.fake import fake_provider_ops
 
         ops = fake_provider_ops()
@@ -316,7 +316,7 @@ class TestFakeProviderVocabularyMirror:
 
 
 def test_wp82_wall_clock_budget() -> None:
-    """MEASURE hook: a full fake-backed pass over all 38 ops must fit the
+    """MEASURE hook: a full fake-backed pass over all 37 ops must fit the
     5s per-test timeout (plan constraint). Recorded, not asserted against a
     moved line: asserts the PLANNED bound."""
     import asyncio
@@ -338,6 +338,6 @@ def test_wp82_wall_clock_budget() -> None:
     start = time.monotonic()
     ok = asyncio.run(full_pass())
     elapsed = time.monotonic() - start
-    print(f"WP8.2 MEASURE: {ok}/38 ops, full pass {elapsed:.3f}s")
-    assert ok == 38
+    print(f"WP8.2 MEASURE: {ok}/37 ops, full pass {elapsed:.3f}s")
+    assert ok == 37
     assert elapsed < 5.0, f"full fake pass took {elapsed:.2f}s — violates the 5s budget"

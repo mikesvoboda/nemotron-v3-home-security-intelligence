@@ -23,10 +23,12 @@ import pytest
 # - the map test was vacuously green until the WP7.2 window caught it.)
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
-# The 38 operations, derived from the deployed surfaces (each verified by file
+# The 37 operations (38 at WP7.1 drafting; florence /analyze-scene deleted
+# under ADDENDUM 2 A7.2 - DELETED_SERVER_ROUTES + DELETED_REGISTRY_OPS),
+# derived from the deployed surfaces (each verified by file
 # evidence at the time of drafting; the generator regenerates the registry from
 # the same surfaces and CI diffs it):
-# - 31 functional gateway routes: direct enumeration of @router decorators over
+# - 30 functional gateway routes: direct enumeration of @router decorators over
 #   the five adapters mounted at /yolo26 /clip /florence /enrichment /enrich-lt
 #   (ai/gateway/main.py:181-185); the five /health routes are deliberately NOT
 #   operations (per-adapter liveness, not provider capability).
@@ -46,7 +48,8 @@ EXPECTED_OPERATIONS: frozenset[str] = frozenset(
         "clip_similarity",
         "clip_batch_similarity",
         "clip_anomaly_score",
-        # florence adapter
+        # florence adapter (9 since A7.2 deleted /analyze-scene - see
+        # DELETED_SERVER_ROUTES + DELETED_REGISTRY_OPS)
         "florence_extract",
         "florence_batch_extract",
         "florence_ocr",
@@ -56,7 +59,6 @@ EXPECTED_OPERATIONS: frozenset[str] = frozenset(
         "florence_describe_region",
         "florence_phrase_grounding",
         "florence_detect_security_objects",
-        "florence_analyze_scene",
         # enrichment (heavy) adapter
         "enrichment_vehicle_classify",
         "enrichment_clothing_classify",
@@ -118,8 +120,11 @@ CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "E
 #
 # Kept-list members were censused and REJECTED (callers found, or the only
 # removals would land on test files, which the GOAL carve-out forbids):
-# see the WP7.3 ledger section.
-DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch"})
+# see the WP7.3 ledger section. That list was written under the pre-A7.2
+# rule; segment_image enters under ADDENDUM 2 A7.2's extended licence (the
+# dedicated-file carve-out), census + five conditions in its commit body:
+# L#2026-09-19-wp56-test-collision (ANSWERED, ADDENDUM 2 A6/A7.2).
+DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch", "segment_image"})
 
 # Server-side carry-cost: a deployed-but-unreachable route, deleted from the
 # model server's own file (production AI surface - the GOAL carve-out's named
@@ -131,7 +136,23 @@ DELETED_CARRY_COST: frozenset[str] = frozenset({"detect_objects_batch"})
 # is the DB feature, unrelated).
 DELETED_SERVER_ROUTES: dict[str, tuple[str, ...]] = {
     "ai/yolo26/model.py": ('@app.post("/track"', "async def track_objects"),
+    # A7.2 deletion 2/2: florence /analyze-scene, unreachable (census in the
+    # deletion commit body: no backend client method, no openapi path, no
+    # frontend ref, no gateway proxy consumer - the adapter route mirrored
+    # the model-server route 1:1). Route + exclusive request/response
+    # models deleted from BOTH deployed surfaces; the op's registry entry,
+    # availability row, schema + goldens went with it (38 -> 37).
+    "ai/florence/model.py": ('@app.post("/analyze-scene"', "async def analyze_scene"),
 }
+
+# A7.2: a DEPLOYED-BUT-UNREACHABLE operation removed from the contract
+# itself (the /analyze-scene case: unlike the DELETED_SERVER_ROUTES-only
+# /track, this op was registry-declared, so deletion must ALSO keep it out
+# of the regenerated registry - the generator discovers gateway ops by
+# importing the adapters and walking router.routes, so an adapter-route
+# resurrection would silently re-add the op and only THIS assertion catches
+# it). Red while the op is in OPERATIONS; permanent ratchet after.
+DELETED_REGISTRY_OPS: frozenset[str] = frozenset({"florence_analyze_scene"})
 
 # Files the census may ignore: the client modules themselves (def site) and
 # the generated registry + its generator (carry the historical method->op map
@@ -226,7 +247,7 @@ class TestContractRegistry:
                     offenders.append(f"{py.relative_to(pkg_dir)}: {mods}")
         assert not offenders, f"ai.* runtime imports in the contract package: {offenders}"
 
-    def test_registry_contains_all_38_operations(self) -> None:
+    def test_registry_contains_all_37_operations(self) -> None:
         from backend.ai_contract.operations import OPERATION_IDS
 
         assert frozenset(OPERATION_IDS) == EXPECTED_OPERATIONS, (
@@ -234,7 +255,22 @@ class TestContractRegistry:
             f"{sorted(EXPECTED_OPERATIONS - frozenset(OPERATION_IDS))} "
             f"unexpected={sorted(frozenset(OPERATION_IDS) - EXPECTED_OPERATIONS)}"
         )
-        assert len(OPERATION_IDS) == 38
+        assert len(OPERATION_IDS) == 37
+
+    @pytest.mark.parametrize("op_id", sorted(DELETED_REGISTRY_OPS))
+    def test_wp73_deleted_registry_ops_stay_absent(self, op_id: str) -> None:
+        """A7.2 op-level ratchet: the op left the contract WITH both its
+        deployed routes. Red while OPERATIONS still declares it; a future
+        adapter-route resurrection (the generator discovers gateway ops by
+        walking router.routes) reddens by name. The registry-entry deletion
+        is licensed by the census quoted in DELETED_SERVER_ROUTES' comment
+        and the deletion commit body."""
+        from backend.ai_contract.operations import OPERATIONS
+
+        assert op_id not in OPERATIONS, (
+            f"{op_id} is back in the registry - A7.2 deletion reversed? "
+            "Re-adjudicate; do not edit this assertion."
+        )
 
     def test_every_operation_declares_method_path_and_matrix_row(self) -> None:
         from backend.ai_contract.operations import OPERATIONS
