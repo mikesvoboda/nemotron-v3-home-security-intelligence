@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""Tests for the WP1.5 flaky-tracking CONSUMER (cap 1h work package).
+
+Run explicitly; outside testpaths:
+
+    uv run python -m pytest scripts/test_flake_consumer.py -q
+
+WP1.5's defect: the per-shard flaky-test-tracking-*.jsonl artifacts are
+uploaded on every CI run and NOTHING READS THEM — `flake_allowlist: 0` was
+evidence of no consumer, not of no flakes. The done-when: something reads
+them and produces (a) a ranked flake list and (b) a named-owner list.
+
+Pins three seams:
+  1. analyze-flaky-tests.py --owner-summary writes the ranked table with an
+     explicit OWNER column: registered -> allowlist tracking ref; unregistered
+     -> the literal "no owner" (an unowned flake must be VISIBLE as unowned).
+  2. fetch-ci-artifacts.py --self-test runs the whole real selection +
+     download + extract flow against a canned local GitHub API: newest main
+     CI run WITH matching artifacts wins, the current run id is never a
+     source, runs without matching artifacts are skipped, and a dead API
+     exits non-zero (a CI bug cannot masquerade as "no flakes").
+  3. ci.yml carries a flake-report job wired into ci-gate's reach (or
+     Linear-triaged), invoking BOTH scripts — the consumer must be the
+     scheduled reader of the per-run artifacts, not a nightly re-runner of
+     its own tests.
+"""
+
+from __future__ import annotations
+
+import http.server
+import json
+import subprocess
+import threading
+import zipfile
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+ANALYZER = REPO_ROOT / "scripts" / "analyze-flaky-tests.py"
+HARVESTER = REPO_ROOT / "scripts" / "fetch-ci-artifacts.py"
+CI = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+
+
+def jsonl_line(ts: str, outcomes: dict[str, list[str]]) -> str:
+    """One conftest.py session-summary line: nodeid -> outcomes list."""
+    tests = {}
+    for nodeid, oc in outcomes.items():
+        passed = sum(1 for o in oc if o == "passed")
+        failed = sum(1 for o in oc if o == "failed")
+        tests[nodeid] = {
+            "outcomes": [{"outcome": o, "rerun": False, "duration": 0.1} for o in oc],
+            "total_runs": len(oc),
+            "passed": passed,
+            "failed": failed,
+            "reruns": 0,
+            "pass_rate": passed / len(oc),
+            "flaky_marked": False,
+        }
+    return json.dumps({"timestamp": ts, "exit_status": 0, "tests": tests}) + "\n"
+
+
+@pytest.fixture
+def corpus(tmp_path: Path) -> Path:
+    """Artifact-layout corpus: download-artifact v4 nests <artifact-dir>/<file>."""
+    a = tmp_path / "corpus" / "run-a"
+    a.mkdir(parents=True)
+    # flaky.test_x: passes everywhere EXCEPT one failure -> persisting flake,
+    # unregistered. flaky.test_reg: also flaky but registered in the
+    # synthetic allowlist below. stable.test_ok: never fails.
+    (a / "flaky-test-tracking-unit-shard-1.jsonl").write_text(
+        jsonl_line(
+            "2026-09-19T02:00:00+00:00",
+            {
+                "backend/tests/unit/test_foo.py::test_x": ["passed", "passed"],
+                "backend/tests/unit/test_foo.py::test_reg": ["passed"],
+                "backend/tests/unit/test_foo.py::test_ok": ["passed", "passed"],
+            },
+        )
+    )
+    (a / "flaky-test-tracking-unit-shard-2.jsonl").write_text(
+        jsonl_line(
+            "2026-09-19T02:00:00+00:00",
+            {
+                "backend/tests/unit/test_foo.py::test_x": ["failed"],
+                "backend/tests/unit/test_foo.py::test_reg": ["failed"],
+                "backend/tests/unit/test_foo.py::test_ok": ["passed"],
+            },
+        )
+    )
+    b = tmp_path / "corpus" / "run-b"
+    b.mkdir()
+    (b / "flaky-test-tracking-unit-shard-1.jsonl").write_text(
+        jsonl_line(
+            "2026-09-19T03:00:00+00:00",
+            {
+                "backend/tests/unit/test_foo.py::test_x": ["passed", "failed"],
+                "backend/tests/unit/test_foo.py::test_reg": ["passed", "passed"],
+                "backend/tests/unit/test_foo.py::test_ok": ["passed", "passed", "passed"],
+            },
+        )
+    )
+    # MEASURED SHAPE (WP1.5 live harvest): the artifact regex also drags in
+    # playwright's e2e-results.json — a pretty-printed multi-line JSON whose
+    # every line fails line-wise json.loads, and whose scalars reach .get()
+    # as non-dict records. The consumer faces the REAL artifact tree, so the
+    # analyzer must shrug this off, not crash on it (it did: AttributeError
+    # 'str' object has no attribute 'get' against the first live corpus).
+    (b / "e2e-results.json").write_text(
+        '{\n  "suites": [\n    "junk",\n    123\n  ]\n}\n"a string line"\n'
+    )
+    allow = tmp_path / "allowlist.yml"
+    allow.write_text(
+        "flakes:\n"
+        "  - id: test_reg\n"
+        "    tracking: NEM-9001\n"
+        "    owner: mikesvoboda\n"
+        "    expires: 2099-01-01\n"
+    )
+    return tmp_path
+
+
+def run_analyzer(corpus_root: Path, summary: Path) -> subprocess.CompletedProcess:
+    env_summary = str(summary)
+    import os
+
+    e = dict(os.environ, GITHUB_STEP_SUMMARY=env_summary, MIN_RUNS="2")
+    return subprocess.run(
+        [
+            "python3",
+            str(ANALYZER),
+            str(corpus_root / "corpus"),
+            "--allowlist-file",
+            str(corpus_root / "allowlist.yml"),
+            "--owner-summary",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=e,
+    )
+
+
+def test_owner_summary_ranks_with_named_owners(corpus: Path, tmp_path: Path):
+    """done-when: RANKED list + named-owner list, as a real GHA summary."""
+    summary = tmp_path / "step-summary.md"
+    r = run_analyzer(corpus, summary)
+    assert r.returncode == 0, r.stderr[-400:]
+    text = summary.read_text()
+    assert "RANKED" in text.upper(), "no ranked table in the summary"
+    # both flakes present, with pass rates
+    assert "test_x" in text and "test_reg" in text
+    # ranking: test_x (2 fail / 5 runs) is flakier than test_reg (1 fail / 3)
+    assert text.index("test_x") < text.index("test_reg"), "table is not ranked by flakiness"
+    # owner column: registered shows the tracking ref; unregistered says so
+    assert "NEM-9001" in text, "registered flake must show its tracking ref"
+    assert "no owner" in text.lower(), "unregistered flake must be visible as UNOWNED"
+    # stable test must NOT appear
+    assert "test_ok" not in text
+    # corpus size is printed even when flakes ARE found — the zero-flake case
+    # must still show its denominator, or "no flakes" is indistinguishable
+    # from "read nothing" (the WP0.5 vacuous-pass class).
+    assert "Corpus: **3**" in text, "summary must state how many tests were read"
+
+
+def test_owner_summary_absent_flag_is_noop(corpus: Path, tmp_path: Path):
+    """Without --owner-summary nothing changes (the nightly caller is untouched)."""
+    summary = tmp_path / "s2.md"
+    import os
+
+    e = dict(os.environ, GITHUB_STEP_SUMMARY=str(summary))
+    r = subprocess.run(
+        [
+            "python3",
+            str(ANALYZER),
+            str(corpus / "corpus"),
+            "--allowlist-file",
+            str(corpus / "allowlist.yml"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=e,
+    )
+    assert r.returncode == 0, r.stderr[-400:]
+
+
+# ---------------------------------------------------------------------------
+# Harvest: fetch-ci-artifacts.py --self-test against a canned API.
+# ---------------------------------------------------------------------------
+
+
+def test_harvest_selects_and_downloads(tmp_path: Path):
+    """--self-test: newest-with-artifacts wins, current run never, fail loud."""
+    zip_a = tmp_path / "art-a.zip"
+    with zipfile.ZipFile(zip_a, "w") as z:
+        z.writestr("flaky-test-tracking-unit-shard-1.jsonl", jsonl_line("t", {"x::y": ["passed"]}))
+        z.writestr("flaky-test-tracking-unit-shard-2.jsonl", jsonl_line("t", {"x::z": ["passed"]}))
+    zip_c = tmp_path / "art-c.zip"
+    with zipfile.ZipFile(zip_c, "w") as z:
+        z.writestr("playwright-test-results-1/chromium/junit.xml", "<testsuites/>")
+
+    routes = {
+        "/repos/o/r/actions/workflows?per_page=100": {
+            "workflows": [{"id": 7, "path": ".github/workflows/ci.yml"}]
+        },
+        "/repos/o/r/actions/workflows/7/runs?branch=main&status=success&per_page=8": {
+            "workflow_runs": [
+                {"id": 103, "status": "completed", "head_branch": "main"},  # the CURRENT run
+                {"id": 102, "status": "completed", "head_branch": "main"},  # no artifacts -> skip
+                {"id": 101, "status": "completed", "head_branch": "main"},  # the winner
+            ]
+        },
+        "/repos/o/r/actions/runs/103/artifacts?per_page=100": {"artifacts": []},
+        "/repos/o/r/actions/runs/102/artifacts?per_page=100": {"artifacts": []},
+        "/repos/o/r/actions/runs/101/artifacts?per_page=100": {
+            "artifacts": [
+                {
+                    "id": 901,
+                    "name": "test-results-unit-shard-1-py3.14",
+                    "archive_download_url": "{base}/dl/a",
+                },
+                {
+                    "id": 902,
+                    "name": "playwright-test-results-1",
+                    "archive_download_url": "{base}/dl/c",
+                },
+            ]
+        },
+    }
+    body_map = {"{base}/dl/a": zip_a, "{base}/dl/c": zip_c}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path in ("/dl/a", "/dl/c"):
+                f = body_map["{base}/dl" + self.path[3:]]
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(f.read_bytes())
+                return
+            r = routes.get(self.path)
+            if r is None:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            base = f"http://127.0.0.1:{self.server.server_address[1]}"
+            self.wfile.write(json.dumps(r, default=str).replace("{base}", base).encode())
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "out"
+        r = subprocess.run(
+            [
+                "python3",
+                str(HARVESTER),
+                "--self-test",
+                "--api-base",
+                base,
+                "--repo",
+                "o/r",
+                "--current-run-id",
+                "103",
+                "--out",
+                str(out),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"harvest failed: {r.stdout[-300:]} {r.stderr[-300:]}"
+        found = sorted(p.name for p in out.rglob("*.jsonl"))
+        assert len(found) == 2, f"expected the 2 jsonl from run 101, got {found}"
+        assert "selected run 101" in r.stdout, "selection log must name the winning run"
+
+        # dead API -> non-zero (silence must not read as 'no flakes')
+        r2 = subprocess.run(
+            [
+                "python3",
+                str(HARVESTER),
+                "--self-test",
+                "--api-base",
+                "http://127.0.0.1:1",
+                "--repo",
+                "o/r",
+                "--current-run-id",
+                "1",
+                "--out",
+                str(tmp_path / "out2"),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert r2.returncode != 0, "dead API must exit non-zero (fail loud, not empty)"
+    finally:
+        srv.shutdown()
+
+
+def test_ci_yml_wires_the_consumer():
+    """ci.yml must carry the flake-report consumer, gate- or triage-classed."""
+    import yaml
+
+    with CI.open() as f:
+        data = yaml.safe_load(f)
+    jobs = data["jobs"]
+    assert "flake-report" in jobs, "WP1.5: no consumer job reads the per-run flaky tracking"
+    job = jobs["flake-report"]
+    script = "\n".join(s.get("run", "") for s in job["steps"])
+    assert "fetch-ci-artifacts.py" in script, "consumer must HARVEST ci.yml's own artifacts"
+    assert "analyze-flaky-tests.py" in script, "consumer must run the analyzer"
+    assert "--owner-summary" in script, "consumer must produce the owner table"
+    # WP0.6 graph rule: red-able jobs are GATE-carried or Linear-triaged.
+    triaged = any("Linear" in (s.get("name") or "") for s in job["steps"])
+    gate = jobs["ci-gate"]
+    gate_script = "\n".join(s.get("run", "") for s in gate["steps"])
+    gate_carried = "flake-report" in gate.get("needs", []) and "flake-report" in gate_script
+    assert gate_carried or triaged, (
+        "flake-report red is neither carried by ci-gate nor Linear-triaged (WP0.6)"
+    )
+    # the twice-bitten selection rule now has ONE implementation: TPA's
+    # baseline fetch uses the shared script, no curl/jq heredoc left.
+    tpa = jobs["test-performance-audit"]
+    tpa_script = "\n".join(s.get("run", "") for s in tpa["steps"])
+    assert "fetch-ci-artifacts.py" in tpa_script, "TPA must use the shared harvester"
+    assert "workflows/$WFID" not in tpa_script, "the duplicated curl selection must be gone"

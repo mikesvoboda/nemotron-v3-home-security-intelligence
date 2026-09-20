@@ -403,9 +403,10 @@ def check_coverage_diff(
             # be invoked from any directory). --cov-fail-under=0 because this
             # call EXISTS to extract the number: pytest-cov would otherwise
             # apply pyproject's fail_under=85 to the run, and unit-tier-only
-            # coverage (84.4% measured) would exit 1 and fail the gate for the
-            # wrong reason — collection, not diff (same extraction-not-floor
-            # rationale as the ci.yml shard jobs).
+            # coverage (84.12% blended measured 2026-09-20 at HEAD; the 84.39
+            # lineage in the ledger is the same path) would exit 1 and fail the
+            # gate for the wrong reason — collection, not diff (same
+            # extraction-not-floor rationale as the ci.yml shard jobs).
             project_root = Path(__file__).resolve().parent.parent
             try:
                 proc = subprocess.run(
