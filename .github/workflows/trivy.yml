@@ -1,45 +1,37 @@
 name: Trivy Security Scan
 
-# Filesystem and config scanning runs on PRs (lightweight, no Docker build required).
-# Container image scanning runs on push to main (heavy ML dependencies exhaust disk space).
+# WP1.2 (2026-09-20): Trivy becomes BLOCKING. The top-level push/PR triggers
+# (and their path filters - which let a dependency change that skipped the
+# filter skip the scan) are REPLACED by a call from ci.yml: the three call
+# jobs there are direct ci-gate needs with check_job lines, and ci.yml's
+# security calls carry NO path filter - a CVE can no longer slip a gate by
+# diff-shape. The WP0.6 note below ("Trivy x2 sat red while CI Gate reported
+# SUCCESS") is what this closes. Heavy image scans keep their
+# push||workflow_dispatch condition INSIDE the jobs: a called workflow sees
+# the caller's event, so on PRs the image jobs skip (and check_job forgives
+# skipped), on main pushes and dispatches they run. Schedule + dispatch stay:
+# the weekly Monday scan keeps catching CVE drift on unchanged code.
+# Baseline at flip (measured 2026-09-20): fs/config/CVE-expiry green, zero
+# findings beyond .trivyignore's 66 dated entries; Scan Backend Image was red
+# MECHANICALLY - see the version pin at its scan step, fixed here.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '**/Dockerfile*'
-      - 'backend/requirements.txt'
-      - 'backend/requirements-prod.txt'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
-      - 'frontend/bun.lock'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.trivyignore'
-  pull_request:
-    branches: [main]
-    paths:
-      - '**/*.py'
-      - '**/*.ts'
-      - '**/*.tsx'
-      - '**/*.js'
-      - '**/Dockerfile*'
-      - '**/docker-compose*.yml'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - 'frontend/package.json'
-      - 'frontend/package-lock.json'
   # Weekly check for expired CVE reviews (every Monday at 9am UTC)
   schedule:
     - cron: '0 9 * * 1'
   # Allow manual trigger
   workflow_dispatch:
+  # WP1.2: ci.yml's three security-trivy call jobs (fs+config+expiry, SBOM,
+  # images) drive every push/PR now.
+  workflow_call:
 
-# WP3.4: repeated pushes to a PR branch piled up redundant runs of this
-# workflow that all competed for the measured ~20-job scheduler ceiling
-# (spec WP3.1: concurrency 20 pinned). Same pattern as ci.yml:10-12.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# WP1.2 fix (probe3, run 35492418369): root `concurrency:` is BANNED in a
+# called workflow. The child run renders `${{ github.workflow }}` as the
+# CALLER's name, so with ci.yml's group `CI-<ref>` every child registered
+# the PARENT's own group; cancel-in-progress then killed the call job at
+# initialization (no check-run, no logs, needs.*.result=failure — proven
+# one-variable: w5 dies, w6 same-parent green). Standalone triggers are
+# deleted, so a group here guarded nothing; ci.yml's own concurrency
+# already cancels duplicate pushes whole-run. Precedent: integration-shard.yml.
 
 permissions:
   contents: read
@@ -263,7 +255,19 @@ jobs:
         # Note: SARIF upload skipped for backend due to disk space constraints
         # (large ML image + Trivy cache exhausts GitHub runner disk)
         # Using scanners: 'vuln' to skip secret scanning and reduce disk usage
-        # Updated to v0.68.2 for proper 2026 CVE database coverage and ignore file support
+        # WP1.2 (2026-09-20): v0.68.2 -> v0.74.0. The v0.68.2 TAG still exists
+        # but its GitHub release ASSETS are gone (tags API lists it; the
+        # releases/tags API 404s and the asset URL 404s, both verified from
+        # here), so setup-trivy's `contrib/install.sh` printed "found version:
+        # 0.68.2" and the download died - exit 1 ~240ms later, EVERY main push
+        # since the pin (5/5 red, runs 35044715918..35482667000). Mechanical
+        # rot, not findings: the job never reached a scan, so its findings
+        # baseline at the WP1.2 flip is the fs-scan one - zero beyond
+        # .trivyignore. This is a repair to the CURRENT release (v0.74.0,
+        # assets verified 302), not a floor change - the pin's stated intent
+        # ("proper 2026 CVE database coverage") is preserved by a strictly
+        # newer version. The unversioned frontend scan proves it: same action,
+        # default version, green 5/5.
         if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
@@ -273,7 +277,7 @@ jobs:
           exit-code: '1'
           trivyignores: '.trivyignore'
           scanners: 'vuln'
-          version: 'v0.68.2'
+          version: 'v0.74.0'
 
       - name: Create Linear issue on vulnerability found
         if: failure() && steps.trivy-scan.outcome == 'failure'

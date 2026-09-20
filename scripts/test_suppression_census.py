@@ -51,6 +51,16 @@ FIXTURE = {
         '    "backend/main.py",\n    "backend/api/routes/one.py",\n'
         '    "backend/services/two.py",\n]\n'
     ),
+    # WP1.3 tpa_slow_list: the fixture carries its OWN audit script — the
+    # patterns ARE the suppression, so the channel walks the rooted tree, not
+    # the versioned script (unlike unspecced_patch's versioned-measurer).
+    "scripts/audit-test-durations.py": (
+        "SLOW_TEST_PATTERNS = [\n"
+        '    r"test_alpha.*slow_one",  # measured 12.0s spike x4/17 runs\n'
+        '    r"test_beta::test_slow_two",\n'
+        "]\n"
+        "OTHER_LIST = [r'test_gamma']  # must not count — wrong name\n"
+    ),
     "backend/tests/unit/test_a.py": (
         "import pytest\n"
         "from pytest import mark\n"
@@ -102,6 +112,7 @@ EXPECTED = {
     "excluded_test_trees": 3,  # load/benchmarks/e2e, deduped
     "coverage_omit": 2,  # main.py + wildcards are plumbing, not suppressions
     "unspecced_patch": 0,  # WP4.2: the fixture carries no convertible patch()s
+    "tpa_slow_list": 2,  # WP1.3: the fixture's own audit script, 2 patterns
 }
 
 
@@ -227,6 +238,13 @@ EXPECTED_LOCATIONS = {
         {"id": "backend/api/routes/one.py", "reason": ""},
         {"id": "backend/services/two.py", "reason": ""},
     ],
+    "tpa_slow_list": [
+        {
+            "id": "test_alpha.*slow_one",
+            "reason": "measured 12.0s spike x4/17 runs",
+        },
+        {"id": "test_beta::test_slow_two", "reason": "no reason comment"},
+    ],
 }
 
 
@@ -285,6 +303,10 @@ def test_real_tree_matches_spec_baselines():
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
+        # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned
+        # to the 7 MEASURED breaches over 18 main junit datasets; the channel
+        # is counted from here on and the ratchet's one-way rule owns it.
+        "tpa_slow_list": 7,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(
