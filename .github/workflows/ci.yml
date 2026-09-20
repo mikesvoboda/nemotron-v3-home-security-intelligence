@@ -423,10 +423,23 @@ jobs:
         # Duration discipline stays TPA's job (persistence rule), not the tier's.
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
         # pytest-split groups tests by --group for cross-runner sharding
+        # --randomly-seed=run_id (WP2.1): the repo addopts carry -p randomly, and
+        # pytest-randomly draws a fresh seed PER PROCESS. Each shard job shuffled
+        # the suite differently BEFORE pytest-split sliced it, so the four --group
+        # slices overlapped and the run executed a fraction of the tier. Measured
+        # 2026-09-20: run 35475023071's junits hold 27,647 case rows but only
+        # 18,520 unique tests (67%); collect-only reproduces it (random seeds ->
+        # union 18,256/27,555, pairwise overlap 1,449; fixed seed -> union
+        # 27,555/27,555, overlap 0). coverage-baseline.json therefore undercounted
+        # the unit tier by ~14pp (70.3 published vs 84.1 executed). github.run_id
+        # is identical across the four shard jobs (disjoint groups) and differs
+        # next run (order randomization keeps its cross-run value). Pinned by
+        # scripts/test_coverage_denominator.py.
         run: |
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --splits 4 --group ${{ matrix.shard }} \
+            --randomly-seed=${{ github.run_id }} \
             --timeout=60 \
             --cov=backend \
             --cov-config=pyproject.toml \
