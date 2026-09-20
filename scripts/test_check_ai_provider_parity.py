@@ -743,7 +743,23 @@ def test_real_tree_d4_stays_declared_green():
 
 def test_real_tree_registry_and_deploy_facts():
     _, report = real_report()
-    assert report["registry_ops"] == 38
+    # WP0.1: the hand-pinned `== 38` rotted the day the contract legitimately
+    # moved 38->37 (#6570) — and rotted LOUD-QUIETLY: the CI step that runs
+    # this file folded a `#` into its run block and never executed past it
+    # (ci.yml WP0.1 note, main run 35484007823 "86 passed"). A count the
+    # generated registry owns must not be hand-pinned here. Derived instead:
+    # the checker's OWN literal AST parse (report) must agree with the
+    # registry's runtime view (imported OPERATIONS dict). The pin this
+    # replaces guarded — "the checker counts ops" — is now guarded by an
+    # independent second read of the same source of truth; for the checker
+    # to under/over-count it must disagree with the package itself, which
+    # is a real failure worth naming.
+    import backend.ai_contract.operations as _reg
+
+    assert report["registry_ops"] == len(_reg.OPERATIONS), (
+        f"checker counted {report['registry_ops']} ops, registry imports "
+        f"{len(_reg.OPERATIONS)} — the checker's parse went blind"
+    )
     dep = report["deploy"]
     assert dep["compose_found"] is True
     # the compose rewrite IS the D1/D2 live-ness mechanism; pin the dossier's
