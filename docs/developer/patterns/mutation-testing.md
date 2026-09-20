@@ -371,9 +371,14 @@ also_copy = ["backend/"]
 
 ```javascript
 export default {
-  mutate: ['src/utils/risk.ts', 'src/utils/time.ts'],
+  mutate: ['src/utils/risk.ts', 'src/utils/time.ts', 'src/utils/confidence.ts'],
   testRunner: 'vitest',
   checkers: ['typescript'],
+  tsconfigFile: 'tsconfig.stryker.json', // WP3.3 — never tsconfig.json: the
+  // checker follows its `references` into tsconfig.node.json (program =
+  // vite.config.ts) and dies in init before mutating anything. The two
+  // configs' measured failure chain is in frontend/stryker.config.mjs's
+  // ignorePatterns comment; the harness had NEVER produced a number until WP3.3.
   thresholds: {
     high: 80,
     low: 60,
