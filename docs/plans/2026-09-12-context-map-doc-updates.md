@@ -7743,7 +7743,7 @@ gate reaches 34); `test_github_workflows.py` 40 passed 2 skipped.
 `--timeout=0` — advisory scheduled scanner (`continue-on-error: true`, its
 whole purpose is rerun-consistency); no required gate reads its verdicts.
 
-## WP1.5 SUBMITTED — the flaky-tracking files finally have a reader: flake-report consumer + shared harvester (2026-09-20)
+## WP1.5 SUBMITTED (#6580 draft, stacked on #6579) — the flaky-tracking files finally have a reader: flake-report consumer + shared harvester (2026-09-20)
 
 **The defect (P's words): "`flake_allowlist = 0` is not evidence of
 zero flakes; it is evidence that nothing fills it."** Confirmed by
