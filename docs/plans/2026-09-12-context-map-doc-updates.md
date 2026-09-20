@@ -7697,7 +7697,7 @@ for its own corpus) inside a 15-min job that typically ends in seconds.
 Known-slow entries carry the same discipline as every other census channel:
 measured breach in the corpus or the registry says no.
 
-## WP1.4 SUBMITTED — the required tier can see a timeout; cancelled is no longer a verdict in any summary (2026-09-20)
+## WP1.4 SUBMITTED (#6579 draft, stacked on #6578) — the required tier can see a timeout; cancelled is no longer a verdict in any summary (2026-09-20)
 
 **The two defects compounded into one green lie.** The required unit tier
 ran `--timeout=0`, which `backend/tests/conftest.py` honors by disabling
