@@ -1282,7 +1282,22 @@ jobs:
     name: Contract Tests (API Schema)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.ref == 'refs/heads/main'
+    # WP1.1 (2026-09-20): was `if: github.ref == 'refs/heads/main'` — the
+    # job arrived `skipped` on EVERY PR and check_job forgives `skipped`, so
+    # the PR gate and the main gate were different gates: #6570's stale
+    # registry pin crossed green and detonated on the landing push (runs
+    # 35482667110/35484007823). Next week every VSS PR inherits this blind
+    # spot. Fix = P's option 1: run on PRs too. Cost MEASURED first: 88s
+    # wall on main (run 35484007823), runs' own Postgres/Redis service
+    # containers, no secrets needed for the test itself. Gated by
+    # detect-changes like unit-tests so docs-only PRs don't pay for it.
+    needs: [detect-changes, lint, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.lint.result != 'failure' &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -1347,7 +1362,10 @@ jobs:
           retention-days: 7
 
       - name: Create Linear issue on failure
-        if: failure()
+        # WP1.1: main-only, as the title says. A PR red is the whole point of
+        # running this job on PRs now — the author sees it on the PR; an
+        # issue filed per red PR would be noise, and the title lies anyway.
+        if: failure() && github.ref == 'refs/heads/main'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -1405,12 +1423,23 @@ jobs:
             echo "Created new issue"
           fi
 
-  # Main-only: dead code detection runs post-merge for code hygiene
+  # WP1.1 (2026-09-20): was main-only "for code hygiene" — same blind spot as
+  # contract-tests (skipped-on-PR + check_job's skipped-is-OK). The first
+  # ever main vulture red (eada4ba9, test_conformance_vocabulary fake_registered,
+  # rc=3) was exactly the class of finding a PR could have carried instead of
+  # main. Cost MEASURED: 46s wall (run 35484007823). No secrets for the scan
+  # itself (the Linear step below keeps its main-only title contract).
   dead-code:
     name: Dead Code Detection
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.ref == 'refs/heads/main'
+    needs: [detect-changes, lint, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.lint.result != 'failure' &&
+      needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1431,7 +1460,8 @@ jobs:
         run: uv run vulture backend/ vulture_whitelist.py --config pyproject.toml
 
       - name: Create Linear issue on failure
-        if: failure()
+        # WP1.1: title says "on main"; a PR red belongs on the PR, not Linear.
+        if: failure() && github.ref == 'refs/heads/main'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -2346,7 +2376,19 @@ jobs:
     name: Build Docker (backend)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: github.ref == 'refs/heads/main'
+    # WP1.1 (2026-09-20): was main-only. Option 1 (P's preference): runs on
+    # PRs touching the backend surface now. This PR IS the cost measurement —
+    # the plan demands the added wall-time be measured before choosing, and it
+    # cannot be measured without running; PR duration lands in L. Inputs for
+    # feasibility: main cost 410s (run 35484007823), GHA cache scope is
+    # shared across branches so PRs build warm, --load (no push) so no
+    # write-permission question for same-repo PRs, and the A7.3 yolo26 image
+    # smoke already proves docker builds run green on PRs in this repo.
+    needs: [detect-changes]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -2451,7 +2493,14 @@ jobs:
     name: Build Docker (frontend)
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.ref == 'refs/heads/main'
+    # WP1.1: option 1, same reasoning as build-backend — main cost MEASURED
+    # 144s (run 35484007823), warm GHA cache across branches, --load only.
+    # Path-gated on the frontend surface so backend-only PRs pay nothing.
+    needs: [detect-changes]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.frontend == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

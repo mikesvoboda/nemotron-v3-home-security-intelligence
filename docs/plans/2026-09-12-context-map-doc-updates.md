@@ -8380,6 +8380,34 @@ green derived; full anti-rot list 158 passed locally.
 Any future doctrine comment belongs ABOVE the step. (Two-char fix class, four
 dead gate-suites, one stale pin nobody could see.)
 
+## WP1.1 IN FLIGHT (2026-09-20): the four main-only gate jobs now run on PRs (#6573)
+
+**The defect:** `contract-tests`, `dead-code`, `build-backend`,
+`build-frontend` carried `if: github.ref == 'refs/heads/main'`, arrived
+`skipped` on EVERY PR, and `check_job` (ci.yml:2877) treats `skipped` as OK.
+The PR gate and the main gate were different gates. Measured harm this week,
+three independent detonations: #6570's stale `registry_ops` pin (contract
+38->37, red on landing push 35482667110), the eada4ba9 vulture rc=3 red, and
+the WP0.1 anti-rot swallow (this morning). Next week every VSS PR inherits.
+
+**Fix = P's option 1 (run on PRs), cost MEASURED first** (P demands the
+wall-time): run 35484007823 job durations — contract-tests **88s**,
+dead-code **46s**, build-backend **410s**, build-frontend **144s**. All four
+ride inside the existing ~12-min parallel window; backend-touching PRs pay
+roughly +2 min wall (contract+dead-code, parallel to unit tier) and full-tree
+PRs pay the build jobs (warm GHA cache scope, `--load` no-push). Path gates
+mirror `unit-tests` (`detect-changes` backend/frontend/should-run-all).
+**The PR's own run durations are the added-wall-time measurement for THIS
+change; delta recorded on merge** — feasibility precedent: A7.3's image
+smoke builds docker green on PR runs.
+
+**R-7 baselining before the switch:** vulture rc=0 locally; contracts dir
+613 passed at current main; build jobs green on last main pushes;
+`test_ci_job_graph.py` OK (37 jobs, gate reaches 31); shard-retry wiring
+holds. Linear issue-on-failure steps narrowed to
+`failure() && github.ref == 'refs/heads/main'` — titles literally say "failed
+on main"; a red PR must surface on the PR, not in Linear.
+
 ## WP0.1 erratum — the derived pin blew CI's 5s per-test timeout; import hoisted (2026-09-20)
 
 The derived pin (registry count cross-check) first imported
@@ -8398,3 +8426,20 @@ raising it would be moving a line. Repro of the cost: delete every
 scripts/test_check_ai_provider_parity.py -q` (passes, ~9s wall with the
 import in collection). Banked: an import added inside a test body under a
 global timeout is a timeout you own; warm-cache passes prove nothing.
+
+## WP1.1 ERRATUM CLOSED — both carriers proven; the residual red is the TPA flake, not the branch (2026-09-20)
+
+The in-body-import erratum (hoisted module-scope import, `sys.path` shim, previous
+section) is proven fixed on both carriers. Erratum-proof runs: #6572 run 35489687699
+`Collection Sanity => success` and the WHOLE RUN success (27 jobs, zero failed);
+#6573 run 35489843784 `Collection Sanity => success`, one red job: Test Performance
+Audit. That TPA red is NOT branch content: the offender is
+`backend.tests.unit.models.test_models_hypothesis.TestSchemaRoundtrips::test_camera_create_roundtrip`
+at 5.30s against the 4.0s unit limit -- a Hypothesis test on a shared runner, and the
+branch touches no model code. Census (60 CI runs since 2026-09-18,
+`$CLAUDE_JOB_DIR/tmp/tpa-census.log`, TPA job verdict per run): pull_request
+27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6 success / 2 failure
+/ 1 cancelled. ~1-in-3 PR runs reddens on identical-code noise; WP1.3 owns that.
+WP1.1 core claim stands as landed: four main-only jobs ran on both PR runs
+(Contract Tests / Dead Code / Build Docker x2) and this PR's own run durations
+(88/46/410/144s recorded in the WP1.1 section) are the added-wall-time measurement.
