@@ -89,17 +89,23 @@ A task involving infrastructure is **only complete** when:
 
 This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs/development/testing.md) for full documentation.
 
-| Test Type           | Minimum Coverage | Command                                        |
-| ------------------- | ---------------- | ---------------------------------------------- |
-| Backend Unit        | 85% (baseline¹)  | `uv run pytest backend/tests/unit/ -n auto`    |
-| Backend Integration | —                | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | 83%+             | `cd frontend && npm test`                      |
-| **Full validation** | 80% combined     | `./scripts/validate.sh`                        |
+| Test Type           | Coverage                   | Command                                        |
+| ------------------- | -------------------------- | ---------------------------------------------- |
+| Backend Unit        | floor 85%¹ · actual 84.12² | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend Integration | —                          | `uv run pytest backend/tests/integration/ -n0` |
+| Frontend            | 83%+                       | `cd frontend && npm test`                      |
+| **Full validation** | 80% combined               | `./scripts/validate.sh`                        |
 
 ¹ Per owner ruling A7.1: `pyproject.toml` `fail_under = 85` is the PR diff
 gate's RELATIVE baseline over merged shard data — not an absolute floor. The
 executed absolute backend floor is **80% on combined unit+integration**
 (`validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
+
+² Measured 2026-09-20: **84.12% blended / 86.02% line / 76.27% branch** —
+the three are different numbers (`--format=total` is the blend), and the
+CI-published 70.32% was a known shard-overlap undercount until the first
+fixed-seed run (WP2.1). Main runs publish line and branch separately; see
+[Testing Guide](docs/development/testing.md).
 
 ## Git Rules
 
