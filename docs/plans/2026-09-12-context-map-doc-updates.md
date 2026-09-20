@@ -7515,6 +7515,340 @@ which self-cleared; its rerun-flag fix stays parked at P handoff SS3.10 (owner's
 Push mechanics: the auto-rebase half-rebase trap fired again (now-landed #6553's add/add
 files) -> rebuilt branch from origin/main + cherry-pick, blob identity proved d4be4079.
 
+## WP1.2 IN FLIGHT — the three security workflows become BLOCKING via workflow_call (2026-09-20)
+
+R-7 applied: baseline FIRST, then wire. Baseline (measured on the last 5 main
+pushes and the latest PRs): gitleaks 20s, trufflehog 73s, bandit 28s, semgrep
+39s, trivy-fs 41s, trivy-config 36s, cve-expiry 14s. ALL green, ZERO findings
+beyond .trivyignore's 66 REVIEW-BY-dated entries (the expiry check itself
+green). The standing red — Scan Backend Image, 5/5 main pushes red since at
+least run 35044715918 (09-16) — is MECHANICAL: setup-trivy's install step
+printed "found version: 0.68.2 for v0.68.2/Linux/64bit" and died with exit 1
+~240ms later. Root cause verified from here: the v0.68.2 TAG still exists in
+the tags API but its GitHub release is GONE (releases/tags/v0.68.2 404s, the
+asset URL 404s; current latest is v0.74.0, its asset 302s). The pin aged out
+from under itself. FIX: repin v0.68.2 to v0.74.0 — a repair preserving the
+pin's stated intent ("proper 2026 CVE database coverage"), strictly newer,
+not a floor change. The unversioned frontend scan (same action, default
+version) was green 5/5, the control that proved the pin was the difference.
+
+Wiring: cross-workflow needs does not exist in GHA, so the three workflows
+(gitleaks.yml, sast.yml, trivy.yml) converted to `on: workflow_call` — their
+top-level push/PR triggers DELETED. A standalone run would duplicate every
+CI run AND race the parent inside the shared workflow-ref concurrency group
+(cancel-in-progress); `cancelled` is not forgiven by check_job, so collisions
+would be false gate reds. trivy.yml keeps schedule (weekly Mon) and
+workflow_dispatch; its image jobs keep their INTERNAL push-or-dispatch
+condition (event_name flows caller to callee): PRs run fs/config/expiry,
+main pushes also run SBOM and both image scans. ci.yml gained three call
+jobs — security-gitleaks, security-sast, security-trivy — with
+`secrets: inherit` (their Linear-issue steps need LINEAR_API_KEY) and
+permissions at the CALL JOB (a called workflow's top-level permissions are
+IGNORED by GHA), plus three ci-gate needs entries and three check_job lines,
+exact-match per the WP0.6 graph test's own assertion. NO needs, NO path
+filter on the calls: "this diff didn't need a secret scan" is the exact
+invisibility class, and trivy's old path filters let a dependency edit that
+missed the filter skip the scan entirely.
+
+MEASURE: scripts/test_ci_job_graph.py locally now prints "OK: every ci.yml
+job is gated, triaged, or plumbing (40 jobs, gate reaches 34)" (was 37/31).
+backend/tests/integration/test_github_workflows.py: 40 passed, 2 skipped.
+Added wall-time: the three call jobs run parallel to the existing tier and
+to each other; the gate's delta is the longest chain (~80s trivy fs then
+config, serial inside its job), NOT the sum. Scheduler pressure was the
+real risk (measured ~20-job ceiling, WP3.4): the INNER job count per PR is
+unchanged (10 security jobs before — 2 gitleaks, 2 sast, 6 trivy — and 10
+after, now executing as children of three call jobs) while three whole
+standalone workflow runs
+disappear; net scheduler pressure should fall. The PR's own run is the
+measurement; delta recorded on landing.
+
+Red-first demo rides a sibling PR off this branch: the canonical AWS
+documentation-example keypair planted (structurally fake; invisible to the
+local gate because `# pragma: allowlist secret` suppresses detect-secrets
+and gitleaks does not honor that pragma — its own suppression syntax is
+`gitleaks:allow`). Expected: Gitleaks red, call job red, CI Gate red ON THE
+PR — where pre-WP1.2 the same finding left CI Gate green. Close never
+merge. trivy.yml also keeps workflow_dispatch specifically so the v0.74.0
+repin can be PROVEN (Scan Backend Image green on a dispatch) before merge.
+
+## WP1.2 LANDED `2b200399` (PR #6575) — security workflows are BLOCKING; root `concurrency:` in a called workflow is a silent call-job killer (2026-09-20)
+
+**Landed shape:** `gitleaks.yml` / `sast.yml` / `trivy.yml` → `on:
+workflow_call` only (trivy keeps schedule + dispatch); ci.yml gains three
+call jobs + three ci-gate `needs:` + three `check_job` lines. Gate context
+count unchanged (10 security jobs before, 10 after) — but pre-WP1.2 all 10
+were OUTSIDE the gate's needs and a leaked credential left CI Gate green;
+now the gate cannot go green while any of them is red.
+
+**The second defect, found by proof, not reading.** After the workflow_call
+conversion every call job DIED at initialization on PR runs: no job record,
+no child run, no logs, `needs.*.result` = failure. Three-stage probe bisect
+on throwaway branches (PR #6577, closed never-merged):
+
+1. probe1 (push): callee shapes exonerated — all green.
+2. probe2 v1: a called workflow's top-level `permissions:` REQUESTS must be
+   a subset of the caller job's grant or the WHOLE workflow fails at
+   startup ("requesting 'pull-requests: read', but is only allowed
+   'pull-requests: none'"). Grant-valid rebuild w1–w4: all green —
+   perms/secrets/PR-context/file all exonerated.
+3. probe3 (run 35492418369), parent group literally
+   `${{ github.workflow }}-${{ github.ref }}` (ci.yml's exact shape): ONE
+   variable — w5 = real gitleaks callee (root `concurrency:` present),
+   w6 = same file with root concurrency stripped. Consumer3 echo:
+   `w5=failure w6=success`. ROOT CAUSE: in a child run triggered by
+   `workflow_call`, `${{ github.workflow }}` renders as the CALLER's
+   workflow name — so a callee group `${{ github.workflow }}-${{ ... }}`
+   EQUALS the parent's own group, and `cancel-in-progress: true` kills the
+   call job mid-initialization. ci.yml's three callees all carried exactly
+   that group. House rule going forward: called workflows carry NO root
+   concurrency (precedent: integration-shard.yml — root keys name/on/jobs
+   only). Fix = strip root `concurrency:` from all three callees,
+   `2b200399`; parent-side group kept (correct there).
+
+**RED-FIRST PROVEN** (closed demo #6576, run 35492630551 — deleted branch,
+never merged): planted `lin_api_` token (hook-invisible by design) →
+`Security - Secret Detection / Gitleaks Secret Detection => failure`
+(annotation "🛑 Leaks detected, see job summary for details") → **`CI Gate
+(Required Checks) => failure` ON THE PR**. Every other security job green —
+isolation: only the plant reddens. Pre-WP1.2 the identical finding left the
+gate green.
+
+**GREEN PROVEN** (#6575, run 35492638069): whole run success; all three
+`Security - *` workflows materialize and pass (Gitleaks, TruffleHog,
+Semgrep, Bandit, Trivy fs/CVE-expiry/config); Test Performance Audit green.
+Image-scan jobs `skipped` on PR runs by design (`push||dispatch` condition
+inside the job) — owner step after merge: trivy workflow_dispatch once to
+prove Scan Backend Image green at the v0.74.0 repin (BLOCKED.md B-1).
+
+actionlint v1.7.12 (arm64 build — sandbox is aarch64) passed all shapes,
+including the broken ones: it validates YAML, not GHA runtime semantics —
+absence of lint errors on a workflow_call shape proves nothing; only a
+real run does.
+
+## WP1.3 SUBMITTED (#6578 draft, stacked on #6575) — the stopwatch de-fanged: baseline rule + exemption census channel (2026-09-20)
+
+**Before (measured, 60 TPA rows over ~13h of CI):** pull_request
+27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6
+success / 2 failure / 1 cancelled. On IDENTICAL code (push) that is 2-in-9;
+on PRs ~1-in-3 runs reddened on wall-clock noise. P's 16-of-22 figure
+reproduces in this window (15 of 17 red TPA verdicts in the 60-row window).
+
+**Calibration is dead BY DATA:** per-test times in red runs vs green runs
+have identical suite-wide medians (0.002s) — there is no run-level slow/fast
+signal to normalize away. The noise is per-test spikes of 3-5x, CORRELATED
+within a DB-backed shard (one contention event reddens a whole group at
+once). k-times-threshold replays against 17 red-run junits: k=2 keeps 100
+red tests, k=3 still 15/18 runs red, k=4 13/18 — correlated spikes defeat
+any pure multiplier. What the data DOES separate: of 83 distinct
+over-threshold tests, only 20 recurred in >=2 runs and 4 in >=3.
+
+**Rule (P's option 3 — the runner's own previous run as baseline):**
+`audit-test-durations.py --baseline-dir DIR`. A breach is RED iff (a) the
+same test-id also breached in the baseline (persistence), or (b) duration >=
+3x threshold (severity — a real regression bites on its FIRST run), or (c)
+the id is absent from the baseline corpus (a new/renamed test has no history
+to be forgiven by — first-time bite, gate case [8]). Mild one-run spikes on
+baseline-healthy tests -> WARNING. Fail-closed on an empty/unfetchable
+baseline: verdicts equal the pre-WP1.3 gate; a fetch bug can never silently
+widen it (case [12]). ci.yml fetches the newest completed main CI run's
+junit via the per-workflow API (the generic runs?branch=main endpoint mixes
+sibling workflows and silently misses CI — measured), EXCLUDING the current
+run id (a self-baseline would make every violation persist against itself).
+
+**Baseline semantics proven against the REAL API:** 15 junit artifacts from
+main run 35486259345, 22,355 known ids, 0 breaches; replayed with the
+implemented code over all 17 red datasets -> both push-population reds
+(35482667110, 35464517315) turn PASS; 98 individual violations -> 9 kept, 89
+downgraded. The 6 still-red datasets are ALL PR-branch runs whose branch ADDED
+the breaching test (absent from main's baseline corpus by construction —
+test_stream_video_file_not_found exists there only as other classnames) —
+RED BY DESIGN. A real misfire the replay caught and fixed first: skipped
+(0s) baseline entries vanish under parse_junit_xml's duration filter, so
+historically-skipped tests looked brand-new every run; existence now counts
+EVERY testcase element (case [14]).
+
+**Defect 2 (uncounted suppression channel):** SLOW_TEST_PATTERNS held 150
+patterns (P's number exact). Category-aware census over the main junit:
+4 load-bearing (job_progress complete_calculates_duration 15.3s,
+pipeline_llm_failure_fallback 15.3s, error_handler timestamp 16.5s, rtsp
+connection_timeout 6.0s), 146 DEAD — covering no test that breaches its
+native threshold while pre-exempting unwritten tests via wildcards. Pruned
+to 7: the 4 keepers + the 3 measured persisters from this window
+(test_duration_after_start x10/17, test_fast_path_high_priority_detection
+x8/17, TestHandleUnhealthy::test_handle_unhealthy_stamps x7/17 — all peak
+<20s under the 60s slow cap). Prune safety replay: exactly 3 tests breach a
+native threshold once un-exempted, all one-shot 4.6-5.0s property-test
+spikes (recurrence 1x/17) — the baseline rule downgrades precisely that
+population; a consecutive double-spike was never observed in 18 datasets.
+The channel is now counted: `tpa_slow_list` in suppression-census.py
+(root-relative — the patterns ARE the suppression, fixtures inject their own
+audit script), registry entries mint with their measured-brief reason
+comment and expire 2026-12-31; baseline JSON + ci.yml --expect + registry
+all raised in this one commit (R-2).
+
+**After (measured):** push population 2/2 red -> 0/2 red. PR population 15/15
+-> 6/15, and every residual is a newly-added test breaching 1.0-1.7x its
+native limit on its own branch's FIRST run (gate case [8] by design; second
+occurrence on main persists anyway). Wall-time cost: one API walk + <=15
+artifact zips (previous main run's junits, ~2x what the job already downloads
+for its own corpus) inside a 15-min job that typically ends in seconds.
+
+Known-slow entries carry the same discipline as every other census channel:
+measured breach in the corpus or the registry says no.
+
+## WP1.4 SUBMITTED (#6579 draft, stacked on #6578) — the required tier can see a timeout; cancelled is no longer a verdict in any summary (2026-09-20)
+
+**The two defects compounded into one green lie.** The required unit tier
+ran `--timeout=0`, which `backend/tests/conftest.py` honors by disabling
+EVERY per-test timeout (the M3 T5 CLI-governs mechanism). A hung test then
+waited out the 15-min job cap -> the shard ended `cancelled` -> three
+summaries tested only `== "failure"` and reported "All unit test shards
+passed" -> `CI Gate` green with the tier dead. Same class WP0.5 fixed once
+(run 35353201418 attempt 4) for the integration API shard only.
+
+**Timeout value, measured (R-1 at measured value):** 447,391 unit-tier
+`<testcase>` rows across the 17 TPA-red run corpora + green main run
+35486259345 — max 19.02s, ZERO rows over 20s. The four legitimate 15-19s
+tests (`test_timestamp_auto_generated`, `test_complete_calculates_duration`,
+`test_duration_after_start`, `test_handle_unhealthy_stamps`) carry no
+timeout marker, so they inherit the CLI cap; 60s = 3.2x the worst sample
+AND equals TPA's `SLOW_TEST_THRESHOLD` — the tier watchdog can never fail a
+test the audit's own known-slow list forgives. 30s would also have been
+green today (zero rows >20s) but sits 1.6x over a measured-legitimate test
+whose spikes already reach 19s; 60 converts a hang into a named 60s FAILURE
+instead of a job-cap cancellation without becoming a second stopwatch.
+Duration discipline stays TPA's job (WP1.3 persistence rule), not the
+tier's. The old scar comment ("fixture import takes >1s") never justified
+0 anyway: pytest-timeout times per-TEST, not collection, and the M3 T5
+rerunfailures/thread fear was disproven by the owner ruling (pyproject
+comment) — and the unit tier runs no `--reruns` at all.
+
+**Summaries (all four, done-when):** `unit-tests-summary`,
+`frontend-tests-summary`, `frontend-e2e-summary` now red on
+`failure|cancelled`; `integration-tests-summary` had the WP0.5 rule for the
+API shard only — its three NON-API shards (websocket/services/models, no
+retry lane) now red on cancelled too; the API cancelled+retry-passed
+exception stays green. `skipped` stays forgiven everywhere (a never-run
+shard is not a verdict — same stance as ci-gate's `check_job`).
+
+**Red-first:** new gate test `scripts/test_summary_verdicts.sh` extracts
+each summary's verdict step FROM ci.yml, substitutes `${{ }}` expressions
+the way the runner does (result strings inside already-quoted args, empty =
+inert) and EXECUTES them over the full result matrix. 8 assertions red
+against the pre-change file; 0 after. Job-graph test re-run green (40 jobs,
+gate reaches 34); `test_github_workflows.py` 40 passed 2 skipped.
+
+**Noted, not widened:** `flaky-test-detection.yml:95` also runs
+`--timeout=0` — advisory scheduled scanner (`continue-on-error: true`, its
+whole purpose is rerun-consistency); no required gate reads its verdicts.
+
+## WP1.5 SUBMITTED (#6580 draft, stacked on #6579) — the flaky-tracking files finally have a reader: flake-report consumer + shared harvester (2026-09-20)
+
+**The defect (P's words): "`flake_allowlist = 0` is not evidence of
+zero flakes; it is evidence that nothing fills it."** Confirmed by
+inspection: every CI shard writes `flaky-test-tracking-*.jsonl` (unit x4 +
+the three integration shards, uploaded inside `test-results-*`), and NO
+consumer read them — `flaky-test-detection.yml`'s analyze job runs the
+analyzer on the NIGHTLY's own reruns, and `weekly-test-report.yml`'s is a
+placeholder that prints "Available". The per-PR-run history — where the
+14.3% same-SHA disagreement actually lives — had zero readers.
+
+**Consumer (ci.yml `flake-report`, main-only):** harvests the 6 newest
+main runs' artifacts, runs the analyzer with a new `--owner-summary` mode:
+a RANKED table whose Owner column shows the allowlist tracking ref or the
+literal "no owner (unregistered)" — the named-owner list P's done-when
+asks for. Corpus size prints even at zero flakes (26,342 tests read / 0
+failing in the first live run — "no flakes" vs "read nothing" never
+conflate; WP0.5's vacuous-pass class). Linear-triaged red (WP0.6 class),
+same idiom as the audit's.
+
+**Shared harvester `scripts/fetch-ci-artifacts.py`:** TPA's baseline fetch
+(WP1.3) was a curl/jq heredoc; the same selection rule rewritten for
+flakes would be a second copy of a rule that was bitten TWICE in one day
+(sibling-workflow page fill; self-baseline). Now one tested Python
+implementation, used by BOTH jobs. `--self-test` drives the REAL flow
+(selection, download, extract) against a canned local API — a self-test
+that stubbed the download wouldn't be one.
+
+**Measured while building (each one a live trap):**
+
+- urllib KEEPS the Authorization header across redirects (unlike curl) —
+  the artifact download 302s to a PRE-SIGNED blob URL and Azure 401s any
+  request that carries a token ALONGSIDE the SAS signature. curl got 200,
+  urllib-with-auth got 401 on all 30 artifacts. Fix: strip Authorization
+  on cross-host redirect (curl's semantics), documented in the script.
+- The artifact regex also drags playwright's `e2e-results.json`
+  (pretty-printed, ~19k lines): every line fails line-wise JSON parse and
+  the scalars crashed aggregation (`'str' object has no attribute 'get'`)
+  the first time it met the analyzer. Fix: non-dict records skipped, warn
+  capped at 3/file — pinned in the fixture with the real shape.
+
+**Red-first:** `scripts/test_flake_consumer.py` — 3 assertions red before
+(owner-summary missing, harvester absent, no consumer job), 4 green after;
+owner-table ranking pinned with a synthetic allowlist (registered shows
+NEM-9001, unregistered reads "no owner"); harvester self-test pins
+newest-with-artifacts selection, current-run exclusion, dead-API loud
+exit. Job-graph green (41 jobs, gate reaches 34, flake-report TRIAGE via
+its Linear step); workflow tests 40 passed 2 skipped; live end-to-end ran
+against the real repo API (2 runs x 15 artifacts, 56 files, 26,342 tests
+aggregated).
+
+## WP2.1 SUBMITTED (#6581 draft, stacked on #6580) — the two backend numbers reconciled: one denominator, and the CI number was a shard-overlap undercount (2026-09-20)
+
+P's premise ("70.33 vs 84.39, same nominal tier, never reconciled; likely
+validate.sh's unit+contracts+security leg") was WRONG about the suspect and
+RIGHT that nothing had ever measured it. MEASURED, both sides, same day:
+
+- **One denominator exists already:** both paths measure `--cov=backend` over
+  pyproject's `[tool.coverage.run]` tree = 527 files / 78,916 statements
+  (verified: identical counts on both artifacts). The 84.39 lineage is NOT
+  validate.sh's wider leg — it is the gate fallback's inline
+  `pytest backend/tests/unit/ --cov=backend` (scripts/check-test-coverage-gate.py),
+  measured fresh at HEAD = **84.12% blended (line 86.02 / branch 76.27)**.
+  CI's 70.32 (`coverage-baseline.json`, run 2ab66ff1) was REPRODUCED OFF the
+  runner: harvest the 4 shard `.dat` files, `coverage combine` with a
+  runner-path→workspace alias = 70.32 exactly. So both numbers are real,
+  falsifiable, and 14pp apart on the SAME yardstick.
+
+- **The CI number is a collection-loss artifact, not an environmental truth.**
+  Mechanism (measured, three independent ways): repo addopts carry `-p randomly`
+  and pytest-randomly draws a fresh seed PER PROCESS → each shard job shuffled
+  the suite differently BEFORE `pytest-split --splits 4` sliced → groups
+  overlapped. (1) run 35475023071's junits: 27,647 case rows, only 18,520
+  UNIQUE tests (67%); (2) collect-only: random seeds → union 18,256/27,555,
+  pairwise overlap 1,449 — fixed seed → union 27,555/27,555, overlap 0;
+  (3) run-35475023071's junit contains 420 batch_aggregator + 86 cleanup + 212
+  system_broadcaster cases while that run's merged .dat reports those sources
+  20.6/18.1/14.2% — and those exact files measure 94.2/98.2/89.3 locally under
+  CI's own env flags, dead Redis, and xdist worksteal (all identical; Redis
+  liveness changed NOTHING — the "CI has no Redis service" theory is DEAD).
+  E[coverage under 4× random quarter-sample] ≈ 68.4% — published figure 70.3.
+
+- **Fix shipped here:** sharded legs (ci.yml unit + reusable integration-shard)
+  pin `--randomly-seed=${{ github.run_id }}` — identical across one run's four
+  jobs (disjoint+complete groups), different next run (order randomization
+  keeps its cross-run value; run_id > 2^32 is fine, `random.seed` takes
+  arbitrary ints). LOCAL CI-PIPELINE SIMULATION (4 shard runs with the pin +
+  merge-job combine): **84.11% blended vs local single-process 84.12** — the
+  pipeline shape now agrees; the old 70.3 was the bug's fingerprint. Sim
+  caveat disclosed: shard 1 logged 23 setup errors from sandbox disk pressure
+  (94–96% full; not reproducible single-test) which only INFLATE missing.
+  Expect CI to jump ~14pp on the first fixed-seed main run; until then the CI
+  figure understates the tier.
+
+- **Docs (R-6):** testing.md now carries the one-denominator statement, both
+  numbers with line/branch splits, the undercount label, and the retired
+  "85%+" cell (no measurement ever produced it as a current unit value; the
+  count cell said 7193 tests — collect-only says 27,555).
+
+RED-FIRST: scripts/test_coverage_denominator.py 3 failed before → 3 green
+after (doc states both numbers + denominators + undercount label; loser row
+gone; BOTH sharded workflows pin a run-scoped seed). Workflow suites
+re-verified after the edits: test_github_workflows 40p/2s, job-graph 41 jobs/
+gate 34, WP1.4/1.5 gates green, actionlint clean. Cap 2h: ~used, mechanism
+hunt was the cost of the three-way cross-check.
+
 ## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
 
 **MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/
