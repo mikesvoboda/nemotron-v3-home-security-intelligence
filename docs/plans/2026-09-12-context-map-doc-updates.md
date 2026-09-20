@@ -7585,3 +7585,31 @@ green derived; full anti-rot list 158 passed locally.
 **Banked lesson:** a `#` is poison inside folded YAML scalars that feed `run:`.
 Any future doctrine comment belongs ABOVE the step. (Two-char fix class, four
 dead gate-suites, one stale pin nobody could see.)
+
+## WP1.1 IN FLIGHT (2026-09-20): the four main-only gate jobs now run on PRs (#6573)
+
+**The defect:** `contract-tests`, `dead-code`, `build-backend`,
+`build-frontend` carried `if: github.ref == 'refs/heads/main'`, arrived
+`skipped` on EVERY PR, and `check_job` (ci.yml:2877) treats `skipped` as OK.
+The PR gate and the main gate were different gates. Measured harm this week,
+three independent detonations: #6570's stale `registry_ops` pin (contract
+38->37, red on landing push 35482667110), the eada4ba9 vulture rc=3 red, and
+the WP0.1 anti-rot swallow (this morning). Next week every VSS PR inherits.
+
+**Fix = P's option 1 (run on PRs), cost MEASURED first** (P demands the
+wall-time): run 35484007823 job durations — contract-tests **88s**,
+dead-code **46s**, build-backend **410s**, build-frontend **144s**. All four
+ride inside the existing ~12-min parallel window; backend-touching PRs pay
+roughly +2 min wall (contract+dead-code, parallel to unit tier) and full-tree
+PRs pay the build jobs (warm GHA cache scope, `--load` no-push). Path gates
+mirror `unit-tests` (`detect-changes` backend/frontend/should-run-all).
+**The PR's own run durations are the added-wall-time measurement for THIS
+change; delta recorded on merge** — feasibility precedent: A7.3's image
+smoke builds docker green on PR runs.
+
+**R-7 baselining before the switch:** vulture rc=0 locally; contracts dir
+613 passed at current main; build jobs green on last main pushes;
+`test_ci_job_graph.py` OK (37 jobs, gate reaches 31); shard-retry wiring
+holds. Linear issue-on-failure steps narrowed to
+`failure() && github.ref == 'refs/heads/main'` — titles literally say "failed
+on main"; a red PR must surface on the PR, not in Linear.
