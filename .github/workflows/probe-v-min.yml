@@ -1,0 +1,8 @@
+name: probe v-min
+on:
+  workflow_call:
+jobs:
+  j:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo v-min ok
