@@ -7697,6 +7697,158 @@ for its own corpus) inside a 15-min job that typically ends in seconds.
 Known-slow entries carry the same discipline as every other census channel:
 measured breach in the corpus or the registry says no.
 
+## WP1.4 SUBMITTED (#6579 draft, stacked on #6578) — the required tier can see a timeout; cancelled is no longer a verdict in any summary (2026-09-20)
+
+**The two defects compounded into one green lie.** The required unit tier
+ran `--timeout=0`, which `backend/tests/conftest.py` honors by disabling
+EVERY per-test timeout (the M3 T5 CLI-governs mechanism). A hung test then
+waited out the 15-min job cap -> the shard ended `cancelled` -> three
+summaries tested only `== "failure"` and reported "All unit test shards
+passed" -> `CI Gate` green with the tier dead. Same class WP0.5 fixed once
+(run 35353201418 attempt 4) for the integration API shard only.
+
+**Timeout value, measured (R-1 at measured value):** 447,391 unit-tier
+`<testcase>` rows across the 17 TPA-red run corpora + green main run
+35486259345 — max 19.02s, ZERO rows over 20s. The four legitimate 15-19s
+tests (`test_timestamp_auto_generated`, `test_complete_calculates_duration`,
+`test_duration_after_start`, `test_handle_unhealthy_stamps`) carry no
+timeout marker, so they inherit the CLI cap; 60s = 3.2x the worst sample
+AND equals TPA's `SLOW_TEST_THRESHOLD` — the tier watchdog can never fail a
+test the audit's own known-slow list forgives. 30s would also have been
+green today (zero rows >20s) but sits 1.6x over a measured-legitimate test
+whose spikes already reach 19s; 60 converts a hang into a named 60s FAILURE
+instead of a job-cap cancellation without becoming a second stopwatch.
+Duration discipline stays TPA's job (WP1.3 persistence rule), not the
+tier's. The old scar comment ("fixture import takes >1s") never justified
+0 anyway: pytest-timeout times per-TEST, not collection, and the M3 T5
+rerunfailures/thread fear was disproven by the owner ruling (pyproject
+comment) — and the unit tier runs no `--reruns` at all.
+
+**Summaries (all four, done-when):** `unit-tests-summary`,
+`frontend-tests-summary`, `frontend-e2e-summary` now red on
+`failure|cancelled`; `integration-tests-summary` had the WP0.5 rule for the
+API shard only — its three NON-API shards (websocket/services/models, no
+retry lane) now red on cancelled too; the API cancelled+retry-passed
+exception stays green. `skipped` stays forgiven everywhere (a never-run
+shard is not a verdict — same stance as ci-gate's `check_job`).
+
+**Red-first:** new gate test `scripts/test_summary_verdicts.sh` extracts
+each summary's verdict step FROM ci.yml, substitutes `${{ }}` expressions
+the way the runner does (result strings inside already-quoted args, empty =
+inert) and EXECUTES them over the full result matrix. 8 assertions red
+against the pre-change file; 0 after. Job-graph test re-run green (40 jobs,
+gate reaches 34); `test_github_workflows.py` 40 passed 2 skipped.
+
+**Noted, not widened:** `flaky-test-detection.yml:95` also runs
+`--timeout=0` — advisory scheduled scanner (`continue-on-error: true`, its
+whole purpose is rerun-consistency); no required gate reads its verdicts.
+
+## WP1.5 SUBMITTED (#6580 draft, stacked on #6579) — the flaky-tracking files finally have a reader: flake-report consumer + shared harvester (2026-09-20)
+
+**The defect (P's words): "`flake_allowlist = 0` is not evidence of
+zero flakes; it is evidence that nothing fills it."** Confirmed by
+inspection: every CI shard writes `flaky-test-tracking-*.jsonl` (unit x4 +
+the three integration shards, uploaded inside `test-results-*`), and NO
+consumer read them — `flaky-test-detection.yml`'s analyze job runs the
+analyzer on the NIGHTLY's own reruns, and `weekly-test-report.yml`'s is a
+placeholder that prints "Available". The per-PR-run history — where the
+14.3% same-SHA disagreement actually lives — had zero readers.
+
+**Consumer (ci.yml `flake-report`, main-only):** harvests the 6 newest
+main runs' artifacts, runs the analyzer with a new `--owner-summary` mode:
+a RANKED table whose Owner column shows the allowlist tracking ref or the
+literal "no owner (unregistered)" — the named-owner list P's done-when
+asks for. Corpus size prints even at zero flakes (26,342 tests read / 0
+failing in the first live run — "no flakes" vs "read nothing" never
+conflate; WP0.5's vacuous-pass class). Linear-triaged red (WP0.6 class),
+same idiom as the audit's.
+
+**Shared harvester `scripts/fetch-ci-artifacts.py`:** TPA's baseline fetch
+(WP1.3) was a curl/jq heredoc; the same selection rule rewritten for
+flakes would be a second copy of a rule that was bitten TWICE in one day
+(sibling-workflow page fill; self-baseline). Now one tested Python
+implementation, used by BOTH jobs. `--self-test` drives the REAL flow
+(selection, download, extract) against a canned local API — a self-test
+that stubbed the download wouldn't be one.
+
+**Measured while building (each one a live trap):**
+
+- urllib KEEPS the Authorization header across redirects (unlike curl) —
+  the artifact download 302s to a PRE-SIGNED blob URL and Azure 401s any
+  request that carries a token ALONGSIDE the SAS signature. curl got 200,
+  urllib-with-auth got 401 on all 30 artifacts. Fix: strip Authorization
+  on cross-host redirect (curl's semantics), documented in the script.
+- The artifact regex also drags playwright's `e2e-results.json`
+  (pretty-printed, ~19k lines): every line fails line-wise JSON parse and
+  the scalars crashed aggregation (`'str' object has no attribute 'get'`)
+  the first time it met the analyzer. Fix: non-dict records skipped, warn
+  capped at 3/file — pinned in the fixture with the real shape.
+
+**Red-first:** `scripts/test_flake_consumer.py` — 3 assertions red before
+(owner-summary missing, harvester absent, no consumer job), 4 green after;
+owner-table ranking pinned with a synthetic allowlist (registered shows
+NEM-9001, unregistered reads "no owner"); harvester self-test pins
+newest-with-artifacts selection, current-run exclusion, dead-API loud
+exit. Job-graph green (41 jobs, gate reaches 34, flake-report TRIAGE via
+its Linear step); workflow tests 40 passed 2 skipped; live end-to-end ran
+against the real repo API (2 runs x 15 artifacts, 56 files, 26,342 tests
+aggregated).
+
+## WP2.1 SUBMITTED (#6581 draft, stacked on #6580) — the two backend numbers reconciled: one denominator, and the CI number was a shard-overlap undercount (2026-09-20)
+
+P's premise ("70.33 vs 84.39, same nominal tier, never reconciled; likely
+validate.sh's unit+contracts+security leg") was WRONG about the suspect and
+RIGHT that nothing had ever measured it. MEASURED, both sides, same day:
+
+- **One denominator exists already:** both paths measure `--cov=backend` over
+  pyproject's `[tool.coverage.run]` tree = 527 files / 78,916 statements
+  (verified: identical counts on both artifacts). The 84.39 lineage is NOT
+  validate.sh's wider leg — it is the gate fallback's inline
+  `pytest backend/tests/unit/ --cov=backend` (scripts/check-test-coverage-gate.py),
+  measured fresh at HEAD = **84.12% blended (line 86.02 / branch 76.27)**.
+  CI's 70.32 (`coverage-baseline.json`, run 2ab66ff1) was REPRODUCED OFF the
+  runner: harvest the 4 shard `.dat` files, `coverage combine` with a
+  runner-path→workspace alias = 70.32 exactly. So both numbers are real,
+  falsifiable, and 14pp apart on the SAME yardstick.
+
+- **The CI number is a collection-loss artifact, not an environmental truth.**
+  Mechanism (measured, three independent ways): repo addopts carry `-p randomly`
+  and pytest-randomly draws a fresh seed PER PROCESS → each shard job shuffled
+  the suite differently BEFORE `pytest-split --splits 4` sliced → groups
+  overlapped. (1) run 35475023071's junits: 27,647 case rows, only 18,520
+  UNIQUE tests (67%); (2) collect-only: random seeds → union 18,256/27,555,
+  pairwise overlap 1,449 — fixed seed → union 27,555/27,555, overlap 0;
+  (3) run-35475023071's junit contains 420 batch_aggregator + 86 cleanup + 212
+  system_broadcaster cases while that run's merged .dat reports those sources
+  20.6/18.1/14.2% — and those exact files measure 94.2/98.2/89.3 locally under
+  CI's own env flags, dead Redis, and xdist worksteal (all identical; Redis
+  liveness changed NOTHING — the "CI has no Redis service" theory is DEAD).
+  E[coverage under 4× random quarter-sample] ≈ 68.4% — published figure 70.3.
+
+- **Fix shipped here:** sharded legs (ci.yml unit + reusable integration-shard)
+  pin `--randomly-seed=${{ github.run_id }}` — identical across one run's four
+  jobs (disjoint+complete groups), different next run (order randomization
+  keeps its cross-run value; run_id > 2^32 is fine, `random.seed` takes
+  arbitrary ints). LOCAL CI-PIPELINE SIMULATION (4 shard runs with the pin +
+  merge-job combine): **84.11% blended vs local single-process 84.12** — the
+  pipeline shape now agrees; the old 70.3 was the bug's fingerprint. Sim
+  caveat disclosed: shard 1 logged 23 setup errors from sandbox disk pressure
+  (94–96% full; not reproducible single-test) which only INFLATE missing.
+  Expect CI to jump ~14pp on the first fixed-seed main run; until then the CI
+  figure understates the tier.
+
+- **Docs (R-6):** testing.md now carries the one-denominator statement, both
+  numbers with line/branch splits, the undercount label, and the retired
+  "85%+" cell (no measurement ever produced it as a current unit value; the
+  count cell said 7193 tests — collect-only says 27,555).
+
+RED-FIRST: scripts/test_coverage_denominator.py 3 failed before → 3 green
+after (doc states both numbers + denominators + undercount label; loser row
+gone; BOTH sharded workflows pin a run-scoped seed). Workflow suites
+re-verified after the edits: test_github_workflows 40p/2s, job-graph 41 jobs/
+gate 34, WP1.4/1.5 gates green, actionlint clean. Cap 2h: ~used, mechanism
+hunt was the cost of the three-way cross-check.
+
 ## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
 
 **MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/

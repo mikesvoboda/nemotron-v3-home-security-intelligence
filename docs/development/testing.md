@@ -62,24 +62,63 @@ flowchart TB
 
 ### Test Categories
 
-| Category                      | Location                     | Count      | Timeout | Coverage Target |
-| ----------------------------- | ---------------------------- | ---------- | ------- | --------------- |
-| **Backend Unit Tests**        | `backend/tests/unit/`        | 7193 tests | 1s      | 85%+            |
-| **Backend Integration**       | `backend/tests/integration/` | 1499 tests | 5s      | N/A (combined)  |
-| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files    | 30s     | -               |
-| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file     | -       | -               |
-| **Benchmarks**                | `backend/tests/benchmarks/`  | 3 files    | -       | -               |
-| **Chaos Tests**               | `backend/tests/chaos/`       | -          | -       | -               |
-| **Contract Tests**            | `backend/tests/contracts/`   | -          | -       | -               |
-| **Security Tests**            | `backend/tests/security/`    | -          | -       | -               |
-| **Test Utilities**            | `backend/tests/utils/`       | -          | -       | -               |
-| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -          | -       | 83%+            |
-| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests | 15s     | -               |
+| Category                      | Location                     | Count        | Timeout | Coverage Target |
+| ----------------------------- | ---------------------------- | ------------ | ------- | --------------- |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 27,555 tests | 1s      | see below¹      |
+| **Backend Integration**       | `backend/tests/integration/` | 1499 tests   | 5s      | N/A (combined)  |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files      | 30s     | -               |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file       | -       | -               |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 3 files      | -       | -               |
+| **Chaos Tests**               | `backend/tests/chaos/`       | -            | -       | -               |
+| **Contract Tests**            | `backend/tests/contracts/`   | -            | -       | -               |
+| **Security Tests**            | `backend/tests/security/`    | -            | -       | -               |
+| **Test Utilities**            | `backend/tests/utils/`       | -            | -       | -               |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -            | -       | 83%+            |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests   | 15s     | -               |
 
 **Note:** The executed backend floor is **80% on combined unit+integration**
 (`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
 `pyproject.toml` `fail_under = 85` is the PR diff gate's RELATIVE baseline,
 not an absolute floor (owner ruling A7.1, 2026-09-19).
+
+¹ The retired cell said "85%+"; no measurement ever produced that as a current
+unit-tier value (R-6: docs follow measurements). The measured numbers — with
+their denominators — are below.
+
+### The backend coverage numbers (WP2.1, measured 2026-09-20)
+
+**One denominator, stated:** every figure below is `--cov=backend` over the
+pyproject `[tool.coverage.run]` tree — `source=["backend"]`, the configured
+`omit` list, and the `exclude_lines` regexes — which resolves to **527 files /
+78,916 statements**. Both measurement paths below share that denominator
+exactly (verified: identical file and statement counts), so comparing them is
+comparing executions, not yardsticks. `branch = true` makes every percentage
+here the coverage-7.16.1 **blended** figure (statements+branches together,
+`format=total`); the line/branch split is given with each number.
+
+| Path                      | Blended | Line   | Branch | What it counts                                                                                                      |
+| ------------------------- | ------- | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| **Local (fallback path)** | 84.12%  | 86.02% | 76.27% | the PR diff gate's inline collection: `pytest backend/tests/unit/ --cov=backend` in ONE process — the 84.39 lineage |
+| **CI merged (4 shards)**  | 70.32%  | 73.14% | 58.71% | `coverage-baseline.json` from run 2ab66ff1 — **a known undercount, see below**                                      |
+
+**Why the CI number is an undercount (mechanism, measured same day):** the
+repo's pytest addopts carry `-p randomly` (pytest-randomly), which draws a
+fresh shuffle seed **per process**. Each of the four shard jobs shuffled the
+suite differently BEFORE `pytest-split --splits 4` sliced it, so the four
+`--group` slices overlapped and the run executed only part of the tier: run
+35475023071's junit carries 27,647 case rows but only **18,520 unique tests
+(67%)** — `collect-only` reproduces the arithmetic exactly (random seeds:
+union 18,256/27,555, pairwise overlap 1,449; fixed seed: union 27,555/27,555,
+overlap 0). The fix shipped in the same package: the sharded legs pin
+`--randomly-seed=${{ github.run_id }}` (identical across one run's shard jobs
+= disjoint + complete groups; different across runs = order randomization
+keeps its value). Expect the CI figure to jump ~14pp to meet the local number
+on the first main run with the fix; until then the CI figure understates the
+tier and any floor wired to it inherits the drift.
+
+Until the first fixed-seed run lands, **the CI figure must not be used as the
+tier's strength** and the local figure must not be called "the CI coverage".
+`scripts/test_coverage_denominator.py` pins this section's claims.
 Frontend thresholds: 83% statements, 77% branches, 81% functions, 84% lines (see `vite.config.ts`).
 
 ## Quick Reference

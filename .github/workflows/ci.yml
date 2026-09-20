@@ -412,14 +412,35 @@ jobs:
         # PR diff gate's relative baseline. The old "should reach 95%"
         # comment matched no gate that exists.
         # -n auto enables xdist parallelization with worksteal scheduler within shard
-        # --timeout=0 disables timeout (fixture import takes >1s in CI)
+        # --timeout=60 (WP1.4): the old --timeout=0 made backend/tests/conftest.py
+        # disable EVERY per-test timeout, so the REQUIRED tier was blind to hangs —
+        # a hung test waited out the 15-min job cap, the shard ended `cancelled`,
+        # and the (then-forgiving) summary waved it through. Measured (WP1.4):
+        # 447,391 unit rows over 17 TPA-red corpora + green main 35486259345, max
+        # 19.02s, ZERO over 20s — 60 is 3.2x the worst sample and equals TPA's
+        # SLOW_TEST_THRESHOLD, so the tier watchdog never fails a test the audit's
+        # own slow list forgives; it only turns a hang into a named 60s FAILURE.
+        # Duration discipline stays TPA's job (persistence rule), not the tier's.
         # --cov-fail-under=0 disables threshold check here (checked after combining coverage)
         # pytest-split groups tests by --group for cross-runner sharding
+        # --randomly-seed=run_id (WP2.1): the repo addopts carry -p randomly, and
+        # pytest-randomly draws a fresh seed PER PROCESS. Each shard job shuffled
+        # the suite differently BEFORE pytest-split sliced it, so the four --group
+        # slices overlapped and the run executed a fraction of the tier. Measured
+        # 2026-09-20: run 35475023071's junits hold 27,647 case rows but only
+        # 18,520 unique tests (67%); collect-only reproduces it (random seeds ->
+        # union 18,256/27,555, pairwise overlap 1,449; fixed seed -> union
+        # 27,555/27,555, overlap 0). coverage-baseline.json therefore undercounted
+        # the unit tier by ~14pp (70.3 published vs 84.1 executed). github.run_id
+        # is identical across the four shard jobs (disjoint groups) and differs
+        # next run (order randomization keeps its cross-run value). Pinned by
+        # scripts/test_coverage_denominator.py.
         run: |
           uv run pytest backend/tests/unit/ \
             -n auto --dist=worksteal \
             --splits 4 --group ${{ matrix.shard }} \
-            --timeout=0 \
+            --randomly-seed=${{ github.run_id }} \
+            --timeout=60 \
             --cov=backend \
             --cov-config=pyproject.toml \
             --cov-fail-under=0 \
@@ -570,8 +591,14 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.unit-tests.result }}" == "failure" ]; then
-            echo "One or more unit test shards failed"
+          # WP1.4: cancelled is not a verdict (WP0.5's rule, extended — that fix
+          # covered only the integration API shard). A shard killed at the job cap
+          # used to fall through "== failure" to the green branch below.
+          # skipped stays forgiven: a never-run shard is not a verdict (same stance
+          # as ci-gate's check_job).
+          UNIT_RESULT="${{ needs.unit-tests.result }}"
+          if [ "$UNIT_RESULT" == "failure" ] || [ "$UNIT_RESULT" == "cancelled" ]; then
+            echo "One or more unit test shards failed or were cancelled (result: $UNIT_RESULT)"
             exit 1
           fi
           echo "All unit test shards passed"
@@ -1129,11 +1156,22 @@ jobs:
             exit 1
           fi
 
+          # WP1.4: the cancelled-is-not-a-verdict rule above covered ONLY the API
+          # shard (it's the one with a slow-runner retry). The three non-API
+          # shards still forgave cancellation — a shard killed at the job cap fell
+          # through to the green branch. They have no retry lane, so cancelled is
+          # unconditionally not-success there.
+          # (API cancelled deliberately NOT added here: if execution reached this
+          # point with a cancelled API shard, the retry passed — the WP0.5
+          # exception stays alive.)
           if [ "$API_RESULT" == "failure" ] || \
              [ "${{ needs.integration-tests-websocket.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-websocket.result }}" == "cancelled" ] || \
              [ "${{ needs.integration-tests-services.result }}" == "failure" ] || \
-             [ "${{ needs.integration-tests-models.result }}" == "failure" ]; then
-            echo "One or more integration test jobs failed"
+             [ "${{ needs.integration-tests-services.result }}" == "cancelled" ] || \
+             [ "${{ needs.integration-tests-models.result }}" == "failure" ] || \
+             [ "${{ needs.integration-tests-models.result }}" == "cancelled" ]; then
+            echo "One or more integration test jobs failed or were cancelled"
             exit 1
           fi
           echo "All integration tests passed"
@@ -1848,8 +1886,11 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.frontend-tests.result }}" == "failure" ]; then
-            echo "One or more Vitest shards failed"
+          # WP1.4: cancelled is not a verdict — see unit-tests-summary's comment
+          # for the measured history; identical defect, identical fix.
+          VT_RESULT="${{ needs.frontend-tests.result }}"
+          if [ "$VT_RESULT" == "failure" ] || [ "$VT_RESULT" == "cancelled" ]; then
+            echo "One or more Vitest shards failed or were cancelled (result: $VT_RESULT)"
             exit 1
           fi
           echo "All Vitest shards passed"
@@ -2004,8 +2045,11 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ needs.frontend-e2e.result }}" == "failure" ]; then
-            echo "One or more E2E shards failed"
+          # WP1.4: cancelled is not a verdict — see unit-tests-summary's comment
+          # for the measured history; identical defect, identical fix.
+          E2E_RESULT="${{ needs.frontend-e2e.result }}"
+          if [ "$E2E_RESULT" == "failure" ] || [ "$E2E_RESULT" == "cancelled" ]; then
+            echo "One or more E2E shards failed or were cancelled (result: $E2E_RESULT)"
             exit 1
           fi
           echo "All E2E shards passed"
@@ -2470,46 +2514,24 @@ jobs:
       - name: Fetch baseline junit (previous main run)
         # WP1.3: the runner's own previous run is the only honest calibration
         # (suite-wide medians are identical red-vs-green — global calibration
-        # is dead BY DATA, ledger WP1.3). Take the newest completed main CI
-        # run that uploaded junit and download its test artifacts as the
-        # baseline corpus. Fetch failure or zero artifacts => baseline/ stays
-        # empty and the audit FAILS CLOSED (every breach red, exactly the
-        # pre-WP1.3 gate) — a broken fetch can never silently widen the gate.
+        # is dead BY DATA, ledger WP1.3). WP1.5: the selection rule moved to
+        # scripts/fetch-ci-artifacts.py — it had been transcribed in curl/jq
+        # twice in one day and bitten both known traps (generic
+        # /actions/runs?branch=main mixes sibling workflows and silently
+        # misses CI; selecting the current run baselines it against itself).
+        # One tested implementation (scripts/test_flake_consumer.py drives it
+        # through a canned API). Fetch failure => baseline/ empty => the audit
+        # FAILS CLOSED (every breach red, exactly the pre-WP1.3 gate) — a
+        # broken fetch can never silently widen the gate.
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -uo pipefail
-          mkdir -p baseline
-          API="https://api.github.com/repos/${{ github.repository }}/actions"
-          AUTH=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
-          # Resolve ci.yml's workflow id by PATH (not hardcoded — ids are repo
-          # state), then list THAT workflow's main runs. The generic
-          # /actions/runs?branch=main endpoint mixes every workflow on the
-          # branch together and CI falls off the page (measured: 6 sibling
-          # workflow rows, no CI) — a silently EMPTY baseline is fail-closed
-          # but useless, and would quietly disable WP1.3 forever.
-          WFID=$(curl -sS "${AUTH[@]}" "$API/workflows?per_page=100" \
-            | jq -r '.workflows[] | select(.path==".github/workflows/ci.yml") | .id' | head -1)
-          [ -n "$WFID" ] || { echo "ci.yml workflow id not found"; exit 0; }
-          # NEVER the current run: a self-referential baseline would make every
-          # violation "persist against itself" and silently disable downgrades.
-          FILTER='select(.id != '${{ github.run_id }}')'
-          IDS=$(curl -sS "${AUTH[@]}" "$API/workflows/$WFID/runs?branch=main&status=success&per_page=8" \
-            | jq -r ".workflow_runs[] | $FILTER | .id")
-          for RID in $IDS; do
-            ARTS=$(curl -sS "${AUTH[@]}" "$API/runs/$RID/artifacts?per_page=100" \
-              | jq -r '.artifacts[] | select(.name|test("^test-results-|^playwright-test-results-"))
-                       | "\(.id) \(.archive_download_url)"')
-            [ -n "$ARTS" ] || continue
-            echo "Baseline source: run $RID, $(echo "$ARTS" | grep -c .) junit artifacts"
-            while read -r AID AURL; do
-              curl -sSL "${AUTH[@]}" "$AURL" -o "/tmp/art-$AID.zip" \
-                && unzip -q -o "/tmp/art-$AID.zip" -d "baseline/$AID"
-            done <<< "$ARTS"
-            break
-          done
-          echo "baseline XMLs: $(find baseline -name '*.xml' 2>/dev/null | wc -l)"
+          # token via stdin, never argv (ps + logs stay clean)
+          echo "$GH_TOKEN" | python3 scripts/fetch-ci-artifacts.py \
+            --repo "${{ github.repository }}" \
+            --current-run-id "${{ github.run_id }}" \
+            --out baseline
 
       - name: Analyze test durations
         # WP0.5: no more "skip + exit 0" on missing data — the audit only runs
@@ -2582,6 +2604,119 @@ jobs:
                     "teamId": "998946a2-aa75-491b-a39d-189660131392",
                     "title": "'"$TITLE"'",
                     "description": "Test performance audit found slow tests after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review and optimize slow tests.",
+                    "priority": 3
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
+
+  # WP1.5: the flaky-tracking CONSUMER. Every shard writes
+  # flaky-test-tracking-*.jsonl and uploads it inside test-results-*, and
+  # until now NOTHING read them — `flake_allowlist: 0` was evidence of no
+  # consumer, not of no flakes (P WP1.5). This job harvests the last few main
+  # runs' artifacts (scripts/fetch-ci-artifacts.py — same tested selection
+  # TPA's baseline uses: newest main runs, never the current run) and runs
+  # the analyzer with --owner-summary: a RANKED flake list whose Owner column
+  # shows the allowlist tracking ref, or the literal "no owner" — the named-
+  # owner list P's done-when asks for. Linear-triaged (WP0.6 class), like the
+  # audit's own failure path.
+  flake-report:
+    name: Flake Report (consumer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # actions:read for the artifact harvest — repo default "read" lacks it
+    # (WP1.3 measurement: without this line the fetch 403s every run).
+    permissions:
+      contents: read
+      actions: read
+    # Main only: the corpus is main's history; PR branches have no flake
+    # history of their own to rank, and harvesting main artifacts from a PR
+    # would blame main's flakes on the branch.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Harvest previous main runs' flaky tracking
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | python3 scripts/fetch-ci-artifacts.py \
+            --repo "${{ github.repository }}" \
+            --current-run-id "${{ github.run_id }}" \
+            --harvest-runs 6 \
+            --out flaky-corpus
+
+      - name: Rank flakes with owners
+        run: |
+          python3 scripts/analyze-flaky-tests.py flaky-corpus/ \
+            --output flaky-test-report.json \
+            --allowlist-file .github/flake-allowlist.yml \
+            --owner-summary
+        env:
+          FLAKY_THRESHOLD: '0.9'
+          # one run = one sample per test; with 6 harvested runs a test needs
+          # >=2 samples before a pass-rate can mean anything (analyzer MIN_RUNS)
+          MIN_RUNS: '2'
+
+      - name: Upload flaky test report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: flaky-test-report-${{ github.run_id }}
+          path: flaky-test-report.json
+          retention-days: 30
+
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          TITLE="[CI] Flake-report consumer failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
+              "variables": {
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
+                }
+              }
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Existing issue found ($EXISTING_ID), skipping creation"
+          else
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "The WP1.5 flake-report consumer failed on main — the per-run flaky tracking has no working reader again.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
                     "priority": 3
                   }
                 }

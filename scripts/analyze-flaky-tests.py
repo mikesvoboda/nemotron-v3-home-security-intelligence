@@ -48,8 +48,15 @@ def parse_results_file(filepath: Path) -> list[dict]:
     """Parse a JSON Lines file containing test results.
 
     Each line is a JSON object with test outcomes from a single CI run.
+    Lines that are valid JSON but not objects (a scalars file the artifact
+    regex happened to drag in) are skipped, not fatal (WP1.5: measured live —
+    the harvest also contains playwright's pretty-printed e2e-results.json;
+    its string lines crashed aggregation with 'str' has no attribute 'get').
+    Warnings are capped per file: a foreign multi-thousand-line file must not
+    flood the job log either.
     """
     results = []
+    warned = 0
     try:
         with filepath.open() as f:
             for line_num, raw_line in enumerate(f, 1):
@@ -58,12 +65,28 @@ def parse_results_file(filepath: Path) -> list[dict]:
                     continue
                 try:
                     data = json.loads(stripped_line)
-                    results.append(data)
                 except json.JSONDecodeError as e:
+                    if warned < 3:
+                        print(
+                            f"Warning: Could not parse line {line_num} in {filepath}: {e}",
+                            file=sys.stderr,
+                        )
+                    warned += 1
+                    continue
+                if isinstance(data, dict):
+                    results.append(data)
+                elif warned < 3:
                     print(
-                        f"Warning: Could not parse line {line_num} in {filepath}: {e}",
+                        f"Warning: line {line_num} in {filepath} is valid JSON but not an "
+                        f"object ({type(data).__name__}) — skipping file's non-record lines",
                         file=sys.stderr,
                     )
+                    warned += 1
+        if warned > 3:
+            print(
+                f"Warning: {warned - 3} more unparsable/non-record lines in {filepath}",
+                file=sys.stderr,
+            )
     except Exception as e:
         print(f"Warning: Could not read {filepath}: {e}", file=sys.stderr)
     return results
@@ -237,6 +260,100 @@ def registered_ids(nodeids: list[str], allowlist_ids: set[str]) -> set[str]:
     return covered
 
 
+def load_allowlist_refs(path: Path, today: datetime | None = None) -> dict[str, str]:
+    """id -> tracking ref for ACTIVE (unexpired) allowlist entries (WP1.5).
+
+    Same parse as load_allowlist_ids (which returns only the id set); this
+    keyed variant exists so the owner summary can name the owner of a
+    registered flake instead of merely marking it handled.
+    """
+    if not path.is_file():
+        return {}
+    import re
+
+    entry_re = re.compile(r"^\s*-\s+id:\s*(\S+)")
+    field_re = re.compile(r"^\s+(tracking|expires):\s*(.+?)\s*$")
+    entries: list[dict[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        m = entry_re.match(line)
+        if m:
+            entries.append({"id": m.group(1)})
+            continue
+        if entries:
+            fm = field_re.match(line)
+            if fm:
+                entries[-1][fm.group(1)] = fm.group(2).strip("'\"")
+
+    cutoff = (today or datetime.now(UTC)).date()
+    refs: dict[str, str] = {}
+    for e in entries:
+        try:
+            if datetime.fromisoformat(e.get("expires", "")).date() < cutoff:
+                continue
+        except ValueError:
+            continue
+        refs[e["id"]] = e.get("tracking", "(no tracking ref)")
+    return refs
+
+
+def owner_for(nodeid: str, refs: dict[str, str]) -> str:
+    """Named owner line for one flaky nodeid (WP1.5 done-when: named owner).
+
+    Registered -> its allowlist tracking ref. Unregistered -> the literal
+    "no owner" — an unowned flake must be VISIBLE as unowned in the ranked
+    table, not silently handled.
+    """
+    for flake_id, tracking in refs.items():
+        if flake_id in nodeid:
+            return tracking
+    return "no owner (unregistered)"
+
+
+def write_owner_summary(flaky_tests: list[dict], refs: dict[str, str], corpus_size: int) -> None:
+    """Ranked flake table with an explicit Owner column (WP1.5)."""
+    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary_file:
+        print(
+            "Warning: --owner-summary needs GITHUB_STEP_SUMMARY (set by the Actions runner)",
+            file=sys.stderr,
+        )
+        return
+
+    # nosemgrep: path-traversal-open - runner-owned path, not user input
+    with open(summary_file, "a") as f:
+        f.write("## RANKED Flake Report (WP1.5 consumer)\n\n")
+        f.write(
+            "Source: the `flaky-test-tracking-*.jsonl` each CI shard writes and "
+            "uploads — harvested from the newest previous main run of this "
+            "workflow. `flake_allowlist: 0` means *nothing registered*, not "
+            "*nothing flakes* — this table is the reading.\n\n"
+        )
+        # Corpus size printed even in the zero case: "no flakes" must be
+        # distinguishable from "read nothing" (the WP0.5 vacuous-pass class).
+        f.write(f"Corpus: **{corpus_size}** distinct test(s) read from the harvested window.\n\n")
+        if not flaky_tests:
+            f.write("No flaky tests detected in the harvested window.\n")
+            return
+        # detect_flaky_tests already sorts by flakiness score, descending.
+        f.write(f"RANKED {len(flaky_tests)} flaky test(s), most flaky first:\n\n")
+        f.write("| Rank | Test | Pass Rate | Runs (fail/total) | Score | Owner |\n")
+        f.write("|------|------|-----------|-------------------|-------|-------|\n")
+        for i, t in enumerate(flaky_tests[:50], 1):
+            name = t["nodeid"]
+            if len(name) > 70:
+                name = "..." + name[-67:]
+            owner = owner_for(t["nodeid"], refs)
+            f.write(
+                f"| {i} | `{name}` | {t['pass_rate'] * 100:.0f}% | "
+                f"{t['failed']}/{t['total_runs']} | {t['flakiness_score']:.2f} | {owner} |\n"
+            )
+        unowned = sum(1 for t in flaky_tests if owner_for(t["nodeid"], refs).startswith("no owner"))
+        f.write(
+            f"\n**{unowned}/{len(flaky_tests)} flake(s) have no owner** — each needs a "
+            "`.github/flake-allowlist.yml` entry (tracking ref + expiry) or a fix.\n"
+        )
+
+
 def print_console_report(flaky_tests: list[dict], config: dict, quarantined: set[str]) -> None:
     """Print a human-readable report to console."""
     print("=" * 70)
@@ -355,6 +472,12 @@ def main() -> int:
         default=Path(".github/flake-allowlist.yml"),
         help="Governed flake allowlist; registered (unexpired) ids are reported as handled",
     )
+    parser.add_argument(
+        "--owner-summary",
+        action="store_true",
+        help="WP1.5: also write a RANKED table with an explicit Owner column to "
+        "GITHUB_STEP_SUMMARY (registered -> tracking ref, else 'no owner')",
+    )
 
     args = parser.parse_args()
 
@@ -384,6 +507,11 @@ def main() -> int:
 
     # Write GitHub summary if in CI
     write_github_summary(flaky_tests, quarantined)
+
+    # WP1.5: ranked list with an explicit Owner column (registered -> allowlist
+    # tracking ref, unregistered -> the literal "no owner").
+    if args.owner_summary:
+        write_owner_summary(flaky_tests, load_allowlist_refs(args.allowlist_file), len(aggregated))
 
     # Write JSON report if requested
     if args.output:
