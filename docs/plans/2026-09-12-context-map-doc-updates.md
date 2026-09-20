@@ -7632,3 +7632,20 @@ raising it would be moving a line. Repro of the cost: delete every
 scripts/test_check_ai_provider_parity.py -q` (passes, ~9s wall with the
 import in collection). Banked: an import added inside a test body under a
 global timeout is a timeout you own; warm-cache passes prove nothing.
+
+## WP1.1 ERRATUM CLOSED — both carriers proven; the residual red is the TPA flake, not the branch (2026-09-20)
+
+The in-body-import erratum (hoisted module-scope import, `sys.path` shim, previous
+section) is proven fixed on both carriers. Erratum-proof runs: #6572 run 35489687699
+`Collection Sanity => success` and the WHOLE RUN success (27 jobs, zero failed);
+#6573 run 35489843784 `Collection Sanity => success`, one red job: Test Performance
+Audit. That TPA red is NOT branch content: the offender is
+`backend.tests.unit.models.test_models_hypothesis.TestSchemaRoundtrips::test_camera_create_roundtrip`
+at 5.30s against the 4.0s unit limit -- a Hypothesis test on a shared runner, and the
+branch touches no model code. Census (60 CI runs since 2026-09-18,
+`$CLAUDE_JOB_DIR/tmp/tpa-census.log`, TPA job verdict per run): pull_request
+27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6 success / 2 failure
+/ 1 cancelled. ~1-in-3 PR runs reddens on identical-code noise; WP1.3 owns that.
+WP1.1 core claim stands as landed: four main-only jobs ran on both PR runs
+(Contract Tests / Dead Code / Build Docker x2) and this PR's own run durations
+(88/46/410/144s recorded in the WP1.1 section) are the added-wall-time measurement.
