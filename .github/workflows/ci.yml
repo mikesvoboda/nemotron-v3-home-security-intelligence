@@ -180,6 +180,9 @@ jobs:
       # (WP4.1: autospec sweep. WP4.2: unspecced-mock gate. WP4.3: mutation
       # scorer's verdict-table pin. WP9.1: AI parity checker — the suite
       # whose absent run let the registry_ops==38 pin rot on main.)
+      # WP2.5 (#6586): the gate-reachability guard's own suite joined the
+      # list — same doctrine, one tier later (it is why this step's argv can no
+      # longer shrink silently).
       - name: Run the anti-rot gates' own tests
         run: >-
           uv run python -m pytest
