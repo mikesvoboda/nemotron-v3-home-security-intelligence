@@ -8102,3 +8102,93 @@ forbidden for floors that actually gated.
 **§6 correction adopted for all remaining WPs:** no gate WP is described as
 done in this ledger without a pasteable `needs:`-reachability walk showing the
 blocking path.
+
+## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
+
+**MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/
+-n auto --dist=worksteal --timeout=0`) run THREE consecutive times at `main`
+HEAD `2ab66ff1`: run1 `27428 passed, 122 skipped, 8 xfailed in 63.02s`, run2
+same counts `65.50s`, run3 same counts `61.82s`. **Union of failures = {};
+intersection = {}.** Logs: `$CLAUDE_JOB_DIR/tmp/wp02/run{1,2,3}.log`.
+Repro one-liner:
+`for i in 1 2 3; do uv run pytest backend/tests/unit/ -n auto --dist=worksteal --timeout=0 -q -rf --tb=no; done`
+(`--splits/--group` partitions only; the full tier is the union of the four
+shards, so the unsplit command is the same failure-space.)
+
+**The plan's condition #2 did not reproduce at current main.** P cited run
+35482667110 (@e947e7ae) for "unit tier red on main, culprit rotates": all four
+`Backend Unit Tests (N/4)` shards concluded **success** on that run. What
+actually rotates across same-sha runs is the **Test Performance Audit** job
+(`test_alert.TestAlertToDict::test_to_dict_enum_roundtrip` 5.33s ->
+`test_materialized_views_retired::...` 4.05s -> green on b02b0f0a) — a
+wall-clock gate on a contended runner, exactly WP1.3's defect, one tier away
+from where P looked. R-6 applied: P's table stands as its own measurement at
+e947e7ae; at 2ab66ff1 the unit tier measures deterministically green locally.
+
+**Consequence for the day:** the WP0.2 flake set is empty, so for the rest of
+this run ANY unit-tier failure is mine, not inherited — the strictest reading
+of the done-when. The inherited-breakage risk P worried about is real but
+lives in TPA (WP1.3's fix list carries it, plus the earlier §3.10
+rerun-flag ruling). If TPA reddens a CI run today, consult its rotating-
+culprit history above before attributing it to my diff.
+
+## WP0.1 LANDED (2026-09-20): main green at `2ab66ff1` — and the anti-rot step had been running a TRUNCATED command since WP4.1
+
+**Root cause #1 (P's, confirmed + fixed by #6571):** main's deterministic
+`Contract Tests` red was the `/track` ratchet (runs 35482667110/35484007823);
+`2ab66ff1` (squash of #6571, merged 03:19:07Z) re-applied the deletion.
+**MEASURE: the `2ab66ff1` push run concluded `success` — `CI Gate` green on
+main.** WP0.1 done-when clause 1 met.
+
+**Root cause #2 (NOT in P — a whole invisibility class):** the
+`# WP4.1:` doctrine comments INSIDE the folded `>-` run block at ci.yml:171
+folded to ONE shell line, so bash saw a comment mid-command: `test_autospec_sweep.py`,
+`test_check_mock_spec.py`, `test_mutation_score.py`, `test_check_ai_provider_parity.py`
+and the `-q` have executed ZERO tests in CI since the day they joined.
+MEASURE: step-10 log `86 passed` (main run 35484007823, job 106006875922) ==
+exactly the 10 files BEFORE the first `#` (local: 86 those-10 / 158 all-14).
+The four suites joined under "a gate with no CI is a gate that rots" and
+rotted inside the anti-rot mechanism. Audit of all 4 workflows for folded run
+blocks containing `#`: exactly ONE (this one) — now fixed; the doctrine prose
+lives as real YAML comments above the step.
+
+**Root cause #3 (the pin):** `test_check_ai_provider_parity.py:746`
+`registry_ops == 38` went stale at #6570's legitimate 38->37 — and stayed
+silent BECAUSE of root cause #2. **Derived, not pinned:** the checker's own
+literal-AST parse must equal `len(backend.ai_contract.operations.OPERATIONS)`
+(the imported runtime dict). Two independent read paths of the generated
+source of truth; a legitimate contract change edits nothing here, an
+unintended change or a checker-goes-blind both fail LOUD naming both counts.
+Pure `len(OPERATIONS)` was rejected as asserting nothing about the checker —
+that rejection reason IS the justification clause of the done-when.
+
+**Red-first, demonstrated:** PR #6572's FIRST commit (wedge fix ONLY, head
+`572c92a6`) had to redden `Collection Sanity` — the parity suite executing for
+the first time meeting the 37-op contract. (collection-sanity is a direct
+`needs:` of ci-gate, so the red reaches the required context.) Pin-fix + WP0.2
+ledger commits followed on the same branch; green at final head proves the
+pair. `scripts/test_check_ai_provider_parity.py` 27 tests: red under old pin,
+green derived; full anti-rot list 158 passed locally.
+
+**Banked lesson:** a `#` is poison inside folded YAML scalars that feed `run:`.
+Any future doctrine comment belongs ABOVE the step. (Two-char fix class, four
+dead gate-suites, one stale pin nobody could see.)
+
+## WP0.1 erratum — the derived pin blew CI's 5s per-test timeout; import hoisted (2026-09-20)
+
+The derived pin (registry count cross-check) first imported
+backend.ai_contract.operations INSIDE the test body. Locally it passed — the
+torch-warm cache kept the import at ~0s; CI paid it cold (the package
+`__init__` pulls providers -> services -> torch, measured 3.1-3.8s via
+python -X importtime) and pyproject's global `timeout = 5` killed the test
+(both branch runs, jobs 106016823236/106015545430: "Timeout (>5.0s) from
+pytest-timeout, 1 failed, 157 passed"). The 157 siblings prove the test BODY
+fits under 5s on CI — the in-body cold import was the entire delta. Fix:
+hoist the import to module scope behind a sys.path shim (bare-`pytest`
+launch puts scripts/, not the root, on sys.path; collection is not
+timeout-bounded, cost paid once per file). The 5s floor is NOT touched —
+raising it would be moving a line. Repro of the cost: delete every
+`__pycache__` under backend, then, then `time .venv/bin/python -m pytest
+scripts/test_check_ai_provider_parity.py -q` (passes, ~9s wall with the
+import in collection). Banked: an import added inside a test body under a
+global timeout is a timeout you own; warm-cache passes prove nothing.
