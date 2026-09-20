@@ -8044,3 +8044,61 @@ census+rules — the adjudications live in the generator, not the YAML);
 --expect verified against the exact committed literal.
 
 **Next:** Phase 3 (WP3.1 — the nine zero-mutation modules, cap 4h).
+
+## AUDIT RESPONSE (2026-09-20, untracked AUDIT-FINDINGS.md) — negative results recorded; enforcement status corrected
+
+An owner-commissioned five-auditor audit of #6572..#6583 landed as untracked
+`AUDIT-FINDINGS.md` mid-session. Its material finding was verified from disk on
+this branch (`phase3/wp31-zero-mutation` @ `01078725`+tests) before anything
+below was written:
+
+**NEGATIVE RESULT — the coverage floors are computed, not enforced.** A
+transitive `needs:` closure walk over ci.yml (reproduced locally, 2026-09-20):
+`ci-gate` needs 26 jobs; closure = 34 of 40; UNREACHABLE: `flake-report`,
+`frontend-coverage-merge`, `frontend-e2e-secondary`,
+`integration-coverage-merge`, `test-count-verification`,
+`unit-tests-coverage-merge`. Branch protection (`gh api
+.../branches/main/protection`) requires exactly one context, `CI Gate (Required
+Checks)`. So every floor WP2.3 wired stops nothing at merge time. WP2.3's title
+("enforced only on COMPLETE data") overstated: enforced-on-complete-data was
+inside the verdict logic of an UNREACHABLE job. Corrected status: **floors
+computed, verdicts published, NOT blocking — enforcement is open work.**
+
+Also verified true on this branch:
+
+- `ci.yml` unit floor literal is `total < 70` while this stack's own CI
+  publishes 84.12 blended (WP2.1 seed-pinned) — a stale pre-WP2.1 number per
+  R-1 needs the measured value; changing it is owner-adjacent (R-1 floor
+  values), filed BLOCKED B-2 rather than silently rewritten mid-WP3.1.
+- `trivy.yml` job guards remain `push || workflow_dispatch` (lines 139/217/306)
+  — never executed on `pull_request`; R-7 baselining not done.
+- `COVERAGE_DIFF_EPSILON_PP = 2.0` is calibrated on pre-seed-pin ±1.6pp noise;
+  post-fix re-derivation is open work.
+
+Corrected FOR THE RECORD (§7.3 of the audit does not extend to this branch):
+`phase3/wp31-zero-mutation` descends from the #6572/#6573 content — the folded
+anti-rot step on this branch resolves to a SINGLE-LINE `run:` block containing
+all 14 gate suites with `-q` intact (dumped from `yaml.safe_load` post-collapse
+— the four formerly swallowed suites are now argv). The swallow defect is
+fixed here; its CLASS-invariant test is open work.
+
+**Audit §4 landing strategy (recorded before any merge, as required):** main is
+squash-merged history (last 8 commits single-parent), so each squash detaches
+every PR above it. Intended order: (1) owner closes #6572 as superseded (§3:
+strict subset of #6573); (2) merge bottom-up #6573 → #6575 → #6578 → #6579 →
+#6580 → #6581 → #6582 → #6583 → #6584 → #6585; (3) after EACH squash-merge,
+rebase the next branch onto the new main tip before merging it (memory
+[[push-autorebase-squash-merge-trap]]: stacked pushes conflict in the pre-push
+auto-rebase otherwise); (4) cost: `strict_up_to_date` re-runs the full stack CI
+on every open PR after each merge — ~10 sequential full runs against ~20 runner
+slots; a collapse (merge #6573..#6584 as one squashed PR) is the cheaper
+alternative if the owner does not want per-WP history. NOT DECIDED HERE — merge
+authority is not granted (BLOCKED B-1 precedent stands).
+
+**Audit §5 ruling recorded:** writing down a never-enforced declared floor to
+its measured value is MINTING a floor, not lowering one; lowering stays
+forbidden for floors that actually gated.
+
+**§6 correction adopted for all remaining WPs:** no gate WP is described as
+done in this ledger without a pasteable `needs:`-reachability walk showing the
+blocking path.
