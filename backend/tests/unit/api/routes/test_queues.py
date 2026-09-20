@@ -174,6 +174,30 @@ class TestGetQueueService:
         # Verify the service has the expected interface
         assert hasattr(service, "get_queues_status_response")
 
+    @pytest.mark.asyncio
+    async def test_get_queue_service_wires_the_redis_it_was_given(self) -> None:
+        """WP3.1 kill for backend.api.routes.queues.
+        x_get_queue_service__mutmut_1 (`get_queue_status_service(redis)` ->
+        `get_queue_status_service(None)`): the dependency must hand the
+        service the client it received. The factory memoizes a singleton, so
+        the test resets first — without the reset this would pass on whatever
+        client was wired last, which is exactly the blind spot the mutant
+        survived in (the old `service is not None` check cannot see WHICH
+        client a service holds)."""
+        from backend.services.queue_status_service import reset_queue_status_service
+
+        mock_redis = AsyncMock()
+        mock_redis.get_queue_length.return_value = 7
+        reset_queue_status_service()
+        try:
+            service = await get_queue_service(redis=mock_redis)
+            # The mutant wires None: attribute access on it is an
+            # AttributeError, i.e. this line IS the kill.
+            assert service._redis is mock_redis
+            assert await service._redis.get_queue_length("detection_queue") == 7
+        finally:
+            reset_queue_status_service()
+
 
 # =============================================================================
 # Queue Status Endpoint Tests - Empty Queues

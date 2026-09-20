@@ -400,14 +400,75 @@ def _decorator_locations(tree_files: list[Path], root: Path, marker: str) -> lis
     return out
 
 
+# WP2.4b: the guard provenance. An imperative skip guards SOMETHING — the
+# enclosing if-test or except-handler — and what it guards decides whether
+# the skip is an environment exemption or a repo finding wearing one. P
+# measured 42 of 93 `kind: environment` imperative skips guarding git-tracked
+# repo files (workflows dirs, nginx confs, dashboard json) — not host
+# capabilities. The census mints the raw guard text + a mechanical host_probe
+# so registry-gen can classify from evidence and ratchet-check can ENFORCE
+# (kind=environment requires a host-shaped guard, forever, not a default).
+# What counts as a HOST probe, deliberately narrow (WP2.4): package/module
+# importability, GPU capability, a RUNNING service or external endpoint,
+# process env vars, and OS/filesystem *feature* failures (OSError on symlink,
+# permission). Guarding a git-tracked repo FILE's presence is NOT host-shaped
+# — the repo is not the host; a missing tracked file is a repo finding (P:
+# 42 of 93 imperative "environment" skips were exactly this).
+_HOST_GUARD_RE = re.compile(
+    r"shutil\.which|importlib|ImportError|ModuleNotFoundError|OSError|"
+    r"PermissionError|cuda|nvidia|nvidia_smi|GPU|_AVAILABLE\b|is_available\(|"
+    r"health_check|is_healthy|healthy|os\.environ|getenv|status_code|"
+    r"check_.*_available|_health|mock_mode|status != |ping|reachable|"
+    r"symlink|filesystem|Windows|root|uid\b|geteuid",
+    re.I,
+)
+
+
+def _guard_map(tree: ast.Module, src: str) -> dict[int, str]:
+    """skip-lineno -> nearest enclosing guard text (if-test / except-<Type>).
+
+    Deepest wins: an `if` nested inside `except ImportError:` reports the if
+    (the skip's own condition), because that condition is what adjudicators
+    must read. Bare skips (no enclosing guard) get no entry — guard "".
+    """
+    by_line: dict[int, str] = {}
+
+    def fill(stmts: list[ast.stmt], guard: str) -> None:
+        # body statements only: an `else:` branch is guarded by the NEGATED
+        # test (a different claim) and never belongs to this guard.
+        for stmt in stmts:
+            for sub in ast.walk(stmt):
+                lno = getattr(sub, "lineno", None)
+                if (
+                    lno is not None
+                    and isinstance(sub, ast.Call)
+                    and _call_name(sub.func) in ("pytest.skip", "_pytest.skipping.skip")
+                ):
+                    by_line[lno] = guard  # deeper visits overwrite shallower ones
+
+    # outer-first so deeper guards overwrite: sort enclosing guard nodes by
+    # ascending lineno (an enclosing node always starts before its children).
+    guards = [n for n in ast.walk(tree) if isinstance(n, ast.If | ast.Try)]
+    for node in sorted(guards, key=lambda n: n.lineno):
+        if isinstance(node, ast.If):
+            fill(node.body, ast.get_source_segment(src, node.test) or "")
+        else:  # Try: except-handler bodies are capability guards
+            for handler in node.handlers:
+                tname = ast.get_source_segment(src, handler.type) if handler.type else ""
+                fill(handler.body, f"except {tname or 'Exception'}:")
+    return by_line
+
+
 def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]:
     out = []
     for path in tree_files:
         try:
-            tree = ast.parse(path.read_text())
-        except SyntaxError, OSError:
+            src = path.read_text()
+            tree = ast.parse(src)
+        except SyntaxError, OSError, UnicodeDecodeError:
             continue
         consts = _module_str_constants(tree)
+        guards = _guard_map(tree, src)
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and _call_name(node.func) in (
                 "pytest.skip",
@@ -420,7 +481,15 @@ def _skip_imperative_locations(tree_files: list[Path], root: Path) -> list[dict]
                         reason = str(arg.value)
                     elif isinstance(arg, ast.Name):
                         reason = consts.get(arg.id, "")
-                out.append({"id": f"{_rel(root, path)}:{node.lineno}", "reason": reason})
+                guard = guards.get(node.lineno, "")
+                out.append(
+                    {
+                        "id": f"{_rel(root, path)}:{node.lineno}",
+                        "reason": reason,
+                        "guard": guard,
+                        "host_probe": bool(_HOST_GUARD_RE.search(guard)),
+                    }
+                )
     return out
 
 
@@ -515,6 +584,306 @@ def locations(root: Path) -> dict[str, list[dict]]:
     }
 
 
+# ---------------------------------------------------------------------------
+# WP2.4: the CASES pass — what each id actually suppresses.
+#
+# Id counts flatter, measurably: P's census resolved 255 test-level ids to
+# 1,136 real test cases (4.45x); 30 of the 56 pytest_skipif ids sit on
+# CLASSES (one id hides every test inside); frontend_quarantine's 16 ids
+# hold ~662 vitest cases. At id level `environment` looked like 66.9% of
+# backend skips; at test level 39.2% — the laundering channel P's WP2.4
+# closes was invisible precisely BECAUSE the report counted ids.
+#
+# Rules (fixtures in test_suppression_census.py pin each):
+#   decorator id `file::name`      -> the function, times its parametrize
+#                                     product (stacked parametrize = product);
+#                                     stacked skip decorators on ONE function
+#                                     are ONE case (distinct cases, not sums).
+#   decorator id on a CLASS        -> 1 (the class-level mark itself) + every
+#                                     test_* inside, parametrized.
+#   imperative id `file:lineno`    -> the enclosing function, parametrized.
+#   frontend it/test .skip         -> 1;  describe.skip -> nested live
+#                                     it/test sites (min 1 — an empty skipped
+#                                     suite still suppresses its own case).
+#   quarantine file id             -> the file's live it/test sites (.skip/.todo
+#                                     don't run; describe itself doesn't count).
+#   config channels                -> cases=null: an id IS the whole
+#                                     suppression; null beats a fake 1:1 that
+#                                     re-mints the old bias into the report.
+# Unparseable/unresolvable sites fall back to 1 case per id (undercount
+# honestly, never fabricate expansion the AST can't see).
+# ---------------------------------------------------------------------------
+
+# an it/test CALL site: bare `it(` / after a modifier chain like `it.each(`.
+# `it.skip(` deliberately does NOT match (skip isn't in the chain vocab).
+_FE_TEST_SITE_RE = re.compile(
+    r"\b(?:it|test)(?:\.(?:each|failing|concurrent|sequential|runtime))*\s*\("
+)
+# receiver .skip/.only/.todo -> was it a SUITE (describe/suite) or a case?
+_FE_RECEIVER_RE = re.compile(
+    r"\b(describe|suite|context)?[.]?(skip|only|todo)\b\s*\(?\s*"
+    r"(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")?"
+)
+
+
+def _module_literal_consts(tree: ast.Module) -> dict[str, object]:
+    consts: dict[str, object] = {}
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        ):
+            try:
+                consts[node.targets[0].id] = ast.literal_eval(node.value)
+            except ValueError, SyntaxError, TypeError:
+                continue
+    return consts
+
+
+def _param_product(fn: ast.FunctionDef | ast.AsyncFunctionDef, consts: dict) -> int:
+    """Parametrize expansion of a test function: stacked marks MULTIPLY."""
+    product = 1
+    for dec in fn.decorator_list:
+        if not isinstance(dec, ast.Call):
+            continue
+        name = _decorator_name(dec.func)
+        if name not in {"pytest.mark.parametrize", "mark.parametrize"}:
+            continue
+        argvals = (
+            dec.args[1]
+            if len(dec.args) > 1
+            else next((k.value for k in dec.keywords if k.arg == "argvalues"), None)
+        )
+        n = 0
+        if isinstance(argvals, ast.List | ast.Tuple | ast.Set):
+            n = len(argvals.elts)
+        elif isinstance(argvals, ast.Constant) and isinstance(argvals.value, str):
+            n = 1
+        elif isinstance(argvals, ast.Name):
+            v = consts.get(argvals.id)
+            n = len(v) if isinstance(v, list | tuple | set | dict) else 1
+        elif isinstance(argvals, ast.Call) and isinstance(argvals.func, ast.Name):
+            # list(...)/range(...) — length only when mechanically visible.
+            if argvals.func.id == "range":
+                try:
+                    n = len(range(*[ast.literal_eval(a) for a in argvals.args]))
+                except ValueError, SyntaxError, TypeError:
+                    n = 1
+            else:
+                n = 1
+        else:
+            n = 1  # comprehension/factory: expansion not statically visible
+        product *= max(n, 1)
+    return product
+
+
+def _case_index(path: Path) -> dict:
+    """Per-file lookup the case pass resolves ids against:
+    qualname -> ('fn', product) | ('class', [(inner_qn, product), …])
+    and lineno -> enclosing qualname. One visitor, no rescans (this runs
+    against the real tree's ~2k test files)."""
+    try:
+        tree = ast.parse(path.read_text())
+    except SyntaxError, OSError, UnicodeDecodeError:
+        return {}
+    consts = _module_literal_consts(tree)
+    by_name: dict[str, tuple[str, object]] = {}
+    enclosing: dict[int, str] = {}
+
+    def visit(node: ast.AST, prefix: str, class_stack: list[str]) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.ClassDef):
+                qn = prefix + child.name
+                by_name[qn] = ("class", [])
+                visit(child, qn + "::", [*class_stack, qn])
+            elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
+                qn = prefix + child.name
+                product = _param_product(child, consts)
+                by_name[qn] = ("fn", product)
+                if child.name.startswith("test"):
+                    for owner in class_stack:
+                        # every enclosing class claims this test (nested
+                        # classes: the outer id hides it too)
+                        by_name[owner][1].append((qn, product))  # type: ignore[index]
+                for sub in ast.walk(child):
+                    # ast.walk yields non-terminal nodes (arguments, …) with
+                    # no lineno under 3.14 — positions are what we index.
+                    lno = getattr(sub, "lineno", None)
+                    if lno is not None:
+                        enclosing.setdefault(lno, qn)
+                visit(child, qn + "::", class_stack)
+            else:
+                visit(child, prefix, class_stack)
+
+    visit(tree, "", [])
+    return {"by_name": by_name, "enclosing": enclosing}
+
+
+def _backend_decorator_cases(entries: list[dict], root: Path) -> int:
+    """DISTINCT parametrized cases behind a decorator category. Keys are
+    (file, test-slot): a class id and a fn id pointing INSIDE it claim the
+    same slots (union, never sum); stacked decorators on one fn are one id
+    and the same slots anyway."""
+    files: dict[str, dict] = {}
+    slots: set[tuple[str, str, int]] = set()
+    for e in entries:
+        rel, _, qual = e["id"].partition("::")
+        qual = qual.split("#", 1)[0]  # stacked-decorator suffix
+        f = files.setdefault(rel, _case_index(root / rel))
+        kind, payload = f.get("by_name", {}).get(qual, ("fn", 1))
+        if kind == "class":
+            # P's measured shape: a class id's cases ARE the test functions
+            # inside it (56 ids -> 193 functions) — the class itself is not
+            # collected as a case, and an empty skipped class hides zero.
+            for inner_qn, product in payload:
+                for i in range(max(product, 1)):
+                    slots.add((rel, inner_qn, i))
+        else:
+            for i in range(max(int(payload), 1)):
+                slots.add((rel, qual, i))
+    return len(slots)
+
+
+def _imperative_cases(entries: list[dict], root: Path) -> int:
+    files: dict[str, dict] = {}
+    slots: set[tuple[str, str, int]] = set()
+    for e in entries:
+        rel, _, lno = e["id"].rpartition(":")
+        f = files.setdefault(rel, _case_index(root / rel))
+        qn = f.get("enclosing", {}).get(int(lno))
+        if qn is None:
+            slots.add((rel, f"site:{e['id']}", 0))  # module-level/fixture site
+            continue
+        _, product = f["by_name"].get(qn, ("fn", 1))
+        for i in range(max(int(product), 1)):
+            slots.add((rel, qn, i))
+    return len(slots)
+
+
+_FE_SITE_RE = re.compile(
+    r"\b(?P<suite>describe|suite|context)?(?P<case>it|test)?"
+    r"(?:\.(?:skip|only|todo|each|failing|concurrent|sequential|runtime))*\s*\("
+)
+
+
+def _fe_site_index(text: str) -> list[dict]:
+    """Every vitest modifier call site, in source order, with the census's
+    OWN identity (title, or line:col when unquoted) — so location entries
+    match positionally and each site knows whether it's a SUITE or a CASE."""
+    out = []
+    for m in _FE_SITE_RE.finditer(text):
+        kind = None
+        for km in re.finditer(r"\.(skip|only|todo)\b", m.group(0)):
+            kind = km.group(1)
+            break
+        if kind is None:
+            continue
+        tm = re.match(r"\s*(?:`([^`]*)`|'([^']*)'|\"([^\"]*)\")?", text[m.end() :])
+        title = next((t for t in (tm.groups() if tm else ()) if t is not None), None)
+        line = text.count("\n", 0, m.start()) + 1
+        col = m.start() - (text.rfind("\n", 0, m.start()) + 1) + 1
+        out.append(
+            {
+                "kind": kind,
+                "suite": bool(m.group("suite")),
+                # same identity rule as _frontend_modifier_locations: title,
+                # else line:col — the entries match sites BY THIS KEY.
+                "key": title if title is not None else f"{line}:{col}",
+                "body_start": m.end(),
+            }
+        )
+    return out
+
+
+def _fe_nested_live(text: str, body_start: int) -> int:
+    """Live it/test sites inside the block that starts at body_start.
+    _FE_TEST_SITE_RE never matches `.skip(`/`.todo(` (the modifier chain
+    only knows each/failing/…), so skipped-inside-skipped sites are already
+    excluded; describe is not a test site either. An empty (or brace-less)
+    skipped suite still suppressed exactly one runnable: min 1."""
+    brace = text.find("{", body_start)
+    if brace < 0:
+        return 1
+    depth, i = 0, brace
+    while i < len(text):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    return max(1, len(_FE_TEST_SITE_RE.findall(text[brace : i + 1])))
+
+
+def _frontend_modifier_cases(entries: list[dict], root: Path, kind: str) -> int:
+    total = 0
+    index_cache: dict[str, list[dict]] = {}
+    for e in entries:
+        rel, _, key = e["id"].partition("::")
+        try:
+            text = (root / rel).read_text()
+        except OSError:
+            total += 1
+            continue
+        sites = index_cache.setdefault(rel, _fe_site_index(text))
+        match = next((s for s in sites if s["kind"] == kind and s["key"] == key), None)
+        if match is None:
+            total += 1  # resolvable-but-unmatched: 1 honest case, never 0
+            continue
+        total += _fe_nested_live(text, match["body_start"]) if match["suite"] else 1
+    return total
+
+
+def _quarantine_cases(entries: list[dict], root: Path) -> int:
+    total = 0
+    for e in entries:
+        try:
+            text = (root / "frontend" / e["id"].lstrip("./")).read_text()
+        except OSError:
+            # a quarantined file that no longer EXISTS would be a STALE
+            # registry entry; the census never fabricates cases for it.
+            continue
+        total += len(_FE_TEST_SITE_RE.findall(text))
+    return total
+
+
+TEST_LEVEL_CATEGORIES = (
+    "pytest_skip",
+    "pytest_skipif",
+    "pytest_xfail",
+    "pytest_skip_imperative",
+    "frontend_skip",
+    "frontend_only",
+    "frontend_todo",
+    "frontend_quarantine",
+)
+
+
+def cases_report(root: Path) -> dict[str, dict]:
+    """WP2.4: {category: {ids, cases}} — test-case counts alongside id counts."""
+    loc = locations(root)
+    out: dict[str, dict] = {}
+    for cat, entries in loc.items():
+        ids = len(entries)
+        if cat not in TEST_LEVEL_CATEGORIES:
+            out[cat] = {"ids": ids, "cases": None}
+        elif cat in ("pytest_skip", "pytest_skipif", "pytest_xfail"):
+            out[cat] = {"ids": ids, "cases": _backend_decorator_cases(entries, root)}
+        elif cat == "pytest_skip_imperative":
+            out[cat] = {"ids": ids, "cases": _imperative_cases(entries, root)}
+        elif cat == "frontend_quarantine":
+            out[cat] = {"ids": ids, "cases": _quarantine_cases(entries, root)}
+        else:  # frontend_skip / only / todo
+            kind = cat.removeprefix("frontend_")
+            out[cat] = {
+                "ids": ids,
+                "cases": _frontend_modifier_cases(entries, root, kind),
+            }
+    return out
+
+
 def census(root: Path) -> dict[str, int]:
     backend_tests = sorted((root / "backend/tests").rglob("*.py"))
     skip, only, todo = count_frontend_modifiers(root)
@@ -550,10 +919,19 @@ def main() -> int:
         action="store_true",
         help="Emit the full inventory (category -> [{id, reason}]) instead of counts (WP1.2 registry key)",
     )
+    parser.add_argument(
+        "--cases",
+        action="store_true",
+        help="Emit {category: {ids, cases}} — test-case counts alongside id counts (WP2.4)",
+    )
     args = parser.parse_args()
 
     if args.locations:
         print(json.dumps(locations(Path(args.root)), indent=2, sort_keys=True))
+        return 0
+
+    if args.cases:
+        print(json.dumps(cases_report(Path(args.root)), indent=2, sort_keys=True))
         return 0
 
     result = census(Path(args.root))

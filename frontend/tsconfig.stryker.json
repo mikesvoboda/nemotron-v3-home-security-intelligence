@@ -1,0 +1,19 @@
+{
+  // WP3.3: the stryker TypeScript checker's program, isolated from project
+  // references. WHY this file exists (measured, 2026-09-20): `stryker run`
+  // died in TypescriptChecker.init BEFORE mutating anything — the checker
+  // followed tsconfig.json's `references` into tsconfig.node.json, whose
+  // program is vite.config.ts, and vite 7's ServerOptions no longer admits
+  // `https: true` (boolean support removed in v5): "Type 'boolean' has no
+  // properties in common with type 'ServerOptions...'". That config-file
+  // error is INVISIBLE to npm run build / npm run typecheck, which compile
+  // the src-only program (tsc without -b does not build references), and it
+  // is NOT what mutation testing measures — the mutate set is three pure
+  // utils under src/. So the harness's checker program is pinned to exactly
+  // the program the repo's own gates enforce (src + tests), and the
+  // vite.config.ts latent type error is recorded as its own finding
+  // (PR #6587 body + ledger), not laundered by being absent from the
+  // mutation run.
+  "extends": "./tsconfig.json",
+  "references": []
+}
