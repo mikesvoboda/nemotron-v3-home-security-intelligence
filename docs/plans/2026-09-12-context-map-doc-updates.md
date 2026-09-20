@@ -7849,6 +7849,466 @@ re-verified after the edits: test_github_workflows 40p/2s, job-graph 41 jobs/
 gate 34, WP1.4/1.5 gates green, actionlint clean. Cap 2h: ~used, mechanism
 hunt was the cost of the three-way cross-check.
 
+## WP2.2 SUBMITTED (#6582 draft, stacked on #6581) — the published number says what it IS: line/branch/blended, every main run (2026-09-20)
+
+DEFECT (P's, verified): with `branch = true` (pyproject) `coverage report
+--format=total` returns the BLENDED statements+branches figure.
+coverage-baseline.json carried ONLY that number — neither line nor branch
+coverage was published anywhere, and the blended number is neither. Measured
+against this repo's merged data (coverage 7.16.1): 84.12 blended / 86.02 line
+/ 76.27 branch — 84.12 is not line coverage and the reader can't tell.
+Root CLAUDE.md meanwhile claimed "Backend Unit | 85%": the floor as strength,
+overstating against the CI lineage by ~15pp.
+
+FIX:
+
+- ci.yml `unit-tests-coverage-merge`: after combine, emit `coverage json
+--fail-under=0` (json is the only report with the split; extraction-not-
+  floor, same WP0.9 doctrine) and write
+  {percent_covered, percent_line, percent_branch, source} to
+  coverage-baseline.json — percent_covered stays FIRST and flat-quoted, the
+  key check-test-coverage-gate.py parses (E2E probe: gate `_read_percent`
+  against the new-shape file -> 84.1165, siblings ignored by the reader as
+  intended). Step summary gets "line X% / branch Y% (blended Z%)".
+- ci.yml `integration-coverage-merge`: summary line becomes
+  "line / branch / blended" (still reporting-only; R-COVDENOM stands).
+- CLAUDE.md Testing table: Backend Unit cell is "floor 85%¹ · actual 84.12²"
+  with footnote ² carrying the full measured triple + the WP2.1 undercount
+  note. Floor and strength finally separate.
+- testing.md: new paragraph in the WP2.1 section stating what main runs
+  publish and the writer/reader contract (siblings added, key never moved).
+
+RED-FIRST: 4 tests added to scripts/test_coverage_denominator.py; 3 failed
+before the fix (no json emission, blended-only integration summary, CLAUDE.md
+85%-as-strength), 4th (writer/reader flat-key contract) passes before AND
+after — it pins the invariant that must survive the shape change, per WP0.6
+reader/writer drift class. 7/7 green after; test_check_coverage_diff 11/11;
+actionlint clean; prettier clean (CLAUDE.md reflow was its own table pad).
+
+Caveat: display fields (percent\_\*\_covered_display) carry the same rounding
+the ledger's lineage uses (2dp strings); the flat percent_covered stays the
+full float — baseline diffs compare like-for-like.
+
+## WP2.3 SUBMITTED (#6583 draft, stacked on #6582) — floors at measured values, enforced only on COMPLETE data; the nightly can no longer cry "coverage" for non-coverage reasons (2026-09-20)
+
+**The three defects P names for this WP, each fixed red-first:**
+
+1. **Epsilon.** `check-test-coverage-gate.py` fail-under-any-drop flagged
+   noise: baseline lineage 68.70→70.33→70.32 swings ~1.6pp between green
+   main runs, so an honest +improvement branch could be reddened by run-to-
+   run shard noise (and vice versa — a real −0.4pp loss and noise were
+   indistinguishable). Now `COVERAGE_DIFF_EPSILON_PP = 2.0` (measured band,
+   drift-pinned by test); in-band drops PASS with the band named in the
+   message; out-of-band fails name both numbers and the band. Red-first:
+   stashed the gate change → 2 red, rewired → 14/14 green.
+2. **The misattributed nightly red.** The combined-coverage step ran
+   `if: always()`, so ANY tier failure (or a cancel that never landed the
+   data file) flowed into a COVERAGE verdict — P's P-side measurement: 3 of
+   the last 4 nightly reds. Reproduced pre-fix against the real step body:
+   combine rc=1 "Couldn't combine from non-existent path
+   .coverage.integration", and with a stale combined file `report
+--fail-under=80` printed "Coverage failure: total of 25.04 …" — a
+   test-failure red wearing a coverage costume. Fix: tier steps carry ids;
+   the gate runs only when both tiers SUCCEEDED (full-execution data — the
+   only measurement the 80 floor was calibrated on); a MISSING-file loop
+   skips naming the absent tier; a real sub-80 now SURFACES its verdict
+   line to the step log (`2>&1` + `tail -3 >&2`) — the honest-but-silent
+   class it used to be invisible outside the redirected file. Both
+   directions E2E: `scripts/test_coverage_floors.py` reads the COMMITTED
+   YAML step body and EXECUTES it (path-port only) — missing file → rc 0 +
+   skip naming the tier + no coverage-failure text; both files → combine +
+   report + non-zero naming 80. Hermetic (~3s scratch pytest project — the
+   anti-rot job has no Postgres/Redis by design).
+3. **Floors at measured values, wired INTO the merge steps (R-1 + R-7),
+   behind completeness guards.** Before this WP the backend merges
+   extracted the number and enforced NOTHING anywhere; the only absolute
+   floor that executed at all was nightly's 80 combined. Now: unit merge
+   enforces **70** (measured published baseline 70.32 at the 2ab66ff1 baseline lineage;
+   rises with WP2.1's seed fix landing); integration merge enforces **37**
+   (measured merged percent 37.01, run 35486259345 job 106014163787);
+   frontend merge script exports `FLOORS` 80/74.6/78.4/80.9 (measured run
+   35486259345 job 106015509231) and CI passes `--enforce` ONLY when
+   `needs.frontend-tests.result == 'success'`. `vite.config.ts` thresholds
+   83/77/81/84 → the measured 80/74.6/78.4/80.9 — the declared numbers sat
+   above EVERY observed run; a floor that never held is not a floor. Node
+   drift guard pins vite ↔ FLOORS. Same guard on both backend merges:
+   non-success anywhere in the tier's matrix → `::warning::` not enforced
+   on partial data, exit 0 — partial data is not a coverage verdict.
+   Unit floor check exits BEFORE "Publish coverage baseline" so a sub-floor
+   run can never promote itself into main's diff base. Nightly 80 combined
+   unchanged (R-1: it already holds).
+
+**Anti-rot swallow found while wiring the new coverage-gate suites step**
+(the `collection-sanity` job's folded `>-` list turns its `#` comment lines
+into pytest argv; at a word boundary the shell comment drops every later
+file — test_autospec_sweep / test_check_mock_spec / test_mutation_score /
+test_check_ai_provider_parity NEVER ran). NOT fixed on this branch: PR
+#6572 (bottom of the stack) owns that fix and editing the folded block
+here guarantees a merge collision. The new step dodges by construction —
+block scalar `|`, so its comments are comments. When #6572 lands the
+folded list becomes real; this step stays valid either way.
+
+**Verification:** floors suite 7/7 (2.3s hermetic); diff suite 14/14;
+denominator suite 7/7; all three under the repo's REAL CI addopts 28/28;
+`node --test` 9/9 (incl. 3 new enforce/drift tests, red-first before
+implementation); actionlint clean on ci.yml + nightly-full-gate.yml;
+job-graph 41 jobs / 34 gate-needs unchanged; shard-retry wiring invariants
+hold. Ruff + format clean (S108 handled per repo precedent via one
+port-target constant, `check=False` explicit where the return code IS the
+assertion).
+
+**Next:** WP2.4 (cap 2h) — "make the ratchet actually ratchet."
+
+## WP2.4 SUBMITTED (#6584 draft, stacked on #6583) — the ratchet's three leaks closed: ids-vs-cases measured, environment stopped being a default, and 89 no-op suppressions retired (baseline 322->233) (2026-09-20)
+
+**Scope (P WP2.4, cap 2h):** "A ratchet that has never ratcheted is a ledger
+wearing a gate's clothes." Done-when: the census reports test-case counts
+alongside id counts; `environment` is either tracked or justified per-entry;
+the baseline has moved DOWN at least once with evidence. All three, in three
+commits' worth of machinery on one branch.
+
+**Leak 2 first (measurement before adjudication) — `--cases`.** The census
+now resolves ids to real test cases (`scripts/suppression-census.py
+--cases`): decorator ids x parametrize product (stacked parametrize
+MULTIPLY), class-level ids claim the test functions inside (the class itself
+is not collected — the rule that reproduces P's 193 exactly), imperative
+ids x the enclosing fn's parametrization, frontend describe.skip blocks x
+nested live `it(` sites, quarantine files x live sites; config-channel
+categories carry `cases: null` honestly. Real tree: **255 test-level ids ->
+1,112 cases (4.36x; P measured 1,136 / 4.45x — same bias, tiny drift)**,
+`pytest_skipif` 56 ids -> **193 cases (P's number exactly)**,
+`frontend_quarantine` 16 -> 658 (P ~662). One legitimate coalescing: 7
+stacked skip+skipif double-mark pairs in test_system_models.py dedupe to
+one case each, so pytest_skip measures 32 ids -> 31 cases — the real-tree
+test pins per-category invariants instead of a naive cases>=ids everywhere.
+Red-first: 3 red on the missing flag before implementing.
+
+**Leak 1 — environment laundering (the big one).** registry-gen's
+`classify()` defaulted EVERY imperative skip to `kind: environment` — the
+kind exempt from BOTH tracking and expiry — so 91 sites were permanently
+invisible to the ratchet. P measured 42/93 guarding git-tracked repo files.
+Fix is three interlocking pieces, each machine-checked:
+
+1. the census stamps every imperative site with the **guard** (deepest
+   enclosing if-test / except-type at the site) and **host_probe** — does
+   the guard name host machinery (`shutil.which`, importlib, environ,
+   service health, nvidia-smi, uid/root...). A git-tracked repo FILE's
+   presence is deliberately NOT host-shaped. Real tree: probe True 23/93.
+2. `scripts/suppression-registry-gen.py` now classifies imperative from the
+   probe: probe False -> `todo` (family tracking + 2026-12-31 expiry). The
+   sites the probe can't see through but a site-read proves environmental
+   live in a committed `HOST_JUSTIFIED` dict — 23 written adjudications
+   (scenarios.parquet generated-data chain x14, service-availability
+   except-guards x4, nvidia-smi output math x4, TEST_DATABASE_URL-via-alias
+   x1) rendered into the registry as `host_justification:`.
+3. `scripts/ratchet-check.py` enforces `environment => probe OR
+host_justification` (LAUNDER), and host_justification on any NON-
+   environment entry is decoration -> fails. Both channels pinned red-first
+   (4 tests; the fixture tree carries one which()-guarded site and one
+   repo-path-guarded site so the rule is seen discriminating).
+
+Registry effect: **environment 121 -> 76, todo 391 -> 436** — 47 imperative
+sites got tracking + expiry for the first time. Honest delta vs P's 42: my
+mechanical vocab is stricter AND 23 borderline sites bought the exemption
+with written reasons, so the re-classified set is 47, recorded both ways.
+Counts unchanged (only kinds moved): ci.yml `--expect` literal untouched,
+verified against the committed string.
+
+**Leak 3 — R-5 retirement, the baseline finally moves DOWN.** New
+`scripts/arity_resolver.py`: can a patch target be PROVEN a 0-arity
+callable? Static, conservative, reads only this tree: longest module-prefix
+match, import-following for patch-at-use-site, class targets NEVER retired
+(autospec on a class specs its attribute surface), decorated defs NOT
+retired (the wrapper may change the signature), anything unresolved is
+KEPT. `check-mock-spec.sites_for_root` drops proven-zero sites from the
+count; ordinals still mint over EVERY site so surviving registry ids never
+renumber when a neighbour retires. Result: **322 -> 233, 89 sites retired
+across 10 distinct targets** — main.init_redis 15, main.close_redis 14,
+detector.get_detector_registry 14, main.init_db 11, main.close_db 11,
+core.redis.init_redis 10, close_redis 7, main.get_container 4,
+core.redis.get_redis 2, metrics.record_slow_query 1. Honest delta vs P's
+98: P's probe retired ~45 `get_settings` sites; `get_settings` is
+`@cache`-decorated (backend/core/config.py:3172) and a wrapper can change a
+signature, so the resolver KEEPS those — 89 is the number the proof earns.
+Baseline lowered via `ratchet-check --update` (the mechanism's own honest
+path: "baseline lowered: {'unspecced_patch': (322, 233)}"), ci.yml
+expect 322 -> 233, registry regenerated (89 ids dropped, survivors stable).
+Red-first: 2 red before the resolver existed; 5 tests total pin the
+retention side too (required params, varargs, class targets, unresolved
+targets, import-following all KEPT).
+
+**Gates:** ratchet-check green on the real tree (incl. WP1.4 expiry, real
+clock); registry-gen --check green (registry is machine-minted from
+census+rules — the adjudications live in the generator, not the YAML);
+44 tests across the three script suites green + ruff clean; census
+--expect verified against the exact committed literal.
+
+**Next:** Phase 3 (WP3.1 — the nine zero-mutation modules, cap 4h).
+
+## AUDIT RESPONSE (2026-09-20, untracked AUDIT-FINDINGS.md) — negative results recorded; enforcement status corrected
+
+An owner-commissioned five-auditor audit of #6572..#6583 landed as untracked
+`AUDIT-FINDINGS.md` mid-session. Its material finding was verified from disk on
+this branch (`phase3/wp31-zero-mutation` @ `01078725`+tests) before anything
+below was written:
+
+**NEGATIVE RESULT — the coverage floors are computed, not enforced.** A
+transitive `needs:` closure walk over ci.yml (reproduced locally, 2026-09-20):
+`ci-gate` needs 26 jobs; closure = 34 of 40; UNREACHABLE: `flake-report`,
+`frontend-coverage-merge`, `frontend-e2e-secondary`,
+`integration-coverage-merge`, `test-count-verification`,
+`unit-tests-coverage-merge`. Branch protection (`gh api
+.../branches/main/protection`) requires exactly one context, `CI Gate (Required
+Checks)`. So every floor WP2.3 wired stops nothing at merge time. WP2.3's title
+("enforced only on COMPLETE data") overstated: enforced-on-complete-data was
+inside the verdict logic of an UNREACHABLE job. Corrected status: **floors
+computed, verdicts published, NOT blocking — enforcement is open work.**
+
+Also verified true on this branch:
+
+- `ci.yml` unit floor literal is `total < 70` while this stack's own CI
+  publishes 84.12 blended (WP2.1 seed-pinned) — a stale pre-WP2.1 number per
+  R-1 needs the measured value; changing it is owner-adjacent (R-1 floor
+  values), filed BLOCKED B-2 rather than silently rewritten mid-WP3.1.
+- `trivy.yml` job guards remain `push || workflow_dispatch` (lines 139/217/306)
+  — never executed on `pull_request`; R-7 baselining not done.
+- `COVERAGE_DIFF_EPSILON_PP = 2.0` is calibrated on pre-seed-pin ±1.6pp noise;
+  post-fix re-derivation is open work.
+
+Corrected FOR THE RECORD (§7.3 of the audit does not extend to this branch):
+`phase3/wp31-zero-mutation` descends from the #6572/#6573 content — the folded
+anti-rot step on this branch resolves to a SINGLE-LINE `run:` block containing
+all 14 gate suites with `-q` intact (dumped from `yaml.safe_load` post-collapse
+— the four formerly swallowed suites are now argv). The swallow defect is
+fixed here; its CLASS-invariant test is open work.
+
+**Audit §4 landing strategy (recorded before any merge, as required):** main is
+squash-merged history (last 8 commits single-parent), so each squash detaches
+every PR above it. Intended order: (1) owner closes #6572 as superseded (§3:
+strict subset of #6573); (2) merge bottom-up #6573 → #6575 → #6578 → #6579 →
+#6580 → #6581 → #6582 → #6583 → #6584 → #6585; (3) after EACH squash-merge,
+rebase the next branch onto the new main tip before merging it (memory
+[[push-autorebase-squash-merge-trap]]: stacked pushes conflict in the pre-push
+auto-rebase otherwise); (4) cost: `strict_up_to_date` re-runs the full stack CI
+on every open PR after each merge — ~10 sequential full runs against ~20 runner
+slots; a collapse (merge #6573..#6584 as one squashed PR) is the cheaper
+alternative if the owner does not want per-WP history. NOT DECIDED HERE — merge
+authority is not granted (BLOCKED B-1 precedent stands).
+
+**Audit §5 ruling recorded:** writing down a never-enforced declared floor to
+its measured value is MINTING a floor, not lowering one; lowering stays
+forbidden for floors that actually gated.
+
+**§6 correction adopted for all remaining WPs:** no gate WP is described as
+done in this ledger without a pasteable `needs:`-reachability walk showing the
+blocking path.
+
+## WP2.5 AUDIT-REMEDIATION SUBMITTED (#6586 draft, stacked on #6585) — the floors become enforced; the fold stops swallowing; B-2 resolves from five runs (2026-09-20)
+
+Inserted between WP3.1 and WP3.2 per the B-3 ruling (AUDIT §2: gate
+enforcement precedes Phase-3 mutation work; mutation verdicts are worthless
+under an unenforced floor). Red-first: `scripts/test_check_gate_reachability.py`
+landed FIRST and went red exactly as predicted — verdict jobs unreachable ×3,
+`ci-gate does not check frontend-coverage-merge.result`, and the folded anti-rot
+step caught as the comment-swallow offender (3 failed / 4 passed).
+
+**§6.1 discipline — pasteable reachability walk (forward path to the required
+context, produced against ci.yml at this commit):**
+
+```
+unit-tests-coverage-merge           -> ci-gate   [needs: + check_job line]
+integration-coverage-merge          -> ci-gate   [needs: + check_job line]
+frontend-coverage-merge             -> ci-gate   [needs: + check_job line]
+check_job lines cover all 3: True    direct ci-gate needs: 29 (test cap 30)
+scripts/test_ci_job_graph.py: OK: 41 jobs, gate reaches 37 (was 34 + 3 PLUMBING-exempt)
+```
+
+- **The fix (ci.yml):** +3 `needs:` entries and +3 `check_job` lines. Safe on
+  frontend-only PRs (the merge jobs' `if:` skips them; `check_job` forgives
+  `skipped`); meaningful on backend runs (floor breach `exit 1` → FAILED=true →
+  the single required context reddens). `if: always()` already in place.
+- **test_ci_job_graph.py `PLUMBING` emptied** — the three merge jobs were
+  exempted there as "cannot produce a verdict" WHILE WP2.3 had given them an
+  `exit 1` floor-fail path. The exemption was §2.1 codified: the merge reds had
+  a home in that file, not in ci-gate. The docstring's own PLUMB definition now
+  carries the correction.
+- **Unit floor 70 → 84 (R-1, B-2 RESOLVED):** five seed-pinned measurements of
+  exactly the quantity the merge step enforces (`--format=total`): 84.12 local
+  single-process, 84.11 local 4-shard sim (both WP2.1), and CI runs
+  35502275842 / 35503899696 / 35506580757 published 84.11 / 84.11 / 84.09 on
+  three HEADs. Spread 0.03pp → floor = observed minimum 84.09 rounded down.
+  70 (the pre-WP2.1 70.32 OVERLAP-UNDERCOUNT lineage) let a 14-point collapse
+  ship green. `test_coverage_floors.py` pin re-derived same-commit (its own
+  amendment rule).
+- **`COVERAGE_DIFF_EPSILON_PP` 2.0 → 0.5pp:** WP2.3 calibrated the band on the
+  pre-pin ±1.6pp shard-overlap swing — the noise WP2.1 DELETED. Post-pin the
+  same quantity spreads 0.03pp (n=5, three HEADs); 0.5pp keeps 10x+ headroom.
+  NARROWING is tightening; the forbidden gate-widening direction stays pinned
+  (band-change requires a measurement in the same commit — test enforced).
+  `test_check_coverage_diff.py`'s past-band case moved −2.5pp → −0.8pp: inside
+  the dead band, outside the honest one — the regression class 2.0pp was
+  suppressing. docs/development/testing.md + CLAUDE.md floor/epsilon text
+  synced in this commit (denominator pins still green).
+- **ERRATUM (append-only, §6 discipline) correcting the AUDIT RESPONSE section
+  above:** "§7.3 ... does not extend to this branch ... the swallow defect is
+  fixed here" was WRONG, argued from the `yaml.safe_load`-RESOLVED string.
+  A folded `>-` scalar resolves to one line, but the SHELL then comments out
+  everything after the first word-boundary `#`: executed-argv proof on the
+  pre-fix branch — pytest received **10 of 14 suites, `-q` dead** (the
+  WP4.1/4.2/4.3/9.1 groups + `-q` never ran). The same evening it was written,
+  WP2.3's own ci.yml comment names this exact trap ("BLOCK SCALAR (`|`),
+  deliberately NOT the folded `>-`") — for a different step. The audit was
+  right about my branch; WP2.5 converts the step to `|` with backslash
+  continuations and moves the WP4.x doctrine notes ABOVE the step as YAML
+  comments (post-fix argv: 16/16 files + `-q`, re-probed through bash).
+  Class-invariant test (`test_no_folded_step_loses_argv_to_a_comment`) joins
+  the list itself — this defect can no longer re-form silently.
+- **First-run harvest — the swallow's price, paid immediately:** with the step
+  un-swallowed, `scripts/test_check_ai_provider_parity.py` executed in CI's
+  shape FOR THE FIRST TIME (it joined the list below the first `#` at
+  `eada4ba9` 09-19 19:37) and caught golden drift: `registry_ops == 38` vs tree
+  37 — `e947e7ae` (09-19 21:56, "carry-cost deletions (contract 38->37)")
+  legitimately moved the contract 2.5h later and its own CI COULD NOT catch
+  the stale golden because the suite was never in argv. Golden corrected to 37
+  with the full causal comment; suite 27/27 green. This is AUDIT §7.3's harm
+  class demonstrated with a concrete in-repo instance, one day old.
+- **Trivy audit item — adjudicated NO-CHANGE (design, recorded):**
+  `ci.yml` (WP1.2 block) documents the split: PRs run fs/config/CVE-expiry via
+  the `security-trivy` call job (already gated); the `push||workflow_dispatch`
+  guards inside trivy.yml cover SBOM + image scans, which cannot run on a PR
+  because the images don't exist yet. Adding them to PRs would mint a
+  guaranteed-false red. R-7 baseline-first satisfied by the same reasoning.
+- **Verification:** reachability+diff+floors+denominator 35 passed; graph
+  invariant OK (41 jobs, reaches 37); anti-rot list as CI now executes it
+  (15 suites incl. the new invariant): 180 passed after the parity-golden fix;
+  shell-probe: 16/16 files + `-q`. ruff clean on all touched scripts.
+  Integration floor 37 UNTOUCHED (already at its WP2.3 measured 37.01; the
+  37.67% figure belongs to WP3.4's tier work, which re-measures with complete
+  data — the inherited integration reds forbid a partial-data raise).
+
+## WP3.2 TWO PROVEN SURVIVORS KILLED (#6587 draft, stacked on #6586) — cohort 206/396 killed; segment_clothing 0.7% -> 79.1% (2026-09-20)
+
+**Done-when (plan P):** "both mutants die, and the test that kills each names
+it" — MET TWICE OVER: six in-tree hand-probes (red under the known-kill key,
+named killer in each probe log `probe-{23,24,25}.log`, `probe-seg-{62,120,121}.log`),
+then an independent full-census re-judge by targeted `mutmut run` over the
+three named families.
+
+**Census (folded from `mutants/*.py.meta` exit_code_by_key after the run
+exited; never re-typed):**
+
+| Family                                                          | total | killed | survived | unchecked | killed/judged |
+| --------------------------------------------------------------- | ----- | ------ | -------- | --------- | ------------- |
+| CleanupService.run_cleanup (:266 proven survivor)               | 178   | 57     | 121      | 0         | 32.0%         |
+| CleanupService.dry_run_cleanup                                  | 65    | 28     | 37       | 0         | 43.1%         |
+| segment_clothing (the 152/153 survivor)                         | 153   | 121    | 32       | 0         | **79.1%**     |
+| plan-P cohort (P's 243 = 178+65 both run-cleanup methods; +153) | 396   | 206    | 190      | 0         | 52.0%         |
+
+All six hand-probe mutants (run_cleanup 23/24/25: timedelta operand,
+naive-now, days=None; segment_clothing 62/120/121: strict-gate, or/and
+threat flips) read KILLED in the run's own metas — the hand-probes and the
+engine agree.
+
+**The mechanism that mattered:** segment_clothing's 152 survivors survived
+through the outer `except Exception: return ClothingSegmentationResult()` —
+ANY internal breakage lands on the silent empty default, indistinguishable
+from "ran fine, nothing detected". The kill suite's shape is the fix: every
+test pins NON-default values, so a broken mutant lands on the default and
+dies. 1/153 -> 121/153. The swallow itself is now pinned AS SPEC
+(test_internal_failure_degrades_to_empty_default_by_design) so its semantics
+cannot silently widen — changing the degradation is an owner call with a red
+test, not a drift.
+
+**Landed:** commit ef82b0f8 (`phase3/wp32-kill-tests`, base = wp25 branch),
+2 test modules, 10 tests (2 cleanup + 8 segformer, recount against the
+committed files — the first draft of this section said 14; the files are
+the artifact). First commit attempt blocked by the WP4.2 mock
+ratchet (4 unspecced patch.object) -> autospec=True adoption, no new license,
+never --no-verify. Spec facts learned writing it (in the test docstrings):
+`has_face_covered` legitimately arrives as `np.False_`/`np.True_` (pin the VALUE,
+not identity); register_buffer gives empty parameters() -> next() StopIteration
+-> swallowed -> silent empty (fake models need a real nn.Parameter).
+
+**Honest residue:** OrphanedFileCleanup.run_cleanup (96, different class,
+name-pattern neighbor) was outside the targeted globs — 95 unchecked; the
+WP3.1 FULL run relaunch covers every unchecked key as its own artifact. The
+190 cohort remainders + segment_clothing's 32 are WP4.4 triage input.
+
+## WP3.3 FRONTEND STRYKER HARNESS REPAIRED + FIRST HONEST BASELINE (branch `phase3/wp33-frontend-mutation`, PR #6588 draft, stacked on #6587) (2026-09-20)
+
+**Done-when (plan P):** "the harness runs and mints a first honest baseline,
+however bad. A bad number you can see beats no number." — MET: first honest baseline **63.04% total**
+(confidence.ts 100.00 / risk.ts 98.39 / time.ts 43.00),
+`stryker-full-baseline2.log` BASELINE2-RC=0, 21m59s — the harness's first-ever
+number, and it already localizes the gap to time.ts (57 survived + 61 no-cov
+of ~160: the plan's "executes but asserts nothing" class, frontend edition).
+
+**The headline:** `npm run test:mutation` had NEVER produced a score — not a
+bad score, no score — and `frontend/stryker.config.mjs` explained this with a
+plausible story ("start small with well-tested utility modules") that was
+FALSE. The plan predicted exactly this failure class: _a measurement that
+cannot run, reported as a configuration choice._ Three stacked bugs, each
+concealing the next:
+
+1. **Checker init crash via project references.** `tsconfigFile: tsconfig.json`
+   → checker followed `references` into tsconfig.node.json (program =
+   vite.config.ts), where vite 7's `ServerOptions` has no boolean arm for
+   `https` → fatal `Type 'boolean' has no properties in common...`,
+   TypescriptChecker.init died BEFORE mutating. Invisible to `npm run build` /
+   `npm run typecheck` (plain tsc does not build references). →
+   `frontend/tsconfig.stryker.json` (extends, `"references": []`) pins the
+   checker to the src+tests program the repo's gates already enforce.
+2. **ignorePatterns deleted the tests from the SANDBOX.** `**/*.test.ts*` gated
+   the COPY into .stryker-tmp, not mutation → dry run saw "No tests were
+   found" → premature exit. Tests can't be mutated anyway (`mutate:` is an
+   allowlist). → removed.
+3. **R-T7 quarantine bypassed inside the sandbox.** `related` mode passes test
+   files to vitest EXPLICITLY; explicit args override vitest `exclude`, so the
+   16-file R-T7-VITEST quarantine `npm test` honors didn't apply → dry run died
+   on the quarantined EventCard snooze red. → the same 16 files in
+   ignorePatterns = sandbox parity (R-4: already quarantined, none in mutate
+   set, none a direct test of it).
+
+Wrong levers tried + reverted (recorded so nobody retries): `related: false`
+(widened discovery to the whole 795-file suite — hit bug 3 harder),
+`testFilter` (never applied to the dry run at all).
+
+BUG 4 (surfaced only AFTER 1-3 died — the smoke's small related-union fit
+under it): stryker's DEFAULT dryRunTimeoutMinutes: 5 killed the 3-module run
+("Initial test run timed out!" at 5m02s, stryker-full-baseline.log) — the
+dry run executes the whole related-test union ONCE under per-test coverage
+instrumentation and time.ts is imported nearly everywhere. Fixed with
+dryRunTimeoutMinutes: 20 (one-off harness budget fitted to the suite;
+adjudicates no test verdict, NOT a test-timeout cap). True wall measured in
+stryker-dryonly.log: 1749 tests, 5m45s (net 109s + 236s instrumentation overhead)
+
+**SEPARATE FINDING (not laundered):** vite.config.ts `server.https: true` is a
+latent type error under vite 7 — real, invisible to every current gate, found
+only because the stryker checker compiled it. NOT fixed here (out of scope;
+zero test coverage of server.https). Owner call when a config-file typecheck
+program exists.
+
+**Baseline numbers (MEASURED, this run):** risk.ts smoke (first-ever run,
+SMOKE-RC=0, 8m54s): **98.39%** — 61 killed / 1 survived / 18 errors / 0 no-cov.
+The survivor is a genuine gap found immediately: risk.ts:57 `< 0` -> `<= 0`
+survives — no test calls getRiskLevelWithThresholds(0). 18-error class =
+checker-discarded (unmutatable/compile-identical), itemized in the HTML report.
+Full 3-module baseline (the done-when number): **63.04%** — per-file table in
+stryker-full-baseline2.log; 62 "errors" = CompileError class (checker-
+discarded; count folded from the HTML report, 203/58/61/62 == table).
+
+**Rulings honored:** break:null KEPT informational (R-7: advisory → blocking
+only AFTER baselining; this PR IS the baselining event; the break-number
+decision comes next with the number in hand). WP4.3 DECIDE respected: frontend
+set stays at the three pure utils (widening without a baseline produces an
+unfalsifiable number — now there is one).
+
+**Artifacts:** `$CLAUDE_JOB_DIR/tmp/stryker-risk-smoke.log` (80-mutant smoke,
+RC=0), stryker-full-baseline.log (the 5m02s
+dry-run-timeout death, bug-4 evidence), stryker-dryonly.log (1749 tests /
+5m45s wall), stryker-full-baseline2.log (THE baseline, RC=0),
+dry-run death logs stryker-dry{,2,3}.log (bugs 1-3).
+
 ## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
 
 **MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/
@@ -7920,6 +8380,34 @@ green derived; full anti-rot list 158 passed locally.
 Any future doctrine comment belongs ABOVE the step. (Two-char fix class, four
 dead gate-suites, one stale pin nobody could see.)
 
+## WP1.1 IN FLIGHT (2026-09-20): the four main-only gate jobs now run on PRs (#6573)
+
+**The defect:** `contract-tests`, `dead-code`, `build-backend`,
+`build-frontend` carried `if: github.ref == 'refs/heads/main'`, arrived
+`skipped` on EVERY PR, and `check_job` (ci.yml:2877) treats `skipped` as OK.
+The PR gate and the main gate were different gates. Measured harm this week,
+three independent detonations: #6570's stale `registry_ops` pin (contract
+38->37, red on landing push 35482667110), the eada4ba9 vulture rc=3 red, and
+the WP0.1 anti-rot swallow (this morning). Next week every VSS PR inherits.
+
+**Fix = P's option 1 (run on PRs), cost MEASURED first** (P demands the
+wall-time): run 35484007823 job durations — contract-tests **88s**,
+dead-code **46s**, build-backend **410s**, build-frontend **144s**. All four
+ride inside the existing ~12-min parallel window; backend-touching PRs pay
+roughly +2 min wall (contract+dead-code, parallel to unit tier) and full-tree
+PRs pay the build jobs (warm GHA cache scope, `--load` no-push). Path gates
+mirror `unit-tests` (`detect-changes` backend/frontend/should-run-all).
+**The PR's own run durations are the added-wall-time measurement for THIS
+change; delta recorded on merge** — feasibility precedent: A7.3's image
+smoke builds docker green on PR runs.
+
+**R-7 baselining before the switch:** vulture rc=0 locally; contracts dir
+613 passed at current main; build jobs green on last main pushes;
+`test_ci_job_graph.py` OK (37 jobs, gate reaches 31); shard-retry wiring
+holds. Linear issue-on-failure steps narrowed to
+`failure() && github.ref == 'refs/heads/main'` — titles literally say "failed
+on main"; a red PR must surface on the PR, not in Linear.
+
 ## WP0.1 erratum — the derived pin blew CI's 5s per-test timeout; import hoisted (2026-09-20)
 
 The derived pin (registry count cross-check) first imported
@@ -7938,3 +8426,20 @@ raising it would be moving a line. Repro of the cost: delete every
 scripts/test_check_ai_provider_parity.py -q` (passes, ~9s wall with the
 import in collection). Banked: an import added inside a test body under a
 global timeout is a timeout you own; warm-cache passes prove nothing.
+
+## WP1.1 ERRATUM CLOSED — both carriers proven; the residual red is the TPA flake, not the branch (2026-09-20)
+
+The in-body-import erratum (hoisted module-scope import, `sys.path` shim, previous
+section) is proven fixed on both carriers. Erratum-proof runs: #6572 run 35489687699
+`Collection Sanity => success` and the WHOLE RUN success (27 jobs, zero failed);
+#6573 run 35489843784 `Collection Sanity => success`, one red job: Test Performance
+Audit. That TPA red is NOT branch content: the offender is
+`backend.tests.unit.models.test_models_hypothesis.TestSchemaRoundtrips::test_camera_create_roundtrip`
+at 5.30s against the 4.0s unit limit -- a Hypothesis test on a shared runner, and the
+branch touches no model code. Census (60 CI runs since 2026-09-18,
+`$CLAUDE_JOB_DIR/tmp/tpa-census.log`, TPA job verdict per run): pull_request
+27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6 success / 2 failure
+/ 1 cancelled. ~1-in-3 PR runs reddens on identical-code noise; WP1.3 owns that.
+WP1.1 core claim stands as landed: four main-only jobs ran on both PR runs
+(Contract Tests / Dead Code / Build Docker x2) and this PR's own run durations
+(88/46/410/144s recorded in the WP1.1 section) are the added-wall-time measurement.

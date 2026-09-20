@@ -588,7 +588,7 @@ class TestFrontendCoverageMergeWiring:
 
     SHARD_RUN_STEP = "Run tests (shard ${{ matrix.shard }}/8)"
     MERGE_STEP = "Merge frontend coverage"
-    REPORT_STEP = "Report frontend coverage (R-FEFLOOR: not enforced)"
+    REPORT_STEP = "Report frontend coverage (floors enforced by merge step)"
 
     def _shard_run_steps(self, workflow: dict[str, Any]) -> list[dict[str, Any]]:
         return [

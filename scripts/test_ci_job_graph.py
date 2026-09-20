@@ -14,8 +14,14 @@ Classes that satisfy the invariant:
           or reached through intermediates that each read `needs.<x>.result`
           themselves. Bare `needs:` membership does NOT qualify — see
           result_checked_needs() for why both severing mechanisms bite here.
-  PLUMB   artifact-only job that cannot produce a correctness verdict
-          (coverage merge/upload) — enumerated by name below, additions FAIL
+  PLUMB   artifact-only job that cannot produce a correctness verdict —
+          enumerated by name below, additions FAIL. WP2.5 (AUDIT §2.1)
+          emptied this list: it contained the three coverage-merge jobs,
+          exempted as "cannot produce a verdict" while WP2.3 had given them
+          an `exit 1` floor-fail path. An exemption that contradicts the
+          job it exempts is how §2.1 stayed invisible: the merge reds had a
+          home in this file, not in ci-gate. They are GATE jobs now —
+          direct need + check_job line in ci-gate.
   TRIAGE  jobs whose red is ACTIONED at runtime: they carry their own
           "Create Linear issue on failure" step, or run schedule/dispatch-only
           (a nightly red is triaged, not merge-ignorable)
@@ -37,12 +43,10 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 
-# Artifact plumbing — cannot produce a verdict; keep this list honest and short.
-PLUMBING = {
-    "unit-tests-coverage-merge",
-    "integration-coverage-merge",
-    "frontend-coverage-merge",
-}
+# Artifact plumbing — cannot produce a verdict; keep this list honest and
+# short. WP2.5: the three coverage-merge jobs LEFT this list for ci-gate's
+# needs: + check_job (they enforce the R-1 floors and exit 1 — see docstring).
+PLUMBING: set[str] = set()
 
 SCHEDULE_ONLY_MARKERS = ("schedule", "workflow_dispatch")
 
