@@ -2499,46 +2499,24 @@ jobs:
       - name: Fetch baseline junit (previous main run)
         # WP1.3: the runner's own previous run is the only honest calibration
         # (suite-wide medians are identical red-vs-green — global calibration
-        # is dead BY DATA, ledger WP1.3). Take the newest completed main CI
-        # run that uploaded junit and download its test artifacts as the
-        # baseline corpus. Fetch failure or zero artifacts => baseline/ stays
-        # empty and the audit FAILS CLOSED (every breach red, exactly the
-        # pre-WP1.3 gate) — a broken fetch can never silently widen the gate.
+        # is dead BY DATA, ledger WP1.3). WP1.5: the selection rule moved to
+        # scripts/fetch-ci-artifacts.py — it had been transcribed in curl/jq
+        # twice in one day and bitten both known traps (generic
+        # /actions/runs?branch=main mixes sibling workflows and silently
+        # misses CI; selecting the current run baselines it against itself).
+        # One tested implementation (scripts/test_flake_consumer.py drives it
+        # through a canned API). Fetch failure => baseline/ empty => the audit
+        # FAILS CLOSED (every breach red, exactly the pre-WP1.3 gate) — a
+        # broken fetch can never silently widen the gate.
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -uo pipefail
-          mkdir -p baseline
-          API="https://api.github.com/repos/${{ github.repository }}/actions"
-          AUTH=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
-          # Resolve ci.yml's workflow id by PATH (not hardcoded — ids are repo
-          # state), then list THAT workflow's main runs. The generic
-          # /actions/runs?branch=main endpoint mixes every workflow on the
-          # branch together and CI falls off the page (measured: 6 sibling
-          # workflow rows, no CI) — a silently EMPTY baseline is fail-closed
-          # but useless, and would quietly disable WP1.3 forever.
-          WFID=$(curl -sS "${AUTH[@]}" "$API/workflows?per_page=100" \
-            | jq -r '.workflows[] | select(.path==".github/workflows/ci.yml") | .id' | head -1)
-          [ -n "$WFID" ] || { echo "ci.yml workflow id not found"; exit 0; }
-          # NEVER the current run: a self-referential baseline would make every
-          # violation "persist against itself" and silently disable downgrades.
-          FILTER='select(.id != '${{ github.run_id }}')'
-          IDS=$(curl -sS "${AUTH[@]}" "$API/workflows/$WFID/runs?branch=main&status=success&per_page=8" \
-            | jq -r ".workflow_runs[] | $FILTER | .id")
-          for RID in $IDS; do
-            ARTS=$(curl -sS "${AUTH[@]}" "$API/runs/$RID/artifacts?per_page=100" \
-              | jq -r '.artifacts[] | select(.name|test("^test-results-|^playwright-test-results-"))
-                       | "\(.id) \(.archive_download_url)"')
-            [ -n "$ARTS" ] || continue
-            echo "Baseline source: run $RID, $(echo "$ARTS" | grep -c .) junit artifacts"
-            while read -r AID AURL; do
-              curl -sSL "${AUTH[@]}" "$AURL" -o "/tmp/art-$AID.zip" \
-                && unzip -q -o "/tmp/art-$AID.zip" -d "baseline/$AID"
-            done <<< "$ARTS"
-            break
-          done
-          echo "baseline XMLs: $(find baseline -name '*.xml' 2>/dev/null | wc -l)"
+          # token via stdin, never argv (ps + logs stay clean)
+          echo "$GH_TOKEN" | python3 scripts/fetch-ci-artifacts.py \
+            --repo "${{ github.repository }}" \
+            --current-run-id "${{ github.run_id }}" \
+            --out baseline
 
       - name: Analyze test durations
         # WP0.5: no more "skip + exit 0" on missing data — the audit only runs
@@ -2611,6 +2589,119 @@ jobs:
                     "teamId": "998946a2-aa75-491b-a39d-189660131392",
                     "title": "'"$TITLE"'",
                     "description": "Test performance audit found slow tests after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review and optimize slow tests.",
+                    "priority": 3
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
+
+  # WP1.5: the flaky-tracking CONSUMER. Every shard writes
+  # flaky-test-tracking-*.jsonl and uploads it inside test-results-*, and
+  # until now NOTHING read them — `flake_allowlist: 0` was evidence of no
+  # consumer, not of no flakes (P WP1.5). This job harvests the last few main
+  # runs' artifacts (scripts/fetch-ci-artifacts.py — same tested selection
+  # TPA's baseline uses: newest main runs, never the current run) and runs
+  # the analyzer with --owner-summary: a RANKED flake list whose Owner column
+  # shows the allowlist tracking ref, or the literal "no owner" — the named-
+  # owner list P's done-when asks for. Linear-triaged (WP0.6 class), like the
+  # audit's own failure path.
+  flake-report:
+    name: Flake Report (consumer)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # actions:read for the artifact harvest — repo default "read" lacks it
+    # (WP1.3 measurement: without this line the fetch 403s every run).
+    permissions:
+      contents: read
+      actions: read
+    # Main only: the corpus is main's history; PR branches have no flake
+    # history of their own to rank, and harvesting main artifacts from a PR
+    # would blame main's flakes on the branch.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Harvest previous main runs' flaky tracking
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | python3 scripts/fetch-ci-artifacts.py \
+            --repo "${{ github.repository }}" \
+            --current-run-id "${{ github.run_id }}" \
+            --harvest-runs 6 \
+            --out flaky-corpus
+
+      - name: Rank flakes with owners
+        run: |
+          python3 scripts/analyze-flaky-tests.py flaky-corpus/ \
+            --output flaky-test-report.json \
+            --allowlist-file .github/flake-allowlist.yml \
+            --owner-summary
+        env:
+          FLAKY_THRESHOLD: '0.9'
+          # one run = one sample per test; with 6 harvested runs a test needs
+          # >=2 samples before a pass-rate can mean anything (analyzer MIN_RUNS)
+          MIN_RUNS: '2'
+
+      - name: Upload flaky test report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: flaky-test-report-${{ github.run_id }}
+          path: flaky-test-report.json
+          retention-days: 30
+
+      - name: Create Linear issue on failure
+        if: failure()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          TITLE="[CI] Flake-report consumer failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
+              "variables": {
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
+                }
+              }
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            echo "Existing issue found ($EXISTING_ID), skipping creation"
+          else
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "The WP1.5 flake-report consumer failed on main — the per-run flaky tracking has no working reader again.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
                     "priority": 3
                   }
                 }

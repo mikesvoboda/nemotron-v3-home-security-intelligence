@@ -7742,3 +7742,54 @@ gate reaches 34); `test_github_workflows.py` 40 passed 2 skipped.
 **Noted, not widened:** `flaky-test-detection.yml:95` also runs
 `--timeout=0` — advisory scheduled scanner (`continue-on-error: true`, its
 whole purpose is rerun-consistency); no required gate reads its verdicts.
+
+## WP1.5 SUBMITTED — the flaky-tracking files finally have a reader: flake-report consumer + shared harvester (2026-09-20)
+
+**The defect (P's words): "`flake_allowlist = 0` is not evidence of
+zero flakes; it is evidence that nothing fills it."** Confirmed by
+inspection: every CI shard writes `flaky-test-tracking-*.jsonl` (unit x4 +
+the three integration shards, uploaded inside `test-results-*`), and NO
+consumer read them — `flaky-test-detection.yml`'s analyze job runs the
+analyzer on the NIGHTLY's own reruns, and `weekly-test-report.yml`'s is a
+placeholder that prints "Available". The per-PR-run history — where the
+14.3% same-SHA disagreement actually lives — had zero readers.
+
+**Consumer (ci.yml `flake-report`, main-only):** harvests the 6 newest
+main runs' artifacts, runs the analyzer with a new `--owner-summary` mode:
+a RANKED table whose Owner column shows the allowlist tracking ref or the
+literal "no owner (unregistered)" — the named-owner list P's done-when
+asks for. Corpus size prints even at zero flakes (26,342 tests read / 0
+failing in the first live run — "no flakes" vs "read nothing" never
+conflate; WP0.5's vacuous-pass class). Linear-triaged red (WP0.6 class),
+same idiom as the audit's.
+
+**Shared harvester `scripts/fetch-ci-artifacts.py`:** TPA's baseline fetch
+(WP1.3) was a curl/jq heredoc; the same selection rule rewritten for
+flakes would be a second copy of a rule that was bitten TWICE in one day
+(sibling-workflow page fill; self-baseline). Now one tested Python
+implementation, used by BOTH jobs. `--self-test` drives the REAL flow
+(selection, download, extract) against a canned local API — a self-test
+that stubbed the download wouldn't be one.
+
+**Measured while building (each one a live trap):**
+
+- urllib KEEPS the Authorization header across redirects (unlike curl) —
+  the artifact download 302s to a PRE-SIGNED blob URL and Azure 401s any
+  request that carries a token ALONGSIDE the SAS signature. curl got 200,
+  urllib-with-auth got 401 on all 30 artifacts. Fix: strip Authorization
+  on cross-host redirect (curl's semantics), documented in the script.
+- The artifact regex also drags playwright's `e2e-results.json`
+  (pretty-printed, ~19k lines): every line fails line-wise JSON parse and
+  the scalars crashed aggregation (`'str' object has no attribute 'get'`)
+  the first time it met the analyzer. Fix: non-dict records skipped, warn
+  capped at 3/file — pinned in the fixture with the real shape.
+
+**Red-first:** `scripts/test_flake_consumer.py` — 3 assertions red before
+(owner-summary missing, harvester absent, no consumer job), 4 green after;
+owner-table ranking pinned with a synthetic allowlist (registered shows
+NEM-9001, unregistered reads "no owner"); harvester self-test pins
+newest-with-artifacts selection, current-run exclusion, dead-API loud
+exit. Job-graph green (41 jobs, gate reaches 34, flake-report TRIAGE via
+its Linear step); workflow tests 40 passed 2 skipped; live end-to-end ran
+against the real repo API (2 runs x 15 artifacts, 56 files, 26,342 tests
+aggregated).
