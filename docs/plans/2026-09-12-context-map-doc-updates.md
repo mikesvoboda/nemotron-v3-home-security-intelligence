@@ -7794,7 +7794,7 @@ its Linear step); workflow tests 40 passed 2 skipped; live end-to-end ran
 against the real repo API (2 runs x 15 artifacts, 56 files, 26,342 tests
 aggregated).
 
-## WP2.1 SUBMITTED — the two backend numbers reconciled: one denominator, and the CI number was a shard-overlap undercount (2026-09-20)
+## WP2.1 SUBMITTED (#6581 draft, stacked on #6580) — the two backend numbers reconciled: one denominator, and the CI number was a shard-overlap undercount (2026-09-20)
 
 P's premise ("70.33 vs 84.39, same nominal tier, never reconciled; likely
 validate.sh's unit+contracts+security leg") was WRONG about the suspect and
