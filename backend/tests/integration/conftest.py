@@ -1385,9 +1385,34 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
     foreign key constraints) to prevent orphaned entries from accumulating
     in the database.
 
-    Uses TRUNCATE ... CASCADE for speed (faster than DELETE because it doesn't
-    scan rows). With database-per-worker isolation, TRUNCATE is safe to use
-    without AccessExclusiveLock deadlocks.
+    Uses ``DELETE FROM`` per table, NOT ``TRUNCATE``. Remedy ledger
+    R-T7-ENOSPC-RECUR bans TRUNCATE on this path: it allocates a new
+    relfilenode per table and defers unlinking the old one to the next
+    checkpoint, which exhausted the 655K-inode /dev/vdd at ~815 tables x
+    every test x 18 worker DBs. Batching the tables into one comma-joined
+    ``TRUNCATE ... CASCADE`` does not rescue that — a single command still
+    churns one relfilenode per table it names.
+
+    TRUNCATE is also the SLOWER statement here, contrary to the folklore this
+    paragraph used to repeat. Measured 2026-09-19 on postgres:16-alpine over
+    15 reps against these near-empty test tables:
+
+        DELETE    0.188 ms/table
+        TRUNCATE  1.875 ms/table   (10.0x slower)
+
+    DELETE's row scan is free when there are almost no rows; TRUNCATE's
+    relfilenode churn is not. The per-table loop follows the reflected
+    FK-safe deletion order, with ``session_replication_role = replica``
+    suppressing FK checks for the duration, so children still clear before
+    parents.
+
+    The loop runs unguarded first and only falls back to per-table SAVEPOINT
+    isolation on failure: in Postgres a failed statement aborts the whole
+    transaction, so a single unmigrated table would otherwise roll back even
+    the deletes that had already succeeded (verified — see
+    ``backend/tests/unit/test_integration_cleanup_sweep.py``). Isolating
+    every table up front would cost SAVEPOINT+RELEASE round trips on all
+    ~815 tables, more than the sweep itself.
 
     Implements retry logic with exponential backoff for transient failures.
 
@@ -1417,40 +1442,61 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                     # Disable FK checks temporarily for faster truncation
                     await session.execute(text("SET session_replication_role = replica"))
 
-                    # Truncate all test-related data in FK-safe order
-                    # The order is automatically computed from foreign key relationships
-                    for tbl in deletion_order:
-                        try:
-                            # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                            #
-                            # DELETE, not TRUNCATE -- the SAME remedy ledger
-                            # R-T7-ENOSPC-RECUR already applied to clean_tables
-                            # (see its comment ~line 1140). This path was missed:
-                            # TRUNCATE allocates a NEW relfilenode per call and
-                            # defers unlinking the old one to the next checkpoint,
-                            # which is what exhausted the 655K-inode /dev/vdd at
-                            # ~815 tables x every test x 18 worker DBs. So the
-                            # banned statement was still running here, before
-                            # EVERY client-using test.
-                            #
-                            # It is also the slower statement, contrary to the
-                            # comment this replaces. Measured 2026-09-19 on
-                            # postgres:16-alpine, empty tables, 15 reps:
-                            #   DELETE   0.188 ms/table
-                            #   TRUNCATE 1.875 ms/table   (10.0x slower)
-                            # -> at 815 tables: 0.15s vs 1.53s per sweep, on an
-                            # UNCONTENDED local db. These are near-empty test
-                            # tables, so DELETE's row scan is free while
-                            # TRUNCATE's relfilenode churn is not.
+                    # DELETE, not TRUNCATE -- remedy ledger R-T7-ENOSPC-RECUR,
+                    # the same remedy already applied to clean_tables (see its
+                    # comment ~line 1140). TRUNCATE allocates a NEW relfilenode
+                    # per table and defers unlinking the old one to the next
+                    # checkpoint, which is what exhausted the 655K-inode
+                    # /dev/vdd at ~815 tables x every test x 18 worker DBs.
+                    # Batching the tables into one TRUNCATE ... CASCADE (the
+                    # form this resolution replaces) does not rescue it: one
+                    # command still churns a relfilenode per table named in it.
+                    #
+                    # It is also the slower statement. Measured 2026-09-19 on
+                    # postgres:16-alpine, empty tables, 15 reps:
+                    #   DELETE   0.188 ms/table
+                    #   TRUNCATE 1.875 ms/table   (10.0x slower)
+                    # These are near-empty test tables, so DELETE's row scan is
+                    # free while TRUNCATE's relfilenode churn is not.
+                    #
+                    # Fast path first, SAVEPOINT-isolated sweep only on failure.
+                    # In Postgres a failed statement aborts the surrounding
+                    # transaction, so a plain per-table loop that merely catches
+                    # and continues is wrong: the FIRST unmigrated table poisons
+                    # every table after it, and the sweep logs "Skipping" for the
+                    # whole remainder while cleaning nothing. begin_nested() per
+                    # table fixes that but costs SAVEPOINT+RELEASE round trips on
+                    # all ~815 tables (~0.26s, more than the sweep itself), so it
+                    # is reserved for the recovery path.
+                    try:
+                        for tbl in deletion_order:
+                            # Safe: tbl comes from SQLAlchemy inspector (trusted
+                            # source), not user input.
                             await asyncio.wait_for(
                                 session.execute(text(f"DELETE FROM {tbl}")),  # noqa: S608 nosemgrep
                                 timeout=5.0,
                             )
-                        except TimeoutError:
-                            logger.warning(f"Cleanup timed out for table {tbl}, skipping")
-                        except Exception as e:
-                            # Skip tables that don't exist - they may not be migrated yet
-                            logger.debug(f"Skipping table {tbl}: {e}")
+                    except Exception as e:
+                        # Roll back the poisoned transaction, then redo the sweep
+                        # with each table isolated. Plain SET inside a transaction
+                        # is reverted by a rollback, so re-issue the FK suppression.
+                        logger.debug(f"Cleanup sweep failed ({e}); retrying table-isolated")
+                        await session.rollback()
+                        await session.execute(text("SET session_replication_role = replica"))
+                        for tbl in deletion_order:
+                            try:
+                                async with session.begin_nested():
+                                    await asyncio.wait_for(
+                                        session.execute(
+                                            text(f"DELETE FROM {tbl}")  # noqa: S608 nosemgrep
+                                        ),
+                                        timeout=5.0,
+                                    )
+                            except TimeoutError:
+                                logger.warning(f"Cleanup timed out for table {tbl}, skipping")
+                            except Exception as te:
+                                # Skip tables that don't exist - not yet migrated
+                                logger.debug(f"Skipping table {tbl}: {te}")
 
                     # Re-enable FK checks
                     await session.execute(text("SET session_replication_role = DEFAULT"))

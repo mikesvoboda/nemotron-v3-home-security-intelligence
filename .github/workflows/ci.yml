@@ -142,6 +142,22 @@ jobs:
         run: >-
           uv run python scripts/check-ai-provider-parity.py
           --expect .github/ai-parity-baseline.json
+      # WP1.2's --check mode, shipped with the generator and invoked until now
+      # by nothing. It is NOT a second drift check: the ratchet above already
+      # catches stale entries whose site vanished and unregistered new
+      # suppressions. What it adds is that registry METADATA cannot be edited
+      # by hand. `expires` is minted from `kind` (EXPIRES map) and `kind` from
+      # the census reason text (classify()), so a suppression facing its WP1.4
+      # deadline cannot be quietly moved -- neither by rewriting the date nor
+      # by relabelling the kind to buy a later one. Both drift; this returns 1.
+      # WP1.4 made expiry bite, and the natural response to a gate that bites
+      # is to move the date: this is what makes the date immovable.
+      # Invoked via `uv run python`, NOT bare `python3` -- the script uses PEP
+      # 758 unparenthesized `except`, which is 3.14-only, and the runner's
+      # python3 is 3.12 (the 16ac407d outage; the same form is still live at
+      # suppression-registry-gen.py:211 and suppression-census.py:137).
+      - name: Suppression registry is machine-minted (no hand-edits)
+        run: uv run python scripts/suppression-registry-gen.py --check
       # WP0.7: the two gates above are themselves tested; the suites sit
       # outside testpaths on purpose (no self-collection) — run explicitly.
       # A regression in either gate script fails here (scripts/test_*.py).
