@@ -7543,3 +7543,45 @@ of the done-when. The inherited-breakage risk P worried about is real but
 lives in TPA (WP1.3's fix list carries it, plus the earlier §3.10
 rerun-flag ruling). If TPA reddens a CI run today, consult its rotating-
 culprit history above before attributing it to my diff.
+
+## WP0.1 LANDED (2026-09-20): main green at `2ab66ff1` — and the anti-rot step had been running a TRUNCATED command since WP4.1
+
+**Root cause #1 (P's, confirmed + fixed by #6571):** main's deterministic
+`Contract Tests` red was the `/track` ratchet (runs 35482667110/35484007823);
+`2ab66ff1` (squash of #6571, merged 03:19:07Z) re-applied the deletion.
+**MEASURE: the `2ab66ff1` push run concluded `success` — `CI Gate` green on
+main.** WP0.1 done-when clause 1 met.
+
+**Root cause #2 (NOT in P — a whole invisibility class):** the
+`# WP4.1:` doctrine comments INSIDE the folded `>-` run block at ci.yml:171
+folded to ONE shell line, so bash saw a comment mid-command: `test_autospec_sweep.py`,
+`test_check_mock_spec.py`, `test_mutation_score.py`, `test_check_ai_provider_parity.py`
+and the `-q` have executed ZERO tests in CI since the day they joined.
+MEASURE: step-10 log `86 passed` (main run 35484007823, job 106006875922) ==
+exactly the 10 files BEFORE the first `#` (local: 86 those-10 / 158 all-14).
+The four suites joined under "a gate with no CI is a gate that rots" and
+rotted inside the anti-rot mechanism. Audit of all 4 workflows for folded run
+blocks containing `#`: exactly ONE (this one) — now fixed; the doctrine prose
+lives as real YAML comments above the step.
+
+**Root cause #3 (the pin):** `test_check_ai_provider_parity.py:746`
+`registry_ops == 38` went stale at #6570's legitimate 38->37 — and stayed
+silent BECAUSE of root cause #2. **Derived, not pinned:** the checker's own
+literal-AST parse must equal `len(backend.ai_contract.operations.OPERATIONS)`
+(the imported runtime dict). Two independent read paths of the generated
+source of truth; a legitimate contract change edits nothing here, an
+unintended change or a checker-goes-blind both fail LOUD naming both counts.
+Pure `len(OPERATIONS)` was rejected as asserting nothing about the checker —
+that rejection reason IS the justification clause of the done-when.
+
+**Red-first, demonstrated:** PR #6572's FIRST commit (wedge fix ONLY, head
+`572c92a6`) had to redden `Collection Sanity` — the parity suite executing for
+the first time meeting the 37-op contract. (collection-sanity is a direct
+`needs:` of ci-gate, so the red reaches the required context.) Pin-fix + WP0.2
+ledger commits followed on the same branch; green at final head proves the
+pair. `scripts/test_check_ai_provider_parity.py` 27 tests: red under old pin,
+green derived; full anti-rot list 158 passed locally.
+
+**Banked lesson:** a `#` is poison inside folded YAML scalars that feed `run:`.
+Any future doctrine comment belongs ABOVE the step. (Two-char fix class, four
+dead gate-suites, one stale pin nobody could see.)
