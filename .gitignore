@@ -151,3 +151,8 @@ docs/superpowers/staged/
 # score HISTORY is committed (.github/mutation-history.json) -- the cache
 # is regenerable; the series is not.
 mutants/
+
+# WP3.3: stryker sandbox + HTML mutation report (regenerable; the score
+# itself is ledger-recorded, the sandbox copy of the repo is not evidence).
+.stryker-tmp/
+frontend/reports/mutation/
