@@ -347,16 +347,31 @@ def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
     return float(value), f"baseline from {base_branch}:{BASELINE_FILENAME}"
 
 
+COVERAGE_DIFF_EPSILON_PP = 2.0
+"""Real drops are points-wide; the baseline itself is noise below that.
+
+The CI lineage moved 68.70 -> 70.33 -> 70.32 across consecutive main commits
+(artifacts of runs fetched 2026-09-20; P measured ~1.6pp) *with no coverage
+change at all* — the shard-overlap loss (WP2.1) drifted run to run. A bare
+`current < base` on a signal whose own noise band is ±1.6pp is a coin-flip
+that trains people to re-run instead of read. Fail only when the drop
+exceeds the band; 2.0pp is the observed maximum swing rounded up, so the
+noise floor is the epsilon — nothing bigger is suppressed.
+"""
+
+
 def check_coverage_diff(
     base_branch: str = "origin/main",
     current_percent: float | None = None,
     base_percent: float | None = None,
 ) -> tuple[bool, str]:
-    """Fail when coverage has DROPPED relative to the base branch.
+    """Fail when coverage has DROPPED past the epsilon against the base branch.
 
     The name is now the contract. Pre-WP0.9 this ran the suite and reported
     `True, "Current coverage: X%"` for every input, so no drop could ever be
-    detected — the spec's "misleading name is the actual defect".
+    detected — the spec's "misleading name is the actual defect". WP2.3 gave
+    the bare `<` an epsilon: the baseline's own measurement noise (measured
+    ~1.6pp run-to-run under the overlap bug) made zero tolerance a coin flip.
 
     Resolution order, base side first: explicit `base_percent`, then
     COVERAGE_BASE_JSON, then `git show <base_branch>:coverage-baseline.json`.
@@ -370,7 +385,7 @@ def check_coverage_diff(
     Skip semantics are genuine, not vacuous: an explicit seam that points at
     nothing (coverage never collected) or an unpublished baseline skips with a
     message saying so. What it can never do again is see both numbers
-    and still pass a drop.
+    and still pass a drop LARGER than the epsilon.
 
     Returns:
         Tuple of (passed, message)
@@ -450,11 +465,23 @@ def check_coverage_diff(
             if current_percent is None:
                 return True, "No coverage data collected, skipping coverage diff check"
 
-    if current_percent < base_percent:
+    drop = base_percent - current_percent
+    if drop > COVERAGE_DIFF_EPSILON_PP:
         return (
             False,
             f"Coverage DROPPED {base_percent:.1f}% -> {current_percent:.1f}% "
-            f"(-{base_percent - current_percent:.1f}pp; {base_note})",
+            f"(-{drop:.1f}pp, past the {COVERAGE_DIFF_EPSILON_PP:.1f}pp noise band; "
+            f"{base_note})",
+        )
+
+    if drop > 0:
+        # A real, small shortfall the band forgives — named, not hidden, so a
+        # pass never reads as a rise when it was actually within-epsilon.
+        return (
+            True,
+            f"Coverage {current_percent:.1f}% vs base {base_percent:.1f}% "
+            f"(-{drop:.1f}pp, within the {COVERAGE_DIFF_EPSILON_PP:.1f}pp epsilon "
+            f"band; {base_note})",
         )
 
     return (

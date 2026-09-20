@@ -111,3 +111,77 @@ test('CLI end-to-end on temp dirs prints FRONTEND_COVERAGE line', async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// WP2.3 (R-1): the four frontend floors become the MEASURED values
+// (80 / 74.6 / 78.4 / 80.9, run 35486259345's merged totals) and CI ENFORCES
+// them. --enforce makes the merge step's exit code mean "at or above the
+// floors" — the R-FEFLOOR report-only posture is retired per R-7 (advisory
+// gates become blocking after baselining; the baseline here is the measured
+// value, so enforcement cannot redden a tree that didn't regress).
+test('--enforce exits 1 when a metric is under its floor', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wp23-'));
+  try {
+    const s1 = join(dir, 'shard1');
+    mkdirSync(s1, { recursive: true });
+    // fileA+fileB merged totals ~66.7 statements: under the 80 floor.
+    writeFileSync(join(s1, 'coverage-final.json'), JSON.stringify({ [fileA.path]: fileA }));
+    const { execFileSync } = await import('node:child_process');
+    let failed = false;
+    let out = '';
+    try {
+      out = execFileSync(
+        'node',
+        [new URL('./merge-shard-coverage.mjs', import.meta.url).pathname, s1, '--out', join(dir, 'out'), '--enforce'],
+        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+    } catch (e) {
+      failed = true;
+      out = String(e.stdout || '') + String(e.stderr || '');
+    }
+    assert.ok(failed, 'a below-floor merge must exit non-zero under --enforce');
+    assert.match(out, /ENFORCE[^\n]*FAIL[^\n]*statements/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--enforce exits 0 at or above every floor', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'wp23-'));
+  try {
+    const s1 = join(dir, 'shard1');
+    mkdirSync(s1, { recursive: true });
+    // Fully covered file: 100% on all four metrics, above every floor.
+    const full = {
+      ...fileA,
+      s: { 0: 1, 1: 1, 2: 1 },
+      f: { 0: 1, 1: 1 },
+      b: { 0: [1, 1] },
+    };
+    writeFileSync(join(s1, 'coverage-final.json'), JSON.stringify({ [full.path]: full }));
+    const { execFileSync } = await import('node:child_process');
+    const out = execFileSync(
+      'node',
+      [new URL('./merge-shard-coverage.mjs', import.meta.url).pathname, s1, '--out', join(dir, 'out'), '--enforce'],
+      { encoding: 'utf8' },
+    );
+    assert.match(out, /ENFORCE PASS statements=100/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('vite.config thresholds and merge FLOORS are the SAME numbers', async () => {
+  // Two floor sources (vite.config.ts full-run thresholds; this script's
+  // CI-enforced FLOORS). Divergence means the local `npm run test:coverage`
+  // verdict and the CI merge verdict disagree — the N-copies-of-one-number
+  // rot class. Read vite's block and assert equality.
+  const { readFileSync } = await import('node:fs');
+  const vite = readFileSync(new URL('../vite.config.ts', import.meta.url), 'utf8');
+  const block = vite.match(/thresholds:\s*\{([^}]*)\}/);
+  assert.ok(block, 'vite.config.ts must contain a coverage thresholds block');
+  const grab = (k) => Number(block[1].match(new RegExp(`${k}:\\s*([0-9.]+)`))?.[1]);
+  const { FLOORS } = await import('./merge-shard-coverage.mjs');
+  for (const k of ['statements', 'branches', 'functions', 'lines']) {
+    assert.equal(grab(k), FLOORS[k], `vite threshold ${k} must equal merge FLOORS.${k} (drift guard)`);
+  }
+});

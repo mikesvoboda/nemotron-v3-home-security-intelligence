@@ -162,10 +162,20 @@ export function mergeFiles(paths) {
   return merged;
 }
 
+// WP2.3 R-1: the frontend floors ARE these numbers, measured 2026-09-20 on
+// run 35486259345's merged totals (statements 80.0 / branches 74.6 /
+// functions 78.4 / lines 80.9). They replace the declared 83/77/81/84 —
+// which no run ever met, so "enforcing" them was never on the table; R-7
+// makes the gate blocking once the baseline is the measured value. These
+// constants + the --enforce flag below are the enforcement point; CI passes
+// the flag so a merged number under any floor reddens the merge job.
+export const FLOORS = { statements: 80, branches: 74.6, functions: 78.4, lines: 80.9 };
+
 function main() {
   const argv = process.argv.slice(2);
   const outIdx = argv.indexOf('--out');
   const outDir = outIdx >= 0 ? argv[outIdx + 1] : 'coverage-merged';
+  const enforce = argv.includes('--enforce');
   const roots = argv.filter((a, i) => !a.startsWith('--') && i !== outIdx + 1);
 
   const files = roots.flatMap((r) =>
@@ -190,6 +200,19 @@ function main() {
     `FRONTEND_COVERAGE statements=${t.statements.pct} branches=${t.branches.pct} ` +
       `functions=${t.functions.pct} lines=${t.lines.pct} files=${Object.keys(merged).length}`,
   );
+
+  if (enforce) {
+    const below = Object.entries(FLOORS).filter(([k]) => t[k].pct < FLOORS[k]);
+    if (below.length > 0) {
+      const detail = below.map(([k]) => `${k}=${t[k].pct} < floor ${FLOORS[k]}`).join(', ');
+      console.error(`::error::ENFORCE FAIL (frontend floors) ${detail}`);
+      process.exit(1);
+    }
+    console.log(
+      `ENFORCE PASS statements=${t.statements.pct} branches=${t.branches.pct} ` +
+        `functions=${t.functions.pct} lines=${t.lines.pct} (floors ${Object.values(FLOORS).join('/')})`,
+    );
+  }
 }
 
 // Only run as a CLI, not when imported by the unit test.

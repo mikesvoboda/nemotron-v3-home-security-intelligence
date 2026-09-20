@@ -162,6 +162,57 @@ def test_coverage_equal_passes(isolated_cwd, monkeypatch):
     assert ok is True, msg
 
 
+# ---------------------------------------------------------------------------
+# WP2.3 epsilon: the BASELINE is a noisy instrument. Published CI values
+# moved 68.70 -> 70.33 -> 70.32 across consecutive main commits (artifacts
+# fetched 2026-09-20) with no coverage change at all — shard-overlap drift
+# (WP2.1). A zero-tolerance gate on a signal whose noise band is ~1.6pp is a
+# coin-flip that trains people to ignore it. Band = 2.0pp (observed max,
+# rounded up): inside the band passes and SAYS SO; past it fails as before.
+# ---------------------------------------------------------------------------
+
+
+def test_drop_inside_epsilon_band_passes_saying_so(isolated_cwd, monkeypatch):
+    """-0.3pp: 1/6th of the band. Must pass, and the message must not hide
+    the shortfall (a silent pass on a real -0.3 is indistinguishable from
+    the pre-epsilon world where nobody could tell noise from a drop)."""
+    write_coverage_json(isolated_cwd / "coverage.json", 87.6)
+    base = isolated_cwd / "base.json"
+    write_coverage_json(base, 87.9)
+    monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
+
+    ok, msg = get_diff_fn()()
+    assert ok is True, f"-0.3pp is inside the noise band and must pass: {msg}"
+    assert "within" in msg.lower() and "epsilon" in msg.lower(), (
+        f"a within-epsilon pass must label itself as such, not masquerade as a rise: {msg}"
+    )
+
+
+def test_drop_past_epsilon_fails(isolated_cwd, monkeypatch):
+    """-2.5pp is a REAL drop even under the widest observed noise; it must
+    fail exactly like the pre-epsilon case (the epsilon suppresses noise,
+    not signal)."""
+    write_coverage_json(isolated_cwd / "coverage.json", 85.4)
+    base = isolated_cwd / "base.json"
+    write_coverage_json(base, 87.9)
+    monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
+
+    ok, msg = get_diff_fn()()
+    assert ok is False, f"-2.5pp is past the 2.0pp band and must fail: {msg}"
+    assert "85.4" in msg and "87.9" in msg, f"message must name both numbers: {msg}"
+
+
+def test_epsilon_value_is_the_measured_noise_band():
+    """The band must not silently drift: it is the measured baseline swing
+    (68.70->70.33->70.32 artifacts), not a comfort margin. Widening it is
+    gate-widening — needs the same owner adjudication as a floor change."""
+    mod = get_gate_module()
+    assert mod.COVERAGE_DIFF_EPSILON_PP == 2.0, (
+        "epsilon is 2.0pp = observed max swing ~1.6pp rounded up (ledger "
+        "WP2.3); change only with a new measurement in the same commit"
+    )
+
+
 def test_coverage_increase_passes(isolated_cwd, monkeypatch):
     write_coverage_json(isolated_cwd / "coverage.json", 91.0)
     base = isolated_cwd / "base.json"

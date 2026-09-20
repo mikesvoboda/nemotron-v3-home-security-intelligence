@@ -124,8 +124,28 @@ existed anywhere. `unit-tests-coverage-merge` now also emits `coverage json`
 baseline: `percent_covered` (blended — the flat key
 `check-test-coverage-gate.py` parses; siblings added, never moved),
 `percent_line`, and `percent_branch`. The integration merge reports line /
-branch / blended to its step summary (reporting only — the R-COVDENOM ruling
-stands).
+branch / blended to its step summary.
+
+**The wired floors (WP2.3, R-1: floors at MEASURED values):**
+
+| Floor                                    | Value                            | Where enforced                                                           |
+| ---------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
+| Backend unit, absolute                   | 70                               | `unit-tests-coverage-merge`, only when all unit shards passed            |
+| Backend integration, absolute            | 37                               | `integration-coverage-merge`, only when every integration shard passed   |
+| Frontend statements/branches/funcs/lines | 80 / 74.6 / 78.4 / 80.9          | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
+| Combined (unit+integration)              | 80 (unchanged)                   | nightly-full-gate + `validate.sh` — now only runs when BOTH tiers passed |
+| PR diff vs main's baseline               | no drop past **2.0pp** (epsilon) | `check-test-coverage-gate.py` — band = measured baseline noise (~1.6pp)  |
+
+Every completeness guard is the same rule: a floor verdict needs a
+full-execution measurement, so enforcement is skipped (with a warning naming
+the non-success tier) when a tier is red — a test failure must never arrive
+labeled as a coverage failure. P measured exactly that misattribution 3 of
+the last 4 nightly runs; `scripts/test_coverage_floors.py` executes the
+committed nightly step body against missing and complete data to pin both
+directions. The frontend floors replace declared 83/77/81/84, which sat above
+every observed run (merged 80.0/74.6/78.4/80.9, run 35486259345); the
+backend unit floor 70 is the published baseline lineage (70.32) and rises
+with the baseline once WP2.1's seed fix reaches main.
 
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".

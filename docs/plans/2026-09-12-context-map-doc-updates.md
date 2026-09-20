@@ -7889,6 +7889,76 @@ Caveat: display fields (percent\_\*\_covered_display) carry the same rounding
 the ledger's lineage uses (2dp strings); the flat percent_covered stays the
 full float — baseline diffs compare like-for-like.
 
+## WP2.3 SUBMITTED (#6583 draft, stacked on #6582) — floors at measured values, enforced only on COMPLETE data; the nightly can no longer cry "coverage" for non-coverage reasons (2026-09-20)
+
+**The three defects P names for this WP, each fixed red-first:**
+
+1. **Epsilon.** `check-test-coverage-gate.py` fail-under-any-drop flagged
+   noise: baseline lineage 68.70→70.33→70.32 swings ~1.6pp between green
+   main runs, so an honest +improvement branch could be reddened by run-to-
+   run shard noise (and vice versa — a real −0.4pp loss and noise were
+   indistinguishable). Now `COVERAGE_DIFF_EPSILON_PP = 2.0` (measured band,
+   drift-pinned by test); in-band drops PASS with the band named in the
+   message; out-of-band fails name both numbers and the band. Red-first:
+   stashed the gate change → 2 red, rewired → 14/14 green.
+2. **The misattributed nightly red.** The combined-coverage step ran
+   `if: always()`, so ANY tier failure (or a cancel that never landed the
+   data file) flowed into a COVERAGE verdict — P's P-side measurement: 3 of
+   the last 4 nightly reds. Reproduced pre-fix against the real step body:
+   combine rc=1 "Couldn't combine from non-existent path
+   .coverage.integration", and with a stale combined file `report
+--fail-under=80` printed "Coverage failure: total of 25.04 …" — a
+   test-failure red wearing a coverage costume. Fix: tier steps carry ids;
+   the gate runs only when both tiers SUCCEEDED (full-execution data — the
+   only measurement the 80 floor was calibrated on); a MISSING-file loop
+   skips naming the absent tier; a real sub-80 now SURFACES its verdict
+   line to the step log (`2>&1` + `tail -3 >&2`) — the honest-but-silent
+   class it used to be invisible outside the redirected file. Both
+   directions E2E: `scripts/test_coverage_floors.py` reads the COMMITTED
+   YAML step body and EXECUTES it (path-port only) — missing file → rc 0 +
+   skip naming the tier + no coverage-failure text; both files → combine +
+   report + non-zero naming 80. Hermetic (~3s scratch pytest project — the
+   anti-rot job has no Postgres/Redis by design).
+3. **Floors at measured values, wired INTO the merge steps (R-1 + R-7),
+   behind completeness guards.** Before this WP the backend merges
+   extracted the number and enforced NOTHING anywhere; the only absolute
+   floor that executed at all was nightly's 80 combined. Now: unit merge
+   enforces **70** (measured published baseline 70.32 at the 2ab66ff1 baseline lineage;
+   rises with WP2.1's seed fix landing); integration merge enforces **37**
+   (measured merged percent 37.01, run 35486259345 job 106014163787);
+   frontend merge script exports `FLOORS` 80/74.6/78.4/80.9 (measured run
+   35486259345 job 106015509231) and CI passes `--enforce` ONLY when
+   `needs.frontend-tests.result == 'success'`. `vite.config.ts` thresholds
+   83/77/81/84 → the measured 80/74.6/78.4/80.9 — the declared numbers sat
+   above EVERY observed run; a floor that never held is not a floor. Node
+   drift guard pins vite ↔ FLOORS. Same guard on both backend merges:
+   non-success anywhere in the tier's matrix → `::warning::` not enforced
+   on partial data, exit 0 — partial data is not a coverage verdict.
+   Unit floor check exits BEFORE "Publish coverage baseline" so a sub-floor
+   run can never promote itself into main's diff base. Nightly 80 combined
+   unchanged (R-1: it already holds).
+
+**Anti-rot swallow found while wiring the new coverage-gate suites step**
+(the `collection-sanity` job's folded `>-` list turns its `#` comment lines
+into pytest argv; at a word boundary the shell comment drops every later
+file — test_autospec_sweep / test_check_mock_spec / test_mutation_score /
+test_check_ai_provider_parity NEVER ran). NOT fixed on this branch: PR
+#6572 (bottom of the stack) owns that fix and editing the folded block
+here guarantees a merge collision. The new step dodges by construction —
+block scalar `|`, so its comments are comments. When #6572 lands the
+folded list becomes real; this step stays valid either way.
+
+**Verification:** floors suite 7/7 (2.3s hermetic); diff suite 14/14;
+denominator suite 7/7; all three under the repo's REAL CI addopts 28/28;
+`node --test` 9/9 (incl. 3 new enforce/drift tests, red-first before
+implementation); actionlint clean on ci.yml + nightly-full-gate.yml;
+job-graph 41 jobs / 34 gate-needs unchanged; shard-retry wiring invariants
+hold. Ruff + format clean (S108 handled per repo precedent via one
+port-target constant, `check=False` explicit where the return code IS the
+assertion).
+
+**Next:** WP2.4 (cap 2h) — "make the ratchet actually ratchet."
+
 ## WP0.2 LANDED (2026-09-20): the rotating-culprit baseline is EMPTY — rotation lives in Test Performance Audit, not the unit tier
 
 **MEASURE.** Literal CI unit-tier command (`uv run pytest backend/tests/unit/

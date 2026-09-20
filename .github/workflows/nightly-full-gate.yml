@@ -98,6 +98,7 @@ jobs:
       # gate fires only on the merged COMBINED file — validate.sh's preserved
       # semantics). Output via redirection to log files, never `cmd | tee`.
       - name: Backend unit+contracts+security tier (validate.sh semantics)
+        id: unit_tier
         run: |
           set -eu
           mkdir -p /tmp/fcl-cov
@@ -114,6 +115,7 @@ jobs:
           tail -5 /tmp/nightly-backend-unit.log
 
       - name: Backend integration tier (validate.sh semantics)
+        id: integration_tier
         run: |
           set -eu
           if ! COVERAGE_FILE=/tmp/fcl-cov/.coverage.integration \
@@ -129,15 +131,45 @@ jobs:
           tail -5 /tmp/nightly-backend-integration.log
 
       - name: Combined coverage gate (80%, validate.sh semantics)
-        if: always()
+        id: combined_gate
+        # WP2.3 (done-when: "the nightly reports coverage failures only for
+        # coverage reasons"). This step used to run `if: always()`, so ANY
+        # tier failure flowed through into a COVERAGE verdict — P measured
+        # 3 of the last 4 nightly reds were that: combine dying on a missing
+        # data file (or reporting a stale one) is not a coverage statement.
+        # A full-tier run is what makes the 80% floor meaningful — it was
+        # calibrated on validate.sh's full unit+contracts+security+integration
+        # execution, so a partial-execution measurement can neither pass nor
+        # fail honestly; skip it and let the TIER step's own red name the
+        # reason. The existence checks are belt-and-braces for cancellation
+        # paths where the step outcome alone can't prove the file landed.
+        if: >-
+          steps.unit_tier.outcome == 'success' &&
+          steps.integration_tier.outcome == 'success'
         run: |
           set -eu
+          MISSING=''
+          for tier in unit integration; do
+            [ -f "/tmp/fcl-cov/.coverage.${tier}" ] || MISSING="${MISSING} ${tier}"
+          done
+          if [ -n "$MISSING" ]; then
+            echo "Coverage gate SKIPPED:${MISSING} data absent — a test-failure red lives in the tier step, this is not a coverage verdict"
+            echo "Coverage gate skipped (${MISSING} data absent — see the tier step for the real failure)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           # NO pipe on the report: `report | tail` would mask a below-80
           # exit with tail's status (the exact mask class spec §5 removes).
           uv run python -m coverage combine --data-file=/tmp/fcl-cov/.coverage \
             /tmp/fcl-cov/.coverage.unit /tmp/fcl-cov/.coverage.integration
-          uv run python -m coverage report --data-file=/tmp/fcl-cov/.coverage \
-            --fail-under=80 --show-missing > /tmp/nightly-coverage-report.log
+          if ! uv run python -m coverage report --data-file=/tmp/fcl-cov/.coverage \
+            --fail-under=80 --show-missing > /tmp/nightly-coverage-report.log 2>&1; then
+            # WP2.3: a coverage RED must explain itself in the step log —
+            # the verdict line lived only in the redirected file, so the
+            # honest-but-silent failure looked like an infra flake. NO pipe
+            # on report above; tailing its LOG (already written) is safe.
+            tail -3 /tmp/nightly-coverage-report.log >&2 || true
+            exit 1
+          fi
           tail -1 /tmp/nightly-coverage-report.log > /tmp/fcl-cov/summary-cov.txt
 
       - name: Honesty summary (artifact-derived; feeds spec 6.1 trend)

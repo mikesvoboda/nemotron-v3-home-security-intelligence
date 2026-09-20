@@ -203,6 +203,24 @@ jobs:
       - name: Flaky-marker governance gate test
         run: uv run python scripts/test_flaky_marker_governance.py
 
+      # WP2.3: the coverage-denominator / floors / diff-gate suites. These
+      # gate scripts (check-test-coverage-gate.py) and CI workflow SHAPE
+      # (the merge/nightly step bodies they execute), so a regression there
+      # fails HERE — a coverage gate with no CI is a coverage gate that rots.
+      # BLOCK SCALAR (`|`), deliberately NOT the folded `>-` list above: a
+      # folded block turns its `#` comment lines into argv literals and, at a
+      # word boundary, a shell comment that silently drops every later file
+      # (the exact swallow #6572 unwedges — this step avoids the trap by
+      # construction rather than waiting on that PR). Self-contained coverage
+      # here needs no Postgres/Redis: the E2Es mint a synthetic scratch project.
+      - name: Coverage gate suites (WP2.1/2.2/2.3)
+        run: |
+          uv run python -m pytest \
+            scripts/test_coverage_denominator.py \
+            scripts/test_coverage_floors.py \
+            scripts/test_check_coverage_diff.py \
+            -q
+
       # WP0.6 follow-up (2026-09-17): same script-style shape — the job-graph
       # invariant shipped with WP0.6 but was never invoked anywhere, so it
       # could not have reported the two ungated jobs it now catches
@@ -567,6 +585,26 @@ jobs:
             echo "Unit merged coverage: **line ${line}%** / **branch ${branch}%** (blended ${total}% published as percent_covered)" \
               >> "$GITHUB_STEP_SUMMARY"
             echo "merged=true" >> "$GITHUB_OUTPUT"
+            # WP2.3 (R-1): the ABSOLUTE floor at the measured value — 70 is
+            # the published baseline lineage (70.32 as of run 2ab66ff1; the
+            # 68.70 observation predates the WP2.1 seed fix and is shard-
+            # overlap noise, recorded in the ledger). Before WP2.3 this step
+            # extracted a number and enforced nothing anywhere. Enforce ONLY
+            # on a fully-passed tier (needs.unit-tests) — a red shard means
+            # partial data, and partial data under a floor is a test failure
+            # wearing a coverage costume (the WP2.3 class). A floor-red run
+            # exits BEFORE "Publish coverage baseline" runs, so main's
+            # published baseline stays the last honest number instead of
+            # promoting the sub-floor run to be everyone's diff base.
+            if [ '${{ needs.unit-tests.result }}' = 'success' ]; then
+              if awk "BEGIN{exit !($total < 70)}"; then
+                echo "::error::FLOOR FAIL (unit) merged coverage ${total}% < floor 70 (R-1 measured baseline lineage)"
+                exit 1
+              fi
+              echo "FLOOR PASS (unit): ${total}% >= 70"
+            else
+              echo "::warning::unit tier result '${{ needs.unit-tests.result }}' — absolute floor NOT enforced on partial data (the tier's own red is the real verdict)"
+            fi
           else
             echo "::warning::No coverage files found to merge"
             # Create empty coverage files to prevent downstream failures
@@ -1107,12 +1145,14 @@ jobs:
 
       # WP5.1/A2: this merge was download -> find -> Codecov with NO combine
       # step, so the integration tier never produced a single real percentage.
-      # It now combines the .dat data files into one measurement. Per the
-      # "make it compute, don't make it gate" split this REPORTS the number to
-      # the step summary and does NOT enforce a threshold — R-COVDENOM
-      # (parked, L) decides whether "combined" is the denominator and whether
-      # it ever gates. combine consumes its inputs; the XML copies stay for
-      # Codecov.
+      # It now combines the .dat data files into one measurement. WP2.2 made
+      # it report line/branch/blended; WP2.3 (R-1) wires the ABSOLUTE floor at
+      # the measured merged value 37 (percent=37.01, run 35486259345) — but
+      # ONLY when every integration shard passed: a cancelled/failed shard
+      # means partial .dat data and a floor verdict on it is a test failure
+      # wearing a coverage costume (the WP2.3 class; api-retry rescues a
+      # cancelled shard, and the retry path conservatively skips enforcement).
+      # combine consumes its inputs; the XML copies stay for Codecov.
       - name: Combine integration coverage
         run: |
           if compgen -G "coverage-reports/*.dat" > /dev/null 2>&1; then
@@ -1121,15 +1161,34 @@ jobs:
               --format=total --fail-under=0)"
             # WP2.2: report the split, not just the blended --format=total
             # figure (measured: blended != line != branch under branch=true).
-            # Same extraction-not-floor --fail-under=0; reporting-only, the
-            # R-COVDENOM ruling stands (this gates nothing).
+            # Same extraction-not-floor --fail-under=0 (extraction stays
+            # extraction; the FLOOR block below is the enforcement point).
             uv run coverage json --data-file=.coverage-integration \
               -o coverage-integration-totals.json --fail-under=0
             line="$(jq -r '.totals.percent_statements_covered_display' coverage-integration-totals.json)"
             branch="$(jq -r '.totals.percent_branches_covered_display' coverage-integration-totals.json)"
-            echo "Integration merged coverage: line ${line}% / branch ${branch}% / blended ${total}% (reported only — R-COVDENOM gates nothing)" \
+            echo "Integration merged coverage: line ${line}% / branch ${branch}% / blended ${total}%" \
               >> "$GITHUB_STEP_SUMMARY"
             echo "percent=${total}"
+            # WP2.3 (R-1): absolute floor at the measured 37, gated on the
+            # WHOLE tier having passed — all four shard jobs, not just the
+            # API matrix: a cancelled WS/services/models shard would mean
+            # partial .dat data, and a floor verdict on partial data is the
+            # WP2.3 misattribution class. (integration-tests-api-retry is
+            # deliberately absent: it only RUNS when api was cancelled, which
+            # the api result check below already excludes from enforcement.)
+            INTEG_RESULTS='${{ needs.integration-tests-api.result }} ${{ needs.integration-tests-websocket.result }} ${{ needs.integration-tests-services.result }} ${{ needs.integration-tests-models.result }}'
+            for r in $INTEG_RESULTS; do
+              if [ "$r" != 'success' ]; then
+                echo "::warning::integration tier results [$INTEG_RESULTS] — absolute floor NOT enforced on partial data (a non-success shard's own red is the real verdict)"
+                exit 0
+              fi
+            done
+            if awk "BEGIN{exit !($total < 37)}"; then
+              echo "::error::FLOOR FAIL (integration) merged coverage ${total}% < floor 37 (R-1 measured: percent=37.01 run 35486259345)"
+              exit 1
+            fi
+            echo "FLOOR PASS (integration): ${total}% >= 37"
           else
             echo "::warning::no integration .dat data files found to combine"
           fi
@@ -1896,21 +1955,36 @@ jobs:
       # nothing and measured nothing. The merger is stdlib-only Node with its
       # own unit checks (node --test) that run HERE, before its numbers are
       # trusted — no npm ci needed for either.
+      #
+      # WP2.3 (R-1 + R-7): the four floors are now the MEASURED values
+      # (80 / 74.6 / 78.4 / 80.9, run 35486259345) and this step ENFORCES
+      # them — R-FEFLOOR's "reported only" posture is retired now that the
+      # baseline is the measurement instead of an aspirational 83/77/81/84
+      # that never held. The guard is the same defect class WP2.3 fixes in
+      # the nightly: a red shard means PARTIAL coverage data, and partial
+      # data under a floor is a test-failure verdict wearing a coverage
+      # costume — so enforcement runs only when every shard passed (the
+      # shard summary job still reddens that case with the true reason).
       - name: Merge frontend coverage
         run: |
           node --test frontend/scripts/merge-shard-coverage-test.mjs
-          node frontend/scripts/merge-shard-coverage.mjs coverage-reports/ --out coverage-merged
+          ENFORCE=''
+          if [ "${{ needs.frontend-tests.result }}" = 'success' ]; then
+            ENFORCE='--enforce'
+          else
+            echo "::warning::frontend shards did not all pass (${{ needs.frontend-tests.result }}) — merging for the record, floors NOT enforced on partial data"
+          fi
+          node frontend/scripts/merge-shard-coverage.mjs coverage-reports/ --out coverage-merged $ENFORCE
 
-      # R-FEFLOOR (plan P ADDENDUM A3, parked): measured actuals sit 2.4-3.1
-      # points under the declared thresholds 83/77/81/84. Publishing the four
-      # numbers is WP5.2's remit; flipping enforcement is the owner's. This
-      # step CANNOT redden the build (no process.exit on shortfall).
-      - name: 'Report frontend coverage (R-FEFLOOR: not enforced)'
+      # The enforcement lives in the merge step above; this step keeps the
+      # human-readable summary line with the per-metric floors named.
+      - name: 'Report frontend coverage (floors enforced by merge step)'
+        if: always()
         run: |
           if [ -f coverage-merged/coverage-summary.json ]; then
             node -e '
               const s = require("./coverage-merged/coverage-summary.json").total;
-              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 83), branches ${s.branches.pct}% (floor 77), functions ${s.functions.pct}% (floor 81), lines ${s.lines.pct}% (floor 84). REPORTED ONLY — R-FEFLOOR parked, thresholds not enforced.`;
+              const line = `Frontend merged coverage — statements ${s.statements.pct}% (floor 80), branches ${s.branches.pct}% (floor 74.6), functions ${s.functions.pct}% (floor 78.4), lines ${s.lines.pct}% (floor 80.9). Enforced by the merge step when all shards pass (WP2.3).`;
               console.log(line);
               require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, line + "\n");
             '
