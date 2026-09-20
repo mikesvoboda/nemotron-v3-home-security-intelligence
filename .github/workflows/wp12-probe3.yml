@@ -10,7 +10,7 @@ on:
 # child registers in -> collision reproduces what #6575 showed (call job dies,
 # needs.*.result=failure). If w5 goes GREEN, caller-name rendering is dead.
 concurrency:
-  group: WP12 probe3 (concurrency collision)-${{ github.ref }}
+  group: '${{ github.workflow }}-${{ github.ref }}'
   cancel-in-progress: true
 
 jobs:
