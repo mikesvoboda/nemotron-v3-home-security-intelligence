@@ -101,6 +101,17 @@ def check(root: Path, update: bool, today: dt.date) -> int:
     baseline, registry = load_state(root)
     errors: list[str] = []
 
+    # WP2.4b: `environment` is exempt from tracking+expiry, so it must be a
+    # CLAIM with evidence, never a category default. For imperative skips the
+    # census measures the evidence: host_probe True means the guard at the
+    # site names host machinery (which()/importlib/environ/service health...);
+    # a probe-False guard (e.g. `not repo_file.exists()`) can only buy the
+    # exemption with a written per-entry host_justification. Without this,
+    # every imperative skip defaulted to environment was permanently exempt.
+    host_probes = {
+        it["id"]: bool(it.get("host_probe")) for it in loc.get("pytest_skip_imperative", [])
+    }
+
     # 1. structural schema — a malformed entry is not an adjudication.
     entry_ids: dict[str, set[str]] = {}
     for cat, rows in registry.items():
@@ -123,6 +134,22 @@ def check(root: Path, update: bool, today: dt.date) -> int:
                 errors.append(
                     f"REGISTRY {cat}: {row['id']}: kind=environment requires null "
                     "tracking (a tracked finding is a todo/defect, not an exemption)"
+                )
+            justified = bool(row.get("host_justification"))
+            if kind == "environment" and cat == "pytest_skip_imperative":
+                if not justified and not host_probes.get(row["id"], False):
+                    errors.append(
+                        f"LAUNDER {cat}: {row['id']}: kind=environment but the guard at "
+                        "the site names no host machinery (census host_probe=False) and "
+                        "carries no host_justification — a repo-file guard is not an "
+                        "environment exemption (WP2.4b); re-adjudicate as todo or justify "
+                        "the site in scripts/suppression-registry-gen.py"
+                    )
+            elif justified:
+                errors.append(
+                    f"REGISTRY {cat}: {row['id']}: host_justification on kind={kind} is a "
+                    "field no rule enforces (decoration) — it licenses kind=environment "
+                    "and nothing else"
                 )
             if kind in EXEMPT_KINDS and row.get("expires") not in (None, ""):
                 errors.append(

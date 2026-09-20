@@ -103,3 +103,82 @@ def test_sharded_pytest_pins_a_run_scoped_seed():
             f"{path.name}: seed must be run-scoped (github.run_id), not a "
             "constant (freezes order forever) nor per-job (the original bug)"
         )
+
+
+# ---------------------------------------------------------------------------
+# WP2.2: WHAT the published number IS. coverage report --format=total with
+# branch=true (pyproject) emits the BLENDED statements+branches figure —
+# measured 2026-09-20 against the local merged data: total 84.12 while line
+# (percent_statements) is 86.02 and branch is 76.27. So coverage-baseline.json
+# alone published a number that is neither line nor branch coverage, and
+# neither of THOSE was published anywhere. These tests pin that line and
+# branch are published separately on every main run (unit side, into the
+# baseline artifact every consumer reads) and that root CLAUDE.md stopped
+# claiming "85%" as the unit tier's strength.
+# ---------------------------------------------------------------------------
+
+CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+
+
+def _step_run(path: Path, job_id: str, step_name: str) -> str:
+    import yaml
+
+    data = yaml.safe_load(path.read_text())
+    for step in data["jobs"][job_id]["steps"]:
+        if step.get("name") == step_name:
+            return step.get("run", "")
+    raise AssertionError(f"{path.name}: step {step_name!r} not found in job {job_id!r}")
+
+
+def test_unit_combine_publishes_line_branch_and_blended():
+    run = _step_run(CI_YML, "unit-tests-coverage-merge", "Combine and check coverage threshold")
+    # the json report is the only source of the three figures
+    assert "coverage json" in run, (
+        "combine step must emit a coverage json report (line/branch totals)"
+    )
+    assert "--fail-under=0" in run, (
+        "json extraction must not inherit pyproject fail_under=85: exiting 1 on the "
+        "extraction path reddens the job exactly when coverage moves (WP0.9 doctrine)"
+    )
+    for field in ("percent_statements", "percent_branches", "percent_covered"):
+        assert field in run, (
+            f"baseline json must carry {field} (line / branch / blended, all three)"
+        )
+
+
+def test_baseline_json_shape_is_read_by_the_gate():
+    # WP0.6 bug class (reader/writer drift = silent skip): the richer WP2.2
+    # baseline must stay legible to BOTH consumers of the flat key —
+    # check-test-coverage-gate.py's _read_percent/_base_percent_from_git
+    # (JSON parse of the top-level percent_covered) and test-coverage-gate.yml's
+    # fetch. Adding siblings is fine; renaming or nesting the flat key would
+    # break the diff gate silently, so pin writer and reader in one test.
+    writer = _step_run(CI_YML, "unit-tests-coverage-merge", "Combine and check coverage threshold")
+    assert re.search(r'"percent_covered"\s*:', writer), (
+        "ci.yml must write percent_covered as a TOP-LEVEL quoted JSON key — the "
+        "gate parses it flat; only ADD siblings (line/branch), never move it"
+    )
+    gate = (REPO_ROOT / "scripts" / "check-test-coverage-gate.py").read_text()
+    assert 'get("percent_covered")' in gate, (
+        "the gate reads the flat top-level percent_covered; if the baseline shape "
+        "changes, fix BOTH sides in one commit (WP0.6 drift class)"
+    )
+
+
+def test_integration_combine_reports_line_and_branch():
+    run = _step_run(CI_YML, "integration-coverage-merge", "Combine integration coverage")
+    for field in ("percent_statements", "percent_branches"):
+        assert field in run, (
+            f"integration summary must publish {field} (blended-only reporting is WP2.2's defect)"
+        )
+
+
+def test_claude_md_carries_measured_strength_not_85():
+    t = CLAUDE_MD.read_text()
+    assert not re.search(r"Backend Unit\s*\|\s*85%", t), (
+        "CLAUDE.md's Backend Unit row must not lead with 85%: measured strength is "
+        "84.12 blended / 86.02 line / 76.27 branch (docs/development/testing.md WP2.1 section)"
+    )
+    assert "84.12" in t and "86.02" in t and "76.27" in t, (
+        "CLAUDE.md must carry the measured triple (blended/line/branch), not a stale round number"
+    )

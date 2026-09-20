@@ -11,7 +11,7 @@ census's `unspecced_patch` category -- so these tests cover both faces:
     import; the WP4.1 gate-collateral commits proved file:line registry ids
     rot under batch edits, so the ratchet's new category must not repeat it)
   * the staged fast-path: the pre-commit hook sees the ADDED lines only --
-    the tree legitimately carries 322 licensed sites, so a whole-file scan
+    the tree legitimately carries hundreds of licensed sites, so a whole-file scan
     would block every commit touching one
   * the done-when, end to end: adding an unspecced patch() to a tree whose
     baseline+registry were minted WITHOUT it fails ratchet-check naming the
@@ -157,6 +157,121 @@ def test_count_matches_locations(tmp_path):
     r = gate("--count", "--root", str(root))
     assert r.returncode == 0, r.stderr
     assert r.stdout.strip() == "1"
+
+
+# ------------------------------------------------------- R-5 arity (WP2.4c)
+#
+# `autospec=True` on a callable that takes NO arguments buys essentially
+# nothing: there is no signature to get wrong, so the drift class Phase 4
+# exists to kill cannot re-enter through it. R-5 retires those sites from
+# the count — which LOWERS the baseline, honestly. The retirement is earned
+# per site by a resolver, so the gate needs three properties:
+#   * arity is measured from the TARGET's def, followed through the test
+#     module's imports (patch-at-use-site: `from backend.api.routes.system
+#     import get_settings` patches backend.api.routes.system.get_settings,
+#     whose def lives in backend/core/config.py);
+#   * anything the resolver cannot prove is KEPT (unresolved, varargs,
+#     required params, third-party targets) — the count may only fall on
+#     evidence, never on a guess;
+#   * the decision rides the census/ratchet category count, not a parallel
+#     mechanism.
+
+
+def test_zero_arity_site_is_retired_from_the_count(tmp_path):
+    """A patch of a 0-parameter, no-varargs function is not counted: there
+    is no signature for autospec to pin, so the suppression buys nothing."""
+    root = tree(
+        tmp_path,
+        {
+            "backend/core/db.py": "def init_redis():\n    return None\n",
+            "backend/tests/unit/test_a.py": (
+                "from unittest import mock\n"
+                "from backend.core.db import init_redis\n"
+                "def test_x():\n"
+                "    with mock.patch('backend.core.db.init_redis') as m:\n"
+                "        assert m\n"
+            ),
+        },
+    )
+    assert scan(root) == []
+    r = gate("--count", "--root", str(root))
+    assert r.stdout.strip() == "0"
+
+
+def test_zero_arity_resolved_through_the_import_at_the_use_site(tmp_path):
+    """patch() targets the attribute ON THE IMPORTED MODULE, but the def may
+    live elsewhere; following the import is what makes the verdict provable."""
+    root = tree(
+        tmp_path,
+        {
+            "backend/core/config.py": "def get_settings():\n    return 1\n",
+            "backend/api/routes/system.py": (
+                "from backend.core.config import get_settings\n\nsettings = get_settings\n"
+            ),
+            "backend/tests/unit/test_a.py": (
+                "from unittest import mock\n"
+                "def test_x():\n"
+                "    with mock.patch('backend.api.routes.system.get_settings') as s:\n"
+                "        assert s\n"
+            ),
+        },
+    )
+    assert scan(root) == []
+
+
+def test_sites_with_required_params_are_kept(tmp_path):
+    """The pair-side: arity ≥ 1 is exactly where autospec has teeth, so the
+    site stays licensed."""
+    root = tree(
+        tmp_path,
+        {
+            "backend/core/db.py": "def connect(dsn, timeout=5):\n    return None\n",
+            "backend/tests/unit/test_a.py": (
+                "from unittest import mock\n"
+                "def test_x():\n"
+                "    with mock.patch('backend.core.db.connect') as m:\n"
+                "        assert m\n"
+            ),
+        },
+    )
+    assert [it["id"] for it in scan(root)] == ["backend/tests/unit/test_a.py::test_x::k1"]
+
+
+def test_unresolved_targets_are_kept(tmp_path):
+    """A count may only fall on evidence. A target the resolver cannot
+    resolve — a module absent from the tree, a name it cannot follow — is
+    kept, never assumed harmless."""
+    root = tree(
+        tmp_path,
+        {
+            "backend/tests/unit/test_a.py": (
+                "from unittest import mock\ndef t():\n    mock.patch('a.b.c')\n"
+            )
+        },
+    )
+    assert [it["id"] for it in scan(root)] == ["backend/tests/unit/test_a.py::t::k1"]
+
+
+def test_varargs_and_class_targets_are_kept(tmp_path):
+    """`def f(*a)` accepts anything — autospec buys nothing but the
+    retirement claim is about callables with a provably empty signature;
+    likewise a patched CLASS whose __init__ takes args."""
+    root = tree(
+        tmp_path,
+        {
+            "backend/core/db.py": (
+                "def wide(*args, **kwargs):\n    return None\n\n\n"
+                "class Pool:\n    def __init__(self, dsn):\n        self.dsn = dsn\n"
+            ),
+            "backend/tests/unit/test_a.py": (
+                "from unittest import mock\n"
+                "def test_x():\n"
+                "    mock.patch('backend.core.db.wide')\n"
+                "    mock.patch('backend.core.db.Pool')\n"
+            ),
+        },
+    )
+    assert len(scan(root)) == 2
 
 
 # ------------------------------------------------------------- staged mode
@@ -322,8 +437,9 @@ def test_ratchet_fails_on_sneaked_unspecced_site(tmp_path):
 
 @pytest.mark.timeout(180)  # two real-tree AST scans (~30s); tier default is 5s
 def test_real_tree_category_is_seeded_and_green():
-    """The WP4.2 commit must seed baseline+registry for the 322 residual
-    sites, or every CI run fails at the ratchet."""
+    """The census, the seeded baseline and the gate must agree on the residual
+    count (322 at WP4.2's seed, 233 after WP2.4c R-5 fall), or every CI run
+    fails at the ratchet."""
     r = subprocess.run(
         [sys.executable, str(REPO_ROOT / "scripts" / "suppression-census.py")],
         capture_output=True,
