@@ -1,10 +1,18 @@
 name: Secret Detection
 
+# WP1.2 (2026-09-20): secret detection becomes BLOCKING. It ran standalone on
+# push/PR since inception with no edge into ci-gate — a green `CI Gate` was
+# compatible with a leaked credential (P's thesis, measured: 0 of 10 security
+# jobs reachable from the gate). It is now `uses:`-called from ci.yml, whose
+# call job is a direct ci-gate need with a check_job line — the only wiring
+# that carries a red to the verdict (WP0.6 invariant). Top-level push/PR
+# triggers are DELETED with intent: standalone runs would duplicate every CI
+# run and race the parent in the shared `github.ref` concurrency group
+# (cancel-in-progress), and `cancelled` is not forgiven by check_job — a false
+# gate red every time they collided. ci.yml fires on every push/PR unfiltered,
+# so a secret scan can never again be skipped by a path filter.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 # WP3.4: repeated pushes to a PR branch piled up redundant runs of this
 # workflow that all competed for the measured ~20-job scheduler ceiling

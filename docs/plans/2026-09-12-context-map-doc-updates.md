@@ -7514,3 +7514,60 @@ GREEN -- confirming that red as the L WP0.5 slow-runner family (different test e
 which self-cleared; its rerun-flag fix stays parked at P handoff SS3.10 (owner's call).
 Push mechanics: the auto-rebase half-rebase trap fired again (now-landed #6553's add/add
 files) -> rebuilt branch from origin/main + cherry-pick, blob identity proved d4be4079.
+
+## WP1.2 IN FLIGHT — the three security workflows become BLOCKING via workflow_call (2026-09-20)
+
+R-7 applied: baseline FIRST, then wire. Baseline (measured on the last 5 main
+pushes and the latest PRs): gitleaks 20s, trufflehog 73s, bandit 28s, semgrep
+39s, trivy-fs 41s, trivy-config 36s, cve-expiry 14s. ALL green, ZERO findings
+beyond .trivyignore's 66 REVIEW-BY-dated entries (the expiry check itself
+green). The standing red — Scan Backend Image, 5/5 main pushes red since at
+least run 35044715918 (09-16) — is MECHANICAL: setup-trivy's install step
+printed "found version: 0.68.2 for v0.68.2/Linux/64bit" and died with exit 1
+~240ms later. Root cause verified from here: the v0.68.2 TAG still exists in
+the tags API but its GitHub release is GONE (releases/tags/v0.68.2 404s, the
+asset URL 404s; current latest is v0.74.0, its asset 302s). The pin aged out
+from under itself. FIX: repin v0.68.2 to v0.74.0 — a repair preserving the
+pin's stated intent ("proper 2026 CVE database coverage"), strictly newer,
+not a floor change. The unversioned frontend scan (same action, default
+version) was green 5/5, the control that proved the pin was the difference.
+
+Wiring: cross-workflow needs does not exist in GHA, so the three workflows
+(gitleaks.yml, sast.yml, trivy.yml) converted to `on: workflow_call` — their
+top-level push/PR triggers DELETED. A standalone run would duplicate every
+CI run AND race the parent inside the shared workflow-ref concurrency group
+(cancel-in-progress); `cancelled` is not forgiven by check_job, so collisions
+would be false gate reds. trivy.yml keeps schedule (weekly Mon) and
+workflow_dispatch; its image jobs keep their INTERNAL push-or-dispatch
+condition (event_name flows caller to callee): PRs run fs/config/expiry,
+main pushes also run SBOM and both image scans. ci.yml gained three call
+jobs — security-gitleaks, security-sast, security-trivy — with
+`secrets: inherit` (their Linear-issue steps need LINEAR_API_KEY) and
+permissions at the CALL JOB (a called workflow's top-level permissions are
+IGNORED by GHA), plus three ci-gate needs entries and three check_job lines,
+exact-match per the WP0.6 graph test's own assertion. NO needs, NO path
+filter on the calls: "this diff didn't need a secret scan" is the exact
+invisibility class, and trivy's old path filters let a dependency edit that
+missed the filter skip the scan entirely.
+
+MEASURE: scripts/test_ci_job_graph.py locally now prints "OK: every ci.yml
+job is gated, triaged, or plumbing (40 jobs, gate reaches 34)" (was 37/31).
+backend/tests/integration/test_github_workflows.py: 40 passed, 2 skipped.
+Added wall-time: the three call jobs run parallel to the existing tier and
+to each other; the gate's delta is the longest chain (~80s trivy fs then
+config, serial inside its job), NOT the sum. Scheduler pressure was the
+real risk (measured ~20-job ceiling, WP3.4): the INNER job count per PR is
+unchanged (10 security jobs before — 2 gitleaks, 2 sast, 6 trivy — and 10
+after, now executing as children of three call jobs) while three whole
+standalone workflow runs
+disappear; net scheduler pressure should fall. The PR's own run is the
+measurement; delta recorded on landing.
+
+Red-first demo rides a sibling PR off this branch: the canonical AWS
+documentation-example keypair planted (structurally fake; invisible to the
+local gate because `# pragma: allowlist secret` suppresses detect-secrets
+and gitleaks does not honor that pragma — its own suppression syntax is
+`gitleaks:allow`). Expected: Gitleaks red, call job red, CI Gate red ON THE
+PR — where pre-WP1.2 the same finding left CI Gate green. Close never
+merge. trivy.yml also keeps workflow_dispatch specifically so the v0.74.0
+repin can be PROVEN (Scan Backend Image green on a dispatch) before merge.

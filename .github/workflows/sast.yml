@@ -1,10 +1,14 @@
 name: SAST (Static Analysis)
 
+# WP1.2 (2026-09-20): SAST becomes BLOCKING — same surgery as gitleaks.yml:
+# advisory standalone push/PR workflow -> `uses:`-called from ci.yml, whose
+# call job is a direct ci-gate need + check_job line. Bandit/Semgrep findings
+# used to be compatible with a green `CI Gate`. Baseline at flip: ZERO
+# high/critical findings (measured 2026-09-20, green on last 5 main pushes).
+# Triggers deleted so the standalone run cannot race the parent inside the
+# shared concurrency group. See gitleaks.yml's header for the full rationale.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 # WP3.4: repeated pushes to a PR branch piled up redundant runs of this
 # workflow that all competed for the measured ~20-job scheduler ceiling

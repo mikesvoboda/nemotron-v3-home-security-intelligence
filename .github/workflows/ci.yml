@@ -2802,6 +2802,50 @@ jobs:
       - name: Check versions against source of truth
         run: ./scripts/check-version-consistency.sh
 
+  # WP1.2: the three security workflows, formerly standalone advisory push/PR
+  # workflows (10 jobs, ZERO of them reachable from ci-gate — a green CI Gate
+  # was compatible with a leaked credential, new Bandit/Semgrep findings, and
+  # new CVEs). Called here so their aggregate verdicts land in ci-gate via a
+  # direct need + check_job line — the only wiring the WP0.6 invariant
+  # accepts. A `uses:` job's conclusion IS the reusable workflow's aggregate:
+  # one inner-job red reddens the call job. Deliberately NO needs and NO path
+  # filter: a secret scan that "wasn't needed for this diff" is the exact
+  # invisibility class this WP kills. Permissions are set HERE, not in the
+  # reusable files — a called workflow's top-level `permissions:` is ignored;
+  # the caller's job-level block governs the token its inner jobs get.
+  # secrets: inherit carries LINEAR_API_KEY (the workflows file their own
+  # failure-issue steps). Concurrency: their standalone triggers are deleted
+  # so nothing else fires these workflows and races the parent in the shared
+  # `github.ref` group — a `cancelled` call job would be a FALSE gate red.
+  # Trivy's heavy image-scan jobs keep their push||dispatch condition INSIDE
+  # trivy.yml (event_name flows through from the caller): PRs get
+  # fs/config/CVE-expiry, main pushes also get SBOM + both image scans.
+  security-gitleaks:
+    name: Security - Secret Detection
+    needs: []
+    permissions:
+      contents: read
+      pull-requests: read
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/gitleaks.yml
+
+  security-sast:
+    name: Security - SAST
+    needs: []
+    permissions:
+      contents: read
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/sast.yml
+
+  security-trivy:
+    name: Security - Trivy
+    needs: []
+    permissions:
+      contents: read
+      security-events: write
+    secrets: inherit # pragma: allowlist secret
+    uses: ./.github/workflows/trivy.yml
+
   # CI Gate - Aggregates all required checks for branch protection
   # This job provides a single status check that depends on all required jobs.
   # WP0.6 invariant (scripts/test_ci_job_graph.py enforces it): a job either
@@ -2862,6 +2906,12 @@ jobs:
       # A7.3 (WP6-A): the image smoke this whole change is gated on. Same
       # invariant as ai-tests above - direct need + check_job below.
       - ai-yolo26-image-smoke
+      # WP1.2: the three security workflows, gating for the first time. Each
+      # call job's conclusion aggregates its reusable workflow's jobs; the
+      # check_job lines below are what the WP0.6 graph test demands of a need.
+      - security-gitleaks
+      - security-sast
+      - security-trivy
     if: always()
     steps:
       - name: Check required job results
@@ -2905,6 +2955,10 @@ jobs:
           check_job "Build Backend Dependencies" "${{ needs.build-backend-deps.result }}"
           check_job "AI Tier Tests" "${{ needs.ai-tests.result }}"
           check_job "AI YOLO26 Image Smoke" "${{ needs.ai-yolo26-image-smoke.result }}"
+          # WP1.2: security converges here for the first time.
+          check_job "Secret Detection (Gitleaks + TruffleHog)" "${{ needs.security-gitleaks.result }}"
+          check_job "SAST (Bandit + Semgrep)" "${{ needs.security-sast.result }}"
+          check_job "Trivy Security Scan" "${{ needs.security-trivy.result }}"
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
