@@ -75,6 +75,19 @@ export default {
   // Performance tuning
   concurrency: 4, // Run 4 mutants in parallel
   timeoutMS: 30000, // 30 second timeout per mutant
+  // WP3.3 (measured): the DEFAULT 5-minute dry-run budget killed the
+  // 3-module run ("Initial test run timed out!" at 5m02s,
+  // stryker-full-baseline.log 2026-09-20). The dry run executes EVERY
+  // related test once under coverage instrumentation, and the three
+  // utils' related union covers most of the suite (time.ts is imported
+  // everywhere). This is a one-off harness budget fitted to the repo's
+  // suite runtime — it adjudicates no test verdict (the map it builds
+  // decides mutants), so it is not a test-timeout cap. MEASURED dry-run
+  // wall (stryker-dryonly.log, --dryRunOnly RC=0): 1749 tests in 5m45s —
+  // net test time 109s, runner overhead 236s (per-test instrumentation
+  // dominates 3:1). The 5m default was marginally short; 20m carries the
+  // observed wall with slack for suite growth.
+  dryRunTimeoutMinutes: 20,
 
   // Ignore specific mutations that are hard to kill or equivalent
   ignorers: [],
