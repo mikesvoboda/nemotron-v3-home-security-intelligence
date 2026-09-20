@@ -7626,7 +7626,7 @@ including the broken ones: it validates YAML, not GHA runtime semantics —
 absence of lint errors on a workflow_call shape proves nothing; only a
 real run does.
 
-## WP1.3 LANDED (PR pending) — the stopwatch de-fanged: baseline rule + exemption census channel (2026-09-20)
+## WP1.3 SUBMITTED (#6578 draft, stacked on #6575) — the stopwatch de-fanged: baseline rule + exemption census channel (2026-09-20)
 
 **Before (measured, 60 TPA rows over ~13h of CI):** pull_request
 27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6
