@@ -1681,6 +1681,49 @@ pytest_xfail:
     tracking: UNTRACKED:SETUPGUARD-MOCK-MISMATCH
     expires: '2026-12-31'
     reason: Tests mock get_db but middleware uses get_session() - mocking mismatch causes fallback behavior
+tpa_slow_list:
+  - id: TestDurationTracking::test_duration_after_start
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: persistent spike x10/17 runs, 18s peak (WP1.3)
+  - id: TestHandleUnhealthy::test_handle_unhealthy_stamps
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: persistent x7/17, 18.2s peak (WP1.3)
+  - id: test_error_handler.*test_timestamp_auto_generated
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: ~16.5s
+  - id: test_fast_path_high_priority_detection
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: persistent x8/17, 18.5s peak (WP1.3)
+  - id: test_job_progress_reporter.*test_complete_calculates_duration
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: ~15.3s measured
+  - id: test_pipeline_e2e.*test_pipeline_llm_failure_fallback
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: ~15.3s
+  - id: test_rtsp_test_service.*test_connection_timeout
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: ~6.0s real socket timeout
 unspecced_patch:
   - id: backend/tests/benchmarks/test_api_benchmarks.py::benchmark_client::k1
     kind: scoped

@@ -96,8 +96,72 @@ rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
 mk_xml "$ROOT/d/a.xml" "backend.tests.benchmarks.test_api.TestAPIBenchmarks" "test_heavy" 200.0
 run_audit "$ROOT/d"; expect_zero "benchmark-excluded"
 
+# ---------------------------------------------------------------------------
+# WP1.3 baseline rule. Measured before-state: TPA reddened 15/45 PR runs on
+# IDENTICAL code — one timing sample on a contended runner, and suite-wide
+# medians are identical red-vs-green so global calibration cannot work (that
+# option is dead BY DATA, ledger WP1.3). The runner's own previous run is the
+# only honest calibration. These cases pin the rule's five verdict paths:
+# the downgrade, its three fail-closed exceptions, and the fail-closed fetch.
+# ---------------------------------------------------------------------------
+B="$ROOT/baseline"
+mkb() { # baseline corpus: one healthy test + one that already breached there
+  rm -rf "$B"; mkdir -p "$B"
+  mk_xml "$B/h.xml" "$U" "test_healthy" 1.0
+  mk_xml "$B/o.xml" "$U" "test_repeat_offender" 4.5
+}
+
+echo "[8] WP1.3: a NEW test breaching with no baseline history BITES red"
+mkb
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_brand_new_slow" 4.5
+run_audit_with_base() {
+  uv run python "$AUDIT" "$1" --baseline-dir "$B" >"$ROOT/out.log" 2>&1
+  RC=$?
+}
+run_audit_with_base "$ROOT/d"; expect_nonzero "new-test-no-history"
+expect_line "new-test-no-history" "RESULT: FAIL"
+
+echo "[9] WP1.3: a SEVERE breach (>=3x limit) bites red even if baseline was clean"
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_healthy" 12.5     # 3.1x the 4.0 unit limit; healthy in baseline
+run_audit_with_base "$ROOT/d"; expect_nonzero "severe-jump"
+expect_line "severe-jump" "RESULT: FAIL"
+
+echo "[10] WP1.3: the SAME test that breached in the baseline breaches RED again"
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_repeat_offender" 5.0
+run_audit_with_base "$ROOT/d"; expect_nonzero "persistent-breach"
+
+echo "[11] WP1.3: a mild one-run spike on a baseline-healthy test DOWNGRADES to warning"
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_healthy" 4.5      # 1.1x, < 3x, healthy in baseline
+run_audit_with_base "$ROOT/d"; expect_zero "one-run-spike"
+expect_line "one-run-spike" "WP1.3 baseline"
+expect_line "one-run-spike" "RESULT: PASS"
+
+echo "[12] WP1.3: baseline requested but EMPTY = FAIL-CLOSED (CI fetch bug cannot widen the gate)"
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_healthy" 4.5
+rm -rf "$B"; mkdir -p "$B"                            # baseline dir exists but no XML
+run_audit_with_base "$ROOT/d"; expect_nonzero "fail-closed-empty-baseline"
+expect_line "fail-closed-empty-baseline" "FAIL-CLOSED"
+expect_line "fail-closed-empty-baseline" "RESULT: FAIL"
+
+echo "[13] WP1.3: no baseline flag at all = old behavior exactly (spike is RED)"
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_healthy" 4.5
+run_audit "$ROOT/d"; expect_nonzero "no-baseline-legacy"
+
+echo "[14] WP1.3: test SKIPPED (0s) in the baseline still EXISTS — spike downgrades, not 'new'"
+rm -rf "$B"; mkdir -p "$B"
+mk_xml "$B/s.xml" "$U" "test_was_skipped" 0.0     # 0-duration entry: existed, didn't breach
+rm -rf "$ROOT/d"; mkdir -p "$ROOT/d"
+mk_xml "$ROOT/d/a.xml" "$U" "test_was_skipped" 4.5
+run_audit_with_base "$ROOT/d"; expect_zero "skipped-baseline-existence"
+
 if [ "$FAILURES" -eq 0 ]; then
-    echo "OK: audit-test-durations gate verdicts are honest (7 cases)"
+    echo "OK: audit-test-durations gate verdicts are honest (14 cases)"
     exit 0
 else
     echo "FAILED: $FAILURES assertion(s) against $AUDIT" >&2

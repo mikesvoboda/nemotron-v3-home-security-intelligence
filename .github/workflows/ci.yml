@@ -119,7 +119,7 @@ jobs:
       - name: Suppression census (baseline stable)
         run: >-
           uv run python scripts/suppression-census.py --expect
-          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":322}'
+          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":322,"tpa_slow_list":7}'
       # WP1.3: the ratchet. The --expect above says "the census must not
       # drift"; this says "counts may only FALL" — an unregistered
       # @pytest.mark.skip (or any new suppression of any category) fails CI
@@ -2395,6 +2395,13 @@ jobs:
     name: Test Performance Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # WP1.3: actions:read for fetching the previous main run's junit artifacts
+    # (the baseline). Repo default "read" covers contents/metadata/packages
+    # only — the Actions artifact API is NOT in it; without this line the
+    # fetch 403s and the job fail-closes on every run (silent old behavior).
+    permissions:
+      contents: read
+      actions: read
     needs:
       - detect-changes
       - lint
@@ -2458,12 +2465,60 @@ jobs:
             mkdir -p test-results/
           fi
 
+      - name: Fetch baseline junit (previous main run)
+        # WP1.3: the runner's own previous run is the only honest calibration
+        # (suite-wide medians are identical red-vs-green — global calibration
+        # is dead BY DATA, ledger WP1.3). Take the newest completed main CI
+        # run that uploaded junit and download its test artifacts as the
+        # baseline corpus. Fetch failure or zero artifacts => baseline/ stays
+        # empty and the audit FAILS CLOSED (every breach red, exactly the
+        # pre-WP1.3 gate) — a broken fetch can never silently widen the gate.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          mkdir -p baseline
+          API="https://api.github.com/repos/${{ github.repository }}/actions"
+          AUTH=(-H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json")
+          # Resolve ci.yml's workflow id by PATH (not hardcoded — ids are repo
+          # state), then list THAT workflow's main runs. The generic
+          # /actions/runs?branch=main endpoint mixes every workflow on the
+          # branch together and CI falls off the page (measured: 6 sibling
+          # workflow rows, no CI) — a silently EMPTY baseline is fail-closed
+          # but useless, and would quietly disable WP1.3 forever.
+          WFID=$(curl -sS "${AUTH[@]}" "$API/workflows?per_page=100" \
+            | jq -r '.workflows[] | select(.path==".github/workflows/ci.yml") | .id' | head -1)
+          [ -n "$WFID" ] || { echo "ci.yml workflow id not found"; exit 0; }
+          # NEVER the current run: a self-referential baseline would make every
+          # violation "persist against itself" and silently disable downgrades.
+          FILTER='select(.id != '${{ github.run_id }}')'
+          IDS=$(curl -sS "${AUTH[@]}" "$API/workflows/$WFID/runs?branch=main&status=success&per_page=8" \
+            | jq -r ".workflow_runs[] | $FILTER | .id")
+          for RID in $IDS; do
+            ARTS=$(curl -sS "${AUTH[@]}" "$API/runs/$RID/artifacts?per_page=100" \
+              | jq -r '.artifacts[] | select(.name|test("^test-results-|^playwright-test-results-"))
+                       | "\(.id) \(.archive_download_url)"')
+            [ -n "$ARTS" ] || continue
+            echo "Baseline source: run $RID, $(echo "$ARTS" | grep -c .) junit artifacts"
+            while read -r AID AURL; do
+              curl -sSL "${AUTH[@]}" "$AURL" -o "/tmp/art-$AID.zip" \
+                && unzip -q -o "/tmp/art-$AID.zip" -d "baseline/$AID"
+            done <<< "$ARTS"
+            break
+          done
+          echo "baseline XMLs: $(find baseline -name '*.xml' 2>/dev/null | wc -l)"
+
       - name: Analyze test durations
         # WP0.5: no more "skip + exit 0" on missing data — the audit only runs
         # when its tier ran (job `if:`), so zero XML is a pipeline break and
         # the script fails it. Thresholds are the owner-ruled raised pair;
         # distribution evidence + tracked-slow list in the ledger WP0.5 row.
-        run: uv run python scripts/audit-test-durations.py test-results/
+        # WP1.3: --baseline-dir makes a mild one-run spike on a
+        # baseline-healthy test a warning; persistence (breached there too),
+        # severity (>=3x limit) and new tests stay RED (rules + fixtures:
+        # scripts/test_audit_gate.sh cases 8-13; measurements: ledger WP1.3).
+        run: uv run python scripts/audit-test-durations.py test-results/ --baseline-dir baseline/
         env:
           UNIT_TEST_THRESHOLD: '4.0'
           INTEGRATION_TEST_THRESHOLD: '10.0'

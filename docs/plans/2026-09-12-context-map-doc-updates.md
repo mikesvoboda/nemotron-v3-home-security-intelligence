@@ -7625,3 +7625,74 @@ actionlint v1.7.12 (arm64 build — sandbox is aarch64) passed all shapes,
 including the broken ones: it validates YAML, not GHA runtime semantics —
 absence of lint errors on a workflow_call shape proves nothing; only a
 real run does.
+
+## WP1.3 LANDED (PR pending) — the stopwatch de-fanged: baseline rule + exemption census channel (2026-09-20)
+
+**Before (measured, 60 TPA rows over ~13h of CI):** pull_request
+27 success / 15 failure / 3 cancelled / 3 skipped / 3 absent; push 6
+success / 2 failure / 1 cancelled. On IDENTICAL code (push) that is 2-in-9;
+on PRs ~1-in-3 runs reddened on wall-clock noise. P's 16-of-22 figure
+reproduces in this window (15 of 17 red TPA verdicts in the 60-row window).
+
+**Calibration is dead BY DATA:** per-test times in red runs vs green runs
+have identical suite-wide medians (0.002s) — there is no run-level slow/fast
+signal to normalize away. The noise is per-test spikes of 3-5x, CORRELATED
+within a DB-backed shard (one contention event reddens a whole group at
+once). k-times-threshold replays against 17 red-run junits: k=2 keeps 100
+red tests, k=3 still 15/18 runs red, k=4 13/18 — correlated spikes defeat
+any pure multiplier. What the data DOES separate: of 83 distinct
+over-threshold tests, only 20 recurred in >=2 runs and 4 in >=3.
+
+**Rule (P's option 3 — the runner's own previous run as baseline):**
+`audit-test-durations.py --baseline-dir DIR`. A breach is RED iff (a) the
+same test-id also breached in the baseline (persistence), or (b) duration >=
+3x threshold (severity — a real regression bites on its FIRST run), or (c)
+the id is absent from the baseline corpus (a new/renamed test has no history
+to be forgiven by — first-time bite, gate case [8]). Mild one-run spikes on
+baseline-healthy tests -> WARNING. Fail-closed on an empty/unfetchable
+baseline: verdicts equal the pre-WP1.3 gate; a fetch bug can never silently
+widen it (case [12]). ci.yml fetches the newest completed main CI run's
+junit via the per-workflow API (the generic runs?branch=main endpoint mixes
+sibling workflows and silently misses CI — measured), EXCLUDING the current
+run id (a self-baseline would make every violation persist against itself).
+
+**Baseline semantics proven against the REAL API:** 15 junit artifacts from
+main run 35486259345, 22,355 known ids, 0 breaches; replayed with the
+implemented code over all 17 red datasets -> both push-population reds
+(35482667110, 35464517315) turn PASS; 98 individual violations -> 9 kept, 89
+downgraded. The 6 still-red datasets are ALL PR-branch runs whose branch ADDED
+the breaching test (absent from main's baseline corpus by construction —
+test_stream_video_file_not_found exists there only as other classnames) —
+RED BY DESIGN. A real misfire the replay caught and fixed first: skipped
+(0s) baseline entries vanish under parse_junit_xml's duration filter, so
+historically-skipped tests looked brand-new every run; existence now counts
+EVERY testcase element (case [14]).
+
+**Defect 2 (uncounted suppression channel):** SLOW_TEST_PATTERNS held 150
+patterns (P's number exact). Category-aware census over the main junit:
+4 load-bearing (job_progress complete_calculates_duration 15.3s,
+pipeline_llm_failure_fallback 15.3s, error_handler timestamp 16.5s, rtsp
+connection_timeout 6.0s), 146 DEAD — covering no test that breaches its
+native threshold while pre-exempting unwritten tests via wildcards. Pruned
+to 7: the 4 keepers + the 3 measured persisters from this window
+(test_duration_after_start x10/17, test_fast_path_high_priority_detection
+x8/17, TestHandleUnhealthy::test_handle_unhealthy_stamps x7/17 — all peak
+<20s under the 60s slow cap). Prune safety replay: exactly 3 tests breach a
+native threshold once un-exempted, all one-shot 4.6-5.0s property-test
+spikes (recurrence 1x/17) — the baseline rule downgrades precisely that
+population; a consecutive double-spike was never observed in 18 datasets.
+The channel is now counted: `tpa_slow_list` in suppression-census.py
+(root-relative — the patterns ARE the suppression, fixtures inject their own
+audit script), registry entries mint with their measured-brief reason
+comment and expire 2026-12-31; baseline JSON + ci.yml --expect + registry
+all raised in this one commit (R-2).
+
+**After (measured):** push population 2/2 red -> 0/2 red. PR population 15/15
+-> 6/15, and every residual is a newly-added test breaching 1.0-1.7x its
+native limit on its own branch's FIRST run (gate case [8] by design; second
+occurrence on main persists anyway). Wall-time cost: one API walk + <=15
+artifact zips (previous main run's junits, ~2x what the job already downloads
+for its own corpus) inside a 15-min job that typically ends in seconds.
+
+Known-slow entries carry the same discipline as every other census channel:
+measured breach in the corpus or the registry says no.

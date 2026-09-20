@@ -37,6 +37,13 @@ Count definitions (fixtures in scripts/test_suppression_census.py pin each):
                          scripts/check-mock-spec.py, which reuses autospec-
                          sweep's classifier — one definition of "convertible"
                          for sweep, gate, census, and ratchet.
+  tpa_slow_list          exemption patterns in scripts/audit-test-durations.py's
+                         SLOW_TEST_PATTERNS — the Test Performance Audit's
+                         tracked-slow list, a 60s cap instead of the category
+                         threshold (WP1.3: was 150 uncounted patterns, ~80%
+                         not slow, pruning to the 7 measured breaches; every
+                         future entrant is now a registry entry with a
+                         measured-corpus reason and an expiry).
 
 Usage:
     ./scripts/suppression-census.py            # JSON to stdout
@@ -70,6 +77,7 @@ CATEGORIES = [
     "excluded_test_trees",
     "coverage_omit",
     "unspecced_patch",
+    "tpa_slow_list",
 ]
 
 
@@ -226,6 +234,42 @@ def count_coverage_omit(root: Path) -> int:
         and e.startswith("backend/")
         and not e.startswith("backend/tests")
     )
+
+
+def _tpa_slow_list_locations(root: Path) -> list[dict]:
+    """Patterns in audit-test-durations.py's SLOW_TEST_PATTERNS (WP1.3).
+
+    Root-relative on purpose: unlike the other importlib-reuse channels this
+    one walks the tree's OWN copy of the script, because the patterns ARE the
+    suppression — a fixture tree that injects a 2-pattern audit script gets a
+    2-pattern count. The reason text is the trailing `# ...` comment on each
+    pattern line (the measured-brief the entry earned its slot with), which
+    registry-gen's kind-rules classify.
+    """
+    script = root / "scripts" / "audit-test-durations.py"
+    if not script.exists():
+        return []
+    src = script.read_text()
+    tree = ast.parse(src)
+    src_lines = src.splitlines()
+    out = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and any(isinstance(t, ast.Name) and t.id == "SLOW_TEST_PATTERNS" for t in node.targets)
+            and isinstance(node.value, ast.List)
+        ):
+            for elt in node.value.elts:
+                if not (isinstance(elt, ast.Constant) and isinstance(elt.value, str)):
+                    continue
+                reason = ""
+                last = src_lines[elt.end_lineno - 1]
+                m = re.search(r"['\"],?\s*#\s*(.+?)\s*$", last)
+                if m:
+                    reason = m.group(1)
+                # id-keyed like every other channel — no line numbers, they drift
+                out.append({"id": elt.value, "reason": reason or "no reason comment"})
+    return out
 
 
 def _rel(root: Path, p: Path) -> str:
@@ -467,6 +511,7 @@ def locations(root: Path) -> dict[str, list[dict]]:
         "excluded_test_trees": _excluded_tree_locations(root),
         "coverage_omit": _coverage_omit_locations(root),
         "unspecced_patch": _unspecced_patch_locations(root),
+        "tpa_slow_list": _tpa_slow_list_locations(root),
     }
 
 
@@ -487,6 +532,7 @@ def census(root: Path) -> dict[str, int]:
         "excluded_test_trees": count_excluded_test_trees(root),
         "coverage_omit": count_coverage_omit(root),
         "unspecced_patch": len(_unspecced_patch_locations(root)),
+        "tpa_slow_list": len(_tpa_slow_list_locations(root)),
     }
 
 
