@@ -7793,3 +7793,58 @@ exit. Job-graph green (41 jobs, gate reaches 34, flake-report TRIAGE via
 its Linear step); workflow tests 40 passed 2 skipped; live end-to-end ran
 against the real repo API (2 runs x 15 artifacts, 56 files, 26,342 tests
 aggregated).
+
+## WP2.1 SUBMITTED — the two backend numbers reconciled: one denominator, and the CI number was a shard-overlap undercount (2026-09-20)
+
+P's premise ("70.33 vs 84.39, same nominal tier, never reconciled; likely
+validate.sh's unit+contracts+security leg") was WRONG about the suspect and
+RIGHT that nothing had ever measured it. MEASURED, both sides, same day:
+
+- **One denominator exists already:** both paths measure `--cov=backend` over
+  pyproject's `[tool.coverage.run]` tree = 527 files / 78,916 statements
+  (verified: identical counts on both artifacts). The 84.39 lineage is NOT
+  validate.sh's wider leg — it is the gate fallback's inline
+  `pytest backend/tests/unit/ --cov=backend` (scripts/check-test-coverage-gate.py),
+  measured fresh at HEAD = **84.12% blended (line 86.02 / branch 76.27)**.
+  CI's 70.32 (`coverage-baseline.json`, run 2ab66ff1) was REPRODUCED OFF the
+  runner: harvest the 4 shard `.dat` files, `coverage combine` with a
+  runner-path→workspace alias = 70.32 exactly. So both numbers are real,
+  falsifiable, and 14pp apart on the SAME yardstick.
+
+- **The CI number is a collection-loss artifact, not an environmental truth.**
+  Mechanism (measured, three independent ways): repo addopts carry `-p randomly`
+  and pytest-randomly draws a fresh seed PER PROCESS → each shard job shuffled
+  the suite differently BEFORE `pytest-split --splits 4` sliced → groups
+  overlapped. (1) run 35475023071's junits: 27,647 case rows, only 18,520
+  UNIQUE tests (67%); (2) collect-only: random seeds → union 18,256/27,555,
+  pairwise overlap 1,449 — fixed seed → union 27,555/27,555, overlap 0;
+  (3) run-35475023071's junit contains 420 batch_aggregator + 86 cleanup + 212
+  system_broadcaster cases while that run's merged .dat reports those sources
+  20.6/18.1/14.2% — and those exact files measure 94.2/98.2/89.3 locally under
+  CI's own env flags, dead Redis, and xdist worksteal (all identical; Redis
+  liveness changed NOTHING — the "CI has no Redis service" theory is DEAD).
+  E[coverage under 4× random quarter-sample] ≈ 68.4% — published figure 70.3.
+
+- **Fix shipped here:** sharded legs (ci.yml unit + reusable integration-shard)
+  pin `--randomly-seed=${{ github.run_id }}` — identical across one run's four
+  jobs (disjoint+complete groups), different next run (order randomization
+  keeps its cross-run value; run_id > 2^32 is fine, `random.seed` takes
+  arbitrary ints). LOCAL CI-PIPELINE SIMULATION (4 shard runs with the pin +
+  merge-job combine): **84.11% blended vs local single-process 84.12** — the
+  pipeline shape now agrees; the old 70.3 was the bug's fingerprint. Sim
+  caveat disclosed: shard 1 logged 23 setup errors from sandbox disk pressure
+  (94–96% full; not reproducible single-test) which only INFLATE missing.
+  Expect CI to jump ~14pp on the first fixed-seed main run; until then the CI
+  figure understates the tier.
+
+- **Docs (R-6):** testing.md now carries the one-denominator statement, both
+  numbers with line/branch splits, the undercount label, and the retired
+  "85%+" cell (no measurement ever produced it as a current unit value; the
+  count cell said 7193 tests — collect-only says 27,555).
+
+RED-FIRST: scripts/test_coverage_denominator.py 3 failed before → 3 green
+after (doc states both numbers + denominators + undercount label; loser row
+gone; BOTH sharded workflows pin a run-scoped seed). Workflow suites
+re-verified after the edits: test_github_workflows 40p/2s, job-graph 41 jobs/
+gate 34, WP1.4/1.5 gates green, actionlint clean. Cap 2h: ~used, mechanism
+hunt was the cost of the three-way cross-check.
