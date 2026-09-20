@@ -58,6 +58,48 @@ EXPIRES = {
 EXEMPT = ("environment", "scoped")
 OWNER = "mikesvoboda"
 
+# WP2.4b per-entry environment adjudications for imperative skips whose
+# guard text names no host machinery (census host_probe=False) but where
+# reading the site proves the condition is environmental, not repo-shaped —
+# the ONLY channel that licenses kind=environment past the probe, and
+# scripts/ratchet-check.py (LAUNDER) enforces that every entry here IS
+# environment and every environment site IS probed or listed here. Line
+# numbers are census ids: move the skip, the entry goes STALE, CI names it.
+HOST_JUSTIFIED: dict[str, str] = {
+    # Generated fixture data (tools/nemo_data_dump -> scenarios.parquet):
+    # absent anywhere the data pipeline hasn't run. The downstream guards
+    # (`is None`, `len(...) == 0`, `not results`, `not detections`) all
+    # stand or fall on this file/DB content, so they share the verdict.
+    "backend/tests/conftest.py:2534": "scenarios.parquet is pipeline-generated data, not a repo file",
+    "backend/tests/conftest.py:2555": "same scenarios.parquet chain (fixture None)",
+    "backend/tests/integration/test_nemotron_prompts.py:45": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:70": "Nemotron service call failed — service process absent",
+    "backend/tests/integration/test_nemotron_prompts.py:100": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:145": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:168": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:186": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:211": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:229": "same scenarios.parquet chain",
+    "backend/tests/integration/test_nemotron_prompts.py:270": "same scenarios.parquet chain",
+    "backend/tests/integration/test_risk_score_validation.py:199": "synthetic-scenario DB rows (data chain), not repo content",
+    "backend/tests/integration/test_risk_score_validation.py:381": "synthetic-scenario DB rows (data chain), not repo content",
+    "backend/tests/integration/test_risk_score_validation.py:386": "synthetic-scenario DB rows (data chain), not repo content",
+    # Service-process availability: the except-guard fires when the backing
+    # service (YOLO26/vLLM) isn't answering, which is host state.
+    "backend/tests/e2e/test_gpu_pipeline.py:446": "DetectorUnavailableError — YOLO26 service process absent",
+    "backend/tests/e2e/test_gpu_pipeline.py:483": "service-connectivity probe failed — backing service absent",
+    "backend/tests/e2e/test_gpu_pipeline.py:544": "DetectorUnavailableError — YOLO26 service process absent",
+    "backend/tests/e2e/test_gpu_pipeline.py:612": "service-connectivity probe failed — backing service absent",
+    # nvidia-smi output handling: the guard is math on a GPU host's command
+    # output; the probe can't see through it, the site read can.
+    "backend/tests/gpu/test_detector_integration.py:427": "free_percent derives from nvidia-smi output — GPU host state",
+    "backend/tests/gpu/test_detector_integration.py:445": "nvidia-smi output unparseable — GPU host state",
+    "backend/tests/gpu/test_detector_integration.py:448": "nvidia-smi CalledProcessError — GPU host state",
+    "backend/tests/gpu/test_detector_integration.py:450": "nvidia-smi TimeoutExpired — GPU host state",
+    # Environment variable itself, read via a local alias the probe can't see.
+    "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
+}
+
 
 def family(reason: str) -> str:
     r = (reason or "").lower()
@@ -104,7 +146,17 @@ def classify(cat: str, item: dict) -> str:
         # The only two imperative TODOs (guard read site by site in WP1.2):
         if f.endswith("test_auth_routes.py") or f.endswith("test_preview_api.py"):
             return "todo"
-        return "environment"
+        # WP2.4b: `environment` was the category DEFAULT — and it is the one
+        # kind exempt from tracking AND expiry, so the default made 91 sites
+        # permanently invisible to the ratchet. environment is now earned:
+        # either the census probe sees host machinery in the guard at the
+        # site, or the site sits in HOST_JUSTIFIED below with a written
+        # reason. Everything else (guards that only name git-tracked repo
+        # files — nginx.conf, ci.yml, docker-compose...) is a deferral of
+        # "this check is soft when the tree is partial", i.e. a todo.
+        if item.get("host_probe") or item["id"] in HOST_JUSTIFIED:
+            return "environment"
+        return "todo"
     if cat == "excluded_test_trees":
         return "scoped"
     if cat == "collection_allowlist":
@@ -148,16 +200,19 @@ def build(loc: dict) -> dict:
         rows = []
         for it in items:
             kind = classify(cat, it)
-            rows.append(
-                {
-                    "id": it["id"],
-                    "kind": kind,
-                    "owner": OWNER,
-                    "tracking": tracking_for(kind, it, cat),
-                    "expires": EXPIRES[kind],
-                    "reason": it["reason"] or None,
-                }
-            )
+            row = {
+                "id": it["id"],
+                "kind": kind,
+                "owner": OWNER,
+                "tracking": tracking_for(kind, it, cat),
+                "expires": EXPIRES[kind],
+                "reason": it["reason"] or None,
+            }
+            if kind == "environment" and it["id"] in HOST_JUSTIFIED:
+                # the ratchet's LAUNDER rule reads this: the site is exempt
+                # by written adjudication, not by the mechanical probe.
+                row["host_justification"] = HOST_JUSTIFIED[it["id"]]
+            rows.append(row)
         out[cat] = sorted(rows, key=lambda x: x["id"])
     return out
 

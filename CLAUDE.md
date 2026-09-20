@@ -89,17 +89,33 @@ A task involving infrastructure is **only complete** when:
 
 This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs/development/testing.md) for full documentation.
 
-| Test Type           | Minimum Coverage | Command                                        |
-| ------------------- | ---------------- | ---------------------------------------------- |
-| Backend Unit        | 85% (baseline¹)  | `uv run pytest backend/tests/unit/ -n auto`    |
-| Backend Integration | —                | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | 83%+             | `cd frontend && npm test`                      |
-| **Full validation** | 80% combined     | `./scripts/validate.sh`                        |
+| Test Type           | Coverage                                   | Command                                        |
+| ------------------- | ------------------------------------------ | ---------------------------------------------- |
+| Backend Unit        | floor 85%¹ · actual 84.12²                 | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend Integration | absolute floor 37² (merged measurement)    | `uv run pytest backend/tests/integration/ -n0` |
+| Frontend            | floors 80 / 74.6 / 78.4 / 80.9³ (measured) | `cd frontend && npm test`                      |
+| **Full validation** | 80% combined                               | `./scripts/validate.sh`                        |
 
 ¹ Per owner ruling A7.1: `pyproject.toml` `fail_under = 85` is the PR diff
-gate's RELATIVE baseline over merged shard data — not an absolute floor. The
-executed absolute backend floor is **80% on combined unit+integration**
-(`validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
+gate's RELATIVE baseline over merged shard data — not an absolute floor (the
+diff gate forgives drops up to its 0.5pp noise band — WP2.5 re-derived it
+from post-seed-pin runs; WP2.3's 2.0pp calibrated on noise WP2.1 deleted).
+The executed absolute backend floor is **80% on combined unit+integration**
+(`validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`);
+per-tier absolute floors (unit 84, integration 37 — WP2.5 measured) are
+enforced in the CI merge steps only when the tier fully passed.
+
+² Measured 2026-09-20: **84.12% blended / 86.02% line / 76.27% branch** —
+the three are different numbers (`--format=total` is the blend), and the
+CI-published 70.32% was a known shard-overlap undercount until the first
+fixed-seed run (WP2.1). Main runs publish line and branch separately; see
+[Testing Guide](docs/development/testing.md).
+
+³ R-1 (WP2.3): floors at MEASURED values, stmts/branches/functions/lines
+from merged shard totals (run 35486259345: 80.0 / 74.6 / 78.4 / 80.9). The
+old declared 83/77/81/84 sat above every observed run — a floor that never
+held is not a floor. Enforcement: `merge-shard-coverage.mjs --enforce` in CI
+(only when all Vitest shards passed).
 
 ## Git Rules
 

@@ -2,7 +2,9 @@
 """WP4.2: an unspecced-but-convertible mock-patch site is a licensed exception.
 
 WP4.1's sweep raised autospec adoption to 95.5% (6,773/7,095 sites) and left
-322 documented convertible-but-unspecced sites (unit 56 in-test reverts +
+322 documented convertible-but-unspecced sites (233 since WP2.4c: R-5
+retired the 89 whose target is a provably 0-arity callable; the seed was unit
+56 in-test reverts +
 integration 229 fixture-surface policy + 37 in the unswept
 benchmarks/chaos/e2e tiers). Nothing stopped a NEW one from landing: a plain
 patch("a.b.c") accepts ANY signature, so the drift class Phase 4 exists to
@@ -22,7 +24,7 @@ ids are `relpath::scope::kN` (scope = enclosing class.Test.test / test,
 omitted at module level; kN = ordinal within the scope, line order).
 Deliberately NOT file:line: WP4.1's own gate collateral twice saw file:line
 registry ids rot under batch edits (ssl_certs 880->927, preview_api
-428->472 re-keys); with 322 seeded entries a line-keyed registry would churn
+428->472 re-keys); with hundreds of entries a line-keyed registry would churn
 on every insertion. Drift cost paid instead: same-scope insertions renumber
 later kN ids, which the ratchet surfaces as STALE+UNREGISTERED together
 (loudly, as a rename -- never silently).
@@ -32,7 +34,7 @@ Modes:
     --locations [--root DIR]   JSON [{id, reason}]  (the census emits this)
     --staged    [FILES...]     pre-commit fast path: fail (rc 1) if a site
                                sits on an ADDED line of the staged diff. The
-                               tree legitimately carries 322 licensed sites,
+                               tree legitimately carries hundreds of licensed sites,
                                so whole-file scanning at commit time would
                                block every commit touching those files; the
                                ratchet (CI, whole tree) is the completeness
@@ -62,6 +64,14 @@ _sweep = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sweep)
 call_name = _sweep.call_name
 classify = _sweep.classify
+
+_ARITY = Path(__file__).resolve().parent / "arity_resolver.py"
+_aspec = importlib.util.spec_from_file_location("arity_resolver_reuse", _ARITY)
+assert _aspec and _aspec.loader
+_arity = importlib.util.module_from_spec(_aspec)
+_aspec.loader.exec_module(_arity)
+ArityResolver = _arity.ArityResolver
+module_imports_of = _arity.module_imports_of
 
 REASON_MAX = 100  # registry rows quote the rationale comment, bounded
 
@@ -101,9 +111,36 @@ def _rationale(lines: list[str], lineno: int) -> str:
     return ""
 
 
-def sites_with_lines(path: Path) -> list[dict]:
+def patch_target(node: ast.Call, imports: dict[str, str]) -> str | None:
+    """The dotted target of a convertible patch call, or None when it is not
+    statically visible (`new=`, computed strings...). `mock.patch.object(
+    main, "attr")` becomes `<module-path-of-main>.attr` via the ORIGIN
+    module's imports — that is what `patch.object` actually replaces."""
+    if call_name(node) == "object":
+        if (
+            len(node.args) >= 2
+            and isinstance(node.args[0], ast.Name)
+            and isinstance(node.args[1], ast.Constant)
+        ):
+            base = imports.get(node.args[0].id, node.args[0].id)
+            attr = node.args[1].value
+            if isinstance(attr, str):
+                return f"{base}.{attr}"
+        return None
+    first = node.args[0] if node.args else None
+    if isinstance(first, ast.Constant) and isinstance(first.value, str):
+        return first.value
+    return None
+
+
+def sites_with_lines(path: Path, resolver: ArityResolver | None = None) -> list[dict]:
     """Convertible (unspecced, autospec-eligible) sites in line order, each
-    with {id, reason, lineno}; the id's path segment is `path` as given."""
+    with {id, reason, lineno, zero_arity}; the id's path segment is `path`
+    as given. ORDINALS ARE MINTED OVER EVERY SITE even when a resolver
+    retires some of them: ids are registry keys, and renumbering survivors
+    because a neighbour got retired would churn the registry the same way
+    line-keyed ids churned under batch edits (docstring). zero_arity is None
+    without a resolver — unknown, and unknown is KEPT."""
     try:
         src = path.read_text()
         tree = ast.parse(src)
@@ -119,34 +156,54 @@ def sites_with_lines(path: Path) -> list[dict]:
         and classify(node)[0] == "convertible"
     ]
     found.sort(key=lambda n: (n.lineno, n.col_offset))
+    imports = module_imports_of(path) if resolver is not None else {}
     ordinals: dict[str, int] = {}
     out = []
     for node in found:
         scope = ".".join(scopes.get(id(node), []))
         ordinals[scope] = ordinals.get(scope, 0) + 1
         kn = f"k{ordinals[scope]}"
+        zero = None
+        if resolver is not None:
+            target = patch_target(node, imports)
+            zero = target is not None and resolver.is_zero_arity(target, imports)
         out.append(
             {
                 "id": f"{path}::{scope}::{kn}" if scope else f"{path}::{kn}",
                 "reason": _rationale(lines, node.lineno),
                 "lineno": node.lineno,
+                "zero_arity": zero,
             }
         )
     return out
 
 
 def sites_for_file(path: Path) -> list[dict]:
-    return [{k: v for k, v in it.items() if k != "lineno"} for it in sites_with_lines(path)]
+    return [
+        {k: v for k, v in it.items() if k not in ("lineno", "zero_arity")}
+        for it in sites_with_lines(path)
+    ]
 
 
 def sites_for_root(root: Path) -> list[dict]:
-    """Every site under root/backend/tests, ids relative to root."""
+    """Every site under root/backend/tests, ids relative to root.
+
+    WP2.4c (R-5): a site whose target resolves to a PROVABLY 0-arity callable
+    is retired from the count — autospec on a parameterless function protects
+    nothing, so the suppression buys nothing. The proof comes from
+    scripts/arity_resolver.py and is all-or-keep: unresolved, decorated,
+    varargs, class targets and third-party targets all stay counted. This is
+    the honest baseline-fall the ratchet was built to record."""
+    resolver = ArityResolver(root)
     out = []
     for path in sorted((root / "backend/tests").rglob("*.py")):
         rel = path.relative_to(root).as_posix()
-        for it in sites_with_lines(path):
+        for it in sites_with_lines(path, resolver):
+            if it["zero_arity"]:
+                continue
             it["id"] = rel + it["id"][len(str(path)) :]
             it.pop("lineno")
+            it.pop("zero_arity")
             out.append(it)
     return out
 
