@@ -24,12 +24,14 @@ on:
   # images) drive every push/PR now.
   workflow_call:
 
-# WP3.4: repeated pushes to a PR branch piled up redundant runs of this
-# workflow that all competed for the measured ~20-job scheduler ceiling
-# (spec WP3.1: concurrency 20 pinned). Same pattern as ci.yml:10-12.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# WP1.2 fix (probe3, run 35492418369): root `concurrency:` is BANNED in a
+# called workflow. The child run renders `${{ github.workflow }}` as the
+# CALLER's name, so with ci.yml's group `CI-<ref>` every child registered
+# the PARENT's own group; cancel-in-progress then killed the call job at
+# initialization (no check-run, no logs, needs.*.result=failure — proven
+# one-variable: w5 dies, w6 same-parent green). Standalone triggers are
+# deleted, so a group here guarded nothing; ci.yml's own concurrency
+# already cancels duplicate pushes whole-run. Precedent: integration-shard.yml.
 
 permissions:
   contents: read
