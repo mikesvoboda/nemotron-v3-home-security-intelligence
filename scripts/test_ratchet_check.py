@@ -41,6 +41,21 @@ TREE = {
     "backend/tests/unit/test_a.py": (
         "import pytest\n@pytest.mark.skip(reason='site one')\ndef test_one():\n    pass\n"
     ),
+    # WP2.4b: the imperative-skip channel. One guard that names host
+    # machinery (census host_probe True) and one that only names a repo
+    # path (probe False) — the LAUNDER rule must tell them apart.
+    "backend/tests/unit/test_host.py": (
+        "import os\nimport shutil\nimport pytest\n\n\n"
+        "def test_host_shape():\n"
+        '    if not shutil.which("ffmpeg"):\n'
+        '        pytest.skip("ffmpeg missing on this host")\n'
+        "    assert True\n\n\n"
+        "def test_repo_shape():\n"
+        '    cfg = "nginx.conf"\n'
+        "    if not os.path.exists(cfg):\n"
+        '        pytest.skip("no nginx.conf in tree")\n'
+        "    assert True\n"
+    ),
 }
 
 ADDED_SKIP = (
@@ -102,7 +117,110 @@ def build(tmp_path: Path) -> Path:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(content)
     mint_state(tmp_path)
+    # mint_state defaults every kind to environment (schema-valid for the
+    # increase/decrease tests). WP2.4b's LAUNDER rule makes environment a
+    # CLAIM the rule must pass on every entry, so the default build keeps it
+    # honest: imperative sites carry their census probe (host-shaped -> keep
+    # environment) or fall to todo; and the one probe-False site carries a
+    # written justification, the per-entry channel the rule shares with the
+    # generator (test_repo_shape's guard names a repo FILE — an
+    # environment-shaped deferral that's legitimate when documented).
+    loc = locations(tmp_path)
+    probe = {it["id"]: it["host_probe"] for it in loc["pytest_skip_imperative"]}
+    reg = registry_of(tmp_path)
+    for row in reg["pytest_skip_imperative"]:
+        if not probe[row["id"]]:
+            row["kind"] = "todo"
+            row["tracking"] = "UNTRACKED:GENERAL"
+            row["expires"] = "2026-12-31"
+    just = JUSTIFIED_PATHS & {row["id"] for row in reg["pytest_skip_imperative"]}
+    for row in reg["pytest_skip_imperative"]:
+        if row["id"] in just:
+            row["kind"] = "environment"
+            row["tracking"] = None
+            row["expires"] = None
+            row["host_justification"] = "fixture: repo file, environment-shaped deferral"
+    (tmp_path / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
     return tmp_path
+
+
+# The fixture's per-entry justified set: the repo-file site, justified in the
+# build; the LAUNDER tests move it around to prove both directions.
+JUSTIFIED_PATHS = {"backend/tests/unit/test_host.py:15"}
+HOST_SITE = "backend/tests/unit/test_host.py:8"
+REPO_SITE = "backend/tests/unit/test_host.py:15"
+
+
+# ---- WP2.4b: environment is a CLAIM, not a default -----------------------
+# The leak: registry-gen defaulted EVERY imperative pytest.skip to
+# kind=environment — an exempt kind, so no tracking, no expiry, no ratchet
+# teeth, forever. A skip guarded on `os.path.exists(repo_file)` (a check that
+# can only be false in a broken checkout) was classified identically to a
+# skip guarded on `shutil.which("ffmpeg")`. The fix: the census stamps every
+# imperative site with host_probe (does the guard name host machinery?),
+# kind=environment is legal on such a site ONLY with a census probe or a
+# written per-entry host_justification — and both channels are machine-
+# checked here, so the default-to-environment channel is closed permanently.
+
+
+def _rows(root: Path, cat: str) -> list[dict]:
+    return [r for r in registry_of(root)[cat] if r["id"] == REPO_SITE]
+
+
+def _save_row(root: Path, row: dict) -> None:
+    reg = registry_of(root)
+    reg["pytest_skip_imperative"] = [
+        row if r["id"] == row["id"] else r for r in reg["pytest_skip_imperative"]
+    ]
+    (root / ".github/suppression-registry.yml").write_text(yaml.dump(reg, sort_keys=False))
+
+
+def test_environment_without_probe_or_justification_fails(tmp_path):
+    """THE done-when (WP2.4b): a repo-shaped imperative skip laundered to
+    environment fails CI naming the site and the channel that would close it."""
+    root = build(tmp_path)
+    (row,) = _rows(root, "pytest_skip_imperative")
+    row["kind"] = "environment"
+    row.pop("host_justification", None)
+    _save_row(root, row)
+    r = run_ratchet(root)
+    assert r.returncode == 1
+    assert "LAUNDER" in r.stderr
+    assert REPO_SITE in r.stderr
+
+
+def test_justified_environment_site_passes(tmp_path):
+    """The per-entry channel: a written justification buys environment for a
+    probe-False site (and the build uses it — pinned here explicitly)."""
+    root = build(tmp_path)
+    (row,) = _rows(root, "pytest_skip_imperative")
+    assert row["kind"] == "environment" and row.get("host_justification")
+    assert run_ratchet(root).returncode == 0
+
+
+def test_host_probe_buys_environment_without_justification(tmp_path):
+    """The mechanical channel: a guard naming shutil.which needs no prose."""
+    root = build(tmp_path)
+    reg = registry_of(root)
+    (host_row,) = [r for r in reg["pytest_skip_imperative"] if r["id"] == HOST_SITE]
+    assert host_row["kind"] == "environment" and "host_justification" not in host_row
+    assert run_ratchet(root).returncode == 0
+
+
+def test_justification_on_non_environment_entry_fails(tmp_path):
+    """The pair-side: a justification on a todo entry is a field no rule will
+    ever enforce — decoration (same exemption-integrity class as a date on an
+    exempt kind)."""
+    root = build(tmp_path)
+    (row,) = _rows(root, "pytest_skip_imperative")
+    row["kind"] = "todo"
+    row["tracking"] = "UNTRACKED:GENERAL"
+    row["expires"] = "2026-12-31"
+    row["host_justification"] = "leftover"
+    _save_row(root, row)
+    r = run_ratchet(root)
+    assert r.returncode == 1
+    assert "host_justification" in r.stderr
 
 
 def baseline_of(root: Path) -> dict[str, int]:
