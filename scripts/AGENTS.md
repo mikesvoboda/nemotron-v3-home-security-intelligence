@@ -740,19 +740,33 @@ python scripts/analyze-ci-dependencies.py
 
 #### analyze-flaky-tests.py
 
-**Purpose:** Analyze test results to identify flaky tests (intermittent failures).
+**Purpose:** Analyze test results to identify flaky tests (intermittent failures). The WP1.5 consumer of the per-shard `flaky-test-tracking-*.jsonl` artifacts — invoked on main by ci.yml's `flake-report` job against a harvested corpus (see `fetch-ci-artifacts.py`).
 
 **Usage:**
 
 ```bash
-python scripts/analyze-flaky-tests.py <results-dir>
+python scripts/analyze-flaky-tests.py <results-dir> [--owner-summary]
 ```
 
 **Outputs:**
 
 - List of tests with inconsistent pass/fail patterns
 - Failure rate statistics
-- Recommendations for `flaky_tests.txt`
+- Recommendations toward the governed quarantine: a `.github/flake-allowlist.yml` entry (tracking ref + expiry) — the legacy `flaky_tests.txt` manifest was retired with WP0.8
+- `--owner-summary` (WP1.5): a RANKED table with an explicit Owner column to the GHA job summary — registered flakes show their tracking ref, unregistered ones read "no owner", and the corpus size is printed even at zero flakes ("no flakes" vs "read nothing" stay distinguishable)
+
+#### fetch-ci-artifacts.py
+
+**Purpose:** Download a previous CI run's artifacts into a local directory — the ONE tested implementation of "the newest completed main runs of this workflow, never the current run" (the rule was transcribed in curl/jq twice in one day and bitten by both traps: the generic runs endpoint mixes sibling workflows, and self-selection launders every violation). Used by TPA's baseline fetch (WP1.3) and the flake-report consumer (WP1.5).
+
+**Usage:**
+
+```bash
+echo "$GH_TOKEN" | python scripts/fetch-ci-artifacts.py --repo OWNER/REPO \
+  --current-run-id N --out DIR [--harvest-runs K]
+```
+
+**Notes:** token via stdin (never argv); cross-host redirects shed the Authorization header (the artifact URL is a pre-signed blob — carrying the token there 401s, measured); any fetch failure exits non-zero — empty output can never be read as "no history".
 
 #### ci-metrics-collector.py
 
