@@ -167,45 +167,38 @@ jobs:
       # itself (a gate with no CI is a gate that rots). Phase 2: the fast
       # tier's own tests (selector + manifest contract) joined with the
       # deleted-test phantom fix — the same doctrine, one tier later.
-      # WP2.5 (AUDIT §7.3): this step WAS a folded `>-` scalar with `# WPx.y:`
-      # comment groups between the suite lines. Folding joins every line with
-      # spaces into ONE shell line, so the first `#` became an inline shell
-      # comment and silently dropped everything after it from argv — proven at
-      # the shell: pytest received 10 of the 14 suites and `-q` died with them.
-      # WP4.1/4.2/4.3/9.1's four gate suites had NEVER run in CI since they
-      # joined. Doctrine notes moved ABOVE the step (YAML comments, not argv);
-      # the command is a BLOCK scalar with backslash continuations — the shape
-      # the Coverage gate suites step below chose for exactly this reason.
-      #   WP4.1: the autospec sweep's own tests joined the same doctrine — a
-      #   gate/tool with no CI is a tool that rots (and whose refusal rules
-      #   silently stop being true).
-      #   WP4.2: the unspecced-mock gate measures through this list's own
-      #   machinery (its done-when test drives ratchet-check end to end).
-      #   WP4.3: the mutation scorer pins its verdict table to mutmut's own
-      #   imported status map — without CI the pin rots the day mutmut
-      #   upgrades, which is exactly when the score would start lying.
-      #   WP9.1: the parity checker's own tests joined with the gate — same
-      #   doctrine. Its synthetic provider-renames-a-key fixture is the plan's
-      #   done-when.
+      # WP0.1 (2026-09-20): the doctrine notes that used to live INSIDE the
+      # folded scalar below silently killed it. A `>-` block folds to ONE
+      # shell line, so the first `# WP4.1:` began a bash comment mid-command:
+      # every file after it (autospec-sweep, mock-spec, mutation-score,
+      # parity suites AND the -q) never executed. CI proved it — step 10
+      # logged "86 passed", exactly the 10 files listed BEFORE the first
+      # comment (main run 35484007823). The four suites that joined under
+      # "a gate with no CI is a gate that rots" rotted inside the very
+      # mechanism meant to prevent rotting. Prose now lives HERE, as real
+      # YAML comments; nothing with a `#` may re-enter a run: block.
+      # (WP4.1: autospec sweep. WP4.2: unspecced-mock gate. WP4.3: mutation
+      # scorer's verdict-table pin. WP9.1: AI parity checker — the suite
+      # whose absent run let the registry_ops==38 pin rot on main.)
       - name: Run the anti-rot gates' own tests
-        run: |
-          uv run python -m pytest \
-            scripts/test_check_test_collection.py \
-            scripts/test_check_flake_allowlist.py \
-            scripts/test_check_coverage_diff.py \
-            scripts/test_check_gate_changed_files.py \
-            scripts/test_check_test_timeouts.py \
-            scripts/test_suppression_census.py \
-            scripts/test_ratchet_check.py \
-            scripts/test_fast_select.py \
-            scripts/test_fast_runners_manifest.py \
-            scripts/test_precommit_config.py \
-            scripts/test_autospec_sweep.py \
-            scripts/test_check_mock_spec.py \
-            scripts/test_mutation_score.py \
-            scripts/test_check_ai_provider_parity.py \
-            scripts/test_check_gate_reachability.py \
-            -q
+        run: >-
+          uv run python -m pytest
+          scripts/test_check_test_collection.py
+          scripts/test_check_flake_allowlist.py
+          scripts/test_check_coverage_diff.py
+          scripts/test_check_gate_changed_files.py
+          scripts/test_check_test_timeouts.py
+          scripts/test_suppression_census.py
+          scripts/test_ratchet_check.py
+          scripts/test_fast_select.py
+          scripts/test_fast_runners_manifest.py
+          scripts/test_precommit_config.py
+          scripts/test_autospec_sweep.py
+          scripts/test_check_mock_spec.py
+          scripts/test_mutation_score.py
+          scripts/test_check_ai_provider_parity.py
+          scripts/test_check_gate_reachability.py
+          -q
       # WP0.8: standalone gate test (no pytest cases — invoked as a script,
       # NOT added to the pytest list above, which would collect zero).
       - name: Flaky-marker governance gate test
