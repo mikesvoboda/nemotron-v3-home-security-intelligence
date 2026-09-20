@@ -130,11 +130,11 @@ branch / blended to its step summary.
 
 | Floor                                    | Value                            | Where enforced                                                           |
 | ---------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
-| Backend unit, absolute                   | 70                               | `unit-tests-coverage-merge`, only when all unit shards passed            |
+| Backend unit, absolute                   | 84 (WP2.5 re-measure)            | `unit-tests-coverage-merge`, only when all unit shards passed            |
 | Backend integration, absolute            | 37                               | `integration-coverage-merge`, only when every integration shard passed   |
 | Frontend statements/branches/funcs/lines | 80 / 74.6 / 78.4 / 80.9          | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
 | Combined (unit+integration)              | 80 (unchanged)                   | nightly-full-gate + `validate.sh` — now only runs when BOTH tiers passed |
-| PR diff vs main's baseline               | no drop past **2.0pp** (epsilon) | `check-test-coverage-gate.py` — band = measured baseline noise (~1.6pp)  |
+| PR diff vs main's baseline               | no drop past **0.5pp** (epsilon) | `check-test-coverage-gate.py` — band = post-seed-pin noise (0.03pp ×10)  |
 
 Every completeness guard is the same rule: a floor verdict needs a
 full-execution measurement, so enforcement is skipped (with a warning naming
@@ -143,9 +143,13 @@ labeled as a coverage failure. P measured exactly that misattribution 3 of
 the last 4 nightly runs; `scripts/test_coverage_floors.py` executes the
 committed nightly step body against missing and complete data to pin both
 directions. The frontend floors replace declared 83/77/81/84, which sat above
-every observed run (merged 80.0/74.6/78.4/80.9, run 35486259345); the
-backend unit floor 70 is the published baseline lineage (70.32) and rises
-with the baseline once WP2.1's seed fix reaches main.
+every observed run (merged 80.0/74.6/78.4/80.9, run 35486259345). The
+backend unit floor was 70 (the pre-WP2.1 published lineage 70.32 — an
+overlap UNDERCOUNT) until WP2.5 re-measured five seed-pinned runs
+(84.09–84.12) and raised it to 84 = observed minimum rounded down; the
+diff-gate epsilon likewise dropped 2.0pp → 0.5pp because its band was
+calibrated on the ~1.6pp overlap drift WP2.1 deleted (WP2.3's own text
+expected both rises "once WP2.1's seed fix reaches measurement").
 
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".

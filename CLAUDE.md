@@ -98,11 +98,12 @@ This project follows **Test-Driven Development (TDD)**. See [Testing Guide](docs
 
 ¹ Per owner ruling A7.1: `pyproject.toml` `fail_under = 85` is the PR diff
 gate's RELATIVE baseline over merged shard data — not an absolute floor (the
-diff gate forgives drops up to its 2.0pp noise band, WP2.3). The executed
-absolute backend floor is **80% on combined unit+integration**
+diff gate forgives drops up to its 0.5pp noise band — WP2.5 re-derived it
+from post-seed-pin runs; WP2.3's 2.0pp calibrated on noise WP2.1 deleted).
+The executed absolute backend floor is **80% on combined unit+integration**
 (`validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`);
-per-tier absolute floors (unit 70, integration 37) are enforced in the CI
-merge steps only when the tier fully passed.
+per-tier absolute floors (unit 84, integration 37 — WP2.5 measured) are
+enforced in the CI merge steps only when the tier fully passed.
 
 ² Measured 2026-09-20: **84.12% blended / 86.02% line / 76.27% branch** —
 the three are different numbers (`--format=total` is the blend), and the

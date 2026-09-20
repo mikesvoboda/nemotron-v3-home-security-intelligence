@@ -743,7 +743,14 @@ def test_real_tree_d4_stays_declared_green():
 
 def test_real_tree_registry_and_deploy_facts():
     _, report = real_report()
-    assert report["registry_ops"] == 38
+    # 37, not the 38 this suite was written against (WP7.1 minted a 38-op
+    # contract): e947e7ae "A7.x tail — 2 carry-cost deletions (contract
+    # 38->37)" moved the contract deliberately and this golden should have
+    # moved with it IN THAT COMMIT. It didn't — because the folded anti-rot
+    # step swallowed this suite's argv (WP2.5 / AUDIT §7.3), so the pin never
+    # executed and the drift stayed silent through the whole stack. WP2.5
+    # un-swallowed the step; the suite ran for the first time and caught it.
+    assert report["registry_ops"] == 37
     dep = report["deploy"]
     assert dep["compose_found"] is True
     # the compose rewrite IS the D1/D2 live-ness mechanism; pin the dossier's

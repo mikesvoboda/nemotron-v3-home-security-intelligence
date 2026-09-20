@@ -232,16 +232,21 @@ def test_frontend_floor_numbers_are_the_measured_ones():
 # ---------------------------------------------------------------------------
 
 
-def test_unit_merge_enforces_absolute_floor_70():
+def test_unit_merge_enforces_absolute_floor_at_measured_84():
     merge = _job_step(CI_YML, "unit-tests-coverage-merge", "Combine and check coverage threshold")
     body = merge["run"]
     assert "needs.unit-tests.result" in body, (
         "the unit floor must only be judged on a PASSED tier: partial shard data "
         "under a floor is not a coverage verdict (WP2.3 class)"
     )
-    assert "FLOOR" in body and "70" in body, (
-        "unit merged coverage carries an absolute floor of 70 = the measured "
-        "published baseline lineage (70.32 -> rounds down); R-1 floors at measured"
+    assert "FLOOR" in body and "84" in body, (
+        "unit merged coverage carries an absolute floor of 84 = the measured "
+        "post-seed-pin value (five runs 84.09-84.12: local 84.12/84.11, CI runs "
+        "35502275842/35503899696/35506580757 published 84.11/84.11/84.09; floor "
+        "= observed minimum 84.09 rounded down). WP2.3 kept 70 only because the "
+        "post-WP2.1 re-measure was pending — the 70.32 lineage was the overlap- "
+        "undercount WP2.1 proved; a 14-point gap under a tier's own measurement "
+        "is a decorative floor (R-1, AUDIT §2.1/B-2, WP2.5)"
     )
 
 

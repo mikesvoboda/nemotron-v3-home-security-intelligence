@@ -347,16 +347,22 @@ def _base_percent_from_git(base_branch: str) -> tuple[float | None, str]:
     return float(value), f"baseline from {base_branch}:{BASELINE_FILENAME}"
 
 
-COVERAGE_DIFF_EPSILON_PP = 2.0
+COVERAGE_DIFF_EPSILON_PP = 0.5
 """Real drops are points-wide; the baseline itself is noise below that.
 
-The CI lineage moved 68.70 -> 70.33 -> 70.32 across consecutive main commits
-(artifacts of runs fetched 2026-09-20; P measured ~1.6pp) *with no coverage
-change at all* — the shard-overlap loss (WP2.1) drifted run to run. A bare
-`current < base` on a signal whose own noise band is ±1.6pp is a coin-flip
-that trains people to re-run instead of read. Fail only when the drop
-exceeds the band; 2.0pp is the observed maximum swing rounded up, so the
-noise floor is the epsilon — nothing bigger is suppressed.
+WP2.3 set this to 2.0pp on the observed 68.70 -> 70.33 -> 70.32 lineage
+(~1.6pp swing with NO coverage change) — but that swing was the shard-
+overlap drift WP2.1 fixed by pinning --randomly-seed per run. Post-pin the
+instrument is near-deterministic: five seed-pinned measurements
+(84.12 local single-process, 84.11 local 4-shard sim, CI runs 35502275842 /
+35503899696 / 35506580757 published 84.11 / 84.11 / 84.09 across three
+different HEADs) spread 0.03pp. A 2.0pp band calibrated on dead noise now
+suppresses real 2-point regressions to keep forgiving a noise source that
+no longer exists. 0.5pp keeps >10x headroom on the thinnest honest sample
+(n=5, different commits) while halving-then-halving what a PR can silently
+drop. NARROWING is gate-tightening; widening still requires owner
+adjudication (test_check_coverage_diff.py pins this value to a measurement
+in the same commit).
 """
 
 
