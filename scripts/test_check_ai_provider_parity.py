@@ -56,6 +56,23 @@ assert (REAL_ROOT / "backend/ai_contract/operations.py").is_file(), (
     f"scripts/test_check_ai_provider_parity.py sits outside a repo root: {REAL_ROOT}"
 )
 
+# WP0.1 erratum (CI runs 35486680547/35487155507, this branch only): the
+# derived-pin import below first lived INSIDE the test body, and blew the
+# repo-wide 5s per-test timeout (pyproject timeout = 5) on CI runners —
+# `import backend.ai_contract.operations` costs 3.1-3.8s cold because the
+# package __init__ eagerly pulls providers -> services -> torch. Locally it
+# squeaked under the cap warm, so it only died in CI (the swallow repair is
+# what put this file on CI at all — inherited breakage class, my own delta).
+# Hoisted to module scope: collection is not timeout-bounded, the cost is
+# paid ONCE for the whole file, and the 5s floor stays untouched (widening
+# it would be moving a line). The sys.path shim makes the import resolve
+# under EVERY launch mode: the docstring says bare `uv run pytest` (prepend
+# import mode puts scripts/ — not the root — on sys.path), CI runs
+# `python -m pytest` (root via -m), and both must collect identically.
+if str(REAL_ROOT) not in sys.path:
+    sys.path.insert(0, str(REAL_ROOT))
+import backend.ai_contract.operations as _registry  # noqa: E402
+
 
 def gate(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -753,12 +770,11 @@ def test_real_tree_registry_and_deploy_facts():
     # replaces guarded — "the checker counts ops" — is now guarded by an
     # independent second read of the same source of truth; for the checker
     # to under/over-count it must disagree with the package itself, which
-    # is a real failure worth naming.
-    import backend.ai_contract.operations as _reg
-
-    assert report["registry_ops"] == len(_reg.OPERATIONS), (
+    # is a real failure worth naming. (Import hoisted to module scope — see
+    # the WP0.1 erratum note there; the CI timeout this avoided is why.)
+    assert report["registry_ops"] == len(_registry.OPERATIONS), (
         f"checker counted {report['registry_ops']} ops, registry imports "
-        f"{len(_reg.OPERATIONS)} — the checker's parse went blind"
+        f"{len(_registry.OPERATIONS)} — the checker's parse went blind"
     )
     dep = report["deploy"]
     assert dep["compose_found"] is True

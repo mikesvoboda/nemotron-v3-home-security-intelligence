@@ -7613,3 +7613,22 @@ smoke builds docker green on PR runs.
 holds. Linear issue-on-failure steps narrowed to
 `failure() && github.ref == 'refs/heads/main'` — titles literally say "failed
 on main"; a red PR must surface on the PR, not in Linear.
+
+## WP0.1 erratum — the derived pin blew CI's 5s per-test timeout; import hoisted (2026-09-20)
+
+The derived pin (registry count cross-check) first imported
+backend.ai_contract.operations INSIDE the test body. Locally it passed — the
+torch-warm cache kept the import at ~0s; CI paid it cold (the package
+`__init__` pulls providers -> services -> torch, measured 3.1-3.8s via
+python -X importtime) and pyproject's global `timeout = 5` killed the test
+(both branch runs, jobs 106016823236/106015545430: "Timeout (>5.0s) from
+pytest-timeout, 1 failed, 157 passed"). The 157 siblings prove the test BODY
+fits under 5s on CI — the in-body cold import was the entire delta. Fix:
+hoist the import to module scope behind a sys.path shim (bare-`pytest`
+launch puts scripts/, not the root, on sys.path; collection is not
+timeout-bounded, cost paid once per file). The 5s floor is NOT touched —
+raising it would be moving a line. Repro of the cost: delete every
+`__pycache__` under backend, then, then `time .venv/bin/python -m pytest
+scripts/test_check_ai_provider_parity.py -q` (passes, ~9s wall with the
+import in collection). Banked: an import added inside a test body under a
+global timeout is a timeout you own; warm-cache passes prove nothing.
