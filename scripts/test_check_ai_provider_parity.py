@@ -776,6 +776,38 @@ def test_real_tree_registry_and_deploy_facts():
         f"checker counted {report['registry_ops']} ops, registry imports "
         f"{len(_registry.OPERATIONS)} — the checker's parse went blind"
     )
+    # WP4.2: the WP0.1 derivation compares two IMPORTS of one shape (the
+    # checker AST-parses operations.py's literal; this suite imports the same
+    # module). A parse change that skips entries SILENTLY moves both together.
+    # Third read: the filesystem — the generator writes exactly one
+    # <op>.response.json schema per op (WP7.1 shipped), so the schemas/ dir
+    # counts the contract through a completely different artifact. Legit
+    # changes regenerate all three at once (gen-ai-contract.py --check gates
+    # the byte-shape side); an unintended one desynchronizes them. The count
+    # is asserted nowhere except as these derivations — which is the WP4.2
+    # done-when: a legitimate contract edit never touches a test, an
+    # unintended one fails loud.
+    assert report["registry_ops"] == report["schema_artifact_ops"], (
+        f"registry AST says {report['registry_ops']} ops, generated schema "
+        f"artifacts say {report['schema_artifact_ops']} — registry/schemas "
+        "desynchronized (regenerate: uv run python scripts/gen-ai-contract.py)"
+    )
+    # WP4.2 completion of the done-when: "an UNINTENDED change still fails."
+    # A NEW deployed route the contract never claims is exactly that, and the
+    # registry-vs-artifact pair above cannot see it (both artifacts are old
+    # together). The checker enumerates @router routes from the adapter /
+    # model-server SOURCES without reading the registry at all — so
+    # "everything deployed is in the contract" rides on these sets staying
+    # empty. Verified empty on main 2026-09-21; the /health routes are
+    # deliberately NOT operations (liveness, not capability) and the checker
+    # already excludes them, so this is not re-tolerating a gap.
+    surfaces = report["surfaces"]
+    assert surfaces["gateway_routes_unclaimed"] == [], (
+        f"deployed gateway routes outside the contract: {surfaces['gateway_routes_unclaimed']}"
+    )
+    assert surfaces["native_routes_unclaimed"] == [], (
+        f"native model-server routes outside the contract: {surfaces['native_routes_unclaimed']}"
+    )
     dep = report["deploy"]
     assert dep["compose_found"] is True
     # the compose rewrite IS the D1/D2 live-ness mechanism; pin the dossier's
