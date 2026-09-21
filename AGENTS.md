@@ -92,7 +92,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
 │   │   ├── schemas/      # Pydantic request/response schemas
-│   │   ├── helpers/      # Route helper functions (enrichment transformers)
 │   │   ├── middleware/   # HTTP middleware (auth, rate limiting, logging, security)
 │   │   └── utils/        # API utility functions (field filtering)
 │   ├── core/             # Database, Redis, config, metrics, logging

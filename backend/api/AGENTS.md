@@ -14,7 +14,6 @@ backend/api/
 ├── exception_handlers.py    # Global exception handlers for standardized error responses
 ├── pagination.py            # Pagination utilities for list endpoints
 ├── validators.py            # Request validation helpers
-├── helpers/                 # Helper modules for API transformations
 ├── routes/                  # 28 API route handlers (endpoints)
 ├── schemas/                 # 43 Pydantic schemas for request/response validation
 ├── middleware/              # 20 HTTP middleware components
@@ -141,59 +140,14 @@ register_exception_handlers(app)
 
 ## Key Components
 
-### Helpers (`helpers/`)
+### (Retired) `helpers/enrichment_transformers.py`
 
-Helper modules for API data transformations and processing:
-
-| File                         | Purpose                                                     |
-| ---------------------------- | ----------------------------------------------------------- |
-| `enrichment_transformers.py` | Transform enrichment JSONB data to structured API responses |
-
-**`enrichment_transformers.py`:**
-
-Provides helper classes for transforming raw enrichment data from the database (JSONB format)
-into structured API response format using an extractor pattern.
-
-**Key Classes:**
-
-| Class                     | Purpose                                          |
-| ------------------------- | ------------------------------------------------ |
-| `EnrichmentTransformer`   | Main transformer orchestrating all extractors    |
-| `BaseEnrichmentExtractor` | Abstract base class for enrichment extractors    |
-| `LicensePlateExtractor`   | Extract license plate data                       |
-| `FaceExtractor`           | Extract face detection data                      |
-| `ViolenceExtractor`       | Extract violence detection data                  |
-| `VehicleExtractor`        | Extract vehicle classification and damage data   |
-| `ClothingExtractor`       | Extract clothing classification and segmentation |
-| `ImageQualityExtractor`   | Extract image quality assessment data            |
-| `PetExtractor`            | Extract pet classification data                  |
-
-**Key Functions:**
-
-| Function                     | Purpose                                          |
-| ---------------------------- | ------------------------------------------------ |
-| `transform_enrichment_data`  | Main entry point for enrichment transformation   |
-| `get_enrichment_transformer` | Get the default transformer singleton            |
-| `sanitize_errors`            | Sanitize error messages to remove sensitive data |
-
-Usage pattern:
-
-```python
-from backend.api.helpers.enrichment_transformers import transform_enrichment_data
-
-enrichment_response = transform_enrichment_data(
-    detection_id=detection.id,
-    enrichment_data=detection.enrichment_data,
-    detected_at=detection.detected_at,
-)
-```
-
-**Design Highlights:**
-
-- Validates enrichment data schema before transformation (NEM-1351)
-- Uses extractor pattern to reduce code duplication (NEM-1349)
-- Breaks down transformation into smaller, focused helper classes (NEM-1307)
-- Sanitizes error messages to prevent information leakage in API responses
+Deleted WP3.4 under ADDENDUM 2 §A6 — it was a zero-importer dead twin of the
+live responder, `routes/detections.py::_transform_enrichment_data`, which
+detections and events endpoints call directly. Integration coverage measured
+it at 0.0% (262 uncovered lines, CI run 35551624215) while its 65 exclusive
+unit tests passed — assertion signal on unreachable code. The absence ratchet
+is `tests/unit/api/test_enrichment_transformers_retired.py`.
 
 ### Routes (`routes/`)
 
