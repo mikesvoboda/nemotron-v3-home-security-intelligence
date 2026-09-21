@@ -510,9 +510,11 @@ eight September runs and no January row. So: the run-list API answered ONE runne
 request with a stale/anomalous page. The script's fail-loud design worked as
 designed (broken fetch = red, never silently widened).
 
-**Hardening follow-up (not in this batch — unrelated to deps):** in
-`select_run`, drop artifacts with `expired: true` from the pattern match (and skip
-a run that has zero live matching artifacts). The selection already re-checks each
-candidate's artifacts; this just closes the "selected run whose artifacts are all
-gone" hole the 410 exposed. Reruns remain the operational workaround: the bad page
-is per-request, the next fetch selects correctly.
+**Fix shipped in-batch (#6629 commit `11d37187`, TDD):** attempt 3 proved the
+stale page is not one-off — it picked a *Sept-19* run (usable but two days old:
+22,627 tests, so `test_attempt_number_roundtrip` counted as "new" and its mild
+1.38x spike stayed RED instead of warning). `select_run` now drops `expired: true`
+artifacts from candidacy (an expired zip is never harvestable — GitHub 410s it,
+and expired status is stable under any page staleness, which makes it the one
+robust signal). Regression test drives the WP1.5 canned API and reproduces the
+410 pre-fix.
