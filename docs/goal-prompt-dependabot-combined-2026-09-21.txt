@@ -1,0 +1,19 @@
+Combined dependabot upgrades, SUPERSEDE model (owner override of never-re-implement): implement each upgrade as OUR commit on OUR branch; close each superseded dependabot PR "Superseded by #N" only after our PR merges. Fewest PRs: 4, ceiling 6 — exceed only on measured peer conflict or ruling gate, with proof recorded. TRIAGE=docs/plans/2026-09-21-dependabot-triage.md: per-PR verdicts, measured reasons, commands, file:lines — read FIRST, trust over titles. L=docs/plans/2026-09-12-context-map-doc-updates.md = LEDGER, ground truth; every DECIDE + number in L's row format AND the commit body; every version claim measured by YOU this session, with its command.
+
+S0 Config first: push chore/dependabot-uv-config-s1 (built + schema-validated), PR, merge green BEFORE Monday 11:00Z — uv ecosystem + ignore floors on main or a fresh pile regenerates.
+
+S1 PR-A python(uv): filelock 4.0.1 + gdown 6.4.0 via pyproject+uv lock (TRIAGE Group A: the only two uv accepts). If owner ruled R-1 (drop wily, add radon explicitly — audit-summary.sh needs radon via wily) fold plotly/radon/colorlog/mando into the SAME PR; else STOP AND ASK. requirements-audit.txt is gitignored — never hand-edit; uv export regenerates.
+
+S2 PR-B actions, one commit per upgrade: #6613 group (3) + #6615 configure-pages 6 + #6616 codecov 7.1.1 + #6617 attest-build-provenance 4.2.2; SHA-pin, fix every stale "# vX" comment in the same commit. NEVER #6614 gitleaks — R-2: commercial EULA at v2 AND v3, GITLEAKS_LICENSE unset, job gates CI Gate.
+
+S3 PR-C npm — measure peers FIRST (strict-peer install + npm ls): #6604 testing group + matchers.ts:127 TS2428 fix (TDD fail-fix-green); all four @stryker-mutator/* 9.6.1→10.0.0 lockstep, #6609+#6610 folded — splitting strands core against exact-match peers; typescript 5.9.3→6.0.3 + tsconfig migration NOW (drop baseUrl, paths→"./src/*", TDD; vite unaffected, its alias is its own); #6603 group (10); #6606 web-vitals 6; #6611 framer-motion 13; #6612 @types/node 26. If vitest 5 peers conflict with stryker runner 10, split stryker to PR-C2 with conflict proof. The 4 closed majors STAY closed: TS7 (typescript-eslint peer <6.1.0), eslint 10 (zero plugin v10 peers), node 26 (LTS 2026-10-28), plugin-react 6=R-5 (needs vite 8; owner rules scope).
+
+S4 PR-D docker NGC as ONE PR: #6599+#6600 tensorrt 26.04→26.08 (ai/clip + ai/yolo26) + #6601 cuda 13.3.1 (ai/nemotron); fix the stale OCI base LABEL #6600 leaves (TRIAGE Group C) in the same commit. Merge only after R-3 (GPU-driver compat untestable here — no GPU, podman fails; container need = RULING, not workaround).
+
+S5 Drive each PR green to main: judge ONLY CI Gate, Version Consistency, Collection Sanity, Frontend Type/Lint/Tests, Coverage Gate. "Trivy: neutral" = annotation, not failure. Ambient reds NOT yours: Smoke Test Deployment, SBOM & Sign, Rollback, Create Linear Issue, Nightly status, Backend full gate — confirm red on clean main before "fixing". Fix on-branch under TDD, squash-merge green, then close superseded dependabot PRs. Verify no dependabot re-file of an ignore-floored major after merges. Linear via /linear-python ONLY.
+
+DONE = config on main pre-Monday 11:00Z; PR-A/B/C merged, D merged-or-ruled, ≤6 PRs; all 15 open dependabot PRs merged/superseded/closed-with-reason, NONE silently open; TS at 6.0.3, tsconfig migrated; actions comments truthful; R-1/R-2/R-3/R-5 recorded in TRIAGE + L.
+
+STOP AND ASK: R-1, R-2, R-3, R-5; any third batch split; coverage-floor pressure.
+
+Hard rules. TDD first. Never --no-verify or SKIP=. Never push dependabot/* branches — supersede. Never lower a floor (85% diff / 80% absolute / frontend 80-74.6-78.4-80.9) or widen a quarantine to pass a gate. Align tests to the SHIPPED contract, never bend production. One heavy pytest/mutmut TIER at a time; integration -n0 only.

@@ -6,6 +6,16 @@ __pycache__/
 .venv/
 venv/
 
+# Generated `uv export` consumed only by pip-audit in CI: dependency-audit,
+# vulnerability-management and weekly-audit each run
+# `uv export --no-hashes > requirements-audit.txt` and audit that file;
+# scripts/audit-summary.sh uses /tmp. Nothing reads a committed copy, so it was
+# untracked 2026-09-21 to stop Dependabot proposing updates to a generated
+# artifact. Scoped to these exact names on purpose — requirements-base.txt and
+# ai/*/requirements.txt are hand-maintained container build inputs.
+requirements-audit.txt
+requirements-audit-filtered.txt
+
 # Environment
 .env
 .env.local
