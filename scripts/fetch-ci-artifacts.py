@@ -194,7 +194,17 @@ def select_run(
         arts_doc = _get_json(
             f"{api_base}/repos/{repo}/actions/runs/{rid}/artifacts?per_page=100", token
         )
-        arts = [a for a in arts_doc.get("artifacts", []) if artifact_re.search(a.get("name", ""))]
+        # Finding-4 hardening (measured 2026-09-21): an expired artifact is
+        # never harvestable — GitHub 410s its zip (artifact 5038838599, and
+        # the 17 redirect lines that preceded this run's failure). One must
+        # not make a run "selected"; on a stale runs-list page (observed: a
+        # PR job got a January run as newest candidate twice) the expired
+        # filter is what lets the walk reach a real baseline.
+        arts = [
+            a
+            for a in arts_doc.get("artifacts", [])
+            if artifact_re.search(a.get("name", "")) and not a.get("expired")
+        ]
         if arts:
             print(f"selected run {rid}: {len(arts)} matching artifact(s)")
             picked.append((rid, arts))

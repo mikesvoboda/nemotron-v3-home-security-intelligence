@@ -306,6 +306,112 @@ def test_harvest_selects_and_downloads(tmp_path: Path):
         srv.shutdown()
 
 
+def test_harvest_skips_expired_and_stale(tmp_path: Path):
+    """Finding-4 hardening (measured 2026-09-21): the runs-list API served a
+    PR job a stale page whose newest candidate was a January run with
+    expired artifacts -> every download 410 Gone -> baseline empty -> TPA
+    fail-closed red, while a correct page was served to a sibling job. The
+    harvester must be immune to that page: expired artifacts are not
+    harvestable (GitHub 410s their zip — measured on artifact 5038838599),
+    so an expired artifact must not make a run "selected" at all — the run
+    drops out of candidacy and the walk continues to the next page entry."""
+    zip_fresh = tmp_path / "fresh.zip"
+    with zipfile.ZipFile(zip_fresh, "w") as z:
+        z.writestr("flaky-test-tracking-unit-shard-1.jsonl", jsonl_line("t", {"x::y": ["passed"]}))
+
+    routes = {
+        "/repos/o/r/actions/workflows?per_page=100": {
+            "workflows": [{"id": 7, "path": ".github/workflows/ci.yml"}]
+        },
+        "/repos/o/r/actions/workflows/7/runs?branch=main&status=success&per_page=8": {
+            "workflow_runs": [
+                # the shape the stale page served: same run listed TWICE —
+                # first a months-old copy whose artifacts are all expired,
+                # then the fresh run that a correct page would have led with.
+                {"id": 201, "status": "completed", "head_branch": "main"},
+                {"id": 200, "status": "completed", "head_branch": "main"},
+            ]
+        },
+        "/repos/o/r/actions/runs/201/artifacts?per_page=100": {
+            "artifacts": [
+                {
+                    "id": 801,
+                    "name": "test-results-unit-shard-1-py3.14",
+                    "archive_download_url": "{base}/dl/stale",
+                    "expired": True,
+                }
+            ]
+        },
+        "/repos/o/r/actions/runs/200/artifacts?per_page=100": {
+            "artifacts": [
+                {
+                    "id": 800,
+                    "name": "test-results-unit-shard-1-py3.14",
+                    "archive_download_url": "{base}/dl/fresh",
+                    "expired": False,
+                }
+            ]
+        },
+    }
+    body_map = {"{base}/dl/fresh": zip_fresh}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/dl/stale":
+                self.send_error(410)  # GitHub's honest answer for expired zips
+                return
+            if self.path == "/dl/fresh":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(zip_fresh.read_bytes())
+                return
+            r = routes.get(self.path)
+            if r is None:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            base = f"http://127.0.0.1:{self.server.server_address[1]}"
+            self.wfile.write(json.dumps(r, default=str).replace("{base}", base).encode())
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "out"
+        r = subprocess.run(
+            [
+                "python3",
+                str(HARVESTER),
+                "--self-test",
+                "--api-base",
+                base,
+                "--repo",
+                "o/r",
+                "--current-run-id",
+                "1",
+                "--out",
+                str(out),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"harvest failed: {r.stdout[-300:]} {r.stderr[-300:]}"
+        assert "selected run 200" in r.stdout, (
+            f"expired-only candidate 201 must be skipped, expected selection of 200: {r.stdout[-400:]}"
+        )
+        assert len(list(out.rglob("*.jsonl"))) == 1
+    finally:
+        srv.shutdown()
+
+
 def test_ci_yml_wires_the_consumer():
     """ci.yml must carry the flake-report consumer, gate- or triage-classed."""
     import yaml
