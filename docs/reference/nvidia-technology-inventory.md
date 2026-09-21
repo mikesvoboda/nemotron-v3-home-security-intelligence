@@ -63,31 +63,38 @@
 
 ## NVIDIA Software Products
 
-| Technology                             | Version                                   | Source File                                          |
-| -------------------------------------- | ----------------------------------------- | ---------------------------------------------------- |
-| NVIDIA Triton Inference Server         | **26.01** (v2.54.0)                       | `ai/gateway/Dockerfile` line 1                       |
-| NVIDIA TensorRT                        | **10.14.x** (bundled in 26.01 containers) | `ai/yolo26/Dockerfile`, `ai/clip/Dockerfile`         |
-| NVIDIA CUDA Toolkit (LLM)              | **13.1.1**                                | `ai/nemotron/Dockerfile` lines 8, 71                 |
-| NVIDIA CUDA Toolkit (PyTorch services) | **12.4**                                  | `ai/florence/Dockerfile`, `ai/enrichment/Dockerfile` |
-| NVIDIA cuDNN                           | **9** (images) / **9.19.0.56** (pip)      | Dockerfiles, `requirements-audit.txt`                |
-| NVIDIA DCGM                            | **3.3.5** (exporter **3.4.0**)            | `docker-compose.prod.yml` line 1150                  |
-| NVIDIA Container Toolkit               | detected via `nvidia-ctk`                 | `setup_lib/nvidia_toolkit.py`                        |
-| NVIDIA Driver (host)                   | **580.119.02** (minimum: 580)             | `setup_lib/nvidia_detect.py`                         |
-| nvidia-ml-py (NVML bindings)           | **13.590.48**                             | `requirements-audit.txt`                             |
-| tritonclient[grpc]                     | **>=2.42.0**                              | `ai/gateway/requirements.txt`                        |
-| onnxruntime-gpu                        | **>=1.16.0**                              | Multiple requirements files                          |
-| tensorrt (Python)                      | **>=10.0.0**                              | `ai/enrichment-light/requirements.txt`               |
-| tensorrt-cu12 (Python)                 | **>=10.0.0**                              | `ai/enrichment-light/requirements.txt`               |
-| bitsandbytes                           | **>=0.44.0**                              | `pyproject.toml` (quantization extra)                |
-| paddlepaddle-gpu                       | **>=2.6.0,<3.0.0**                        | `ai/enrichment/requirements.txt`                     |
-| triton (OpenAI kernel compiler)        | **3.6.0**                                 | `requirements-audit.txt` (torch transitive)          |
-| llama.cpp                              | tag **b7972**                             | `ai/nemotron/Dockerfile` line 24                     |
+| Technology                             | Version                                          | Source File                                          |
+| -------------------------------------- | ------------------------------------------------ | ---------------------------------------------------- |
+| NVIDIA Triton Inference Server         | **26.01** (v2.54.0)                              | `ai/gateway/Dockerfile` line 1                       |
+| NVIDIA TensorRT                        | **10.14.x** (bundled in 26.01 containers)        | `ai/yolo26/Dockerfile`, `ai/clip/Dockerfile`         |
+| NVIDIA CUDA Toolkit (LLM)              | **13.1.1**                                       | `ai/nemotron/Dockerfile` lines 8, 71                 |
+| NVIDIA CUDA Toolkit (PyTorch services) | **12.4**                                         | `ai/florence/Dockerfile`, `ai/enrichment/Dockerfile` |
+| NVIDIA cuDNN                           | **9** (images) / **9.19.0.56** (pip, historical) | Dockerfiles; CUDA torch wheel — see CUDA table note  |
+| NVIDIA DCGM                            | **3.3.5** (exporter **3.4.0**)                   | `docker-compose.prod.yml` line 1150                  |
+| NVIDIA Container Toolkit               | detected via `nvidia-ctk`                        | `setup_lib/nvidia_toolkit.py`                        |
+| NVIDIA Driver (host)                   | **580.119.02** (minimum: 580)                    | `setup_lib/nvidia_detect.py`                         |
+| nvidia-ml-py (NVML bindings)           | **13.610.43**                                    | `uv.lock` (declared in `pyproject.toml`)             |
+| tritonclient[grpc]                     | **>=2.42.0**                                     | `ai/gateway/requirements.txt`                        |
+| onnxruntime-gpu                        | **>=1.16.0**                                     | Multiple requirements files                          |
+| tensorrt (Python)                      | **>=10.0.0**                                     | `ai/enrichment-light/requirements.txt`               |
+| tensorrt-cu12 (Python)                 | **>=10.0.0**                                     | `ai/enrichment-light/requirements.txt`               |
+| bitsandbytes                           | **>=0.44.0**                                     | `pyproject.toml` (quantization extra)                |
+| paddlepaddle-gpu                       | **>=2.6.0,<3.0.0**                               | `ai/enrichment/requirements.txt`                     |
+| triton (OpenAI kernel compiler)        | **3.6.0** (historical)                           | CUDA torch wheel — see CUDA table note               |
+| llama.cpp                              | tag **b7972**                                    | `ai/nemotron/Dockerfile` line 24                     |
 
 ---
 
 ## NVIDIA CUDA Python Packages
 
-All packages are PyTorch transitive dependencies, pinned in `requirements-audit.txt`. Platform-conditional: `x86_64` Linux only.
+All packages are PyTorch transitive dependencies from the CUDA torch wheel. Platform-conditional: `x86_64` Linux only.
+
+> **Note (2026-09-21):** The versions below were captured while torch resolved from the CUDA wheel
+> index. `uv.lock` now pins `torch 2.14.0+cpu` from `download.pytorch.org/whl/cpu`, which pulls
+> **none** of these packages, and `requirements-audit.txt` is no longer committed (CI regenerates
+> it with `uv export --no-hashes`; measured 2026-09-21: the current export contains zero
+> `nvidia-*-cu12`/`triton` entries). Re-measure this table on a CUDA-configured host before
+> treating any row as current. The one package still in the lock is `nvidia-ml-py`, at **13.610.43**.
 
 | Package                  | Pinned Version | Pulled By                                                            |
 | ------------------------ | -------------- | -------------------------------------------------------------------- |
@@ -106,9 +113,13 @@ All packages are PyTorch transitive dependencies, pinned in `requirements-audit.
 | nvidia-nvjitlink-cu12    | 12.9.86        | torch, nvidia-cufft-cu12, nvidia-cusolver-cu12, nvidia-cusparse-cu12 |
 | nvidia-nvshmem-cu12      | 3.5.19         | torch                                                                |
 | nvidia-nvtx-cu12         | 12.9.79        | torch                                                                |
-| nvidia-ml-py             | 13.590.48      | home-security-intelligence (direct dep)                              |
+| nvidia-ml-py             | 13.610.43      | home-security-intelligence (direct dep; in `uv.lock`)                |
 
-> **Note:** The backend uses **CPU-only PyTorch** (`2.9.1+cpu`) via `[tool.uv] extra-index-url`. The nvidia-\*-cu12 packages appear in the audit export but are not installed in the backend virtualenv. They are installed inside the AI containers which use CUDA PyTorch from their base images.
+> **Note (re-measured 2026-09-21):** The backend uses **CPU-only PyTorch** (`2.14.0+cpu` from
+> `download.pytorch.org/whl/cpu`, `uv.lock` torch block). Since the CPU-wheel pin, the
+> nvidia-\*-cu12 packages appear in **neither** `uv.lock` **nor** the audit export — earlier
+> revisions of this page listed them "in the audit export" from a CUDA-index era. They live inside
+> the AI containers, which use CUDA PyTorch from their base images.
 
 ---
 
