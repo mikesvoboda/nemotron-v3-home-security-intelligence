@@ -510,7 +510,8 @@ eight September runs and no January row. So: the run-list API answered ONE runne
 request with a stale/anomalous page. The script's fail-loud design worked as
 designed (broken fetch = red, never silently widened).
 
-**Fix shipped in-batch (#6629 commit `11d37187`, TDD):** attempt 3 proved the
+**Fix shipped in-batch (#6629 commit `11d37187`, rebased `b755c35d`, TDD):**
+attempt 3 proved the
 stale page is not one-off — it picked a *Sept-19* run (usable but two days old:
 22,627 tests, so `test_attempt_number_roundtrip` counted as "new" and its mild
 1.38x spike stayed RED instead of warning). `select_run` now drops `expired: true`
@@ -518,6 +519,36 @@ artifacts from candidacy (an expired zip is never harvestable — GitHub 410s it
 and expired status is stable under any page staleness, which makes it the one
 robust signal). Regression test drives the WP1.5 canned API and reproduces the
 410 pre-fix.
+
+**Second signature, same class (measured 19:22Z, run 35637776479 TPA on #6629's
+own head):** the stale page came back wearing different clothes — EIGHT January
+candidates (ids 20716417308…20753667016) whose artifacts are not `expired`-flagged
+but long since DELETED: the artifact listing yields nothing, so all eight politely
+"skip" and the walk dies with `checked 8 candidate main run(s)… none had artifacts
+matching the pattern`. The expired-filter cannot see this variant (deleted ≠
+flagged). Audit fail-closed → one 81% soft breach (`test_classify_action_asyncio_
+timeout` 3.23s vs 4.0s limit — baseline-downgrade territory) went red. **Fix
+shipped in-batch (#6629 commit `05ccbcbe`, rebased `0a8eab56`, TDD):** a run older
+than artifact retention is unharvestable BY DEFINITION (uploads set
+`retention-days: 7`; script ceiling 30d) and the runs page carries `created_at` —
+`select_run` now drops over-retention candidates before the artifact query. Test
+drives the canned page with an ancient run listed ahead of a fresh one; red
+pre-fix (walk opened the stale candidate's listing), green post-fix, 6/6.
+
+**Third signature, same class (measured 21:00Z, runs 35650649386 on #6629 and
+35650688761 on #6631 — both lanes red with IDENTICAL TPA failure):** the
+retention filter was working, but each job's ONE runs-list request drew a stale
+page — every candidate over-retention, so all skipped and the walk died
+vacuously even though fresh main runs sat on the honest page (a sibling job
+minutes later saw the truth). Staleness is per-REQUEST, not per-repo-state: the
+page a runner gets is a lottery. **Fix shipped in-batch (#6629 commit
+`75b4100f`, TDD):** `select_run_with_retries` re-requests the selection on a
+VACUOUS page (up to `--list-retries` 3, `--retry-sleep` 30s) — a dead API call
+still raises immediately (not staleness; fail-loud stands) and persistent
+vacuity still exits non-zero (retrying is not tolerating). The pre-fix red test
+replayed the exact production signature against the old invocation: ONE list
+request, stale page, rc=1. Post-fix the canned server serves stale-then-fresh
+and the harvest selects the fresh run; 7/7 green.
 
 ### Finding 5 (mutation harness, measured 2026-09-21): stryker 10 + vitest 5 runs
 every mutant but kills NONE — 0.00 score is a harness defect, not test quality

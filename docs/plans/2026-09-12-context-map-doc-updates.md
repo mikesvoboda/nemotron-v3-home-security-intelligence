@@ -8847,3 +8847,52 @@ runner the instrumented module never reaches the test process. vitest-runner
 10.0.0 is newest on npm (no upstream fix waiting). Score is vacuous in both
 modes; a real score is its own future work package (upstream issue w/ repro,
 vitest downgrade, or runner swap) — NOT a blocker for this batch.
+
+### Final execution state (closeout, 2026-09-21 late evening)
+
+Merges, in landing order (all merge-on-green via GitHub auto-merge; the
+auto-merge UPDATER never fired on BEHIND — measured repeatedly — so a side-loop
+sent the REST `PUT /pulls/N/update-branch` nudge, and the pool needed two zombie
+CI cancellations before runs scheduled at all):
+
+| PR    | merged (UTC) | SHA        | contents                                       |
+| ----- | ------------ | ---------- | ---------------------------------------------- |
+| #6628 | 17:07:53     | `9ba8f7a4` | dependabot config: uv ecosystem + ignore floors |
+| #6633 | 18:19:02     | `c7617931` | python-minor-patch group ×12 (first uv-era PR)  |
+| #6630 | 19:29:10     | `71a0b6c6` | filelock 4.0.1 + gdown 6.4.0                    |
+| #6632 | 20:20:46     | `2d361b11` | npm batch: vitest 5, stryker 10, TS 6.0.3 + 9/10 of the group |
+| #6631 | 21:24:47     | `c1128110` | NGC bases: tensorrt 26.08, cuda 13.3.1 (R-3 gated) |
+| #6629 | SEE BELOW    | —          | actions bundle + harvester stale-page hardening trio |
+
+Close dispositions (every one posted as a `Superseded by #N (<mergeSHA>)`
+comment on the merge of its superseder, per the owner's supersede model):
+
+- **by #6630**: #6634 ✓ closed 19:29:26Z. (#6620/#6626 were already closed
+  earlier as resolver-invalid — their proposed diffs did not survive `uv lock`.)
+- **by #6632**: #6603 ✓ (in-part body: 9/10 landed, msw deferred with finding-1
+  evidence), #6606 ✓, #6609 ✓, #6610 ✓, #6611 ✓, #6612 ✓ — all 20:21Z.
+  #6604 was closed by the owner at 20:20:47Z, one minute before the sweep —
+  same content, no comment owed.
+- **by #6631**: #6599 ✓ (already closed), #6600 ✓ 21:26:25Z, #6601 ✓ 21:26:27Z.
+- **by #6629** (pending its merge): #6613, #6615, #6616, #6617 — closer loop
+  posts on landing.
+- **not superseded**: #6614 gitleaks 3.x stays OPEN — R-2 (EULA) is an owner
+  ruling, not a dependency upgrade. #6608 plugin-react 6 stays closed — R-5
+  (vite-8 scope).
+
+The #6629 lane carried the repo's hardest infrastructure finding: the TPA
+baseline harvester drew GitHub's stale runs-list page in THREE different
+signatures across one evening (expired-flagged → deleted-artifacts →
+vacuous-single-request), each fail-closed red on a mild soft breach a baseline
+would have downgraded, each fixed TDD red→green in the PR itself
+(`b755c35d` / `0a8eab56` / `75b4100f` before final rebase; full record in the
+triage doc's Finding 4). The third fix — re-request on a vacuous page, never on
+a dead call — was validated by replaying the exact production signature against
+the pre-fix invocation (one list request, stale page, rc=1) before going green.
+
+**Standing follow-ups this closeout queues, does not do:** (1) msw 2.15
+standalone PR with react-query test adaptations (touches the useSettingsApi
+tests #6632 rewrote — do not fold retroactively); (2) a real frontend mutation
+score (Finding 5: harness defect, runner swap / downgrade / upstream issue —
+decide as its own WP); (3) R-1 wily-drop, R-2 gitleaks EULA, R-5 plugin-react
+owner rulings; (4) Node 26 revisit at LTS 2026-10-28.
