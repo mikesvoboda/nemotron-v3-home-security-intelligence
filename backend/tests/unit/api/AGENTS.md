@@ -11,7 +11,6 @@ backend/tests/unit/api/
 ├── AGENTS.md                      # This file
 ├── __init__.py                    # Package initialization
 ├── test_date_filter_validation.py # Date filter validation tests
-├── helpers/                       # API helper tests
 ├── middleware/                    # Middleware tests
 ├── routes/                        # Route handler tests (56 files)
 ├── schemas/                       # Pydantic schema tests (23 files)
@@ -20,15 +19,15 @@ backend/tests/unit/api/
 
 ## Test Files
 
-### Root Level (1 file)
+### Root Level (2 files)
 
-| File                             | Tests For                              |
-| -------------------------------- | -------------------------------------- |
-| `test_date_filter_validation.py` | Date filter query parameter validation |
+| File                                      | Tests For                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `test_date_filter_validation.py`          | Date filter query parameter validation                              |
+| `test_enrichment_transformers_retired.py` | A6 deletion lock: the dead-twin `api/helpers/` package stays absent |
 
 ### Subdirectories
 
-- **`helpers/`**: API helper function tests
 - **`middleware/`**: Middleware tests
 - **`routes/`**: API endpoint handler tests (56 files)
 - **`schemas/`**: Pydantic schema validation tests (23 files)
