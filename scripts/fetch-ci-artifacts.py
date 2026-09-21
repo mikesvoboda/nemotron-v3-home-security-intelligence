@@ -257,6 +257,58 @@ def select_run(
     return picked
 
 
+def select_run_with_retries(
+    api_base: str,
+    repo: str,
+    token: str,
+    workflow_path: str,
+    current_run_id: int,
+    artifact_re: re.Pattern[str],
+    max_runs: int,
+    harvest_runs: int = 1,
+    list_retries: int = 3,
+    retry_sleep: float = 30.0,
+) -> list[tuple[int, list[dict]]]:
+    """select_run, re-requested on a VACUOUS selection (Finding-4 hardening #3,
+    measured 21:00Z runs 35650649386/35650688761: both lanes red with the
+    retention filter working — ONE stale candidate-list page, zero retryable,
+    both died). Staleness is per-REQUEST: sibling jobs minutes apart hit
+    honest pages, so a re-request usually sees truth. A dead API call is NOT
+    retried here (that is not staleness, and fail-loud stands); only the
+    page-served-nothing case re-reads, and persistent vacuity still exits
+    non-zero — retrying is not tolerating."""
+    import time
+
+    last: HarvestError | None = None
+    for attempt in range(1, list_retries + 1):
+        try:
+            return select_run(
+                api_base,
+                repo,
+                token,
+                workflow_path,
+                current_run_id,
+                artifact_re,
+                max_runs,
+                harvest_runs,
+            )
+        except HarvestError as e:
+            msg = str(e)
+            if "none had" not in msg and "no completed main runs" not in msg:
+                raise  # transport/other failure: loud immediately
+            last = e
+            if attempt < list_retries:
+                print(
+                    f"selection attempt {attempt}/{list_retries} served nothing harvestable "
+                    f"— retry after {retry_sleep:.0f}s (stale runs-list page?)"
+                )
+                time.sleep(retry_sleep)
+    assert last is not None
+    raise HarvestError(
+        f"{last} (after {list_retries} selection attempts — page persistently stale?)"
+    )
+
+
 def harvest(
     api_base: str,
     repo: str,
@@ -267,9 +319,20 @@ def harvest(
     out_dir: Path,
     max_runs: int,
     harvest_runs: int = 1,
+    list_retries: int = 3,
+    retry_sleep: float = 30.0,
 ) -> int:
-    picked = select_run(
-        api_base, repo, token, workflow_path, current_run_id, artifact_re, max_runs, harvest_runs
+    picked = select_run_with_retries(
+        api_base,
+        repo,
+        token,
+        workflow_path,
+        current_run_id,
+        artifact_re,
+        max_runs,
+        harvest_runs,
+        list_retries,
+        retry_sleep,
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     files = 0
@@ -310,6 +373,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="harvest the N newest eligible runs (1 = baseline shape; flake report wants several)",
     )
     p.add_argument(
+        "--list-retries",
+        type=int,
+        default=3,
+        help="re-selection attempts when the runs-list page serves nothing harvestable "
+        "(GitHub has served runner jobs stale pages repeatedly; see Finding-4)",
+    )
+    p.add_argument(
+        "--retry-sleep",
+        type=float,
+        default=30.0,
+        help="seconds between selection retries",
+    )
+    p.add_argument(
         "--token-stdin",
         action="store_true",
         help="read the API token from stdin (never argv/env — keeps it out of ps and logs)",
@@ -342,6 +418,8 @@ def main(argv: list[str]) -> int:
             out_dir=args.out,
             max_runs=args.max_runs,
             harvest_runs=args.harvest_runs,
+            list_retries=args.list_retries,
+            retry_sleep=args.retry_sleep,
         )
     except HarvestError as e:
         # Fail LOUD: the callers (TPA baseline, flake report) treat a

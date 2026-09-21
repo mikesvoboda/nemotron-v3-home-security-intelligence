@@ -528,6 +528,128 @@ def test_harvest_skips_pre_retention_candidates(tmp_path: Path):
         srv.shutdown()
 
 
+def test_harvest_retries_stale_selection(tmp_path: Path):
+    """Finding-4 hardening #3 (measured 2026-09-21 21:00Z, runs 35650649386
+    (#6629 head, WITH the retention filter) + 35650688761 (#6631 head)): the
+    retention filter did its job — all eight January candidates correctly
+    refused ("beyond artifact retention") — but a job makes ONE candidate-
+    list request, GitHub served that ONE request a fully-stale page, and the
+    walk still died vacuously. Both lanes failed identically. Staleness is
+    per-request (sibling jobs minutes apart hit honest pages), so a vacuous
+    selection is retried --list-retries times with --retry-sleep between —
+    a stale page is a transient API lie, and only a persistently-stale one
+    may exit non-zero (fail-loud doctrine intact: retrying != tolerating).
+    Canned API: first list call serves the stale page (one pre-retention
+    run); the second serves the fresh run. Default retry-sleep is 300s;
+    the test drives it at 0.05s."""
+    zip_fresh = tmp_path / "fresh.zip"
+    with zipfile.ZipFile(zip_fresh, "w") as z:
+        z.writestr("flaky-test-tracking-unit-shard-1.jsonl", jsonl_line("t", {"x::y": ["passed"]}))
+
+    state = {"lists": 0}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            import datetime
+
+            if self.path == "/dl/fresh":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(zip_fresh.read_bytes())
+                return
+            if self.path == "/repos/o/r/actions/workflows?per_page=100":
+                doc = {"workflows": [{"id": 7, "path": ".github/workflows/ci.yml"}]}
+            elif self.path.startswith("/repos/o/r/actions/workflows/7/runs"):
+                state["lists"] += 1
+                if state["lists"] == 1:
+                    # the lie: a page whose only candidate predates retention
+                    doc = {
+                        "workflow_runs": [
+                            {
+                                "id": 401,
+                                "status": "completed",
+                                "head_branch": "main",
+                                "created_at": "2025-01-05T20:56:44Z",
+                            }
+                        ]
+                    }
+                else:
+                    now = datetime.datetime.now(datetime.UTC)
+                    doc = {
+                        "workflow_runs": [
+                            {
+                                "id": 400,
+                                "status": "completed",
+                                "head_branch": "main",
+                                "created_at": (now - datetime.timedelta(hours=1)).strftime(
+                                    "%Y-%m-%dT%H:%M:%SZ"
+                                ),
+                            }
+                        ]
+                    }
+            elif self.path == "/repos/o/r/actions/runs/400/artifacts?per_page=100":
+                base = f"http://127.0.0.1:{self.server.server_address[1]}"
+                doc = {
+                    "artifacts": [
+                        {
+                            "id": 950,
+                            "name": "test-results-unit-shard-1-py3.14",
+                            "archive_download_url": f"{base}/dl/fresh",
+                        }
+                    ]
+                }
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(doc, default=str).encode())
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "out"
+        r = subprocess.run(
+            [
+                "python3",
+                str(HARVESTER),
+                "--self-test",
+                "--api-base",
+                base,
+                "--repo",
+                "o/r",
+                "--current-run-id",
+                "1",
+                "--out",
+                str(out),
+                "--list-retries",
+                "3",
+                "--retry-sleep",
+                "0.05",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert r.returncode == 0, (
+            f"stale-then-honest page must converge, got rc={r.returncode}: "
+            f"{r.stdout[-400:]} {r.stderr[-200:]}"
+        )
+        assert "selected run 400" in r.stdout
+        assert "retry" in r.stdout.lower(), "the retry must be VISIBLE in the log"
+        assert state["lists"] >= 2, "the honest page was never actually re-requested"
+        assert len(list(out.rglob("*.jsonl"))) == 1
+    finally:
+        srv.shutdown()
+
+
 def test_ci_yml_wires_the_consumer():
     """ci.yml must carry the flake-report consumer, gate- or triage-classed."""
     import yaml
