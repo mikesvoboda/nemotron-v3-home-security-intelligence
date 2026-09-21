@@ -40,13 +40,13 @@ backend/tests/unit/
 pytest backend/tests/unit/ -v
 
 # Single test file
-pytest backend/tests/unit/test_config.py -v
+pytest backend/tests/unit/core/test_config.py -v
 
 # Specific test class
-pytest backend/tests/unit/test_config.py::TestSettings -v
+pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults -v
 
 # Specific test
-pytest backend/tests/unit/test_config.py::TestSettings::test_defaults -v
+pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults::test_default_app_settings -v
 
 # With coverage
 pytest backend/tests/unit/ -v --cov=backend --cov-report=html

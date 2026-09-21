@@ -73,7 +73,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `.bandit.baseline`  | Bandit baseline for known issues                                                    |
 | `.secrets.baseline` | detect-secrets baseline file                                                        |
 | `zap-rules.tsv`     | ZAP (OWASP) security scanning rules                                                 |
-| `flaky_tests.txt`   | Known flaky tests list for CI retry logic                                           |
 
 ## Directory Structure
 
@@ -85,7 +84,9 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── florence/         # Florence-2 dense captioning (port 8092)
 │   ├── clip/             # CLIP embedding service (port 8093)
 │   ├── enrichment/       # Heavy enrichment pipeline (port 8094)
-│   └── enrichment-light/ # Light enrichment models (port 8096)
+│   ├── enrichment-light/ # Light enrichment models (port 8096)
+│   ├── gateway/          # AI Gateway facade over Triton (port 8090; production AI path)
+│   └── triton/           # Triton client + model repository
 ├── backend/              # FastAPI backend (Python)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
@@ -98,29 +99,38 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
 ├── certs/                # SSL certificates directory (placeholder)
+├── config/               # Runtime YAML configs (tracker configs, quality baselines)
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
-├── docs/                 # Documentation
+├── docs/                 # Documentation (full index: docs/AGENTS.md)
+│   ├── ai/               # AI model-zoo and pipeline documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
 │   ├── benchmarks/       # Performance benchmarks (model-zoo)
+│   ├── components/       # UI component documentation
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── developer/        # Developer-focused documentation
 │   ├── development/      # Development workflow documentation
 │   ├── getting-started/  # Installation and first-run guides
+│   ├── guides/           # Feature guides (video analytics, zones, faces)
 │   ├── images/           # Visual assets (mockups, diagrams)
+│   ├── operations/       # Operational runbooks for production
 │   ├── operator/         # Operator-focused documentation (admin, deployment, monitoring)
+│   ├── performance/      # Performance analyses
 │   ├── plans/            # Design and implementation plans
 │   ├── reference/        # Reference docs (api, config, troubleshooting)
 │   ├── testing/          # Testing guides (TDD, Hypothesis, patterns)
 │   └── user/             # End-user documentation
 ├── frontend/             # React dashboard (TypeScript)
-│   ├── src/
+│   ├── src/              # App source (full index: src/AGENTS.md)
 │   │   ├── components/   # React components
 │   │   ├── config/       # Environment configuration and tour steps
+│   │   ├── constants/    # App-wide constants
 │   │   ├── contexts/     # React contexts (SystemData, Toast)
 │   │   ├── hooks/        # Custom hooks (WebSocket, event streams)
+│   │   ├── pages/        # Route-level page components
 │   │   ├── mocks/        # MSW mock handlers for testing
 │   │   ├── services/     # API client
+│   │   ├── stores/       # Zustand stores (dashboard, settings, queues)
 │   │   ├── styles/       # CSS/Tailwind
 │   │   ├── test/         # Test setup and configuration
 │   │   ├── __tests__/    # Global test files (API contracts, matchers)
@@ -128,17 +138,26 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   │   ├── types/        # TypeScript type definitions
 │   │   └── utils/        # Utility functions
 │   ├── tests/            # E2E and integration tests (Playwright)
+│   ├── scripts/          # Frontend build/CI helper scripts
 │   └── public/           # Static assets (favicon, images)
+├── env-templates/        # Hardware-profile .env templates (gb300, etc.)
 ├── monitoring/           # Prometheus + Grafana + Loki + Pyroscope configuration
 │   ├── alloy/            # Grafana Alloy collector configuration
+│   ├── cadvisor/         # cAdvisor container metrics configuration
+│   ├── dcgm/             # NVIDIA DCGM GPU-exporter configuration
 │   ├── grafana/          # Grafana dashboards
 │   ├── loki/             # Loki log aggregation configuration
-│   └── pyroscope/        # Pyroscope continuous profiling configuration
-├── mutants/              # Mutation testing results (mutmut)
+│   ├── pyroscope/        # Pyroscope continuous profiling configuration
+│   └── tempo/            # Tempo trace storage configuration
 ├── scripts/              # Development and deployment scripts
-│   └── hooks/            # Git hooks (post-checkout worktree protection)
+│   ├── benchmark/        # Benchmark harness scripts
+│   ├── dataset_converters/ # Training-dataset conversion scripts
+│   ├── hooks/            # Git hooks (post-checkout worktree protection)
+│   ├── synthetic/        # Synthetic test-data generation
+│   └── validate_docs/    # Documentation validators
 ├── setup_lib/            # Python utilities for setup.py
 ├── tests/                # Root-level test suites (benchmark, load, smoke)
+├── tools/                # Bundled tooling (nemo_data_designer)
 ├── archive/              # Not-load-bearing artifacts pending delete sign-off (see archive/README.md)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows

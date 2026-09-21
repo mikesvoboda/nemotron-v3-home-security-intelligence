@@ -15,8 +15,8 @@ scripts/
     post-checkout                    # Post-checkout hook for worktree protection
 
   # Setup Scripts
-  setup.sh                           # Main setup script (Linux/macOS)
-  setup.ps1                          # Main setup script (Windows)
+  # (cross-platform env setup moved to root `setup.py`; setup.ps1 is Windows-only extras)
+  setup.ps1                          # Windows PowerShell dev environment setup
   setup-hooks.sh                     # Pre-commit and pre-push hook setup
   setup-systemd.sh                   # Systemd service setup (Linux)
   setup-launchd.sh                   # launchd service setup (macOS)
@@ -26,7 +26,6 @@ scripts/
   # Service Management
   dev.sh                             # Development server management
   restart-all.sh                     # Full stack restart (all containers)
-  redeploy.py                        # Stop, destroy volumes, redeploy fresh (python redeploy.py --help)
   quick-rebuild.sh                   # Quick rebuild and restart containers
   setup-container-api.sh             # Setup container API access
 
@@ -44,7 +43,6 @@ scripts/
 
   # Database & Seeding
   seed-events.py                # Mock events and cameras seeding script
-  db-migrate.sh                      # Database migration script
 
   # Code Generation & Certs
   generate-types.sh                  # TypeScript API type generation
@@ -119,35 +117,9 @@ scripts/
 
 ### Development Setup
 
-#### setup.sh
-
-**Purpose:** Primary development environment setup script for Linux/macOS.
-
-**What it does:**
-
-1. Checks prerequisites (Python 3.14+, Node.js 24 LTS, 22.12+ accepted, Docker, NVIDIA drivers)
-2. Checks for uv package manager (mandatory)
-3. Creates Python virtual environment (`.venv`) using uv
-4. Installs backend dependencies from `pyproject.toml` using `uv sync --extra dev`
-5. Creates `.env` file from `.env.example`
-6. Creates data directory and prepares database
-7. Installs frontend dependencies (`npm install`)
-8. Installs pre-commit hooks
-9. Verifies all tools are working
-
-**Usage:**
-
-```bash
-./scripts/setup.sh              # Full setup
-./scripts/setup.sh --help       # Show options
-./scripts/setup.sh --skip-gpu   # Skip NVIDIA GPU checks
-./scripts/setup.sh --skip-tests # Skip verification tests
-./scripts/setup.sh --clean      # Clean and reinstall
-```
-
 #### setup.ps1
 
-**Purpose:** Development environment setup for Windows (PowerShell equivalent of setup.sh).
+**Purpose:** Development environment setup for Windows (PowerShell). Cross-platform setup (including Linux/macOS) is the root-level `python setup.py` — the former scripts/setup.sh was removed in the setup consolidation (commit 84188795); `setup.py` checks prerequisites, creates `.venv` via uv, syncs deps, generates `.env` from `.env.example`, installs frontend deps and pre-commit hooks.
 
 **Usage:**
 
@@ -257,7 +229,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 **Files Created:**
 
-- PID files: `.pids/backend.pid`, `.pids/frontend.pid` (local runtime only; dir gitignored)
+- PID files: .pids/backend.pid, .pids/frontend.pid (created at runtime by dev.sh; dir gitignored)
 - Log files: `logs/backend.log`, `logs/frontend.log`
 
 #### restart-all.sh
@@ -278,21 +250,6 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 - Core: postgres, redis, backend, frontend
 - AI: ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 - Monitoring: prometheus, grafana, redis-exporter, json-exporter
-
-#### redeploy.py
-
-**Purpose:** Stop all containers, destroy volumes, and redeploy fresh.
-
-**Usage:** `python redeploy.py [OPTIONS]`
-
-**Options:**
-
-| Option           | Description                              |
-| ---------------- | ---------------------------------------- |
-| `--help`         | Show help message                        |
-| `--dry-run`      | Show what would be done                  |
-| `--keep-volumes` | Preserve volumes (default destroys them) |
-| `--no-git-pull`  | Skip git pull                            |
 
 ### Testing Scripts
 
@@ -460,20 +417,6 @@ python scripts/audit-test-durations.py <results-dir>
 #### seed-events.py
 
 **Purpose:** Populate database with mock security events and cameras for testing.
-
-### Database Migration
-
-#### db-migrate.sh
-
-**Purpose:** Run database migrations using Alembic.
-
-**Usage:**
-
-```bash
-./scripts/db-migrate.sh                    # Run pending migrations
-./scripts/db-migrate.sh --generate "msg"   # Generate new migration
-./scripts/db-migrate.sh --downgrade        # Rollback last migration
-```
 
 ### Code Generation
 
@@ -752,7 +695,7 @@ python scripts/analyze-flaky-tests.py <results-dir> [--owner-summary]
 
 - List of tests with inconsistent pass/fail patterns
 - Failure rate statistics
-- Recommendations toward the governed quarantine: a `.github/flake-allowlist.yml` entry (tracking ref + expiry) — the legacy `flaky_tests.txt` manifest was retired with WP0.8
+- Recommendations toward the governed quarantine: a `.github/flake-allowlist.yml` entry (tracking ref + expiry) — the legacy flaky_tests.txt manifest was retired with WP0.8
 - `--owner-summary` (WP1.5): a RANKED table with an explicit Owner column to the GHA job summary — registered flakes show their tracking ref, unregistered ones read "no owner", and the corpus size is printed even at zero flakes ("no flakes" vs "read nothing" stay distinguishable)
 
 #### fetch-ci-artifacts.py
@@ -878,7 +821,7 @@ python scripts/audit-linear-github-sync.py
 
 ```bash
 git bisect start HEAD v1.0.0
-git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/test_camera.py"
+git bisect run ./scripts/git-bisect-helper.sh "pytest backend/tests/unit/models/test_camera.py"
 ```
 
 #### generate-docs.sh
@@ -1223,10 +1166,10 @@ SKIP=check-integration-tests git commit
 ### Initial Setup
 
 ```bash
-# Linux/macOS
-./scripts/setup.sh
+# Linux/macOS (cross-platform, from repo root)
+python setup.py
 
-# Windows
+# Windows (PowerShell)
 .\scripts\setup.ps1
 
 # Activate environment and start

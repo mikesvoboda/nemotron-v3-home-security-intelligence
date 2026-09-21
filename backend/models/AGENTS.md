@@ -11,7 +11,7 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 - **Type Safety**: Full type annotations for IDE support and mypy checking
 - **Cascade Behavior**: Camera deletion automatically removes dependent records
 - **PostgreSQL Features**: Uses JSONB, TSVECTOR, GIN indexes for efficient querying
-- **Testing**: Comprehensive unit tests in `/backend/tests/unit/test_models.py`
+- **Testing**: Per-model unit tests in `backend/tests/unit/models/`
 
 ## Files Overview
 
@@ -1409,8 +1409,8 @@ with Session(engine) as session:
 Run model tests:
 
 ```bash
-pytest backend/tests/unit/test_models.py -v
-pytest backend/tests/unit/test_models.py --cov=backend.models
+pytest backend/tests/unit/models/ -v
+pytest backend/tests/unit/models/ --cov=backend/models
 ```
 
 ## Related Documentation

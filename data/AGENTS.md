@@ -22,7 +22,7 @@ data/
   transcoded/         # Transcoded video files (runtime, created as needed)
 ```
 
-**Note:** Most content in this directory is runtime-generated and excluded via `.gitignore`. The `certs/` and `profiles/` directories contain actual files.
+**Note:** Most content in this directory is runtime-generated and excluded via `.gitignore`. Only certs/ is version-controlled (via `.gitkeep`); the logs/, profiles/, thumbnails/ and transcoded/ subdirectories appear only after the app or `backend/core/profiling.py` creates them. Additional tracked content: `ai-pipeline-evaluation/` (evaluation reports), `benchmark/` (evaluation-set fixtures), `external/` (external dataset staging dirs).
 
 **DATABASE MIGRATION NOTE**
 

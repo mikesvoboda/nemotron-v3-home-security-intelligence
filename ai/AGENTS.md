@@ -10,6 +10,7 @@ Contains AI inference services for home security monitoring. This directory hous
 4. **Florence-2** - Vision-language attribute extraction
 5. **Enrichment** - Combined classification service with on-demand model loading (Model Zoo)
 6. **Triton** - NVIDIA Triton Inference Server for production model serving (NEM-3769)
+7. **AI Gateway** (port 8090) - FastAPI facade in front of Triton that reproduces the legacy per-service HTTP APIs; production backend routes all AI calls through it (`ai/gateway/AGENTS.md`)
 
 All services run as FastAPI HTTP servers with GPU passthrough via Docker/Podman.
 Triton provides an optional production-grade serving layer with dynamic batching.
@@ -32,7 +33,7 @@ ai/
 ├── quantization_config.py # Quantization configuration
 ├── static_kv_cache.py     # Static KV cache for inference
 ├── warmup_utils.py        # Model warmup utilities
-├── shared/                # Shared utilities (gpu_profiler.py)
+├── shared/                # Shared utilities (gpu_profiler.py) - see shared/AGENTS.md
 ├── common/                # Shared TensorRT optimization infrastructure (NEM-3838)
 │   ├── AGENTS.md          # TensorRT infrastructure documentation
 │   ├── __init__.py        # Package exports
@@ -40,6 +41,7 @@ ai/
 │   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
 │   └── tests/             # Unit tests
 │       └── __init__.py    # Package init
+├── yolo26/                # YOLO26 detection server - port 8095 (see yolo26/AGENTS.md)
 ├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── Dockerfile         # Multi-stage build for llama.cpp
@@ -60,22 +62,21 @@ ai/
 │   └── tests/             # Additional tests directory
 ├── enrichment/            # Combined enrichment service (Model Zoo) - port 8094 (ENRICHMENT_PORT)
 ├── enrichment-light/      # Lightweight enrichment service - port 8096 (ENRICHMENT_LIGHT_PORT)
-│   ├── AGENTS.md          # Enrichment documentation
+│   ├── AGENTS.md          # Enrichment-light documentation
 │   ├── Dockerfile         # Container build
-│   ├── __init__.py        # Package init
-│   ├── model.py           # FastAPI server with /enrich endpoint
-│   ├── model_manager.py   # On-demand VRAM-aware model loading
-│   ├── model_registry.py  # Model configuration and registration
-│   ├── vitpose.py         # ViTPose+ pose estimation (legacy)
-│   ├── test_model.py      # Unit tests (pytest)
+│   ├── model.py           # FastAPI server (pose, threat, reid, pet, depth)
+│   ├── security.py        # Env-var/model-path validation (NEM-4513)
 │   ├── requirements.txt   # Python dependencies
-│   ├── models/            # Model implementations
-│   │   ├── pose_estimator.py   # YOLOv8n-pose wrapper
-│   │   ├── threat_detector.py  # Weapon detection
-│   │   ├── demographics.py     # Age/gender estimation
-│   │   ├── person_reid.py      # OSNet re-ID embeddings
-│   │   └── action_recognizer.py # X-CLIP video actions
-│   └── tests/             # Additional unit tests
+│   ├── models/            # Model implementations (person_reid, pose_estimator, threat_detector)
+│   └── tests/             # Model-loading unit tests
+├── gateway/               # AI Gateway: FastAPI facade over Triton (port 8090)
+│   ├── AGENTS.md          # Gateway documentation
+│   ├── main.py            # Routers for yolo26/clip/florence/enrichment/enrich-lt
+│   ├── adapters/          # REST-to-gRPC adapter modules
+│   ├── export/            # ONNX/TensorRT model export pipeline
+│   └── tests/             # Gateway unit tests (mocked Triton)
+├── triton/                # Triton client + model repository (NEM-3769)
+├── tests/                 # AI-level optimization tests (cuda streams, etc.)
 ├── download_models.sh     # Download AI models
 ├── start_detector.sh      # Start YOLO26v2 (port 8095)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
@@ -466,8 +467,9 @@ docker compose -f docker-compose.prod.yml --profile triton up -d
 # Or set in .env
 TRITON_ENABLED=true
 
-# Verify Triton is running
-curl http://localhost:8096/v2/health/ready
+# Verify Triton is running (Triton HTTP endpoint; production runs it inside
+# the ai-gateway container - see ai/gateway/AGENTS.md)
+curl http://localhost:8000/v2/health/ready
 ```
 
 ### Environment Variables

@@ -166,6 +166,20 @@ docs/
 └── user/                        # End-user documentation hub
     ├── AGENTS.md                # User docs navigation
     └── README.md                # Hub: Dashboard, alerts, features
+
+# Support/asset directories (no hub role):
+├── _includes/                   # MkDocs snippet includes (auth-model, risk-scoring)
+├── components/                  # UI component documentation (see components/AGENTS.md)
+├── diagrams/                    # Diagram sources
+├── discoveries/                 # NEM-tagged discovery notes
+├── examples/                    # Prompt-engineering examples
+├── investigations/              # NEM-tagged incident investigations
+├── media/                       # Video-generation helper scripts
+├── reports/                     # Point-in-time analysis reports
+├── research/                    # Numbered research studies
+├── screenshots/                 # Grafana/UI screenshot assets
+├── stylesheets/                 # MkDocs custom CSS
+└── superpowers/                 # Agent handoff/plan documents
 ```
 
 ## Key Entry Points

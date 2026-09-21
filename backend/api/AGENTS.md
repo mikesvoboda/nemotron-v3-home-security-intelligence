@@ -140,14 +140,17 @@ register_exception_handlers(app)
 
 ## Key Components
 
-### (Retired) `helpers/enrichment_transformers.py`
+### (Retired) the api/helpers dead-twin package (WP3.4)
+
+The helpers/enrichment_transformers.py file and its whole api/helpers package
+were deleted in WP3.4. Nothing imports them; do not look for them.
 
 Deleted WP3.4 under ADDENDUM 2 §A6 — it was a zero-importer dead twin of the
 live responder, `routes/detections.py::_transform_enrichment_data`, which
 detections and events endpoints call directly. Integration coverage measured
 it at 0.0% (262 uncovered lines, CI run 35551624215) while its 65 exclusive
 unit tests passed — assertion signal on unreachable code. The absence ratchet
-is `tests/unit/api/test_enrichment_transformers_retired.py`.
+is `backend/tests/unit/api/test_enrichment_transformers_retired.py`.
 
 ### Routes (`routes/`)
 

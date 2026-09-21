@@ -76,13 +76,12 @@ Node.js version is specified by `.nvmrc` at the repository root (single source o
 
 ### Documentation and Scripts
 
-| File                            | Purpose                                     |
-| ------------------------------- | ------------------------------------------- |
-| `TESTING.md`                    | Comprehensive testing documentation         |
-| `README-TESTING.md`             | Bun vs Vitest compatibility guide           |
-| `TEST_QUICKSTART.md`            | Quick reference for running tests           |
-| `verify-eslint.sh`              | ESLint configuration verification script    |
-| `validate-storage-event-fix.js` | Storage event fix validation script         |
+| File                | Purpose                                     |
+| ------------------- | ------------------------------------------- |
+| `TESTING.md`        | Comprehensive testing documentation         |
+| `README-TESTING.md` | Bun vs Vitest compatibility guide           |
+| `TEST_QUICKSTART.md`| Quick reference for running tests           |
+| `bun.lock`          | Bun lockfile for this package (the root-level `bun.lock` was removed; `package-lock.json` remains the npm lockfile) |
 
 ## NPM Scripts
 

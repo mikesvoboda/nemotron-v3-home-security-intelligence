@@ -169,8 +169,8 @@ When adding new test images:
 
 - `/backend/tests/fixtures/images/AGENTS.md` - Parent directory documentation
 - `/backend/tests/e2e/test_gpu_pipeline.py` - E2E pipeline tests
-- `/ai/yolo26/detect.py` - YOLO26 detection service
-- `/backend/services/analysis.py` - Nemotron risk analysis service
+- `/ai/yolo26/model.py` - YOLO26 detection service
+- `/backend/services/nemotron_analyzer.py` - Nemotron risk analysis service
 
 ## Content Safety
 

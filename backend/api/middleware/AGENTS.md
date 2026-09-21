@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/middleware/` directory contains 20 HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
+The `backend/api/middleware/` directory contains 25 HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
 
 ## Files
 
@@ -604,6 +604,26 @@ Provides utilities for safely handling exceptions with sensitive data minimizati
 | `minimize_error_response` | Remove sensitive details from error response |
 | `safe_error_message`      | Generate safe error message for clients      |
 
+### `observability.py`
+
+Unified observability middleware combining request timing, structured logging, and Prometheus metrics in one ASGI layer (preferred over composing `request_timing.py` + `request_logging.py` + `prometheus.py` separately).
+
+### `etag.py`
+
+ETag support for conditional GET requests (NEM-3743): computes weak ETags for cacheable responses and handles `If-None-Match` with 304 responses.
+
+### `prometheus.py`
+
+Prometheus HTTP request metrics middleware (NEM-4149): records request count, duration histogram, and in-progress gauge per route/method/status.
+
+### `profiling.py`
+
+Profiling middleware for trace-context correlation: attaches profiling spans and correlates them with the request correlation ID.
+
+### `setup_guard.py`
+
+Setup guard middleware (`SetupGuardMiddleware`): returns 503 for API endpoints until the first admin user registers (single-user bootstrap gate).
+
 ---
 
 ## Authentication Middleware (`auth.py`)
@@ -928,7 +948,8 @@ app.add_middleware(RequestIDMiddleware)
 Unit tests are located at:
 
 ```
-backend/tests/unit/test_auth_middleware.py
+backend/tests/unit/api/middleware/test_auth.py
+backend/tests/unit/api/middleware/test_rate_limit.py
 ```
 
 **Test Coverage:**
@@ -949,8 +970,8 @@ backend/tests/unit/test_auth_middleware.py
 **Run Tests:**
 
 ```bash
-pytest backend/tests/unit/test_auth_middleware.py -v
-pytest backend/tests/unit/test_rate_limit.py -v
+pytest backend/tests/unit/api/middleware/test_auth.py -v
+pytest backend/tests/unit/api/middleware/test_rate_limit.py -v
 ```
 
 ---

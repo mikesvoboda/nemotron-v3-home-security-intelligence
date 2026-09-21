@@ -21,6 +21,8 @@ monitoring/
   alertmanager.yml             # Alertmanager configuration
   alloy/                       # Grafana Alloy collector configuration
     config.alloy               # Alloy collector configuration
+  cadvisor/                    # cAdvisor unit (container metrics)
+  dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
@@ -34,6 +36,7 @@ monitoring/
       datasources/
         prometheus.yml         # Datasource configuration
   json-exporter-config.yml     # JSON Exporter module definitions
+  elasticsearch/               # ILM policy + index template (log storage)
   loki/                        # Loki log aggregation configuration
     loki-config.yml            # Loki server configuration
   prometheus.yml               # Prometheus scrape configuration
@@ -42,6 +45,7 @@ monitoring/
   pyroscope/                   # Pyroscope continuous profiling configuration
     pyroscope-config.yml       # Pyroscope server configuration (NEM-3928: retention policy)
     Dockerfile                 # Custom Pyroscope image with health check tools
+  tempo/                       # Tempo trace storage (tempo-config.yml)
 ```
 
 ### pyroscope-config.yml (NEM-3928)

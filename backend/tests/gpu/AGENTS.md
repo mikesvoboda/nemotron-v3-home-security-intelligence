@@ -153,13 +153,19 @@ Expected YOLO26 response:
 
 ## CI/CD Integration
 
-These tests run on the self-hosted GPU runner via `.github/workflows/gpu-tests.yml`:
+**No CI workflow runs these tests.** The former gpu-tests.yml workflow was
+deleted in 978bb04c and no other workflow collects this directory (a grep of
+`.github/workflows` shows zero references to `backend/tests/gpu`). The repo's default
+pytest addopts (`-m 'not gpu'` in `pyproject.toml`) exclude gpu-marked nodes from every
+normal run, so these tests execute ONLY when invoked explicitly on the GPU host:
 
-```yaml
-- name: Run GPU tests
-  run: pytest backend/tests/gpu/ -v -m gpu
-  if: runner.os == 'Linux' && runner.labels contains 'gpu'
+```bash
+uv run pytest backend/tests/gpu/ -v -m gpu
 ```
+
+The `gpu` marker (self-hosted RTX A5500 runner, 60s timeout) is registered in
+`pyproject.toml`. To run them in CI again, a new path-scoped workflow would have to be
+written first.
 
 ## Troubleshooting
 
