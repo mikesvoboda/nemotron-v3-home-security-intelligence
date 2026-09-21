@@ -8827,3 +8827,15 @@ R-2 (gitleaks 3 EULA, #6614), R-3 (GPU compat → gates #6631 merge), R-5 (plugi
 - **New dependabot reality confirmed:** uv scans now file real diffs (#6633, #6634
   within ~17 min of #6628's merge landing in a scan) instead of the no-op pile.
   #6634 (gdown 5.2.2→6.4.0) will close as superseded by #6630 alongside #6620/#6626.
+
+### Mutation-testing truth correction (2026-09-21 evening)
+
+The "stryker 10 green" claim in the execution record above is WRONG as to a
+*score*: the batch made the harness run end-to-end for the first time in repo
+history (checker-init wall broken — that part holds), but the full pass reports
+0 killed / 384 mutants with "0.00 tests per mutant" — a stryker-vitest-runner ↔
+vitest 5 integration defect, not test quality. Isolation experiment running
+(triage doc Finding 5). No frontend mutation score has ever existed on main
+(scheduled job died at checker init since July, masked by `|| true`), so nothing
+regressed; the honest claim is "first real run, score invalid, root-causing in
+progress."

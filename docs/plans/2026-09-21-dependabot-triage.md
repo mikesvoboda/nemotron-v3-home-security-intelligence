@@ -518,3 +518,40 @@ artifacts from candidacy (an expired zip is never harvestable — GitHub 410s it
 and expired status is stable under any page staleness, which makes it the one
 robust signal). Regression test drives the WP1.5 canned API and reproduces the
 410 pre-fix.
+
+### Finding 5 (mutation harness, measured 2026-09-21): stryker 10 + vitest 5 runs
+every mutant but kills NONE — 0.00 score is a harness defect, not test quality
+
+Authoritative CI measurement (dispatched run 35634327238, frontend-only, head of
+#6632, job log 106449…): instrumented **3 files / 384 mutants**, dry run
+**1749 tests in 3m48s (succeeded)**, 28m52s of mutant execution, final table:
+
+    All files | total 0.00 | killed 0 | timeout 0 | survived 261 | no cov 61 | errors 62
+    "Ran 0.00 tests per mutant on average"
+
+0-of-384 is not a plausible test-quality signal: `risk.test.ts` asserts the exact
+thresholds and label strings that risk.ts's StringLiteral mutants rewrite, and the
+`# no cov 61` / `# errors 62` split of 384 (161 unaccounted vs "survived") shows
+internal bookkeeping incoherence. "Ran 0.00 tests per mutant" + per-test coverage
+map that never matches the instrumented modules is the signature of **coverage
+analysis mapping against a module graph vitest 5's module runner no longer exposes
+the way stryker's vitest-runner expects** — mutants get no tests, run "clean", and
+are reported Survived. (An earlier sandbox run showed the same 0-score shape with
+1 file/80 mutants instrumented, i.e. the defect is reproducible in two
+environments; the file-count difference tracked the sandbox's mid-edit tree.)
+
+Historical context that makes this NOT a regression from this batch: the scheduled
+Frontend Mutation Testing job has died at checker init since at least July
+(`vite.config.ts TS2769` — the WP3.3 bug), masked by `|| true` +
+continue-on-error. **A frontend mutation score has never existed on main.** This
+batch is the first harness in repo history to execute the full mutant pass; it now
+fails loudly-at-the-right-layer instead of at init.
+
+**Isolation experiment running:** checker-less, risk.ts-only config
+(`stryker.experiment.mjs`, `checkers: []`) — if kills appear, the checker's
+declaration-rewrite path is implicated; if still 0, stryker-vitest-runner ↔
+vitest 5 coverage mapping is, and the fix is upstream (check
+@stryker-mutator/vitest-runner vitest-5 compat) or a `coverageAnalysis: 'perTest'
+→ 'all'` downgrade. Until resolved, `test:mutation` reports a score that must be
+treated as INVALID — the workflow's continue-on-error already makes it
+non-blocking; the number must not be trended.
