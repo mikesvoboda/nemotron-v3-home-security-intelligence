@@ -40,6 +40,7 @@ a self-test that stubbed out the download would not be a self-test.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -55,6 +56,28 @@ from pathlib import Path
 
 class HarvestError(RuntimeError):
     pass
+
+
+# A candidate run older than this cannot have harvestable artifacts left:
+# uploads in this repo set retention-days: 7, and 30 is generous to any
+# longer-retention workflow. Beyond it, "no matching artifacts" is a certainty
+# rather than a finding — see the Finding-4 hardening #2 comment in select_run.
+MAX_CANDIDATE_AGE_DAYS = 30
+
+
+def _run_age_days(created_at: str) -> float | None:
+    """Days since the run was created, or None if the page gave no usable
+    timestamp (None means 'unknown', never 'stale' — an unparseable page
+    must not silently void the selection)."""
+    if not created_at:
+        return None
+    try:
+        created = datetime.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=datetime.UTC)
+    return (datetime.datetime.now(datetime.UTC) - created).total_seconds() / 86400
 
 
 def _ssl_context() -> ssl.SSLContext | None:
@@ -191,10 +214,36 @@ def select_run(
         if len(picked) >= harvest_runs:
             break
         rid = run.get("id")
+        # Finding-4 hardening #2 (measured 2026-09-21 19:22Z, run
+        # 35637776479): a stale page served EIGHT January candidates whose
+        # artifacts are not merely expired-flagged but long since deleted —
+        # the listing yields nothing, every candidate "skips", and the walk
+        # dies vacuously while fresh main runs sat on the honest page. A run
+        # older than artifact retention is unharvestable by definition
+        # (repo uploads use retention-days: 7; this default is 30, generous
+        # to any workflow that keeps longer), and the page itself says when
+        # the run was created. Drop it BEFORE the artifact query.
+        age = _run_age_days(run.get("created_at", ""))
+        if age is not None and age > MAX_CANDIDATE_AGE_DAYS:
+            print(
+                f"run {rid}: created {age:.0f}d ago — beyond artifact retention, "
+                f"unharvestable (stale runs-list page?) — skipping"
+            )
+            continue
         arts_doc = _get_json(
             f"{api_base}/repos/{repo}/actions/runs/{rid}/artifacts?per_page=100", token
         )
-        arts = [a for a in arts_doc.get("artifacts", []) if artifact_re.search(a.get("name", ""))]
+        # Finding-4 hardening (measured 2026-09-21): an expired artifact is
+        # never harvestable — GitHub 410s its zip (artifact 5038838599, and
+        # the 17 redirect lines that preceded this run's failure). One must
+        # not make a run "selected"; on a stale runs-list page (observed: a
+        # PR job got a January run as newest candidate twice) the expired
+        # filter is what lets the walk reach a real baseline.
+        arts = [
+            a
+            for a in arts_doc.get("artifacts", [])
+            if artifact_re.search(a.get("name", "")) and not a.get("expired")
+        ]
         if arts:
             print(f"selected run {rid}: {len(arts)} matching artifact(s)")
             picked.append((rid, arts))
@@ -208,6 +257,58 @@ def select_run(
     return picked
 
 
+def select_run_with_retries(
+    api_base: str,
+    repo: str,
+    token: str,
+    workflow_path: str,
+    current_run_id: int,
+    artifact_re: re.Pattern[str],
+    max_runs: int,
+    harvest_runs: int = 1,
+    list_retries: int = 3,
+    retry_sleep: float = 30.0,
+) -> list[tuple[int, list[dict]]]:
+    """select_run, re-requested on a VACUOUS selection (Finding-4 hardening #3,
+    measured 21:00Z runs 35650649386/35650688761: both lanes red with the
+    retention filter working — ONE stale candidate-list page, zero retryable,
+    both died). Staleness is per-REQUEST: sibling jobs minutes apart hit
+    honest pages, so a re-request usually sees truth. A dead API call is NOT
+    retried here (that is not staleness, and fail-loud stands); only the
+    page-served-nothing case re-reads, and persistent vacuity still exits
+    non-zero — retrying is not tolerating."""
+    import time
+
+    last: HarvestError | None = None
+    for attempt in range(1, list_retries + 1):
+        try:
+            return select_run(
+                api_base,
+                repo,
+                token,
+                workflow_path,
+                current_run_id,
+                artifact_re,
+                max_runs,
+                harvest_runs,
+            )
+        except HarvestError as e:
+            msg = str(e)
+            if "none had" not in msg and "no completed main runs" not in msg:
+                raise  # transport/other failure: loud immediately
+            last = e
+            if attempt < list_retries:
+                print(
+                    f"selection attempt {attempt}/{list_retries} served nothing harvestable "
+                    f"— retry after {retry_sleep:.0f}s (stale runs-list page?)"
+                )
+                time.sleep(retry_sleep)
+    assert last is not None
+    raise HarvestError(
+        f"{last} (after {list_retries} selection attempts — page persistently stale?)"
+    )
+
+
 def harvest(
     api_base: str,
     repo: str,
@@ -218,9 +319,20 @@ def harvest(
     out_dir: Path,
     max_runs: int,
     harvest_runs: int = 1,
+    list_retries: int = 3,
+    retry_sleep: float = 30.0,
 ) -> int:
-    picked = select_run(
-        api_base, repo, token, workflow_path, current_run_id, artifact_re, max_runs, harvest_runs
+    picked = select_run_with_retries(
+        api_base,
+        repo,
+        token,
+        workflow_path,
+        current_run_id,
+        artifact_re,
+        max_runs,
+        harvest_runs,
+        list_retries,
+        retry_sleep,
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     files = 0
@@ -261,6 +373,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="harvest the N newest eligible runs (1 = baseline shape; flake report wants several)",
     )
     p.add_argument(
+        "--list-retries",
+        type=int,
+        default=3,
+        help="re-selection attempts when the runs-list page serves nothing harvestable "
+        "(GitHub has served runner jobs stale pages repeatedly; see Finding-4)",
+    )
+    p.add_argument(
+        "--retry-sleep",
+        type=float,
+        default=30.0,
+        help="seconds between selection retries",
+    )
+    p.add_argument(
         "--token-stdin",
         action="store_true",
         help="read the API token from stdin (never argv/env — keeps it out of ps and logs)",
@@ -293,6 +418,8 @@ def main(argv: list[str]) -> int:
             out_dir=args.out,
             max_runs=args.max_runs,
             harvest_runs=args.harvest_runs,
+            list_retries=args.list_retries,
+            retry_sleep=args.retry_sleep,
         )
     except HarvestError as e:
         # Fail LOUD: the callers (TPA baseline, flake report) treat a
