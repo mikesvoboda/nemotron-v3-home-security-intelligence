@@ -3,6 +3,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 
+// Vitest 5 requires vi.mock at the module's top level (it used to be
+// transform-hoisted out of describe/it bodies; now it hard-errors:
+// "call ... was defined outside of the module's top level scope"). This mock
+// was already file-global under vitest 4's hoisting — moving it here is a
+// position change, not a semantics change. refreshCameraSnapshot is mocked
+// once for the whole file; everything else passes through via importOriginal.
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>();
+  return {
+    ...actual,
+    refreshCameraSnapshot: vi.fn().mockResolvedValue({
+      camera_id: 'cam1',
+      snapshot_url: '/api/cameras/cam1/snapshot',
+      cache_invalidated: true,
+      snapshot_source: 'image_file',
+      timestamp: '2025-01-15T12:00:00Z',
+    }),
+  };
+});
+
 describe('CameraGrid', () => {
   // Mock the Date for consistent relative time testing
   const mockDate = new Date('2025-01-15T12:35:00Z');
@@ -902,21 +922,8 @@ describe('CameraGrid', () => {
       const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
       const onSnapshotRefresh = vi.fn();
 
-      // Mock the refreshCameraSnapshot API function
-      vi.mock('../../services/api', async (importOriginal) => {
-        const actual = await importOriginal<typeof import('../../services/api')>();
-        return {
-          ...actual,
-          refreshCameraSnapshot: vi.fn().mockResolvedValue({
-            camera_id: 'cam1',
-            snapshot_url: '/api/cameras/cam1/snapshot',
-            cache_invalidated: true,
-            snapshot_source: 'image_file',
-            timestamp: '2025-01-15T12:00:00Z',
-          }),
-        };
-      });
-
+      // refreshCameraSnapshot is mocked at the top of this file (vitest 5
+      // requires top-level vi.mock; see header comment).
       render(<CameraGrid cameras={cameras} onSnapshotRefresh={onSnapshotRefresh} />);
 
       const refreshButton = screen.getByTestId('camera-refresh-cam1');

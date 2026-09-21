@@ -121,12 +121,28 @@ interface CustomMatchers<R = unknown> {
   toHaveNoViolations(): R;
 }
 
-// Augment Vitest's expect with custom matchers
+// Augment Vitest's expect with custom matchers.
+// Vitest 5.0.1's shipped declarations self-conflict on `Assertion` (config
+// chunk: `<R extends void|Promise<void> = void, T = unknown>` at
+// dist/chunks/config.*.d.ts:1700 vs task-utils chunk: `<R, T>` at :40), and
+// @testing-library/jest-dom 7.0.1 merges a third `<T = any>` shape — any
+// project-side `interface Assertion` re-declaration is TS2428 against one of
+// them. `Matchers<R, T>` is vitest's documented, single-declaration extension
+// surface for expect.extend, and Assertion extends it — so merge there
+// instead. CustomMatchers is keyed on the assertion-return type R (the
+// matchers return R); the canonical params are copied verbatim from
+// config.*.d.ts:1238 so interface merging is legal.
 declare module 'vitest' {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type
-  interface Assertion<T = any> extends CustomMatchers<T> {}
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface AsymmetricMatchersContaining extends CustomMatchers {}
+  // The canonical params are *required* verbatim for interface merging, so
+  // the empty-body and unused-T diagnostics are both false positives here.
+  /* eslint-disable @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unused-vars */
+  interface Matchers<
+    R extends void | Promise<void> = void | Promise<void>,
+    T = unknown
+  > extends CustomMatchers<R> {}
+
+  interface AsymmetricMatchersContaining extends CustomMatchers<unknown> {}
+  /* eslint-enable @typescript-eslint/no-empty-object-type, @typescript-eslint/no-unused-vars */
 }
 
 /**
