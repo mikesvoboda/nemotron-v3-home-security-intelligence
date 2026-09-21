@@ -23,70 +23,55 @@ import pytest
 # - the map test was vacuously green until the WP7.2 window caught it.)
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
-# The 37 operations (38 at WP7.1 drafting; florence /analyze-scene deleted
-# under ADDENDUM 2 A7.2 - DELETED_SERVER_ROUTES + DELETED_REGISTRY_OPS),
-# derived from the deployed surfaces (each verified by file
-# evidence at the time of drafting; the generator regenerates the registry from
-# the same surfaces and CI diffs it):
-# - 30 functional gateway routes: direct enumeration of @router decorators over
-#   the five adapters mounted at /yolo26 /clip /florence /enrichment /enrich-lt
-#   (ai/gateway/main.py:181-185); the five /health routes are deliberately NOT
-#   operations (per-adapter liveness, not provider capability).
-# - 3 LLM-side: llama.cpp /completion (seven independent backend call sites),
-#   ai/nemotron/model_hf.py /v1/chat/completions, llama.cpp-only /slots.
-# - 4 client-side phantom paths: EnrichmentClient/model_management call sites
-#   whose paths exist on NO gateway adapter (WP7.3 Tier A: 404 in production).
-EXPECTED_OPERATIONS: frozenset[str] = frozenset(
-    {
-        # yolo26 adapter (deployed provider; UNFILTERED class vocabulary)
-        "yolo26_detect",
-        "yolo26_detect_batch",
-        "yolo26_segment",
-        # clip adapter
-        "clip_embed",
-        "clip_classify",
-        "clip_similarity",
-        "clip_batch_similarity",
-        "clip_anomaly_score",
-        # florence adapter (9 since A7.2 deleted /analyze-scene - see
-        # DELETED_SERVER_ROUTES + DELETED_REGISTRY_OPS)
-        "florence_extract",
-        "florence_batch_extract",
-        "florence_ocr",
-        "florence_ocr_with_regions",
-        "florence_detect",
-        "florence_dense_caption",
-        "florence_describe_region",
-        "florence_phrase_grounding",
-        "florence_detect_security_objects",
-        # enrichment (heavy) adapter
-        "enrichment_vehicle_classify",
-        "enrichment_clothing_classify",
-        "enrichment_demographics",
-        "enrichment_action_classify",
-        "enrichment_pet_classify",
-        "enrichment_depth_estimate",
-        "enrichment_pose_analyze",
-        "enrichment_enrich",
-        # enrichment-light adapter (the /enrich-lt slot)
-        "enrich_lt_pose_analyze",
-        "enrich_lt_threat_detect",
-        "enrich_lt_person_reid",
-        "enrich_lt_pet_classify",
-        "enrich_lt_depth_estimate",
-        # LLM wire (ai-llm deployed; llama.cpp serves /completion + /slots,
-        # model_hf.py serves /v1/chat/completions - Tier C divergence)
-        "llm_completion",
-        "llm_chat_completion",
-        "llm_slots",
-        # client-side phantom paths - declared HERE so the gap is
-        # machine-readable (they 404 on the deployed gateway today)
-        "model_status",
-        "model_preload",
-        "model_unload",
-        "object_distance",
-    }
-)
+# WP4.2: the contract set is DERIVED, not hand-enumerated.
+#
+# This file used to carry a frozenset literal of every op id (38 at WP7.1
+# drafting; 37 since A7.2 deleted florence_analyze_scene - see
+# DELETED_SERVER_ROUTES + DELETED_REGISTRY_OPS). The literal's drafting
+# evidence: 30 functional gateway routes (decorator enumeration over the five
+# adapters mounted at /yolo26 /clip /florence /enrichment /enrich-lt,
+# ai/gateway/main.py:181-185; the five /health routes are deliberately NOT
+# operations); 3 LLM-side (llama.cpp /completion + /slots, model_hf.py
+# /v1/chat/completions); 4 client-side phantom paths (EnrichmentClient/
+# model_management call sites whose paths exist on NO gateway adapter -
+# WP7.3 Tier A, 404 in production; they stay in the contract by ruling, and
+# they stay in the derived set below because the generator mints schemas for
+# them too).
+#
+# Why derived: VSS work will move this set repeatedly. A hand literal forces
+# an edit to a TEST on every legitimate change - which is exactly how the
+# WP0.1 `== 38` pin became theatre. The derivation reads a SECOND generated
+# artifact - the schemas/ directory the same gen-ai-contract.py run writes,
+# exactly one <op>.response.json per op - so the assertion compares two
+# artifacts of one generation pass (like WP0.1's AST-vs-import pair in the
+# parity suite). A hand-edited operations.py, a half-regenerated contract, or
+# a generator that skips an entry desynchronizes the pair and fails LOUD with
+# a named diff. The deployed-surface direction - "every gateway/native route
+# is claimed by the contract" - is guarded independently in
+# scripts/test_check_ai_provider_parity.py (the checker enumerates routes
+# from the adapter/model sources WITHOUT reading the registry; unclaimed must
+# be empty), and the deleted-op ratchet stays below as a set literal by
+# design: a ratchet's whole job is to name what must never come back.
+SCHEMAS_DIR = REPO_ROOT / "backend" / "ai_contract" / "schemas"
+
+
+def _contract_artifact_ops() -> frozenset[str]:
+    """Op ids from the generated schema artifacts (filesystem, no imports)."""
+    names = set()
+    for p in SCHEMAS_DIR.glob("*.json"):
+        stem = p.stem
+        for suffix in (".response", ".request"):
+            if stem.endswith(suffix):
+                stem = stem[: -len(suffix)]
+                break
+        names.add(stem)
+    return frozenset(names)
+
+
+EXPECTED_OPERATIONS: frozenset[str] = _contract_artifact_ops()
+# (The 2026-09-19 hand literal this replaced - 37 ids grouped by adapter -
+# lives in git history; `git log -p` on this file shows the exact set the
+# derivation resolved to at conversion time, 37 == 37 proven by this suite.)
 
 # Client modules whose public methods must each map to a registry operation
 # (via Operation.client_methods). Consumer side of the contract. The four
@@ -247,15 +232,29 @@ class TestContractRegistry:
                     offenders.append(f"{py.relative_to(pkg_dir)}: {mods}")
         assert not offenders, f"ai.* runtime imports in the contract package: {offenders}"
 
-    def test_registry_contains_all_37_operations(self) -> None:
+    def test_registry_matches_its_generation_artifacts(self) -> None:
+        """WP4.2: two artifacts of one generation pass must agree. The
+        registry (operations.py, imported) vs the schemas/ directory (the
+        filesystem read defined above). Renamed from
+        test_registry_contains_all_37_operations and the `== 37` integer pin
+        dropped: a legitimate op add/remove regenerates BOTH sides at once
+        (gen-ai-contract.py --check gates the bytes), so the test never needs
+        editing for a legit change - while a hand-edited operations.py, a
+        half-run regeneration, or a generator that silently drops an entry
+        desynchronizes the two and fails here with the named diff."""
         from backend.ai_contract.operations import OPERATION_IDS
 
         assert frozenset(OPERATION_IDS) == EXPECTED_OPERATIONS, (
-            f"registry/surface drift: missing="
+            f"registry/artifact drift: missing="
             f"{sorted(EXPECTED_OPERATIONS - frozenset(OPERATION_IDS))} "
             f"unexpected={sorted(frozenset(OPERATION_IDS) - EXPECTED_OPERATIONS)}"
         )
-        assert len(OPERATION_IDS) == 37
+        # the schema set must never be vacuously empty - a schemas/ dir wiped
+        # by a broken run would otherwise "agree" only in the broken state.
+        assert EXPECTED_OPERATIONS, "schemas/ produced zero op ids"
+        # deleted-op ratchet below is the permanent twin; keep both directions
+        # non-vacuous here.
+        assert len(OPERATION_IDS) == len(EXPECTED_OPERATIONS)
 
     @pytest.mark.parametrize("op_id", sorted(DELETED_REGISTRY_OPS))
     def test_wp73_deleted_registry_ops_stay_absent(self, op_id: str) -> None:

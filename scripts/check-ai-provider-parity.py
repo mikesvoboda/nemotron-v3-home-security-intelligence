@@ -1032,6 +1032,36 @@ class Finding:
         return {"id": self.id, "kind": self.kind, "op": self.op, "detail": self.detail}
 
 
+SCHEMAS_DIR_REL = "backend/ai_contract/schemas"
+
+
+def schema_artifact_ops(root: Path) -> set[str]:
+    """Op ids carried by the generated schema artifacts, via the FILESYSTEM.
+
+    WP4.2's second, independent read for the registry count: operations.py is
+    an AST literal the checker parses (load_registry); the schemas/ directory
+    is generator output counted by name (each op contributes
+    `<op>.response.json`, some a `.request.json` too). A legitimate contract
+    change regenerates both together, so the pair agrees without any hand
+    pin; a checker parse that goes blind to ops (registry renamed, literal
+    restructured, entry silently skipped by the AST walk) desynchronizes the
+    two counts and the derived assertion in test_check_ai_provider_parity.py
+    fails LOUD — which is the guard the retired `== 38` pin used to fake.
+    """
+    d = root / SCHEMAS_DIR_REL
+    if not d.is_dir():
+        return set()
+    names = set()
+    for p in d.glob("*.json"):
+        stem = p.stem
+        for suffix in (".response", ".request"):
+            if stem.endswith(suffix):
+                stem = stem[: -len(suffix)]
+                break
+        names.add(stem)
+    return names
+
+
 def analyze(root: Path) -> dict:
     ops = load_registry(root)
     deploy = load_deploy(root)
@@ -1263,6 +1293,10 @@ def analyze(root: Path) -> dict:
         "tool": "check-ai-provider-parity",
         "root": str(root),
         "registry_ops": len(ops),
+        # WP4.2: cross-source count — see schema_artifact_ops(). Two
+        # independent reads of the SAME generator run; the parity suite
+        # asserts they agree (no hand-pinned contract size anywhere).
+        "schema_artifact_ops": len(schema_artifact_ops(root)),
         "deploy": {
             "compose_found": deploy.compose_found,
             "compose_rewritten_settings": sorted(deploy.setting_prefix.items()),
