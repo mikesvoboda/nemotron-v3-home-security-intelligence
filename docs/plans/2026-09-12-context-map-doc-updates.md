@@ -8862,7 +8862,7 @@ CI cancellations before runs scheduled at all):
 | #6630 | 19:29:10     | `71a0b6c6` | filelock 4.0.1 + gdown 6.4.0                    |
 | #6632 | 20:20:46     | `2d361b11` | npm batch: vitest 5, stryker 10, TS 6.0.3 + 9/10 of the group |
 | #6631 | 21:24:47     | `c1128110` | NGC bases: tensorrt 26.08, cuda 13.3.1 (R-3 gated) |
-| #6629 | SEE BELOW    | —          | actions bundle + harvester stale-page hardening trio |
+| #6629 | 22:27:41     | `57a7da5c` | actions bundle + harvester stale-page hardening trio |
 
 Close dispositions (every one posted as a `Superseded by #N (<mergeSHA>)`
 comment on the merge of its superseder, per the owner's supersede model):
@@ -8874,8 +8874,9 @@ comment on the merge of its superseder, per the owner's supersede model):
   #6604 was closed by the owner at 20:20:47Z, one minute before the sweep —
   same content, no comment owed.
 - **by #6631**: #6599 ✓ (already closed), #6600 ✓ 21:26:25Z, #6601 ✓ 21:26:27Z.
-- **by #6629** (pending its merge): #6613, #6615, #6616, #6617 — closer loop
-  posts on landing.
+- **by #6629**: #6613 ✓ 22:28:38Z, #6615 ✓ 22:28:40Z, #6616 ✓ 22:28:42Z,
+  #6617 ✓ 22:28:44Z — all ten seconds after the merge; closer loop exited
+  `ALL LANES SETTLED`.
 - **not superseded**: #6614 gitleaks 3.x stays OPEN — R-2 (EULA) is an owner
   ruling, not a dependency upgrade. #6608 plugin-react 6 stays closed — R-5
   (vite-8 scope).
