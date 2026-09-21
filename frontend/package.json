@@ -86,14 +86,14 @@
     "@stryker-mutator/typescript-checker": "^9.5.1",
     "@stryker-mutator/vitest-runner": "^9.5.1",
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.2.0",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.5.2",
     "@types/node": "^25.2.3",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
-    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^9.39.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -117,7 +117,7 @@
     "typescript": "^5.3.3",
     "typescript-eslint": "^8.54.0",
     "vite": "^7.3.0",
-    "vitest": "^4.0.18",
+    "vitest": "^5.0.1",
     "vitest-axe": "^0.1.0"
   }
 }
