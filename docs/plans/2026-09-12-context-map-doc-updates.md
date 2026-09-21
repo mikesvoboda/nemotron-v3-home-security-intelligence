@@ -8593,3 +8593,169 @@ mutation ceiling is a TEST-COLLECTION problem before it is an assertion
 problem — the same lesson WP3.4's orphan census taught from the coverage
 side. Done-when: nine modules re-measured with verdicts recorded; eight
 non-zero, the ninth's zero explained to the bucket level.
+
+## WP4.3 LANDED (2026-09-20 plan) — the lifespan-collaborator cluster is autospec'd; unspecced_patch 233→142 (#6595, squash `4fe9b0c1`, merged 05:22:24Z) (2026-09-21)
+
+Plan-P's WP4.3 named 88 drift-sensitive `unspecced_patch` sites on
+`backend.main`'s lifespan collaborators. Re-derived through the GATE'S OWN
+machinery over the registry's 233 ids (`sites_with_lines` +
+`autospec-sweep.classify` + `patch_target`, importlib — never a copy): the
+cluster is **91** today — 3 sites drifted in since the WP4.1 sweep drafted
+the number. R-6 again: the census governs, the plan doc is a pointer. The
+decode also corrected a hand-rolled first pass that had counted
+positional-`new` sites the classifier marks `na` (not convertible, never a
+site) — the earlier number's 16-target shape was wrong twice before the
+gate functions were loaded. Lesson banked: decode a suppression category
+with the tool that MINTS it, or not at all.
+
+Why this cluster specifically (plan, verbatim logic): the lifespan is the
+one code path coverage cannot see — integration fixtures patch its whole
+startup off, so the lifespan BODY never executes under them — and it is
+precisely the seam VSS swaps. A bare `patch("backend.main.X", ...)` accepts
+ANY signature: the real collaborator's parameters can move and all 91 sites
+stay green. `autospec=True` binds each patch to the live signature: the
+only assertion these sites can make while still standing in for the
+service. This is the anti-pair of WP2.4's harmless 98: those were 0-arity
+targets (autospec protects nothing — R-5 retired them); these are
+constructor/collaborator targets where a signature move is exactly the
+VSS-integration failure mode.
+
+MEASURE (commit `88916fae`, PR #6595):
+91 sites in 11 files, transformed by a script keyed to the gate's own
+(file, lineno) rows — a site is touched iff the gate counts it;
+`unspecced_patch` count 233 → 142 (`check-mock-spec --count`, delta
+exactly −91, zero collateral); registry machine-regenerated
+(`suppression-registry-gen.py --check` rc=0) — and the
+one-category staging flag `--only unspecced_patch` was tried FIRST and
+caught writing a registry that DELETED every hand-tended other category
+(collection_allowlist, coverage_omit, xfail classes…): `--only` filters
+the census input, it does not merge into the file. Reverted (`git
+  checkout`), full mint instead. If anyone stages by category again: the
+flag is a trap, don't.
+baseline seed 233→142 in the SAME commit via `ratchet-check --update`
+(decreases-only path; R-2 one-commit rule) — and the seed test
+`test_real_tree_category_is_seeded_and_green` went red WITHOUT it,
+which is the ratchet's three-artifact loop (census / registry / seed
+baseline) being honestly tight, not friction.
+AND CI caught a FOURTH copy the local trio cannot see: Collection
+Sanity's `suppression-census.py --expect '{...unspecced_patch:233...}'`
+was a hand transcription of the baseline file, with NO test pinning it.
+The PR's fully-sanctioned 233→142 fall reddened it (run 35558830563,
+job 106207634772: "MISMATCH unspecced_patch: census=142 expected=233")
+— a gate failing on a correct change. Fixed same-PR, red-first
+(`76946d9f`): the step now runs `--expect "$(cat
+  .github/suppression-baseline.json)"`, deriving the pin from the
+committed baseline. Both teeth proven (match rc=0, injected-999 drift
+rc=1): a rise fails here and in ratchet-check; a fall without editing
+the baseline file still fails HERE. One file moves per adjudication now.
+Same doctrine as #6592's self-minting contract count, merged an hour
+earlier — the pattern simply had not reached this step yet.
+green under autospec: 482 passed / 2 xfailed / 5 skipped across every
+touched file plus the conftest `client`-fixture consumers, `-n0` against
+live PG 16.15 + redis. Autospec fails LOUDLY when a mock's call shape
+no longer matches the real signature — zero loud failures means the seam
+is currently honest; the commit is what keeps it honest under drift.
+
+Residual 142, same gate decode, not estimated: `get_settings` variants 70
+(system 39 / dlq 12 / core.config 11 / notification 4 / admin 3 /
+database 1), httpx.AsyncClient family 58 (.post 36 / bare 13 /
+nemotron_analyzer 5 / .get 4), long tail (YOLO 4, scheduled_reports .func
+3, six others). None are lifespan sites; autospec on `get_settings` pins
+the whole Settings surface, a different trade that needs its own argument.
+Recorded, not swept blind.
+
+Housekeeping found by the flow, worth knowing: the detect-secrets baseline
+chase took four stage+commit rounds because the first rounds' staged
+line-positions predated ruff-format's rewrap of the same files — stage the
+formatters' fixes FIRST, then re-add `.secrets.baseline`, then commit;
+anything else re-rewrites positions under the hook.
+
+## WP5.1 CLOSE — the hardening plan, what moved and what green CI still cannot catch (2026-09-21)
+
+Plan P (2026-09-20-platform-hardening) executed in order, one day, owner
+away. Every WP's numbers are in its own section; this is the roll-up, and
+the paragraph VSS gets read against.
+
+**Phase 0 — measurement zero.** main unbroken (`2ab66ff1`); the
+rotating-culprit baseline proven EMPTY — the rotation lives in Test
+Performance Audit, not the unit tier, ~1-in-3 PR runs reddening on
+identical code (Hypothesis timing on shared runners), now with a baseline
+rule instead of a shrug.
+
+**Phase 1 — the gate bites.** CI Gate's `needs:` walk was the thesis:
+three coverage-merge jobs unreachable, a PR dropping unit coverage
+70.33→45% merging green. WP1.1 pulled the four main-only jobs onto PRs;
+WP1.2 made the three security workflows blocking via workflow_call; WP1.3
+de-fanged the stopwatch (TPA baseline rule, slow-list 150→7, exemption
+census); WP1.4 killed `cancelled`-as-verdict in every summary; WP1.5 gave
+the flake-tracking files a reader for the first time.
+
+**Phase 2 — numbers from truth.** One denominator (WP2.1 — the published
+70.32% was a shard-overlap undercount; fixed-seed runs show 84.12 blended
+/ 86.02 line / 76.27 branch, three different numbers). Floors at MEASURED
+values, enforced only on complete data (WP2.3). The ratchet got teeth:
+ids-vs-cases measured, environment-skips stopped being a default, 89
+no-op suppressions retired 322→233 (WP2.4), and the floors became
+ENFORCED — merged verdicts reachable from the gate, epsilon re-derived to
+0.5pp (WP2.5).
+
+**Phase 3 — mutation where it was 0.0%.** Frontend stryker harness
+repaired — first honest baseline where there was literally no assertion
+signal (WP3.3). Two named survivors proven dead and killed (WP3.2: cohort
+206/396, segment_clothing 0.7→79.1%). Nine zero-mutation modules re-measured
+on the full 90,730-mutant tree (WP3.1): eight moved 0.0% -> 69.97-100.00,
+and the ninth's zero proved STRUCTURAL — 302/302 mutants in the no_tests
+bucket, no collected test executes the module (bind-or-retire, owner).
+Tree aggregate 30.77 with 41.6% no_tests: the mutation ceiling is a
+test-collection problem before an assertion problem. The
+integration tier moved twice (WP3.4): the api/helpers dead twin deleted
+under A6 (262 of its 0.0% lines were the tier's largest dead
+denominator), and 388 nightly-only tests moved into every PR — the
+finding underneath: the four curated `-k` selectors ran 79 of 206
+integration files, and "nightly-only" had silently meant "not run" for
+two weeks because nightly died upstream.
+
+**Phase 4 — the seams VSS touches.** 06-repo-a-readiness's blocker list
+retired, all four blockers CLOSED and re-verified (WP4.1). The contract
+count mints itself — hand pins deleted, the drift this protected against
+demonstrated the same day (WP4.2). The lifespan-collaborator patch
+cluster — 91 sites, the one code path coverage cannot see — autospec'd;
+unspecced_patch 233→142, the seam honest under drift (WP4.3). CI itself
+caught the hand-transcribed census literal on #6595 and the fix derives
+it — red-first, same-PR: the last hand copy of the ratchet is gone.
+
+**Landing carriers (all squash-merged to main):** `8dd1d5bb` (#6593),
+`12d06fec` (#6594), `a6153643` (#6591), `f366ceeb` (#6592), `4fe9b0c1`
+(#6595), ledger appends `3e70aed9` (#6596), #6597 (WP3.1), and this
+section's own carrier (WP4.3 + WP5.1 appends).
+
+**The paragraph: what would a green CI run still fail to catch?**
+
+It would still miss, concretely: (1) **lifespan behavior** — autospec
+binds signatures, but the lifespan BODY never executes under integration
+fixtures; if startup ORDER or an error-handling branch regresses (Redis
+before DB, a swallowed warm failure), CI stays green — the seam VSS
+swaps is pinned at its interface, not its choreography; (2) **~115
+nightly-only integration files** — #6594 moved the green-proved 12, the
+rest still ride nightly, and nightly has died upstream twice, so "nightly
+covers it" is currently a hope, not a gate; (3) **real inference** — no
+GPU here, no model in CI; every ai/ contract test pins shapes and
+signatures, none exercises a model's judgment, so a Nemotron/YOLO update
+that changes BEHAVIOR while keeping the schema passes everything here and
+fails in the field; (4) **cross-service payload semantics** — the VSS
+swap joins event schemas at boundaries the contract tests mint, but a
+field that is present, validly typed, and semantically wrong (epoch vs
+millis, bbox xywh vs xyxy) sails through every green check; (5) **frontend
+visual/behavioral regressions past the unit net** — coverage is measured
+and the floors are real, but `break` stays advisory pending the owner's
+policy call, and nothing here catches a rendering regression at all; (6)
+**timing under real load** — TPA proves tests are FAST, not that the
+system is fast; batch windows, idle timeouts and 90-second pipeline
+behavior are unexercised by any check that blocks a merge. None of these
+are surprises any more — (2) and (6) have named owners in BLOCKED.md and
+(1),(3),(4),(5) are exactly the seams the Phase 4 work points CI AT
+without yet claiming. Green means: everything this repo can currently
+measure, measured, on every PR. What it does not mean is "the product
+works" — that line runs where this plan says it runs.
+
+**STOP.** Plan list exhausted; no WP invented past WP5.1 per GOAL.
