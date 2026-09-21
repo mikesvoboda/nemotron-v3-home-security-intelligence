@@ -8759,3 +8759,54 @@ measure, measured, on every PR. What it does not mean is "the product
 works" — that line runs where this plan says it runs.
 
 **STOP.** Plan list exhausted; no WP invented past WP5.1 per GOAL.
+
+## DEPENDABOT COMBINED-SUPERSEDE EXECUTION (2026-09-21): 29-PR pile → 4 supersede PRs + 1 config fix; the `uv` ecosystem is live on main
+
+**Trigger:** 29 open dependabot PRs (#6599–#6627) on 2026-09-21 morning; triage
+`docs/plans/2026-09-21-dependabot-triage.md`; execution plan
+`docs/goal-prompt-dependabot-combined-2026-09-21.txt` (owner: minimize PR count, perform
+every genuine upgrade, never silently drop a proposal).
+
+**What landed:**
+- **#6628 (MERGED `9ba8f7a4`, 17:07:53Z)** — the root-cause config fix: `pip`→`uv`
+  ecosystem at `/`, `ignore` floors (typescript≥7, eslint≥10, @eslint/js≥10,
+  plugin-security≥4, docker node≥26), `requirements-audit.txt` +
+  `-filtered.txt` untracked + gitignored (they are `uv export` artifacts every audit
+  job regenerates; dependabot's `pip` ecosystem could not read `uv.lock` and filed its
+  diffs against them — 10 no-op PRs/week). Merged same-day, before Monday's 11:00Z
+  check, so next week's run is the first under `uv`.
+- **#6629** — actions bundle: #6613 group(3) + configure-pages 6 + codecov 7.1.1 +
+  attest-build-provenance 4.2.2, one commit each, truthful `# vX` comments (SHA→tag
+  mappings measured via the tags API). **gitleaks #6614 untouched** — R-2 (EULA)
+  pending; it is not superseded and not silently closed.
+- **#6630** — python: filelock 4.0.1 + gdown 6.4.0 (the two proposals `uv lock`
+  actually accepts), `uv.lock` regenerated; R-1-gated packages (plotly/radon/colorlog
+  via wily, rich/faker/fsspec/python-json-logger via data-designer) correctly NOT
+  folded in — R-1 still awaits the owner.
+- **#6631** — docker NGC: tensorrt 26.04→26.08 (clip+yolo26), cuda 13.2.1→13.3.1
+  (nemotron devel+runtime) **MERGE HOLD for R-3**; yolo26's `base.digest` label — a
+  tag wearing a digest's name since it was written — removed, not propagated. nvcr.io
+  digests are NGC-auth-gated (measured 401); cuda tags verified via hub REST (200/200).
+- **#6632** — the npm batch (vitest 5 + coverage + jest-dom 7; stryker 10 lockstep×4;
+  TS 6.0.3 + tsconfig migration; framer-motion 13, web-vitals 6, @types/node 26; 9 of
+  #6603's 10). **msw 2.15 DEFERRED mid-build** on a measured regression — full record
+  in the triage doc's execution-findings section. Plan's PR-C2 split trigger (stryker
+  peer conflict) did not fire: no split.
+
+**Numbers:** 14 dependabot PRs closed-as-not-planned (each with resolver-trace
+comments); 15 remained and are every one mapped to a supersede PR; after merges the
+closes flip to "Superseded by #N" per the owner's supersede model (close only after
+our PR lands). TS is at 6.0.3 with the tsconfig migration banked; 7.x stays
+ignore-floored pending typescript-eslint support.
+
+**New upstream findings (reportable):** vitest 5.0.1 ships self-conflicting
+`Assertion` declarations (config chunk vs task-utils chunk vs jest-dom 7.0.1 — any
+project augmentation is TS2428 against one; merge into `Matchers<R,T>` instead);
+vitest 5's chunked `Procedure` makes stryker's declaration-emitting checker die with
+108 TS2883 across four mock files (fixed via public `Mock` annotations); msw ≥2.13's
+network-source rewrite changes request bookkeeping under react-query tests (2.12.10
+pinned; standalone adaptation PR required).
+
+**Open rulings unchanged:** R-1 (drop wily → unblocks 4 python + radon explicit),
+R-2 (gitleaks 3 EULA, #6614), R-3 (GPU compat → gates #6631 merge), R-5 (plugin-react
+6 = vite-8 scope, #6608 stays closed). Node 26 revisit at LTS 2026-10-28.
