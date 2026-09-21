@@ -952,6 +952,13 @@ jobs:
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
         # Also includes: test_backup_restore, test_data_corruption for database operations
+        # WP3.4 (2026-09-21): the seven service suites appended below were
+        # NIGHTLY-ONLY — no PR-CI `-k` expression matched them (127 of 206
+        # integration files matched none; census in the WP3.4 ledger entry).
+        # Each was green-proved locally against live PG+redis at -n0 before
+        # being appended, and each keyword selects ONLY its proven file(s)
+        # (per-keyword collect census: no collisions with any existing shard).
+        # Do not append further suites here without the same green-proof.
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           set -euo pipefail
@@ -965,7 +972,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption" \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback or test_backup_restore or test_data_corruption or test_worker_supervisor or test_cache_db_consistency or test_trace_propagation or test_webhook_service or test_redis_prefix_isolation or test_export_api or test_system_db_endpoints" \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -1065,6 +1072,14 @@ jobs:
 
       - name: Run Models integration tests
         # Model tests: test_models*.py, test_database*.py, test_baseline*.py, test_alert_*.py, test_enrichment*.py, test_cache*.py
+        # WP3.4 (2026-09-21): the four terms appended below were NIGHTLY-ONLY
+        # (no PR-CI `-k` matched them — census in the WP3.4 ledger entry): the
+        # repositories/ suite (`repositories` is a path component of exactly
+        # the 7 green-proved files there) plus the two models/ files, the
+        # database/ isolation suite, and the two root files sharing their
+        # stems (test_soft_delete.py, test_notification_preferences_api.py —
+        # double-running those was checked by collect census, they were
+        # previously selected nowhere). Same proof bar as the services shard.
         # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           set -euo pipefail
@@ -1078,7 +1093,7 @@ jobs:
               --reruns 2 --reruns-delay 5 || true
           fi
           uv run pytest backend/tests/integration/ \
-            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
+            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration or repositories or test_soft_delete or test_notification_preferences or test_isolation_levels" \
             -n0 \
             --timeout=30 \
             --cov=backend \
