@@ -493,3 +493,26 @@ Also confirmed during execution: vitest 5's `vi.mock` top-level rule is hard-enf
 it verbatim on the control run), and the plan's stryker-split trigger never fired — install
 rc=0, zero ERESOLVE, vitest-runner@10 peers `vitest >=2.0.0`, one deduped `vitest@5.0.1` in
 the tree — so #6609/#6610 folded into #6632 without a PR-C2.
+
+### Finding 4 (CI infra, measured 2026-09-21): TPA baseline harvest can select an
+expired run → 410 → fail-closed red, despite a fresh baseline existing
+
+On #6629's rerun (run 35627489212 attempt 2, job 106443771260, 17:40:05Z):
+`fetch-ci-artifacts.py` logged `selected run 20753667016: 21 matching artifact(s)`
+— a MAIN run **created 2026-01-06**, artifacts `expired: true` (retention ended
+Jan 13) — every download `HTTP 410 Gone`, harvest exit 1, baseline empty, audit
+FAIL-CLOSED on one mild spike (`test_multiple_requests_with_mixed_errors`). One
+minute later the identical script on #6630 selected the correct `35567429246`
+(2026-09-21, 31,454 tests) and the same class of spike downgraded to warning →
+green. A live re-run of the script's own candidate query
+(`/actions/workflows/218791315/runs?branch=main&status=success&per_page=8`) returns
+eight September runs and no January row. So: the run-list API answered ONE runner
+request with a stale/anomalous page. The script's fail-loud design worked as
+designed (broken fetch = red, never silently widened).
+
+**Hardening follow-up (not in this batch — unrelated to deps):** in
+`select_run`, drop artifacts with `expired: true` from the pattern match (and skip
+a run that has zero live matching artifacts). The selection already re-checks each
+candidate's artifacts; this just closes the "selected run whose artifacts are all
+gone" hole the 410 exposed. Reruns remain the operational workaround: the bad page
+is per-request, the next fetch selects correctly.
