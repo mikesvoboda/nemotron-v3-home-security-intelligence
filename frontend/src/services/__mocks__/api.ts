@@ -30,7 +30,7 @@
  * ```
  */
 
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 // =============================================================================
 // Types - Using Record<string, unknown> for flexibility
@@ -949,208 +949,208 @@ export const HTTP_STATUS_TEST_CASES: Array<{
 // =============================================================================
 
 // Camera endpoints
-export const fetchCameras = vi.fn().mockResolvedValue([]);
-export const fetchCamera = vi.fn().mockResolvedValue({});
-export const createCamera = vi.fn().mockResolvedValue({});
-export const updateCamera = vi.fn().mockResolvedValue({});
-export const deleteCamera = vi.fn().mockResolvedValue(undefined);
+export const fetchCameras: Mock = vi.fn().mockResolvedValue([]);
+export const fetchCamera: Mock = vi.fn().mockResolvedValue({});
+export const createCamera: Mock = vi.fn().mockResolvedValue({});
+export const updateCamera: Mock = vi.fn().mockResolvedValue({});
+export const deleteCamera: Mock = vi.fn().mockResolvedValue(undefined);
 
 // Health endpoints
-export const fetchHealth = vi.fn().mockResolvedValue({ status: 'healthy' });
-export const fetchFullHealth = vi.fn().mockResolvedValue({ status: 'healthy' });
-export const fetchReadiness = vi.fn().mockResolvedValue({ ready: true });
+export const fetchHealth: Mock = vi.fn().mockResolvedValue({ status: 'healthy' });
+export const fetchFullHealth: Mock = vi.fn().mockResolvedValue({ status: 'healthy' });
+export const fetchReadiness: Mock = vi.fn().mockResolvedValue({ ready: true });
 
 // System endpoints
-export const fetchGPUStats = vi.fn().mockResolvedValue({});
-export const fetchGpuHistory = vi.fn().mockResolvedValue({ samples: [] });
-export const fetchConfig = vi.fn().mockResolvedValue({});
-export const updateConfig = vi.fn().mockResolvedValue({});
-export const fetchStats = vi.fn().mockResolvedValue({});
-export const triggerCleanup = vi.fn().mockResolvedValue({ deleted_count: 0 });
-export const fetchTelemetry = vi.fn().mockResolvedValue({});
+export const fetchGPUStats: Mock = vi.fn().mockResolvedValue({});
+export const fetchGpuHistory: Mock = vi.fn().mockResolvedValue({ samples: [] });
+export const fetchConfig: Mock = vi.fn().mockResolvedValue({});
+export const updateConfig: Mock = vi.fn().mockResolvedValue({});
+export const fetchStats: Mock = vi.fn().mockResolvedValue({});
+export const triggerCleanup: Mock = vi.fn().mockResolvedValue({ deleted_count: 0 });
+export const fetchTelemetry: Mock = vi.fn().mockResolvedValue({});
 
 // Event endpoints
-export const fetchEvents = vi.fn().mockResolvedValue({ events: [], total: 0 });
-export const fetchEvent = vi.fn().mockResolvedValue({});
-export const fetchEventStats = vi.fn().mockResolvedValue({});
-export const updateEvent = vi.fn().mockResolvedValue({});
-export const bulkUpdateEvents = vi.fn().mockResolvedValue({ updated_count: 0 });
-export const searchEvents = vi.fn().mockResolvedValue({ results: [], total: 0 });
+export const fetchEvents: Mock = vi.fn().mockResolvedValue({ events: [], total: 0 });
+export const fetchEvent: Mock = vi.fn().mockResolvedValue({});
+export const fetchEventStats: Mock = vi.fn().mockResolvedValue({});
+export const updateEvent: Mock = vi.fn().mockResolvedValue({});
+export const bulkUpdateEvents: Mock = vi.fn().mockResolvedValue({ updated_count: 0 });
+export const searchEvents: Mock = vi.fn().mockResolvedValue({ results: [], total: 0 });
 
 // Detection endpoints
-export const fetchEventDetections = vi.fn().mockResolvedValue({ detections: [], total: 0 });
-export const fetchDetectionStats = vi.fn().mockResolvedValue({});
-export const fetchDetectionEnrichment = vi.fn().mockResolvedValue({});
+export const fetchEventDetections: Mock = vi.fn().mockResolvedValue({ detections: [], total: 0 });
+export const fetchDetectionStats: Mock = vi.fn().mockResolvedValue({});
+export const fetchDetectionEnrichment: Mock = vi.fn().mockResolvedValue({});
 
 // Zone endpoints
-export const fetchZones = vi.fn().mockResolvedValue({ zones: [], total: 0 });
-export const fetchZone = vi.fn().mockResolvedValue({});
-export const createZone = vi.fn().mockResolvedValue({});
-export const updateZone = vi.fn().mockResolvedValue({});
-export const deleteZone = vi.fn().mockResolvedValue(undefined);
+export const fetchZones: Mock = vi.fn().mockResolvedValue({ zones: [], total: 0 });
+export const fetchZone: Mock = vi.fn().mockResolvedValue({});
+export const createZone: Mock = vi.fn().mockResolvedValue({});
+export const updateZone: Mock = vi.fn().mockResolvedValue({});
+export const deleteZone: Mock = vi.fn().mockResolvedValue(undefined);
 
 // Alert Rule endpoints
-export const fetchAlertRules = vi.fn().mockResolvedValue({ rules: [], total: 0 });
-export const fetchAlertRule = vi.fn().mockResolvedValue({});
-export const createAlertRule = vi.fn().mockResolvedValue({});
-export const updateAlertRule = vi.fn().mockResolvedValue({});
-export const deleteAlertRule = vi.fn().mockResolvedValue(undefined);
+export const fetchAlertRules: Mock = vi.fn().mockResolvedValue({ rules: [], total: 0 });
+export const fetchAlertRule: Mock = vi.fn().mockResolvedValue({});
+export const createAlertRule: Mock = vi.fn().mockResolvedValue({});
+export const updateAlertRule: Mock = vi.fn().mockResolvedValue({});
+export const deleteAlertRule: Mock = vi.fn().mockResolvedValue(undefined);
 
 // Utility functions
-export const buildWebSocketUrl = vi.fn().mockReturnValue('ws://localhost:8000/ws/events');
-export const buildWebSocketOptions = vi.fn().mockReturnValue({
+export const buildWebSocketUrl: Mock = vi.fn().mockReturnValue('ws://localhost:8000/ws/events');
+export const buildWebSocketOptions: Mock = vi.fn().mockReturnValue({
   url: 'ws://localhost:8000/ws/events',
   protocols: [],
 });
-export const getApiKey = vi.fn().mockReturnValue(undefined);
-export const isAbortError = vi.fn().mockReturnValue(false);
-export const isTimeoutError = vi.fn().mockReturnValue(false);
-export const getCameraSnapshotUrl = vi.fn().mockReturnValue('');
-export const getMediaUrl = vi.fn().mockReturnValue('');
-export const getThumbnailUrl = vi.fn().mockReturnValue('');
-export const getDetectionImageUrl = vi.fn().mockReturnValue('');
+export const getApiKey: Mock = vi.fn().mockReturnValue(undefined);
+export const isAbortError: Mock = vi.fn().mockReturnValue(false);
+export const isTimeoutError: Mock = vi.fn().mockReturnValue(false);
+export const getCameraSnapshotUrl: Mock = vi.fn().mockReturnValue('');
+export const getMediaUrl: Mock = vi.fn().mockReturnValue('');
+export const getThumbnailUrl: Mock = vi.fn().mockReturnValue('');
+export const getDetectionImageUrl: Mock = vi.fn().mockReturnValue('');
 
 // Circuit breaker endpoints
-export const fetchCircuitBreakers = vi.fn().mockResolvedValue({ circuit_breakers: {} });
-export const resetCircuitBreaker = vi.fn().mockResolvedValue({ success: true });
+export const fetchCircuitBreakers: Mock = vi.fn().mockResolvedValue({ circuit_breakers: {} });
+export const resetCircuitBreaker: Mock = vi.fn().mockResolvedValue({ success: true });
 
 // Additional endpoints
-export const fetchPipelineLatency = vi.fn().mockResolvedValue({});
-export const fetchPipelineLatencyHistory = vi.fn().mockResolvedValue({ samples: [] });
-export const fetchLogs = vi.fn().mockResolvedValue({
+export const fetchPipelineLatency: Mock = vi.fn().mockResolvedValue({});
+export const fetchPipelineLatencyHistory: Mock = vi.fn().mockResolvedValue({ samples: [] });
+export const fetchLogs: Mock = vi.fn().mockResolvedValue({
   items: [],
   pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null },
 });
-export const fetchLogStats = vi.fn().mockResolvedValue({});
-export const submitFrontendLog = vi.fn().mockResolvedValue({ success: true });
-export const fetchCameraActivityBaseline = vi.fn().mockResolvedValue({});
-export const fetchCameraClassBaseline = vi.fn().mockResolvedValue({});
-export const fetchAnomalyConfig = vi.fn().mockResolvedValue({});
-export const updateAnomalyConfig = vi.fn().mockResolvedValue({});
+export const fetchLogStats: Mock = vi.fn().mockResolvedValue({});
+export const submitFrontendLog: Mock = vi.fn().mockResolvedValue({ success: true });
+export const fetchCameraActivityBaseline: Mock = vi.fn().mockResolvedValue({});
+export const fetchCameraClassBaseline: Mock = vi.fn().mockResolvedValue({});
+export const fetchAnomalyConfig: Mock = vi.fn().mockResolvedValue({});
+export const updateAnomalyConfig: Mock = vi.fn().mockResolvedValue({});
 
 // Analytics endpoints (NEM-5388/5389/5390/5391)
-export const fetchCameraActivity = vi.fn().mockResolvedValue({
+export const fetchCameraActivity: Mock = vi.fn().mockResolvedValue({
   cameras: [],
   start_date: '2026-01-01',
   end_date: '2026-01-07',
 });
 
 // Storage endpoints
-export const fetchStorageStats = vi.fn().mockResolvedValue({});
-export const previewCleanup = vi.fn().mockResolvedValue({});
+export const fetchStorageStats: Mock = vi.fn().mockResolvedValue({});
+export const previewCleanup: Mock = vi.fn().mockResolvedValue({});
 
 // DLQ endpoints
-export const fetchDlqStats = vi.fn().mockResolvedValue({});
-export const fetchDlqJobs = vi.fn().mockResolvedValue({ jobs: [] });
-export const clearDlq = vi.fn().mockResolvedValue({ success: true });
-export const requeueAllDlqJobs = vi.fn().mockResolvedValue({ success: true });
+export const fetchDlqStats: Mock = vi.fn().mockResolvedValue({});
+export const fetchDlqJobs: Mock = vi.fn().mockResolvedValue({ jobs: [] });
+export const clearDlq: Mock = vi.fn().mockResolvedValue({ success: true });
+export const requeueAllDlqJobs: Mock = vi.fn().mockResolvedValue({ success: true });
 
 // Model Zoo endpoints
-export const fetchModelZooStatus = vi.fn().mockResolvedValue({});
-export const fetchModelZooCompactStatus = vi.fn().mockResolvedValue({});
-export const fetchModelZooLatencyHistory = vi.fn().mockResolvedValue({ samples: [] });
+export const fetchModelZooStatus: Mock = vi.fn().mockResolvedValue({});
+export const fetchModelZooCompactStatus: Mock = vi.fn().mockResolvedValue({});
+export const fetchModelZooLatencyHistory: Mock = vi.fn().mockResolvedValue({ samples: [] });
 
 // Notification endpoints
-export const fetchNotificationConfig = vi.fn().mockResolvedValue({});
-export const testNotification = vi.fn().mockResolvedValue({ success: true });
+export const fetchNotificationConfig: Mock = vi.fn().mockResolvedValue({});
+export const testNotification: Mock = vi.fn().mockResolvedValue({ success: true });
 
 // Notification preferences endpoints
-export const fetchNotificationPreferences = vi.fn().mockResolvedValue({
+export const fetchNotificationPreferences: Mock = vi.fn().mockResolvedValue({
   id: 1,
   enabled: true,
   sound: 'default',
   risk_filters: ['critical', 'high', 'medium'],
 });
-export const updateNotificationPreferences = vi.fn().mockResolvedValue({
+export const updateNotificationPreferences: Mock = vi.fn().mockResolvedValue({
   id: 1,
   enabled: true,
   sound: 'default',
   risk_filters: ['critical', 'high', 'medium'],
 });
-export const fetchCameraNotificationSettings = vi.fn().mockResolvedValue({
+export const fetchCameraNotificationSettings: Mock = vi.fn().mockResolvedValue({
   settings: [],
   count: 0,
 });
-export const fetchCameraNotificationSetting = vi.fn().mockResolvedValue({
+export const fetchCameraNotificationSetting: Mock = vi.fn().mockResolvedValue({
   id: '1',
   camera_id: 'camera1',
   enabled: true,
   risk_threshold: 50,
 });
-export const updateCameraNotificationSetting = vi.fn().mockResolvedValue({
+export const updateCameraNotificationSetting: Mock = vi.fn().mockResolvedValue({
   id: '1',
   camera_id: 'camera1',
   enabled: true,
   risk_threshold: 50,
 });
-export const fetchQuietHoursPeriods = vi.fn().mockResolvedValue({
+export const fetchQuietHoursPeriods: Mock = vi.fn().mockResolvedValue({
   periods: [],
   count: 0,
 });
-export const createQuietHoursPeriod = vi.fn().mockResolvedValue({
+export const createQuietHoursPeriod: Mock = vi.fn().mockResolvedValue({
   id: '1',
   label: 'Night Time',
   start_time: '22:00:00',
   end_time: '06:00:00',
   days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
 });
-export const deleteQuietHoursPeriod = vi.fn().mockResolvedValue(undefined);
+export const deleteQuietHoursPeriod: Mock = vi.fn().mockResolvedValue(undefined);
 
 // Severity endpoints
-export const fetchSeverityConfig = vi.fn().mockResolvedValue({});
-export const fetchSeverityMetadata = vi.fn().mockResolvedValue({});
-export const updateSeverityThresholds = vi.fn().mockResolvedValue({});
+export const fetchSeverityConfig: Mock = vi.fn().mockResolvedValue({});
+export const fetchSeverityMetadata: Mock = vi.fn().mockResolvedValue({});
+export const updateSeverityThresholds: Mock = vi.fn().mockResolvedValue({});
 
 // Scene change endpoints
-export const fetchSceneChanges = vi.fn().mockResolvedValue({ changes: [] });
-export const acknowledgeSceneChange = vi.fn().mockResolvedValue({ success: true });
+export const fetchSceneChanges: Mock = vi.fn().mockResolvedValue({ changes: [] });
+export const acknowledgeSceneChange: Mock = vi.fn().mockResolvedValue({ success: true });
 
 // Entity endpoints (NEM-2075: pagination envelope format)
-export const fetchEntities = vi.fn().mockResolvedValue({
+export const fetchEntities: Mock = vi.fn().mockResolvedValue({
   items: [],
   pagination: { total: 0, limit: 50, offset: 0, has_more: false },
 });
-export const fetchEntity = vi.fn().mockResolvedValue({});
-export const fetchEntityHistory = vi.fn().mockResolvedValue({ history: [] });
-export const fetchEventEntityMatches = vi
+export const fetchEntity: Mock = vi.fn().mockResolvedValue({});
+export const fetchEntityHistory: Mock = vi.fn().mockResolvedValue({ history: [] });
+export const fetchEventEntityMatches: Mock = vi
   .fn()
   .mockResolvedValue({ event_id: 0, person_matches: [], vehicle_matches: [], total_matches: 0 });
 
 // Audit log endpoints
-export const fetchAuditLogs = vi.fn().mockResolvedValue({
+export const fetchAuditLogs: Mock = vi.fn().mockResolvedValue({
   items: [],
   pagination: { total: 0, limit: 50, offset: 0, has_more: false, next_cursor: null },
 });
-export const fetchAuditStats = vi.fn().mockResolvedValue({});
+export const fetchAuditStats: Mock = vi.fn().mockResolvedValue({});
 
 // AI Audit endpoints
-export const fetchAiAuditStats = vi.fn().mockResolvedValue({});
+export const fetchAiAuditStats: Mock = vi.fn().mockResolvedValue({});
 
 // Event clip endpoints
-export const fetchEventClipInfo = vi.fn().mockResolvedValue({});
-export const generateEventClip = vi.fn().mockResolvedValue({});
-export const exportEventsCSV = vi.fn().mockResolvedValue('');
+export const fetchEventClipInfo: Mock = vi.fn().mockResolvedValue({});
+export const generateEventClip: Mock = vi.fn().mockResolvedValue({});
+export const exportEventsCSV: Mock = vi.fn().mockResolvedValue('');
 
 // Alert Rule endpoints
-export const testAlertRule = vi.fn().mockResolvedValue({ success: true });
+export const testAlertRule: Mock = vi.fn().mockResolvedValue({ success: true });
 
 // Media URL endpoints
-export const getDetectionVideoThumbnailUrl = vi.fn().mockReturnValue('');
+export const getDetectionVideoThumbnailUrl: Mock = vi.fn().mockReturnValue('');
 
 // Job endpoints
-export const fetchJobs = vi.fn().mockResolvedValue({
+export const fetchJobs: Mock = vi.fn().mockResolvedValue({
   items: [],
   pagination: { total: 0, limit: 50, offset: 0, has_more: false },
 });
-export const fetchJob = vi.fn().mockResolvedValue({});
-export const searchJobs = vi.fn().mockResolvedValue({
+export const fetchJob: Mock = vi.fn().mockResolvedValue({});
+export const searchJobs: Mock = vi.fn().mockResolvedValue({
   data: [],
   meta: { total: 0, limit: 50, offset: 0, has_more: false },
   aggregations: { by_status: {}, by_type: {} },
 });
 
 // Memory debug endpoints (NEM-3173)
-export const fetchMemoryStats = vi.fn().mockResolvedValue({
+export const fetchMemoryStats: Mock = vi.fn().mockResolvedValue({
   process_rss_bytes: 536870912,
   process_rss_human: '512.0 MB',
   process_vms_bytes: 1073741824,
@@ -1170,7 +1170,7 @@ export const fetchMemoryStats = vi.fn().mockResolvedValue({
   top_objects: [],
   timestamp: '2024-01-15T10:30:00Z',
 });
-export const triggerGc = vi.fn().mockResolvedValue({
+export const triggerGc: Mock = vi.fn().mockResolvedValue({
   collected: { gen0: 10, gen1: 5, gen2: 2, total: 17 },
   memory: {
     rss_before_bytes: 536870912,
@@ -1181,13 +1181,13 @@ export const triggerGc = vi.fn().mockResolvedValue({
   uncollectable: 0,
   timestamp: '2024-01-15T10:30:00Z',
 });
-export const startTracemalloc = vi.fn().mockResolvedValue({
+export const startTracemalloc: Mock = vi.fn().mockResolvedValue({
   status: 'started',
   nframes: 25,
   message: 'tracemalloc started with 25 frames',
   timestamp: '2024-01-15T10:30:00Z',
 });
-export const stopTracemalloc = vi.fn().mockResolvedValue({
+export const stopTracemalloc: Mock = vi.fn().mockResolvedValue({
   status: 'stopped',
   final_stats: {
     current_bytes: 104857600,
@@ -1200,7 +1200,7 @@ export const stopTracemalloc = vi.fn().mockResolvedValue({
 });
 
 // Debug circuit breaker endpoints (NEM-3173)
-export const fetchDebugCircuitBreakers = vi.fn().mockResolvedValue({
+export const fetchDebugCircuitBreakers: Mock = vi.fn().mockResolvedValue({
   circuit_breakers: {},
   timestamp: '2024-01-15T10:30:00Z',
 });

@@ -40,7 +40,7 @@
  */
 
 import { http, HttpResponse, delay } from 'msw';
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
 
 // ============================================================================
 // Types
@@ -224,7 +224,22 @@ export interface MockWebSocketMessage {
  * mockWs.simulateClose();
  * ```
  */
-export function createMockWebSocket() {
+// vitest 5's `Procedure` lives in a chunk file, so a fully-inferred return
+// type containing vi.fn() members is unnameable in a .d.ts (TS2883, fatal to
+// stryker's declaration-emitting checker). The public `Mock` type is
+// portable — spell the two mock-shaped returns with it.
+export function createMockWebSocket(): {
+  readyState: number;
+  url: string;
+  addEventListener(event: string, handler: (event: Event) => void): void;
+  removeEventListener(event: string, handler: (event: Event) => void): void;
+  send: Mock;
+  close: Mock;
+  simulateOpen(): void;
+  simulateMessage(message: MockWebSocketMessage): void;
+  simulateError(error?: Error): void;
+  simulateClose(code?: number, reason?: string): void;
+} {
   const listeners: Map<string, Set<(event: Event) => void>> = new Map();
 
   const mockWs = {
@@ -285,7 +300,16 @@ export function createMockWebSocket() {
  *
  * @returns Mock QueryClient with vitest spies
  */
-export function createMockQueryClient() {
+export function createMockQueryClient(): {
+  getQueryData: Mock;
+  setQueryData: Mock;
+  invalidateQueries: Mock;
+  refetchQueries: Mock;
+  cancelQueries: Mock;
+  clear: Mock;
+  isFetching: Mock;
+  isMutating: Mock;
+} {
   return {
     getQueryData: vi.fn(),
     setQueryData: vi.fn(),

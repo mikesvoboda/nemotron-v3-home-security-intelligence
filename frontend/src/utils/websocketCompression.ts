@@ -107,7 +107,7 @@ export function decodeMsgpack(data: Uint8Array | ArrayBuffer): unknown {
  * @param data - The object to encode
  * @returns MessagePack encoded bytes with magic byte prefix
  */
-export function encodeMsgpack(data: unknown): Uint8Array {
+export function encodeMsgpack(data: unknown): Uint8Array<ArrayBuffer> {
   const encoded = msgpackEncode(data);
   const withMagic = new Uint8Array(encoded.length + 1);
   withMagic[0] = MSGPACK_MAGIC_BYTE;
@@ -283,7 +283,7 @@ export function createWebSocketUrl(baseUrl: string, format: SerializationFormat)
 export function prepareWebSocketMessage(
   data: unknown,
   format: SerializationFormat
-): Uint8Array | string {
+): Uint8Array<ArrayBuffer> | string {
   switch (format) {
     case SerializationFormat.MSGPACK:
       return encodeMsgpack(data);

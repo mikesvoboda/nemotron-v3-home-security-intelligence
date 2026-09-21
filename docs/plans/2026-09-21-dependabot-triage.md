@@ -434,3 +434,144 @@ Each PR appears exactly once; the partitions sum to 29.
 
 And the two fixes that stop this recurring: the `pip` → `uv` ecosystem switch, and the
 `requirements-audit.txt` untrack — without them, next Monday regenerates the same ten no-op PRs.
+
+---
+
+## Execution findings (measured 2026-09-21, during the combined-upgrades build)
+
+Supersede PRs landed: **#6629** (actions → #6613 #6615 #6616 #6617), **#6630** (python →
+#6620 #6626), **#6631** (docker → #6599 #6600 #6601, merge HOLD for R-3), **#6632** (npm →
+#6604 #6606 #6609 #6610 #6611 #6612 + 9 of #6603's 10). The config fix shipped first as
+**#6628** (merged). Three findings the pre-execution triage could not have known:
+
+### 1. msw ≥ 2.13 is a test-visible regression — #6603's msw line DEFERRED
+Single-variable isolation on a **main-tip worktree with main's vitest 4 and main's every-
+other-package**: tanstack 5.103.1 alone → 25/25 pass; **msw 2.15.0 alone → both failures
+reproduce**; msw 2.13.6 (earliest ≥2.13) → same; revert to main's 2.12.10 → 25/25 pass. The
+behavioral boundary is msw 2.13.0's "use the network source architecture (#2650)" rewrite.
+An instrumented probe (one `fetch` against one handler) shows the interceptor now double-
+fires the request lifecycle: `resolver=2, request:start=2, request:end=1` — identical on
+2.12 and 2.15, but react-query's bookkeeping now observes the extra pass:
+`useSettingsApi.test.tsx > refetch` counts 2 GETs where 1 is asserted, and
+`useUpdateSettings > success` reads `status=undefined, error=null` after a resolved
+`mutateAsync` (flush-timing shift, not a network error). #6632 ships 9 of #6603's 10 packages
+and holds msw at 2.12.10; the msw bump must re-file standalone with test adaptations. This
+inverts the triage's "#6603 likely safe" line: safe except for exactly one member.
+
+### 2. vitest 5.0.1's shipped declarations self-conflict on `Assertion`
+The triage predicted "a one-line signature alignment" for matchers.ts:127. Execution found
+no such line exists that TS accepts: vitest 5.0.1 itself ships **two disagreeing**
+declarations of `Assertion` inside `declare module "vitest"` —
+`config.d.*.d.ts:1700` (`<R extends void|Promise<void> = void, T = unknown>`) vs
+`task-utils.d.*.d.ts:40` (`<R, T>`, no defaults) — and @testing-library/jest-dom 7.0.1
+merges a third (`<T = any>`). `tsc --skipLibCheck false` surfaces all three as mutual
+TS2428s before any project code is considered: **any** project-side `interface Assertion`
+augmentation is TS2428 against at least one of them. The workable extension point is
+vitest's single-declaration `Matchers<R, T>` (which `Assertion` extends) — matchers.ts now
+merges `CustomMatchers<R>` there. Upstream-reportable on both counts (vitest self-conflict;
+jest-dom 7.0.1 lagging the new shape).
+
+### 3. vitest 5 + stryker 10 = a 108-error TS2883 declaration wall
+vitest 5 moved `Procedure` (vi.fn's inferred-generic bound) into a chunk file, so any export
+whose inferred type mentions it is unnameable from a `.d.ts`. Harmless to `tsc --noEmit` —
+**fatal** to stryker's typescript-checker, which compiles with declaration emit
+(`@stryker-mutator/typescript-checker/dist/src/tsconfig-helpers.js`
+`LOW_EMIT_OPTIONS_FOR_PROJECT_REFERENCES`; build mode switches on whenever the tsconfig keeps
+a `references` key — which `tsconfig.stryker.json` keeps *specifically* to block following
+into tsconfig.node.json, per its WP3.3 header). `stryker run` died at checker init with 108
+TS2883 across the four mock modules (`services/__mocks__/api.ts` ×99,
+`hooks/__mocks__/webSocketManager.ts` ×4, `test/common-mocks.ts` ×3, `test/mocks/index.ts`
+×2). Reproduced standalone with `tsc --declaration --emitDeclarationOnly`; fixed at the root
+by annotating the mock surface with vitest's public `Mock` type (98 one-line annotations +
+hand-spelled shapes for the 10 factory/subscription returns). Post-fix: 0 errors under the
+same repro, and `stryker run` reaches DryRunExecutor. The wall would have been invisible to
+every existing gate — CI's stryker workflow is weekly/manual, and the two PRs that trigger it
+depend on exactly this batch landing.
+
+Also confirmed during execution: vitest 5's `vi.mock` top-level rule is hard-enforced
+(`CameraGrid.test.tsx` nested mock → collect error; vitest 4's deprecation warning predicted
+it verbatim on the control run), and the plan's stryker-split trigger never fired — install
+rc=0, zero ERESOLVE, vitest-runner@10 peers `vitest >=2.0.0`, one deduped `vitest@5.0.1` in
+the tree — so #6609/#6610 folded into #6632 without a PR-C2.
+
+### Finding 4 (CI infra, measured 2026-09-21): TPA baseline harvest can select an
+expired run → 410 → fail-closed red, despite a fresh baseline existing
+
+On #6629's rerun (run 35627489212 attempt 2, job 106443771260, 17:40:05Z):
+`fetch-ci-artifacts.py` logged `selected run 20753667016: 21 matching artifact(s)`
+— a MAIN run **created 2026-01-06**, artifacts `expired: true` (retention ended
+Jan 13) — every download `HTTP 410 Gone`, harvest exit 1, baseline empty, audit
+FAIL-CLOSED on one mild spike (`test_multiple_requests_with_mixed_errors`). One
+minute later the identical script on #6630 selected the correct `35567429246`
+(2026-09-21, 31,454 tests) and the same class of spike downgraded to warning →
+green. A live re-run of the script's own candidate query
+(`/actions/workflows/218791315/runs?branch=main&status=success&per_page=8`) returns
+eight September runs and no January row. So: the run-list API answered ONE runner
+request with a stale/anomalous page. The script's fail-loud design worked as
+designed (broken fetch = red, never silently widened).
+
+**Fix shipped in-batch (#6629 commit `11d37187`, TDD):** attempt 3 proved the
+stale page is not one-off — it picked a *Sept-19* run (usable but two days old:
+22,627 tests, so `test_attempt_number_roundtrip` counted as "new" and its mild
+1.38x spike stayed RED instead of warning). `select_run` now drops `expired: true`
+artifacts from candidacy (an expired zip is never harvestable — GitHub 410s it,
+and expired status is stable under any page staleness, which makes it the one
+robust signal). Regression test drives the WP1.5 canned API and reproduces the
+410 pre-fix.
+
+### Finding 5 (mutation harness, measured 2026-09-21): stryker 10 + vitest 5 runs
+every mutant but kills NONE — 0.00 score is a harness defect, not test quality
+
+Authoritative CI measurement (dispatched run 35634327238, frontend-only, head of
+#6632, job log 106449…): instrumented **3 files / 384 mutants**, dry run
+**1749 tests in 3m48s (succeeded)**, 28m52s of mutant execution, final table:
+
+    All files | total 0.00 | killed 0 | timeout 0 | survived 261 | no cov 61 | errors 62
+    "Ran 0.00 tests per mutant on average"
+
+0-of-384 is not a plausible test-quality signal: `risk.test.ts` asserts the exact
+thresholds and label strings that risk.ts's StringLiteral mutants rewrite, and the
+`# no cov 61` / `# errors 62` split of 384 (161 unaccounted vs "survived") shows
+internal bookkeeping incoherence. "Ran 0.00 tests per mutant" + per-test coverage
+map that never matches the instrumented modules is the signature of **coverage
+analysis mapping against a module graph vitest 5's module runner no longer exposes
+the way stryker's vitest-runner expects** — mutants get no tests, run "clean", and
+are reported Survived. (An earlier sandbox run showed the same 0-score shape with
+1 file/80 mutants instrumented, i.e. the defect is reproducible in two
+environments; the file-count difference tracked the sandbox's mid-edit tree.)
+
+Historical context that makes this NOT a regression from this batch: the scheduled
+Frontend Mutation Testing job has died at checker init since at least July
+(`vite.config.ts TS2769` — the WP3.3 bug), masked by `|| true` +
+continue-on-error. **A frontend mutation score has never existed on main.** This
+batch is the first harness in repo history to execute the full mutant pass; it now
+fails loudly-at-the-right-layer instead of at init.
+
+**Isolation experiments (both completed, 2026-09-21):**
+
+| experiment | config delta | result |
+|---|---|---|
+| 1 (`stryker.experiment.mjs`) | `checkers: []`, risk.ts only | 0/80 killed, "0.00 tests per mutant" |
+| 2 (`stryker.experiment2.mjs`) | + `coverageAnalysis: 'all'`, `timeoutMS: 60000` | 0/80 killed (80 survived), "0.00 tests per mutant", 9m20s run 14:33→14:42 UTC |
+
+Experiment 1 exonerates the TypeScript checker. Experiment 2 was the discriminator
+between the two remaining hypotheses and it refutes BOTH: if coverage *mapping*
+were the defect, `'all'` mode (skip the per-test map, run the whole suite against
+every mutant) would produce kills — it produced none. And the mutants are not
+merely untested: each one was executed for real (~4–5 min of mutant wall-time
+across 80 mutants) and every test still passed against mutated thresholds that
+`risk.test.ts` asserts verbatim (StringLiteral rewrites like `medium: ""`). A
+mutant that really altered the imported module cannot survive its own assertion.
+**Conclusion: under vitest 5's module runner the mutated module never reaches the
+test process — @stryker-mutator/vitest-runner 10.0.0 (newest on npm, so no
+upstream fix is waiting) instruments files vitest 5 then loads from its own graph
+untouched.** The 0.00 score is therefore vacuous in BOTH coverage modes.
+
+Consequences: `test:mutation`'s score stays INVALID (continue-on-error already
+makes the job non-blocking; the number must not be trended). Getting a real score
+is a separate work package, not a config tweak: options are a stryker issue with a
+reproduction (risk.ts + one assert + surviving StringLiteral mutants), downgrading
+vitest to a version the runner's instrumentation hook supports, or replacing the
+vitest-runner with a babel-plugin-istanbul-style setup stryker can intercept.
+This batch does NOT regress mutation coverage — main never had any (checker-init
+wall since ≥July, masked by `|| true`).
