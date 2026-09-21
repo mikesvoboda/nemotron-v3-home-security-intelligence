@@ -646,7 +646,7 @@ jobs:
           retention-days: 30
 
       - name: Upload merged unit test coverage
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
           files: coverage-unit.xml
           flags: backend-unit
@@ -1231,7 +1231,7 @@ jobs:
           fi
 
       - name: Upload merged coverage to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
           directory: coverage-reports/
           flags: backend-integration
@@ -2030,7 +2030,7 @@ jobs:
           fi
 
       - name: Upload frontend coverage to Codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
           directory: coverage-reports/
           flags: frontend
