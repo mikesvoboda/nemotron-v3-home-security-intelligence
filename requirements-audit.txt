@@ -75,7 +75,7 @@ colorama==0.4.6
     #   radon
     #   tqdm
     #   typer
-colorlog==4.8.0
+colorlog==6.12.0
     # via wily
 contourpy==1.4.0
     # via matplotlib
