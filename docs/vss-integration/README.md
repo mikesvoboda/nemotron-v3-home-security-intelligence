@@ -37,11 +37,13 @@ already is.** VSS's own default shape cannot run on a single card at any precisi
 vLLM engines cannot share one GPU; ours can, because our perception servers are not vLLM engines.
 
 **The remaining obstacles are not the ones we started with.** The heavy stateful infrastructure is
-avoidable (see `07`). What is _not_ yet settled: whether NVFP4 actually computes on consumer
-Blackwell (`sm_120`) rather than dequantizing to 16-bit; the NIM licensing and redistribution
-terms, which are a legal question and not in the repo; and a set of verified defects in _this_
-repository — backend and frontend coverage compute nothing, and the `ai/` tier's tests largely do
-not collect — which must be fixed before any swap claim can be believed (see `06`).
+avoidable (see `07`). The verified defects in _this_ repository that used to sit on this list —
+backend and frontend coverage computing nothing, the `ai/` tier's tests not collecting — were
+**fixed and re-verified on `main` 2026-09-21** (see `06`, retirement note). What is _not_ yet
+settled: whether NVFP4 actually computes on consumer Blackwell (`sm_120`) rather than dequantizing
+to 16-bit; the NIM licensing and redistribution terms, which are a legal question and not in the
+repo; and the two measurement gaps `06` still carries — no import-bound contract at the
+backend↔AI-server seam (§1.6) and an unclassified frontend blast radius (§1.7).
 
 ## Current state and what to do next
 
@@ -51,8 +53,10 @@ Nothing is decided and nothing is implemented. The recommended order:
    the VSS roadmap**, so the segment is unowned rather than merely unaddressed. See
    [`05-hardware-profiles.md`](05-hardware-profiles.md). Still unasked: _which_ flavour of
    "not on the roadmap," and the licensing/redistribution question, which is legal not roadmap.
-2. **Fix this repo's coverage and `ai/` collection** (`06` §1). Hours of work, and until it lands
-   every number produced here is unverifiable.
+2. ~~**Fix this repo's coverage and `ai/` collection**~~ (`06` §1) — **DONE 2026-09-19/20,
+   re-verified 2026-09-21** (`#6559`/`#6560`/`#6562`/`#6566`/`#6589`). The numbers produced here
+   are now instrument-backed; `06` carries the per-blocker evidence. What the tier still owes a
+   swap claim: the import-bound seam fixture (`06` §1.6) and the frontend classification (§1.7).
 3. **Run the salience demo**, not a latency benchmark (`06` §4). Fifty boring frames.
 4. **Send the consumer-GPU procurement request.** Longest lead time, five minutes of effort.
 
