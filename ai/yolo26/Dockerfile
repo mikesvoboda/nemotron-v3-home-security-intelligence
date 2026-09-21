@@ -13,7 +13,7 @@
 #   TensorRT engines are GPU-architecture-specific - document the target GPU.
 #   If pre-build is skipped, engines are built on first inference (existing behavior).
 
-FROM nvcr.io/nvidia/tensorrt:26.04-py3 AS tensorrt_base
+FROM nvcr.io/nvidia/tensorrt:26.08-py3 AS tensorrt_base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -23,8 +23,11 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:26.04-py3"
-LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:26.04-py3"
+LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:26.08-py3"
+# base.digest intentionally omitted: it carried a tag where OCI expects a
+# sha256 digest (never had one), and nvcr.io digests are only resolvable
+# with NGC credentials at build time — deploy.yml buildx provenance attestations
+# are the digest-bearing artifact.
 
 # Additional service-specific labels
 LABEL maintainer="home-security-intelligence"
