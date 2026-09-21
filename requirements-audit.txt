@@ -523,7 +523,7 @@ python-dotenv==1.2.2
     #   uvicorn
 python-jose==3.5.0
     # via home-security-intelligence
-python-json-logger==3.3.0
+python-json-logger==4.2.0
     # via home-security-intelligence
 python-multipart==0.0.32
     # via home-security-intelligence
