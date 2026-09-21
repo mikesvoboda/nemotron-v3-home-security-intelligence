@@ -40,6 +40,7 @@ a self-test that stubbed out the download would not be a self-test.
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -55,6 +56,28 @@ from pathlib import Path
 
 class HarvestError(RuntimeError):
     pass
+
+
+# A candidate run older than this cannot have harvestable artifacts left:
+# uploads in this repo set retention-days: 7, and 30 is generous to any
+# longer-retention workflow. Beyond it, "no matching artifacts" is a certainty
+# rather than a finding — see the Finding-4 hardening #2 comment in select_run.
+MAX_CANDIDATE_AGE_DAYS = 30
+
+
+def _run_age_days(created_at: str) -> float | None:
+    """Days since the run was created, or None if the page gave no usable
+    timestamp (None means 'unknown', never 'stale' — an unparseable page
+    must not silently void the selection)."""
+    if not created_at:
+        return None
+    try:
+        created = datetime.datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=datetime.UTC)
+    return (datetime.datetime.now(datetime.UTC) - created).total_seconds() / 86400
 
 
 def _ssl_context() -> ssl.SSLContext | None:
@@ -191,6 +214,22 @@ def select_run(
         if len(picked) >= harvest_runs:
             break
         rid = run.get("id")
+        # Finding-4 hardening #2 (measured 2026-09-21 19:22Z, run
+        # 35637776479): a stale page served EIGHT January candidates whose
+        # artifacts are not merely expired-flagged but long since deleted —
+        # the listing yields nothing, every candidate "skips", and the walk
+        # dies vacuously while fresh main runs sat on the honest page. A run
+        # older than artifact retention is unharvestable by definition
+        # (repo uploads use retention-days: 7; this default is 30, generous
+        # to any workflow that keeps longer), and the page itself says when
+        # the run was created. Drop it BEFORE the artifact query.
+        age = _run_age_days(run.get("created_at", ""))
+        if age is not None and age > MAX_CANDIDATE_AGE_DAYS:
+            print(
+                f"run {rid}: created {age:.0f}d ago — beyond artifact retention, "
+                f"unharvestable (stale runs-list page?) — skipping"
+            )
+            continue
         arts_doc = _get_json(
             f"{api_base}/repos/{repo}/actions/runs/{rid}/artifacts?per_page=100", token
         )

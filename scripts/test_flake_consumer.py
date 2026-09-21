@@ -412,6 +412,122 @@ def test_harvest_skips_expired_and_stale(tmp_path: Path):
         srv.shutdown()
 
 
+def test_harvest_skips_pre_retention_candidates(tmp_path: Path):
+    """Finding-4's SECOND stale-page signature (measured 2026-09-21 19:22Z,
+    run 35637776479 TPA): the runs-list page served a runner job EIGHT
+    January candidates (ids 20716417308..20753667016) whose artifacts are
+    long fully deleted — not expired-flagged, just gone, so the artifact
+    listing yields nothing and every candidate "skips" into a vacuous
+    HarvestError while fresh main runs sat unharvested on the honest page.
+    A run older than artifact retention is unharvestable BY DEFINITION
+    (repo sets retention-days: 7) and its created_at says so on the page
+    itself — the walk must drop it before the artifact query and keep
+    walking, so one stale page can never blank the baseline."""
+    zip_fresh = tmp_path / "fresh.zip"
+    with zipfile.ZipFile(zip_fresh, "w") as z:
+        z.writestr("flaky-test-tracking-unit-shard-1.jsonl", jsonl_line("t", {"x::y": ["passed"]}))
+
+    routes = {
+        "/repos/o/r/actions/workflows?per_page=100": {
+            "workflows": [{"id": 7, "path": ".github/workflows/ci.yml"}]
+        },
+        "/repos/o/r/actions/workflows/7/runs?branch=main&status=success&per_page=8": {
+            "workflow_runs": [
+                # the stale page shape, minus the expired flag: an ancient
+                # run listed first, a fresh one second. created_at is served
+                # in the page itself — no clock access needed beyond "now".
+                {
+                    "id": 301,
+                    "status": "completed",
+                    "head_branch": "main",
+                    "created_at": "2025-01-05T20:56:44Z",
+                },
+                {
+                    "id": 300,
+                    "status": "completed",
+                    "head_branch": "main",
+                    "created_at": "2020-01-01T00:00:00Z",
+                },  # far future (see below)
+            ]
+        },
+        "/repos/o/r/actions/runs/300/artifacts?per_page=100": {
+            "artifacts": [
+                {
+                    "id": 900,
+                    "name": "test-results-unit-shard-1-py3.14",
+                    "archive_download_url": "{base}/dl/fresh",
+                }
+            ]
+        },
+    }
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            import datetime
+
+            if self.path == "/dl/fresh":
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(zip_fresh.read_bytes())
+                return
+            r = routes.get(self.path)
+            if r is None:
+                self.send_error(404)
+                return
+            doc = json.loads(json.dumps(r, default=str))
+            # the script compares created_at against its own clock; serve
+            # run 300 as "created 1h ago" so its freshness is relative, not
+            # a literal the test suite rots on.
+            for run in doc.get("workflow_runs", []):
+                if run["id"] == 300:
+                    now = datetime.datetime.now(datetime.UTC)
+                    run["created_at"] = (now - datetime.timedelta(hours=1)).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    )
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            base = f"http://127.0.0.1:{self.server.server_address[1]}"
+            self.wfile.write(json.dumps(doc, default=str).replace("{base}", base).encode())
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "out"
+        r = subprocess.run(
+            [
+                "python3",
+                str(HARVESTER),
+                "--self-test",
+                "--api-base",
+                base,
+                "--repo",
+                "o/r",
+                "--current-run-id",
+                "1",
+                "--out",
+                str(out),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        assert r.returncode == 0, f"harvest failed: {r.stdout[-400:]} {r.stderr[-300:]}"
+        assert "selected run 300" in r.stdout, (
+            f"pre-retention 301 must be skipped, expected 300: {r.stdout[-400:]}"
+        )
+        assert "retention" in r.stdout.lower(), "skip reason must NAME retention (stale-page tell)"
+        assert len(list(out.rglob("*.jsonl"))) == 1
+    finally:
+        srv.shutdown()
+
+
 def test_ci_yml_wires_the_consumer():
     """ci.yml must carry the flake-report consumer, gate- or triage-classed."""
     import yaml
