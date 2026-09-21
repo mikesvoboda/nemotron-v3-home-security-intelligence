@@ -61,7 +61,6 @@ backend/
 │   ├── routes/             # 60 API route modules
 │   ├── schemas/            # 49 Pydantic schema modules
 │   ├── middleware/         # 24 middleware components
-│   ├── helpers/            # API helper modules
 │   └── utils/              # API utility modules
 ├── core/                   # Infrastructure (28 modules)
 │   ├── websocket/          # WebSocket event infrastructure

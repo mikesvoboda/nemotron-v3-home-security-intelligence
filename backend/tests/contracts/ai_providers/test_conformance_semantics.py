@@ -76,7 +76,6 @@ SCHEMA_DIR = REPO_ROOT / "backend" / "ai_contract" / "schemas"
 # --- sources under characterization (paths only; read lazily per test) -----
 ENRICHMENT_MODEL_SRC = REPO_ROOT / "backend" / "models" / "enrichment.py"
 POSE_EST_SRC = REPO_ROOT / "ai" / "yolo26" / "pose_estimation.py"
-TRANSFORMERS_SRC = REPO_ROOT / "backend" / "api" / "helpers" / "enrichment_transformers.py"
 PIPELINE_SRC = REPO_ROOT / "backend" / "services" / "enrichment_pipeline.py"
 ENTITY_SRC = REPO_ROOT / "backend" / "models" / "entity.py"
 VISION_EXTRACTOR_SRC = REPO_ROOT / "backend" / "services" / "vision_extractor.py"
@@ -120,8 +119,9 @@ SIBLING_SENTINELS = {
 
 # --- the canonical COCO-17 order, transcribed from the two PRODUCTION
 # name tables, NOT invented: ai/yolo26/pose_estimation.py:58 (KEYPOINT_NAMES)
-# and backend/api/helpers/enrichment_transformers.py:441 (coco_keypoint_order,
-# function-local). Both verified 2026-09-19; the two lists are IDENTICAL.
+# and (until the WP3.4 A6 deletion) backend/api/helpers/enrichment_transformers.py:441
+# (coco_keypoint_order, function-local). Both verified 2026-09-19; the two
+# lists were IDENTICAL — pose_estimation.py is the surviving production table.
 COCO_17 = (
     "nose",
     "left_eye",
@@ -361,11 +361,13 @@ class TestS1PoseKeypointsArePositional:
             assert not {"name", "nose", "left_shoulder", "x", "y", "conf"} & set(kp), sorted(kp)
 
     def test_s1c_the_two_name_tables_and_the_positional_reads_pin_the_order(self) -> None:
-        """Order IS the contract, duplicated as three independent literals
-        (source-characterization; the native pose server cannot boot here):
+        """Order IS the contract. Duplicated as three independent literals
+        at characterization time (source-characterization; the native pose
+        server cannot boot here); the third — enrichment_transformers.py:441
+        coco_keypoint_order — left with the WP3.4 A6 dead-twin deletion, and
+        this leg now locks its ABSENCE. Surviving reads:
         ai/yolo26/pose_estimation.py:58 KEYPOINT_NAMES (+ :79 indices);
-        enrichment_transformers.py:441 coco_keypoint_order (+ "matching COCO
-        17 keypoint order" :436); enrichment_pipeline.py:1472 keypoint_names
+        enrichment_pipeline.py:1472 keypoint_names
         -> positional re-emit :1493-1501, returned :1505. Positional trust:
         pose_estimation.py:208 `x, y, conf = keypoints[idx]` (+ :851-855
         `name=KEYPOINT_NAMES[i]`) — name and value joined ONLY by integer i.
@@ -387,18 +389,18 @@ class TestS1PoseKeypointsArePositional:
         assert "x, y, conf = keypoints[idx]" in pose_src
         assert "name=KEYPOINT_NAMES[i]" in pose_src
 
-        xform_src = TRANSFORMERS_SRC.read_text(encoding="utf-8")
-        assert "coco_keypoint_order = [" in xform_src
-        xtree = ast.parse(xform_src)
-        orders: list[list[str]] = []
-        for node in ast.walk(xtree):
-            if isinstance(node, ast.Assign):
-                for t in node.targets:
-                    if getattr(t, "id", "") == "coco_keypoint_order" and isinstance(
-                        node.value, ast.List
-                    ):
-                        orders.append([str(e.value) for e in node.value.elts])
-        assert orders == [list(COCO_17)], "two literal COCO-17 tables must not drift"
+        # The third literal lived in the WP3.4-deleted dead twin
+        # (api/helpers/enrichment_transformers.py:441, zero importers —
+        # see test_enrichment_transformers_retired.py). The table it
+        # transcribed stays here as COCO_17: the LIVE consumers below are
+        # what the order contract lives on now, so the transcription's
+        # provenance survives the deletion it came partly from.
+        helpers_pkg = REPO_ROOT / "backend" / "api" / "helpers"
+        assert not helpers_pkg.exists(), (
+            "api/helpers/ is back — the WP3.4 A6 deletion was reversed; the "
+            "s1c triple read belonged to the dead twin, re-home the table to "
+            "a live consumer before restoring this test's third leg"
+        )
 
         pipe_src = PIPELINE_SRC.read_text(encoding="utf-8")
         assert '"keypoints": keypoints,' in pipe_src  # positional re-emit at :1504
