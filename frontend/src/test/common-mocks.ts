@@ -7,7 +7,36 @@
  * @see setup.ts - Test environment configuration
  */
 
-import { vi } from 'vitest';
+import { vi, type Mock } from 'vitest';
+
+/**
+ * vitest 5 moved `Procedure` (vi.fn's inferred-generic bound) into a chunk
+ * file; any export whose inferred type mentions it is unnameable in a .d.ts
+ * (TS2883), which is fatal to stryker's declaration-emitting checker. These
+ * factories build objects full of vi.fn()s, so their return shapes are
+ * spelled out in terms of the public `Mock` type instead of inferred.
+ */
+export interface RouterMock {
+  useNavigate: () => Mock;
+  useLocation: () => { pathname: string; search: string; hash: string; state: null };
+  useParams: () => Record<string, string>;
+  BrowserRouter: (props: { children: unknown }) => unknown;
+  Routes: (props: { children: unknown }) => unknown;
+  Route: (props: { element: unknown }) => unknown;
+  Link: (props: { children: unknown }) => unknown;
+  NavLink: (props: { children: unknown }) => unknown;
+  Outlet: () => null;
+}
+
+export interface WebSocketMockShape {
+  connect: Mock;
+  disconnect: Mock;
+  subscribe: Mock;
+  unsubscribe: Mock;
+  send: Mock;
+  on: Mock;
+  off: Mock;
+}
 
 /**
  * Common router mock factory
@@ -23,7 +52,7 @@ import { vi } from 'vitest';
  * vi.mock('react-router-dom', () => createRouterMock());
  * ```
  */
-export const createRouterMock = (mockNavigate = vi.fn()) => ({
+export const createRouterMock = (mockNavigate: Mock = vi.fn()): RouterMock => ({
   useNavigate: () => mockNavigate,
   useLocation: () => ({ pathname: '/', search: '', hash: '', state: null }),
   useParams: () => ({}),
@@ -51,7 +80,17 @@ export const createRouterMock = (mockNavigate = vi.fn()) => ({
  * });
  * ```
  */
-export const createApiMock = (overrides: Record<string, unknown> = {}) => ({
+export const createApiMock = (
+  overrides: Record<string, unknown> = {}
+): Record<string, Mock> & {
+  fetchCameras: Mock;
+  fetchEvents: Mock;
+  fetchAlerts: Mock;
+  fetchDetections: Mock;
+  fetchEntities: Mock;
+  fetchSystemHealth: Mock;
+  fetchGpuStats: Mock;
+} => ({
   fetchCameras: vi.fn().mockResolvedValue([]),
   fetchEvents: vi.fn().mockResolvedValue([]),
   fetchAlerts: vi.fn().mockResolvedValue([]),
@@ -78,7 +117,9 @@ export const createApiMock = (overrides: Record<string, unknown> = {}) => ({
  * });
  * ```
  */
-export const createWebSocketMock = (overrides: Record<string, unknown> = {}) => ({
+export const createWebSocketMock = (
+  overrides: Record<string, unknown> = {}
+): Record<string, Mock> & WebSocketMockShape => ({
   connect: vi.fn(),
   disconnect: vi.fn(),
   subscribe: vi.fn(),
