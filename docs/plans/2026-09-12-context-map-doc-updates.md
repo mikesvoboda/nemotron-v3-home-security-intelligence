@@ -8545,3 +8545,51 @@ synthesized head `412ae56c` and the FULL gate passed on it (run
 35558666697, conclusion success) before squash `12d06fec` — the `-k`
 expansion is proven against post-#6592/#6593 main, which is stronger than
 green-at-my-head.
+
+## WP3.1 CLOSE — nine zero-mutation modules re-measured on the full tree: 8 of 9 now carry signal; zero_dce_loader's zero is structural (2026-09-20 plan, closed 2026-09-21)
+
+Plan-P WP3.1: nine modules read 0.0% mutation score on the old scoped run.
+Re-measured on the FULL tree: `mutmut run` over 90 730 generated mutants,
+8 children, 14h20m (04:49:37Z exit, log `wp31-full-run.log`), then
+`mutation-score.py` over the settled `.meta` artifacts (the tool WP0.x
+minted — verdict classification imported from `mutmut.stats`, not copied).
+
+| module                               | total | killed+timeout | survived | no_tests | score      |
+| ------------------------------------ | ----- | -------------- | -------- | -------- | ---------- |
+| api/routes/jobs.py                   | 25    | 25             | 0        | 0        | **100.00** |
+| api/routes/queues.py                 | 1     | 1              | 0        | 0        | **100.00** |
+| services/age_classifier_loader.py    | 353   | 247            | 106      | 0        | **69.97**  |
+| services/backup_service.py           | 417   | 293            | 122      | 2        | **70.26**  |
+| services/gender_classifier_loader.py | 368   | 258            | 110      | 0        | **70.11**  |
+| services/heatmap_service.py          | 461   | 357            | 98       | 6        | **77.44**  |
+| services/skeleton_action_service.py  | 128   | 106            | 21       | 1        | **82.81**  |
+| services/stgcn_loader.py             | 749   | 619            | 125      | 5        | **82.64**  |
+| services/zero_dce_loader.py          | 302   | 0              | 0        | **302**  | **0.00**   |
+
+Eight modules moved 0.0% -> 69.97-100.00: the zeros were a measurement
+artifact of the scoped harness, not dead tests — the plan's premise,
+confirmed. The ninth is DIFFERENT IN KIND and that is the finding:
+zero_dce_loader's 302 mutants are ALL in the `no_tests` bucket — zero
+survived, zero killed, because NO collected test ever executes the module.
+Mutation score cannot rise by tuning assertions; only binding a suite
+(writing tests at all) or retiring the module moves it. That converts
+BLOCKED.md residual 2 (bind-or-retire) from a judgment call into an
+evidence-backed one — and both options stay outside this plan's rulings
+(A6 says delete-if-unreachable, not test-if-unreachable; binding is new
+scope beyond WP3.1's re-measure mandate). Owner call, numbers ready.
+
+Tree totals (mutation-score.py over the meta union): total 90 965 —
+killed 26 452 + timeout 1 541, survived 25 112, no_tests 37 860; aggregate
+score **30.77** (the repo's definition charges no_tests against the score —
+the honest denominator, matching WP2.1's one-denominator doctrine). Two
+counters differ by 235 (runner executed 90 730): the meta union carries
+stale entries whose sources weren't re-executed, 10 of them provably from
+the modules eada4ba9 deleted (`scene_change_service`, `job_state_service`
+— sources confirmed gone). All NINE modules' metas carry in-run mtimes
+(15:28Z-00:58Z, 09-20/21), so the table above is untouched by the delta.
+
+The 41.6% no_tests share is the tree-wide face of the same finding: the
+mutation ceiling is a TEST-COLLECTION problem before it is an assertion
+problem — the same lesson WP3.4's orphan census taught from the coverage
+side. Done-when: nine modules re-measured with verdicts recorded; eight
+non-zero, the ninth's zero explained to the bucket level.
