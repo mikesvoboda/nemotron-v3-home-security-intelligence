@@ -548,7 +548,7 @@ pyyaml==6.0.3
     #   uvicorn
 pyyaml-env-tag==1.1
     # via mkdocs
-radon==5.1.0
+radon==6.0.1
     # via wily
 rapidfuzz==3.14.6
     # via home-security-intelligence
