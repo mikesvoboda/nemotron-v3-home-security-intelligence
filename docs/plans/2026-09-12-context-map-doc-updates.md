@@ -8443,3 +8443,105 @@ branch touches no model code. Census (60 CI runs since 2026-09-18,
 WP1.1 core claim stands as landed: four main-only jobs ran on both PR runs
 (Contract Tests / Dead Code / Build Docker x2) and this PR's own run durations
 (88/46/410/144s recorded in the WP1.1 section) are the added-wall-time measurement.
+
+## WP4.1 LANDED (2026-09-20 plan, appended 2026-09-21) — 06-repo-a-readiness's blocker list retired, all four CLOSED and re-verified on main (#6591, squash `a6153643`)
+
+Plan-P WP4.1's done-when: the doc no longer lists anything it can prove
+closed. All four verified blockers were re-measured at origin/main
+`2389e5a4` before the edit, not remembered: 1.1 backend coverage — shards
+emit .dat (ci.yml:413/:498), merge combines coverage-reports/\*.dat (:552),
+the baseline publishes from REAL merged data (:587) with the strict
+current<base diff gate in front (#6559). 1.2 frontend — merge-tier shards
+run --coverage with json reporter, merge-shard-coverage.mjs ENFORCES the
+WP2.3 measured floors 80/74.6/78.4/80.9 on complete shards (#6559 + #6589).
+1.3 — check-test-collection.py covers backend frontend ai (:108, #6560).
+1.4 — job_state_service.py + scene_change_service.py deleted (eada4ba9,
+#6562); `git ls-tree` returns neither. Headline kept with a dated
+staleness note per the doc's [V]/[A] convention.
+
+Corrections found WHILE re-verifying (measured, not assumed — the R-6
+direction, docs corrected by measurement): the 62/23/15 census split is
+67/22/10 + ~220 drafted UNVERIFIED per main's own HANDOFF; #6556's
+substance did NOT fully re-land (census perf + 25/26 kill dossiers absent;
+only container_discovery arrived, #6555); deletion-record cashing still
+zero (commit-body grep since 09-18); 1.6 half-landed (golden payloads
+exist, no test imports ai.\* at runtime — the registry test's own docstring
+says so). README's closing paragraph + next-step 2 now point at 1.6's seam
+fixture and 1.7's frontend classification as the open measurement debt.
+
+## WP4.2 LANDED (2026-09-20 plan, appended 2026-09-21) — the AI-contract count mints itself; every hand pin deleted (#6592, squash `f366ceeb`)
+
+Done-when: a LEGITIMATE contract change requires zero test edits while an
+UNINTENDED one still fails. WP0.1 generalised: its AST-vs-import pair fixed
+one pin; this removed every remaining hand-pinned contract count — the
+37-id frozenset + `== 37` in test_ai_contract_registry (EXPECTED_OPERATIONS
+now derived from the schemas/ filesystem — the second artifact of the same
+gen-ai-contract.py run, vacuous-empty guard added); check-ai-provider-
+parity.py gains schema_artifact_ops (third independent read) and asserts
+registry AST == artifact count AND routes-unclaimed == [] (a new route
+outside the contract is an unintended change — verified empty on main);
+test_conformance_ops' EXPECTED_SIZES table and `len(OPERATIONS)==37` pin
+-> derived from operations_for_slot columns; test_fake_provider's `ok==37`
+-> `ok==len(OPERATIONS)`; gen-ai-contract.py's docstring counts itself
+(committed operations.py regenerated, gen --check green).
+
+RED-PROOF of both clauses, live tamper 2026-09-21: deleting
+clip_similarity from operations.py reddened the registry test naming
+missing=['clip_similarity'] and 'AST says 36, artifacts say 37'; an
+op add/remove is now regenerate-only. Suites: parity 27,
+registry+conformance-ops 97, fake+semantics 124, gen 14 = 262 passed.
+
+## WP3.4 LANDED — integration tier move-up, two increments: dead-twin deletion (#6593) + 388 nightly-only tests into PR CI (#6594) (2026-09-21)
+
+Baseline (run 35551624215, 7 shards merged): blended **37.97** against the
+37 floor — the number plan-P named. The per-file table under that run is
+what made both increments findable, so record how it was read: the merged
+XML gives lines per file; `branch` blend explains why the reconstructed
+line-only figure (42.83 over 78 773 lines) sits above the published blend —
+three different numbers, one denominator each (WP2.2's lesson re-applied).
+
+**Increment 1 — the dead twin (`api/helpers/enrichment_transformers.py`,
+PR #6593, squash `8dd1d5bb`).** 773 production lines, 11 classes, ZERO
+non-test importers repo-wide (module/symbol/package censuses all rc=1); its
+79-line live twin `routes/detections.py::_transform_enrichment_data` serves
+every caller. The measurement that licensed the deletion: the merged
+integration XML puts the module at **0.0% with 262 uncovered lines** — the
+tier's single largest zero-execution module — while its 65 exclusive unit
+tests all pass: assertion signal on unreachable code. Deleted under
+ADDENDUM 2 §A6's five conditions (census + counts in the commit body;
+suppression ratchet byte-identical via `suppression-census.py --expect`).
+The fast tier CAUGHT the one coupling greps can't see: WP8.5's
+`test_conformance_semantics.py::s1c` AST-parses the module as TEXT evidence
+(text-source coupling, red at pre-push, fixed same-commit as an absence
+lock — the WP8.5 doctrine of WP4.1's ledger applied in reverse). Deletion
+lock `test_enrichment_transformers_retired.py` carries the rewrite-do-not-
+delete contract (house precedent: materialized-views lock). Net: −2,327
+lines / 10 files / 65 cases; the tier's denominator lost 262 dead lines.
+
+**Increment 2 — the orphan selectors (PR #6594, squash `12d06fec`).** The
+integration lanes run ONLY four curated `-k` expressions. Ground-truth
+collect census (disable pytest-sugar + clarity, CLEAR `addopts=` — the
+census was wrong twice before that was fixed; see memory
+pytest-quiet-traps): those expressions select **79 of 206 files**;
+**127 files (~2 228 defs) match no selector** — they run only in
+nightly-full-gate, whose last two runs died on unit-tier 5s-timeout flakes
+BEFORE the integration step executed (integration itself green 2026-09-18).
+A suite that runs only behind a tier that hasn't run is not a gate.
+
+Moved the GREEN-PROVED 12 files: 49+63+233+41 passed (2 skipped) across
+four `-n0` batches against live PG 16.15 + redis, same `--timeout=30` bar
+as the shards; per-keyword collect census shows zero double-runs with the
+existing 79 and confirms all 12 were previously selected nowhere (the two
+root-stem twins `test_soft_delete.py` / `test_notification_preferences_api.py`
+rode the substring terms and were proven, not assumed). Services shard
+423→535, models shard 300→576: **388 tests into every PR**, wall +~30s /
++~54s. Comment blocks at both shards encode the rule for the next appender:
+same green-proof or stay in nightly. 115 orphans remain — that is the
+honest boundary, and it is now a named list, not a mystery (BLOCKED.md
+residual 3).
+
+Both PRs' CI, on the merged heads: #6593 green; #6594's auto-merge
+synthesized head `412ae56c` and the FULL gate passed on it (run
+35558666697, conclusion success) before squash `12d06fec` — the `-k`
+expansion is proven against post-#6592/#6593 main, which is stronger than
+green-at-my-head.
