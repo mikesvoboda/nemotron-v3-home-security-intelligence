@@ -547,11 +547,31 @@ continue-on-error. **A frontend mutation score has never existed on main.** This
 batch is the first harness in repo history to execute the full mutant pass; it now
 fails loudly-at-the-right-layer instead of at init.
 
-**Isolation experiment running:** checker-less, risk.ts-only config
-(`stryker.experiment.mjs`, `checkers: []`) — if kills appear, the checker's
-declaration-rewrite path is implicated; if still 0, stryker-vitest-runner ↔
-vitest 5 coverage mapping is, and the fix is upstream (check
-@stryker-mutator/vitest-runner vitest-5 compat) or a `coverageAnalysis: 'perTest'
-→ 'all'` downgrade. Until resolved, `test:mutation` reports a score that must be
-treated as INVALID — the workflow's continue-on-error already makes it
-non-blocking; the number must not be trended.
+**Isolation experiments (both completed, 2026-09-21):**
+
+| experiment | config delta | result |
+|---|---|---|
+| 1 (`stryker.experiment.mjs`) | `checkers: []`, risk.ts only | 0/80 killed, "0.00 tests per mutant" |
+| 2 (`stryker.experiment2.mjs`) | + `coverageAnalysis: 'all'`, `timeoutMS: 60000` | 0/80 killed (80 survived), "0.00 tests per mutant", 9m20s run 14:33→14:42 UTC |
+
+Experiment 1 exonerates the TypeScript checker. Experiment 2 was the discriminator
+between the two remaining hypotheses and it refutes BOTH: if coverage *mapping*
+were the defect, `'all'` mode (skip the per-test map, run the whole suite against
+every mutant) would produce kills — it produced none. And the mutants are not
+merely untested: each one was executed for real (~4–5 min of mutant wall-time
+across 80 mutants) and every test still passed against mutated thresholds that
+`risk.test.ts` asserts verbatim (StringLiteral rewrites like `medium: ""`). A
+mutant that really altered the imported module cannot survive its own assertion.
+**Conclusion: under vitest 5's module runner the mutated module never reaches the
+test process — @stryker-mutator/vitest-runner 10.0.0 (newest on npm, so no
+upstream fix is waiting) instruments files vitest 5 then loads from its own graph
+untouched.** The 0.00 score is therefore vacuous in BOTH coverage modes.
+
+Consequences: `test:mutation`'s score stays INVALID (continue-on-error already
+makes the job non-blocking; the number must not be trended). Getting a real score
+is a separate work package, not a config tweak: options are a stryker issue with a
+reproduction (risk.ts + one assert + surviving StringLiteral mutants), downgrading
+vitest to a version the runner's instrumentation hook supports, or replacing the
+vitest-runner with a babel-plugin-istanbul-style setup stryker can intercept.
+This batch does NOT regress mutation coverage — main never had any (checker-init
+wall since ≥July, masked by `|| true`).
