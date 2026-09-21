@@ -581,7 +581,7 @@ requests-file==3.0.1
     # via zeep
 requests-toolbelt==1.0.0
     # via zeep
-rich==14.3.4
+rich==15.0.0
     # via
     #   bandit
     #   home-security-intelligence
