@@ -84,11 +84,17 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 | Ecosystem      | Directory | Schedule        | PR Limit |
 | -------------- | --------- | --------------- | -------- |
-| pip (Python)   | /backend  | Weekly (Monday) | 5        |
-| npm (Node.js)  | /frontend | Weekly (Monday) | 5        |
-| github-actions | /         | Weekly (Monday) | 3        |
-| docker         | /backend  | Monthly         | -        |
-| docker         | /frontend | Monthly         | -        |
+| uv (Python)    | /         | Weekly (Monday) | 10       |
+| npm (Node.js)  | /frontend | Weekly (Monday) | 10       |
+| github-actions | /         | Weekly (Monday) | 5        |
+| docker         | 8 dirs    | Weekly (Monday) | 3 each   |
+
+Python is `uv`-only: the root `pyproject.toml` + `uv.lock` are the manifests.
+`requirements-audit.txt` is a generated `uv export` artifact that CI regenerates per job and does
+not commit. The hand-maintained `requirements-base.txt` and `ai/*/requirements.txt` remain real
+container build inputs — Dependabot's uv resolver demonstrably rewrites floors in them (PR #6544
+lifted `ai/florence/requirements.txt` torch/transformers in one commit) and no CI job validates
+those floors, so review such hunks by hand.
 
 **Labels Applied:**
 
@@ -306,10 +312,10 @@ services:
 ### Caching
 
 ```yaml
-- uses: actions/setup-python@v5
-  with:
-    cache: 'pip'
-    cache-dependency-path: backend/requirements*.txt
+- uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+# uv caches against uv.lock automatically; there is no root requirements*.txt
+# to key a cache on (backend/requirements*.txt never existed). npm jobs key
+# on frontend/package-lock.json via actions/setup-node.
 ```
 
 ### Self-Hosted Runner Labels
