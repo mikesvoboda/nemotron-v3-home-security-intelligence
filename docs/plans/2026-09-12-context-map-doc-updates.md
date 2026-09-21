@@ -8810,3 +8810,20 @@ pinned; standalone adaptation PR required).
 **Open rulings unchanged:** R-1 (drop wily → unblocks 4 python + radon explicit),
 R-2 (gitleaks 3 EULA, #6614), R-3 (GPU compat → gates #6631 merge), R-5 (plugin-react
 6 = vite-8 scope, #6608 stays closed). Node 26 revisit at LTS 2026-10-28.
+
+### Ruling update + in-pass-through win (2026-09-21, evening)
+
+- **R-3 RULED by owner: APPROVED — merge #6631.** Docker NGC bundle (tensorrt
+  26.04→26.08, cuda 13.2.1→13.3.1) gate-green; branch updated onto post-#6633
+  main (`555944a8`), merge-on-green watcher running. #6599/#6600/#6601 close as
+  "Superseded by #6631" after landing.
+- **#6633 MERGED (`c7617931`, 18:19:02Z)** — the first PR born under the FIXED uv
+  ecosystem (owner asked for triage-then-decide; triage: lock-only 12-bump group,
+  all in declared ranges, urllib3 2.8.0 stays above the PYSEC floor, no R-1
+  entanglement; differential test PR-head vs main lockfile byte-identical — 2713
+  passed, same 3 local-only pre-existing failures on BOTH (sandbox cv2 class —
+  someday-look at test_event severity tests); CI 76/76 green. Merged on owner
+  instruction.)
+- **New dependabot reality confirmed:** uv scans now file real diffs (#6633, #6634
+  within ~17 min of #6628's merge landing in a scan) instead of the no-op pile.
+  #6634 (gdown 5.2.2→6.4.0) will close as superseded by #6630 alongside #6620/#6626.
