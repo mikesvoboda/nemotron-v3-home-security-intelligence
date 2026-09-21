@@ -105,7 +105,7 @@ et-xmlfile==2.0.0
 execnet==2.1.2
     # via pytest-xdist
 factory-boy==3.3.3
-faker==20.1.0
+faker==40.39.0
     # via factory-boy
 fakeredis==2.38.0
 fastapi==0.141.1
