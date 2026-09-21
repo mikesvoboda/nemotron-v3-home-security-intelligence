@@ -106,19 +106,6 @@ SCHEMA_DIR = REPO_ROOT / "backend" / "ai_contract" / "schemas"
 
 ALL_OPS = set(OPERATIONS)
 
-# ProviderId -> expected registered size (dossier O4/F9, verified live import;
-# re-pinned 2026-09-19 after the A7.2 florence_analyze_scene deletion left
-# gateway/per_model/fake: {'gateway': 30, 'gateway_light': 5,
-# 'per_model_http': 35, 'llamacpp_llm': 2} + fake 37 once this suite
-# registers it).
-EXPECTED_SIZES = {
-    ProviderId.GATEWAY: 30,
-    ProviderId.GATEWAY_LIGHT: 5,
-    ProviderId.PER_MODEL_HTTP: 35,
-    ProviderId.LLAMACPP_LLM: 2,
-    ProviderId.FAKE: 37,
-}
-
 # providers.py:135-157 — per_model_http registers deployed=False (undeployed
 # in prod compose); llamacpp_llm registers deployed=True (the plan's provider
 # docstring: "gateway / gateway-light / llamacpp-llm are deployed today").
@@ -187,6 +174,25 @@ LLAMACPP_REQUIRED = {
     op_id
     for op_id, op in OPERATIONS.items()
     if op.availability.get("per_model_server", False) and "ai/nemotron" in op.evidence
+}
+
+# ProviderId -> expected registered size. WP4.2: DERIVED, not hand-pinned.
+# The hand table (30/5/35/2/37, dossier O4/F9) rotted on schedule — every
+# legitimate contract move (38 -> 37 at A7.2) required re-editing it, which
+# trains "edit the pin without thinking" (the WP4.2 doctrine). Derivation
+# mirrors the registration rules the suite already pins as STRUCTURE:
+# single-app providers serve their slot's availability column
+# (providers.py:140-142); llamacpp serves the evidence-derived required
+# subset above (providers.py:94-106 + provider.py:196-203); fake is
+# registered by this suite as the full SPEC column. The set-equality
+# assertions in TestMatrixSpine stay the primary guard — these lengths catch
+# a provider registering extra callables the set check would fold away.
+EXPECTED_SIZES = {
+    ProviderId.GATEWAY: len(operations_for_slot("gateway", OPERATIONS)),
+    ProviderId.GATEWAY_LIGHT: len(operations_for_slot("enrichment_light_adapter", OPERATIONS)),
+    ProviderId.PER_MODEL_HTTP: len(operations_for_slot("per_model_server", OPERATIONS)),
+    ProviderId.LLAMACPP_LLM: len(LLAMACPP_REQUIRED),
+    ProviderId.FAKE: len(operations_for_slot("fake", OPERATIONS)),
 }
 
 # OP-28 block + O2 literals.
@@ -362,7 +368,12 @@ class TestMatrixSpine:
         assert PROVIDER_SLOT[ProviderId.FAKE] == "fake"
         for op_id, op in OPERATIONS.items():
             assert set(op.availability) == set(MATRIX_SLOTS), op_id
-        assert len(OPERATIONS) == 37  # WP7.1 size 38; A7.2 deleted analyze-scene
+        # WP4.2: the hand `len(OPERATIONS) == 37` pin is gone — this test's
+        # contract is the availability-key SHAPE, and the count the generated
+        # registry owns is guarded where counts belong: gen-ai-contract
+        # --check (byte drift) + the derived reads in
+        # scripts/test_check_ai_provider_parity.py. Re-pinning a size here
+        # would re-create the WP0.1 rot this suite's own history documents.
 
     @pytest.mark.parametrize(
         "pid",
@@ -373,7 +384,7 @@ class TestMatrixSpine:
         """Spine (a): set(rec.operations()) == slot column for the single-app
         providers; == the evidence-derived required SUBSET for llamacpp
         (union-slot rule, provider.py:196-203 + providers.py:94-106); fake's
-        column is the SPEC (all 38) and the fake is registered by this suite
+        column is the SPEC (every op) and the fake is registered by this suite
         itself. Sizes and deployed per EXPECTED_* tables above (sources:
         providers.py:135-157; live import fold). THE WORKFLOW-PROMPT DIVERGENCE:
         'llamacpp_llm: rec.deployed is False' is contradicted by live code —
@@ -391,7 +402,7 @@ class TestMatrixSpine:
         else:
             assert set(rec_ops) == column  # source: providers.py:140-142; fake via
             # fake_provider_ops() == operations_for_slot('fake') (app.py:127). UNVERIFIED.
-        assert len(rec_ops) == EXPECTED_SIZES[pid]  # 31/5/36/2/38. UNVERIFIED.
+        assert len(rec_ops) == EXPECTED_SIZES[pid]  # derived table, WP4.2. UNVERIFIED.
         assert registered_providers()[pid.value].deployed is EXPECTED_DEPLOYED[pid]  # UNVERIFIED.
 
     def test_matrix_llamacpp_required_is_evidence_derived(self) -> None:
@@ -462,7 +473,7 @@ class TestMatrixAbsenceGuards:
             assert ops == column  # single-app providers cover the column
         # fake is the SPEC column: zero absences at all.
         if pid is ProviderId.FAKE:
-            assert not absent  # fake column == all 38. UNVERIFIED.
+            assert not absent  # fake column == every op (spec column). UNVERIFIED.
 
     @pytest.mark.parametrize("op_id", ABSENT_GATEWAY)
     async def test_gateway_absent_ops_are_404(self, gateway_client, op_id: str) -> None:
@@ -494,13 +505,13 @@ class TestMatrixAbsenceGuards:
         assert r.status_code == 404  # UNVERIFIED at pytest level.
 
     async def test_fake_column_has_no_absences(self) -> None:
-        """fake ABSENT 0 (dossier O3/F7): the spec column is all 38, and the
+        """fake ABSENT 0 (dossier O3/F7): the spec column is every op, and the
         fake app mounts one route per registry op (fake/app.py:88-89) — so
         the absence guard for fake is trivially empty. PREDICTED-GREEN
         fake-side; gateway rows are covered by their own params above.
         UNVERIFIED."""
         ops = _fake_callables()
-        assert set(ops) == ALL_OPS  # 38 == 38. UNVERIFIED.
+        assert set(ops) == ALL_OPS  # spec column == every op. UNVERIFIED.
         assert set(operations_for_slot("fake", OPERATIONS)) == ALL_OPS
 
 

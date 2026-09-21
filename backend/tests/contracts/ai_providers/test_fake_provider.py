@@ -316,9 +316,11 @@ class TestFakeProviderVocabularyMirror:
 
 
 def test_wp82_wall_clock_budget() -> None:
-    """MEASURE hook: a full fake-backed pass over all 37 ops must fit the
-    5s per-test timeout (plan constraint). Recorded, not asserted against a
-    moved line: asserts the PLANNED bound."""
+    """MEASURE hook: a full fake-backed pass over EVERY registry op must fit
+    the 5s per-test timeout (plan constraint). WP4.2: the `ok == 37` count
+    assertion became `ok == len(OPERATIONS)` — the pass loop already iterates
+    the registry, so the pin added rot risk and no coverage (a skipped op
+    still shows as ok < len)."""
     import asyncio
     import time
 
@@ -338,6 +340,6 @@ def test_wp82_wall_clock_budget() -> None:
     start = time.monotonic()
     ok = asyncio.run(full_pass())
     elapsed = time.monotonic() - start
-    print(f"WP8.2 MEASURE: {ok}/37 ops, full pass {elapsed:.3f}s")
-    assert ok == 37
+    print(f"WP8.2 MEASURE: {ok}/{len(OPERATIONS)} ops, full pass {elapsed:.3f}s")
+    assert ok == len(OPERATIONS)
     assert elapsed < 5.0, f"full fake pass took {elapsed:.2f}s — violates the 5s budget"
