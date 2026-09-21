@@ -240,6 +240,22 @@ jobs:
         # Context must be project root because Dockerfile copies pyproject.toml/uv.lock from root
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile --target prod .
 
+      - name: Locate reported python packages in the built image (diagnostic)
+        # TEMPORARY (fix/trivy-blocking-main): Trivy reports setuptools 70.3.0 and
+        # msgpack 1.1.2 under a bare "Python" target with no path, while the SAME
+        # scan reports /app/.venv's setuptools-84.0.0 and msgpack-1.2.2 as clean.
+        # Ruled out from the host already: the base image ships neither (only pip
+        # 26.2.1), `uv tool install py-spy` produces neither (probe-built), the
+        # repo vendors neither, and uv.lock pins the good versions. So print where
+        # they actually live rather than suppress a finding whose source is unknown.
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          docker run --rm --entrypoint sh backend:${{ github.sha }} -c '
+            find / -xdev \( -name "setuptools*" -o -name "msgpack*" \) \
+                 \( -name "*.dist-info" -o -name "*.egg-info" -o -name "*.egg-link" \) \
+                 -prune -print 2>/dev/null | sort
+          ' || echo "diagnostic container run failed (non-fatal)"
+
       - name: Clean up Docker build cache to free space
         # Remove only build cache and intermediate layers, NOT the built image
         # IMPORTANT: Don't use 'docker system prune -af' as it deletes ALL unused images
