@@ -132,7 +132,7 @@ future==1.0.0
     # via
     #   ffmpeg-python
     #   radon
-gdown==5.2.2
+gdown==6.4.0
     # via home-security-intelligence
 ghp-import==2.1.0
     # via mkdocs
