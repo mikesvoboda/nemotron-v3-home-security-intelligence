@@ -163,11 +163,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install py-spy for continuous profiling (pushes to Pyroscope)
 # `uv tool install` builds an isolated env under /root/.local that exists ONLY
-# to produce this one binary. It is dead weight in the runtime image and it is
-# scanned: Trivy reported msgpack 1.1.2 (GHSA-6v7p-g79w-8964, fixed 1.2.1) in
-# the image while /app/.venv carries 1.2.2 from uv.lock, so the vulnerable copy
-# is here, not in our dependency set. Removing the tree after the copy drops the
-# finding and shrinks the image; the binary is already at /usr/local/bin/py-spy.
+# to produce this one binary, then is never read again. Removing it after the
+# copy shrinks the runtime image and cuts scan surface. `cp -L` because the
+# removal must not strand a symlink, and `py-spy --version` runs AFTER the rm so
+# a cleanup that broke the profiler fails the BUILD instead of shipping.
+# (This does NOT address the Trivy msgpack/setuptools findings — those are pip's
+#  VENDORED copies, see .trivyignore. Verified by listing the built image: the
+#  only dist-info present are msgpack-1.2.2 and setuptools-84.0.0, both clean.)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN uv tool install py-spy && \
     cp -L /root/.local/bin/py-spy /usr/local/bin/py-spy && \
@@ -175,13 +177,6 @@ RUN uv tool install py-spy && \
     test -x /usr/local/bin/py-spy && \
     rm -rf /root/.local /root/.cache && \
     py-spy --version
-
-# The base image ships setuptools 70.3.0 in the SYSTEM python, which carries
-# CVE-2025-47273 (path traversal in PackageIndex, fixed 78.1.1). It is not one
-# of ours — uv.lock pins 84.0.0 — and the app runs entirely out of /app/.venv,
-# so the system copy is only present because python:3.14-slim-bookworm bundles
-# it. Upgrade rather than remove: pip/uv bootstrapping still expects it.
-RUN uv pip install --system --no-cache --upgrade "setuptools>=78.1.1"
 
 # Copy profiler script
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
