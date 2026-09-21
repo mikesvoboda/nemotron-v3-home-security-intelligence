@@ -26,12 +26,12 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 | Component           | Count | Description                                     |
 | ------------------- | ----- | ----------------------------------------------- |
 | API Routes          | 60    | REST endpoints organized by domain              |
-| Services            | 124   | Business logic, AI pipeline, background workers |
-| Models              | 52    | SQLAlchemy ORM models                           |
-| Schemas             | 49    | Pydantic request/response schemas               |
-| Middleware          | 24    | Request processing pipeline                     |
-| Repositories        | 9     | Data access abstraction layer                   |
-| Core Infrastructure | 28    | Database, Redis, config, logging, etc.          |
+| Services            | 204   | Business logic, AI pipeline, background workers |
+| Models              | 53    | SQLAlchemy ORM model modules                    |
+| Schemas             | 85    | Pydantic request/response schemas               |
+| Middleware          | 25    | Request processing pipeline                     |
+| Repositories        | 8     | Data access layer (base + 7 repositories)       |
+| Core Infrastructure | 52    | Database, Redis, config, logging, etc.          |
 
 ## Running the Backend
 
@@ -55,20 +55,22 @@ backend/
 ├── __init__.py             # Package initialization
 ├── Dockerfile              # Container configuration (uv-based, works with Docker/Podman)
 ├── .dockerignore           # Docker build exclusions
-├── alembic.ini             # Alembic configuration
-├── alembic/                # Database migrations (Alembic)
+├── ai_contract/            # Generated AI-tier operation registry (plan P)
 ├── api/                    # REST API layer
 │   ├── routes/             # 60 API route modules
-│   ├── schemas/            # 49 Pydantic schema modules
-│   ├── middleware/         # 24 middleware components
+│   ├── schemas/            # 85 Pydantic schema modules
+│   ├── middleware/         # 25 middleware components
 │   └── utils/              # API utility modules
-├── core/                   # Infrastructure (28 modules)
+├── config/                 # Prompt A/B rollout, experiments, shadow deployment
+├── core/                   # Infrastructure (52 modules)
 │   ├── websocket/          # WebSocket event infrastructure
 │   └── middleware/         # Core middleware components
-├── models/                 # SQLAlchemy ORM models (52 models)
-├── repositories/           # Data access layer (9 repositories)
+├── evaluation/             # Prompt-evaluation harness (datasets, metrics, runner)
+├── models/                 # SQLAlchemy ORM models (53 model modules)
+├── repositories/           # Data access layer (base + 7 repositories)
 ├── jobs/                   # Background job modules (3 jobs)
-├── services/               # Business logic and AI pipeline (124 modules)
+├── services/               # Business logic and AI pipeline (204 modules)
+│   ├── data/               # Service data helpers
 │   └── orchestrator/       # Service orchestration subsystem
 ├── tests/                  # Unit and integration tests
 ├── data/                   # Runtime data (sample images, thumbnails)
@@ -167,7 +169,7 @@ backend/
 
 ## Core Infrastructure (`core/`)
 
-See `core/AGENTS.md` for detailed documentation. The core layer contains 28 modules providing foundational infrastructure.
+See `core/AGENTS.md` for detailed documentation. The core layer contains 52 modules (top-level plus the websocket and middleware subsystems) providing foundational infrastructure.
 
 ### Configuration and Settings
 
@@ -291,7 +293,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 28 modu
 
 ## Database Models (`models/`)
 
-See `models/AGENTS.md` for detailed documentation. The data layer contains 52 SQLAlchemy models using 2.0 `Mapped` type hints.
+See `models/AGENTS.md` for detailed documentation. The data layer contains 53 SQLAlchemy model modules using 2.0 `Mapped` type hints.
 
 ### Core Domain Models
 
@@ -316,7 +318,7 @@ See `models/AGENTS.md` for detailed documentation. The data layer contains 52 SQ
 - **`SceneChange`** - Detected scene changes
 - **`LLMInteraction`** - LLM interaction logging
 - **`Enrichment`** - Detection enrichment data
-- **`SmokeFire Result`** - Smoke/fire detection results
+- **`SmokeFireResult`** - Smoke/fire detection results
 - **`ExperimentResult`** - A/B experiment results
 
 ### Zone and Area Models
@@ -490,7 +492,7 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ## API Middleware (`api/middleware/`)
 
-The middleware layer contains 24 components for request processing:
+The middleware layer contains 25 components for request processing:
 
 | Middleware                  | Purpose                                           |
 | --------------------------- | ------------------------------------------------- |
@@ -516,12 +518,13 @@ The middleware layer contains 24 components for request processing:
 | `request_recorder.py`       | Request recording for debugging                   |
 | `request_timing.py`         | Request duration metrics                          |
 | `security_headers.py`       | Security headers (CSP, HSTS, etc.)                |
+| `observability.py`          | Unified timing + logging + Prometheus metrics     |
 | `setup_guard.py`            | Blocks API access until first admin is registered |
 | `websocket_auth.py`         | WebSocket authentication                          |
 
 ## API Schemas (`api/schemas/`)
 
-The schema layer contains 43 Pydantic models for request/response validation:
+The schema layer contains 85 Pydantic schema modules for request/response validation (load-bearing examples below; full list in `api/schemas/AGENTS.md`):
 
 - **Domain schemas:** `camera.py`, `detections.py`, `events.py`, `zone.py`, `entities.py`
 - **AI schemas:** `ai_audit.py`, `llm.py`, `llm_response.py`, `enrichment.py`, `enrichment_data.py`
@@ -555,7 +558,7 @@ The repository layer provides data access abstraction with a generic base class:
 
 ## Services (`services/`)
 
-See `services/AGENTS.md` for detailed documentation. The service layer contains 89 modules organized by function.
+See `services/AGENTS.md` for detailed documentation. The service layer contains 204 modules (including the orchestrator and data subsystems) organized by function.
 
 ### Core AI Pipeline
 
@@ -987,19 +990,24 @@ The backend provides three health endpoints for different use cases:
 
 | Path                                | Purpose                            |
 | ----------------------------------- | ---------------------------------- |
-| `/backend/alembic/AGENTS.md`        | Database migration documentation   |
+| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated) |
+| `/backend/api/AGENTS.md`            | API layer overview                 |
 | `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)          |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (43 schemas)      |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (24 modules) |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)      |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (25 modules) |
 | `/backend/api/utils/AGENTS.md`      | API utility modules                |
-| `/backend/core/AGENTS.md`           | Core infrastructure (28 modules)   |
+| `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)   |
+| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments |
 | `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure     |
+| `/backend/evaluation/AGENTS.md`       | Prompt-evaluation harness          |
 | `/backend/jobs/AGENTS.md`           | Background job modules             |
 | `/backend/models/AGENTS.md`         | Database models (52 models)        |
-| `/backend/repositories/AGENTS.md`   | Repository pattern (5 repos)       |
-| `/backend/services/AGENTS.md`       | Service layer (89 modules)         |
+| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)|
+| `/backend/services/AGENTS.md`       | Service layer (204 modules)        |
 | `/backend/tests/AGENTS.md`          | Test infrastructure                |
-| `/backend/data/AGENTS.md`           | Runtime data directory             |
+| `/backend/examples/AGENTS.md`         | Example scripts (Redis usage)      |
+| `/backend/scripts/AGENTS.md`          | Utility scripts (VRAM benchmarking)|
+| `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir) |
 
 ### Project-Level Documentation
 
@@ -1007,5 +1015,4 @@ The backend provides three health endpoints for different use cases:
 | ----------------------------------- | ------------------------------ |
 | `/CLAUDE.md`                        | Project-wide instructions      |
 | `/docs/development/testing.md`      | Comprehensive testing patterns |
-| `/docs/TEST_PERFORMANCE_METRICS.md` | Test performance baselines     |
 | `/docs/ROADMAP.md`                  | Post-MVP enhancements          |

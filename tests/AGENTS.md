@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This directory contains tests for root-level scripts, specifically the interactive setup script (`setup.py`) and its supporting library (`setup_lib/`). These tests verify the configuration generation and system setup functionality.
+Auxiliary test suites that run outside the backend/frontend trees: model benchmarks (pytest), K6 load tests, and deployment smoke tests. The old root `test_setup.py` / `test_setup_core.py` were retired to `archive/` — setup-script coverage now lives in `backend/tests/unit/`.
 
-**Note:** The main test suites are located in:
+**Main test suites are elsewhere:**
 
 - `backend/tests/` - Backend unit and integration tests (pytest)
 - `frontend/tests/e2e/` - Frontend E2E tests (Playwright)
@@ -12,114 +12,19 @@ This directory contains tests for root-level scripts, specifically the interacti
 
 ## Directory Contents
 
-```
-tests/
-  AGENTS.md              # This file
-  test_setup.py          # Tests for setup.py script
-  test_setup_core.py     # Tests for setup_lib.core module
-  load/                  # K6 load testing scripts
-    AGENTS.md            # Load testing guide
-    README.md            # Load testing documentation
-    all.js               # Combined load test suite
-    cameras.js           # Camera API load tests
-    config.js            # K6 test configuration
-    events.js            # Events API load tests
-    mutations.js         # GraphQL mutation load tests
-    redis.js             # Redis performance tests
-    websocket.js         # WebSocket load tests
-    websocket-scale.js   # WebSocket scalability tests
-  smoke/                 # Smoke test suite for deployment verification
-    __init__.py          # Package marker
-    conftest.py          # Pytest fixtures for smoke tests
-    README.md            # Smoke testing documentation
-    test_deployment_health.py  # Deployment health checks
-    test_monitoring_smoke.py   # Monitoring stack smoke tests
-    test_websocket_smoke.py    # WebSocket connectivity smoke tests
-```
+| Suite        | Purpose                                                          | How to run                            |
+| ------------ | -------------------------------------------------------------- | ------------------------------------- |
+| `benchmark/` | AI model benchmark tests (engine comparison, quality, metrics) | `uv run pytest tests/benchmark/ -v`   |
+| `load/`      | K6 load-test scripts (cameras, events, WebSocket, Redis)        | `k6 run tests/load/<script>.js`       |
+| `smoke/`     | Post-deployment smoke tests (health, monitoring, WebSocket)     | `uv run pytest tests/smoke/ -v`       |
 
-## Key Files
+Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGENTS.md` with details.
 
-### test_setup.py
+## Patterns
 
-**Purpose:** Tests for the main interactive setup script.
-
-**Tests Cover:**
-
-- `check_port_available()` - Port availability detection
-- `find_available_port()` - Finding next available port
-- `generate_password()` - Secure password generation
-- `generate_env_content()` - Environment file content generation
-- `generate_docker_override_content()` - Docker override file generation
-- `write_config_files()` - File writing functionality
-- `run_quick_mode()` - Quick setup mode
-- `run_guided_mode()` - Guided setup mode
-- `configure_firewall()` - Firewall configuration suggestions
-- `prompt_with_default()` - User input handling
-
-**Running Tests:**
-
-```bash
-# Run setup tests
-uv run pytest tests/test_setup.py -v
-
-# Run with coverage
-uv run pytest tests/test_setup.py --cov=setup --cov-report=term-missing
-```
-
-### test_setup_core.py
-
-**Purpose:** Tests for the setup library core module (`setup_lib/core.py`).
-
-**Test Classes:**
-
-- `TestCheckPortAvailable` - Port availability checks
-- `TestFindAvailablePort` - Available port discovery
-- `TestGeneratePassword` - Password generation
-- `TestWeakPassword` - Weak password detection
-
-**Running Tests:**
-
-```bash
-# Run setup_lib tests
-uv run pytest tests/test_setup_core.py -v
-```
-
-## Test Organization
-
-### Main Test Suites (Other Locations)
-
-| Location                     | Type        | Framework  | Count   |
-| ---------------------------- | ----------- | ---------- | ------- |
-| `backend/tests/unit/`        | Unit tests  | pytest     | ~2957   |
-| `backend/tests/integration/` | Integration | pytest     | ~626    |
-| `frontend/tests/e2e/`        | E2E tests   | Playwright | ~233    |
-| `frontend/src/**/*.test.ts`  | Component   | Vitest     | Various |
-
-### This Directory
-
-| File                 | Type       | Framework | Focus      |
-| -------------------- | ---------- | --------- | ---------- |
-| `test_setup.py`      | Unit tests | pytest    | setup.py   |
-| `test_setup_core.py` | Unit tests | pytest    | setup_lib/ |
-
-## Running All Tests
-
-```bash
-# Run all root-level tests
-uv run pytest tests/ -v
-
-# Run all backend tests
-uv run pytest backend/tests/ -n auto --dist=worksteal
-
-# Run all frontend tests
-cd frontend && npm test
-
-# Run E2E tests
-cd frontend && npx playwright test
-
-# Full validation script
-./scripts/validate.sh
-```
+- **Smoke tests need a running stack** - `tests/smoke/` hits live endpoints (`/api/system/health`, Grafana, WebSocket); run only after `docker compose up`.
+- **K6 scripts are config-driven** - endpoints/thresholds come from `load/config.js`; `all.js` is the combined suite.
+- **`tests/unit/` is vestigial** - only a gitignored `__pycache__` remains from the retired root setup-script tests; do not add new tests there.
 
 ## Related Documentation
 

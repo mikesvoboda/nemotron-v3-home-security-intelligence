@@ -115,9 +115,6 @@ Thumbs.db
 backend/data/prompts/*/history/
 backend/data/prompts/*/current.json
 
-# Beads (track JSONL for collaboration, ignore local DB)
-.beads/*.db
-.beads/beads.db
 coverage.json
 
 # Worktrees
@@ -166,3 +163,6 @@ mutants/
 # itself is ledger-recorded, the sandbox copy of the repo is not evidence).
 .stryker-tmp/
 frontend/reports/mutation/
+
+# Local dev PID files (dev.sh recreates the dir; untracked since 2026-09-21 cleanup)
+.pids/

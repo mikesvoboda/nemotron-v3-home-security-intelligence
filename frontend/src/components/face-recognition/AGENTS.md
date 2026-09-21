@@ -19,8 +19,10 @@ This directory contains React components for managing known persons, viewing fac
 | File | Purpose |
 |------|---------|
 | `frontend/src/types/faceRecognition.ts` | TypeScript type definitions |
-| `frontend/src/services/faceRecognitionApi.ts` | API client for face recognition endpoints |
-| `frontend/src/hooks/useFaceRecognition.ts` | React Query hooks for data fetching |
+| `frontend/src/hooks/useFaceRecognitionApi.ts` | Combined API client + React Query hooks (fetch helpers and queries both live here — there is no separate services/faceRecognitionApi.ts) |
+| `frontend/src/hooks/useKnownPersonsApi.ts` | Known-persons CRUD queries (`useKnownPersonsQuery`, create/update/delete mutations) |
+| `frontend/src/hooks/useFaceEventsQuery.ts` | Cursor-paginated face-event feed query |
+| `frontend/src/hooks/useUnknownStrangerAlerts.ts` | Unknown-face WebSocket alerts |
 | `backend/api/routes/face_recognition.py` | Backend API endpoints |
 | `backend/api/schemas/face_recognition.py` | Backend Pydantic schemas |
 | `backend/services/face_detector.py` | Face detection service |
@@ -199,21 +201,25 @@ Uses Headless UI Menu component with transition animations:
 
 ## API Endpoints Used
 
+> **Gotcha:** there is no `/api/face-recognition/...` prefix. The backend router (`backend/api/routes/face_recognition.py`) mounts at `/api`, so the resource paths are `/api/known-persons` and `/api/face-events`.
+
 | Method | Endpoint | Purpose |
 |--------|----------|---------|
-| GET | `/api/face-recognition/known-persons` | List known persons |
-| POST | `/api/face-recognition/known-persons` | Create known person |
-| GET | `/api/face-recognition/known-persons/{id}` | Get known person details |
-| PUT | `/api/face-recognition/known-persons/{id}` | Update known person |
-| DELETE | `/api/face-recognition/known-persons/{id}` | Delete known person |
-| GET | `/api/face-recognition/known-persons/{id}/embeddings` | List embeddings |
-| POST | `/api/face-recognition/known-persons/{id}/enroll` | Enroll face |
-| DELETE | `/api/face-recognition/embeddings/{id}` | Delete embedding |
-| GET | `/api/face-recognition/events` | List face events |
-| POST | `/api/face-recognition/events/{id}/identify` | Identify face |
-| GET | `/api/face-recognition/stats` | Get face statistics |
-| GET | `/api/face-recognition/known-persons/{id}/appearances` | Get appearances |
-| GET | `/api/face-recognition/unknown-strangers` | Get unknown faces |
+| GET | `/api/known-persons` | List known persons |
+| POST | `/api/known-persons` | Create known person |
+| GET | `/api/known-persons/{id}` | Get known person details |
+| PATCH | `/api/known-persons/{id}` | Update known person |
+| DELETE | `/api/known-persons/{id}` | Delete known person |
+| GET | `/api/known-persons/{id}/embeddings` | List embeddings |
+| DELETE | `/api/known-persons/{id}/embeddings/{embedding_id}` | Delete embedding |
+| POST | `/api/known-persons/{id}/enroll-from-detection` | Enroll face from a detection |
+| GET | `/api/known-persons/{id}/appearances` | Get appearances |
+| GET | `/api/face-events` | List face events |
+| GET | `/api/face-events/stats` | Get face statistics |
+| GET | `/api/face-events/unknown` | Get unknown faces |
+| POST | `/api/face-events/{event_id}/identify` | Identify face |
+| POST | `/api/face-events/match` | Match face against known persons |
+| GET | `/api/enrollment-queue` | Auto-enrollment candidate queue |
 
 ## Testing
 

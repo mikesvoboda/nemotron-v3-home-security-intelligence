@@ -72,10 +72,10 @@ import { PTZControls } from '../ptz';
 
 | Location                            | Purpose                          |
 | ----------------------------------- | -------------------------------- |
-| `src/hooks/usePtzControl.ts`        | Hook for PTZ command execution   |
-| `src/hooks/usePresets.ts`           | Hook for preset management       |
-| `src/services/ptzApi.ts`            | PTZ API service functions        |
-| `src/types/ptz.ts`                  | PTZ TypeScript types             |
+| `frontend/src/hooks/usePtzControl.ts`   | Hook for PTZ command execution (`usePtzControl(cameraId)`) |
+| `frontend/src/hooks/usePresets.ts`      | Hook for preset management (`usePresets(cameraId, enabled)`) |
+| `frontend/src/services/ptzApi.ts`       | `executePtzCommand`, `getPtzPresets`, `gotoPtzPreset` |
+| `frontend/src/types/ptz.ts`             | PTZ types + `PTZ_DIRECTION_MAP` (direction -> command payload) |
 
 ## Integration Points
 

@@ -71,7 +71,6 @@ CHANGELOG.md
 LICENSE
 
 # Development-only directories
-.beads/
 mutants/
 custom/
 

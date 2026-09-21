@@ -65,7 +65,7 @@ deployment/
 ### Deploy from Scratch
 
 1. Read `README.md` - Prerequisites section
-2. Run `./setup.sh` - Generate configuration
+2. Run `python setup.py` - Generate configuration (.env with secure passwords)
 3. Run `./ai/download_models.sh` - Download AI models
 4. Run `docker compose -f docker-compose.prod.yml up -d`
 5. Verify with `curl http://localhost:8000/api/system/health/ready`
@@ -104,7 +104,6 @@ deployment/
 | Administration Guide | `../admin/`                        | Configuration and secrets       |
 | Docker Compose Files | `/docker-compose.*.yml`            | Container orchestration files   |
 | AI Model Scripts     | `/ai/download_models.sh`           | Model download automation       |
-| GitHub GPU Workflow  | `/.github/workflows/gpu-tests.yml` | CI/CD workflow using GPU runner |
 
 ## Key Patterns
 

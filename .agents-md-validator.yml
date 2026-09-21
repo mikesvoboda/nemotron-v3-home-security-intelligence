@@ -24,11 +24,12 @@ exclude_directories:
 no_agents_md_required:
   - certs/
   - data/
-  - custom/clips/
   # Setup library is simple utilities
   - setup_lib/
   # Tests directory at root is minimal
   - tests/
+  # Quarantine for pending-deletion artifacts — content, not code to navigate
+  - archive/
 
 # File extensions that count as "code files"
 # Directories with >= min_code_files of these need AGENTS.md
