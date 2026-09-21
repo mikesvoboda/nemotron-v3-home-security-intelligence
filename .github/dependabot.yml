@@ -67,6 +67,23 @@ updates:
     commit-message:
       prefix: 'chore(deps)'
       prefix-development: 'chore(deps-dev)'
+    # Deliberately deferred majors — measured ceilings in
+    # docs/plans/2026-09-21-dependabot-triage.md (#6607, #6605). Each floor sits
+    # one major above the current pin, NOT at the refused version, so the
+    # landable intermediate stays openable: typescript 6.0.3 measures clean
+    # while 7.0.2 cannot pass lint (typescript-eslint 8.70.0 caps peer <6.1.0),
+    # and eslint 9.x minors keep flowing while no plugin has an ESLint-10 peer.
+    # NOTE: `ignore` suppresses security updates in-range too — another reason
+    # these are floors, not full ranges.
+    ignore:
+      - dependency-name: 'typescript'
+        versions: ['>=7.0.0']
+      - dependency-name: 'eslint'
+        versions: ['>=10.0.0']
+      - dependency-name: '@eslint/js'
+        versions: ['>=10.0.0']
+      - dependency-name: 'eslint-plugin-security'
+        versions: ['>=4.0.0']
     # Group minor and patch updates to reduce PR noise
     groups:
       npm-minor-patch:
@@ -175,6 +192,14 @@ updates:
       - 'docker'
     commit-message:
       prefix: 'chore(deps)'
+    # #6602 deferred: node 26 is not LTS until 2026-10-28, and the major must
+    # flip .nvmrc, frontend/package.json engines, the 21 workflow
+    # NODE_VERSION/node-version literals and validate.sh in one commit or
+    # scripts/check-version-consistency.sh reddens. Docker tags compare with
+    # Bundler range syntax (docs `versions` parameter), hence '>= 26'.
+    ignore:
+      - dependency-name: 'node'
+        versions: ['>= 26']
     groups:
       docker-security:
         applies-to: security-updates
