@@ -109,17 +109,26 @@ jobs:
       - name: Flake allowlist hygiene
         run: uv run --no-project python scripts/check-flake-allowlist.py
       # WP1.1: the escape-hatch census, measured on every CI run. The
-      # --expect literal is the ratchet's seed value: the exact baseline the
+      # --expect value is the ratchet's seed value: the exact baseline the
       # spec records AND that this tree reproduces (verified equal to a
       # census of origin/main itself, and stable across consecutive runs).
       # CI failing here means either the census drifted from the measured
       # tree or a suppression changed without the baseline being adjudicated
       # — WP1.3's ratchet turns this from a stability check into a
       # counts-may-only-fall gate.
+      # WP4.3 (2026-09-21): the expect was a hand-transcribed literal of
+      # suppression-baseline.json — PR #6595 (unspecced 233->142) proved the
+      # copies ROT: the baseline moved in-commit via the sanctioned
+      # `ratchet-check --update` path and this literal reddened Collection
+      # Sanity on a fully adjudicated fall. Deriving from the committed
+      # baseline keeps both teeth: a RISE fails here and in ratchet-check;
+      # a fall without editing the baseline file still fails HERE (census !=
+      # baseline), so adjudication stays a human diff — one file to move
+      # instead of two hand-synced ones. Same doctrine as #6592 minting the
+      # contract count instead of pinning it.
       - name: Suppression census (baseline stable)
-        run: >-
-          uv run python scripts/suppression-census.py --expect
-          '{"collection_allowlist":4,"coverage_omit":5,"excluded_test_trees":4,"flake_allowlist":0,"frontend_only":0,"frontend_quarantine":16,"frontend_skip":54,"frontend_todo":0,"pytest_skip":32,"pytest_skip_imperative":93,"pytest_skipif":56,"pytest_xfail":4,"unspecced_patch":233,"tpa_slow_list":7}'
+        run: |-
+          uv run python scripts/suppression-census.py --expect "$(cat .github/suppression-baseline.json)"
       # WP1.3: the ratchet. The --expect above says "the census must not
       # drift"; this says "counts may only FALL" — an unregistered
       # @pytest.mark.skip (or any new suppression of any category) fails CI
