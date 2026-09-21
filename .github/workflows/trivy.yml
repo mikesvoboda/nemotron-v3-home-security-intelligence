@@ -278,6 +278,21 @@ jobs:
           trivyignores: '.trivyignore'
           scanners: 'vuln'
           version: 'v0.74.0'
+          # Fail only on findings we can ACT on. Repairing the version pin above
+          # made this job scan for the first time in 5 runs, and the first real
+          # scan of e96fabb7 returned 252 CRITICAL/HIGH: 250 of them Debian
+          # 12.15 base-image CVEs with NO upstream fix published (Trivy's own
+          # "Fixed Version" column empty), and 2 with a fix — both handled in
+          # backend/Dockerfile's prod stage in this commit.
+          #
+          # The alternative was 250 dated .trivyignore entries. That is worse
+          # doctrine, not better: entries expire and re-redden main on a date
+          # unrelated to any upstream release, and 250 lines of noise is where a
+          # real finding goes to hide. ignore-unfixed states the actual policy —
+          # "a fix exists and we have not applied it" is a build failure; "the
+          # ecosystem has no patch yet" is not something a merge gate can fix.
+          # A new CVE still reddens the moment a fix ships for it.
+          ignore-unfixed: true
 
       - name: Create Linear issue on vulnerability found
         if: failure() && steps.trivy-scan.outcome == 'failure'

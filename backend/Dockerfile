@@ -162,10 +162,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Install py-spy for continuous profiling (pushes to Pyroscope)
+# `uv tool install` builds an isolated env under /root/.local that exists ONLY
+# to produce this one binary, then is never read again. Removing it after the
+# copy shrinks the runtime image and cuts scan surface. `cp -L` because the
+# removal must not strand a symlink, and `py-spy --version` runs AFTER the rm so
+# a cleanup that broke the profiler fails the BUILD instead of shipping.
+# (This does NOT address the Trivy msgpack/setuptools findings — those are pip's
+#  VENDORED copies, see .trivyignore. Verified by listing the built image: the
+#  only dist-info present are msgpack-1.2.2 and setuptools-84.0.0, both clean.)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 RUN uv tool install py-spy && \
-    cp /root/.local/bin/py-spy /usr/local/bin/py-spy && \
-    chmod +x /usr/local/bin/py-spy
+    cp -L /root/.local/bin/py-spy /usr/local/bin/py-spy && \
+    chmod +x /usr/local/bin/py-spy && \
+    test -x /usr/local/bin/py-spy && \
+    rm -rf /root/.local /root/.cache && \
+    py-spy --version
 
 # Copy profiler script
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh

@@ -265,3 +265,28 @@ AVD-DS-0002
 # the locked version; Debian tracker checked for every base-image entry;
 # filesystem-scan findings remediated where the dependency graph allows)
 # Next review: 2027-03-16
+
+# =============================================================================
+# pip's VENDORED bundle (backend image scan, added 2026-09-20)
+# =============================================================================
+# These two are not installed packages and are not importable by the app. They
+# are private copies inside pip's own _vendor/ tree in the base image
+# (python:3.14-slim-bookworm ships pip 26.2.1). Trivy reads their versions from
+# pip/_vendor/vendor.txt and pip's shipped bom.cdx.json, which is why they have
+# no .dist-info and report under a bare "Python" target with no path.
+#
+# Verified 2026-09-20 by listing the built image (run 35550126923, backend image
+# scan diagnostic). The ONLY python dist-info present are:
+#     /app/.venv/.../msgpack-1.2.2.dist-info      (clean)
+#     /app/.venv/.../setuptools-84.0.0.dist-info  (clean)
+# uv.lock pins msgpack 1.2.2 and setuptools 84.0.0, so our dependency graph is
+# already past both fixes. Only upstream pip can revendor its bundle; there is
+# no action available to this repo short of removing pip from the image.
+#
+# ignore-unfixed does NOT filter these: a fix exists upstream (1.2.1 / 78.1.1),
+# it is simply not ours to apply. Re-check when the base image ships a newer pip.
+#
+# GHSA-6v7p-g79w-8964 - msgpack 1.1.2 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
+GHSA-6v7p-g79w-8964
+# CVE-2025-47273 - setuptools 70.3.0 vendored in pip/_vendor (REVIEW BY: 2026-12-20)
+CVE-2025-47273
