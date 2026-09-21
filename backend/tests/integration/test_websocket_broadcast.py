@@ -215,12 +215,19 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(
             patch(
                 "backend.main.get_system_broadcaster",
+                autospec=True,
                 return_value=mock_system_broadcaster,
             )
         )
-        stack.enter_context(patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor))
-        stack.enter_context(patch("backend.main.CleanupService", return_value=mock_cleanup_service))
-        stack.enter_context(patch("backend.main.FileWatcher", return_value=mock_file_watcher))
+        stack.enter_context(
+            patch("backend.main.GPUMonitor", autospec=True, return_value=mock_gpu_monitor)
+        )
+        stack.enter_context(
+            patch("backend.main.CleanupService", autospec=True, return_value=mock_cleanup_service)
+        )
+        stack.enter_context(
+            patch("backend.main.FileWatcher", autospec=True, return_value=mock_file_watcher)
+        )
         stack.enter_context(
             patch(
                 "backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)
@@ -234,6 +241,7 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(
             patch(
                 "backend.main.ServiceHealthMonitor",
+                autospec=True,
                 return_value=mock_service_health_monitor,
             )
         )
@@ -247,6 +255,7 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(
             patch(
                 "backend.main.get_worker_supervisor",
+                autospec=True,
                 return_value=mock_worker_supervisor,
             )
         )
@@ -256,12 +265,14 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(
             patch(
                 "backend.main.PerformanceCollector",
+                autospec=True,
                 return_value=mock_performance_collector,
             )
         )
         stack.enter_context(
             patch(
                 "backend.main.BackgroundEvaluator",
+                autospec=True,
                 return_value=mock_background_evaluator,
             )
         )
@@ -270,33 +281,40 @@ def sync_client_for_broadcast(integration_env):
         stack.enter_context(
             patch(
                 "backend.main.ContainerOrchestrator",
+                autospec=True,
                 return_value=mock_container_orchestrator,
             )
         )
-        stack.enter_context(patch("backend.main.DockerClient", return_value=mock_docker_client))
+        stack.enter_context(
+            patch("backend.main.DockerClient", autospec=True, return_value=mock_docker_client)
+        )
         stack.enter_context(patch("backend.main.register_workers", MagicMock()))
         stack.enter_context(patch("backend.main.enable_deferred_db_logging", MagicMock()))
         stack.enter_context(
             patch(
                 "backend.main.create_detection_worker",
+                autospec=True,
                 return_value=mock_detection_worker,
             )
         )
         stack.enter_context(
             patch(
                 "backend.main.create_analysis_worker",
+                autospec=True,
                 return_value=mock_analysis_worker,
             )
         )
         stack.enter_context(
             patch(
                 "backend.main.create_timeout_worker",
+                autospec=True,
                 return_value=mock_timeout_worker,
             )
         )
         stack.enter_context(
             patch(
                 "backend.main.create_metrics_worker",
+                autospec=True,
                 return_value=mock_metrics_worker,
             )
         )

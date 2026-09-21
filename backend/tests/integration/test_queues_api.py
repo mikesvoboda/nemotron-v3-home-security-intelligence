@@ -112,11 +112,13 @@ def get_patches(
         patch("backend.main.close_redis", AsyncMock(return_value=None)),
         patch(
             "backend.main.get_system_broadcaster",
+            autospec=True,
             return_value=mock_services["system_broadcaster"],
         ),
-        patch("backend.main.GPUMonitor", return_value=mock_services["gpu_monitor"]),
+        patch("backend.main.GPUMonitor", autospec=True, return_value=mock_services["gpu_monitor"]),
         patch(
             "backend.main.CleanupService",
+            autospec=True,
             return_value=mock_services["cleanup_service"],
         ),
         patch("backend.main.FileWatcher", mock_services["file_watcher_class"]),
@@ -132,6 +134,7 @@ def get_patches(
         patch("backend.main.stop_broadcaster", AsyncMock()),
         patch(
             "backend.main.ServiceHealthMonitor",
+            autospec=True,
             return_value=mock_services["service_health_monitor"],
         ),
         patch(

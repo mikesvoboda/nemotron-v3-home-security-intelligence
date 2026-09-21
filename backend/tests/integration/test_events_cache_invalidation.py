@@ -184,10 +184,11 @@ async def client_with_cache(
         patch("backend.main.close_redis", AsyncMock(return_value=None)),
         patch(
             "backend.main.get_system_broadcaster",
+            autospec=True,
             return_value=mock_system_broadcaster,
         ),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.main.GPUMonitor", autospec=True, return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", autospec=True, return_value=mock_cleanup_service),
         patch("backend.main.FileWatcher", mock_file_watcher_class),
         patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
         patch("backend.main.stop_pipeline_manager", AsyncMock()),
@@ -195,6 +196,7 @@ async def client_with_cache(
         patch("backend.main.stop_broadcaster", AsyncMock()),
         patch(
             "backend.main.ServiceHealthMonitor",
+            autospec=True,
             return_value=mock_service_health_monitor,
         ),
         patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),

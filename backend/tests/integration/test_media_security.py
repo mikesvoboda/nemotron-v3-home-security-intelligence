@@ -199,17 +199,21 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
         ),
         patch("backend.main.init_redis", mock_init_redis),
         patch("backend.main.get_broadcaster", mock_get_broadcaster),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.FileWatcher", autospec=True, return_value=mock_file_watcher),
         patch("backend.main.get_pipeline_manager", mock_get_pipeline_manager),
         patch(
             "backend.main.get_system_broadcaster",
+            autospec=True,
             return_value=mock_system_broadcaster,
         ),
-        patch("backend.main.get_worker_supervisor", return_value=mock_worker_supervisor),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch(
+            "backend.main.get_worker_supervisor", autospec=True, return_value=mock_worker_supervisor
+        ),
+        patch("backend.main.GPUMonitor", autospec=True, return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", autospec=True, return_value=mock_cleanup_service),
         patch(
             "backend.main.ServiceHealthMonitor",
+            autospec=True,
             return_value=mock_service_health_monitor,
         ),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
