@@ -8834,8 +8834,16 @@ The "stryker 10 green" claim in the execution record above is WRONG as to a
 *score*: the batch made the harness run end-to-end for the first time in repo
 history (checker-init wall broken — that part holds), but the full pass reports
 0 killed / 384 mutants with "0.00 tests per mutant" — a stryker-vitest-runner ↔
-vitest 5 integration defect, not test quality. Isolation experiment running
-(triage doc Finding 5). No frontend mutation score has ever existed on main
-(scheduled job died at checker init since July, masked by `|| true`), so nothing
-regressed; the honest claim is "first real run, score invalid, root-causing in
-progress."
+vitest 5 integration defect, not test quality. No frontend mutation score has ever
+existed on main (scheduled job died at checker init since July, masked by
+`|| true`), so nothing regressed.
+
+**Root-caused same evening (triage doc Finding 5, experiments complete):** two
+isolation runs — checker-less, then `coverageAnalysis: 'all'` — both 0/80 killed
+with "0.00 tests per mutant", while mutants demonstrably executed (~4–5 min
+mutant wall-time) and every assertion still passed against mutated threshold
+strings. That refutes the coverage-mapping hypothesis: under vitest 5's module
+runner the instrumented module never reaches the test process. vitest-runner
+10.0.0 is newest on npm (no upstream fix waiting). Score is vacuous in both
+modes; a real score is its own future work package (upstream issue w/ repro,
+vitest downgrade, or runner swap) — NOT a blocker for this batch.
