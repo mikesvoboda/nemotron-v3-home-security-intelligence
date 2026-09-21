@@ -257,7 +257,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 
 **Files Created:**
 
-- PID files: `.pids/backend.pid`, `.pids/frontend.pid`
+- PID files: `.pids/backend.pid`, `.pids/frontend.pid` (local runtime only; dir gitignored)
 - Log files: `logs/backend.log`, `logs/frontend.log`
 
 #### restart-all.sh

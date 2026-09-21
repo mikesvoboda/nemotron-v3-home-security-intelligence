@@ -4,7 +4,6 @@
 # Runtime data (logs, caches, temp files)
 backend/data/logs/
 backend/data/thumbnails/
-.pids/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -76,7 +75,6 @@ LICENSE
 
 # Mutation testing and analysis
 mutants/
-.beads/
 
 # Custom test artifacts
 custom/clips/

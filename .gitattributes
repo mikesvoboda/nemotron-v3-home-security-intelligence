@@ -9,7 +9,6 @@
 # ============================================================================
 # Merge Drivers
 # Beads JSONL files - custom merge driver for issue tracking
-.beads/issues.jsonl merge=beads
 # Binary Files - Do not diff these files
 # Images
 *.png binary

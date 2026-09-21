@@ -58,8 +58,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `uv.lock`           | uv lockfile for reproducible Python builds    |
 | `.python-version`   | Python version (3.14)                         |
 | `package.json`      | Root-level Node.js configuration (minimal)    |
-| `package-lock.json` | Node.js lockfile                              |
-| `setup.bat`         | Environment setup launcher (Windows)          |
 | `setup.py`          | Python setup script with interactive prompts  |
 
 ### Git and Security Configuration
@@ -99,8 +97,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── repositories/     # Data access layer (base, camera, detection, event repos)
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
-├── custom/               # Custom resources (test clips, configurations)
-│   └── clips/            # Video clips for testing
 ├── certs/                # SSL certificates directory (placeholder)
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
@@ -142,10 +138,8 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── scripts/              # Development and deployment scripts
 │   └── hooks/            # Git hooks (post-checkout worktree protection)
 ├── setup_lib/            # Python utilities for setup.py
-├── tests/                # Root-level setup script tests
-├── vsftpd/               # vsftpd FTP server container configuration
-├── .beads/               # Legacy issue tracking data (deprecated, migrated to Linear)
-├── .pids/                # PID files for dev services (backend.pid, frontend.pid)
+├── tests/                # Root-level test suites (benchmark, load, smoke)
+├── archive/              # Not-load-bearing artifacts pending delete sign-off (see archive/README.md)
 └── .github/              # GitHub Actions workflows and configs
     ├── workflows/        # CI/CD workflows
     ├── codeql/           # CodeQL security analysis

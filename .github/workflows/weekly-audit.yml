@@ -117,4 +117,3 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "Review the job logs above for detailed findings." >> $GITHUB_STEP_SUMMARY
-          echo "Create beads for issues with: \`bd create '<title>' --labels weekly-audit\`" >> $GITHUB_STEP_SUMMARY
