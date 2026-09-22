@@ -9026,3 +9026,37 @@ freeze incidental strings the codebase treats as non-contractual; the
 feed's classification stands). C19 (`utf-8`→`UTF-8` codec name) is
 literally equivalent at the codec level. C20 duration arithmetic feeds
 only a logger extra. C18 (x4) mutates log_context correlation keys.
+
+### CI-SANITY RED on PR #6639 root-caused — the 5s timer-vs-contract coin-toss, fixed with house explicit markers (`1d66e412`)
+
+PR #6639's only failing required job was Collection Sanity (run
+35723490624, job 106731541698, step "Run the anti-rot gates' own
+tests"): `1 failed, 179 passed, 8 warnings in 107.68s`, FAILED line
+`scripts/test_check_ai_provider_parity.py::test_real_tree_is_deterministic
+
+- Failed: Timeout (>5.0s) from pytest-timeout`. Read the job log via
+`gh api repos/.../actions/jobs/106731541698/logs` — the name of the job
+  ("zero-byte / zero-test tracked files") does not describe what killed
+  it; the pytest step did.
+
+Refutation-first, measured this session: the branch is NOT the cause.
+`git diff --name-only origin/main..HEAD` touches 12 files, zero of them
+a scanned .py under backend/ or ai/ (the two changed test files live
+under backend/tests/unit, which the parity scanner does not read); one
+scanned path is scripts/ itself and was untouched pre-fix. Local full
+`real_tree_*` leg: 5 passed 5.36s; whole file 27 passed 6.90s; single
+`real_report()` 0.47-0.57s — the CI cost is runner-load, not tree.
+
+The structural lie the file admits at lines 60-68 (WP0.1 erratum):
+pyproject `timeout = 5` (pyproject.toml:495) is a coin-toss for tests
+whose body is a full-tree subprocess scan. Two tests sat above it on
+hopes, not budgets: `test_real_tree_is_deterministic` pays TWO
+back-to-back scans; `test_real_tree_runtime_under_30s` ASSERTS a 30s
+budget its own 5s timer forbids ever reaching — a test that cannot
+exercise its contract. Fix = the documented, precedented override, not
+a floor move: `@pytest.mark.timeout(30)` / `@pytest.mark.timeout(35)`
+(conftest.py:445: explicit markers "always unchanged"; precedent
+backend/tests/integration/test_mqtt_integration.py:584 carries the same
+
+> 5s-under-contention justification). pytest-timeout bounds; the
+> determinism assertions and the <30s assertion stay exactly as written.
