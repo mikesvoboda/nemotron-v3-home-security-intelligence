@@ -9084,3 +9084,32 @@ singleton-arg→None FAIL; default `101` FAIL — 7/7 mutations caught by
 7/7 runs. `get_pending_events _14` (`and False` on the str branch)
 stays de-facto equivalent on CPython (int(b"..") legal) — the dossier's
 own accounting already exempted it; nothing hidden here.
+
+### S2 batch 3 — queue_status_service clusters 1/3/5/7/8/10-14/16/17/21/23/25: 25 red-checks, 3 dossier keys re-adjudicated EQUIVALENT-in-function (`136ae73f`)
+
+Frozen feed `queue_status_service.md`: 241 mutants / 69 survived / 50
+TEST-GAP. Root cause (dossier, confirmed on the shipped suite): every
+Redis call ran through argument-blind `AsyncMock` and asserts were
+`> 0`-style; `DLQ_ANALYSIS_QUEUE` was never imported by the test file —
+its absence _is_ why clusters 10/12 survived. 10 tests added across 4
+contract classes; full file 59 passed 2.64-2.77s, ruff clean.
+
+Red-check battery measured this session — 25 real-shape mutations, each
+applied one at a time, target asserted FAIL, source verified
+byte-equal after every run: w4 w10 w12 w18 w20 · t2 t8 t12 t15 ·
+o20 o34 o53 o57 · p2 p6 q7 q14 q21 · g34 · gallq-key→None · qstatus
+display-key→None (real m3 shape, from the feed's verbatim
+qs_diffs.txt) · factory(None). 25/25 killed.
+
+MEASURED DISAGREEMENT with the frozen dossier (recorded, not applied —
+unfreezing WP4.4 is a ruling, not a workaround): cluster 23 keys
+gallq 17/18 claim `get(q, None)` produces a pydantic ValidationError,
+but the except handler runs only for the four hard-coded queues, ALL
+four present in QUEUE_NAME_MAP, so the None default is never reached —
+no input makes them observably different; key 19 (`get(queue_name, )`
+trailing comma) is TEXTUALLY the original per the feed's own
+`qs_diffs.txt` hunk. All three are EQUIVALENT-in-function; cluster 23
+is 1-killed + 3-unkillable, so the honest TEST-GAP coverable-by-input
+count for this module is 47, not 50. (My first probe's apparent
+"survivor" for the dropped-default shape was exactly this: a mutation
+of a branch that cannot execute.)
