@@ -965,8 +965,8 @@ Manages all application configuration using Pydantic Settings with environment v
 - `app_name: str` - Application name (default: "Home Security Intelligence")
 - `app_version: str` - Version string (default: "0.1.0")
 - `debug: bool` - Debug mode flag (default: False)
-- `admin_enabled: bool` - Enable admin endpoints (requires debug=True also)
-- `admin_api_key: str | None` - Optional API key for admin endpoints
+- `admin_enabled: bool` - Enable admin endpoints; `require_admin_access()` gates them on this flag ALONE (default True — `debug` is not consulted), so the network boundary (bind 127.0.0.1) is the real protection
+- `admin_api_key: SecretStr | None` - Reserved and NOT enforced: declared plus redacted in logs, but no code path reads it and no `X-Admin-API-Key` header is validated
 
 **API Settings:**
 

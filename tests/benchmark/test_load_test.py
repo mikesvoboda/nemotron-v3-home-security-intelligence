@@ -561,7 +561,6 @@ class TestEdgeCases:
     async def test_handles_timeouts(self) -> None:
         """Gracefully handle request timeouts."""
         import httpx
-
         from scripts.benchmark.load_test import LoadTestRunner, SustainedLoadConfig
 
         config = SustainedLoadConfig(

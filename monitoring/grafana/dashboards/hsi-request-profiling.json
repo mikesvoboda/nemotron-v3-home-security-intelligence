@@ -40,10 +40,10 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": true,
-      "title": "Jaeger Traces",
-      "tooltip": "Open Jaeger in Grafana Explore to find trace IDs",
+      "title": "Tempo Traces",
+      "tooltip": "Open Tempo in Grafana Explore to find trace IDs",
       "type": "link",
-      "url": "/explore?orgId=1&left=%7B%22datasource%22:%22Jaeger%22%7D"
+      "url": "/explore?orgId=1&left=%7B%22datasource%22:%22tempo%22%7D"
     },
     {
       "asDropdown": false,
@@ -92,7 +92,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "## Request-Level Debugging Workflow\n\n### Step 1: Find Slow Requests\nUse the **Recent Slow Requests** table below to identify endpoints with high p99 latency (>500ms shown in yellow/red).\n\n### Step 2: Get the Trace ID\n- Click **Jaeger Traces** link above to open Grafana Explore\n- Search for slow traces by service name and duration\n- Copy the `trace_id` from the trace details\n\n### Step 3: View the Profile\n- Paste the trace ID into the **Trace ID** variable at the top\n- The flame graph on the right will show CPU usage for that specific request\n\n### Step 4: Identify Hotspots\n- **Wide bars** = functions consuming significant CPU time\n- **Bottom bars** = actual work being done (leaf functions)\n- **Click** on bars to zoom into specific code paths\n\n### Alternative: Use Jaeger Direct Navigation\n1. Find the trace in Jaeger (via Explore or Tracing dashboard)\n2. Click on a slow span\n3. Look for **Profiles** tab or link\n4. Click to jump directly to the corresponding Pyroscope profile",
+        "content": "## Request-Level Debugging Workflow\n\n### Step 1: Find Slow Requests\nUse the **Recent Slow Requests** table below to identify endpoints with high p99 latency (>500ms shown in yellow/red).\n\n### Step 2: Get the Trace ID\n- Click **Tempo Traces** link above to open Grafana Explore\n- Search for slow traces by service name and duration\n- Copy the `trace_id` from the trace details\n\n### Step 3: View the Profile\n- Paste the trace ID into the **Trace ID** variable at the top\n- The flame graph on the right will show CPU usage for that specific request\n\n### Step 4: Identify Hotspots\n- **Wide bars** = functions consuming significant CPU time\n- **Bottom bars** = actual work being done (leaf functions)\n- **Click** on bars to zoom into specific code paths\n\n### Alternative: Use Tempo Direct Navigation\n1. Find the trace in Tempo (via Explore or Tracing dashboard)\n2. Click on a slow span\n3. Look for **Profiles** tab or link\n4. Click to jump directly to the corresponding Pyroscope profile",
         "mode": "markdown"
       },
       "pluginVersion": "10.2.3",
@@ -922,7 +922,7 @@
           "text": "",
           "value": ""
         },
-        "description": "Paste a trace ID (32-character hex string) to view the CPU profile for that specific request. Get trace IDs from Jaeger or the Tracing dashboard.",
+        "description": "Paste a trace ID (32-character hex string) to view the CPU profile for that specific request. Get trace IDs from Tempo or the Tracing dashboard.",
         "hide": 0,
         "label": "Trace ID",
         "name": "trace_id",

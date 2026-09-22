@@ -144,7 +144,7 @@ def get_gpu_memory_mb() -> float:
             check=True,
         )
         return float(result.stdout.strip().split("\n")[0])
-    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+    except subprocess.CalledProcessError, FileNotFoundError, ValueError:
         return 0.0
 
 
@@ -168,7 +168,7 @@ def get_gpu_info() -> dict[str, Any]:
             "driver_version": parts[2] if len(parts) > 2 else "Unknown",
             "compute_capability": parts[3] if len(parts) > 3 else "Unknown",
         }
-    except (subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError):
+    except subprocess.CalledProcessError, FileNotFoundError, ValueError, IndexError:
         return {
             "name": "Unknown",
             "memory_total_mb": 0,

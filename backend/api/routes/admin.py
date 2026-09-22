@@ -286,8 +286,12 @@ def require_admin_access() -> None:
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Cameras created successfully"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -300,8 +304,8 @@ async def seed_cameras(
 ) -> SeedCamerasResponse:
     """Seed test cameras into the database.
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
 
     Args:
         request: Seed configuration (count, clear_existing, create_folders)
@@ -433,8 +437,12 @@ async def seed_cameras(
     responses={
         201: {"description": "Events and detections created successfully"},
         400: {"description": "Bad request - No cameras found"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -447,8 +455,8 @@ async def seed_events(
 ) -> SeedEventsResponse:
     """Seed mock events and detections into the database.
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
     Requires cameras to exist first.
 
     Args:
@@ -651,8 +659,12 @@ async def seed_events(
     response_model=ClearDataResponse,
     responses={
         400: {"description": "Bad request - Confirmation required"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
     },
 )
@@ -664,8 +676,8 @@ async def clear_seeded_data(
 ) -> ClearDataResponse:
     """Clear all seeded data (cameras, events, detections).
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
     Requires JSON body confirmation to prevent accidental data deletion:
     {"confirm": "DELETE_ALL_DATA"}
 
@@ -760,8 +772,12 @@ async def clear_seeded_data(
     response_model=OrphanCleanupResponse,
     responses={
         200: {"description": "Orphan cleanup completed successfully"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         422: {"description": "Validation error"},
         500: {"description": "Internal server error"},
     },
@@ -777,8 +793,8 @@ async def cleanup_orphans(
     Scans camera upload directories for files that have no corresponding
     database records and optionally deletes them.
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
 
     Safety features:
     - dry_run=True by default (no actual deletions)
@@ -888,8 +904,12 @@ async def cleanup_orphans(
     response_model=SeedPipelineLatencyResponse,
     responses={
         200: {"description": "Pipeline latency data seeded successfully"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
     },
 )
@@ -905,8 +925,8 @@ async def seed_pipeline_latency(
     latency samples for UI testing and development. Data is distributed
     across the specified time span with realistic variance.
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
 
     Typical latency ranges (ms):
     - watch_to_detect: 50-200ms (file processing + YOLO26 inference)
@@ -1052,8 +1072,12 @@ class FlushQueuesResponse(BaseModel):
     response_model=ClearCacheResponse,
     responses={
         200: {"description": "Cache cleared successfully"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
     },
 )
@@ -1073,8 +1097,8 @@ async def clear_cache(
     - Alerts cache
     - Summaries cache
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
 
     Args:
         http_request: FastAPI request for audit logging
@@ -1186,8 +1210,12 @@ async def clear_cache(
     response_model=FlushQueuesResponse,
     responses={
         200: {"description": "Queues flushed successfully"},
-        401: {"description": "Unauthorized - Admin API key required"},
-        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        401: {
+            "description": "Unauthorized - Only produced by the global auth middleware, "
+            "which is disabled for this single-user deployment (NEM-5527, backend/main.py); "
+            "ADMIN_API_KEY is not enforced by this endpoint"
+        },
+        403: {"description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"},
         500: {"description": "Internal server error"},
     },
 )
@@ -1208,8 +1236,8 @@ async def flush_queues(
     WARNING: This will discard any pending items in the queues.
     Items will need to be reprocessed from scratch.
 
-    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+    flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
 
     Args:
         http_request: FastAPI request for audit logging

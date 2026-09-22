@@ -64,11 +64,12 @@ IOU_DEDUP_THRESHOLD = 0.70
 # Bbox overlap threshold for associating frame OCR with detections
 DETECTION_OVERLAP_THRESHOLD = 0.50
 
-# HTTP client timeout for ai-florence OCR requests
+# HTTP client timeout for Florence-2 OCR requests
 OCR_TIMEOUT_SECONDS = 30.0
 
-# Default ai-florence service URL (OCR is a Florence-2 capability)
-DEFAULT_FLORENCE_URL = "http://ai-florence:8092"
+# Last-resort OCR URL (OCR is a Florence-2 capability). Settings normally supplies
+# florence_url; this is the gateway form that matches its config.py default.
+DEFAULT_FLORENCE_URL = "http://ai-gateway:8090/florence"
 
 
 @dataclass(slots=True)
@@ -352,7 +353,7 @@ class SceneOCRService:
     - Service provider matching for known companies
 
     Attributes:
-        florence_url: URL of the ai-florence service
+        florence_url: URL of the Florence-2 service (gateway /florence router)
         timeout: HTTP request timeout in seconds
         enabled: Whether scene OCR is enabled
         service_matcher: Service provider matcher instance
@@ -373,7 +374,7 @@ class SceneOCRService:
         """Initialize the SceneOCRService.
 
         Args:
-            florence_url: URL of the ai-florence service (default from settings)
+            florence_url: URL of the Florence-2 service (default from settings)
             timeout: HTTP request timeout in seconds
             enabled: Whether scene OCR is enabled (for feature flags)
         """
@@ -572,7 +573,7 @@ class SceneOCRService:
             logger.warning("Full-frame OCR request timed out")
             return []
         except httpx.ConnectError:
-            logger.warning("Failed to connect to ai-florence service for OCR")
+            logger.warning("Failed to connect to Florence service for OCR")
             return []
         except Exception as e:
             logger.exception(f"Full-frame OCR failed: {e}")

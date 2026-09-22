@@ -25,6 +25,16 @@ confirmed dead-on-the-owner's-desk.
 | `docs-media/` | VEO3 video-generation helpers (mascot/hype content, not security); live path is scripts/synthetic_data.py | delete? |
 | `../docs/archive/` | 29 point-in-time docs (gap reports, TDD red-phase snapshots, NEM-numbered one-offs, metrics snapshots, 4.3MB unreferenced Grafana screenshots) | delete wholesale? |
 
+### Gateway-consolidation follow-up additions (2026-09-22, PR-A)
+
+| Item | What it is | Pending ruling |
+| --- | --- | --- |
+| `triton-model-repository/xclip_action/` | Retired X-CLIP action-recognition Triton config + model.py (migration to stgcn_action complete; models.yml keeps the provenance entry — runtime-default patch16-16-frames vs patch32 disk question still open) | delete with the provenance entry, or keep until provenance ruled? |
+| `monitoring-elasticsearch/` (ilm-policy, index-template) + `scripts/init-elasticsearch.sh` | Elasticsearch log-backend leftovers; Tempo replaced the Jaeger+Elasticsearch tracing/logging stack (NEM-5545) and nothing mounts them | delete? |
+| `prometheus.yml.template` | envsubst template with zero consumers (live configs are the compose-mounted files) | delete? |
+| `scripts/download_models.py` | Superseded Python downloader; live twin `ai/download_models.sh` re-derived from the setup_lib rule | delete? |
+| `scripts/setup_docker_override.py` | `generate_docker_override_content()` extracted from setup.py: setup.py no longer writes docker-compose.override.yml (.env is sole config truth) and the table targeted pre-consolidation containers/ports. NOTE: `test_setup.py` (this tree) imports it and stays ImportError-stale either way | delete with `test_setup*.py`? |
+
 ### Treatment of this tree (pass 2 ruling, 2026-09-22)
 
 Archived artifacts are frozen content, not active source: the mutation-triage

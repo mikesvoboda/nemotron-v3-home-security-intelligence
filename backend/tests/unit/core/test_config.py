@@ -32,6 +32,15 @@ def clean_env(monkeypatch):
         "YOLO26_URL",
         "NEMOTRON_URL",
         "ENVIRONMENT",
+        "CTX_SIZE",
+        "PARALLEL",
+        # Severity bounds are read straight from these by TestSeverityThreshold-
+        # Configuration below, whose invalid-ordering cases rely on all three
+        # starting at their defaults. No committed config sets them, but delete
+        # anyway so a stale runtime-env override cannot flip those tests.
+        "SEVERITY_LOW_MAX",
+        "SEVERITY_MEDIUM_MAX",
+        "SEVERITY_HIGH_MAX",
     ]
 
     for var in env_vars:
@@ -759,3 +768,209 @@ class TestViolenceThresholdConfiguration:
         settings = Settings()
         assert settings.violence_definitive_threshold == 0.75
         assert settings.violence_suspected_threshold == 0.50
+
+
+class TestSeverityThresholdConfiguration:
+    """Tests for the severity tier boundary settings and their fail-fast validator.
+
+    The boundaries map a 0-100 risk score onto the four severity tiers:
+    LOW 0..low_max < MEDIUM..medium_max < HIGH..high_max <= 100 CRITICAL.
+
+    SeverityService.__init__ (backend/services/severity.py) already rejects a
+    misordered triple, but only when the service is first built behind
+    get_severity_service()'s lru_cache — so a bad SEVERITY_* config surfaced deep
+    at runtime on the first request that classified a score. Settings must reject
+    it at construction instead (validate_severity_thresholds in
+    backend/core/config.py).
+    """
+
+    def test_severity_low_max_default(self, clean_env):
+        """severity_low_max defaults to 29 (LOW = 0..29)."""
+        settings = Settings()
+
+        assert hasattr(settings, "severity_low_max")
+        assert settings.severity_low_max == 29
+
+    def test_severity_medium_max_default(self, clean_env):
+        """severity_medium_max defaults to 59 (MEDIUM = 30..59)."""
+        settings = Settings()
+
+        assert hasattr(settings, "severity_medium_max")
+        assert settings.severity_medium_max == 59
+
+    def test_severity_high_max_default(self, clean_env):
+        """severity_high_max defaults to 84 (HIGH = 60..84, CRITICAL = 85..100)."""
+        settings = Settings()
+
+        assert hasattr(settings, "severity_high_max")
+        assert settings.severity_high_max == 84
+
+    def test_severity_defaults_pass_ordering_validator(self, clean_env):
+        """Shipped defaults must satisfy the new fail-fast validator.
+
+        A validator that rejected its own defaults would break every boot, so
+        pin the happy path explicitly.
+        """
+        settings = Settings()
+
+        assert settings.severity_low_max < settings.severity_medium_max
+        assert settings.severity_medium_max < settings.severity_high_max
+
+    def test_severity_low_max_from_env(self, clean_env):
+        """SEVERITY_LOW_MAX env var should override default."""
+        clean_env.setenv("SEVERITY_LOW_MAX", "19")
+        get_settings.cache_clear()
+
+        settings = Settings()
+        assert settings.severity_low_max == 19
+
+    def test_severity_medium_max_from_env(self, clean_env):
+        """SEVERITY_MEDIUM_MAX env var should override default."""
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "49")
+        get_settings.cache_clear()
+
+        settings = Settings()
+        assert settings.severity_medium_max == 49
+
+    def test_severity_high_max_from_env(self, clean_env):
+        """SEVERITY_HIGH_MAX env var should override default."""
+        clean_env.setenv("SEVERITY_HIGH_MAX", "79")
+        get_settings.cache_clear()
+
+        settings = Settings()
+        assert settings.severity_high_max == 79
+
+    def test_severity_bounds_from_env(self, clean_env):
+        """Full 0-100 extent is still enforced per-field by ge/le."""
+        clean_env.setenv("SEVERITY_LOW_MAX", "-1")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError):
+            Settings()
+
+        clean_env.setenv("SEVERITY_LOW_MAX", "101")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_severity_low_gt_medium_rejected(self, clean_env):
+        """low_max above medium_max collapses the MEDIUM tier — reject at boot."""
+        clean_env.setenv("SEVERITY_LOW_MAX", "70")
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "59")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError, match="severity_low_max"):
+            Settings()
+
+    def test_severity_low_eq_medium_rejected(self, clean_env):
+        """Equal low/medium bounds collapse the MEDIUM tier to zero width."""
+        clean_env.setenv("SEVERITY_LOW_MAX", "59")
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "59")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError, match="severity_low_max"):
+            Settings()
+
+    def test_severity_medium_gt_high_rejected(self, clean_env):
+        """medium_max above high_max collapses the HIGH tier — reject at boot."""
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "90")
+        clean_env.setenv("SEVERITY_HIGH_MAX", "84")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError, match="severity_medium_max"):
+            Settings()
+
+    def test_severity_medium_eq_high_rejected(self, clean_env):
+        """Equal medium/high bounds collapse the HIGH tier to zero width."""
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "84")
+        clean_env.setenv("SEVERITY_HIGH_MAX", "84")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError, match="severity_medium_max"):
+            Settings()
+
+    def test_severity_single_bound_breaks_ordering_with_defaults(self, clean_env):
+        """Updating ONE bound past its neighbour must still fail.
+
+        The validator compares the whole triple, so a lone env override that
+        crosses a boundary is caught even though the other two values are the
+        untouched defaults.
+        """
+        clean_env.setenv("SEVERITY_HIGH_MAX", "10")
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError, match="severity_medium_max"):
+            Settings()
+
+    def test_severity_valid_custom_values(self, clean_env):
+        """A strictly increasing custom triple should be accepted."""
+        clean_env.setenv("SEVERITY_LOW_MAX", "20")
+        clean_env.setenv("SEVERITY_MEDIUM_MAX", "50")
+        clean_env.setenv("SEVERITY_HIGH_MAX", "80")
+        get_settings.cache_clear()
+
+        settings = Settings()
+        assert settings.severity_low_max == 20
+        assert settings.severity_medium_max == 50
+        assert settings.severity_high_max == 80
+
+
+class TestLlamaContextWindowConfiguration:
+    """Tests for the CTX_SIZE / PARALLEL split between llama.cpp and the backend.
+
+    CTX_SIZE is llama.cpp's *total* context pool (--ctx-size), split evenly across
+    PARALLEL slots (--parallel).  A single backend request only ever occupies one
+    slot, so nemotron_context_window is the per-slot figure: CTX_SIZE // PARALLEL.
+    The compose backend service now passes both vars (docker-compose.prod.yml), so
+    these tests pin the parsing that has to survive it — notably that the shipped
+    CTX_SIZE default of 262144 (well above the old le=131072 cap) no longer makes
+    Settings construction fail.
+    """
+
+    def test_context_window_default_when_ctx_size_unset(self, clean_env):
+        """Unset CTX_SIZE keeps the historical 32768-token per-request budget."""
+        settings = Settings(_env_file=None)
+        assert settings.nemotron_context_window == 32768
+
+    def test_slot_count_default_matches_compose_parallel(self, clean_env):
+        """llama.cpp defaults to 8 slots in compose; the setting must agree."""
+        settings = Settings(_env_file=None)
+        assert settings.llama_slot_count == 8
+
+    def test_compose_ctx_size_default_parses(self, clean_env):
+        """CTX_SIZE=262144 (compose default) parses instead of raising.
+
+        Regression: the field's validation_alias read CTX_SIZE directly with a
+        le=131072 bound, so the ai-llm default of 262144 would have crashed the
+        backend at startup once compose began passing it through.
+        """
+        clean_env.setenv("CTX_SIZE", "262144")
+        settings = Settings(_env_file=None)
+        assert settings.nemotron_context_window == 32768  # 262144 // 8 slots
+
+    def test_context_window_divides_by_slot_count(self, clean_env):
+        """PARALLEL changes the per-slot budget the backend may use."""
+        clean_env.setenv("CTX_SIZE", "262144")
+        clean_env.setenv("PARALLEL", "2")
+        settings = Settings(_env_file=None)
+        assert settings.llama_slot_count == 2
+        assert settings.nemotron_context_window == 131072  # 262144 // 2 slots
+
+    def test_slot_count_parses_from_parallel(self, clean_env):
+        """PARALLEL env var feeds llama_slot_count."""
+        clean_env.setenv("PARALLEL", "4")
+        settings = Settings(_env_file=None)
+        assert settings.llama_slot_count == 4
+
+    def test_oversized_ctx_size_clamps_instead_of_raising(self, clean_env):
+        """A pool beyond the field bound clamps to it rather than failing startup."""
+        clean_env.setenv("CTX_SIZE", "1000000000")
+        settings = Settings(_env_file=None)
+        assert settings.nemotron_context_window == 262144
+
+    def test_non_numeric_ctx_size_falls_back_to_default(self, clean_env):
+        """A malformed CTX_SIZE falls back to the default budget, not a crash."""
+        clean_env.setenv("CTX_SIZE", "not-a-number")
+        settings = Settings(_env_file=None)
+        assert settings.nemotron_context_window == 32768

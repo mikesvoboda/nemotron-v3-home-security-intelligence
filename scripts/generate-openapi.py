@@ -214,7 +214,7 @@ def read_cached_hash(project_root: Path) -> str | None:
         if len(content) == 64 and all(c in "0123456789abcdef" for c in content):
             return content
         return None
-    except (OSError, UnicodeDecodeError):
+    except OSError, UnicodeDecodeError:
         return None
 
 

@@ -6,18 +6,61 @@
 #   ./ai/download_models.sh                    # Use default path /export/ai_models
 #   AI_MODELS_PATH=./models ./ai/download_models.sh  # Use custom path
 #
-# Models downloaded (~42GB total):
-#   - Nemotron-3-Nano-30B (Q4_K_M) - ~14.7GB - Risk reasoning LLM
-#   - YOLO26v2 - Auto-downloaded by HuggingFace on first run
-#   - Florence-2-Large - ~3GB - Vision-language captions
-#   - CLIP-ViT-L - ~1.7GB - Entity re-identification
-#   - Model Zoo (~19GB):
-#     - Fashion-CLIP - Clothing classification
-#     - Vehicle-Segment-Classification (ViT) - Vehicle types
-#     - Pet-Classifier (ResNet-18) - Cat/dog detection
-#     - Depth-Anything-V2-Tiny - Depth estimation (3x faster than Small)
-#     - ViTPose+ Small - Pose estimation
-#     - YOLO26 (n/s/m) - ~67MB - Object detection (Ultralytics)
+# The fetch list below is derived from models.yml at the repo root — the single
+# source of truth for the model catalogue — using the SAME rule setup_lib uses
+# (setup_lib/models_config.get_downloadable_models / model_downloader.
+# build_model_specs):
+#
+#     download_method != "skip"  AND  (hf_repo OR download_method)
+#
+# That rule yields 25 of the 30 catalogue entries and 33579 MB = 32.79 GiB
+# (~32.8GB) of models.yml size_mb estimates.  The 5 excluded entries are the
+# download_method: skip ones (brisque-quality, fast-alpr, paddleocr,
+# yolo26-general, zero-dce-plus-plus) — their libraries fetch what they need at
+# runtime.
+#
+# The `enabled` flag governs backend model_zoo VRAM slots, NOT disk
+# provisioning — so three `enabled: false` entries are still downloaded here
+# because live code reads their files off disk: yolo26 (ai/gateway/export/
+# export_yolo26.py + export_all.sh and scripts/prebuild-tensorrt-engines.sh
+# need model-zoo/yolo26/*.pt), xclip-base (backend/services/
+# action_recognition_service.py -> xclip_loader.py), and florence-2-large
+# (backend/services/florence_extractor.py via the model_zoo loader map).
+#
+# Models downloaded (25 entries, 32.79 GiB by models.yml size_mb):
+#   PHASE 0 — required (~16.2GB):
+#     - Nemotron-3-Nano-30B (Q4_K_M) - ~14.7GB - Risk reasoning LLM
+#     - Florence-2-Base - ~1GB - Vision-language captions (ai-gateway)
+#     - SigLIP 2 Base ONNX - ~400MB - Entity re-identification embeddings
+#     - YOLO26 (n/s/m) - ~67MB - Object detection (enabled: false but the
+#         gateway export/TensorRT-prebuild path needs the .pt files on disk)
+#   PHASE 1 — core enrichment (~543MB):
+#     - Vehicle-Segment-Classification (ResNet-50) - ~358MB - Vehicle types
+#     - Pet-Classifier (ResNet-18) - ~46MB - Cat/dog detection
+#     - Depth-Anything-V2-Tiny - ~98MB - Depth estimation
+#     - OSNet-AIN x1.0 - ~10MB - Person re-identification
+#     - YOLOv8n-pose - ~6MB - Human pose estimation
+#     - Threat-Detection-YOLOv8n - ~25MB - Weapon detection
+#   PHASE 2 — demographics and action recognition (~1.3GB):
+#     - ViT-Age / ViT-Gender classifiers - ~358MB each
+#     - ST-GCN++ - ~20MB - Skeleton action recognition
+#     - X-CLIP Base - ~600MB - Video action recognition (enabled: false — the
+#         gateway has migrated to stgcn_action, but xclip_loader is still in
+#         the model_zoo loader map)
+#   PHASE 3 — specialized (~14.8GB):
+#     - Fashion-CLIP (Marqo FashionSigLIP) - ~4.4GB - Clothing classification
+#     - Florence-2-Large - ~3GB - VLM attribute extraction (enabled: false —
+#         still in the model_zoo loader map)
+#     - Weather / Violence classifiers - ~200MB / ~350MB
+#     - YOLO11 face / license-plate detectors - ~11MB / ~650MB
+#     - Smoke-Fire-YOLOv8n - ~25MB - CRITICAL safety model
+#     - YOLO-World-S - ~1.5GB - Open-vocabulary detection
+#     - ViTPose+ Small - ~1.5GB - Pose estimation
+#     - SegFormer-B2-Clothes - ~1.5GB - Clothing segmentation
+#     - Vehicle-Damage-Detection - ~2GB - Damage segmentation
+#   Not fetched here (models.yml download_method: skip — the library fetches them):
+#     - brisque-quality (piq), fast-alpr (ONNX), paddleocr, yolo26-general,
+#       zero-dce-plus-plus
 #
 # Security:
 #   - Direct downloads: SHA256 checksum verification
@@ -51,7 +94,7 @@ echo ""
 # ==========================================
 # SHA256 checksums for model files
 # Source: HuggingFace model cards and verified downloads
-# Last updated: 2026-01 (NEM-2856)
+# Last updated: 2026-09 (models.yml catalogue re-derivation)
 #
 # To compute checksum for a file:
 #   sha256sum <filename> | cut -d' ' -f1
@@ -66,23 +109,40 @@ echo ""
 
 declare -A MODEL_CHECKSUMS=(
     # Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf (~14.7GB)
-    # From: https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF
-    # Verified from known-good download on 2026-01-18
+    # From: https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF (models.yml hf_repo)
+    # Verified from known-good download on 2026-01-18; matches the LFS oid published
+    # by the unsloth repo, so it still verifies against the models.yml source repo.
     ["Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"]="0e7f6e51fdd9039928749d07eed9e846dbfd97681646544c5406bcdd788e5940"  # pragma: allowlist secret
+    # YOLO26 ultralytics weights (GitHub release v8.4.0 assets).  Computed with
+    # sha256sum from the v8.4.0 assets downloaded 2026-09-22; the v8.4.0 release
+    # is immutable so these hold unless a maintainer changes the pinned release.
+    ["yolo26n.pt"]="9b09cc8bf347f0fc8a5f7657480587f25db09b34bf33b0652110fb03a8ad4fef"  # pragma: allowlist secret
+    ["yolo26s.pt"]="646f8bc3fe0a656803d95c294f7852321748cb29d13466a1af8862e2db384a1b"  # pragma: allowlist secret
+    ["yolo26m.pt"]="401cea9ab23ad19246ff7744859816bc599f350e93c9dd30367b6f0a0745d0b7"  # pragma: allowlist secret
 )
 
 # Expected Git commit hashes for HuggingFace repos (optional verification)
 # These provide an additional layer of integrity verification beyond Git LFS
 # Leave empty to skip commit verification (Git LFS still provides integrity)
 declare -A HF_REPO_COMMITS=(
-    # Florence-2-Large - leave empty to use latest
+    ["microsoft/Florence-2-base"]=""
     ["microsoft/Florence-2-large"]=""
-    # CLIP-ViT-L - leave empty to use latest
-    ["openai/clip-vit-large-patch14"]=""
-    # Fashion-CLIP - leave empty to use latest
-    ["patrickjohncyh/fashion-clip"]=""
-    # Depth-Anything-V2-Tiny - leave empty to use latest
-    ["depth-anything/Depth-Anything-V2-Tiny-hf"]=""
+    ["microsoft/xclip-base-patch32"]=""
+    ["onnx-community/siglip2-base-patch16-224-ONNX"]=""
+    ["AventIQ-AI/ResNet-50-Vehicle-Segment-classification"]=""
+    ["microsoft/resnet-18"]=""
+    ["depth-anything/Depth-Anything-V2-Small-hf"]=""
+    ["Subh775/Threat-Detection-YOLOv8n"]=""
+    ["nateraw/vit-age-classifier"]=""
+    ["rizvandwiki/gender-classification"]=""
+    ["prithivMLmods/Weather-Image-Classification"]=""
+    ["jaranohaal/vit-base-violence-detection"]=""
+    ["AdamCodd/YOLOv11n-face-detection"]=""
+    ["morsetechlab/yolov11-license-plate-detection"]=""
+    ["SHOU-ISD/fire-and-smoke"]=""
+    ["usyd-community/vitpose-plus-small"]=""
+    ["mattmdjaga/segformer_b2_clothes"]=""
+    ["harpreetsahota/car-dd-segmentation-yolov11"]=""
 )
 
 # ==========================================
@@ -263,6 +323,16 @@ compute_checksum() {
     return 0
 }
 
+# Human-readable size label from a models.yml size_mb value
+human_size() {
+    local mb=$1
+    if [ "$mb" -ge 1024 ]; then
+        awk -v mb="$mb" 'BEGIN { printf "~%.1fGB", mb / 1024 }'
+    else
+        echo "~${mb}MB"
+    fi
+}
+
 # Create directory structure
 mkdir -p "${AI_MODELS_PATH}/nemotron"
 mkdir -p "${AI_MODELS_PATH}/model-zoo"
@@ -333,15 +403,63 @@ download_file() {
     fi
 }
 
+# ==========================================
+# models.yml download set — HuggingFace snapshots
+# ==========================================
+# One row per models.yml entry that the rule selects and that is fetched as a
+# plain HuggingFace snapshot (no download_method, or a hf_repo with no method):
+#   name | hf_repo | local_path | size_mb
+# Keep in sync with models.yml — regenerate with the same filter setup_lib uses:
+#   download_method != "skip" and (hf_repo or download_method)
+# Entries with a custom download_method, plus yolov8n-pose (whose hf_repo
+# ultralytics/yolov8n-pose is not a public HF repo — its section below mirrors
+# setup_lib's ultralytics release path instead), are handled in their own
+# sections.  xclip-base and florence-2-large are enabled: false — kept because
+# the rule (disk provisioning) not `enabled` (backend VRAM slots) governs.
+HF_DOWNLOADS=(
+    # PHASE 0 — required
+    "florence-2-base|microsoft/Florence-2-base|model-zoo/florence-2-base|1024"
+    "siglip2-base-patch16-224|onnx-community/siglip2-base-patch16-224-ONNX|model-zoo/siglip2-base-patch16-224|400"
+    # PHASE 1 — core enrichment
+    "vehicle-segment-classification|AventIQ-AI/ResNet-50-Vehicle-Segment-classification|model-zoo/vehicle-segment-classification|358"
+    "pet-classifier|microsoft/resnet-18|model-zoo/pet-classifier|46"
+    "depth-anything-v2-tiny|depth-anything/Depth-Anything-V2-Small-hf|model-zoo/depth-anything-v2-tiny|98"
+    "threat-detection-yolov8n|Subh775/Threat-Detection-YOLOv8n|model-zoo/threat-detection-yolov8n|25"
+    # PHASE 2 — demographics and action recognition
+    "vit-age-classifier|nateraw/vit-age-classifier|model-zoo/vit-age-classifier|358"
+    "vit-gender-classifier|rizvandwiki/gender-classification|model-zoo/vit-gender-classifier|358"
+    "xclip-base|microsoft/xclip-base-patch32|model-zoo/xclip-base|600"
+    # PHASE 3 — specialized
+    "weather-classification|prithivMLmods/Weather-Image-Classification|model-zoo/weather-classification|200"
+    "violence-detection|jaranohaal/vit-base-violence-detection|model-zoo/violence-detection|350"
+    "yolo11-face|AdamCodd/YOLOv11n-face-detection|model-zoo/yolo11-face-detection|11"
+    "yolo11-license-plate|morsetechlab/yolov11-license-plate-detection|model-zoo/yolo11-license-plate|650"
+    "smoke-fire-yolov8n|SHOU-ISD/fire-and-smoke|model-zoo/smoke-fire-yolov8n|25"
+    "vitpose-small|usyd-community/vitpose-plus-small|model-zoo/vitpose-small|1500"
+    "segformer-b2-clothes|mattmdjaga/segformer_b2_clothes|model-zoo/segformer-b2-clothes|1500"
+    "vehicle-damage-detection|harpreetsahota/car-dd-segmentation-yolov11|model-zoo/vehicle-damage-detection|2000"
+    "florence-2-large|microsoft/Florence-2-large|model-zoo/florence-2-large|3000"
+)
+
+# 1 nemotron + HF snapshot rows + 6 custom-method sections
+# (yolo26 / yolov8n-pose / osnet / stgcn / yolo-world / fashion-clip)
+TOTAL=$(( 1 + ${#HF_DOWNLOADS[@]} + 6 ))
+STEP=0
+
+# ==========================================
+# Nemotron-3-Nano-30B (Risk Reasoning LLM)
+# models.yml: service ai-llm, download_method nemotron_gguf
+# ==========================================
+STEP=$(( STEP + 1 ))
 echo ""
 echo "=========================================="
-echo "1/6 - Nemotron-3-Nano-30B (Risk Reasoning LLM)"
+echo "${STEP}/${TOTAL} - Nemotron-3-Nano-30B (Risk Reasoning LLM)"
 echo "=========================================="
 echo ""
 
 NEMOTRON_DIR="${AI_MODELS_PATH}/nemotron/nemotron-3-nano-30b-a3b-q4km"
 NEMOTRON_MODEL="${NEMOTRON_DIR}/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
-NEMOTRON_URL="https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
+NEMOTRON_URL="https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
 NEMOTRON_CHECKSUM="${MODEL_CHECKSUMS[Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf]:-}"
 
 mkdir -p "$NEMOTRON_DIR"
@@ -356,7 +474,7 @@ else
     for search_path in \
         "${NEMOTRON_GGUF_PATH:-}" \
         "/export/ai_models/weights/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf" \
-        "$HOME/.cache/huggingface/hub/models--nvidia--Nemotron-3-Nano-30B-A3B-GGUF/snapshots/*/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"; do
+        "$HOME/.cache/huggingface/hub/models--unsloth--Nemotron-3-Nano-30B-A3B-GGUF/snapshots/*/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"; do
         if [ -n "$search_path" ] && [ -f "$search_path" ]; then
             FOUND_MODEL="$search_path"
             break
@@ -412,7 +530,7 @@ else
         echo "           URL: $NEMOTRON_URL"
         wget --progress=bar:force -O "$NEMOTRON_MODEL" "$NEMOTRON_URL" || {
             echo "[ERROR] Nemotron download failed"
-            echo "        You can manually download from: https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF"
+            echo "        You can manually download from: https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF"
             echo "        Place the .gguf file at: $NEMOTRON_MODEL"
             rm -f "$NEMOTRON_MODEL"
             exit 1
@@ -424,135 +542,140 @@ else
     fi
 fi
 
+# ==========================================
+# yolo26 — models.yml download_method: yolo26
+# enabled: false in models.yml (no backend VRAM slot) but the gateway needs the
+# .pt files on disk: ai/gateway/export/export_yolo26.py + export_all.sh read
+# model-zoo/yolo26/yolo26m.pt and scripts/prebuild-tensorrt-engines.sh builds
+# the TensorRT engine from it.  Mirrors setup_lib/model_downloader.
+# download_yolo26_models() — ultralytics GitHub release v8.4.0, not HuggingFace.
+# ==========================================
+STEP=$(( STEP + 1 ))
 echo ""
 echo "=========================================="
-echo "2/6 - YOLO26v2 (Object Detection)"
+echo "${STEP}/${TOTAL} - YOLO26 n/s/m (Object Detection)"
 echo "=========================================="
 echo ""
-echo "[INFO] YOLO26v2 models are auto-downloaded by HuggingFace Transformers"
-echo "       on first container start. No manual download needed."
-echo "       Model: PekingU/yolo26_r50vd_coco_o365 (~165MB)"
-echo "       Integrity verified via HuggingFace's content-addressable storage"
-
-echo ""
-echo "=========================================="
-echo "3/6 - Florence-2-Large (Vision-Language)"
-echo "=========================================="
-echo ""
-
-FLORENCE_DIR="${AI_MODELS_PATH}/model-zoo/florence-2-large"
-clone_or_update_hf "microsoft/Florence-2-large" "$FLORENCE_DIR" "Florence-2-Large (~3GB)"
-
-echo ""
-echo "=========================================="
-echo "4/6 - CLIP-ViT-L (Embeddings/Re-ID)"
-echo "=========================================="
-echo ""
-
-CLIP_DIR="${AI_MODELS_PATH}/model-zoo/clip-vit-l"
-clone_or_update_hf "openai/clip-vit-large-patch14" "$CLIP_DIR" "CLIP-ViT-L (~1.7GB)"
-
-echo ""
-echo "=========================================="
-echo "5/6 - Fashion-CLIP (Clothing Classification)"
-echo "=========================================="
-echo ""
-
-FASHION_DIR="${AI_MODELS_PATH}/model-zoo/fashion-clip"
-clone_or_update_hf "patrickjohncyh/fashion-clip" "$FASHION_DIR" "Fashion-CLIP (~3.5GB)"
-
-echo ""
-echo "=========================================="
-echo "6/6 - Enrichment Models"
-echo "=========================================="
-echo ""
-
-# Vehicle classification
-# HuggingFace URL: https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification
-VEHICLE_DIR="${AI_MODELS_PATH}/model-zoo/vehicle-segment-classification"
-clone_or_update_hf "lxyuan/vit-base-patch16-224-vehicle-segment-classification" "$VEHICLE_DIR" "Vehicle-Segment-Classification (~350MB)"
-
-# Pet classifier
-# HuggingFace URL: https://huggingface.co/microsoft/resnet-18
-PET_DIR="${AI_MODELS_PATH}/model-zoo/pet-classifier"
-clone_or_update_hf "microsoft/resnet-18" "$PET_DIR" "Pet-Classifier (~45MB)"
-
-# Pose estimation
-# HuggingFace URL: https://huggingface.co/usyd-community/vitpose-plus-small
-VITPOSE_DIR="${AI_MODELS_PATH}/model-zoo/vitpose-plus-small"
-clone_or_update_hf "usyd-community/vitpose-plus-small" "$VITPOSE_DIR" "ViTPose+ Small (~100MB)"
-
-# Depth estimation (Tiny variant — 3x faster than Small, same 518x518 input)
-DEPTH_DIR="${AI_MODELS_PATH}/model-zoo/depth-anything-v2-tiny"
-clone_or_update_hf "depth-anything/Depth-Anything-V2-Tiny-hf" "$DEPTH_DIR" "Depth-Anything-V2-Tiny (~25MB)"
-
-echo ""
-echo "=========================================="
-echo "7/7 - YOLO26 (Object Detection - Ultralytics)"
-echo "=========================================="
-echo ""
-
-# YOLO26 models - downloaded via Ultralytics Python SDK
-# These are PyTorch .pt files from GitHub releases
 YOLO26_DIR="${AI_MODELS_PATH}/model-zoo/yolo26"
+# Pinned release — mirrors setup_lib/model_downloader.download_yolo26_models()
+YOLO26_RELEASE="https://github.com/ultralytics/assets/releases/download/v8.4.0"
 mkdir -p "$YOLO26_DIR"
+download_file "${YOLO26_RELEASE}/yolo26n.pt" \
+    "${YOLO26_DIR}/yolo26n.pt" "YOLO26-Nano" "5.3MB"
+download_file "${YOLO26_RELEASE}/yolo26s.pt" \
+    "${YOLO26_DIR}/yolo26s.pt" "YOLO26-Small" "19.5MB"
+download_file "${YOLO26_RELEASE}/yolo26m.pt" \
+    "${YOLO26_DIR}/yolo26m.pt" "YOLO26-Medium" "42.2MB"
 
-# YOLO26 model URLs (from ultralytics/assets GitHub releases)
-YOLO26_RELEASE_URL="https://github.com/ultralytics/assets/releases/download/v8.4.0"
+# ==========================================
+# Single-file downloads (models.yml custom download_method)
+# ==========================================
 
-# Download YOLO26 Nano (2.6M params, ~5.3MB)
-YOLO26N_FILE="${YOLO26_DIR}/yolo26n.pt"
-if [ -f "$YOLO26N_FILE" ]; then
-    echo "[SKIP] YOLO26-Nano already exists: $YOLO26N_FILE"
-else
-    echo "[DOWNLOAD] YOLO26-Nano (~5.3MB)"
-    echo "           From: ${YOLO26_RELEASE_URL}/yolo26n.pt"
-    wget --progress=bar:force -O "$YOLO26N_FILE" "${YOLO26_RELEASE_URL}/yolo26n.pt" || {
-        echo "[ERROR] Failed to download YOLO26-Nano"
-        rm -f "$YOLO26N_FILE"
-    }
-    echo "[OK] YOLO26-Nano downloaded"
-fi
+# Ultralytics weights are served from GitHub releases, not HuggingFace
+ULTRALYTICS_RELEASE="https://github.com/ultralytics/assets/releases/download/v8.2.0"
 
-# Download YOLO26 Small (10M params, ~19.5MB)
-YOLO26S_FILE="${YOLO26_DIR}/yolo26s.pt"
-if [ -f "$YOLO26S_FILE" ]; then
-    echo "[SKIP] YOLO26-Small already exists: $YOLO26S_FILE"
-else
-    echo "[DOWNLOAD] YOLO26-Small (~19.5MB)"
-    echo "           From: ${YOLO26_RELEASE_URL}/yolo26s.pt"
-    wget --progress=bar:force -O "$YOLO26S_FILE" "${YOLO26_RELEASE_URL}/yolo26s.pt" || {
-        echo "[ERROR] Failed to download YOLO26-Small"
-        rm -f "$YOLO26S_FILE"
-    }
-    echo "[OK] YOLO26-Small downloaded"
-fi
-
-# Download YOLO26 Medium (21.9M params, ~42.2MB)
-YOLO26M_FILE="${YOLO26_DIR}/yolo26m.pt"
-if [ -f "$YOLO26M_FILE" ]; then
-    echo "[SKIP] YOLO26-Medium already exists: $YOLO26M_FILE"
-else
-    echo "[DOWNLOAD] YOLO26-Medium (~42.2MB)"
-    echo "           From: ${YOLO26_RELEASE_URL}/yolo26m.pt"
-    wget --progress=bar:force -O "$YOLO26M_FILE" "${YOLO26_RELEASE_URL}/yolo26m.pt" || {
-        echo "[ERROR] Failed to download YOLO26-Medium"
-        rm -f "$YOLO26M_FILE"
-    }
-    echo "[OK] YOLO26-Medium downloaded"
-fi
-
+# yolov8n-pose — models.yml download_method: (runtime_file yolov8n-pose.pt)
+# models.yml hf_repo (ultralytics/yolov8n-pose) is not a public HF repo, so this
+# mirrors setup_lib/model_downloader.download_yolov8n_pose() instead.
+STEP=$(( STEP + 1 ))
 echo ""
-echo "[INFO] YOLO26 models downloaded to: $YOLO26_DIR"
-echo "       - yolo26n.pt (Nano):   2.6M params, ~5.3MB,  fastest"
-echo "       - yolo26s.pt (Small):  10M params,  ~19.5MB, balanced"
-echo "       - yolo26m.pt (Medium): 21.9M params, ~42.2MB, highest accuracy"
+echo "=========================================="
+echo "${STEP}/${TOTAL} - YOLOv8n-pose (Human Pose Estimation)"
+echo "=========================================="
 echo ""
-echo "       YOLO26 features:"
-echo "       - End-to-end NMS-free inference"
-echo "       - Up to 43% faster CPU inference vs YOLO11"
-echo "       - Optimized for edge/mobile deployment"
-echo "       - Requires ultralytics>=8.4.0"
+POSE_DIR="${AI_MODELS_PATH}/model-zoo/yolov8n-pose"
+mkdir -p "$POSE_DIR"
+download_file "${ULTRALYTICS_RELEASE}/yolov8n-pose.pt" \
+    "${POSE_DIR}/yolov8n-pose.pt" "YOLOv8n-pose (~6MB)" "6MB"
+
+# osnet-ain-x1-0 — models.yml download_method: osnet
+# The MSMT17 checkpoint lives in kaiyangzhou/osnet under a long filename; the
+# runtime (backend/services/osnet_loader.py) looks for the short name.
+STEP=$(( STEP + 1 ))
+echo ""
+echo "=========================================="
+echo "${STEP}/${TOTAL} - OSNet-AIN x1.0 (Person Re-ID)"
+echo "=========================================="
+echo ""
+OSNET_DIR="${AI_MODELS_PATH}/model-zoo/osnet-ain-x1-0"
+OSNET_LONG="osnet_ain_x1_0_msmt17_256x128_amsgrad_ep50_lr0.0015_coslr_b64_fb10_softmax_labsmth_flip_jitter.pth"
+OSNET_LINK="${OSNET_DIR}/osnet_ain_x1_0_msmt17.pth"
+mkdir -p "$OSNET_DIR"
+download_file "https://huggingface.co/kaiyangzhou/osnet/resolve/main/${OSNET_LONG}" \
+    "${OSNET_DIR}/${OSNET_LONG}" "OSNet-AIN x1.0 (~10MB)" "10MB"
+if [ ! -e "$OSNET_LINK" ]; then
+    ln -s "$OSNET_LONG" "$OSNET_LINK"
+    echo "[OK] Linked: $(basename "$OSNET_LINK")"
+fi
+
+# stgcn-plus-plus — models.yml download_method: stgcn
+STEP=$(( STEP + 1 ))
+echo ""
+echo "=========================================="
+echo "${STEP}/${TOTAL} - ST-GCN++ (Skeleton Action Recognition)"
+echo "=========================================="
+echo ""
+STGCN_DIR="${AI_MODELS_PATH}/model-zoo/stgcn-plus-plus"
+mkdir -p "$STGCN_DIR"
+download_file "http://download.openmmlab.com/mmaction/pyskl/ckpt/stgcnpp/stgcnpp_ntu60_xsub_hrnet/j.pth" \
+    "${STGCN_DIR}/stgcnpp_ntu60_xsub_hrnet_j.pth" "ST-GCN++ (~20MB)" "20MB"
+
+# yolo-world-s — models.yml download_method: yolo_world
+STEP=$(( STEP + 1 ))
+echo ""
+echo "=========================================="
+echo "${STEP}/${TOTAL} - YOLO-World-S (Open-Vocabulary Detection)"
+echo "=========================================="
+echo ""
+YOLO_WORLD_DIR="${AI_MODELS_PATH}/model-zoo/yolo-world-s"
+mkdir -p "$YOLO_WORLD_DIR"
+download_file "${ULTRALYTICS_RELEASE}/yolov8s-worldv2.pt" \
+    "${YOLO_WORLD_DIR}/yolov8s-worldv2.pt" "YOLO-World-S (~46MB)" "46MB"
+
+# ==========================================
+# fashion-clip (Marqo FashionSigLIP) — models.yml download_method: hf_cache
+# open_clip loads this as "hf-hub:Marqo/marqo-fashionSigLIP", which requires the
+# standard HuggingFace hub cache layout — it is deliberately NOT stored under
+# model-zoo (see setup_lib/model_downloader.download_marqo_fashionsiglip()).
+# ==========================================
+STEP=$(( STEP + 1 ))
+echo ""
+echo "=========================================="
+echo "${STEP}/${TOTAL} - Fashion-CLIP / FashionSigLIP (Clothing)"
+echo "=========================================="
+echo ""
+HF_CACHE="${HF_HOME:-$HOME/.cache/huggingface}/hub"
+MARQO_SNAPSHOTS="${HF_CACHE}/models--Marqo--marqo-fashionSigLIP/snapshots"
+if [ -d "$MARQO_SNAPSHOTS" ] && [ -n "$(ls -A "$MARQO_SNAPSHOTS" 2>/dev/null)" ]; then
+    echo "[SKIP] FashionSigLIP already in HuggingFace hub cache: $MARQO_SNAPSHOTS"
+elif command -v hf &> /dev/null; then
+    echo "[DOWNLOAD] Marqo/marqo-fashionSigLIP (~4.4GB) into ${HF_CACHE}"
+    hf download Marqo/marqo-fashionSigLIP
+elif command -v huggingface-cli &> /dev/null; then
+    echo "[DOWNLOAD] Marqo/marqo-fashionSigLIP (~4.4GB) into ${HF_CACHE}"
+    huggingface-cli download Marqo/marqo-fashionSigLIP
+else
+    echo "[WARN] Neither 'hf' nor 'huggingface-cli' found — open_clip needs this"
+    echo "       model in the HuggingFace hub cache, which only the CLI can"
+    echo "       populate. Install it (pip install -U huggingface_hub) or run"
+    echo "       'python setup.py' and re-run this step."
+fi
+
+# ==========================================
+# models.yml download set — HuggingFace snapshots
+# ==========================================
+for entry in "${HF_DOWNLOADS[@]}"; do
+    IFS='|' read -r MODEL_NAME MODEL_REPO MODEL_PATH MODEL_SIZE <<< "$entry"
+    STEP=$(( STEP + 1 ))
+    echo ""
+    echo "=========================================="
+    echo "${STEP}/${TOTAL} - ${MODEL_NAME} ($(human_size "$MODEL_SIZE"))"
+    echo "=========================================="
+    echo ""
+    mkdir -p "$(dirname "${AI_MODELS_PATH}/${MODEL_PATH}")"
+    clone_or_update_hf "$MODEL_REPO" "${AI_MODELS_PATH}/${MODEL_PATH}" \
+        "${MODEL_NAME} ($(human_size "$MODEL_SIZE"))"
+done
 
 echo ""
 echo "=========================================="
@@ -561,22 +684,49 @@ echo "=========================================="
 echo ""
 echo "Models installed to: ${AI_MODELS_PATH}"
 echo ""
-echo "Directory structure:"
+echo "Directory structure (models.yml download set — 25 entries, 32.79 GiB):"
 echo "  ${AI_MODELS_PATH}/"
 echo "  ├── nemotron/"
 echo "  │   └── nemotron-3-nano-30b-a3b-q4km/  (Nemotron LLM)"
-echo "  └── model-zoo/"
-echo "      ├── florence-2-large/              (Vision-language)"
-echo "      ├── clip-vit-l/                    (Embeddings)"
-echo "      ├── fashion-clip/                  (Clothing)"
-echo "      ├── vehicle-segment-classification/ (Vehicles)"
-echo "      ├── pet-classifier/                (Pets)"
-echo "      ├── vitpose-plus-small/            (Pose)"
-echo "      ├── depth-anything-v2-tiny/        (Depth)"
-echo "      └── yolo26/                        (YOLO26 detection)"
-echo "          ├── yolo26n.pt                 (Nano - fastest)"
-echo "          ├── yolo26s.pt                 (Small - balanced)"
-echo "          └── yolo26m.pt                 (Medium - accurate)"
+echo "  ├── model-zoo/"
+echo "  │   ├── yolo26/                        (Detection — n/s/m .pt; gateway export)"
+echo "  │   ├── florence-2-base/               (Vision-language)"
+echo "  │   ├── florence-2-large/              (Vision-language — enabled: false)"
+echo "  │   ├── siglip2-base-patch16-224/      (Re-ID embeddings)"
+echo "  │   ├── vehicle-segment-classification/ (Vehicles)"
+echo "  │   ├── pet-classifier/                (Pets)"
+echo "  │   ├── depth-anything-v2-tiny/        (Depth)"
+echo "  │   ├── osnet-ain-x1-0/                (Person Re-ID)"
+echo "  │   ├── yolov8n-pose/                  (Pose)"
+echo "  │   ├── threat-detection-yolov8n/      (Weapons)"
+echo "  │   ├── vit-age-classifier/            (Age)"
+echo "  │   ├── vit-gender-classifier/         (Gender)"
+echo "  │   ├── stgcn-plus-plus/               (Action recognition)"
+echo "  │   ├── xclip-base/                    (Video action — enabled: false)"
+echo "  │   ├── weather-classification/        (Weather)"
+echo "  │   ├── violence-detection/            (Violence)"
+echo "  │   ├── yolo11-face-detection/         (Faces)"
+echo "  │   ├── yolo11-license-plate/          (License plates)"
+echo "  │   ├── smoke-fire-yolov8n/            (Smoke/fire)"
+echo "  │   ├── yolo-world-s/                  (Open-vocab detection)"
+echo "  │   ├── vitpose-small/                 (Pose)"
+echo "  │   ├── segformer-b2-clothes/          (Clothing segmentation)"
+echo "  │   └── vehicle-damage-detection/      (Damage segmentation)"
+echo "  ├── triton/                            (TensorRT/ONNX engine cache)"
+echo "  └── quantized/                         (INT8 variants)"
+echo ""
+echo "  fashion-clip lives in the HuggingFace hub cache, not in model-zoo:"
+echo "    ${MARQO_SNAPSHOTS}"
+echo ""
+echo "Not downloaded (models.yml download_method: skip — their library fetches"
+echo "them at runtime, so the download rule excludes them):"
+echo "  - brisque-quality (piq), fast-alpr (ONNX), paddleocr"
+echo "  - yolo26-general (weights not released), zero-dce-plus-plus (TF/"
+echo "    PyTorch mismatch — see the models.yml comment)"
+echo ""
+echo "Note: \`enabled\` in models.yml governs backend model_zoo VRAM slots, not"
+echo "disk provisioning — yolo26, xclip-base and florence-2-large are enabled:"
+echo "false yet still downloaded here because live loaders/exporters read them."
 echo ""
 echo "Security verification:"
 echo "  - Direct downloads: SHA256 checksum verification"

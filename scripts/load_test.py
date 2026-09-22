@@ -167,7 +167,7 @@ def get_backend_memory_mb() -> float | None:
                         if line.startswith("VmRSS:"):
                             rss_kb = int(line.split()[1])
                             return rss_kb / 1024
-            except (FileNotFoundError, ValueError, PermissionError):
+            except FileNotFoundError, ValueError, PermissionError:
                 continue
 
     # Couldn't find process or read memory

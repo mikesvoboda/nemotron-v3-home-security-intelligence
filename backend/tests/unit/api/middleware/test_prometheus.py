@@ -475,34 +475,6 @@ class TestHandlerNameExtraction:
 class TestPrometheusMiddlewareIntegration:
     """Integration tests with other middleware."""
 
-    def test_works_with_timing_middleware(self, clear_prometheus_metrics):
-        """Test that PrometheusMiddleware works with RequestTimingMiddleware."""
-        from backend.api.middleware.request_timing import RequestTimingMiddleware
-
-        app = FastAPI()
-        app.add_middleware(PrometheusMiddleware)
-        app.add_middleware(RequestTimingMiddleware)
-
-        @app.get("/test")
-        async def test_endpoint():
-            return {"message": "ok"}
-
-        client = TestClient(app, headers=get_auth_headers())
-        response = client.get("/test")
-
-        assert response.status_code == 200
-        # Both middlewares should work
-        assert "X-Response-Time" in response.headers
-
-        # Prometheus metric should be recorded
-        metric = http_request_duration_seconds.labels(
-            method="GET",
-            handler="test_endpoint",
-            status="200",
-            http_route="/test",
-        )
-        assert metric._sum._value > 0
-
     def test_works_with_request_id_middleware(self, clear_prometheus_metrics):
         """Test that PrometheusMiddleware works with RequestIDMiddleware."""
         from backend.api.middleware.request_id import RequestIDMiddleware

@@ -232,26 +232,6 @@ class TestBodySizeLimitMiddlewareIntegration:
         response = client.post("/upload", content=b"x" * 200)
         assert response.status_code == 413
 
-    def test_works_with_timing_middleware(self):
-        """Test that body limit works with RequestTimingMiddleware."""
-        from backend.api.middleware.request_timing import RequestTimingMiddleware
-
-        app = FastAPI()
-        app.add_middleware(BodySizeLimitMiddleware, max_body_size=100)
-        app.add_middleware(RequestTimingMiddleware)
-
-        @app.post("/upload")
-        async def upload(request: Request):
-            body = await request.body()
-            return {"size": len(body)}
-
-        client = TestClient(app, headers=get_auth_headers())
-
-        # Large body should fail with timing header
-        response = client.post("/upload", content=b"x" * 200)
-        assert response.status_code == 413
-        # Note: Headers may or may not be present depending on middleware order
-
     def test_body_limit_preserves_request_state(self):
         """Test that body limit middleware preserves request state."""
         app = FastAPI()

@@ -711,10 +711,16 @@ REAL_TIER_A_IDS = {
     # D2: gateway:False ops whose deployed caller URLs land on the gateway
     "AI-PARITY-CLAIM-GW404-model_status",
     "AI-PARITY-CLAIM-GW404-model_preload",
-    "AI-PARITY-CLAIM-GW404-model_unload",
     "AI-PARITY-CLAIM-GW404-object_distance",  # pragma: allowlist secret
-    # D3: phantom path /models/{model_name}/unload vs POST /models/unload
-    "AI-PARITY-CLAIM-PATH-model_unload",
+    # D3 (phantom path /models/{model_name}/unload vs POST /models/unload) and
+    # the model_unload half of D2: RESOLVED by the gateway-consolidation
+    # model-management rework (2026-09-22, PR #6645). The load/unload/reload
+    # endpoints no longer proxy a phantom path — they raise 501 (Triton runs
+    # --model-control-mode=none, so the surface does not exist to call), and
+    # the checker therefore finds no model_unload caller at all. See
+    # test_real_tree_unanchored_phantom_routes_are_gone for the pin that
+    # replaced them; a regression that re-introduces a phantom caller re-raises
+    # both ids and re-ratchets loud.
     # D5: camera_type widened to str at the gateway, handler never reads it
     "AI-PARITY-TYPE-UNUSED-clip_classify-camera_type",  # pragma: allowlist secret
     # D6: MAX_BATCH_TEXTS_SIZE native-only list guard
@@ -822,13 +828,22 @@ def test_real_tree_registry_and_deploy_facts():
     assert "ai-gateway" in dep["native_services"]
 
 
-def test_real_tree_unanchored_documents_the_phantom_admin_route():
-    # The report keeps a documented non-registry route (models/unload-all)
+def test_real_tree_unanchored_phantom_routes_are_gone():
+    # Was: the report kept a documented non-registry route (models/unload-all)
     # visible under the caller-urls-unanchored section: reported, never
     # silently suppressed, but also not gated (it is not in the matrix).
+    # Fixed by the gateway-consolidation model-management rework (2026-09-22,
+    # PR #6645): the model lifecycle routes answer 501 and construct NO
+    # upstream URL, so the phantom admin callers (/models/unload-all and
+    # /models/{name}/unload) are gone from the tree. Pinned GONE — a change
+    # that re-introduces a caller for a non-registry route re-surfaces it in
+    # this section (loudly, via the REAL_TIER_A_IDS equality above for
+    # registry ops, and here for the non-registry admin route).
     _, report = real_report()
     unanchored = report["surfaces"]["caller_urls_unanchored"]
-    assert any("/models/unload-all" in u for u in unanchored)
+    assert not any("/models/unload" in u for u in unanchored), (
+        f"phantom model-unload caller URL is back: {unanchored}"
+    )
 
 
 @pytest.mark.timeout(30)  # two back-to-back real-tree scans; >5s on loaded runners

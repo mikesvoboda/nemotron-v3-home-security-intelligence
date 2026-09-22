@@ -41,7 +41,7 @@ trap cleanup SIGTERM SIGINT
 # ---------------------------------------------------------------------------
 # 0. Export per-model device settings from models.yml
 # ---------------------------------------------------------------------------
-# Triton Python backend workers (florence2, xclip_action) read their target
+# Triton Python backend workers (florence2) read their target
 # device from environment variables.  models.yml is the single source of truth
 # for which device each model should use.  We export those env vars here so
 # the tritonserver subprocess inherits them.

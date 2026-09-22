@@ -1,17 +1,19 @@
 """Combined Enrichment HTTP client service for classification endpoints.
 
-This service provides an HTTP client interface to the ai-enrichment service,
-which hosts vehicle classification, pet classification, clothing classification,
-depth estimation, and pose analysis models in a single container.
+This service provides an HTTP client interface to the enrichment routers on the
+AI gateway, which host vehicle classification, pet classification, clothing
+classification, depth estimation, and pose analysis models.
 
-The ai-enrichment service runs at http://ai-enrichment:8094 and provides:
+The gateway's /enrichment router (http://ai-gateway:8090/enrichment in Docker,
+http://localhost:8090/enrichment in development; the standalone ai-enrichment
+container is retired) provides:
 - /vehicle-classify: Vehicle type and color classification
 - /pet-classify: Cat/dog classification
 - /clothing-classify: FashionCLIP clothing attribute extraction
 - /depth-estimate: Depth Anything V2 monocular depth estimation
 - /object-distance: Object distance estimation from depth map
 - /pose-analyze: ViTPose+ human pose keypoint detection
-- /action-classify: X-CLIP temporal action recognition
+- /action-classify: ST-GCN++ skeleton-based temporal action recognition
 
 Error Handling:
     - Connection errors: Raise EnrichmentUnavailableError (allows retry)
@@ -59,9 +61,11 @@ ENRICHMENT_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
 ENRICHMENT_READ_TIMEOUT = 60.0  # Fallback, use settings.enrichment_read_timeout (was 30s, now 60s)
 ENRICHMENT_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
-# Default Enrichment service URLs
-DEFAULT_ENRICHMENT_URL = "http://ai-enrichment:8094"
-DEFAULT_ENRICHMENT_LIGHT_URL = "http://ai-enrichment-light:8096"
+# Default Enrichment service URLs (last-resort fallbacks; Settings normally supplies
+# enrichment_url / enrichment_light_url). Gateway form matches the config.py defaults —
+# the standalone ai-enrichment / ai-enrichment-light containers are retired.
+DEFAULT_ENRICHMENT_URL = "http://ai-gateway:8090/enrichment"
+DEFAULT_ENRICHMENT_LIGHT_URL = "http://ai-gateway:8090/enrich-lt"
 
 
 @dataclass(slots=True)
@@ -284,7 +288,7 @@ class ObjectDistanceResult:
 
 @dataclass(slots=True)
 class ActionClassificationResult:
-    """Result from X-CLIP action classification.
+    """Result from ST-GCN++ action classification.
 
     Attributes:
         action: Detected action (e.g., "a person loitering")
@@ -804,15 +808,15 @@ class ReIDEmbeddingClientResult:
 class EnrichmentClient:
     """Client for interacting with combined enrichment classification service.
 
-    This client handles communication with the external ai-enrichment service,
+    This client handles communication with the AI gateway's enrichment routers,
     including health checks, image submission, and response parsing.
 
-    The enrichment service provides:
+    The enrichment routers provide:
     - Vehicle type classification (ResNet-50)
     - Pet classification (ResNet-18 cat/dog)
     - Clothing classification (FashionCLIP)
     - Pose analysis (ViTPose+ Small)
-    - Action classification (X-CLIP temporal video understanding)
+    - Action classification (ST-GCN++ skeleton-based temporal recognition)
 
     Usage:
         client = EnrichmentClient()
@@ -839,10 +843,10 @@ class EnrichmentClient:
         """Initialize Enrichment client with configuration.
 
         Args:
-            base_url: Optional base URL for the heavy Enrichment service (GPU 0).
-                     Defaults to ENRICHMENT_URL setting or http://ai-enrichment:8094
-            light_base_url: Optional base URL for the light Enrichment service (GPU 1).
-                     Defaults to ENRICHMENT_LIGHT_URL setting or http://ai-enrichment-light:8096
+            base_url: Optional base URL for the heavy Enrichment service.
+                     Defaults to ENRICHMENT_URL setting or http://ai-gateway:8090/enrichment
+            light_base_url: Optional base URL for the light Enrichment service.
+                     Defaults to ENRICHMENT_LIGHT_URL setting or http://ai-gateway:8090/enrich-lt
         """
         self._settings = get_settings()
 
@@ -2349,11 +2353,12 @@ class EnrichmentClient:
         frames: list[Image.Image],
         labels: list[str] | None = None,
     ) -> ActionClassificationResult | None:
-        """Classify action from a sequence of video frames using X-CLIP.
+        """Classify action from a sequence of video frames via ST-GCN++.
 
         Routes to configured service based on ENRICHMENT_ACTION_SERVICE env var.
 
-        X-CLIP analyzes temporal patterns across frames to detect security-relevant
+        The gateway's /action-classify adapter runs Triton stgcn_action, which
+        analyzes temporal patterns across frames to detect security-relevant
         actions like loitering, running away, or suspicious behavior.
 
         Includes retry logic with exponential backoff for transient failures

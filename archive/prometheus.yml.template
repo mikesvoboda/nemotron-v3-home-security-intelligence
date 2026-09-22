@@ -91,100 +91,71 @@ scrape_configs:
     # Handle case where container is not running
     honor_labels: true
 
-  # YOLO26 Object Detection metrics (ai-yolo26)
+  # Triton Inference Server native metrics (NEM-5553)
+  # Exposes per-model inference statistics, queue latency, batch sizes, and GPU utilization.
   # Key metrics:
-  # - yolo26_inference_requests_total: Total inference requests by endpoint/status
-  # - yolo26_inference_latency_seconds: Inference latency histogram
-  # - yolo26_detections_per_image: Number of detections per image
-  # - yolo26_model_loaded: Model status (1=loaded)
-  # - yolo26_gpu_*: GPU utilization, memory, temperature, power
-  - job_name: 'ai-yolo26-metrics'
+  # - nv_inference_request_success: Successful inference count per model
+  # - nv_inference_request_failure: Failed inference count per model
+  # - nv_inference_queue_duration_us: Time spent in scheduling queue
+  # - nv_inference_compute_infer_duration_us: Actual inference compute time
+  # - nv_gpu_utilization: GPU utilization percentage
+  # - nv_gpu_memory_used_bytes: GPU memory in use
+  - job_name: 'triton-metrics'
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
       - targets:
-          - 'ai-yolo26:8095'
+          - 'ai-gateway:8002'
         labels:
-          service: yolo26
-          model_type: detection
+          service: triton
+          component: inference-server
     honor_labels: true
 
-  # Florence-2 Vision-Language metrics (ai-florence)
-  # Key metrics:
-  # - florence_inference_requests_total: Total inference requests by endpoint/status
-  # - florence_inference_latency_seconds: Inference latency histogram
-  # - florence_model_loaded: Model status (1=loaded)
-  # - florence_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-florence-metrics'
+  # AI Gateway application metrics (FastAPI layer)
+  # The gateway merges Triton's native metrics into :8090/metrics (see the
+  # metrics endpoint in ai/gateway/main.py). The nv_* series are dropped here
+  # because the 'triton-metrics' job above already scrapes them from
+  # :8002/metrics — scraping both would double-count every Triton series.
+  # What remains is the gateway's own prometheus_client output:
+  # process_cpu_seconds_total, process_resident_memory_bytes and the
+  # hsi_ai_inference_* application metrics.
+  - job_name: 'ai-gateway-metrics'
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
       - targets:
-          - 'ai-florence:8092'
+          - 'ai-gateway:8090'
         labels:
-          service: florence
-          model_type: vlm
+          service: ai-gateway
+          component: gateway
     honor_labels: true
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'nv_.*'
+        action: drop
 
-  # CLIP Embedding metrics (ai-clip)
-  # Key metrics:
-  # - clip_inference_requests_total: Total inference requests by endpoint/status
-  # - clip_inference_latency_seconds: Inference latency histogram
-  # - clip_model_loaded: Model status (1=loaded)
-  # - clip_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-clip-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-clip:8093'
-        labels:
-          service: clip
-          model_type: embedding
-    honor_labels: true
+  # ==========================================================================
+  # Legacy AI Service Metrics (REMOVED)
+  # ==========================================================================
+  # The following standalone AI services have been consolidated into ai-gateway
+  # (Triton Inference Server). Their per-model metrics are now available via
+  # the 'triton-metrics' job above (ai-gateway:8002/metrics).
+  #
+  # Removed targets:
+  # - ai-yolo26:8095 (ai-yolo26-metrics)
+  # - ai-florence:8092 (ai-florence-metrics)
+  # - ai-clip:8093 (ai-clip-metrics)
+  # - ai-enrichment:8094 (ai-enrichment-metrics)
+  # - ai-enrichment-light:8096 (ai-enrichment-light-metrics)
+  #
+  # Triton provides equivalent metrics:
+  # - nv_inference_request_success/failure per model
+  # - nv_inference_queue_duration_us per model
+  # - nv_inference_compute_infer_duration_us per model
+  # - nv_gpu_utilization, nv_gpu_memory_used_bytes
 
-  # Enrichment Service metrics (ai-enrichment)
-  # Combined service for vehicle, pet, clothing classification and depth estimation
-  # Key metrics:
-  # - enrichment_inference_requests_total: Total requests by endpoint/status
-  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
-  # - enrichment_*_model_loaded: Model status for vehicle/pet/clothing/depth
-  # - enrichment_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-enrichment-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-enrichment:8094'
-        labels:
-          service: enrichment
-          model_type: classification
-    honor_labels: true
-
-  # Enrichment Light Service metrics (ai-enrichment-light)
-  # Lightweight enrichment for pose, threat, reid, pet, depth models (~1.2GB total)
-  # Key metrics:
-  # - enrichment_inference_requests_total: Total requests by endpoint/status
-  # - enrichment_inference_latency_seconds: Latency histogram by endpoint
-  # - enrichment_gpu_memory_used_gb: GPU memory usage
-  - job_name: 'ai-enrichment-light-metrics'
-    metrics_path: /metrics
-    scrape_interval: 15s
-    scrape_timeout: 10s
-    static_configs:
-      - targets:
-          - 'ai-enrichment-light:8096'
-        labels:
-          service: enrichment-light
-          model_type: classification
-    honor_labels: true
-
-  # YOLO26 TensorRT Object Detection metrics (ai-yolo26)
-  # Alternative detector to YOLO26 with 5.3x faster inference
   # ==========================================================================
   # JSON Exporter Scraped Endpoints (For non-Prometheus format data)
   # ==========================================================================
@@ -433,6 +404,12 @@ scrape_configs:
         replacement: '${1}'
 
   # HTTP 2xx probes - basic availability for AI services
+  # AI serving is consolidated in ai-gateway (Triton-backed): the only AI health
+  # targets are the llama.cpp sidecar and the gateway's own routers. The retired
+  # standalone containers (ai-florence:8092, ai-clip:8093, ai-enrichment:8094,
+  # ai-yolo26:8095) are gone from docker-compose.prod.yml — probing them failed
+  # permanently. Each gateway router exposes /health, which reports per-model
+  # Triton readiness (see ai/gateway/main.py and ai/gateway/adapters/*).
   - job_name: 'blackbox-http-2xx'
     metrics_path: /probe
     params:
@@ -442,13 +419,46 @@ scrape_configs:
     static_configs:
       - targets:
           - http://ai-llm:8091/health
-          - http://ai-florence:8092/health
-          - http://ai-clip:8093/health
-          - http://ai-enrichment:8094/health
-          - http://ai-yolo26:8095/health
         labels:
           probe_type: availability
           service_type: ai
+          model: llm
+      - targets:
+          - http://ai-gateway:8090/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: gateway
+      - targets:
+          - http://ai-gateway:8090/yolo26/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: yolo26
+      - targets:
+          - http://ai-gateway:8090/clip/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: clip
+      - targets:
+          - http://ai-gateway:8090/florence/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: florence2
+      - targets:
+          - http://ai-gateway:8090/enrichment/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: enrichment
+      - targets:
+          - http://ai-gateway:8090/enrich-lt/health
+        labels:
+          probe_type: availability
+          service_type: ai
+          model: enrichment-light
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

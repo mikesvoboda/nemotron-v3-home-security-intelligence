@@ -414,7 +414,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=["EnrichmentClient.preload_model"],
-        evidence="backend/services/enrichment_client.py:3287; backend/api/routes/model_management.py:486,646; response from ai/enrichment/model.py:ModelPreloadResponse",
+        evidence="backend/services/enrichment_client.py:3287; backend/api/routes/model_management.py load/reload return 501 without egress since the ai-gateway consolidation (load_model/reload_model handlers — no /models/preload caller there); response from ai/enrichment/model.py:ModelPreloadResponse",
     ),
     "model_status": Operation(
         id="model_status",
@@ -427,7 +427,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=["EnrichmentClient.get_model_status"],
-        evidence="backend/services/enrichment_client.py:3257; backend/api/routes/model_management.py:186; grep over ai/gateway/adapters/ returns 0 hits (re-verified at generation time by check_phantoms); response from ai/enrichment/model.py:SystemStatus",
+        evidence="backend/services/enrichment_client.py:3257; backend/api/routes/model_management.py no longer proxies /models/status — the read endpoints probe router health instead (_fetch_router_health does GET {router}/health); grep over ai/gateway/adapters/ returns 0 hits (re-verified at generation time by check_phantoms); response from ai/enrichment/model.py:SystemStatus",
     ),
     "model_unload": Operation(
         id="model_unload",
@@ -440,7 +440,7 @@ OPERATIONS: dict[str, Operation] = {
             "fake": True,
         },
         client_methods=[],
-        evidence="canonical ai/enrichment/model.py:3552 (query-param model_name); backend posts /models/{name}/unload at model_management.py:560 - 404 even against the real server (WP7.3 Tier A); response from ai/enrichment/model.py:ModelUnloadResponse",
+        evidence="canonical ai/enrichment/model.py:3552 (query-param model_name); backend no longer posts /models/{name}/unload — model_management.py unload returns 501 without egress since the ai-gateway consolidation (unload_model handler; former WP7.3 Tier A 404 mismatch retired); response from ai/enrichment/model.py:ModelUnloadResponse",
     ),
     "object_distance": Operation(
         id="object_distance",

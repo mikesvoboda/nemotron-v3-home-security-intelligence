@@ -171,9 +171,8 @@ Every model carries a priority in `models.yml` that sets its eviction order unde
 ### Downloading Models
 
 ```bash
-# Download all models the gateway needs (~34GB — sum of models.yml entries). The
-# script's own header says ~42GB; it also pulls clip-vit-large, which models.yml
-# doesn't list, and counts Git-LFS working-tree overhead.
+# Download all models the setup_lib rule selects (25 entries, ~33GB — sum of
+# models.yml size_mb estimates; the script header carries the exact re-derivation).
 # Reads only the AI_MODELS_PATH shell variable (not .env — export it to match
 # setup.py's choice, below) and the target must already exist and be writable:
 # setup.py sudo-creates it; otherwise sudo mkdir -p + chown first.
@@ -225,7 +224,7 @@ curl http://localhost:8000/api/system/models/<name>/status
 | -------------- | --------------------- | ----------------- | --------------------------------------------------------- |
 | **GPU VRAM**   | 12GB (reduced layers) | 24GB              | RTX A5500 (24GB)                                          |
 | **System RAM** | 32GB                  | 64GB+             | 128GB                                                     |
-| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~34GB per `models.yml` (~42GB as the script downloads it) |
+| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~33GB per `models.yml` (25 entries the setup_lib rule selects) |
 | **CPU**        | 8 cores               | 16+ cores         | AMD Ryzen 9                                               |
 
 ### GPU Compatibility
@@ -263,7 +262,7 @@ With all services running on RTX A5500 (24GB):
 #    offers to download the models, and ends by deploying the stack
 python setup.py
 
-# 2. Download AI models (~34GB per models.yml; 30-90 min on a fast connection).
+# 2. Download AI models (~33GB per models.yml; 30-90 min on a fast connection).
 #    Skip if you let setup.py do it. The script reads only the AI_MODELS_PATH shell
 #    variable — not .env — so match what setup.py wrote, and the target directory
 #    must already exist and be writable (setup.py sudo-creates it).

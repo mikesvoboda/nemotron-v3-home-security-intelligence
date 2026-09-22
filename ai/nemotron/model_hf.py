@@ -252,7 +252,9 @@ class NemotronHFModel:
         self.is_compiled = False
         self.attention_implementation: str = "eager"
         self.model_name = (
-            Path(model_path).name if "/" not in model_path else model_path.split("/")[-1]
+            Path(model_path).name
+            if "/" not in model_path
+            else model_path.rsplit("/", maxsplit=1)[-1]
         )
 
         logger.info(f"Initializing Nemotron HF model from {model_path}")

@@ -884,6 +884,30 @@ class TestS7RiskBandTablesDiverge:
 # S8 — OP 28 action-classify: the ONLY multi-frame operation (own block,
 #      plan 984-985).
 # ---------------------------------------------------------------------------
+def _png_b64() -> str:
+    """Real decodable PNG in base64 (same bytes as the module-scoped
+    png_b64 fixture) — the pose stage of the action pipeline DECODES every
+    frame, so the old xclip-era "any string is a frame" payloads 400."""
+    import base64
+
+    return base64.b64encode(_png_bytes()).decode("ascii")
+
+
+# pose output (1, 56, 8400) with one person in anchor 0 (post-NMS row layout
+# = 4 box + 1 conf + 17*3 keypoints); conf <= 0 means "no detections".
+# Template: ai/gateway/tests/test_adapters_enrichment.py::_make_pose_output.
+def _stgcn_pose_output(confidence: float = 0.9) -> np.ndarray:
+    out = np.zeros((1, 56, 8400), dtype=np.float32)
+    if confidence <= 0:
+        return out
+    out[0, 4, 0] = confidence
+    for i in range(17):
+        out[0, 5 + i * 3, 0] = 300.0 + i  # x
+        out[0, 6 + i * 3, 0] = 200.0 + i  # y
+        out[0, 7 + i * 3, 0] = 0.8  # visibility
+    return out
+
+
 class TestS8ActionClassifyMultiFrame:
     def test_s8a_registry_and_shape_pin_the_multiframe_uniqueness(self) -> None:
         """Registry pin (live): enrichment_action_classify POST
@@ -891,12 +915,17 @@ class TestS8ActionClassifyMultiFrame:
         fake True, light False (operations.py:144-157; plan's "OP 28" is a
         registry ordinal — id-pinned so a reorder cannot detach this block).
         The frame sequence rides the request: ActionClassifyRequest.frames:
-        list[str] (adapters/enrichment.py:343-345), empty rejected :749-750,
-        and the ONLY triton input is the frame array packed as one JSON
-        string into xclip_action (:550-566); every other router on the
-        adapter takes a single `image`. MULTI-IMAGE != MULTI-FRAME (ops
-        module O1/F1): florence_batch_extract / yolo26_detect_batch carry
-        multiple images, no temporal sequence. PREDICTED-GREEN.  UNVERIFIED at pytest."""
+        list[str] (adapters/enrichment.py:351-353), empty rejected by the
+        handler (action_classify :890-895); every other router on the
+        adapter takes a single `image`. xclip_action is RETIRED (NEM-5563) —
+        the temporal frames no longer ride the wire in one JSON blob;
+        _infer_action (:640+) runs EACH frame through Triton pose, buffers
+        the top person's keypoints and feeds one resampled skeleton to
+        Triton stgcn_action. The MULTI-FRAME uniqueness is therefore the
+        REQUEST shape, and it still holds on the source. MULTI-IMAGE !=
+        MULTI-FRAME (ops module O1/F1): florence_batch_extract /
+        yolo26_detect_batch carry multiple images, no temporal sequence.
+        GREEN at pytest."""
         op = OPERATIONS[AC_OP]
         assert op.method == "POST" and op.path == "/enrichment/action-classify"
         assert op.availability == {
@@ -908,52 +937,54 @@ class TestS8ActionClassifyMultiFrame:
         src = GATEWAY_ENRICH_SRC.read_text(encoding="utf-8")
         assert "class ActionClassifyRequest(BaseModel):\n    frames: list[str]" in src
         assert 'raise HTTPException(status_code=400, detail="Frames list cannot be empty")' in src
-        assert 'model_name="xclip_action"' in src
-        assert '"frames": frames_input,' in src
-        # temporal input: JSON array of base64 strings, one tensor:
-        assert "frames_json = _json.dumps(frames_b64)" in src
+        # the serving reality the wire pins (post-NEM-5563): skeleton-based
+        # stgcn_action, NOT the retired xclip python backend:
+        assert 'model_name="stgcn_action"' in src
+        assert 'model_name="pose"' in src  # stage 1 of the pipeline
+        assert "xclip" not in src  # the retired backend cannot come back
+        assert 'inputs={"input": skeleton}' in src  # the ONE stgcn triton input
         # uniqueness: only ONE frames: list[str] on the whole adapter:
         assert src.count("frames: list[str]") == 1
 
     async def test_s8b_gateway_drive_carries_the_frame_count_end_to_end(self, gateway_app) -> None:
-        """N=4 frames through /enrichment/action-classify: the mock decodes the
-        shipped JSON packing and asserts all FOUR arrive, returns top-1
-        "loitering", which the adapter maps through its SUSPICIOUS_ACTIONS
-        English-keyword set (:605-623 — a SECOND caption-language contract,
-        same disease as S4; risk_weight 0.8/0.2 :623). gateway GREEN.
-        UNVERIFIED at pytest."""
+        """N=4 frames through /enrichment/action-classify under the NEW
+        two-stage contract (xclip retired): the mock records every triton
+        call and asserts the TEMPORAL SEQUENCE arrives whole — 4 per-frame
+        pose calls (one per frame, request order) followed by exactly one
+        stgcn_action call. A logit spike at NTU-60 index 42 ("falling", in
+        STGCN_HIGH_RISK_INDICES) pins the is_suspicious/risk_weight pair
+        (0.8/0.2) the response carries. gateway GREEN at pytest."""
         from unittest.mock import patch as _patch
 
-        seen: dict[str, Any] = {}
+        calls: list[str] = []
 
         async def _infer(*, model_name: str, inputs: Any, outputs: Any) -> dict[str, Any]:
-            assert model_name == "xclip_action"
-            frames = json.loads(bytes(inputs["frames"][0]).decode("utf-8"))
-            seen["n"] = len(frames)
-            scores = {"loitering": 0.7, "walking": 0.2}
-            payload = json.dumps({"all_scores": scores}).encode("utf-8")
-            return {
-                "action": np.array([b"loitering"], dtype=object),
-                "confidence": np.array([0.7]),
-                "all_scores": np.array([payload], dtype=object),
-            }
+            calls.append(model_name)
+            if model_name == "pose":
+                return {"output0": _stgcn_pose_output()}
+            assert model_name == "stgcn_action"
+            logits = np.zeros((1, 60), dtype=np.float32)
+            logits[0, 42] = 5.0  # NTU-60 index 42 = "falling"
+            return {"output": logits}
 
         triton = AsyncMock()
         triton.infer = AsyncMock(side_effect=_infer)
         triton.is_model_ready = AsyncMock(return_value=True)
-        triton.get_model_metadata = AsyncMock(return_value={"outputs": [{"name": "action"}]})
+        triton.get_model_metadata = AsyncMock(return_value={"outputs": [{"name": "output0"}]})
+        png = _png_b64()
         with _patch("ai.gateway.adapters.enrichment.get_triton_client", return_value=triton):
             transport = ASGITransport(app=gateway_app)
             async with AsyncClient(transport=transport, base_url="http://gateway") as client:
                 r = await client.post(
                     "/enrichment/action-classify",
-                    json={"frames": ["AA==", "Ag==", "Aw==", "BA=="]},
+                    # 4 REAL decodable frames — the pose stage decodes each:
+                    json={"frames": [png, png, png, png]},
                 )
         assert r.status_code == 200, r.text
-        assert seen["n"] == 4  # the TEMPORAL payload arrives whole
+        assert calls == ["pose", "pose", "pose", "pose", "stgcn_action"]
         body = r.json()
-        assert body["action"] == "loitering"
-        assert body["is_suspicious"] is True  # SUSPICIOUS_ACTIONS keyword hit
+        assert body["action"] == "falling"  # NTU60_LABELS[42]
+        assert body["is_suspicious"] is True  # STGCN_HIGH_RISK_INDICES hit
         assert body["risk_weight"] == 0.8
 
     def test_s8c_fake_is_frame_blind_by_construction(self) -> None:

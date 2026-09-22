@@ -83,16 +83,20 @@ datasources:
             query: 'hsi_system_healthy'
 
           # AI Service Latencies
+          # The standalone AI containers exported per-service *_inference_latency
+          # _seconds histograms; they are retired. Latency now comes from the
+          # backend's client-side histogram hsi_ai_request_duration_seconds,
+          # labelled per AI service (backend/core/metrics.py).
           - name: 'YOLO26 Latency (p95)'
-            query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
+            query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))'
           - name: 'Nemotron Tokens/sec'
             query: 'hsi_nemotron_tokens_per_second'
           - name: 'Florence Latency (p95)'
-            query: 'histogram_quantile(0.95, rate(florence_inference_latency_seconds_bucket[5m]))'
+            query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="florence"}[5m])) by (le))'
           - name: 'CLIP Latency (p95)'
-            query: 'histogram_quantile(0.95, rate(clip_inference_latency_seconds_bucket[5m]))'
+            query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="clip"}[5m])) by (le))'
           - name: 'Enrichment Latency (p95)'
-            query: 'histogram_quantile(0.95, rate(enrichment_inference_latency_seconds_bucket[5m]))'
+            query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service=~"enrichment.*"}[5m])) by (le))'
 
           # Batch Processing
           - name: 'Batch Latency (avg)'

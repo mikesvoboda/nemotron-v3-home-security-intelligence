@@ -395,7 +395,7 @@ class TestNMSPostprocessing:
         scores = np.array([0.9, 0.3])  # Second is below threshold
         class_ids = np.array([0, 1])
 
-        filtered_boxes, filtered_scores, filtered_classes = model.apply_nms(
+        filtered_boxes, filtered_scores, _filtered_classes = model.apply_nms(
             boxes, scores, class_ids
         )
 

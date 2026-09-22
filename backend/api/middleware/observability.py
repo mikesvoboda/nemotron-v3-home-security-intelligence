@@ -15,6 +15,7 @@ Features:
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -30,12 +31,6 @@ from backend.api.middleware.prometheus import (
     http_request_duration_seconds,
 )
 from backend.api.middleware.request_id import get_correlation_id
-from backend.api.middleware.request_logging import (
-    DEFAULT_EXCLUDED_PATHS as LOGGING_EXCLUDED_PATHS,
-)
-from backend.api.middleware.request_logging import (
-    format_request_log,
-)
 from backend.core.logging import (
     get_current_trace_context,
     get_logger,
@@ -53,6 +48,77 @@ HEALTH_SHORT_CIRCUIT_PATHS = frozenset(
         "/metrics",
     }
 )
+
+# Default paths to exclude from request logging (reduce noise)
+DEFAULT_EXCLUDED_PATHS = frozenset(
+    {
+        "/health",
+        "/ready",
+        "/metrics",
+        "/",
+        "/api/system/health",
+        "/api/system/health/ready",
+    }
+)
+
+
+def format_request_log(
+    method: str,
+    path: str,
+    status_code: int,
+    duration_ms: float,
+    client_ip: str,
+    request_id: str | None = None,
+    correlation_id: str | None = None,
+    trace_id: str | None = None,
+    span_id: str | None = None,
+    user_agent: str | None = None,
+    content_length: int | None = None,
+) -> dict[str, Any]:
+    """Format request log data as a structured dictionary.
+
+    This function creates a structured log entry that can be easily parsed
+    by log aggregation systems like Loki, ELK, or Splunk.
+
+    Args:
+        method: HTTP method (GET, POST, etc.)
+        path: Request path
+        status_code: HTTP response status code
+        duration_ms: Request duration in milliseconds
+        client_ip: Client IP address (masked for privacy)
+        request_id: Request correlation ID
+        correlation_id: Cross-service correlation ID
+        trace_id: OpenTelemetry trace ID
+        span_id: OpenTelemetry span ID
+        user_agent: User-Agent header
+        content_length: Response content length in bytes
+
+    Returns:
+        Structured dictionary with all request metadata.
+    """
+    log_data: dict[str, Any] = {
+        "method": method,
+        "path": path,
+        "status_code": status_code,
+        "duration_ms": round(duration_ms, 2),
+        "client_ip": client_ip,
+    }
+
+    # Add optional correlation fields
+    if request_id:
+        log_data["request_id"] = request_id
+    if correlation_id:
+        log_data["correlation_id"] = correlation_id
+    if trace_id:
+        log_data["trace_id"] = trace_id
+    if span_id:
+        log_data["span_id"] = span_id
+    if user_agent:
+        log_data["user_agent"] = user_agent
+    if content_length is not None:
+        log_data["content_length"] = content_length
+
+    return log_data
 
 
 def _get_route_pattern(request: Request) -> str:
@@ -137,7 +203,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         self.enable_request_logging = enable_request_logging
         self.logging_excluded_paths = (
-            logging_excluded_paths if logging_excluded_paths is not None else LOGGING_EXCLUDED_PATHS
+            logging_excluded_paths if logging_excluded_paths is not None else DEFAULT_EXCLUDED_PATHS
         )
         self.metrics_excluded_paths = (
             metrics_excluded_paths

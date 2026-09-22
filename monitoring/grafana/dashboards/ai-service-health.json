@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Home Security Intelligence - AI Service Health. Monitors GPU OOM events, GPU memory utilization, service error rates, and inference latency percentiles across all AI services.",
+  "description": "Home Security Intelligence - AI Service Health. Monitors Triton inference failures (the OOM signal in the gateway topology), GPU memory utilization, service error rates, and inference latency percentiles across all AI models.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -46,7 +46,7 @@
       "id": 100,
       "options": {
         "mode": "markdown",
-        "content": "### AI Service Health Monitoring\n\nThis dashboard provides a unified view of GPU health and AI service performance across all inference services.\n\n**Services Monitored:** YOLO26, Nemotron (llama.cpp), Florence-2, CLIP, Enrichment (heavy/light)\n\n**Key Indicators:**\n- **GPU OOM Events**: Out-of-memory errors requiring service recovery. Any OOM event is a critical signal.\n- **GPU Memory Utilization**: Per-service VRAM usage as a percentage of available memory.\n- **Service Error Rate**: Rate of failed inference requests per service.\n- **Latency Percentiles**: P50/P95/P99 inference latency to detect degradation.\n\n**Alert Thresholds:** OOM > 0 = Critical | Error rate > 1% = Warning | P95 latency > 2x baseline = Warning"
+        "content": "### AI Service Health Monitoring\n\nThis dashboard provides a unified view of GPU health and AI service performance across all inference services.\n\n**Models Served:** Triton via ai-gateway (yolo26, florence2, clip, enrichment models) + Nemotron (llama.cpp sidecar)\n\n**Key Indicators:**\n- **GPU Inference Failures**: nv_inference_request_failure per Triton model — VRAM exhaustion (OOM) surfaces here. Any sustained failure is a critical signal.\n- **GPU Memory Utilization**: Per-service VRAM usage as a percentage of available memory.\n- **Service Error Rate**: Rate of failed inference requests per service.\n- **Latency Percentiles**: P50/P95/P99 inference latency to detect degradation.\n\n**Alert Thresholds:** OOM > 0 = Critical | Error rate > 1% = Warning | P95 latency > 2x baseline = Warning"
       },
       "title": "Documentation",
       "type": "text"
@@ -61,7 +61,7 @@
       },
       "id": 10,
       "panels": [],
-      "title": "GPU Out-of-Memory Events",
+      "title": "GPU Inference Failures (OOM Signal)",
       "type": "row"
     },
     {
@@ -69,7 +69,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Total GPU OOM events per service. Any OOM event indicates the service has hit GPU memory limits and had to recover.",
+      "description": "Failed Triton inferences per model (5m increase). VRAM exhaustion surfaces as failed inferences; any sustained failure indicates a model hit GPU memory limits.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -78,7 +78,7 @@
           "custom": {
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "OOM Events",
+            "axisLabel": "Failed Inferences",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -149,12 +149,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "increase(ai_gpu_oom_total[5m])",
-          "legendFormat": "{{service}}",
+          "expr": "increase(nv_inference_request_failure[5m])",
+          "legendFormat": "{{model}}",
           "refId": "A"
         }
       ],
-      "title": "GPU OOM Events per Service (5m windows)",
+      "title": "Failed Inferences per Model (5m windows)",
       "type": "timeseries"
     },
     {
@@ -162,7 +162,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Cumulative GPU OOM event count per service since last restart",
+      "description": "Cumulative failed Triton inferences per model since server start",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -216,12 +216,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "ai_gpu_oom_total",
-          "legendFormat": "{{service}}",
+          "expr": "nv_inference_request_failure",
+          "legendFormat": "{{model}}",
           "refId": "A"
         }
       ],
-      "title": "Cumulative GPU OOM Events by Service",
+      "title": "Cumulative Failed Inferences by Model",
       "type": "stat"
     },
     {

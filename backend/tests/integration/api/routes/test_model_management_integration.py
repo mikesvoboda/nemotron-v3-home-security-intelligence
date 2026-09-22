@@ -1,133 +1,93 @@
 """Integration tests for Model Zoo Management API endpoints (NEM-4783).
 
-These tests verify the Model Zoo Management API endpoints work correctly
-with mocked enrichment services. The backend acts as an aggregation layer
-that combines static model metadata from the registry with runtime state
-from enrichment services.
+Post-ai-gateway-consolidation contract (the previous revision of this file
+tested the retired standalone-enrichment proxy: dispatch on ports 8094/8096,
+GET {service}/models/status, load/unload returning 200 with freed_vram, and
+load/unload returning 503 when the proxy target was absent — none of those
+surfaces exist any more post-consolidation):
 
-Tests cover:
-1. Happy path - list models, load/unload, VRAM summary
-2. Error handling - nonexistent model, disabled model, service unavailable
+- Read endpoints (list / detail status / vram-summary) aggregate registry
+  metadata with Triton readiness from the ai-gateway router health payloads
+  (GET {router}/health, keyed by the triton_name values in the root
+  models.yml catalogue) and, for backend-process models, from ModelManager.
+  The shared integration fixtures stand in for a router outage — the whole
+  app boots through the client fixture while no ai-gateway runs.
+- Lifecycle endpoints (load / unload / reload / unload-all) return 501 with
+  registry-validation precedence (404 unknown, then 400 disabled) and MUST
+  NOT touch the network: Triton runs --model-control-mode=none and the
+  gateway exposes no preload/unload surface. The http_client dependency
+  factory is swapped for a tripwire that fails the test on ANY outbound
+  call, so a "fixed" lifecycle route that starts POSTing to the gateway is
+  caught here even though its 501 assertion would still pass (the route's
+  validation only reads the registry, so no GET is expected either).
+- vram-summary reports per-lane budgets with readiness-derived estimates
+  and never fabricates live VRAM figures.
 
-Endpoints tested:
-- GET /api/system/models - List all models with registry + runtime state
-- GET /api/system/models/{name}/status - Detailed status for specific model
-- POST /api/system/models/{name}/load - Load model via enrichment service
-- POST /api/system/models/{name}/unload - Unload model via enrichment service
-- POST /api/system/models/{name}/reload - Unload + load
-- POST /api/system/models/unload-all - Unload all models on both services
-- GET /api/system/models/vram-summary - Per-GPU VRAM breakdown
+Registry state (models.yml at repo root is catalogue truth):
+- fashion-clip: "both" service with triton_name fashion_clip — its
+  registry vram_mb is overridden by a fixture to a value found nowhere else,
+  so used_mb proves the lane sum reads the catalogue estimate, not a live
+  figure.
+- threat-detection-yolov8n: light-lane model (gpu_id 1).
+- weather-classification: backend-only model, no Triton mapping.
+- yolo26-general: disabled in the catalogue — the 400-on-disabled fixture.
 
 Uses shared fixtures from conftest.py:
 - integration_db: Clean PostgreSQL test database
 - client: httpx AsyncClient with test app
 - mock_redis: Mock Redis client
-
-Note: This is TDD RED phase - tests are expected to FAIL until
-the API implementation is complete.
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
-from unittest.mock import AsyncMock
+from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+import yaml
 from httpx import AsyncClient
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
 
+# Router base URLs resolved from default settings (enrichment_url /
+# enrichment_light_url already point at the ai-gateway routers
+# post-consolidation) — the egress assertions key on these.
+HEALTH_HEAVY = "http://ai-gateway:8090/enrichment/health"
+HEALTH_LIGHT = "http://ai-gateway:8090/enrich-lt/health"
 
-# =============================================================================
-# Mock Enrichment Service Responses
-# =============================================================================
+# models.yml stand-in: readiness keys are the catalogue's triton names.
+CATALOGUE_ENTRIES = [
+    {"name": "fashion-clip", "triton_name": "fashion_clip"},
+    {"name": "threat-detection-yolov8n", "triton_name": "threat"},
+    {"name": "osnet-ain-x1-0", "triton_name": "reid"},
+    {"name": "weather-classification"},  # no triton_name — backend process
+]
+
+# fashion-clip registry estimate used by this file. The real models.yml value
+# differs (500), so gpu0.used_mb pinning this number proves lane accounting
+# reads the registry estimate (see the vram-summary docstring).
+FASHION_CLIP_VRAM_ESTIMATE = 5123
 
 
-def create_enrichment_status_response(
-    loaded_models: list[str],
-    vram_used_mb: int = 2100,
-    vram_budget_mb: int = 6800,
-) -> dict:
-    """Create a mock response from enrichment service /models/status endpoint.
-
-    Args:
-        loaded_models: List of model names that are currently loaded
-        vram_used_mb: Total VRAM used in MB
-        vram_budget_mb: Total VRAM budget in MB
-
-    Returns:
-        Mock response dictionary matching enrichment service format
-    """
+def make_health(models: dict[str, bool]) -> dict[str, Any]:
+    """Build a gateway router /health payload like the adapters serve."""
     return {
-        "loaded_models": {
-            model: {
-                "actual_vram_mb": 500,
-                "last_used": "2025-01-31T10:30:00Z",
-                "load_count": 5,
-            }
-            for model in loaded_models
-        },
-        "vram_used_mb": vram_used_mb,
-        "vram_budget_mb": vram_budget_mb,
+        "status": "healthy" if all(models.values()) else "degraded",
+        "models": models,
     }
-
-
-def create_load_response(
-    model_name: str,
-    load_time_ms: float = 1250.0,
-    vram_mb: int = 500,
-) -> dict:
-    """Create a mock response from enrichment service /models/preload endpoint.
-
-    Args:
-        model_name: Name of the loaded model
-        load_time_ms: Time taken to load in milliseconds
-        vram_mb: VRAM usage in MB
-
-    Returns:
-        Mock response dictionary matching enrichment service format
-    """
-    return {
-        "success": True,
-        "model_name": model_name,
-        "load_time_ms": load_time_ms,
-        "vram_mb": vram_mb,
-    }
-
-
-def create_unload_response(model_name: str, freed_vram_mb: int = 500) -> dict:
-    """Create a mock response from enrichment service /models/{name}/unload endpoint.
-
-    Args:
-        model_name: Name of the unloaded model
-        freed_vram_mb: VRAM freed in MB
-
-    Returns:
-        Mock response dictionary matching enrichment service format
-    """
-    return {
-        "success": True,
-        "model_name": model_name,
-        "freed_vram_mb": freed_vram_mb,
-    }
-
-
-# =============================================================================
-# Fixtures
-# =============================================================================
 
 
 @contextmanager
-def override_http_client(mock_http):
+def override_http_client(mock_http: Any):
     """Override the get_http_client dependency for the current request(s).
 
-    FastAPI captures get_http_client at route-declaration time
-    (model_management.py:347 etc.); unittest.mock.patch on the module
-    attribute is a no-op (probe-verified, same DI trap as R-T7-SERVICES).
-    dependency_overrides IS consulted at request time. Zero-arg override:
-    an unannotated request param resolves as a query param and 422s.
+    FastAPI captures get_http_client at route-declaration time; unittest.mock
+    .patch on the module attribute is a no-op (probe-verified, same DI trap as
+    R-T7-SERVICES). dependency_overrides IS consulted at request time. Zero-arg
+    override: an unannotated request param resolves as a query param and 422s.
     """
     from backend.api.routes.model_management import get_http_client
     from backend.main import app
@@ -141,71 +101,64 @@ def override_http_client(mock_http):
 
 
 @pytest.fixture
-def mock_enrichment_responses():
-    """Fixture providing mock HTTP responses for enrichment services.
+def fake_catalogue(tmp_path):
+    """Point the route's models.yml lookup at a fake catalogue (lru_cache is
+    keyed on nothing, so it must be cleared around the patch)."""
+    catalogue = tmp_path / "models.yml"
+    catalogue.write_text(yaml.safe_dump({"models": CATALOGUE_ENTRIES}))
 
-    Returns a context manager that patches httpx.AsyncClient to return
-    mock responses for enrichment service endpoints.
+    from backend.api.routes import model_management
+
+    model_management._load_triton_name_map.cache_clear()
+    with patch.object(model_management, "_MODELS_YML", catalogue):
+        yield catalogue
+    model_management._load_triton_name_map.cache_clear()
+
+
+@pytest.fixture
+def real_fashion_clip_config():
+    """Real registry ModelConfig for fashion-clip with a stand-in estimate.
+
+    The estimate is set to a value that cannot come from anywhere else so
+    vram-summary assertions prove the registry-estimate basis; the real
+    catalogue's vram_mb is deliberately not reused.
+    """
+    from backend.services.model_zoo import get_model_config
+
+    config = get_model_config("fashion-clip")
+    assert config is not None, "models.yml lost fashion-clip from the registry"
+    original = config.vram_mb
+    config.vram_mb = FASHION_CLIP_VRAM_ESTIMATE
+    try:
+        yield config
+    finally:
+        config.vram_mb = original
+
+
+@pytest.fixture
+def tripwire_http_client():
+    """Async mock http client that fails the test on ANY outbound call.
+
+    The lifecycle endpoints must answer purely from the registry — a GET here
+    would mean someone re-introduced the router-proxy behavior the 501 exists
+    to forbid. The current lifecycle signatures take no http_client
+    dependency at all, so this tripwire fires against a "fixed" route that
+    re-adds Depends(get_http_client) to POST to the gateway: its 501-for-a-
+    valid-model assertion would still pass, and the recorded egress is what
+    reddens it.
     """
 
-    async def mock_get(url: str, *args, **kwargs) -> httpx.Response:
-        """Mock GET requests to enrichment services."""
-        if "/models/status" in url:
-            # Heavy enrichment service (GPU 0)
-            if "8094" in url or "ai-enrichment:" in url:
-                return httpx.Response(
-                    200,
-                    json=create_enrichment_status_response(
-                        loaded_models=["fashion-clip", "vehicle-segment-classification"],
-                        vram_used_mb=2100,
-                        vram_budget_mb=6800,
-                    ),
-                )
-            # Light enrichment service (GPU 1)
-            if "8096" in url or "ai-enrichment-light" in url:
-                return httpx.Response(
-                    200,
-                    json=create_enrichment_status_response(
-                        loaded_models=["threat-detection-yolov8n", "osnet-ain-x1-0"],
-                        vram_used_mb=450,
-                        vram_budget_mb=1200,
-                    ),
-                )
-        raise httpx.HTTPStatusError(
-            "Not Found",
-            request=httpx.Request("GET", url),
-            response=httpx.Response(404),
-        )
+    async def _no_egress(*args: Any, **kwargs: Any) -> httpx.Response:
+        raise AssertionError(f"lifecycle endpoint must not touch the network: {args} {kwargs}")
 
-    async def mock_post(url: str, *args, **kwargs) -> httpx.Response:
-        """Mock POST requests to enrichment services."""
-        # Preload (load) model
-        if "/models/preload" in url:
-            model_name = kwargs.get("params", {}).get("model_name", "unknown")
-            return httpx.Response(
-                200,
-                json=create_load_response(model_name),
-            )
-        # Unload model
-        if "/models/" in url and "/unload" in url:
-            # Extract model name from URL path
-            parts = url.rsplit("/models/", maxsplit=1)[-1].split("/unload", maxsplit=1)[0]
-            model_name = parts
-            return httpx.Response(
-                200,
-                json=create_unload_response(model_name),
-            )
-        raise httpx.HTTPStatusError(
-            "Not Found",
-            request=httpx.Request("POST", url),
-            response=httpx.Response(404),
-        )
-
-    return {"get": mock_get, "post": mock_post}
+    mock_http = AsyncMock()
+    mock_http.get = AsyncMock(side_effect=_no_egress)
+    mock_http.post = AsyncMock(side_effect=_no_egress)
+    return mock_http
 
 
 # =============================================================================
-# Happy Path Tests
+# Read Endpoints — degraded path with no ai-gateway running
 # =============================================================================
 
 
@@ -213,178 +166,221 @@ class TestListModelsIntegration:
     """Integration tests for GET /api/system/models endpoint."""
 
     @pytest.mark.asyncio
-    async def test_list_models_returns_real_enrichment_state(
+    async def test_list_models_degrades_gracefully_without_gateway(
         self,
         client: AsyncClient,
-        mock_enrichment_responses: dict,
     ) -> None:
-        """Test that list models aggregates state from both enrichment services.
+        """No ai-gateway in this environment → registry data survives, runtime
+        reports unloaded, both routers report unhealthy.
 
         Verifies:
         - Response includes models from the registry
-        - Runtime state is populated from enrichment services
-        - Service status shows both services as healthy
-        - Models show correct GPU assignment
+        - Triton-mapped and backend-process models alike report loaded=False
+        - Service status shows both routers unhealthy (never a fabricated up)
         """
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-        mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
-
-        with override_http_client(mock_http):
-            response = await client.get("/api/system/models")
+        response = await client.get("/api/system/models")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response structure
         assert "models" in data
         assert "service_status" in data
 
-        # Verify models list is populated
         models = data["models"]
         assert len(models) > 0
 
-        # Find a model that should be loaded (from mock responses)
+        # Heavy-lane Triton model: lane labels persist as router labels
         fashion_clip = next((m for m in models if m["name"] == "fashion-clip"), None)
         assert fashion_clip is not None
-        assert fashion_clip["runtime"]["loaded"] is True
+        assert fashion_clip["runtime"]["loaded"] is False
+        assert fashion_clip["runtime"]["actual_vram_mb"] is None
         assert fashion_clip["gpu_id"] == 0
         assert fashion_clip["service"] == "ai-enrichment"
 
-        # Find a model from the light service
+        # Light-lane Triton model
         threat_model = next((m for m in models if m["name"] == "threat-detection-yolov8n"), None)
         assert threat_model is not None
-        assert threat_model["runtime"]["loaded"] is True
+        assert threat_model["runtime"]["loaded"] is False
         assert threat_model["gpu_id"] == 1
         assert threat_model["service"] == "ai-enrichment-light"
 
-        # Verify service status
+        # Service status shows the routers unreachable
         service_status = data["service_status"]
-        assert service_status["ai-enrichment"] == "healthy"
-        assert service_status["ai-enrichment-light"] == "healthy"
+        assert service_status["ai-enrichment"] == "unhealthy"
+        assert service_status["ai-enrichment-light"] == "unhealthy"
 
     @pytest.mark.asyncio
-    async def test_list_models_includes_unloaded_models(
+    @pytest.mark.usefixtures("fake_catalogue")
+    async def test_list_models_readiness_from_gateway_health_payloads(
         self,
         client: AsyncClient,
-        mock_enrichment_responses: dict,
     ) -> None:
-        """Test that list includes models that are not currently loaded.
+        """With router health mocked, readiness comes from the health payloads
+        keyed by the models.yml triton names, probed at {router}/health.
 
         Verifies:
-        - Unloaded models have runtime.loaded = False
-        - Unloaded models still show estimated VRAM and category
+        - GET goes to both routers' /health (not the retired /models/status)
+        - triton=True models report loaded, triton=False models do not
+        - backend-process models report from ModelManager, not the routers
         """
+        heavy = make_health({"fashion_clip": True})
+        light = make_health({"threat": True, "reid": False})
+
+        async def mock_get(url: str, *args: Any, **kwargs: Any) -> httpx.Response:
+            if url == HEALTH_HEAVY:
+                return httpx.Response(200, json=heavy)
+            if url == HEALTH_LIGHT:
+                return httpx.Response(200, json=light)
+            raise AssertionError(f"unexpected probe URL from list_models: {url}")
+
         mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
+        mock_http.get = AsyncMock(side_effect=mock_get)
 
         with override_http_client(mock_http):
             response = await client.get("/api/system/models")
 
         assert response.status_code == 200
         data = response.json()
+        models = data["models"]
 
-        # Find a model that should NOT be loaded (not in mock responses)
-        yolo_world = next((m for m in data["models"] if m["name"] == "yolo-world-s"), None)
-        if yolo_world:  # Model exists in registry
-            assert yolo_world["runtime"]["loaded"] is False
-            assert yolo_world["runtime"]["actual_vram_mb"] is None
-            assert yolo_world["estimated_vram_mb"] > 0
-            assert yolo_world["category"] is not None
+        by_name = {m["name"]: m for m in models}
+
+        # Triton-ready (heavy router said fashion_clip: true)
+        fashion = by_name.get("fashion-clip")
+        if fashion:  # present only while fashion-clip keeps a loader in _LOADER_MAP
+            assert fashion["runtime"]["loaded"] is True
+            # Triton exposes no per-model VRAM over HTTP
+            assert fashion["runtime"]["actual_vram_mb"] is None
+
+        threat = by_name.get("threat-detection-yolov8n")
+        if threat:
+            assert threat["runtime"]["loaded"] is True
+
+        # Light router reported reid not-ready
+        osnet = by_name.get("osnet-ain-x1-0")
+        if osnet:
+            assert osnet["runtime"]["loaded"] is False
+
+        # Backend-process model: ModelManager state, routers not consulted for it
+        weather = by_name.get("weather-classification")
+        if weather:
+            assert weather["runtime"]["loaded"] is False
+
+        probed = [call.args[0] for call in mock_http.get.call_args_list]
+        assert HEALTH_HEAVY in probed
+        assert HEALTH_LIGHT in probed
+
+        assert data["service_status"]["ai-enrichment"] == "healthy"
+        assert data["service_status"]["ai-enrichment-light"] == "healthy"
 
 
-class TestLoadModelIntegration:
-    """Integration tests for POST /api/system/models/{name}/load endpoint."""
+class TestModelStatusEndpoint:
+    """Integration tests for GET /api/system/models/{name}/status endpoint."""
 
     @pytest.mark.asyncio
-    async def test_load_model_actually_loads_in_enrichment(
+    async def test_get_model_status_returns_detailed_info(
         self,
         client: AsyncClient,
-        mock_enrichment_responses: dict,
     ) -> None:
-        """Test that load model proxies to the correct enrichment service.
-
-        Verifies:
-        - Request is routed to correct enrichment service based on model
-        - Response includes load time and VRAM usage
-        - Response includes GPU and service info
-        """
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-        mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
-
-        with override_http_client(mock_http):
-            response = await client.post("/api/system/models/threat-detection-yolov8n/load")
+        """Detail status answers with registry fields even with no gateway up;
+        a Triton-mapped model reports unloaded rather than a fabricated up."""
+        response = await client.get("/api/system/models/fashion-clip/status")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response structure
-        assert data["success"] is True
-        assert data["model_name"] == "threat-detection-yolov8n"
-        assert data["service"] == "ai-enrichment-light"
-        assert data["gpu_id"] == 1
-        assert "load_time_ms" in data
-        assert "vram_mb" in data
-
-        # Verify the enrichment service was called
-        mock_http.post.assert_called()
-        call_args = mock_http.post.call_args
-        assert "8096" in str(call_args) or "ai-enrichment-light" in str(call_args)
-
-
-class TestUnloadModelIntegration:
-    """Integration tests for POST /api/system/models/{name}/unload endpoint."""
+        assert data["name"] == "fashion-clip"
+        assert "category" in data
+        assert data["estimated_vram_mb"] > 0
+        assert "enabled" in data
+        assert data["service"] == "ai-enrichment"
+        assert data["gpu_id"] == 0
+        runtime = data["runtime"]
+        assert runtime["loaded"] is False
+        assert "actual_vram_mb" in runtime
+        assert "last_used" in runtime
+        assert "load_count" in runtime
 
     @pytest.mark.asyncio
-    async def test_unload_model_actually_unloads_in_enrichment(
+    @pytest.mark.usefixtures("fake_catalogue")
+    async def test_get_model_status_backend_model_skips_router(
         self,
         client: AsyncClient,
-        mock_enrichment_responses: dict,
     ) -> None:
-        """Test that unload model proxies to the correct enrichment service.
-
-        Verifies:
-        - Request is routed to correct enrichment service
-        - Response includes freed VRAM info
-        """
+        """A model with no Triton mapping is answered from ModelManager only —
+        no router is probed for it."""
         mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-        mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
+        mock_http.get = AsyncMock(side_effect=AssertionError("router probed for backend model"))
 
         with override_http_client(mock_http):
-            response = await client.post("/api/system/models/fashion-clip/unload")
+            response = await client.get("/api/system/models/weather-classification/status")
 
         assert response.status_code == 200
         data = response.json()
-
-        # Verify response structure
-        assert data["success"] is True
-        assert data["model_name"] == "fashion-clip"
-        assert "freed_vram_mb" in data
-
-        # Verify the enrichment service was called with unload
-        mock_http.post.assert_called()
+        assert data["runtime"]["loaded"] is False
+        assert mock_http.get.await_count == 0
 
 
-class TestVRAMSummaryIntegration:
+class TestVramSummaryIntegration:
     """Integration tests for GET /api/system/models/vram-summary endpoint."""
 
     @pytest.mark.asyncio
-    async def test_vram_summary_reflects_actual_gpu_usage(
+    async def test_vram_summary_reports_budgets_without_fabricated_usage(
         self,
         client: AsyncClient,
-        mock_enrichment_responses: dict,
     ) -> None:
-        """Test that VRAM summary returns per-GPU breakdown from enrichment services.
+        """With no gateway up, both lanes report budgets and zero usage."""
+        response = await client.get("/api/system/models/vram-summary")
 
-        Verifies:
-        - Response includes per-GPU VRAM info
-        - Each GPU shows service, budget, used, available
-        - Totals are correctly calculated
-        """
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "gpus" in data
+        assert "totals" in data
+
+        gpus = data["gpus"]
+        assert len(gpus) == 2  # heavy and light router lanes
+
+        gpu0 = next(g for g in gpus if g["gpu_id"] == 0)
+        assert gpu0["service"] == "ai-enrichment"
+        assert gpu0["budget_mb"] == 6800
+        assert gpu0["used_mb"] == 0
+        assert gpu0["available_mb"] == 6800
+        assert gpu0["loaded_models"] == []
+        assert "utilization_percent" in gpu0
+
+        gpu1 = next(g for g in gpus if g["gpu_id"] == 1)
+        assert gpu1["service"] == "ai-enrichment-light"
+        assert gpu1["budget_mb"] == 1200
+        assert gpu1["used_mb"] == 0
+
+        totals = data["totals"]
+        assert totals["budget_mb"] == 8000  # 6800 + 1200
+        assert totals["used_mb"] == 0
+        assert totals["available_mb"] == 8000
+        assert totals["model_count"] == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fake_catalogue", "real_fashion_clip_config")
+    async def test_vram_summary_sums_registry_estimates_of_ready_models(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        """Ready models on a lane sum the registry vram_mb estimates (the
+        retired VRAM-manager accounting is gone and Triton exposes no live
+        per-model figure)."""
+        heavy = make_health({"fashion_clip": True})
+        light = make_health({"threat": True})
+
+        async def mock_get(url: str, *args: Any, **kwargs: Any) -> httpx.Response:
+            if url == HEALTH_HEAVY:
+                return httpx.Response(200, json=heavy)
+            if url == HEALTH_LIGHT:
+                return httpx.Response(200, json=light)
+            raise AssertionError(f"unexpected probe URL from vram-summary: {url}")
+
         mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
+        mock_http.get = AsyncMock(side_effect=mock_get)
 
         with override_http_client(mock_http):
             response = await client.get("/api/system/models/vram-summary")
@@ -392,59 +388,111 @@ class TestVRAMSummaryIntegration:
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response structure
-        assert "gpus" in data
-        assert "totals" in data
+        gpu0 = next(g for g in data["gpus"] if g["gpu_id"] == 0)
+        assert gpu0["loaded_models"] == ["fashion-clip"]
+        # proves the registry-estimate basis, not a live/other figure
+        assert gpu0["used_mb"] == FASHION_CLIP_VRAM_ESTIMATE
+        assert gpu0["available_mb"] == 6800 - FASHION_CLIP_VRAM_ESTIMATE
 
-        gpus = data["gpus"]
-        assert len(gpus) == 2  # Heavy and light services
+        gpu1 = next(g for g in data["gpus"] if g["gpu_id"] == 1)
+        assert gpu1["loaded_models"] == ["threat-detection-yolov8n"]
 
-        # Verify GPU 0 (heavy service)
-        gpu0 = next((g for g in gpus if g["gpu_id"] == 0), None)
-        assert gpu0 is not None
-        assert gpu0["service"] == "ai-enrichment"
-        assert gpu0["budget_mb"] == 6800
-        assert gpu0["used_mb"] == 2100
-        assert gpu0["available_mb"] == 4700
-        assert "utilization_percent" in gpu0
-        assert "loaded_models" in gpu0
-        assert "fashion-clip" in gpu0["loaded_models"]
-
-        # Verify GPU 1 (light service)
-        gpu1 = next((g for g in gpus if g["gpu_id"] == 1), None)
-        assert gpu1 is not None
-        assert gpu1["service"] == "ai-enrichment-light"
-        assert gpu1["budget_mb"] == 1200
-        assert gpu1["used_mb"] == 450
-        assert "threat-detection-yolov8n" in gpu1["loaded_models"]
-
-        # Verify totals
         totals = data["totals"]
-        assert totals["budget_mb"] == 8000  # 6800 + 1200
-        assert totals["used_mb"] == 2550  # 2100 + 450
-        assert totals["available_mb"] == 5450  # 8000 - 2550
-        assert totals["model_count"] == 4  # 2 from each service
+        assert totals["model_count"] == 2
+        assert totals["used_mb"] == FASHION_CLIP_VRAM_ESTIMATE + gpu1["used_mb"]
 
 
 # =============================================================================
-# Error Handling Tests
+# Lifecycle Endpoints — 501 with registry validation, zero egress
 # =============================================================================
+
+
+def no_egress_recorded(mock_http: AsyncMock) -> bool:
+    """True iff the mocked client recorded no calls at all."""
+    return (
+        mock_http.get.await_count == 0
+        and mock_http.post.await_count == 0
+        and mock_http.mock_calls == []
+    )
+
+
+class TestLifecycleUnsupported:
+    """load/unload/reload/unload-all: Triton runs --model-control-mode=none;
+    every route answers 501 and must not issue any outbound HTTP call."""
+
+    @pytest.mark.asyncio
+    async def test_load_known_model_returns_501_without_egress(
+        self,
+        client: AsyncClient,
+        tripwire_http_client: AsyncMock,
+    ) -> None:
+        with override_http_client(tripwire_http_client):
+            response = await client.post("/api/system/models/fashion-clip/load")
+
+        assert response.status_code == 501
+        detail = response.json()["detail"].lower()
+        assert "not supported" in detail
+        assert no_egress_recorded(tripwire_http_client)
+
+    @pytest.mark.asyncio
+    async def test_unload_known_model_returns_501_without_egress(
+        self,
+        client: AsyncClient,
+        tripwire_http_client: AsyncMock,
+    ) -> None:
+        with override_http_client(tripwire_http_client):
+            response = await client.post("/api/system/models/fashion-clip/unload")
+
+        assert response.status_code == 501
+        assert no_egress_recorded(tripwire_http_client)
+
+    @pytest.mark.asyncio
+    async def test_reload_known_model_returns_501_without_egress(
+        self,
+        client: AsyncClient,
+        tripwire_http_client: AsyncMock,
+    ) -> None:
+        with override_http_client(tripwire_http_client):
+            response = await client.post("/api/system/models/fashion-clip/reload")
+
+        assert response.status_code == 501
+        assert no_egress_recorded(tripwire_http_client)
+
+    @pytest.mark.asyncio
+    async def test_unload_all_returns_501_without_egress(
+        self,
+        client: AsyncClient,
+        tripwire_http_client: AsyncMock,
+    ) -> None:
+        with override_http_client(tripwire_http_client):
+            response = await client.post("/api/system/models/unload-all")
+
+        assert response.status_code == 501
+        assert no_egress_recorded(tripwire_http_client)
+
+    @pytest.mark.asyncio
+    async def test_load_backend_process_model_still_501(
+        self,
+        client: AsyncClient,
+        tripwire_http_client: AsyncMock,
+    ) -> None:
+        """Backend-process models load lazily via ModelManager on first use —
+        the HTTP surface still refuses with 501 (no eager-load path)."""
+        with override_http_client(tripwire_http_client):
+            response = await client.post("/api/system/models/weather-classification/load")
+
+        assert response.status_code == 501
+        assert no_egress_recorded(tripwire_http_client)
 
 
 class TestModelNotFoundErrors:
-    """Integration tests for model not found error handling."""
+    """Registry validation precedes the 501 (404 unknown model)."""
 
     @pytest.mark.asyncio
     async def test_load_nonexistent_model_returns_error(
         self,
         client: AsyncClient,
     ) -> None:
-        """Test that loading a nonexistent model returns 404.
-
-        Verifies:
-        - Response status is 404
-        - Error message indicates model not found
-        """
         response = await client.post("/api/system/models/nonexistent-model-xyz/load")
 
         assert response.status_code == 404
@@ -457,13 +505,19 @@ class TestModelNotFoundErrors:
         self,
         client: AsyncClient,
     ) -> None:
-        """Test that unloading a nonexistent model returns 404.
-
-        Verifies:
-        - Response status is 404
-        - Error message indicates model not found
-        """
         response = await client.post("/api/system/models/nonexistent-model-xyz/unload")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data
+        assert "not found" in data["detail"].lower() or "nonexistent" in data["detail"].lower()
+
+    @pytest.mark.asyncio
+    async def test_reload_nonexistent_model_returns_error(
+        self,
+        client: AsyncClient,
+    ) -> None:
+        response = await client.post("/api/system/models/nonexistent-model-xyz/reload")
 
         assert response.status_code == 404
         data = response.json()
@@ -475,12 +529,6 @@ class TestModelNotFoundErrors:
         self,
         client: AsyncClient,
     ) -> None:
-        """Test that getting status for nonexistent model returns 404.
-
-        Verifies:
-        - Response status is 404
-        - Error message indicates model not found
-        """
         response = await client.get("/api/system/models/nonexistent-model-xyz/status")
 
         assert response.status_code == 404
@@ -489,22 +537,14 @@ class TestModelNotFoundErrors:
 
 
 class TestDisabledModelErrors:
-    """Integration tests for disabled model error handling."""
+    """Registry validation precedes the 501 (400 disabled model)."""
 
     @pytest.mark.asyncio
     async def test_load_disabled_model_returns_error(
         self,
         client: AsyncClient,
     ) -> None:
-        """Test that loading a disabled model returns 400.
-
-        The model 'yolo26-general' is disabled in the registry.
-
-        Verifies:
-        - Response status is 400
-        - Error message indicates model is disabled
-        """
-        # yolo26-general is disabled in the model zoo registry
+        """The model 'yolo26-general' is disabled in the registry."""
         response = await client.post("/api/system/models/yolo26-general/load")
 
         assert response.status_code == 400
@@ -512,239 +552,13 @@ class TestDisabledModelErrors:
         assert "detail" in data
         assert "disabled" in data["detail"].lower()
 
-
-class TestServiceUnavailableErrors:
-    """Integration tests for enrichment service unavailable handling."""
-
     @pytest.mark.asyncio
-    async def test_graceful_degradation_when_enrichment_down(
+    async def test_reload_disabled_model_returns_error(
         self,
         client: AsyncClient,
     ) -> None:
-        """Test graceful degradation when enrichment services are unavailable.
+        response = await client.post("/api/system/models/yolo26-general/reload")
 
-        Verifies:
-        - List models still returns static registry data
-        - Service status shows services as unhealthy
-        - Runtime state shows services as unavailable
-        """
-
-        async def mock_get_fail(url: str, *args, **kwargs) -> httpx.Response:
-            """Mock GET that simulates service unavailable."""
-            raise httpx.ConnectError("Connection refused")
-
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_get_fail)
-
-        with override_http_client(mock_http):
-            response = await client.get("/api/system/models")
-
-        # Should still return 200 with degraded data
-        assert response.status_code == 200
+        assert response.status_code == 400
         data = response.json()
-
-        # Verify response structure is maintained
-        assert "models" in data
-        assert "service_status" in data
-
-        # Models should still be present (from registry)
-        models = data["models"]
-        assert len(models) > 0
-
-        # Service status should show unhealthy
-        service_status = data["service_status"]
-        assert service_status["ai-enrichment"] in ("unhealthy", "unavailable")
-        assert service_status["ai-enrichment-light"] in ("unhealthy", "unavailable")
-
-        # Runtime state should be empty/unavailable for all models
-        for model in models:
-            assert model["runtime"]["loaded"] is False
-            assert model["runtime"]["actual_vram_mb"] is None
-
-    @pytest.mark.asyncio
-    async def test_load_model_when_enrichment_down_returns_503(
-        self,
-        client: AsyncClient,
-    ) -> None:
-        """Test that load returns 503 when enrichment service is unavailable.
-
-        Verifies:
-        - Response status is 503
-        - Error message indicates service unavailable
-        """
-
-        async def mock_post_fail(url: str, *args, **kwargs) -> httpx.Response:
-            """Mock POST that simulates service unavailable."""
-            raise httpx.ConnectError("Connection refused")
-
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(side_effect=mock_post_fail)
-
-        with override_http_client(mock_http):
-            response = await client.post("/api/system/models/threat-detection-yolov8n/load")
-
-        assert response.status_code == 503
-        data = response.json()
-        assert "detail" in data
-        assert "unavailable" in data["detail"].lower() or "enrichment" in data["detail"].lower()
-
-    @pytest.mark.asyncio
-    async def test_vram_summary_with_partial_service_failure(
-        self,
-        client: AsyncClient,
-        mock_enrichment_responses: dict,
-    ) -> None:
-        """Test VRAM summary handles partial service failure gracefully.
-
-        When one enrichment service is down but the other is up:
-        - Should still return data for the healthy service
-        - Should indicate the unhealthy service status
-        """
-
-        async def mock_get_partial(url: str, *args, **kwargs) -> httpx.Response:
-            """Mock GET where only light service responds."""
-            # Heavy service fails
-            if "8094" in url or ("ai-enrichment:" in url and "light" not in url):
-                raise httpx.ConnectError("Connection refused")
-            # Light service responds
-            if "8096" in url or "ai-enrichment-light" in url:
-                return httpx.Response(
-                    200,
-                    json=create_enrichment_status_response(
-                        loaded_models=["threat-detection-yolov8n"],
-                        vram_used_mb=300,
-                        vram_budget_mb=1200,
-                    ),
-                )
-            raise httpx.ConnectError("Unknown URL")
-
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_get_partial)
-
-        with override_http_client(mock_http):
-            response = await client.get("/api/system/models/vram-summary")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Should have data for at least the working service
-        assert "gpus" in data
-        gpus = data["gpus"]
-
-        # Light service (GPU 1) should have data
-        gpu1 = next((g for g in gpus if g["gpu_id"] == 1), None)
-        assert gpu1 is not None
-        assert gpu1["used_mb"] == 300
-
-
-# =============================================================================
-# Additional Endpoint Tests
-# =============================================================================
-
-
-class TestModelStatusEndpoint:
-    """Integration tests for GET /api/system/models/{name}/status endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_get_model_status_returns_detailed_info(
-        self,
-        client: AsyncClient,
-        mock_enrichment_responses: dict,
-    ) -> None:
-        """Test that model status endpoint returns detailed model info.
-
-        Verifies:
-        - Response includes all model fields
-        - Runtime state is populated from enrichment service
-        """
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-
-        with override_http_client(mock_http):
-            response = await client.get("/api/system/models/fashion-clip/status")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # Verify all expected fields are present
-        assert data["name"] == "fashion-clip"
-        assert "category" in data
-        assert "estimated_vram_mb" in data
-        assert "enabled" in data
-        assert "service" in data
-        assert "gpu_id" in data
-        assert "runtime" in data
-
-        # Verify runtime state
-        runtime = data["runtime"]
-        assert runtime["loaded"] is True
-        assert "actual_vram_mb" in runtime
-        assert "last_used" in runtime
-        assert "load_count" in runtime
-
-
-class TestReloadModelEndpoint:
-    """Integration tests for POST /api/system/models/{name}/reload endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_reload_model_unloads_and_loads(
-        self,
-        client: AsyncClient,
-        mock_enrichment_responses: dict,
-    ) -> None:
-        """Test that reload performs unload then load.
-
-        Verifies:
-        - Both unload and load are called
-        - Response indicates success with load info
-        """
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-        mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
-
-        with override_http_client(mock_http):
-            response = await client.post("/api/system/models/fashion-clip/reload")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        assert data["success"] is True
-        assert data["model_name"] == "fashion-clip"
-
-        # Verify both calls were made (unload then load)
-        # Note: The exact assertion depends on implementation
-        assert mock_http.post.call_count >= 2
-
-
-class TestUnloadAllEndpoint:
-    """Integration tests for POST /api/system/models/unload-all endpoint."""
-
-    @pytest.mark.asyncio
-    async def test_unload_all_clears_both_services(
-        self,
-        client: AsyncClient,
-        mock_enrichment_responses: dict,
-    ) -> None:
-        """Test that unload-all calls both enrichment services.
-
-        Verifies:
-        - Both services are called to unload
-        - Response indicates success for both services
-        """
-        mock_http = AsyncMock()
-        mock_http.get = AsyncMock(side_effect=mock_enrichment_responses["get"])
-        mock_http.post = AsyncMock(side_effect=mock_enrichment_responses["post"])
-
-        with override_http_client(mock_http):
-            response = await client.post("/api/system/models/unload-all")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        assert data["success"] is True
-        assert "services" in data
-
-        # Both services should report success
-        services = data["services"]
-        assert "ai-enrichment" in services
-        assert "ai-enrichment-light" in services
+        assert "disabled" in data["detail"].lower()

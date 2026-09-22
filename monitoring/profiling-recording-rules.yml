@@ -2,6 +2,17 @@
 # Pre-computes profiling-related metrics for efficient regression detection.
 # These rules establish baselines and compute ratios for CPU and memory usage
 # that enable automated detection when services deviate from normal patterns.
+#
+# AI SERVING TOPOLOGY (gateway consolidation): the standalone AI containers
+# (ai-yolo26, ai-florence, ai-clip, ai-enrichment, ai-enrichment-light) are
+# retired, so their per-service scrape jobs and their *_inference_latency_seconds
+# histograms no longer exist. Every rule below reads a metric that is live in
+# the current topology — job names match monitoring/prometheus.yml, and AI
+# inference latency comes from the backend's client-side histogram
+# hsi_ai_request_duration_seconds (backend/core/metrics.py), which is labelled
+# per AI service and covers gateway-routed calls. Triton's own nv_* latency
+# series are cumulative counters, so they can only yield averages, not
+# percentiles.
 
 groups:
   # =============================================================================
@@ -33,35 +44,29 @@ groups:
           sum by (job) (rate(process_cpu_seconds_total[1h]))
 
       # AI service CPU rates (individual tracking for fine-grained analysis)
+      # Only two AI processes expose process_cpu_seconds_total: the llama.cpp
+      # sidecar (job ai-llm-metrics) and the gateway's FastAPI layer
+      # (job ai-gateway-metrics). Triton's own CPU signal is nv_cpu_utilization
+      # (nvmetric gauge, no process_* series), so it is not part of this chain.
       - record: job:ai_llm_cpu_seconds:rate5m
         expr: |
           sum(rate(process_cpu_seconds_total{job="ai-llm-metrics"}[5m]))
         labels:
           service: ai-llm
 
-      - record: job:ai_yolo26_cpu_seconds:rate5m
+      - record: job:ai_gateway_cpu_seconds:rate5m
         expr: |
-          sum(rate(process_cpu_seconds_total{job="ai-yolo26-metrics"}[5m]))
+          sum(rate(process_cpu_seconds_total{job="ai-gateway-metrics"}[5m]))
         labels:
-          service: ai-yolo26
+          service: ai-gateway
 
-      - record: job:ai_florence_cpu_seconds:rate5m
-        expr: |
-          sum(rate(process_cpu_seconds_total{job="ai-florence-metrics"}[5m]))
-        labels:
-          service: ai-florence
-
-      - record: job:ai_clip_cpu_seconds:rate5m
-        expr: |
-          sum(rate(process_cpu_seconds_total{job="ai-clip-metrics"}[5m]))
-        labels:
-          service: ai-clip
-
-      - record: job:ai_enrichment_cpu_seconds:rate5m
-        expr: |
-          sum(rate(process_cpu_seconds_total{job="ai-enrichment-metrics"}[5m]))
-        labels:
-          service: ai-enrichment
+      # Removed (retired containers, jobs no longer scraped):
+      #   job:ai_yolo26_cpu_seconds:rate5m      (job ai-yolo26-metrics)
+      #   job:ai_florence_cpu_seconds:rate5m    (job ai-florence-metrics)
+      #   job:ai_clip_cpu_seconds:rate5m        (job ai-clip-metrics)
+      #   job:ai_enrichment_cpu_seconds:rate5m  (job ai-enrichment-metrics)
+      # None had consumers in monitoring/; all inference models now share the
+      # single ai-gateway process.
 
   # =============================================================================
   # Service Memory Usage Recording Rules
@@ -145,30 +150,50 @@ groups:
   - name: profiling-latency-metrics
     interval: 1m
     rules:
-      # YOLO26 P95 inference latency
+      # Detector (YOLO26) P95 inference latency.
+      # Source: the backend's client-side histogram, recorded on every call to
+      # the gateway detector (backend/services/detector_client.py with
+      # service="yolo26"). The retired standalone detector exported
+      # yolo26_inference_latency_seconds_bucket; the gateway's Triton does not.
       - record: job:yolo26_inference_latency:p95_5m
         expr: |
-          histogram_quantile(0.95, sum(rate(yolo26_inference_latency_seconds_bucket[5m])) by (le))
+          histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))
 
-      # YOLO26 P99 inference latency
+      # Detector (YOLO26) P99 inference latency
       - record: job:yolo26_inference_latency:p99_5m
         expr: |
-          histogram_quantile(0.99, sum(rate(yolo26_inference_latency_seconds_bucket[5m])) by (le))
+          histogram_quantile(0.99, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))
 
-      # Florence P95 inference latency
+      # Florence P95 inference latency (service="florence")
       - record: job:florence_inference_latency:p95_5m
         expr: |
-          histogram_quantile(0.95, sum(rate(florence_inference_latency_seconds_bucket[5m])) by (le))
+          histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="florence"}[5m])) by (le))
 
-      # CLIP P95 inference latency
+      # CLIP P95 inference latency (service="clip")
       - record: job:clip_inference_latency:p95_5m
         expr: |
-          histogram_quantile(0.95, sum(rate(clip_inference_latency_seconds_bucket[5m])) by (le))
+          histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="clip"}[5m])) by (le))
 
-      # Backend API P99 latency
+      # Gateway-routed Triton average inference latency per model. Triton only
+      # exposes cumulative counters by default (nv_inference_request_duration_us
+      # over nv_inference_request_success), so averages are all that is
+      # available from the triton-metrics job; percentiles for yolo26/florence/
+      # clip come from the histograms above.
+      - record: job:triton_inference_latency:avg5m
+        expr: |
+          sum by (model) (rate(nv_inference_request_duration_us[5m]))
+          /
+          (sum by (model) (rate(nv_inference_request_success[5m])) + 0.001)
+        labels:
+          unit: microseconds
+
+      # Backend API P99 latency.
+      # The backend's HTTP middleware histogram is http_request_duration_seconds
+      # (backend/api/middleware/prometheus.py) with no hsi_ prefix — the
+      # previous expression named a metric that was never exported.
       - record: job:backend_api_latency:p99_5m
         expr: |
-          histogram_quantile(0.99, sum(rate(hsi_http_request_duration_seconds_bucket[5m])) by (le))
+          histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
 
       # Latency regression ratio (current P95 vs 1h average P95)
       - record: job:yolo26_latency_regression_ratio:p95_vs_1h
