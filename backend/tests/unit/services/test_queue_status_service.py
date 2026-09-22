@@ -23,6 +23,7 @@ from backend.api.schemas.queue_status import (
 from backend.core.constants import (
     ANALYSIS_QUEUE,
     DETECTION_QUEUE,
+    DLQ_ANALYSIS_QUEUE,
     DLQ_DETECTION_QUEUE,
 )
 from backend.services.queue_status_service import (
@@ -648,3 +649,247 @@ class TestThroughputAndWorkers:
 
         assert workers == 0
         assert running == 0
+
+
+# =============================================================================
+# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# queue_status_service.md clusters 1,3,5,7,8,10-14,16,17,21,23,25 — 50
+# TEST-GAP survivors of 69; the 19 leftovers are EQUIVALENT/LOW-VALUE,
+# per-cluster justified in the dossier). Root cause: every Redis call went
+# through an argument-blind AsyncMock and every value assert was
+# inequality-style (> 0), so call-argument mutants and table-nudge
+# mutants were silent; DLQ_ANALYSIS_QUEUE was never even imported by the
+# suite. Production asserted exactly as shipped.
+# =============================================================================
+
+
+class TestWorkerInfoContracts:
+    """Clusters 12/13/14: exact worker table, fallback and running formula."""
+
+    @pytest.fixture
+    def service(self) -> QueueStatusService:
+        return QueueStatusService(AsyncMock())
+
+    @pytest.mark.asyncio
+    async def test_worker_info_exact_contracts(self, service: QueueStatusService) -> None:
+        """Pin worker counts for every queue class incl. DLQ_ANALYSIS and the unknown fallback."""
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        for queue, expected in (
+            (DETECTION_QUEUE, settings.detection_worker_count),
+            (ANALYSIS_QUEUE, settings.analysis_worker_count),
+            (DLQ_DETECTION_QUEUE, 0),
+            (DLQ_ANALYSIS_QUEUE, 0),  # was never exercised by any test
+        ):
+            workers, running = await service._get_worker_info(queue)
+            assert workers == expected
+            assert running == (1 if expected > 0 else 0)
+
+        # Unknown queues fall back to exactly one worker, running 1
+        assert await service._get_worker_info("custom_queue") == (1, 1)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("configured", [1, 3])
+    async def test_worker_running_estimate_is_capped_at_one(
+        self, service: QueueStatusService, monkeypatch: pytest.MonkeyPatch, configured: int
+    ) -> None:
+        """running = min(workers, 1) for any workers > 0 — incl. the workers == 1 boundary.
+
+        Kills min(workers, 2) (needs workers >= 2) and `workers > 1` (needs workers == 1).
+        """
+        from types import SimpleNamespace
+
+        import backend.core.config as config_module
+
+        monkeypatch.setattr(
+            config_module,
+            "get_settings",
+            lambda: SimpleNamespace(
+                detection_worker_count=configured, analysis_worker_count=configured
+            ),
+        )
+        assert await service._get_worker_info(DETECTION_QUEUE) == (configured, 1)
+
+
+class TestThroughputContracts:
+    """Clusters 10/11: the static throughput table IS the /api/queues contract."""
+
+    @pytest.fixture
+    def service(self) -> QueueStatusService:
+        return QueueStatusService(AsyncMock())
+
+    @pytest.mark.asyncio
+    async def test_throughput_metrics_pinned_values(self, service: QueueStatusService) -> None:
+        """Pin every default-throughput entry incl. DLQ_ANALYSIS and the unknown-queue zeros."""
+        expected = {
+            DETECTION_QUEUE: (10.0, 2.5),
+            ANALYSIS_QUEUE: (5.0, 8.0),
+            DLQ_DETECTION_QUEUE: (0.0, 0.0),
+            DLQ_ANALYSIS_QUEUE: (0.0, 0.0),
+            "custom_queue": (0.0, 0.0),  # unconfigured queues fall back to zeros
+        }
+        for queue, (jpm, avg) in expected.items():
+            throughput = await service._get_throughput_metrics(queue)
+            assert throughput.jobs_per_minute == jpm, queue
+            assert throughput.avg_processing_seconds == avg, queue
+
+
+class TestOldestJobContracts:
+    """Clusters 3/5/7/8: id-chain priority, queued_at fallback + surfacing, naive-UTC."""
+
+    @pytest.fixture
+    def service(self) -> QueueStatusService:
+        return QueueStatusService(AsyncMock())
+
+    @pytest.mark.asyncio
+    async def test_oldest_job_prefers_id_key_and_exposes_queued_at(
+        self, service: QueueStatusService
+    ) -> None:
+        """ "id" wins the job_id chain and queued_at surfaces the parsed timestamp."""
+        ts = datetime.now(UTC).isoformat()
+        service._redis.peek_queue.return_value = [
+            {"id": "job-1", "batch_id": "b-1", "file_path": "/a.jpg", "timestamp": ts}
+        ]
+
+        info = await service._get_oldest_job_info("test_queue")
+
+        assert info is not None
+        assert info.id == "job-1"  # kills mutated first term -> falls through/None
+        assert info.queued_at is not None  # kills queued_at=None / dropped kwarg
+
+    @pytest.mark.asyncio
+    async def test_oldest_job_falls_back_to_queued_at_key(
+        self, service: QueueStatusService
+    ) -> None:
+        """A job carrying only "queued_at" must still compute wait time."""
+        ts = (datetime.now(UTC) - timedelta(seconds=400)).isoformat()
+        service._redis.peek_queue.return_value = [{"file_path": "/a.jpg", "queued_at": ts}]
+
+        info = await service._get_oldest_job_info("test_queue")
+
+        assert info is not None
+        assert info.wait_seconds >= 395  # kills broken queued_at fallback -> 0.0
+
+    @pytest.mark.asyncio
+    async def test_oldest_job_assumes_utc_for_naive_timestamp(
+        self, service: QueueStatusService
+    ) -> None:
+        """Naive timestamps are treated as UTC instead of blowing up into info=None."""
+        ts = (datetime.now(UTC) - timedelta(seconds=400)).replace(tzinfo=None).isoformat()
+        service._redis.peek_queue.return_value = [{"file_path": "/a.jpg", "timestamp": ts}]
+
+        info = await service._get_oldest_job_info("test_queue")
+
+        assert info is not None  # flipped tz branch -> TypeError swallowed -> None
+        assert info.wait_seconds >= 395
+
+
+class TestQueueStatusWiring:
+    """Clusters 1/16/17/25: raw-name call shape, display fallback, singleton wiring."""
+
+    @pytest.fixture
+    def mock_redis(self) -> AsyncMock:
+        redis = AsyncMock()
+        redis.get_queue_length = AsyncMock(return_value=10)
+        redis.peek_queue = AsyncMock(return_value=[])
+        return redis
+
+    @pytest.fixture
+    def service(self, mock_redis: AsyncMock) -> QueueStatusService:
+        return QueueStatusService(mock_redis)
+
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self) -> None:
+        reset_queue_status_service()
+
+    @pytest.mark.asyncio
+    async def test_get_queue_status_queries_redis_with_raw_queue_name(
+        self, service: QueueStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Depth + peek must be requested for the raw queue name with the first-item slice.
+
+        Mocks answer any arguments, so assert the call shape itself — this pins the
+        "workers use unprefixed queue names" contract at get_queue_status.
+        """
+        mock_redis.peek_queue.return_value = [{"id": "job-1"}]
+
+        status = await service.get_queue_status(DETECTION_QUEUE)
+
+        mock_redis.get_queue_length.assert_called_once_with(DETECTION_QUEUE)
+        mock_redis.peek_queue.assert_called_once_with(DETECTION_QUEUE, start=0, end=0)
+        # display lookup keyed by the queue name: key->None makes .get MISS and
+        # the status carries the RAW name (qstatus cluster 16, key 3)
+        assert status.name == "detection"
+        # throughput must be looked up under the real queue name, not None
+        assert status.throughput.jobs_per_minute == 10.0
+        assert status.throughput.avg_processing_seconds == 2.5
+
+    @pytest.mark.asyncio
+    async def test_get_queue_status_dlq_depth_uses_dlq_thresholds(
+        self, service: QueueStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """Depth 20: WARNING under dlq thresholds (warning=10), HEALTHY under defaults (warning=50).
+
+        Proves calculate_health receives the display name, not None.
+        """
+        mock_redis.get_queue_length.return_value = 20
+        mock_redis.peek_queue.return_value = []
+
+        status = await service.get_queue_status(DLQ_DETECTION_QUEUE)
+
+        assert status.status == QueueHealthStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_get_queue_status_unmapped_queue_falls_back_to_raw_name(
+        self, service: QueueStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """An unmapped queue keeps its raw name instead of None (and gets default metrics)."""
+        status = await service.get_queue_status("custom_queue")
+
+        assert status.name == "custom_queue"  # None default -> pydantic ValidationError = killed
+        assert status.throughput.jobs_per_minute == 0.0
+        assert status.workers == 1
+
+    def test_singleton_stores_the_redis_client(self) -> None:
+        """The factory must wire the passed redis client into the service."""
+        mock_redis = AsyncMock()
+
+        service = get_queue_status_service(mock_redis)
+
+        assert service._redis is mock_redis  # QueueStatusService(None) mutant -> not mock
+
+
+class TestDegradedStatuses:
+    """Clusters 21/23: the error path's degraded status must carry display name + zero metrics."""
+
+    @pytest.fixture
+    def mock_redis(self) -> AsyncMock:
+        redis = AsyncMock()
+        redis.get_queue_length = AsyncMock(return_value=10)
+        redis.peek_queue = AsyncMock(return_value=[])
+        return redis
+
+    @pytest.fixture
+    def service(self, mock_redis: AsyncMock) -> QueueStatusService:
+        return QueueStatusService(mock_redis)
+
+    @pytest.mark.asyncio
+    async def test_all_queues_error_statuses_are_degraded_and_named(
+        self, service: QueueStatusService, mock_redis: AsyncMock
+    ) -> None:
+        """When every queue lookup fails, each degraded status must carry display name + zero metrics."""
+        mock_redis.get_queue_length.side_effect = Exception("Redis down")
+        mock_redis.peek_queue.return_value = []
+
+        statuses = await service.get_all_queues_status()
+
+        assert [s.name for s in statuses] == ["detection", "ai_analysis", "dlq", "dlq"]
+        for s in statuses:
+            assert s.status == QueueHealthStatus.CRITICAL
+            assert s.depth == 0
+            assert s.running == 0
+            assert s.workers == 0
+            assert s.throughput.jobs_per_minute == 0.0
+            assert s.throughput.avg_processing_seconds == 0.0
+            assert s.oldest_job is None
