@@ -9,6 +9,7 @@ Tests verify CSV and Excel export functionality including:
 """
 
 from datetime import UTC, datetime
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -22,6 +23,7 @@ from backend.services.export_service import (
     ExportFormat,
     ExportService,
     events_to_csv,
+    events_to_csv_streaming,
     events_to_excel,
     format_export_value,
     generate_export_filename,
@@ -1498,3 +1500,725 @@ class TestExportDeferredColumns:
         stmts = [c.args[0] for c in mock_db.execute.call_args_list]
         assert len(stmts) == 3
         assert "events.reasoning" in str(stmts[1].compile())
+
+
+# =============================================================================
+# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage/
+# export_service.md, clusters T1-T6 + SQL-COUNT-W/FILENAME-P/WS-RESULT/
+# WS-FAIL/SINGLETON/DJ/CSV-SEEK/EMPTY/EE-COLUMNS/GF-PREFIX). Root cause per
+# the dossier: every DB-backed method ran through an argument-blind AsyncMock
+# asserting only returned-dict shape and execute.called — written file bytes,
+# compiled SQL text, progress VALUES and reporter payloads were never read.
+# All tests below pin the SHIPPED contract (source read at this commit);
+# zero production change. SQL-text precedent: TestExportDeferredColumns.
+# =============================================================================
+
+
+def _two_event_db():
+    """count=2 → 2 events → camera hits: the execute side_effect the progress
+    and websocket paths consume in order (count, fetch, cam, cam)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    e1 = MagicMock()
+    e1.id = 42
+    e1.camera_id = "cam-7"
+    e1.started_at = datetime(2024, 3, 1, 9, 0, 0, tzinfo=UTC)
+    e1.ended_at = datetime(2024, 3, 1, 9, 5, 0, tzinfo=UTC)
+    e1.risk_score = 75
+    e1.risk_level = "high"
+    e1.summary = "Person at door"
+    e1.detection_count = None  # `or 0` must render 0
+    e1.reviewed = None  # `or False` must render "No"
+    e1.object_types = "person, dog"
+    e1.reasoning = "why the model thought so"
+
+    e2 = MagicMock()
+    e2.id = 43
+    e2.camera_id = "cam-missing"
+    e2.started_at = datetime(2024, 3, 2, 10, 0, 0, tzinfo=UTC)
+    e2.ended_at = None
+    e2.risk_score = None
+    e2.risk_level = None
+    e2.summary = None
+    e2.detection_count = 2
+    e2.reviewed = True
+    e2.object_types = None
+    e2.reasoning = None
+
+    count_result = MagicMock()
+    count_result.scalar.return_value = 2
+    event_result = MagicMock()
+    event_result.scalars.return_value.all.return_value = [e1, e2]
+    cam1 = MagicMock()
+    cam1.scalar.return_value = "Back Gate"
+    cam2 = MagicMock()
+    cam2.scalar.return_value = None  # miss → "Unknown" fallback
+
+    db = AsyncMock()
+    db.execute = AsyncMock(side_effect=[count_result, event_result, cam1, cam2])
+    return db
+
+
+def _empty_db():
+    from unittest.mock import AsyncMock, MagicMock
+
+    count_result = MagicMock()
+    count_result.scalar.return_value = 0
+    db = AsyncMock()
+    db.execute = AsyncMock(return_value=count_result)
+    return db
+
+
+def _ws_reporter():
+    from unittest.mock import AsyncMock, MagicMock
+
+    reporter = MagicMock()
+    reporter.start = AsyncMock()
+    reporter.report_progress = AsyncMock()
+    reporter.complete = AsyncMock()
+    reporter.fail = AsyncMock()
+    reporter.job_id = "ws-battery"
+    reporter.duration_seconds = 1.0
+    return reporter
+
+
+@pytest.mark.asyncio
+class TestExportProgressFileContent:
+    """T1: export_events_with_progress must write REAL row data to disk.
+
+    ROW-FIELDS-P / FILE-CONTENT-P / COLUMNS / FILENAME-P / PROG-PCT survivors
+    existed because the written CSV/JSON was never read back and the tracker
+    was asserted as a bare call-count.
+    """
+
+    async def test_csv_file_contains_all_event_fields(self, tmp_path, monkeypatch):
+        import csv as csv_mod
+        import io
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_two_event_db())
+
+        result = await service.export_events_with_progress(
+            job_id="content-job",
+            job_tracker=MagicMock(),
+            export_format="csv",
+        )
+
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        rows = list(csv_mod.reader(io.StringIO(written.read_text(encoding="utf-8"))))
+
+        # header = EXTENDED display names in order (kills COLUMNS column-loss)
+        assert rows[0] == [display for _, display in es.EXTENDED_EXPORT_COLUMNS]
+        # full first row — every field, formatted exactly as shipped
+        assert rows[1] == [
+            "42",
+            "Back Gate",
+            "2024-03-01T09:00:00+00:00",
+            "2024-03-01T09:05:00+00:00",
+            "75",
+            "high",
+            "Person at door",
+            "0",  # detection_count None or 0
+            "No",  # reviewed None or False
+            "person, dog",
+            "why the model thought so",
+        ]
+        # camera miss → "Unknown" fallback; e2 pass-throughs
+        assert rows[2][0] == "43"
+        assert rows[2][1] == "Unknown"
+
+    async def test_filename_carries_real_timestamp_digits(self, tmp_path, monkeypatch):
+        """FILENAME-P: %Y%m%d_%H%M%S clobbers (XX-wrapped / lowercase
+        directives) fail a strict all-digits stem check."""
+        import re
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_two_event_db())
+
+        result = await service.export_events_with_progress(
+            job_id="name-job", job_tracker=MagicMock(), export_format="csv"
+        )
+
+        stem = result["file_path"].rsplit("/", 1)[-1][: -len(".csv")]
+        assert re.fullmatch(r"events_export_\d{8}_\d{6}", stem)
+
+    async def test_json_file_holds_filtered_row_dicts(self, tmp_path, monkeypatch):
+        import json
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_two_event_db())
+
+        result = await service.export_events_with_progress(
+            job_id="json-job", job_tracker=MagicMock(), export_format="json"
+        )
+
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        dicts = json.loads(written.read_text(encoding="utf-8"))
+        assert dicts[0] == {
+            "event_id": 42,
+            "camera_name": "Back Gate",
+            "started_at": "2024-03-01T09:00:00+00:00",
+            "ended_at": "2024-03-01T09:05:00+00:00",
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Person at door",
+            "detection_count": 0,
+            "reviewed": False,
+            "object_types": "person, dog",
+            "reasoning": "why the model thought so",
+        }
+        assert dicts[1]["camera_name"] == "Unknown"
+
+    async def test_custom_columns_narrow_csv_and_json(self, tmp_path, monkeypatch):
+        """COLUMNS: columns=None fallback hid the custom-columns path —
+        get_selected_columns order and filter_row_to_dict keys asserted."""
+        import csv as csv_mod
+        import io
+        import json
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_two_event_db())
+
+        result = await service.export_events_with_progress(
+            job_id="col-job",
+            job_tracker=MagicMock(),
+            export_format="csv",
+            columns=["summary", "event_id"],
+        )
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        rows = list(csv_mod.reader(io.StringIO(written.read_text(encoding="utf-8"))))
+        assert rows[0] == ["Summary", "Event ID"]  # requested order preserved
+        assert rows[1] == ["Person at door", "42"]
+
+        db2 = _two_event_db()
+        service2 = es.ExportService(db=db2)
+        result2 = await service2.export_events_with_progress(
+            job_id="col-job-2",
+            job_tracker=MagicMock(),
+            export_format="json",
+            columns=["risk_level"],
+        )
+        written2 = tmp_path / result2["file_path"].rsplit("/", 1)[-1]
+        assert json.loads(written2.read_text(encoding="utf-8"))[0] == {"risk_level": "high"}
+
+    async def test_progress_percentages_are_shipped_values(self, tmp_path, monkeypatch):
+        """PROG-PCT: tracker VALUES (10/80/95 + message), not call_count."""
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        tracker = MagicMock()
+        service = es.ExportService(db=_two_event_db())
+
+        await service.export_events_with_progress(
+            job_id="pct-job", job_tracker=tracker, export_format="csv"
+        )
+
+        calls = [
+            (c.args[1], c.kwargs.get("message")) for c in tracker.update_progress.call_args_list
+        ]
+        assert calls == [
+            (10, "Found 2 events to export"),
+            (80, "Writing CSV file..."),  # export_format.upper()
+            (95, "Finalizing export..."),
+        ]
+
+
+@pytest.mark.asyncio
+class TestExportQueryShape:
+    """T2: filters must RENDER into compiled SQL. Existing filter tests
+    asserted only execute.called — SQLAlchemy 2.x compiles where(None)/!=
+    happily, so filter-loss mutants were invisible. Precedent:
+    TestExportDeferredColumns."""
+
+    async def test_all_filters_render_into_count_statement(self, tmp_path, monkeypatch):
+        from datetime import datetime as dt
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        db = _empty_db()
+        service = es.ExportService(db=db)
+        await service.export_events_with_progress(
+            job_id="shape-job",
+            job_tracker=MagicMock(),
+            export_format="csv",
+            camera_id="cam-9",
+            risk_level="high",
+            start_date="2024-01-15T00:00:00Z",
+            end_date="2024-01-16T23:59:59Z",
+            reviewed=True,
+        )
+
+        # count==0 must SHORT-CIRCUIT to the empty export (kills `or 1`)
+        assert db.execute.call_count == 1
+
+        stmt = db.execute.call_args_list[0].args[0]
+        text_ = str(stmt.compile())
+        assert "events.deleted_at IS NULL" in text_
+        assert "events.camera_id = :" in text_
+        assert "events.risk_level = :" in text_
+        assert "events.started_at >= :" in text_
+        assert "events.started_at <= :" in text_
+        assert "events.reviewed = true" in text_  # bool renders as literal
+        assert "!=" not in text_  # no flipped comparison anywhere
+        assert "SELECT count(*)" in text_  # SQL-COUNT: count pipeline intact
+
+        params = stmt.compile().params
+        assert "cam-9" in params.values()
+        assert "high" in params.values()
+        assert dt.fromisoformat("2024-01-15T00:00:00+00:00") in params.values()
+        assert dt.fromisoformat("2024-01-16T23:59:59+00:00") in params.values()
+
+    async def test_fetch_statement_orders_desc(self, tmp_path, monkeypatch):
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        db = _two_event_db()
+        service = es.ExportService(db=db)
+        await service.export_events_with_progress(
+            job_id="ord-job", job_tracker=MagicMock(), export_format="csv"
+        )
+        fetch_text = str(db.execute.call_args_list[1].args[0].compile())
+        assert "ORDER BY events.started_at DESC" in fetch_text
+
+    async def test_websocket_filters_render_identically(self, tmp_path, monkeypatch):
+        """SQL-FILTER-W/SQL-COUNT-W: the ws method builds the SAME statement."""
+        from datetime import datetime as dt
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        db = _empty_db()
+        service = es.ExportService(db=db)
+        await service.export_events_with_websocket(
+            progress_reporter=_ws_reporter(),
+            export_format="csv",
+            camera_id="cam-9",
+            risk_level="high",
+            start_date="2024-01-15T00:00:00Z",
+            end_date="2024-01-16T23:59:59Z",
+            reviewed=True,
+        )
+
+        # count==0 must SHORT-CIRCUIT to the empty export (kills `or 1`)
+        assert db.execute.call_count == 1
+
+        stmt = db.execute.call_args_list[0].args[0]
+        text_ = str(stmt.compile())
+        assert "events.deleted_at IS NULL" in text_
+        assert "events.camera_id = :" in text_
+        assert "events.risk_level = :" in text_
+        assert "events.started_at >= :" in text_
+        assert "events.started_at <= :" in text_
+        assert "events.reviewed = true" in text_  # bool renders as literal
+        assert "!=" not in text_
+        assert "SELECT count(*)" in text_
+        params = stmt.compile().params
+        assert dt.fromisoformat("2024-01-15T00:00:00+00:00") in params.values()
+
+
+@pytest.mark.asyncio
+class TestWebSocketProgressSequence:
+    """T3: report_progress call VALUES, not call_count (NEM-2380 contract).
+    WS-PROG (32 survivors), WS-RESULT, WS-EMPTY, WS-FAIL."""
+
+    async def test_report_progress_call_sequence(self, tmp_path, monkeypatch):
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        service = es.ExportService(db=_two_event_db())
+
+        await service.export_events_with_websocket(progress_reporter=reporter, export_format="csv")
+
+        calls = [
+            (c.args[0], c.kwargs.get("current_step"), c.kwargs.get("force"))
+            for c in reporter.report_progress.call_args_list
+        ]
+        assert calls == [
+            (1, "Found 2 events to export", True),
+            (35, "Processing event 1/2", None),  # int(1/2*70)
+            (70, "Processing event 2/2", None),  # kills *71, (idx+2)
+            (80, "Writing CSV file...", True),
+            (95, "Finalizing export...", True),
+        ]
+
+    async def test_complete_receives_result_summary(self, tmp_path, monkeypatch):
+        """WS-RESULT: complete(result_summary=...) carries the full dict."""
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        service = es.ExportService(db=_two_event_db())
+
+        result = await service.export_events_with_websocket(
+            progress_reporter=reporter, export_format="csv"
+        )
+
+        summary = reporter.complete.call_args.kwargs["result_summary"]
+        assert summary == result  # same dict shipped to the caller
+        assert summary["event_count"] == 2
+        assert summary["format"] == "csv"
+        assert summary["duration_seconds"] == 1.0
+        assert summary["file_path"].startswith("/api/exports/events_export_")
+        assert summary["file_size"] > 0
+
+    async def test_empty_path_completes_with_message(self, tmp_path, monkeypatch):
+        """WS-EMPTY: empty export still completes with result_summary + msg."""
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        service = es.ExportService(db=_empty_db())
+
+        result = await service.export_events_with_websocket(
+            progress_reporter=reporter, export_format="json"
+        )
+
+        summary = reporter.complete.call_args.kwargs["result_summary"]
+        assert summary["message"] == "No events to export"
+        assert summary["event_count"] == 0
+        assert result["event_count"] == 0
+
+    async def test_failure_reports_retryable_false(self):
+        """WS-FAIL: fail(e, retryable=False) — the job-retry contract.
+        Existing exception test asserts call+type only, never retryable."""
+        from unittest.mock import AsyncMock
+
+        reporter = _ws_reporter()
+        reporter.start = AsyncMock(side_effect=RuntimeError("boom"))
+        service = ExportService(db=_empty_db())
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await service.export_events_with_websocket(
+                progress_reporter=reporter, export_format="csv"
+            )
+
+        reporter.fail.assert_called_once()
+        exc_arg = reporter.fail.call_args.args[0]
+        assert isinstance(exc_arg, RuntimeError)
+        assert reporter.fail.call_args.kwargs["retryable"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.asyncio
+class TestWebSocketFileContent:
+    """WS counterpart of T1: the websocket path writes EXTENDED-columns CSV
+    and its fetch statement carries ORDER BY DESC (ROW-FIELDS-W,
+    FILE-CONTENT-W, order_by(None) survivors were invisible)."""
+
+    async def test_websocket_csv_file_contains_rows(self, tmp_path, monkeypatch):
+        import csv as csv_mod
+        import io
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        db = _two_event_db()
+        reporter = _ws_reporter()
+        await es.ExportService(db=db).export_events_with_websocket(
+            progress_reporter=reporter, export_format="csv"
+        )
+
+        fetch_text = str(db.execute.call_args_list[1].args[0].compile())
+        assert "ORDER BY events.started_at DESC" in fetch_text  # kills order_by(None)
+
+        files = list(tmp_path.glob("events_export_*.csv"))
+        assert len(files) == 1
+        rows = list(csv_mod.reader(io.StringIO(files[0].read_text(encoding="utf-8"))))
+        assert rows[0] == [display for _, display in es.EXTENDED_EXPORT_COLUMNS]
+        assert rows[1] == [
+            "42",
+            "Back Gate",
+            "2024-03-01T09:00:00+00:00",
+            "2024-03-01T09:05:00+00:00",
+            "75",
+            "high",
+            "Person at door",
+            "0",
+            "No",
+            "person, dog",
+            "why the model thought so",
+        ]
+        assert rows[2][1] == "Unknown"
+
+
+class TestWebSocketStartMetadata:
+    """T4: job.started metadata filters dict is the frontend contract
+    (WS-META, 12 survivors — key renames/casing all invisible)."""
+
+    async def test_start_metadata_carries_exact_filter_keys(self, tmp_path, monkeypatch):
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        service = es.ExportService(db=_empty_db())
+
+        await service.export_events_with_websocket(
+            progress_reporter=reporter,
+            export_format="csv",
+            camera_id="cam-1",
+            risk_level="high",
+            start_date="2024-01-01T00:00:00Z",
+            end_date=None,
+            reviewed=True,
+        )
+
+        meta = reporter.start.call_args.kwargs["metadata"]
+        assert meta["export_format"] == "csv"
+        assert meta["filters"] == {  # exact dict equality kills every rename
+            "camera_id": "cam-1",
+            "risk_level": "high",
+            "start_date": "2024-01-01T00:00:00Z",
+            "end_date": None,
+            "reviewed": True,
+        }
+
+
+class TestEventsToExcelCellValues:
+    """T5: Excel bool/datetime cell VALUES (XL-CELLS, 10 survivors —
+    existing tests assert ids/camera names only)."""
+
+    def test_excel_boolean_reviewed_cells_are_yes_no(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Cam",
+                started_at=None,
+                ended_at=None,
+                risk_score=None,
+                risk_level=None,
+                summary=None,
+                detection_count=1,
+                reviewed=True,
+            ),
+            EventExportRow(
+                event_id=2,
+                camera_name="Cam",
+                started_at=None,
+                ended_at=None,
+                risk_score=None,
+                risk_level=None,
+                summary=None,
+                detection_count=1,
+                reviewed=False,
+            ),
+        ]
+        ws = load_workbook(io.BytesIO(events_to_excel(events))).active
+        assert ws.cell(row=2, column=9).value == "Yes"
+        assert ws.cell(row=3, column=9).value == "No"
+
+    def test_excel_datetime_cells_are_naive_datetimes(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Cam",
+                started_at=datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC),
+                ended_at=None,
+                risk_score=None,
+                risk_level=None,
+                summary=None,
+                detection_count=1,
+                reviewed=False,
+            ),
+        ]
+        ws = load_workbook(io.BytesIO(events_to_excel(events))).active
+        value = ws.cell(row=2, column=3).value  # kills tz-strip→None
+        assert value == datetime(2024, 1, 15, 10, 30, 0)
+        assert value.tzinfo is None  # openpyxl rejects tz-aware cells
+
+
+class TestAcceptHeaderQualityValue:
+    """T6 / ACCEPT-QP: split(';')→split(None) survivors — existing quality
+    test used a CSV header whose mutant outcome is ALSO csv; JSON exposes it."""
+
+    def test_accept_header_json_with_quality_value(self):
+        assert parse_accept_header("application/json;q=0.9") == ExportFormat.JSON
+
+    def test_accept_header_json_with_space_quality_value(self):
+        assert parse_accept_header("application/json ;q=0.9") == ExportFormat.JSON
+
+
+class TestDetectionsToJsonDefault:
+    """DJ-COLS/DJ-CONTENT: sole covering test passes explicit columns, so
+    the DEFAULT path (columns=None → DETECTION_EXPORT_COLUMNS) was free."""
+
+    def test_default_columns_produce_full_detection_row(self):
+        import json
+
+        from backend.services.export_service import (
+            DETECTION_EXPORT_COLUMNS,
+            DetectionExportRow,
+            detections_to_json,
+        )
+
+        d = DetectionExportRow(
+            detection_id=7,
+            camera_name="Porch",
+            detected_at=datetime(2024, 5, 1, 8, 30, tzinfo=UTC),
+            object_type="person",
+            confidence=0.91,
+            bbox_x=1,
+            bbox_y=2,
+            bbox_width=3,
+            bbox_height=4,
+            file_path="/f.jpg",
+            thumbnail_path="/t.jpg",
+            media_type="image",
+        )
+        out = json.loads(detections_to_json([d]))
+        assert list(out[0].keys()) == [f for f, _ in DETECTION_EXPORT_COLUMNS]
+        assert out[0]["detection_id"] == 7
+        assert out[0]["detected_at"] == "2024-05-01T08:30:00+00:00"
+        assert out[0]["object_type"] == "person"
+
+
+class TestCsvStreamingByteIntegrity:
+    """CSV-SEEK: output.seek(1) on either site leaves a stale byte —
+    byte-wise corruption of every yielded row. Streaming tests asserted
+    substring presence only, which forgives a leading junk byte."""
+
+    def test_joined_streaming_chunks_equal_non_streaming_csv(self):
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Cam A",
+                started_at=datetime(2024, 1, 15, 10, 30, tzinfo=UTC),
+                ended_at=None,
+                risk_score=50,
+                risk_level="medium",
+                summary="s",
+                detection_count=2,
+                reviewed=False,
+            )
+            for _ in range(3)
+        ]
+        chunks = list(events_to_csv_streaming(events))
+        assert "".join(chunks) == events_to_csv(events)
+
+
+class TestEmptyExportContent:
+    """EMPTY-CONTENT/EMPTY-FILENAME: _create_empty_export tests asserted
+    size/format only — content never parsed, filename never shaped."""
+
+    @pytest.mark.parametrize("fmt", ["csv", "json"])
+    async def test_empty_export_content_is_well_formed(self, tmp_path, monkeypatch, fmt):
+        import json
+        import re
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_empty_db())
+
+        result = await service.export_events_with_progress(
+            job_id=f"empty-{fmt}", job_tracker=MagicMock(), export_format=fmt
+        )
+
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        assert re.fullmatch(rf"events_export_\d{{8}}_\d{{6}}\.{fmt}", written.name)
+        if fmt == "csv":
+            header = written.read_text(encoding="utf-8").splitlines()[0]
+            assert header == ",".join(d for _, d in EXTENDED_EXPORT_COLUMNS)
+        else:
+            assert json.loads(written.read_text(encoding="utf-8")) == []
+
+    async def test_empty_zip_member_is_empty_json(self, tmp_path, monkeypatch):
+        import io
+        import json
+        import zipfile
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        service = es.ExportService(db=_empty_db())
+
+        result = await service.export_events_with_progress(
+            job_id="empty-zip", job_tracker=MagicMock(), export_format="zip"
+        )
+
+        written = tmp_path / result["file_path"].rsplit("/", 1)[-1]
+        with zipfile.ZipFile(io.BytesIO(written.read_bytes())) as zf:
+            (member,) = zf.namelist()
+            assert member.endswith(".json")
+            assert json.loads(zf.read(member)) == []
+
+
+class TestExportServiceDispatchAndSingleton:
+    """SINGLETON / GF-PREFIX / EE-COLUMNS: get_export_service memoized both
+    mutants (None-identity equality); get_filename asserted endswith-only;
+    export_events dispatch never carried custom columns."""
+
+    def test_get_export_service_returns_constructed_instance(self):
+        from backend.services.export_service import get_export_service
+
+        reset_export_service()
+        try:
+            service = get_export_service()
+            assert isinstance(service, ExportService)
+            assert get_export_service() is service
+        finally:
+            reset_export_service()
+
+    def test_reset_then_get_returns_new_instance(self):
+        from backend.services.export_service import get_export_service
+
+        reset_export_service()
+        try:
+            first = get_export_service()
+            reset_export_service()
+            assert get_export_service() is not first
+        finally:
+            reset_export_service()
+
+    def test_get_filename_carries_prefix_and_extension(self):
+        service = ExportService()
+        name = service.get_filename("myexports", ExportFormat.EXCEL)
+        assert name.startswith("myexports_")
+        assert name.endswith(".xlsx")
+
+    def test_export_events_passes_columns_to_csv_and_excel(self):
+        import io
+
+        from openpyxl import load_workbook
+
+        events = [
+            EventExportRow(
+                event_id=1,
+                camera_name="Cam",
+                started_at=None,
+                ended_at=None,
+                risk_score=None,
+                risk_level=None,
+                summary="hi",
+                detection_count=1,
+                reviewed=False,
+            )
+        ]
+        service = ExportService()
+        cols = [("summary", "Summary")]
+
+        csv_out = service.export_events(events, ExportFormat.CSV, columns=cols)
+        assert csv_out.splitlines()[0] == "Summary"
+        assert csv_out.splitlines()[1] == "hi"  # sanitizer keeps clean strings
+
+        xlsx = service.export_events(events, ExportFormat.EXCEL, columns=cols)
+        ws = load_workbook(io.BytesIO(xlsx)).active
+        assert ws.cell(row=1, column=1).value == "Summary"
+        assert ws.cell(row=2, column=1).value == "hi"
