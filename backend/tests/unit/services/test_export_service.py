@@ -1909,7 +1909,6 @@ class TestWebSocketProgressSequence:
 
 
 @pytest.mark.asyncio
-@pytest.mark.asyncio
 class TestWebSocketFileContent:
     """WS counterpart of T1: the websocket path writes EXTENDED-columns CSV
     and its fetch statement carries ORDER BY DESC (ROW-FIELDS-W,
@@ -1950,7 +1949,66 @@ class TestWebSocketFileContent:
         ]
         assert rows[2][1] == "Unknown"
 
+    async def test_websocket_json_file_holds_row_dicts(self, tmp_path, monkeypatch):
+        """FMT-BRANCH + FILE-CONTENT-W: the ws json branch's inline dicts and
+        the `== \"json\"` comparison were free — a `\"JSON\"`-branch mutant
+        silently falls through to the ValueError path (real format loss)."""
+        import json
 
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        await es.ExportService(db=_two_event_db()).export_events_with_websocket(
+            progress_reporter=reporter, export_format="json"
+        )
+
+        files = list(tmp_path.glob("events_export_*.json"))
+        assert len(files) == 1
+        dicts = json.loads(files[0].read_text(encoding="utf-8"))
+        assert dicts[0] == {
+            "event_id": 42,
+            "camera_name": "Back Gate",
+            "started_at": "2024-03-01T09:00:00+00:00",
+            "ended_at": "2024-03-01T09:05:00+00:00",
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Person at door",
+            "detection_count": 0,
+            "reviewed": False,
+            "object_types": "person, dog",
+            "reasoning": "why the model thought so",
+        }
+        assert dicts[1]["camera_name"] == "Unknown"
+
+    async def test_websocket_zip_member_holds_row_dicts(self, tmp_path, monkeypatch):
+        """FMT-BRANCH zip half (:1111): clobber/uppercase silently falls
+        through to the ValueError path — format loss invisible to CSV-only
+        tests. Member content is the same row-dict contract as json."""
+        import io
+        import json
+        import zipfile
+
+        import backend.services.export_service as es
+
+        monkeypatch.setattr(es, "EXPORT_DIR", tmp_path)
+        reporter = _ws_reporter()
+        await es.ExportService(db=_two_event_db()).export_events_with_websocket(
+            progress_reporter=reporter, export_format="zip"
+        )
+
+        files = list(tmp_path.glob("events_export_*.zip"))
+        assert len(files) == 1
+        with zipfile.ZipFile(io.BytesIO(files[0].read_bytes())) as zf:
+            (member,) = zf.namelist()
+            assert member.endswith(".json")
+            dicts = json.loads(zf.read(member))
+        assert dicts[0]["event_id"] == 42
+        assert dicts[0]["camera_name"] == "Back Gate"
+        assert dicts[0]["detection_count"] == 0
+
+
+@pytest.mark.asyncio
 class TestWebSocketStartMetadata:
     """T4: job.started metadata filters dict is the frontend contract
     (WS-META, 12 survivors — key renames/casing all invisible)."""
