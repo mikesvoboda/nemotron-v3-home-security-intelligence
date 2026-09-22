@@ -8897,3 +8897,71 @@ tests #6632 rewrote — do not fold retroactively); (2) a real frontend mutation
 score (Finding 5: harness defect, runner swap / downgrade / upstream issue —
 decide as its own WP); (3) R-1 wily-drop, R-2 gitleaks EULA, R-5 plugin-react
 owner rulings; (4) Node 26 revisit at LTS 2026-10-28.
+
+## M1 KILLED + M2 ROOT-CAUSED (branch mutation-testing, 2026-09-22) — the vitest-5 separator was the whole frontend death; the backend cache has NEVER banked an entry
+
+Two silent-red machines, both measured to the bucket this session; fixes
+on branch `mutation-testing` (`30a57d98` + the workflow commit).
+
+### M1 — frontend 0.00% green: vitest-5 full-name separator vs stryker's space-join
+
+DECIDE: root cause is `nameParts.join(' ')` in
+@stryker-mutator/vitest-runner 10.0.0 (dist/src/test-helpers.js +
+stryker-setup.js) against vitest 5's `testNamePattern` match on the
+FULL name joined `" > "` — the per-mutant filter matched 0 tests, every
+covered mutant became Survived, "Ran 0.00 tests per mutant", job green
+behind continue-on-error (run 35634327238). No supported stryker works
+on vitest 5 (10.0.0 latest; upstream #6210/#6213/#6214/#6220 open).
+Postinstall patch (house pattern, `frontend/scripts/patch-stryker-vitest5-names.cjs:48-50`
+TARGETS/NEEDLE/REPLACEMENT) is the fix; BOTH files patch together or a
+one-sided patch mismatches back to 0 tests.
+
+Measured repair (this session): `cd frontend && npm run test:mutation`
+(exact CI command; 384 mutants; 20m09s; node v22.22.1) →
+**All files 63.04 | covered 77.78 | killed 203 | timeout 0 | survived 58
+| no cov 61 | errors 62**, "Ran 15.20 tests per mutant" — EXACT match to
+#6588's honest baseline. Formula stryker: 203/(384-62-61)=63.04
+(CompileError=type-checker kills, excluded). Guard green-path
+`node scripts/mutation-guard.mjs reports/mutation/mutation.json` rc=0
+(avg_tests_per_mutant 22.36 from per-mutant testsCompleted — a different
+aggregation than stryker's console 15.20; both non-zero). Guard rules at
+`frontend/scripts/mutation-guard.mjs:104-110`; CI step wired;
+self-test `node scripts/test_mutation_guard.cjs` 11/11 green (run-29
+signature fixture → rc=1 citing vitest-name-filter). Patch durability:
+reverted runner to pristine → `npm ci` re-patched both files.
+`stryker.config.mjs:66` json reporter added (reporter-only);
+`break: null` (:76) untouched — cadence is owner-gated.
+
+### M2 — backend convergence: the cache never banked; three mechanical breaks (run 35496040596 forensics)
+
+DECIDE: the WP4.3 header's claim "A week whose prep overran the cap
+loses nothing: the cache keeps last week's verdicts" is REFUTED — run
+28 stranded 4,426 verdicts (37% of the entire 2026-09-19 point) via
+three INDEPENDENT breaks, each verified from the run log + Actions APIs:
+
+| # | break | evidence | fix |
+| - | ----- | -------- | --- |
+| 1 | actions/cache saves in a POST step; post steps do not run on failed jobs; the history push's GH006 (protected main expects required "CI Gate" ON the pushed commit — a bot commit minted in-workflow never carries one, so the direct push can NEVER land) failed the job → save skipped | log: `[main d154b62]` → `GH006 ... Required status check "CI Gate (Required Checks)" is expected` → `Process completed with exit code 1` → only "Post job cleanup" (no "Cache saved"); cache API lists ZERO mutmut-verdicts entries | explicit `actions/cache/save` step `if: always()` (`mutation-testing.yml:250-265`) + history lands via bot-branch PR + auto-merge (codeql-autofix #6592 house pattern; `:314`) |
+| 2 | key was per-run (`mutmut-verdicts-${run_id}`) + PREFIX restore-keys → a per-run save can never clobber the base entry; every restore lands on the SAME stale tar | run 28 log: `Cache not found for input keys: mutmut-verdicts-35496040596, mutmut-verdicts-` | constant key `mutmut-verdicts-v1` + `overwrite: true` (`:177`, `:265`); pack shrink-guard `save_ok` refuses to bank fewer metas than restored (`:231-246`) |
+| 3 | upload-artifact v6 defaults `include-hidden-files: false` → the DOTFILE pack was silently skipped — the artifact was 5,989 bytes, the score JSON alone ("there will be 1 file uploaded") | downloaded artifact r28art contained ONLY mutation-score.json; pack was 2,599,093 B (`-rw-r--r-- 1 runner runner 2599093 ... .mutmut-verdicts.tar.gz`) | pack renamed `mutmut-verdicts.tar.gz` (non-dot; .gitignore updated) |
+
+Also fixed same pass: `--repair` now runs AGAIN before the score step
+(a budget-kill can truncate a meta mid-save; the scorer's loader
+crashes on it — mutmut's own guard is FileNotFoundError-only);
+`gh pr merge` takes the PR URL explicitly (bare form resolves from the
+CURRENT branch = main, not the pushed head — review catch); previous
+un-merged history branches block duplicates (ls-remote guard); a
+landing failure opens ONE tracking issue (`:398`).
+
+### S1 note — local env fact banked: unit tests import cv2 (accept-header), which needs libxcb.so.1 + libGL from the host OS image
+
+First local `./scripts/mutation-run.sh metrics` died at the stats phase
+(`failed to collect stats. runner returned 1`) — pytest rc=1 collecting
+`backend/tests/unit/api/middleware/test_accept_header.py` →
+`ImportError: libxcb.so.1`. Fixed with `sudo apt-get install -y libxcb1
+libgl1 libglib2.0-0t64` (cv2 5.0.0 imports; sandbox has sudo). Cold-tree
+generation itself measured **267 files mutated in 18.3 s** (CI's 19-min
+fear is a CI-runner artifact, not the algorithm). mutmut 3.8 cold
+sequence confirmed from source (`__main__.py` run_stats_collection:
+generation → stats → clean tests → forced-fail → collect-only → per-
+mutant).

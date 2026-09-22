@@ -156,8 +156,13 @@ docs/superpowers/staged/
 
 # WP4.3: mutmut 3 run cache (generated sources + verdict metas). The
 # score HISTORY is committed (.github/mutation-history.json) -- the cache
-# is regenerable; the series is not.
+# is regenerable; the series is not. mutmut-verdicts.tar.gz is the CI/
+# local verdict pack (metas+stats only); 2026-09-22 renamed it off the
+# dotfile so upload-artifact (include-hidden-files:false default) ships it.
 mutants/
+mutmut-verdicts.tar.gz
+.mutmut-restored-metas
+.mutmut-metas-now
 
 # WP3.3: stryker sandbox + HTML mutation report (regenerable; the score
 # itself is ledger-recorded, the sandbox copy of the repo is not evidence).

@@ -1,0 +1,20 @@
+MUTATION-TESTING UPLEVEL — branch mutation-testing @ 7fba36a6. GOAL: backend 54.05 → ≥80, mutmut badge formula (killed+timeout)/total on the widened set — that formula only. STATE: .github/mutation-history.json holds ONE entry (2026-09-19, completed=true): 54.05% = (45,127k+2,611t)/88,329, survived 40,571, no_tests 20. Second honest reading of the same cache: WP3.1 full-tree 30.77% (90,965 mutants, charges no_tests). Never conflate; every claim states its formula. MATH: ≥80 needs ~22,936 net kills ≈ 54 CPU-hours at ~8.5s/mutant — plan targeted local runs (16 CPUs) + weekly CI convergence (240min@12 ≈ 24.5% of denominator/run).
+
+TRIAGE=archive/wp25-feed/ (wp44-triage/ survivor clusters + queue index — WP4.4 feed FROZEN per #6566; unfreezing is a ruling, not a workaround). L=docs/plans/2026-09-12-context-map-doc-updates.md = LEDGER: every DECIDE/number in L row-format AND the commit body, each measured by YOU this session, command + file:line. A number without a measurement is inadmissible.
+
+MINES — read before trusting any score:
+M1 Frontend is silently red. Run 29 (09-21 dispatch, after stryker 10 + vitest 5 landed #6632) reported job SUCCESS via continue-on-error while Stryker printed "All files 0.00 | killed 0 | timeout 0 | survived 261 | no cov 61 | errors 62" over 384 mutants. Documented honest baseline: 63.04% (#6588). Root-cause the stryker-10/vitest-5 breakage before ANY frontend claim.
+M2 Backend CI convergence stalled. Run 28 (scheduled 09-20): mutmut step killed at exactly its 240min budget, job exit 1, NO history entry, verdict cache did not bank. Next cron 09-27 02:00Z (GitHub fired run 28 at 07:07Z — expect scheduler lag).
+M3 Lying-harness lineage: pre-WP4.3 weeklies "succeeded" months behind `|| true` with zero data; the 89.2% claim was deleted. Prove harness honest BEFORE chasing score.
+
+S0 Frontend restore: cd frontend && npm run test:mutation; reproduce run 29 (frontend/stryker.config.mjs, tsconfig.stryker.json); TDD-fix until killed>0 and score ≥63.04%. Propose a red-detecting guard (0 kills must not report success); STOP AND ASK before flipping continue-on-error.
+S1 Backend cache health: uv run python scripts/mutation-score.py --repair FIRST (torn metas crash mutmut's loader). ./scripts/mutation-run.sh '<fnmatch>' one small module end-to-end, proving verdicts bank to mutants/*.py.meta. mutmut 3.8 is CONFIG-DRIVEN ([tool.mutmut] owns set/args); NEVER pass 2.x flags; positional = fnmatch filter, no-match is a loud error.
+S2 Kill campaign: rank modules from wp44-triage clusters by survivors × risk; targeted batches ./scripts/mutation-run.sh 'backend.services.<mod>*'; rescore via scripts/mutation-score.py. Triage every survivor: real gap → new test under TDD aligned to the SHIPPED contract; equivalent mutant → per-mutant justification in L — no blanket skips. no_tests is structural (zero_dce_loader: 302, no test imports the module — bind a suite or route a ruling).
+S3 Milestones 58 → 65 → 72 → 80; each = fresh mutation-score.py measurement + history append + L row. One heavy tier at a time; unit selection locally (no pg/redis here).
+S4 CI sync: verify the 09-27 run banks (progress.checked/total climbs vs 88,329). STOP AND ASK before any off-schedule dispatch.
+
+DONE (skeptic-verifiable from .github/mutation-history.json alone): entry completed=true, badge score ≥80, progress.checked ≈ total; frontend ≥63.04% with killed>0 in a green AND kill-verifying job; M1 fixed, M2 banking. A partial (completed=false) run may NOT claim 80.
+
+STOP AND ASK: unfreezing WP4.4; any denominator/widened-set change; continue-on-error or break:null flips; bulk quarantine; anything needing pg/redis/GPU; pushing (origin unreachable from sandbox — commit locally, owner pushes).
+
+Hard rules. TDD. Never --no-verify or SKIP=. Never lower a floor (85 relative / 80 absolute / FE 80-74.6-78.4-80.9). Production never bends to kill a mutant. /linear-python only. podman not docker. integration -n0.
