@@ -17,7 +17,6 @@ development/
   contributing.md                 # Contribution guidelines
   coverage.md                     # Coverage reporting and analysis
   docs-maintenance.md             # Documentation drift detection system
-  end-to-end-development-metrics.md # Development metrics tracking
   flaky-test-detection.md         # Flaky test detection and remediation
   git-workflow.md                 # Git safety protocols and pre-commit rules
   git-worktree-workflow.md        # Git worktree patterns for parallel development
@@ -27,7 +26,6 @@ development/
   metrics-implementation-status.md # Metrics implementation tracking
   migration-rollback.md           # Database migration rollback procedures
   model-testing.md                # AI model testing and validation guide
-  mqtt-client-test-summary.md     # MQTT client testing summary and results
   multi-gpu.md                    # Multi-GPU support and configuration guide
   nemo-data-designer.md           # NeMo Data Designer integration for synthetic data
   nemotron-buildkit-secrets.md    # Nemotron BuildKit secrets guide
@@ -39,8 +37,6 @@ development/
   setup.md                        # Development environment setup
   ssl-https.md                    # SSL/HTTPS configuration for development
   synthetic-data-quality.md       # Synthetic data quality metrics
-  tdd-stream-config-tests.md     # TDD stream configuration test cases
-  test-optimization-guide.md     # Test optimization strategies and guide
   testing.md                      # Testing guide
   testing-workflow.md             # TDD workflow and test patterns by layer
   validation-alignment.md         # Frontend/backend validation alignment guide
@@ -342,18 +338,6 @@ development/
 - CI/CD secret injection
 
 **When to use:** Configuring Docker builds with secrets.
-
-### end-to-end-development-metrics.md
-
-**Purpose:** Development metrics tracking and analysis.
-
-**Topics Covered:**
-
-- Metrics collection
-- Performance tracking
-- Development cycle analysis
-
-**When to use:** Analyzing development workflow efficiency.
 
 ### flaky-test-detection.md
 

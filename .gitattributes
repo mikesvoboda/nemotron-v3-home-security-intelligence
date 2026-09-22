@@ -8,7 +8,6 @@
 # re-add explicit rules AND keep them out of free-quota surprises.
 # ============================================================================
 # Merge Drivers
-# Beads JSONL files - custom merge driver for issue tracking
 # Binary Files - Do not diff these files
 # Images
 *.png binary

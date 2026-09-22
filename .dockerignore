@@ -65,7 +65,6 @@ Thumbs.db
 .gitleaks.toml
 
 # CI/CD and documentation
-.github/
 .circleci/
 .gitlab-ci.yml
 docs/
@@ -77,10 +76,10 @@ LICENSE
 mutants/
 
 # Custom test artifacts
-custom/clips/
 tests/
 
 # Security scanning
 .trivyignore
 .bandit.yml
 .bandit.baseline
+archive/

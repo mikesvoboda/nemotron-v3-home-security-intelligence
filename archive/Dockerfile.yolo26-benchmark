@@ -48,6 +48,7 @@ ENV RTDETR_MODEL_PATH=/models/rt-detrv2/rtdetr_v2_r101vd
 ENV BENCHMARK_OUTPUT=/benchmarks/yolo26-vs-rtdetr.md
 
 # Health check - verify GPU is accessible
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'"
 

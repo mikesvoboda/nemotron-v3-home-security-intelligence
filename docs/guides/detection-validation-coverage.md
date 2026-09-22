@@ -287,24 +287,28 @@ jobs:
 
 Schedule comprehensive validation runs:
 
-```bash
-# Cron job (runs nightly at 2 AM)
-0 2 * * * cd /path/to/project && ./scripts/nightly_validation.sh
-```
+Nightly validation runs in CI, not from a local cron script (there is no
+`scripts/nightly_validation.sh`): `nightly.yml` (07:00 UTC analysis),
+`nightly-full-gate.yml` (04:17 UTC full gate), and `prompt-evaluation.yml` /
+`flaky-test-detection.yml` (02:00 UTC) cover the scheduled tiers.
 
 ## Expanding Coverage
 
 ### Creating New Synthetic Scenarios
 
-1. **Generate scenarios using VEO3 or COSMOS:**
+1. **Generate scenarios:**
 
    ```bash
-   # Generate using VEO3 (Google)
-   python scripts/generate_scenarios_veo3.py --category suspicious --count 10
+   # Template-based synthetic media (local rendering, no external model needed)
+   uv run scripts/synthetic_data.py list
+   uv run scripts/synthetic_data.py generate --scenario loitering --count 10
 
-   # Generate using COSMOS (NVIDIA)
-   python scripts/generate_scenarios_cosmos.py --category threats --count 10
+   # Cosmos prompt packets (for off-line text-to-video generation)
+   uv run scripts/cosmos_prompt_generator.py --all
    ```
+
+   (The VEO3/COSMOS one-shot drivers this guide once cited — `generate_scenarios_veo3.py`
+   and `generate_scenarios_cosmos.py` — never existed at these paths.)
 
 2. **Define expected labels:**
    Create `expected_labels.json` for each scenario based on scenario content.

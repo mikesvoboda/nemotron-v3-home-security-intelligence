@@ -30,7 +30,6 @@ docs/
 ├── AGENTS.md                    # This file - AI navigation
 ├── ROADMAP.md                   # Post-MVP features and direction
 ├── openapi.json                 # OpenAPI specification
-├── nemotron-prompts-baseline.txt # Nemotron prompt baseline
 │
 ├── ai/                          # AI model zoo documentation
 │   ├── AGENTS.md                # AI docs navigation
@@ -153,7 +152,6 @@ docs/
 │   └── AGENTS.md.template       # AGENTS.md file template
 │
 ├── testing/                     # Testing documentation
-│   └── INTEGRATION_TEST_COVERAGE_ANALYSIS.md
 │
 ├── ui/                          # Page-by-page UI documentation
 │   ├── AGENTS.md                # UI docs navigation
@@ -173,11 +171,9 @@ docs/
 ├── diagrams/                    # Diagram sources
 ├── discoveries/                 # NEM-tagged discovery notes
 ├── examples/                    # Prompt-engineering examples
-├── investigations/              # NEM-tagged incident investigations
-├── media/                       # Video-generation helper scripts
-├── reports/                     # Point-in-time analysis reports
+├── archive/                     # Historical point-in-time reports, snapshots &
+│                                #   NEM investigations (see archive/README.md)
 ├── research/                    # Numbered research studies
-├── screenshots/                 # Grafana/UI screenshot assets
 ├── stylesheets/                 # MkDocs custom CSS
 └── superpowers/                 # Agent handoff/plan documents
 ```

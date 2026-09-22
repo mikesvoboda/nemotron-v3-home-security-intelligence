@@ -7,7 +7,7 @@
 This file provides deployment and architecture context for LLM-powered coding assistants.
 
 **Key entry points:**
-- `docker-compose.prod.yml` - Container orchestration (9 core + 4 monitoring services)
+- `docker-compose.prod.yml` - Container orchestration (core + monitoring stack; `ai-gateway` is the single AI entrypoint)
 - `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
 - `frontend/` - React TypeScript dashboard (Tailwind + Tremor)
 - `ai/` - AI service containers (YOLO26, Nemotron, Florence, CLIP, Enrichment)
@@ -28,7 +28,7 @@ cd nemotron-v3-home-security-intelligence
 # 2. Configure environment
 cp .env.example .env
 
-# 3. Download AI models (~23GB, takes 10-30 min on fast connection)
+# 3. Download AI models (~42GB total, takes 30-90 min on fast connection)
 ./ai/download_models.sh
 
 # 4. Start all services (builds AI containers on first run)
@@ -38,12 +38,12 @@ podman-compose -f docker-compose.prod.yml up -d
 watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
 ```
 
-**Access:** http://localhost:5173 or https://localhost:8443 (Dashboard) | http://localhost:8000/docs (API)
+**Access:** http://localhost:5173 or https://localhost:8444 (Dashboard) | http://localhost:8000/docs (API)
 
 ## Update Deployment (GHCR)
 
 Pre-built frontend/backend containers are published to GitHub Container Registry.
-AI service containers must be built locally (GPU-specific optimizations).
+AI service images publish to GHCR (`docker-compose.ghcr.yml`); build locally only when GPU-specific rebuilds are needed.
 
 ```bash
 # Pull latest frontend + backend from GHCR
@@ -51,7 +51,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # Rebuild AI containers if ai/ code changed
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+podman-compose -f docker-compose.prod.yml build ai-gateway ai-llm
 
 # Restart everything
 podman-compose -f docker-compose.prod.yml down
@@ -66,7 +66,7 @@ podman-compose -f docker-compose.prod.yml up -d
 | **16GB** | Reduced GPU layers (`GPU_LAYERS=30`) | RTX 4080, A4000 |
 | **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
 
-**Full stack VRAM usage:** ~23GB (Nemotron ~21GB + YOLO26 ~650MB + enrichment models)
+**Full stack VRAM usage:** Nemotron ~21GB resident + YOLO26 ~650MB; detection/enrichment models load on demand via the gateway
 
 ## AI Models (~42GB total)
 
@@ -119,15 +119,12 @@ ${AI_MODELS_PATH}/
 | Service | Port | Container | GPU | Description |
 |---------|------|-----------|-----|-------------|
 | Frontend HTTP | 5173 | frontend | No | React dashboard via nginx |
-| Frontend HTTPS | 8443 | frontend | No | React dashboard via nginx (SSL) |
+| Frontend HTTPS | 8444 | frontend | No | React dashboard via nginx (SSL) |
 | Backend | 8000 | backend | No | FastAPI REST + WebSocket |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
-| YOLO26 | 8095 | ai-yolo26 | Yes | Object detection |
+| AI Gateway | 8090 | ai-gateway | no (on demand) | Detection/enrichment routers: /yolo26 /florence /clip /enrichment |
 | Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
-| Florence-2 | 8092 | ai-florence | Yes | Vision-language captions |
-| CLIP | 8093 | ai-clip | Yes | Embeddings/re-identification |
-| Enrichment | 8094 | ai-enrichment | Yes | Vehicle/pet/clothing analysis |
 
 > Frontend serves via nginx in production. SSL enabled by default (self-signed). Port 5173 is also used by Vite dev server in local development.
 
@@ -136,7 +133,7 @@ ${AI_MODELS_PATH}/
 | Service | Port | Description |
 |---------|------|-------------|
 | Prometheus | 9090 | Metrics collection |
-| Grafana | 3000 | Dashboards |
+| Grafana | 3002 | Dashboards (proxied at /grafana via frontend) |
 | Redis Exporter | 9121 | Redis metrics |
 | JSON Exporter | 7979 | Custom metrics |
 
@@ -205,7 +202,7 @@ GPU_LAYERS=30  # Reduce from default 35
 
 **AI service slow/not responding:**
 ```bash
-curl http://localhost:8095/health  # YOLO26
+curl http://localhost:8090/health  # AI gateway
 curl http://localhost:8091/health  # Nemotron
 # First request after startup is slow (model loading)
 ```
@@ -236,11 +233,10 @@ nemotron-v3-home-security-intelligence/
 │       ├── hooks/           # WebSocket + data hooks
 │       └── services/        # API client
 ├── ai/                       # AI service containers
-│   ├── yolo26/              # Object detection (port 8095)
+│   ├── gateway/             # Single AI entrypoint :8090 (router-per-model since bc7d6101)
+│   ├── yolo26/              # Detection server (runs inside gateway in prod)
 │   ├── nemotron/            # Risk reasoning LLM (port 8091)
-│   ├── florence/            # Vision-language (port 8092)
-│   ├── clip/                # Embeddings (port 8093)
-│   └── enrichment/          # Additional models (port 8094)
+│   └── florence/ clip/ enrichment/  # model code behind gateway routes
 └── docs/                     # Documentation
 ```
 
