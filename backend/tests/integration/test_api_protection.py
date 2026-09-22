@@ -254,7 +254,10 @@ class TestPreSetupProtection:
         with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
             login = await unmocked_setup_client.post(
                 "/api/auth/login",
-                json={"username": "admin", "password": "SecurePassword123!"},  # pragma: allowlist secret
+                json={
+                    "username": "admin",
+                    "password": "SecurePassword123!",
+                },  # pragma: allowlist secret
             )
         assert login.status_code == 200, (
             "login immediately after registration must not be 503'd by the "

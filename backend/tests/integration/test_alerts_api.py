@@ -935,8 +935,7 @@ async def test_list_alert_rules_includes_null_channels_rule(client, db_session):
 
     names = [rule["name"] for rule in data["items"]]
     assert rule_name in names, (
-        "a NULL-channels rule must not blank the whole list (schema error "
-        f"was: {data!r})"
+        f"a NULL-channels rule must not blank the whole list (schema error was: {data!r})"
     )
     row = next(r for r in data["items"] if r["name"] == rule_name)
     assert row["channels"] == []

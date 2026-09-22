@@ -669,9 +669,7 @@ class TestInvalidateSetupCache:
                 assert response2.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_invalidate_affects_all_live_instances(
-        self, mock_db_session: AsyncMock
-    ) -> None:
+    async def test_invalidate_affects_all_live_instances(self, mock_db_session: AsyncMock) -> None:
         """Multiple guards (throwaway apps in a test process) all get dropped."""
         from fastapi import FastAPI as _FastAPI
 
