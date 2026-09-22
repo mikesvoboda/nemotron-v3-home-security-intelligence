@@ -48,7 +48,7 @@ How much VRAM you need depends on which models you want running:
 | **RAM**     | 16GB               | 32GB+                 |
 | **Storage** | 50GB (core models) | 100GB+ SSD (full zoo) |
 
-> **Note:** The AI model zoo is ~42GB if you download everything. Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
+> **Note:** The AI model zoo is ~33GB if you download everything (25 manifest entries, 33,579 MB per the setup_lib download rule). Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
 
 > **Sizing note:** `docker-compose.prod.yml` caps its 19 default services with
 > `deploy.resources.limits` summing to ~25 CPUs and ~49GB memory of _ceilings_

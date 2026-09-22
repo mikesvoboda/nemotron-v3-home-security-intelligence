@@ -206,12 +206,15 @@ disable them if you’re resource constrained or running without those services.
 
 ### Nemotron Context Window
 
-| Variable                     | Required | Default | Range       | Description                        |
-| ---------------------------- | -------- | ------- | ----------- | ---------------------------------- |
-| `NEMOTRON_CONTEXT_WINDOW`    | No       | `32768` | 1000-131072 | Context window size in tokens      |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | No       | `1536`  | 100-8192    | Maximum tokens reserved for output |
+| Variable                     | Required | Default | Range       | Description                                        |
+| ---------------------------- | -------- | ------- | ----------- | -------------------------------------------------- |
+| `NEMOTRON_CONTEXT_WINDOW`    | No       | `32768` | 1000-131072 | Context window size in tokens                      |
+| `NEMOTRON_MAX_OUTPUT_TOKENS` | No       | `1536`  | 100-8192    | Maximum tokens reserved for output                 |
+| `PARALLEL`                   | No       | `8`     | 1-64        | llama.cpp parallel slots sharing the CTX_SIZE pool |
 
-> **Note:** `NEMOTRON_CONTEXT_WINDOW` reads from the `CTX_SIZE` env var (`validation_alias="CTX_SIZE"` — single source of truth shared with llama.cpp). `docker-compose.prod.yml` passes `CTX_SIZE=262144` (8 parallel slots x 32K) to the `ai-llm` container only; the backend container does not receive it, so it uses the 32768 code default.
+> **Note:** `NEMOTRON_CONTEXT_WINDOW` reads from the `CTX_SIZE` env var (`validation_alias="CTX_SIZE"` — single source of truth shared with llama.cpp). `docker-compose.prod.yml` passes `CTX_SIZE=262144` (8 parallel slots x 32K) and `PARALLEL=8` to both the `ai-llm` and `backend` containers — the backend block's defaults mirror the `ai-llm` service — so the backend divides the same pool by the same slot count. `docker-compose.ghcr.yml` passes `CTX_SIZE=4096` / `PARALLEL=2` to its backend: that file's `ai-llm` service sets only `CTX_SIZE=4096`, and the ghcr `ai-llm` image bakes `PARALLEL=2` (`ai/nemotron/Dockerfile`) with no override passed.
+
+> **Note:** `PARALLEL` maps to `llama_slot_count` (`validation_alias="PARALLEL"`) — llama.cpp's `--parallel` slot count. Slots share one `CTX_SIZE` pool, so the per-request budget above is derived as `CTX_SIZE / PARALLEL`.
 
 ### AI Warmup Settings
 
@@ -524,9 +527,9 @@ When the queue reaches `QUEUE_MAX_SIZE`, the system applies the configured overf
 | Variable        | Required | Default | Description                                               |
 | --------------- | -------- | ------- | --------------------------------------------------------- |
 | `ADMIN_ENABLED` | No       | `true`  | Enable admin endpoints (seeding, cache clearing, cleanup) |
-| `ADMIN_API_KEY` | No       | -       | API key for admin endpoints (`X-Admin-API-Key` header)    |
+| `ADMIN_API_KEY` | No       | -       | Reserved — not enforced (no code path reads it; see note) |
 
-> **Security:** Admin endpoints are enabled by default for single-user local deployments; network binding to 127.0.0.1 is the primary security boundary. The `require_admin_access` dependency (`backend/api/routes/admin.py`) gates on `ADMIN_ENABLED` alone — the `DEBUG=true` pairing in the config.py comment is not enforced in the route code. When `ADMIN_API_KEY` is set, all admin requests must include the `X-Admin-API-Key` header.
+> **Security:** Admin endpoints are enabled by default for single-user local deployments; network binding to 127.0.0.1 is the primary security boundary. The `require_admin_access` dependency (`backend/api/routes/admin.py`) gates on `ADMIN_ENABLED` alone — the `DEBUG=true` pairing in the config.py comment is not enforced in the route code.
 
 ---
 
@@ -654,7 +657,7 @@ Settings come from `TranscodeCacheSettings` (`env_prefix="TRANSCODE_CACHE_"`).
 | ------------------------- | -------- | ------- | ------------------------------------------------------------------------ |
 | `REQUEST_LOGGING_ENABLED` | No       | `true`  | Log incoming HTTP requests (structured, with timing and correlation IDs) |
 
-> `REQUEST_LOGGING_BODY` / `REQUEST_LOGGING_HEADERS` do not exist in the code — `RequestLoggingMiddleware` has no body/header options.
+> `REQUEST_LOGGING_BODY` / `REQUEST_LOGGING_HEADERS` do not exist in the code — the request-logging layer (`ObservabilityMiddleware`, which merged `RequestLoggingMiddleware` in with NEM-5558) has no body/header options.
 
 ---
 

@@ -132,7 +132,7 @@ a fixed budget — only the Nemotron figure (~14.7 GB at Q4_K_M) is a fixed esti
 ```
 GPU for LLM (GPU_LLM)              GPU for AI services (GPU_AI_SERVICES)
 +--------------------------+       +------------------------------------------+
-| Nemotron LLM  ~14.7 GB   |       | ai-gateway (Triton, 13 models)           |
+| Nemotron LLM  ~14.7 GB   |       | ai-gateway (Triton, 14 models)           |
 | (llama.cpp, always       |       |  - YOLO26: always loaded                 |
 |  resident)               |       |  - Florence-2, CLIP/SigLIP, enrichment:  |
 |                          |       |    load/evict on demand                  |

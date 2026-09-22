@@ -4,98 +4,122 @@
 
 **Key Files:**
 
-- `backend/api/middleware/request_logging.py:1-321` - Primary implementation
-- `backend/api/middleware/request_timing.py:1-156` - Request timing measurement
+- `backend/api/middleware/observability.py:1-369` - `ObservabilityMiddleware` and `format_request_log`
 - `backend/api/middleware/request_id.py:1-90` - Request ID generation
-- `backend/core/config.py:2657-2661` - Configuration settings
+- `backend/api/middleware/prometheus.py:64` - `http_request_duration_seconds` histogram
+- `backend/core/config.py:2764-2769` - Configuration settings
 
 ## Overview
 
-The request logging middleware provides structured logging for all HTTP requests processed by the API. It captures request metadata, response status codes, timing information, and correlation IDs to enable log aggregation, analysis, and debugging in tools like Grafana Loki or ELK.
+`ObservabilityMiddleware` provides structured logging for all HTTP requests processed by the API. It captures request metadata, response status codes, timing information, and trace context to enable log aggregation, analysis, and debugging in tools like Grafana Loki or ELK.
+
+NEM-5558 unified three separate middlewares into this one pass: the former
+`RequestTimingMiddleware` and `RequestLoggingMiddleware` (their files
+`backend/api/middleware/request_timing.py` and
+`backend/api/middleware/request_logging.py` were deleted; the class names
+survive only in `observability.py` docstrings) and `PrometheusMiddleware`
+metrics recording. A single `time.perf_counter()` timer now drives the
+`X-Response-Time` header, the slow-request warning, the structured request log
+and the Prometheus latency histogram, which removes two whole middleware layers
+from the request path.
 
 The middleware integrates with OpenTelemetry for trace context propagation, allowing log-to-trace correlation in distributed tracing systems. It masks sensitive data (like client IP addresses) and excludes noisy endpoints (health checks, metrics) from logging to reduce log volume.
-
-> **Note (NEM-5558):** the standalone `RequestLoggingMiddleware` and
-> `RequestTimingMiddleware` classes still exist and remain tested, but the app
-> now registers a single **`ObservabilityMiddleware`**
-> (`backend/api/middleware/observability.py:97`) that merges timing, request
-> logging, and Prometheus metrics into one timer. It reuses `format_request_log`
-> and the log-level logic from `request_logging.py`. `RequestTimingMiddleware`'s
-> `X-Response-Time` header is emitted by the unified middleware.
 
 ## Architecture
 
 ```mermaid
 sequenceDiagram
     participant Client
+    participant ObservabilityMiddleware
     participant RequestIDMiddleware
-    participant RequestTimingMiddleware
-    participant RequestLoggingMiddleware
     participant RouteHandler
     participant Logger
 
-    Client->>RequestIDMiddleware: HTTP Request
-    RequestIDMiddleware->>RequestIDMiddleware: Generate/Extract X-Request-ID
-    RequestIDMiddleware->>RequestIDMiddleware: Generate/Extract X-Correlation-ID
-    RequestIDMiddleware->>RequestTimingMiddleware: Request + IDs in context
+    Client->>ObservabilityMiddleware: HTTP Request
+    ObservabilityMiddleware->>ObservabilityMiddleware: Health short-circuit check
 
-    RequestTimingMiddleware->>RequestTimingMiddleware: Start timer (perf_counter)
-    RequestTimingMiddleware->>RequestLoggingMiddleware: Request
+    Note over ObservabilityMiddleware: path excluded? skip logging context.<br/>else pre-fetch trace context, client IP (masked), user agent
 
-    RequestLoggingMiddleware->>RequestLoggingMiddleware: Check if path is excluded
-    RequestLoggingMiddleware->>RouteHandler: Forward request
+    ObservabilityMiddleware->>ObservabilityMiddleware: Start timer (perf_counter)
+    ObservabilityMiddleware->>RequestIDMiddleware: Request
+    RequestIDMiddleware->>RequestIDMiddleware: Generate/Extract X-Request-ID and X-Correlation-ID
+    RequestIDMiddleware->>RouteHandler: Request + IDs in context
 
-    RouteHandler-->>RequestLoggingMiddleware: Response
+    RouteHandler-->>RequestIDMiddleware: Response
+    RequestIDMiddleware-->>ObservabilityMiddleware: Response + X-Request-ID, X-Correlation-ID headers
 
-    RequestLoggingMiddleware->>Logger: Log request completion
-    RequestLoggingMiddleware-->>RequestTimingMiddleware: Response
-
-    RequestTimingMiddleware->>RequestTimingMiddleware: Calculate duration
-    RequestTimingMiddleware->>RequestTimingMiddleware: Add X-Response-Time header
-    RequestTimingMiddleware-->>RequestIDMiddleware: Response + timing
-
-    RequestIDMiddleware->>RequestIDMiddleware: Add X-Request-ID header
-    RequestIDMiddleware->>RequestIDMiddleware: Add X-Correlation-ID header
-    RequestIDMiddleware-->>Client: Response with headers
+    ObservabilityMiddleware->>ObservabilityMiddleware: Add X-Response-Time header
+    ObservabilityMiddleware->>ObservabilityMiddleware: Log slow request if over threshold
+    ObservabilityMiddleware->>Logger: Structured request log (method, path, status, duration, content_length)
+    ObservabilityMiddleware->>ObservabilityMiddleware: Observe http_request_duration_seconds histogram
+    ObservabilityMiddleware-->>Client: Response
 ```
 
 ## Implementation Details
 
-### RequestLoggingMiddleware
+### ObservabilityMiddleware
 
-The `RequestLoggingMiddleware` (`backend/api/middleware/request_logging.py:136-321`) provides structured logging for HTTP requests:
+The `ObservabilityMiddleware` (`backend/api/middleware/observability.py:163-369`) combines timing, structured logging and Prometheus metrics in one `dispatch()` pass (`observability.py:214-338`):
 
 ```python
-# From backend/api/middleware/request_logging.py:136-173
-class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware for structured HTTP request/response logging.
+# From backend/api/middleware/observability.py:241-252, 278-289 (abridged)
+try:
+    response = await call_next(request)
+    status_code = response.status_code
 
-    Features:
-    - Logs request completion with timing, status code, and correlation IDs
-    - Excludes configurable paths (health checks, metrics) from logging
-    - Uses appropriate log levels (ERROR for 5xx, WARNING for 4xx)
-    - Masks client IP addresses for privacy
-    - Includes trace context for observability correlation
-    """
+    # Timing
+    duration_seconds = time.perf_counter() - start_time
+    duration_ms = duration_seconds * 1000
+    response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
 
-    def __init__(
-        self,
-        app: Any,
-        excluded_paths: list[str] | None = None,
-        log_level: int = logging.INFO,
-        dispatch: Callable[..., Any] | None = None,
-    ) -> None:
-        super().__init__(app)
-        self.excluded_paths = set(excluded_paths) if excluded_paths else set(DEFAULT_EXCLUDED_PATHS)
-        self.default_log_level = log_level
+    # Slow request logging
+    if duration_ms >= self.slow_request_threshold_ms:
+        self._log_slow_request(request, response, duration_ms)
+
+    # ... structured request logging (see below) ...
+
+    # Prometheus metrics
+    if should_record_metrics:
+        http_request_duration_seconds.labels(
+            method=method,
+            handler=_get_handler_name(request),
+            status=str(status_code),
+            http_route=_get_route_pattern(request),
+        ).observe(duration_seconds)
 ```
 
-### Excluded Paths
+### Registration and Placement
 
-By default, the following paths are excluded from logging to reduce noise (`backend/api/middleware/request_logging.py:45-54`):
+In `backend/main.py:1382-1385` the middleware is registered with the structured-log switch fed from settings:
 
 ```python
-# From backend/api/middleware/request_logging.py:45-54
+# From backend/main.py:1380-1385 (NEM-5558)
+app.add_middleware(
+    ObservabilityMiddleware,
+    enable_request_logging=get_settings().request_logging_enabled,
+)
+```
+
+Registration order puts it outside `RequestIDMiddleware` but inside `RequestRecorderMiddleware` and `CORSMiddleware` (see [Middleware Registration](./README.md#middleware-registration)). Two consequences follow from that placement:
+
+- Because `CORSMiddleware` answers preflight `OPTIONS` requests itself, `ObservabilityMiddleware` (inside it) never sees preflights — they are neither timed, logged, nor counted in the histogram.
+- The middleware pre-fetches its logging context (including `get_request_id()` and `get_correlation_id()`) _before_ calling inward, and `RequestIDMiddleware` sits inside it — so the pre-fetch runs before the IDs are assigned, and the completion log's `extra` carries `duration_ms`, `content_length`, trace IDs and user agent with `request_id`/`correlation_id` left empty (`format_request_log` omits empty fields). The response headers are unaffected — `RequestIDMiddleware` adds them on the way out.
+
+### Health Short-Circuit and Excluded Paths
+
+Three paths skip observability entirely (`observability.py:44-50`), and more are excluded from request logging to reduce noise (`observability.py:53-62`):
+
+```python
+# From backend/api/middleware/observability.py:44-62
+HEALTH_SHORT_CIRCUIT_PATHS = frozenset(
+    {
+        "/health",
+        "/api/system/health/ready",
+        "/metrics",
+    }
+)
+
+# Default paths to exclude from request logging (reduce noise)
 DEFAULT_EXCLUDED_PATHS = frozenset(
     {
         "/health",
@@ -108,9 +132,11 @@ DEFAULT_EXCLUDED_PATHS = frozenset(
 )
 ```
 
+Metrics have their own exclusion list, `EXCLUDED_PATHS` in `backend/api/middleware/prometheus.py:74-81`.
+
 ### Log Level Selection
 
-Log levels are determined based on HTTP status code (`backend/api/middleware/request_logging.py:119-134`):
+Log levels are determined based on HTTP status code (`observability.py:154-160`, default level `logging.INFO`):
 
 | Status Code Range | Log Level | Use Case            |
 | ----------------- | --------- | ------------------- |
@@ -151,62 +177,26 @@ async def dispatch(
         set_correlation_id(None)
 ```
 
-### Request Timing Middleware
-
-The `RequestTimingMiddleware` (`backend/api/middleware/request_timing.py:26-156`) measures request duration:
-
-```python
-# From backend/api/middleware/request_timing.py:78-106
-async def dispatch(
-    self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    # Record start time with high precision
-    start_time = time.perf_counter()
-
-    try:
-        response = await call_next(request)
-
-        # Calculate duration in milliseconds
-        duration_ms = (time.perf_counter() - start_time) * 1000
-
-        # Add timing header
-        response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
-
-        # Log slow requests
-        if duration_ms >= self.slow_request_threshold_ms:
-            self._log_slow_request(request, response, duration_ms)
-
-        return response
-```
-
 ## Structured Log Format
 
-The `format_request_log` function (`backend/api/middleware/request_logging.py:60-117`) creates structured log entries:
+The `format_request_log` function (`backend/api/middleware/observability.py:65-121`) creates structured log entries:
 
 ```python
-# From backend/api/middleware/request_logging.py:60-117
-def format_request_log(
-    method: str,
-    path: str,
-    status_code: int,
-    duration_ms: float,
-    client_ip: str,
-    request_id: str | None = None,
-    correlation_id: str | None = None,
-    trace_id: str | None = None,
-    span_id: str | None = None,
-    user_agent: str | None = None,
-    content_length: int | None = None,
-) -> dict[str, Any]:
-    log_data: dict[str, Any] = {
-        "method": method,
-        "path": path,
-        "status_code": status_code,
-        "duration_ms": round(duration_ms, 2),
-        "client_ip": client_ip,
-    }
-    # ... optional fields added if present
-    return log_data
+# From backend/api/middleware/observability.py:99-121 (abridged)
+log_data: dict[str, Any] = {
+    "method": method,
+    "path": path,
+    "status_code": status_code,
+    "duration_ms": round(duration_ms, 2),
+    "client_ip": client_ip,
+}
+
+# Add optional correlation fields
+if request_id:
+    log_data["request_id"] = request_id
+# correlation_id, trace_id, span_id, user_agent and content_length
+# are likewise included only when present
+return log_data
 ```
 
 ### Example Log Entry
@@ -230,22 +220,28 @@ def format_request_log(
 }
 ```
 
+This is the full shape `format_request_log` produces. The middleware's own completion line, in the shipped registration order, omits `request_id`/`correlation_id` (see Registration and Placement above); those IDs appear on records logged from the handler/service layers, where `ContextFilter` in `backend/core/logging.py` backfills both from context.
+
 ## Configuration
 
-| Setting                     | Type   | Default | Description                               |
-| --------------------------- | ------ | ------- | ----------------------------------------- |
-| `REQUEST_LOGGING_ENABLED`   | `bool` | `true`  | Enable/disable request logging middleware |
-| `SLOW_REQUEST_THRESHOLD_MS` | `int`  | `500`   | Threshold for slow request warnings       |
+| Setting                     | Type   | Default | Description                                          |
+| --------------------------- | ------ | ------- | ---------------------------------------------------- |
+| `REQUEST_LOGGING_ENABLED`   | `bool` | `true`  | Feed structured logs through ObservabilityMiddleware |
+| `SLOW_REQUEST_THRESHOLD_MS` | `int`  | `500`   | Threshold for slow request warnings                  |
 
-Configuration is loaded from `backend/core/config.py:1819-1823`:
+Configuration is loaded from `backend/core/config.py:2764-2769`:
 
 ```python
-# From backend/core/config.py:1819-1823
+# From backend/core/config.py:2764-2769
 request_logging_enabled: bool = Field(
     default=True,
     description="Enable structured request/response logging middleware. "
+    "When enabled, HTTP requests are logged with timing, status codes, and correlation IDs. "
+    "Health check and metrics endpoints are excluded by default to reduce noise.",
 )
 ```
+
+The middleware constructor's own defaults are `enable_request_logging=False` and, for the slow threshold, `500` ms — falling back to the `slow_request_threshold_ms` setting when not passed (`observability.py:178-212`). `backend/main.py` passes only the settings-derived `enable_request_logging` explicitly, so structured logging tracks `request_logging_enabled` (default `true`) and the threshold tracks `SLOW_REQUEST_THRESHOLD_MS`.
 
 ## Response Headers
 
@@ -255,7 +251,7 @@ The middleware stack adds the following headers to all responses:
 | ------------------ | ----------------------- | --------------------------------- | -------------------------------------- |
 | `X-Request-ID`     | RequestIDMiddleware     | Short request identifier          | `abc12345`                             |
 | `X-Correlation-ID` | RequestIDMiddleware     | Full UUID for distributed tracing | `550e8400-e29b-41d4-a716-446655440000` |
-| `X-Response-Time`  | RequestTimingMiddleware | Request duration                  | `45.23ms`                              |
+| `X-Response-Time`  | ObservabilityMiddleware | Request duration                  | `45.23ms`                              |
 
 ### Example Response Headers
 
@@ -269,31 +265,20 @@ X-Response-Time: 45.23ms
 
 ## IP Address Masking
 
-Client IP addresses are masked for privacy (`backend/api/middleware/request_logging.py:294-321`):
+The client IP is resolved from proxy headers first, then masked for privacy (`observability.py:228-235`, `359-369`):
 
 ```python
-# From backend/api/middleware/request_logging.py:294-321
+# From backend/api/middleware/observability.py:359-369
 def _get_client_ip(self, request: Request) -> str:
-    """Get client IP address from request.
-
-    Checks X-Forwarded-For header first (for proxied requests),
-    falls back to client.host.
-    """
-    # Check X-Forwarded-For header (may contain multiple IPs)
+    """Get client IP address from request, checking proxy headers."""
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
-        # Take the first IP (original client)
         return forwarded_for.split(",")[0].strip()
-
-    # Check X-Real-IP header (nginx)
     real_ip = request.headers.get("x-real-ip")
     if real_ip:
         return real_ip.strip()
-
-    # Fall back to connection client
     if request.client:
         return request.client.host
-
     return "unknown"
 ```
 
@@ -303,40 +288,45 @@ The `mask_ip` function from `backend/core/logging` masks the IP to preserve the 
 
 ### Request Processing Errors
 
-When an exception occurs during request processing, the middleware logs the error with full context (`backend/api/middleware/request_logging.py:268-293`):
+When an exception occurs during request processing, the middleware logs the failure with full context and still records metrics (`observability.py:291-338`):
 
 ```python
-# From backend/api/middleware/request_logging.py:268-293
+# From backend/api/middleware/observability.py:291-338 (abridged)
 except Exception as e:
-    # Calculate duration even for errors
     duration_ms = (time.perf_counter() - start_time) * 1000
 
-    # Log error with context
-    log_data = format_request_log(
-        method=method,
-        path=path,
-        status_code=500,
-        duration_ms=duration_ms,
-        client_ip=client_ip_masked,
-        request_id=request_id,
-        correlation_id=correlation_id,
-        trace_id=trace_ctx.get("trace_id"),
-        span_id=trace_ctx.get("span_id"),
+    # Always log failures
+    logger.error(
+        "Request processing failed",
+        extra={
+            "duration_ms": round(duration_ms, 2),
+            "path": path,
+            "method": method,
+            "error_type": type(e).__name__,
+            "error": str(e),
+        },
     )
-    log_data["error_type"] = type(e).__name__
 
-    _logger.error(
-        f"{method} {path} failed with exception after {duration_ms:.2f}ms",
-        extra=log_data,
-        exc_info=True,
-    )
+    # Structured error logging (status_code=500) when enabled
+    if should_log:
+        log_data = format_request_log(...)
+        log_data["error_type"] = type(e).__name__
+        logger.error(
+            f"{method} {path} failed with exception after {duration_ms:.2f}ms",
+            extra=log_data,
+            exc_info=True,
+        )
 
     raise
 ```
 
+### Slow Request Warnings
+
+Requests at or above `slow_request_threshold_ms` produce a WARNING (`observability.py:340-357`) with method, path, status code, duration and unmasked client host, independent of `enable_request_logging`.
+
 ## Testing
 
-Test coverage is provided in `backend/tests/unit/api/middleware/`.
+Test coverage is provided in `backend/tests/unit/api/middleware/test_observability.py`.
 
 ### Running Tests
 
@@ -353,24 +343,25 @@ uv run pytest backend/tests/unit/api/middleware/ --cov=backend.api.middleware
 ### Enabling Request Logging
 
 In the shipped app this is enabled through the unified middleware
-(`backend/main.py` registers `ObservabilityMiddleware(enable_request_logging=...)`,
-gated by `request_logging_enabled`). Mounting the standalone class directly,
-e.g. in a custom ASGI app, looks like:
+(`backend/main.py:1382-1385` registers `ObservabilityMiddleware(enable_request_logging=...)`,
+gated by `request_logging_enabled`). Mounting the middleware directly, e.g. in
+a custom ASGI app, looks like:
 
 ```python
-from backend.api.middleware import RequestLoggingMiddleware
+from backend.api.middleware import ObservabilityMiddleware
 
 app = FastAPI()
-app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(ObservabilityMiddleware, enable_request_logging=True)
 ```
 
 ### Custom Excluded Paths
 
 ```python
 app.add_middleware(
-    RequestLoggingMiddleware,
-    excluded_paths=["/health", "/ready", "/metrics", "/custom-health"],
-    log_level=logging.DEBUG,
+    ObservabilityMiddleware,
+    enable_request_logging=True,
+    logging_excluded_paths=frozenset({"/health", "/ready", "/metrics", "/custom-health"}),
+    slow_request_threshold_ms=250,
 )
 ```
 
@@ -399,4 +390,4 @@ async def example():
 
 ---
 
-_Last updated: 2025-01-24 - Created for NEM-3461_
+_Last updated: 2025-01-24 - Created for NEM-3461; rewritten for NEM-5558, when RequestTimingMiddleware and RequestLoggingMiddleware were deleted and merged into ObservabilityMiddleware_

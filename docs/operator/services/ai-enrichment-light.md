@@ -179,7 +179,7 @@ check:
 # ai-gateway (docker-compose.prod.yml)
 healthcheck:
   test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
-  start_period: 180s # Triton initialises 13 models
+  start_period: 180s # Triton initialises 14 models (comment in compose still says 13, stale since NEM-5563)
 ```
 
 `/health` reports `healthy` only when Triton's server is ready **and** every model is

@@ -29,7 +29,7 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 | Services            | 204   | Business logic, AI pipeline, background workers |
 | Models              | 53    | SQLAlchemy ORM model modules                    |
 | Schemas             | 85    | Pydantic request/response schemas               |
-| Middleware          | 25    | Request processing pipeline                     |
+| Middleware          | 23    | Request processing pipeline                     |
 | Repositories        | 8     | Data access layer (base + 7 repositories)       |
 | Core Infrastructure | 52    | Database, Redis, config, logging, etc.          |
 
@@ -59,7 +59,7 @@ backend/
 ├── api/                    # REST API layer
 │   ├── routes/             # 60 API route modules
 │   ├── schemas/            # 85 Pydantic schema modules
-│   ├── middleware/         # 25 middleware components
+│   ├── middleware/         # 23 middleware components
 │   └── utils/              # API utility modules
 ├── config/                 # Prompt A/B rollout, experiments, shadow deployment
 ├── core/                   # Infrastructure (52 modules)
@@ -493,7 +493,7 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ## API Middleware (`api/middleware/`)
 
-The middleware layer contains 25 components for request processing:
+The middleware layer contains 23 components for request processing:
 
 | Middleware                  | Purpose                                           |
 | --------------------------- | ------------------------------------------------- |
@@ -515,9 +515,7 @@ The middleware layer contains 25 components for request processing:
 | `prometheus.py`             | Prometheus metrics collection                     |
 | `rate_limit.py`             | Request rate limiting                             |
 | `request_id.py`             | Request ID generation and propagation             |
-| `request_logging.py`        | Request/response logging                          |
 | `request_recorder.py`       | Request recording for debugging                   |
-| `request_timing.py`         | Request duration metrics                          |
 | `security_headers.py`       | Security headers (CSP, HSTS, etc.)                |
 | `observability.py`          | Unified timing + logging + Prometheus metrics     |
 | `setup_guard.py`            | Blocks API access until first admin is registered |
@@ -999,7 +997,7 @@ The backend provides three health endpoints for different use cases:
 | `/backend/api/AGENTS.md`            | API layer overview                               |
 | `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
 | `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)                    |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (25 modules)               |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)               |
 | `/backend/api/utils/AGENTS.md`      | API utility modules                              |
 | `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)                 |
 | `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |

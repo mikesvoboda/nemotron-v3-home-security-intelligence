@@ -3,8 +3,9 @@
 Staging area for artifacts judged **not load-bearing** by the 2026-09-21
 directory-structure cleanup (audit + adversarial refutation, branch
 `chore/artifact-cleanup`) that the owner has not yet signed off on deleting.
-Nothing here is referenced by code, CI, or compose; `git mv` preserved
-history. A later, deliberate pass deletes from here once each item is
+Nothing here is referenced by code, CI, or compose; items were moved with
+plain `mv` and Git records the rename at commit (rename detection preserves
+history). A later, deliberate pass deletes from here once each item is
 confirmed dead-on-the-owner's-desk.
 
 | Item                     | What it is                                                                                     | Pending ruling                        |

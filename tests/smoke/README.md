@@ -49,7 +49,7 @@ Tests optional monitoring stack:
 
 - Prometheus metrics collection
 - Grafana dashboard availability
-- Jaeger distributed tracing
+- Grafana Tempo trace storage and querier (replaced Jaeger under NEM-5545)
 - AlertManager configuration
 
 ## Running Smoke Tests

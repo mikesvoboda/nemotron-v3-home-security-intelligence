@@ -619,37 +619,61 @@ The legacy container returned `estimated_distance_m`, `relative_depth` and
 
 #### Action Recognition
 
-- **Model**: microsoft/xclip-base-patch32 (X-CLIP), Triton name `xclip_action`.
-  The Triton Python backend loads it from the local model-zoo mirror
-  (`ai/triton/model_repository/xclip_action/1/model.py`) because its custom
-  cross-frame temporal attention cannot export to ONNX. `models.yml` also lists
-  `stgcn-plus-plus` (ST-GCN++, Triton name `stgcn_action`, 20MB) and marks
-  `xclip-base` `enabled: false` with a "replaced by stgcn-plus-plus" note, but
-  the gateway's `/action-classify` router still invokes `xclip_action`
-  (`ai/gateway/adapters/enrichment.py`) and `ALL_MODELS` waits for it.
-- **VRAM**: ~2GB (with float16, per the legacy registry)
+- **Model**: `stgcn-plus-plus` in `models.yml` — ONNX export of pyskl ST-GCN++
+  (`stgcnpp_ntu60_xsub_hrnet_j.pth`, OpenMMLab), served by Triton as
+  `stgcn_action` (`ai/triton/model_repository/stgcn_action/config.pbtxt`,
+  ONNX Runtime, `KIND_CPU`). Skeleton-based: it classifies the 60 NTU RGB+D 60
+  action classes from COCO 17-joint pose tracks, not from image features.
+  `models.yml` still carries the superseded `xclip-base` entry with
+  `enabled: false` and a "replaced by stgcn-plus-plus" note.
+- **Footprint**: ~14MB ONNX weights (`size_mb: 20`, `vram_mb: 20`,
+  `triton_kind: KIND_CPU` in `models.yml` — CPU-only, no GPU allocation)
 - **Served at**: `POST http://localhost:8090/enrichment/action-classify`
-- **Purpose**: Video-based action classification
-- **Trigger**: Person detected >3 seconds with multiple frames, unusual pose detected
+  (the `enrichment` router, mounted under the `/enrichment` prefix in
+  `ai/gateway/main.py`; `ALL_MODELS` waits for `stgcn_action`). The backend
+  reaches it via `EnrichmentClient.classify_action()`
+  (`backend/services/enrichment_client.py`).
+- **Purpose**: Temporal action classification from a buffered frame sequence
+- **Trigger**: Person detection with `action_recognition_enabled` and more than
+  one buffered frame (`backend/services/enrichment_pipeline.py`)
 
-**Input**: Multiple frames (video clip). The Triton wrapper accepts a JSON array
-of base64 frames plus optional zero-shot labels and returns the top action, its
-confidence, and `all_scores` with `is_suspicious` and `risk_weight`.
+**Input**: `{"frames": ["<base64>", …], "top_k": 5}` — a JSON array of base64
+frames. `_infer_action()` (`ai/gateway/adapters/enrichment.py`) runs each frame
+through the Triton `pose` model, keeps the highest-confidence person's 17 COCO
+keypoints per frame, resamples the track to 100 frames and pads a second
+person slot with zeros, then feeds the resulting `(1, 2, 100, 17, 3)` tensor to
+`stgcn_action`. The label set is fixed to NTU RGB+D 60 — the endpoint accepts no
+zero-shot prompts. Frames with no person anywhere in the sequence return
+`action: "unknown"` with `risk_weight: 0.2` and skip inference.
 
-**Output** shape:
+**Output** shape (`ActionClassifyResponse`; `all_scores` holds the `top_k`
+classes, `is_suspicious` and `risk_weight: 0.8` mark the security-relevant
+classes — falling plus the violence/pickpocketing indices):
 
 ```json
 {
-  "action": "running",
+  "action": "falling",
   "confidence": 0.87,
-  "action_scores": {
-    "running": 0.87,
-    "walking": 0.08,
-    "fighting": 0.03,
-    "falling": 0.02
-  }
+  "is_suspicious": true,
+  "risk_weight": 0.8,
+  "all_scores": {
+    "falling": 0.87,
+    "staggering": 0.08,
+    "nod head/bow": 0.03,
+    "pickup": 0.02
+  },
+  "inference_time_ms": 12.4
 }
 ```
+
+**Retired**: The X-CLIP Triton model `xclip_action` has been retired from
+`ai/triton/model_repository/` — its `config.pbtxt` and model directory now live
+at `archive/triton-model-repository/xclip_action/` pending a provenance ruling.
+It is absent from `ALL_MODELS` and from the gateway adapters, so the gateway's
+serving path is fully on `stgcn_action`. X-CLIP code survives only off the
+gateway path: the legacy `ai/enrichment` container (registry row
+`action_recognizer`, below) and the backend-side loaders `xclip_loader.py` /
+`action_recognition_service.py`, the latter kept as a deprecated fallback.
 
 ## VRAM Management
 

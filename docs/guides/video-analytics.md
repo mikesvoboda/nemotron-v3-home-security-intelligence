@@ -136,7 +136,7 @@ Per-model VRAM from `models.yml`:
 | vit-gender-classifier          | Gender estimation        | 200       | `/enrichment` |
 | fashion-clip                   | Clothing analysis        | 500       | `/enrichment` |
 | vehicle-segment-classification | Vehicle type             | 1500      | `/enrichment` |
-| xclip_action                   | Action recognition       | 0 (CPU)   | `/enrichment` |
+| stgcn-plus-plus                | Action recognition       | 20 (CPU)  | `/enrichment` |
 
 Set `ENRICHMENT_<TASK>_SERVICE` in `.env` to move a task between the heavy and
 light endpoints; the defaults are in `.env.example`.
