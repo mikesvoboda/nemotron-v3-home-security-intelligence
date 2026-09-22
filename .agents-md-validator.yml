@@ -30,6 +30,7 @@ no_agents_md_required:
   - tests/
   # Quarantine for pending-deletion artifacts — content, not code to navigate
   - archive/
+  - docs/archive/
 
 # File extensions that count as "code files"
 # Directories with >= min_code_files of these need AGENTS.md

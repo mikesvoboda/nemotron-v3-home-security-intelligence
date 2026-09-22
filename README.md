@@ -121,11 +121,14 @@ The system uses multiple AI models for comprehensive security analysis. Models a
 
 These models are always loaded for real-time analysis:
 
-| Model            | Purpose                       | VRAM   | Port |
-| ---------------- | ----------------------------- | ------ | ---- |
-| Object Detector  | Primary object detection      | ~650MB | 8095 |
-| Florence-2-large | Scene understanding, captions | ~1.2GB | 8092 |
-| CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | 8093 |
+| Model            | Purpose                       | VRAM   | Route (gateway :8090) |
+| ---------------- | ----------------------------- | ------ | --------------------- |
+| Object Detector  | Primary object detection      | ~650MB | `/yolo26/*`           |
+| Florence-2-large | Scene understanding, captions | ~1.2GB | `/florence/*`         |
+| CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | `/clip/*`             |
+
+> Since the gateway consolidation (bc7d6101), these run inside `ai-gateway` on port **8090** as path-prefixed
+> routers — there are no separate 8092/8093/8095 server containers. Only the Nemotron LLM keeps its own port (8091).
 
 ### Object Detector
 
@@ -211,13 +214,15 @@ The on-demand model manager automatically loads/unloads models based on VRAM ava
 Check which models are currently loaded:
 
 ```bash
-curl http://localhost:8094/models/status
+curl http://localhost:8000/api/system/models
+curl http://localhost:8000/api/system/models/<name>/status
 ```
 
-Preload a specific model:
+Load or unload a specific model on demand:
 
 ```bash
-curl -X POST http://localhost:8094/models/preload?model_name=threat_detector
+curl -X POST http://localhost:8000/api/system/models/<name>/load
+curl -X POST http://localhost:8000/api/system/models/<name>/unload
 ```
 
 ---
@@ -247,12 +252,12 @@ curl -X POST http://localhost:8094/models/preload?model_name=threat_detector
 
 With all services running on RTX A5500 (24GB):
 
-| Resource       | Usage                                                 |
-| -------------- | ----------------------------------------------------- |
-| **GPU Memory** | ~23 GB / 24 GB                                        |
-| **System RAM** | ~16 GB                                                |
-| **Containers** | 9                                                     |
-| **Open Ports** | 5173/8443 (UI HTTP/HTTPS), 8000 (API), 8091-8096 (AI) |
+| Resource       | Usage                                                                  |
+| -------------- | ---------------------------------------------------------------------- |
+| **GPU Memory** | ~23 GB / 24 GB                                                         |
+| **System RAM** | ~16 GB                                                                 |
+| **Containers** | 21 (core + monitoring stack; vLLM optional)                            |
+| **Open Ports** | 5173/8444 (UI HTTP/HTTPS), 8000 (API), 8090/8091 (AI gateway/Nemotron) |
 
 > [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
 
@@ -280,11 +285,12 @@ docker compose -f docker-compose.prod.yml up -d
 ```bash
 curl http://localhost:8000/api/system/health  # Backend health
 open http://localhost:5173                     # Dashboard (HTTP)
-# Or: open https://localhost:8443              # Dashboard (HTTPS - SSL enabled by default)
+# Or: open https://localhost:8444              # Dashboard (HTTPS - SSL enabled by default)
 ```
 
 > [!TIP]
-> Run **just core services**: `docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-yolo26 ai-llm`
+> Run **just core services**: `docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-gateway ai-llm`
+> (Since the gateway consolidation, `ai-gateway` is the single AI entrypoint — detection/enrichment run inside it, models load on demand.)
 
 <details>
 <summary><strong>Development Setup (host-run AI)</strong></summary>
@@ -299,7 +305,7 @@ python setup.py
 ./ai/download_models.sh
 
 # 3. Start AI on the host (in separate terminals)
-./ai/start_detector.sh   # YOLO26 on port 8095
+./ai/start_detector.sh   # YOLO26 on port 8090 (YOLO26_PORT)
 ./ai/start_llm.sh        # Nemotron on port 8091
 
 # 4. Set AI_HOST for container → host networking
@@ -311,7 +317,7 @@ docker compose up -d
 ```
 
 > [!WARNING]
-> Do **not** mix host-run AI with `docker-compose.prod.yml` (port conflicts on 8091/8095).
+> Do **not** mix host-run AI with `docker-compose.prod.yml` (port conflicts on 8091/8090).
 
 </details>
 
@@ -355,7 +361,7 @@ Cameras upload images/videos to:
 You can:
 
 - Bring your own FTP server and point it at `/export/foscam`
-- Use the included FTP container: see [`vsftpd/README.md`](vsftpd/README.md)
+- Use the included FTP container: see [`archive/vsftpd/README.md`](archive/vsftpd/README.md)
 
 > [!NOTE]
 > In production containers, the host camera path is mounted to `/cameras` and the backend uses `FOSCAM_BASE_PATH=/cameras`.

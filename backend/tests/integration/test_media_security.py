@@ -29,6 +29,26 @@ from fastapi.testclient import TestClient
 
 from backend.tests.integration.test_helpers import get_error_message
 
+
+def _bypass_setup_guard():
+    """Bypass SetupGuardMiddleware like the shared client fixture does.
+
+    Same flake class as test_media_api.py (see there for the full
+    mechanism): local client fixture + mocked init_db leaves the guard's
+    user-count query answering against whatever DB state leaked from an
+    earlier file on the worker; empty-users + initialized DB returns 503
+    for every non-whitelisted media route, while an uninitialized DB makes
+    the query raise and the guard fail open (200). Order is randomized per
+    process, so this file was a latent coin flip too. Mirrors NEM-5312's
+    convention: guard bypassed in integration tests (owner ruling F3).
+    """
+
+    return patch(
+        "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+        AsyncMock(return_value=True),
+    )
+
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -218,6 +238,7 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
         ),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
+        _bypass_setup_guard(),
     ):
         # Override the rate limiter dependency using FastAPI's dependency_overrides
         app.dependency_overrides[media_module.media_rate_limiter] = mock_rate_limiter

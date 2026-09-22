@@ -14,3 +14,22 @@ confirmed dead-on-the-owner's-desk.
 | `test_setup*.py`         | Root-level setup-script tests; outside pytest `testpaths` (never runs in CI)                   | wire into testpaths or delete?        |
 | `.eta.py` + 3 dot-files  | WP4.3/4.4 mutation-triage one-off scripts (were dot-prefixed in scripts/)                      | delete?                                |
 | `docs-reports/`          | Three one-session reports (load-test, network-health, 2026-02 doc review)                      | delete?                                |
+
+### Pass 2 additions (same audit, later session, 2026-09-21)
+
+| Item | What it is | Pending ruling |
+| --- | --- | --- |
+| `package-lock.json` | Root JS lockfile — no CI job installs root deps (all `npm ci` run `working-directory: frontend`); stale vs package.json; legacy setup-hooks.sh path installs it | delete, or keep for local commitlint dev? |
+| `Dockerfile.yolo26-benchmark` | Benchmark image build, base pinned tensorrt `24.09-py3` (two generations behind live 26.08); doc-prose citations only | delete, or refresh base? |
+| `scripts/` (11 files) | One-off probes/migrations with zero consumers: deprecated e2e runner, GPU/context probes with hardcoded dev paths, superseded `download_models.sh` (live twin: `ai/download_models.sh`), NEM-3262/3339 one-time scripts, orphaned quickstart | delete? |
+| `docs-media/` | VEO3 video-generation helpers (mascot/hype content, not security); live path is scripts/synthetic_data.py | delete? |
+| `../docs/archive/` | 29 point-in-time docs (gap reports, TDD red-phase snapshots, NEM-numbered one-offs, metrics snapshots, 4.3MB unreferenced Grafana screenshots) | delete wholesale? |
+
+### Treatment of this tree (pass 2 ruling, 2026-09-22)
+
+Archived artifacts are frozen content, not active source: the mutation-triage
+evidence rule first written for `.wp25-feed/` was widened to the whole
+`archive/` tree in `.pre-commit-config.yaml`, `.prettierignore`, and the ruff
+`exclude` in `pyproject.toml`. Nothing here is linted, formatted, parsed, or
+secret-scanned on commit — and nothing here is load-bearing for CI (the whole
+point of the pass-2 CI run is to prove exactly that).

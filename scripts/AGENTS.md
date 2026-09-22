@@ -10,7 +10,6 @@ This directory contains development, testing, deployment, and maintenance script
 scripts/
   AGENTS.md                          # This file
   README.md                          # Quick reference for all scripts
-  AI_STARTUP_README.md               # Quick reference for AI services
   hooks/                             # Git hooks
     post-checkout                    # Post-checkout hook for worktree protection
 
@@ -58,10 +57,6 @@ scripts/
   download-model-zoo.py              # Download AI model zoo models
   download_yolo26.py                 # Download YOLO26 model weights
   export_yolo26.py                   # Export YOLO26 to ONNX/TensorRT
-  test_ai_pipeline_e2e.py            # AI pipeline end-to-end test
-  test_context_window.py             # 32K context window test
-  test_model_outputs.py              # Quick AI model output test
-  test_model_outputs_comprehensive.py # Full AI model output test
   trigger-filewatcher.sh             # Trigger file watcher with images
 
   # Pre-commit Hooks & Test Validation
@@ -560,18 +555,6 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 ./scripts/download-model-zoo.py --all            # Download all phases
 ./scripts/download-model-zoo.py --list           # List available models
 ```
-
-#### test_ai_pipeline_e2e.py
-
-**Purpose:** End-to-end test for all AI services in sequence.
-
-**Services Tested:**
-
-1. YOLO26 (port 8095) - object detection
-2. Florence-2 (port 8092) - dense captioning
-3. CLIP (port 8093) - entity embeddings
-4. Enrichment (port 8094) - vehicle/pet/clothing
-5. Nemotron (port 8091) - risk analysis
 
 #### trigger-filewatcher.sh
 

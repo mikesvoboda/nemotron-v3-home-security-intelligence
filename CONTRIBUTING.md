@@ -40,12 +40,15 @@ pre-commit install && pre-commit install --hook-type pre-push
 
 This project follows **Test-Driven Development (TDD)**. Write tests before implementation.
 
-| Test Type           | Minimum Coverage | Command                                        |
-| ------------------- | ---------------- | ---------------------------------------------- |
-| Backend Unit        | 85%              | `uv run pytest backend/tests/unit/ -n auto`    |
-| Backend Integration | --               | `uv run pytest backend/tests/integration/ -n0` |
-| Frontend            | 83%+             | `cd frontend && npm test`                      |
-| **Full validation** | --               | `./scripts/validate.sh`                        |
+| Test Type           | Gate semantics                                                                     | Command                                        |
+| ------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Backend Unit        | 85% is the PR diff gate's RELATIVE baseline (A7.1), not an absolute floor          | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend Integration | merged-measure floor 37 (WP2.5)                                                    | `uv run pytest backend/tests/integration/ -n0` |
+| Frontend            | floors = measured values 80/74.6/78.4/80.9 (R-1), enforced by merge-shard-coverage | `cd frontend && npm test`                      |
+| **Full validation** | **80% combined absolute floor** (`--fail-under=80`)                                | `./scripts/validate.sh`                        |
+
+> Authoritative current numbers and rulings live in `CLAUDE.md` (Testing table) and
+> `docs/development/testing.md` — this table states gate semantics, not aspirations.
 
 Always run full validation before opening a pull request:
 

@@ -1,73 +1,22 @@
-# Testing Documentation - Agent Guide
+# docs/testing/
 
 ## Purpose
 
-This directory contains testing-specific documentation and analysis reports for the Home Security Intelligence project.
+Historical marker directory. The testing analysis reports that used to live
+here (the 2026-01 integration-coverage snapshot and the TDD "red phase" test
+summaries) were point-in-time artifacts of shipped work and now live in
+`docs/archive/`.
 
-## Directory Contents
+## Where the living documentation is
 
-```
-testing/
-  AGENTS.md                                # This file
-  INTEGRATION_TEST_COVERAGE_ANALYSIS.md    # Integration test coverage analysis report
-```
+- **Coverage state:** `docs/development/coverage.md` (kept current; CI publishes
+  the real numbers)
+- **Testing guide & TDD workflow:** `docs/development/testing.md`,
+  `docs/development/testing-workflow.md`
+- **Test patterns:** `docs/developer/patterns/AGENTS.md`
 
-## Key Files
+## Gotcha
 
-### INTEGRATION_TEST_COVERAGE_ANALYSIS.md
-
-**Purpose:** Comprehensive analysis of integration test coverage across the codebase.
-
-**Topics Covered:**
-
-- Current integration test coverage metrics
-- Coverage gaps and areas needing additional tests
-- Test distribution across modules
-- Recommendations for improving coverage
-- Priority areas for test development
-
-**When to use:** Planning integration test development, identifying coverage gaps, prioritizing testing efforts.
-
-## Related Documentation
-
-| Resource                               | Description                         |
-| -------------------------------------- | ----------------------------------- |
-| `docs/development/testing.md`          | Comprehensive testing guide         |
-| `docs/development/testing-workflow.md` | TDD workflow and RED-GREEN-REFACTOR |
-| `docs/development/coverage.md`         | Coverage reporting and analysis     |
-| `docs/developer/patterns/AGENTS.md`    | Testing patterns documentation      |
-| `backend/tests/AGENTS.md`              | Backend test infrastructure         |
-| `frontend/src/__tests__/`              | Frontend test files                 |
-
-## Testing Resources
-
-### Quick Test Commands
-
-```bash
-# Backend unit tests (parallel)
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal
-
-# Backend integration tests (serial)
-uv run pytest backend/tests/integration/ -n0
-
-# Frontend tests
-cd frontend && npm test
-
-# Full validation
-./scripts/validate.sh
-```
-
-### Coverage Requirements
-
-| Test Type        | Minimum Coverage |
-| ---------------- | ---------------- |
-| Backend Unit     | 85%              |
-| Backend Combined | 95%              |
-| Frontend         | 83%/77%/81%/84%  |
-
-## Entry Points for Agents
-
-1. **Understanding test coverage:** Read `INTEGRATION_TEST_COVERAGE_ANALYSIS.md`
-2. **Writing tests:** See `docs/development/testing.md`
-3. **Following TDD:** See `docs/development/testing-workflow.md`
-4. **Test patterns:** See `docs/developer/patterns/AGENTS.md`
+Do not quote the coverage tables inside `docs/archive/INTEGRATION_TEST_COVERAGE_ANALYSIS.md`
+— it measures ~2,300 integration tests against today's ~4,300. It exists only as
+historical record of the 2026-01 analysis.

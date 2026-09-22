@@ -322,7 +322,7 @@ dev = [
 target-version = "py314"
 line-length = 100
 src = ["backend"]
-exclude = ["vulture_whitelist.py", "mutants/", "docs/media/"]
+exclude = ["vulture_whitelist.py", "mutants/", "archive/"]
 
 [tool.ruff.lint]
 select = [
