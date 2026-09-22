@@ -274,6 +274,29 @@ def test_torn_meta_without_repair_is_counted_not_silent(tmp_path):
     assert "torn" in r.stderr.lower()
 
 
+def test_never_checked_modules_still_ride_progress(tmp_path):
+    """The cold-cache honesty hole: 266 generated-but-never-checked metas +
+    ONE finished module is the real state after a targeted local run, and
+    the skip-before-progress path made it read total=18/checked=18/
+    completed=True -- a 1-module cache claiming a finished denominator,
+    exactly the trend-laundering M3 exists to stop. Generated-but-unchecked
+    keys are KNOWN quantities (meta key count), so they must count into
+    progress.total/not_checked and force completed=False -- while the
+    modules list and badge totals keep mutmut's export shape (only run
+    modules score)."""
+    meta(tmp_path, "backend/services/done.py", {"f1": 1, "f2": 1})
+    meta(tmp_path, "backend/services/untouched.py", {"g1": None, "g2": None, "g3": None})
+    out = json.loads(scorer("--root", str(tmp_path)).stdout)
+    p = out["progress"]
+    assert p["total"] == 5          # 2 done + 3 never-checked keys
+    assert p["checked"] == 2
+    assert p["not_checked"] == 3
+    assert p["completed"] is False  # a 1-of-2-modules cache is NOT finished
+    # but the badge side is unchanged: only run modules score
+    assert [m["module"] for m in out["modules"]] == ["backend/services/done.py"]
+    assert out["totals"]["total"] == 2 and out["totals"]["score"] == 100.0
+
+
 def test_verdict_table_matches_mutmut_import():
     """The pin: our classification of the codes that matter equals mutmut's
     own status_by_exit_code as INSTALLED here. If mutmut changes what exit

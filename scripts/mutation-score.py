@@ -155,6 +155,14 @@ def aggregate(root: Path) -> dict:
     modules = []
     stats_list: list[dict[str, int]] = []
     torn_metas = 0
+    # Generated-but-never-checked metas are excluded from the BADGE (mutmut's
+    # own export reports only run modules) but they are KNOWN quantities --
+    # their key counts are the denominator the weekly runs converge on. If
+    # progress skipped them, a targeted local run over a cache holding 266
+    # untouched modules would publish completed=True over its one module's
+    # 18 keys -- a 1-module cache claiming a finished denominator, the exact
+    # laundering M3 exists to stop. They ride progress and nothing else.
+    never_checked_keys = 0
     for meta_path in metas:
         rel = meta_path.relative_to(mutants).as_posix()[: -len(".meta")]
         try:
@@ -186,7 +194,9 @@ def aggregate(root: Path) -> dict:
             stats[classify(code, status_map)] += 1
         stats["total"] = sum(stats.values())
         if stats["total"] - stats["not_checked"] == 0:
-            continue  # generated, never checked -- nothing was measured
+            never_checked_keys += stats["total"]
+            continue  # generated, never checked -- nothing measured FOR THE BADGE;
+            # the key count rides progress below so completeness reads true
         stats_list.append(stats)
         modules.append({"module": rel, **stats, "score": score(stats)})
     if not stats_list:
@@ -199,11 +209,11 @@ def aggregate(root: Path) -> dict:
     # finished one -- that is how a trend launders progress. completed is
     # false while anything is unchecked OR any meta is torn.
     progress = {
-        "total": counts["total"],
+        "total": counts["total"] + never_checked_keys,
         "checked": counts["total"] - counts["not_checked"],
-        "not_checked": counts["not_checked"],
+        "not_checked": counts["not_checked"] + never_checked_keys,
         "torn_metas": torn_metas,
-        "completed": counts["not_checked"] == 0 and torn_metas == 0,
+        "completed": counts["not_checked"] + never_checked_keys == 0 and torn_metas == 0,
     }
     return {
         "schema_version": 1,
