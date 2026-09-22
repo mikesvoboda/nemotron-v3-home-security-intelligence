@@ -1689,6 +1689,57 @@ async def test_get_memory_pressure_level_monitor_raises_exception():
         module._gpu_monitor = original_monitor
 
 
+# -----------------------------------------------------------------------------
+# WP4.4 kill tests (frozen triage feed archive/wp25-feed/wp44-triage,
+# clusters C1/C3 -- the 2 remaining TEST-GAP mutants of this module).
+# test_set_gpu_monitor above calls the setter but asserts NOTHING about the
+# global it writes (its own comment says so), so the
+# `_gpu_monitor = monitor` -> `= None` mutant survived. And no test feeds a
+# NON-NORMAL pressure level, so inverting the `is None` guard (C3) silently
+# NORMALs every real pressure reading while the existing NORMAL-path tests
+# keep passing.
+# -----------------------------------------------------------------------------
+
+
+def test_set_gpu_monitor_stores_the_monitor_globally():
+    """C1: the setter's WHOLE job is the module global; assert it lands."""
+    import backend.services.batch_aggregator as module
+    from backend.services.batch_aggregator import set_gpu_monitor
+
+    monitor = MagicMock()
+    original = module._gpu_monitor
+    try:
+        set_gpu_monitor(monitor)
+        assert module._gpu_monitor is monitor
+    finally:
+        module._gpu_monitor = original
+
+
+@pytest.mark.asyncio
+async def test_get_memory_pressure_level_passes_through_non_normal():
+    """C3: with a monitor present its ACTUAL level must surface, not NORMAL.
+
+    The inverse-guard mutant (`is None` -> `is not None`) takes the try
+    branch only when the monitor is None and returns NORMAL otherwise --
+    this is the only shape of input that distinguishes the two guards:
+    a live monitor reporting CRITICAL must get CRITICAL back.
+    """
+    import backend.services.batch_aggregator as module
+    from backend.services.batch_aggregator import get_memory_pressure_level
+    from backend.services.gpu_monitor import MemoryPressureLevel
+
+    monitor = MagicMock()
+    monitor.check_memory_pressure = AsyncMock(return_value=MemoryPressureLevel.CRITICAL)
+    original = module._gpu_monitor
+    try:
+        module._gpu_monitor = monitor
+        pressure = await get_memory_pressure_level()
+        assert pressure == MemoryPressureLevel.CRITICAL
+        monitor.check_memory_pressure.assert_awaited_once()
+    finally:
+        module._gpu_monitor = original
+
+
 @pytest.mark.asyncio
 async def test_should_apply_backpressure_handles_exception(batch_aggregator):
     """Test should_apply_backpressure returns False when memory pressure check fails."""
