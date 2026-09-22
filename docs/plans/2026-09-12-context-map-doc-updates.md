@@ -9448,3 +9448,83 @@ format_clip_analysis_context, format_confidence_quality_summary,
 person_analysis 17, clip 4, confidence_quality 10, collect_detection 7,
 camera_health 4) and await shape re-derivation from a quiet generate — NOT
 claimed killed.
+
+### S2 batch 10 — vision_extractor all-shape battery: 294 shapes, 289 killed, 5 EQUIVALENT (`cad0c618`, `f09518eb`)
+
+Model switch, stated up front: `vision_extractor.py.meta` holds 1362 keys
+with **all-None** exit codes (the S1 cache-never-banked defect — M2), so a
+dossier survivor-key list is impossible here. Batch 10 instead writes the
+battery FIRST against the pure-function clusters the dossier calls TEST-GAP
+(needing no mock surgery), then red-checks **EVERY shape** of the targeted
+functions — self-triaging, residue dispositioned like batches 8/9.
+
+Feed `/tmp/extracts/vision_extractor.tsv`: 1362 shapes re-extracted this
+session from the run-5b mutant copy (difflib single-hunk vs each
+`__mutmut_orig`, def-line normalized). Extractor VALIDATION: 715/746
+byte-identical vs the surviving cd feed, the 31 differences continuation-
+line indent only; it also reproduces all 746 cd keys + the 137 class-
+mangled keys the cd batch could NOT extract — the "no orig blocks" note in
+the batch-9 row was an extraction-tool bug (class methods nest inside their
+orig's def-scope in this module's copy), corrected here. Targeted-function
+key counts re-measured from the feed while drafting this row: resolve 67,
+clean_vqa 63, detect_cross 45, note 32, BatchExtractionResult.to_dict 16,
+VehicleAttributes.to_dict 16, is_valid 12, CrossValidationError.to_dict 10,
+PersonAttributes.to_dict 10, validate_and_clean 9, SceneAnalysis.to_dict 8,
+EnvironmentContext.to_dict 6 — **sums to 294 exactly** (the commit body's
+278 was unverified arithmetic; 294 is the measured count; zero duplicate
+keys).
+
+Battery `test_vision_extractor_batch10.py` (commit `cad0c618`): 32 tests,
+TDD — 3 fixtures born-red against MEASURED shipped behavior and corrected:
+person-terms set repr includes `walking` (a PERSON_TERM) → order-
+insensitive assert (string hash order is per-process);
+BatchExtractionResult.to_dict keys are the five attribute buckets, NOT
+results/errors; every YOLO_TO_FLORENCE_EQUIVALENCE key is also a
+VEHICLE_TERM, so the `or`-gate is unprobeable by key choice → replaced by
+a shipped-truth routing test. Integrity: `git log --since=2026-09-17 --
+test_vision_extractor.py` EMPTY; #6561 never touched it → dossier
+survivors are survivors at this commit.
+
+Red-check round 1 (harness `/tmp/redcheck_vision.py`: block-anchored,
+class-scope resolution for the mangled `xǁClassǁto_dict` keys; guards =
+pgrep-mutmut abort, source==HEAD entry, baseline-green, compile() per
+application, restore after EVERY application, rc=4 sentinel, exit byte-equal
+assert): dry-run 263 groups, 294/294 assignable, ZERO LOC-AMBIG, ZERO
+deferred; full run measured **294 keys, 294 applied, 270 KILLED / 24
+SURVIVED** (/tmp/redcheck-vision.log, chain2 stage 3, 19:35:30→20:08:09Z).
+
+Triage of the 24 against shipped source (shapes re-read from the feed,
+consumption logic cited at :242-315/:340-379/:436-475/:530-574/:602-612/
+:647-669): **19 KILLABLE / 5 EQUIVALENT**. Killable → batch-10b (commit
+`f09518eb`, battery 32→47 tests, collect-only measured; 47 green fixed AND
+randomized): resolve 19/21/37/38/56 — echoed-field kwarg→None folds that
+None-default fixtures CANNOT see; branch tests rewritten to whole-result
+equality and falsy-NON-None inputs ("" yolo/florence, conf 0.3). clean_vqa
+15 (find→rfind "VQA>"): double-marker input keeps the literal second
+"VQA>" under shipped ("mid VQA>tail end"); 19 (`!= -1`→`!= +1`):
+"XVQA>what…" puts the marker at index 1; 26 (find→rfind "<"): trailing
+"<extra" — one input kills both; 42/43: two-word "visible visible" is
+exactly the boundary both skip. detect 11/12 ("van" ∈ VEHICLE_TERMS but
+NOT an equivalence-map key — routes only under shipped `or`), 13 ("person"
+in neither set → false vehicle under the right-`not in` flip; shipped None
+on person-only text). note 22 (`any(v in …)`→`any(v not in …)`): florence
+text containing EVERY VEHICLE_TERMS member (14 terms, :70-87). is_valid 1
+(None/""/whitespace guard — `and`-fold TypeErrors on None), 4 (guard
+return False→True). to_dict 7/11/15 (`cond → cond and False` None-folds):
+fully-populated five-field whole-dict equality.
+
+Round-2 serialized recheck of all 24 vs the 47-test battery
+(/tmp/redcheck_vision2.py ran strictly after chain2 + the batch-9 verifier
+gate, baseline-green, source byte-equal at exit): **24 keys, 24 applied,
+19 KILLED / 5 SURVIVED** — precisely the 5 triaged-equivalent, zero
+killable residue. Batch-10 total: **289/294 shapes killed (270 round-1 + 19
+batch-10b), 5 EQUIVALENT** with per-shape justification: clean_vqa 20
+(`!= -1`→`!= -2` constant-True — find("VQA>") under the `if "VQA>" in
+result` guard is NEVER -1, the condition never fires under shipped OR
+mutant); note 10/14 (`or ""`→`or "XXXX"`: the default flows only into
+`== "person"` and `in`-membership gates that neither "" nor "XXXX"
+satisfies — every input hits the identical branch); is_valid 8 +
+validate_and_clean 8 (`.lower()`→`.upper()` whitelist lookup: membership
+is only evaluated when the stripped value has len < 2 and
+`_VALID_SHORT_RESPONSES` min member length measured == 2, so the check
+never runs for any distinguishing input). Zero undispositioned shapes.
