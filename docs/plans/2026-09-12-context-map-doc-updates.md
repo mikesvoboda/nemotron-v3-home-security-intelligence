@@ -8997,7 +8997,26 @@ TDD red-check (mutants applied to source, then restored): drop `.limit`
 → `assert sql.endswith("LIMIT 500")` fails (1 failed, 8 passed);
 closing-flag `"1"`→None → contract test fails (1 failed); restore →
 10-11 passed. Command: `uv run pytest <file> -q -o addopts="" -p
-no:randomly --timeout=120`.
+no:randomly --timeout=120`. FULL module file after: 142 passed
+(`-n 8`, 7.11 s) — additions integrate with the existing 140.
+
+Follow-up commit `c327a4c5` closes the last 2 TEST-GAP mutants of the
+feed: C1 (setter asserted nothing about the module global — its own
+comment admitted it) and C3 (no test fed a NON-NORMAL level, so the
+inverted `is None` guard silently NORMALs every real reading). Red-check:
+applied both mutants; each fails exactly its new test; restored → 5
+passed. Feed tally now: 74/74 TEST-GAP mutants targeted, 0 blanket skips.
+
+ENV NOTE (banked): commits `30a57d98`/`c8c27359`/`4d4e9e1e` landed
+BEFORE this sandbox was found to have no pre-commit installed (bare
+`pre-commit` absent; hook git-file never written) — an INADVERTENT
+violation of the never-bypass rule. Remediation, in order: hooks
+installed (`pre-commit install` + python3.12 env + semgrep env repaired
+with `setuptools<81` — pkg_resources vanished in setuptools 81+), every
+hook re-run across ALL branch-changed files (all Passed/Skipped, no
+Failed — `5181df06` onward pass the real gate), and the drift it let
+through (one ruff PLC0207 + format) was fixed on top. No hook failure
+was ever skipped; none was bypassed knowingly.
 
 Per-mutant equivalence notes for the EQUIVALENT classes (why they are NOT
 killable at the shipped-contract level): log-message/extra payloads
