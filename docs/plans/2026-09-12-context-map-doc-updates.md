@@ -9528,3 +9528,86 @@ validate_and_clean 8 (`.lower()`→`.upper()` whitelist lookup: membership
 is only evaluated when the stripped value has len < 2 and
 `_VALID_SHORT_RESPONSES` min member length measured == 2, so the check
 never runs for any distinguishing input). Zero undispositioned shapes.
+
+### S2 batch 9 — container_discovery battery: 746 re-derived shapes, 728 killed / 18 EQUIVALENT (`4cc13767`)
+
+Batch-9 was drafted BEFORE the `container_discovery.md` dossier was opened —
+the audit after drafting inverts its value claim, and the ledger records
+the truth. The dossier: 858 keys / **696 survived** (meta snapshot 09-17),
+but WP4.4's kill tests ALREADY LANDED on main at 336b4c53 (#6561): the tree's
+`test_container_discovery.py` carries `EXPECTED_BUILDER_TABLE` golden table
+(L750, kills clusters 2-20 = 636 TEST-GAP), T-2 compose-fallback flag
+(L1040, kills C2/C2-remainder), T-3a length-vs-lexicographic sort (L1058,
+kills S1 2), T-3b no-.tags image (kills M2 `_16`), T-1b direct
+`_create_managed_service` id-less fixture (L1102 — and correctly BYPASSES
+discover_all, whose eager `extra={"container_id": container.id}` log arg an
+id-less SimpleNamespace would crash; the dossier draft T-1b itself was
+wrong here, the shipped test right), T-4 discover_all debug-extra contract
+(L1119, kills D1 16). Residual roll-up: 644/696 killed in-tree at cdfeefa5
+census + these = **52 residuals already dead** before batch 9. Module truth:
+(162+696)/858 → tier ≈94%+ on shipped tests, NOT 80%.
+
+What batch 9 (`test_container_discovery_batch9.py`, 10 tests / 461 lines,
+commit `4cc13767`) therefore adds: an INDEPENDENT full-table readback
+(25 services × 9 fields, `ServiceCategory` identity not `.value` string,
+`is`-identity on the compose result, spy-parse arg capture, both warning
+strings verbatim) over the module's 746 extractable shapes — a redundancy
+lock, not new kills. 746 = 722 build_service_configs + 24
+build_configs_from_compose single-hunk shapes re-extracted at 12:55 from
+run-5's mutant copy (vs `__mutmut_orig`, def-name normalized); the copy was
+then CLOBBERED by run 5b's second generate — the TSV feed survives; true
+positions reconstructed by group-order assignment (repeated identical
+shapes = distinct mutmut sites; site order == source order).
+
+Red-check of all 746 at their assigned positions vs the battery alone
+(measured 18:04–19:31Z, serialized after batch-8; baseline-green guard;
+compile guard; source byte-equal at exit): **724 KILLED / 22 SURVIVED, all
+746 applied (zero LOC-AMBIG/deferred)** (/tmp/redcheck-cd.log).
+
+PREDICTION-VALIDATED: the 19 dossier-EQUIVALENT kwarg-deletions were
+pre-derived from the feed by "deleted value == ServiceConfig dataclass
+default" BEFORE reading the log — the 15 single-line keys (monitoring
+max_failures=5 ×14 + elasticsearch grace=60 ×1) ALL appear in the measured
+SURVIVED set, and the 3 multi-line AI-block grace=60 deletions (249/284/302
+— regex miss in the prediction script, same default-equal rule) fill the
+count to 18 of the dossier's 19.
+
+Per-position verifier (queued strictly after the serialized chain — an
+earlier crashed attempt died pre-application on a harness KeyError,
+double-prefixing `x_` in the AST-range lookup, source never touched; fixed,
+re-ran 21:14:30→21:18:57Z) applied each of the 7 non-predicted survivors at
+EVERY candidate occurrence of its minus-block, source restored per
+application, byte-equal at exit (/tmp/cd-verify-survivors.log):
+compose-9 **ARTIFACT** [KILLED]; 249/284/302 **TRUE-EQUIV** [all sites
+SURVIVED — `startup_grace_period=60` deletion in the three AI blocks:
+60 IS the dataclass default, output-identical, completing the 18
+default-equal set]; 359 **ARTIFACT** [KILLED ×8 sites]; 467 **ARTIFACT**
+[KILLED ×7 of 8 sites, SURVIVED at one — the grace=30 cluster's shared-text
+group; under the site-order==AST-order contract its true site dies]; 488
+**ARTIFACT** [KILLED ×14 sites]. Manual spot-check pre-verifier: applying
+the grace=30 deletion at the pyroscope block (:279) measured KILLED.
+Verdict semantics stated: a KILLED verdict is position-independent when all
+candidate sites die (true for 359/488/compose-9); the batch-9 battery is a
+redundancy lock over shipped-tested config, so the 724+4 count is sound
+even where a key↔site pairing is a permutation within its group.
+
+FINAL disposition: **728/746 shapes killed** (724 round-1 + 4
+true-site-killable ARTIFACTs), **18 EQUIVALENT** (default-equal kwarg
+deletions, per-shape rule above: 14× max_failures=5, 1+3× grace=60 = 60 IS
+`ServiceConfig.startup_grace_period`'s default) — **zero undispositioned**.
+Dossier's 19th EQUIVALENT member is not among the 746 extractable (it lives
+in the class-mangled/multi-hunk residue below). Marginal-coverage probe
+(measured, fixed harness): tree `test_container_discovery.py` alone
+SURVIVES both compose-fallback `logger.warning → None` shapes (C1);
+batch-9's verbatim warning-text asserts KILL both — the 2 unique kills that
+justify the file beyond redundancy. Deferral (structural, honest): 137
+class-mangled `xǁContainerDiscoveryServiceǁ*` survivors have no
+`__mutmut_orig` blocks in the mutant copy — no shape extractable (batch-10's
+improved extractor proved the "no orig blocks" reading was THIS copy's
+nesting quirk, and the same extractor reproduces them from OTHER runs'
+copies — deferred, not claimable here); the dossier's real class-method
+survivors (17 \_create_managed_service + 16 discover_all + 2
+match_container_name = 35) are all dispositioned in-tree per the audit
+above (T-1b kills the create-helper cluster, T-4 the discover_all D1
+cluster, T-3a/b the match/name clusters), so the extraction deferral costs
+nothing real.
