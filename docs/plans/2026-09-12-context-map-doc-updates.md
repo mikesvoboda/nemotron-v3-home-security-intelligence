@@ -9060,3 +9060,27 @@ backend/tests/integration/test_mqtt_integration.py:584 carries the same
 
 > 5s-under-contention justification). pytest-timeout bounds; the
 > determinism assertions and the <30s assertion stay exactly as written.
+
+### S2 batch 2 — evaluation_queue C01-C05: 12 of 13 TEST-GAP survivors red-checked (`2a03dcd8`)
+
+Frozen feed `evaluation_queue.md` tallies re-verified against the dossier
+(104 mutants / 50 survived / 13 TEST-GAP / 37 EQUIVALENT — log-cosmetic
+C06-C10 + codec-case C11; per-cluster exclusion stands, no blanket
+skip). Gap root cause read off the shipped suite: `zrange.return_value`
+was canned and `zrange.call_args` never read, so every index-clamp
+mutant survived; singleton tests asserted identity, so
+`EvaluationQueue(None)` passed the whole file.
+
+Added 4 tests (zero production change): zrange call contract
+`("evaluation:pending", 0, limit-1)`; default-limit stop index 99;
+inclusive-window fake ZRANGE over a bytes+str+int member mix (kills
+`limit+1`, `limit-2`, and the decode-everything `or True`); singleton
+`queue._redis is mock_redis`. Full file 30 passed 2.21s.
+
+Red-check, measured this session (apply real mutation → target test must
+fail → restore; git diff clean at exit): key→None FAIL; start 0→1 FAIL
+(2 tests); stop `limit+1` FAIL; stop `limit-2` FAIL; decode-all FAIL;
+singleton-arg→None FAIL; default `101` FAIL — 7/7 mutations caught by
+7/7 runs. `get_pending_events _14` (`and False` on the str branch)
+stays de-facto equivalent on CPython (int(b"..") legal) — the dossier's
+own accounting already exempted it; nothing hidden here.
