@@ -24,7 +24,12 @@ export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
  * Service status values matching backend WebSocket events
  */
 export type ServiceStatusValue =
-  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+  | 'healthy'
+  | 'unhealthy'
+  | 'restarting'
+  | 'restart_failed'
+  | 'restart_disabled'
+  | 'failed';
 
 /**
  * Service status data from WebSocket
@@ -49,6 +54,8 @@ const STATUS_SEVERITY: Record<ServiceStatusValue, number> = {
   restarting: 1,
   unhealthy: 2,
   restart_failed: 3,
+  // Unhealthy with no restart coming — at least as severe as unhealthy.
+  restart_disabled: 3,
   failed: 4,
 };
 
@@ -84,6 +91,13 @@ const STATUS_CONFIG: Record<Exclude<ServiceStatusValue, 'healthy'>, StatusConfig
     icon: XCircle,
     iconClassName: 'h-5 w-5',
     title: 'Restart Failed',
+  },
+  restart_disabled: {
+    bgColor: 'bg-red-100',
+    textColor: 'text-red-800',
+    icon: XCircle,
+    iconClassName: 'h-5 w-5',
+    title: 'Service Down (Auto-Restart Disabled)',
   },
   failed: {
     bgColor: 'bg-red-200',

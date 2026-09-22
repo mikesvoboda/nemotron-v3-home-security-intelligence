@@ -127,6 +127,23 @@ describe('useServiceStatus', () => {
     expect(result.current.hasUnhealthy).toBe(true);
   });
 
+  it('should accept restart_disabled and flag hasUnhealthy (backend-emitted status)', () => {
+    // 'restart_disabled' is broadcast by ServiceHealthMonitor every check
+    // cycle for services with restart disabled (e.g. AI_RESTART_ENABLED=false)
+    // — it must survive the hook's message guard and count as unhealthy
+    // (unhealthy with no restart coming). It was missing from both the type
+    // union and the runtime guard: the UI silently never saw those services
+    // go down (2026-09-22 sandbox bring-up).
+    const { result } = renderHook(() => useServiceStatus());
+
+    act(() => {
+      onMessageCallback?.(createServiceStatusMessage('nemotron', 'restart_disabled'));
+    });
+
+    expect(result.current.services.nemotron?.status).toBe('restart_disabled');
+    expect(result.current.hasUnhealthy).toBe(true);
+  });
+
   it('should return isAnyRestarting true when restarting (test_isAnyRestarting_true_when_restarting)', () => {
     const { result } = renderHook(() => useServiceStatus());
 
@@ -242,6 +259,7 @@ describe('useServiceStatus', () => {
       'unhealthy',
       'restarting',
       'restart_failed',
+      'restart_disabled',
       'failed',
     ];
 

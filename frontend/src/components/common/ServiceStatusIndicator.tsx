@@ -53,7 +53,11 @@ function deriveOverallStatus(
     // Check if ALL known services are unhealthy
     const knownServices = Object.values(services).filter((s) => s !== null);
     const allUnhealthy = knownServices.every(
-      (s) => s?.status === 'unhealthy' || s?.status === 'failed' || s?.status === 'restart_failed'
+      (s) =>
+        s?.status === 'unhealthy' ||
+        s?.status === 'failed' ||
+        s?.status === 'restart_failed' ||
+        s?.status === 'restart_disabled'
     );
     return allUnhealthy ? 'offline' : 'degraded';
   }
@@ -128,6 +132,7 @@ function getServiceStatusConfig(status: string): {
       };
     case 'unhealthy':
     case 'restart_failed':
+    case 'restart_disabled':
     case 'failed':
       return {
         dotColor: STATUS_BG_CLASSES.error,
