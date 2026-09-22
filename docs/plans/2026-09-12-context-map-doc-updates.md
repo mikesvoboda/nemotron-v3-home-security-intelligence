@@ -9350,3 +9350,101 @@ create-fields 8, boundary300 6, jinja 6, db-args 6, post-args 5,
 singleton 2, bted-fallback 2, timing 2, tw-body 3, hdrs 3, int-routing 6)
 await shape re-derivation from a future quiet generate — NOT claimed
 killed.
+
+### S2 batch 8 — prompts.py feed battery: 12 functions / 218 frozen-feed shapes (`783f5ea5`, `e07e0609`)
+
+Frozen feed `prompts-diffs.txt`: 218 mechanically-extracted per-mutant diff
+shapes covering 12 of the 888-survivor module's functions (53 clothing,
+40 florence_scene, 32 member_schedule, 26 infer_movement, 20 household,
+11 pose_scene_warning, 10 enhanced_reid, 8 resolve_pose_conflict,
+7 scene_context, 5 time_gap, 4 florence_attributes, 2 ondemand_join — sums
+verified from the feed this session). Integrity check FIRST (batch-9 fallout
+forced the audit): `git log --since=2026-09-17 -- test_prompts.py` shows the
+file changed only by 55026883/e947e7ae — the latter DELETES 98 lines, adds
+zero tests — so every one of the 218 feed shapes was a survivor at snapshot
+AND is a survivor at this commit; the #6561 re-home (31 test files, list
+verified from the commit) never touched test_prompts.py or any batch-1..7
+module's test file. TRUE new kills, no double-count.
+
+81 tests / 14 classes in `test_prompts_batch8.py` (655 lines, commit
+783f5ea5 — collect-only measured 81, correcting the draft's stale 91).
+Whole-document equality everywhere the feed shapes are text swaps
+(florence_scene 18-line render, household BORDER line, clothing ALERT
+line, pose warning f-string). Discriminating fixtures re-derived from
+shipped source, each cited at commit: \_format_time_gap int-truncation
+boundaries :2991-3007, \_infer_movement_pattern minutes<2/10 + zone
+precedence :3010-3068, check_member_schedule day_names :3178 + sunday
+KeyError discriminator + overnight `>= start or <= end` :3126-3222,
+household box_width 64 / int(sim\*100) / base_risk>0.9 ternary :3266-3306,
+scene_context truncation fixture `"ab cdefghijklmno  p q"` (spaces
+{2,16,17}) separating rfind/find, reserve-3/4, `>0`/`>1`, reid real-now
+`.days==n` anchor :2734-2793, pose-conflict POSE_SCENE_CONFLICTS table
+:1493 (3 exact dispositions + 2 passthroughs).
+
+Red-check round 1 (ALL 218 shapes applied at function-scoped, line-anchored
+positions vs HEAD; unique-or-every-candidate application for the 4 duplicate
+minus-lines; baseline-green guard; compile guard; source byte-equal at exit,
+asserted): **163 KILLED + 4 KILLED(all2pos) + 51 SURVIVED = 218, deferred 0**
+(/tmp/redcheck-prompts.log). Harness defect caught mid-flight: pytest 9.1.1
+has no `-t` flag — an early round carried `-t 20` in a helper that would
+exit-4 on every application and fake 218/218 KILLED; sentinel + baseline
+guard added, correct harness re-ran; batches 2-7 harnesses audited clean of
+the flag (grep: no `-t` in any export/modelzoo/mqtt/qs/webhook harness).
+
+Triage of all 51 survivors against consumption sites (every site re-read at
+commit this session): **29 KILLABLE / 22 EQUIVALENT**. Killable → batch-8b
+(commit e07e0609, +12 parametrized tests, battery 93 green shipped, fixed +
+randomized): member_schedule 13/14/16 (cross-day fixtures — saturday-key on
+Sunday → None; sunday-key on Saturday → None), 37/38/41/42 (elif-literal
+XX/case — fixture `{"SATURDAY": "all_day"}` on Saturday: shipped None, the
+mutant's live elif KeyErrors; the schedule-key contract is exact-lowercase),
+30/31/32/33 (day_names XX/case — same fixture shape: mutant's list entry
+matches the cased key → True vs shipped None); clothing 48/50/53/79/81/84
+(delivery/utility dict WITHOUT confidence → shipped 0.0 default suppresses
+the line; None default TypeErrors the gate, 1.0 emits it), 137/146 (non-dict
+casual → str(value) path; or-True crashes .get on namespace, str(None)
+prints "None"); florence 32/33/38/39 (bare `["weapon"]`/`["tool"]` labels →
+HIGH RISK line), 53/76/81/86 (wrong-typed sections: dense_captions=5 /
+"region_descriptions"=string / security_vqa=5 / phrase_grounding=5 — shipped
+skips → "", or-isinstance crashes); household 40/48 (schedule lines rewritten
+as WHOLE-BLOCK equality — the original `in` assert shape is blind to XX
+wraps). 22 EQUIVALENT, per-shape: member_schedule 12/15 (flag → None, falsy-
+folded by `and`), 17 (`weekday == 7` constant-False: Sunday caught earlier by
+day_names), 18 (init `schedule_value = ""`: falls past the None-guard into
+neither all_day nor "-" → same `return None`); infer_movement 5
+(`has_entry_point = None` falsy-fold), 11/17 (getattr zone default ""→None
+/"XXXX": never equals entry_point/driveway/yard in the membership list), 56
+(`parts or True`: parts unconditionally non-empty — first append is
+unconditional), 59 (else-"XXXX" unreachable dead); florence_attributes
+11/12/13 (valid_count `=1`/`-=1`/`+=2`: sole consumer `== 0`, reachable
+counts 1-5 all nonzero both ways — measured via shipped source at :584-597);
+florence_scene 23/25/64/66 (`.get("labels", [])` → None/()-default: falsy at
+the immediately-following `if labels:` — identical skip path); ondemand 24
+(`sections or True`: empty join → "" == shipped ""); scene_context 11
+(`rfind(" ", None, n)` == `rfind(" ", 0, n)`), 18 (`start=1`: index-0 space
+impossible after the `caption.strip()` at :646 — output-identical), 19
+(`last_space >= 0`: -1 and >0 exhaust the spaceful/spaceless split at the
+same boundary); pose 21/22 (winner string consumed ONLY by `== "pose"` —
+"XXsceneXX"/"SCENE" take the same else-branch as "scene").
+
+Merged serialized re-red-check of all 29 killable shapes (single harness —
+an earlier 25+4 split ran the two harnesses CONCURRENTLY on prompts.py and
+their restore-writes raced, faking one SURVIVED (clothing_79, whose killed
+twin 81 applies the same None default — direct repro on restored source
+kills it) AND faking a member_schedule fail (a foreign XX-mutant was live
+during the manual repro); the concurrent round is discarded, this table is
+the admissible one, run strictly after the cd red-check exited, baseline-
+green guarded, source byte-equal at exit): **29/29 KILLED, 0 survivors**
+(/tmp/recheck8-final.log). Batch-8 total: **196/218 shapes killed** (167
+round-1 + 29 batch-8b recheck), 22 EQUIVALENT with per-shape justifications
+above — zero undispositioned shapes. Battery shipped: 93 tests measured
+green, fixed + randomized order.
+
+Deferral, honest: the dossier's other clusters — build_person_analysis_section,
+format_clip_analysis_context, format_confidence_quality_summary,
+\_collect_detection_ids_from_enrichment, format_camera_health_context,
+\_build_tracking_narratives — have NO per-mutant diff file in the frozen feed
+(only cluster tables; key-mention counts verified this session:
+person_analysis 17, clip 4, confidence_quality 10, collect_detection 7,
+camera_health 4) and await shape re-derivation from a quiet generate — NOT
+claimed killed.
