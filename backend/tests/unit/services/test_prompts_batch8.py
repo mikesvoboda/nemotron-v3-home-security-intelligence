@@ -169,6 +169,48 @@ class TestCheckMemberScheduleDayNames:
         sunday = datetime(2026, 9, 27, 10, 0)
         assert check_member_schedule({"weekends": "all_day"}, sunday) is True
 
+    def test_saturday_key_never_matches_on_a_sunday(self):
+        # kills `is_saturday = weekday != 5` and `= weekday == 6`: either flip
+        # makes the elif is_saturday branch fire on Sunday and return True;
+        # shipped (is_saturday False on Sunday) has no key to read -> None
+        sunday = datetime(2026, 9, 27, 10, 0)
+        assert check_member_schedule({"saturday": "all_day"}, sunday) is None
+
+    def test_sunday_key_never_matches_on_a_saturday(self):
+        # kills `is_sunday = weekday != 6`: on Saturday the flip makes the elif
+        # is_sunday branch read typical_schedule["sunday"] -> True; shipped -> None
+        saturday = datetime(2026, 9, 26, 10, 0)
+        assert check_member_schedule({"sunday": "all_day"}, saturday) is None
+
+    @pytest.mark.parametrize(
+        ("wrong_case_key", "day"),
+        [
+            ("SATURDAY", datetime(2026, 9, 26, 10, 0)),
+            ("SUNDAY", datetime(2026, 9, 27, 10, 0)),
+        ],
+    )
+    def test_uppercase_day_key_is_not_read_by_the_redundant_elif(self, wrong_case_key, day):
+        # feed 38/42: day_names[weekday] misses the "SATURDAY" key, and the
+        # redundant `elif is_X and "saturday" in ...` stays dead for shipped
+        # (its literal is the lowercase key the fixture lacks) -> None. The
+        # schedule-key contract is exact-lowercase. Mutating the elif's literal
+        # to "SATURDAY" makes the branch LIVE: it passes the `in` check and
+        # KeyErrors on typical_schedule["saturday"] (absent) -> test dies.
+        assert check_member_schedule({wrong_case_key: "all_day"}, day) is None
+
+    @pytest.mark.parametrize(
+        ("xx_key", "day"),
+        [
+            ("XXsaturdayXX", datetime(2026, 9, 26, 10, 0)),
+            ("XXsundayXX", datetime(2026, 9, 27, 10, 0)),
+        ],
+    )
+    def test_xx_wrapped_day_key_is_not_read_by_the_redundant_elif(self, xx_key, day):
+        # feed 37/41 mirror: shipped returns None for the wrapped key (elif
+        # literal "saturday" not in fixture). The mutant's "XXsaturdayXX"
+        # literal matches -> LIVE -> KeyError on the absent lowercase key.
+        assert check_member_schedule({xx_key: "all_day"}, day) is None
+
 
 class TestCheckMemberScheduleParsing:
     def test_start_minutes_uses_plus(self):
@@ -254,14 +296,27 @@ class TestFormatHouseholdContextExact:
         )
 
     def test_schedule_within_line_and_risk(self):
-        result = format_household_context([_pm(schedule_status=True)], [], self.NOW)
-        assert "|   Schedule: Within expected hours" in result
-        assert result.endswith("-> Calculated base risk: 5")
+        # whole-block equality, not `in` — the `in` form let the XX-wrapped
+        # schedule-line mutants (feed 40/48) pass, since "XX|   Schedule..."
+        # still contains the substring
+        assert format_household_context([_pm(schedule_status=True)], [], self.NOW) == (
+            "## RISK MODIFIERS (Apply These First)\n"
+            + self.BORDER
+            + "\n| KNOWN PERSON: Mike (95% match)\n"
+            + "|   Schedule: Within expected hours\n"
+            + self.BORDER
+            + "\n-> Calculated base risk: 5"
+        )
 
     def test_schedule_outside_line_and_risk(self):
-        result = format_household_context([_pm(schedule_status=False)], [], self.NOW)
-        assert "|   Schedule: Outside normal hours" in result
-        assert result.endswith("-> Calculated base risk: 20")
+        assert format_household_context([_pm(schedule_status=False)], [], self.NOW) == (
+            "## RISK MODIFIERS (Apply These First)\n"
+            + self.BORDER
+            + "\n| KNOWN PERSON: Mike (95% match)\n"
+            + "|   Schedule: Outside normal hours\n"
+            + self.BORDER
+            + "\n-> Calculated base risk: 20"
+        )
 
     def test_similarity_risk_boundary_is_strictly_above_nine(self):
         # `and False` (always 15), 5->6, `>=` at exactly 0.9, `> 1.9` (always 15)
@@ -374,6 +429,21 @@ class TestFormatEnhancedClothingContextKillBattery:
         assert format_enhanced_clothing_context({}) == ""
         assert format_enhanced_clothing_context(None) == ""
 
+    @pytest.mark.parametrize("bucket", ["delivery", "utility"])
+    def test_missing_confidence_key_defaults_to_zero_and_suppresses_line(self, bucket):
+        # feed 48/50/53 (deliv) + 79/81/84 (util): the .get default is 0.0, so a
+        # bucket with top_match but NO confidence renders nothing (0.0 fails the
+        # > 0.5 gate). default->None crashes the compare; ->1.0 emits the line.
+        assert format_enhanced_clothing_context({bucket: {"top_match": "x"}}) == ""
+
+    def test_casual_non_dict_renders_via_str_not_dict_branch(self):
+        # feed 137/146: casual is a non-dict, so the else branch is live.
+        # `isinstance or True` takes the dict branch -> .get on a namespace crashes;
+        # `str(None)` prints "None" instead of the real str(value).
+        assert format_enhanced_clothing_context({"casual": SimpleNamespace(x=1)}) == "\n".join(
+            [self.HDR, "- General attire: namespace(x=1)"]
+        )
+
 
 # ---------------------------------------------------------------------------
 # format_florence_scene_context — 40 feed shapes
@@ -439,6 +509,24 @@ class TestFormatFlorenceSceneContextExact:
     def test_no_high_risk_labels_omits_alert(self):
         out = format_florence_scene_context({"security_objects": {"labels": ["bicycle", "plant"]}})
         assert out == f"{self.HDR}\n\n**Security Objects Detected:** bicycle, plant"
+
+    @pytest.mark.parametrize("label", ["weapon", "tool"])
+    def test_each_high_risk_set_member_alerts_alone(self, label):
+        # feed 32/33 (weapon XX/case) + 38/39 (tool XX/case): membership is
+        # substring-on-lowercase, so a bare label must land on the alert line.
+        assert format_florence_scene_context({"security_objects": {"labels": [label]}}) == (
+            f"{self.HDR}\n\n**Security Objects Detected:** {label}\n"
+            f"- **HIGH RISK OBJECTS**: {label}"
+        )
+
+    def test_wrong_typed_sections_are_skipped_not_crashed(self):
+        # dense_captions/phrase_grounding/region_descriptions/security_vqa guards:
+        # `and isinstance` -> `or isinstance` enters on the truthy wrong type and
+        # crashes (iterating 5 / .items() on "x"); shipped skips to "".
+        assert format_florence_scene_context({"dense_captions": 5}) == ""
+        assert format_florence_scene_context({"phrase_grounding": 5}) == ""
+        assert format_florence_scene_context({"region_descriptions": "x"}) == ""
+        assert format_florence_scene_context({"security_vqa": 5}) == ""
 
 
 # ---------------------------------------------------------------------------
