@@ -42,14 +42,17 @@ Notes:
 """
 
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+import ssl
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
 from backend.services.mqtt_client import (
+    MQTT_PUBLISH_DURATION_BUCKETS,
     MQTTClient,
     MQTTClientSettings,
     MQTTConnectionError,
+    MQTTPublishError,
 )
 
 # Test constants
@@ -937,3 +940,261 @@ async def test_graceful_shutdown_with_active_subscriptions(mqtt_client, mock_aio
 
         assert len(mqtt_client._subscriptions) == 0
         assert mqtt_client.connected is False
+
+
+# =============================================================================
+# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# mqtt_client.md clusters T1-T8/T10-T12 — 70 TEST-GAP survivors of 232;
+# 141 LOW-VALUE log/metric-name mutants and 21 EQUIVALENT stay
+# per-cluster justified in the dossier). Root cause: tests asserted that
+# labels()/inc()/observe() HAPPENED, never with which values; the
+# aiomqtt.Client(...) construction was never inspected; unsubscribe
+# asserts were arity-only. Production asserted exactly as shipped.
+# =============================================================================
+
+
+class TestConnectionContract:
+    """T3/T4/T5/T9: the aiomqtt ctor contract, TLS gating, error cause, idempotency."""
+
+    @pytest.mark.asyncio
+    async def test_connect_passes_all_settings_to_aiomqtt_client(
+        self, mqtt_client, mock_aiomqtt_client, mqtt_settings
+    ):
+        """Every aiomqtt.Client kwarg must come from settings (T3: 14 keys)."""
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ) as mock_cls:
+            await mqtt_client.connect()
+
+        kwargs = mock_cls.call_args.kwargs
+        assert kwargs["hostname"] == MQTT_BROKER_HOST
+        assert kwargs["port"] == MQTT_BROKER_PORT
+        assert kwargs["identifier"] == MQTT_CLIENT_ID
+        assert kwargs["username"] == MQTT_USERNAME
+        assert kwargs["password"] == MQTT_PASSWORD
+        assert kwargs["keepalive"] == 60
+        assert kwargs["tls_context"] is None  # use_tls False in fixture
+
+    @pytest.mark.asyncio
+    async def test_connect_builds_tls_context_when_use_tls_true(self, mock_aiomqtt_client):
+        """use_tls=True passes a real SSLContext; use_tls=False passes None (T4: 3 keys)."""
+        # use_tls passed explicitly: SettingsConfigDict(env_file=".env") could
+        # otherwise pick MQTT_USE_TLS up from a developer .env.
+        client = MQTTClient(settings=MQTTClientSettings(broker_host=MQTT_BROKER_HOST, use_tls=True))
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ) as mock_cls:
+            await client.connect()
+            tls_ctx = mock_cls.call_args.kwargs["tls_context"]
+            assert isinstance(tls_ctx, ssl.SSLContext)  # kills tls_context=None mutants
+
+        plain = MQTTClient(settings=MQTTClientSettings(broker_host=MQTT_BROKER_HOST, use_tls=False))
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ) as mock_cls2:
+            await plain.connect()
+            assert mock_cls2.call_args.kwargs["tls_context"] is None
+
+    @pytest.mark.asyncio
+    async def test_connect_exhaustion_chains_original_error(self, mqtt_client):
+        """MQTTConnectionError.original_error carries the LAST broker exception (T5)."""
+        boom = ConnectionError("refused-xyz")
+        with (
+            patch("backend.services.mqtt_client.aiomqtt.Client", autospec=True) as cls,
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            cls.return_value.__aenter__.side_effect = boom
+            mqtt_client.settings.max_retries = 1
+
+            with pytest.raises(MQTTConnectionError) as exc_info:
+                await mqtt_client.connect()
+
+            assert exc_info.value.original_error is boom
+
+    @pytest.mark.asyncio
+    async def test_second_connect_does_not_recreate_the_client(
+        self, mqtt_client, mock_aiomqtt_client
+    ):
+        """Idempotency guard must skip the ctor AND __aenter__ on reconnect (T9)."""
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ) as mock_cls:
+            await mqtt_client.connect()
+            await mqtt_client.connect()
+
+            mock_cls.assert_called_once()
+            assert mock_aiomqtt_client.__aenter__.await_count == 1
+
+
+class TestMetricsContracts:
+    """T1/T2/T11: metric label VALUES and histogram config, not just call presence."""
+
+    @pytest.mark.asyncio
+    async def test_metrics_record_exact_label_values_and_gauges(
+        self, mqtt_client, mock_aiomqtt_client, mock_prometheus_metrics
+    ):
+        """connections_total{status}, connection_state 1/0, publish labels + sane seconds (T1)."""
+        counter = mock_prometheus_metrics["counter_instance"]
+        gauge = mock_prometheus_metrics["gauge_instance"]
+        histogram = mock_prometheus_metrics["histogram_instance"]
+
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ):
+            await mqtt_client.connect()
+            assert call(status="success") in counter.labels.call_args_list
+            gauge.set.assert_called_with(1)
+
+            await mqtt_client.publish("events/cam1", {"a": 1})
+            assert call(topic_type="events", qos="1") in counter.labels.call_args_list
+            assert call(topic_type="events") in histogram.labels.call_args_list
+            observed = [c.args[0] for c in histogram.labels.return_value.observe.call_args_list]
+            assert observed and all(0 <= d < 60 for d in observed)  # kills +duration mutants
+
+            await mqtt_client.disconnect()
+            # subscriptions_active.set(0) then connection_state.set(0)
+            assert gauge.set.call_args_list[-2:] == [call(0), call(0)]
+
+        # exhausted connect: exact failure labels
+        with (
+            patch("backend.services.mqtt_client.aiomqtt.Client", autospec=True) as cls,
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            cls.return_value.__aenter__.side_effect = ConnectionError("boom")
+            client2 = MQTTClient(settings=mqtt_client.settings)
+            client2.settings.max_retries = 1
+            with pytest.raises(MQTTConnectionError):
+                await client2.connect()
+
+            assert call(status="failure") in counter.labels.call_args_list
+            assert call(error_type="connection") in counter.labels.call_args_list
+
+    @pytest.mark.asyncio
+    async def test_publish_metrics_use_first_path_segment_as_topic_type(
+        self, mqtt_client, mock_aiomqtt_client, mock_prometheus_metrics
+    ):
+        """topic_type = FIRST '/'-segment (maxsplit=1) — rsplit/[1]/condition flips die (T2)."""
+        counter = mock_prometheus_metrics["counter_instance"]
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ):
+            await mqtt_client.connect()
+
+            await mqtt_client.publish("events/camera/front_door", {"a": 1})
+            assert call(topic_type="events", qos="1") in counter.labels.call_args_list
+
+            counter.labels.reset_mock()
+            await mqtt_client.publish("health", {"a": 1})
+            assert call(topic_type="health", qos="1") in counter.labels.call_args_list
+
+    @pytest.mark.asyncio
+    async def test_publish_duration_histogram_carries_declared_buckets(
+        self, mqtt_client, mock_prometheus_metrics
+    ):
+        """The Histogram is built with the module's buckets tuple (T11)."""
+        histogram = mock_prometheus_metrics["histogram"]
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_client,
+            autospec=True,
+        ):
+            await mqtt_client.connect()
+        await mqtt_client.publish("events/c1", {"a": 1})
+        assert histogram.call_args.kwargs["buckets"] == MQTT_PUBLISH_DURATION_BUCKETS
+
+
+class TestPublishRetryContract:
+    """T6/T7: exactly 3 attempts and the doubling publish-path backoff schedule."""
+
+    @pytest.mark.asyncio
+    async def test_publish_exhausts_exactly_three_attempts_with_doubling_backoff(
+        self, mqtt_client, mock_aiomqtt_client
+    ):
+        with (
+            patch(
+                "backend.services.mqtt_client.aiomqtt.Client",
+                return_value=mock_aiomqtt_client,
+                autospec=True,
+            ),
+            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+        ):
+            boom = ConnectionError("down")
+            mock_aiomqtt_client.publish.side_effect = boom
+            await mqtt_client.connect()
+
+            with pytest.raises(MQTTPublishError) as exc_info:
+                await mqtt_client.publish("t/x", {"a": 1})
+
+            assert mock_aiomqtt_client.publish.call_count == 3  # kills 3->4 and guard flips
+            assert [c.args[0] for c in mock_sleep.call_args_list] == [1, 2]
+            # raised error keeps its cause (kills last_exception=None)
+            assert exc_info.value.original_error is boom
+
+
+class TestSubscriptionContract:
+    """T8/T10/T12: broker receives PREFIXED topics on subscribe/unsubscribe fan-out."""
+
+    @pytest.mark.asyncio
+    async def test_subscribe_passes_prefixed_topic_and_qos(self, mqtt_client, mock_aiomqtt_client):
+        """Broker sees prefix/topic with the settings' default QoS (T12)."""
+
+        async def cb(topic: str, payload: dict) -> None:
+            pass
+
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ):
+            await mqtt_client.connect()
+            await mqtt_client.subscribe("commands/test", cb)
+
+            mock_aiomqtt_client.subscribe.assert_called_once_with(
+                f"{MQTT_TOPIC_PREFIX}/commands/test", qos=1
+            )
+
+    @pytest.mark.asyncio
+    async def test_unsubscribe_paths_pass_prefixed_topic_to_broker(
+        self, mqtt_client, mock_aiomqtt_client
+    ):
+        """Direct unsubscribe AND the disconnect fan-out must hit the broker with the FULL topic (T8/T10)."""
+
+        async def cb(topic: str, payload: dict) -> None:
+            pass
+
+        with patch(
+            "backend.services.mqtt_client.aiomqtt.Client",
+            return_value=mock_aiomqtt_client,
+            autospec=True,
+        ):
+            await mqtt_client.connect()
+            await mqtt_client.subscribe("commands/test", cb)
+
+            mock_aiomqtt_client.unsubscribe.reset_mock()
+            await mqtt_client.unsubscribe("commands/test")
+            mock_aiomqtt_client.unsubscribe.assert_called_once_with(
+                f"{MQTT_TOPIC_PREFIX}/commands/test"
+            )
+
+            await mqtt_client.subscribe("status/a", cb)
+            await mqtt_client.subscribe("status/b", cb)
+            mock_aiomqtt_client.unsubscribe.reset_mock()
+            await mqtt_client.disconnect()
+            called = [c.args[0] for c in mock_aiomqtt_client.unsubscribe.call_args_list]
+            assert f"{MQTT_TOPIC_PREFIX}/status/a" in called
+            assert f"{MQTT_TOPIC_PREFIX}/status/b" in called  # kills skip-the-loop mutant
