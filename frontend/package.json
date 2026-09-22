@@ -33,7 +33,9 @@
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
     "analyze": "vite build --mode analyze",
-    "postinstall": "node scripts/patch-minimatch-compat.cjs"
+    "postinstall": "node scripts/patch-minimatch-compat.cjs && node scripts/patch-stryker-vitest5-names.cjs",
+    "test:mutation:guard": "node scripts/mutation-guard.mjs",
+    "test:mutation:guard-selftest": "node scripts/test_mutation_guard.cjs"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

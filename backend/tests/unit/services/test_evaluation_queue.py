@@ -409,3 +409,84 @@ class TestSingletonPattern:
         queue2 = get_evaluation_queue(mock_redis)
         assert queue1 is not queue2
         reset_evaluation_queue()
+
+
+# =============================================================================
+# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage,
+# evaluation_queue.md clusters C01-C05 — 13 TEST-GAP survivors of 50; the
+# other 37 are log-cosmetic/codec-case EQUIVALENT, per-cluster justified in
+# the dossier). The pre-existing get_pending_events test canned
+# zrange.return_value and never read zrange.call_args, so the entire
+# index-clamping contract (key/start/stop/limit, the inclusive end index)
+# survived, and the singleton tests checked identity only — so
+# EvaluationQueue(None) passed every test while every queue op would throw
+# post-init. Production code asserted exactly as shipped.
+# =============================================================================
+
+
+class TestGetPendingEventsContract:
+    """Pin the exact zrange call contract (C01: index args never asserted)."""
+
+    @pytest.mark.asyncio
+    async def test_get_pending_events_queries_from_zero_to_limit_minus_one(
+        self, evaluation_queue, mock_redis
+    ):
+        """zrange must receive (QUEUE_KEY, 0, limit - 1) exactly — inclusive end index."""
+        mock_redis.zrange.return_value = []
+
+        await evaluation_queue.get_pending_events(limit=5)
+
+        mock_redis.zrange.assert_called_once_with("evaluation:pending", 0, 4)
+
+    @pytest.mark.asyncio
+    async def test_get_pending_events_default_limit_is_100(self, evaluation_queue, mock_redis):
+        """Documented default: limit=100 -> inclusive stop index 99 (kills C05)."""
+        mock_redis.zrange.return_value = []
+
+        await evaluation_queue.get_pending_events()
+
+        mock_redis.zrange.assert_called_once_with("evaluation:pending", 0, 99)
+
+    @pytest.mark.asyncio
+    async def test_get_pending_events_returns_exactly_limit_items_mixed_types(
+        self, evaluation_queue, mock_redis
+    ):
+        """limit=2 slices to exactly 2 items (0..limit-1); bytes AND str members decode.
+
+        The fake honours inclusive start/stop like a real ZRANGE, so the
+        off-by-one mutants (limit+1 -> 3 items, limit-2 -> 0 items) land on
+        the length assertion, and a str member lands on the decode-branch
+        mutants (an `or True` that decodes everything crashes str.decode).
+        """
+
+        def fake_zrange(key, start, stop):
+            assert key == "evaluation:pending"
+            members = [b"1", b"2", "3", b"4", 5]  # bytes + str + already-int
+            if stop < start:
+                return []
+            return members[start : stop + 1]
+
+        mock_redis.zrange.side_effect = fake_zrange
+
+        events = await evaluation_queue.get_pending_events(limit=2)
+        assert events == [1, 2]
+
+        all_events = await evaluation_queue.get_pending_events(limit=5)
+        assert all_events == [1, 2, 3, 4, 5]
+
+
+class TestSingletonWiring:
+    """get_evaluation_queue must wire the redis_client it was handed (C04)."""
+
+    def test_get_evaluation_queue_binds_given_redis_client(self, mock_redis):
+        from backend.services.evaluation_queue import (
+            get_evaluation_queue,
+            reset_evaluation_queue,
+        )
+
+        reset_evaluation_queue()
+        try:
+            queue = get_evaluation_queue(mock_redis)
+            assert queue._redis is mock_redis  # mutant EvaluationQueue(None) fails here
+        finally:
+            reset_evaluation_queue()
