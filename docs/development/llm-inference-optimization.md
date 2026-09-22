@@ -25,26 +25,30 @@ llama-server \
     --model /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
     --host 0.0.0.0 \
     --port 8091 \
-    --n-gpu-layers ${GPU_LAYERS}   # 999 = all layers on GPU \
-    --ctx-size ${CTX_SIZE}         # 32768 tokens \
-    --parallel ${PARALLEL}         # 2 concurrent slots \
+    --n-gpu-layers ${GPU_LAYERS}   # auto (default) = llama.cpp fits layers to free VRAM \
+    --ctx-size ${CTX_SIZE}         # default 262144 tokens (.env.example) \
+    --parallel ${PARALLEL}         # default 8 concurrent slots (.env.example) \
     --cont-batching \
     --metrics \
-    --flash-attn on                # conditional on FLASH_ATTENTION=true
+    --flash-attn on                # conditional on FLASH_ATTENTION=true (default true)
 ```
+
+(The Dockerfile CMD adds further flags — `--threads`, `--batch-size`,
+`--cache-type-k/v`, `--cache-reuse 256`, `--mlock`, and an optional MoE
+CPU-offload override — see `ai/nemotron/Dockerfile`.)
 
 Flags are injected via the Dockerfile CMD and Docker Compose environment variables. The Dockerfile defaults are overridden by `.env` values through `docker-compose.prod.yml`.
 
 ### Environment Variables (`.env` -- Single Source of Truth)
 
-| Variable          | Default | Description                                                                                                                        |
-| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `GPU_LAYERS`      | `999`   | Number of model layers offloaded to GPU. `999` means all layers.                                                                   |
-| `CTX_SIZE`        | `32768` | Context window size in tokens. Shared between llama.cpp and the Python backend (via `validation_alias="CTX_SIZE"` in `config.py`). |
-| `PARALLEL`        | `2`     | Number of concurrent inference slots. llama.cpp splits `CTX_SIZE` evenly across slots (2 slots = 16K tokens each).                 |
-| `FLASH_ATTENTION` | `true`  | Enables flash attention in llama.cpp to reduce VRAM usage with minimal performance impact.                                         |
-| `GPU_LLM`         | `0`     | GPU index for the LLM service (maps to `CUDA_VISIBLE_DEVICES`).                                                                    |
-| `LLM_PORT`        | `8091`  | Host port bound to `127.0.0.1` for the LLM service.                                                                                |
+| Variable          | Default  | Description                                                                                                                        |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GPU_LAYERS`      | `auto`   | Number of model layers offloaded to GPU. `auto` lets llama.cpp fit layers to free VRAM.                                            |
+| `CTX_SIZE`        | `262144` | Context window size in tokens. Shared between llama.cpp and the Python backend (via `validation_alias="CTX_SIZE"` in `config.py`). |
+| `PARALLEL`        | `8`      | Number of concurrent inference slots. llama.cpp splits `CTX_SIZE` evenly across slots.                                             |
+| `FLASH_ATTENTION` | `true`   | Enables flash attention in llama.cpp to reduce VRAM usage with minimal performance impact.                                         |
+| `GPU_LLM`         | `0`      | GPU index for the LLM service (maps to `CUDA_VISIBLE_DEVICES`).                                                                    |
+| `LLM_PORT`        | `8091`   | Host port bound to `127.0.0.1` for the LLM service.                                                                                |
 
 ### Backend Configuration (`backend/core/config.py`)
 
@@ -58,7 +62,7 @@ The Python backend reads these settings for prompt token budgeting:
 | `llm_tokenizer_encoding`                | `cl100k_base` | Tiktoken encoding used for token counting.                               |
 | `enrichment_pipeline_timeout_seconds`   | `30.0`        | Hard timeout for the enrichment pipeline before Nemotron analysis.       |
 
-Available tokens for the prompt = `CTX_SIZE - nemotron_max_output_tokens` = 32,768 - 1,536 = **31,232 tokens**.
+Available tokens for the prompt = `CTX_SIZE - nemotron_max_output_tokens`. With the shipped `.env.example` defaults (CTX_SIZE=262144) that is 262,144 - 1,536 = **260,608 tokens**; with the code default (32,768) it is 31,232.
 
 ### Container Configuration (`docker-compose.prod.yml`)
 
@@ -156,10 +160,14 @@ Lower quality levels produce smaller prompts, reducing both token consumption an
 
 ### GPU Assignment (Dual-GPU Setup)
 
-| GPU   | Device                  | Services                                                                                 | VRAM Budget            |
-| ----- | ----------------------- | ---------------------------------------------------------------------------------------- | ---------------------- |
-| GPU 0 | NVIDIA RTX A5500 (24GB) | ai-llm (~17GB), ai-florence (~1.5GB)                                                     | ~22GB used             |
-| GPU 1 | NVIDIA A400 (4GB)       | ai-yolo26 (~5MB), ai-clip (~0.8GB), ai-enrichment-light (~1.2GB), ai-enrichment (~4.3GB) | ~6.3GB across services |
+| GPU   | Device                  | Services                                                                                         | VRAM Budget     |
+| ----- | ----------------------- | ------------------------------------------------------------------------------------------------ | --------------- |
+| GPU 0 | NVIDIA RTX A5500 (24GB) | ai-llm (~17GB)                                                                                   | ~17GB used      |
+| GPU 1 | NVIDIA A400 (4GB)       | ai-gateway — Florence, CLIP, YOLO26, enrichment-light, enrichment on one GPU (`GPU_AI_SERVICES`) | model-dependent |
+
+(The vision services are consolidated in `ai-gateway`; the per-service GPU
+split above predates that consolidation — see `docker-compose.prod.yml`
+`GPU_AI_SERVICES`.)
 
 ## Known Limitations
 

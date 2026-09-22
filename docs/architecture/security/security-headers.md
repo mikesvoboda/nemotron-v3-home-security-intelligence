@@ -189,28 +189,28 @@ add_header Content-Security-Policy "
 
 ### CSP Directive Reference
 
-| Directive         | Value                    | Purpose                                   |
-| ----------------- | ------------------------ | ----------------------------------------- |
-| `default-src`     | `'self'`                 | Default policy for all resource types     |
-| `script-src`      | `'self'`                 | Only allow scripts from same origin       |
-| `style-src`       | `'self' 'unsafe-inline'` | Styles from same origin + inline          |
-| `img-src`         | `'self' data: blob:`     | Images from same origin, data URIs, blobs |
-| `connect-src`     | `'self' ws: wss:`        | XHR/fetch/WebSocket same origin           |
-| `frame-ancestors` | `'none'`                 | Prevent embedding (like X-Frame-Options)  |
-| `base-uri`        | `'self'`                 | Restrict base tag URLs                    |
-| `form-action`     | `'self'`                 | Restrict form submission targets          |
+| Directive         | Value                       | Purpose                                   |
+| ----------------- | --------------------------- | ----------------------------------------- |
+| `default-src`     | `'self'`                    | Default policy for all resource types     |
+| `script-src`      | `'self'`                    | Only allow scripts from same origin       |
+| `style-src`       | `'self' 'unsafe-inline'`    | Styles from same origin + inline          |
+| `img-src`         | `'self' data: blob:`        | Images from same origin, data URIs, blobs |
+| `font-src`        | `'self' data:`              | Fonts from same origin or data URIs       |
+| `connect-src`     | `'self' ws: wss:`           | XHR/fetch/WebSocket same origin           |
+| `frame-ancestors` | `'none'`                    | Prevent embedding (like X-Frame-Options)  |
+| `base-uri`        | `'self'`                    | Restrict base tag URLs                    |
+| `form-action`     | `'self'`                    | Restrict form submission targets          |
+| (directive)       | `upgrade-insecure-requests` | Upgrade HTTP subresources to HTTPS        |
 
-### CSP Violations
+### CSP Report-Only Mode
 
-CSP violations are reported but not enforced in development:
-
-```python
-# Development mode: report-only
-Content-Security-Policy-Report-Only: <policy>; report-uri /api/csp-report
-
-# Production mode: enforced
-Content-Security-Policy: <policy>
-```
+There is no report endpoint and no automatic per-environment switch. The
+middleware takes a `csp_report_only` flag (default `False`) that selects the
+header name — `Content-Security-Policy-Report-Only` when true, the enforced
+`Content-Security-Policy` otherwise (`backend/api/middleware/security_headers.py:151-156`).
+The shipped app mounts it with defaults (enforced). The default policy also
+includes `font-src 'self' data:` and `upgrade-insecure-requests`
+(`:103-114`).
 
 ## CORS and Security Headers Interaction
 

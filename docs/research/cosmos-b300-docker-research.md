@@ -1,5 +1,7 @@
 # Cosmos Predict 2.5 on NVIDIA B300 Blackwell GPUs - Docker Container Research
 
+> **Status:** Dated 2026-01-27; kept as reference material — no Cosmos pipeline was merged (nothing in `ai/models.yml` or `docker-compose.prod.yml` references it).
+
 **Date:** 2026-01-27
 **Target Hardware:** 8x NVIDIA B300 SXM6 (Blackwell, compute capability 10.3, 267GB VRAM each)
 **Goal:** Find prebuilt Docker container with full Blackwell sm_103 support for Cosmos video generation

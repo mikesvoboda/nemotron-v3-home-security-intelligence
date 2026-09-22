@@ -354,7 +354,7 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 
 ## Related Files
 
-- `CLAUDE.md` - Project instructions including CI requirements
+- `AGENTS.md` - Project instructions including CI requirements
 - `.pre-commit-config.yaml` - Local pre-commit hooks
 - `pyproject.toml` - Python tool configuration
 - `frontend/package.json` - Frontend scripts

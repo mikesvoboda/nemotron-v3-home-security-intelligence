@@ -1,4 +1,27 @@
----
+# Notification Components
+
+Two mechanisms cover user feedback: **toasts** for transient confirmations (`ToastProvider` + the `useToast` hook) and **banners** for persistent states such as a lost WebSocket connection (`ConnectionStatusBanner`).
+
+## Toasts — ToastProvider and useToast
+
+`ToastProvider` wraps the app in sonner's `Toaster`, pre-styled for the dark theme. Place it near the root of the component tree.
+
+**Location:** `frontend/src/components/common/ToastProvider.tsx`, `frontend/src/hooks/useToast.ts`
+
+```tsx
+import { ToastProvider } from '@/components/common';
+
+<ToastProvider>{/* app tree */}</ToastProvider>;
+```
+
+Send toasts from any component with `useToast()`:
+
+```tsx
+import { useToast } from '@/hooks/useToast';
+
+const { success, error, warning, info, loading, dismiss, promise } = useToast();
+success('Settings saved');
+```
 
 ## ConnectionStatusBanner
 
@@ -13,41 +36,38 @@ interface ConnectionStatusBannerProps {
   connectionState: 'connected' | 'reconnecting' | 'failed' | 'disconnected';
   disconnectedSince: Date | null;
   reconnectAttempts?: number;
-  maxReconnectAttempts?: number;  // default: 5
+  maxReconnectAttempts?: number; // default: 5
   onRetry: () => void;
-  staleThresholdMs?: number;      // default: 60000 (1 minute)
+  staleThresholdMs?: number; // default: 60000 (1 minute)
   isPollingFallback?: boolean;
 }
 ```
 
 ### States
 
-| State         | Appearance                    | Actions                    |
-| ------------- | ----------------------------- | -------------------------- |
-| Reconnecting  | Yellow background             | Shows attempt counter      |
-| Failed        | Orange background             | Shows retry button         |
-| Disconnected  | Red background                | Shows dismiss button       |
+| State        | Appearance        | Actions               |
+| ------------ | ----------------- | --------------------- |
+| Reconnecting | Yellow background | Shows attempt counter |
+| Failed       | Orange background | Shows retry button    |
+| Disconnected | Red background    | Shows dismiss button  |
 
 ### Usage Example
 
 ```tsx
 import { ConnectionStatusBanner } from '@/components/common';
-import { useWebSocketStatus } from '@/hooks/useWebSocketStatus';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 
-function Header() {
-  const { connectionState, disconnectedSince, reconnectAttempts, retry } = useWebSocketStatus();
+function LayoutContent() {
+  const { summary, isPollingFallback, retryConnection } = useConnectionStatus();
 
   return (
-    <>
-      {connectionState \!== 'connected' && (
-        <ConnectionStatusBanner
-          connectionState={connectionState}
-          disconnectedSince={disconnectedSince}
-          reconnectAttempts={reconnectAttempts}
-          onRetry={retry}
-        />
-      )}
-    </>
+    <ConnectionStatusBanner
+      connectionState={summary.overallState}
+      disconnectedSince={summary.disconnectedSince}
+      reconnectAttempts={summary.totalReconnectAttempts}
+      onRetry={retryConnection}
+      isPollingFallback={isPollingFallback}
+    />
   );
 }
 ```

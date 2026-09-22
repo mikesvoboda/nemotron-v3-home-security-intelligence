@@ -8,58 +8,66 @@ The SLI/SLO framework provides quantifiable measures of service reliability and 
 
 ## Service Level Objectives
 
+> [!IMPORTANT] > **Implementation status (measured against `monitoring/prometheus-rules.yml` and
+> `backend/core/metrics.py`):** SLO 1 (API availability) is fully operational, measured via
+> blackbox probes. SLOs 2-5 have recording rules and/or metric definitions but **depend on
+> histogram series the backend does not emit yet** (`hsi_event_processing_duration_seconds`,
+> `hsi_stage_duration_seconds` — defined but never observed — and the websocket counters),
+> so their series evaluate empty and their alerts stay commented out.
+
 ### SLO 1: API Availability
 
-| Metric          | Value                                                                                    |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| **Target**      | 99.5%                                                                                    |
-| **Window**      | 30-day rolling                                                                           |
-| **SLI**         | Ratio of successful HTTP responses (non-5xx) to total requests                           |
-| **Measurement** | `sum(rate(http_requests_total{status!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))` |
+| Metric          | Value                                                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**      | 99.5%                                                                                                                              |
+| **Window**      | 30-day rolling                                                                                                                     |
+| **SLI**         | Availability of the backend readiness probe                                                                                        |
+| **Measurement** | `avg_over_time(probe_success{job="blackbox-http-ready"}[5m])` (blackbox probe — the backend does not expose `http_requests_total`) |
 
 **Error Budget:** 0.5% = 3.6 hours/month of allowed unavailability
+**Recording rules:** `hsi:api_availability:ratio_rate{1h,6h,1d,30d}`
 
 ### SLO 2: Event Processing Latency
 
-| Metric          | Value                                                                              |
-| --------------- | ---------------------------------------------------------------------------------- |
-| **Target**      | P95 < 5 seconds                                                                    |
-| **Window**      | 30-day rolling                                                                     |
-| **SLI**         | 95th percentile of event processing time                                           |
-| **Measurement** | `histogram_quantile(0.95, rate(hsi_event_processing_duration_seconds_bucket[5m]))` |
+| Metric          | Value                                                                                                                                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**      | P95 < 5 seconds                                                                                                                                           |
+| **Window**      | 30-day rolling                                                                                                                                            |
+| **SLI**         | 95th percentile of event processing time                                                                                                                  |
+| **Measurement** | `histogram_quantile(0.95, rate(hsi_event_processing_duration_seconds_bucket[5m]))` — **recording rule commented out**; metric not exported by the backend |
 
 **Error Budget:** 5% of events may exceed 5s latency
 
 ### SLO 3: Detection Latency
 
-| Metric          | Value                                                                       |
-| --------------- | --------------------------------------------------------------------------- |
-| **Target**      | P95 < 2 seconds                                                             |
-| **Window**      | 30-day rolling                                                              |
-| **SLI**         | 95th percentile of YOLO26 detection inference time                          |
-| **Measurement** | `histogram_quantile(0.95, rate(hsi_detection_duration_seconds_bucket[5m]))` |
+| Metric          | Value                                                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**      | P95 < 2 seconds                                                                                                                                                                                    |
+| **Window**      | 30-day rolling                                                                                                                                                                                     |
+| **SLI**         | 95th percentile of the detect pipeline stage                                                                                                                                                       |
+| **Measurement** | `histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le))` — rule active, but the backend defines `hsi_stage_duration_seconds` without ever observing it |
 
 **Error Budget:** 5% of detections may exceed 2s latency
 
 ### SLO 4: Analysis Latency
 
-| Metric          | Value                                                                      |
-| --------------- | -------------------------------------------------------------------------- |
-| **Target**      | P95 < 30 seconds                                                           |
-| **Window**      | 30-day rolling                                                             |
-| **SLI**         | 95th percentile of Nemotron LLM analysis time                              |
-| **Measurement** | `histogram_quantile(0.95, rate(hsi_analysis_duration_seconds_bucket[5m]))` |
+| Metric          | Value                                                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**      | P95 < 30 seconds                                                                                                                 |
+| **Window**      | 30-day rolling                                                                                                                   |
+| **SLI**         | 95th percentile of the analyze pipeline stage                                                                                    |
+| **Measurement** | `histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le))` — same metric gap as SLO 3 |
 
 **Error Budget:** 5% of analyses may exceed 30s latency
 
 ### SLO 5: WebSocket Availability
 
-| Metric          | Value                                                                                                    |
-| --------------- | -------------------------------------------------------------------------------------------------------- |
-| **Target**      | 99%                                                                                                      |
-| **Window**      | 30-day rolling                                                                                           |
-| **SLI**         | Ratio of successful WebSocket connections to total connection attempts                                   |
-| **Measurement** | `sum(rate(hsi_websocket_connections_successful[5m])) / sum(rate(hsi_websocket_connection_attempts[5m]))` |
+| Metric          | Value                                                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target**      | 99%                                                                                                                                                  |
+| **Window**      | 30-day rolling                                                                                                                                       |
+| **SLI**         | Ratio of successful WebSocket connections to total connection attempts                                                                               |
+| **Measurement** | `hsi:websocket:connection_success_rate_5m` — **recording rule commented out**; `hsi_websocket_connections_successful` / `_attempts` are not exported |
 
 **Error Budget:** 1% = 7.2 hours/month of allowed unavailability
 
@@ -110,14 +118,17 @@ flowchart TD
 
 ### Burn Rate Alerting
 
-We use multi-window burn rate alerting to detect SLO violations early:
+Multi-window burn rate alerting detects SLO violations early. As shipped, only the **API
+availability** burns fire (`HSIAPIAvailabilityFastBurn`, `HSIAPIAvailabilitySlowBurn` in
+`monitoring/alerting-rules.yml`); the detection/analysis latency burns are commented out
+pending the stage-duration histogram:
 
-| Window | Burn Rate | Alert Severity | Time to Exhaust Budget |
-| ------ | --------- | -------------- | ---------------------- |
-| 1h     | 14.4x     | Critical       | 2 hours                |
-| 6h     | 6x        | Critical       | 5 hours                |
-| 1d     | 3x        | Warning        | 10 days                |
-| 3d     | 1x        | Info           | 30 days                |
+| Window | Burn Rate | Alert Severity | Time to Exhaust Budget | Alert                   |
+| ------ | --------- | -------------- | ---------------------- | ----------------------- |
+| 1h     | 14.4x     | Critical       | 2 hours                | FastBurn (and 6h>6x)    |
+| 6h     | 6x        | Critical       | 5 hours                | FastBurn (and 1h>14.4x) |
+| 1d     | 3x        | Warning        | 10 days                | SlowBurn                |
+| 3d     | 1x        | Info           | 30 days                | not shipped as an alert |
 
 #### Burn Rate Alerting Windows Visualization
 
@@ -171,44 +182,53 @@ flowchart LR
 
 ## Recording Rules
 
-Pre-computed metrics for efficient dashboard queries:
+Pre-computed metrics for efficient dashboard queries (measured from
+`monitoring/prometheus-rules.yml`):
 
 ```yaml
 # SLI Recording Rules (prometheus-rules.yml)
-- record: hsi:api_availability:ratio_rate5m
-  expr: sum(rate(http_requests_total{status!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+- record: hsi:api_availability:ratio_rate1h
+  expr: avg_over_time(probe_success{job="blackbox-http-ready"}[1h])
 
 - record: hsi:detection_latency:p95_5m
-  expr: histogram_quantile(0.95, rate(hsi_detection_duration_seconds_bucket[5m]))
+  expr: histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le))
 
 - record: hsi:analysis_latency:p95_5m
-  expr: histogram_quantile(0.95, rate(hsi_analysis_duration_seconds_bucket[5m]))
+  expr: histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le))
 ```
+
+Error budget and burn-rate rules: `hsi:error_budget:api_availability_remaining`
+(target 99.5%), `hsi:error_budget:{detection,analysis}_latency_remaining` (95% within SLO),
+and `hsi:burn_rate:api_availability_{1h,6h,1d}`.
 
 ## Alert Rules
 
 ### Critical Alerts
 
-| Alert Name           | Condition                        | For |
-| -------------------- | -------------------------------- | --- |
-| HSIPipelineDown      | All backend replicas unavailable | 1m  |
-| HSIDatabaseUnhealthy | PostgreSQL connection failures   | 2m  |
-| HSIRedisUnhealthy    | Redis connection failures        | 2m  |
-| HSIGPUMemoryHigh     | GPU memory > 90%                 | 5m  |
+| Alert Name                 | Condition                                                         | For |
+| -------------------------- | ----------------------------------------------------------------- | --- |
+| HSIPipelineDown            | `probe_success{job="blackbox-http-live", service="backend"} == 0` | 1m  |
+| HSIDatabaseUnhealthy       | `hsi_database_healthy == 0` (json-exporter)                       | 2m  |
+| HSIRedisUnhealthy          | `hsi_redis_healthy == 0`                                          | 2m  |
+| HSIGPUMemoryHigh           | `hsi:gpu:memory_utilization > 0.9`                                | 5m  |
+| HSIAPIAvailabilityFastBurn | burn rate 1h > 14.4 **and** 6h > 6                                | 2m  |
 
 ### Warning Alerts
 
-| Alert Name            | Condition                   | For |
-| --------------------- | --------------------------- | --- |
-| HSIDetectionQueueHigh | Detection queue > 100 items | 5m  |
-| HSIAnalysisQueueHigh  | Analysis queue > 50 items   | 5m  |
-| HSIHighErrorRate      | Error rate > 5%             | 5m  |
-| HSISlowDetection      | P95 detection latency > 2s  | 10m |
-| HSISlowAnalysis       | P95 analysis latency > 30s  | 10m |
+| Alert Name                 | Condition                                              | For |
+| -------------------------- | ------------------------------------------------------ | --- |
+| HSIDetectionQueueHigh      | `hsi_detection_queue_depth > 100`                      | 5m  |
+| HSIAnalysisQueueHigh       | `hsi_analysis_queue_depth > 50`                        | 5m  |
+| HSIHighErrorRate           | `1 - hsi:api_requests:success_rate_5m > 0.05`          | 5m  |
+| HSIAPIAvailabilitySlowBurn | `hsi:burn_rate:api_availability_1d > 3`                | 1h  |
+| HSISlowDetection           | **commented out** — needs the stage-duration histogram | -   |
+| HSISlowAnalysis            | **commented out** — same metric gap                    | -   |
 
 ## Dashboard
 
-The SLO dashboard (`monitoring/grafana/dashboards/slo.json`) provides:
+SLO panels live in the provisioned **consolidated** dashboard
+(`monitoring/grafana/dashboards/consolidated.json`), served under
+`http://localhost:3002/grafana/`:
 
 1. **SLO Compliance Gauges** - Current compliance for each SLO
 2. **Error Budget Remaining** - Time-based visualization of remaining budget
@@ -219,17 +239,20 @@ The SLO dashboard (`monitoring/grafana/dashboards/slo.json`) provides:
 
 ### Metric Sources
 
-- **API metrics**: FastAPI middleware via Prometheus client
-- **Detection metrics**: YOLO26 service instrumentation
-- **Analysis metrics**: Nemotron service instrumentation
-- **WebSocket metrics**: WebSocket handler instrumentation
-- **Infrastructure metrics**: Redis exporter, PostgreSQL exporter
+- **API availability**: blackbox-exporter probes against the backend health endpoints
+  (the backend does not export a request counter)
+- **Detection/analysis latency**: `hsi_stage_duration_seconds` histogram (defined in
+  `backend/core/metrics.py`; instrumentation to observe it is still pending)
+- **GPU / queue / health gauges**: `monitoring/json-exporter-config.yml` scraping the
+  backend health and GPU APIs
+- **Infrastructure metrics**: Redis exporter, node-exporter, (optional DCGM exporter under
+  the `gpu-rootful` profile)
 
 ### Data Retention
 
-- Raw metrics: 15 days
-- Recording rules (aggregated): 90 days
-- Dashboard snapshots: 365 days
+Prometheus retains raw samples for `${PROMETHEUS_RETENTION_TIME:-15d}`
+(`--storage.tsdb.retention.time` in `docker-compose.prod.yml`). Recording rules are stored
+in the same TSDB and age out at the same retention — there is no separate 90/365-day tier.
 
 ## Related Documentation
 

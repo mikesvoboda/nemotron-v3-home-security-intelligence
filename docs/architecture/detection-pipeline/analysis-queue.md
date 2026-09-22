@@ -14,9 +14,9 @@ The analysis queue receives closed batches from the BatchAggregator and routes t
 
 The analysis queue uses a Redis LIST data structure with LPUSH/BRPOP pattern.
 
-**Queue Name:** `ANALYSIS_QUEUE = "analysis_queue"` (constants.py:149)
+**Queue Name:** `ANALYSIS_QUEUE = "analysis_queue"` (`backend/core/constants.py:149`)
 
-**With prefix:** `hsi:queue:analysis_queue` (constants.py:260-261)
+**With prefix:** `hsi:queue:analysis_queue` (`backend/core/constants.py:242-262`, `get_prefixed_queue_name`)
 
 ## Queue Payload Schema
 
@@ -426,7 +426,7 @@ except Exception as e:
 
 Failed analysis jobs are sent to the dead-letter queue:
 
-**DLQ Name:** `dlq:analysis_queue` (constants.py:174)
+**DLQ Name:** `dlq:analysis_queue` (`backend/core/constants.py:173`)
 
 ## OpenTelemetry Tracing
 

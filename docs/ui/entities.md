@@ -45,7 +45,9 @@ Toggle the "Stats" button to show/hide this panel. Data refreshes automatically 
 
 ### Re-Identification (CLIP Embeddings)
 
-The system uses CLIP ViT-L (Vision Transformer Large) to generate visual embeddings for person and vehicle re-identification across cameras.
+The system uses the CLIP-family embedding model served by the ai-gateway's `clip` router
+(models.yml: `siglip2-base-patch16-224`) to generate visual embeddings for person and vehicle
+re-identification across cameras.
 
 **How It Works:**
 
@@ -71,9 +73,9 @@ The system uses CLIP ViT-L (Vision Transformer Large) to generate visual embeddi
 
 **Technical Details:**
 
-- **Model**: CLIP ViT-L/14 (Vision Transformer Large with 14x14 patches)
-- **Embedding Dimension**: 768 floats
-- **Memory Usage**: ~800MB VRAM on GPU
+- **Model**: SigLIP2-base-patch16-224 (the `clip` router in Triton, per `models.yml`)
+- **Embedding Dimension**: 768 floats (`EMBEDDING_DIMENSION` in `backend/services/reid_service.py`)
+- **Memory Usage**: ~200MB VRAM on GPU (models.yml `vram_mb`)
 - **Fallback**: CPU processing available if GPU is unavailable
 - **TTL**: Embeddings cached in Redis for 24 hours (86400 seconds)
 
@@ -379,15 +381,20 @@ For developers wanting to understand the underlying systems.
 
 ### CLIP Embedding Details
 
-The CLIP ViT-L model provides:
+The embedding model (SigLIP2-base, served as Triton's `clip` model) provides:
 
 - **768-dimensional embeddings** for robust visual representation
-- **~800MB VRAM usage** on GPU
+- **~200MB VRAM usage** on GPU
 - **CPU fallback** available if GPU is unavailable
 - **Cosine similarity matching** with 0.85 default threshold (`DEFAULT_SIMILARITY_THRESHOLD`)
 - **Embedding TTL**: 24 hours (86400 seconds) in Redis cache
 
-Embeddings are computed by the `ai-clip` container service, keeping the model in a dedicated container for better VRAM management.
+In the compose stack the backend calls the CLIP router on the shared **ai-gateway** container
+(`USE_AI_GATEWAY=true` → `http://ai-gateway:8090/clip`); the standalone `clip_url`
+(`http://localhost:8093`, dev fallback) still exists for host-run setups. The router is
+served by Triton from `models.yml` — the `clip` slot is currently backed by
+**SigLIP2-base-patch16-224** (768-d embeddings). A dedicated `ai-clip` container no longer
+exists.
 
 ### Empty State
 

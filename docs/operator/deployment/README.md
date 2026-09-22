@@ -49,44 +49,39 @@ flowchart TB
 
     subgraph Network["security-net (Bridge Network)"]
         subgraph FrontendLayer["Frontend Layer"]
-            FE["<b>frontend</b><br/>nginx-unprivileged<br/>Internal: 8080<br/>External: 5173 (HTTP), 8443 (HTTPS)<br/>Memory: 512M"]
+            FE["<b>frontend</b><br/>nginx-unprivileged<br/>Internal: 8080 (HTTP), 8443 (HTTPS)<br/>Host: 8080 (HTTP), 8444 (HTTPS)<br/>Memory: 512M"]
         end
 
         subgraph BackendLayer["Backend Layer"]
-            BE["<b>backend</b><br/>FastAPI + Uvicorn<br/>Port: 8000<br/>Memory: 6G<br/>CPU: 2 cores"]
+            BE["<b>backend</b><br/>FastAPI + Uvicorn<br/>Port: 8000<br/>Memory: 10G<br/>CPU: 2 cores"]
         end
 
         subgraph AILayer["AI Services Layer (GPU Required)"]
             direction LR
             subgraph GPU0["GPU 0 (Primary - High VRAM)"]
-                LLM["<b>ai-llm</b><br/>Nemotron 30B<br/>Port: 8091<br/>~14.7GB VRAM"]
-                FLOR["<b>ai-florence</b><br/>Florence-2<br/>Port: 8092<br/>~530MB VRAM"]
+                LLM["<b>ai-llm</b><br/>Nemotron 30B (llama.cpp)<br/>Port: 8091<br/>~14.7GB VRAM"]
             end
-            subgraph GPU1["GPU 1 (Secondary - 4GB+)"]
-                YOLO["<b>ai-yolo26</b><br/>YOLO26 TensorRT<br/>Port: 8095<br/>~2GB VRAM"]
-                CLIP["<b>ai-clip</b><br/>CLIP ViT-L<br/>Port: 8093<br/>~722MB VRAM"]
-                ENRL["<b>ai-enrichment-light</b><br/>Pose, Threat, ReID, Pet, Depth<br/>Port: 8096<br/>~1.2GB VRAM"]
+            subgraph GPU1["GPU 1 (Secondary)"]
+                GW["<b>ai-gateway</b><br/>Triton + FastAPI<br/>Port: 8090 (metrics 8002)<br/>/yolo26 /florence /clip<br/>/enrichment /enrich-lt<br/>Memory limit: 20G"]
             end
-            ENR["<b>ai-enrichment</b><br/>Vehicle, Fashion, Age, Gender, Action<br/>Port: 8094<br/>GPU: Configurable<br/>~4.3GB VRAM"]
         end
 
         subgraph DataLayer["Data Layer"]
             PG[("<b>postgres</b><br/>PostgreSQL 16-alpine<br/>Port: 5432<br/>Memory: 1G")]
-            RD[("<b>redis</b><br/>Redis 7.4-alpine<br/>Port: 6379<br/>Memory: 512M")]
-            ES[("<b>elasticsearch</b><br/>ES 8.12<br/>Port: 9200<br/>Memory: 4G")]
+            RD[("<b>redis</b><br/>Redis 7-alpine<br/>Port: 6379<br/>Memory: 512M")]
         end
 
         subgraph MonitoringLayer["Monitoring & Observability"]
             direction TB
             subgraph MetricsTracing["Metrics & Tracing"]
-                PROM["<b>prometheus</b><br/>Port: 9090<br/>Memory: 512M"]
-                JAEG["<b>jaeger</b><br/>Port: 16686<br/>Memory: 512M"]
-                GRAF["<b>grafana</b><br/>Port: 3002<br/>Memory: 256M"]
+                PROM["<b>prometheus</b><br/>Host port: 9090<br/>Memory: 512M"]
+                TEMPO["<b>tempo</b><br/>Port: 3200<br/>Memory: 1G"]
+                GRAF["<b>grafana</b><br/>Host port: 3002<br/>Served at /grafana/<br/>Memory: 512M"]
             end
             subgraph LogsProfiling["Logs & Profiling"]
-                LOKI["<b>loki</b><br/>Port: 3100<br/>Memory: 512M"]
+                LOKI["<b>loki</b><br/>Port: 3100<br/>Memory: 1G"]
                 PYRO["<b>pyroscope</b><br/>Port: 4040<br/>Memory: 512M"]
-                ALLOY["<b>alloy</b><br/>Port: 12345<br/>Memory: 768M"]
+                ALLOY["<b>alloy</b><br/>UI port: 12345<br/>Memory: 768M"]
             end
             subgraph Exporters["Exporters & Alerting"]
                 AM["<b>alertmanager</b><br/>Port: 9093<br/>Memory: 128M"]
@@ -98,28 +93,28 @@ flowchart TB
     end
 
     %% External connections
-    USER -->|"HTTP :5173<br/>HTTPS :8443"| FE
+    USER -->|"HTTP :8080<br/>HTTPS :8444"| FE
     CAM -->|"FTP to<br/>/cameras mount"| BE
-    ADMN -->|"Grafana :3002<br/>Prometheus :9090<br/>Jaeger :16686"| MonitoringLayer
+    ADMN -->|"Grafana via /grafana/<br/>Prometheus :9090"| MonitoringLayer
 
     %% Frontend to Backend
-    FE -->|"Proxy /api, /ws"| BE
+    FE -->|"Proxy /api, /ws, /grafana/"| BE
 
     %% Backend to Data
     BE -->|"asyncpg"| PG
     BE -->|"aioredis"| RD
 
     %% Backend to AI (HTTP inference calls)
-    BE -->|"POST /detect"| YOLO
+    BE -->|"POST /yolo26/detect"| GW
     BE -->|"POST /v1/completions"| LLM
-    BE -->|"POST /caption"| FLOR
-    BE -->|"POST /embed"| CLIP
-    BE -->|"POST /analyze"| ENR
-    BE -->|"POST /analyze"| ENRL
+    BE -->|"POST /florence/extract"| GW
+    BE -->|"POST /clip/embed"| GW
+    BE -->|"POST /enrichment/enrich"| GW
+    BE -->|"POST /enrich-lt/*"| GW
 
     %% Monitoring data flows
     PROM -.->|"scrape /metrics"| BE
-    PROM -.->|"scrape"| YOLO
+    PROM -.->|"ai-gateway:8002"| GW
     PROM -.->|"scrape"| LLM
     PROM -.->|"scrape"| RE
     PROM -.->|"scrape"| BB
@@ -129,45 +124,47 @@ flowchart TB
 
     GRAF -->|"query"| PROM
     GRAF -->|"query"| LOKI
-    GRAF -->|"query"| JAEG
+    GRAF -->|"query"| TEMPO
     GRAF -->|"query"| PYRO
-
-    JAEG -->|"store spans"| ES
 
     ALLOY -->|"push logs"| LOKI
     ALLOY -->|"push profiles"| PYRO
+    ALLOY -->|"OTLP traces"| TEMPO
     BE -->|"OTLP traces"| ALLOY
 
     %% Health check dependencies (startup order)
     BE -.->|"depends_on<br/>healthy"| PG
     BE -.->|"depends_on<br/>healthy"| RD
-    BE -.->|"depends_on<br/>healthy"| YOLO
+    BE -.->|"depends_on<br/>healthy"| GW
     BE -.->|"depends_on<br/>healthy"| LLM
-    FE -.->|"depends_on<br/>healthy"| BE
+    FE -.->|"depends_on<br/>started"| BE
     PROM -.->|"depends_on<br/>healthy"| AM
-    JAEG -.->|"depends_on<br/>healthy"| ES
 ```
 
 ### Architecture Summary
 
-| Layer           | Services                                                       | Resource Profile           |
-| --------------- | -------------------------------------------------------------- | -------------------------- |
-| **Frontend**    | nginx reverse proxy                                            | 512M RAM, 1 CPU            |
-| **Backend**     | FastAPI application server                                     | 6G RAM, 2 CPUs, GPU access |
-| **AI Services** | YOLO26, Nemotron, Florence-2, CLIP, Enrichment (light + heavy) | GPU required (~19GB total) |
-| **Data**        | PostgreSQL, Redis, Elasticsearch                               | 5.5G RAM total             |
-| **Monitoring**  | Prometheus, Grafana, Jaeger, Loki, Pyroscope, Alloy            | ~3G RAM total              |
+| Layer           | Services                                                                    | Resource Profile                             |
+| --------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
+| **Frontend**    | nginx reverse proxy                                                         | 512M RAM limit, 1 CPU                        |
+| **Backend**     | FastAPI application server                                                  | 10G RAM limit, 2 CPUs, GPU access            |
+| **AI Services** | ai-gateway (YOLO26, Florence-2, CLIP, enrichment light+heavy), Nemotron     | GPU required; gateway 20G RAM limit, LLM 12G |
+| **Data**        | PostgreSQL, Redis                                                           | 1G + 512M RAM limits                         |
+| **Monitoring**  | Prometheus, Grafana, Tempo, Loki, Pyroscope, Alloy, Alertmanager, exporters | ~4G RAM limits total                         |
 
 ### GPU Assignment Strategy
 
-The default GPU assignment distributes models across two GPUs:
+The default assignment puts the LLM on one GPU and everything else on another:
 
-| GPU   | Services                       | Total VRAM | Typical GPU        |
-| ----- | ------------------------------ | ---------- | ------------------ |
-| GPU 0 | Nemotron LLM, Florence-2       | ~15.2GB    | RTX A5500/RTX 4090 |
-| GPU 1 | YOLO26, CLIP, Enrichment-Light | ~2.9GB     | RTX A400/RTX 3060  |
+| GPU   | Services                                      | Env var               | Typical GPU        |
+| ----- | --------------------------------------------- | --------------------- | ------------------ |
+| GPU 0 | `ai-llm` (Nemotron via llama.cpp)             | `GPU_LLM` (0)         | RTX A5500/RTX 4090 |
+| GPU 1 | `ai-gateway` (all Triton models, light+heavy) | `GPU_AI_SERVICES` (1) | RTX A400/RTX 3060  |
 
-Enrichment (heavy models) defaults to GPU 1 but can be configured via `GPU_ENRICHMENT` environment variable.
+Per-model placement inside the gateway is set in `models.yml` (the live manifest),
+which `ai/gateway/patch_triton_configs.py` applies to each Triton `config.pbtxt`
+at startup. There is no separate `GPU_ENRICHMENT` / `GPU_FLORENCE` / `GPU_CLIP`
+placement any more — those `.env.example` variables are not referenced by
+`docker-compose.prod.yml`.
 
 ---
 
@@ -175,18 +172,18 @@ Enrichment (heavy models) defaults to GPU 1 but can be configured via `GPU_ENRIC
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/home-security-intelligence.git
-cd home-security-intelligence
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 
 # 2. Run setup (generates .env with secure passwords)
 python setup.py              # Quick mode
 python setup.py --guided     # Guided mode with explanations
 
-# 3. Download AI models (~2.7GB)
+# 3. Download AI models (~33GB total; Nemotron GGUF alone is ~15GB)
 ./ai/download_models.sh
 
 # 4. Start services
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify deployment
 curl http://localhost:8000/api/system/health/ready
@@ -217,17 +214,21 @@ curl http://localhost:8000/api/system/health/ready
 
 ### Network Requirements
 
-| Port    | Service     | Protocol | Access             |
-| ------- | ----------- | -------- | ------------------ |
-| 80/5173 | Frontend    | HTTP     | Browser            |
-| 8000    | Backend API | HTTP/WS  | Frontend           |
-| 8095    | YOLO26      | HTTP     | Backend            |
-| 8091    | Nemotron    | HTTP     | Backend            |
-| 8092    | Florence-2  | HTTP     | Backend (optional) |
-| 8093    | CLIP        | HTTP     | Backend (optional) |
-| 8094    | Enrichment  | HTTP     | Backend (optional) |
-| 5432    | PostgreSQL  | TCP      | Backend            |
-| 6379    | Redis       | TCP      | Backend            |
+All ports come from `.env`. Everything except `frontend` binds `127.0.0.1` on the
+host, so the browser only ever needs the frontend ports — nginx proxies `/api`,
+`/ws` and `/grafana/` internally.
+
+| Host port | Env var               | Service              | Protocol | Access                       |
+| --------- | --------------------- | -------------------- | -------- | ---------------------------- |
+| 8080      | `FRONTEND_HTTP_PORT`  | Frontend             | HTTP     | Browser (tunnel / LAN)       |
+| 8444      | `FRONTEND_HTTPS_PORT` | Frontend (TLS)       | HTTPS    | Browser                      |
+| 8000      | `API_PORT`            | Backend API          | HTTP/WS  | localhost / nginx proxy      |
+| 8090      | `AI_GATEWAY_PORT`     | ai-gateway (all AI)  | HTTP     | localhost / backend          |
+| 8091      | `LLM_PORT`            | Nemotron (llama.cpp) | HTTP     | localhost / backend          |
+| 5432      | `POSTGRES_PORT`       | PostgreSQL           | TCP      | localhost                    |
+| 6379      | `REDIS_PORT`          | Redis                | TCP      | localhost                    |
+| 3002      | `GRAFANA_PORT`        | Grafana              | HTTP     | localhost (or via /grafana/) |
+| 9090      | `PROMETHEUS_PORT`     | Prometheus           | HTTP     | localhost                    |
 
 ---
 
@@ -269,13 +270,18 @@ podman info
 
 ### Command Equivalents
 
-| Docker                 | Podman                 |
-| ---------------------- | ---------------------- |
-| `docker compose up -d` | `podman-compose up -d` |
-| `docker compose down`  | `podman-compose down`  |
-| `docker compose logs`  | `podman-compose logs`  |
-| `docker ps`            | `podman ps`            |
-| `docker build`         | `podman build`         |
+This project's runbook uses **Podman** (`podman compose` delegates to
+podman-compose or the docker-compose plugin). Every command below works with
+`docker` substituted for `podman`.
+
+| Docker                           | Podman                           |
+| -------------------------------- | -------------------------------- |
+| `docker compose ps`              | `podman compose ps`              |
+| `docker compose up -d`           | `podman compose up -d`           |
+| `docker compose down`            | `podman compose down`            |
+| `docker compose logs -f backend` | `podman compose logs -f backend` |
+| `docker ps`                      | `podman ps -a`                   |
+| `docker inspect <name>`          | `podman inspect <name>`          |
 
 ---
 
@@ -321,28 +327,33 @@ sudo systemctl restart docker
 
 ## Compose Files
 
-| File                      | Purpose     | AI Services   | Use Case                      |
-| ------------------------- | ----------- | ------------- | ----------------------------- |
-| `docker-compose.yml`      | Development | Host (native) | Local development, hot reload |
-| `docker-compose.prod.yml` | Production  | Containerized | Full deployment with GPU      |
-| `docker-compose.ghcr.yml` | Pre-built   | External      | Fast deploy from GHCR images  |
+| File                      | Purpose       | AI Services   | Use Case                                |
+| ------------------------- | ------------- | ------------- | --------------------------------------- |
+| `docker-compose.prod.yml` | Production    | Containerized | Full deployment with GPU                |
+| `docker-compose.ghcr.yml` | Pre-built     | Containerized | Fast deploy from GHCR images            |
+| `docker-compose.test.yml` | Test DB/cache | None          | Local Postgres/Redis on ports 5433/6380 |
+| `docker-compose.ci.yml`   | CI smoke      | Mocked        | GitHub Actions runners (no GPU)         |
+
+There is no `docker-compose.yml` in the repository. For development you run the
+backend natively (`uv run uvicorn …`) against the containers you need, or against
+`docker-compose.test.yml` for a throwaway Postgres/Redis.
 
 ### Deployment Mode Selection Guide
 
 Choose your deployment mode based on your needs:
 
-| Question                                           | Recommended Mode                             |
-| -------------------------------------------------- | -------------------------------------------- |
-| **First time deploying / Want simplest setup?**    | Production (`docker-compose.prod.yml`)       |
-| **Developing locally with code hot-reload?**       | Development (`docker-compose.yml` + host AI) |
-| **Need GPU debugging / AI runs better on host?**   | Hybrid (container backend + host AI)         |
-| **Have a dedicated GPU server?**                   | Remote AI host mode                          |
-| **Want fastest deployment from pre-built images?** | GHCR (`docker-compose.ghcr.yml`)             |
+| Question                                           | Recommended Mode                       |
+| -------------------------------------------------- | -------------------------------------- |
+| **First time deploying / Want simplest setup?**    | Production (`docker-compose.prod.yml`) |
+| **Developing locally with code hot-reload?**       | Native backend + host AI services      |
+| **Need GPU debugging / AI runs better on host?**   | Hybrid (container backend + host AI)   |
+| **Have a dedicated GPU server?**                   | Remote AI host mode                    |
+| **Want fastest deployment from pre-built images?** | GHCR (`docker-compose.ghcr.yml`)       |
 
 **Decision flowchart:**
 
 1. **Production deployment?** Use `docker-compose.prod.yml` - everything containerized, no networking complexity
-2. **Active development?** Use `docker-compose.yml` with host AI for hot-reload and easier debugging
+2. **Active development?** Run the backend on the host for hot-reload; point `AI_GATEWAY_URL` / `NEMOTRON_URL` at the host services
 3. **GPU issues in containers?** Run AI services on host, backend in container (see [Deployment Modes](../deployment-modes.md))
 
 > **Tip:** If AI services are unreachable, it's usually a networking mode mismatch. See [Deployment Modes & AI Networking](../deployment-modes.md) for URL configuration by mode.
@@ -351,34 +362,42 @@ Choose your deployment mode based on your needs:
 
 ```bash
 # Start all services
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f
+podman compose -f docker-compose.prod.yml logs -f
 
 # Stop services
-docker compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 ```
 
 ### Development with Host AI
 
+The repo ships no development compose file. Start only the infrastructure
+containers you need, then run the AI services and backend on the host:
+
 ```bash
-# Terminal 1: Start YOLO26
+# Terminal 1: Infrastructure containers only
+podman compose -f docker-compose.prod.yml up -d postgres redis
+
+# Terminal 2: AI gateway (Triton, host port 8090)
 ./ai/start_detector.sh
 
-# Terminal 2: Start Nemotron
+# Terminal 3: Nemotron via llama.cpp (host port 8091)
 ./ai/start_llm.sh
 
-# Terminal 3: Start application stack
-docker compose up -d
+# Terminal 4: Backend on the host, pointed at the host AI services
+export AI_GATEWAY_URL=http://localhost:8090
+export NEMOTRON_URL=http://localhost:8091
+uv run uvicorn backend.main:app --reload --port 8000
 ```
 
 ### Deploy from GHCR
 
 ```bash
-# Set image location
-export GHCR_OWNER=your-org
-export GHCR_REPO=home-security-intelligence
+# Set image location (defaults match this repo, so you can skip these)
+export GHCR_OWNER=mikesvoboda
+export GHCR_REPO=nemotron-v3-home-security-intelligence
 export IMAGE_TAG=latest
 
 # Authenticate (requires GitHub token with read:packages)
@@ -437,42 +456,50 @@ flowchart TD
 ```
 
 ```bash
-# macOS with Docker Desktop (default, no action needed)
-docker compose up -d
+# macOS with Docker Desktop — AI services on the host
+export AI_GATEWAY_URL=http://host.docker.internal:8090
+export NEMOTRON_URL=http://host.docker.internal:8091
 
 # macOS with Podman
-export AI_HOST=host.containers.internal
-podman-compose up -d
+export AI_GATEWAY_URL=http://host.containers.internal:8090
+export NEMOTRON_URL=http://host.containers.internal:8091
 
-# Linux (Docker or Podman)
-export AI_HOST=$(hostname -I | awk '{print $1}')
-docker compose up -d
+# Linux (Docker or Podman) — substitute your host LAN address
+HOST_IP=$(hostname -I | awk '{print $1}')
+export AI_GATEWAY_URL=http://$HOST_IP:8090
+export NEMOTRON_URL=http://$HOST_IP:8091
 ```
+
+These are the `.env` values the backend container reads; there is no `AI_HOST`
+variable in the codebase or in any compose file.
 
 ### AI Service URLs by Deployment Mode
 
 **Production (docker-compose.prod.yml):**
 
 ```bash
-# AI services on compose network (internal DNS)
-YOLO26_URL=http://ai-yolo26:8095
+# AI services on compose network (internal DNS) — set by docker-compose.prod.yml
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
+YOLO26_URL=http://ai-gateway:8090/yolo26
+FLORENCE_URL=http://ai-gateway:8090/florence
+CLIP_URL=http://ai-gateway:8090/clip
+ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-florence:8092
-CLIP_URL=http://ai-clip:8093
-ENRICHMENT_URL=http://ai-enrichment:8094
 ```
 
 **Development with host AI:**
 
 ```bash
-YOLO26_URL=http://localhost:8095
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
 ```
 
 **Docker Desktop (macOS/Windows):**
 
 ```bash
-YOLO26_URL=http://host.docker.internal:8095
+YOLO26_URL=http://host.docker.internal:8090/yolo26
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -482,43 +509,55 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ### AI Architecture
 
-The system supports a multi-service AI stack:
+All vision models are consolidated into one `ai-gateway` container (Triton
+Inference Server behind a FastAPI router, host port `AI_GATEWAY_PORT`, default
+8090). Only the LLM runs as a separate container.
 
-| Service    | Port | VRAM                      | Purpose                         |
-| ---------- | ---- | ------------------------- | ------------------------------- |
-| YOLO26     | 8095 | ~2GB                      | Object detection                |
-| Nemotron   | 8091 | ~3GB (4B) / ~14.7GB (30B) | Risk reasoning                  |
-| Florence-2 | 8092 | ~2GB                      | Vision extraction (optional)    |
-| CLIP       | 8093 | ~2GB                      | Re-identification (optional)    |
-| Enrichment | 8094 | ~4GB                      | Vehicle/pet/clothing (optional) |
+| Router        | Port | Models / purpose                                          |
+| ------------- | ---- | --------------------------------------------------------- |
+| `/yolo26`     | 8090 | YOLO26 (TensorRT) object detection                        |
+| `/florence`   | 8090 | Florence-2 captions, OCR, region grounding                |
+| `/clip`       | 8090 | SigLIP 2 embeddings, re-ID similarity, anomaly score      |
+| `/enrichment` | 8090 | Heavy enrichment: vehicle, clothing, demographics, action |
+| `/enrich-lt`  | 8090 | Light enrichment: pose, threat, person ReID, pet, depth   |
+| `ai-llm`      | 8091 | Nemotron 30B risk reasoning (llama.cpp)                   |
+
+Triton's Prometheus metrics are on a second gateway port (`AI_GATEWAY_METRICS_PORT`,
+default 8002), scraped by the `triton-metrics` job.
 
 ### Model Downloads
 
-```bash
-# Automated download
-./ai/download_models.sh
+`models.yml` at the repo root is the live model manifest. `./ai/download_models.sh`
+implements the download phases it declares (see the file's own header for the
+`download_phase` ordering).
 
-# What it downloads:
-# - Nemotron Mini 4B (~2.5GB) for development
-# - YOLO26 auto-downloads on first use via HuggingFace
+```bash
+# Automated download (manifest: models.yml)
+./ai/download_models.sh
 ```
+
+Total manifest size is ~33GB, of which the required set (Nemotron GGUF + YOLO26 +
+Florence-2 + SigLIP 2) is ~16GB.
 
 ### Production Model Specifications
 
-| Model                          | File                                    | Size    | VRAM     | Context |
-| ------------------------------ | --------------------------------------- | ------- | -------- | ------- |
-| NVIDIA Nemotron-3-Nano-30B-A3B | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`   | ~18 GB  | ~14.7 GB | 131,072 |
-| Nemotron Mini 4B (dev)         | `nemotron-mini-4b-instruct-q4_k_m.gguf` | ~2.5 GB | ~3 GB    | 4,096   |
+| Model                          | File                                  | Size   | VRAM     | Context |
+| ------------------------------ | ------------------------------------- | ------ | -------- | ------- |
+| NVIDIA Nemotron-3-Nano-30B-A3B | `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | ~15 GB | ~14.7 GB | 262,144 |
+
+`CTX_SIZE` in `.env` defaults to 262144 (8 parallel slots × 32768 tokens each).
 
 ### Verify AI Services
 
 ```bash
 # Health checks
-curl http://localhost:8095/health   # YOLO26
-curl http://localhost:8091/health   # Nemotron
-curl http://localhost:8092/health   # Florence-2 (optional)
-curl http://localhost:8093/health   # CLIP (optional)
-curl http://localhost:8094/health   # Enrichment (optional)
+curl http://localhost:8090/health            # ai-gateway (aggregate across Triton models)
+curl http://localhost:8090/yolo26/health     # per-router
+curl http://localhost:8090/florence/health
+curl http://localhost:8090/clip/health
+curl http://localhost:8090/enrichment/health
+curl http://localhost:8090/enrich-lt/health
+curl http://localhost:8091/health            # Nemotron
 ```
 
 ---
@@ -537,7 +576,7 @@ sequenceDiagram
     participant DC as Docker Compose
     participant PG as PostgreSQL
     participant RD as Redis
-    participant RT as YOLO26
+    participant GW as ai-gateway
     participant NM as Nemotron
     participant BE as Backend
     participant FE as Frontend
@@ -548,22 +587,22 @@ sequenceDiagram
     PG-->>DC: Healthy (10-15s)
     RD-->>DC: Healthy (5-10s)
 
-    Note over DC,FE: Phase 2: AI Services (60-180s)
-    DC->>RT: Start YOLO26
-    DC->>NM: Start Nemotron
-    RT-->>DC: Healthy (60-90s, model loading)
-    NM-->>DC: Healthy (90-120s, VRAM allocation)
+    Note over DC,FE: Phase 2: AI Services (up to 5 min)
+    DC->>GW: Start ai-gateway
+    DC->>NM: Start ai-llm
+    GW-->>DC: Healthy (start_period 180s — Triton loads 13 models)
+    NM-->>DC: Healthy (start_period 300s — 31B tensors to GPU)
 
     Note over DC,FE: Phase 3: Application (30-60s)
-    DC->>BE: Start Backend (depends: PG, RD)
+    DC->>BE: Start Backend (depends: PG, RD, ai-gateway, ai-llm healthy)
     BE->>PG: Connect
     BE->>RD: Connect
-    BE-->>DC: Healthy (30-60s)
+    BE-->>DC: Healthy (start_period 30s)
 
     Note over DC,FE: Phase 4: Frontend (10-20s)
-    DC->>FE: Start Frontend (depends: BE)
+    DC->>FE: Start Frontend (depends: backend started)
     FE->>BE: Health check
-    FE-->>DC: Healthy (10-20s)
+    FE-->>DC: Healthy (start_period 40s)
 ```
 
 **Phase 1: Data Infrastructure (0-15s)**
@@ -571,32 +610,30 @@ sequenceDiagram
 - PostgreSQL (~10-15s)
 - Redis (~5-10s)
 
-**Phase 2: AI Services (60-180s)**
+**Phase 2: AI Services (up to 5 min)**
 
-- YOLO26 (~60-90s, model loading)
-- Nemotron (~90-120s, VRAM allocation)
-- Florence-2, CLIP, Enrichment (optional)
+- ai-gateway — `start_period: 180s` (Triton loads 13 models)
+- ai-llm — `start_period: 300s` (31B parameter model loads tensors to GPU)
 
 **Phase 3: Application (30-60s)**
 
-- Backend (~30-60s, waits for DB + Redis)
+- Backend (`start_period: 30s`, waits for Postgres, Redis, ai-gateway and ai-llm healthy)
 
 **Phase 4: Frontend (10-20s)**
 
-- Frontend (~10-20s, waits for Backend)
+- Frontend (`start_period: 40s`, waits for Backend to start)
 
 ### Health Check Configuration
 
+Straight from `docker-compose.prod.yml`:
+
 ```yaml
-# docker-compose.prod.yml example
 backend:
   healthcheck:
     test:
       [
-        'CMD',
-        'python',
-        '-c',
-        "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
+        'CMD-SHELL',
+        'python -c "import httpx; r = httpx.get(''http://localhost:8000/api/system/health/ready''); exit(0 if r.status_code == 200 else 1)"',
       ]
     interval: 10s
     timeout: 5s
@@ -607,18 +644,25 @@ backend:
       condition: service_healthy
     redis:
       condition: service_healthy
+    ai-gateway:
+      condition: service_healthy
+    ai-llm:
+      condition: service_healthy
 ```
 
 ### Dependency Matrix
 
-| Service    | Hard Dependencies | Soft Dependencies | Auto-Recovers  |
-| ---------- | ----------------- | ----------------- | -------------- |
-| PostgreSQL | None              | None              | N/A            |
-| Redis      | None              | None              | N/A            |
-| YOLO26     | GPU               | None              | No             |
-| Nemotron   | GPU               | None              | No             |
-| Backend    | PostgreSQL, Redis | AI Services       | AI via monitor |
-| Frontend   | Backend           | None              | No             |
+| Service    | Hard Dependencies                                          | Soft Dependencies | Auto-Recovers  |
+| ---------- | ---------------------------------------------------------- | ----------------- | -------------- |
+| PostgreSQL | None                                                       | None              | N/A            |
+| Redis      | None                                                       | None              | N/A            |
+| ai-gateway | GPU                                                        | None              | No             |
+| ai-llm     | GPU                                                        | None              | No             |
+| Backend    | PostgreSQL, Redis, ai-gateway, ai-llm, go2rtc, foscam-init | None              | AI via monitor |
+| Frontend   | Backend (started, not healthy)                             | None              | No             |
+| Prometheus | Alertmanager (healthy)                                     | None              | No             |
+| Grafana    | Prometheus (healthy)                                       | None              | No             |
+| Alloy      | Loki, Pyroscope                                            | None              | No             |
 
 ---
 
@@ -639,13 +683,13 @@ backend:
 1. **Start services:**
 
    ```bash
-   docker compose -f docker-compose.prod.yml up -d
+   podman compose -f docker-compose.prod.yml up -d
    ```
 
 2. **Monitor startup:**
 
    ```bash
-   docker compose -f docker-compose.prod.yml logs -f
+   podman compose -f docker-compose.prod.yml logs -f
    ```
 
 3. **Verify health:**
@@ -658,17 +702,19 @@ backend:
 4. **Test AI pipeline:**
 
    ```bash
-   # Copy test image
-   cp backend/data/test_images/sample.jpg /export/foscam/test_camera/test_$(date +%s).jpg
+   # Drop any JPEG into a camera directory under FOSCAM_BASE_PATH
+   mkdir -p /export/foscam/test_camera
+   cp /path/to/any-image.jpg /export/foscam/test_camera/test_$(date +%s).jpg
 
    # Monitor processing
-   docker compose -f docker-compose.prod.yml logs -f backend | grep -E "detect|batch|analyze"
+   podman compose -f docker-compose.prod.yml logs -f backend | grep -E "detect|batch|analyze"
    ```
 
 5. **Access dashboard:**
-   - Open browser to `http://localhost:5173` (dev) or `http://localhost` (prod)
-   - Verify WebSocket connection status
-   - Check camera grid and activity feed
+   - Open `http://localhost:8080` (or `https://localhost:8444` when `SSL_ENABLED=true`)
+   - Complete first-time admin registration at `/setup` — until then every API
+     call returns 503 from the setup guard
+   - Verify WebSocket connection status, camera grid and activity feed
 
 ### Post-Deployment
 
@@ -693,7 +739,7 @@ backend:
 
 ```bash
 # 1. Backup
-docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security -F c > backup-pre-upgrade-$(date +%Y%m%d).dump
+podman compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security -F c > backup-pre-upgrade-$(date +%Y%m%d).dump
 cp .env .env.backup-$(date +%Y%m%d)
 
 # 2. Pull updates
@@ -704,20 +750,21 @@ git pull origin main
 diff .env.example .env
 
 # 4. Stop services
-docker compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 
-# 5. Apply database migrations
-docker compose -f docker-compose.prod.yml up -d postgres
-until docker compose -f docker-compose.prod.yml exec postgres pg_isready -U security; do sleep 1; done
-docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade head
+# 5. Rebuild and start (always --no-cache: cached layers hold stale code)
+podman compose -f docker-compose.prod.yml build --no-cache
+podman compose -f docker-compose.prod.yml up -d
 
-# 6. Rebuild and start
-docker compose -f docker-compose.prod.yml build --no-cache
-docker compose -f docker-compose.prod.yml up -d
-
-# 7. Verify
+# 6. Verify
 curl http://localhost:8000/api/system/health/ready
 ```
+
+There is no Alembic step. This project has no Alembic migrations (the tree was
+removed in PR #4465); `init_db()` runs `create_all` at backend startup, which adds
+new tables and columns but never alters existing ones. Apply destructive schema
+changes by hand against the running database, see
+[Migrations](../../architecture/data-model/migrations.md).
 
 ---
 
@@ -727,7 +774,7 @@ curl http://localhost:8000/api/system/health/ready
 
 ```bash
 # 1. Stop current version
-docker compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 
 # 2. Checkout previous version
 git checkout <previous-commit-sha>
@@ -736,7 +783,7 @@ git checkout <previous-commit-sha>
 cp .env.backup-<date> .env
 
 # 4. Restart
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # 5. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -746,22 +793,22 @@ curl http://localhost:8000/api/system/health/ready
 
 ```bash
 # 1. Stop all services
-docker compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 
 # 2. Start only PostgreSQL
-docker compose -f docker-compose.prod.yml up -d postgres
-until docker compose -f docker-compose.prod.yml exec postgres pg_isready -U security; do sleep 1; done
+podman compose -f docker-compose.prod.yml up -d postgres
+until podman compose -f docker-compose.prod.yml exec postgres pg_isready -U security; do sleep 1; done
 
 # 3. Drop and recreate database
-docker compose -f docker-compose.prod.yml exec postgres psql -U security -d postgres -c "DROP DATABASE security;"
-docker compose -f docker-compose.prod.yml exec postgres psql -U security -d postgres -c "CREATE DATABASE security;"
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d postgres -c "DROP DATABASE security;"
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d postgres -c "CREATE DATABASE security;"
 
 # 4. Restore from backup
-docker compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup-pre-upgrade-<date>.dump
+podman compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup-pre-upgrade-<date>.dump
 
 # 5. Checkout previous code and restart
 git checkout <previous-commit>
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Rollback Decision Matrix
@@ -782,11 +829,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 ```bash
 # Check container status
-docker compose -f docker-compose.prod.yml ps
+podman compose -f docker-compose.prod.yml ps
 
 # Check logs for specific service
-docker compose -f docker-compose.prod.yml logs backend
-docker compose -f docker-compose.prod.yml logs ai-yolo26
+podman compose -f docker-compose.prod.yml logs backend
+podman compose -f docker-compose.prod.yml logs ai-gateway
 
 # Check health endpoint
 curl -v http://localhost:8000/health
@@ -797,13 +844,13 @@ curl -v http://localhost:8000/health
 1. **Check AI container status:**
 
    ```bash
-   docker ps --filter name=ai-
+   podman ps --filter name=ai-
    ```
 
 2. **Test health endpoints directly:**
 
    ```bash
-   curl http://localhost:8095/health
+   curl http://localhost:8090/health
    curl http://localhost:8091/health
    ```
 
@@ -811,7 +858,7 @@ curl -v http://localhost:8000/health
 
    ```bash
    nvidia-smi
-   docker compose -f docker-compose.prod.yml exec ai-yolo26 nvidia-smi
+   podman compose -f docker-compose.prod.yml exec ai-gateway nvidia-smi
    ```
 
 4. **Verify URL configuration:**
@@ -827,17 +874,17 @@ nvidia-smi
 nvidia-smi --query-compute-apps=pid --format=csv,noheader | xargs kill
 
 # Restart AI services
-docker compose -f docker-compose.prod.yml restart ai-yolo26 ai-llm
+podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm
 ```
 
 ### Database Connection Failed
 
 ```bash
 # Check PostgreSQL status
-docker compose -f docker-compose.prod.yml exec postgres pg_isready -U security
+podman compose -f docker-compose.prod.yml exec postgres pg_isready -U security
 
 # Check logs
-docker compose -f docker-compose.prod.yml logs postgres
+podman compose -f docker-compose.prod.yml logs postgres
 
 # Verify DATABASE_URL in .env
 grep DATABASE_URL .env

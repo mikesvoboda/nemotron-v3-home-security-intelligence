@@ -14,9 +14,9 @@ The detection queue receives file upload notifications from the FileWatcher and 
 
 The detection queue uses a Redis LIST data structure with LPUSH/BRPOP pattern for FIFO ordering.
 
-**Queue Name:** `DETECTION_QUEUE = "detection_queue"` (constants.py:146)
+**Queue Name:** `DETECTION_QUEUE = "detection_queue"` (`backend/core/constants.py:146`)
 
-**With prefix:** `hsi:queue:detection_queue` (constants.py:260-261)
+**With prefix:** `hsi:queue:detection_queue` (`backend/core/constants.py:242-262`, `get_prefixed_queue_name`)
 
 ```python
 def get_prefixed_queue_name(queue_name: str) -> str:
@@ -354,7 +354,7 @@ if not result.success:
     )
 ```
 
-**DLQ Names (constants.py:170-174):**
+**DLQ Names (`backend/core/constants.py:167-173`):**
 
 ```python
 DLQ_PREFIX = "dlq:"

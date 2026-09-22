@@ -1,5 +1,7 @@
 # Backend Models vs Frontend Types Comparison
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The system is **mostly well-aligned** between backend models and frontend types, but there are **type safety improvements needed**, particularly around JSONB fields and optimistic locking.

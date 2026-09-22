@@ -335,10 +335,12 @@ with cosine similarity > 0.99, ensuring identical quality.
 
 ## Starting the Server
 
-### Container (Production)
+### Production (served by ai-gateway)
+
+CLIP runs inside the `ai-gateway` container (Triton + FastAPI on port 8090, router prefix `/clip`) - there is no standalone `ai-clip` compose service:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-clip
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 ```
 
 ### Native (Development)

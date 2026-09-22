@@ -989,8 +989,10 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **AI Service Endpoints:**
 
-- `yolo26_url: str` - YOLO26 detection service URL (default: `http://localhost:8095`)
-- `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`)
+- `yolo26_url: str` - YOLO26 detection service URL (default: `http://ai-gateway:8090/yolo26`)
+- `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`, Docker: `http://ai-llm:8091`)
+- `ai_gateway_url` / `use_ai_gateway` - When `use_ai_gateway=true` and `ai_gateway_url` is set, every AI client (detector, florence, clip, enrichment) routes through the gateway as `{ai_gateway_url}/<router>` instead of the individual per-service URLs. Production compose sets `USE_AI_GATEWAY=true`, `AI_GATEWAY_URL=http://ai-gateway:8090`.
+- `florence_url` / `clip_url` / `enrichment_url` / `enrichment_light_url` - Per-service URLs (defaults `localhost:8092/8093/8094/8096`) used only when gateway mode is off; `.env.example` points all four at `http://localhost:8090/<router>`.
 
 **AI Service Timeout Settings:**
 

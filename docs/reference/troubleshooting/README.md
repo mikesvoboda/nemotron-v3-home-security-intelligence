@@ -58,24 +58,25 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ## Detailed Troubleshooting Guides
 
-| Guide                                     | Covers                                             |
-| ----------------------------------------- | -------------------------------------------------- |
-| [AI Issues](ai-issues.md)                 | YOLO26, Nemotron, pipeline, batch processing       |
-| [Connection Issues](connection-issues.md) | Network, containers, WebSocket, CORS, file watcher |
-| [Database Issues](database-issues.md)     | PostgreSQL connection, migrations, disk space      |
-| [GPU Issues](gpu-issues.md)               | CUDA, VRAM, temperature, container GPU access      |
+| Guide                                           | Covers                                                |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| [AI Issues](ai-issues.md)                       | YOLO26, Nemotron, pipeline, batch processing          |
+| [Connection Issues](connection-issues.md)       | Network, containers, WebSocket, CORS, file watcher    |
+| [Database Issues](database-issues.md)           | PostgreSQL connection, schema, disk space             |
+| [GPU Issues](gpu-issues.md)                     | CUDA, VRAM, temperature, container GPU access         |
+| [Triton Rootless CUDA](triton-rootless-cuda.md) | Gateway `cudaGetDeviceCount err=3` in rootless Podman |
 
 ---
 
 ## Log Locations
 
-| Service     | Docker Command                                             | Native Path                              |
-| ----------- | ---------------------------------------------------------- | ---------------------------------------- |
-| Backend     | `docker compose -f docker-compose.prod.yml logs backend`   | `backend/data/logs/security.log`         |
-| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`  | Browser console (F12)                    |
-| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`  | Container `/var/lib/postgresql/data/log` |
-| Redis       | `docker compose -f docker-compose.prod.yml logs redis`     | Container logs only                      |
-| AI Services | `docker compose -f docker-compose.prod.yml logs ai-yolo26` | Container stdout                         |
+| Service     | Docker Command                                                     | Native Path                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend     | `docker compose -f docker-compose.prod.yml logs backend`           | `backend/data/logs/security.log`                                                                                                            |
+| Frontend    | `docker compose -f docker-compose.prod.yml logs frontend`          | Browser console (F12)                                                                                                                       |
+| PostgreSQL  | `docker compose -f docker-compose.prod.yml logs postgres`          | Container `/var/lib/postgresql/data/log`                                                                                                    |
+| Redis       | `docker compose -f docker-compose.prod.yml logs redis`             | Container logs only                                                                                                                         |
+| AI Services | `docker compose -f docker-compose.prod.yml logs ai-gateway ai-llm` | Container stdout; host-run `ai/start_nemotron.sh` logs to `/tmp/nemotron.log`, `ai/start_llm.sh`/`ai/start_detector.sh` log to the terminal |
 
 ---
 
@@ -93,7 +94,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ```bash
 # Check if events exist in database
-curl -s http://localhost:8000/api/events?limit=5 | jq .count
+curl -s http://localhost:8000/api/events?limit=5 | jq '.pagination.total'
 
 # Check pipeline status
 curl -s http://localhost:8000/api/system/pipeline | jq .
@@ -111,7 +112,7 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 1. Check file watcher status:
 
    ```bash
-   curl -s http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name | contains("detection"))'
+   curl -s http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name | test("file_watcher|detection"))'
    ```
 
    If not running, restart backend: `docker compose -f docker-compose.prod.yml restart backend`
@@ -125,8 +126,8 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 3. Check AI service health:
 
    ```bash
-   curl http://localhost:8095/health  # YOLO26
-   curl http://localhost:8091/health  # Nemotron
+   curl http://localhost:8090/yolo26/health  # YOLO26 (AI gateway router)
+   curl http://localhost:8091/health         # Nemotron
    ```
 
 4. Check queue depths:
@@ -150,7 +151,7 @@ See: [Connection Issues](connection-issues.md#file-watcher-issues), [AI Issues](
 
 ```bash
 # Check camera status in database
-curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, status, last_seen_at}'
+curl -s http://localhost:8000/api/cameras | jq '.items[] | {id, name, status, last_seen_at}'
 
 # Check if images exist in camera folder
 ls -lt /export/foscam/<camera_name>/ | head -5
@@ -167,7 +168,7 @@ ls -lt /export/foscam/<camera_name>/ | head -5
 2. Check folder path in camera settings:
 
    ```bash
-   curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, folder_path}'
+   curl -s http://localhost:8000/api/cameras | jq '.items[] | {id, name, folder_path}'
    ```
 
 3. Fix permissions:
@@ -195,25 +196,25 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 curl -s http://localhost:8000/api/system/health | jq '.services.ai'
 
 # Individual service checks
-curl http://localhost:8095/health  # Should return {"status": "ok", ...}
-curl http://localhost:8091/health  # Should return {"status": "ok"}
+curl http://localhost:8090/yolo26/health  # YOLO26 via AI gateway; {"status": "healthy", ...}
+curl http://localhost:8091/health         # Nemotron; {"status": "ok"}
 ```
 
 **Solutions:**
 
-1. Start AI services:
+1. Start AI services. In production both run as containers (`ai-gateway` on :8090, `ai-llm` on :8091) and start with the stack:
 
    ```bash
-   ./scripts/start-ai.sh start
-   # Or individually:
-   ./ai/start_detector.sh  # YOLO26
-   ./ai/start_llm.sh       # Nemotron
+   docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
+   # Host-run development instead (no unified wrapper script exists):
+   ./ai/start_detector.sh  # YOLO26 (defaults to :8090, or :8095 via .env's YOLO26_PORT)
+   ./ai/start_llm.sh       # Nemotron dev server on :8091
    ```
 
 2. Check for port conflicts:
 
    ```bash
-   lsof -i :8095  # YOLO26 port
+   lsof -i :8090  # AI gateway port (or :8095 if host-run YOLO26 uses .env's YOLO26_PORT)
    lsof -i :8091  # Nemotron port
    ```
 
@@ -225,8 +226,12 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 
 4. Check AI service logs:
    ```bash
-   cat /tmp/yolo26-detector.log
-   cat /tmp/nemotron-llm.log
+   # Containers (production):
+   docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
+   docker compose -f docker-compose.prod.yml logs --tail=100 ai-llm
+   # Host-run dev: start_detector.sh / start_llm.sh log to their terminal;
+   # start_nemotron.sh writes /tmp/nemotron.log
+   tail -f /tmp/nemotron.log
    ```
 
 See: [AI Issues](ai-issues.md), [GPU Issues](gpu-issues.md)
@@ -301,9 +306,9 @@ curl -s http://localhost:8000/api/dlq/stats
 1. Check and clear queues if backed up:
 
    ```bash
-   # View queue sizes
-   redis-cli llen detection_queue
-   redis-cli llen analysis_queue
+   # View queue sizes (streams mode is the default — see USE_REDIS_STREAMS in .env.example)
+   redis-cli xlen detections:stream
+   redis-cli xlen analysis:stream
    ```
 
 2. Increase container memory limits in docker-compose.prod.yml
@@ -372,18 +377,17 @@ See: [Database Issues - Disk Space](database-issues.md#disk-space)
 # Check GPU utilization
 nvidia-smi
 
-# Check device being used
+# Check the gateway reports its models ready
+curl -s http://localhost:8090/health | jq
+curl -s http://localhost:8090/yolo26/health | jq
+
+# Host-run standalone YOLO26 server reports its device directly
 curl -s http://localhost:8095/health | jq '.device'
 ```
 
 **Solutions:**
 
-1. Verify GPU is being used:
-
-   ```bash
-   curl -s http://localhost:8095/health | jq '.device'
-   # Should show "cuda" or "cuda:0"
-   ```
+1. Verify the GPU is in use: `nvidia-smi` should list the gateway (`tritonserver`) and `llama-server` processes with non-zero memory. A standalone host-run detector reports `"device": "cuda:0"` from `/health`.
 
 2. Check temperature:
 
@@ -393,7 +397,7 @@ curl -s http://localhost:8095/health | jq '.device'
 
 3. Restart AI services:
    ```bash
-   ./scripts/start-ai.sh restart
+   docker compose -f docker-compose.prod.yml restart ai-gateway ai-llm
    ```
 
 See: [GPU Issues](gpu-issues.md)
@@ -411,7 +415,7 @@ See: [GPU Issues](gpu-issues.md)
 **Quick Diagnosis:**
 
 ```bash
-curl -v -X OPTIONS -H "Origin: http://localhost:5173" \
+curl -v -X OPTIONS -H "Origin: https://localhost:8444" \
   http://localhost:8000/api/events 2>&1 | grep -i "access-control"
 ```
 
@@ -485,22 +489,26 @@ pg_isready -h localhost -p 5432 -U security
 
 2. Update DATABASE_URL in .env and restart backend
 
-### Migrations Failed
+### Schema Out of Date
 
 **Symptoms:**
 
-- Backend fails to start with migration errors
+- Backend fails to start with errors about missing tables or columns
+
+**Reality check:** this project does **not** use Alembic — the schema is created directly from the SQLAlchemy models (`create_all` at backend startup). The alembic package is a dev-only dependency and `alembic upgrade head` has no migrations tree to run. See [Migrations](../../architecture/data-model/migrations.md).
 
 **Diagnosis:**
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm backend alembic current
+docker compose -f docker-compose.prod.yml logs --tail=50 backend | grep -i "table\|schema"
 ```
 
 **Solutions:**
 
+New tables are created automatically on backend restart. For a dev database with a stale schema you can recreate it from the models (destructive — drops all tables, and it refuses to run against a production-looking URL without `--force`):
+
 ```bash
-docker compose -f docker-compose.prod.yml run --rm backend alembic upgrade head
+python -m backend.scripts.init_schema
 ```
 
 See: [Database Issues](database-issues.md)
@@ -538,17 +546,19 @@ docker compose -f docker-compose.prod.yml up -d redis
 **Diagnosis:**
 
 ```bash
-docker compose -f docker-compose.prod.yml exec redis redis-cli LLEN detection_queue
-docker compose -f docker-compose.prod.yml exec redis redis-cli LLEN analysis_queue
+docker compose -f docker-compose.prod.yml exec redis redis-cli XLEN detections:stream
+docker compose -f docker-compose.prod.yml exec redis redis-cli XLEN analysis:stream
 ```
+
+> Queues are Redis **Streams** by default (`USE_REDIS_STREAMS=true` in `.env.example`), keyed `detections:stream` and `analysis:stream`. `LLEN`/`DEL` on `detection_queue` only apply if streams were disabled and the legacy list queues are in use.
 
 **Solutions:**
 
 1. Check AI services are healthy
 2. Restart AI services if needed
-3. Clear stuck queues (WARNING: loses pending work):
+3. Clear a stuck stream (WARNING: loses pending work; with consumer groups, use `XTRIM detections:stream MAXLEN 0` or delete/recreate the group):
    ```bash
-   docker compose -f docker-compose.prod.yml exec redis redis-cli DEL detection_queue
+   docker compose -f docker-compose.prod.yml exec redis redis-cli DEL detections:stream
    ```
 
 ---
@@ -587,16 +597,16 @@ docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
 
 **Solutions:**
 
-1. Reduce Nemotron GPU layers:
+1. Reduce Nemotron GPU layers (default is `auto`, which fits the model to available VRAM):
 
    ```bash
-   # In .env
-   GPU_LAYERS=20  # Lower from 35
+   # In .env — a fixed layer count overrides auto-fit
+   GPU_LAYERS=20
    ```
 
-2. Disable optional AI services:
+2. Free the rest of the GPU: Florence-2, CLIP and the enrichment models all run inside the single `ai-gateway` container (Triton, which loads every model in the zoo at startup), so there is no per-service container to stop — free VRAM by lowering `GPU_LAYERS` further, or stop the whole gateway:
    ```bash
-   docker compose -f docker-compose.prod.yml stop ai-florence ai-clip ai-enrichment
+   docker compose -f docker-compose.prod.yml stop ai-gateway
    ```
 
 See: [GPU Issues](gpu-issues.md)
@@ -665,7 +675,7 @@ If you can't resolve an issue:
 
 1. **Check this index first** - Most common problems are covered
 2. **Review specific troubleshooting pages** - Detailed solutions for each area
-3. **Search [GitHub Issues](https://github.com/mikesvoboda/home-security-intelligence/issues)** - Someone may have solved it
+3. **Search [GitHub Issues](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/issues)** - Someone may have solved it
 4. **Open a new issue** with:
    - Clear description of the problem
    - Steps to reproduce

@@ -89,7 +89,7 @@ The following features originally planned for post-MVP have been implemented:
 
 **What's implemented:**
 
-- **CLIP ViT-L embeddings** (768-dimensional vectors) via ai-clip HTTP service
+- **CLIP ViT-L embeddings** (768-dimensional vectors) via the `ai-gateway` `/clip` router
 - **Cross-camera entity matching** with configurable similarity threshold (default: 0.85)
 - **Redis storage** for embeddings with 24-hour TTL
 - **Concurrency-based rate limiting** to prevent resource exhaustion
@@ -177,7 +177,7 @@ The following features originally planned for post-MVP have been implemented:
 
 **Implementation ideas:**
 
-- Embed event summaries using existing CLIP service
+- Embed event summaries using the existing CLIP service (`ai-gateway` `/clip` router)
 - Vector similarity search for relevant events
 - LLM summarization of retrieved context
 
@@ -228,18 +228,16 @@ The following features originally planned for post-MVP have been implemented:
 
 **Current state:**
 
-- YOLO Face model (41 MB) in model zoo for detection
-- YOLO License Plate model (656 MB) in model zoo
-- PaddleOCR (12 MB) for text recognition
+- Detection models already in the model zoo (`backend/services/model_zoo.py`): `yolo11-face` (200 MB VRAM), `yolo11-license-plate` (300 MB VRAM, legacy), `fast-alpr` (28 MB, end-to-end plate detection + OCR that replaces YOLO11+PaddleOCR), and `paddleocr` (100 MB VRAM, legacy text recognition)
+- Read APIs and UI already exist: `/api/face-events/*` (`backend/api/routes/face_recognition.py`), `/api/plate-reads/*` (`backend/api/routes/plate_reads.py`), and the frontend `face-recognition/` and `entities/` components
+- No opt-in consent flow exists yet — nothing in the tree gates these features behind user consent
 
 **What's needed:**
 
-- Opt-in consent flow and UI
-- Face/plate database management
-- Matching confidence thresholds
-- Data retention policies
+- Opt-in consent flow and UI (the remaining work)
+- Data retention policies specific to biometric/plate data (global retention is `RETENTION_DAYS=30`)
 
-**Complexity:** Medium (models exist, need privacy-aware UX)
+**Complexity:** Medium (models and read paths exist; privacy-aware UX is the gap)
 
 ---
 
@@ -260,20 +258,25 @@ The following features originally planned for post-MVP have been implemented:
 
 ---
 
-### Home Automation Integration
+### Home Automation Integration - MOSTLY IMPLEMENTED
 
 **Why it matters:**
 
 - Trigger smart home actions on security events
 - Integration with Home Assistant, MQTT, etc.
 
-**Implementation ideas:**
+**What's already implemented:**
 
-- MQTT publisher for events
-- Home Assistant webhook integration
-- Custom action rules based on event types
+- **MQTT event publisher** (`backend/services/mqtt_publisher.py`): events, alerts, detections, zone crossings and health published to `hsi/*` topics, with QoS and retain options and Prometheus metrics
+- **Home Assistant MQTT Discovery** (`backend/services/ha_discovery.py`): auto-configures cameras, alerts and events in Home Assistant (`homeassistant/{component}/hsi_{id}/config`)
+- **MQTT command handler** (`backend/services/mqtt_command_handler.py`) and **Frigate integration** (`backend/services/frigate_integration.py`)
+- **MQTT configuration API** at `/api/mqtt-config` (GET/PUT config, status, test, reconnect/disconnect — `backend/api/routes/mqtt_config.py`)
 
-**Complexity:** Low-Medium (well-defined integration patterns)
+**Remaining ideas:**
+
+- Custom action rules that trigger outbound smart-home actions on event types (inbound integration exists; user-defined outbound actions do not)
+
+**Complexity:** Low (the MQTT transport and HA discovery are done; only user-defined action rules remain)
 
 ---
 

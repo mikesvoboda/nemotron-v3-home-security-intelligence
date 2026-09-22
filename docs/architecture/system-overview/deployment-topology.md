@@ -27,17 +27,14 @@ flowchart TB
             end
 
             subgraph AI["AI Services (GPU)"]
-                DET["ai-yolo26<br/>YOLO26<br/>:8095"]
-                LLM["ai-llm<br/>Nemotron<br/>:8091"]
-                FLO["ai-florence<br/>Florence-2<br/>:8092"]
-                CLIP["ai-clip<br/>CLIP ViT-L<br/>:8093"]
-                ENR["ai-enrichment<br/>Multi-Model<br/>:8094"]
+                GW["ai-gateway<br/>YOLO26 / Florence-2 /<br/>CLIP / Enrichment<br/>:8090"]
+                LLM["ai-llm<br/>Nemotron (llama.cpp)<br/>:8091"]
             end
 
             subgraph Mon["Monitoring"]
                 PROM["prometheus<br/>:9090"]
-                GRAF["grafana<br/>:3000"]
-                JAEG["jaeger<br/>:16686"]
+                GRAF["grafana<br/>:3002 host<br/>(container :3000)"]
+                TEMPO["tempo<br/>:3200"]
                 ALERT["alertmanager<br/>:9093"]
                 LOKI["loki<br/>:3100"]
                 PYRO["pyroscope<br/>:4040"]
@@ -51,23 +48,17 @@ flowchart TB
     FE <--> BE
     BE <--> PG
     BE <--> RD
-    BE --> DET
+    BE --> GW
     BE --> LLM
-    BE --> FLO
-    BE --> CLIP
-    BE --> ENR
-    DET --> GPU
+    GW --> GPU
     LLM --> GPU
-    FLO --> GPU
-    CLIP --> GPU
-    ENR --> GPU
     PROM --> BE
     GRAF --> PROM
 ```
 
 ## Network Configuration
 
-**Source:** `docker-compose.prod.yml:834-836`
+**Source:** `docker-compose.prod.yml:1388-1390`
 
 ```yaml
 networks:
@@ -75,30 +66,31 @@ networks:
     driver: bridge
 ```
 
-| Service       | Internal Port | External Port | Protocol   |
-| ------------- | ------------- | ------------- | ---------- |
-| frontend      | 8080          | 5173          | HTTP/HTTPS |
-| backend       | 8000          | 8000          | HTTP/WS    |
-| postgres      | 5432          | 5432          | TCP        |
-| redis         | 6379          | 6379          | TCP        |
-| ai-yolo26     | 8095          | 8095          | HTTP       |
-| ai-llm        | 8091          | 8091          | HTTP       |
-| ai-florence   | 8092          | 8092          | HTTP       |
-| ai-clip       | 8093          | 8093          | HTTP       |
-| ai-enrichment | 8094          | 8094          | HTTP       |
-| prometheus    | 9090          | 9090          | HTTP       |
-| grafana       | 3000          | 3002          | HTTP       |
-| jaeger        | 16686         | 16686         | HTTP       |
-| alertmanager  | 9093          | 9093          | HTTP       |
-| loki          | 3100          | 3100          | HTTP       |
-| pyroscope     | 4040          | 4040          | HTTP       |
-| alloy         | 12345         | 12345         | HTTP       |
+External ports are the `.env.example` defaults (bind address `127.0.0.1` unless noted).
+
+| Service      | Internal Port | External Port        | Protocol   |
+| ------------ | ------------- | -------------------- | ---------- |
+| frontend     | 8443 / 8080   | 8444 / 8080          | HTTP/HTTPS |
+| backend      | 8000          | 8000                 | HTTP/WS    |
+| postgres     | 5432          | 5432                 | TCP        |
+| redis        | 6379          | 6379                 | TCP        |
+| ai-gateway   | 8090          | 8090 (+8002 metrics) | HTTP       |
+| ai-llm       | 8091          | 8091                 | HTTP       |
+| prometheus   | 9090          | 9090                 | HTTP       |
+| grafana      | 3000          | 3002                 | HTTP       |
+| tempo        | 3200          | 3200                 | HTTP       |
+| alertmanager | 9093          | 9093                 | HTTP       |
+| loki         | 3100          | 3100                 | HTTP       |
+| pyroscope    | 4040          | 4040                 | HTTP       |
+| alloy        | 12345         | 12345                | HTTP       |
+
+The frontend binds `0.0.0.0` (all interfaces) rather than loopback so browsers on the LAN can reach the dashboard. All other published ports bind `127.0.0.1`. Grafana is normally reached through the frontend nginx proxy at `https://<host>:8444/grafana/` (`GF_SERVER_ROOT_URL=/grafana/`); port 3002 is the direct host mapping.
 
 ## GPU Passthrough Configuration
 
 All AI services use NVIDIA Container Toolkit (CDI) for GPU access.
 
-**Source:** `docker-compose.prod.yml:137-143` (ai-yolo26 example)
+**Source:** `docker-compose.prod.yml:342-352` (ai-gateway example)
 
 ```yaml
 deploy:
@@ -133,82 +125,51 @@ sudo systemctl restart docker
 
 ## VRAM Allocation
 
-Total GPU VRAM: ~24GB (RTX A5500)
+VRAM is split across two GPUs, selected by `GPU_LLM` (Nemotron) and `GPU_AI_SERVICES` (ai-gateway) in
+`.env.example`. Check your own card with `nvidia-smi`; the layout below shows the loading pattern, not
+a fixed budget — only the Nemotron figure (~14.7 GB at Q4_K_M) is a fixed estimate in this repo.
 
 ```
-+------------------------------------------------------------------+
-|                        GPU VRAM (24GB)                            |
-+------------------------------------------------------------------+
-| Nemotron LLM (Q4_K_M)                          | ~14,700 MB       |
-| ================================================                  |
-+------------------------------------------------------------------+
-| YOLO26                                      | ~650 MB          |
-| ======                                                            |
-+------------------------------------------------------------------+
-| Enrichment Service Budget                      | ~6,800 MB        |
-| (on-demand: vehicle, pet, pose, threat, etc.)                     |
-| ==================                                                |
-+------------------------------------------------------------------+
-| Florence-2 (optional)                          | ~1,500 MB        |
-| =====                                                             |
-+------------------------------------------------------------------+
-| CLIP ViT-L (optional)                          | ~400 MB          |
-| ==                                                                |
-+------------------------------------------------------------------+
-| System/Driver Overhead                         | ~500 MB          |
-| ==                                                                |
-+------------------------------------------------------------------+
+GPU for LLM (GPU_LLM)              GPU for AI services (GPU_AI_SERVICES)
++--------------------------+       +------------------------------------------+
+| Nemotron LLM  ~14.7 GB   |       | ai-gateway (Triton, 13 models)           |
+| (llama.cpp, always       |       |  - YOLO26: always loaded                 |
+|  resident)               |       |  - Florence-2, CLIP/SigLIP, enrichment:  |
+|                          |       |    load/evict on demand                  |
++--------------------------+       +------------------------------------------+
 ```
 
 ### VRAM by Service
 
-| Service               | VRAM       | Notes                               |
-| --------------------- | ---------- | ----------------------------------- |
-| **Nemotron LLM**      | ~14,700 MB | Q4_K_M quantization, 128K context   |
-| **YOLO26**            | ~650 MB    | Object detection, always loaded     |
-| **Enrichment Budget** | ~6,800 MB  | On-demand model loading (Model Zoo) |
-| **Florence-2**        | ~1,500 MB  | Vision-language, optional           |
-| **CLIP ViT-L**        | ~400 MB    | Re-identification, optional         |
+| Service               | VRAM             | Notes                                                                                                                                 |
+| --------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Nemotron LLM**      | ~14.7 GB         | Q4_K_M quantization (see `models.yml` description)                                                                                    |
+| **ai-gateway models** | see `models.yml` | YOLO26, Florence-2, CLIP/SigLIP and enrichment models each declare `vram_mb` in `models.yml` and load on demand in one Triton process |
 
-**Enrichment VRAM Budget Source:** `docker-compose.prod.yml:284`
-
-```yaml
-- VRAM_BUDGET_GB=6.8
-```
+Enrichment models load and evict on demand through ai-gateway's Triton backend; per-model estimates live in
+`models.yml` (`vram_mb` per entry). There is no fixed "enrichment budget" environment variable in the
+current compose file — VRAM allocation is managed dynamically per GPU (`GPU_LLM`, `GPU_AI_SERVICES` in `.env.example`).
 
 ## Volume Mounts
 
-**Source:** `docker-compose.prod.yml:818-832`
+**Source:** `docker-compose.prod.yml:1339` (top-level `volumes:` block)
 
-```yaml
-volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  alertmanager_data:
-    driver: local
-  loki_data:
-    driver: local
-  pyroscope_data:
-    driver: local
-```
+Named volumes include `postgres_data`, `redis_data`, `tempo_data`, `hf_cache`, `prometheus_data`,
+`grafana_data`, `alertmanager_data`, `loki_data`, `pyroscope_data`, `alloy_symb_cache`, and
+`frontend_certs`, plus Triton caches (`triton-kernel-cache`, `triton-tmp-cache`).
 
-| Volume                       | Container    | Mount Path                 | Purpose                   |
-| ---------------------------- | ------------ | -------------------------- | ------------------------- |
-| `postgres_data`              | postgres     | `/var/lib/postgresql/data` | Database persistence      |
-| `redis_data`                 | redis        | `/data`                    | Redis AOF persistence     |
-| `prometheus_data`            | prometheus   | `/prometheus`              | Metrics storage           |
-| `grafana_data`               | grafana      | `/var/lib/grafana`         | Dashboard configs         |
-| `alertmanager_data`          | alertmanager | `/alertmanager`            | Alert state               |
-| `loki_data`                  | loki         | `/loki`                    | Log storage               |
-| `pyroscope_data`             | pyroscope    | `/data`                    | Profile storage           |
-| Host: `/export/foscam`       | backend      | `/cameras:ro`              | Camera images (read-only) |
-| Host: `~/.cache/huggingface` | ai-yolo26    | `/cache/huggingface`       | Model cache               |
+| Volume                                      | Container             | Mount Path                 | Purpose                     |
+| ------------------------------------------- | --------------------- | -------------------------- | --------------------------- |
+| `postgres_data`                             | postgres              | `/var/lib/postgresql/data` | Database persistence        |
+| `redis_data`                                | redis                 | `/data`                    | Redis AOF persistence       |
+| `prometheus_data`                           | prometheus            | `/prometheus`              | Metrics storage             |
+| `grafana_data`                              | grafana               | `/var/lib/grafana`         | Dashboard configs           |
+| `alertmanager_data`                         | alertmanager          | `/alertmanager`            | Alert state                 |
+| `loki_data`                                 | loki                  | `/loki`                    | Log storage                 |
+| `tempo_data`                                | tempo                 | `/var/tempo`               | Trace storage               |
+| `pyroscope_data`                            | pyroscope             | `/data`                    | Profile storage             |
+| Host: `${FOSCAM_BASE_PATH:-/export/foscam}` | backend / foscam-init | `/cameras`                 | Camera images (FTP uploads) |
+| Host: `${HF_CACHE_PATH}`                    | ai-llm, ai-gateway    | `/root/.cache/huggingface` | HuggingFace model cache     |
 
 ## Health Checks
 
@@ -216,31 +177,27 @@ All services include Docker health checks for orchestration and monitoring.
 
 **Source:** `docker-compose.prod.yml` (various services)
 
-| Service       | Health Endpoint                | Interval | Timeout | Retries | Start Period |
-| ------------- | ------------------------------ | -------- | ------- | ------- | ------------ |
-| postgres      | `pg_isready`                   | 10s      | 5s      | 5       | 10s          |
-| redis         | `redis-cli ping`               | 10s      | 5s      | 3       | -            |
-| backend       | `GET /api/system/health/ready` | 10s      | 5s      | 3       | 30s          |
-| frontend      | `GET /health`                  | 30s      | 10s     | 3       | 40s          |
-| ai-yolo26     | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
-| ai-llm        | `GET /health`                  | 10s      | 5s      | 5       | 120s         |
-| ai-florence   | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
-| ai-clip       | `GET /health`                  | 10s      | 5s      | 5       | 60s          |
-| ai-enrichment | `GET /health`                  | 10s      | 5s      | 5       | 180s         |
-| prometheus    | `GET /-/healthy`               | 15s      | 5s      | 3       | -            |
-| grafana       | `GET /api/health`              | 15s      | 5s      | 3       | -            |
-| jaeger        | `GET /`                        | 15s      | 5s      | 3       | -            |
-| alertmanager  | `GET /-/healthy`               | 15s      | 5s      | 3       | -            |
-| loki          | `GET /ready`                   | 10s      | 5s      | 5       | -            |
-| pyroscope     | `GET /ready`                   | 10s      | 5s      | 5       | -            |
+| Service      | Health Check                    | Interval | Timeout | Retries | Start Period |
+| ------------ | ------------------------------- | -------- | ------- | ------- | ------------ |
+| postgres     | `pg_isready`                    | 10s      | 5s      | 5       | 10s          |
+| redis        | `redis-cli ping`                | 10s      | 5s      | 3       | -            |
+| backend      | `GET /api/system/health/ready`  | 10s      | 5s      | 3       | 30s          |
+| frontend     | `GET /health` (container :8080) | 30s      | 10s     | 3       | 40s          |
+| ai-gateway   | `GET :8090/health`              | 15s      | 10s     | 5       | 180s         |
+| ai-llm       | `GET :8091/health`              | 10s      | 5s      | 3       | 300s         |
+| prometheus   | `GET /-/healthy`                | 15s      | 5s      | 3       | -            |
+| grafana      | `GET /api/health`               | 15s      | 5s      | 3       | -            |
+| tempo        | `GET /ready`                    | 15s      | 5s      | 3       | -            |
+| alertmanager | `GET /-/healthy`                | 15s      | 5s      | 3       | -            |
+| loki         | `GET /ready`                    | 10s      | 5s      | 5       | -            |
+| pyroscope    | `GET /ready`                    | 10s      | 5s      | 5       | -            |
 
 ### Start Period Notes
 
-AI services have longer start periods due to model loading:
+AI services have longer start periods because models must load before the health endpoint returns:
 
-- **ai-yolo26**: 60s for YOLO26 model loading
-- **ai-llm**: 120s for Nemotron LLM loading (largest model)
-- **ai-enrichment**: 180s for multiple model initialization
+- **ai-gateway**: 180s — Triton initializes its full model set before `/health` passes
+- **ai-llm**: 300s — Nemotron is the largest model and takes the longest to load
 
 ## Resource Limits
 
@@ -250,19 +207,23 @@ AI services have longer start periods due to model loading:
 | ----------------- | --------- | ------------ |
 | postgres          | 2         | 1G           |
 | redis             | 1         | 512M         |
-| backend           | 2         | 4G           |
+| backend           | 2         | 10G          |
 | frontend          | 1         | 512M         |
+| ai-gateway        | 8         | 20G          |
+| ai-llm            | 4         | 12G          |
 | prometheus        | 1         | 512M         |
-| grafana           | 1         | 256M         |
+| grafana           | 1         | 512M         |
+| tempo             | 1         | 1G           |
 | alertmanager      | 0.5       | 128M         |
-| loki              | 0.25      | 512M         |
+| loki              | 0.25      | 1G           |
 | pyroscope         | 0.25      | 512M         |
 | alloy             | 0.5       | 768M         |
 | redis-exporter    | 0.5       | 64M          |
 | json-exporter     | 0.5       | 64M          |
 | blackbox-exporter | 0.5       | 64M          |
 
-**Note:** AI services (ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment) do not have CPU/memory limits to allow full GPU utilization.
+**Note:** `ai-llm-vllm` (the optional vLLM alternative) is capped at 4 CPUs / 24G. GPU inference workloads
+are bounded by VRAM, not CPU limits — the compose caps above leave headroom for host overhead.
 
 ## Service Dependencies
 
@@ -272,18 +233,22 @@ AI services have longer start periods due to model loading:
 
 ![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
-**Source:** `docker-compose.prod.yml:353-376`
+**Source:** `docker-compose.prod.yml:499-513` (backend `depends_on`)
 
 ```yaml
 # Backend startup order
 depends_on:
+  foscam-init:
+    condition: service_completed_successfully
   postgres:
     condition: service_healthy
   redis:
     condition: service_healthy
-  ai-yolo26:
-    condition: service_healthy
   ai-llm:
+    condition: service_healthy
+  ai-gateway:
+    condition: service_healthy
+  go2rtc:
     condition: service_healthy
 ```
 
@@ -291,7 +256,7 @@ depends_on:
 flowchart LR
     PG["postgres"] --> BE["backend"]
     RD["redis"] --> BE
-    DET["ai-yolo26"] --> BE
+    GW["ai-gateway"] --> BE
     LLM["ai-llm"] --> BE
     BE --> FE["frontend"]
     PROM["prometheus"] --> GRAF["grafana"]
@@ -325,4 +290,4 @@ docker compose -f docker-compose.prod.yml build --no-cache backend
 
 - [Configuration](configuration.md) - Environment variables and settings
 - [Design Decisions](design-decisions.md) - Why containerized deployment
-- [Architecture Overview](/docs/architecture/overview.md) - System design
+- [Architecture Overview](/architecture/overview.md) - System design

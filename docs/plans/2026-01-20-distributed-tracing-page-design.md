@@ -1,5 +1,7 @@
 # Distributed Tracing Page Design
 
+> **Status:** Implemented — `frontend/src/components/tracing/TracingPage.tsx`; its Jaeger links now point at Grafana/Tempo.
+
 **Date:** 2026-01-20
 **Status:** Approved
 **Author:** Claude (with Mike Svoboda)

@@ -28,6 +28,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_redis_optional
+from backend.api.middleware.setup_guard import invalidate_setup_cache
 from backend.api.schemas.auth import (
     APIKeyCreateRequest,
     APIKeyCreateResponse,
@@ -207,6 +208,11 @@ async def register_user(
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # The users table just became non-empty; drop the SetupGuard's cached
+    # "setup required" verdict so the new admin's immediate login is not
+    # 503'd until the guard's TTL expires.
+    invalidate_setup_cache()
 
     logger.info(
         "First admin user registered",

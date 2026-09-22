@@ -172,7 +172,7 @@ docs/
 ├── discoveries/                 # NEM-tagged discovery notes
 ├── examples/                    # Prompt-engineering examples
 ├── archive/                     # Historical point-in-time reports, snapshots &
-│                                #   NEM investigations (see archive/README.md)
+│                                #   NEM investigations (see archive/AGENTS.md)
 ├── research/                    # Numbered research studies
 ├── stylesheets/                 # MkDocs custom CSS
 └── superpowers/                 # Agent handoff/plan documents

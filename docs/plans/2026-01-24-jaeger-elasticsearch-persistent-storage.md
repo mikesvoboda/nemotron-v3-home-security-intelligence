@@ -1,5 +1,7 @@
 # Jaeger Elasticsearch Persistent Storage Implementation Plan
 
+> **Status:** Superseded — Jaeger and Elasticsearch were replaced by Grafana Tempo (`tempo` service in `docker-compose.prod.yml`); this plan was never executed as written.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Configure Jaeger with Elasticsearch backend for persistent trace storage with 30-day retention.

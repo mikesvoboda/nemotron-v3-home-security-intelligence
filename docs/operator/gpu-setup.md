@@ -284,60 +284,62 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nv
 
 The project's production compose file already includes GPU configuration:
 
+Excerpt from `docker-compose.prod.yml` (only the GPU parts):
+
 ```yaml
 services:
-  ai-yolo26:
-    build:
-      context: ./ai/yolo26
-      dockerfile: Dockerfile
+  ai-gateway:
+    devices:
+      - nvidia.com/gpu=all # all /dev/nvidiaN nodes must exist
+    environment:
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1} # then restrict inside
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ['${GPU_AI_SERVICES:-1}']
               capabilities: [gpu]
 
   ai-llm:
-    build:
-      context: ./ai/nemotron
-      dockerfile: Dockerfile
+    devices:
+      - nvidia.com/gpu=${GPU_LLM:-0}
+    environment:
+      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              device_ids: ['${GPU_LLM:-0}']
               capabilities: [gpu]
 ```
 
 **Key settings:**
 
-| Setting        | Value  | Description                             |
-| -------------- | ------ | --------------------------------------- |
-| `driver`       | nvidia | Use NVIDIA runtime                      |
-| `count`        | 1      | Number of GPUs (use `all` for all GPUs) |
-| `capabilities` | [gpu]  | Request GPU compute capability          |
+| Setting        | Value  | Description                                           |
+| -------------- | ------ | ----------------------------------------------------- |
+| `driver`       | nvidia | Use NVIDIA runtime                                    |
+| `device_ids`   | …      | Specific GPU indices (use `count: all` for every GPU) |
+| `capabilities` | [gpu]  | Request GPU compute capability                        |
 
-### Podman Compose
+### Podman Compose (CDI devices)
 
-For Podman with CDI, modify the compose file:
+Podman rootless GPU access goes through CDI. The gateway passes **all** GPUs and
+then narrows with `CUDA_VISIBLE_DEVICES`, because `nvidia.com/gpu=N` alone creates
+only `/dev/nvidiaN` and CUDA expects `/dev/nvidia0` for the first visible device:
 
 ```yaml
 services:
-  ai-yolo26:
-    build:
-      context: ./ai/yolo26
-      dockerfile: Dockerfile
+  ai-gateway:
     devices:
       - nvidia.com/gpu=all
+    environment:
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
 
   ai-llm:
-    build:
-      context: ./ai/nemotron
-      dockerfile: Dockerfile
     devices:
-      - nvidia.com/gpu=all
+      - nvidia.com/gpu=${GPU_LLM:-0}
 ```
 
 ### Environment Variables
@@ -361,14 +363,18 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 ### Per-Service Requirements
 
-| Service             | Base VRAM   | Peak VRAM   | Notes                      |
-| ------------------- | ----------- | ----------- | -------------------------- |
-| YOLO26              | ~3.5GB      | ~4.5GB      | Spikes during batch detect |
-| Nemotron-3-Nano-30B | ~14.7GB     | ~15.5GB     | Production, 128K context   |
-| Nemotron Mini 4B    | ~2.8GB      | ~3.2GB      | Development only           |
-| CUDA Context        | ~300MB      | ~500MB      | Per-process overhead       |
-| **Total (prod)**    | **~18.5GB** | **~20.5GB** | Both services concurrent   |
-| **Total (dev)**     | **~7GB**    | **~8GB**    | Using Mini 4B              |
+Two containers touch the GPUs in production. Figures are from the model manifest
+(`models.yml` `vram_mb`) plus per-process CUDA context overhead.
+
+| Container    | GPU                   | What is resident                                                                        | Base VRAM | Peak VRAM |
+| ------------ | --------------------- | --------------------------------------------------------------------------------------- | --------- | --------- |
+| `ai-llm`     | `GPU_LLM` (0)         | Nemotron-3-Nano-30B Q4_K_M                                                              | ~14.7GB   | ~15.5GB   |
+| `ai-gateway` | `GPU_AI_SERVICES` (1) | YOLO26 (~2GB), Florence-2-base (~1.5GB), SigLIP 2 (~200MB), enrichment models on demand | ~4GB      | ~6GB      |
+| CUDA context | each                  | Per-process overhead                                                                    | ~300MB    | ~500MB    |
+
+With the default two-GPU split the peaks land on separate cards: GPU 0 needs
+~16GB, GPU 1 needs ~6GB. On a single GPU you need both sums (~22GB) plus headroom,
+which is why `GPU_LAYERS=auto` offloads LLM layers to CPU on 8-12GB cards.
 
 ### Monitoring VRAM Usage
 
@@ -422,12 +428,12 @@ nvidia-smi dmon -s m -d 1
 3. **Restart AI services:**
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-yolo26 ai-llm
+   podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm
    ```
 
 4. **Use smaller model quantization:**
 
-   Edit `ai/start_llm.sh` to use Q4_K_S instead of Q4_K_M (saves ~500MB).
+   Point `LLM_MODEL_PATH` in `.env` at a Q4_K_S GGUF instead of Q4_K_M (saves ~500MB).
 
 5. **Close GPU-accelerated applications:**
 
@@ -456,46 +462,38 @@ GPU 1: NVIDIA RTX 3090 (UUID: GPU-def456...)
 
 ### Assign GPUs to Services
 
-**Option 1: Docker Compose with device_ids:**
-
-```yaml
-services:
-  ai-yolo26:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['0'] # Use GPU 0
-              capabilities: [gpu]
-
-  ai-llm:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: ['1'] # Use GPU 1
-              capabilities: [gpu]
-```
-
-**Option 2: Environment variable:**
-
-```yaml
-services:
-  ai-yolo26:
-    environment:
-      - CUDA_VISIBLE_DEVICES=0
-
-  ai-llm:
-    environment:
-      - CUDA_VISIBLE_DEVICES=1
-```
-
-**Option 3: Native services:**
+There are only two GPU consumers, so placement is two `.env` variables — no compose
+edit needed:
 
 ```bash
-# Terminal 1: YOLO26 on GPU 0
+# .env
+GPU_LLM=0          # GPU for ai-llm (Nemotron) — pick the high-VRAM card
+GPU_AI_SERVICES=1  # GPU for ai-gateway (YOLO26, Florence-2, CLIP, enrichment)
+```
+
+`docker-compose.prod.yml` threads both into `devices:`, `CUDA_VISIBLE_DEVICES` and
+`deploy.resources.reservations.devices[].device_ids`, so changing `.env` and
+recreating the containers is the whole procedure:
+
+```bash
+podman compose -f docker-compose.prod.yml up -d --force-recreate ai-llm ai-gateway
+```
+
+To run both on one GPU, set `GPU_LLM` and `GPU_AI_SERVICES` to the same index and
+lower `GPU_LAYERS` so the LLM offloads part of itself to CPU.
+
+Per-model execution mode inside the gateway comes from `models.yml`: each model's
+`triton_kind` (`KIND_GPU`, `KIND_CPU` or `KIND_MODEL`) is written into its Triton
+`config.pbtxt` `instance_group` at container start by
+`ai/gateway/patch_triton_configs.py`, and any model with a `device_env_var`
+(for example `FLORENCE_DEVICE`) gets that variable exported by
+`ai/gateway/entrypoint.sh`. Everything runs on the single GPU named by
+`GPU_AI_SERVICES` unless you change one of those.
+
+**Native (host) services:**
+
+```bash
+# Terminal 1: gateway/detector on GPU 0
 CUDA_VISIBLE_DEVICES=0 ./ai/start_detector.sh
 
 # Terminal 2: Nemotron on GPU 1
@@ -506,7 +504,7 @@ CUDA_VISIBLE_DEVICES=1 ./ai/start_llm.sh
 
 For high-throughput deployments:
 
-- Run multiple YOLO26 instances across GPUs
+- Raise the Triton `instance_group` count for a model in `models.yml` to run several copies on one GPU
 - Use a load balancer (nginx, HAProxy) to distribute requests
 - Monitor per-GPU utilization to balance load
 
@@ -658,9 +656,14 @@ nvcc --version
 **Diagnosis:**
 
 ```bash
-# Check YOLO26 device
-curl http://localhost:8095/health | jq .device
-# Should return "cuda:0", not "cpu"
+# Confirm the Triton model is loaded and served from the GPU
+curl http://localhost:8090/yolo26/health | jq .
+# {"status":"healthy","model":"yolo26","model_loaded":true}
+
+# Confirm the model registered as KIND_GPU (not KIND_CPU) — Triton's own
+# control port is container-internal 8000; only its metrics port 8002 is published
+podman exec ai-gateway curl -s http://localhost:8000/v2/models/yolo26/config | jq .instance_group
+curl -s http://localhost:8002/metrics | grep -c triton_   # published metrics port
 
 # Check GPU utilization during inference
 nvidia-smi -l 1
@@ -671,7 +674,7 @@ nvidia-smi -l 1
 1. **Verify CUDA in container:**
 
    ```bash
-   docker exec <container> python3 -c "import torch; print(torch.cuda.is_available())"
+   podman exec ai-gateway python3 -c "import torch; print(torch.cuda.is_available())"
    ```
 
 2. **Rebuild llama.cpp with CUDA:**
@@ -684,9 +687,11 @@ nvidia-smi -l 1
    sudo install -m 755 llama-server /usr/local/bin/
    ```
 
-3. **Verify `--n-gpu-layers` flag:**
+3. **Check the `--n-gpu-layers` value:**
 
-   Nemotron startup should include `--n-gpu-layers 99` to load all layers on GPU.
+   `ai/nemotron/Dockerfile` passes `--n-gpu-layers ${GPU_LAYERS}`. `.env` defaults
+   `GPU_LAYERS=auto` (llama.cpp picks the count that fits free VRAM); set a number
+   such as `999` to force every layer onto the GPU.
 
 ---
 
@@ -704,7 +709,7 @@ docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 
 # AI services healthy?
-curl http://localhost:8095/health | jq .  # YOLO26
+curl http://localhost:8090/health | jq .  # ai-gateway (Triton aggregate)
 curl http://localhost:8091/health         # Nemotron
 
 # VRAM usage?

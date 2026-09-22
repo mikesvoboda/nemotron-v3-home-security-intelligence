@@ -1,10 +1,19 @@
 # API Coverage Documentation
 
+> **STATUS (2026-09-22): the per-endpoint mapping tables below are stale.**
+> Many listed endpoints (e.g. `/api/detections/aggregate`,
+> `/api/analytics/events`, `/api/metrics/slis`, `/api/zones` GET/POST) do not
+> exist in the current OpenAPI spec, and many named consumers (e.g.
+> `RiskGauge.tsx`, `SLIMonitor.tsx`, `DLQMonitor.tsx`) are not current
+> frontend files. Regenerate this mapping from
+> `./scripts/check-api-coverage.sh` against `docs/openapi.json` before
+> trusting any individual row.
+
 ## Overview
 
 This document maps all backend API endpoints to their frontend consumers, ensuring complete API coverage and identifying any unused endpoints.
 
-**Total Endpoints:** 142 (from OpenAPI spec)
+**Total Endpoints:** 387 paths in `docs/openapi.json` (regenerate with `./scripts/generate-types.sh`)
 
 ## Generation & Validation
 
@@ -149,13 +158,19 @@ Interactive documentation is available at runtime:
 
 ### WebSocket
 
-| Route | Consumer(s)                                     | Purpose                                           |
-| ----- | ----------------------------------------------- | ------------------------------------------------- |
-| `/ws` | `useWebSocket.ts`, `useRealtimeSubscription.ts` | Real-time updates (events, detections, GPU stats) |
+| Route                    | Purpose                     |
+| ------------------------ | --------------------------- |
+| `/ws/events`             | Real-time event updates     |
+| `/ws/system`             | System health and GPU stats |
+| `/ws/detections`         | Real-time detection updates |
+| `/ws/jobs/{job_id}/logs` | Job log streaming           |
+
+(WebSocket routes are defined in `backend/api/routes/websocket.py` and are
+not listed in the OpenAPI spec.)
 
 ### WebSocket Message Contracts
 
-See `docs/WEBSOCKET_CONTRACTS.md` for detailed WebSocket message format specifications.
+See [WebSocket Contracts](websocket-contracts.md) for detailed WebSocket message format specifications.
 
 ### Dead Letter Queue (DLQ) Management
 
@@ -169,8 +184,10 @@ See `docs/WEBSOCKET_CONTRACTS.md` for detailed WebSocket message format specific
 
 **Queue Names:**
 
-- `dlq:detection` - Failed detection processing jobs
-- `dlq:analysis` - Failed analysis processing jobs
+- `dlq:detection_queue` - Failed detection processing jobs
+- `dlq:analysis_queue` - Failed analysis processing jobs
+
+(Names per `backend/core/constants.py` — `DLQ_PREFIX = "dlq:"` + queue.)
 
 **Authentication:** Destructive operations (requeue, clear) require API key via `X-API-Key` header or `api_key` query parameter when `api_key_enabled` is true.
 
@@ -185,12 +202,12 @@ Endpoints defined in backend but not yet consumed by frontend (intentional or fu
 
 ## Coverage Reports
 
-### Latest Validation
+### Validation Status
 
-- **Total Endpoints:** 151
-- **Documented Categories:** 20
-- **Last Updated:** 2026-01-28
-- **CI Status:** Passing
+- **OpenAPI surface:** 387 paths / 469 operations in `docs/openapi.json`
+- **Mapping tables:** STALE — regenerate before use (see status banner above)
+- **CI:** `./scripts/check-api-coverage.sh` runs on every PR; current run
+  status is in the Checks tab of each PR
 
 Run locally:
 

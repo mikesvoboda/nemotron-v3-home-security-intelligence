@@ -6,7 +6,7 @@ Distributed tracing dashboard for tracking requests through the AI pipeline.
 
 ## What You're Looking At
 
-The Distributed Tracing page provides end-to-end visibility into how requests flow through the security monitoring pipeline. Powered by Jaeger and visualized through Grafana, this page helps you understand latency, identify bottlenecks, and debug issues across services.
+The Distributed Tracing page provides end-to-end visibility into how requests flow through the security monitoring pipeline. Traces are collected by Alloy, stored in **Tempo** (there is no Jaeger container in `docker-compose.prod.yml`), and visualized through an embedded Grafana dashboard. The page helps you understand latency, identify bottlenecks, and debug issues.
 
 ### Layout Overview
 
@@ -53,11 +53,11 @@ The page embeds the HSI Distributed Tracing dashboard from Grafana, which provid
 
 ### Header Controls
 
-| Button              | Function                                                            |
-| ------------------- | ------------------------------------------------------------------- |
-| **Open in Grafana** | Opens the full Grafana dashboard in a new tab for advanced features |
-| **Open Jaeger**     | Opens the native Jaeger UI at `localhost:16686`                     |
-| **Refresh**         | Reloads the embedded dashboard                                      |
+| Button              | Function                                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Open in Grafana** | Opens the full Grafana dashboard in a new tab for advanced features                                                  |
+| **Open Jaeger**     | Links to `http://localhost:16686` — dead link as shipped: no Jaeger runs in the compose stack (traces live in Tempo) |
+| **Refresh**         | Reloads the embedded dashboard                                                                                       |
 
 ### Understanding Traces
 
@@ -112,14 +112,14 @@ Click a span to see detailed information:
 
 ### Service Identification
 
-Traces are tagged with service names:
+Traces carry the instrumenting service's name — today only the backend exports spans, under
+`OTEL_SERVICE_NAME` (compose default `nemotron-backend`). AI services are not instrumented, so
+`detect`/`analyze` steps show up as child spans or client-call spans inside the backend trace,
+not as separate services:
 
-| Service          | Description     | Typical Operations                  |
-| ---------------- | --------------- | ----------------------------------- |
-| **hsi-backend**  | FastAPI backend | API requests, batch processing      |
-| **hsi-yolo26**   | YOLO26 detector | Object detection, image processing  |
-| **hsi-nemotron** | Nemotron LLM    | Risk analysis, prompt processing    |
-| **hsi-frontend** | React frontend  | User interactions (if instrumented) |
+| Service              | Description     | Typical Operations                              |
+| -------------------- | --------------- | ----------------------------------------------- |
+| **nemotron-backend** | FastAPI backend | API requests, batch processing, AI client calls |
 
 ## Understanding the AI Pipeline
 
@@ -220,11 +220,14 @@ If traces seem incomplete:
 
 ### Trace to Logs
 
-Click "View Logs" in a span to see correlated log entries:
+The Tempo datasource is provisioned with `tracesToLogsV2` pointing at Loki with
+`filterByTraceID: true` (`monitoring/grafana/provisioning/datasources/prometheus.yml`), so in
+Grafana Explore a span links to Loki logs from the same service and time range:
 
-1. Logs are filtered to the span's time range
-2. Log entries include the trace ID for cross-reference
-3. Use this to see detailed debug output during the span
+1. Open the trace in Grafana Explore (use **Open in Grafana**, not the kiosk embed)
+2. Select a span and use the "Logs" / "Logs for your project" link on the span
+3. Loki shows entries filtered to the span's time range
+4. Backend log lines carry the trace ID for manual cross-reference (`OTEL_ENABLED=true` in compose)
 
 ### Trace to Profiling
 
@@ -254,50 +257,54 @@ The Grafana URL is automatically configured from the backend. If the embedded da
 2. Check the `grafana_url` config setting
 3. Verify network connectivity
 
-### Jaeger Configuration
+### Tempo Configuration
 
-Jaeger must be configured as a data source in Grafana:
+Tempo is provisioned as the tracing data source in Grafana:
 
 ```yaml
 # Grafana provisioning (monitoring/grafana/provisioning/datasources/prometheus.yml)
-- name: Jaeger
-  type: jaeger
-  url: http://jaeger:16686
+- name: Tempo
+  uid: tempo
+  type: tempo
+  url: http://tempo:3200
   access: proxy
 ```
 
+The Tempo container listens on `127.0.0.1:${TEMPO_PORT:-3200}` on the host (OTLP gRPC on
+`${TEMPO_OTLP_GRPC:-4317}`).
+
 ### Sampling
 
-Trace sampling is configured per-service:
+Sampling is configured on the backend via environment variables (see
+`backend/core/telemetry.py`; in compose the backend sets `OTEL_ENABLED=true`,
+`OTEL_SERVICE_NAME=nemotron-backend`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317`):
 
-| Setting       | Default | Description                               |
-| ------------- | ------- | ----------------------------------------- |
-| Sample Rate   | 1.0     | Percentage of traces to keep (1.0 = 100%) |
-| Rate Limiting | None    | Max traces per second                     |
+| Setting                  | Default | Description                               |
+| ------------------------ | ------- | ----------------------------------------- |
+| `OTEL_TRACE_SAMPLE_RATE` | 1.0     | Percentage of traces to keep (1.0 = 100%) |
 
-For production, consider reducing sampling to 10-20% to reduce storage.
+For production, consider lowering it to 0.1-0.2 (keep 10-20% of traces) to reduce storage.
 
 ### Retention
 
-Trace data retention is configured in Jaeger:
+Trace retention lives in Tempo's config, not Jaeger's (`monitoring/tempo/tempo-config.yml`):
 
-| Setting          | Default   | Description              |
-| ---------------- | --------- | ------------------------ |
-| Retention Period | 7 days    | How long traces are kept |
-| Max Traces       | Unlimited | Maximum traces to store  |
+| Setting           | Default        | Description                    |
+| ----------------- | -------------- | ------------------------------ |
+| `block_retention` | 720h (30 days) | How long trace blocks are kept |
 
 ## Troubleshooting
 
 ### Dashboard Shows "No Data"
 
-1. **Check Jaeger is running**: `docker ps | grep jaeger`
-2. **Verify services are instrumented**: Check OpenTelemetry configuration
+1. **Check Tempo and Alloy are running**: `podman ps -a --filter name=tempo --filter name=alloy`
+2. **Verify tracing is enabled**: `OTEL_ENABLED=true` on the backend (compose default)
 3. **Check time range**: Ensure the selected time range has traces
-4. **Verify datasource**: Confirm Jaeger is configured in Grafana
+4. **Verify datasource**: The `tempo` datasource is provisioned automatically in Grafana
 
 ### Traces are Missing Spans
 
-1. **Check service connectivity**: Ensure all services can reach Jaeger
+1. **Check service connectivity**: Ensure the backend can reach Alloy (`OTEL_EXPORTER_OTLP_ENDPOINT`, compose default `http://alloy:4317`)
 2. **Verify trace propagation**: Check that trace headers are passed between services
 3. **Check sampling**: Traces might be sampled out
 
@@ -321,17 +328,19 @@ The frontend couldn't fetch the Grafana URL:
 
 ### Architecture
 
+Only the backend exports spans today (`backend/core/telemetry.py`); the AI services are not
+OpenTelemetry-instrumented, so AI-side latency appears as time inside the backend's outbound
+call spans.
+
 ```mermaid
 flowchart LR
     subgraph Services["Instrumented Services"]
         B[Backend]
-        R[YOLO26]
-        N[Nemotron]
     end
 
     subgraph Collection["Trace Collection"]
-        A[Alloy]
-        J[Jaeger]
+        A[Alloy :4317]
+        T[Tempo :3200]
     end
 
     subgraph Visualization["Visualization"]
@@ -339,11 +348,9 @@ flowchart LR
         F[Frontend]
     end
 
-    B -->|OTLP| A
-    R -->|OTLP| A
-    N -->|OTLP| A
-    A -->|push| J
-    J -->|query| G
+    B -->|"OTLP (http://alloy:4317)"| A
+    A -->|"otelcol.exporter.otlp → tempo:4317"| T
+    T -->|query| G
     G -->|iframe| F
 
     style Services fill:#e0f2fe
@@ -364,9 +371,9 @@ flowchart LR
 
 **Infrastructure:**
 
-- Jaeger Container: `docker-compose.prod.yml` (jaeger service)
-- Grafana Dashboard: `monitoring/grafana/dashboards/tracing.json`
-- Alloy Configuration: `monitoring/alloy/config.alloy`
+- Tempo Container: `docker-compose.prod.yml` (tempo service) + `monitoring/tempo/tempo-config.yml`
+- Grafana Dashboard: `monitoring/grafana/dashboards/tracing.json` (uid `hsi-tracing`)
+- Alloy Configuration: `monitoring/alloy/config.alloy` (OTLP receiver → Tempo exporter)
 
 ### OpenTelemetry Integration
 
@@ -409,11 +416,11 @@ tracestate: vendor=value
 
 ### Common Actions
 
-| I want to...           | Do this...                          |
-| ---------------------- | ----------------------------------- |
-| Find slow requests     | Sort by duration, click longest     |
-| Find errors            | Filter by `error=true`              |
-| See request flow       | Expand trace to see all spans       |
-| Debug a specific event | Search by time range of event       |
-| Compare performance    | Select two traces, use compare view |
-| Get more details       | Open in Jaeger for full UI          |
+| I want to...           | Do this...                                 |
+| ---------------------- | ------------------------------------------ |
+| Find slow requests     | Sort by duration, click longest            |
+| Find errors            | Filter by `error=true`                     |
+| See request flow       | Expand trace to see all spans              |
+| Debug a specific event | Search by time range of event              |
+| Compare performance    | Select two traces, use compare view        |
+| Get more details       | Open in Grafana Explore (Tempo datasource) |

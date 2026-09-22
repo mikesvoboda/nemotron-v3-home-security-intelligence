@@ -83,13 +83,12 @@ sequenceDiagram
     Note over D: Job awaits manual review
 ```
 
-| Setting          | Default | Description                                |
-| ---------------- | ------- | ------------------------------------------ |
-| Max Retries      | 3       | Number of attempts before DLQ              |
-| Base Delay       | 1s      | Initial delay between retries              |
-| Max Delay        | 30s     | Maximum delay between retries              |
-| Exponential Base | 2.0     | Multiplier for delay (1s, 2s, 4s...)       |
-| Jitter           | 0-25%   | Random variance to prevent thundering herd |
+| Setting     | Default | Description                                                                     |
+| ----------- | ------- | ------------------------------------------------------------------------------- |
+| Max Retries | 3       | `DETECTOR_MAX_RETRIES` / `NEMOTRON_MAX_RETRIES` — attempts before DLQ           |
+| Backoff     | 2^n s   | Exponential delay: 1s, 2s, 4s…                                                  |
+| Max Delay   | 30s     | Backoff cap (hardcoded in the AI clients)                                       |
+| Jitter      | none    | Detector/Nemotron clients retry without jitter; the enrichment client uses ±10% |
 
 ---
 
@@ -306,7 +305,8 @@ The DLQ has circuit breaker protection to prevent cascading failures when Redis 
 | `DLQ_CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | 1-10       | Maximum test calls allowed when circuit is half-open                   |
 | `DLQ_CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | 1-10       | Successful DLQ writes needed to close circuit from half-open state     |
 
-These settings are defined in `backend/core/config.py` (lines 1596-1619) and can be overridden via environment variables.
+These settings are defined in `backend/core/config.py` (`dlq_circuit_breaker_*` fields) and
+can be overridden via environment variables.
 
 When the circuit is open, check logs for `CRITICAL DATA LOSS` entries.
 

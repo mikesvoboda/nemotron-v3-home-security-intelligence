@@ -1,5 +1,7 @@
 # Comprehensive Scene OCR for Nemotron Context Enrichment
 
+> **Status:** Implemented — see `backend/services/scene_ocr_service.py` and the `scene-ocr` Grafana dashboard.
+
 **Date:** 2026-02-04
 **Status:** Design Complete
 **Author:** Mike Svoboda + Claude

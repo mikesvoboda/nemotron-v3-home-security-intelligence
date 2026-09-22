@@ -59,4 +59,4 @@ This directory contains monitoring documentation for operators, covering health 
 - **Deployment**: [Deployment Guide](../deployment/README.md)
 - **Administration**: [Admin Guide](../admin/README.md)
 - **Architecture**: [System Architecture](../../architecture/README.md)
-- **Prometheus Stack**: Enable with `docker compose --profile monitoring`
+- **Prometheus Stack**: Runs by default in `docker-compose.prod.yml` (no profile needed) — `podman compose -f docker-compose.prod.yml up -d`

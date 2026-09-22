@@ -53,7 +53,7 @@ import { ErrorBoundary } from '@/components/common';
 - Backend error logging (NEM-2725)
 - Sentry integration (when enabled)
 - "Try Again" and "Refresh Page" recovery options
-- Component stack display in development mode
+- Component stack captured in the error report
 
 ---
 
@@ -205,10 +205,9 @@ const LazyPage = lazy(() => import('./pages/Dashboard'));
 
 ### Features
 
-- Only catches chunk/module loading errors
+- Only catches chunk/module loading errors (`isChunkLoadError` filter)
 - Re-throws other errors to parent boundaries
-- Provides "Reload Page" recovery button
-- Shows error details in development mode
+- Provides a "Reload Page" recovery button
 
 ---
 

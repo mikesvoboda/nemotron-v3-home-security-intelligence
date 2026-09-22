@@ -127,7 +127,9 @@ The system exposes three WebSocket endpoints for real-time updates.
 
 ### Channel Overview
 
---8<-- "docs/\_includes/websocket-channels.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/websocket-channels.md"
+<!-- prettier-ignore-end -->
 
 ### Events Channel (`/ws/events`)
 
@@ -969,7 +971,7 @@ Array of container health statuses:
   { "name": "frontend", "status": "running", "health": "healthy" },
   { "name": "postgres", "status": "running", "health": "healthy" },
   { "name": "redis", "status": "running", "health": "healthy" },
-  { "name": "ai-yolo26", "status": "running", "health": "healthy" },
+  { "name": "ai-gateway", "status": "running", "health": "healthy" },
   { "name": "ai-llm", "status": "running", "health": "healthy" }
 ]
 ```
@@ -1087,7 +1089,7 @@ Array of alerts when metrics exceed configured thresholds:
       { "name": "frontend", "status": "running", "health": "healthy" },
       { "name": "postgres", "status": "running", "health": "healthy" },
       { "name": "redis", "status": "running", "health": "healthy" },
-      { "name": "ai-yolo26", "status": "running", "health": "healthy" },
+      { "name": "ai-gateway", "status": "running", "health": "healthy" },
       { "name": "ai-llm", "status": "running", "health": "healthy" }
     ],
     "alerts": []

@@ -1,5 +1,7 @@
 # Unit Test Context: AI Gateway Centralized Configuration Infrastructure
 
+> **Status:** Implemented — tests exist in `ai/gateway/tests/`.
+
 This document provides context for implementing unit tests for the centralized Triton configuration infrastructure (models.yml → patch_triton_configs.py → config.pbtxt).
 
 ---
@@ -8,12 +10,12 @@ This document provides context for implementing unit tests for the centralized T
 
 ### Components
 
-| Component | Path | Role |
-|-----------|------|------|
-| **models.yml** | `models.yml` (project root) | Single source of truth for `triton_name`, `triton_kind`, `device`, `device_env_var` |
-| **patch_triton_configs.py** | `ai/gateway/patch_triton_configs.py` | Rewrites `instance_group` in each Triton `config.pbtxt` at container startup |
-| **entrypoint.sh** | `ai/gateway/entrypoint.sh` | Exports device env vars, runs patch script, symlinks models, starts Triton |
-| **config.pbtxt** | `ai/triton/model_repository/<model>/config.pbtxt` | Triton model configs (15 models) |
+| Component                   | Path                                              | Role                                                                                |
+| --------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **models.yml**              | `models.yml` (project root)                       | Single source of truth for `triton_name`, `triton_kind`, `device`, `device_env_var` |
+| **patch_triton_configs.py** | `ai/gateway/patch_triton_configs.py`              | Rewrites `instance_group` in each Triton `config.pbtxt` at container startup        |
+| **entrypoint.sh**           | `ai/gateway/entrypoint.sh`                        | Exports device env vars, runs patch script, symlinks models, starts Triton          |
+| **config.pbtxt**            | `ai/triton/model_repository/<model>/config.pbtxt` | Triton model configs (15 models)                                                    |
 
 ### Data Flow
 
@@ -42,10 +44,11 @@ models.yml
 
 ### Where to Place New Tests
 
-**Recommended**: `ai/gateway/tests/test_patch_triton_configs.py`  
-- `ai/gateway/tests/` already exists (has `__init__.py`)  
-- `pyproject.toml` testpaths include `ai/*/tests` — tests are auto-discovered  
-- Colocated with `ai/gateway/patch_triton_configs.py`  
+**Recommended**: `ai/gateway/tests/test_patch_triton_configs.py`
+
+- `ai/gateway/tests/` already exists (has `__init__.py`)
+- `pyproject.toml` testpaths include `ai/*/tests` — tests are auto-discovered
+- Colocated with `ai/gateway/patch_triton_configs.py`
 - Import: `from ai.gateway.patch_triton_configs import set_instance_group, collect_triton_configs, main`
 
 ---
@@ -56,18 +59,18 @@ models.yml
 
 **Pure function** — no I/O, ideal for unit tests.
 
-| Scenario | Input | Expected |
-|----------|-------|----------|
-| **KIND_GPU** — CPU→GPU promotion | `kind: KIND_CPU` | `kind: KIND_GPU` + `gpus: [ 0 ]` inserted after kind |
-| **KIND_GPU** — count normalization | `count: 2` | `count: 1` |
-| **KIND_GPU** — remove parameters block | `parameters { key: "intra_op_thread_count" ... }` | Block omitted |
-| **KIND_GPU** — drop existing gpus line | `gpus: [ 0 ]` (duplicate) | Single `gpus: [ 0 ]` (no duplicate) |
-| **KIND_CPU** — leave count unchanged | `count: 2` | `count: 2` |
-| **KIND_CPU** — remove gpus line | `gpus: [ 0 ]` | Line removed |
-| **KIND_CPU** — preserve parameters block | `parameters { ... }` | Block preserved |
-| **Idempotent** | Already correct KIND_GPU | No change |
-| **Comment preservation** | `kind: KIND_CPU  # 14MB model` | `kind: KIND_CPU  # 14MB model` (comment kept) |
-| **Nested parameters** | `parameters { key: "x" value: { string_value: "y" } }` | Correct depth tracking, block removed for GPU |
+| Scenario                                 | Input                                                  | Expected                                             |
+| ---------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------- |
+| **KIND_GPU** — CPU→GPU promotion         | `kind: KIND_CPU`                                       | `kind: KIND_GPU` + `gpus: [ 0 ]` inserted after kind |
+| **KIND_GPU** — count normalization       | `count: 2`                                             | `count: 1`                                           |
+| **KIND_GPU** — remove parameters block   | `parameters { key: "intra_op_thread_count" ... }`      | Block omitted                                        |
+| **KIND_GPU** — drop existing gpus line   | `gpus: [ 0 ]` (duplicate)                              | Single `gpus: [ 0 ]` (no duplicate)                  |
+| **KIND_CPU** — leave count unchanged     | `count: 2`                                             | `count: 2`                                           |
+| **KIND_CPU** — remove gpus line          | `gpus: [ 0 ]`                                          | Line removed                                         |
+| **KIND_CPU** — preserve parameters block | `parameters { ... }`                                   | Block preserved                                      |
+| **Idempotent**                           | Already correct KIND_GPU                               | No change                                            |
+| **Comment preservation**                 | `kind: KIND_CPU  # 14MB model`                         | `kind: KIND_CPU  # 14MB model` (comment kept)        |
+| **Nested parameters**                    | `parameters { key: "x" value: { string_value: "y" } }` | Correct depth tracking, block removed for GPU        |
 
 **Minimal config.pbtxt fixture** (sufficient for `set_instance_group`):
 
@@ -87,26 +90,26 @@ instance_group [
 
 **Pure function** — parses model list into `(triton_name, triton_kind)` pairs.
 
-| Scenario | Input | Expected |
-|----------|-------|----------|
-| **Simple form** | `{triton_name: "clip", triton_kind: "KIND_GPU"}` | `[("clip", "KIND_GPU")]` |
-| **triton_models list** | `{triton_models: [{triton_name: "clip", triton_kind: "KIND_GPU"}, {triton_name: "clip_text", triton_kind: "KIND_CPU"}]}` | `[("clip", "KIND_GPU"), ("clip_text", "KIND_CPU")]` |
-| **Both forms** | Model has both `triton_name` and `triton_models` | `triton_models` entries first, then top-level (implementation order) |
-| **Skip incomplete** | `{triton_name: "x"}` (no triton_kind) | Not included |
-| **Skip incomplete** | `{triton_kind: "KIND_GPU"}` (no triton_name) | Not included |
-| **Empty list** | `[]` | `[]` |
-| **Type coercion** | `triton_name: 123` (int) | `("123", ...)` (str) |
+| Scenario               | Input                                                                                                                    | Expected                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| **Simple form**        | `{triton_name: "clip", triton_kind: "KIND_GPU"}`                                                                         | `[("clip", "KIND_GPU")]`                                             |
+| **triton_models list** | `{triton_models: [{triton_name: "clip", triton_kind: "KIND_GPU"}, {triton_name: "clip_text", triton_kind: "KIND_CPU"}]}` | `[("clip", "KIND_GPU"), ("clip_text", "KIND_CPU")]`                  |
+| **Both forms**         | Model has both `triton_name` and `triton_models`                                                                         | `triton_models` entries first, then top-level (implementation order) |
+| **Skip incomplete**    | `{triton_name: "x"}` (no triton_kind)                                                                                    | Not included                                                         |
+| **Skip incomplete**    | `{triton_kind: "KIND_GPU"}` (no triton_name)                                                                             | Not included                                                         |
+| **Empty list**         | `[]`                                                                                                                     | `[]`                                                                 |
+| **Type coercion**      | `triton_name: 123` (int)                                                                                                 | `("123", ...)` (str)                                                 |
 
 ### 3.3 `main()` — Integration-style
 
-| Scenario | Setup | Expected |
-|----------|-------|----------|
-| **models.yml missing** | `MODELS_YAML_PATH` → non-existent file | Prints warning, returns (exit 0) |
-| **Empty models** | models.yml with no triton_name/triton_kind | Prints "No triton_name/triton_kind entries", returns |
-| **Config missing** | triton_name points to non-existent `config.pbtxt` | Prints WARN, skips, continues |
-| **Patch applied** | Config differs from models.yml | Writes file, prints "patched" |
-| **Already in sync** | Config matches models.yml | No write, prints "verified" |
-| **PyYAML missing** | `yaml` import fails | Prints to stderr, `sys.exit(0)` |
+| Scenario               | Setup                                             | Expected                                             |
+| ---------------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| **models.yml missing** | `MODELS_YAML_PATH` → non-existent file            | Prints warning, returns (exit 0)                     |
+| **Empty models**       | models.yml with no triton_name/triton_kind        | Prints "No triton_name/triton_kind entries", returns |
+| **Config missing**     | triton_name points to non-existent `config.pbtxt` | Prints WARN, skips, continues                        |
+| **Patch applied**      | Config differs from models.yml                    | Writes file, prints "patched"                        |
+| **Already in sync**    | Config matches models.yml                         | No write, prints "verified"                          |
+| **PyYAML missing**     | `yaml` import fails                               | Prints to stderr, `sys.exit(0)`                      |
 
 **Test approach**: Use `tmp_path` for a fake `TRITON_MODEL_REPOSITORY` and `MODELS_YAML_PATH`, create minimal `models.yml` and `config.pbtxt` fixtures, run `main()`, assert file contents and/or capsys.
 
@@ -116,13 +119,13 @@ instance_group [
 
 These ensure the configuration file stays consistent with the Triton model repository.
 
-| Test | Assertion |
-|------|-----------|
+| Test                                             | Assertion                                                                                               |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
 | **All triton_name map to existing config.pbtxt** | For each `triton_name` / `triton_models` entry, `ai/triton/model_repository/<name>/config.pbtxt` exists |
-| **triton_kind is valid** | Each `triton_kind` is `KIND_GPU` or `KIND_CPU` |
-| **No duplicate triton_name** | No model name appears more than once across all entries |
-| **Python backends have device + device_env_var** | Models with `device_env_var` also have `device` |
-| **triton_models entries complete** | Each item in `triton_models` has both `triton_name` and `triton_kind` |
+| **triton_kind is valid**                         | Each `triton_kind` is `KIND_GPU` or `KIND_CPU`                                                          |
+| **No duplicate triton_name**                     | No model name appears more than once across all entries                                                 |
+| **Python backends have device + device_env_var** | Models with `device_env_var` also have `device`                                                         |
+| **triton_models entries complete**               | Each item in `triton_models` has both `triton_name` and `triton_kind`                                   |
 
 **Data source**: `setup_lib.models_config.load_models_yaml()` or direct `yaml.safe_load` of `models.yml`.
 
@@ -130,10 +133,10 @@ These ensure the configuration file stays consistent with the Triton model repos
 
 ## 5. Config.pbtxt ↔ models.yml Consistency
 
-| Test | Purpose |
-|------|---------|
-| **Round-trip sync** | For each model in models.yml with triton_name/triton_kind, run `set_instance_group` on the actual config.pbtxt; assert output equals input (idempotent when already correct) |
-| **Patch then verify** | Take a config with `KIND_CPU`, patch to `KIND_GPU`, assert `kind: KIND_GPU` and `gpus: [ 0 ]` present |
+| Test                  | Purpose                                                                                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Round-trip sync**   | For each model in models.yml with triton_name/triton_kind, run `set_instance_group` on the actual config.pbtxt; assert output equals input (idempotent when already correct) |
+| **Patch then verify** | Take a config with `KIND_CPU`, patch to `KIND_GPU`, assert `kind: KIND_GPU` and `gpus: [ 0 ]` present                                                                        |
 
 ---
 
@@ -231,6 +234,6 @@ instance_group [ { count: 2
 ## 9. References
 
 - `ai/gateway/patch_triton_configs.py` — implementation
-- `models.yml` — schema and triton_* fields (lines 46–55)
+- `models.yml` — schema and triton\_\* fields (lines 46–55)
 - `backend/tests/unit/setup_lib/test_model_downloader.py` — test style
 - `setup_lib/models_config.py` — `load_models_yaml()` for validation tests

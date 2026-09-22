@@ -1114,7 +1114,6 @@ View and query application logs.
 | ------ | -------------------------- | -------------------------- |
 | GET    | `/api/logs`                | List logs                  |
 | GET    | `/api/logs/stats`          | Log statistics             |
-| GET    | `/api/logs/{id}`           | Get log entry              |
 | POST   | `/api/logs/frontend`       | Submit single frontend log |
 | POST   | `/api/logs/frontend/batch` | Submit multiple logs       |
 

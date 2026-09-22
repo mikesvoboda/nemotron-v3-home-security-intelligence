@@ -44,8 +44,8 @@ Configuration loads in this order (later sources override earlier):
 
 ```bash
 # Interactive setup (recommended)
-./setup.sh              # Quick mode
-./setup.sh --guided     # Guided mode with explanations
+python setup.py                 # Quick mode
+python setup.py --guided        # Guided mode with explanations
 
 # Manual setup
 cp .env.example .env
@@ -67,11 +67,14 @@ DATABASE_URL=postgresql+asyncpg://security:<password>@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
 # AI Services (production - compose network)
-YOLO26_URL=http://ai-yolo26:8095
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
 NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-florence:8092
-CLIP_URL=http://ai-clip:8093
-ENRICHMENT_URL=http://ai-enrichment:8094
+YOLO26_URL=http://ai-gateway:8090/yolo26
+FLORENCE_URL=http://ai-gateway:8090/florence
+CLIP_URL=http://ai-gateway:8090/clip
+ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 
 # Camera uploads
 FOSCAM_BASE_PATH=/export/foscam
@@ -111,7 +114,7 @@ RETENTION_DAYS=30
 | ----------------------- | ------- | ---------- | ------------------------ |
 | `AI_CONNECT_TIMEOUT`    | `10.0`  | 1.0-60.0   | Connection timeout (s)   |
 | `AI_HEALTH_TIMEOUT`     | `5.0`   | 1.0-30.0   | Health check timeout (s) |
-| `YOLO26_READ_TIMEOUT`   | `60.0`  | 10.0-300.0 | Detection timeout (s)    |
+| `YOLO26_READ_TIMEOUT`   | `30.0`  | 5.0-120.0  | Detection timeout (s)    |
 | `NEMOTRON_READ_TIMEOUT` | `120.0` | 30.0-600.0 | LLM timeout (s)          |
 
 ### GPU Monitoring
@@ -198,8 +201,8 @@ redis:
 
 ```bash
 # Check secrets are mounted
-docker compose -f docker-compose.prod.yml exec postgres ls -la /run/secrets/
-docker compose -f docker-compose.prod.yml exec redis ls -la /run/secrets/
+podman compose -f docker-compose.prod.yml exec postgres ls -la /run/secrets/
+podman compose -f docker-compose.prod.yml exec redis ls -la /run/secrets/
 ```
 
 ### Secret Rotation
@@ -210,10 +213,10 @@ echo "new_password" > secrets/postgres_password.txt
 chmod 600 secrets/postgres_password.txt
 
 # 2. Restart affected service
-docker compose -f docker-compose.prod.yml restart postgres
+podman compose -f docker-compose.prod.yml restart postgres
 
 # 3. Restart dependent services
-docker compose -f docker-compose.prod.yml restart backend
+podman compose -f docker-compose.prod.yml restart backend
 ```
 
 ### Secrets vs Environment Variables
@@ -232,14 +235,14 @@ docker compose -f docker-compose.prod.yml restart backend
 
 ### Default Security Posture
 
-| Feature         | Default        | Production Recommendation      |
-| --------------- | -------------- | ------------------------------ |
-| Authentication  | Disabled       | Enable for exposed deployments |
-| HTTPS/TLS       | Disabled       | Enable                         |
-| Rate Limiting   | Enabled        | Keep enabled                   |
-| Admin Endpoints | Disabled       | Keep disabled unless needed    |
-| Debug Mode      | Disabled       | Keep disabled                  |
-| CORS            | Localhost only | Restrict to your domains       |
+| Feature         | Default                                                                                                                                                                                      | Production Recommendation                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Authentication  | Single-user model: `SetupGuardMiddleware` returns 503 until the first admin registers, then API endpoints are open (per-route guards like `verify_api_key` protect admin/destructive routes) | Keep network binding to `127.0.0.1` as the primary boundary; enable API keys for anything exposed |
+| HTTPS/TLS       | Disabled                                                                                                                                                                                     | Enable                                                                                            |
+| Rate Limiting   | Enabled                                                                                                                                                                                      | Keep enabled                                                                                      |
+| Admin Endpoints | Disabled                                                                                                                                                                                     | Keep disabled unless needed                                                                       |
+| Debug Mode      | Disabled                                                                                                                                                                                     | Keep disabled                                                                                     |
+| CORS            | Localhost origins (incl. `https://localhost:8444`)                                                                                                                                           | Restrict to your domains                                                                          |
 
 ### API Key Authentication
 
@@ -292,18 +295,19 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 Only expose necessary ports:
 
-| Port      | Service     | Exposure          |
-| --------- | ----------- | ----------------- |
-| 80/443    | Frontend    | User access       |
-| 8000      | Backend API | User access       |
-| 5432      | PostgreSQL  | **Internal only** |
-| 6379      | Redis       | **Internal only** |
-| 8091-8096 | AI Services | **Internal only** |
+| Port        | Service                          | Exposure                                 |
+| ----------- | -------------------------------- | ---------------------------------------- |
+| 8080 / 8444 | Frontend (HTTP/HTTPS)            | User access                              |
+| 8000        | Backend API                      | User access (binds 127.0.0.1 by default) |
+| 5432        | PostgreSQL                       | **Internal only**                        |
+| 6379        | Redis                            | **Internal only**                        |
+| 8090, 8002  | ai-gateway (API, Triton metrics) | **Internal only**                        |
+| 8091        | ai-llm (Nemotron)                | **Internal only**                        |
 
 ```bash
 # UFW example (Linux)
-ufw allow 80/tcp
-ufw allow 443/tcp
+ufw allow 8080/tcp
+ufw allow 8444/tcp
 ufw allow 8000/tcp
 ufw deny 5432/tcp
 ufw deny 6379/tcp
@@ -343,24 +347,23 @@ POSTGRES_DB=security
 DATABASE_URL=postgresql+asyncpg://security:your-secure-generated-password@postgres:5432/security  # pragma: allowlist secret
 ```
 
-### Run Migrations
+### Schema Migrations
 
-```bash
-cd backend
-alembic upgrade head
-```
+There is **no Alembic step** — the Alembic migrations tree was removed in PR #4465. The
+schema is created/synced by `init_db()` (`Base.metadata.create_all`) on backend
+startup. See [Migrations](../../architecture/data-model/migrations.md) for the details.
 
 ### Database Operations
 
 ```bash
 # Connect to database
-docker compose exec postgres psql -U security -d security
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d security
 
 # Backup
-docker compose exec -T postgres pg_dump -U security -d security -F c > backup.dump
+podman compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security -F c > backup.dump
 
 # Restore
-docker compose exec -T postgres pg_restore -U security -d security < backup.dump
+podman compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup.dump
 ```
 
 ---
@@ -396,13 +399,13 @@ When `REDIS_PASSWORD` is set, both Redis container and backend automatically use
 
 ```bash
 # Test connection
-docker compose exec redis redis-cli ping
+podman compose -f docker-compose.prod.yml exec redis redis-cli ping
 
 # Get info
-docker compose exec redis redis-cli INFO memory
+podman compose -f docker-compose.prod.yml exec redis redis-cli INFO memory
 
 # Clear cache (WARNING: loses cached data)
-docker compose exec redis redis-cli FLUSHALL
+podman compose -f docker-compose.prod.yml exec redis redis-cli FLUSHALL
 ```
 
 ---
@@ -411,20 +414,28 @@ docker compose exec redis redis-cli FLUSHALL
 
 ### Service URLs
 
+All vision models live in the single `ai-gateway` container, so there are two base URLs;
+the per-service variables carry the **router path**, not a per-model port (the old
+8092-8096 ports no longer exist). See [Deployment Modes](../deployment-modes.md).
+
 ```bash
-# Production (docker-compose.prod.yml)
-YOLO26_URL=http://ai-yolo26:8095
+# Production (docker-compose.prod.yml defaults)
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
 NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-florence:8092
-CLIP_URL=http://ai-clip:8093
-ENRICHMENT_URL=http://ai-enrichment:8094
+YOLO26_URL=http://ai-gateway:8090/yolo26
+FLORENCE_URL=http://ai-gateway:8090/florence
+CLIP_URL=http://ai-gateway:8090/clip
+ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 
-# Development (host AI)
-YOLO26_URL=http://localhost:8095
+# Development (AI on host; gateway/router listens on host port 8090)
+AI_GATEWAY_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
+YOLO26_URL=http://localhost:8090/yolo26
 
-# Docker Desktop (macOS/Windows)
-YOLO26_URL=http://host.docker.internal:8095
+# Backend in container + AI on host (Docker Desktop macOS/Windows)
+AI_GATEWAY_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -507,18 +518,18 @@ RATE_LIMIT_ENABLED=true
 RATE_LIMIT_REQUESTS_PER_MINUTE=60
 RATE_LIMIT_BURST=10
 RATE_LIMIT_MEDIA_REQUESTS_PER_MINUTE=120
-RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=10
+RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=100
 RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE=30
 ```
 
 ### Rate Limit Tiers
 
-| Endpoint Type             | Limit/min      | Purpose                     |
-| ------------------------- | -------------- | --------------------------- |
-| General API               | 60             | Normal operations           |
-| Media (images/thumbnails) | 120            | Higher for dashboards       |
-| Search                    | 30             | Lower (expensive operation) |
-| WebSocket                 | 10 connections | Prevent connection storms   |
+| Endpoint Type             | Limit/min                   | Purpose                     |
+| ------------------------- | --------------------------- | --------------------------- |
+| General API               | 60                          | Normal operations           |
+| Media (images/thumbnails) | 120                         | Higher for dashboards       |
+| Search                    | 30                          | Lower (expensive operation) |
+| WebSocket                 | 100 connection attempts/min | Prevent connection storms   |
 
 ---
 
@@ -549,7 +560,8 @@ RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE=30
 Cleanup runs daily at 03:00.
 
 ```bash
-# Preview cleanup (dry run)
+# Preview cleanup (dry run) — the endpoint is guarded by verify_api_key, so send
+# X-API-Key when API_KEY_ENABLED=true (or your configured admin key)
 curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 
 # Execute cleanup
@@ -601,7 +613,7 @@ curl -X POST "http://localhost:8000/api/system/cleanup"
 ```bash
 DATABASE_URL=postgresql+asyncpg://security:dev_password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
-YOLO26_URL=http://localhost:8095
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
 FOSCAM_BASE_PATH=/export/foscam
 DEBUG=true
@@ -613,7 +625,9 @@ LOG_LEVEL=DEBUG
 ```bash
 DATABASE_URL=postgresql+asyncpg://security:secure_password@postgres:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://redis:6379
-YOLO26_URL=http://ai-yolo26:8095
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
+YOLO26_URL=http://ai-gateway:8090/yolo26
 NEMOTRON_URL=http://ai-llm:8091
 DEBUG=false
 LOG_LEVEL=WARNING
@@ -631,13 +645,12 @@ TLS_KEY_PATH=/path/to/server.key
 ## Validation
 
 ```bash
-# Check backend config loads correctly
-cd backend
-python -c "from core.config import get_settings; s = get_settings(); print(s.model_dump_json(indent=2))"
+# Check backend config loads correctly (run from the repo root; DATABASE_URL must be set)
+uv run python -c "from backend.core.config import get_settings; s = get_settings(); print(s.model_dump_json(indent=2))"
 
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
-curl http://localhost:8095/health                # YOLO26
+curl http://localhost:8090/yolo26/health         # ai-gateway /yolo26 router
 curl http://localhost:8091/health                # Nemotron
 redis-cli ping                                   # Redis
 ```

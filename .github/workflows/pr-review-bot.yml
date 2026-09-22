@@ -126,7 +126,7 @@ jobs:
               body += `### 📚 Testing Resources\n`;
               body += `- [Testing Guide](../docs/development/testing.md) - Complete patterns and examples\n`;
               body += `- [Backend Tests Docs](../backend/tests/AGENTS.md) - Infrastructure and fixtures\n`;
-              body += `- [TDD Approach](../CLAUDE.md) - Test-Driven Development workflow\n\n`;
+              body += `- [TDD Approach](../AGENTS.md) - Test-Driven Development workflow\n\n`;
 
               body += `### ✨ Coverage Requirements\n`;
               body += `- **API Routes**: 95% (unit + integration)\n`;

@@ -1,11 +1,15 @@
 # YOLO26 Client
 
-The YOLO26 client (`backend/services/detector_client.py`) provides the HTTP interface for communicating with the YOLO26 TensorRT object detection server. It handles image submission, response parsing, retry logic, and circuit breaker integration.
+The YOLO26 client (`backend/services/detector_client.py`) provides the HTTP interface for object
+detection. Detections come from the YOLO26 model served inside the `ai-gateway` container (Triton
+backend, route `/yolo26`). The client handles image submission, response parsing, retry logic, and
+circuit breaker integration.
 
 ## Source Files
 
 - **Client Implementation**: `backend/services/detector_client.py`
-- **YOLO26 Server**: `ai/yolo26/` directory
+- **Gateway adapter (HTTP route)**: `ai/gateway/adapters/yolo26.py`
+- **Model code**: `ai/yolo26/` directory
 - **Detection Model**: `backend/models/detection.py`
 
 ## Architecture Overview
@@ -26,10 +30,10 @@ The YOLO26 client (`backend/services/detector_client.py`) provides the HTTP inte
 }}%%
 flowchart LR
     BE["Backend<br/>DetectorClient"]
-    Y26["ai-yolo26<br/>Port 8095"]
+    Y26["ai-gateway :8090<br/>route /yolo26"]
     DB[(PostgreSQL)]
 
-    BE -->|POST /detect| Y26
+    BE -->|POST /yolo26/detect| Y26
     Y26 -->|JSON Response| BE
     BE -->|Store Detections| DB
 ```
@@ -38,14 +42,15 @@ flowchart LR
 
 The client is configured via environment variables:
 
-| Variable                         | Default                 | Description                           |
-| -------------------------------- | ----------------------- | ------------------------------------- |
-| `YOLO26_URL`                     | `http://ai-yolo26:8095` | URL of the YOLO26 detection server    |
-| `YOLO26_API_KEY`                 | -                       | Optional API key for authentication   |
-| `YOLO26_READ_TIMEOUT`            | `60.0`                  | Request timeout in seconds            |
-| `DETECTOR_MAX_RETRIES`           | `3`                     | Maximum retry attempts                |
-| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence for detections     |
-| `AI_MAX_CONCURRENT_INFERENCES`   | `4`                     | Maximum concurrent inference requests |
+| Variable                            | Default                          | Description                                                  |
+| ----------------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| `YOLO26_URL`                        | `http://localhost:8090/yolo26`   | YOLO26 route URL (compose: `http://ai-gateway:8090/yolo26`)  |
+| `AI_GATEWAY_URL` + `USE_AI_GATEWAY` | — / `true` in compose            | When set, the client builds `{AI_GATEWAY_URL}/yolo26` itself |
+| `YOLO26_API_KEY`                    | -                                | Optional API key for authentication                          |
+| `YOLO26_READ_TIMEOUT`               | `30.0`                           | Request timeout in seconds                                   |
+| `DETECTOR_MAX_RETRIES`              | `3`                              | Maximum retry attempts                                       |
+| `DETECTION_CONFIDENCE_THRESHOLD`    | `0.5`                            | Minimum confidence for detections                            |
+| `AI_MAX_CONCURRENT_INFERENCES`      | `4` (20 on free-threaded Python) | Maximum concurrent inference requests                        |
 
 ## API Endpoints
 

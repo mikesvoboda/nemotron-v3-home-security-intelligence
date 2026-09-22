@@ -22,17 +22,17 @@ frontend/src/contexts/
 
 ## Key Files
 
-| File                           | Purpose                                               |
-| ------------------------------ | ----------------------------------------------------- |
-| `index.ts`                     | Re-exports all contexts for clean imports             |
-| `AnnouncementContext.tsx`      | ARIA live region announcements for accessibility      |
-| `AnnouncementContext.test.tsx` | Tests for announcement context                        |
-| `DebugModeContext.tsx`         | Debug mode state provider with localStorage           |
-| `DebugModeContext.test.tsx`    | Tests for debug mode context                          |
-| `SystemDataContext.tsx`        | System data provider for shared system state          |
-| `SystemDataContext.test.tsx`   | Tests for system data context                         |
-| `ToastContext.tsx`             | Toast notification provider with auto-dismiss         |
-| `ToastContext.test.tsx`        | Comprehensive tests for toast functionality           |
+| File                           | Purpose                                          |
+| ------------------------------ | ------------------------------------------------ |
+| `index.ts`                     | Re-exports all contexts for clean imports        |
+| `AnnouncementContext.tsx`      | ARIA live region announcements for accessibility |
+| `AnnouncementContext.test.tsx` | Tests for announcement context                   |
+| `DebugModeContext.tsx`         | Debug mode state provider with localStorage      |
+| `DebugModeContext.test.tsx`    | Tests for debug mode context                     |
+| `SystemDataContext.tsx`        | System data provider for shared system state     |
+| `SystemDataContext.test.tsx`   | Tests for system data context                    |
+| `ToastContext.tsx`             | Toast notification provider with auto-dismiss    |
+| `ToastContext.test.tsx`        | Comprehensive tests for toast functionality      |
 
 ## Toast Context (`ToastContext.tsx`)
 
@@ -163,7 +163,7 @@ function ToastContainer() {
   const { toasts, dismissToast } = useToast();
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
+    <div className="fixed right-4 top-4 z-50 space-y-2">
       {toasts.map((toast) => (
         <div
           key={toast.id}
@@ -211,9 +211,12 @@ describe('ToastContext', () => {
 
     expect(result.current.toasts).toHaveLength(1);
 
-    await waitFor(() => {
-      expect(result.current.toasts).toHaveLength(0);
-    }, { timeout: 150 });
+    await waitFor(
+      () => {
+        expect(result.current.toasts).toHaveLength(0);
+      },
+      { timeout: 150 }
+    );
   });
 });
 ```
@@ -223,6 +226,7 @@ describe('ToastContext', () => {
 ### Context + Provider Pattern
 
 Standard React context pattern with:
+
 - Context creation: `createContext()`
 - Provider component: `ToastProvider`
 - Hook for consumption: `useToast()`
@@ -243,6 +247,7 @@ Unique IDs combine timestamp and random string: `toast-${Date.now()}-${Math.rand
 ## Future Enhancements
 
 Potential additions for other contexts:
+
 - **ThemeContext** - Light/dark mode toggle (currently dark-only)
 - **AuthContext** - User authentication state (no auth in MVP)
 - **SettingsContext** - User preferences and settings
@@ -251,7 +256,7 @@ Potential additions for other contexts:
 ## Related Files
 
 - `/frontend/src/App.tsx` - Provider setup
-- `/frontend/src/components/ToastContainer.tsx` - Toast rendering (if implemented)
+- `/frontend/src/components/common/ToastProvider.tsx` - Toast rendering (the component that consumes `useToast`)
 
 ## Notes for AI Agents
 

@@ -4,7 +4,6 @@ source_refs:
   - pyproject.toml:195
   - codecov.yml:1
   - scripts/coverage-analysis.py:1
-  - .coveragerc:1
   - .github/workflows/ci.yml:67
 ---
 
@@ -14,34 +13,59 @@ This document describes the test coverage requirements, thresholds, analysis too
 
 ## Overview
 
-Test coverage is a critical quality metric that ensures code is properly tested. This project enforces strict coverage requirements at multiple levels:
+Coverage is enforced at several independent levels. The numbers below were
+re-measured 2026-09-20/21 (see [Testing Guide](testing.md) for the full
+derivation); do not treat any of them as aspirational targets.
 
-- **Unit tests:** 85% minimum
-- **Combined (unit + integration):** 95% minimum
-- **Critical paths:** 90% minimum
+- **Combined (unit + integration):** 80% absolute floor — the only executed
+  absolute backend gate (`scripts/validate.sh` `--fail-under=80`, mirrored in
+  `nightly-full-gate.yml`).
+- **Backend unit tier (CI):** absolute floor 84, enforced in
+  `unit-tests-coverage-merge` only when every unit shard passed.
+- **Backend integration tier (CI):** absolute floor 37, enforced in
+  `integration-coverage-merge` only when every integration shard passed.
+- **PR diff gate:** `pyproject.toml` `fail_under = 85` is the diff gate's
+  RELATIVE baseline over merged shard data (owner ruling A7.1), not an
+  absolute floor; a drop of up to 0.5pp is tolerated as noise
+  (`scripts/check-test-coverage-gate.py`).
+- **Codecov:** project target 85%, patch target 80%, critical paths 90%
+  (`codecov.yml`).
+- **Frontend (Vitest):** floors 80 statements / 74.6 branches / 78.4
+  functions / 80.9 lines (measured, R-1; `frontend/vite.config.ts`
+  `coverage.thresholds`, enforced by
+  `frontend/scripts/merge-shard-coverage.mjs --enforce` in CI when all shards
+  passed).
 
 ## Coverage Thresholds
 
 ### Backend Coverage
 
-| Test Type | Threshold | Enforcement | Configuration  |
-| --------- | --------- | ----------- | -------------- |
-| Unit      | 85%       | CI gate     | pyproject.toml |
-| Combined  | 95%       | CI gate     | pyproject.toml |
-| Critical  | 90%       | CI gate     | codecov.yml    |
+| Gate                   | Value         | Enforcement                                                         | Configuration                      |
+| ---------------------- | ------------- | ------------------------------------------------------------------- | ---------------------------------- |
+| Combined (abs. floor)  | 80%           | `validate.sh` + `nightly-full-gate.yml`                             | `scripts/validate.sh`              |
+| Unit tier (abs. floor) | 84            | `unit-tests-coverage-merge` in CI, only when all unit shards passed | `.github/workflows/ci.yml`         |
+| Integration tier floor | 37            | `integration-coverage-merge` in CI, only when all shards passed     | `.github/workflows/ci.yml`         |
+| PR diff baseline       | 85 (relative) | `check-test-coverage-gate.py`, 0.5pp noise band                     | `pyproject.toml` `fail_under = 85` |
+| Codecov project        | 85%           | Codecov status check                                                | `codecov.yml`                      |
+| Codecov patch          | 80%           | Codecov status check                                                | `codecov.yml`                      |
+| Codecov critical paths | 90%           | Codecov status check                                                | `codecov.yml`                      |
 
 ### Frontend Coverage
 
-| Metric     | Threshold | Configuration  |
-| ---------- | --------- | -------------- |
-| Statements | 83%       | vite.config.ts |
-| Branches   | 77%       | vite.config.ts |
-| Functions  | 81%       | vite.config.ts |
-| Lines      | 84%       | vite.config.ts |
+Floors are MEASURED values (R-1); enforcement runs in CI only when every
+Vitest shard passed.
+
+| Metric     | Threshold | Configuration             |
+| ---------- | --------- | ------------------------- |
+| Statements | 80%       | `frontend/vite.config.ts` |
+| Branches   | 74.6%     | `frontend/vite.config.ts` |
+| Functions  | 78.4%     | `frontend/vite.config.ts` |
+| Lines      | 80.9%     | `frontend/vite.config.ts` |
 
 ### Critical Paths
 
-The following paths require **90%+ coverage** due to containing security-critical and core business logic:
+Codecov requires **90%+ coverage** on these paths (see the `critical-paths`
+status in `codecov.yml`):
 
 ```
 backend/api/routes/     # REST API endpoints
@@ -86,7 +110,10 @@ omit = [
 ]
 
 [tool.coverage.report]
-fail_under = 95
+# RELATIVE baseline for the PR diff gate (owner ruling A7.1), not an
+# absolute floor. The executed absolute backend floor is 80% combined in
+# scripts/validate.sh.
+fail_under = 85
 show_missing = true
 ```
 
@@ -262,7 +289,7 @@ uv run pytest backend/tests/integration/ --cov=backend --cov-append --cov-report
 ### Strategy
 
 1. **Identify gaps:** Run `scripts/coverage-analysis.py` to find modules below threshold
-2. **Prioritize critical paths:** Address critical path failures first (90%+ required)
+2. **Prioritize critical paths:** Address critical path failures first (90%+ required by Codecov)
 3. **Write targeted tests:** Focus on uncovered lines reported by the script
 4. **Track progress:** Use `--trend-file` to monitor improvement over time
 
@@ -295,6 +322,6 @@ exclude_lines = [
 ## Related Documentation
 
 - [Testing Guide](testing.md) - Testing philosophy and patterns
-- [CI/CD Pipeline](../architecture/decisions.md) - How coverage is enforced in CI
-- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Coverage requirements in project instructions
+- [CI/CD Pipeline](ci-cd.md) - How coverage is enforced in CI
+- [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) - Coverage requirements in project instructions
 - [Mutation Testing](../developer/patterns/mutation-testing.md) - Beyond line coverage

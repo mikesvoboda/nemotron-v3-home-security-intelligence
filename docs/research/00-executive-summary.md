@@ -1,5 +1,7 @@
 # Frontend Gap Analysis - Executive Summary
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); most gaps listed here were implemented on 2026-02-01 (#5633). Treat counts as historical.
+
 ## Research Overview
 
 15 parallel research agents analyzed the codebase to identify frontend gaps, orphaned components, and unexposed backend functionality. This document summarizes the key findings.

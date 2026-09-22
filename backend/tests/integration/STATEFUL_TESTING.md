@@ -368,9 +368,9 @@ pytest backend/tests/integration/test_stateful_api.py -n auto
 ## Related Documentation
 
 - [Hypothesis Stateful Testing Docs](https://hypothesis.readthedocs.io/en/latest/stateful.html)
-- [Testing Guide](docs/development/testing.md)
-- [Integration Test Patterns](backend/tests/integration/AGENTS.md)
-- [Hypothesis Strategies](backend/tests/strategies.py)
+- [Testing Guide](../../../docs/development/testing.md)
+- [Integration Test Patterns](AGENTS.md)
+- [Hypothesis Strategies](../strategies.py)
 
 ## References
 

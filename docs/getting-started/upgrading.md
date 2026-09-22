@@ -8,6 +8,7 @@ source_refs:
   - pyproject.toml:1
   - uv.lock:1
   - frontend/package.json:1
+  - backend/core/database.py:407
 ---
 
 # Upgrading
@@ -24,17 +25,26 @@ no text overlays"
 
 ---
 
+## How Versions and the Database Work Here
+
+- **Versioning:** the app is pre-1.0 (`version = "0.1.0"` in `pyproject.toml`; the only git tag is `v0.1.0`). Track upstream by branch and commit, not release tags.
+- **Database schema:** there is **no Alembic and no migration tooling**. On startup the backend runs `ModelsBase.metadata.create_all`, which creates missing tables but never alters existing ones. Upgrades that add new tables need no action; upgrades that change an existing table's columns require manual `ALTER TABLE` (check the changelog) — which is exactly why you back up first.
+
 ## Before You Upgrade
 
 ### Backup Your Data
 
 ```bash
-# Stop the application
-podman-compose -f docker-compose.prod.yml down
+mkdir -p backups
 
-# Backup PostgreSQL
-podman run --rm -v postgres_data:/data -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/postgres-$(date +%Y%m%d).tar.gz /data
+# Stop the application (keep postgres out — the dump below restarts it)
+podman compose -f docker-compose.prod.yml down
+
+# Backup PostgreSQL via a throwaway dump
+podman compose -f docker-compose.prod.yml up -d postgres
+podman compose -f docker-compose.prod.yml exec -T postgres \
+  pg_dump -U security security | gzip > backups/postgres-$(date +%Y%m%d).sql.gz
+podman compose -f docker-compose.prod.yml stop postgres
 
 # Backup configuration
 cp .env backups/.env.$(date +%Y%m%d)
@@ -42,14 +52,14 @@ cp .env backups/.env.$(date +%Y%m%d)
 
 ### Check Release Notes
 
-Review the release notes for breaking changes:
+Review the changelog for breaking changes:
 
 ```bash
 # View CHANGELOG
 cat CHANGELOG.md
 
 # Or check GitHub releases
-# https://github.com/your-org/home-security-intelligence/releases
+# https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/releases
 ```
 
 ---
@@ -59,10 +69,10 @@ cat CHANGELOG.md
 ### Step 1: Stop Services
 
 ```bash
-# Stop AI servers (Ctrl+C in their terminals)
+# Stop AI servers if you run them on the host (Ctrl+C in their terminals)
 
 # Stop containers
-podman-compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 ```
 
 ### Step 2: Pull Latest Code
@@ -71,69 +81,59 @@ podman-compose -f docker-compose.prod.yml down
 # Fetch updates
 git fetch origin
 
-# Check current version
-git describe --tags
+# Record where you are, so you can roll back
+git rev-parse HEAD
 
 # Pull latest
 git pull origin main
 
-# Or checkout specific version
-git checkout v1.2.0
+# Or check out a specific commit you know works
+git checkout <commit-sha>
 ```
 
 ### Step 3: Update Dependencies
+
+Only needed if you run the backend or frontend on the host. Containers rebuild from the checked-in lockfiles.
 
 ```bash
 # Update Python dependencies using uv (10-100x faster than pip)
 uv sync --extra dev
 
 # Update Node dependencies
-cd frontend && npm install && cd ..
+cd frontend && npm ci && cd ..
 ```
 
-### Step 4: Run Database Migrations
+### Step 4: Rebuild Containers
 
-If the release includes database changes:
-
-```bash
-# Start PostgreSQL only
-podman-compose -f docker-compose.prod.yml up -d postgres
-
-# Run migrations (from backend container or locally)
-source .venv/bin/activate
-cd backend
-alembic upgrade head
-```
-
-### Step 5: Rebuild Containers
+This project uses Podman; plain `docker compose` works too. Always rebuild without cache — cached layers may contain stale code.
 
 ```bash
 # Rebuild with new code
-podman-compose -f docker-compose.prod.yml build --no-cache
+podman compose -f docker-compose.prod.yml build --no-cache
 
-# Or pull pre-built images (if using registry)
-podman-compose -f docker-compose.prod.yml pull
+# Or pull pre-built images (if using a registry)
+podman compose -f docker-compose.prod.yml pull
 ```
 
-### Step 6: Start Services
+### Step 5: Start Services
 
 ```bash
-# Start AI servers (in separate terminals)
-./ai/start_detector.sh
-./ai/start_llm.sh
+# Full containerized stack — AI included, no host scripts needed
+podman compose -f docker-compose.prod.yml up -d
 
-# Start application
-podman-compose -f docker-compose.prod.yml up -d
+# (Development mode only: start host AI servers in separate terminals
+#  BEFORE the stack, and point YOLO26_URL/NEMOTRON_URL at them — see First Run)
 ```
 
-### Step 7: Verify
+### Step 6: Verify
 
 ```bash
-# Check health
+# Wait for health, then check
+podman compose -f docker-compose.prod.yml ps          # all Up (healthy)
 curl http://localhost:8000/api/system/health
 
-# Check version
-curl http://localhost:8000/api/system/version
+# Version is whatever git says — there is no /api/system/version endpoint
+git rev-parse --short HEAD
 ```
 
 ---
@@ -145,7 +145,7 @@ For minor updates without breaking changes:
 ```bash
 # Pull and restart
 git pull origin main
-podman-compose -f docker-compose.prod.yml up -d --build
+podman compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---
@@ -157,63 +157,31 @@ When new model versions are released:
 ### Check for Model Updates
 
 ```bash
-# View current models
+# Production LLM (download_models.sh target)
+ls -la /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
+
+# Host-dev LLM used by ./ai/start_llm.sh
 ls -la ai/nemotron/*.gguf
-# YOLO26 weights are cached by HuggingFace; verify detector health instead:
-# curl http://localhost:8095/health
+
+# YOLO26 weights are cached by HuggingFace; verify the gateway instead:
+curl http://localhost:8090/yolo26/health
 ```
 
 ### Download New Models
 
 ```bash
-# Stop AI servers first
-# Ctrl+C in their terminals
+# Stop the AI stack first
+podman compose -f docker-compose.prod.yml stop ai-gateway ai-llm
 
-# Remove old models (optional - keeps backup)
-mv ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
-   ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf.bak
+# Move the old production model aside if you want a fallback
+mv /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km \
+   /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km.bak
 
-# Download new models
+# Download new models (writes to $AI_MODELS_PATH, default /export/ai_models)
 ./ai/download_models.sh
 
-# Restart AI servers
-./ai/start_detector.sh
-./ai/start_llm.sh
-```
-
----
-
-## Version-Specific Guides
-
-### Upgrading from 0.x to 1.0
-
-Major changes in v1.0:
-
-1. **Database schema changes** - Full migration required
-2. **New configuration format** - Check `.env.example` for new variables
-3. **Model runtime change** - YOLO26 runs via PyTorch + HuggingFace Transformers (no separate ONNX artifact required)
-
-```bash
-# Full upgrade process for 0.x -> 1.0
-podman-compose -f docker-compose.prod.yml down
-git checkout v1.0.0
-cp .env .env.bak
-cp .env.example .env
-# Merge your settings from .env.bak to .env
-
-# Fresh model download
-./ai/download_models.sh
-
-# If you previously had local ONNX/PT artifacts checked in or copied, you can remove them:
-rm -f ai/yolo26/*.onnx ai/yolo26/*.pt
-
-# Database migration
-podman-compose -f docker-compose.prod.yml up -d postgres
-source .venv/bin/activate && cd backend && alembic upgrade head
-
-# Full rebuild
-podman-compose -f docker-compose.prod.yml build --no-cache
-podman-compose -f docker-compose.prod.yml up -d
+# Restart
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 ```
 
 ---
@@ -226,48 +194,53 @@ If an upgrade causes issues:
 
 ```bash
 # Stop services
-podman-compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 
-# Checkout previous version
-git checkout v1.1.0  # Previous stable version
+# Checkout the previous commit (the SHA you recorded in Step 2)
+git checkout <previous-commit-sha>
 
 # Restore configuration
 cp backups/.env.YYYYMMDD .env
 
 # Rebuild and start
-podman-compose -f docker-compose.prod.yml build
-podman-compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml build --no-cache
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Database Rollback
 
-If migrations were applied:
+There is no `alembic downgrade` — no migration tool exists. Two honest options:
 
-```bash
-# Downgrade to previous migration
-source .venv/bin/activate
-cd backend
-alembic downgrade -1  # One step back
+1. **Restore the dump you took before upgrading** (works even if the new schema added tables, since the dump predates them):
 
-# Or downgrade to specific revision
-alembic downgrade abc123
-```
+   ```bash
+   podman compose -f docker-compose.prod.yml up -d postgres
+   gunzip -c backups/postgres-YYYYMMDD.sql.gz | \
+     podman compose -f docker-compose.prod.yml exec -T postgres \
+     psql -U security security
+   ```
+
+2. **Start without restoring** if you only changed config — the old code usually runs fine against a schema that merely has extra tables.
 
 ### Full Data Restore
 
 For complete rollback including data:
 
 ```bash
-# Stop everything
-podman-compose -f docker-compose.prod.yml down -v
+# Stop everything and remove volumes (deletes the current database!)
+podman compose -f docker-compose.prod.yml down -v
 
-# Restore PostgreSQL backup
-podman run --rm -v postgres_data:/data -v $(pwd)/backups:/backup \
-  alpine tar xzf /backup/postgres-YYYYMMDD.tar.gz -C /
+# Recreate the database volume and start postgres
+podman compose -f docker-compose.prod.yml up -d postgres
 
-# Checkout old version and restart
-git checkout v1.1.0
-podman-compose -f docker-compose.prod.yml up -d
+# Load the backup dump
+gunzip -c backups/postgres-YYYYMMDD.sql.gz | \
+  podman compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U security security
+
+# Checkout the old version and restart everything
+git checkout <previous-commit-sha>
+podman compose -f docker-compose.prod.yml up -d --build
 ```
 
 ---
@@ -290,19 +263,18 @@ echo "Upgrading to $VERSION..."
 # Backup
 mkdir -p "$BACKUP_DIR"
 cp .env "$BACKUP_DIR/"
-podman-compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml up -d postgres
+podman compose -f docker-compose.prod.yml exec -T postgres \
+  pg_dump -U security security | gzip > "$BACKUP_DIR/postgres.sql.gz"
+podman compose -f docker-compose.prod.yml down
 
 # Update
 git fetch origin
 git checkout "$VERSION"
 
-# Dependencies
-uv sync --extra dev
-cd frontend && npm install && cd ..
-
-# Rebuild and start
-podman-compose -f docker-compose.prod.yml build
-podman-compose -f docker-compose.prod.yml up -d
+# Rebuild and start (host deps only if you run services outside containers)
+podman compose -f docker-compose.prod.yml build --no-cache
+podman compose -f docker-compose.prod.yml up -d
 
 echo "Upgrade complete. Backup saved to $BACKUP_DIR"
 ```
@@ -318,29 +290,21 @@ echo "Upgrade complete. Backup saved to $BACKUP_DIR"
 uv cache clean
 
 # Clear npm cache
-cd frontend && rm -rf node_modules && npm cache clean --force && npm install
+cd frontend && rm -rf node_modules && npm cache clean --force && npm ci
 ```
 
-### Migration fails
+### Schema looks out of date after a rollback
 
-```bash
-# Check current migration state
-source .venv/bin/activate
-cd backend
-alembic current
-
-# View migration history
-alembic history
-```
+`create_all` only adds missing **tables** — it never adds or changes **columns** on an existing table. If the app errors about a missing column, add it by hand or restore a database dump from before the change (see Database Rollback).
 
 ### Container won't start after upgrade
 
 ```bash
 # View logs
-podman-compose -f docker-compose.prod.yml logs backend
+podman compose -f docker-compose.prod.yml logs backend
 
 # Check for configuration issues
-podman-compose -f docker-compose.prod.yml config
+podman compose -f docker-compose.prod.yml config
 ```
 
 ---

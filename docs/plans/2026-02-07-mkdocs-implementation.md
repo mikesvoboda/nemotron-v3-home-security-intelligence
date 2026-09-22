@@ -1,5 +1,7 @@
 # MkDocs Material Documentation Site - Implementation Plan
 
+> **Status:** Implemented — `mkdocs.yml` exists at the repo root.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Set up a professional MkDocs Material documentation site with architecture walkthrough, Mermaid diagrams, CONTRIBUTING.md, and GitHub Pages deployment.
@@ -502,7 +504,7 @@ Extract canonical content from the primary source file for each topic:
 In each file that duplicates the content, replace the inline version with:
 
 ```markdown
---8<-- "docs/\_includes/risk-scoring-levels.md"
+;--8<-- "docs/\_includes/risk-scoring-levels.md"
 ```
 
 Note: Only replace in files that are primarily consumed via the MkDocs site, not in AGENTS.md or README files that need to be self-contained for GitHub/AI viewing.

@@ -23,19 +23,19 @@ The Home Security Intelligence system stores data in multiple locations:
 
 ### Database Tables
 
-| Table                | Description                      |
-| -------------------- | -------------------------------- |
-| `cameras`            | Camera configuration and status  |
-| `events`             | Security events with AI analysis |
-| `detections`         | Object detection results         |
-| `alerts`             | Alert history and status         |
-| `alert_rules`        | User-defined alert rules         |
-| `zones`              | Camera zone definitions          |
-| `activity_baselines` | Anomaly detection baselines      |
-| `class_baselines`    | Object class frequency baselines |
-| `audit_logs`         | Security audit trail             |
-| `gpu_stats`          | GPU performance history          |
-| `api_keys`           | API authentication keys          |
+| Table                | Description                                                  |
+| -------------------- | ------------------------------------------------------------ |
+| `cameras`            | Camera configuration and status                              |
+| `events`             | Security events with AI analysis                             |
+| `detections`         | Object detection results                                     |
+| `alerts`             | Alert history and status                                     |
+| `alert_rules`        | User-defined alert rules                                     |
+| `camera_zones`       | Camera zone definitions (plus `line_zones`, `polygon_zones`) |
+| `activity_baselines` | Anomaly detection baselines                                  |
+| `class_baselines`    | Object class frequency baselines                             |
+| `audit_logs`         | Security audit trail                                         |
+| `gpu_stats`          | GPU performance history                                      |
+| `api_keys`           | API authentication keys                                      |
 
 ---
 
@@ -44,19 +44,17 @@ The Home Security Intelligence system stores data in multiple locations:
 ### Database Backup
 
 ```bash
-# Docker - compressed custom format (recommended)
-docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
-    --format=custom --compress=9 \
-    > backup_$(date +%Y%m%d).dump
-
-# Podman
-podman-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
+# Compressed custom format (recommended)
+podman compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
     --format=custom --compress=9 \
     > backup_$(date +%Y%m%d).dump
 
 # Plain SQL format
-docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security security > backup.sql
+podman compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security security > backup.sql
 ```
+
+(`security` is the default for `POSTGRES_USER` / `POSTGRES_DB` — adjust if your `.env`
+overrides them.)
 
 ### File Backup
 
@@ -135,8 +133,8 @@ chmod +x /opt/hsi-backup/backup.sh
 1. **Install prerequisites and clone repo**
 
    ```bash
-   git clone https://github.com/your-org/home-security-intelligence.git
-   cd home-security-intelligence
+   git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+   cd nemotron-v3-home-security-intelligence
    ```
 
 2. **Restore configuration**
@@ -148,15 +146,15 @@ chmod +x /opt/hsi-backup/backup.sh
 3. **Start database**
 
    ```bash
-   docker compose -f docker-compose.prod.yml up -d postgres redis
+   podman compose -f docker-compose.prod.yml up -d postgres redis
    # Wait for healthy
-   docker compose -f docker-compose.prod.yml ps
+   podman compose -f docker-compose.prod.yml ps
    ```
 
 4. **Restore database**
 
    ```bash
-   docker compose -f docker-compose.prod.yml exec -T postgres pg_restore \
+   podman compose -f docker-compose.prod.yml exec -T postgres pg_restore \
        -U security -d security --clean --if-exists \
        < backup.dump
    ```
@@ -171,39 +169,40 @@ chmod +x /opt/hsi-backup/backup.sh
 6. **Start all services**
 
    ```bash
-   docker compose -f docker-compose.prod.yml up -d
+   podman compose -f docker-compose.prod.yml up -d
    ```
 
 7. **Verify**
    ```bash
    curl http://localhost:8000/api/system/health/ready
-   docker exec postgres psql -U security -d security -c "SELECT COUNT(*) FROM events;"
+   podman compose -f docker-compose.prod.yml exec -T postgres \
+     psql -U security -d security -c "SELECT COUNT(*) FROM events;"
    ```
 
 ### Database-Only Recovery
 
 ```bash
 # Stop backend
-docker compose -f docker-compose.prod.yml stop backend
+podman compose -f docker-compose.prod.yml stop backend
 
 # Drop and recreate database
-docker compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "DROP DATABASE security;"
-docker compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "CREATE DATABASE security;"
+podman compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "DROP DATABASE security;"
+podman compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "CREATE DATABASE security;"
 
 # Restore
-docker compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup.dump
+podman compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup.dump
 
 # Restart
-docker compose -f docker-compose.prod.yml up -d backend
+podman compose -f docker-compose.prod.yml up -d backend
 ```
 
 ### File-Only Recovery
 
 ```bash
-docker compose -f docker-compose.prod.yml stop backend
+podman compose -f docker-compose.prod.yml stop backend
 tar -xzf files_backup.tar.gz -C backend/
 chown -R 1000:1000 backend/data/
-docker compose -f docker-compose.prod.yml up -d backend
+podman compose -f docker-compose.prod.yml up -d backend
 ```
 
 ---

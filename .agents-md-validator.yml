@@ -59,9 +59,12 @@ exclude_reference_patterns:
   # Output artifacts mentioned in documentation
   - "report\\.json$"
   - "-report\\.json$"
-  # Generic pattern placeholders
+  - "yolo26-vs-yolo26\\.md$" # scripts/benchmark_yolo26_accuracy.py DEFAULT_OUTPUT_PATH — written on a run, not in the tree
+  # Generic pattern placeholders (prose like "every .tsx has a co-located .test.tsx")
   - "_test\\.(py|tsx?)$"
   - "test_.*\\.py$"
+  - "\\.test\\.tsx$"
+  - "\\.msw\\.test\\.tsx$"
 
 # Linear configuration (used by agents_md_linear_sync.py)
 linear:

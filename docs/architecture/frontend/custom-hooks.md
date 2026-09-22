@@ -7,7 +7,7 @@
 - `frontend/src/hooks/useWebSocket.ts:1-208` - Base WebSocket hook
 - `frontend/src/hooks/useEventStream.ts:1-264` - Security event stream
 - `frontend/src/hooks/useSystemStatus.ts:1-138` - System health status
-- `frontend/src/hooks/useConnectionStatus.ts:1-386` - Connection state aggregation
+- `frontend/src/hooks/useConnectionStatus.ts:1-385` - Connection state aggregation
 - `frontend/src/hooks/index.ts:1-658` - Barrel export of all hooks
 
 ## Overview
@@ -235,7 +235,7 @@ function SystemPanel() {
 
 ### useConnectionStatus
 
-Aggregates connection status across multiple WebSocket channels (`frontend/src/hooks/useConnectionStatus.ts:117-386`).
+Aggregates connection status across multiple WebSocket channels (`frontend/src/hooks/useConnectionStatus.ts:117-385`).
 
 #### Interface
 

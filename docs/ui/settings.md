@@ -24,7 +24,7 @@ The Settings page provides comprehensive control over all aspects of your securi
 - **AI MODELS** - View status and performance of core AI models and Model Zoo
 - **ADMIN** - Feature toggles, system configuration, and maintenance actions
 
-Access the Settings page from the navigation menu or by clicking the gear icon in the header. When debug mode is enabled, a "Developer Tools" link appears in the top-right corner for additional debugging capabilities.
+Open Settings from the **Settings** item in the sidebar's Admin group (or go to `/settings`, which redirects to `/settings/cameras`). The tab bar lists these eleven sections; a twelfth sub-route, `/settings/gpu`, exists for the sidebar's "GPU Settings" link but is not itself a tab. Debug-only **Developer Tools** live inside the Admin tab (visible when the backend runs with `DEBUG=true`), not as a separate header link.
 
 If the application is accessed without HTTPS, a **Secure Context Warning** banner appears at the top of the page, alerting that certain browser features (like desktop notifications and clipboard access) may not work properly without a secure connection.
 
@@ -181,9 +181,12 @@ The Processing tab includes several specialized panels below the main settings c
 
 **Severity Thresholds (`SeverityThresholds`)**
 
-- Visual display of risk score boundaries for each severity level
-- Shows the range thresholds: 0-25 (Low), 25-50 (Medium), 50-75 (High), 75-100 (Critical)
-- Read-only display; editing is done in the Calibration tab
+- "Risk Score Thresholds" card with editable `low_max` / `medium_max` /
+  `high_max` inputs (defaults 29 / 59 / 84, so the bands read 0-29 Low,
+  30-59 Medium, 60-84 High, 85-100 Critical) plus a save/reset pair
+- Save writes via `PUT /api/system/severity` — the same live config the
+  Calibration tab's Risk Sensitivity panel reads; the axis markers on the
+  visual bar (0/25/50/75/100) are ruler ticks, not the boundaries
 
 **DLQ Monitor (`DlqMonitor`)**
 
@@ -252,8 +255,11 @@ View environment-based notification channel settings:
 
 **System Notifications Status:**
 
-- Shows overall backend notification system status (Enabled/Disabled)
-- Reflects the `NOTIFICATIONS_ENABLED` environment variable setting
+- Shows backend notification delivery status (Enabled/Disabled)
+- Reflects the `notification_enabled` setting in `backend/core/config.py`
+  (default `true`, gating delivery in `backend/services/notification.py`; it is
+  not set in `.env.example` or compose). This badge is NOT the tab's Notifications
+  toggle — that toggle is a separate database-stored preference.
 
 **Available Channels Summary** - Shows which notification channels are configured and available, displayed as green badges.
 
@@ -507,7 +513,9 @@ VRAM usage overview and categorized model status:
 
 #### Model Zoo Section
 
-Detailed cards for all 18+ specialized models:
+Detailed cards for every Model Zoo model (driven by the root `models.yml`
+catalog — currently 30 entries, 23 enabled; the "18 models" figure in the
+component comments predates the catalog):
 
 - **Model Cards** - Individual status cards with latency charts
 - **Performance Metrics** - Load count, average latency, error rate
@@ -517,7 +525,7 @@ Detailed cards for all 18+ specialized models:
 
 ### Admin Tab
 
-Administrative controls for system management, available in four collapsible sections.
+Administrative controls for system management, organized into six collapsible sections: Feature Toggles, System Config, Maintenance Actions, Logging Settings, plus Raw Settings and Developer Tools (the last two visible only when the backend runs with `DEBUG=true`).
 
 #### Feature Toggles
 
@@ -565,18 +573,23 @@ Debug-only features (visible only when `DEBUG=true`):
 
 Many settings are configured via environment variables and require a backend restart:
 
-| Variable                  | Purpose                                |
-| ------------------------- | -------------------------------------- |
-| `SMTP_HOST`               | Email server hostname                  |
-| `SMTP_PORT`               | Email server port                      |
-| `SMTP_FROM_ADDRESS`       | Sender email address                   |
-| `SMTP_USER`               | SMTP authentication username           |
-| `SMTP_PASSWORD`           | SMTP authentication password           |
-| `SMTP_USE_TLS`            | Enable TLS encryption for SMTP         |
-| `DEFAULT_WEBHOOK_URL`     | Webhook endpoint URL                   |
-| `WEBHOOK_TIMEOUT_SECONDS` | Webhook request timeout (default: 30)  |
-| `NOTIFICATIONS_ENABLED`   | Enable/disable the notification system |
-| `DEBUG`                   | Enable debug mode and Developer Tools  |
+| Variable                  | Purpose                               |
+| ------------------------- | ------------------------------------- |
+| `SMTP_HOST`               | Email server hostname                 |
+| `SMTP_PORT`               | Email server port                     |
+| `SMTP_FROM_ADDRESS`       | Sender email address                  |
+| `SMTP_USER`               | SMTP authentication username          |
+| `SMTP_PASSWORD`           | SMTP authentication password          |
+| `SMTP_USE_TLS`            | Enable TLS encryption for SMTP        |
+| `DEFAULT_WEBHOOK_URL`     | Webhook endpoint URL                  |
+| `WEBHOOK_TIMEOUT_SECONDS` | Webhook request timeout (default: 30) |
+| `DEBUG`                   | Enable debug mode and Developer Tools |
+
+Notification on/off is a **database preference** toggled in
+Settings > Notifications (`preferences.enabled`, read by
+`useIntegratedNotifications`) — there is no `NOTIFICATIONS_ENABLED` environment
+variable; the backend reads the SMTP/webhook settings above from
+`backend/core/config.py` and sends via `backend/services/notification.py`.
 
 ### Database-Persisted Settings
 
@@ -695,21 +708,21 @@ For developers wanting to understand the underlying systems.
 
 ### Related Code
 
-| Component             | Path                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| Settings Page         | `frontend/src/components/settings/SettingsPage.tsx` (routes via `frontend/src/router.tsx`) |
-| Camera Settings       | `frontend/src/components/settings/CamerasSettings.tsx`                                     |
-| Alert Rules Settings  | `frontend/src/components/settings/AlertRulesSettings.tsx`                                  |
-| Processing Settings   | `frontend/src/components/settings/ProcessingSettings.tsx`                                  |
-| Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                |
-| Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                               |
-| Calibration Panel     | `frontend/src/components/settings/CalibrationPanel.tsx`                                    |
-| Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                               |
-| Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                        |
-| Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                   |
-| AI Models Tab         | `frontend/src/components/settings/AIModelsTab.tsx`                                         |
-| Admin Settings        | `frontend/src/components/settings/AdminSettings.tsx`                                       |
-| Zone Editor           | `frontend/src/components/zones/ZoneEditor.tsx`                                             |
+| Component             | Path                                                                                                                         |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Settings Page         | `frontend/src/components/settings/SettingsPage.tsx` (routes via `frontend/src/App.tsx`; tab list in `settingsTabsConfig.ts`) |
+| Camera Settings       | `frontend/src/components/settings/CamerasSettings.tsx`                                                                       |
+| Alert Rules Settings  | `frontend/src/components/settings/AlertRulesSettings.tsx`                                                                    |
+| Processing Settings   | `frontend/src/components/settings/ProcessingSettings.tsx`                                                                    |
+| Notification Settings | `frontend/src/components/settings/NotificationSettings.tsx`                                                                  |
+| Ambient Settings      | `frontend/src/components/settings/AmbientStatusSettings.tsx`                                                                 |
+| Calibration Panel     | `frontend/src/components/settings/CalibrationPanel.tsx`                                                                      |
+| Access Control        | `frontend/src/components/settings/AccessControlSettings.tsx`                                                                 |
+| Prompt Management     | `frontend/src/components/settings/prompts/PromptManagementPage.tsx`                                                          |
+| Storage Panel         | `frontend/src/components/system/FileOperationsPanel.tsx`                                                                     |
+| AI Models Tab         | `frontend/src/components/settings/AIModelsTab.tsx`                                                                           |
+| Admin Settings        | `frontend/src/components/settings/AdminSettings.tsx`                                                                         |
+| Zone Editor           | `frontend/src/components/zones/ZoneEditor.tsx`                                                                               |
 
 ### Backend APIs
 

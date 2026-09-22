@@ -4,8 +4,8 @@
 
 **Key Files:**
 
-- `backend/main.py:1127-1139` - CORS middleware registration
-- `backend/core/config.py:752-765` - CORS origin configuration
+- `backend/main.py:1398-1418` - CORS middleware registration
+- `backend/core/config.py:884-894` - CORS origin configuration
 - `backend/api/middleware/security_headers.py` - Security headers
 
 ## Overview
@@ -19,40 +19,42 @@ The CORS middleware is provided by FastAPI/Starlette and configured with explici
 ```mermaid
 sequenceDiagram
     participant Browser
-    participant Frontend as Frontend<br/>(localhost:3000)
+    participant Frontend as Frontend<br/>(localhost:8444)
     participant CORS as CORSMiddleware
     participant API as API Backend<br/>(localhost:8000)
 
     Note over Browser,API: Preflight Request (OPTIONS)
-    Browser->>CORS: OPTIONS /api/events<br/>Origin: http://localhost:3000
+    Browser->>CORS: OPTIONS /api/events<br/>Origin: https://localhost:8444
     CORS->>CORS: Check Origin against allow_origins
-    CORS-->>Browser: 200 OK<br/>Access-Control-Allow-Origin: http://localhost:3000<br/>Access-Control-Allow-Methods: GET, POST, ...<br/>Access-Control-Allow-Headers: *
+    CORS-->>Browser: 200 OK<br/>Access-Control-Allow-Origin: https://localhost:8444<br/>Access-Control-Allow-Methods: GET, POST, ...<br/>Access-Control-Allow-Headers: Content-Type, Authorization, X-Request-ID, X-API-Key
 
     Note over Browser,API: Actual Request
-    Browser->>CORS: GET /api/events<br/>Origin: http://localhost:3000
+    Browser->>CORS: GET /api/events<br/>Origin: https://localhost:8444
     CORS->>API: GET /api/events
     API-->>CORS: 200 OK (JSON response)
-    CORS-->>Browser: 200 OK<br/>Access-Control-Allow-Origin: http://localhost:3000
+    CORS-->>Browser: 200 OK<br/>Access-Control-Allow-Origin: https://localhost:8444
 ```
 
 ## CORS Middleware Configuration
 
-The CORS middleware is configured in `backend/main.py:1127-1139`:
+The CORS middleware is configured in `backend/main.py:1398-1418`:
 
 ```python
-# From backend/main.py:1127-1139
-# Security: Restrict CORS methods to only what's needed
-# Using explicit methods instead of wildcard "*" to follow least-privilege principle
+# From backend/main.py:1398-1418
+# Security: Restrict CORS methods and headers to only what's needed
+# NEM-5059: Explicit header allowlist prevents arbitrary headers in cross-origin requests
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
 # If "*" is in origins, we disable credentials to allow any origin
 _cors_origins = get_settings().cors_origins
 _allow_credentials = "*" not in _cors_origins
+# Explicit list of allowed headers for cross-origin requests
+_cors_allowed_headers = ["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=_allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=_cors_allowed_headers,
 )
 ```
 
@@ -60,34 +62,37 @@ app.add_middleware(
 
 ### Default Origins
 
-Default allowed origins are configured in `backend/core/config.py:752-765`:
+Default allowed origins are configured in `backend/core/config.py:884-894`:
 
 ```python
-# From backend/core/config.py:752-765
+# From backend/core/config.py:884-894
 # CORS settings
-# Includes common development ports and 0.0.0.0 (accept from any origin when bound to all interfaces)
+# HTTPS origins on port 8444 for external browser access
+# Internal HTTP origins for container-to-container communication within Docker network
 # For production, override via CORS_ORIGINS env var with specific allowed origins
 cors_origins: list[str] = Field(
     default=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://0.0.0.0:3000",
-        "http://0.0.0.0:5173",
+        # HTTPS origins for external browser access
+        "https://localhost:8444",
+        "https://127.0.0.1:8444",
+        "https://0.0.0.0:8444",
+        # Internal container communication (HTTP within Docker network)
+        "http://frontend:8080",
     ],
     description="Allowed CORS origins. Set CORS_ORIGINS env var to override for your network.",
 )
 ```
 
-| Origin                  | Port | Use Case                     |
-| ----------------------- | ---- | ---------------------------- |
-| `http://localhost:3000` | 3000 | React dev server (default)   |
-| `http://localhost:5173` | 5173 | Vite dev server              |
-| `http://127.0.0.1:3000` | 3000 | Loopback address             |
-| `http://127.0.0.1:5173` | 5173 | Loopback address (Vite)      |
-| `http://0.0.0.0:3000`   | 3000 | Any network interface        |
-| `http://0.0.0.0:5173`   | 5173 | Any network interface (Vite) |
+| Origin                   | Port | Use Case                                        |
+| ------------------------ | ---- | ----------------------------------------------- |
+| `https://localhost:8444` | 8444 | Frontend HTTPS (dev server and compose mapping) |
+| `https://127.0.0.1:8444` | 8444 | Loopback variant                                |
+| `https://0.0.0.0:8444`   | 8444 | LAN access via any interface                    |
+| `http://frontend:8080`   | 8080 | Container-to-container on the compose network   |
+
+In the production compose stack the frontend nginx serves the app and proxies `/api` on one origin
+(port 8444), so browser requests are same-origin and CORS mostly does not engage; the list matters
+for direct dev-server access. `.env.example:838-846` documents the same override pattern.
 
 ### Environment Variable Override
 
@@ -120,31 +125,31 @@ The CORS middleware handles these request headers:
 
 The CORS middleware adds these response headers:
 
-| Header                             | Value                                    | Description              |
-| ---------------------------------- | ---------------------------------------- | ------------------------ |
-| `Access-Control-Allow-Origin`      | Origin or `*`                            | Allowed origin           |
-| `Access-Control-Allow-Credentials` | `true`/omitted                           | Allow cookies/auth       |
-| `Access-Control-Allow-Methods`     | `GET, POST, PUT, PATCH, DELETE, OPTIONS` | Allowed HTTP methods     |
-| `Access-Control-Allow-Headers`     | `*`                                      | Allowed request headers  |
-| `Access-Control-Max-Age`           | `600`                                    | Preflight cache duration |
+| Header                             | Value                                                        | Description                             |
+| ---------------------------------- | ------------------------------------------------------------ | --------------------------------------- |
+| `Access-Control-Allow-Origin`      | Origin or `*`                                                | Allowed origin                          |
+| `Access-Control-Allow-Credentials` | `true`/omitted                                               | Allow cookies/auth                      |
+| `Access-Control-Allow-Methods`     | `GET, POST, PUT, PATCH, DELETE, OPTIONS`                     | Allowed HTTP methods                    |
+| `Access-Control-Allow-Headers`     | `Content-Type, Authorization, X-Request-ID, X-API-Key`       | Allowed request headers (NEM-5059 list) |
+| `Access-Control-Max-Age`           | `600` (Starlette CORSMiddleware default; not set explicitly) | Preflight cache duration                |
 
 ### Example Response Headers
 
 ```http
 HTTP/1.1 200 OK
-Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Origin: https://localhost:8444
 Access-Control-Allow-Credentials: true
 Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: *
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Request-ID, X-API-Key
 Vary: Origin
 ```
 
 ## Credentials Handling
 
-The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1132`):
+The `allow_credentials` setting is dynamically determined based on origins (`backend/main.py:1405`):
 
 ```python
-# From backend/main.py:1132
+# From backend/main.py:1405
 _allow_credentials = "*" not in _cors_origins
 ```
 
@@ -202,7 +207,7 @@ For non-simple requests (e.g., `PUT`, `DELETE`, custom headers), browsers send a
 ```http
 OPTIONS /api/events/123 HTTP/1.1
 Host: localhost:8000
-Origin: http://localhost:3000
+Origin: https://localhost:8444
 Access-Control-Request-Method: DELETE
 Access-Control-Request-Headers: X-API-Key, Content-Type
 ```
@@ -211,9 +216,9 @@ Access-Control-Request-Headers: X-API-Key, Content-Type
 
 ```http
 HTTP/1.1 200 OK
-Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Origin: https://localhost:8444
 Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
-Access-Control-Allow-Headers: *
+Access-Control-Allow-Headers: Content-Type, Authorization, X-Request-ID, X-API-Key
 Access-Control-Max-Age: 600
 ```
 
@@ -255,7 +260,7 @@ services:
 **Solution**: Add the origin to `CORS_ORIGINS`:
 
 ```bash
-export CORS_ORIGINS='["http://localhost:3000", "http://your-origin.com"]'
+export CORS_ORIGINS='["https://localhost:8444", "http://your-origin.com"]'
 ```
 
 ### CORS Error: "Credentials flag is true, but Access-Control-Allow-Origin is '\*'"
@@ -265,7 +270,7 @@ export CORS_ORIGINS='["http://localhost:3000", "http://your-origin.com"]'
 **Solution**: Use explicit origins instead of `"*"`:
 
 ```bash
-export CORS_ORIGINS='["http://localhost:3000"]'
+export CORS_ORIGINS='["https://localhost:8444"]'
 ```
 
 ### Preflight Request Failing
@@ -285,13 +290,13 @@ WebSocket connections from the browser also require CORS-like origin checking. T
 ```bash
 # Test preflight request
 curl -X OPTIONS http://localhost:8000/api/events \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: https://localhost:8444" \
   -H "Access-Control-Request-Method: GET" \
   -v
 
 # Test actual request
 curl http://localhost:8000/api/events \
-  -H "Origin: http://localhost:3000" \
+  -H "Origin: https://localhost:8444" \
   -v
 ```
 

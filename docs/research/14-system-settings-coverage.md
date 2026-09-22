@@ -1,5 +1,7 @@
 # System Configuration and Settings Coverage
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The backend has **40+ system endpoints** covering health, GPU config, performance, and service management. The frontend has **11 settings tabs** plus dedicated pages, but **UI lags behind API capabilities**.

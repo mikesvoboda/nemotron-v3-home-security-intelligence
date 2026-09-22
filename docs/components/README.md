@@ -28,7 +28,7 @@ For detailed component navigation, patterns, and architecture, see [AGENTS.md](.
 - [Buttons](./common/buttons.md) - Button, IconButton variants and usage
 - [Modals](./common/modals.md) - Modal dialogs and overlays
 - [Loading States](./common/loading-states.md) - Spinners, skeletons, placeholders
-- [Notifications](./common/notifications.md) - Toast notifications and alerts
+- [Notifications](./common/notifications.md) - Connection status banner (toasts: `ToastProvider` / `useToast`)
 - [Status Indicators](./common/status-indicators.md) - Health, connection, and state indicators
 - [Error Boundaries](./common/error-boundaries.md) - Error handling and fallback UI
 

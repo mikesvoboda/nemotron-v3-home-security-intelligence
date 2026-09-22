@@ -11,11 +11,17 @@ reference/
   AGENTS.md                  # This file
   README.md                  # Reference documentation hub
   accessibility.md           # Accessibility guide
+  getting-started.md         # Quick-start reference for new users
   glossary.md                # Terms and definitions
+  keyboard-shortcuts.md      # Keyboard shortcut reference
   models.md                  # Model reference documentation
+  nvidia-technology-inventory.md  # NVIDIA technologies used, by feature
   stability.md               # API stability and versioning
+  benchmarks/                # Performance benchmark reports
+    yolo26-performance.md    # YOLO26 latency/throughput measurements
   config/                    # Configuration reference
     AGENTS.md                # Config subdirectory guide
+    cache-invalidation-reasons.md  # Cache invalidation reason codes
     env-reference.md         # Environment variables
     risk-levels.md           # Risk score definitions
   troubleshooting/           # Problem-solving guides
@@ -26,6 +32,7 @@ reference/
     connection-issues.md     # Network and connectivity
     database-issues.md       # PostgreSQL problems
     gpu-issues.md            # GPU and CUDA issues
+    triton-rootless-cuda.md  # Triton CUDA init failure in rootless Podman
 ```
 
 ## Key Files
@@ -47,16 +54,15 @@ reference/
 
 ### stability.md
 
-**Purpose:** API stability levels and versioning policy.
+**Purpose:** Feature stability levels for the system.
 
 **Topics Covered:**
 
-- Stability tiers (stable, beta, experimental)
-- Breaking change policy
-- Deprecation timelines
-- Version numbering
+- Stability tiers (Stable, Beta, WIP)
+- Current per-area status (core pipeline, operator runbooks, entities, audit log)
+- How to interpret each level
 
-**When to use:** Understanding API stability guarantees, planning integrations.
+**When to use:** Understanding stability guarantees, planning integrations.
 
 ### accessibility.md
 
@@ -96,6 +102,7 @@ See `config/AGENTS.md` for detailed information.
 
 - `env-reference.md` - Complete environment variable reference
 - `risk-levels.md` - Risk score ranges and severity definitions
+- `cache-invalidation-reasons.md` - Cache invalidation reason codes
 
 ### troubleshooting/
 
@@ -108,8 +115,9 @@ See `troubleshooting/AGENTS.md` for detailed information.
 - `index.md` - Quick symptom lookup table
 - `ai-issues.md` - YOLO26, Nemotron, pipeline problems
 - `connection-issues.md` - Network, containers, WebSocket
-- `database-issues.md` - PostgreSQL connection, migrations
+- `database-issues.md` - PostgreSQL connection, schema setup
 - `gpu-issues.md` - CUDA, VRAM, thermal issues
+- `triton-rootless-cuda.md` - Gateway CUDA init failure in rootless Podman
 
 ## Reference Documentation Standards
 
@@ -182,5 +190,6 @@ For API documentation, see `docs/developer/api/` which contains:
 - **docs/AGENTS.md:** Documentation directory overview
 - **docs/developer/:** Developer guides (how-to)
 - **docs/operator/:** Operator guides (how-to)
-- **docs/user-guide/:** End-user documentation
+- **docs/user/:** End-user documentation
+- **docs/getting-started/:** New-user onboarding guides
 - **docs/architecture/:** Technical architecture (why decisions were made)

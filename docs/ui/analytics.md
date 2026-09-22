@@ -48,33 +48,42 @@ The page embeds the HSI Analytics dashboard from Grafana, which provides:
 
 | Button                      | Function                                                                                |
 | --------------------------- | --------------------------------------------------------------------------------------- |
-| **Grafana / Native Toggle** | Switch between embedded Grafana dashboard and native React components                   |
+| **Grafana / Native / Cost** | Three-way view toggle (see View Modes)                                                  |
 | **Open in Grafana**         | Opens the full Grafana dashboard in a new tab for advanced features (Grafana view only) |
 | **Refresh**                 | Reloads the embedded dashboard (Grafana view only)                                      |
 
 ### View Modes
 
-The Analytics page supports two view modes:
+The Analytics page supports three view modes:
 
 #### Grafana View (Default)
 
-The primary view embeds the HSI Analytics Grafana dashboard (`hsi-analytics`) in kiosk mode. This provides:
+The primary view embeds the HSI Analytics Grafana dashboard (`hsi-analytics`) in kiosk mode (`/d/hsi-analytics?orgId=1&kiosk=1&theme=dark&refresh=30s`). This provides:
 
 - Consistent visualization style with other monitoring dashboards
 - Auto-refresh every 30 seconds
-- Full Grafana interactivity (zoom, pan, time range selection)
-- Access to all Grafana features when opened in full mode
+- Access to all Grafana features when opened via "Open in Grafana"
 
 #### Native View
 
-A fallback view showing select React-based analytics components:
+A React-only view rendering the native analytics components:
 
-| Component                  | Description                              |
-| -------------------------- | ---------------------------------------- |
-| **Camera Uptime Card**     | 7-day uptime statistics for all cameras  |
-| **Pipeline Latency Panel** | Real-time AI pipeline processing metrics |
+| Component                                                                                    | Description                                  |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Camera Analytics Selector + Detail** (`CameraAnalyticsSelector` / `CameraAnalyticsDetail`) | Per-camera detections, class mix, confidence |
+| **Week Over Week** (`WeekOverWeekCard`)                                                      | This week vs. last week comparison           |
+| **Detection Trends** (`DetectionTrendsCard`)                                                 | Daily detection counts over a date range     |
+| **Risk History** (`RiskHistoryCard`)                                                         | Daily risk-level breakdown                   |
+| **Object Distribution** (`ObjectDistributionCard`)                                           | Detection counts by object type              |
+| **Camera Uptime** (`CameraUptimeCard`)                                                       | Uptime statistics per camera                 |
+| **Risk Score Distribution / Trend** (`RiskScoreDistributionCard`, `RiskScoreTrendCard`)      | Risk-score shape and change over time        |
+| **Pipeline Latency Panel** (`PipelineLatencyPanel`, 30 s refresh)                            | AI pipeline stage latency metrics            |
 
 Use native view when Grafana is unavailable or for quick access to specific metrics.
+
+#### Cost View
+
+Shows `CostAnalyticsDashboard` — a native cost-estimation dashboard (GPU/API cost tracking for the AI pipeline).
 
 ### Grafana Dashboard Panels
 
@@ -107,10 +116,10 @@ Events are categorized by risk level based on AI analysis:
 
 | Risk Level | Score Range | Color  | Meaning                 |
 | ---------- | ----------- | ------ | ----------------------- |
-| Low        | 0-30        | Green  | Routine activity        |
-| Medium     | 31-60       | Yellow | Notable but expected    |
-| High       | 61-80       | Orange | Requires attention      |
-| Critical   | 81-100      | Red    | Immediate review needed |
+| Low        | 0-29        | Green  | Routine activity        |
+| Medium     | 30-59       | Yellow | Notable but expected    |
+| High       | 60-84       | Orange | Requires attention      |
+| Critical   | 85-100      | Red    | Immediate review needed |
 
 ### Camera Performance
 

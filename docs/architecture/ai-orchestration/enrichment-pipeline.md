@@ -30,7 +30,7 @@ flowchart TB
 
     EC -->|"POST /enrich<br/>POST /vehicle-classify<br/>POST /pet-classify<br/>POST /clothing-classify<br/>POST /pose-analyze<br/>POST /action-classify"| AE
 
-    AE["ai-enrichment:8094<br/>FastAPI Server"]
+    AE["ai-gateway :8090<br/>routes /enrichment + /enrich-lt<br/>(Triton)"]
     AE --> MM["OnDemandModelManager<br/>VRAM Budget: 6.8GB<br/>LRU Eviction"]
 
     MM --> POSE["Pose<br/>Estimator"]
@@ -42,17 +42,20 @@ flowchart TB
 
 ## Service Endpoints
 
-| Endpoint             | Method | Purpose                         |
-| -------------------- | ------ | ------------------------------- |
-| `/health`            | GET    | Service health check            |
-| `/enrich`            | POST   | Unified enrichment (all models) |
-| `/vehicle-classify`  | POST   | Vehicle type classification     |
-| `/pet-classify`      | POST   | Cat/dog classification          |
-| `/clothing-classify` | POST   | FashionCLIP clothing attributes |
-| `/pose-analyze`      | POST   | ViTPose+ body keypoints         |
-| `/depth-estimate`    | POST   | Depth Anything V2 depth map     |
-| `/object-distance`   | POST   | Distance from depth map         |
-| `/action-classify`   | POST   | X-CLIP temporal action          |
+In the consolidated deployment these are served by ai-gateway under two router prefixes
+(`/enrichment/*` heavy models, `/enrich-lt/*` light models; `ai/gateway/adapters/`).
+
+| Endpoint (relative to the service URL) | Method | Purpose                         |
+| -------------------------------------- | ------ | ------------------------------- |
+| `/health`                              | GET    | Service health check            |
+| `/enrich`                              | POST   | Unified enrichment (all models) |
+| `/vehicle-classify`                    | POST   | Vehicle type classification     |
+| `/pet-classify`                        | POST   | Cat/dog classification          |
+| `/clothing-classify`                   | POST   | FashionCLIP clothing attributes |
+| `/pose-analyze`                        | POST   | ViTPose+ body keypoints         |
+| `/depth-estimate`                      | POST   | Depth Anything V2 depth map     |
+| `/object-distance`                     | POST   | Distance from depth map         |
+| `/action-classify`                     | POST   | X-CLIP temporal action          |
 
 ## Enrichment Client
 
@@ -71,14 +74,15 @@ class EnrichmentClient:
 
 ### Configuration
 
-| Setting                           | Default                     | Description               |
-| --------------------------------- | --------------------------- | ------------------------- |
-| `ENRICHMENT_URL`                  | `http://ai-enrichment:8094` | Service URL               |
-| `AI_CONNECT_TIMEOUT`              | 10.0s                       | Connection timeout        |
-| `ENRICHMENT_READ_TIMEOUT`         | 60.0s                       | Read timeout              |
-| `ENRICHMENT_MAX_RETRIES`          | 3                           | Maximum retry attempts    |
-| `ENRICHMENT_CB_FAILURE_THRESHOLD` | 5                           | Circuit breaker threshold |
-| `ENRICHMENT_CB_RECOVERY_TIMEOUT`  | 60.0s                       | Circuit breaker recovery  |
+| Setting                           | Default                            | Description                                                      |
+| --------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
+| `ENRICHMENT_URL`                  | `http://localhost:8090/enrichment` | Heavy-model route (compose: `http://ai-gateway:8090/enrichment`) |
+| `ENRICHMENT_LIGHT_URL`            | `http://localhost:8090/enrich-lt`  | Light-model route (compose: `http://ai-gateway:8090/enrich-lt`)  |
+| `AI_CONNECT_TIMEOUT`              | 10.0s                              | Connection timeout                                               |
+| `ENRICHMENT_READ_TIMEOUT`         | 60.0s                              | Read timeout                                                     |
+| `ENRICHMENT_MAX_RETRIES`          | 3                                  | Maximum retry attempts                                           |
+| `ENRICHMENT_CB_FAILURE_THRESHOLD` | 10                                 | Circuit breaker threshold                                        |
+| `ENRICHMENT_CB_RECOVERY_TIMEOUT`  | 60.0s                              | Circuit breaker recovery                                         |
 
 ## Person Enrichment Pipeline
 

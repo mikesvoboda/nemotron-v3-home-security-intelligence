@@ -65,14 +65,14 @@ class NemotronAnalyzer:
 
 ## Configuration
 
-| Setting                      | Default              | Description                    |
-| ---------------------------- | -------------------- | ------------------------------ |
-| `NEMOTRON_URL`               | `http://ai-llm:8091` | LLM service URL                |
-| `NEMOTRON_API_KEY`           | None                 | Optional API key               |
-| `NEMOTRON_MAX_RETRIES`       | 3                    | Maximum retry attempts         |
-| `AI_CONNECT_TIMEOUT`         | 10.0s                | Connection timeout             |
-| `NEMOTRON_READ_TIMEOUT`      | 120.0s               | Read timeout for LLM inference |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | 512                  | Maximum output tokens          |
+| Setting                      | Default                 | Description                                     |
+| ---------------------------- | ----------------------- | ----------------------------------------------- |
+| `NEMOTRON_URL`               | `http://localhost:8091` | LLM service URL (compose: `http://ai-llm:8091`) |
+| `NEMOTRON_API_KEY`           | None                    | Optional API key                                |
+| `NEMOTRON_MAX_RETRIES`       | 3                       | Maximum retry attempts                          |
+| `AI_CONNECT_TIMEOUT`         | 10.0s                   | Connection timeout                              |
+| `NEMOTRON_READ_TIMEOUT`      | 120.0s                  | Read timeout for LLM inference                  |
+| `NEMOTRON_MAX_OUTPUT_TOKENS` | 512                     | Maximum output tokens                           |
 
 ## Analysis Flow
 

@@ -1,5 +1,7 @@
 # Cosmos Video Generation Handoff Document
 
+> **Status:** Abandoned — the generator scripts this handoff used were quarantined in the 2026-09 cleanup (see `archive/docs-media/`); no Cosmos pipeline was merged.
+
 **Date:** 2026-01-27
 **Purpose:** Guide for agent performing synthetic security camera video generation
 **Total Videos:** 167

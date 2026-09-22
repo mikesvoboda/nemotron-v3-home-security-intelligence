@@ -5,69 +5,70 @@
 **Key Files:**
 
 - `monitoring/grafana/dashboards/consolidated.json` - Main operations dashboard
-- `monitoring/grafana/dashboards/tracing.json` - Distributed tracing dashboard
-- `monitoring/grafana/dashboards/logs.json` - Log aggregation dashboard
+- `monitoring/grafana/dashboards/tracing.json` - Distributed tracing dashboard (Tempo)
+- `monitoring/grafana/dashboards/logs.json` - Log aggregation dashboard (Loki)
+- Additional provisioned dashboards: `ai-service-health.json`, `ai-services.json`, `analytics.json`, `api-health.json`, `clip-florence-intelligence.json`, `enrichment-pipeline.json`, `hsi-gpu-metrics.json`, `hsi-profiling.json`, `hsi-request-profiling.json`, `nemotron-prompt-analytics.json`, `scene-ocr.json`, `video-analytics.json` (all in `monitoring/grafana/dashboards/`)
 - `monitoring/grafana/provisioning/dashboards/dashboard.yml` - Dashboard provisioning
-- `monitoring/grafana/provisioning/datasources/prometheus.yml` - Datasource configuration
+- `monitoring/grafana/provisioning/datasources/prometheus.yml` (250 lines) - Datasource configuration
 
 ## Overview
 
-Grafana provides unified visualization across all observability data types: Prometheus metrics, Loki logs, Jaeger traces, and Pyroscope profiles. Dashboards are provisioned automatically via configuration files, ensuring consistent deployment across environments.
+Grafana provides unified visualization across all observability data types: Prometheus metrics,
+Loki logs, Tempo traces, and Pyroscope profiles. Dashboards are provisioned automatically from
+`monitoring/grafana/dashboards/` (bind-mounted into the container at
+`/var/lib/grafana/dashboards`), so edits land on restart without re-baking the image.
 
-The system includes three primary dashboards: an operations dashboard consolidating all metrics, a distributed tracing dashboard for request flow analysis, and a logs dashboard for centralized log viewing with error pattern detection.
+Grafana is served behind the frontend nginx proxy under `/grafana/`
+(`GF_SERVER_ROOT_URL=/grafana/`, `docker-compose.prod.yml`); the direct port mapping is
+`127.0.0.1:${GRAFANA_PORT:-3002}`.
 
-Datasources are configured with cross-correlation features, enabling seamless navigation from metrics to traces to logs.
+Datasources are configured with cross-correlation: traces link to logs (Loki) and metrics
+(Prometheus), logs extract trace IDs for one-click navigation to Tempo, and profiles link back to
+traces.
 
 ## Architecture
 
 ```mermaid
 graph TD
-    subgraph "Datasources"
-        PROM[Prometheus<br/>prometheus.yml:6-16]
-        LOKI[Loki<br/>prometheus.yml:198-214]
-        JAEG[Jaeger<br/>prometheus.yml:41-101]
-        PYRO[Pyroscope<br/>prometheus.yml:216-231]
-        API[Backend API<br/>prometheus.yml:30-40]
+    subgraph "Datasources (provisioning/datasources/prometheus.yml)"
+        PROM[Prometheus<br/>lines 13-23]
+        LOKI[Loki<br/>lines 216-231]
+        TEMPO[Tempo<br/>lines 48-104]
+        PYRO[Pyroscope<br/>lines 234-250]
+        API[Backend-API JSON<br/>lines 37-46]
     end
 
-    subgraph "Dashboards"
-        CONS[Consolidated<br/>monitoring/grafana/dashboards/consolidated.json]
-        TRAC[Tracing<br/>monitoring/grafana/dashboards/tracing.json]
-        LOGS[Logs<br/>monitoring/grafana/dashboards/logs.json]
-    end
-
-    subgraph "Panels"
-        STAT[Stat Panels]
-        GRAPH[Time Series]
-        TABLE[Tables]
-        PIE[Pie Charts]
-        GAUGE[Gauges]
+    subgraph "Dashboards (provisioned from monitoring/grafana/dashboards/)"
+        CONS[consolidated.json]
+        TRAC[tracing.json]
+        LOGS[logs.json]
+        EXTRA[13 more domain dashboards]
     end
 
     PROM --> CONS
     PROM --> TRAC
     LOKI --> LOGS
-    JAEG --> TRAC
+    TEMPO --> TRAC
     PYRO --> CONS
     API --> CONS
-
-    CONS --> STAT
-    CONS --> GRAPH
-    CONS --> GAUGE
-    LOGS --> TABLE
-    LOGS --> PIE
-    TRAC --> TABLE
+    PROM --> EXTRA
+    LOKI --> EXTRA
 ```
 
 ## Datasource Configuration
 
+All datasources are provisioned in
+`monitoring/grafana/provisioning/datasources/prometheus.yml` with stable lowercase uids
+(`prometheus`, `loki`, `tempo`, `pyroscope`, `alertmanager`, `Backend-API`). Dashboard JSON refers
+to those uids.
+
 ### Prometheus
 
-Primary metrics datasource (`monitoring/grafana/provisioning/datasources/prometheus.yml:6-16`):
+Primary metrics datasource (`monitoring/grafana/provisioning/datasources/prometheus.yml:13-23`):
 
 ```yaml
 - name: Prometheus
-  uid: PBFA97CFB590B2093
+  uid: prometheus
   type: prometheus
   access: proxy
   url: http://prometheus:9090
@@ -77,20 +78,22 @@ Primary metrics datasource (`monitoring/grafana/provisioning/datasources/prometh
     httpMethod: POST
 ```
 
-### Jaeger with Trace-to-Metrics
+### Tempo with Trace-to-Metrics and Trace-to-Logs
 
-Distributed tracing with metric correlation (`monitoring/grafana/provisioning/datasources/prometheus.yml:41-101`):
+Distributed tracing (NEM-5545, replaced the Jaeger datasource;
+`monitoring/grafana/provisioning/datasources/prometheus.yml:48-104`):
 
 ```yaml
-- name: Jaeger
-  uid: PC9A941E8F2E49454
-  type: jaeger
-  url: http://jaeger:16686
+- name: Tempo
+  uid: tempo
+  type: tempo
+  url: http://tempo:3200
   jsonData:
-    nodeGraph:
-      enabled: true
+    tracesToLogsV2:
+      datasourceUid: loki
+      filterByTraceID: true
     tracesToMetrics:
-      datasourceUid: PBFA97CFB590B2093
+      datasourceUid: prometheus # uid of the Prometheus datasource
       spanStartTimeShift: '-5m'
       spanEndTimeShift: '5m'
       queries:
@@ -100,11 +103,17 @@ Distributed tracing with metric correlation (`monitoring/grafana/provisioning/da
           query: 'hsi_detection_queue_depth'
         - name: 'YOLO26 Latency (p95)'
           query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
+        # ... Nemotron tokens/sec, batch latency percentiles, worker pool
+    nodeGraph:
+      enabled: true
+    tracesToProfiles:
+      datasourceUid: pyroscope
+      profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
 ```
 
 ### Loki with Trace Correlation
 
-Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:198-214`):
+Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources/prometheus.yml:216-231`):
 
 ```yaml
 - name: Loki
@@ -117,13 +126,13 @@ Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources
       - name: TraceID
         matcherRegex: 'trace_id=([a-f0-9]{32})'
         url: '${__value.raw}'
-        datasourceUid: PC9A941E8F2E49454
+        datasourceUid: tempo
         urlDisplayLabel: 'View Trace'
 ```
 
 ### Pyroscope for Profiling
 
-Continuous profiling with trace correlation (`monitoring/grafana/provisioning/datasources/prometheus.yml:216-231`):
+Continuous profiling (`monitoring/grafana/provisioning/datasources/prometheus.yml:234-250`):
 
 ```yaml
 - name: Pyroscope
@@ -132,214 +141,119 @@ Continuous profiling with trace correlation (`monitoring/grafana/provisioning/da
   url: http://pyroscope:4040
   jsonData:
     tracesToProfiles:
-      datasourceUid: PC9A941E8F2E49454
-      tags:
-        - key: service.name
-          value: service
+      datasourceUid: tempo
       profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
 ```
 
 ## Consolidated Operations Dashboard
 
-The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) provides system-wide visibility.
+The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) is organized in rows:
+Executive Summary, System Health, Alert Management, Container Resources, Host System Health,
+Pipeline Overview, GPU & Hardware, AI Inference, AI Quality & Audit, Detection Analytics, Risk
+Analysis, Queue Health, Worker Health, DLQ, Circuit Breaker & Cache, Experimentation, Enrichment
+Models, Pipeline Latencies, Cost & Efficiency, Service Health, Redis Details, RUM, SLI/SLO
+Overview, AI Container Health, and Synthetic Monitoring.
 
 ### Executive Summary Row
 
-| Panel                | Metric                             | Thresholds                           |
-| -------------------- | ---------------------------------- | ------------------------------------ |
-| GPU Utilization      | `hsi_gpu_utilization`              | Green <70%, Yellow 70-90%, Red >90%  |
-| Inference FPS        | `hsi_inference_fps`                | Red <0.1, Yellow 0.1-0.5, Green >0.5 |
-| Detection Queue      | `hsi_detection_queue_depth`        | Green <10, Yellow 10-50, Red >50     |
-| Pipeline P95 Latency | `hsi_detect_latency_p95_ms / 1000` | Green <30s, Yellow 30-60s, Red >60s  |
-| GPU Temperature      | `hsi_gpu_temperature`              | Green <70C, Yellow 70-85C, Red >85C  |
+| Panel                | Expression                                                         | Thresholds (green / yellow / red) |
+| -------------------- | ------------------------------------------------------------------ | --------------------------------- |
+| GPU Utilization      | `hsi_gpu_utilization`                                              | <70% / 70-90% / >90%              |
+| Inference FPS        | `sum(rate(yolo26_inference_requests_total{status="success"}[1m]))` | -                                 |
+| Detection Queue      | `hsi_detection_queue_depth`                                        | <10 / 10-50 / >50                 |
+| Pipeline P95 Latency | `hsi_detect_latency_p95_ms / 1000`                                 | <30s / 30-60s / >60s              |
+| GPU Temp             | `hsi_gpu_temperature`                                              | <70C / 70-85C / >85C              |
+| VRAM Usage           | `(hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100`         | <80% / 80-95% / >95%              |
 
-Example PromQL (`monitoring/grafana/dashboards/consolidated.json:98-99`):
+### Other Representative Panels
 
-```promql
-hsi_gpu_utilization
-```
-
-### GPU Memory Gauge
-
-Displays GPU VRAM usage (`monitoring/grafana/dashboards/consolidated.json:276-362`):
-
-```promql
-hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb * 100
-```
-
-Thresholds:
-
-- Green: <80%
-- Yellow: 80-95%
-- Red: >95%
-
-### Event Rate Panel
-
-Time series of event creation rate (`monitoring/grafana/dashboards/consolidated.json`):
-
-```promql
-rate(hsi_events_created_total[5m]) * 60
-```
-
-Shows events per minute with sparkline.
-
-### Detection Throughput Panel
-
-Detection processing rate:
-
-```promql
-rate(hsi_detections_processed_total[5m])
-```
-
-### Risk Score Distribution
-
-Histogram of LLM-assigned risk scores:
-
-```promql
-sum by (level) (rate(hsi_events_by_risk_level_total[1h]))
-```
-
-### Cache Hit Rate Panel
-
-Cache effectiveness visualization:
-
-```promql
-sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))
-```
-
-### Worker Status Panel
-
-Pipeline worker states:
-
-```promql
-count(hsi_pipeline_worker_state == 1)  # Running
-count(hsi_pipeline_worker_state == 3)  # Failed
-```
+| Area          | Panel                | Expression                                                                                                                           |
+| ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Pipeline      | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                     |
+| Risk          | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                           |
+| Risk          | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                          |
+| Cache         | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                |
+| Workers       | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                             |
+| AI Inference  | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` (also `nemotron`, `florence`, `clip`) |
+| AI Containers | Model loaded gauges  | `yolo26_model_loaded`, `florence_model_loaded`, `clip_model_loaded`, enrichment model gauges                                         |
+| LLM           | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing`, `hsi_llm_context_utilization_ratio`                             |
+| SLO           | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100` |
+| Synthetic     | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                            |
 
 ## Tracing Dashboard
 
-The tracing dashboard (`monitoring/grafana/dashboards/tracing.json:1-332`) provides distributed trace exploration.
+The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`, 1042 lines) queries Tempo with
+TraceQL (`queryType: "traceql"`, datasource uid `tempo`). The trace-table panels have no colour
+thresholds; they list recent spans for click-through to the trace view.
 
-### Pipeline Analysis Traces
-
-Full pipeline traces with duration thresholds (`monitoring/grafana/dashboards/tracing.json:40-77`):
-
-| Threshold | Duration | Color  |
-| --------- | -------- | ------ |
-| Normal    | <60s     | Green  |
-| Warning   | 60-180s  | Yellow |
-| Critical  | >180s    | Red    |
-
-Query configuration:
+### Pipeline Analysis Traces (`tracing.json:626-641`)
 
 ```json
 {
-  "datasource": { "type": "jaeger", "uid": "PC9A941E8F2E49454" },
-  "queryType": "search",
-  "service": "nemotron-backend",
-  "operation": "analysis_processing",
+  "datasource": { "type": "tempo", "uid": "tempo" },
+  "queryType": "traceql",
+  "query": "{ resource.service.name = \"nemotron-backend\" && name = \"analysis_processing\" }",
   "limit": 15
 }
 ```
 
-### Detection Processing Panel
+### Detection Processing / LLM Inference Panels
 
-YOLO26 detection traces (`monitoring/grafana/dashboards/tracing.json:86-143`):
+Same shape with `name = "detection_processing"` (`tracing.json:717-719`) and
+`name = "llm_inference"` (`tracing.json:797-799`), limit 10.
 
-| Threshold | Duration | Meaning                |
-| --------- | -------- | ---------------------- |
-| Green     | <5s      | Normal detection time  |
-| Yellow    | 5-30s    | Slow detection         |
-| Red       | >30s     | Detection timeout risk |
-
-### LLM Inference Panel
-
-Nemotron LLM traces (`monitoring/grafana/dashboards/tracing.json:144-200`):
-
-| Threshold | Duration | Meaning                |
-| --------- | -------- | ---------------------- |
-| Green     | <30s     | Normal inference       |
-| Yellow    | 30-120s  | Slow inference         |
-| Red       | >120s    | Inference timeout risk |
-
-### Error Traces Panel
-
-Traces with error tags (`monitoring/grafana/dashboards/tracing.json:210-253`):
+### Error Traces Panel (`tracing.json:871-873`)
 
 ```json
 {
-  "queryType": "search",
-  "service": "nemotron-backend",
-  "tags": "error=true",
+  "datasource": { "type": "tempo", "uid": "tempo" },
+  "queryType": "traceql",
+  "query": "{ resource.service.name = \"nemotron-backend\" && status = error }",
   "limit": 20
 }
 ```
 
-### All Recent Traces Panel
+### Service Dependency Graph (`tracing.json:905`)
 
-General trace view (`monitoring/grafana/dashboards/tracing.json:262-318`):
+Tempo `queryType: "serviceMap"` panel — renders the service topology from trace data (requires
+metrics-generator span metrics in Tempo; see `monitoring/tempo/tempo-config.yml`).
 
-```json
-{
-  "queryType": "search",
-  "service": "nemotron-backend",
-  "limit": 30
-}
-```
+### Overview Panels
+
+Prometheus-backed panels for trace counts, duration, error rate by service, span distribution, and
+AI latency comparison sit above the trace tables, plus an "All Recent Traces" table
+(`{ resource.service.name = "nemotron-backend" }`, limit 30).
 
 ## Logs Dashboard
 
-The logs dashboard (`monitoring/grafana/dashboards/logs.json`) provides centralized log analysis.
+The logs dashboard (`monitoring/grafana/dashboards/logs.json`) provides centralized log analysis
+against Loki.
 
-### Error Rate Stat
-
-Error percentage from logs (`monitoring/grafana/dashboards/logs.json:67-73`):
+### Error Rate Stat (`logs.json:67-75`)
 
 ```logql
 sum(count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [5m])) / (sum(count_over_time({container=~"$service"} [5m])) > 0)
 ```
 
-Thresholds:
-
-- Green: <1%
-- Yellow: 1-5%
-- Red: >5%
-
-### Log Throughput Stat
-
-Log entries per second (`monitoring/grafana/dashboards/logs.json:112-118`):
+### Log Throughput Stat (`logs.json:112-120`)
 
 ```logql
 sum(rate({container=~"$service"} [5m]))
 ```
 
-### Log Volume by Level
-
-Stacked bar chart by log level (`monitoring/grafana/dashboards/logs.json:173-248`):
+### Log Volume by Level (`logs.json:247`)
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__interval]))
 ```
 
-Color mapping:
-
-- DEBUG: Blue
-- INFO: Green
-- WARNING: Yellow
-- ERROR: Orange
-- CRITICAL: Red
-
-### Level Distribution Pie Chart
-
-Percentage breakdown (`monitoring/grafana/dashboards/logs.json:250-311`):
+### Level Distribution Pie Chart (`logs.json:310`)
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__range]))
 ```
 
-### Top Error Patterns Table
-
-Most common errors (`monitoring/grafana/dashboards/logs.json:358-365`):
+### Top Error Patterns Table (`logs.json:366`)
 
 ```logql
 topk(10, sum by (level, container) (count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [15m])))
@@ -347,37 +261,24 @@ topk(10, sum by (level, container) (count_over_time({container=~"$service", leve
 
 ### Live Log Stream Panel
 
-Real-time log viewing (`monitoring/grafana/dashboards/logs.json`):
-
 ```logql
 {container=~"$service", level=~"$level"} |~ "$search"
 ```
 
+A separate "PostgreSQL Database Logs" row filters the postgres container.
+
 ## Dashboard Variables
 
-### Service Variable
+The logs dashboard template variables (`logs.json` `templating.list`):
 
-Filter by container/service (`monitoring/grafana/dashboards/logs.json`):
+| Variable   | Type    | Definition                          |
+| ---------- | ------- | ----------------------------------- |
+| `$service` | query   | `label_values(container)`           |
+| `$level`   | Custom  | `DEBUG,INFO,WARNING,ERROR,CRITICAL` |
+| `$search`  | Textbox | empty                               |
 
-| Variable   | Type   | Values                                                     |
-| ---------- | ------ | ---------------------------------------------------------- |
-| `$service` | Custom | `backend\|ai-yolo26\|ai-llm\|ai-florence\|redis\|postgres` |
-
-### Level Variable
-
-Filter by log level:
-
-| Variable | Type   | Values                                  |
-| -------- | ------ | --------------------------------------- |
-| `$level` | Custom | `DEBUG\|INFO\|WARNING\|ERROR\|CRITICAL` |
-
-### Search Variable
-
-Free-text log search:
-
-| Variable  | Type    | Default |
-| --------- | ------- | ------- |
-| `$search` | Textbox | `""`    |
+Container values come live from Loki labels, so they always reflect the deployed compose services
+(`backend`, `ai-gateway`, `ai-llm`, `redis`, `postgres`, `tempo`, `loki`, ...).
 
 ## Dashboard Provisioning
 
@@ -387,86 +288,66 @@ Dashboards are automatically loaded (`monitoring/grafana/provisioning/dashboards
 apiVersion: 1
 
 providers:
-  - name: 'HSI Dashboards'
+  - name: 'Home Security Intelligence'
     orgId: 1
     folder: 'Home Security Intelligence'
+    folderUid: 'hsi-dashboards'
     type: file
     disableDeletion: false
-    updateIntervalSeconds: 10
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
 ```
 
 ## Alert Rules
 
-Grafana alert rules are provisioned in `monitoring/grafana/provisioning/alerting/log-alerts.yml`:
-
-### High Error Rate Alert
-
-```yaml
-- alert: HighErrorRate
-  expr: |
-    sum(count_over_time({container=~"backend|ai-.*"} |~ "ERROR|CRITICAL" [5m]))
-    / sum(count_over_time({container=~"backend|ai-.*"} [5m])) > 0.05
-  for: 5m
-  labels:
-    severity: warning
-  annotations:
-    summary: 'High error rate in logs'
-    description: 'Error rate exceeds 5% for 5 minutes'
-```
-
-### No Logs Alert
-
-```yaml
-- alert: NoLogsReceived
-  expr: |
-    sum(count_over_time({container="backend"} [5m])) == 0
-  for: 10m
-  labels:
-    severity: critical
-  annotations:
-    summary: 'No logs received from backend'
-```
+Grafana-managed alert rules are provisioned in
+`monitoring/grafana/provisioning/alerting/log-alerts.yml` (folder "HSI Alerts", 1m interval). They
+use Grafana's alerting format (`uid`/`title`/`condition` with LogQL queries against the `loki`
+datasource), not Prometheus rule syntax: `high-error-rate`, `error-spike`, `service-silent`,
+`critical-error` (see [Alertmanager](./alertmanager.md#grafana-log-based-alerts) for the full
+table).
 
 ## PromQL Query Examples
 
 ### SLI Queries
 
 ```promql
-# API Availability (from recording rules)
+# API availability (recording rules, monitoring/prometheus-rules.yml)
 hsi:api_availability:ratio_rate1h
 
-# Detection P95 Latency
+# Detection latency SLI (recording rules)
 hsi:detection_latency:p95_5m
 
-# Error Budget Remaining
+# Error budget remaining
 hsi:error_budget:api_availability_remaining * 100
 ```
 
 ### Infrastructure Queries
 
 ```promql
-# GPU Memory Pressure
+# GPU memory pressure
 hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb > 0.9
 
-# Worker Pool Utilization
+# Worker pool utilization
 hsi_worker_busy_count / hsi_worker_active_count
 
-# Queue Backpressure
+# Queue backpressure
 hsi_detection_queue_depth > 100 or hsi_analysis_queue_depth > 50
 ```
 
 ### AI Service Queries
 
 ```promql
-# LLM Token Throughput
+# LLM token throughput
 rate(hsi_nemotron_tokens_input_total[5m]) + rate(hsi_nemotron_tokens_output_total[5m])
 
-# Enrichment Model Error Rate
+# Enrichment model error rate
 sum by (model) (rate(hsi_enrichment_model_errors_total[5m])) / sum by (model) (rate(hsi_enrichment_model_calls_total[5m]))
 
-# Detection Confidence Distribution
+# Detection confidence distribution (P95)
 histogram_quantile(0.95, rate(hsi_detection_confidence_bucket[5m]))
 ```
 

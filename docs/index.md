@@ -11,37 +11,37 @@ hide:
 <!-- prettier-ignore-start -->
 <div class="grid cards" markdown>
 
--   :material-rocket-launch: **Getting Started**
+- :material-rocket-launch: **Getting Started**
 
-    ---
+  ***
 
-    Prerequisites, installation, and your first run
+  Prerequisites, installation, and your first run
 
-    [:octicons-arrow-right-24: Get started](getting-started/README.md)
+  [:octicons-arrow-right-24: Get started](getting-started/README.md)
 
--   :material-monitor-dashboard: **User Guide**
+- :material-monitor-dashboard: **User Guide**
 
-    ---
+  ***
 
-    Dashboard, alerts, timeline, analytics, and features
+  Dashboard, alerts, timeline, analytics, and features
 
-    [:octicons-arrow-right-24: User Guide](user/README.md)
+  [:octicons-arrow-right-24: User Guide](user/README.md)
 
--   :material-server-network: **Operator Guide**
+- :material-server-network: **Operator Guide**
 
-    ---
+  ***
 
-    Deployment, monitoring, GPU setup, and administration
+  Deployment, monitoring, GPU setup, and administration
 
-    [:octicons-arrow-right-24: Operator Guide](operator/README.md)
+  [:octicons-arrow-right-24: Operator Guide](operator/README.md)
 
--   :material-code-braces: **Developer Guide**
+- :material-code-braces: **Developer Guide**
 
-    ---
+  ***
 
-    Architecture, API reference, patterns, and contributing
+  Architecture, API reference, patterns, and contributing
 
-    [:octicons-arrow-right-24: Developer Guide](developer/README.md)
+  [:octicons-arrow-right-24: Developer Guide](developer/README.md)
 
 </div>
 <!-- prettier-ignore-end -->
@@ -79,9 +79,9 @@ YOLO26 identifies people, vehicles, animals, and objects in real-time with bound
 ```mermaid
 sequenceDiagram
     participant Queue as Detection Queue
-    participant YOLO as YOLO26<br/>:8095
+    participant YOLO as AI Gateway :8090<br/>router /yolo26
     participant DB as PostgreSQL
-    Queue->>YOLO: POST /detect (image)
+    Queue->>YOLO: POST /yolo26/detect (image)
     YOLO-->>Queue: Detections (person, car, dog...)
     Queue->>DB: Store raw detections
 ```
@@ -166,18 +166,15 @@ flowchart TB
         CAM[IP Cameras]
     end
     subgraph Frontend["Frontend Layer"]
-        UI["React Dashboard<br/>:5173"]
+        UI["React Dashboard<br/>:8444 HTTPS (nginx)"]
     end
     subgraph Backend["Backend Layer"]
         API["FastAPI<br/>:8000"]
         WS["WebSocket"]
     end
     subgraph AI["AI Services"]
-        YOLO["YOLO26<br/>:8095"]
+        GW["AI Gateway :8090<br/>routers /yolo26 /florence<br/>/clip /enrichment /enrich-lt"]
         NEM["Nemotron LLM<br/>:8091"]
-        FLO["Florence-2<br/>:8092"]
-        CLIP["CLIP<br/>:8093"]
-        ENR["Enrichment<br/>:8094 / :8096"]
     end
     subgraph Data["Data Layer"]
         DB[(PostgreSQL)]
@@ -185,7 +182,8 @@ flowchart TB
     end
     CAM -->|FTP Upload| API
     UI <-->|REST + WebSocket| API
-    API --> YOLO & NEM & FLO & CLIP & ENR
+    API --> GW
+    API --> NEM
     API <--> DB & REDIS
 ```
 

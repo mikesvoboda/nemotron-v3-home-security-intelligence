@@ -386,9 +386,10 @@ except pynvml.NVMLError as e:
 
 GPU stats are available via:
 
-- `GET /api/system/gpu-stats` - Current GPU statistics
-- `GET /api/system/gpu-stats/history` - Historical GPU statistics
-- WebSocket `/ws` - Real-time `gpu_stats` events
+- `GET /api/system/gpu` - Current GPU statistics (`backend/api/routes/system.py:2253`)
+- `GET /api/system/gpu/history` - Historical GPU statistics (`:2378`)
+- WebSocket `/ws/system` - Real-time `system_status` messages with a `gpu` payload
+  (`backend/services/system_broadcaster.py:827-829`)
 
 ## Related Documentation
 

@@ -359,7 +359,7 @@ If CodeQL analysis times out (> 2 hours):
 
 ## Related Documentation
 
-- **Pre-commit security:** See `/CLAUDE.md` (Semgrep, Hadolint)
+- **Pre-commit security:** See `/AGENTS.md` (Semgrep, Hadolint)
 - **Python security patterns:** See `backend/AGENTS.md`
 - **React security patterns:** See `frontend/AGENTS.md`
 - **CI/CD workflows:** See `.github/workflows/AGENTS.md`

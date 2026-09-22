@@ -10,7 +10,7 @@ Unit tests form the foundation of the test pyramid (~80% of all tests). They are
 - **Isolated**: No external dependencies (database, Redis, network)
 - **Deterministic**: Same input always produces same output
 
-**Location**: `backend/tests/unit/` (300+ test files)
+**Location**: `backend/tests/unit/` (~680 test files)
 
 ## Test Organization
 
@@ -19,14 +19,18 @@ Unit tests form the foundation of the test pyramid (~80% of all tests). They are
 ```
 backend/tests/unit/
   api/
-    routes/           # API route unit tests (43 files)
-    schemas/          # Pydantic schema validation tests (16 files)
-    middleware/       # API middleware tests (10 files)
+    routes/           # API route unit tests (96 files)
+    schemas/          # Pydantic schema validation tests (53 files)
+    middleware/       # API middleware tests (22 files)
     helpers/          # API helper function tests
-  core/               # Infrastructure tests (45 files)
-  models/             # ORM model tests (24 files)
-  services/           # Business logic tests (111 files)
+  core/               # Infrastructure tests (93 files)
+  models/             # ORM model tests (49 files)
+  services/           # Business logic tests (257 files)
 ```
+
+Additional top-level directories exist under `unit/` (`evaluation/`,
+`jobs/`, `repositories/`, `setup_lib/`, …) plus a large set of root-level
+`test_*.py` files — the counts above cover the six largest trees only.
 
 ### Naming Conventions
 
@@ -36,33 +40,45 @@ backend/tests/unit/
 
 ## pytest Configuration
 
-Configuration is defined in `pyproject.toml:358-386`:
+Configuration is defined in `pyproject.toml:487-527` (abridged — the real
+file also carries the M3 T5 timeout-ruling comments and the full marker
+list):
 
 ```toml
 [tool.pytest.ini_options]
-testpaths = ["backend/tests"]
+testpaths = ["backend/tests", "ai/*/tests", "ai/*/test_*.py", "setup_lib/tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
+addopts = "-n 8 --dist=worksteal -v --strict-markers --tb=short -p randomly -m 'not gpu'"
 timeout = 5
-timeout_method = "thread"
+timeout_method = "signal"
+timeout_func_only = false
 ```
+
+Note `addopts` already selects 8 xdist workers and skips `gpu`-marked
+tests by default; a CLI `--timeout=N` governs every test that has no
+explicit timeout marker (M3 T5 owner ruling, 2026-09-14 — per-item
+stamps in `backend/tests/conftest.py` apply the same rule).
 
 ### Test Markers
 
-From `pyproject.toml:368-386`:
+Registered in `pyproject.toml:508-527`; `unit`/`integration` markers are
+auto-applied by the `pytest_collection_modifyitems` hook in
+`backend/tests/conftest.py:470` based on directory location.
 
-| Marker        | Description                    | Timeout |
-| ------------- | ------------------------------ | ------- |
-| `unit`        | Unit test (auto-applied)       | 1s      |
-| `integration` | Integration test               | 5s      |
-| `slow`        | Legitimately slow test         | 30s     |
-| `gpu`         | GPU test (requires RTX A5500)  | 60s     |
-| `benchmark`   | Performance benchmark          | N/A     |
-| `flaky`       | Known flaky test (quarantined) | N/A     |
+| Marker        | Description                                        | Timeout          |
+| ------------- | -------------------------------------------------- | ---------------- |
+| `unit`        | Unit test (auto-applied for `unit/`)               | 5s (ini default) |
+| `integration` | Integration test (auto-applied for `integration/`) | 5s               |
+| `e2e`         | End-to-end pipeline test                           | 60s              |
+| `slow`        | Legitimately slow test                             | 30s              |
+| `gpu`         | GPU test (requires RTX A5500)                      | 60s              |
+| `benchmark`   | Performance benchmark                              | N/A              |
+| `flaky`       | Known flaky test (quarantined)                     | N/A              |
+| `serial`      | Requires serial execution (no parallel)            | N/A              |
 
 Running tests by marker:
 
@@ -85,27 +101,37 @@ The root conftest.py provides shared fixtures for all tests.
 
 #### Database Session Mock
 
-From `backend/tests/conftest.py:89-127`:
+From `backend/tests/conftest.py:1929-2001` (abridged):
 
 ```python
 @pytest.fixture
 def mock_db_session() -> AsyncMock:
-    """Pre-configured AsyncSession mock for unit tests.
+    """Create a mock database session with all common operations configured."""
+    session = AsyncMock()
 
-    Provides commonly used database operations:
-    - execute(), add(), commit(), refresh(), rollback()
-    - Chainable result pattern for scalars()
-    """
-    mock_session = AsyncMock()
+    # Synchronous operations
+    session.add = MagicMock()
+    session.add_all = MagicMock()
+
+    # Async operations
+    session.commit = AsyncMock()
+    session.refresh = AsyncMock()
+    session.flush = AsyncMock()
+    session.rollback = AsyncMock()
+    session.execute = AsyncMock()
+
+    # execute() returns a result object with the common read patterns
     mock_result = MagicMock()
     mock_scalars = MagicMock()
-
-    mock_session.execute.return_value = mock_result
-    mock_result.scalars.return_value = mock_scalars
     mock_scalars.all.return_value = []
     mock_scalars.first.return_value = None
+    mock_result.scalars.return_value = mock_scalars
+    mock_result.scalar_one_or_none.return_value = None
+    session.execute.return_value = mock_result
 
-    return mock_session
+    # begin_nested for savepoint support
+    ...
+    return session
 ```
 
 **Usage example**:
@@ -127,73 +153,84 @@ async def test_get_cameras(mock_db_session):
 
 #### HTTP Client Mock
 
-From `backend/tests/conftest.py:129-159`:
+From `backend/tests/conftest.py:2058-2099`:
 
 ```python
 @pytest.fixture
 def mock_http_client() -> AsyncMock:
-    """Pre-configured httpx.AsyncClient mock.
+    """Create a mock httpx.AsyncClient with common HTTP methods."""
+    client = AsyncMock()
 
-    Supports all HTTP methods and context manager protocol.
-    """
-    mock_client = AsyncMock()
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {}
+    # Async context manager support
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
 
-    mock_client.get.return_value = mock_response
-    mock_client.post.return_value = mock_response
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.__aexit__.return_value = None
+    client.get = AsyncMock()
+    client.post = AsyncMock()
+    client.put = AsyncMock()
+    client.delete = AsyncMock()
+    client.patch = AsyncMock()
 
-    return mock_client
+    return client
 ```
+
+The response object comes from the companion `mock_http_response` fixture
+(`backend/tests/conftest.py:2025`), so tests wire
+`mock_http_client.post.return_value = mock_http_response` and then
+customize `mock_http_response.json.return_value`.
 
 #### Redis Client Mock
 
-From `backend/tests/conftest.py:161-193`:
+From `backend/tests/conftest.py:2165-2252` (abridged):
 
 ```python
 @pytest.fixture
 def mock_redis_client() -> AsyncMock:
-    """Comprehensive Redis mock with common operations.
+    """Create a comprehensive mock Redis client."""
+    client = AsyncMock()
 
-    Supports:
-    - get/set/delete
-    - publish/subscribe
-    - lpush/rpush/brpop (queue operations)
-    - health_check
-    """
-    mock_redis = AsyncMock()
-    mock_redis.get.return_value = None
-    mock_redis.set.return_value = True
-    mock_redis.health_check.return_value = {
+    # Basic operations
+    client.get = AsyncMock(return_value=None)
+    client.set = AsyncMock(return_value=True)
+    client.delete = AsyncMock(return_value=1)
+
+    # Pub/sub, lists, sets, hashes, expiration ...
+    client.publish = AsyncMock(return_value=1)
+    client.lpush = AsyncMock(return_value=1)
+    client.sadd = AsyncMock(return_value=1)
+    client.hget = AsyncMock(return_value=None)
+    client.expire = AsyncMock(return_value=True)
+
+    client.health_check = AsyncMock(return_value={
         "status": "healthy",
         "connected": True,
-    }
-    return mock_redis
+        "redis_version": "7.0.0",
+    })
+    # Queue with backpressure (QueueAddResult) and pipeline support
+    client.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
+    return client
 ```
 
 #### Factory Fixtures
 
-From `backend/tests/conftest.py:232-260`:
+From `backend/tests/conftest.py:2442-2487`:
 
 ```python
 @pytest.fixture
 def camera_factory():
-    """Factory fixture for creating Camera test instances."""
+    """Provide CameraFactory for creating Camera instances."""
     from backend.tests.factories import CameraFactory
     return CameraFactory
 
 @pytest.fixture
 def detection_factory():
-    """Factory fixture for creating Detection test instances."""
+    """Provide DetectionFactory for creating Detection instances."""
     from backend.tests.factories import DetectionFactory
     return DetectionFactory
 
 @pytest.fixture
 def event_factory():
-    """Factory fixture for creating Event test instances."""
+    """Provide EventFactory for creating Event instances."""
     from backend.tests.factories import EventFactory
     return EventFactory
 ```
@@ -208,21 +245,26 @@ Use `unittest.mock.patch` to replace external dependencies:
 from unittest.mock import patch, AsyncMock
 
 @pytest.mark.asyncio
-async def test_detector_client_detect(mock_http_client, mock_http_response):
-    """Test object detection with mocked HTTP client."""
-    mock_http_response.json.return_value = {
-        "detections": [{"label": "person", "confidence": 0.95}]
-    }
-    mock_http_client.post.return_value = mock_http_response
+async def test_detector_client_health_check(mock_http_client, mock_http_response):
+    """Detector health check reports healthy on a 2xx response."""
+    mock_http_response.raise_for_status.return_value = None
+    mock_http_client.get.return_value = mock_http_response
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
         from backend.services.detector_client import DetectorClient
-        client = DetectorClient("http://localhost:8001")
-        result = await client.detect("/path/to/image.jpg")
+        # DetectorClient() reads its service URL from settings (AI gateway
+        # or YOLO26_URL) — it takes no URL argument
+        client = DetectorClient()
+        assert await client.health_check() is True
 
-    assert len(result.detections) == 1
-    assert result.detections[0].label == "person"
+    mock_http_client.get.assert_awaited()
 ```
+
+`DetectorClient.detect_objects(image_path, camera_id, session, ...)` is
+heavier — it parses the detector response (`result["detections"]`, each
+item carrying `class`, `confidence`, `bbox`), filters by the class-specific
+confidence thresholds, and stores `Detection` rows via the session — so
+unit tests feed it a mocked `post` response plus `mock_db_session`.
 
 ### Mocking Async Context Managers
 
@@ -270,10 +312,12 @@ async def test_async_operation():
 
 ### Async Utilities
 
-From `backend/tests/async_utils.py`:
+`backend/tests/async_utils.py` is a backwards-compatibility shim — the
+canonical home is `backend.tests.utils.async_helpers` (new code should
+import from there):
 
 ```python
-from backend.tests.async_utils import (
+from backend.tests.utils import (
     AsyncClientMock,
     create_mock_db_context,
     async_timeout,
@@ -316,7 +360,7 @@ def test_risk_score_calculation():
 
 Use `@pytest.mark.parametrize` for testing multiple inputs:
 
-From `backend/tests/unit/services/test_bbox_validation.py:78-91`:
+From `backend/tests/unit/services/test_bbox_validation.py:79-91`:
 
 ```python
 @pytest.mark.parametrize(
@@ -336,7 +380,8 @@ def test_negative_coordinates_default_invalid(
 
 ### Property-Based Testing with Hypothesis
 
-From `backend/tests/unit/services/test_bbox_validation.py:748-772`:
+From `backend/tests/unit/services/test_bbox_validation.py:742-756` and
+`:944-955`:
 
 ```python
 from hypothesis import given, settings as hypothesis_settings
@@ -437,11 +482,11 @@ Mock dependencies, not implementation details:
 
 ```python
 # Good: Mock the dependency injection point
-with patch("backend.services.detector.get_http_client", return_value=mock_client):
-    result = await detector.detect(image_path)
+with patch("httpx.AsyncClient", return_value=mock_http_client):
+    result = await DetectorClient().detect_objects(image_path, camera_id, session)
 
 # Avoid: Mocking internal implementation
-with patch("backend.services.detector.Detector._make_request"):  # Too fragile
+with patch("backend.services.detector_client.DetectorClient._send_detection_request"):  # Too fragile
     ...
 ```
 

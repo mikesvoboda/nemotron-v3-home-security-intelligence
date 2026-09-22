@@ -196,5 +196,5 @@ Tests may be affected by these environment variables:
 ## Notes
 
 - Tests are designed to run without a Triton server (uses mocks)
-- For integration tests requiring a running server, see `test_integration.py` (if exists)
+- There is no integration test file here; none requires a running Triton server
 - Security classes match YOLO26 server filtering for consistency

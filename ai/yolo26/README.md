@@ -124,11 +124,15 @@ model.export(format="engine", int8=True, data="config/yolo26_calibration.yaml")
 
 ## Running the Server
 
-### Using Docker/Podman:
+### Production (via ai-gateway)
+
+Production detection is served by the Triton instance inside the `ai-gateway` container (FastAPI on 8090, router prefix `/yolo26`) - there is no standalone `ai-yolo26` compose service:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-yolo26
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 ```
+
+To run the standalone dev server below as a one-off container, build it directly: `podman build -f ai/yolo26/Dockerfile -t ai-yolo26 .`
 
 ### Direct execution:
 

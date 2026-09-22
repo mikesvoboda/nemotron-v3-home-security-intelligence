@@ -1,5 +1,7 @@
 # Zone and Video Analytics Coverage Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The backend has **extensive zone analytics capabilities** with 651+ lines of spatial heuristics in `zone_service.py` alone. However, **only ~60% is exposed in the frontend UI**, creating significant gaps in zone intelligence features.

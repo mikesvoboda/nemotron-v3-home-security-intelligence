@@ -226,7 +226,7 @@ event_data = {
 {
   "type": "service_status",
   "data": {
-    "service": "yolo26",
+    "service": "ai-gateway",
     "status": "restarting",
     "message": "Attempting restart (attempt 2/5)"
   },
@@ -366,16 +366,16 @@ from backend.services.event_broadcaster import get_event_broadcaster
 # Define services to monitor
 services = [
     ServiceConfig(
-        name="yolo26",
-        health_url="http://localhost:8095/health",
-        restart_cmd="docker restart yolo26",
+        name="ai-gateway",  # serves yolo26/clip/florence/enrichment on :8090
+        health_url="http://localhost:8090/health",  # aggregated gateway health
+        restart_cmd="podman restart ai-gateway",
         max_retries=5,
         backoff_base=5.0,
     ),
     ServiceConfig(
         name="nemotron",
         health_url="http://localhost:8091/health",
-        restart_cmd="docker restart nemotron",
+        restart_cmd="podman restart ai-llm",
         max_retries=5,
         backoff_base=5.0,
     ),

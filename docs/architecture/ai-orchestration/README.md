@@ -1,15 +1,18 @@
 # AI Orchestration Hub
 
-This hub documents the AI model infrastructure that powers the home security intelligence system. The system uses a multi-model architecture with dedicated services for object detection, risk analysis, and context enrichment.
+This hub documents the AI model infrastructure that powers the home security intelligence system.
+Detection, vision-language, embedding and enrichment models run inside a single `ai-gateway` container
+(FastAPI + Triton, port 8090, routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt`). The
+Nemotron LLM runs separately in `ai-llm` (llama.cpp, port 8091).
 
 ## Model Inventory
 
-| Model              | Port | Container       | VRAM            | Purpose                     |
-| ------------------ | ---- | --------------- | --------------- | --------------------------- |
-| YOLO26             | 8095 | `ai-yolo26`     | ~650MB          | Primary object detection    |
-| Nemotron 30B       | 8091 | `ai-llm`        | ~14.7GB         | Risk analysis and reasoning |
-| Florence-2         | 8092 | `ai-florence`   | ~1.2GB          | Vision-language captioning  |
-| Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
+| Model             | Port / route                                 | Container    | VRAM            | Purpose                     |
+| ----------------- | -------------------------------------------- | ------------ | --------------- | --------------------------- |
+| YOLO26            | `ai-gateway:8090/yolo26`                     | `ai-gateway` | always loaded   | Primary object detection    |
+| Nemotron 30B      | `ai-llm:8091`                                | `ai-llm`     | ~14.7GB         | Risk analysis and reasoning |
+| Florence-2        | `ai-gateway:8090/florence`                   | `ai-gateway` | on-demand       | Vision-language captioning  |
+| Enrichment models | `ai-gateway:8090/enrichment` (+`/enrich-lt`) | `ai-gateway` | ~6.8GB (budget) | Multi-model enrichment      |
 
 ## Architecture Overview
 
@@ -42,32 +45,31 @@ flowchart TB
     end
 
     subgraph AI["AI Services"]
-        YOLO["YOLO26<br/>Port 8095<br/>Object Detection"]
-        NEM["Nemotron-3-Nano-30B-A3B<br/>Port 8091<br/>Risk Analysis"]
-        ENR["Enrichment Svc<br/>Port 8094<br/>Multi-model Zoo"]
+        GW["ai-gateway :8090<br/>/yolo26 · /florence · /clip<br/>/enrichment · /enrich-lt<br/>(Triton)"]
+        NEM["Nemotron-3-Nano-30B-A3B<br/>ai-llm :8091<br/>Risk Analysis"]
     end
 
     DC --> DCL
     NA --> NAL
     EC --> ECL
 
-    DCL --> YOLO
-    YOLO --> NAL
+    DCL -->|/yolo26| GW
+    ECL -->|/enrichment, /enrich-lt| GW
     NAL --> NEM
-    NEM --> ENR
 ```
 
 ## VRAM Budget Allocation
 
-Total GPU VRAM: ~24GB (RTX 3090/4090)
+VRAM sizes depend on your GPU (check `nvidia-smi`) and on `GPU_LLM` / `GPU_AI_SERVICES` in `.env.example`,
+which assign the LLM and the ai-gateway to specific cards.
 
-| Component                        | VRAM       | Notes                               |
-| -------------------------------- | ---------- | ----------------------------------- |
-| Nemotron-3-Nano-30B-A3B (Q4_K_M) | ~14,700 MB | Always loaded via llama.cpp         |
-| YOLO26                           | 650 MB     | Always loaded                       |
-| Enrichment Model Zoo             | 1,650 MB   | On-demand loading with LRU eviction |
+| Component                        | VRAM       | Notes                                                                                                                               |
+| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Nemotron-3-Nano-30B-A3B (Q4_K_M) | ~14,700 MB | Always loaded in `ai-llm` via llama.cpp                                                                                             |
+| ai-gateway model set             | per-model  | YOLO26 always loaded; Florence-2, CLIP and enrichment models load on demand with LRU eviction (per-model `vram_mb` in `models.yml`) |
 
-The enrichment service manages its own VRAM budget of ~6.8GB with LRU eviction for its internal models. See [model-zoo.md](./model-zoo.md) for details.
+The enrichment model manager defaults to a 6.8 GB VRAM budget with LRU eviction
+(`ai/enrichment/model_manager.py`, `vram_budget_gb=6.8`). See [model-zoo.md](./model-zoo.md) for details.
 
 ## Documents
 

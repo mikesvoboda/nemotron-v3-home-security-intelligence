@@ -2,7 +2,10 @@
 
 > Configure alerts for AI pipeline failures, infrastructure issues, and SLO violations.
 
-This guide covers the alerting rules and Alertmanager configuration for Home Security Intelligence. The monitoring stack is optional and enabled with `--profile monitoring`.
+This guide covers the alerting rules and Alertmanager configuration for Home Security
+Intelligence. Prometheus, Alertmanager and Grafana are **default compose services** — they
+start with a plain `up -d` (no `--profile` needed; the only profiled services are
+`ai-llm-vllm` (profile `vllm`) and `dcgm-exporter` (profile `gpu-rootful`)).
 
 ---
 
@@ -26,23 +29,26 @@ The alerting system consists of three components:
 
 ## Quick Start
 
-### Enable Monitoring Stack
+### Start the Monitoring Stack
 
 ```bash
-# Start with monitoring profile
-docker compose --profile monitoring -f docker-compose.prod.yml up -d
+# Monitoring services are part of the default stack
+podman compose -f docker-compose.prod.yml up -d
 
 # Verify services are running
-docker compose -f docker-compose.prod.yml ps | grep -E "(prometheus|alertmanager|grafana)"
+podman compose -f docker-compose.prod.yml ps | grep -E "(prometheus|alertmanager|grafana)"
 ```
 
 ### Access Points
 
-| Service      | URL                   | Purpose                      |
-| ------------ | --------------------- | ---------------------------- |
-| Prometheus   | http://localhost:9090 | Metrics and alert status     |
-| Alertmanager | http://localhost:9093 | Alert routing and silencing  |
-| Grafana      | http://localhost:3002 | Dashboards and visualization |
+All three bind to `127.0.0.1` only (ports overridable via `PROMETHEUS_PORT`,
+`ALERTMANAGER_PORT`, `GRAFANA_PORT` in `.env`).
+
+| Service      | URL                            | Purpose                                           |
+| ------------ | ------------------------------ | ------------------------------------------------- |
+| Prometheus   | http://localhost:9090          | Metrics and alert status                          |
+| Alertmanager | http://localhost:9093          | Alert routing and silencing                       |
+| Grafana      | http://localhost:3002/grafana/ | Dashboards (served from the `/grafana/` sub-path) |
 
 ### View Active Alerts
 
@@ -58,18 +64,29 @@ curl http://localhost:9093/api/v2/alerts | jq
 
 ## Pre-Configured Alerts
 
-### AI Pipeline Alerts
+Rules live in `monitoring/` (loaded via `rule_files` in `monitoring/prometheus.yml`):
+`prometheus_rules.yml` (core + self/infra), `prometheus-rules.yml` (SLI/SLO recording
+rules), `alerting-rules.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`,
+`profiling-recording-rules.yml`, `profiling-regression-alerts.yml`.
 
-| Alert                   | Condition                 | Duration | Severity |
-| ----------------------- | ------------------------- | -------- | -------- |
-| `AIDetectorUnavailable` | YOLO26 health check fails | 2 min    | critical |
-| `AIBackendDown`         | Backend API unreachable   | 1 min    | critical |
-| `AINemotronTimeout`     | P95 inference > 120s      | 5 min    | warning  |
-| `AIDetectorSlow`        | P95 detection > 5s        | 5 min    | warning  |
-| `AIHighErrorRate`       | Error rate > 10%          | 5 min    | warning  |
-| `AIPipelineErrorSpike`  | > 50 errors in 5 min      | 2 min    | warning  |
+### AI Pipeline Alerts (`monitoring/prometheus_rules.yml`)
 
-**Example alert definition:**
+| Alert                   | Condition                                                         | Duration | Severity |
+| ----------------------- | ----------------------------------------------------------------- | -------- | -------- |
+| `AIDetectorUnavailable` | `hsi_ai_healthy == 0` (json-exporter health)                      | 2 min    | critical |
+| `AIBackendDown`         | `probe_success{job="blackbox-http-live", service="backend"} == 0` | 1 min    | critical |
+| `AIHighErrorRate`       | Pipeline error rate > 10%                                         | 5 min    | warning  |
+| `AIPipelineErrorSpike`  | > 50 errors in 5 min                                              | 2 min    | warning  |
+| `AIDLQHasMessages`      | `hsi_dlq_depth > 0`                                               | 5 min    | warning  |
+| `AIDLQGrowing`          | DLQ grew > 5 in 15 min                                            | 5 min    | warning  |
+| `AIDLQCritical`         | `hsi_dlq_depth > 50`                                              | 2 min    | critical |
+
+> [!NOTE] > `AINemotronTimeout` and `AIDetectorSlow` are **commented out** in the rules file: the
+> `hsi_ai_request_duration_seconds_bucket` histogram they need is not exported by the
+> backend yet.
+
+**Example alert definition** (measured, with the wiki runbook/dashboard URLs the rules
+actually use):
 
 ```yaml
 - alert: AIDetectorUnavailable
@@ -81,8 +98,9 @@ curl http://localhost:9093/api/v2/alerts | jq
     service: yolo26
   annotations:
     summary: 'AI detector service is unavailable'
-    description: 'YOLO26 object detection service has been unhealthy for > 2 minutes.'
-    runbook_url: 'https://github.com/.../wiki/Runbooks#aidetectorunavailable'
+    description: 'The YOLO26 object detection service has been unhealthy for more than 2 minutes. No new detections will be processed until the service recovers.'
+    runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorunavailable'
+    dashboard_url: 'http://localhost:3002/d/pipeline/pipeline?orgId=1'
 ```
 
 ### GPU Resource Alerts
@@ -92,7 +110,12 @@ curl http://localhost:9093/api/v2/alerts | jq
 | `AIGPUOverheating`        | Temperature > 85C | 2 min    | critical |
 | `AIGPUTemperatureWarning` | Temperature > 75C | 5 min    | warning  |
 | `AIGPUMemoryCritical`     | VRAM usage > 95%  | 2 min    | critical |
-| `AIGPUMemoryWarning`      | VRAM usage > 85%  | 5 min    | warning  |
+| `AIGPUMemoryWarning`      | VRAM usage > 95%  | 5 min    | warning  |
+
+> [!NOTE]
+> As shipped, `AIGPUMemoryWarning` uses the **same** `> 95` expression as
+> `AIGPUMemoryCritical` — only the `for` duration differs (5m vs 2m), so the warning fires
+> when pressure sits above 95% between 2 and 5 minutes without crossing to critical.
 
 **GPU memory pressure formula:**
 
@@ -146,6 +169,8 @@ Alerts for monitoring Prometheus itself to ensure observability infrastructure h
 | `PrometheusRestarted`                  | Instance restarted                | 0 min    | info     |
 | `PrometheusAlertmanagerDown`           | No Alertmanager discovered        | 5 min    | warning  |
 | `PrometheusSamplesRejected`            | Out-of-order or duplicate samples | 10 min   | warning  |
+| `PrometheusAITargetsDown`              | Any AI scrape target down         | 10 min   | info     |
+| `PrometheusExportersDown`              | Any exporter target down          | 10 min   | info     |
 
 **Example self-monitoring alert:**
 
@@ -168,7 +193,9 @@ Alerts for monitoring Prometheus itself to ensure observability infrastructure h
 
 ### Default Configuration
 
-Alerts are routed based on severity and component labels:
+The routing tree in `monitoring/alertmanager.yml` matches on `severity` and `component`
+labels. A critical alert is sent to `critical-receiver` **and** continues to its
+component-specific receiver:
 
 ```yaml
 route:
@@ -179,19 +206,54 @@ route:
   repeat_interval: 4h
 
   routes:
-    # Critical alerts - immediate
+    # Critical alerts - immediate, then continue to the component route
     - match:
         severity: critical
       receiver: 'critical-receiver'
       group_wait: 10s
+      group_interval: 1m
       repeat_interval: 1h
+      continue: true
+
+    - match:
+        component: slo
+      receiver: 'slo-receiver'
+      group_by: ['alertname', 'slo']
+      group_wait: 30s
+      repeat_interval: 2h
+
+    - match:
+        component: pipeline
+      receiver: 'pipeline-receiver'
+      group_wait: 15s
+
+    - match:
+        component: database
+      receiver: 'infrastructure-receiver'
+
+    - match:
+        component: redis
+      receiver: 'infrastructure-receiver'
+
+    - match:
+        component: gpu
+      receiver: 'gpu-receiver'
 
     # Warning alerts - batched
     - match:
         severity: warning
       receiver: 'warning-receiver'
       group_wait: 2m
+      group_interval: 10m
       repeat_interval: 6h
+
+    # Info alerts - low priority
+    - match:
+        severity: info
+      receiver: 'info-receiver'
+      group_wait: 5m
+      group_interval: 30m
+      repeat_interval: 24h
 ```
 
 ### Alert Grouping
@@ -209,13 +271,16 @@ Alerts are grouped to reduce notification noise:
 
 Higher-severity alerts suppress related lower-severity alerts:
 
-| Source Alert           | Suppresses               |
-| ---------------------- | ------------------------ |
-| `HSIPipelineDown`      | All `HSI*` alerts        |
-| `HSIDatabaseUnhealthy` | Queue and latency alerts |
-| `HSIRedisUnhealthy`    | Queue alerts             |
-| `HSIGPUMemoryHigh`     | `HSIGPUMemoryElevated`   |
-| `HSICriticalErrorRate` | `HSIHighErrorRate`       |
+| Source Alert           | Suppresses                                      |
+| ---------------------- | ----------------------------------------------- |
+| `HSIPipelineDown`      | All `HSI*` alerts                               |
+| `HSIDatabaseUnhealthy` | Queue and latency alerts                        |
+| `HSIRedisUnhealthy`    | Queue alerts                                    |
+| `HSIGPUMemoryHigh`     | `HSIGPUMemoryElevated`                          |
+| `HSICriticalErrorRate` | `HSIHighErrorRate`                              |
+| `HSIExtremeLatency`    | `HSISlowDetection`, `HSISlowAnalysis`           |
+| `HSIQueueCritical`     | `HSIDetectionQueueHigh`, `HSIAnalysisQueueHigh` |
+| `HSI*FastBurn`         | `HSI*SlowBurn` (same `slo` label)               |
 
 ---
 
@@ -317,11 +382,12 @@ groups:
 Use `promtool` to validate rules before deployment:
 
 ```bash
-# Validate rule file syntax
-docker compose exec prometheus promtool check rules /etc/prometheus/prometheus_rules.yml
-
-# Test rule expressions
-docker compose exec prometheus promtool test rules /etc/prometheus/test_rules.yml
+# Validate rule file syntax (all files loaded via rule_files)
+podman compose -f docker-compose.prod.yml exec prometheus promtool check rules \
+  /etc/prometheus/prometheus_rules.yml \
+  /etc/prometheus/prometheus-rules.yml \
+  /etc/prometheus/alerting-rules.yml \
+  /etc/prometheus/gpu-alerts.yml
 ```
 
 ### Reloading Configuration
@@ -329,12 +395,18 @@ docker compose exec prometheus promtool test rules /etc/prometheus/test_rules.ym
 After editing rules or Alertmanager config:
 
 ```bash
-# Reload Prometheus rules
+# Reload Prometheus (runs with --web.enable-lifecycle)
 curl -X POST http://localhost:9090/-/reload
 
-# Reload Alertmanager config
-curl -X POST http://localhost:9093/-/reload
+# Alertmanager does NOT run with a reload endpoint — restart it instead
+podman compose -f docker-compose.prod.yml restart alertmanager
 ```
+
+Remember that only the rule files bind-mounted in `docker-compose.prod.yml` exist inside the
+Prometheus container — editing `monitoring/profiling-recording-rules.yml`,
+`monitoring/profiling-regression-alerts.yml` or `monitoring/ai-pipeline-alerts.yml` on the host
+has no effect until those files are added to the `prometheus` service's `volumes:` and the
+container is recreated.
 
 ---
 
@@ -536,13 +608,17 @@ nvidia-smi
 
 ## Configuration Files
 
-| File                              | Purpose                       |
-| --------------------------------- | ----------------------------- |
-| `monitoring/prometheus.yml`       | Main Prometheus configuration |
-| `monitoring/prometheus_rules.yml` | Alerting rules                |
-| `monitoring/prometheus-rules.yml` | SLI/SLO recording rules       |
-| `monitoring/alertmanager.yml`     | Alert routing and receivers   |
-| `monitoring/alerting-rules.yml`   | Additional alerting rules     |
+| File                                                                           | Purpose                                                  |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `monitoring/prometheus.yml`                                                    | Main Prometheus configuration (rule_files list)          |
+| `monitoring/prometheus_rules.yml`                                              | Core alerting rules (AI, GPU, queues, infra)             |
+| `monitoring/prometheus-rules.yml`                                              | SLI/SLO recording rules                                  |
+| `monitoring/alerting-rules.yml`                                                | HSI\* pipeline rules + Prometheus self-monitoring        |
+| `monitoring/gpu-alerts.yml`                                                    | DCGM-based GPU alerts                                    |
+| `monitoring/ai-pipeline-alerts.yml`                                            | Enrichment/LLM/risk-calibration alerts                   |
+| `monitoring/profiling-recording-rules.yml` / `profiling-regression-alerts.yml` | Profiling metrics and regressions                        |
+| `monitoring/alertmanager.yml`                                                  | Alert routing and receivers                              |
+| `monitoring/json-exporter-config.yml`                                          | `hsi_*_healthy` / `hsi_gpu_*` gauges many alerts consume |
 
 ---
 

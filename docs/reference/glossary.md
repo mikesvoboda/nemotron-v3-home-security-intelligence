@@ -42,7 +42,7 @@ The rectangular region in an image where an object was detected. Defined by X/Y 
 
 ### Camera
 
-A physical security camera device that uploads images via FTP to the configured `FOSCAM_BASE_PATH`. Each camera has a unique folder where images are stored.
+A physical security camera device that uploads images via FTP to the configured `FOSCAM_BASE_PATH`. Each camera has a unique folder where images are stored. Cameras that support streaming instead of FTP snapshots are ingested via RTSP (served locally by `go2rtc`).
 
 ### CDI (Container Device Interface)
 
@@ -58,7 +58,7 @@ A fault tolerance pattern that temporarily disables calls to a failing service. 
 
 ### CLIP
 
-Contrastive Language-Image Pre-training model used for generating image embeddings that enable re-identification of people and objects across different camera frames.
+Contrastive Language-Image Pre-training — the family of vision-text embedding models. This system ships **SigLIP 2 base** (Triton model `clip` in the ai-gateway) as its embedding model, producing 768-dimensional vectors that enable re-identification of people and objects across different camera frames.
 
 ### Confidence Score
 
@@ -126,7 +126,7 @@ Vision-language model from Microsoft used for extracting rich visual attributes 
 
 ### Fast Path
 
-An optimization that bypasses normal batching for high-confidence detections of critical object types. Enables faster alerting for important detections.
+An optimization that bypasses normal batching for high-confidence detections of critical object types, enabling faster alerting. **Currently disabled**: `FAST_PATH_CONFIDENCE_THRESHOLD` defaults to 2.0 (impossible value) and the object-type list is empty, because the fast path skipped enrichment and Nemotron produced wildly inaccurate scores without it (see NEM-5525). Do not re-enable until enrichment runs before the LLM call.
 
 ### File Watcher
 
@@ -158,7 +158,7 @@ An API endpoint that verifies system component status. Used by container orchest
 
 ### Hub
 
-A documentation entry point organized around a specific user persona or goal. The three hubs are: Operator Hub (run the system), Developer Hub (extend the system), and How-To Guides (complete specific tasks).
+A documentation entry point organized around a specific user persona or goal. The main hubs are Getting Started (install and first run), User Guide (use the dashboard), Operator Hub (run the system) and Developer Hub (extend the system). See [docs/README.md](../README.md).
 
 ---
 
@@ -178,7 +178,7 @@ The process of running an AI model on input data to produce predictions. For thi
 
 ### JWT (JSON Web Token)
 
-A compact, URL-safe token format for securely transmitting claims between parties. Commonly used for authentication and authorization. While this system does not use authentication, JWT is mentioned in security documentation for future multi-user scenarios.
+A compact, URL-safe token format for securely transmitting claims between parties. The backend's `AuthService` issues JWT access/refresh tokens from `POST /api/auth/login`, but the global `AuthMiddleware` is disabled (NEM-5527) and `AUTH_ENABLED` defaults to false: after first-run setup (SetupGuard), API endpoints are open on the local network. JWT enforcement is reserved for the multi-user model. See [Security Architecture](../architecture/security/README.md).
 
 ---
 
@@ -198,7 +198,7 @@ A health check that indicates whether the application is running. If it fails, t
 
 ### Nemotron
 
-NVIDIA's family of large language models. Production deployments use **Nemotron-3-Nano-30B-A3B** (~14.7GB VRAM, 128K context) for risk assessment and generating human-readable security analysis. Development environments can use the smaller Nemotron Mini 4B (~3GB VRAM) for testing.
+NVIDIA's family of large language models. Production deployments use **Nemotron-3-Nano-30B-A3B** at Q4_K_M quantization (a ~14.7GB GGUF file, roughly 21GB resident when fully on GPU) for risk assessment and generating human-readable security analysis. Context is set by `CTX_SIZE` (262144 in `.env.example` and compose — llama.cpp splits it evenly across 8 parallel inference slots). The smaller Nemotron Mini 4B is available as a testing model with the optional `vllm` compose profile (`ai-llm-vllm`).
 
 ---
 
@@ -236,7 +236,7 @@ Timing metrics for each stage of the pipeline. Used to identify bottlenecks and 
 
 ### Queue
 
-A Redis list that holds items waiting to be processed. The system uses separate queues for detection and analysis.
+A Redis-backed buffer that holds items waiting to be processed. The main pipeline stages run on Redis **streams** with consumer groups (`detections:stream`, `analysis:stream`, each with a `:dlq` stream), while some auxiliary paths (degradation fallback, admin queue operations) still use Redis lists. The system keeps separate queues for detection and analysis.
 
 ### Quantization
 
@@ -275,9 +275,8 @@ The number of days that events, detections, and other data are kept before autom
 
 A formal document from standards organizations (like IETF) that describes internet protocols and best practices. This project follows several RFCs including:
 
-- **RFC 7807**: Problem Details for HTTP APIs (error response format)
-- **RFC 9457**: Updated Problem Details specification
-- **RFC 7234**: HTTP Caching
+- **RFC 7807**: Problem Details for HTTP APIs (the error response format implemented in `backend/api/exception_handlers.py`, served as `application/problem+json`; RFC 9457 is the newer obsoleting spec)
+- **RFC 7234**: HTTP Caching (ETag middleware and the RFC 7234 `Warning` header emitted for deprecated endpoints)
 - **RFC 6455**: WebSocket Protocol
 
 ### Risk Level
@@ -294,10 +293,6 @@ See [Risk Levels Reference](config/risk-levels.md).
 ### Risk Score
 
 A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event. Higher scores indicate greater concern. The score is used to determine [Risk Level](#risk-level).
-
-### YOLO26
-
-A state-of-the-art real-time object detection model. Uses a transformer architecture for accurate detection with low latency. This system uses the L (Large) variant.
 
 ---
 
@@ -357,7 +352,7 @@ Process of using Florence-2 to extract detailed visual attributes from detection
 
 ### VRAM (Video RAM)
 
-Memory on the GPU used to store models and data during inference. This system requires approximately 7GB VRAM total for both AI services.
+Memory on the GPU used to store models and data during inference. The core stack (Nemotron Q4_K_M ~14.7GB + YOLO26 ~2GB + Florence-2 ~1.5GB + embeddings) needs a 24GB card for full GPU loading; 16GB works with the LLM partially offloaded via `GPU_LAYERS`. See [Prerequisites](../getting-started/prerequisites.md).
 
 ---
 
@@ -380,6 +375,14 @@ A background process that performs asynchronous tasks. The system has several wo
 ### Worksteal
 
 A work distribution strategy used by pytest-xdist where test workers "steal" tests from other workers that have finished their assigned work. Results in more efficient parallel test execution compared to static distribution. Enabled with `--dist=worksteal`. See also [Domain Sharding](#domain-sharding).
+
+---
+
+## Y
+
+### YOLO26
+
+A real-time object detection model from the Ultralytics family, served via TensorRT for accurate detection with low latency. This system uses the **m (Medium)** variant (`yolo26m`); detection runs in the `ai-gateway` Triton container behind the `/yolo26` router. See [YOLO26 Client](../architecture/ai-orchestration/yolo26-client.md).
 
 ---
 

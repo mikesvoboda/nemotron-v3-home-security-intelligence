@@ -17,7 +17,7 @@ This document describes the testing infrastructure and test coverage for the fro
 ### E2E Tests
 
 - **Test Framework**: Playwright
-- **Browser**: Chromium (headless in CI)
+- **Browsers**: Chromium, Firefox, WebKit, plus mobile/tablet viewports (see `playwright.config.ts` projects)
 - **Test Location**: `tests/e2e/`
 
 ## Installation
@@ -26,16 +26,17 @@ Before running tests, install the required dependencies:
 
 ```bash
 cd frontend
-npm install
+npm ci        # deterministic install from package-lock.json (what CI uses)
 ```
 
-This will install all testing dependencies listed in `package.json`:
+This installs all testing dependencies listed in `package.json`:
 
 - `@testing-library/react`
 - `@testing-library/jest-dom`
 - `@testing-library/user-event`
 - `jsdom`
 - `vitest`
+- `msw`
 - `@playwright/test`
 
 For E2E tests, also install the Chromium browser:
@@ -51,17 +52,20 @@ npx playwright install chromium
 This project uses **Vitest** as the test runner, not Bun's native test runner.
 
 **✅ Correct Commands:**
+
 ```bash
 npm test              # Run Vitest (recommended)
 bun run test          # Also runs Vitest via package.json script
 ```
 
 **❌ Do NOT Use:**
+
 ```bash
 bun test              # This invokes Bun's native test runner (incompatible!)
 ```
 
 **Why not `bun test`?**
+
 - Tests use Vitest-specific APIs (`vi.mock`, `vi.spyOn`, etc.)
 - jsdom environment is configured in `vite.config.ts` (Vitest-specific)
 - Tests use Vitest's `setupFiles` and custom matchers
@@ -111,45 +115,44 @@ npx playwright test smoke.spec.ts
 npx playwright test --project=chromium
 ```
 
-## Test Files
+## Test Suite Scale
 
-### Component Tests
+Measured 2026-09-22 by counting files and `it(`/`test(` declarations under `src/`:
 
-1. **`src/App.test.tsx`**
+| Area                            | Unit test files |
+| ------------------------------- | --------------- |
+| `components/`                   | 445             |
+| `hooks/`                        | 227             |
+| `services/`                     | 33              |
+| `utils/`                        | 23              |
+| `pages/`                        | 14              |
+| `stores/`                       | 10              |
+| other (`src/test`, `lib`, root) | 8               |
+| **total**                       | **796**         |
 
-   - Tests root App component
-   - Verifies Layout and DashboardPage integration
-   - Checks component hierarchy
+Roughly 20,000 individual test cases live in those files. E2E adds 43 specs in
+`tests/e2e/specs/`, 13 visual-regression specs in `tests/e2e/visual/`, and the
+user-journey specs in `tests/e2e/specs/user-journeys/`.
 
-2. **`src/components/layout/Layout.test.tsx`**
+Tests are co-located with their subject (`Foo.tsx` next to `Foo.test.tsx`);
+there is no separate `__tests__` mirror tree except for shared fixtures.
 
-   - Tests Layout wrapper component
-   - Verifies Header and Sidebar rendering
-   - Tests children content rendering
-   - Checks flex layout structure
-   - Validates activeNav state management
+## Coverage Floors
 
-3. **`src/components/layout/Header.test.tsx`**
+`vite.config.ts` declares the floors, and CI (`merge-shard-coverage.mjs
+--enforce`, run only when every Vitest shard passed) enforces them on merged
+shard data:
 
-   - Tests Header component
-   - Verifies NVIDIA branding elements
-   - Tests system status indicator
-   - Validates GPU stats placeholder
-   - Checks styling and accessibility
+| Metric     | Floor |
+| ---------- | ----- |
+| statements | 80    |
+| branches   | 74.6  |
+| functions  | 78.4  |
+| lines      | 80.9  |
 
-4. **`src/components/layout/Sidebar.test.tsx`**
-
-   - Tests Sidebar navigation component
-   - Verifies all navigation items render
-   - Tests active state highlighting
-   - Validates click interactions
-   - Checks WIP badge rendering
-   - Tests hover states and transitions
-
-5. **`src/components/dashboard/DashboardPage.test.tsx`**
-   - Tests DashboardPage component
-   - Verifies heading rendering
-   - Validates styling and structure
+These are **measured** values, not wish-values (R-1, WP2.3): the earlier
+declared 83/77/81/84 sat above every observed run, so they could never fail a
+build. Do not raise a floor without a measured run supporting it.
 
 ## Test Coverage
 
@@ -164,69 +167,17 @@ Each test file covers:
 - **Styling**: CSS classes are applied correctly
 - **Accessibility**: Proper semantic HTML and ARIA attributes
 
-### Layout Component (8 tests)
+### Representative Files
 
-- Renders without crashing
-- Renders Header component
-- Renders Sidebar component
-- Renders children content
-- Passes activeNav state to Sidebar
-- Correct layout structure with flex classes
-- Main element has overflow-auto class
-- Renders multiple children correctly
+These are the entry-point tests for the app shell. Run
+`npm run test:coverage` (or read the Vitest summary) for current per-file
+counts — enumerating counts here goes stale on the next commit.
 
-### Header Component (14 tests)
-
-- Renders without crashing
-- Displays NVIDIA SECURITY title
-- Displays POWERED BY NEMOTRON subtitle
-- Renders Activity icon
-- Displays System Online status
-- Has pulsing green status dot
-- Displays GPU stats placeholder
-- Correct header styling classes
-- Title styling validation
-- Subtitle with NVIDIA green color
-- Proper flex layout structure
-- GPU stats styling
-- GPU value color
-- Accessibility attributes
-
-### Sidebar Component (16 tests)
-
-- Renders without crashing
-- Renders all navigation items
-- Highlights active navigation item
-- Does not highlight inactive items
-- Calls onNavChange when clicked
-- Calls onNavChange with correct id
-- Displays WIP badge
-- WIP badge styling
-- Renders icons for all items
-- Correct sidebar styling
-- Navigation buttons full width
-- Changes active state on selection
-- Renders all 5 navigation items
-- Transition classes for smooth hover
-- Inactive items have hover classes
-
-### DashboardPage Component (7 tests)
-
-- Renders without crashing
-- Displays Dashboard heading
-- Heading has correct styling
-- Container styling
-- Heading is h2 element
-- Semantic HTML structure
-- Text content validation
-
-### App Component (5 tests)
-
-- Renders without crashing
-- Renders Layout component
-- Renders DashboardPage inside Layout
-- DashboardPage is child of Layout
-- Correct component hierarchy
+- `src/App.test.tsx` - root App renders inside its error boundaries
+- `src/components/layout/Layout.test.tsx` - app shell: sidebar, header, content outlet
+- `src/components/layout/Header.test.tsx` - branding, system status, GPU stats display
+- `src/components/layout/Sidebar.test.tsx` - navigation items, active state, click handling
+- `src/components/dashboard/DashboardPage.test.tsx` - dashboard widgets and their states
 
 ## Testing Best Practices
 
@@ -327,11 +278,16 @@ E2E tests are located in `tests/e2e/`:
 E2E tests are configured in `playwright.config.ts`:
 
 - **Test Directory**: `./tests/e2e`
-- **Base URL**: `http://localhost:5173`
-- **Browser**: Chromium only (for minimal smoke tests)
+- **Base URL**: `http://localhost:8444` (plain HTTP so self-signed dev certs don't break the run)
+- **Projects**: `smoke`, `critical`, `visual-chromium`, `chromium`, `firefox`, `webkit`, `mobile-chrome` (Pixel 5), `mobile-safari` (iPhone 12), `tablet` (iPad gen 7)
 - **Retries**: 2 in CI, 0 locally
+- **Timeouts**: 15s per test, 3s expect, 5s action, 15s navigation (Firefox/WebKit get longer)
 - **Artifacts**: Screenshots on failure, video on failure, trace on first retry
-- **Web Server**: Automatically starts dev server before tests
+- **Web Server**: `npm run dev:e2e` starts automatically; it runs Vite **without the API proxy** so `page.route()` interception is not shadowed by a proxied request to `localhost:8000`
+- **CI sharding**: Chromium runs across 3 shards (`--shard=1/3` .. `3/3`)
+
+`tests/e2e/AGENTS.md` documents the fixtures, page objects, and utilities in
+detail.
 
 ### API Mocking
 
@@ -342,21 +298,25 @@ await page.route('**/api/cameras', async (route) => {
   await route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify([
-      /* mock data */
-    ]),
+    body: JSON.stringify([/* mock data */]),
   });
 });
 ```
 
 This ensures tests are reliable and don't require a running backend.
 
-## Future Enhancements
+## What Already Exists Beyond These Basics
 
-- Add visual regression tests with Playwright screenshots
-- Test WebSocket connections with mock server
-- Add accessibility tests (axe-core integration)
-- Test mobile viewport responsiveness
+Older drafts of this file listed the items below as "future enhancements".
+They shipped:
+
+- **Visual regression** - `tests/e2e/visual/*.visual.spec.ts` with committed
+  snapshot baselines, run under the `visual-chromium` project
+- **Accessibility** - `tests/e2e/specs/accessibility.spec.ts` using
+  `@axe-core/playwright` (skipped in CI for axe timing flakiness; run locally)
+- **Mobile viewports** - `mobile-chrome`, `mobile-safari`, and `tablet` projects
+- **WebSocket behaviour** - `tests/integration/websocket-*.test.ts` and the
+  realtime E2E specs
 
 ## References
 

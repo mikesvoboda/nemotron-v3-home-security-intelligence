@@ -55,7 +55,7 @@ The SSIM algorithm compares structural patterns, luminance, and contrast between
 | Variable                 | Default | Range   | Description                              |
 | ------------------------ | ------- | ------- | ---------------------------------------- |
 | `SCENE_CHANGE_ENABLED`   | `true`  | -       | Enable/disable scene change detection    |
-| `SCENE_CHANGE_THRESHOLD` | `0.90`  | 0.0-1.0 | SSIM threshold (below = change detected) |
+| `SCENE_CHANGE_THRESHOLD` | `0.90`  | 0.5-1.0 | SSIM threshold (below = change detected) |
 
 ### Threshold Selection Guide
 
@@ -71,13 +71,11 @@ The SSIM algorithm compares structural patterns, luminance, and contrast between
 
 ### Internal Settings
 
-The scene change detector uses these internal settings (not configurable via environment):
-
-| Setting      | Value | Description                             |
-| ------------ | ----- | --------------------------------------- |
-| Resize Width | 640px | Frames resized for efficient comparison |
-| Window Size  | 7px   | SSIM comparison window size             |
-| Color Mode   | Gray  | Frames converted to grayscale           |
+| Setting      | Value            | Description                                          |
+| ------------ | ---------------- | ---------------------------------------------------- |
+| Resize Width | 640px (128-1920) | Configurable via `SCENE_CHANGE_RESIZE_WIDTH`         |
+| Window Size  | 7px              | SSIM `win_size` (capped at the image's smaller side) |
+| Color Mode   | Gray             | Frames converted to grayscale before SSIM            |
 
 ---
 
@@ -247,7 +245,7 @@ Baselines may need to be reset when:
 Restarting the backend service clears all baselines (they're held in memory).
 
 ```bash
-docker compose restart backend
+podman compose -f docker-compose.prod.yml restart backend
 ```
 
 ### Baseline Persistence

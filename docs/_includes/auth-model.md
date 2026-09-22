@@ -8,3 +8,4 @@ The system uses a **single-user local deployment** model:
 4. **Network binding** to `127.0.0.1` is the primary security boundary
 5. **Per-route protections** (`verify_api_key`, `require_admin_access`) guard admin/destructive operations
 6. **API key auth** is optionally available via `API_KEY_ENABLED=true`
+7. **`AuthMiddleware`** exists in the codebase but is disabled (NEM-5527) — it is reserved for future multi-user support

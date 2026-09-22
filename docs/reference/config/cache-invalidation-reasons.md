@@ -39,6 +39,11 @@ mock_cache.invalidate_events.assert_called_once_with(
 | `EVENT_DELETED`  | `event_deleted`  | Cache invalidation when an event is deleted              |
 | `EVENT_RESTORED` | `event_restored` | Cache invalidation when a soft-deleted event is restored |
 
+> `CacheInvalidationReason` is a free label — any constant in the enum can be passed to
+> any cache invalidation method (`invalidate_event_stats`, `invalidate_events`,
+> `invalidate_cameras`, `invalidate_pattern`, ...). The tables below describe typical
+> usage, not an enforced pairing.
+
 ### Camera Lifecycle Operations
 
 | Constant          | Value             | Description                                               |

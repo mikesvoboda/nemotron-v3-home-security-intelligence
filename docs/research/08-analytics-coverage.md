@@ -1,5 +1,7 @@
 # Analytics Endpoints vs Frontend Coverage
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 **Core analytics endpoints are 100% covered** in the frontend. However, **zone analytics have 0% UI coverage** despite robust backend support.

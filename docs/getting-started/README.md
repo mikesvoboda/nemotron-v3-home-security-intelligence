@@ -71,7 +71,7 @@ _The onboarding journey takes operators through system setup, then hands off to 
 
 ## What You Will Need
 
-- NVIDIA GPU with 8GB+ VRAM (RTX 3060 or better)
+- NVIDIA GPU — 24GB VRAM runs the full stack; smaller cards run the LLM with reduced `GPU_LAYERS` (partially offloaded, slower — there is no run mode without the LLM; see Prerequisites)
 - Python 3.14+, Node.js 24 LTS
 - Docker or Podman
 - Foscam cameras (or compatible FTP-uploading cameras)

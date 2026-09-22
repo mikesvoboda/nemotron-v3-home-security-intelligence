@@ -6,111 +6,68 @@ Contains React components for comprehensive system observability and monitoring 
 
 ## Files
 
-| File                                     | Purpose                                            |
-| ---------------------------------------- | -------------------------------------------------- |
-| `AiModelsPanel.tsx`                      | AI model status and metrics                        |
-| `AiModelsPanel.test.tsx`                 | Test suite for AiModelsPanel                       |
-| `BackgroundJobsPanel.tsx`                | Background job queue status display                |
-| `BackgroundJobsPanel.test.tsx`           | Test suite for BackgroundJobsPanel                 |
-| `CircuitBreakerPanel.tsx`                | Circuit breaker states for resilience              |
-| `CircuitBreakerPanel.test.tsx`           | Test suite for CircuitBreakerPanel                 |
-| `CollapsibleSection.tsx`                 | Collapsible section wrapper component              |
-| `CollapsibleSection.test.tsx`            | Test suite for CollapsibleSection                  |
-| `DebugModeToggle.tsx`                    | Toggle for debug mode settings                     |
-| `DebugModeToggle.test.tsx`               | Test suite for DebugModeToggle                     |
-| `ContainersPanel.tsx`                    | Container status and metrics                       |
-| `ContainersPanel.test.tsx`               | Test suite for ContainersPanel                     |
-| `DatabasesPanel.tsx`                     | PostgreSQL and Redis metrics                       |
-| `DatabasesPanel.test.tsx`                | Test suite for DatabasesPanel                      |
-| `FileOperationsPanel.tsx`                | File operations status panel                       |
-| `FileOperationsPanel.test.tsx`           | Test suite for FileOperationsPanel                 |
-| `HostSystemPanel.tsx`                    | Host OS and hardware metrics                       |
-| `HostSystemPanel.test.tsx`               | Test suite for HostSystemPanel                     |
-| `InfrastructureStatusGrid.tsx`           | Grid of infrastructure cards                       |
-| `InfrastructureStatusGrid.test.tsx`      | Test suite for InfrastructureStatusGrid            |
-| `ModelZooPanel.tsx`                      | AI Model Zoo status table with VRAM usage          |
-| `ModelZooPanel.test.tsx`                 | Test suite for ModelZooPanel                       |
-| `PerformanceAlerts.tsx`                  | Performance threshold alerts                       |
-| `PerformanceAlerts.test.tsx`             | Test suite for PerformanceAlerts                   |
-| `PipelineFlowVisualization.tsx`          | Visual pipeline stages with worker status          |
-| `PipelineFlowVisualization.test.tsx`     | Test suite for PipelineFlowVisualization           |
-| `PipelineMetricsPanel.tsx`               | Queue depths and latency percentiles               |
-| `PipelineMetricsPanel.test.tsx`          | Test suite for PipelineMetricsPanel                |
-| `ServicesPanel.tsx`                      | Services status panel                              |
-| `ServicesPanel.test.tsx`                 | Test suite for ServicesPanel                       |
-| `SeverityConfigPanel.tsx`                | Severity threshold configuration                   |
-| `SeverityConfigPanel.test.tsx`           | Test suite for SeverityConfigPanel                 |
-| `SystemMonitoringPage.tsx`               | Main system monitoring page (redesigned)           |
-| `SystemSummaryRow.tsx`                   | Clickable summary indicators for system health     |
-| `SystemSummaryRow.test.tsx`              | Test suite for SystemSummaryRow                    |
-| `TimeRangeSelector.tsx`                  | Time range selection for metrics                   |
-| `TimeRangeSelector.test.tsx`             | Test suite for TimeRangeSelector                   |
-| `WorkerStatusPanel.tsx`                  | Background workers status display                  |
-| `WorkerStatusPanel.test.tsx`             | Test suite for WorkerStatusPanel                   |
-| `index.ts`                               | Barrel exports                                     |
+Most `.tsx` files here have a co-located `.test.tsx`. Exceptions: `GPUHistoryPanel.tsx` and `PerformanceHistoryPanel.tsx` are covered through `SystemMonitoringPage.test.tsx`, and `WorkerStatusPanel.tsx` has no test coverage yet.
+
+| File                              | Purpose                                              |
+| --------------------------------- | ---------------------------------------------------- |
+| `CircuitBreakerPanel.tsx`         | Circuit breaker states for resilience                |
+| `CollapsibleSection.tsx`          | Collapsible section wrapper component                |
+| `ContainersPanel.tsx`             | Container status and metrics                         |
+| `DatabasesPanel.tsx`              | PostgreSQL and Redis metrics                         |
+| `DebugModeToggle.tsx`             | Toggle for debug mode settings                       |
+| `FileOperationsPanel.tsx`         | File operations status panel                         |
+| `GPUHistoryPanel.tsx`             | GPU utilization/temperature/memory over time         |
+| `HostSystemPanel.tsx`             | Host OS and hardware metrics                         |
+| `KubernetesProbesPanel.tsx`       | Liveness/readiness probe status                      |
+| `PerformanceHistoryPanel.tsx`     | GPU/CPU/RAM history chart with time range            |
+| `PipelineFlowVisualization.tsx`   | Visual pipeline stages with worker status            |
+| `PipelineLatencyHistoryPanel.tsx` | Per-stage latency history (averages and percentiles) |
+| `PipelineMetricsPanel.tsx`        | Queue depths and latency percentiles                 |
+| `PrometheusMonitoringPanel.tsx`   | Prometheus target health summary                     |
+| `QueueMetricsPanel.tsx`           | Live queue depth/throughput from WebSocket events    |
+| `ServicesPanel.tsx`               | Services status panel                                |
+| `SeverityConfigPanel.tsx`         | Severity threshold configuration                     |
+| `SystemHealthIndicator.tsx`       | Compact health badge used in headers                 |
+| `SystemMonitoringPage.tsx`        | Main system monitoring page                          |
+| `SystemMonitoringPage.test.tsx`   | Full-page integration test                           |
+| `TimeRangeSelector.tsx`           | Time range selection for metrics                     |
+| `WebSocketHealthPanel.tsx`        | WebSocket broadcaster health and circuit state       |
+| `WorkerActionConfirmDialog.tsx`   | Confirm dialog for stop/restart worker actions       |
+| `WorkerCard.tsx`                  | Single worker status card (NEM-4831)                 |
+| `WorkerManagementPanel.tsx`       | Supervisor status plus worker start/stop/restart     |
+| `WorkerStatusPanel.tsx`           | Read-only background worker status display           |
+| `index.ts`                        | Barrel exports                                       |
+
+> **Deleted in #3471** ("remove orphaned Infrastructure page and components"):
+> `AiModelsPanel`, `BackgroundJobsPanel`, `InfrastructureStatusGrid`,
+> `ModelZooPanel`, `PerformanceAlerts`, `SystemSummaryRow`. Do not resurrect
+> them from this document — the Model Zoo table now lives at
+> `frontend/src/components/settings/ModelZooPanel.tsx`, and
+> `SystemMonitoringPage` composes the panels listed above instead.
 
 ## Key Components
 
 ### SystemMonitoringPage.tsx
 
-**Purpose:** Comprehensive system monitoring dashboard with redesigned layout featuring summary row, pipeline visualization, and infrastructure grid
+**Purpose:** The `/operations` route. Composes collapsible panels over a
+telemetry + readiness + circuit-breaker polling loop.
 
 **Key Features:**
 
-- Summary row with 5 clickable health indicators
-- Visual pipeline flow with stage metrics and worker status
-- Infrastructure status grid (PostgreSQL, Redis, Containers, Host, Circuit Breakers)
-- AI models section with Model Zoo panel
-- Time range selector for historical data
-- Auto-refresh with configurable intervals
-- Loading skeleton states
-- Error state with reload button
+- Polls telemetry, readiness, config, and circuit breakers
+- Sections gated by `useSystemPageSections` so users can show/hide panels
+- Debug mode toggle (visible only when the backend runs with `DEBUG=true`)
+- Loading skeleton states and an error state with a reload button
 
-**Layout:**
-
-```
-+------------------------------------------------+
-|   System Monitoring        [TimeRangeSelector] |
-+------------------------------------------------+
-|            SystemSummaryRow                    |
-|  [Overall] [GPU] [Pipeline] [AI] [Infra]      |
-+------------------------------------------------+
-|        PipelineFlowVisualization               |
-|  Watch -> Detect -> Batch -> Analyze           |
-|  (with worker status and metrics)              |
-+------------------------------------------------+
-|         InfrastructureStatusGrid               |
-|  [PostgreSQL] [Redis] [Containers] [Host]      |
-|  [Circuit Breakers]                            |
-+------------------------------------------------+
-|         AiModelsPanel / ModelZooPanel          |
-+------------------------------------------------+
-```
+Sections rendered (from the page's own imports): `PipelineFlowVisualization`,
+`GPUHistoryPanel`, `PerformanceHistoryPanel`, `PipelineLatencyHistoryPanel`,
+`QueueMetricsPanel`, `DatabasesPanel`, `ServicesPanel`, `ContainersPanel`,
+`HostSystemPanel`, `CircuitBreakerPanel`, `WebSocketHealthPanel`,
+`PrometheusMonitoringPanel`, `KubernetesProbesPanel`, `FileOperationsPanel`,
+`WorkerManagementPanel`, `WorkerStatusPanel`, and `BatchStatisticsDashboard`
+(from `../batch`).
 
 **No props** - Top-level page component
-
----
-
-### SystemSummaryRow.tsx
-
-**Purpose:** Horizontal row of 5 clickable summary indicators showing system health at a glance
-
-**Key Features:**
-
-- 5 indicators: Overall, GPU, Pipeline, AI Models, Infrastructure
-- Color-coded states: healthy (green), degraded (yellow), critical (red)
-- Click-to-scroll to relevant page sections
-- Hover tooltips with additional metrics
-- Uses hooks: useHealthStatus, useModelZooStatus, usePerformanceMetrics
-
-**Props Interface:**
-
-```typescript
-interface SystemSummaryRowProps {
-  className?: string;
-  onIndicatorClick?: (sectionId: string) => void;
-}
-```
 
 ---
 
@@ -137,62 +94,6 @@ interface PipelineFlowVisualizationProps {
   baselineLatencies?: BaselineLatencies;
   isLoading?: boolean;
   error?: string | null;
-  className?: string;
-}
-```
-
----
-
-### InfrastructureStatusGrid.tsx
-
-**Purpose:** Grid of infrastructure status cards with expandable details
-
-**Key Features:**
-
-- PostgreSQL: status, latency, pool usage, active queries, DB size
-- Redis: status, ops/sec, memory, clients, hit rate
-- Containers: running/total, per-container CPU/memory
-- Host System: CPU, memory, disk usage
-- Circuit Breakers: state (closed/open/half-open), failure counts
-
-**Props Interface:**
-
-```typescript
-interface InfrastructureStatusGridProps {
-  postgresql: PostgreSQLDetails;
-  redis: RedisDetails;
-  containers: ContainerDetails;
-  host: HostDetails;
-  circuitBreakers: CircuitBreakerInfo[];
-  isLoading?: boolean;
-  error?: string | null;
-  className?: string;
-}
-```
-
----
-
-### ModelZooPanel.tsx
-
-**Purpose:** Displays AI Model Zoo status and VRAM usage
-
-**Key Features:**
-
-- VRAM budget progress bar showing current consumption
-- Table of all models with status badges
-- Status colors: green (loaded), yellow (loading), red (error), gray (unloaded/disabled)
-- Model categories and VRAM usage per model
-- Refresh button
-
-**Props Interface:**
-
-```typescript
-interface ModelZooPanelProps {
-  models: ModelStatusResponse[];
-  vramStats: VRAMStats | null;
-  isLoading: boolean;
-  error: string | null;
-  onRefresh: () => void;
   className?: string;
 }
 ```
@@ -227,48 +128,33 @@ interface ModelZooPanelProps {
 
 ### WorkerStatusPanel.tsx
 
-**Purpose:** Displays status of all 8 background workers with real-time polling
+**Purpose:** Read-only view of pipeline worker health, driven entirely by
+WebSocket events (NEM-3127, NEM-3402). It does not poll a REST endpoint.
 
 **Key Features:**
 
-- Status display for all background workers:
-  - GPU Monitor, Cleanup Service, System Broadcaster
-  - File Watcher, Detection Worker, Analysis Worker
-  - Batch Timeout Worker, Metrics Worker
-- Critical worker highlighting (detection_worker, analysis_worker):
-  - Special NVIDIA green border when running
-  - "Critical" badge
-  - Red border when stopped
-- Summary badges showing running/stopped counts
-- Worker descriptions and human-readable names
-- Error messages for stopped workers
-- Auto-polling with configurable interval (default: 10s)
-- Sorted list: critical workers first, then alphabetical
-- Loading skeleton and error states
+- Subscribes through `useWorkerStatusWebSocket`; no timer, no fetch
+- Overall pipeline health badge: `PipelineHealthStatus` of `healthy` /
+  `warning` / `error` / `unknown`
+- One card per reported worker with states `running`, `stopped`, `error`,
+  `starting`
+- A connection indicator (Wi-Fi icon) distinguishes "all workers down" from
+  "we lost the WebSocket"
 
 **Props:**
 
 ```typescript
 interface WorkerStatusPanelProps {
-  /** Polling interval in milliseconds (default: 10000) */
-  pollingInterval?: number;
-  /** Optional callback when worker status changes */
-  onStatusChange?: (workers: WorkerStatus[]) => void;
+  className?: string;
+  'data-testid'?: string;
 }
 ```
 
-**Worker Display Names:**
-
-| Worker Name          | Display Name         | Description                              |
-| -------------------- | -------------------- | ---------------------------------------- |
-| gpu_monitor          | GPU Monitor          | Monitors GPU utilization and temperature |
-| cleanup_service      | Cleanup Service      | Removes old data based on retention      |
-| system_broadcaster   | System Broadcaster   | Broadcasts system status via WebSocket   |
-| file_watcher         | File Watcher         | Watches for new camera images            |
-| detection_worker     | Detection Worker     | Processes images through YOLO26       |
-| analysis_worker      | Analysis Worker      | Analyzes detections with Nemotron LLM    |
-| batch_timeout_worker | Batch Timeout Worker | Handles batch processing timeouts        |
-| metrics_worker       | Metrics Worker       | Collects and reports pipeline metrics    |
+The worker roster is not enumerated here — it comes from the backend
+supervisor. `WorkerManagementPanel.tsx` (NEM-4831) is the interactive
+counterpart: it reads `GET /api/system/supervisor` and offers
+start/stop/restart through `POST /api/system/supervisor/workers/{name}/{action}`,
+with `WorkerActionConfirmDialog` guarding the destructive ones.
 
 ---
 
@@ -278,20 +164,26 @@ interface WorkerStatusPanelProps {
 
 **Key Features:**
 
-- CPU utilization with core count
-- Memory usage (used/total GB, percentage)
+- CPU utilization
+- Memory usage (used/total, percentage)
 - Disk usage with progress bar (color-coded by threshold)
-- Network I/O rates (bytes/sec)
 - System uptime display
 - Hostname and OS version
-- GPU temperature and utilization (if available)
-- Auto-refresh support
+- Healthy / Warning / Critical status badge
+
+This is a presentational component: it renders the `metrics` prop and fetches
+nothing itself.
 
 **Props:**
 
 ```typescript
 interface HostSystemPanelProps {
-  timeRange?: TimeRange;
+  metrics: HostSystemMetrics | null;
+  stats?: SystemStats | null; // provides uptime
+  osInfo?: string;
+  hostname?: string;
+  isLoading?: boolean;
+  error?: string | null;
   className?: string;
 }
 ```
@@ -304,21 +196,19 @@ interface HostSystemPanelProps {
 
 **Key Features:**
 
-- List of all running containers
-- Container status indicators (running, stopped, error)
-- CPU and memory usage per container
-- Container uptime
-- Image name and version
-- Port mappings display
-- Health check status (if configured)
-- Restart count tracking
+- Polls `fetchContainerServices(category)` on `pollingInterval` (default 30s)
+- Per-container card: state, image, CPU, memory, uptime, health-check status,
+  restart count
+- Category summary bar (infrastructure / ai / monitoring) with running totals
 
 **Props:**
 
 ```typescript
 interface ContainersPanelProps {
-  timeRange?: TimeRange;
+  pollingInterval?: number; // ms, default 30000
+  category?: ContainerCategory; // infrastructure | ai | monitoring
   className?: string;
+  'data-testid'?: string;
 }
 ```
 
@@ -333,79 +223,28 @@ interface ContainersPanelProps {
 - PostgreSQL metrics:
   - Connection count (active/max)
   - Database size
-  - Query latency
   - Transaction rate
 - Redis metrics:
   - Memory usage
   - Connected clients
-  - Key count
   - Operations per second
+  - Cache hit rate
 - Connection status indicators
 - Performance warnings for threshold breaches
+- `debugMode` reveals extra Redis detail from `/api/debug/redis/info`
 
 **Props:**
 
 ```typescript
 interface DatabasesPanelProps {
-  timeRange?: TimeRange;
+  postgresql: DatabaseMetrics | null;
+  redis: RedisMetrics | null;
+  timeRange: string;
+  history: DatabaseHistoryData;
   className?: string;
-}
-```
-
----
-
-### AiModelsPanel.tsx
-
-**Purpose:** Displays AI model status and inference metrics
-
-**Key Features:**
-
-- YOLO26 model status and metrics:
-  - Load status (loaded/unloaded/error)
-  - GPU memory usage
-  - Inference FPS
-  - Queue depth
-- Nemotron model status and metrics:
-  - Load status
-  - GPU memory usage
-  - Inference latency
-  - Queue depth
-- Total GPU memory allocation
-- Model warm-up status
-
-**Props:**
-
-```typescript
-interface AiModelsPanelProps {
-  className?: string;
-}
-```
-
----
-
-### PerformanceAlerts.tsx
-
-**Purpose:** Displays active performance alerts when thresholds are breached
-
-**Key Features:**
-
-- Alert severity levels (warning, critical)
-- Alert types:
-  - High CPU usage
-  - High memory usage
-  - Low disk space
-  - High GPU temperature
-  - Queue backlog
-- Auto-dismissing alerts after resolution
-- Compact alert cards with icons
-- Links to relevant dashboard sections
-
-**Props:**
-
-```typescript
-interface PerformanceAlertsProps {
-  alerts?: PerformanceAlert[];
-  className?: string;
+  'data-testid'?: string;
+  debugMode?: boolean;
+  redisDebugInfo?: RedisInfo | null;
 }
 ```
 
@@ -413,80 +252,93 @@ interface PerformanceAlertsProps {
 
 ### TimeRangeSelector.tsx
 
-**Purpose:** Dropdown selector for historical data time ranges
+**Purpose:** Toggle button group for selecting a history window
 
 **Key Features:**
 
-- Preset time ranges: 1h, 6h, 24h, 7d
-- Compact dropdown design
-- Callback on selection change
-- Current selection indicator
+- Preset ranges: 5m, 15m, 60m
+- Callback on selection change, with the current selection highlighted
 
 **Props:**
 
 ```typescript
 interface TimeRangeSelectorProps {
-  value: TimeRange;
-  onChange: (range: TimeRange) => void;
+  selectedRange: TimeRange;
+  onRangeChange: (range: TimeRange) => void;
   className?: string;
 }
 
-type TimeRange = '1h' | '6h' | '24h' | '7d';
+// from ../../types/performance
+type TimeRange = '5m' | '15m' | '60m';
 ```
 
 ---
 
 ### index.ts
 
-**Barrel exports:**
+**Barrel exports** (the authoritative list; the page itself imports its panels
+directly rather than through the barrel):
 
 ```typescript
-export { default as SystemMonitoringPage } from './SystemMonitoringPage';
-export { default as WorkerStatusPanel } from './WorkerStatusPanel';
-export { default as TimeRangeSelector } from './TimeRangeSelector';
-export { default as PerformanceAlerts } from './PerformanceAlerts';
-export { default as AiModelsPanel } from './AiModelsPanel';
-export { default as DatabasesPanel } from './DatabasesPanel';
-export { default as HostSystemPanel } from './HostSystemPanel';
-export { default as ContainersPanel } from './ContainersPanel';
-export { default as PipelineMetricsPanel } from './PipelineMetricsPanel';
-export { default as CircuitBreakerPanel } from './CircuitBreakerPanel';
-export { default as SeverityConfigPanel } from './SeverityConfigPanel';
+(SystemMonitoringPage,
+  TimeRangeSelector,
+  DatabasesPanel,
+  PipelineMetricsPanel,
+  CircuitBreakerPanel,
+  ServicesPanel,
+  SeverityConfigPanel,
+  FileOperationsPanel,
+  HostSystemPanel,
+  ContainersPanel,
+  WorkerStatusPanel(+WorkerStatusPanelNamed),
+  QueueMetricsPanel);
 ```
 
-**Note:** SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, and ModelZooPanel are used internally by SystemMonitoringPage and are not exported from index.ts.
+Components not in the barrel — `PipelineFlowVisualization`,
+`GPUHistoryPanel`, `PerformanceHistoryPanel`, `PipelineLatencyHistoryPanel`,
+`PrometheusMonitoringPanel`, `KubernetesProbesPanel`, `WebSocketHealthPanel`,
+`WorkerManagementPanel`, `WorkerCard`, `WorkerActionConfirmDialog`,
+`CollapsibleSection`, `DebugModeToggle`, `SystemHealthIndicator` — are
+imported by path where they're used.
 
 ## Types
 
 ### TimeRange
 
-Time range type for historical metrics:
-
 ```typescript
-type TimeRange = '1h' | '6h' | '24h' | '7d';
+// types/performance.ts
+type TimeRange = '5m' | '15m' | '60m';
 ```
 
 ### HealthStatus
 
-System health status type:
-
 ```typescript
-type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+// types/websocket.ts
+type HealthStatus = 'healthy' | 'degraded' | 'unhealthy';
 ```
+
+`PipelineHealthStatus` (from `hooks/useWorkerStatusWebSocket`) is a separate
+four-value union: `healthy | warning | error | unknown`.
 
 ## Related Hooks
 
-### useGpuHistory
+The panels use TanStack Query hooks in `frontend/src/hooks/`, imported by
+path. The ones that matter here:
 
-Located in `/hooks/useGpuHistory.ts`, this hook polls GPU metrics and maintains a rolling history buffer.
+| Hook                                                                                                           | Used by                       |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `useGPUMetricsHistory`                                                                                         | `GPUHistoryPanel`             |
+| `usePerformanceHistory`                                                                                        | `PerformanceHistoryPanel`     |
+| `usePipelineLatencyHistory`                                                                                    | `PipelineLatencyHistoryPanel` |
+| `useQueueMetricsWebSocket`                                                                                     | `QueueMetricsPanel`           |
+| `useWorkerStatusWebSocket`                                                                                     | `WorkerStatusPanel`           |
+| `useSupervisorStatus`, `useWorkerActions`, `useRestartHistory`                                                 | worker management panels      |
+| `useServiceStatus`, `useServiceMutations`                                                                      | `ServicesPanel`               |
+| `useMonitoringHealth`                                                                                          | `SystemHealthIndicator`       |
+| `useSystemPageSections`, `useSystemConfigQuery`, `useDebugQueries`, `usePerformanceMetrics`, `useLocalStorage` | `SystemMonitoringPage`        |
 
-```typescript
-const { current, history, isLoading, error, start, stop, clearHistory } = useGpuHistory({
-  pollingInterval: 5000, // ms
-  maxDataPoints: 60,
-  autoStart: true,
-});
-```
+(`useGpuHistory` also exists and backs `dashboard/GpuStats`, but the panels in
+this directory use `useGPUMetricsHistory`.)
 
 ## Design Decisions
 
@@ -506,58 +358,45 @@ Instead of embedding Grafana panels, we provide a simple link to standalone Graf
 ## Styling
 
 - Dark theme with NVIDIA branding
-- Background colors: `#1A1A1A`, `#121212`
+- Page background: `bg-[#121212]`; panels use the shared `#1A1A1A` panel tone
 - Primary accent: `#76B900` (NVIDIA Green)
-- Temperature colors: green (<70), yellow (70-80), red (>80)
-- Tremor chart colors: 'emerald' for positive metrics
+- Tremor `emerald` for positive metrics, `yellow`/`red` for degraded and
+  critical states
 
-## API Endpoints Used
+## Backend Endpoints Reached
 
-- `GET /api/system/stats` - Total cameras/events/detections/uptime
-- `GET /api/system/health` - Detailed service health
-- `GET /api/system/health/ready` - Worker readiness status
-- `GET /api/system/telemetry` - Queue depths + latency percentiles
-- `GET /api/system/gpu` - Current GPU metrics
-- `GET /api/system/host` - Host system metrics
-- `GET /api/system/containers` - Container status
-- `GET /api/system/databases` - Database metrics
+Confirmed in `backend/api/routes/`:
+
+- `GET /api/system/health` and `GET /api/system/health/live` (sub-500ms liveness) and `GET /api/system/health/ready` - service health and worker readiness
+- `GET /api/system/health/websocket` - `WebSocketHealthPanel`
+- `GET /api/system/telemetry` - queue depths and latency percentiles
+- `GET /api/system/circuit-breakers` - `CircuitBreakerPanel`
+- `GET /api/system/config` - debug-mode and Grafana URL config
+- `GET /api/system/services` - `ServicesPanel` / `ContainersPanel` (`backend/api/routes/services.py`)
+- `GET /api/system/gpu/history`, `GET /api/system/performance/history`, `GET /api/system/pipeline-latency/history` - the history panels
+- `GET /api/system/supervisor` and `POST /api/system/supervisor/workers/{name}/{start|stop|restart}` - `WorkerManagementPanel`
+- `GET /api/system/storage`, `GET /api/system/jobs` - file operations and job panels
 
 ## Testing
 
-Comprehensive test coverage:
+Every component here has a co-located `*.test.tsx`. Run the directory in one
+shot:
 
-- `SystemMonitoringPage.test.tsx` - Full page integration, new layout, panel rendering
-- `SystemSummaryRow.test.tsx` - Indicator states, click handling, tooltips
-- `PipelineFlowVisualization.test.tsx` - Stage rendering, worker status, latency display
-- `InfrastructureStatusGrid.test.tsx` - Card rendering, expand/collapse, status colors
-- `WorkerStatusPanel.test.tsx` - Worker status display, polling, critical worker highlighting
-- `HostSystemPanel.test.tsx` - Host metrics display, threshold colors
-- `ContainersPanel.test.tsx` - Container list, status indicators
-- `DatabasesPanel.test.tsx` - PostgreSQL and Redis metrics display
-- `AiModelsPanel.test.tsx` - Model status, memory usage display
-- `ModelZooPanel.test.tsx` - Model table, VRAM progress bar
-- `PipelineMetricsPanel.test.tsx` - Queue depths, latency charts
-- `CircuitBreakerPanel.test.tsx` - Circuit breaker states, failure counts
-- `SeverityConfigPanel.test.tsx` - Threshold inputs, save handling
-- `PerformanceAlerts.test.tsx` - Alert rendering, severity levels
-- `TimeRangeSelector.test.tsx` - Selection handling, dropdown behavior
+```bash
+cd frontend && npm test -- src/components/system/
+```
 
 ## Entry Points
 
-**Start here:** `SystemMonitoringPage.tsx` - Main page integrating all system monitoring features
-**Then explore:** `SystemSummaryRow.tsx` - Summary indicators at page top
-**Then explore:** `PipelineFlowVisualization.tsx` - Visual pipeline with stage metrics
-**Then explore:** `InfrastructureStatusGrid.tsx` - Infrastructure cards grid
-**Also see:** `WorkerStatusPanel.tsx` - Background worker status with critical worker highlighting
-**Also see:** `ModelZooPanel.tsx` - AI Model Zoo status and VRAM usage
-**Also see:** `CircuitBreakerPanel.tsx` - Circuit breaker resilience patterns
+**Start here:** `SystemMonitoringPage.tsx` - composes everything else.
+**Then explore:** `PipelineFlowVisualization.tsx` - visual pipeline with stage metrics
+**Also see:** `WorkerManagementPanel.tsx` - supervisor status and worker control
+**Also see:** `CircuitBreakerPanel.tsx` - circuit breaker resilience patterns
 
 ## Dependencies
 
-- `@tremor/react` - Card, Title, Text, Badge, Metric, AreaChart, DonutChart, ProgressBar
-- `lucide-react` - Server, Clock, Camera, AlertCircle, Activity, CheckCircle, XCircle, AlertTriangle, Database, Container, Cpu, HardDrive
-- `clsx` - Conditional class composition
-- `../../hooks/useHealthStatus` - REST API health status hook
-- `../../services/api` - fetchStats, fetchTelemetry, fetchGPUStats, fetchHostMetrics, fetchContainerStatus
-- `../dashboard/GpuStats` - Reused GPU stats component
-- `../dashboard/PipelineQueues` - Reused queue depth component
+- `@tremor/react` - `Card`, `Callout`, `Title`, `Text`, `Badge`, `Button`, `AreaChart`, `ProgressBar`
+- `lucide-react` - icons
+- `clsx` - conditional class composition
+- `../../hooks/*` - the query/WebSocket hooks listed above
+- `../../services/api` - typed REST client

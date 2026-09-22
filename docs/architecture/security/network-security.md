@@ -6,10 +6,10 @@
 
 ## Key Files
 
-- `backend/core/config.py:752-765` - CORS origins configuration
-- `backend/main.py:1127-1139` - CORS middleware setup
-- `backend/core/url_validation.py:1-450` - SSRF protection utilities
-- `backend/core/sanitization.py:515-657` - URL validation for monitoring services
+- `backend/core/config.py:884-894` - CORS origins configuration
+- `backend/main.py:1398-1418` - CORS middleware setup
+- `backend/core/url_validation.py` (450 lines) - SSRF protection utilities
+- `backend/core/sanitization.py:554-657` - URL validation for monitoring services
 - `backend/api/middleware/rate_limit.py` - Rate limiting configuration
 
 ## Overview
@@ -18,7 +18,7 @@ The Home Security Intelligence system is designed for **trusted local network de
 
 1. The system runs on a private network without public internet exposure
 2. All network clients are trusted (single-user deployment)
-3. Cameras communicate via FTP on the local network
+3. Cameras deliver frames over RTSP on the local network (served to browsers through go2rtc)
 4. External webhook URLs require SSRF validation
 
 This document covers CORS configuration, network boundary assumptions, and protections against Server-Side Request Forgery (SSRF).
@@ -28,39 +28,44 @@ This document covers CORS configuration, network boundary assumptions, and prote
 ```mermaid
 flowchart TB
     subgraph TrustedNetwork["Trusted Local Network"]
-        CAM1[Camera 1<br/>FTP]
-        CAM2[Camera 2<br/>FTP]
-        BROWSER[Browser<br/>localhost:3000]
-        BACKEND[Backend<br/>localhost:8000]
-        FRONTEND[Frontend<br/>localhost:5173]
-        DB[(PostgreSQL)]
-        REDIS[(Redis)]
+        CAM1[Camera 1<br/>RTSP]
+        CAM2[Camera 2<br/>RTSP]
+        BROWSER[Browser]
+        FRONTEND[Frontend nginx<br/>0.0.0.0:8444 HTTPS]
+        BACKEND[Backend API<br/>127.0.0.1:8000]
+        GO2RTC[go2rtc<br/>RTSP-to-WebRTC]
+        DB[(PostgreSQL<br/>127.0.0.1:5432)]
+        REDIS[(Redis<br/>127.0.0.1:6379)]
     end
 
-    subgraph AIServices["AI Services Network"]
-        YOLO26[YOLO26<br/>:8095]
-        NEMOTRON[Nemotron<br/>:8091]
-        FLORENCE[Florence-2<br/>:8092]
+    subgraph AIServices["AI Services (loopback-published)"]
+        GATEWAY[ai-gateway :8090<br/>yolo26 / clip /<br/>florence / enrichment]
+        LLM[ai-llm :8091<br/>Nemotron]
     end
 
     subgraph External["External (Optional)"]
         WEBHOOK[Webhook<br/>Endpoints]
-        GRAFANA[Grafana<br/>Cloud]
     end
 
-    CAM1 -->|FTP| BACKEND
-    CAM2 -->|FTP| BACKEND
-    BROWSER -->|HTTP| FRONTEND
-    BROWSER -->|HTTP| BACKEND
-    FRONTEND -->|Proxy| BACKEND
+    CAM1 -->|RTSP frames| BACKEND
+    CAM2 -->|RTSP frames| BACKEND
+    CAM1 -.->|RTSP live| GO2RTC
+    GO2RTC -.->|WebRTC| BROWSER
+    BROWSER -->|HTTPS app + /api proxy + /grafana proxy| FRONTEND
+    FRONTEND -->|proxy| BACKEND
     BACKEND --> DB
     BACKEND --> REDIS
-    BACKEND -->|HTTP| YOLO26
-    BACKEND -->|HTTP| NEMOTRON
-    BACKEND -->|HTTP| FLORENCE
+    BACKEND -->|HTTP| GATEWAY
+    BACKEND -->|HTTP| LLM
     BACKEND -.->|SSRF Protected| WEBHOOK
-    BACKEND -.->|Optional| GRAFANA
 ```
+
+Every service except the frontend nginx binds `127.0.0.1` on the host
+(`docker-compose.prod.yml` port mappings); the compose network is a single
+`security-net` bridge. In the deployed stack nginx proxies `/api` on the same
+origin (port 8444), so CORS only engages for direct dev-server access. The
+loopback binding is the primary security boundary (see the auth model in the
+project AGENTS.md).
 
 ## CORS Configuration
 
@@ -71,15 +76,15 @@ flowchart TB
 CORS is configured to allow common local development origins:
 
 ```python
-# From backend/core/config.py:752-765
+# From backend/core/config.py:884-894
 cors_origins: list[str] = Field(
     default=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://0.0.0.0:3000",
-        "http://0.0.0.0:5173",
+        # HTTPS origins for external browser access
+        "https://localhost:8444",
+        "https://127.0.0.1:8444",
+        "https://0.0.0.0:8444",
+        # Internal container communication (HTTP within Docker network)
+        "http://frontend:8080",
     ],
     description="Allowed CORS origins. Set CORS_ORIGINS env var to override for your network.",
 )
@@ -90,30 +95,30 @@ cors_origins: list[str] = Field(
 The FastAPI CORS middleware is configured with security-conscious defaults:
 
 ```python
-# From backend/main.py:1127-1139
-# Security: Restrict CORS methods to only what's needed
-# Using explicit methods instead of wildcard "*" to follow least-privilege principle
+# From backend/main.py:1398-1418
 # Note: When allow_credentials=True, allow_origins cannot be ["*"]
 # If "*" is in origins, we disable credentials to allow any origin
 _cors_origins = get_settings().cors_origins
 _allow_credentials = "*" not in _cors_origins
+# Explicit list of allowed headers for cross-origin requests (NEM-5059)
+_cors_allowed_headers = ["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=_allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=_cors_allowed_headers,
 )
 ```
 
 **Configuration Options:**
 
-| Setting             | Value                                                  | Rationale                                            |
-| ------------------- | ------------------------------------------------------ | ---------------------------------------------------- |
-| `allow_origins`     | Configurable list                                      | Restrict to known frontends                          |
-| `allow_credentials` | `True` (unless origins contain `*`)                    | Support API key cookies; disabled if wildcard origin |
-| `allow_methods`     | `["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]` | Explicit methods (least-privilege principle)         |
-| `allow_headers`     | `["*"]`                                                | Accept custom headers (API keys, etc.)               |
+| Setting             | Value                                                            | Rationale                                                                       |
+| ------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `allow_origins`     | Configurable list                                                | Restrict to known frontends                                                     |
+| `allow_credentials` | `True` (unless origins contain `*`)                              | Support API key cookies; disabled if wildcard origin                            |
+| `allow_methods`     | `["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]`           | Explicit methods (least-privilege principle)                                    |
+| `allow_headers`     | `["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]` | Explicit allowlist (NEM-5059) — arbitrary headers are not accepted cross-origin |
 
 ### Custom CORS Configuration
 
@@ -121,11 +126,14 @@ For production deployments, override via environment variable:
 
 ```bash
 # Single origin
-export CORS_ORIGINS='["http://your-frontend.local:3000"]'
+export CORS_ORIGINS='["https://security.example.com"]'
 
 # Multiple origins
-export CORS_ORIGINS='["http://192.168.1.100:3000","http://dashboard.local:3000"]'
+export CORS_ORIGINS='["https://security.example.com","https://admin.example.com"]'
 ```
+
+See [CORS Configuration](../middleware/cors-configuration.md) for the full walkthrough
+(preflight behaviour, credentials handling, and troubleshooting).
 
 ## SSRF Protection
 
@@ -275,31 +283,42 @@ def validate_monitoring_url(
 Rate limits are applied based on endpoint type:
 
 ```python
-# From backend/api/middleware/rate_limit.py
-class RateLimitTier(StrEnum):
-    DEFAULT = "default"      # 100 requests/minute
-    SEARCH = "search"        # 30 requests/minute
-    MEDIA = "media"          # 60 requests/minute
-    ADMIN = "admin"          # 10 requests/minute
+# From backend/api/middleware/rate_limit.py:283-291
+class RateLimitTier(str, Enum):
+    DEFAULT = "default"          # rate_limit_requests_per_minute (default 60)
+    MEDIA = "media"              # rate_limit_media_requests_per_minute (default 120)
+    WEBSOCKET = "websocket"      # rate_limit_websocket_connections_per_minute (default 100)
+    SEARCH = "search"            # rate_limit_search_requests_per_minute (default 30)
+    EXPORT = "export"            # rate_limit_export_requests_per_minute (default 10, no burst)
+    AI_INFERENCE = "ai_inference"  # default 10/min (burst 0..configured)
+    BULK = "bulk"                # default 10/min
 ```
+
+Each tier's limit comes from a `rate_limit_*` setting in
+`backend/core/config.py:2122-2181` (`get_tier_limits()` maps tier →
+`(requests_per_minute, burst_allowance)`; the generic burst default is 10, the
+export tier has no burst allowance).
+
+Client identification uses `get_client_ip()` (`rate_limit.py`), which honours
+`X-Forwarded-For` only when the direct client is a trusted proxy — otherwise a
+spoofed header would bypass rate limits.
 
 ### Implementation
 
-Rate limiting is applied via middleware:
+Rate limiting is applied as a route dependency:
 
 ```python
-# Usage in routes
+# Usage in routes (e.g. backend/api/routes/media.py:11-22)
 from backend.api.middleware import RateLimiter, RateLimitTier
 
 media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
-@router.get("/cameras/{camera_id}/{filename:path}")
+@router.get("/cameras/{camera_id}/{filename:path}")  # router prefix "/api/media"
 async def serve_camera_file(
     camera_id: str,
     filename: str,
-    _rate_limit: None = Depends(media_rate_limiter)
-) -> FileResponse:
-    ...
+    _rate_limit: None = Depends(media_rate_limiter),
+): ...
 ```
 
 ## WebSocket Security
@@ -328,30 +347,38 @@ from .rate_limit import check_websocket_rate_limit
 AI services use internal Docker network URLs:
 
 ```python
-# From backend/core/config.py:655-664
+# From backend/core/config.py:1023-1033
 yolo26_url: str = Field(
-    default="http://localhost:8095",
-    description="YOLO26 detection service URL. Docker: http://ai-yolo26:8095",
+    default="http://ai-gateway:8090/yolo26",
+    description="URL of the YOLO26 detection service",
 )
 nemotron_url: str = Field(
     default="http://localhost:8091",
-    description="Nemotron reasoning service URL. Docker: http://ai-llm:8091",
+    description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
 )
 ```
+
+Since the gateway consolidation, detection, CLIP, Florence and the enrichment
+models all run inside the single `ai-gateway` service on port 8090 under
+path prefixes (`/yolo26`, `/clip`, `/florence`, `/enrichment`, `/enrich-lt`);
+only Nemotron stays on its own `ai-llm` container (port 8091). The
+`ai_gateway_url` / `use_ai_gateway` settings (`config.py:1309-1319`) route all
+AI clients through the gateway — both are enabled in the deployed stack
+(`docker-compose.prod.yml:456-457`, `.env.example:200-201`).
 
 ### Optional API Key Authentication for AI Services
 
 AI services can require API key authentication:
 
 ```python
-# From backend/core/config.py:667-675
-yolo26_api_key: str | None = Field(
+# From backend/core/config.py:1036-1043
+yolo26_api_key: SecretStr | None = Field(
     default=None,
-    description="API key for YOLO26 service authentication (X-API-Key header)",
+    description="Optional API key for YOLO26 service authentication",
 )
-nemotron_api_key: str | None = Field(
+nemotron_api_key: SecretStr | None = Field(
     default=None,
-    description="API key for Nemotron service authentication (X-API-Key header)",
+    description="API key for Nemotron service authentication (optional, sent via X-API-Key header)",
 )
 ```
 
@@ -359,28 +386,24 @@ nemotron_api_key: str | None = Field(
 
 ### Docker Network Segmentation
 
-```yaml
-# Recommended docker-compose.prod.yml network structure
-networks:
-  frontend:
-    # Browser access
-  backend:
-    # API and database
-  ai-services:
-    # AI inference (GPU access)
-```
+The shipped `docker-compose.prod.yml` puts every service on a single bridge
+network, `security-net` (`docker-compose.prod.yml:1388-1389`). Isolation comes
+from host port bindings instead of network splits:
+
+| Exposure                                                      | Services                                                                                                                                                                                           |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Published to the LAN (`0.0.0.0:${FRONTEND_HTTPS_PORT:-8444}`) | Frontend nginx (app, `/api` proxy, `/grafana` proxy)                                                                                                                                               |
+| Published on loopback only (`127.0.0.1:...`)                  | Backend 8000 (`API_PORT`), ai-gateway 8090 (`AI_GATEWAY_PORT`), ai-llm 8091 (`LLM_PORT`), PostgreSQL 5432, Redis 6379, go2rtc 1984, Prometheus 9090, Alertmanager 9093, Grafana 3002, and the rest |
+| Not published at all                                          | Containers reachable only over `security-net` service names (e.g. `http://backend:8000`, `http://ai-gateway:8090`)                                                                                 |
 
 ### Firewall Recommendations
 
-For production deployments:
-
-| Port      | Service     | Access        |
-| --------- | ----------- | ------------- |
-| 3000      | Frontend    | Local network |
-| 8000      | Backend API | Local network |
-| 5432      | PostgreSQL  | Backend only  |
-| 6379      | Redis       | Backend only  |
-| 8091-8096 | AI Services | Backend only  |
+With the default compose configuration the only host port open to the network
+is the frontend's HTTPS port (8444). Everything else stays on loopback or
+inside `security-net`, so no additional firewall rules are required for the
+default deployment. If you re-publish any port beyond the frontend, keep it
+loopback-bound or restrict it to your LAN, and never expose PostgreSQL, Redis,
+or the AI service ports directly.
 
 ## Related Documentation
 

@@ -14,10 +14,12 @@ The application uses consistent patterns for displaying data across different vi
 
 ### Basic Card Structure
 
+Tremor (`@tremor/react`) is a dependency, but most domain cards (including the real `EventCard` in `frontend/src/components/events/EventCard.tsx`, which takes flat event fields, not an `event` object) use `Card`/`Badge` from Tremor with Tailwind classes. The local component below is illustrative and intentionally named `EventSummaryCard` to avoid shadowing the real `EventCard`:
+
 ```tsx
 import { Card } from '@tremor/react';
 
-function EventCard({ event }: { event: Event }) {
+function EventSummaryCard({ event }: { event: Event }) {
   return (
     <Card className="p-4 bg-[#1A1A1A] border-gray-800">
       <div className="flex items-start gap-4">
@@ -172,15 +174,22 @@ function SortableTable<T>({ data, columns }: SortableTableProps<T>) {
 
 ### Virtual List
 
+`VirtualizedList` is generic (`VirtualizedListProps<T>`). Key props: `items`, `renderItem(item, index, measureRef)` (the third argument is the measurement ref that must be attached to each row for dynamic heights), `getItemKey`, `estimateSize` (default 100), `overscan` (default 5), `height`, `gap`, `onEndReached` + `endReachedThreshold` (default 200), `isLoadingMore`, `emptyState`, `footer`.
+
 ```tsx
 import { VirtualizedList } from '@/components/common';
 
-function EventList({ events }: { events: Event[] }) {
+function EventList({ events }: { events: EventListItem[] }) {
   return (
     <VirtualizedList
       items={events}
-      itemHeight={120}
-      renderItem={(event) => <EventCard key={event.id} event={event} />}
+      estimateSize={120}
+      getItemKey={(event) => event.id}
+      renderItem={(event, _index, measureRef) => (
+        <div ref={measureRef} key={event.id}>
+          {event.summary}
+        </div>
+      )}
     />
   );
 }
@@ -204,7 +213,13 @@ function ActivityFeed({ activities }: { activities: Activity[] }) {
 
 ### Infinite Scroll List
 
+`InfiniteScrollStatus` renders the sentinel element itself: pass the `sentinelRef` callback from `useInfiniteScroll`, and it wires up the intersection observer.
+
 ```tsx
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { InfiniteScrollStatus } from '@/components/common';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+
 function EventTimeline() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['events'],
@@ -214,17 +229,22 @@ function EventTimeline() {
 
   const events = data?.pages.flatMap((page) => page.events) ?? [];
 
+  const { sentinelRef } = useInfiniteScroll({
+    onLoadMore: fetchNextPage,
+    hasMore: !!hasNextPage,
+    isLoading: isFetchingNextPage,
+  });
+
   return (
     <div>
       {events.map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard key={event.id} {...event} />
       ))}
 
       <InfiniteScrollStatus
+        sentinelRef={sentinelRef}
         isLoading={isFetchingNextPage}
         hasMore={!!hasNextPage}
-        onLoadMore={fetchNextPage}
-        itemCount={events.length}
       />
     </div>
   );
@@ -282,18 +302,29 @@ function ObjectDistributionChart({ data }: { data: ObjectCount[] }) {
 
 ### Responsive Chart Wrapper
 
+`ResponsiveChart` takes a `children` render prop receiving `{ width, height }`, sizing options via `dimensionOptions` (`UseChartDimensionsOptions`, e.g. `{ minHeight, maxHeight }`), plus loading/error/empty/fullscreen handling.
+
 ```tsx
+import { AreaChart } from '@tremor/react';
 import { ResponsiveChart } from '@/components/common';
 
 function DashboardChart({ data }: { data: ChartData[] }) {
   return (
-    <ResponsiveChart minHeight={200} maxHeight={400}>
+    <ResponsiveChart
+      title="Risk Trend"
+      dimensionOptions={{ minHeight: 200, maxHeight: 400 }}
+      isLoading={isLoading}
+      isEmpty={!data.length}
+    >
       {({ width, height }) => (
         <AreaChart
           data={data}
+          index="date"
+          categories={['riskScore']}
+          colors={['emerald']}
+          showLegend={false}
           width={width}
           height={height}
-          // ... chart props
         />
       )}
     </ResponsiveChart>
@@ -305,19 +336,20 @@ function DashboardChart({ data }: { data: ChartData[] }) {
 
 ## Empty States
 
+`EmptyState` takes a Lucide **icon component** (not an element) and an `actions` array of `{ label, onClick, variant? }`.
+
 ```tsx
+import { Calendar } from 'lucide-react';
 import { EmptyState } from '@/components/common';
 
-function EventsList({ events }: { events: Event[] }) {
+function EventsList({ events, resetFilters }: { events: Event[]; resetFilters: () => void }) {
   if (events.length === 0) {
     return (
       <EmptyState
-        icon={<Calendar className="h-12 w-12" />}
+        icon={Calendar}
         title="No events found"
         description="Try adjusting your filters or date range"
-        action={
-          <Button onClick={resetFilters}>Reset Filters</Button>
-        }
+        actions={[{ label: 'Reset Filters', onClick: resetFilters, variant: 'primary' }]}
       />
     );
   }
@@ -332,29 +364,26 @@ function EventsList({ events }: { events: Event[] }) {
 
 ## Loading States
 
+Skeleton components live in `frontend/src/components/common/skeletons/` (`EventCardSkeleton`, `CameraCardSkeleton`, `ChartSkeleton`, `StatsCardSkeleton`, `TableRowSkeleton`, `AlertCardSkeleton`, `EntityCardSkeleton`) plus the base `Skeleton` primitive. `ErrorState` requires a `title`.
+
 ```tsx
-function DataDisplay({ isLoading, error, data }) {
+function DataDisplay({ isLoading, error, data, refetch }) {
   if (isLoading) {
     return (
       <div className="space-y-4">
         {Array.from({ length: 5 }).map((_, i) => (
-          <CardSkeleton key={i} />
+          <EventCardSkeleton key={i} />
         ))}
       </div>
     );
   }
 
   if (error) {
-    return (
-      <ErrorState
-        message={error.message}
-        onRetry={refetch}
-      />
-    );
+    return <ErrorState title="Failed to load events" message={error.message} onRetry={refetch} />;
   }
 
   if (!data?.length) {
-    return <EmptyState title="No data" />;
+    return <EmptyState icon={Inbox} title="No data" description="Nothing to show yet." />;
   }
 
   return (
@@ -367,42 +396,37 @@ function DataDisplay({ isLoading, error, data }) {
 
 ## Filtering and Search
 
-```tsx
-function FilterableList<T>({
-  items,
-  searchKeys,
-  filterConfig,
-  renderItem,
-}: FilterableListProps<T>) {
-  const [search, setSearch] = useState('');
-  const [filters, setFilters] = useState<Filters>({});
+There is no generic `SearchInput` / `FilterDropdown` component. The search-and-filter UI is composed from the domain components in `frontend/src/components/events/`: `EventSearch` (controlled input: `value`, `onChange`, `placeholder?`, `showIcon?`) and `EventFilters` (`filters: FilterState`, `onFilterChange`, `cameras?`), with active selections surfaced through `FilterChips`.
 
-  const filteredItems = useMemo(() => {
-    return items
-      .filter((item) => {
-        // Search filter
-        if (search) {
-          const searchLower = search.toLowerCase();
-          return searchKeys.some((key) => String(item[key]).toLowerCase().includes(searchLower));
-        }
-        return true;
-      })
-      .filter((item) => {
-        // Active filters
-        return Object.entries(filters).every(([key, value]) => {
-          if (!value) return true;
-          return item[key] === value;
-        });
-      });
-  }, [items, search, filters, searchKeys]);
+```tsx
+import { useDeferredValue, useMemo, useState, useTransition } from 'react';
+import { EventSearch, EventFilters, FilterChips } from '@/components/events';
+
+function FilterableEventList({ events, cameras }: FilterableEventListProps) {
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<FilterState>({});
+  const [, startTransition] = useTransition();
+
+  const filteredEvents = useMemo(() => {
+    const q = search.toLowerCase();
+    return events
+      .filter((event) => (!q ? true : event.summary.toLowerCase().includes(q)))
+      .filter((event) =>
+        Object.entries(filters).every(([key, value]) => !value || event[key] === value)
+      );
+  }, [events, search, filters]);
 
   return (
     <div>
-      <div className="flex gap-4 mb-4">
-        <SearchInput value={search} onChange={setSearch} />
-        <FilterDropdown config={filterConfig} values={filters} onChange={setFilters} />
+      <div className="mb-4 flex gap-4">
+        <EventSearch value={search} onChange={setSearch} />
+        <EventFilters
+          filters={filters}
+          cameras={cameras}
+          onFilterChange={(next) => startTransition(() => setFilters(next))}
+        />
       </div>
-      <div>{filteredItems.map(renderItem)}</div>
+      <div>{filteredEvents.map(renderEvent)}</div>
     </div>
   );
 }

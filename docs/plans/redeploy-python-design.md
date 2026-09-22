@@ -1,5 +1,7 @@
 # Redeploy Python Design Document
 
+> **Status:** Implemented — the Python redeploy tool shipped in #5048 (2026-01-30); the script was later retired in #6340 (2026-02-08) and `scripts/redeploy.*` is no longer in the tree.
+
 ## Overview
 
 Replace `scripts/redeploy.sh` (2226 lines bash) with a well-modularized Python CLI tool using OOP principles.

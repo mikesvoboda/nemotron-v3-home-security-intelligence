@@ -4,7 +4,7 @@
 
 **Key Files:**
 
-- `backend/core/metrics.py:1-3240` - All metric definitions and helpers
+- `backend/core/metrics.py:1-5153` - All metric definitions and helpers
 - `backend/core/sanitization.py` - Label sanitization for cardinality control
 - `monitoring/prometheus.yml:1-410` - Prometheus scrape configuration
 - `monitoring/prometheus-rules.yml:1-169` - Recording rules for SLIs
@@ -22,17 +22,17 @@ Label cardinality is controlled through sanitization functions that validate val
 ```mermaid
 graph TD
     subgraph "Application"
-        SVC[Services] --> MS[MetricsService<br/>metrics.py:696-1244]
-        MS --> COUNTER[Counters<br/>metrics.py:259-365]
-        MS --> HIST[Histograms<br/>metrics.py:247-295]
-        MS --> GAUGE[Gauges<br/>metrics.py:107-224]
+        SVC[Services] --> MS[MetricsService<br/>metrics.py:1239-1965]
+        MS --> COUNTER[Counters<br/>metrics.py:289-427]
+        MS --> HIST[Histograms<br/>metrics.py:260-483]
+        MS --> GAUGE[Gauges<br/>metrics.py:119-255]
     end
 
     subgraph "Exposition"
         COUNTER --> REG[Prometheus Registry]
         HIST --> REG
         GAUGE --> REG
-        REG --> EP[/api/metrics<br/>metrics.py:1724-1730]
+        REG --> EP[/api/metrics<br/>api/routes/metrics.py:25-32]
     end
 
     subgraph "Collection"
@@ -50,7 +50,7 @@ graph TD
 
 ### Queue Depth Gauges
 
-Monitor pipeline backpressure (`backend/core/metrics.py:107-117`):
+Monitor pipeline backpressure (`backend/core/metrics.py:119-144`):
 
 | Metric                      | Type  | Description                      |
 | --------------------------- | ----- | -------------------------------- |
@@ -69,7 +69,7 @@ hsi_detection_queue_depth > 100
 
 ### Stage Duration Histograms
 
-Track pipeline latency (`backend/core/metrics.py:232-253`):
+Track pipeline latency (`backend/core/metrics.py:260-288`):
 
 | Metric                       | Labels  | Buckets                                                            |
 | ---------------------------- | ------- | ------------------------------------------------------------------ |
@@ -89,7 +89,7 @@ rate(hsi_stage_duration_seconds_sum{stage="analyze"}[5m]) / rate(hsi_stage_durat
 
 ### AI Service Request Duration
 
-Track external AI service latency (`backend/core/metrics.py:276-295`):
+Track external AI service latency (`backend/core/metrics.py:310-405`):
 
 | Metric                            | Labels    | Buckets                                                |
 | --------------------------------- | --------- | ------------------------------------------------------ |
@@ -109,7 +109,7 @@ rate(hsi_ai_request_duration_seconds_sum{service="yolo26"}[5m]) / rate(hsi_ai_re
 
 ### Event and Detection Counters
 
-Track throughput (`backend/core/metrics.py:259-269`):
+Track throughput (`backend/core/metrics.py:289-304`):
 
 | Metric                           | Type    | Description               |
 | -------------------------------- | ------- | ------------------------- |
@@ -128,7 +128,7 @@ rate(hsi_detections_processed_total[5m])
 
 ### Detection Class Distribution
 
-Track what objects are detected (`backend/core/metrics.py:313-318`):
+Track what objects are detected (`backend/core/metrics.py:417-427`):
 
 | Metric                          | Labels         | Description              |
 | ------------------------------- | -------------- | ------------------------ |
@@ -148,7 +148,7 @@ rate(hsi_detections_by_class_total{object_class="person"}[1m]) * 60
 
 ### Detection Confidence Histogram
 
-Track model confidence distribution (`backend/core/metrics.py:322-329`):
+Track model confidence distribution (`backend/core/metrics.py:431-440`):
 
 | Metric                     | Buckets                             |
 | -------------------------- | ----------------------------------- |
@@ -166,7 +166,7 @@ sum(rate(hsi_detection_confidence_bucket{le="0.9"}[5m])) / sum(rate(hsi_detectio
 
 ### Risk Score Distribution
 
-Track LLM-assigned risk scores (`backend/core/metrics.py:343-357`):
+Track LLM-assigned risk scores (`backend/core/metrics.py:452-483`):
 
 | Metric                           | Labels  | Buckets/Description                     |
 | -------------------------------- | ------- | --------------------------------------- |
@@ -190,7 +190,7 @@ rate(hsi_events_by_risk_level_total{level=~"high|critical"}[5m])
 
 ### LLM Token Metrics
 
-Track Nemotron usage (`backend/core/metrics.py:599-624`):
+Track Nemotron usage (`backend/core/metrics.py:705-796`):
 
 | Metric                              | Labels      | Description              |
 | ----------------------------------- | ----------- | ------------------------ |
@@ -214,7 +214,7 @@ sum(increase(hsi_nemotron_token_cost_usd_total[24h]))
 
 ### LLM Context Utilization
 
-Track context window usage (`backend/core/metrics.py:373-402`):
+Track context window usage (`backend/core/metrics.py:501-536`):
 
 | Metric                               | Labels  | Buckets/Description                            |
 | ------------------------------------ | ------- | ---------------------------------------------- |
@@ -235,7 +235,7 @@ rate(hsi_prompts_truncated_total[5m]) * 60
 
 ### Cache Metrics
 
-Track Redis cache effectiveness (`backend/core/metrics.py:537-594`):
+Track Redis cache effectiveness (`backend/core/metrics.py:705-764`):
 
 | Metric                               | Labels                 | Description                 |
 | ------------------------------------ | ---------------------- | --------------------------- |
@@ -259,7 +259,7 @@ sum by (reason) (rate(hsi_cache_invalidations_total[1h]))
 
 ### Pipeline Error Counters
 
-Track errors by type (`backend/core/metrics.py:301-306`):
+Track errors by type (`backend/core/metrics.py:406-414`):
 
 | Metric                      | Labels       | Description             |
 | --------------------------- | ------------ | ----------------------- |
@@ -279,7 +279,7 @@ sum(rate(hsi_pipeline_errors_total[1m])) * 60
 
 ### Worker Pool Metrics
 
-Track pipeline worker state (`backend/core/metrics.py:119-202`):
+Track pipeline worker state (`backend/core/metrics.py:146-256`):
 
 | Metric                                     | Labels        | Description                                          |
 | ------------------------------------------ | ------------- | ---------------------------------------------------- |
@@ -308,7 +308,7 @@ hsi_worker_busy_count / hsi_worker_active_count
 
 ### Enrichment Model Metrics
 
-Track Model Zoo performance (`backend/core/metrics.py:433-477`):
+Track Model Zoo performance (`backend/core/metrics.py:537-613`):
 
 | Metric                                  | Labels   | Description                  |
 | --------------------------------------- | -------- | ---------------------------- |
@@ -333,7 +333,7 @@ sum(rate(hsi_enrichment_model_errors_total[5m])) / sum(rate(hsi_enrichment_model
 
 ### Cost Tracking Metrics
 
-Track inference costs (`backend/core/metrics.py:630-689`):
+Track inference costs (`backend/core/metrics.py:798-860`):
 
 | Metric                              | Labels      | Description                     |
 | ----------------------------------- | ----------- | ------------------------------- |
@@ -361,7 +361,7 @@ hsi_cost_per_event_usd
 
 ### Queue Overflow Metrics
 
-Track backpressure handling (`backend/core/metrics.py:505-531`):
+Track backpressure handling (`backend/core/metrics.py:673-702`):
 
 | Metric                               | Labels                 | Description                |
 | ------------------------------------ | ---------------------- | -------------------------- |
@@ -382,10 +382,10 @@ rate(hsi_queue_items_moved_to_dlq_total[5m])
 
 ## MetricsService Class
 
-The `MetricsService` (`backend/core/metrics.py:696-1244`) provides a centralized interface for recording metrics with automatic sanitization:
+The `MetricsService` (`backend/core/metrics.py:1239-1965`) provides a centralized interface for recording metrics with automatic sanitization:
 
 ```python
-# From backend/core/metrics.py:696-720
+# From backend/core/metrics.py:1239+ (abridged)
 class MetricsService:
     """Centralized service for recording Prometheus metrics."""
 
@@ -426,7 +426,7 @@ Pre-computed SLI metrics (`monitoring/prometheus-rules.yml`):
 
 ## Configuration
 
-Prometheus scrape configuration (`monitoring/prometheus.yml:35-45`):
+Prometheus scrape configuration (`monitoring/prometheus.yml:54-65`):
 
 ```yaml
 - job_name: 'hsi-backend-metrics'
@@ -435,9 +435,10 @@ Prometheus scrape configuration (`monitoring/prometheus.yml:35-45`):
   static_configs:
     - targets:
         - 'backend:8000'
-  relabel_configs:
-    - target_label: service
-      replacement: 'home-security-intelligence'
+  # Preserve the metrics' native 'service' labels (e.g. the AI request
+  # duration histogram's service= label) instead of letting Prometheus
+  # rename them to exported_service
+  honor_labels: true
 ```
 
 ## Histogram Bucket Selection

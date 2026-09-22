@@ -361,6 +361,12 @@ class WebSocketServiceStatus(StrEnum):
     RESTARTING = auto()
     RESTART_FAILED = auto()
     FAILED = auto()
+    # Unhealthy but restart_cmd is None — emitted by ServiceHealthMonitor
+    # every check cycle for services configured with restart disabled. The
+    # broadcaster validates status payloads against this enum, so omitting
+    # it made the monitor's restart-disabled broadcast fail schema checks
+    # (every cycle) instead of reaching clients.
+    RESTART_DISABLED = auto()
 
 
 class WebSocketServiceStatusData(BaseModel):

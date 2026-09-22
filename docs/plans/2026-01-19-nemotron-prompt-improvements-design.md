@@ -1,5 +1,7 @@
 # Nemotron Prompt Improvements Design
 
+> **Status:** Implemented — prompt management shipped as `backend/api/routes/prompt_management.py`.
+
 **Date:** 2026-01-19
 **Status:** Draft
 **Author:** Mike Svoboda + Claude

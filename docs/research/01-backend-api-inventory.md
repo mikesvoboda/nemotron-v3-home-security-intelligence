@@ -1,5 +1,7 @@
 # Backend API Inventory
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); endpoint inventory as of that date. See `backend/api/routes/` for the current surface.
+
 ## Overview
 
 The backend exposes **150+ API endpoints** across **50 route files** organized by domain.

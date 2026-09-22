@@ -6,10 +6,14 @@ Nemotron Home Security uses AI-driven risk scoring to generate and prioritize al
 
 | Level    | Score Range | Description                                    |
 | -------- | ----------- | ---------------------------------------------- |
-| Critical | 80 - 100    | Immediate attention required (e.g., intrusion) |
-| High     | 60 - 79     | Significant activity that warrants review      |
+| Critical | 85 - 100    | Immediate attention required (e.g., intrusion) |
+| High     | 60 - 84     | Significant activity that warrants review      |
 | Medium   | 30 - 59     | Notable but non-urgent observations            |
 | Low      | 0 - 29      | Routine or informational detections            |
+
+The boundaries come from `computed_risk_level` in `backend/models/event.py`
+using the config values `severity_low_max` (29), `severity_medium_max` (59),
+and `severity_high_max` (84).
 
 ## How Risk Scores Are Determined
 

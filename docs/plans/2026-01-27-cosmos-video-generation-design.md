@@ -1,5 +1,7 @@
 # NVIDIA Cosmos Video Generation Design
 
+> **Status:** Abandoned — no Cosmos generation pipeline exists in the current tree (nothing in `ai/models.yml` or `docker-compose.prod.yml`); `scripts/cosmos_prompt_generator.py` is the only surviving artifact.
+
 **Date:** 2026-01-27
 **Status:** Approved
 **Author:** Mike Svoboda + maui

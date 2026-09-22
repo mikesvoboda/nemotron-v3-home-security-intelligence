@@ -1208,7 +1208,7 @@ rm -f data/security.db
 
 ## Related Documentation
 
-- `/CLAUDE.md` - Git workflow and testing requirements
+- `/AGENTS.md` - Git workflow and testing requirements
 - `/README.md` - Project overview
 - `/docs/operator/ai-installation.md` - AI services detailed setup
 - `/.pre-commit-config.yaml` - Pre-commit hook configuration

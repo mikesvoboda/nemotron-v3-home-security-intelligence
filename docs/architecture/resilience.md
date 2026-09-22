@@ -246,7 +246,7 @@ flowchart TB
     end
 
     subgraph Services["Protected Services"]
-        S1[YOLO26<br/>:8095]
+        S1[YOLO26<br/>ai-gateway :8090/yolo26]
         S2[Nemotron LLM<br/>:8091]
         S3[Redis<br/>:6379]
     end

@@ -12,7 +12,7 @@ The AI Performance page provides real-time monitoring of the AI models that powe
 - Processing latency and queue depths
 - Detection and event statistics
 - Risk score distribution
-- **Model Zoo** - 18+ specialized AI models for enhanced detection
+- **Model Zoo** - specialized AI models for enhanced detection (catalog: `models.yml`, 30 entries; `models.yml` is the single source of truth)
 
 ## Accessing the AI Performance Page
 
@@ -20,7 +20,7 @@ Click the **Brain icon** or **AI Performance** in the left sidebar, or navigate 
 
 ## What You're Looking At
 
-The AI Performance page embeds the **HSI Consolidated Grafana dashboard** in kiosk mode. This provides a unified monitoring experience with all AI metrics visualized through Grafana's powerful charting capabilities.
+The AI Performance page embeds the **AI Services Grafana dashboard** (`/grafana/d/ai-services/ai-services`) in kiosk mode. This provides a unified monitoring experience with all AI metrics visualized through Grafana's powerful charting capabilities.
 
 **Key features displayed in the Grafana dashboard:**
 
@@ -46,18 +46,18 @@ The Grafana dashboard displays metrics from the AI pipeline. Here's what each me
 **YOLO26 (Object Detection)**
 
 - Detects people, vehicles, and animals in camera images
-- Model: Real-Time Detection Transformer v2 (COCO + Objects365 pre-trained)
+- Ultralytics YOLO26 served by Triton inside `ai-gateway` (ONNX FP32 on the CUDA execution
+  provider); the backend calls it via `YOLO26_URL` (default `http://ai-gateway:8090/yolo26`)
 - Typical inference time: 30-50ms per image
-- VRAM usage: ~4GB
-- Health status: healthy, degraded, unhealthy, or unknown
+- Health status: `http://localhost:8090/yolo26/health` (healthy/degraded/unhealthy/unknown)
 
 **Nemotron (Risk Analysis LLM)**
 
 - Analyzes detection batches to generate risk scores and explanations
-- Production model: NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB VRAM, 128K context)
-- Development model: Nemotron Mini 4B Instruct (~3GB VRAM, 4K context)
+- Production model: Nemotron-3-Nano-30B-A3B GGUF Q4_K_M (`unsloth/Nemotron-3-Nano-30B-A3B-GGUF`, ~14.7GB download; the backend caps `nemotron_context_window` at 131072 tokens)
+- Smaller test option: Nemotron-Mini-4B-Instruct (see the comment in `docker-compose.prod.yml`)
 - Typical inference time: 2-5 seconds per batch
-- Runs via llama.cpp inference server on port 8091
+- Runs via llama.cpp in the `ai-llm` container (host port 8091)
 
 ### Latency Metrics
 
@@ -74,8 +74,9 @@ The dashboard tracks latency at multiple pipeline stages:
 
 **Expected end-to-end latency:**
 
-- Fast path (high-confidence person): ~3-6 seconds
 - Normal path (batched): 30-95 seconds (dominated by batch window)
+- Fast path (high-confidence person): ~3-6 seconds — **currently disabled by default**
+  (`FAST_PATH_ENABLED=false` in compose, and `FAST_PATH_OBJECT_TYPES` is empty)
 
 ### Queue Health
 
@@ -105,12 +106,15 @@ The dashboard tracks latency at multiple pipeline stages:
 
 Events are categorized by risk level:
 
+Boundaries come from `severity_low_max` / `severity_medium_max` / `severity_high_max`
+(config.py defaults 29 / 59 / 84 — configurable):
+
 | Risk Level | Score Range | Description                                        |
 | ---------- | ----------- | -------------------------------------------------- |
-| Low        | 0-30        | Normal activity, no concern                        |
-| Medium     | 31-60       | Unusual but not threatening                        |
-| High       | 61-80       | Suspicious activity requiring attention            |
-| Critical   | 81-100      | Potential security threat, immediate action needed |
+| Low        | 0-29        | Normal activity, no concern                        |
+| Medium     | 30-59       | Unusual but not threatening                        |
+| High       | 60-84       | Suspicious activity requiring attention            |
+| Critical   | 85-100      | Potential security threat, immediate action needed |
 
 ### Clickable Risk Score Bars
 
@@ -148,7 +152,9 @@ Objects are detected in these security-relevant categories:
 
 ## Model Zoo Section
 
-The Model Zoo contains 18+ specialized AI models that enhance your security detections beyond basic object detection. These models extract additional details like license plates, faces, clothing, and vehicle types.
+The Model Zoo contains the specialized models defined in `models.yml` (backend + shared entries)
+that enhance your security detections beyond basic object detection. These models extract
+additional details like license plates, faces, clothing, and vehicle types.
 
 ### Summary Bar
 
@@ -223,14 +229,18 @@ Models are organized into two sections:
 
 ### Model Zoo Categories
 
+VRAM figures are the `vram_mb` estimates from `models.yml`.
+
 #### Detection Models
 
-| Model                    | VRAM    | Purpose                         |
-| ------------------------ | ------- | ------------------------------- |
-| YOLO11 License Plate     | 300 MB  | Find license plates on vehicles |
-| YOLO11 Face              | 200 MB  | Detect faces on people          |
-| YOLO World S             | 1500 MB | Open vocabulary detection       |
-| Vehicle Damage Detection | 2000 MB | Find damage on vehicles         |
+| Model                      | VRAM    | Purpose                         |
+| -------------------------- | ------- | ------------------------------- |
+| YOLO11 License Plate       | 300 MB  | Find license plates on vehicles |
+| YOLO11 Face                | 200 MB  | Detect faces on people          |
+| Threat Detection (YOLOv8n) | 300 MB  | Threat-object detection         |
+| Smoke/Fire (YOLOv8n)       | 350 MB  | Smoke and fire detection        |
+| YOLO World S               | 1500 MB | Open vocabulary detection       |
+| Vehicle Damage Detection   | 2000 MB | Find damage on vehicles         |
 
 #### Classification Models
 
@@ -241,17 +251,22 @@ Models are organized into two sections:
 | Fashion CLIP               | 500 MB  | Classify clothing types      |
 | Vehicle Segment Classifier | 1500 MB | Identify vehicle types       |
 | Pet Classifier             | 200 MB  | Distinguish cats and dogs    |
+| ViT Age / Gender           | 200 MB  | Demographics classification  |
 
 #### Other Specialized Models
 
-| Model             | VRAM    | Category           | Purpose               |
-| ----------------- | ------- | ------------------ | --------------------- |
-| SegFormer Clothes | 1500 MB | Segmentation       | Clothing segmentation |
-| ViTPose Small     | 1500 MB | Pose               | Human pose estimation |
-| Depth Anything V2 | 150 MB  | Depth              | Distance estimation   |
-| CLIP ViT-L        | 800 MB  | Embedding          | Visual embeddings     |
-| PaddleOCR         | 100 MB  | OCR                | Read text from plates |
-| X-CLIP Base       | 2000 MB | Action Recognition | Recognize activities  |
+| Model                  | VRAM    | Category           | Purpose                     |
+| ---------------------- | ------- | ------------------ | --------------------------- |
+| SegFormer Clothes      | 1500 MB | Segmentation       | Clothing segmentation       |
+| ViTPose Small          | 1500 MB | Pose               | Human pose estimation       |
+| YOLOv8n Pose           | 200 MB  | Pose               | Lightweight pose            |
+| Depth Anything V2 Tiny | 100 MB  | Depth              | Distance estimation         |
+| SigLIP2 base           | 200 MB  | Embedding          | CLIP visual/text embeddings |
+| OSNet (ReID)           | 100 MB  | Embedding          | Person re-identification    |
+| ST-GCN++               | 20 MB   | Action Recognition | Skeleton action classes     |
+| PaddleOCR              | 100 MB  | OCR                | Read text from plates       |
+| Fast-ALPR              | 28 MB   | ALPR               | Plate character reading     |
+| X-CLIP Base            | —       | Action Recognition | Disabled in `models.yml`    |
 
 ### Understanding Model Memory (VRAM)
 
@@ -267,7 +282,9 @@ Models load into your GPU's video memory (VRAM) when needed:
 - **Unloaded models** need time to load before first use
 - **VRAM constraints** limit how many models can be loaded simultaneously
 
-> **Note:** The core YOLO26 (~650 MB) and Nemotron (~21,700 MB) models have separate VRAM allocations and are always loaded.
+> **Note:** The core detection model (YOLO26, loaded by Triton in `ai-gateway`) and the
+> Nemotron GGUF (~14.7 GB, loaded by llama.cpp in `ai-llm`) live outside this budget — they are
+> always resident on their own GPUs (`GPU_AI_SERVICES` / `GPU_LLM`).
 
 ### Model Zoo Analytics
 
@@ -301,12 +318,12 @@ Click column headers to sort by that metric.
 
 The AI Performance page embeds a Grafana dashboard. The dashboard URL is fetched from the backend configuration API.
 
-| Setting       | Environment Variable | Default                 | Description                 |
-| ------------- | -------------------- | ----------------------- | --------------------------- |
-| Grafana URL   | `GRAFANA_URL`        | `http://localhost:3002` | URL of the Grafana instance |
-| Dashboard UID | N/A                  | `hsi-consolidated`      | The dashboard to display    |
+| Setting       | Environment Variable | Default                           | Description                                                                  |
+| ------------- | -------------------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| Grafana URL   | `GRAFANA_URL`        | served under `/grafana/` on :3002 | URL of the Grafana instance (resolved by `frontend/src/utils/grafanaUrl.ts`) |
+| Dashboard UID | N/A                  | `ai-services`                     | The dashboard to display                                                     |
 
-The page loads the dashboard at: `{grafana_url}/d/hsi-consolidated?orgId=1&kiosk`
+The page loads the dashboard at: `{grafana_url}/d/ai-services/ai-services?orgId=1&kiosk=1&theme=dark&refresh=30s`
 
 To access Grafana directly with full editing capabilities, click the "Open in Grafana" button in the page header. This opens the same dashboard without kiosk mode, allowing you to:
 
@@ -317,15 +334,16 @@ To access Grafana directly with full editing capabilities, click the "Open in Gr
 
 ### AI Service Configuration
 
-| Setting              | Environment Variable             | Default                 | Description                           |
-| -------------------- | -------------------------------- | ----------------------- | ------------------------------------- |
-| YOLO26 URL           | `YOLO26_URL`                     | `http://localhost:8095` | Detection service endpoint            |
-| Nemotron URL         | `NEMOTRON_URL`                   | `http://localhost:8091` | LLM analysis endpoint                 |
-| Detection Confidence | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence to store detection |
-| Batch Window         | `BATCH_WINDOW_SECONDS`           | `90`                    | Maximum batch duration                |
-| Idle Timeout         | `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                    | Close batch after this idle period    |
-| Fast Path Confidence | `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`                  | Confidence for immediate analysis     |
-| Fast Path Types      | `FAST_PATH_OBJECT_TYPES`         | `["person"]`            | Object types eligible for fast path   |
+| Setting              | Environment Variable             | Default                                                           | Description                           |
+| -------------------- | -------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
+| YOLO26 URL           | `YOLO26_URL`                     | `http://ai-gateway:8090/yolo26` (config default)                  | Detection service endpoint            |
+| Nemotron URL         | `NEMOTRON_URL`                   | `http://localhost:8091` (compose: `http://ai-llm:8091`)           | LLM analysis endpoint                 |
+| Detection Confidence | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5` in `.env.example` (config default 0.40)                     | Minimum confidence to store detection |
+| Batch Window         | `BATCH_WINDOW_SECONDS`           | `90`                                                              | Maximum batch duration                |
+| Idle Timeout         | `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                                                              | Close batch after this idle period    |
+| Fast Path Enabled    | `FAST_PATH_ENABLED`              | `false` (compose) — fast path is currently OFF                    | Master switch for fast path           |
+| Fast Path Confidence | `FAST_PATH_CONFIDENCE_THRESHOLD` | config default `2.0` (disables it); compose overrides with `0.90` | Confidence for immediate analysis     |
+| Fast Path Types      | `FAST_PATH_OBJECT_TYPES`         | `[]` in config; `.env.example` shows `["person"]` commented out   | Object types eligible for fast path   |
 
 ### Refresh Settings
 
@@ -349,12 +367,12 @@ The AI Performance page relies on Grafana's built-in refresh mechanism. The dash
 
 ### Model Shows "Unhealthy" Status
 
-**YOLO26:**
+**YOLO26 (served by the `ai-gateway` Triton container):**
 
-1. Check if the detection server is running: `curl http://localhost:8095/health`
+1. Check if the detection server is running: `curl http://localhost:8090/yolo26/health`
 2. Verify GPU is available: `nvidia-smi`
-3. Check container logs: `docker logs yolo26`
-4. VRAM exhaustion may require restarting the service
+3. Check container logs: `podman logs ai-gateway`
+4. VRAM exhaustion may require restarting the service (`podman compose -f docker-compose.prod.yml restart ai-gateway`)
 
 **Nemotron:**
 
@@ -522,7 +540,7 @@ FileWatcher (inotify/FSEvents)
 detection_queue (Redis)
         |
         v
-YOLO26 Server (Port 8095)
+YOLO26 via ai-gateway (:8090, /yolo26)
         |
         v
 BatchAggregator
@@ -591,13 +609,10 @@ Event Creation + WebSocket Broadcast
 
 ### GPU Requirements
 
-| Service                 | Model                     | VRAM         | Port | Context Window |
-| ----------------------- | ------------------------- | ------------ | ---- | -------------- |
-| YOLO26                  | yolo26_v2_r101vd          | ~4 GB        | 8095 | N/A            |
-| Nemotron (Prod)         | Nemotron-3-Nano-30B-A3B   | ~14.7 GB     | 8091 | 128K tokens    |
-| Nemotron (Dev)          | Nemotron Mini 4B Instruct | ~3 GB        | 8091 | 4K tokens      |
-| **Total (Production)**  |                           | **~18.7 GB** |      |                |
-| **Total (Development)** |                           | **~7 GB**    |      |                |
+| Service             | Model                               | VRAM            | Container / Port               | Context Window                                                                 |
+| ------------------- | ----------------------------------- | --------------- | ------------------------------ | ------------------------------------------------------------------------------ |
+| YOLO26 (via Triton) | Ultralytics YOLO26 (ONNX FP32 CUDA) | model-dependent | `ai-gateway` :8090 (`/yolo26`) | N/A                                                                            |
+| Nemotron (Prod)     | Nemotron-3-Nano-30B-A3B Q4_K_M GGUF | ~14.7 GB        | `ai-llm` :8091                 | llama.cpp `CTX_SIZE` (compose default 262144; backend caps requests at 131072) |
 
 The system is optimized for NVIDIA RTX A5500 (24GB VRAM) in production. For development, a GPU with 8GB+ VRAM is recommended.
 
@@ -607,7 +622,7 @@ The system is optimized for NVIDIA RTX A5500 (24GB VRAM) in production. For deve
 - Better reasoning quality for complex security scenarios
 - Supports detailed enrichment data (clothing, vehicles, behavior patterns)
 
-**Development model trade-offs:**
+**Smaller-model trade-offs (optional Nemotron-Mini-4B for testing):**
 
 - Faster inference (~100-200 tokens/second vs ~50-100)
 - Limited context requires more aggressive summarization

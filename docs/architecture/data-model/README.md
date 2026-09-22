@@ -6,13 +6,13 @@ This directory contains comprehensive documentation for the data model, includin
 
 ## Quick Navigation
 
-| Document                                                | Description                                   |
-| ------------------------------------------------------- | --------------------------------------------- |
-| [Core Entities](./core-entities.md)                     | Camera, Detection, Event models               |
-| [Auxiliary Tables](./auxiliary-tables.md)               | GPUStats, AuditLog, Jobs, Baselines           |
-| [Indexes and Performance](./indexes-and-performance.md) | GIN indexes, BRIN indexes, query optimization |
-| [Migrations](./migrations.md)                           | Alembic patterns and examples                 |
-| [Redis Data Structures](./redis-data-structures.md)     | Queues, batch state, pub/sub channels         |
+| Document                                                | Description                                    |
+| ------------------------------------------------------- | ---------------------------------------------- |
+| [Core Entities](./core-entities.md)                     | Camera, Detection, Event models                |
+| [Auxiliary Tables](./auxiliary-tables.md)               | GPUStats, AuditLog, Jobs, Baselines            |
+| [Indexes and Performance](./indexes-and-performance.md) | GIN indexes, BRIN indexes, query optimization  |
+| [Migrations](./migrations.md)                           | Schema creation & change workflow (no Alembic) |
+| [Redis Data Structures](./redis-data-structures.md)     | Queues, batch state, pub/sub channels          |
 
 ## Entity Relationship Overview
 

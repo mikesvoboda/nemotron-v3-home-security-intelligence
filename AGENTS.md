@@ -1,5 +1,7 @@
 # Root Directory - Agent Guide
 
+This file is the project's **single root instruction file** (owner ruling 2026-09: one root file, `CLAUDE.md` retired). It combines codebase navigation with all operational rules. Read it before touching anything.
+
 ## Purpose
 
 This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and Nemotron for contextual risk assessment.
@@ -12,14 +14,148 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
 
+## Quick Reference
+
+| Resource              | Location                                                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Issue tracking        | [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team NEM, ID `998946a2-aa75-491b-a39d-189660131392`) |
+| Linear operations     | **`/linear-python` skill only** — never call Linear MCP tools directly                                                       |
+| Testing guide         | `docs/development/testing.md`                                                                                                |
+| Git workflow guide    | `docs/development/git-workflow.md`                                                                                           |
+| Ports / env reference | `.env.example` + `docs/reference/config/env-reference.md` (authoritative runtime reference)                                  |
+| Health verification   | `/platform-healthcheck` skill                                                                                                |
+| Post-MVP roadmap      | `docs/ROADMAP.md` (pursue **after Phases 1-8 are operational**)                                                              |
+
+Feature documentation: [Multi-GPU](docs/development/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+
+## Setup
+
+```bash
+python setup.py              # First-time setup (creates .env, installs deps, writes hooks)
+uv sync                      # Python deps (installs the dev dependency-group;
+                             # `uv sync --extra dev` still works but is deprecated in pyproject.toml)
+cd frontend && npm ci        # Frontend deps (`bun install` also works — bun.lock is tracked; CI uses npm ci)
+./scripts/setup-hooks.sh     # Install pre-commit + commit-msg + pre-push hooks (or `pre-commit install`)
+source .venv/bin/activate    # Activate Python environment
+```
+
+## Container Runtime & Rebuilds
+
+This project uses **Podman** (not Docker). Use `podman` commands to inspect containers.
+
+```bash
+# List all containers with status
+podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.State}}"
+
+# View logs for a specific container
+podman logs <container-name>
+podman logs --tail=50 -f <container-name>   # Follow last 50 lines
+
+# Inspect a container (config, mounts, networking)
+podman inspect <container-name>
+
+# Execute a command inside a running container
+podman exec -it <container-name> /bin/sh
+
+# Check resource usage
+podman stats --no-stream
+
+# Compose operations (uses podman-compose → docker-compose plugin)
+podman compose -f docker-compose.prod.yml ps
+podman compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml logs <service-name>
+```
+
+**Always use `--no-cache` when rebuilding containers** — cached layers may contain stale code:
+
+```bash
+podman compose -f docker-compose.prod.yml build --no-cache
+```
+
+Full deployment walk-through: `docs/operator/deployment/README.md`.
+
+## Infrastructure Verification
+
+**Always complete the verification loop after infrastructure changes.** Don't mark tasks complete until ALL checks pass.
+
+```bash
+# 1. Validate compose configuration
+podman compose -f docker-compose.prod.yml config -q
+
+# 2. Check all services are running
+podman ps -a --format "table {{.Names}}\t{{.Status}}\t{{.State}}"
+
+# 3. Verify Prometheus targets (if applicable)
+curl -s localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
+
+# 4. Check API health
+curl -s localhost:8000/api/system/health | jq
+```
+
+A task involving infrastructure is **only complete** when:
+
+- [ ] All compose services show `Up` and `healthy`
+- [ ] All Prometheus targets show `health: "up"`
+- [ ] API health endpoint returns success
+- [ ] No error logs in `podman compose -f docker-compose.prod.yml logs --tail=50`
+
+Use the `/platform-healthcheck` skill for standardized health verification.
+
+## Testing & Coverage Gates
+
+This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Full documentation: [docs/development/testing.md](docs/development/testing.md).
+
+| Test Type           | Gate                                                   | Command                                        |
+| ------------------- | ------------------------------------------------------ | ---------------------------------------------- |
+| Backend unit        | tier floor 84¹                                         | `uv run pytest backend/tests/unit/ -n auto`    |
+| Backend integration | tier floor 37¹                                         | `uv run pytest backend/tests/integration/ -n0` |
+| Frontend            | floors 80 / 74.6 / 78.4 / 80.9² (measured values)      | `cd frontend && npm test`                      |
+| **Full validation** | **80% combined unit+integration** (the executed floor) | `./scripts/validate.sh`                        |
+
+Gate semantics (re-verified against the tree 2026-09-22):
+
+- The executed **absolute** backend floor is **80% on combined unit+integration**: `scripts/validate.sh` merges both tiers and checks `--fail-under=80`, mirrored in `.github/workflows/nightly-full-gate.yml`.
+- `pyproject.toml` `fail_under = 85` is **not** an absolute floor. Per owner ruling A7.1 it is the PR diff gate's **relative baseline** over merged shard data; the diff gate (`scripts/check-test-coverage-gate.py`, `COVERAGE_DIFF_EPSILON_PP = 0.5`) forgives drops up to its 0.5pp noise band (WP2.5 re-derived the band from post-seed-pin runs).
+- ¹ Per-tier absolute floors (unit 84, integration 37 — WP2.5 measured) are enforced in the CI merge steps **only when the tier fully passed** — a red shard means partial data, and partial data is never floor-checked (`ci.yml` unit/integration floor steps).
+- ² Frontend floors are the **measured** stmts/branches/functions/lines values (R-1/WP2.3; run 35486259345), defined in `frontend/scripts/merge-shard-coverage.mjs` and enforced via `--enforce` in CI only when all Vitest shards passed.
+- Reference measurement (2026-09-20): 84.12% blended / 86.02% line / 76.27% branch — three different numbers (`--format=total` is the blend). Main runs publish line and branch separately; see the testing guide.
+
+## Git Rules
+
+**Never bypass pre-commit hooks** (no `--no-verify`). All commits must pass `ruff check` + `ruff format`, `mypy`, and `eslint` + `prettier`; `commit-msg` runs commitlint; the `pre-push` stage runs parallel validation.
+
+```bash
+./scripts/setup-hooks.sh    # Full hook setup (pre-commit + commit-msg + pre-push)
+# or manually:
+pre-commit install && pre-commit install --hook-type pre-push
+```
+
+Details: [docs/development/git-workflow.md](docs/development/git-workflow.md).
+
+## ⚠️ Network Ports — `.env` Is the Single Source of Truth
+
+**ALL network ports MUST be defined in `.env` and referenced via environment variables in `docker-compose.prod.yml`.**
+
+```yaml
+# CORRECT - Port from .env
+ports:
+  - '127.0.0.1:${VLLM_PORT:-8097}:8000'
+
+# WRONG - Hardcoded port
+ports:
+  - '127.0.0.1:8097:8000'
+```
+
+Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` — it is the tunnel/Brev entry point); loopback binding is the primary security boundary. **When adding new services:** add the port variable to `.env.example` first, then reference it in docker-compose. The port tables live in **Service Ports** below; `docs/reference/config/env-reference.md` is the authoritative runtime reference.
+
 ## Key Files in Root
 
 ### Agent Instructions
 
-| File        | Purpose                                                                                                                                |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `AGENTS.md` | This file - quick reference for AI agents                                                                                              |
-| `CLAUDE.md` | Comprehensive Claude Code instructions with project overview, phase execution order, TDD approach, testing requirements, and git rules |
+| File        | Purpose                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `AGENTS.md` | This file - the project's single root instruction file (navigation + operational rules) |
 
 ### Configuration Files
 
@@ -52,13 +188,13 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Build Files
 
-| File                | Purpose                                       |
-| ------------------- | --------------------------------------------- |
-| `pyproject.toml`    | Python project metadata (uv/pip dependencies) |
-| `uv.lock`           | uv lockfile for reproducible Python builds    |
-| `.python-version`   | Python version (3.14)                         |
-| `package.json`      | Root-level Node.js configuration (minimal)    |
-| `setup.py`          | Python setup script with interactive prompts  |
+| File              | Purpose                                       |
+| ----------------- | --------------------------------------------- |
+| `pyproject.toml`  | Python project metadata (uv/pip dependencies) |
+| `uv.lock`         | uv lockfile for reproducible Python builds    |
+| `.python-version` | Python version (3.14)                         |
+| `package.json`    | Root-level Node.js configuration (minimal)    |
+| `setup.py`        | Python setup script with interactive prompts  |
 
 ### Git and Security Configuration
 
@@ -79,13 +215,13 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ```
 /
 ├── ai/                   # AI model scripts and configs
-│   ├── yolo26/           # YOLO26 detection server (port 8095)
-│   ├── nemotron/         # Nemotron LLM model files (port 8091)
-│   ├── florence/         # Florence-2 dense captioning (port 8092)
-│   ├── clip/             # CLIP embedding service (port 8093)
-│   ├── enrichment/       # Heavy enrichment pipeline (port 8094)
-│   ├── enrichment-light/ # Light enrichment models (port 8096)
-│   ├── gateway/          # AI Gateway facade over Triton (port 8090; production AI path)
+│   ├── yolo26/           # YOLO26 detection code (prod: ai-gateway router /yolo26)
+│   ├── nemotron/         # Nemotron LLM (llama.cpp container, port 8091)
+│   ├── florence/         # Florence-2 dense captioning (prod: ai-gateway router /florence)
+│   ├── clip/             # CLIP embeddings (prod: ai-gateway router /clip)
+│   ├── enrichment/       # Heavy enrichment models (prod: ai-gateway router /enrichment)
+│   ├── enrichment-light/ # Light enrichment models (prod: router /enrich-lt)
+│   ├── gateway/          # AI Gateway: the single AI entrypoint, port 8090
 │   └── triton/           # Triton client + model repository
 ├── backend/              # FastAPI backend (Python)
 │   ├── api/              # REST endpoints and WebSocket routes
@@ -101,15 +237,19 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── certs/                # SSL certificates directory (placeholder)
 ├── config/               # Runtime YAML configs (tracker configs, quality baselines)
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
+├── docker/               # Shared container base images (base.Dockerfile)
 ├── docs/                 # Documentation (full index: docs/AGENTS.md)
 │   ├── ai/               # AI model-zoo and pipeline documentation
 │   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
+│   ├── archive/          # Archived point-in-time reports and NEM investigations
 │   ├── benchmarks/       # Performance benchmarks (model-zoo)
 │   ├── components/       # UI component documentation
 │   ├── decisions/        # Architecture Decision Records (ADRs)
+│   ├── deployment/       # Container-orchestration docs (startup, health checks)
 │   ├── developer/        # Developer-focused documentation
-│   ├── development/      # Development workflow documentation
+│   ├── development/      # Development workflow documentation (testing, git, quality)
+│   ├── discoveries/      # NEM-tagged discovery notes
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── guides/           # Feature guides (video analytics, zones, faces)
 │   ├── images/           # Visual assets (mockups, diagrams)
@@ -118,14 +258,16 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── performance/      # Performance analyses
 │   ├── plans/            # Design and implementation plans
 │   ├── reference/        # Reference docs (api, config, troubleshooting)
-│   ├── testing/          # Testing guides (TDD, Hypothesis, patterns)
+│   ├── research/         # Numbered research studies
+│   ├── testing/          # Pointer stub — living testing docs are in development/
+│   ├── ui/               # Page-by-page UI documentation
 │   └── user/             # End-user documentation
 ├── frontend/             # React dashboard (TypeScript)
 │   ├── src/              # App source (full index: src/AGENTS.md)
 │   │   ├── components/   # React components
 │   │   ├── config/       # Environment configuration and tour steps
 │   │   ├── constants/    # App-wide constants
-│   │   ├── contexts/     # React contexts (SystemData, Toast)
+│   │   ├── contexts/     # React contexts (Auth, Camera, Health, SystemData, Theme, Toast, ...)
 │   │   ├── hooks/        # Custom hooks (WebSocket, event streams)
 │   │   ├── pages/        # Route-level page components
 │   │   ├── mocks/        # MSW mock handlers for testing
@@ -170,21 +312,11 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 This project uses **Linear** for issue tracking:
 
 - **Workspace:** [nemotron-v3-home-security](https://linear.app/nemotron-v3-home-security)
-- **Team:** NEM
-- **Issue format:** NEM-123
+- **Team:** NEM (ID `998946a2-aa75-491b-a39d-189660131392`), issues formatted NEM-123
+- **Active board:** <https://linear.app/nemotron-v3-home-security/team/NEM/active>
+- **By phase:** <https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3> etc.
 
-```bash
-# Find available work
-# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/active
-
-# Filter by phase (e.g., phase-3)
-# Visit: https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3
-
-# View and manage tasks via Linear web interface or MCP tools:
-# - mcp__linear__list_issues(teamId="998946a2-aa75-491b-a39d-189660131392")
-# - mcp__linear__get_issue(issueId="NEM-123")
-# - mcp__linear__update_issue(issueId="NEM-123", status="<UUID>")
-```
+**All Linear operations go through the `/linear-python` skill only — do not call Linear MCP tools directly.** (The skill may be absent in some sandboxes; if so, say so in the final report rather than improvising MCP calls.)
 
 Tasks are organized into **8 execution phases**. Complete phases in order:
 
@@ -201,46 +333,9 @@ Tasks are organized into **8 execution phases**. Complete phases in order:
 
 ## Development Workflow
 
-### 1. Environment Setup
+### Code Quality Standards
 
-```bash
-# Run interactive setup (creates .env, installs dependencies, hooks)
-python setup.py
-
-# Or install just the pre-commit hooks
-./scripts/setup-hooks.sh
-
-# Activate Python environment
-source .venv/bin/activate
-```
-
-### 2. Running Tests
-
-```bash
-# Full test suite with coverage
-./scripts/test-runner.sh
-
-# Backend only
-pytest backend/tests/ -v
-
-# Frontend only
-cd frontend && npm test
-
-# Quick validation (linting + type checking + tests)
-./scripts/validate.sh
-```
-
-### 3. Pre-commit Hooks
-
-**CRITICAL:** Never bypass pre-commit hooks with `--no-verify`. All commits must pass:
-
-- `ruff check` + `ruff format` - Python linting/formatting
-- `mypy` - Python type checking
-- `eslint` + `prettier` - TypeScript linting/formatting
-
-### 4. Code Quality Standards
-
-- **Coverage:** executed floor is 80% combined unit+integration (`validate.sh --fail-under=80`); `pyproject.toml` 85 is the PR diff baseline, not an absolute floor (A7.1)
+- **Coverage:** see **Testing & Coverage Gates** above — executed floor is 80% combined unit+integration; `pyproject.toml` 85 is the PR diff baseline, not an absolute floor (A7.1)
 - **Type Hints:** Required for all backend functions (enforced by mypy)
 - **Line Length:** 100 characters (enforced by ruff)
 - **Testing:** TDD approach for tasks labeled `tdd`
@@ -249,9 +344,9 @@ cd frontend && npm test
 
 - **Database:** PostgreSQL (migrated from SQLite for concurrent write support)
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
-- **Batch processing:** 90-second time windows with 30-second idle timeout
-- **Auth model:** Single-user local deployment. First-time admin registration required (SetupGuardMiddleware returns 503 until first user). After registration, API endpoints are open. Network binding to 127.0.0.1 is the primary security boundary.
-- **Retention:** 30 days
+- **Batch processing:** 90-second time windows with 30-second idle timeout (`batch_window_seconds` / `batch_idle_timeout_seconds` defaults in `backend/core/config.py`)
+- **Auth model:** Single-user local deployment. First-time admin registration required — `SetupGuardMiddleware` returns 503 for all non-whitelisted requests until the first user exists (`backend/api/middleware/setup_guard.py`). After registration, API endpoints are open — no per-request login required. Network binding to `127.0.0.1` is the primary security boundary. Admin/destructive operations are guarded by per-route dependencies (`verify_api_key`, `require_admin_access`). The global `AuthMiddleware` class exists for future multi-user support but is **not active** (disabled per NEM-5527).
+- **Retention:** 30 days (`retention_days` default)
 - **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
 
 ## Data Flow
@@ -266,10 +361,10 @@ cd frontend && npm test
 
 ### Starting Point
 
-1. **Read CLAUDE.md** - Comprehensive project instructions
+1. **Read this file (AGENTS.md)** — the single root instruction file; `CLAUDE.md` was deliberately retired (owner ruling 2026-09), don't look for it
 2. **Check available work:** Visit [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active) or filter by phase label
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
-4. **Read directory AGENTS.md files** - Navigate to specific areas
+4. **Read the AGENTS.md of any directory before exploring it** — every code directory has one documenting purpose, key files, and patterns (`ai/AGENTS.md`, `backend/AGENTS.md`, `frontend/AGENTS.md`, `docs/AGENTS.md`, …)
 
 ### Understanding the Codebase
 
@@ -319,7 +414,7 @@ cd frontend && npm test
 - **Styling:** Tailwind utility classes + Tremor components
 - **State:** React hooks (useState, useEffect, custom hooks)
 - **API:** Centralized client in `frontend/src/services/api.ts`
-- **Contexts:** Global state providers in `frontend/src/contexts/` (SystemData, Toast)
+- **Contexts:** Global state providers in `frontend/src/contexts/` (Auth, Camera, Health, SystemData, Theme, Toast and others)
 - **Testing infrastructure:**
   - `frontend/src/test/setup.ts` - Vitest setup and configuration
   - `frontend/src/test-utils/` - Test factories and render helpers
@@ -335,54 +430,70 @@ cd frontend && npm test
 
 ## Service Ports
 
+Host ports come from `.env` (defaults shown below are from `.env.example`); `docs/reference/config/env-reference.md` is the authoritative reference. `docker-compose.prod.yml` defines 21 services; 19 start by default — vLLM (profile `vllm`) and dcgm-exporter (profile `gpu-rootful`) are opt-in.
+
 ### Core Services
 
-| Service        | Port | Description                                                      |
-| -------------- | ---- | ---------------------------------------------------------------- |
-| Frontend HTTP  | 5173 | React dashboard (Vite dev server locally, nginx in production)   |
-| Frontend HTTPS | 8443 | React dashboard via nginx (SSL enabled by default in production) |
-| Backend API    | 8000 | FastAPI REST + WebSocket                                         |
-| PostgreSQL     | 5432 | Primary database                                                 |
-| Redis          | 6379 | Cache and queues                                                 |
+| Service        | Host Port | Description                                                          |
+| -------------- | --------- | -------------------------------------------------------------------- |
+| Frontend HTTPS | 8444      | nginx container, internal 8443 (`FRONTEND_HTTPS_PORT`)               |
+| Frontend HTTP  | 8080      | nginx container, internal 8080 — tunnel entry (`FRONTEND_HTTP_PORT`) |
+| Backend API    | 8000      | FastAPI REST + WebSocket                                             |
+| PostgreSQL     | 5432      | Primary database                                                     |
+| Redis          | 6379      | Cache and queues                                                     |
+| go2rtc API     | 1984      | Stream gateway API (`GO2RTC_API_PORT`)                               |
+| go2rtc WebRTC  | 8555      | Stream gateway WebRTC (`GO2RTC_WEBRTC_PORT`)                         |
 
 ### AI Services
 
-| Service            | Port | Description                                               |
-| ------------------ | ---- | --------------------------------------------------------- |
-| YOLO26             | 8095 | Object detection (container with GPU)                     |
-| Nemotron           | 8091 | LLM risk analysis (container with GPU)                    |
-| Florence-2         | 8092 | Dense captioning and visual understanding                 |
-| CLIP               | 8093 | Entity re-identification embeddings                       |
-| Enrichment (Heavy) | 8094 | Heavy transformer models (vehicle, fashion, demographics) |
-| Enrichment (Light) | 8096 | Light models (pose, threat, reid, pet, depth)             |
+| Service              | Host Port | Description                                                                                         |
+| -------------------- | --------- | --------------------------------------------------------------------------------------------------- |
+| AI Gateway           | 8090      | Single AI entrypoint (Triton) with routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` |
+| AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                              |
+| Nemotron (llama.cpp) | 8091      | LLM risk analysis container (GPU)                                                                   |
+| vLLM (optional)      | 8097      | Alternative LLM engine — compose profile `vllm`, off by default                                     |
+
+Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only, as are the `JAEGER_*` port vars — tracing is Grafana Tempo (NEM-5545), Jaeger UI port 16686 is dead.
 
 ### Monitoring Stack
 
-| Service      | Port  | Description                |
-| ------------ | ----- | -------------------------- |
-| Grafana      | 3002  | Monitoring dashboards      |
-| Prometheus   | 9090  | Metrics collection         |
-| Jaeger       | 16686 | Distributed tracing UI     |
-| Alertmanager | 9093  | Alert routing and delivery |
-| Loki         | 3100  | Log aggregation            |
-| Pyroscope    | 4040  | Continuous profiling       |
-| Alloy        | 12345 | Log/metrics collector      |
+| Service           | Port  | Description                                 |
+| ----------------- | ----- | ------------------------------------------- |
+| Grafana           | 3002  | Monitoring dashboards (proxied at /grafana) |
+| Prometheus        | 9090  | Metrics collection                          |
+| Tempo             | 3200  | Distributed tracing (replaced Jaeger)       |
+| Alertmanager      | 9093  | Alert routing and delivery                  |
+| Loki              | 3100  | Log aggregation                             |
+| Pyroscope         | 4040  | Continuous profiling                        |
+| Alloy             | 12345 | Log/metrics collector UI                    |
+| Node exporter     | 9100  | Host metrics                                |
+| Redis exporter    | 9121  | Redis metrics                               |
+| JSON exporter     | 7979  | Custom metrics                              |
+| Blackbox exporter | 9115  | Endpoint probes                             |
+| DCGM exporter     | 9400  | NVIDIA GPU metrics                          |
 
-> **Frontend Port Note:** In production (`docker-compose.prod.yml`), nginx serves the built React app. HTTP on host port 5173 (internal 8080), HTTPS on host port 8443 (internal 8443). SSL is enabled by default with auto-generated self-signed certificates. In local development (`npm run dev`), Vite runs directly on port 5173.
+> **Frontend Port Note:** In production (`docker-compose.prod.yml`) the nginx container publishes host 8444 → internal 8443 (HTTPS) and host 8080 → internal 8080 (plain HTTP for Cloudflare tunnel / Brev secure link), both bound to 0.0.0.0. SSL is `false` in the compose default but `setup.py` writes `SSL_ENABLED=true` into the `.env` it generates. In local development (`npm run dev`) Vite serves HTTPS on port **8444** (strictPort). `FRONTEND_PORT=5173` in `.env.example` is no longer referenced by any prod compose port mapping; only the legacy `dev` target of `frontend/Dockerfile` still runs Vite on 5173.
 
-## Session Completion Workflow
+## Session Workflow
+
+1. Check [Linear Active](https://linear.app/nemotron-v3-home-security/team/NEM/active), claim a task (assign to yourself, set "In Progress")
+2. Implement following TDD
+3. Validate: `./scripts/validate.sh`
 
 Before ending a session:
 
 1. Run full test suite: `./scripts/test-runner.sh`
-2. Update issue status: Mark completed tasks as "Done" in Linear
+2. Update issue status: Mark completed tasks as "Done" in Linear (via `/linear-python`)
 3. Commit changes: `git add -A && git commit -m "description"`
 4. Push to remote: `git push`
 5. Verify: `git status` should show clean state
 
+Infrastructure work additionally requires the **Infrastructure Verification** checklist above before it counts as complete.
+
 ## Resources
 
 - **Issue Tracker:** [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team: NEM)
-- **Documentation:** `docs/` directory
+- **Documentation:** `docs/` directory (index: `docs/AGENTS.md`)
 - **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative port/env reference)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
+- **Feature Guides:** [Multi-GPU](docs/development/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)

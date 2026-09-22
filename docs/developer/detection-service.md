@@ -22,7 +22,8 @@ YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera 
 
 ## Source Files
 
-- `/ai/yolo26/model.py` - FastAPI inference server
+- `/ai/gateway/adapters/yolo26.py` - YOLO26 router inside the AI gateway (production path)
+- `/ai/yolo26/model.py` - Standalone FastAPI inference server (export/benchmark tooling)
 - `/backend/services/detector_client.py` - HTTP client
 
 ---
@@ -31,12 +32,12 @@ YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera 
 
 ### Request
 
-**Endpoint:** `POST http://localhost:8095/detect`
+**Endpoint:** `POST http://localhost:8090/yolo26/detect` (AI gateway, `AI_GATEWAY_PORT=8090`; the standalone server serves the same routes on its own port)
 
 **Multipart/form-data:**
 
 ```bash
-curl -X POST http://localhost:8095/detect \
+curl -X POST http://localhost:8090/yolo26/detect \
   -F "file=@image.jpg"
 ```
 
@@ -160,7 +161,7 @@ Detections below threshold are discarded.
 ## Health Check
 
 ```bash
-curl http://localhost:8095/health
+curl http://localhost:8090/yolo26/health
 ```
 
 ```json
@@ -177,15 +178,16 @@ curl http://localhost:8095/health
 
 ## Detection Client Implementation
 
-The backend uses `DetectorClient` to communicate with YOLO26:
+The backend uses `DetectorClient` to communicate with YOLO26. The base URL
+comes from the `YOLO26_URL` setting (default `http://ai-gateway:8090/yolo26`
+in `backend/core/config.py`); the client adds retry/backoff, a concurrency
+semaphore, and a circuit breaker on top of the plain call shape:
 
 ```python
-# backend/services/detector_client.py
+# backend/services/detector_client.py (simplified)
 
 class DetectorClient:
-    def __init__(self, base_url: str = "http://localhost:8095"):
-        self.base_url = base_url
-        self.timeout = httpx.Timeout(30.0)
+    """Configuration: YOLO26_URL, YOLO26_API_KEY, YOLO26_READ_TIMEOUT."""
 
     async def detect_objects(self, image_path: str) -> list[Detection]:
         """Send image to YOLO26 and return detections."""

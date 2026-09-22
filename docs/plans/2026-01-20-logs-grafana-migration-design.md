@@ -1,5 +1,7 @@
 # Logs Page Grafana/Loki Migration Design
 
+> **Status:** Implemented — `frontend/src/components/logs/LogsPage.tsx` embeds the Grafana logs dashboard.
+
 **Date:** 2026-01-20
 **Status:** Approved
 **Related Epic:** NEM-3090 (Loki, Pyroscope, and Alloy Observability Stack Integration)

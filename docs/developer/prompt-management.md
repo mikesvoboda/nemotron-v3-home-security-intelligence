@@ -41,7 +41,7 @@ _Full-stack prompt management flow from UI to database to AI inference._
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Backend API                                  │
 ├─────────────────────────────────────────────────────────────────────┤
-│  /api/ai-audit/prompts                                               │
+│  /api/prompts                                               │
 │  - GET    /           - Get all prompts                              │
 │  - GET    /{model}    - Get prompt for model                         │
 │  - PUT    /{model}    - Update prompt (creates new version)          │
@@ -82,10 +82,10 @@ _Full-stack prompt management flow from UI to database to AI inference._
 ### Data Flow
 
 1. **User edits prompt** in PromptPlayground UI
-2. **Test request** sent to `/api/ai-audit/prompts/test`
+2. **Test request** sent to `/api/prompts/test`
 3. **PromptService** runs LLM inference with modified config
 4. **Results returned** and displayed in before/after comparison
-5. **User saves** via PUT `/api/ai-audit/prompts/{model}`
+5. **User saves** via PUT `/api/prompts/{model}`
 6. **New version created** in `prompt_versions` table
 7. **Old version deactivated** (is_active = false)
 
@@ -179,17 +179,17 @@ class PromptVersion(Base):
 
 **Source:** [`backend/api/routes/prompt_management.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/api/routes/prompt_management.py)
 
-| Method | Endpoint                               | Description                      | Rate Limited |
-| ------ | -------------------------------------- | -------------------------------- | ------------ |
-| GET    | `/api/ai-audit/prompts`                | Get all model configurations     | No           |
-| GET    | `/api/ai-audit/prompts/{model}`        | Get specific model configuration | No           |
-| PUT    | `/api/ai-audit/prompts/{model}`        | Update model configuration       | No           |
-| GET    | `/api/ai-audit/prompts/export`         | Export all configurations        | No           |
-| POST   | `/api/ai-audit/prompts/import`         | Import configurations            | No           |
-| POST   | `/api/ai-audit/prompts/import/preview` | Preview import changes           | No           |
-| GET    | `/api/ai-audit/prompts/history`        | Get version history              | No           |
-| POST   | `/api/ai-audit/prompts/history/{id}`   | Restore specific version         | No           |
-| POST   | `/api/ai-audit/prompts/test`           | Test prompt against event        | Yes (10/min) |
+| Method | Endpoint                      | Description                      | Rate Limited |
+| ------ | ----------------------------- | -------------------------------- | ------------ |
+| GET    | `/api/prompts`                | Get all model configurations     | No           |
+| GET    | `/api/prompts/{model}`        | Get specific model configuration | No           |
+| PUT    | `/api/prompts/{model}`        | Update model configuration       | No           |
+| GET    | `/api/prompts/export`         | Export all configurations        | No           |
+| POST   | `/api/prompts/import`         | Import configurations            | No           |
+| POST   | `/api/prompts/import/preview` | Preview import changes           | No           |
+| GET    | `/api/prompts/history`        | Get version history              | No           |
+| POST   | `/api/prompts/history/{id}`   | Restore specific version         | No           |
+| POST   | `/api/prompts/test`           | Test prompt against event        | Yes (10/min) |
 
 ### Request/Response Schemas
 

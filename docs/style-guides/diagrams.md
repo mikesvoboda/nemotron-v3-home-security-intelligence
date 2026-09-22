@@ -74,8 +74,8 @@ Use Graphviz (DOT format) for:
 - Diagrams needing export to multiple formats
 - State machines with complex transitions
 
-**Source files:** Store as `.dot` in `/docs/images/sources/`
-**Rendered files:** Export as `.svg` to `/docs/images/`
+**Source files:** Store as `.dot` beside the rendered image in its category directory under `/docs/images/` (for example, `/docs/images/architecture/`)
+**Rendered files:** Export as `.svg` to the same category directory under `/docs/images/`
 
 ### When to Consider PlantUML
 
@@ -282,11 +282,9 @@ flowchart LR
 ```
 ````
 
-````
-
 ### Sequence Diagram - Standard
 
-```markdown
+````markdown
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 sequenceDiagram
@@ -298,13 +296,12 @@ sequenceDiagram
     A->>D: Query
     D-->>A: Result
     A-->>C: Response
-````
-
+```
 ````
 
 ### State Diagram - With Theme
 
-```markdown
+````markdown
 ```mermaid
 %%{init: {
   'theme': 'dark',
@@ -323,13 +320,12 @@ stateDiagram-v2
     [*] --> Idle
     Idle --> Active: trigger
     Active --> Idle: complete
-````
-
+```
 ````
 
 ### ER Diagram - Standard
 
-```markdown
+````markdown
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
 erDiagram
@@ -341,13 +337,12 @@ erDiagram
         string name
         datetime created_at
     }
-````
-
+```
 ````
 
 ### Architecture Flowchart with Subgraphs
 
-```markdown
+````markdown
 ```mermaid
 %%{init: {
   'theme': 'dark',
@@ -388,8 +383,7 @@ flowchart TB
     YOLO --> NEM
     API --> DB
     API --> REDIS
-````
-
+```
 ````
 
 ---
@@ -401,6 +395,7 @@ flowchart TB
 **Use for:** System architecture, data flows, component relationships
 
 **Best practices:**
+
 - Group related components in subgraphs
 - Use consistent arrow styles (solid for sync, dashed for async)
 - Include port numbers for services
@@ -422,7 +417,7 @@ flowchart LR
     CAM --> FW
     FW --> DQ
     DQ --> YOLO
-````
+```
 
 ### Sequence Diagrams
 
@@ -527,7 +522,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
-    participant RT as YOLO26 (8095)
+    participant RT as ai-gateway /yolo26 (8090)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant NEM as Nemotron LLM (8091)

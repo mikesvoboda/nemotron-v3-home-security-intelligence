@@ -44,9 +44,15 @@ The command palette searches both page names and keywords. For example:
 | Entities       | Users icon     | people, objects, detection              |
 | Logs           | File icon      | system, debug, output                   |
 | System         | Activity icon  | monitoring, health, status, performance |
-| AI Performance | Brain icon     | model, inference, gpu, nemotron, yolo26 |
+| AI Performance | Brain icon     | model, inference, gpu, nemotron, rtdetr |
 | Audit Log      | Clipboard icon | history, changes, tracking              |
 | Settings       | Gear icon      | preferences, configuration, options     |
+
+> **Known issue:** the "System" entry (and the `g y` chord) navigates to
+> `/system`, which is not a route in `frontend/src/App.tsx` — it currently lands
+> on the Not Found page. The operations dashboards live at `/operations` and
+> `/operations-dashboard`; open those from the sidebar until the palette target
+> is fixed.
 
 ---
 

@@ -1,5 +1,7 @@
 # Frontend Routing and Navigation Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The frontend has **27 routes** organized into **4 navigation groups**. Several backend features lack dedicated pages, and the mobile navigation only exposes 4 of 27 routes.

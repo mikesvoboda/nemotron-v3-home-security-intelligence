@@ -51,7 +51,7 @@ flowchart LR
     end
 
     subgraph ReID["Re-Identification<br/>backend/services/reid_service.py"]
-        CLIP["CLIP ViT-L<br/>ai-clip HTTP service"]
+        CLIP["CLIP embeddings<br/>ai-gateway /clip"]
         EMB["768-dim Embedding<br/>L2 normalized"]
         STORE["Store in Redis<br/>24h TTL"]
         PG["PostgreSQL<br/>30-day retention"]
@@ -93,17 +93,22 @@ flowchart LR
 1. **Person Detection**: YOLO26 identifies person bounding boxes
 2. **Head Region Extraction**: Upper 40% of person bbox extracted
 3. **Face Detection**: YOLO11 face model detects faces in head region
-4. **Embedding Generation**: CLIP ViT-L generates 768-dimensional embeddings
-5. **Matching**: Embeddings compared against household member database
+4. **Embedding Generation**: the gateway `/clip` router (SigLIP 2 Base) produces
+   768-dimensional embeddings
+5. **Matching**: embeddings compared against the household member database
 
 ### Models Used
 
-| Model        | Purpose          | VRAM   | Priority      |
-| ------------ | ---------------- | ------ | ------------- |
-| YOLO26       | Person detection | ~650MB | Always loaded |
-| YOLO11-face  | Face detection   | ~41MB  | On-demand     |
-| OSNet-x0.25  | Re-ID embeddings | ~100MB | MEDIUM        |
-| Demographics | Age/gender       | ~500MB | HIGH          |
+| Model                 | Purpose                   | VRAM (MB)          | Where it runs            |
+| --------------------- | ------------------------- | ------------------ | ------------------------ |
+| yolo26                | Person detection          | 0 (Triton-managed) | ai-gateway `/yolo26`     |
+| yolo11-face           | Face detection on crops   | 200                | backend model zoo        |
+| siglip2-base          | 768-dim entity embeddings | 200                | ai-gateway `/clip`       |
+| osnet-ain-x1-0        | 512-dim person re-ID      | 100                | ai-gateway `/enrich-lt`  |
+| vit-age-classifier    | Age estimation            | 200                | ai-gateway `/enrichment` |
+| vit-gender-classifier | Gender estimation         | 200                | ai-gateway `/enrichment` |
+
+VRAM figures are the `vram_mb` values in `models.yml`.
 
 ---
 
@@ -141,7 +146,10 @@ For a standing person, the face is typically in the top 40% of the bounding box.
 
 ### Configuration
 
-| Setting                | Default | Description                             |
+These are the parameter defaults on the functions in
+`backend/services/face_detector.py`:
+
+| Parameter              | Default | Description                             |
 | ---------------------- | ------- | --------------------------------------- |
 | `head_ratio`           | 0.4     | Fraction of person bbox for head region |
 | `padding`              | 0.2     | Padding around head bbox (20%)          |
@@ -151,28 +159,31 @@ For a standing person, the face is typically in the top 40% of the bounding box.
 
 ## Person Re-Identification
 
-### Embedding Generation
+Two separate vectors are produced for every person, and they are not
+interchangeable:
 
-OSNet generates 512-dimensional normalized embeddings:
+| Vector                 | Dimension | Produced by                           | Used for                                                                                           |
+| ---------------------- | --------- | ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Entity embedding       | 768       | gateway `/clip` (SigLIP 2)            | Cross-camera entity tracking, household matching (`reid_service.py`)                               |
+| Person re-ID embedding | 512       | gateway `/enrich-lt` (OSNet-AIN x1.0) | Stored in `enrichment_data["person_reid"]`, read by `household_matcher.extract_person_embedding()` |
 
-```json
-{
-  "embedding": [0.123, -0.456, 0.789, ...],
-  "embedding_hash": "abc123def456...",
-  "inference_time_ms": 15.2
-}
-```
+### Embedding Storage
 
-**Embedding Properties:**
+`backend/services/reid_service.py` stores entity embeddings in Redis with a
+24-hour TTL (`EMBEDDING_TTL_SECONDS = 86400`) and mirrors them to PostgreSQL for
+30-day retention. `backend/services/reid_matcher.py` keys its index by an
+`embedding_hash` computed from the vector.
 
-- **Dimensionality**: 512 values
+**Entity embedding properties:**
+
+- **Dimensionality**: 768 values (`EMBEDDING_DIMENSION` in `reid_service.py`)
 - **Normalization**: L2 normalized (unit length)
 - **Comparison**: Cosine similarity
-- **Threshold**: 0.7 default match threshold
 
 ### Similarity Matching
 
-Two embeddings are compared using cosine similarity:
+Two embeddings are compared using cosine similarity. Because both vectors are
+L2 normalized, the dot product is the cosine:
 
 ```
 similarity = dot(embedding_a, embedding_b)
@@ -183,13 +194,17 @@ else:
     # Different people
 ```
 
-**Threshold Guidelines:**
+**Default thresholds in code:** 0.85, set by `DEFAULT_SIMILARITY_THRESHOLD` in
+`backend/services/reid_service.py` and `SIMILARITY_THRESHOLD` in
+`backend/services/household_matcher.py`. Both accept an override at
+construction time.
+
+**Guidelines for tuning:**
 
 | Threshold | Use Case                                |
 | --------- | --------------------------------------- |
 | 0.6       | Lenient matching (more false positives) |
-| 0.7       | Balanced (default)                      |
-| 0.8       | Strict matching (fewer false positives) |
+| 0.85      | Default in code                         |
 | 0.9       | Very strict (may miss matches)          |
 
 ---
@@ -198,36 +213,32 @@ else:
 
 ### Age Estimation
 
-ViT-based age range classification:
+`POST http://localhost:8090/enrichment/demographics` returns age and gender in
+one response:
 
 ```json
 {
-  "age_range": "21-35",
-  "confidence": 0.87
+  "age_range": "21-30",
+  "age_confidence": 0.87,
+  "gender": "male",
+  "gender_confidence": 0.91,
+  "inference_time_ms": 22.1
 }
 ```
 
-**Age Ranges:**
-
-| Range | Description      |
-| ----- | ---------------- |
-| 0-10  | Child            |
-| 11-20 | Teen/young adult |
-| 21-35 | Young adult      |
-| 36-50 | Middle-aged      |
-| 51-65 | Older adult      |
-| 65+   | Senior           |
+**Age Ranges:** the gateway maps model class indices onto 0-10, 11-20, 21-30,
+31-40, 41-50, 51-60, 61-70, 71+
+(`ai/gateway/adapters/enrichment.py`). The
+`DemographicsResults.age_range` check constraint in
+`backend/models/enrichment.py` additionally accepts `71-80`, `81+` and
+`unknown`. The label list in the legacy `ai/enrichment/models/demographics.py`
+(0-10, 11-20, 21-35, 36-50, 51-65, 65+) is a different vocabulary — that module
+does not run in the gateway deployment.
 
 ### Gender Estimation
 
-ViT-based gender classification:
-
-```json
-{
-  "gender": "male",
-  "confidence": 0.91
-}
-```
+The same call returns `gender` as `male`, `female` or `unknown`, with
+`gender_confidence` beside it.
 
 **Privacy Note:** Demographics are used for identification context only and are not stored long-term. They help distinguish between individuals when other identifying features are similar.
 
@@ -238,45 +249,54 @@ ViT-based gender classification:
 ### Adding Household Members
 
 ```bash
-POST /api/household/members
-Content-Type: application/json
-
-{
-  "name": "John Smith",
-  "relationship": "family",
-  "trust_level": "full",
-  "notify_on_arrival": true,
-  "notify_on_departure": false
-}
+curl -X POST http://localhost:8000/api/household/members \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "John Smith",
+    "role": "family",
+    "trusted_level": "full",
+    "notes": "Lives at the house"
+  }'
 ```
 
-**Response:**
+Field names come from `HouseholdMemberCreate` in
+`backend/api/schemas/household.py`: `name`, `role`, `trusted_level`,
+`typical_schedule` and `notes`. There is no `relationship`,
+`notify_on_arrival` or `notify_on_departure` field — notification behaviour
+comes from alert rules, not the member record.
+
+**`role` values** (`MemberRole` in `backend/models/household.py`): `resident`,
+`family`, `service_worker`, `frequent_visitor`.
+
+**Response** (`HouseholdMemberResponse`):
 
 ```json
 {
-  "id": "member-uuid",
+  "id": 1,
   "name": "John Smith",
-  "relationship": "family",
-  "trust_level": "full",
-  "embedding_count": 0,
-  "created_at": "2026-01-26T10:00:00Z"
+  "role": "family",
+  "trusted_level": "full",
+  "typical_schedule": null,
+  "notes": "Lives at the house",
+  "created_at": "2026-01-26T10:00:00Z",
+  "updated_at": "2026-01-26T10:00:00Z"
 }
 ```
 
 ### Adding Member Embeddings
 
-Add face embeddings from existing detections:
+Add a face embedding extracted from an existing event:
 
 ```bash
-POST /api/household/members/{member_id}/embeddings
-Content-Type: application/json
-
-{
-  "event_id": "event-uuid",
-  "detection_id": 12345,
-  "notes": "Front door arrival, clear view"
-}
+curl -X POST http://localhost:8000/api/household/members/1/embeddings \
+  -H 'Content-Type: application/json' \
+  -d '{ "event_id": 100, "confidence": 0.95 }'
 ```
+
+`AddEmbeddingRequest` takes `event_id` (required, integer — the event the
+embedding is extracted from) and `confidence` (optional, default 1.0, your
+reliability score for that sample). Bulk enrolment lives on the face
+recognition router instead: `POST /api/known-persons/bulk-enroll`.
 
 **Best Practices for Embeddings:**
 
@@ -288,12 +308,16 @@ Content-Type: application/json
 
 ### Trust Levels
 
-| Level        | Description                       | Alert Behavior             |
-| ------------ | --------------------------------- | -------------------------- |
-| `full`       | Family members                    | No alerts                  |
-| `partial`    | Regular visitors, service workers | Alerts outside schedule    |
-| `monitor`    | Known but tracked                 | Log only, no notifications |
-| `restricted` | Should not be on property         | High-priority alerts       |
+`TrustLevel` in `backend/models/household.py` has three values:
+
+| Level     | Behaviour                               |
+| --------- | --------------------------------------- |
+| `full`    | Never trigger alerts for this person    |
+| `partial` | Reduced alert severity, still monitored |
+| `monitor` | Log activity, do not suppress alerts    |
+
+There is no `restricted` trust level. To flag a person the system should raise
+on, register them with `monitor` and write an alert rule that matches them.
 
 ---
 
@@ -308,48 +332,56 @@ When a person is detected, the system:
 3. Links detections if similarity exceeds threshold
 4. Creates an entity record for tracking
 
-**Entity Response:**
+**Entity Response** (`EntitySummary` in `backend/api/schemas/entities.py`):
+
+```json
+{
+  "id": "entity-uuid",
+  "entity_type": "person",
+  "first_seen": "2026-01-26T14:00:00Z",
+  "last_seen": "2026-01-26T14:15:00Z",
+  "appearance_count": 3,
+  "cameras_seen": ["front_door", "driveway"],
+  "thumbnail_url": "/api/media/thumbnails/abc123.jpg",
+  "trust_status": "untrusted"
+}
+```
+
+A household match is a separate lookup: `GET /api/entities/matches/{detection_id}`
+returns the member matched to a detection, and `GET /api/entities/trusted` and
+`/api/entities/untrusted` filter by trust status.
+
+### Entity History
+
+```bash
+curl http://localhost:8000/api/entities/entity-uuid/history
+```
+
+**Response** (`EntityHistoryResponse`, whose items are `EntityAppearance`):
 
 ```json
 {
   "entity_id": "entity-uuid",
   "entity_type": "person",
-  "first_seen": "2026-01-26T14:00:00Z",
-  "last_seen": "2026-01-26T14:15:00Z",
-  "cameras_seen": ["front_door", "driveway"],
-  "appearance_count": 3,
-  "matched_member": {
-    "id": "member-uuid",
-    "name": "John Smith"
-  }
-}
-```
-
-### Entity History
-
-```bash
-GET /api/entities/{entity_id}/history
-```
-
-**Response:**
-
-```json
-{
-  "entity_id": "entity-uuid",
+  "count": 2,
   "appearances": [
     {
-      "timestamp": "2026-01-26T14:00:00Z",
+      "detection_id": "12345",
       "camera_id": "front_door",
-      "zone": "Front Porch",
+      "camera_name": "Front Door",
+      "timestamp": "2026-01-26T14:00:00Z",
       "thumbnail_url": "/api/media/thumbnails/abc123.jpg",
-      "duration_seconds": 45
+      "similarity_score": 0.91,
+      "attributes": {}
     },
     {
-      "timestamp": "2026-01-26T14:05:00Z",
+      "detection_id": "12346",
       "camera_id": "driveway",
-      "zone": "Driveway",
+      "camera_name": "Driveway",
+      "timestamp": "2026-01-26T14:05:00Z",
       "thumbnail_url": "/api/media/thumbnails/def456.jpg",
-      "duration_seconds": 30
+      "similarity_score": 0.88,
+      "attributes": {}
     }
   ]
 }
@@ -404,79 +436,59 @@ GET /api/entities/{entity_id}/history
 
 ### Person-to-Member Matching
 
+From `HouseholdMatcher.match_person` in `backend/services/household_matcher.py`:
+
 ```
 For each detected person:
-  1. Generate embedding
-  2. For each household member:
-     - Get member embeddings (up to 10 most recent)
-     - Calculate average similarity
-     - If similarity >= threshold:
-       - Mark as matched
-       - Record confidence
-  3. If no match found:
-     - Mark as "Unknown"
-     - Create/update entity record
+  1. Take the person embedding
+  2. Load every stored member embedding
+  3. Cosine-similarity each one against the person embedding
+  4. Keep candidates with similarity > threshold
+  5. Return the single highest-scoring candidate
+  6. If nothing clears the threshold, treat the person as unknown
 ```
 
-### Confidence Calculation
+The loop takes the best single pair; it does not average similarity across a
+member's embeddings.
 
-Match confidence is based on:
+### Match Confidence
 
-1. **Face detection confidence** (0-1)
-2. **Embedding similarity** (0-1)
-3. **Number of matching embeddings** (more = higher confidence)
-
-```
-confidence = face_conf * avg_similarity * min(embedding_matches / 3, 1.0)
-```
+The value reported with a match is the cosine similarity from that comparison —
+see `HouseholdMatch.similarity`. No formula combines face confidence,
+similarity and embedding count.
 
 ---
 
 ## Alert Integration
 
-### Unknown Person Alerts
+### How Alerts Fire
 
-When an unknown person is detected:
+There is no dedicated "unknown person" alert type with a fixed severity table.
+Alerts are rule-driven: `backend/services/alert_engine.py` creates an alert
+when an event matches an `AlertRule` (`backend/models/alert.py` — conditions
+are risk threshold, object types, cameras, zones, detection confidence,
+schedule, and optional dwell time). The rule's own `severity` field
+(`low` / `medium` / `high` / `critical`) is the starting severity.
 
-```json
-{
-  "type": "unknown_person",
-  "severity": "medium",
-  "zone_type": "entry_point",
-  "details": {
-    "entity_id": "entity-uuid",
-    "camera": "Front Door",
-    "zone": "Front Porch",
-    "demographics": {
-      "age_range": "21-35",
-      "gender": "male"
-    }
-  }
-}
-```
+Trust then adjusts it (`SEVERITY_ESCALATION` / `SEVERITY_REDUCTION` in
+`alert_engine.py`):
 
-**Severity Based on Zone Type:**
+| Entity trust | Effect on severity                            |
+| ------------ | --------------------------------------------- |
+| Untrusted    | Escalated by one level (medium becomes high)  |
+| Trusted      | Reduced by one level, or the alert is skipped |
 
-| Zone Type   | Unknown Person Severity |
-| ----------- | ----------------------- |
-| entry_point | High                    |
-| restricted  | Critical                |
-| monitored   | Medium                  |
-| other       | Low                     |
+### Zone Context
 
-### Known Person Notifications
+The zone a detection lands in reaches Nemotron as prompt context, not as a
+severity multiplier: `ZONE_RISK_WEIGHTS` in
+`backend/services/context_enricher.py` labels `entry_point` high,
+`driveway`/`yard` medium, `sidewalk`/`other` low. Those five are the complete
+set of `CameraZoneType` values (`backend/models/camera_zone.py`).
 
-For household members with notifications enabled:
-
-```json
-{
-  "type": "member_arrival",
-  "member_id": "member-uuid",
-  "member_name": "John Smith",
-  "camera": "Front Door",
-  "timestamp": "2026-01-26T14:00:00Z"
-}
-```
+To make unknown-person detections at your front door alert at a chosen
+severity, create an alert rule matching `object_types: ["person"]` and that
+zone, with the severity you want.
 
 ---
 
@@ -484,13 +496,19 @@ For household members with notifications enabled:
 
 ### Data Retention
 
-| Data Type            | Retention | Notes                |
-| -------------------- | --------- | -------------------- |
-| Face detections      | 30 days   | With events          |
-| Embeddings (events)  | 30 days   | Linked to detections |
-| Embeddings (members) | Permanent | Until member deleted |
-| Entity tracks        | 7 days    | Short-term tracking  |
-| Demographics         | 30 days   | With events          |
+| Data Type                   | Retention           | Where it lives                                  |
+| --------------------------- | ------------------- | ----------------------------------------------- |
+| Events and detections       | `RETENTION_DAYS=30` | Pruned by `backend/services/cleanup_service.py` |
+| Face detections             | 30 days             | Stored on detections, so they age out with them |
+| Per-detection re-ID vectors | 30 days             | `reid_embeddings` table, FK to `detections`     |
+| Demographics results        | 30 days             | `demographics_results` table, per detection     |
+| Redis entity embeddings     | 24 hours            | `EMBEDDING_TTL_SECONDS` in `reid_service.py`    |
+| Member embeddings           | Until deleted       | `PersonEmbedding` rows, removed with the member |
+
+The 30-day figure is `RETENTION_DAYS` in `.env`, read as `retention_days` in
+`backend/core/config.py`. Short-term cross-camera linking is the job of
+`track_service.prune_old_tracks()`, which prunes by `track_retention_hours`,
+not by a seven-day entity policy.
 
 ### Data Minimization
 
@@ -530,7 +548,10 @@ All face recognition processing happens locally:
 ### For Performance
 
 1. **Embedding Limit**: Keep member embedding count reasonable (10-20)
-2. **Model Priority**: Demographics model has HIGH priority for quick loading
+2. **Model Priority**: In the gateway deployment every enrichment model has
+   `priority: medium` in `models.yml` and Triton preloads them, so there is no
+   load-order penalty; the legacy container's HIGH-priority ordering applied
+   only there
 3. **Batch Processing**: Face detection runs in batches with other enrichment
 
 ---

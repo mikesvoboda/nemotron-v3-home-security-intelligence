@@ -211,6 +211,63 @@ class TestPreSetupProtection:
         assert isinstance(data["setup_url"], str)
         assert isinstance(data["setup_status_url"], str)
 
+    @pytest.mark.asyncio
+    async def test_login_immediately_after_register_is_not_503(
+        self,
+        unmocked_setup_client: AsyncClient,
+        clean_tables: None,
+        real_redis: RedisClient,
+    ) -> None:
+        """Registration must invalidate the guard's cached negative verdict.
+
+        Session-learned defect (sandbox bring-up 2026-09-22): registering the
+        first admin succeeded, but the immediately following login got
+        503 "Initial setup required" — the guard had cached "setup required"
+        from a check made before the registration (60s TTL) and the new admin
+        was locked out until it expired. The first-run flow was broken by the
+        guard's own cache. The register route now calls
+        invalidate_setup_cache() after committing the first user.
+        """
+        from unittest.mock import patch
+
+        from backend.api.routes import auth as auth_routes
+
+        async def _real_redis_optional():
+            return real_redis
+
+        # Prime the guard's negative cache with a blocked pre-setup request.
+        pre = await unmocked_setup_client.get("/api/cameras")
+        assert pre.status_code == 503
+
+        register = await unmocked_setup_client.post(
+            "/api/auth/register",
+            json={
+                "username": "admin",
+                "email": "admin@example.com",
+                "password": "SecurePassword123!",  # pragma: allowlist secret
+            },
+        )
+        assert register.status_code == 201
+
+        # Immediate login — before the fix this hit the stale cached verdict
+        # and returned 503 despite the admin existing in the database.
+        with patch.object(auth_routes, "get_redis_optional", _real_redis_optional):
+            login = await unmocked_setup_client.post(
+                "/api/auth/login",
+                json={
+                    "username": "admin",
+                    "password": "SecurePassword123!",
+                },  # pragma: allowlist secret
+            )
+        assert login.status_code == 200, (
+            "login immediately after registration must not be 503'd by the "
+            f"guard's cached verdict: got {login.status_code}"
+        )
+
+        # Non-whitelisted routes are open right away too — no TTL wait.
+        cameras = await unmocked_setup_client.get("/api/cameras")
+        assert cameras.status_code == 200
+
 
 # =============================================================================
 # Setup Flow Tests
@@ -277,7 +334,7 @@ class TestSetupFlow:
         assert "set-cookie" in login_response.headers
 
         # Step 7: Verify endpoints are accessible after setup (open post-setup
-        # API per the shipped single-user local model — CLAUDE.md auth model;
+        # API per the shipped single-user local model — AGENTS.md auth model;
         # the shared client's default X-API-Key is the valid key)
         cameras_after = await client.get("/api/cameras")
         assert cameras_after.status_code == 200
@@ -326,7 +383,7 @@ class TestPostSetupAuthentication:
     async def test_open_after_setup(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that general endpoints are open after setup.
 
-        Shipped auth model (CLAUDE.md; NEM-5527 disabled the global
+        Shipped auth model (AGENTS.md; NEM-5527 disabled the global
         AuthMiddleware): single-user local deployment, network binding to
         127.0.0.1 is the security boundary, API endpoints are open after
         setup; admin/destructive routes keep per-route dependencies

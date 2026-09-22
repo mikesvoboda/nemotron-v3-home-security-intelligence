@@ -51,6 +51,8 @@ point is that a future agent can tell a verified fact from an inference.
 | **[C]** | Computed from a verified formula. The formula and inputs are shown.            |
 | **[E]** | External knowledge or web source. Needs confirmation against a primary source. |
 | **[?]** | Open question. Not established.                                                |
+| **[O]** | Stated by a human stakeholder. Outranks repo inference.                        |
+| **[A]** | Agent-reported, not independently verified. Check before acting.               |
 
 Do not promote a **[?]** or **[E]** to **[V]** without citing the file and line you read.
 
@@ -91,8 +93,10 @@ HuggingFace blob sizes.**
 
 **File:** [`06-repo-a-readiness.md`](06-repo-a-readiness.md)
 
-Four verified CI defects in this repo outrank further mutation-census work, including a coverage
-pipeline that has never computed anything.
+The four verified CI defects this document originally flagged (including a coverage pipeline that
+had never computed anything) were **closed and re-verified on `main` 2026-09-21** — see the
+retirement note at the top of `06`. What the doc now lists as open: the import-bound seam fixture
+(§1.6), deletion-record cashing (§1.5), and the frontend blast radius (§1.7).
 
 ## Patterns
 

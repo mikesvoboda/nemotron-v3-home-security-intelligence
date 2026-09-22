@@ -180,4 +180,4 @@ Security tests use these fixtures from `conftest.py`:
 - `/backend/api/middleware/auth.py` - Authentication middleware implementation
 - `/backend/api/routes/AGENTS.md` - API route handlers
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
-- `/CLAUDE.md` - Project security requirements
+- `/AGENTS.md` - Project security requirements

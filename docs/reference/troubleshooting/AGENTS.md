@@ -8,12 +8,14 @@ This directory contains symptom-based troubleshooting guides for the Home Securi
 
 ```
 troubleshooting/
-  AGENTS.md              # This file
-  index.md               # Symptom quick reference table
-  ai-issues.md           # AI service troubleshooting
-  connection-issues.md   # Network and connectivity problems
-  database-issues.md     # PostgreSQL problems
-  gpu-issues.md          # GPU and CUDA issues
+  AGENTS.md                # This file
+  README.md                # Troubleshooting hub (condensed symptom guide)
+  index.md                 # Symptom quick reference table
+  ai-issues.md             # AI service troubleshooting
+  connection-issues.md     # Network and connectivity problems
+  database-issues.md       # PostgreSQL problems
+  gpu-issues.md            # GPU and CUDA issues
+  triton-rootless-cuda.md  # Triton CUDA init failure in rootless Podman
 ```
 
 ## Key Files
@@ -49,6 +51,7 @@ troubleshooting/
 
 - Service not running
 - Degraded mode (one service up, one down)
+- Enrichment issues (Florence-2, CLIP, heavy/light enrichment routers)
 - Batch not processing
 - Analysis failing (null risk scores)
 - Detection quality issues (false positives/negatives)
@@ -59,12 +62,12 @@ troubleshooting/
 **Diagnostic Commands:**
 
 ```bash
-# Check AI service status
-./scripts/start-ai.sh status
+# Check AI container status
+docker compose -f docker-compose.prod.yml ps ai-gateway ai-llm
 
 # Check individual services
-curl http://localhost:8095/health  # YOLO26
-curl http://localhost:8091/health  # Nemotron
+curl http://localhost:8090/yolo26/health  # YOLO26 (AI gateway router)
+curl http://localhost:8091/health         # Nemotron
 
 # Check pipeline
 curl http://localhost:8000/api/system/pipeline | jq
@@ -78,14 +81,13 @@ curl http://localhost:8000/api/system/pipeline | jq
 
 **Topics Covered:**
 
-- Backend connection refused
-- Redis connection failed
-- Database connection failed
+- Service not reachable (ports, container networking)
+- Redis not available
+- Container crashes
 - File watcher issues
 - WebSocket connection problems
 - CORS errors
-- Container networking
-- Port conflicts
+- Timeouts
 
 **When to use:** Services can't connect to each other, network errors.
 
@@ -95,13 +97,13 @@ curl http://localhost:8000/api/system/pipeline | jq
 
 **Topics Covered:**
 
+- Missing DATABASE_URL
 - Connection refused
 - Authentication failed
-- Migration failures
+- Missing tables (schema comes from the SQLAlchemy models — this project has no Alembic)
+- Connection pool exhaustion, slow queries
 - Disk space issues
-- Performance problems
 - Backup and recovery
-- Data corruption
 
 **When to use:** Database errors, migration problems, storage issues.
 
@@ -121,6 +123,12 @@ curl http://localhost:8000/api/system/pipeline | jq
 - Multi-GPU configuration
 
 **When to use:** AI running slow, GPU not being used, CUDA errors.
+
+### README.md
+
+**Purpose:** Troubleshooting hub — condensed per-symptom solutions, log locations, database/Redis/GPU quick fixes, emergency procedures, and a one-shot diagnostics collection script.
+
+**When to use:** When index.md's quick table isn't enough but you don't need a full per-domain guide.
 
 ### triton-rootless-cuda.md
 
@@ -213,7 +221,11 @@ docker compose -f docker-compose.prod.yml ps
 ### AI Services
 
 ```bash
-# YOLO26
+# AI gateway aggregate + per-router health (production topology)
+curl http://localhost:8090/health
+curl http://localhost:8090/yolo26/health
+
+# Host-run standalone detector (only when running ai/start_detector.sh directly)
 curl http://localhost:8095/health
 
 # Nemotron
@@ -239,9 +251,9 @@ nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
 # Queue depths
 curl http://localhost:8000/api/system/telemetry | jq .queues
 
-# Redis directly
-redis-cli llen detection_queue
-redis-cli llen analysis_queue
+# Redis directly (queues are Redis Streams by default — USE_REDIS_STREAMS)
+redis-cli xlen detections:stream
+redis-cli xlen analysis:stream
 ```
 
 ## Target Audiences

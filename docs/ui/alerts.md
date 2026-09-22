@@ -70,12 +70,12 @@ Card styling in AlertCard indicates severity with a colored left border:
 
 When using the AlertCard component, each card has action buttons:
 
-| Action          | Description                                                                |
-| --------------- | -------------------------------------------------------------------------- |
-| **Acknowledge** | Mark the alert as reviewed (green button, only shown for pending alerts)   |
-| **Dismiss**     | Remove the alert from the active list                                      |
-| **View Event**  | Open the full event detail modal                                           |
-| **Snooze**      | Dropdown menu (chevron icon) with options: 15 min, 30 min, 1 hour, 4 hours |
+| Action          | Description                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| **Acknowledge** | Mark the alert as reviewed (green button, only shown for pending alerts)      |
+| **Dismiss**     | Remove the alert from the active list                                         |
+| **View Event**  | Open the full event detail modal                                              |
+| **Snooze**      | Dropdown (`SnoozeButton`) with options: 15 minutes, 1 hour, 4 hours, 24 hours |
 
 On the main Alerts page (using EventCard), clicking a card opens the Event Detail Modal where you can:
 
@@ -221,10 +221,11 @@ To prevent alert fatigue, the system uses cooldown periods and deduplication:
 - Default template: `{camera_id}:{rule_id}`
 
 **Template Variables:**
-| Variable | Description |
-|----------|-------------|
-| `{camera_id}` | The camera that detected the event |
-| `{rule_id}` | The alert rule that triggered |
+
+| Variable        | Description                                         |
+| --------------- | --------------------------------------------------- |
+| `{camera_id}`   | The camera that detected the event                  |
+| `{rule_id}`     | The alert rule that triggered                       |
 | `{object_type}` | The type of object detected (person, vehicle, etc.) |
 
 **Example Templates:**

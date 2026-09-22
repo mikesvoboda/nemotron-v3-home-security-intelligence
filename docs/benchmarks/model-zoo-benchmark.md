@@ -65,7 +65,7 @@ The Model Zoo provides on-demand loading of AI models during batch processing to
 | ------------------ | ------- | --------------- | ----------------------- | -------- |
 | `florence-2-large` | 1200 MB | vision-language | Vision-language queries | Disabled |
 
-**Note:** Florence-2 now runs as a dedicated HTTP service at `http://ai-florence:8092`.
+**Note:** Florence-2 now runs behind the consolidated AI gateway at `http://ai-gateway:8090/florence` (see `FLORENCE_URL` in `.env.example`).
 
 ### Segmentation Models
 

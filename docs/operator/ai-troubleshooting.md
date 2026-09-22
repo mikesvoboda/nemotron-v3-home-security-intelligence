@@ -9,38 +9,86 @@
 
 ## Quick Diagnostics
 
-Run these commands first to identify the issue:
+Production AI is two containers: `ai-gateway` (:8090, Triton + routers) and `ai-llm`
+(:8091, llama.cpp). There is no `scripts/start-ai.sh`.
 
 ```bash
-# Check if services are running
-./scripts/start-ai.sh status
+# Container status
+podman ps -a --filter name=ai-gateway --filter name=ai-llm
 
-# Test service health endpoints
-curl http://localhost:8095/health   # YOLO26
-curl http://localhost:8091/health   # Nemotron
-curl http://localhost:8092/health   # Florence-2 (optional)
-curl http://localhost:8093/health   # CLIP (optional)
-curl http://localhost:8094/health   # Enrichment (optional)
+# Aggregate gateway health (healthy only when Triton + all models are ready)
+curl -s http://localhost:8090/health | jq
 
-# Check GPU availability
+# Per-router health
+curl -s http://localhost:8090/yolo26/health | jq
+curl -s http://localhost:8090/florence/health | jq
+curl -s http://localhost:8090/clip/health | jq
+curl -s http://localhost:8090/enrichment/health | jq
+curl -s http://localhost:8090/enrich-lt/health | jq
+
+# LLM health
+curl -s http://localhost:8091/health | jq
+
+# GPU availability
 nvidia-smi
 
-# View recent logs
-tail -100 /tmp/yolo26-detector.log
-tail -100 /tmp/nemotron-llm.log
+# Recent logs
+podman logs --tail=100 ai-gateway 2>&1 | tail -50
+podman logs --tail=100 ai-llm 2>&1 | tail -50
+```
+
+Host-run dev services (started via `ai/start_detector.sh`, `ai/start_llm.sh`,
+`ai/start_nemotron.sh`) log to the terminal, except `start_nemotron.sh` which writes
+`/tmp/nemotron.log`.
+
+---
+
+## Gateway / Triton Issues
+
+### Gateway Never Becomes Healthy
+
+```bash
+podman logs ai-gateway 2>&1 | grep -iE "error|failed|model"
+```
+
+Common causes:
+
+- **Model weights missing** — Triton loads every model in `/models/zoo` at startup
+  (`--model-control-mode=none`). Run `./ai/download_models.sh` (manifest: `models.yml`),
+  then restart the gateway.
+- **`start_period` not elapsed** — Triton initialises 13+ models; the compose healthcheck
+  allows 180s before it counts failures.
+- **GPU not visible** — check the CDI spec exists (`ls /etc/cdi/nvidia.yaml`) and
+  `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` points at a real card; verify with
+  `podman exec ai-gateway nvidia-smi`.
+
+### One Router Reports Degraded
+
+```bash
+curl -s http://localhost:8090/enrich-lt/health | jq   # per-model ready flags
+podman exec ai-gateway curl -s http://localhost:8002/v2/models/pose | jq '.state,.ready'
+```
+
+### Restart the Gateway
+
+```bash
+podman compose -f docker-compose.prod.yml restart ai-gateway
 ```
 
 ---
 
 ## YOLO26 Issues
 
-### Service Won't Start
-
-**Check logs:**
+### Standalone Host-Run Server Fails to Start
 
 ```bash
-tail -f /tmp/yolo26-detector.log
+tail -f /tmp/yolo26-detector.log 2>/dev/null || # logs go to the terminal (ai/start_detector.sh)
+uv sync --extra dev      # ModuleNotFoundError: No module named 'transformers'
 ```
+
+If `YOLO26_MODEL_PATH` points at a missing TensorRT engine, the server falls back per
+`YOLO26_AUTO_REBUILD` (rebuild from `YOLO26_PT_MODEL_PATH`) and then to PyTorch — see the
+startup messages in its log.
 
 **CUDA out of memory:**
 
@@ -48,32 +96,8 @@ tail -f /tmp/yolo26-detector.log
 RuntimeError: CUDA out of memory
 ```
 
-**Solution:**
-
-1. Close other GPU applications
-2. Check VRAM usage: `nvidia-smi`
-3. Restart services: `./scripts/start-ai.sh restart`
-
-**Python dependency not found (YOLO26):**
-
-```
-ModuleNotFoundError: No module named 'transformers'
-```
-
-**Solution:**
-
-```bash
-cd "$PROJECT_ROOT"
-uv sync --extra dev
-```
-
-**Model file not found:**
-
-```
-ImportError / ModuleNotFoundError in `ai/yolo26/model.py`
-```
-
-**Solution:** Model auto-downloads on first use. Wait for download to complete (check logs).
+1. Close other GPU applications; check VRAM: `nvidia-smi`
+2. Restart the gateway: `podman compose -f docker-compose.prod.yml restart ai-gateway`
 
 ---
 
@@ -81,19 +105,13 @@ ImportError / ModuleNotFoundError in `ai/yolo26/model.py`
 
 ### Service Won't Start
 
-**Check logs:**
-
 ```bash
-tail -f /tmp/nemotron-llm.log
+podman logs ai-llm 2>&1 | tail -50
 ```
 
-**llama-server not found:**
-
-```
-command not found: llama-server
-```
-
-**Solution:** Install llama.cpp. See [AI Installation](ai-installation.md).
+**llama-server not found (host-run only):** the `ai-llm` image builds llama.cpp inside the
+image; for `ai/start_nemotron.sh` on the host, set `LLAMA_SERVER_PATH` or install it —
+see [AI Installation](ai-installation.md).
 
 **Model file not found:**
 
@@ -101,10 +119,8 @@ command not found: llama-server
 error: failed to load model
 ```
 
-**Solution:**
-
 ```bash
-./ai/download_models.sh
+./ai/download_models.sh   # fetches the Nemotron-3-Nano-30B GGUF listed in models.yml
 ```
 
 **CUDA initialization failed:**
@@ -112,8 +128,6 @@ error: failed to load model
 ```
 ggml_init_cublas: failed to initialize CUDA
 ```
-
-**Solution:**
 
 ```bash
 nvidia-smi
@@ -126,30 +140,32 @@ sudo systemctl restart nvidia-persistenced
 error: bind: Address already in use
 ```
 
-**Solution:**
-
 ```bash
 lsof -ti:8091 | xargs kill -9
-./scripts/start-ai.sh restart
+podman compose -f docker-compose.prod.yml restart ai-llm
+```
+
+### LLM Slow to Answer
+
+The Nano 30B model takes minutes to load (compose `start_period` 300s). Watch it:
+
+```bash
+podman compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
 ---
 
 ## Service Unhealthy
 
-### Symptoms
-
-Service running but health check fails.
-
 ### Diagnosis
 
 ```bash
-# Check if service is responding
-curl -v http://localhost:8095/health
+# Check if services are responding
+curl -v http://localhost:8090/health
 curl -v http://localhost:8091/health
 
-# Check process status
-./scripts/start-ai.sh status
+# Container state + restart counts
+podman inspect -f '{{.State.Status}} {{.RestartCount}}' ai-gateway ai-llm
 
 # Monitor GPU
 nvidia-smi -l 1
@@ -157,9 +173,10 @@ nvidia-smi -l 1
 
 ### Solutions
 
-1. Restart services: `./scripts/start-ai.sh restart`
-2. Check logs for errors
-3. Verify CUDA: `python3 -c "import torch; print(torch.cuda.is_available())"`
+1. Restart containers:
+   `podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm`
+2. Check logs for errors: `podman compose -f docker-compose.prod.yml logs --tail=100 ai-gateway`
+3. Verify CUDA (host-run only): `python3 -c "import torch; print(torch.cuda.is_available())"`
 
 ---
 
@@ -181,24 +198,22 @@ nvidia-smi -l 1
 **CPU fallback (GPU not being used):**
 
 ```bash
-# Verify CUDA is being used
+# Verify CUDA is being used (host-run server)
 python3 -c "import torch; print(torch.cuda.is_available())"
+# Gateway: confirm Triton model instances are on GPU
+podman exec ai-gateway nvidia-smi
 ```
-
-Solution: Verify CUDA installation, restart services.
 
 **Thermal throttling:**
 
 ```bash
-# Check GPU temperature
 nvidia-smi --query-gpu=temperature.gpu --format=csv
 ```
 
 If > 85C, improve cooling or reduce load.
 
-**Concurrent load:**
-
-Other processes using GPU. Close unnecessary GPU applications.
+**Concurrent load:** other processes using the GPU — check
+`nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv`.
 
 ---
 
@@ -206,33 +221,24 @@ Other processes using GPU. Close unnecessary GPU applications.
 
 ### Symptoms
 
-Services crash with OOM errors.
-
-### Check VRAM Usage
-
-```bash
-nvidia-smi
-```
+Services crash with OOM errors (`CUDA out of memory` in gateway/llm logs).
 
 ### Solutions
 
 **1. Free VRAM:**
 
 ```bash
-# Stop other GPU processes
-fuser -k /dev/nvidia*
-
-# Restart AI services
-./scripts/start-ai.sh restart
+# Restart AI containers (fuser -k kills *all* GPU processes — avoid on shared hosts)
+podman compose -f docker-compose.prod.yml restart ai-gateway ai-llm
 ```
 
-**2. Use smaller model:**
+**2. Shrink the LLM footprint:** `GPU_LAYERS` defaults to `auto` (all layers on GPU);
+lowering it (e.g. `GPU_LAYERS=25`) offloads fewer layers to VRAM — see
+[AI Configuration](ai-configuration.md). Or run the gateway on the second GPU
+(`GPU_AI_SERVICES=1`, already the default split).
 
-Download Q4_K_S quantization instead of Q4_K_M (saves ~500MB). Edit `ai/start_llm.sh` to use smaller model.
-
-**3. Reduce batch sizes:**
-
-Edit backend configuration in `backend/core/config.py`. Reduce `batch_window_seconds` or concurrent requests.
+**3. Reduce concurrent load:** the backend caps parallel AI calls with
+`AI_MAX_CONCURRENT_INFERENCES` (config.py default 4 on the standard build).
 
 ---
 
@@ -248,17 +254,22 @@ httpx.ConnectError: [Errno 111] Connection refused
 
 **Check:**
 
-1. Are AI services running? `./scripts/start-ai.sh status`
-2. Is the URL correct in `.env`?
-3. Is there a firewall blocking the ports?
+1. Are the AI containers up and healthy? `podman ps -a` (the gateway needs ~3 min for
+   Triton to load all models)
+2. Is the URL correct in `.env` / compose env (`AI_GATEWAY_URL`, `YOLO26_URL`,
+   `NEMOTRON_URL`)? In the compose stack these are `http://ai-gateway:8090/...` and
+   `http://ai-llm:8091` — the legacy per-model hostnames (`ai-yolo26`, `ai-florence`,
+   `ai-clip`, `ai-enrichment`) no longer exist.
+3. Is there a firewall blocking the ports? (The gateway and LLM bind `127.0.0.1` on the
+   host by default — cross-host access needs a proxy/tunnel.)
 
 **Docker/Podman networking:**
 
-The correct URL depends on your deployment mode (production compose DNS vs host-run AI vs “backend container + host AI”).
+The correct URL depends on your deployment mode (production compose DNS vs host-run AI vs
+"backend container + host AI"). Start here:
 
-Start here:
-
-- [Deployment Modes & AI Networking](deployment-modes.md) (decision table + copy/paste `.env` snippets)
+- [Deployment Modes & AI Networking](deployment-modes.md) (decision table + copy/paste
+  `.env` snippets)
 
 ### From Container Can't Reach Host
 
@@ -276,20 +287,20 @@ If not resolving, use host IP directly.
 
 ## Log Analysis
 
-### YOLO26 Common Log Messages
+### Gateway Common Log Messages
 
-| Message                     | Meaning         | Action             |
-| --------------------------- | --------------- | ------------------ |
-| `Model loaded successfully` | Service ready   | None               |
-| `CUDA out of memory`        | Not enough VRAM | Free VRAM          |
-| `Connection refused`        | Port conflict   | Check port usage   |
-| `Failed to load image`      | Invalid image   | Check image format |
+| Message                        | Meaning            | Action                             |
+| ------------------------------ | ------------------ | ---------------------------------- |
+| `successfully loaded 'yolo26'` | Triton model ready | None                               |
+| `CUDA out of memory`           | Not enough VRAM    | Free VRAM / move LLM to GPU 0      |
+| `model … unavailable`          | Weights missing    | `./ai/download_models.sh`, restart |
+| `address already in use`       | Port conflict      | Check who holds 8090/8002          |
 
 ### Nemotron Common Log Messages
 
 | Message                        | Meaning            | Action                |
 | ------------------------------ | ------------------ | --------------------- |
-| `Model loaded`                 | Service ready      | None                  |
+| `model loaded`                 | Service ready      | None                  |
 | `ggml_cuda_init: failed`       | CUDA not available | Check NVIDIA drivers  |
 | `bind: Address already in use` | Port conflict      | Kill existing process |
 | `context length exceeded`      | Prompt too long    | Reduce context size   |
@@ -304,18 +315,17 @@ When reporting issues, collect:
 # System info
 nvidia-smi
 python3 --version
-llama-server --version
 
 # Service status
-./scripts/start-ai.sh status
+podman ps -a
 
 # Health checks
-curl http://localhost:8095/health 2>&1
-curl http://localhost:8091/health 2>&1
+curl -s http://localhost:8090/health 2>&1
+curl -s http://localhost:8091/health 2>&1
 
 # Recent logs
-tail -100 /tmp/yolo26-detector.log
-tail -100 /tmp/nemotron-llm.log
+podman logs --tail=100 ai-gateway 2>&1
+podman logs --tail=100 ai-llm 2>&1
 ```
 
 ---

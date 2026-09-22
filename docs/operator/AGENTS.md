@@ -12,21 +12,29 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 
 ## Available Spokes
 
-| Document                | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `ai-configuration.md`   | AI service environment variables                 |
-| `ai-ghcr-deployment.md` | GHCR deployment for AI services                  |
-| `ai-installation.md`    | AI prerequisites and model downloads             |
-| `ai-overview.md`        | AI pipeline architecture                         |
-| `ai-performance.md`     | AI performance tuning                            |
-| `ai-services.md`        | AI service management                            |
-| `ai-tls.md`             | AI service TLS configuration                     |
-| `ai-troubleshooting.md` | AI troubleshooting guide                         |
-| `backup.md`             | Backup and recovery procedures                   |
-| `database.md`           | PostgreSQL configuration                         |
-| `deployment-modes.md`   | Deployment mode decision table and AI networking |
-| `gpu-setup.md`          | NVIDIA driver and container toolkit setup        |
-| `redis.md`              | Redis configuration and authentication           |
+| Document                    | Description                                      |
+| --------------------------- | ------------------------------------------------ |
+| `ai-configuration.md`       | AI service environment variables                 |
+| `ai-ghcr-deployment.md`     | GHCR deployment for AI services                  |
+| `ai-installation.md`        | AI prerequisites and model downloads             |
+| `ai-overview.md`            | AI pipeline architecture                         |
+| `ai-performance.md`         | AI performance tuning                            |
+| `ai-services.md`            | AI service management                            |
+| `ai-tls.md`                 | AI service TLS configuration                     |
+| `ai-troubleshooting.md`     | AI troubleshooting guide                         |
+| `backup.md`                 | Backup and recovery procedures                   |
+| `database.md`               | PostgreSQL configuration                         |
+| `deployment-modes.md`       | Deployment mode decision table and AI networking |
+| `dlq-management.md`         | Dead letter queue monitoring and recovery        |
+| `gpu-setup.md`              | NVIDIA driver and container toolkit setup        |
+| `monitoring.md`             | Comprehensive monitoring guide                   |
+| `prometheus-alerting.md`    | Prometheus alerting configuration                |
+| `redis.md`                  | Redis configuration and authentication           |
+| `scene-change-detection.md` | Camera scene change detection                    |
+| `secrets-management.md`     | Secrets management guide                         |
+| `service-control.md`        | Service control and lifecycle management         |
+| `smtp-configuration.md`     | SMTP setup for Grafana and Alertmanager email    |
+| `storage-retention.md`      | Storage and data retention policies              |
 
 ## Directory Contents
 
@@ -53,12 +61,13 @@ operator/
   scene-change-detection.md # Scene change detection configuration
   secrets-management.md   # Secrets management guide
   service-control.md      # Service control and lifecycle management
+  smtp-configuration.md   # SMTP email alerts (Grafana + Alertmanager)
   storage-retention.md    # Storage and data retention policies
   admin/                  # Administration subdirectory
     AGENTS.md             # Admin guide navigation
     README.md             # Admin overview
     api-keys.md           # API key security
-    security.md           # Metrics endpoint hardening
+    security.md           # Security guide (includes metrics hardening)
   deployment/             # Deployment guides subdirectory
     AGENTS.md             # Deployment guide navigation
     README.md             # Deployment overview
@@ -67,6 +76,8 @@ operator/
     AGENTS.md             # Monitoring guide navigation
     README.md             # Monitoring overview
     slos.md               # SLI/SLO framework
+  services/               # Per-service deep dives
+    ai-enrichment-light.md # Enrichment-light service (legacy — superseded by ai-gateway)
 ```
 
 ## Migration Status
@@ -93,16 +104,16 @@ As the documentation matures, these focused spoke documents will be created:
 
 - `requirements.md` - System requirements deep dive
 - `container-setup.md` - Docker/Podman configuration
-- `deployment-options.md` - Production vs development
+- ~~`deployment-options.md` - Production vs development~~ (Complete as `deployment-modes.md`)
 - `installation.md` - Step-by-step installation
-- `env-vars.md` - Environment variable reference
+- ~~`env-vars.md` - Environment variable reference~~ (lives at `../reference/config/env-reference.md`)
 - `ai-config.md` - AI model configuration
 - `cameras.md` - Camera FTP setup
-- `database.md` - PostgreSQL configuration
-- `monitoring.md` - Health checks and metrics
+- ~~`database.md` - PostgreSQL configuration~~ (Complete)
+- ~~`monitoring.md` - Health checks and metrics~~ (Complete)
 - ~~`backup.md` - Backup and recovery procedures~~ (Complete)
-- `retention.md` - Data retention policies
-- `performance.md` - Performance tuning
+- ~~`retention.md` - Data retention policies~~ (Complete as `storage-retention.md`)
+- ~~`performance.md` - Performance tuning~~ (Complete as `ai-performance.md`)
 - `upgrading.md` - Version upgrades
 
 ## Key Patterns

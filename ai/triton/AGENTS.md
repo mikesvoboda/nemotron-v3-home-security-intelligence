@@ -2,19 +2,33 @@
 
 ## Purpose
 
-This directory contains the NVIDIA Triton Inference Server integration for the AI pipeline. Triton provides production-grade model serving with features like dynamic batching, model versioning, and multi-model serving on a single server.
+This directory contains the NVIDIA Triton Inference Server integration: the
+model repository (one directory per model, each with a `config.pbtxt`) and a
+standalone async client wrapper (`client.py`).
+
+**How Triton actually runs in production**: it is not a standalone compose
+service. It runs _inside_ the `ai-gateway` container
+(`docker-compose.prod.yml`, service `ai-gateway`, built from
+`ai/gateway/Dockerfile`, base image
+`nvcr.io/nvidia/tritonserver:26.01-py3`). The gateway's `entrypoint.sh`
+starts `tritonserver` (gRPC `localhost:8001`, HTTP `localhost:8000`, metrics
+`localhost:8002`) plus the FastAPI gateway on 8090; only 8090 and the metrics
+port 8002 are published from the container. The backend reaches it through the
+gateway (`USE_AI_GATEWAY=true`), not through `client.py` — `ai.triton`
+currently has no production consumer (there is an explicit guard asserting that
+in `backend/tests/contracts/ai_providers/test_conformance_vocabulary.py`).
 
 ## Benefits Over Direct Inference
 
-| Feature            | Current (FastAPI + PyTorch) | With Triton                |
-| ------------------ | --------------------------- | -------------------------- |
-| Batching           | Manual, single request      | Automatic dynamic batching |
-| Model Loading      | Per-service, duplicated     | Shared model repository    |
-| GPU Utilization    | Suboptimal                  | Optimized scheduler        |
-| Model Versioning   | File-based, manual          | Built-in A/B testing       |
-| Multi-Model        | Separate containers         | Single server              |
-| Monitoring         | Custom metrics              | Native Prometheus metrics  |
-| Resource Isolation | Container-level             | Model-level quotas         |
+| Feature            | Direct Inference (legacy per-service containers) | With Triton                |
+| ------------------ | ------------------------------------------------ | -------------------------- |
+| Batching           | Manual, single request                           | Automatic dynamic batching |
+| Model Loading      | Per-service, duplicated                          | Shared model repository    |
+| GPU Utilization    | Suboptimal                                       | Optimized scheduler        |
+| Model Versioning   | File-based, manual                               | Built-in A/B testing       |
+| Multi-Model        | Separate containers                              | Single server              |
+| Monitoring         | Custom metrics                                   | Native Prometheus metrics  |
+| Resource Isolation | Container-level                                  | Model-level quotas         |
 
 ## Directory Structure
 
@@ -22,21 +36,35 @@ This directory contains the NVIDIA Triton Inference Server integration for the A
 ai/triton/
   AGENTS.md                 # This file
   __init__.py               # Package exports
-  client.py                 # Triton client wrapper
+  client.py                 # Triton client wrapper (standalone; see Purpose)
   tests/                    # Unit tests
+    AGENTS.md
     __init__.py
     conftest.py             # Test fixtures
     test_client.py          # Client tests
-  model_repository/         # Triton model repository
-    yolo26/                 # YOLO26 object detection
-      config.pbtxt          # Model configuration
-      1/                    # Version 1
-        model.plan          # TensorRT engine (generated)
-    yolo26/                 # YOLO26 object detection
-      config.pbtxt          # Model configuration
-      1/                    # Version 1
-        model.plan          # TensorRT engine (generated)
+  model_repository/         # Triton model repository (baked into the ai-gateway image at /models/repository)
+    yolo26/                 # config.pbtxt + 1/model.onnx (15 model dirs; see Model Repository below)
+    clip/
+    clip_text/
+    demographics_age/
+    demographics_gender/
+    depth/
+    fashion_clip/
+    florence2/
+    pet/
+    pose/
+    reid/
+    stgcn_action/           # config only — not loaded until its weights are exported
+    threat/
+    vehicle/
+    xclip_action/
 ```
+
+Model weight files (`model.onnx`, `.plan`, model-data) are **not** in git. At
+runtime, the gateway entrypoint symlinks each `<name>/1/` version directory
+from the mounted model cache (`${AI_MODELS_PATH}/triton` → container
+`/models/cache`) into the baked-in repository. Export scripts that produce
+those files live in `ai/gateway/export/`.
 
 ## Components
 
@@ -72,174 +100,148 @@ Features:
 
 ### Model Configurations
 
-Each model has a `config.pbtxt` file defining:
-
-- Input/output tensor shapes and types
-- Dynamic batching parameters
-- GPU allocation
-- Optimization settings
-- Warmup configuration
-
-Example configuration:
+Each model has a `config.pbtxt` file defining input/output tensor shapes and
+types, batching, backend and optimization settings. Example (from
+`model_repository/clip/config.pbtxt`):
 
 ```protobuf
-name: "yolo26"
-platform: "tensorrt_plan"
+name: "clip"
+backend: "onnxruntime"
 max_batch_size: 8
 
 dynamic_batching {
-  preferred_batch_size: [ 2, 4, 8 ]
-  max_queue_delay_microseconds: 100000
+  preferred_batch_size: [ 1, 2, 4 ]
+  max_queue_delay_microseconds: 50000
 }
 ```
 
 ## Environment Variables
 
-| Variable                      | Default          | Description             |
-| ----------------------------- | ---------------- | ----------------------- |
-| `TRITON_ENABLED`              | `false`          | Enable Triton inference |
-| `TRITON_URL`                  | `localhost:8001` | Triton gRPC endpoint    |
-| `TRITON_HTTP_URL`             | `localhost:8000` | Triton HTTP endpoint    |
-| `TRITON_PROTOCOL`             | `grpc`           | Protocol (grpc or http) |
-| `TRITON_TIMEOUT`              | `60`             | Request timeout seconds |
-| `TRITON_MODEL`                | `yolo26`         | Default model           |
-| `TRITON_MAX_RETRIES`          | `3`              | Max retry attempts      |
-| `TRITON_CONFIDENCE_THRESHOLD` | `0.5`            | Detection threshold     |
+`client.py` (`TritonConfig.from_env`) reads these; none are set in
+`.env.example` — production uses the gateway's in-container defaults
+(`ai/gateway/Dockerfile`):
 
-## Docker Compose Integration
+| Variable                      | Default          | Description                             |
+| ----------------------------- | ---------------- | --------------------------------------- |
+| `TRITON_ENABLED`              | `false`          | Client opt-in switch (`client.py` only) |
+| `TRITON_URL`                  | `localhost:8001` | Triton gRPC endpoint                    |
+| `TRITON_HTTP_URL`             | `localhost:8000` | Triton HTTP endpoint                    |
+| `TRITON_PROTOCOL`             | `grpc`           | Protocol (grpc or http)                 |
+| `TRITON_TIMEOUT`              | `60`             | Request timeout seconds                 |
+| `TRITON_MODEL`                | `yolo26`         | Default model                           |
+| `TRITON_MAX_RETRIES`          | `3`              | Max retry attempts                      |
+| `TRITON_CONFIDENCE_THRESHOLD` | `0.5`            | Detection threshold                     |
+| `TRITON_VERBOSE`              | `false`          | Verbose logging                         |
 
-The Triton server is configured in `docker-compose.prod.yml`:
+The gateway container instead uses `TRITON_GRPC_URL` (`localhost:8001`),
+`TRITON_HTTP_URL` (`http://localhost:8000`) and
+`TRITON_MODEL_REPOSITORY` (`/models/repository`).
+
+## Docker Compose Integration (ai-gateway)
+
+There is no standalone `triton` service. The relevant excerpt from
+`docker-compose.prod.yml` (service `ai-gateway`):
 
 ```yaml
-services:
-  triton:
-    image: nvcr.io/nvidia/tritonserver:26.01-py3
-    ports:
-      - '8000:8000' # HTTP
-      - '8001:8001' # gRPC
-      - '8002:8002' # Metrics
-    volumes:
-      - ./ai/triton/model_repository:/models:ro
-    command: tritonserver --model-repository=/models --strict-model-config=false
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+ai-gateway:
+  build:
+    context: .
+    dockerfile: ai/gateway/Dockerfile # FROM nvcr.io/nvidia/tritonserver:26.01-py3
+  ports:
+    - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090' # FastAPI gateway
+    - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002' # Triton metrics
+  volumes:
+    - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+    - triton-kernel-cache:/root/.nv
+    - triton-tmp-cache:/tmp
+  environment:
+    - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+  healthcheck:
+    test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
+    start_period: 180s # Triton loads 13 models — allow 3 minutes
 ```
+
+(The gateway container is named `ai-gateway`; internal Triton HTTP/gRPC ports
+8000/8001 are not published to the host.)
+
+## Model Repository
+
+`model_repository/` ships 15 model directories. 13 are loadable at startup
+(config + an exported version dir linked from the model cache) — matching the
+compose healthcheck comment — and the `yolo26` / `stgcn_action` configs have no
+exported weights by default:
+
+| Model               | Backend     | max_batch_size  |
+| ------------------- | ----------- | --------------- |
+| yolo26              | onnxruntime | 0 (static 1)    |
+| clip / clip_text    | onnxruntime | 8               |
+| fashion_clip        | onnxruntime | 8               |
+| vehicle             | onnxruntime | 8               |
+| demographics_age    | onnxruntime | 8               |
+| demographics_gender | onnxruntime | 8               |
+| pet                 | onnxruntime | 8               |
+| reid                | onnxruntime | 16              |
+| depth               | onnxruntime | 0 (static 1)    |
+| pose                | onnxruntime | 0 (static 1)    |
+| threat              | onnxruntime | 0 (static 1)    |
+| florence2           | python      | 0               |
+| xclip_action        | python      | 0               |
+| stgcn_action        | onnxruntime | 0 (config only) |
 
 ## Model Preparation
 
-### YOLO26
-
-1. Export to ONNX:
-
-```bash
-python -c "
-from transformers import AutoModelForObjectDetection
-import torch
-
-model = AutoModelForObjectDetection.from_pretrained('PekingU/yolo26_r50vd_coco_o365')
-dummy_input = torch.randn(1, 3, 640, 640)
-torch.onnx.export(model, dummy_input, 'yolo26.onnx', opset_version=17)
-"
-```
-
-2. Convert to TensorRT:
+Exports live in `ai/gateway/export/` (`export_all.sh` plus per-model scripts),
+not ad-hoc one-liners. They write to the Triton model cache so the gateway
+entrypoint can link them into the repository. Example (YOLO26,
+`export_yolo26.py`):
 
 ```bash
-trtexec --onnx=yolo26.onnx \
-        --saveEngine=ai/triton/model_repository/yolo26/1/model.plan \
-        --fp16 \
-        --minShapes=images:1x3x640x640 \
-        --optShapes=images:4x3x640x640 \
-        --maxShapes=images:8x3x640x640
+python ai/gateway/export/export_yolo26.py \
+    --model-path /models/zoo/yolo26/yolo26m.pt \
+    --output-path /models/cache/yolo26/1/model.onnx
 ```
 
-### YOLO26
-
-1. Export using Ultralytics:
-
-```bash
-yolo export model=yolo26m.pt format=engine device=0 half=True
-```
-
-2. Copy engine:
-
-```bash
-cp yolo26m.engine ai/triton/model_repository/yolo26/1/model.plan
-```
+Modes: `--onnx` (default ONNX path), `--int8` (quantized ONNX), `--tensorrt`
+(FP16 `.engine`). The default yolo26 serving path is FP32 ONNX on GPU via the
+onnxruntime CUDA execution provider (`config.pbtxt` header notes INT8 ONNX was
+incompatible with the CUDA EP).
 
 ## Dynamic Batching
 
-Triton automatically batches incoming requests for optimal GPU utilization:
-
-```
-Time -->
-
-Request 1 ─┐
-Request 2 ─┼─> [Batch of 3] -> GPU Inference -> Results
-Request 3 ─┘
-
-Queue delay: max 100ms to accumulate batch
-Preferred batch sizes: 2, 4, 8
-```
-
-Benefits:
-
-- Higher throughput under load
-- Better GPU utilization
-- Transparent to clients
+Models with `max_batch_size > 0` use Triton dynamic batching, e.g.
+`preferred_batch_size: [1, 2, 4]` with a 50 ms max queue delay
+(`max_queue_delay_microseconds: 50000`) in the clip/vehicle/pet/etc configs.
+Static-batch models (yolo26, pose, threat, depth) process one request per
+inference. Batched models give higher throughput and better GPU utilization
+under load; batching is transparent to clients.
 
 ## Monitoring
 
-Triton exposes Prometheus metrics at `/metrics` (port 8002):
+Triton metrics are scraped by Prometheus (job `triton-metrics` in
+`monitoring/prometheus.yml`) from `ai-gateway:8002/metrics`:
+
+```yaml
+- job_name: 'triton-metrics'
+  metrics_path: /metrics
+  static_configs:
+    - targets: ['ai-gateway:8002']
+```
 
 Key metrics:
 
-- `nv_inference_request_success`: Successful inference count
-- `nv_inference_request_failure`: Failed inference count
-- `nv_inference_exec_count`: Total executions per model
-- `nv_inference_queue_duration_us`: Queue wait time
-- `nv_inference_compute_infer_duration_us`: Inference latency
+- `nv_inference_request_success` / `nv_inference_request_failure`
+- `nv_inference_exec_count`
+- `nv_inference_queue_duration_us`
+- `nv_inference_compute_infer_duration_us`
 
-Example Prometheus scrape config:
+## Deployment Status
 
-```yaml
-scrape_configs:
-  - job_name: 'triton'
-    static_configs:
-      - targets: ['triton:8002']
-```
-
-## Migration Strategy
-
-The migration to Triton is designed to be gradual:
-
-1. **Phase 1 (Current)**: Infrastructure setup
-
-   - Create model repository structure
-   - Implement Triton client wrapper
-   - Add docker-compose configuration
-
-2. **Phase 2**: Side-by-side deployment
-
-   - Deploy Triton alongside existing services
-   - Enable via `TRITON_ENABLED=true`
-   - Compare latency and throughput
-
-3. **Phase 3**: Gradual rollout
-
-   - Route percentage of traffic to Triton
-   - Monitor metrics and errors
-   - Adjust batching parameters
-
-4. **Phase 4**: Full migration
-   - Deprecate direct inference services
-   - Route all traffic through Triton
-   - Remove legacy code
+Triton serving through the gateway is the production path (see
+`docker-compose.prod.yml` and `ai/gateway/AGENTS.md`). The legacy
+per-service containers (`ai-yolo26`, `ai-florence`, `ai-clip`, `ai-enrichment`,
+`ai-enrichment-light`) are dev-only options, not compose services.
+`ai/triton/client.py` is the standalone client wrapper kept for direct gRPC
+access; production traffic goes through the gateway's HTTP routers instead.
 
 ## Testing
 
@@ -249,23 +251,23 @@ The migration to Triton is designed to be gradual:
 uv run pytest ai/triton/tests/ -v
 ```
 
-### Integration Tests (requires running Triton)
+### Against a Running Gateway/Triton
 
 ```bash
-# Start Triton server
-docker compose -f docker-compose.prod.yml up -d triton
+# Start the gateway (Triton runs inside it)
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 
-# Run integration tests
-uv run pytest ai/triton/tests/test_integration.py -v --run-integration
+# Health: gateway HTTP on 8090; Triton gRPC is container-internal (8001)
+curl -s localhost:${AI_GATEWAY_PORT:-8090}/health | jq
 ```
 
 ### Load Tests
 
 ```bash
-# Using Triton's perf_analyzer
+# Using Triton's perf_analyzer from a host that can reach the container network
 perf_analyzer -m yolo26 \
-              -u localhost:8001 \
-              --concurrency-range 1:8 \
+              -u <gateway-host>:8001 \
+              --protocol grpc \
               --shape images:1,3,640,640
 ```
 
@@ -274,27 +276,24 @@ perf_analyzer -m yolo26 \
 ### Model Loading Fails
 
 ```bash
-# Check Triton logs
-docker compose -f docker-compose.prod.yml logs triton
+# Check gateway/Triton logs
+podman logs ai-gateway | grep -i triton
 
-# Verify model repository structure
-ls -la ai/triton/model_repository/*/
+# Verify linked model files in the cache volume
+ls -la ${AI_MODELS_PATH:-/export/ai_models}/triton/*/1/
 ```
 
 ### gRPC Connection Errors
 
 ```bash
-# Test connectivity
-grpcurl -plaintext localhost:8001 inference.GRPCInferenceService/ServerLive
-
-# Check firewall/network
-nc -zv localhost 8001
+# gRPC 8001 is container-internal; test from inside the container
+podman exec ai-gateway grpcurl -plaintext localhost:8001 inference.GRPCInferenceService/ServerLive
 ```
 
 ### Performance Issues
 
 ```bash
-# Enable verbose logging
+# Enable verbose client logging (client.py)
 TRITON_VERBOSE=true
 
 # Check GPU utilization
@@ -307,12 +306,13 @@ perf_analyzer -m yolo26 --percentile=95
 ## Entry Points
 
 1. **Client usage**: Import from `ai.triton` package
-2. **Configuration**: Modify `config.pbtxt` files
+2. **Configuration**: Modify `config.pbtxt` files (then rebuild the gateway image or remount configs)
 3. **Testing**: `ai/triton/tests/` directory
-4. **Deployment**: `docker-compose.prod.yml` triton service
+4. **Deployment**: `ai/gateway/Dockerfile` + `docker-compose.prod.yml` service `ai-gateway`
 
 ## Related Files
 
-- `backend/services/detector_client.py`: Backend client (to be updated for Triton)
-- `docker-compose.prod.yml`: Container orchestration
-- `docs/plans/triton-migration.md`: Migration plan documentation
+- `ai/gateway/AGENTS.md`: the gateway that runs Triton and exposes it on 8090
+- `ai/gateway/export/`: model export scripts
+- `backend/services/detector_client.py`: backend HTTP detector client (talks to the gateway's `/yolo26` router, not to gRPC)
+- `docs/plans/triton-migration.md`: migration plan documentation
