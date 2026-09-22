@@ -291,5 +291,11 @@ missing rule-file mounts; ghcr: CTX_SIZE/PARALLEL to backend matching its ai-llm
 - Squash-merge phantom conflicts: prove with `git diff <pre-branch> <main-squash>`, resolve --ours.
 - Concurrent agents: no git mutations inside fixer scopes; archive moves are plain `mv`
   (git detects rename at commit); the archive README's git-mv prose loses to this rule.
+- Hook-drift mass-revert is a TRAP: a journal-claim regex anchored on dir-prefixed paths
+  (`ai|backend|scripts...`) silently misses ROOT-level files (.env.example, README.md,
+  llms.txt, setup.py, deploy.yml, archive/README.md), so reverting "unowned" drift destroyed
+  real agent edits — recovered only by ledger-verdict re-application (commit
+  `fix(docs-config): restore root-file truth...`). Any future mass-revert must diff
+  EVERY candidate hunk or use verb-context (edited/updated/wrote + path), never path-presence.
 - setup.py deliberately lacks top-level `import os` (bootstrap-gb300.sh injects it); its
   4 F821s are the accepted baseline — don't "fix" them.
