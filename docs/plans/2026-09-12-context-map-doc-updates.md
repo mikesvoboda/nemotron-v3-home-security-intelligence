@@ -9656,3 +9656,33 @@ are `len(sanitized) > MAX → >=` truncation-guard flips whose bodies are
 slice is the identity; every other length routes both versions to the same
 value — EQUIVALENT by construction, no test gap. Reachability probe:
 sanitize_camera_name("A"\*256) → len 256 (boundary hit, output identical).
+
+### S0 — frontend M1 reproduction on the fixed harness: 63.04%, killed 203, guard green (local, measured)
+
+M1 clause "reproduce run 29 ... TDD-fix until killed>0 and score
+≥63.04%". ROOT CAUSE + FIX already on main: `6612dd17` (#6639, 09-22) —
+vitest 5 matches `testNamePattern` against the " > "-joined full test
+name; stryker-10's vitest-runner joined with spaces, so every per-mutant
+filter matched ZERO tests → "Ran 0.00 tests per mutant", killed 0, job
+green (run 35634327238 = the silent-red). Shipped fix = postinstall patch
+of BOTH join sites (test-helpers.js + stryker-setup.js; one-sided patch
+re-silents) + `scripts/mutation-guard.mjs` fails any report that measured
+nothing (0-kills-with-survivors, missing/empty report) as a CI step that
+is NOT continue-on-error'd (workflow lines ~443-460; the stryker step
+keeps `|| true`+continue-on-error per the WP4.3 cadence ruling — flip is
+an owner decision, unchanged).
+
+MEASURED reproduction this session (local, `stryker run` on the patched
+install, log /tmp/s0-stryker-local.log): rc=0, 23:03:01Z exit,
+**All files 63.04 | killed 203 | timeout 0 | survived 58 | no cov 61 |
+errors 62** over 384 mutants — byte-equal headline to the honest #6588
+baseline, and "Ran 15.13 tests per mutant" where the broken harness
+printed 0.00. `mutation-guard.mjs` on the real report: rc=0 "OK: harness
+measured real test executions"; guard self-test suite green including the
+install assertion "installed vitest-runner has the ' > ' join in BOTH
+files". killed>0 AND score ≥63.04 AND kill-verifying guard: S0 clause met
+locally. The "green AND kill-verifying job" in CI lands with the next
+scheduled run (09-27 02:00Z — first CI on a post-#6639 head; run 29's
+09-21 dispatch predates the fix), same run S4 watches for banking.
+Remaining M1 tail is score DEPTH (58 survived + 62 errors to triage),
+not harness honesty.
