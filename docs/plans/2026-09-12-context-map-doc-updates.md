@@ -9350,3 +9350,264 @@ create-fields 8, boundary300 6, jinja 6, db-args 6, post-args 5,
 singleton 2, bted-fallback 2, timing 2, tw-body 3, hdrs 3, int-routing 6)
 await shape re-derivation from a future quiet generate — NOT claimed
 killed.
+
+### S2 batch 8 — prompts.py feed battery: 12 functions / 218 frozen-feed shapes (`783f5ea5`, `e07e0609`)
+
+Frozen feed `prompts-diffs.txt`: 218 mechanically-extracted per-mutant diff
+shapes covering 12 of the 888-survivor module's functions (53 clothing,
+40 florence_scene, 32 member_schedule, 26 infer_movement, 20 household,
+11 pose_scene_warning, 10 enhanced_reid, 8 resolve_pose_conflict,
+7 scene_context, 5 time_gap, 4 florence_attributes, 2 ondemand_join — sums
+verified from the feed this session). Integrity check FIRST (batch-9 fallout
+forced the audit): `git log --since=2026-09-17 -- test_prompts.py` shows the
+file changed only by 55026883/e947e7ae — the latter DELETES 98 lines, adds
+zero tests — so every one of the 218 feed shapes was a survivor at snapshot
+AND is a survivor at this commit; the #6561 re-home (31 test files, list
+verified from the commit) never touched test_prompts.py or any batch-1..7
+module's test file. TRUE new kills, no double-count.
+
+81 tests / 14 classes in `test_prompts_batch8.py` (655 lines, commit
+783f5ea5 — collect-only measured 81, correcting the draft's stale 91).
+Whole-document equality everywhere the feed shapes are text swaps
+(florence_scene 18-line render, household BORDER line, clothing ALERT
+line, pose warning f-string). Discriminating fixtures re-derived from
+shipped source, each cited at commit: \_format_time_gap int-truncation
+boundaries :2991-3007, \_infer_movement_pattern minutes<2/10 + zone
+precedence :3010-3068, check_member_schedule day_names :3178 + sunday
+KeyError discriminator + overnight `>= start or <= end` :3126-3222,
+household box_width 64 / int(sim\*100) / base_risk>0.9 ternary :3266-3306,
+scene_context truncation fixture `"ab cdefghijklmno  p q"` (spaces
+{2,16,17}) separating rfind/find, reserve-3/4, `>0`/`>1`, reid real-now
+`.days==n` anchor :2734-2793, pose-conflict POSE_SCENE_CONFLICTS table
+:1493 (3 exact dispositions + 2 passthroughs).
+
+Red-check round 1 (ALL 218 shapes applied at function-scoped, line-anchored
+positions vs HEAD; unique-or-every-candidate application for the 4 duplicate
+minus-lines; baseline-green guard; compile guard; source byte-equal at exit,
+asserted): **163 KILLED + 4 KILLED(all2pos) + 51 SURVIVED = 218, deferred 0**
+(/tmp/redcheck-prompts.log). Harness defect caught mid-flight: pytest 9.1.1
+has no `-t` flag — an early round carried `-t 20` in a helper that would
+exit-4 on every application and fake 218/218 KILLED; sentinel + baseline
+guard added, correct harness re-ran; batches 2-7 harnesses audited clean of
+the flag (grep: no `-t` in any export/modelzoo/mqtt/qs/webhook harness).
+
+Triage of all 51 survivors against consumption sites (every site re-read at
+commit this session): **29 KILLABLE / 22 EQUIVALENT**. Killable → batch-8b
+(commit e07e0609, +12 parametrized tests, battery 93 green shipped, fixed +
+randomized): member_schedule 13/14/16 (cross-day fixtures — saturday-key on
+Sunday → None; sunday-key on Saturday → None), 37/38/41/42 (elif-literal
+XX/case — fixture `{"SATURDAY": "all_day"}` on Saturday: shipped None, the
+mutant's live elif KeyErrors; the schedule-key contract is exact-lowercase),
+30/31/32/33 (day_names XX/case — same fixture shape: mutant's list entry
+matches the cased key → True vs shipped None); clothing 48/50/53/79/81/84
+(delivery/utility dict WITHOUT confidence → shipped 0.0 default suppresses
+the line; None default TypeErrors the gate, 1.0 emits it), 137/146 (non-dict
+casual → str(value) path; or-True crashes .get on namespace, str(None)
+prints "None"); florence 32/33/38/39 (bare `["weapon"]`/`["tool"]` labels →
+HIGH RISK line), 53/76/81/86 (wrong-typed sections: dense_captions=5 /
+"region_descriptions"=string / security_vqa=5 / phrase_grounding=5 — shipped
+skips → "", or-isinstance crashes); household 40/48 (schedule lines rewritten
+as WHOLE-BLOCK equality — the original `in` assert shape is blind to XX
+wraps). 22 EQUIVALENT, per-shape: member_schedule 12/15 (flag → None, falsy-
+folded by `and`), 17 (`weekday == 7` constant-False: Sunday caught earlier by
+day_names), 18 (init `schedule_value = ""`: falls past the None-guard into
+neither all_day nor "-" → same `return None`); infer_movement 5
+(`has_entry_point = None` falsy-fold), 11/17 (getattr zone default ""→None
+/"XXXX": never equals entry_point/driveway/yard in the membership list), 56
+(`parts or True`: parts unconditionally non-empty — first append is
+unconditional), 59 (else-"XXXX" unreachable dead); florence_attributes
+11/12/13 (valid_count `=1`/`-=1`/`+=2`: sole consumer `== 0`, reachable
+counts 1-5 all nonzero both ways — measured via shipped source at :584-597);
+florence_scene 23/25/64/66 (`.get("labels", [])` → None/()-default: falsy at
+the immediately-following `if labels:` — identical skip path); ondemand 24
+(`sections or True`: empty join → "" == shipped ""); scene_context 11
+(`rfind(" ", None, n)` == `rfind(" ", 0, n)`), 18 (`start=1`: index-0 space
+impossible after the `caption.strip()` at :646 — output-identical), 19
+(`last_space >= 0`: -1 and >0 exhaust the spaceful/spaceless split at the
+same boundary); pose 21/22 (winner string consumed ONLY by `== "pose"` —
+"XXsceneXX"/"SCENE" take the same else-branch as "scene").
+
+Merged serialized re-red-check of all 29 killable shapes (single harness —
+an earlier 25+4 split ran the two harnesses CONCURRENTLY on prompts.py and
+their restore-writes raced, faking one SURVIVED (clothing_79, whose killed
+twin 81 applies the same None default — direct repro on restored source
+kills it) AND faking a member_schedule fail (a foreign XX-mutant was live
+during the manual repro); the concurrent round is discarded, this table is
+the admissible one, run strictly after the cd red-check exited, baseline-
+green guarded, source byte-equal at exit): **29/29 KILLED, 0 survivors**
+(/tmp/recheck8-final.log). Batch-8 total: **196/218 shapes killed** (167
+round-1 + 29 batch-8b recheck), 22 EQUIVALENT with per-shape justifications
+above — zero undispositioned shapes. Battery shipped: 93 tests measured
+green, fixed + randomized order.
+
+Deferral, honest: the dossier's other clusters — build_person_analysis_section,
+format_clip_analysis_context, format_confidence_quality_summary,
+\_collect_detection_ids_from_enrichment, format_camera_health_context,
+\_build_tracking_narratives — have NO per-mutant diff file in the frozen feed
+(only cluster tables; key-mention counts verified this session:
+person_analysis 17, clip 4, confidence_quality 10, collect_detection 7,
+camera_health 4) and await shape re-derivation from a quiet generate — NOT
+claimed killed.
+
+### S2 batch 10 — vision_extractor all-shape battery: 294 shapes, 289 killed, 5 EQUIVALENT (`cad0c618`, `f09518eb`)
+
+Model switch, stated up front: `vision_extractor.py.meta` holds 1362 keys
+with **all-None** exit codes (the S1 cache-never-banked defect — M2), so a
+dossier survivor-key list is impossible here. Batch 10 instead writes the
+battery FIRST against the pure-function clusters the dossier calls TEST-GAP
+(needing no mock surgery), then red-checks **EVERY shape** of the targeted
+functions — self-triaging, residue dispositioned like batches 8/9.
+
+Feed `/tmp/extracts/vision_extractor.tsv`: 1362 shapes re-extracted this
+session from the run-5b mutant copy (difflib single-hunk vs each
+`__mutmut_orig`, def-line normalized). Extractor VALIDATION: 715/746
+byte-identical vs the surviving cd feed, the 31 differences continuation-
+line indent only; it also reproduces all 746 cd keys + the 137 class-
+mangled keys the cd batch could NOT extract — the "no orig blocks" note in
+the batch-9 row was an extraction-tool bug (class methods nest inside their
+orig's def-scope in this module's copy), corrected here. Targeted-function
+key counts re-measured from the feed while drafting this row: resolve 67,
+clean_vqa 63, detect_cross 45, note 32, BatchExtractionResult.to_dict 16,
+VehicleAttributes.to_dict 16, is_valid 12, CrossValidationError.to_dict 10,
+PersonAttributes.to_dict 10, validate_and_clean 9, SceneAnalysis.to_dict 8,
+EnvironmentContext.to_dict 6 — **sums to 294 exactly** (the commit body's
+278 was unverified arithmetic; 294 is the measured count; zero duplicate
+keys).
+
+Battery `test_vision_extractor_batch10.py` (commit `cad0c618`): 32 tests,
+TDD — 3 fixtures born-red against MEASURED shipped behavior and corrected:
+person-terms set repr includes `walking` (a PERSON_TERM) → order-
+insensitive assert (string hash order is per-process);
+BatchExtractionResult.to_dict keys are the five attribute buckets, NOT
+results/errors; every YOLO_TO_FLORENCE_EQUIVALENCE key is also a
+VEHICLE_TERM, so the `or`-gate is unprobeable by key choice → replaced by
+a shipped-truth routing test. Integrity: `git log --since=2026-09-17 --
+test_vision_extractor.py` EMPTY; #6561 never touched it → dossier
+survivors are survivors at this commit.
+
+Red-check round 1 (harness `/tmp/redcheck_vision.py`: block-anchored,
+class-scope resolution for the mangled `xǁClassǁto_dict` keys; guards =
+pgrep-mutmut abort, source==HEAD entry, baseline-green, compile() per
+application, restore after EVERY application, rc=4 sentinel, exit byte-equal
+assert): dry-run 263 groups, 294/294 assignable, ZERO LOC-AMBIG, ZERO
+deferred; full run measured **294 keys, 294 applied, 270 KILLED / 24
+SURVIVED** (/tmp/redcheck-vision.log, chain2 stage 3, 19:35:30→20:08:09Z).
+
+Triage of the 24 against shipped source (shapes re-read from the feed,
+consumption logic cited at :242-315/:340-379/:436-475/:530-574/:602-612/
+:647-669): **19 KILLABLE / 5 EQUIVALENT**. Killable → batch-10b (commit
+`f09518eb`, battery 32→47 tests, collect-only measured; 47 green fixed AND
+randomized): resolve 19/21/37/38/56 — echoed-field kwarg→None folds that
+None-default fixtures CANNOT see; branch tests rewritten to whole-result
+equality and falsy-NON-None inputs ("" yolo/florence, conf 0.3). clean_vqa
+15 (find→rfind "VQA>"): double-marker input keeps the literal second
+"VQA>" under shipped ("mid VQA>tail end"); 19 (`!= -1`→`!= +1`):
+"XVQA>what…" puts the marker at index 1; 26 (find→rfind "<"): trailing
+"<extra" — one input kills both; 42/43: two-word "visible visible" is
+exactly the boundary both skip. detect 11/12 ("van" ∈ VEHICLE_TERMS but
+NOT an equivalence-map key — routes only under shipped `or`), 13 ("person"
+in neither set → false vehicle under the right-`not in` flip; shipped None
+on person-only text). note 22 (`any(v in …)`→`any(v not in …)`): florence
+text containing EVERY VEHICLE_TERMS member (14 terms, :70-87). is_valid 1
+(None/""/whitespace guard — `and`-fold TypeErrors on None), 4 (guard
+return False→True). to_dict 7/11/15 (`cond → cond and False` None-folds):
+fully-populated five-field whole-dict equality.
+
+Round-2 serialized recheck of all 24 vs the 47-test battery
+(/tmp/redcheck_vision2.py ran strictly after chain2 + the batch-9 verifier
+gate, baseline-green, source byte-equal at exit): **24 keys, 24 applied,
+19 KILLED / 5 SURVIVED** — precisely the 5 triaged-equivalent, zero
+killable residue. Batch-10 total: **289/294 shapes killed (270 round-1 + 19
+batch-10b), 5 EQUIVALENT** with per-shape justification: clean_vqa 20
+(`!= -1`→`!= -2` constant-True — find("VQA>") under the `if "VQA>" in
+result` guard is NEVER -1, the condition never fires under shipped OR
+mutant); note 10/14 (`or ""`→`or "XXXX"`: the default flows only into
+`== "person"` and `in`-membership gates that neither "" nor "XXXX"
+satisfies — every input hits the identical branch); is_valid 8 +
+validate_and_clean 8 (`.lower()`→`.upper()` whitelist lookup: membership
+is only evaluated when the stripped value has len < 2 and
+`_VALID_SHORT_RESPONSES` min member length measured == 2, so the check
+never runs for any distinguishing input). Zero undispositioned shapes.
+
+### S2 batch 9 — container_discovery battery: 746 re-derived shapes, 728 killed / 18 EQUIVALENT (`4cc13767`)
+
+Batch-9 was drafted BEFORE the `container_discovery.md` dossier was opened —
+the audit after drafting inverts its value claim, and the ledger records
+the truth. The dossier: 858 keys / **696 survived** (meta snapshot 09-17),
+but WP4.4's kill tests ALREADY LANDED on main at 336b4c53 (#6561): the tree's
+`test_container_discovery.py` carries `EXPECTED_BUILDER_TABLE` golden table
+(L750, kills clusters 2-20 = 636 TEST-GAP), T-2 compose-fallback flag
+(L1040, kills C2/C2-remainder), T-3a length-vs-lexicographic sort (L1058,
+kills S1 2), T-3b no-.tags image (kills M2 `_16`), T-1b direct
+`_create_managed_service` id-less fixture (L1102 — and correctly BYPASSES
+discover_all, whose eager `extra={"container_id": container.id}` log arg an
+id-less SimpleNamespace would crash; the dossier draft T-1b itself was
+wrong here, the shipped test right), T-4 discover_all debug-extra contract
+(L1119, kills D1 16). Residual roll-up: 644/696 killed in-tree at cdfeefa5
+census + these = **52 residuals already dead** before batch 9. Module truth:
+(162+696)/858 → tier ≈94%+ on shipped tests, NOT 80%.
+
+What batch 9 (`test_container_discovery_batch9.py`, 10 tests / 461 lines,
+commit `4cc13767`) therefore adds: an INDEPENDENT full-table readback
+(25 services × 9 fields, `ServiceCategory` identity not `.value` string,
+`is`-identity on the compose result, spy-parse arg capture, both warning
+strings verbatim) over the module's 746 extractable shapes — a redundancy
+lock, not new kills. 746 = 722 build_service_configs + 24
+build_configs_from_compose single-hunk shapes re-extracted at 12:55 from
+run-5's mutant copy (vs `__mutmut_orig`, def-name normalized); the copy was
+then CLOBBERED by run 5b's second generate — the TSV feed survives; true
+positions reconstructed by group-order assignment (repeated identical
+shapes = distinct mutmut sites; site order == source order).
+
+Red-check of all 746 at their assigned positions vs the battery alone
+(measured 18:04–19:31Z, serialized after batch-8; baseline-green guard;
+compile guard; source byte-equal at exit): **724 KILLED / 22 SURVIVED, all
+746 applied (zero LOC-AMBIG/deferred)** (/tmp/redcheck-cd.log).
+
+PREDICTION-VALIDATED: the 19 dossier-EQUIVALENT kwarg-deletions were
+pre-derived from the feed by "deleted value == ServiceConfig dataclass
+default" BEFORE reading the log — the 15 single-line keys (monitoring
+max_failures=5 ×14 + elasticsearch grace=60 ×1) ALL appear in the measured
+SURVIVED set, and the 3 multi-line AI-block grace=60 deletions (249/284/302
+— regex miss in the prediction script, same default-equal rule) fill the
+count to 18 of the dossier's 19.
+
+Per-position verifier (queued strictly after the serialized chain — an
+earlier crashed attempt died pre-application on a harness KeyError,
+double-prefixing `x_` in the AST-range lookup, source never touched; fixed,
+re-ran 21:14:30→21:18:57Z) applied each of the 7 non-predicted survivors at
+EVERY candidate occurrence of its minus-block, source restored per
+application, byte-equal at exit (/tmp/cd-verify-survivors.log):
+compose-9 **ARTIFACT** [KILLED]; 249/284/302 **TRUE-EQUIV** [all sites
+SURVIVED — `startup_grace_period=60` deletion in the three AI blocks:
+60 IS the dataclass default, output-identical, completing the 18
+default-equal set]; 359 **ARTIFACT** [KILLED ×8 sites]; 467 **ARTIFACT**
+[KILLED ×7 of 8 sites, SURVIVED at one — the grace=30 cluster's shared-text
+group; under the site-order==AST-order contract its true site dies]; 488
+**ARTIFACT** [KILLED ×14 sites]. Manual spot-check pre-verifier: applying
+the grace=30 deletion at the pyroscope block (:279) measured KILLED.
+Verdict semantics stated: a KILLED verdict is position-independent when all
+candidate sites die (true for 359/488/compose-9); the batch-9 battery is a
+redundancy lock over shipped-tested config, so the 724+4 count is sound
+even where a key↔site pairing is a permutation within its group.
+
+FINAL disposition: **728/746 shapes killed** (724 round-1 + 4
+true-site-killable ARTIFACTs), **18 EQUIVALENT** (default-equal kwarg
+deletions, per-shape rule above: 14× max_failures=5, 1+3× grace=60 = 60 IS
+`ServiceConfig.startup_grace_period`'s default) — **zero undispositioned**.
+Dossier's 19th EQUIVALENT member is not among the 746 extractable (it lives
+in the class-mangled/multi-hunk residue below). Marginal-coverage probe
+(measured, fixed harness): tree `test_container_discovery.py` alone
+SURVIVES both compose-fallback `logger.warning → None` shapes (C1);
+batch-9's verbatim warning-text asserts KILL both — the 2 unique kills that
+justify the file beyond redundancy. Deferral (structural, honest): 137
+class-mangled `xǁContainerDiscoveryServiceǁ*` survivors have no
+`__mutmut_orig` blocks in the mutant copy — no shape extractable (batch-10's
+improved extractor proved the "no orig blocks" reading was THIS copy's
+nesting quirk, and the same extractor reproduces them from OTHER runs'
+copies — deferred, not claimable here); the dossier's real class-method
+survivors (17 \_create_managed_service + 16 discover_all + 2
+match_container_name = 35) are all dispositioned in-tree per the audit
+above (T-1b kills the create-helper cluster, T-4 the discover_all D1
+cluster, T-3a/b the match/name clusters), so the extraction deferral costs
+nothing real.
