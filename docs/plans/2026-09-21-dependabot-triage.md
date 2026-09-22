@@ -606,3 +606,15 @@ vitest to a version the runner's instrumentation hook supports, or replacing the
 vitest-runner with a babel-plugin-istanbul-style setup stryker can intercept.
 This batch does NOT regress mutation coverage — main never had any (checker-init
 wall since ≥July, masked by `|| true`).
+
+---
+
+## R-2 resolved by owner instruction (2026-09-22)
+
+Owner directed that **#6614 (gitleaks-action 2.3.9→3.0.0) be incorporated into
+#6638** (the pass-2 cleanup PR, which was rerunning CI anyway). Executed as a
+cherry-pick of dependabot's commit `af3f3120` onto `chore/artifact-cleanup-pass2`
+(`677b1d48`) — one line, `gitleaks.yml:47`, pinned SHA `e0c47f4f` with the
+truthful `# v3.0.0` comment kept as-authored. The licence posture (commercial
+EULA, free-tier) remains the owner's call and was implicitly exercised by this
+instruction; #6614 closes as superseded by #6638's merge, citing this commit.
