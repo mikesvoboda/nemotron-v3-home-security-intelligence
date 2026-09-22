@@ -23,9 +23,13 @@ ai/enrichment-light/
     └── test_model_loading.py    # Model loading tests
 ```
 
-## Docker Service
+## Standalone Server (Development)
 
-- **Service name**: ai-enrichment-light
+There is no `ai-enrichment-light` compose service - production enrichment-light
+workload runs inside `ai-gateway` (Triton + FastAPI on 8090, router prefix
+`/enrich-lt`). This directory keeps the standalone server and its `Dockerfile`
+for development:
+
 - **Port**: 8096
-- **Target GPU**: GPU 1 (secondary, smaller VRAM)
+- **GPU** (standalone runs): GPU 1 (secondary, smaller VRAM)
 - **VRAM budget**: ~1.2GB

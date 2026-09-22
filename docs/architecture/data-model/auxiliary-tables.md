@@ -6,6 +6,10 @@
 
 Auxiliary tables support system monitoring, auditing, alerting, and machine learning baseline tracking.
 
+Schema truth for every table below lives in its SQLAlchemy model under `backend/models/`
+(alembic migrations were removed in PR #4465; see [Migrations](./migrations.md)). Each
+**Source:** line cites the model definition.
+
 ```mermaid
 graph TB
     subgraph Monitoring
@@ -84,7 +88,7 @@ graph TB
 | ------------------------------- | ------------- | ---- | ------------------------- |
 | `ix_gpu_stats_recorded_at_brin` | `recorded_at` | BRIN | Time-series range queries |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:251-253`
+**Source:** `backend/models/gpu_stats.py:86-90`
 
 ---
 
@@ -115,7 +119,7 @@ graph TB
 CHECK (status IN ('success', 'failure'))
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:168`
+**Source:** `backend/models/audit.py:129-132`
 
 ### Indexes
 
@@ -129,7 +133,7 @@ CHECK (status IN ('success', 'failure'))
 | `idx_audit_logs_resource`      | `resource_type, resource_id` | B-tree | Combined resource lookup  |
 | `ix_audit_logs_timestamp_brin` | `timestamp`                  | BRIN   | Time-series range queries |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:170-178`
+**Source:** `backend/models/audit.py:115-128`
 
 ---
 
@@ -165,7 +169,7 @@ CHECK (level IN ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'))
 CHECK (source IN ('backend', 'frontend'))
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:201-203`
+**Source:** `backend/models/log.py:68-76`
 
 ### Indexes
 
@@ -179,7 +183,7 @@ CHECK (source IN ('backend', 'frontend'))
 | `ix_logs_timestamp_brin` | `timestamp`     | BRIN   | Time-series range queries |
 | `idx_logs_search_vector` | `search_vector` | GIN    | Full-text search          |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:205-211`
+**Source:** `backend/models/log.py:54-67`
 
 ---
 
@@ -219,7 +223,7 @@ CHECK (min_confidence IS NULL OR (min_confidence >= 0.0 AND min_confidence <= 1.
 CHECK (cooldown_seconds >= 0)
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:139-146`
+**Source:** `backend/models/alert.py:366-377`
 
 ### Indexes
 
@@ -229,7 +233,7 @@ CHECK (cooldown_seconds >= 0)
 | `idx_alert_rules_enabled`  | `enabled`  | B-tree | Filter active rules |
 | `idx_alert_rules_severity` | `severity` | B-tree | Filter by severity  |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:148-150`
+**Source:** `backend/models/alert.py:361-364`
 
 ---
 
@@ -266,7 +270,7 @@ CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical');
 CREATE TYPE alert_status AS ENUM ('pending', 'delivered', 'acknowledged', 'dismissed');
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:46-51`
+**Source:** `backend/models/alert.py:50-66, 102-107`
 
 ### Indexes
 
@@ -282,7 +286,7 @@ CREATE TYPE alert_status AS ENUM ('pending', 'delivered', 'acknowledged', 'dismi
 | `idx_alerts_delivered_at`         | `delivered_at`                    | B-tree | Delivery tracking             |
 | `idx_alerts_event_rule_delivered` | `event_id, rule_id, delivered_at` | B-tree | Combined lookup               |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1111-1121`
+**Source:** `backend/models/alert.py:141-148`
 
 ---
 
@@ -312,7 +316,7 @@ CHECK (hour >= 0 AND hour <= 23)
 CHECK (day_of_week >= 0 AND day_of_week <= 6)
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:900-904`
+**Source:** `backend/models/baseline.py:70-77`
 
 ### Indexes
 
@@ -321,7 +325,7 @@ CHECK (day_of_week >= 0 AND day_of_week <= 6)
 | `idx_activity_baseline_camera` | `camera_id`                    | B-tree | Filter by camera     |
 | `idx_activity_baseline_slot`   | `camera_id, hour, day_of_week` | B-tree | Combined slot lookup |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:906-909`
+**Source:** `backend/models/baseline.py:72-73`
 
 ---
 
@@ -350,7 +354,7 @@ UNIQUE (camera_id, detection_class, hour)
 CHECK (hour >= 0 AND hour <= 23)
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:928-929`
+**Source:** `backend/models/baseline.py:123-129`
 
 ### Indexes
 
@@ -360,7 +364,7 @@ CHECK (hour >= 0 AND hour <= 23)
 | `idx_class_baseline_class`  | `camera_id, detection_class`       | B-tree | Combined camera + class |
 | `idx_class_baseline_slot`   | `camera_id, detection_class, hour` | B-tree | Combined slot lookup    |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:931-935`
+**Source:** `backend/models/baseline.py:125-127`
 
 ---
 
@@ -393,7 +397,7 @@ CREATE TYPE camera_zone_type_enum AS ENUM ('entry_point', 'driveway', 'sidewalk'
 CREATE TYPE camera_zone_shape_enum AS ENUM ('rectangle', 'polygon');
 ```
 
-**Source:** `backend/alembic/versions/f1231ed7e32d_rename_zones_to_camera_zones.py:47-48`
+**Source:** `backend/models/camera_zone.py:78-94`
 
 ### Constraints
 
@@ -402,7 +406,7 @@ CHECK (priority >= 0)
 CHECK (color ~ '^#[0-9A-Fa-f]{6}$')
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:758-759`
+**Source:** `backend/models/camera_zone.py:136-137`
 
 ### Indexes
 
@@ -412,7 +416,7 @@ CHECK (color ~ '^#[0-9A-Fa-f]{6}$')
 | `idx_camera_zones_enabled`        | `enabled`            | B-tree | Filter active zones       |
 | `idx_camera_zones_camera_enabled` | `camera_id, enabled` | B-tree | Combined camera + enabled |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:761-763`
+**Source:** `backend/models/camera_zone.py:132-134`
 
 ---
 
@@ -455,7 +459,7 @@ CHECK (completed_at IS NULL OR completed_at >= created_at)
 CHECK (started_at IS NULL OR started_at >= created_at)
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:281-296`
+**Source:** `backend/models/job.py:104-148`
 
 ### Indexes
 
@@ -470,7 +474,7 @@ CHECK (started_at IS NULL OR started_at >= created_at)
 | `idx_jobs_job_type_status`   | `job_type, status`   | B-tree | Combined type + status    |
 | `ix_jobs_created_at_brin`    | `created_at`         | BRIN   | Time-series range queries |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:298-305`
+**Source:** `backend/models/job.py:105-118`
 
 ---
 
@@ -771,7 +775,7 @@ CHECK (feedback_type IN ('accurate', 'correct', 'false_positive', 'missed_threat
 CHECK (expected_severity IS NULL OR expected_severity IN ('low', 'medium', 'high', 'critical'))
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1217-1224`
+**Source:** `backend/models/event_feedback.py:78, 113-121`
 
 ### Indexes
 
@@ -781,7 +785,7 @@ CHECK (expected_severity IS NULL OR expected_severity IN ('low', 'medium', 'high
 | `idx_event_feedback_type`       | `feedback_type` | B-tree | Filter by type     |
 | `idx_event_feedback_created_at` | `created_at`    | B-tree | Time-range queries |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1226-1228`
+**Source:** `backend/models/event_feedback.py:105-109`
 
 ---
 
@@ -841,7 +845,7 @@ CHECK (consistency_score IS NULL OR (consistency_score >= 1.0 AND consistency_sc
 CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overall_quality_score <= 5.0))
 ```
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1171-1191`
+**Source:** `backend/models/event_audit.py:84-107`
 
 ### Indexes
 
@@ -851,7 +855,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `idx_event_audits_audited_at`    | `audited_at`            | B-tree | Time-range queries      |
 | `idx_event_audits_overall_score` | `overall_quality_score` | B-tree | Quality score filtering |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1196-1198`
+**Source:** `backend/models/event_audit.py:81-83`
 
 ---
 
@@ -871,7 +875,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `is_suspicious` | `Boolean`  | Suspicious pose flag                    |
 | `created_at`    | `DateTime` | Creation timestamp                      |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1322-1366`
+**Source:** `backend/models/enrichment.py:37-88`
 
 ### Threat Detections
 
@@ -887,7 +891,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `bbox`         | `JSONB`    | Bounding box [x1, y1, x2, y2]          |
 | `created_at`   | `DateTime` | Creation timestamp                     |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1369-1426`
+**Source:** `backend/models/enrichment.py:90-149`
 
 ### Demographics Results
 
@@ -903,7 +907,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `gender_confidence` | `Float`    | Gender confidence (0-1)      |
 | `created_at`        | `DateTime` | Creation timestamp           |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1429-1482`
+**Source:** `backend/models/enrichment.py:151-208`
 
 ### ReID Embeddings
 
@@ -917,7 +921,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `embedding_hash` | `String`   | SHA256 hash for quick lookup |
 | `created_at`     | `DateTime` | Creation timestamp           |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1485-1518`
+**Source:** `backend/models/enrichment.py:210-253`
 
 ### Action Results
 
@@ -933,4 +937,4 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `all_scores`    | `JSONB`    | Dict of action -> score          |
 | `created_at`    | `DateTime` | Creation timestamp               |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1521-1561`
+**Source:** `backend/models/enrichment.py:255-301`

@@ -26,7 +26,7 @@ flowchart TB
     end
 
     subgraph Frontend["Frontend Layer"]
-        UI["React Dashboard<br/>:5173"]
+        UI["React Dashboard<br/>:8444 HTTPS (nginx)"]
     end
 
     subgraph Backend["Backend Layer"]
@@ -35,10 +35,11 @@ flowchart TB
     end
 
     subgraph AI["AI Services Layer"]
-        YOLO["YOLO26<br/>Object Detection<br/>:8095"]
+        GW["AI Gateway<br/>:8090 (Triton)"]
+        YOLO["YOLO26<br/>router /yolo26"]
+        FLO["Florence-2<br/>router /florence"]
+        CLIP["CLIP<br/>router /clip"]
         NEM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
-        FLO["Florence-2<br/>(optional)<br/>:8092"]
-        CLIP["CLIP<br/>(optional)<br/>:8093"]
     end
 
     subgraph Data["Data Layer"]
@@ -49,10 +50,11 @@ flowchart TB
     CAM -->|FTP Upload| API
     UI <-->|REST API| API
     UI <-->|Real-time| WS
-    API --> YOLO
+    API --> GW
+    GW --- YOLO
+    GW --- FLO
+    GW --- CLIP
     API --> NEM
-    API --> FLO
-    API --> CLIP
     API <--> DB
     API <--> REDIS
     WS --> REDIS
@@ -89,22 +91,34 @@ _High-level architecture showing cameras, frontend, backend, AI services, and da
 
 ```
 docs/
-├── README.md           # This file - navigation hub
-├── AGENTS.md           # AI assistant navigation
+├── README.md           # This file - human navigation hub
+├── AGENTS.md           # AI assistant navigation (full directory index)
+├── index.md            # MkDocs site home page
 ├── ROADMAP.md          # Post-MVP features
 │
 ├── getting-started/    # Installation and setup
 ├── developer/          # Architecture, API, patterns, contributing
+├── development/        # Testing, git workflow, code quality guides
 ├── operator/           # Deployment, monitoring, admin
 ├── user/               # End-user dashboard guides
+├── guides/             # Feature guides (video analytics, zones, faces)
 ├── reference/          # Env vars, glossary, troubleshooting
 ├── components/         # React component library documentation
+├── ui/                 # Page-by-page UI documentation
 │
 ├── architecture/       # System design documents
 ├── benchmarks/         # Performance benchmarks
 ├── decisions/          # Architectural Decision Records
+├── performance/        # Load profiles and analyses
+├── plans/              # Design and implementation plans
+├── operations/         # Operational runbooks
+├── deployment/         # Container-orchestration docs
+├── archive/            # Archived point-in-time reports and NEM investigations
 └── images/             # Diagrams and screenshots
 ```
+
+For the complete directory list (including research, discoveries, templates,
+superpowers and support directories) see [AGENTS.md](AGENTS.md).
 
 ---
 

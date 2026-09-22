@@ -1,5 +1,7 @@
 # Documentation Improvement Design
 
+> **Status:** Implemented — the MkDocs Material documentation site shipped; see `mkdocs.yml`.
+
 **Date:** 2026-02-07
 **Status:** Approved
 **Goal:** Make documentation community/contributor-ready with a professional docs portal, visual storytelling, and interactive API reference.
@@ -8,7 +10,7 @@
 
 ## Context
 
-A comprehensive documentation audit (see `docs/DOCUMENTATION_REVIEW_2026-02-07.md`) revealed that while the project has extensive documentation (~456 markdown files, 231 AGENTS.md files, role-based hubs), the content was drifting from the codebase and lacked the visual polish and onboarding experience needed for community adoption. A two-team fix/validation effort resolved ~230 issues across ~80 files.
+A comprehensive documentation audit (see `archive/docs-reports/DOCUMENTATION_REVIEW_2026-02-07.md`) revealed that while the project has extensive documentation (~456 markdown files, 231 AGENTS.md files, role-based hubs), the content was drifting from the codebase and lacked the visual polish and onboarding experience needed for community adoption. A two-team fix/validation effort resolved ~230 issues across ~80 files.
 
 This design addresses the next level: transforming raw markdown into a professional documentation experience that converts visitors into contributors.
 
@@ -109,7 +111,7 @@ docs/_includes/
 **Usage in markdown files:**
 
 ```markdown
---8<-- "docs/\_includes/risk-scoring-levels.md"
+;--8<-- "docs/\_includes/risk-scoring-levels.md"
 ```
 
 The `_includes/` directory is excluded from nav. Single source of truth -- edit once, reflected everywhere. Raw GitHub viewing loses the includes, but the docs site is the primary consumer.

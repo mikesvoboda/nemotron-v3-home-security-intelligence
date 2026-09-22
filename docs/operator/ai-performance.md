@@ -57,11 +57,12 @@ curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&li
 
 ### Confidence Threshold
 
-Higher thresholds reduce false positives but may miss detections.
+Higher thresholds reduce false positives but may miss detections. The
+`backend/core/config.py` default is **0.40**; `.env.example` ships `0.5`.
 
 ```bash
 # In .env
-DETECTION_CONFIDENCE_THRESHOLD=0.5  # Default
+DETECTION_CONFIDENCE_THRESHOLD=0.4  # config.py default (0.5 in .env.example)
 
 # Conservative (fewer false positives)
 DETECTION_CONFIDENCE_THRESHOLD=0.7
@@ -70,16 +71,13 @@ DETECTION_CONFIDENCE_THRESHOLD=0.7
 DETECTION_CONFIDENCE_THRESHOLD=0.3
 ```
 
-### Batch Processing
+### Ad-Hoc Detection Calls
 
-For high-throughput scenarios (multiple cameras):
+The production detector is the `ai-gateway` router on :8090 (multipart upload):
 
 ```bash
-# Send multiple images per request
-curl -X POST http://localhost:8095/detect/batch \
-  -F "images=@image1.jpg" \
-  -F "images=@image2.jpg" \
-  -F "images=@image3.jpg"
+curl -X POST http://localhost:8090/yolo26/detect \
+  -F "file=@image1.jpg"
 ```
 
 ### Hardware-Specific Tuning
@@ -100,11 +98,11 @@ Controls how many model layers run on GPU vs CPU. More GPU layers = faster infer
 
 **Configuration locations and their defaults:**
 
-| Location                  | Default | Model    | Rationale                       |
-| ------------------------- | ------- | -------- | ------------------------------- |
-| `docker-compose.prod.yml` | 35      | Nano 30B | Conservative for 16GB GPUs      |
-| `ai/nemotron/Dockerfile`  | 35      | Nano 30B | Matches compose default         |
-| `ai/start_llm.sh`         | 99      | Mini 4B  | All layers on GPU (small model) |
+| Location                  | Default | Model    | Rationale                                  |
+| ------------------------- | ------- | -------- | ------------------------------------------ |
+| `docker-compose.prod.yml` | `auto`  | Nano 30B | llama.cpp fits all layers that VRAM allows |
+| `ai/nemotron/Dockerfile`  | 35      | Nano 30B | Conservative for 16GB GPUs                 |
+| `ai/start_llm.sh`         | 99      | Mini 4B  | All layers on GPU (small model)            |
 
 **Recommended settings by GPU VRAM:**
 
@@ -118,15 +116,20 @@ Controls how many model layers run on GPU vs CPU. More GPU layers = faster infer
 **Setting GPU_LAYERS:**
 
 ```bash
-# In .env or shell
-export GPU_LAYERS=45
+# In .env (compose interpolates ${GPU_LAYERS:-auto})
+GPU_LAYERS=45
 
-# Or override in docker-compose command
-GPU_LAYERS=45 docker compose -f docker-compose.prod.yml up ai-llm -d
+# Or override for a single up — process env wins over .env
+GPU_LAYERS=45 podman compose -f docker-compose.prod.yml up -d ai-llm
 
 # For host-run development (Mini 4B), use all layers
 # ai/start_llm.sh already uses --n-gpu-layers 99
 ```
+
+> [!NOTE] > `GPU_LAYERS` / `CTX_SIZE` / `PARALLEL` reach only the **AI containers** (compose variable
+> interpolation). The Python backend reads `data/runtime.env` _after_ `.env` via
+> pydantic-settings, so check `runtime.env` if a backend-side setting (e.g.
+> `NEMOTRON_URL`) appears to ignore `.env`.
 
 ### Context Size Configuration
 
@@ -134,11 +137,16 @@ Controls the maximum context window. Larger contexts allow more batch data but u
 
 **Configuration locations and their defaults:**
 
-| Location                  | Default | Rationale                                            |
-| ------------------------- | ------- | ---------------------------------------------------- |
-| `docker-compose.prod.yml` | 131072  | Production batch processing with multiple detections |
-| `ai/nemotron/Dockerfile`  | 131072  | Match production compose default                     |
-| `ai/start_llm.sh`         | 4096    | Development use, smaller context sufficient          |
+| Location                  | Default | Rationale                                   |
+| ------------------------- | ------- | ------------------------------------------- |
+| `docker-compose.prod.yml` | 262144  | 8 slots x 32K each (compose comment)        |
+| `ai/nemotron/Dockerfile`  | 32768   | Conservative host-image default             |
+| `ai/start_llm.sh`         | 4096    | Development use, smaller context sufficient |
+
+> [!WARNING] > `CTX_SIZE` belongs to the **llama.cpp container only**. The Python backend's
+> `nemotron_context_window` validator rejects anything above **131,072** (`le=131072`) —
+> exporting `CTX_SIZE=262144` into the backend environment fails startup with a
+> `ValidationError`.
 
 **VRAM impact of context size (approximate for Nano 30B):**
 
@@ -147,51 +155,51 @@ Controls the maximum context window. Larger contexts allow more batch data but u
 | 2048     | ~500MB          | Minimal, single detection analysis |
 | 4096     | ~1GB            | Development, testing               |
 | 8192     | ~2GB            | Small batches                      |
-| 32768    | ~4GB            | Medium batches                     |
-| 131072   | ~8-12GB         | Production batch processing        |
+| 32768    | ~4GB            | Dockerfile default, medium batches |
+| 262144   | ~16-24GB        | Compose default (8 slots x 32K)    |
 
 **Setting CTX_SIZE:**
 
 ```bash
-# In .env or shell
-export CTX_SIZE=8192
+# In .env (compose interpolates ${CTX_SIZE:-262144})
+CTX_SIZE=8192
 
-# Or override in docker-compose command
-CTX_SIZE=8192 docker compose -f docker-compose.prod.yml up ai-llm -d
+# Or override for a single up
+CTX_SIZE=8192 podman compose -f docker-compose.prod.yml up -d ai-llm
 
 # For memory-constrained systems
-CTX_SIZE=4096 GPU_LAYERS=25 docker compose -f docker-compose.prod.yml up ai-llm -d
+CTX_SIZE=4096 GPU_LAYERS=25 podman compose -f docker-compose.prod.yml up -d ai-llm
 ```
 
 **Trade-offs:**
 
-- **Large context (131072)**: Can analyze many detections in a single batch, better contextual reasoning, higher VRAM
+- **Large context (262144)**: Can analyze many detections in a single batch, better contextual reasoning, much higher VRAM
 - **Small context (4096)**: Faster startup, lower VRAM, may need to split large batches
 
 ### Parallelism
 
-Handle multiple concurrent requests:
+Concurrent slots per llama.cpp slot group. Compose interpolates `PARALLEL`
+(`${PARALLEL:-8}` for `ai-llm`); the host-run scripts hardcode it
+(`ai/start_llm.sh` uses `--parallel 2`):
 
 ```bash
-# Default: 2 parallel requests
---parallel 2
+# .env — compose ai-llm default
+PARALLEL=8
 
-# High-throughput (more VRAM)
---parallel 4
+# Fewer slots (lower VRAM; each slot reserves its own context)
+PARALLEL=2
 
 # Single request (lowest VRAM)
---parallel 1
+PARALLEL=1
 ```
+
+Note each parallel slot gets `CTX_SIZE / PARALLEL` of context (hence the compose comment
+"262144 = 8 slots x 32K").
 
 ### Continuous Batching
 
-Improves throughput for concurrent requests:
-
-```bash
---cont-batching
-```
-
-Already enabled by default in `ai/start_llm.sh`.
+`--cont-batching` is passed by both `ai/start_llm.sh` and the `ai/nemotron/Dockerfile`
+CMD, so it is already on for the container and the host-run LLM.
 
 ---
 
@@ -199,25 +207,25 @@ Already enabled by default in `ai/start_llm.sh`.
 
 ### Backend Worker Count
 
-In `docker-compose.prod.yml`, adjust uvicorn workers:
+The production image runs uvicorn with **`--workers 1` by design**
+(`backend/Dockerfile`): background services (FileWatcher, PipelineWorkerManager,
+SystemBroadcaster) run in the FastAPI lifespan, and multiple workers would duplicate file
+processing, race on the same queues, and double WebSocket broadcasts. Do not raise it in
+compose. To scale, extract the background workers to a separate container instead:
 
-```yaml
-command: ['uvicorn', 'backend.main:app', '--workers', '4']
+```bash
+python -m backend.services.pipeline_workers   # standalone worker mode
 ```
 
-- **2 workers**: Low memory usage
-- **4 workers**: Balanced (default)
-- **8 workers**: High concurrency (CPU-bound)
+### Queue Size
 
-### Detection Queue Size
+The setting is `queue_max_size` (`backend/core/config.py`, default **10000**, range
+100-100000, env `QUEUE_MAX_SIZE`), with `QUEUE_OVERFLOW_POLICY` defaulting to `dlq`.
 
-In `backend/core/config.py`:
-
-```python
-DETECTION_QUEUE_MAX_SIZE = 10000  # Default
+```bash
+# .env
+QUEUE_MAX_SIZE=20000   # high camera counts
 ```
-
-Increase for high camera counts, decrease for memory efficiency.
 
 ### Batch Timing
 
@@ -245,27 +253,26 @@ BATCH_IDLE_TIMEOUT_SECONDS=30
 
 ### Inference Latency
 
-Enable detailed timing in logs:
-
-```python
-# backend/services/detector_client.py
-logging.DEBUG  # Set log level
-```
+The backend exports per-request AI timing as a Prometheus histogram rather than a log
+switch — see below. Set `LOG_LEVEL=DEBUG` in `.env` if you need the client-side timings in
+the backend logs.
 
 ### Prometheus Metrics
 
-If monitoring stack enabled:
+The monitoring stack is part of the default `up -d` (no profile needed). The backend
+exposes metrics at `/api/metrics` (scraped by Prometheus under that path):
 
 ```bash
-curl http://localhost:8000/api/metrics | grep ai_
+curl -s http://localhost:8000/api/metrics | grep '^hsi_' | head -50
 ```
 
-Available metrics:
+Relevant metric families (all `hsi_`-prefixed, defined in `backend/core/metrics.py`):
 
-- `ai_detection_latency_seconds`
-- `ai_analysis_latency_seconds`
-- `ai_detection_count`
-- `ai_error_count`
+- `hsi_ai_request_duration_seconds{service}` — per-request AI latency histogram
+- `hsi_nemotron_inference_seconds`, `hsi_florence_inference_seconds` — per-model timing
+- `hsi_nemotron_tokens_per_second`, `hsi_nemotron_tokens_input_total`, `hsi_nemotron_tokens_output_total`
+- `hsi_detection_queue_depth`, `hsi_analysis_queue_depth`, `hsi_dlq_depth`
+- `hsi_pipeline_errors_total`, `hsi_detections_processed_total`
 
 ---
 

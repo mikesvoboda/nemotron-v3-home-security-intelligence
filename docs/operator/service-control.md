@@ -13,13 +13,19 @@ The Services Panel provides a unified interface for monitoring and controlling a
 
 ### Service Categories
 
-Services are organized into three categories:
+Services are discovered from `docker-compose.prod.yml` (`ORCHESTRATOR_COMPOSE_FILE`,
+via `backend/services/compose_parser.py`) and bucketed by name prefix into three
+categories:
 
-| Category       | Services                                | Purpose                       |
-| -------------- | --------------------------------------- | ----------------------------- |
-| Infrastructure | PostgreSQL, Redis                       | Data storage and messaging    |
-| AI             | YOLO26, Nemotron                        | Object detection and analysis |
-| Monitoring     | File Watcher, Batch Aggregator, Cleanup | Pipeline orchestration        |
+| Category       | Services (compose names)                                               | Purpose                  |
+| -------------- | ---------------------------------------------------------------------- | ------------------------ |
+| Infrastructure | postgres, redis, backend, go2rtc, frontend                             | Data, messaging, app     |
+| AI             | `ai-*` — ai-gateway (:8090), ai-llm (:8091)                            | Detection + LLM analysis |
+| Monitoring     | prometheus, grafana, alertmanager, loki, pyroscope, alloy, \*-exporter | Observability stack      |
+
+> [!NOTE]
+> File Watcher, Batch Aggregator and Cleanup are **in-process backend services** (FastAPI
+> lifespan), not containers — the Services Panel does not manage them.
 
 ---
 
@@ -286,18 +292,21 @@ GET /api/system/services?category=monitoring
 
 ### AI Services
 
-| Service  | Port | Description                              |
-| -------- | ---- | ---------------------------------------- |
-| YOLO26   | 8095 | Real-time object detection model         |
-| Nemotron | 8091 | Risk analysis LLM for security reasoning |
+| Service    | Port | Description                                                 |
+| ---------- | ---- | ----------------------------------------------------------- |
+| ai-gateway | 8090 | Triton + model routers (YOLO26, Florence, CLIP, enrichment) |
+| ai-llm     | 8091 | Risk analysis LLM (Nemotron via llama.cpp)                  |
 
 ### Monitoring Services
 
-| Service          | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| File Watcher     | Monitors camera FTP directories for new images |
-| Batch Aggregator | Aggregates detections into analysis batches    |
-| Cleanup Service  | Removes old data based on retention policy     |
+| Service      | Description                                  |
+| ------------ | -------------------------------------------- |
+| Prometheus   | Metrics storage and rule evaluation (:9090)  |
+| Grafana      | Dashboards, served under `/grafana/` (:3002) |
+| Alertmanager | Alert routing and silencing (:9093)          |
+| Loki         | Log aggregation                              |
+| Pyroscope    | Continuous profiling                         |
+| Alloy        | Grafana telemetry collector                  |
 
 ---
 
@@ -432,11 +441,19 @@ Service state (failure counts, restart history) is persisted to Redis:
 
 ## Configuration Reference
 
-| Variable                      | Default | Description                   |
-| ----------------------------- | ------- | ----------------------------- |
-| `ORCHESTRATOR_ENABLED`        | true    | Enable container orchestrator |
-| `HEALTH_CHECK_INTERVAL`       | 30s     | Seconds between health checks |
-| `MAX_FAILURES_BEFORE_DISABLE` | 5       | Failures before auto-disable  |
+All orchestrator settings use the `ORCHESTRATOR_` env prefix
+(`OrchestratorSettings` in `backend/core/config.py`):
+
+| Variable                                | Default                   | Description                                                                                       |
+| --------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------- |
+| `ORCHESTRATOR_ENABLED`                  | true                      | Enable container orchestrator                                                                     |
+| `ORCHESTRATOR_COMPOSE_FILE`             | `docker-compose.prod.yml` | Source for service discovery (set empty/None to use hardcoded configs)                            |
+| `ORCHESTRATOR_HEALTH_CHECK_INTERVAL`    | 30                        | Seconds between health checks (5-300)                                                             |
+| `ORCHESTRATOR_HEALTH_CHECK_TIMEOUT`     | 5                         | Per-check HTTP timeout (s)                                                                        |
+| `ORCHESTRATOR_STARTUP_GRACE_PERIOD`     | 60                        | Seconds after start before checking (10-600)                                                      |
+| `ORCHESTRATOR_MAX_CONSECUTIVE_FAILURES` | 5                         | Failures before auto-disable (AI category; infrastructure defaults to 10 via `CATEGORY_DEFAULTS`) |
+| `ORCHESTRATOR_RESTART_BACKOFF_BASE`     | 5.0                       | Restart backoff base (delay = base \* 2^attempt)                                                  |
+| `ORCHESTRATOR_RESTART_BACKOFF_MAX`      | 300.0                     | Backoff cap (5 min)                                                                               |
 
 ---
 

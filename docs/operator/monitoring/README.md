@@ -106,7 +106,8 @@ curl http://localhost:8000/health
 
 **Endpoint:** `GET /api/system/health/ready`
 
-Checks if system is ready to accept traffic (infrastructure only).
+Checks if the system is ready to accept traffic: database, Redis, AI services, and
+background workers (`ReadinessResponse` in `backend/api/schemas/system.py`).
 
 ```bash
 curl http://localhost:8000/api/system/health/ready
@@ -115,18 +116,29 @@ curl http://localhost:8000/api/system/health/ready
 ```json
 {
   "ready": true,
-  "checks": {
+  "status": "ready",
+  "services": {
     "database": {
       "status": "healthy",
-      "latency_ms": 2.5
+      "message": "Database connected",
+      "details": {}
     },
     "redis": {
       "status": "healthy",
-      "latency_ms": 1.2
+      "message": "Redis connected",
+      "details": { "redis_version": "7.4.0" }
+    },
+    "ai": {
+      "status": "healthy",
+      "message": "AI services reachable",
+      "details": {}
     }
-  }
+  },
+  "workers": []
 }
 ```
+
+`status` is one of `ready`, `degraded`, `not_ready`.
 
 **HTTP Status:**
 
@@ -166,7 +178,7 @@ curl http://localhost:8000/api/system/health/full
       "name": "yolo26",
       "display_name": "YOLO26 Object Detection",
       "status": "healthy",
-      "url": "http://ai-yolo26:8095",
+      "url": "http://ai-gateway:8090/yolo26",
       "response_time_ms": 45.2,
       "circuit_state": "closed",
       "last_check": "2026-01-08T10:30:00Z"
@@ -229,13 +241,18 @@ Non-critical services can fail without blocking system readiness.
 
 ### SLO Metrics
 
-| SLO                    | Target    | SLI                         | Measurement Window |
-| ---------------------- | --------- | --------------------------- | ------------------ |
-| API Availability       | 99.5%     | Non-5xx response ratio      | 30-day rolling     |
-| Event Processing       | P95 < 5s  | Event processing duration   | 30-day rolling     |
-| Detection Latency      | P95 < 2s  | YOLO26 inference time       | 30-day rolling     |
-| Analysis Latency       | P95 < 30s | Nemotron analysis time      | 30-day rolling     |
-| WebSocket Availability | 99%       | Successful connection ratio | 30-day rolling     |
+| SLO               | Target    | SLI                       | Status                                                                            |
+| ----------------- | --------- | ------------------------- | --------------------------------------------------------------------------------- |
+| API Availability  | 99.5%     | Non-5xx response ratio    | Implemented (`hsi:api_availability:ratio_rate*`)                                  |
+| Detection Latency | P95 < 2s  | Detection stage duration  | Recording rules only — alert disabled pending `hsi_stage_duration_seconds_bucket` |
+| Analysis Latency  | P95 < 30s | Analysis stage duration   | Recording rules only — alert disabled (same metric gap)                           |
+| Event Processing  | P95 < 5s  | Event processing duration | Commented out in `monitoring/prometheus-rules.yml` (metric not exported)          |
+
+> [!NOTE] > `hsi_stage_duration_seconds` is defined in `backend/core/metrics.py` but nothing in the
+> backend observes it yet, so its `_bucket` series never appear. The `latency_alerts` group
+> (`HSISlowDetection`, `HSISlowAnalysis`, `HSIExtremeLatency`) is therefore **commented
+> out** in `monitoring/alerting-rules.yml`, and the latency recording rules evaluate empty.
+> See [SLO Definitions](slos.md).
 
 ### Error Budget Policy
 
@@ -504,53 +521,61 @@ Access the DLQ Monitor in **Settings** in the web interface:
 
 ### Enable Monitoring Stack
 
-```bash
-docker compose --profile monitoring -f docker-compose.prod.yml up -d
+Prometheus, Alertmanager, Grafana, Loki, Tempo and the exporters are **default compose
+services** — no `--profile` flag:
 
-# Access Alertmanager
+```bash
+podman compose -f docker-compose.prod.yml up -d
+
+# Access Alertmanager (binds 127.0.0.1)
 open http://localhost:9093
 ```
 
 ### Prometheus Metrics
 
+Backend metrics are exposed at `/api/metrics` with an `hsi_` prefix
+(`backend/core/metrics.py`):
+
 ```
 # Circuit breaker state (0=closed, 1=open, 2=half_open)
-circuit_breaker_state{service="yolo26"} 0
+hsi_circuit_breaker_state{service="yolo26"} 0
 
-# Health check latency
-health_check_latency_seconds{service="postgres"} 0.002
+# Health check latency (json-exporter gauges feed the HSI* health alerts)
+hsi_health_check_latency_seconds{component="postgres"} 0.002
 
-# Service availability
-service_available{service="yolo26"} 1
+# System health gauge (1 healthy / 0.5 degraded / 0 unhealthy)
+hsi_system_healthy 1
 ```
 
 ### Pre-Configured Alerts
 
-| Category       | Examples                                             |
-| -------------- | ---------------------------------------------------- |
-| AI Pipeline    | Detector unavailable, high error rate, queue backlog |
-| GPU Resources  | Overheating, memory critical, temperature warning    |
-| Infrastructure | Database unhealthy, Redis unhealthy                  |
-| SLO Violations | API availability, detection latency                  |
+| Category       | Examples                                                                    |
+| -------------- | --------------------------------------------------------------------------- |
+| AI Pipeline    | Detector unavailable, high error rate, queue backlog                        |
+| GPU Resources  | Overheating, memory critical, temperature warning                           |
+| Infrastructure | Database unhealthy, Redis unhealthy                                         |
+| SLO Violations | API availability fast/slow burn (latency burns disabled — metric gap above) |
+
+See [Prometheus Alerting](../prometheus-alerting.md) for the full measured tables.
 
 ### Critical Alerts
 
-| Alert Name           | Condition                        | For |
-| -------------------- | -------------------------------- | --- |
-| HSIPipelineDown      | All backend replicas unavailable | 1m  |
-| HSIDatabaseUnhealthy | PostgreSQL connection failures   | 2m  |
-| HSIRedisUnhealthy    | Redis connection failures        | 2m  |
-| HSIGPUMemoryHigh     | GPU memory > 90%                 | 5m  |
+| Alert Name           | Condition                                                         | For |
+| -------------------- | ----------------------------------------------------------------- | --- |
+| HSIPipelineDown      | `probe_success{job="blackbox-http-live", service="backend"} == 0` | 1m  |
+| HSIDatabaseUnhealthy | `hsi_database_healthy == 0` (json-exporter)                       | 2m  |
+| HSIRedisUnhealthy    | `hsi_redis_healthy == 0`                                          | 2m  |
+| HSIGPUMemoryHigh     | `hsi:gpu:memory_utilization > 0.9`                                | 5m  |
 
 ### Warning Alerts
 
-| Alert Name            | Condition                   | For |
-| --------------------- | --------------------------- | --- |
-| HSIDetectionQueueHigh | Detection queue > 100 items | 5m  |
-| HSIAnalysisQueueHigh  | Analysis queue > 50 items   | 5m  |
-| HSIHighErrorRate      | Error rate > 5%             | 5m  |
-| HSISlowDetection      | P95 detection latency > 2s  | 10m |
-| HSISlowAnalysis       | P95 analysis latency > 30s  | 10m |
+| Alert Name            | Condition                                                     | For |
+| --------------------- | ------------------------------------------------------------- | --- |
+| HSIDetectionQueueHigh | `hsi_detection_queue_depth > 100`                             | 5m  |
+| HSIAnalysisQueueHigh  | `hsi_analysis_queue_depth > 50`                               | 5m  |
+| HSIHighErrorRate      | `1 - hsi:api_requests:success_rate_5m > 0.05`                 | 5m  |
+| HSISlowDetection      | **commented out** — needs `hsi_stage_duration_seconds_bucket` | -   |
+| HSISlowAnalysis       | **commented out** — same metric gap                           | -   |
 
 ### Alerting Rules Example
 
@@ -558,21 +583,13 @@ service_available{service="yolo26"} 1
 groups:
   - name: health_alerts
     rules:
-      - alert: CriticalServiceUnhealthy
-        expr: service_available{critical="true"} == 0
-        for: 30s
-        labels:
-          severity: critical
-        annotations:
-          summary: 'Critical service {{ $labels.service }} is unhealthy'
-
       - alert: CircuitBreakerOpen
-        expr: circuit_breaker_state > 0
+        expr: hsi_circuit_breaker_state == 1
         for: 60s
         labels:
           severity: warning
         annotations:
-          summary: 'Circuit breaker {{ $labels.service }} is not closed'
+          summary: 'Circuit breaker {{ $labels.service }} is open'
 ```
 
 ---
@@ -581,17 +598,25 @@ groups:
 
 ### Access Grafana
 
+Grafana is served from the `/grafana/` sub-path on the host port
+`${GRAFANA_PORT:-3002}`:
+
 ```bash
-open http://localhost:3002
-# Default credentials from GF_ADMIN_PASSWORD in .env
+open http://localhost:3002/grafana/
+# Credentials: GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
 ```
 
 ### Available Dashboards
 
-- **System Overview** - Service health, circuit breakers
-- **GPU Metrics** - Utilization, memory, temperature trends
-- **SLO Dashboard** - Compliance gauges, error budget
-- **AI Pipeline** - Detection/analysis latency, queue depths
+Provisioned from `monitoring/grafana/dashboards/`:
+
+- **consolidated** - single overview dashboard
+- **api-health**, **ai-services**, **ai-service-health** - service and API status
+- **hsi-gpu-metrics** - utilization, memory, temperature trends
+- **enrichment-pipeline**, **clip-florence-intelligence**, **nemotron-prompt-analytics**,
+  **scene-ocr**, **video-analytics**, **analytics** - AI pipeline detail
+- **hsi-profiling**, **hsi-request-profiling** - profiling regressions
+- **logs**, **tracing** - Loki and Tempo views
 
 ### SLO Dashboard Panels
 

@@ -12,21 +12,25 @@ The layout system provides the application shell including header, sidebar navig
 
 ```
 Layout
-├── SkipLink (accessibility)
+├── SkipLinkGroup (skip-to-navigation + skip-to-main-content)
 ├── Header
-│   ├── Branding
-│   ├── WebSocketStatus
-│   ├── ServiceStatusIndicator
+│   ├── Branding (NVIDIA logo) + mobile hamburger
+│   ├── Command palette trigger (search box)
 │   ├── ThemeToggle
-│   └── CommandPalette trigger
-├── Sidebar
-│   ├── Navigation links
+│   ├── WebSocketStatus
+│   └── GPU stats / service-status indicators
+├── Sidebar (hidden on mobile viewports)
+│   ├── Navigation groups (sidebarNav.ts)
 │   ├── Active route indicator
 │   └── Collapse toggle
 ├── Main content area
 │   └── Page components (via React Router)
-└── MobileBottomNav (mobile only)
+├── ConnectionStatusBanner / ServiceStatusAlert (common/)
+├── CommandPalette + ShortcutsHelpModal
+└── MobileBottomNav (mobile viewport only)
 ```
+
+Note: the detailed service status UI lives in `Layout` (via `ServiceStatusAlert` from `components/common/ServiceStatusAlert.tsx`); `Header` carries the connection status (`WebSocketStatus`) and a compact AI-service badge.
 
 ---
 
@@ -46,11 +50,11 @@ Main layout wrapper composing all shell components.
 
 **Features:**
 
-- Responsive design (desktop sidebar, mobile bottom nav)
-- Persistent header with system status
-- Collapsible sidebar
-- Content scroll management
-- Skip link for accessibility
+- Responsive design (desktop sidebar, mobile bottom nav; viewport state from `useViewport()`, re-exported via `hooks/useIsMobile.ts`)
+- Provides `SidebarContext` (mobile menu open/toggle) and `CommandPaletteContext` to children
+- Renders `ConnectionStatusBanner` and `ServiceStatusAlert` (dismissible) above page content
+- Skip links: `SkipLinkGroup` targeting `main-navigation` and `main-content`
+- Mobile bottom padding (`pb-14`) so content clears the bottom nav
 
 **Usage:**
 
@@ -74,102 +78,84 @@ function App() {
 
 ### Header
 
-Top navigation bar with branding and status indicators.
+Top navigation bar with branding and status indicators. Takes no props — it reads sidebar state from `SidebarContext` and system status from its own queries.
 
 **Location:** `frontend/src/components/layout/Header.tsx`
 
-**Props:**
-
-| Prop             | Type         | Default | Description         |
-| ---------------- | ------------ | ------- | ------------------- |
-| onMenuClick      | `() => void` | -       | Mobile menu handler |
-| sidebarCollapsed | `boolean`    | -       | Sidebar state       |
-
 **Contents:**
 
-- NVIDIA Home Security Intelligence branding
-- System health indicators (WebSocket, services)
+- NVIDIA branding (`/images/nvidia-logo-white.svg`)
+- Mobile hamburger button (`md:hidden`) that toggles the sidebar via `toggleMobileMenu()`
+- Command palette trigger (search box; opens via `useCommandPaletteContext`)
 - Theme toggle
-- Command palette trigger (`Cmd/Ctrl + K`)
-- GPU utilization mini-display
+- `WebSocketStatus` (connection indicator)
+- GPU mini-display (utilization, temperature, memory, inference FPS) and service-health tooltip
+- Recent Threats indicator and AI Service Status badge (hidden on mobile)
 
 **Usage:**
 
 ```tsx
 import { Header } from '@/components/layout';
 
-<Header onMenuClick={toggleSidebar} sidebarCollapsed={isCollapsed} />;
+<Header />;
 ```
 
 ---
 
 ### Sidebar
 
-Left navigation menu with route links.
+Left navigation menu with grouped route links.
 
 **Location:** `frontend/src/components/layout/Sidebar.tsx`
 
 **Props:**
 
-| Prop       | Type         | Default | Description         |
-| ---------- | ------------ | ------- | ------------------- |
-| collapsed  | `boolean`    | `false` | Collapsed state     |
-| onToggle   | `() => void` | -       | Toggle handler      |
-| onNavigate | `() => void` | -       | Navigation callback |
+| Prop           | Type      | Default | Description                                               |
+| -------------- | --------- | ------- | --------------------------------------------------------- |
+| forceCollapsed | `boolean` | -       | Force collapsed mode (overrides auto-collapse for tablet) |
 
-**Navigation Items:**
+Navigation structure is defined in `frontend/src/components/layout/sidebarNav.ts` as expandable groups (`navGroups`):
 
-| Route        | Label           | Icon            |
-| ------------ | --------------- | --------------- |
-| `/`          | Dashboard       | LayoutDashboard |
-| `/timeline`  | Events          | Clock           |
-| `/entities`  | Entities        | Users           |
-| `/alerts`    | Alerts          | Bell            |
-| `/analytics` | Analytics       | BarChart        |
-| `/audit`     | Audit Log       | FileText        |
-| `/system`    | System          | Server          |
-| `/settings`  | Settings        | Settings        |
-| `/jobs`      | Jobs            | Briefcase       |
-| `/dev-tools` | Developer Tools | Wrench          |
+| Group (label)          | Items (label - path)                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MONITORING (expanded)  | Dashboard - `/`, Timeline - `/timeline`, Entities - `/entities`, Alerts - `/alerts`                                                                                                                                                                                                                                                                                                                                    |
+| ANALYTICS (expanded)   | Analytics - `/analytics`, Video Analytics - `/video-analytics`, AI Audit - `/ai-audit`, AI Performance - `/ai`, AI Services - `/ai-services`, Profiling - `/pyroscope`, Plate Reads - `/plate-reads`, Face Recognition - `/face-recognition`, Heatmaps - `/heatmaps`, Scene Changes - `/scene-changes`, Object Tracks - `/tracks`, Performance - `/performance`, Household - `/household`, Re-Identification - `/reid` |
+| OPERATIONS (collapsed) | Jobs - `/jobs`, Pipeline - `/operations`, Dashboard - `/operations-dashboard`, Notifications - `/notifications`, GPU Metrics - `/gpu-metrics`, Request Profiling - `/request-profiling`, Tracing - `/tracing`, Logs - `/logs`                                                                                                                                                                                          |
+| ADMIN (collapsed)      | Zones - `/zones`, Audit Log - `/audit`, Data Management - `/data`, Scheduled Reports - `/scheduled-reports`, Webhooks - `/webhooks`, Trash - `/trash`, GPU Settings - `/settings/gpu`, Settings - `/settings`                                                                                                                                                                                                          |
 
 **Features:**
 
-- Active route highlighting
-- Collapsible with icon-only mode
-- Keyboard navigation
-- Alert badges for notifications
+- Active route highlighted (`bg-[#76B900] text-black`)
+- Collapsible icon-only mode; tablet auto-collapse (overridable via `forceCollapsed`)
+- On mobile viewports `Layout` hides the sidebar and uses `MobileBottomNav`; the hamburger opens it as an overlay with backdrop
 
 **Usage:**
 
 ```tsx
 import { Sidebar } from '@/components/layout';
 
-<Sidebar
-  collapsed={isCollapsed}
-  onToggle={() => setCollapsed(!isCollapsed)}
-  onNavigate={() => closeMobileMenu()}
-/>;
+<Sidebar forceCollapsed={isTablet} />;
 ```
 
 ---
 
 ### MobileBottomNav
 
-Bottom navigation bar for mobile devices.
+Bottom navigation bar for mobile viewports. Rendered by `Layout` when `useViewport().isMobile` is true (screens < 640px).
 
 **Location:** `frontend/src/components/layout/MobileBottomNav.tsx`
 
 **Props:**
 
-| Prop       | Type         | Default | Description         |
-| ---------- | ------------ | ------- | ------------------- |
-| onNavigate | `() => void` | -       | Navigation callback |
+| Prop              | Type     | Default | Description                                    |
+| ----------------- | -------- | ------- | ---------------------------------------------- |
+| notificationCount | `number` | `0`     | Unread count shown as badge on the Alerts item |
 
 **Features:**
 
-- Shows on screens < 768px
-- Fixed bottom position
-- 5 primary navigation items
+- Fixed bottom position, 56px (`h-14`) tall, safe-area padding
+- Primary items: Dashboard (`/`), Timeline (`/timeline`), Alerts (`/alerts`, badge-capable)
+- "More" menu for all remaining navigation routes
 - Active state indication
 
 **Usage:**
@@ -177,89 +163,78 @@ Bottom navigation bar for mobile devices.
 ```tsx
 import { MobileBottomNav } from '@/components/layout';
 
-<div className="md:hidden">
-  <MobileBottomNav onNavigate={handleNavigate} />
-</div>;
+<MobileBottomNav notificationCount={unread} />;
 ```
 
 ---
 
 ### PageDocsLink
 
-Link to documentation for current page.
+Link to documentation for the current page. Takes no props — it looks up the current route (`useLocation().pathname`) in the `PAGE_DOCUMENTATION` map from `frontend/src/config/pageDocumentation.ts`.
 
 **Location:** `frontend/src/components/layout/PageDocsLink.tsx`
-
-**Props:**
-
-| Prop    | Type     | Default | Description        |
-| ------- | -------- | ------- | ------------------ |
-| docPath | `string` | -       | Documentation path |
-| label   | `string` | `Docs`  | Link label         |
 
 **Usage:**
 
 ```tsx
 import { PageDocsLink } from '@/components/layout';
 
-<PageDocsLink docPath="/user/dashboard" label="Dashboard Help" />;
+<PageDocsLink />;
 ```
 
 ---
 
 ## Responsive Behavior
 
-| Breakpoint   | Sidebar  | Bottom Nav | Header          |
-| ------------ | -------- | ---------- | --------------- |
-| < 768px (sm) | Hidden   | Visible    | Hamburger menu  |
-| 768px+ (md)  | Visible  | Hidden     | Full navigation |
-| 1024px+ (lg) | Expanded | Hidden     | Full navigation |
+Viewport classes come from `useViewport()` (`hooks/useViewport.ts`, breakpoints `sm` 640 / `md` 768 / `lg` 1024; `isMobile` < 640, `isTablet` 640-1023, `isDesktop` >= 1024).
+
+| Viewport      | Sidebar                          | Bottom Nav   | Header hamburger     |
+| ------------- | -------------------------------- | ------------ | -------------------- |
+| < 640px       | Hidden (hamburger opens overlay) | Rendered     | Visible              |
+| 640-767px     | Rendered (overlay-capable)       | Not rendered | Visible              |
+| >= 768px (md) | Rendered inline                  | Not rendered | Hidden (`md:hidden`) |
 
 ---
 
 ## Theme Integration
 
-The layout uses the NVIDIA dark theme:
+Dark shell applied with Tailwind classes:
 
-```css
-/* Header */
-background: #0e0e0e;
-border-bottom: 1px solid #1a1a1a;
-
-/* Sidebar */
-background: #1a1a1a;
-border-right: 1px solid #2a2a2a;
-
-/* Content area */
-background: #121212;
-
-/* Active link */
-background: rgba(118, 185, 0, 0.1);
-border-left: 3px solid #76b900;
-```
+- App shell background: `bg-[#0E0E0E]` (`Layout.tsx`)
+- Header: `bg-[#1A1A1A]` with `border-b border-gray-800` (`Header.tsx`)
+- Sidebar: `bg-[#1A1A1A]` with `border-r border-gray-800` (`Sidebar.tsx`)
+- Active nav link: `bg-[#76B900] text-black` (`Sidebar.tsx`)
 
 ---
 
 ## Keyboard Shortcuts
 
-| Shortcut       | Action                  |
-| -------------- | ----------------------- |
-| `Cmd/Ctrl + K` | Open command palette    |
-| `Cmd/Ctrl + /` | Toggle sidebar          |
-| `Cmd/Ctrl + B` | Toggle sidebar          |
-| `?`            | Show keyboard shortcuts |
-| `g d`          | Go to Dashboard         |
-| `g e`          | Go to Events            |
-| `g s`          | Go to Settings          |
+Global handlers live in `frontend/src/hooks/useKeyboardShortcuts.ts`; the canonical reference is `docs/reference/keyboard-shortcuts.md`.
+
+| Shortcut       | Action                                  |
+| -------------- | --------------------------------------- |
+| `Cmd/Ctrl + K` | Open command palette                    |
+| `?`            | Open keyboard shortcuts help modal      |
+| `Escape`       | Close dialogs (via `onEscape` callback) |
+| `g` then `d`   | Go to Dashboard (`/`)                   |
+| `g` then `t`   | Go to Timeline (`/timeline`)            |
+| `g` then `e`   | Go to Entities (`/entities`)            |
+| `g` then `a`   | Go to Alerts (`/alerts`)                |
+| `g` then `s`   | Go to Settings (`/settings`)            |
+| `g` then `n`   | Go to Analytics (`/analytics`)          |
+| `g` then `o`   | Go to Logs (`/logs`)                    |
+| `g` then `y`   | Go to System/Operations (`/system`)     |
+
+(Chords are matched within a 1 s window - `CHORD_TIMEOUT`.) There is no keyboard shortcut for toggling the sidebar.
 
 ---
 
 ## Accessibility
 
-- Skip link to main content (`SkipLink` component)
+- Skip links to navigation and main content (`SkipLinkGroup` from `components/common/SkipLink`)
 - ARIA landmarks (`nav`, `main`, `header`)
 - Keyboard navigable sidebar
-- Focus management on route changes
+- Focus management on route changes (focusable `main` with `tabIndex={-1}`)
 - Screen reader announcements for navigation
 
 ---
@@ -267,9 +242,7 @@ border-left: 3px solid #76b900;
 ## Testing
 
 ```bash
-cd frontend && npm test -- --testPathPattern=Layout
-cd frontend && npm test -- --testPathPattern=Header
-cd frontend && npm test -- --testPathPattern=Sidebar
+cd frontend && npm test -- src/components/layout
 ```
 
 Test files:

@@ -1,5 +1,7 @@
 # Backup/Restore Interface Definitions (NEM-3566)
 
+> **Status:** Implemented — see `backend/api/routes/backup.py`.
+
 This document defines the shared interfaces for the Backup/Restore feature implementation.
 All agents must follow these interface contracts.
 

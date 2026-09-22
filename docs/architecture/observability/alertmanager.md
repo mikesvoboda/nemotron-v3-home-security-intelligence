@@ -4,479 +4,275 @@
 
 **Key Files:**
 
-- `monitoring/alertmanager.yml:1-215` - Alertmanager configuration
-- `monitoring/alerting-rules.yml:1-1116` - Alert rule definitions
-- `monitoring/prometheus-rules.yml:1-169` - Recording rules for SLIs
+- `monitoring/alertmanager.yml` (238 lines) - Alertmanager configuration
+- `monitoring/alerting-rules.yml` (1241 lines) - Core alert rule definitions
+- `monitoring/gpu-alerts.yml`, `monitoring/ai-pipeline-alerts.yml`, `monitoring/prometheus_rules.yml` - Additional rule groups (all loaded via `rule_files` in `monitoring/prometheus.yml:26-33`)
+- `monitoring/prometheus-rules.yml` (175 lines) - Recording rules for SLIs, error budgets, burn rates
 - `monitoring/grafana/provisioning/alerting/log-alerts.yml` - Grafana log-based alerts
 
 ## Overview
 
-Alertmanager receives alerts from Prometheus based on metric thresholds and routes them to appropriate notification channels. The system uses severity-based routing with escalation paths, grouping to reduce alert noise, and inhibition rules to prevent cascading alerts during major incidents.
+Prometheus evaluates the rule files above and sends firing alerts to Alertmanager, which groups
+them, applies inhibition rules, and forwards them to receivers. Alertmanager itself runs as the
+`alertmanager` compose service and mounts `monitoring/alertmanager.yml`
+(`docker-compose.prod.yml:1055`).
 
-Alerts are categorized by severity (critical, warning, info) and component (pipeline, infrastructure, ai-services, database). Route matching determines notification channel: critical alerts trigger webhooks and multiple channels, warnings go to standard channels, and info alerts are logged only.
+In the shipped configuration **every receiver delivers through the same webhook**:
+`http://backend:8000/api/webhooks/alerts`. The receivers exist so that routing, batching, and
+repeat intervals can differ per class of alert; Slack, email, and PagerDuty are present only as
+commented examples to enable (`monitoring/alertmanager.yml:184-199`). Severity and component labels
+decide which receiver handles an alert.
 
-The configuration supports both self-hosted and cloud deployments with flexible notification targets including webhooks, email, Slack, and PagerDuty.
+> **Note:** `monitoring/alertmanager.yml` is not envsubst-templated. Webhook URLs use container
+> service names on the compose network (fixed internal ports), independent of `.env` port
+> variables (`monitoring/alertmanager.yml:4-9`).
 
 ## Architecture
 
 ```mermaid
 graph TD
     subgraph "Alert Sources"
-        PROM[Prometheus<br/>alerting-rules.yml]
-        GRAF[Grafana Alerts<br/>log-alerts.yml]
+        PROM[Prometheus rule files<br/>alerting-rules, gpu-alerts,<br/>ai-pipeline-alerts, prometheus_rules]
+        GRAF[Grafana log alerts<br/>provisioning/alerting/log-alerts.yml]
     end
 
     subgraph "Alertmanager"
-        REC[Receiver<br/>alertmanager.yml:1-20]
-        ROUTE[Route Matching<br/>alertmanager.yml:95-180]
-        GROUP[Grouping]
-        INHIB[Inhibition Rules<br/>alertmanager.yml:181-216]
+        ROUTE[Route tree<br/>alertmanager.yml:45-116]
+        GROUP[Grouping &amp; batching]
+        INHIB[Inhibition rules<br/>alertmanager.yml:118-174]
     end
 
-    subgraph "Notification Channels"
-        WH[Webhook<br/>Backend API]
-        SLACK[Slack Integration]
-        EMAIL[Email SMTP]
-        PD[PagerDuty]
+    subgraph "Receivers alertmanager.yml:176-238"
+        CRIT[critical-receiver]
+        SLO[slo-receiver]
+        PIPE[pipeline-receiver]
+        INFRA[infrastructure-receiver]
+        GPU[gpu-receiver]
+        WARN[warning-receiver]
+        INFO[info-receiver]
     end
 
-    PROM --> |alert| REC
-    GRAF --> |alert| REC
-    REC --> ROUTE
-    ROUTE --> GROUP
-    GROUP --> INHIB
-    INHIB --> |critical| WH
-    INHIB --> |critical| PD
-    INHIB --> |warning| SLACK
-    INHIB --> |warning| EMAIL
+    BE[Backend webhook<br/>POST /api/webhooks/alerts]
+
+    PROM --> ROUTE
+    GRAF -.Grafana-managed.-> GRAF
+    ROUTE --> GROUP --> INHIB
+    INHIB --> CRIT --> BE
+    INHIB --> SLO --> BE
+    INHIB --> PIPE --> BE
+    INHIB --> INFRA --> BE
+    INHIB --> GPU --> BE
+    INHIB --> WARN --> BE
+    INHIB --> INFO --> BE
 ```
 
 ## Alert Configuration
 
 ### Global Settings
 
-Base configuration (`monitoring/alertmanager.yml:1-30`):
-
-```yaml
-global:
-  # Time to wait before declaring an alert resolved
-  resolve_timeout: 5m
-
-  # SMTP configuration for email alerts
-  smtp_smarthost: 'smtp.example.com:587'
-  smtp_from: 'alertmanager@example.com'
-  smtp_auth_username: 'alertmanager'
-  smtp_auth_password: '${SMTP_PASSWORD}'
-  smtp_require_tls: true
-
-  # Slack API URL (can be overridden per receiver)
-  slack_api_url: '${SLACK_WEBHOOK_URL}'
-
-  # PagerDuty service key
-  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
-```
-
-### Receiver Configuration
-
-Define notification targets (`monitoring/alertmanager.yml:35-90`):
-
-```yaml
-receivers:
-  # Critical alerts: webhook + PagerDuty
-  - name: 'critical-alerts'
-    webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts'
-        send_resolved: true
-        http_config:
-          basic_auth:
-            username: 'alertmanager'
-            password_file: '/etc/alertmanager/webhook_password'
-    pagerduty_configs:
-      - service_key: '${PAGERDUTY_SERVICE_KEY}'
-        severity: 'critical'
-        description: '{{ .CommonAnnotations.summary }}'
-        details:
-          firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
-          resolved: '{{ template "pagerduty.default.instances" .Alerts.Resolved }}'
-
-  # Warning alerts: Slack
-  - name: 'warning-alerts'
-    slack_configs:
-      - channel: '#hsi-alerts'
-        send_resolved: true
-        title: '{{ .Status | toUpper }}: {{ .CommonAnnotations.summary }}'
-        text: '{{ .CommonAnnotations.description }}'
-        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
-
-  # Info alerts: log only (no notification)
-  - name: 'info-alerts'
-    webhook_configs:
-      - url: 'http://backend:8000/api/webhooks/alerts?severity=info'
-        send_resolved: false
-
-  # Null receiver for silenced alerts
-  - name: 'null'
-```
+`monitoring/alertmanager.yml:10-38` sets `resolve_timeout: 5m`. SMTP and Slack settings are shipped
+commented out — uncomment `smtp_*` plus an `email_configs` block, or set `slack_api_url` plus a
+`slack_configs` block on a receiver, to enable those channels. Notification templates load from
+`/etc/alertmanager/templates/*.tmpl` (`monitoring/alertmanager.yml:41-42`).
 
 ### Route Configuration
 
-Route matching rules (`monitoring/alertmanager.yml:95-180`):
+The route tree (`monitoring/alertmanager.yml:45-116`) groups by `['alertname', 'component',
+'severity']` and defaults to `default-receiver` with `group_wait: 30s`, `group_interval: 5m`,
+`repeat_interval: 4h`. Child routes, evaluated in order:
 
-```yaml
-route:
-  # Default receiver for unmatched alerts
-  receiver: 'warning-alerts'
+| Match                 | Receiver                  | Timing overrides                                                                 |
+| --------------------- | ------------------------- | -------------------------------------------------------------------------------- |
+| `severity: critical`  | `critical-receiver`       | `group_wait: 10s`, `group_interval: 1m`, `repeat_interval: 1h`, `continue: true` |
+| `component: slo`      | `slo-receiver`            | `group_by: ['alertname', 'slo']`, `repeat_interval: 2h`                          |
+| `component: pipeline` | `pipeline-receiver`       | `group_wait: 15s`                                                                |
+| `component: database` | `infrastructure-receiver` | -                                                                                |
+| `component: redis`    | `infrastructure-receiver` | -                                                                                |
+| `component: gpu`      | `gpu-receiver`            | -                                                                                |
+| `severity: warning`   | `warning-receiver`        | `group_wait: 2m`, `group_interval: 10m`, `repeat_interval: 6h`                   |
+| `severity: info`      | `info-receiver`           | `group_wait: 5m`, `group_interval: 30m`, `repeat_interval: 24h`                  |
 
-  # Time to wait before sending initial alert
-  group_wait: 30s
+The critical route sets `continue: true`, so a critical alert is also evaluated against the
+component routes below it.
 
-  # Time between alert batches for same group
-  group_interval: 5m
+### Receivers
 
-  # Time before re-sending if alert still firing
-  repeat_interval: 4h
-
-  # Group alerts by these labels
-  group_by: ['alertname', 'severity', 'component']
-
-  # Child routes (evaluated in order, first match wins)
-  routes:
-    # Critical infrastructure alerts
-    - match:
-        severity: critical
-        component: infrastructure
-      receiver: 'critical-alerts'
-      group_wait: 10s
-      repeat_interval: 1h
-
-    # Critical pipeline alerts
-    - match:
-        severity: critical
-        component: pipeline
-      receiver: 'critical-alerts'
-      group_wait: 10s
-
-    # Critical AI service alerts
-    - match:
-        severity: critical
-        component: ai-services
-      receiver: 'critical-alerts'
-      group_wait: 10s
-
-    # Warning alerts by component
-    - match:
-        severity: warning
-      receiver: 'warning-alerts'
-
-    # Info alerts (logging only)
-    - match:
-        severity: info
-      receiver: 'info-alerts'
-
-    # Database alerts to dedicated channel
-    - match_re:
-        alertname: 'Database.*'
-      receiver: 'critical-alerts'
-      group_by: ['alertname', 'instance']
-```
+All eight receivers (`monitoring/alertmanager.yml:176-238`) post to
+`http://backend:8000/api/webhooks/alerts`. Only `info-receiver` sets `send_resolved: false`.
+`critical-receiver` carries commented `slack_configs` and `email_configs` examples for production
+use; there is no PagerDuty receiver.
 
 ### Inhibition Rules
 
-Prevent alert cascades (`monitoring/alertmanager.yml:181-215`):
+`monitoring/alertmanager.yml:118-174` defines eight suppressions, all keyed on the `HSI*` alert
+names that actually exist in the rule files:
 
-```yaml
-inhibit_rules:
-  # If backend is down, suppress all dependent alerts
-  - source_match:
-      alertname: 'BackendDown'
-      severity: 'critical'
-    target_match:
-      component: 'pipeline'
-    equal: ['instance']
+| Source                  | Suppresses                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `HSIPipelineDown`       | `HSI.*`                                                                                |
+| `HSIDatabaseUnhealthy`  | `HSIDetectionQueueHigh`, `HSIAnalysisQueueHigh`, `HSISlowDetection`, `HSISlowAnalysis` |
+| `HSIRedisUnhealthy`     | `HSIDetectionQueueHigh`, `HSIAnalysisQueueHigh`                                        |
+| `HSIGPUMemoryHigh`      | `HSIGPUMemoryElevated` (`equal: ['component']`)                                        |
+| `HSICriticalErrorRate`  | `HSIHighErrorRate`                                                                     |
+| `HSIExtremeLatency`     | `HSISlowDetection`, `HSISlowAnalysis`                                                  |
+| `HSIQueueCritical`      | `HSIDetectionQueueHigh`, `HSIAnalysisQueueHigh`                                        |
+| `HSI.*FastBurn` (regex) | `HSI.*SlowBurn` (`equal: ['slo']`)                                                     |
 
-  # If GPU is unavailable, suppress AI service alerts
-  - source_match:
-      alertname: 'GPUUnavailable'
-    target_match:
-      component: 'ai-services'
-
-  # If Redis is down, suppress cache-related alerts
-  - source_match:
-      alertname: 'RedisDown'
-    target_match_re:
-      alertname: 'Cache.*|Queue.*'
-
-  # If Prometheus is down, suppress metric-based alerts
-  - source_match:
-      alertname: 'PrometheusDown'
-    target_match_re:
-      alertname: '.*Latency.*|.*Rate.*|.*Queue.*'
-
-  # Critical severity inhibits warning for same alertname
-  - source_match:
-      severity: 'critical'
-    target_match:
-      severity: 'warning'
-    equal: ['alertname', 'instance']
-```
+`HSISlowDetection`, `HSISlowAnalysis`, and `HSIExtremeLatency` are referenced by inhibition rules
+but their alert groups are commented out in `monitoring/alerting-rules.yml:274-291` because the
+recording rules they depend on need `hsi_stage_duration_seconds_bucket`, which the backend does not
+yet emit. Those three inhibitions are therefore inert until the latency groups are re-enabled.
 
 ## Alert Rule Definitions
 
-### Infrastructure Alerts
+### Core Service Health
 
-Service availability (`monitoring/alerting-rules.yml:15-80`):
+`monitoring/alerting-rules.yml:6-115`. These are availability alerts driven by blackbox probes and
+the json-exporter health gauges, not by `up{job=...}`:
 
-| Alert            | Condition                    | Severity | For |
-| ---------------- | ---------------------------- | -------- | --- |
-| `BackendDown`    | `up{job="hsi-backend"} == 0` | critical | 1m  |
-| `RedisDown`      | `up{job="redis"} == 0`       | critical | 1m  |
-| `PrometheusDown` | `up{job="prometheus"} == 0`  | critical | 1m  |
-| `PostgresDown`   | `up{job="postgres"} == 0`    | critical | 1m  |
-| `JaegerDown`     | `up{job="jaeger"} == 0`      | warning  | 5m  |
-
-Example rule:
-
-```yaml
-- alert: BackendDown
-  expr: up{job="hsi-backend-metrics"} == 0
-  for: 1m
-  labels:
-    severity: critical
-    component: infrastructure
-  annotations:
-    summary: 'Backend service is down'
-    description: 'The HSI backend service has been unreachable for more than 1 minute'
-    runbook_url: 'https://docs.hsi.local/runbooks/backend-down'
-```
+| Alert                          | Expression                                                                              | Severity | For | Component  |
+| ------------------------------ | --------------------------------------------------------------------------------------- | -------- | --- | ---------- |
+| `HSIPipelineDown`              | `probe_success{job="blackbox-http-live", service="backend"} == 0`                       | critical | 1m  | `pipeline` |
+| `HSIPipelineUnhealthy`         | `hsi_system_healthy == 0`                                                               | critical | 2m  | `pipeline` |
+| `HSIDatabaseUnhealthy`         | `hsi_database_healthy == 0`                                                             | critical | 2m  | `database` |
+| `HSIDatabaseSlowQueries`       | `histogram_quantile(0.95, rate(hsi_db_query_duration_seconds_bucket[5m])) > 1`          | warning  | 5m  | `database` |
+| `HSIRedisUnhealthy`            | `hsi_redis_healthy == 0`                                                                | critical | 2m  | `redis`    |
+| `HSIRedisMemoryHigh`           | `redis_memory_max_bytes > 0 and redis_memory_used_bytes / redis_memory_max_bytes > 0.8` | warning  | 5m  | `redis`    |
+| `HSIRedisSlowCommands`         | `increase(redis_slowlog_length[5m]) > 0`                                                | warning  | 2m  | `redis`    |
+| `HSIRedisSlowCommandsCritical` | `increase(redis_slowlog_length[5m]) > 10`                                               | critical | 2m  | `redis`    |
 
 ### GPU Alerts
 
-GPU health monitoring (`monitoring/alerting-rules.yml:85-150`):
+Two files contribute GPU alerts. From `monitoring/alerting-rules.yml:116-236` (backend- and
+DCGM-derived metrics):
 
-| Alert                   | Condition                                                 | Severity | For |
-| ----------------------- | --------------------------------------------------------- | -------- | --- |
-| `GPUUnavailable`        | `hsi_gpu_available != 1`                                  | critical | 2m  |
-| `GPUTemperatureHigh`    | `hsi_gpu_temperature > 85`                                | critical | 5m  |
-| `GPUTemperatureWarning` | `hsi_gpu_temperature > 75`                                | warning  | 10m |
-| `GPUMemoryHigh`         | `hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb > 0.95` | warning  | 5m  |
-| `GPUUtilizationLow`     | `hsi_gpu_utilization < 10`                                | info     | 30m |
+| Alert                  | Expression                                              | Severity | For |
+| ---------------------- | ------------------------------------------------------- | -------- | --- |
+| `HSIGPUMemoryElevated` | `hsi:gpu:memory_utilization > 0.75`                     | warning  | 10m |
+| `HSIGPUMemoryHigh`     | `hsi:gpu:memory_utilization > 0.9`                      | critical | 5m  |
+| `HSIGPUUtilizationLow` | `hsi:gpu:utilization < 10 and hsi_total_detections > 0` | warning  | 15m |
+| `AIGPUThrottling`      | `hsi_gpu_temperature > 83`                              | critical | 1m  |
 
-Example rule:
+From `monitoring/gpu-alerts.yml` (raw DCGM exporter metrics): `GPUMemoryNearFull`, `GPUMemoryHigh`,
+`GPUHighTemperature` (`DCGM_FI_DEV_GPU_TEMP > 85`), `GPUTemperatureElevated` (`> 75`),
+`GPUUtilizationSaturated`, `GPUUnderutilizedMemoryBound`, `GPUMemoryBandwidthSaturated`,
+`GPUHighPowerUsage`, `GPUClockSpeedDegraded`, `DCGMExporterDown`, `NoGPUMetrics`.
 
-```yaml
-- alert: GPUTemperatureHigh
-  expr: hsi_gpu_temperature > 85
-  for: 5m
-  labels:
-    severity: critical
-    component: infrastructure
-  annotations:
-    summary: 'GPU temperature critical: {{ $value }}C'
-    description: 'GPU temperature has exceeded 85C for 5 minutes. Thermal throttling imminent.'
-```
+### Queue and Error-Rate Alerts
 
-### Pipeline Alerts
+Queues (`monitoring/alerting-rules.yml:238-272`):
 
-Processing health (`monitoring/alerting-rules.yml:155-280`):
+| Alert                   | Expression                                                          | Severity | For |
+| ----------------------- | ------------------------------------------------------------------- | -------- | --- |
+| `HSIDetectionQueueHigh` | `hsi_detection_queue_depth > 100`                                   | warning  | 5m  |
+| `HSIAnalysisQueueHigh`  | `hsi_analysis_queue_depth > 50`                                     | warning  | 5m  |
+| `HSIQueueCritical`      | `hsi_detection_queue_depth > 500 or hsi_analysis_queue_depth > 200` | critical | 2m  |
 
-| Alert                    | Condition                                        | Severity | For |
-| ------------------------ | ------------------------------------------------ | -------- | --- |
-| `DetectionQueueBacklog`  | `hsi_detection_queue_depth > 100`                | warning  | 5m  |
-| `DetectionQueueCritical` | `hsi_detection_queue_depth > 500`                | critical | 2m  |
-| `AnalysisQueueBacklog`   | `hsi_analysis_queue_depth > 50`                  | warning  | 5m  |
-| `PipelineLatencyHigh`    | `hsi_detect_latency_p95_ms > 60000`              | warning  | 10m |
-| `PipelineErrorRateHigh`  | `rate(hsi_pipeline_errors_total[5m]) > 0.1`      | warning  | 5m  |
-| `NoDetectionsProcessed`  | `rate(hsi_detections_processed_total[15m]) == 0` | critical | 15m |
-| `NoEventsCreated`        | `rate(hsi_events_created_total[30m]) == 0`       | warning  | 30m |
+Error rates (`monitoring/alerting-rules.yml:292-317`), driven by an API success-rate recording rule
+rather than a pipeline error counter:
 
-Example rule:
-
-```yaml
-- alert: DetectionQueueBacklog
-  expr: hsi_detection_queue_depth > 100
-  for: 5m
-  labels:
-    severity: warning
-    component: pipeline
-  annotations:
-    summary: 'Detection queue backlog: {{ $value }} items'
-    description: 'Detection queue has more than 100 items waiting for 5+ minutes'
-```
-
-### AI Service Alerts
-
-Model health (`monitoring/alerting-rules.yml:285-400`):
-
-| Alert                  | Condition             | Severity | For |
-| ---------------------- | --------------------- | -------- | --- |
-| `YOLO26LatencyHigh`    | P95 > 5s              | warning  | 10m |
-| `NemotronLatencyHigh`  | P95 > 60s             | warning  | 10m |
-| `EnrichmentErrorRate`  | Error rate > 5%       | warning  | 5m  |
-| `LLMContextOverflow`   | Truncation rate > 10% | warning  | 15m |
-| `AIServiceUnavailable` | Service down          | critical | 2m  |
-
-Example rule:
-
-```yaml
-- alert: NemotronLatencyHigh
-  expr: |
-    histogram_quantile(0.95,
-      rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])
-    ) > 60
-  for: 10m
-  labels:
-    severity: warning
-    component: ai-services
-  annotations:
-    summary: 'Nemotron P95 latency high: {{ $value | humanizeDuration }}'
-    description: 'LLM inference P95 latency exceeds 60s for 10+ minutes'
-```
-
-### Database Alerts
-
-PostgreSQL health (`monitoring/alerting-rules.yml:405-500`):
-
-| Alert                         | Condition        | Severity | For |
-| ----------------------------- | ---------------- | -------- | --- |
-| `DatabaseConnectionsHigh`     | Active > 80% max | warning  | 5m  |
-| `DatabaseConnectionsCritical` | Active > 95% max | critical | 2m  |
-| `SlowQueriesHigh`             | rate > 1/min     | warning  | 10m |
-| `DatabaseDiskUsageHigh`       | Usage > 80%      | warning  | 15m |
-| `DatabaseDiskUsageCritical`   | Usage > 95%      | critical | 5m  |
-
-### Cache Alerts
-
-Redis health (`monitoring/alerting-rules.yml:505-580`):
-
-| Alert                 | Condition            | Severity | For |
-| --------------------- | -------------------- | -------- | --- |
-| `CacheHitRateLow`     | Hit rate < 50%       | warning  | 15m |
-| `CacheEvictionsHigh`  | Evictions > 1000/min | warning  | 5m  |
-| `RedisMemoryHigh`     | Used > 80% max       | warning  | 10m |
-| `RedisMemoryCritical` | Used > 95% max       | critical | 5m  |
+| Alert                  | Expression                                    | Severity | For |
+| ---------------------- | --------------------------------------------- | -------- | --- |
+| `HSIHighErrorRate`     | `1 - hsi:api_requests:success_rate_5m > 0.05` | warning  | 5m  |
+| `HSICriticalErrorRate` | `1 - hsi:api_requests:success_rate_5m > 0.1`  | critical | 2m  |
 
 ### SLO Burn Rate Alerts
 
-Multi-window SLO monitoring (`monitoring/alerting-rules.yml:585-700`):
+Multi-window burn rate on API availability (`monitoring/alerting-rules.yml:329-363`):
 
-| Alert                           | Condition       | Severity | Windows |
-| ------------------------------- | --------------- | -------- | ------- |
-| `APIAvailabilityBurnRateFast`   | 14.4x burn rate | critical | 1h, 5m  |
-| `APIAvailabilityBurnRateMedium` | 6x burn rate    | critical | 6h, 30m |
-| `APIAvailabilityBurnRateSlow`   | 3x burn rate    | warning  | 1d, 6h  |
+| Alert                        | Expression                                                                           | Severity | For |
+| ---------------------------- | ------------------------------------------------------------------------------------ | -------- | --- |
+| `HSIAPIAvailabilityFastBurn` | `hsi:burn_rate:api_availability_1h > 14.4 and hsi:burn_rate:api_availability_6h > 6` | critical | 2m  |
+| `HSIAPIAvailabilitySlowBurn` | `hsi:burn_rate:api_availability_1d > 3`                                              | warning  | 1h  |
 
-Example multi-window burn rate rule:
+Latency burn-rate alerts are commented out pending the same missing histogram metrics
+(`monitoring/alerting-rules.yml:364-372`).
 
-```yaml
-- alert: APIAvailabilityBurnRateFast
-  expr: |
-    (
-      hsi:burn_rate:api_availability_1h > 14.4
-      and
-      hsi:burn_rate:api_availability_5m > 14.4
-    )
-  for: 2m
-  labels:
-    severity: critical
-    component: slo
-  annotations:
-    summary: 'API availability SLO burn rate critical'
-    description: 'Fast burn: consuming 14.4x error budget. Will exhaust 30d budget in 2 days at current rate.'
-```
+### AI Pipeline and Worker Alerts
+
+`monitoring/ai-pipeline-alerts.yml` covers the enrichment pipeline, LLM behaviour, and scoring:
+`GPUOOMCritical`, `GPUMemoryHigh`, `GPUMemoryCritical`, `EnrichmentPipelineTimeout`,
+`EnrichmentPipelineTimeoutCritical`, `EnrichmentModelErrorRate`, `EnrichmentModelErrorCritical`,
+`EnrichmentQualityDegraded`, `PromptTruncationHigh`, `PromptContextUtilizationHigh`,
+`LLMInferenceLatencyHigh`, `LLMInferenceLatencyCritical`, `CoalescingMergeRateLow`,
+`CoalescingMergeRateHigh`, `RiskScoreCalibrationDrift`, `RiskScoreAllCritical`, `RiskScoreAllLow`,
+`CLIPServiceDown`, `FlorenceServiceDown`, `CLIPAnomalyErrorsHigh`.
+
+`monitoring/alerting-rules.yml` also defines Prometheus self-monitoring alerts (`Prometheus*`,
+lines 415-690), worker alerts (`HSIWorkerFailed`, `HSIWorkerNotRunning`,
+`HSIWorkerConsecutiveFailures`, lines 695-748), plus circuit-breaker, profiling, websocket, cache,
+batch, and system groups.
 
 ## Recording Rules for Alerts
 
-Pre-computed metrics for alerting (`monitoring/prometheus-rules.yml:119-169`):
+Pre-computed SLI metrics and burn rates (`monitoring/prometheus-rules.yml:119-175`):
 
 ```yaml
-# Error budget calculations
+# Error budget remaining, API availability target 99.5%
 - record: hsi:error_budget:api_availability_remaining
-  expr: |
-    1 - (
-      (1 - hsi:api_availability:ratio_rate30d)
-      /
-      (1 - 0.995)
-    )
+  expr: 1 - ((1 - hsi:api_availability:ratio_rate30d) / (1 - 0.995))
 
-# Burn rate calculations
+# Burn rates against the same target
 - record: hsi:burn_rate:api_availability_1h
-  expr: |
-    (1 - hsi:api_availability:ratio_rate1h) / (1 - 0.995)
-
+  expr: (1 - hsi:api_availability:ratio_rate1h) / (1 - 0.995)
 - record: hsi:burn_rate:api_availability_6h
-  expr: |
-    (1 - hsi:api_availability:ratio_rate6h) / (1 - 0.995)
-
+  expr: (1 - hsi:api_availability:ratio_rate6h) / (1 - 0.995)
 - record: hsi:burn_rate:api_availability_1d
-  expr: |
-    (1 - hsi:api_availability:ratio_rate1d) / (1 - 0.995)
+  expr: (1 - hsi:api_availability:ratio_rate1d) / (1 - 0.995)
 ```
+
+Detection- and analysis-latency burn rates are defined in the same group
+(`monitoring/prometheus-rules.yml:133-137, 158-164`) against a 95% within-SLO target.
 
 ## Grafana Log-Based Alerts
 
-Log pattern alerting (`monitoring/grafana/provisioning/alerting/log-alerts.yml`):
+Grafana evaluates LogQL rules against Loki independently of Prometheus
+(`monitoring/grafana/provisioning/alerting/log-alerts.yml`):
 
-| Alert              | LogQL                  | Severity |
-| ------------------ | ---------------------- | -------- |
-| `HighErrorRate`    | ERROR/CRITICAL > 5%    | warning  |
-| `CriticalLogSpike` | CRITICAL count > 10/5m | critical |
-| `NoLogsReceived`   | count == 0 for 10m     | critical |
+| Rule uid          | Title                   | Condition                                                | Severity |
+| ----------------- | ----------------------- | -------------------------------------------------------- | -------- |
+| `high-error-rate` | High Error Rate         | `sum(count_over_time({level="ERROR"}[5m])) > 10`, for 2m | warning  |
+| `error-spike`     | Error Spike             | `sum(count_over_time({level="ERROR"}[1m])) > 20`, for 1m | critical |
+| `service-silent`  | Service Silent          | `absent_over_time({container="backend"}[5m])`, for 5m    | warning  |
+| `critical-error`  | Critical Error Detected | `count_over_time({level="CRITICAL"}[1m]) > 0`            | critical |
 
-Example:
-
-```yaml
-- alert: HighErrorRate
-  expr: |
-    sum(count_over_time({container=~"backend|ai-.*"} |~ "ERROR|CRITICAL" [5m]))
-    / sum(count_over_time({container=~"backend|ai-.*"} [5m])) > 0.05
-  for: 5m
-  labels:
-    severity: warning
-    source: logs
-  annotations:
-    summary: 'High error rate in logs'
-    description: 'Error rate exceeds 5% for 5 minutes'
-```
+These live in Grafana's alerting engine (folder "HSI Alerts", evaluated every minute), so they do
+not pass through Prometheus; notification policy is Grafana's own.
 
 ## Alert Labels
 
-Standard labels for routing and filtering:
+Standard labels for routing and filtering, as used across the rule files:
 
-| Label       | Values                                                                  | Purpose                     |
-| ----------- | ----------------------------------------------------------------------- | --------------------------- |
-| `severity`  | `critical`, `warning`, `info`                                           | Route selection, escalation |
-| `component` | `infrastructure`, `pipeline`, `ai-services`, `database`, `cache`, `slo` | Team routing                |
-| `instance`  | Service instance                                                        | Deduplication, inhibition   |
-| `source`    | `prometheus`, `grafana`, `logs`                                         | Alert origin                |
+| Label       | Values                                                                                                                                                                                                                                                     | Purpose                       |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `severity`  | `critical`, `warning`, `info`                                                                                                                                                                                                                              | Route selection, escalation   |
+| `component` | `pipeline`, `queue`, `database`, `redis`, `cache`, `gpu`, `api`, `ai`, `llm`, `enrichment`, `scoring`, `batch`, `worker`, `circuit_breaker`, `websocket`, `monitoring`, `profiling`, `system`, `slo`, `backend`, `detection`, `analysis`, `infrastructure` | Route selection, inhibition   |
+| `slo`       | `api_availability`, …                                                                                                                                                                                                                                      | SLO grouping                  |
+| `alertname` | Alert identity                                                                                                                                                                                                                                             | Grouping, inhibition matching |
 
 ## Alert Annotations
 
 Standard annotations for context:
 
-| Annotation      | Purpose                    |
-| --------------- | -------------------------- |
-| `summary`       | Brief alert title          |
-| `description`   | Detailed explanation       |
-| `runbook_url`   | Link to remediation docs   |
-| `dashboard_url` | Link to relevant dashboard |
-| `value`         | Current metric value       |
+| Annotation    | Purpose                           |
+| ------------- | --------------------------------- |
+| `summary`     | Brief alert title                 |
+| `description` | Detailed explanation              |
+| `runbook_url` | Link to the remediation wiki page |
 
 ## Testing Alerts
 
 Verify alert rules:
 
 ```bash
-# Check Prometheus rule syntax
-promtool check rules monitoring/alerting-rules.yml
-
-# Test rule evaluation
-promtool test rules monitoring/alerting-rules-test.yml
+# Rule syntax (promtool ships with the prom image)
+podman exec prometheus promtool check rules /etc/prometheus/alerting-rules.yml
 
 # Query Prometheus for active alerts
-curl -s http://prometheus:9090/api/v1/alerts | jq '.data.alerts'
+curl -s http://localhost:9090/api/v1/alerts | jq '.data.alerts'
 
 # Check Alertmanager status
-curl -s http://alertmanager:9093/api/v2/status | jq
+curl -s http://localhost:9093/api/v2/status | jq
 ```
 
 ## Silences
@@ -484,15 +280,14 @@ curl -s http://alertmanager:9093/api/v2/status | jq
 Create temporary silences for maintenance:
 
 ```bash
-# Create silence via API
-curl -X POST http://alertmanager:9093/api/v2/silences \
+curl -X POST http://localhost:9093/api/v2/silences \
   -H "Content-Type: application/json" \
   -d '{
     "matchers": [
-      {"name": "alertname", "value": "GPUTemperatureWarning", "isRegex": false}
+      {"name": "alertname", "value": "HSIGPUMemoryElevated", "isRegex": false}
     ],
-    "startsAt": "2024-01-15T10:00:00Z",
-    "endsAt": "2024-01-15T12:00:00Z",
+    "startsAt": "2026-09-22T10:00:00Z",
+    "endsAt": "2026-09-22T12:00:00Z",
     "createdBy": "admin",
     "comment": "GPU maintenance window"
   }'

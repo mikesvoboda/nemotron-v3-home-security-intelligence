@@ -16,7 +16,10 @@ Home Security Intelligence uses **Redis 7.4+** as its in-memory data store for:
 - **Caching** - File deduplication and temporary data
 - **Rate limiting** - API rate limit tracking
 
-> **Note:** Redis is required for all deployments. The system will fail to start if Redis is unavailable.
+> **Note:** Redis is required for normal operation. If the connection fails at startup the
+> backend process still comes up but logs "Continuing without Redis" and skips the queue
+> workers — `/api/system/health/ready` then reports `not_ready` (readiness fails when
+> Redis is unhealthy or the detection/analysis workers are down).
 
 ### Data Stored in Redis
 
@@ -50,18 +53,22 @@ Home Security Intelligence uses **Redis 7.4+** as its in-memory data store for:
 
 ```bash
 # Start Redis container
-docker compose -f docker-compose.prod.yml up -d redis
+podman compose -f docker-compose.prod.yml up -d redis
 
 # Verify health
-docker compose -f docker-compose.prod.yml ps redis
+podman compose -f docker-compose.prod.yml ps redis
 ```
 
-The Redis container is configured in `docker-compose.prod.yml` with:
+The Redis container (`docker.io/library/redis:7.4-alpine3.21`) is configured in
+`docker-compose.prod.yml` with:
 
-- Persistent storage via `redis_data` volume
-- AOF (Append-Only File) persistence enabled
-- Health checks via `redis-cli ping`
-- Optional password authentication
+- Persistent storage via `redis_data` volume; AOF persistence (`--appendonly yes
+--appendfsync everysec`)
+- `--maxmemory 512mb --maxmemory-policy volatile-lru` and slow-log tuning
+- Health check via `redis-cli ping` (with AUTH when a password is set)
+- Optional password authentication (`REDIS_PASSWORD`)
+- Host binding `127.0.0.1:${REDIS_PORT:-6379}` only (NEM-4496)
+- Read-only rootfs and dropped capabilities (NEM-4978)
 
 ### Option 2: Native Redis
 
@@ -116,15 +123,15 @@ The `docker-compose.prod.yml` file automatically configures Redis based on `REDI
 
 ```yaml
 redis:
-  image: redis:7.4-alpine3.21
+  image: docker.io/library/redis:7.4-alpine3.21
   command: >-
     sh -c '
     if [ -n "$$REDIS_PASSWORD" ]; then
       echo "Starting Redis with password authentication"
-      redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
+      redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no --requirepass "$$REDIS_PASSWORD"
     else
       echo "Starting Redis without authentication (development mode)"
-      redis-server --appendonly yes --appendfsync everysec
+      redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy volatile-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --stop-writes-on-bgsave-error no
     fi
     '
   environment:
@@ -186,17 +193,21 @@ REDIS_PASSWORD=  # Empty = no authentication (dev only)
 
 ## Monitoring Stack Integration
 
-When using the monitoring profile, the Redis exporter also needs authentication:
+The Redis exporter ships in the default compose stack (no profile) and also needs
+authentication:
 
 ```yaml
 redis-exporter:
-  image: oliver006/redis_exporter:v1.55.0
+  image: docker.io/oliver006/redis_exporter:v1.55.0
+  ports:
+    - '127.0.0.1:${REDIS_EXPORTER_PORT:-9121}:9121'
   environment:
     - REDIS_ADDR=redis://redis:6379
     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
 ```
 
-The exporter automatically uses the same `REDIS_PASSWORD` to scrape Redis metrics.
+The exporter automatically uses the same `REDIS_PASSWORD` to scrape Redis metrics;
+Prometheus scrapes it via the `redis` job.
 
 ---
 
@@ -213,10 +224,10 @@ The exporter automatically uses the same `REDIS_PASSWORD` to scrape Redis metric
 
 ```bash
 # Check if password is set in backend container
-docker compose -f docker-compose.prod.yml exec backend printenv | grep REDIS
+podman compose -f docker-compose.prod.yml exec backend printenv | grep REDIS
 
 # Restart backend
-docker compose -f docker-compose.prod.yml restart backend
+podman compose -f docker-compose.prod.yml restart backend
 ```
 
 ### Symptom: "WRONGPASS invalid username-password pair"
@@ -229,17 +240,17 @@ docker compose -f docker-compose.prod.yml restart backend
 
 ```bash
 # Check Redis container
-docker compose -f docker-compose.prod.yml exec redis printenv REDIS_PASSWORD
+podman compose -f docker-compose.prod.yml exec redis printenv REDIS_PASSWORD
 
 # Check backend container
-docker compose -f docker-compose.prod.yml exec backend printenv REDIS_PASSWORD
+podman compose -f docker-compose.prod.yml exec backend printenv REDIS_PASSWORD
 ```
 
 2. If they differ, fix `.env` and restart both services:
 
 ```bash
-docker compose -f docker-compose.prod.yml down
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Symptom: "Connection refused" after enabling auth
@@ -250,10 +261,10 @@ docker compose -f docker-compose.prod.yml up -d
 
 ```bash
 # Force recreation of Redis container
-docker compose -f docker-compose.prod.yml up -d --force-recreate redis
+podman compose -f docker-compose.prod.yml up -d --force-recreate redis
 
 # Wait for health check to pass
-docker compose -f docker-compose.prod.yml ps redis
+podman compose -f docker-compose.prod.yml ps redis
 ```
 
 ### Symptom: Backend starts but can't connect to Redis
@@ -290,7 +301,7 @@ REDIS_PASSWORD=secret
 redis-cli -h localhost -p 6379 -a "your_password" ping
 
 # Test from inside Redis container
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
 
 # Expected output: PONG
 ```
@@ -299,7 +310,7 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWO
 
 ```bash
 # Backend logs show connection status
-docker compose -f docker-compose.prod.yml logs backend | grep -i redis
+podman compose -f docker-compose.prod.yml logs backend | grep -i redis
 
 # Look for:
 # "Successfully connected to Redis with authentication"  (good)
@@ -332,22 +343,22 @@ For encrypted Redis connections, see the SSL/TLS settings in `.env.example`:
 
 ```bash
 # Start Redis
-docker compose -f docker-compose.prod.yml up -d redis
+podman compose -f docker-compose.prod.yml up -d redis
 
 # Check health
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
 
 # View Redis info
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" info
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" info
 
 # Check memory usage
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" info memory
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" info memory
 
 # List all keys (use sparingly)
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" keys '*'
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" keys '*'
 
 # Clear all data (DANGER - development only)
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" flushall
+podman compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" flushall
 ```
 
 ### Health Check Endpoint
@@ -355,16 +366,17 @@ docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWO
 The backend health endpoint reports Redis status:
 
 ```bash
-curl http://localhost:8000/api/system/health/ready | jq '.dependencies.redis'
+curl http://localhost:8000/api/system/health/ready | jq '.services.redis'
 ```
 
-Expected output when healthy:
+Expected output when healthy (the readiness response groups infrastructure under
+`services`):
 
 ```json
 {
   "status": "healthy",
-  "connected": true,
-  "redis_version": "7.4.1"
+  "message": "Redis connected",
+  "details": { "redis_version": "7.4.1" }
 }
 ```
 

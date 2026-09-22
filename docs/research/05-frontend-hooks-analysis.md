@@ -1,5 +1,7 @@
 # Frontend Hooks Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The frontend has **80+ custom React hooks** covering queries, WebSocket, state management, and UI helpers. Strong architecture using TanStack React Query v5.

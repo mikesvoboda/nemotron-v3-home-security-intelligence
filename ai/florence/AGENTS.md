@@ -351,10 +351,12 @@ Find objects in an image matching text descriptions (phrase grounding).
 
 ## Starting the Server
 
-### Container (Production)
+### Production (served by ai-gateway)
+
+Florence-2 runs inside the `ai-gateway` container (Triton + FastAPI on port 8090, router prefix `/florence`) - there is no standalone `ai-florence` compose service:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-florence
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 ```
 
 ### Native (Development)

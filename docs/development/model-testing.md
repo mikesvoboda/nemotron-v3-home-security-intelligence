@@ -385,11 +385,13 @@ def test_severity_levels():
 Integration tests verify that the enrichment service correctly coordinates model loading, inference, and response formatting.
 
 ```bash
-# Start ai-enrichment service in test mode
-podman-compose -f docker-compose.test.yml up ai-enrichment -d
+# AI services (including enrichment) run under the ai-gateway service in
+# production compose; backend-side enrichment integration tests mock the HTTP
+# layer and need only postgres/redis from docker-compose.test.yml:
+podman-compose -f docker-compose.test.yml up -d
 
 # Run integration tests
-pytest backend/tests/integration/test_enrichment_client.py -v
+uv run pytest backend/tests/integration/test_enrichment_pipeline.py -v
 ```
 
 ### Testing the Unified Endpoint
@@ -404,7 +406,7 @@ from backend.services.enrichment_client import EnrichmentClient
 @pytest.fixture
 def mock_enrichment_client():
     """Create EnrichmentClient with mocked HTTP client."""
-    client = EnrichmentClient("http://localhost:8094")
+    client = EnrichmentClient("http://localhost:8090/enrichment")
     return client
 
 
@@ -441,15 +443,26 @@ async def test_enrich_person_detection(mock_enrichment_client):
 
 @pytest.mark.asyncio
 async def test_enrichment_handles_timeout():
-    """Test graceful handling of service timeout."""
-    client = EnrichmentClient("http://localhost:8094", timeout=0.001)
+    """Test graceful handling of service timeout.
 
-    with pytest.raises(TimeoutError):
-        await client.enrich_detection(
+    `EnrichmentClient.__init__` takes only base URLs (timeouts come from
+    settings: `ENRICHMENT_READ_TIMEOUT`, `AI_CONNECT_TIMEOUT`), so force the
+    timeout at the HTTP layer instead of the constructor. On timeout the
+    client logs and returns an empty `UnifiedEnrichmentResult` — it does not
+    raise — so assert on the empty result.
+    """
+    client = EnrichmentClient("http://localhost:8090/enrichment")
+
+    with patch.object(
+        client._client, "post", side_effect=httpx.TimeoutException("slow")
+    ):
+        result = await client.enrich_detection(
             image=b"fake_image_bytes",
             detection_type="person",
             bbox=(100, 100, 300, 400),
         )
+
+    assert not result.pose  # empty result — pipeline continues without enrichment
 ```
 
 ## Test Fixtures

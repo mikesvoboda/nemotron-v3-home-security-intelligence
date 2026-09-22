@@ -277,7 +277,7 @@ class TestSetupFlow:
         assert "set-cookie" in login_response.headers
 
         # Step 7: Verify endpoints are accessible after setup (open post-setup
-        # API per the shipped single-user local model — CLAUDE.md auth model;
+        # API per the shipped single-user local model — AGENTS.md auth model;
         # the shared client's default X-API-Key is the valid key)
         cameras_after = await client.get("/api/cameras")
         assert cameras_after.status_code == 200
@@ -326,7 +326,7 @@ class TestPostSetupAuthentication:
     async def test_open_after_setup(self, client: AsyncClient, clean_tables: None) -> None:
         """Test that general endpoints are open after setup.
 
-        Shipped auth model (CLAUDE.md; NEM-5527 disabled the global
+        Shipped auth model (AGENTS.md; NEM-5527 disabled the global
         AuthMiddleware): single-user local deployment, network binding to
         127.0.0.1 is the security boundary, API endpoints are open after
         setup; admin/destructive routes keep per-route dependencies

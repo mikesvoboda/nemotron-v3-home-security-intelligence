@@ -9,7 +9,11 @@ The testing infrastructure uses two complementary approaches for test data:
 1. **factory_boy**: Create model instances with sensible defaults and traits
 2. **Hypothesis**: Generate random valid data for property-based testing
 
-**Location**: `backend/tests/factories.py`, `backend/tests/hypothesis_strategies.py`, `backend/tests/strategies.py`
+**Location**: `backend/tests/factories.py`,
+`backend/tests/hypothesis_strategies.py`, plus
+`backend/tests/strategies.py` (a backwards-compat re-export shim for
+`backend.tests.utils.strategies` — bbox strategies live there, e.g.
+`valid_bbox_xyxy_strategy` at `backend/tests/utils/strategies.py:541`).
 
 ## Factory-Boy Factories
 
@@ -36,26 +40,29 @@ camera = CameraFactory(id="front_door")  # Override specific field
 
 ### Available Factories
 
-From `backend/tests/factories.py:58-750`:
+From `backend/tests/factories.py:59-1019`:
 
-| Factory                    | Model             | Common Traits                                                                   |
-| -------------------------- | ----------------- | ------------------------------------------------------------------------------- |
-| `CameraFactory`            | Camera            | `offline`, `with_last_seen`                                                     |
-| `DetectionFactory`         | Detection         | `video`, `high_confidence`, `low_confidence`, `vehicle`, `animal`               |
-| `EventFactory`             | Event             | `low_risk`, `high_risk`, `critical`, `reviewed_event`, `fast_path`, `with_clip` |
-| `ZoneFactory`              | CameraZone        | `entry_point`, `driveway`, `sidewalk`, `yard`, `polygon`, `disabled`            |
-| `AlertFactory`             | Alert             | `low_severity`, `high_severity`, `critical`, `delivered`, `acknowledged`        |
-| `AlertRuleFactory`         | AlertRule         | `low_severity`, `high_severity`, `critical`, `disabled`, `person_detection`     |
-| `HouseholdFactory`         | Household         | -                                                                               |
-| `PropertyFactory`          | Property          | `main_house`, `beach_house`, `vacation_home`                                    |
-| `AreaFactory`              | Area              | `front_yard`, `driveway`, `backyard`, `garage`, `pool_area`                     |
-| `HouseholdMemberFactory`   | HouseholdMember   | `resident`, `family`, `service_worker`, `frequent_visitor`                      |
-| `PersonEmbeddingFactory`   | PersonEmbedding   | `high_confidence`, `low_confidence`, `with_source_event`                        |
-| `RegisteredVehicleFactory` | RegisteredVehicle | `car`, `truck`, `motorcycle`, `suv`, `van`, `untrusted`                         |
+| Factory                       | Model                       | Common Traits                                                                   |
+| ----------------------------- | --------------------------- | ------------------------------------------------------------------------------- |
+| `CameraFactory`               | Camera                      | `offline`, `with_last_seen`                                                     |
+| `DetectionFactory`            | Detection                   | `video`, `high_confidence`, `low_confidence`, `vehicle`, `animal`               |
+| `EventFactory`                | Event                       | `low_risk`, `high_risk`, `critical`, `reviewed_event`, `fast_path`, `with_clip` |
+| `ZoneFactory`                 | CameraZone                  | `entry_point`, `driveway`, `sidewalk`, `yard`, `polygon`, `disabled`            |
+| `AlertFactory`                | Alert                       | `low_severity`, `high_severity`, `critical`, `delivered`, `acknowledged`        |
+| `AlertRuleFactory`            | AlertRule                   | `low_severity`, `high_severity`, `critical`, `disabled`, `person_detection`     |
+| `HouseholdFactory`            | Household                   | -                                                                               |
+| `PropertyFactory`             | Property                    | `main_house`, `beach_house`, `vacation_home`                                    |
+| `AreaFactory`                 | Area                        | `front_yard`, `driveway`, `backyard`, `garage`, `pool_area`                     |
+| `HouseholdMemberFactory`      | HouseholdMember             | `resident`, `family`, `service_worker`, `frequent_visitor`                      |
+| `PersonEmbeddingFactory`      | PersonEmbedding             | `high_confidence`, `low_confidence`, `with_source_event`                        |
+| `RegisteredVehicleFactory`    | RegisteredVehicle           | `car`, `truck`, `motorcycle`, `suv`, `van`, `untrusted`                         |
+| `CameraWithDetectionsFactory` | Camera (+ Detections)       | `num_detections` kwarg (`:758`)                                                 |
+| `EventWithCameraFactory`      | Event (+ Camera SubFactory) | -                                                                               |
+| `PackageEventFactory`         | PackageEvent                | `delivered`, `removed`, `theft_suspected`, `retrieved` (`:948`)                 |
 
 ### CameraFactory
 
-From `backend/tests/factories.py:58-88`:
+From `backend/tests/factories.py:59-88`:
 
 ```python
 class CameraFactory(factory.Factory):
@@ -106,7 +113,7 @@ camera = CameraFactory.build()
 
 ### DetectionFactory
 
-From `backend/tests/factories.py:90-151`:
+From `backend/tests/factories.py:91-151` (abridged):
 
 ```python
 class DetectionFactory(factory.Factory):
@@ -171,7 +178,8 @@ detection = DetectionFactory(vehicle=True, high_confidence=True)
 
 ### EventFactory
 
-From `backend/tests/factories.py:153-229`:
+From `backend/tests/factories.py:154-230` (abridged — `deleted_at`,
+`snooze_until` and the optimistic-locking `version` fields omitted):
 
 ```python
 class EventFactory(factory.Factory):
@@ -195,6 +203,7 @@ class EventFactory(factory.Factory):
     is_fast_path: bool = False
     object_types: str = "person"
     clip_path: str | None = None
+    version: int = 1  # Optimistic locking version (NEM-3625)
 
     class Params:
         low_risk = factory.Trait(risk_score=15, risk_level="low")
@@ -208,7 +217,7 @@ class EventFactory(factory.Factory):
             risk_score=95,
             risk_level="critical",
             summary="Critical security event",
-            reasoning="Immediate attention required",
+            reasoning="Immediate attention required - unauthorized access attempt",
         )
         reviewed_event = factory.Trait(reviewed=True, notes="Reviewed and confirmed")
         fast_path = factory.Trait(is_fast_path=True, risk_score=90, risk_level="high")
@@ -217,7 +226,8 @@ class EventFactory(factory.Factory):
 
 ### Helper Functions
 
-From `backend/tests/factories.py:800-862`:
+From `backend/tests/factories.py:802-865` (abridged — `bulk_create_events`
+and other DB bulk-insert helpers live at `:854+`):
 
 ```python
 def create_camera_with_events(
@@ -280,7 +290,7 @@ def test_risk_score_classification(risk_score):
 
 ### Domain-Specific Strategies
 
-From `backend/tests/hypothesis_strategies.py:53-104`:
+From `backend/tests/hypothesis_strategies.py:53-148`:
 
 #### Camera Strategies
 
@@ -322,7 +332,7 @@ def valid_camera_folder_path(draw: st.DrawFn) -> str:
 
 #### Bounding Box Strategies
 
-From `backend/tests/hypothesis_strategies.py:197-246`:
+From `backend/tests/hypothesis_strategies.py:197-248`:
 
 ```python
 @st.composite
@@ -358,7 +368,7 @@ def valid_normalized_bbox(draw: st.DrawFn) -> dict[str, float]:
 
 #### Risk and Confidence Strategies
 
-From `backend/tests/hypothesis_strategies.py:254-300`:
+From `backend/tests/hypothesis_strategies.py:254-291`:
 
 ```python
 def valid_risk_score() -> st.SearchStrategy[int]:
@@ -421,7 +431,7 @@ def valid_timestamp_range(
 
 #### Composite Model Strategies
 
-From `backend/tests/hypothesis_strategies.py:664-812`:
+From `backend/tests/hypothesis_strategies.py:664-812` (abridged):
 
 ```python
 @st.composite
@@ -474,7 +484,7 @@ def event_dict_strategy(draw: st.DrawFn, camera_id: str | None = None) -> dict[s
 
 ### Edge Case Strategies
 
-From `backend/tests/hypothesis_strategies.py:873-938`:
+From `backend/tests/hypothesis_strategies.py:873-917`:
 
 ```python
 @st.composite
@@ -504,7 +514,7 @@ def edge_case_bbox(draw: st.DrawFn) -> dict[str, int]:
 
 ### Basic Property Test
 
-From `backend/tests/unit/services/test_bbox_validation.py:748-772`:
+From `backend/tests/unit/services/test_bbox_validation.py:742-756`:
 
 ```python
 from hypothesis import given, settings as hypothesis_settings
@@ -522,7 +532,7 @@ class TestBboxValidationProperties:
 
 ### Testing Mathematical Properties
 
-From `backend/tests/unit/services/test_bbox_validation.py:936-965`:
+From `backend/tests/unit/services/test_bbox_validation.py:938-955`:
 
 ```python
 @given(bbox=valid_bbox_xyxy_strategy())
@@ -548,7 +558,7 @@ def test_iou_is_symmetric(
 
 ### Hypothesis Configuration
 
-From `pyproject.toml:423-439`:
+From `pyproject.toml:570-586`:
 
 ```toml
 [tool.hypothesis.profiles.ci]

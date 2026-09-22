@@ -62,16 +62,16 @@ class TestRiskScoreValidation:
 
 ### 2. Enhanced Validation Script (NEM-4529)
 
-**File:** `scripts/validate_detections.py` (improvements documented, to be applied in separate PR)
+**File:** `scripts/validate_detections.py`
 
-**Planned Enhancements:**
+**Enhancements (applied):**
 
 - Per-class precision/recall/F1 calculation
 - Scenario-type breakdown analysis
 - Confidence distribution percentiles
 - Enhanced JSON export with detailed metrics
 
-**Note:** Script enhancements are documented but not applied in this PR to maintain separation of concerns. They will be implemented after the test suite is merged and validated.
+**Note:** These enhancements were deferred out of the original PR to keep it focused on the test suite. They are now implemented in `scripts/validate_detections.py` (per-class and aggregate precision/recall/F1, scenario-type breakdown, and confidence-distribution percentiles are all in the current script).
 
 ### 3. Coverage Documentation (NEM-4527)
 

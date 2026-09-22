@@ -2,6 +2,13 @@
 
 This document describes how to set up a self-hosted GitHub Actions runner on the RTX A5500 machine for GPU-accelerated CI/CD tests.
 
+> [!IMPORTANT] > **Status (2026-09): no workflow currently targets this runner.** `.github/workflows/gpu-tests.yml`
+> was deleted, and the `extended-benchmarks` job in `nightly.yml` (the only self-hosted
+> `gpu, rtx-a5500` job) was removed on 2026-09-15 while the GPU box was offline — see the NOTE in
+> `nightly.yml`. Keep this doc as the runbook for the machine itself; restore the GPU workflow
+> from git history when the box comes back online, then follow the label/fork-protection guidance
+> below.
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
@@ -195,7 +202,7 @@ systemctl is-enabled actions.runner.*.service
 
 When the repository is public, malicious PRs from forks could execute arbitrary code on your machine.
 
-**This protection is already implemented in `gpu-tests.yml`:**
+**The pattern used by the (now-deleted) `gpu-tests.yml` was:**
 
 ```yaml
 jobs:
@@ -239,7 +246,7 @@ sudo systemctl restart docker
 
 ### Job Timeout
 
-The `gpu-tests.yml` workflow has a 30-minute timeout configured:
+The (now-deleted) `gpu-tests.yml` workflow had a 30-minute timeout configured:
 
 ```yaml
 timeout-minutes: 30
@@ -283,7 +290,7 @@ gh run view <run-id>
 
 ### Step 3: Verify Workflow Labels Match
 
-The `gpu-tests.yml` workflow expects these labels:
+The (now-deleted) `gpu-tests.yml` workflow expected these labels:
 
 ```yaml
 runs-on: [self-hosted, gpu, rtx-a5500]
@@ -372,7 +379,7 @@ python3 -c "import torch; print(torch.cuda.is_available())"
 
 **Check CUDA_VISIBLE_DEVICES:**
 
-The workflow sets `CUDA_VISIBLE_DEVICES: "0"` - ensure device 0 is available.
+The (now-deleted) `gpu-tests.yml` set `CUDA_VISIBLE_DEVICES: "0"` — ensure device 0 is available.
 
 ### Out of Disk Space
 
@@ -451,10 +458,10 @@ docker image prune -a --filter "until=168h"
 
 ### Workflow Files Using This Runner
 
-| Workflow  | File                              | Schedule           |
-| --------- | --------------------------------- | ------------------ |
-| GPU Tests | `.github/workflows/gpu-tests.yml` | On PR/push to main |
-| Nightly   | `.github/workflows/nightly.yml`   | Daily at 2am EST   |
+| Workflow  | File                              | Schedule                       |
+| --------- | --------------------------------- | ------------------------------ |
+| GPU Tests | `.github/workflows/gpu-tests.yml` | Deleted — restore from history |
+| Nightly   | `.github/workflows/nightly.yml`   | Daily at 2am EST (no GPU job)  |
 
 ### Key Commands
 

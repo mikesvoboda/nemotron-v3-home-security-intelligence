@@ -61,7 +61,8 @@ frontend/tests/e2e/
 ├── utils/              # Test utility functions
 │   ├── AGENTS.md       # Utils documentation
 │   ├── index.ts        # Central utility exports
-│   └── accessibility.ts  # Accessibility testing helpers (axe-core)
+│   ├── test-helpers.ts, data-generators.ts, wait-helpers.ts, browser-helpers.ts
+│   └── (no accessibility.ts - axe-core checks live inline in the specs)
 └── .gitkeep            # Git placeholder
 ```
 
@@ -166,27 +167,27 @@ npx playwright test -g "dashboard"
 
 From `frontend/playwright.config.ts`:
 
-| Setting             | Value                                      |
-| ------------------- | ------------------------------------------ |
-| `testDir`           | `./tests/e2e`                              |
-| `baseURL`           | `https://localhost:8444`                   |
-| `browsers`          | Chromium, Firefox, WebKit + visual-chromium|
-| `timeout`           | 15 seconds                                 |
-| `expect.timeout`    | 3 seconds                                  |
-| `navigationTimeout` | 15 seconds                                 |
-| `actionTimeout`     | 5s (Chromium), 8s (Firefox/WebKit)         |
-| `retries`           | 2 (CI only)                                |
-| `workers`           | 4 (CI), unlimited (local)                  |
-| `fullyParallel`     | true                                       |
-| `webServer.command` | `npm run dev:e2e`                          |
+| Setting             | Value                                                                             |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `testDir`           | `./tests/e2e`                                                                     |
+| `baseURL`           | `http://localhost:8444` (plain HTTP so the self-signed dev cert can't break runs) |
+| `browsers`          | Chromium, Firefox, WebKit + visual-chromium                                       |
+| `timeout`           | 15 seconds                                                                        |
+| `expect.timeout`    | 3 seconds                                                                         |
+| `navigationTimeout` | 15 seconds                                                                        |
+| `actionTimeout`     | 5s (Chromium), 8s (Firefox/WebKit)                                                |
+| `retries`           | 2 (CI only)                                                                       |
+| `workers`           | 4 (CI), unlimited (local)                                                         |
+| `fullyParallel`     | true                                                                              |
+| `webServer.command` | `npm run dev:e2e`                                                                 |
 
 **Visual Screenshot Settings:**
 
-| Setting           | Value     | Purpose                           |
-| ----------------- | --------- | --------------------------------- |
-| `maxDiffPixels`   | 100       | Allow up to 100 pixel differences |
-| `threshold`       | 0.2       | Per-pixel color difference        |
-| `animations`      | disabled  | Consistent screenshots            |
+| Setting         | Value    | Purpose                           |
+| --------------- | -------- | --------------------------------- |
+| `maxDiffPixels` | 100      | Allow up to 100 pixel differences |
+| `threshold`     | 0.2      | Per-pixel color difference        |
+| `animations`    | disabled | Consistent screenshots            |
 
 **Artifacts on Failure:**
 
@@ -216,16 +217,26 @@ From `frontend/playwright.config.ts`:
 
 ### Visual Regression Tests (visual/)
 
-| Test File                   | Description                         | Screenshots |
-| --------------------------- | ----------------------------------- | ----------- |
-| `dashboard.visual.spec.ts`  | Dashboard page, stats, camera grid  | 6           |
-| `timeline.visual.spec.ts`   | Event timeline, cards, filters      | 6           |
-| `settings.visual.spec.ts`   | Settings tabs configuration         | 6           |
-| `system.visual.spec.ts`     | System monitoring panels            | 10          |
-| `components.visual.spec.ts` | Reusable UI components              | 15+         |
-| `responsive.visual.spec.ts` | 3 viewports x 4 pages               | 12+         |
+13 visual spec files exist (measured `toHaveScreenshot` counts):
+
+| Test File                       | Description              | Shots |
+| ------------------------------- | ------------------------ | ----- |
+| `dashboard.visual.spec.ts`      | Dashboard page           | 6     |
+| `timeline.visual.spec.ts`       | Event timeline           | 6     |
+| `settings.visual.spec.ts`       | Settings tabs            | 6     |
+| `system.visual.spec.ts`         | System monitoring panels | 9     |
+| `components.visual.spec.ts`     | Reusable UI components   | 15    |
+| `responsive.visual.spec.ts`     | 3 viewports x pages      | 10    |
+| `ai-audit.visual.spec.ts`       | AI audit page            | 9     |
+| `ai-performance.visual.spec.ts` | AI performance page      | 9     |
+| `alerts.visual.spec.ts`         | Alerts page              | 7     |
+| `analytics.visual.spec.ts`      | Analytics page           | 8     |
+| `audit.visual.spec.ts`          | Audit log page           | 7     |
+| `entities.visual.spec.ts`       | Entities page            | 7     |
+| `logs.visual.spec.ts`           | Logs page                | 2     |
 
 **Running visual tests:**
+
 ```bash
 # Run visual tests only (Chromium)
 npx playwright test --project=visual-chromium
@@ -240,15 +251,16 @@ See `visual/AGENTS.md` for detailed visual testing documentation.
 
 Tests can be tagged using annotations in test titles for selective execution:
 
-| Tag        | Purpose                                            |
-| ---------- | -------------------------------------------------- |
-| `@smoke`   | Critical path tests that run on every commit       |
-| `@critical`| High-priority tests for core functionality         |
-| `@slow`    | Tests that take longer to execute                  |
-| `@flaky`   | Tests known to be flaky (tracked for improvements) |
-| `@network` | Tests that simulate network conditions             |
+| Tag         | Purpose                                            |
+| ----------- | -------------------------------------------------- |
+| `@smoke`    | Critical path tests that run on every commit       |
+| `@critical` | High-priority tests for core functionality         |
+| `@slow`     | Tests that take longer to execute                  |
+| `@flaky`    | Tests known to be flaky (tracked for improvements) |
+| `@network`  | Tests that simulate network conditions             |
 
 **Selective Execution:**
+
 ```bash
 # Run only smoke tests
 npx playwright test --grep @smoke
@@ -267,6 +279,7 @@ npx playwright test --project=smoke
 ```
 
 **Adding Tags to Tests:**
+
 ```typescript
 // Tag in test title
 test('dashboard loads correctly @smoke @critical', async ({ page }) => {
@@ -290,6 +303,7 @@ Tests are retried in complete isolation on failure (CI only, 2 retries):
 - Flaky tests (pass on retry) are tracked via JSON reporter
 
 **Configure retries per describe block:**
+
 ```typescript
 test.describe('Flaky Area', () => {
   test.describe.configure({ retries: 3 });
@@ -307,15 +321,15 @@ Test how the application handles poor network conditions:
 ```typescript
 // Simulate slow network
 await page.route('**/api/**', async (route) => {
-  await new Promise(resolve => setTimeout(resolve, 400));
+  await new Promise((resolve) => setTimeout(resolve, 400));
   await route.continue();
 });
 
 // Simulate network failure
-await page.route('**/api/cameras', route => route.abort('failed'));
+await page.route('**/api/cameras', (route) => route.abort('failed'));
 
 // Simulate intermittent failures (50% failure rate)
-await page.route('**/api/**', async route => {
+await page.route('**/api/**', async (route) => {
   if (Math.random() < 0.5) {
     await route.abort('failed');
   } else {
@@ -378,6 +392,7 @@ const response = await basePage.performActionAndWaitForApi(
 - Example skip pattern: `navigation.spec.ts` skips the 8-route sequential test on secondary browsers
 
 **Known differences:**
+
 - WebKit may render certain CSS differently
 - Firefox has slightly different timing for animations
 - WebSocket behavior may vary slightly between browsers

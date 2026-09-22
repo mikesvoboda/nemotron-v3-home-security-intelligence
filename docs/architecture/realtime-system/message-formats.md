@@ -202,34 +202,41 @@ Core security event from AI pipeline analysis.
 ```json
 {
   "type": "event",
-  "seq": 42,
+  "sequence": 42,
+  "requires_ack": true,
   "data": {
     "id": 123,
+    "event_id": 123,
+    "batch_id": "batch_abc123",
     "camera_id": "front_door",
-    "detected_at": "2026-01-09T12:00:00Z",
-    "detection_type": "person",
     "risk_score": 85,
-    "thumbnail_url": "/api/events/123/thumbnail",
-    "video_clip_url": "/api/events/123/video",
-    "llm_description": "Person detected at front entrance approaching door",
-    "processing_time_ms": 1250
+    "risk_level": "critical",
+    "summary": "Person detected at front entrance approaching door",
+    "reasoning": "Unknown individual approaching entrance during nighttime hours",
+    "started_at": "2026-01-09T12:00:00"
   }
 }
 ```
 
-**Data Fields**:
+**Data Fields** (`WebSocketEventData`, `backend/api/schemas/websocket.py:227-338`):
 
-| Field                | Type   | Description                              |
-| -------------------- | ------ | ---------------------------------------- |
-| `id`                 | int    | Unique event identifier                  |
-| `camera_id`          | string | Normalized camera ID                     |
-| `detected_at`        | string | ISO 8601 detection timestamp             |
-| `detection_type`     | string | Object class ("person", "vehicle", etc.) |
-| `risk_score`         | int    | LLM-determined risk (0-100)              |
-| `thumbnail_url`      | string | URL to event thumbnail                   |
-| `video_clip_url`     | string | URL to video clip                        |
-| `llm_description`    | string | AI-generated description                 |
-| `processing_time_ms` | int    | Total pipeline processing time           |
+| Field        | Type   | Description                                    |
+| ------------ | ------ | ---------------------------------------------- |
+| `id`         | int    | Unique event identifier                        |
+| `event_id`   | int    | Legacy alias for `id` (backward compatibility) |
+| `batch_id`   | string | Detection batch identifier                     |
+| `camera_id`  | string | Normalized camera ID                           |
+| `risk_score` | int    | LLM-determined risk (0-100)                    |
+| `risk_level` | string | Risk classification (RiskLevel enum)           |
+| `summary`    | string | Human-readable description                     |
+| `reasoning`  | string | LLM reasoning for the risk assessment          |
+| `started_at` | string | ISO 8601 timestamp (nullable)                  |
+
+`sequence` and `requires_ack` are added to the envelope by the broadcaster's
+sequencing step (`backend/services/event_broadcaster.py:503-511`); they are not
+part of the validated `WebSocketEventMessage` schema. Event thumbnails are
+fetched separately via `/api/detections/{id}/image` and `/api/media/thumbnails/{filename}` —
+they are not URL fields on the websocket payload.
 
 ### Camera Status (`type: "camera_status"`)
 

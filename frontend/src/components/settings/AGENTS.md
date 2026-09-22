@@ -2,735 +2,396 @@
 
 ## Purpose
 
-Contains components for application configuration and system settings. Includes camera management, AI model status, processing parameters, notification configuration, storage monitoring, alert rules, and dead letter queue management. These components provide administrative controls for the security system, organized in a tabbed interface.
+Components for the Settings page (`/settings`) - camera management, alert
+rules, processing parameters, notifications, calibration, access control,
+prompts, storage, AI model management, and admin tools. The page is a tabbed
+shell (`SettingsPage.tsx`) whose tabs are nested routes under `/settings/*`.
+
+There is no settings barrel and no shared settings store: each panel owns its
+own data fetching (typed client in `../../services/api`, or a TanStack Query
+hook in `../../hooks/`). See `README.md` in this directory for the AI-models
+tab specifics.
 
 ## Files
 
-| File                                    | Purpose                                            |
-| --------------------------------------- | -------------------------------------------------- |
-| `AdminSettings.tsx`                     | Admin settings panel with advanced options         |
-| `AdminSettings.test.tsx`                | Test suite for AdminSettings                       |
-| `AIModelsSettings.tsx`                  | AI model status and metrics display                |
-| `AIModelsSettings.test.tsx`             | Test suite for AIModelsSettings                    |
-| `AIModelsTab.tsx`                       | Tab component for AI models section                |
-| `AlertRulesSettings.tsx`                | Alert rule configuration management                |
-| `AlertRulesSettings.test.tsx`           | Test suite for AlertRulesSettings                  |
-| `AmbientStatusSettings.tsx`             | Ambient status display settings                    |
-| `AmbientStatusSettings.test.tsx`        | Test suite for AmbientStatusSettings               |
-| `AreaCameraLinking.tsx`                 | Link cameras to areas/zones                        |
-| `AreaCameraLinking.test.tsx`            | Test suite for AreaCameraLinking                   |
-| `CalibrationPanel.tsx`                  | Camera calibration panel                           |
-| `CalibrationPanel.test.tsx`             | Test suite for CalibrationPanel                    |
-| `CamerasSettings.tsx`                   | Camera management CRUD interface                   |
-| `CamerasSettings.test.tsx`              | Test suite for CamerasSettings                     |
-| `CleanupPreviewPanel.tsx`               | Preview panel for data cleanup operations          |
-| `CleanupPreviewPanel.test.tsx`          | Test suite for CleanupPreviewPanel                 |
-| `DlqMonitor.tsx`                        | Dead letter queue monitoring and management        |
-| `DlqMonitor.test.tsx`                   | Test suite for DlqMonitor                          |
-| `DlqMonitor.msw.test.tsx`               | MSW-based integration tests for DlqMonitor         |
-| `HouseholdSettings.tsx`                 | Household configuration settings                   |
-| `HouseholdSettings.test.tsx`            | Test suite for HouseholdSettings                   |
-| `NotificationSettings.tsx`              | Email and webhook notification config              |
-| `NotificationSettings.test.tsx`         | Test suite for NotificationSettings                |
-| `ProcessingSettings.tsx`                | Event processing configuration                     |
-| `ProcessingSettings.test.tsx`           | Test suite for ProcessingSettings                  |
-| `PromptManagementPanel.tsx`             | AI prompt management interface                     |
-| `PromptManagementPanel.test.tsx`        | Test suite for PromptManagementPanel               |
-| `PropertyManagement.tsx`                | Property and area management                       |
-| `PropertyManagement.test.tsx`           | Test suite for PropertyManagement                  |
-| `RiskSensitivitySettings.tsx`           | Risk sensitivity configuration settings            |
-| `RiskSensitivitySettings.test.tsx`      | Test suite for RiskSensitivitySettings             |
-| `SettingsPage.tsx`                      | Main settings page with tabbed interface           |
-| `SettingsPage.test.tsx`                 | Test suite for SettingsPage                        |
-| `SeverityThresholds.tsx`                | Risk score threshold configuration                 |
-| `SeverityThresholds.test.tsx`           | Test suite for SeverityThresholds                  |
-| `StorageDashboard.tsx`                  | Disk usage and storage breakdown dashboard         |
-| `StorageDashboard.test.tsx`             | Test suite for StorageDashboard                    |
-| `StorageDashboard.msw.test.tsx`         | MSW-based integration tests for StorageDashboard   |
-| `ONVIFDiscoveryPanel.tsx`               | Modal for network camera discovery via ONVIF       |
-| `ONVIFDiscoveryPanel.test.tsx`          | Test suite for ONVIFDiscoveryPanel                 |
-| `ConnectionStatusCard.tsx`              | Displays RTSP test results with capabilities       |
-| `ConnectionStatusCard.test.tsx`         | Test suite for ConnectionStatusCard                |
-| `prompts/`                              | Prompt management subdirectory                     |
+Components are imported by path (mostly lazy `import()` in `App.tsx`); this
+directory has **no `index.ts` barrel**. Most components have a co-located
+`*.test.tsx`; the exceptions are called out below. `__tests__/` holds extra
+suites (`CamerasSettings.motionSensitivity.test.tsx`,
+`FeatureTogglesPanel.test.tsx`).
+
+| File (plus co-located test unless noted) | Purpose                                                            |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| `AGENTS.md`, `README.md`                 | Docs for this directory                                            |
+| `SettingsPage.tsx`                       | Tabbed shell with nested `/settings/*` routes                      |
+| `settingsTabsConfig.ts`                  | Tab id/name/path/icon/description list                             |
+| `CamerasSettings.tsx`                    | Camera CRUD (FTP + RTSP), ONVIF discovery, RTSP test               |
+| `ONVIFDiscoveryPanel.tsx`                | Modal for network camera discovery via ONVIF                       |
+| `ConnectionStatusCard.tsx`               | RTSP connection-test result card                                   |
+| `AreaCameraLinking.tsx`                  | Link cameras to areas/zones                                        |
+| `AlertRulesSettings.tsx`                 | Alert-rule CRUD with channels, schedule, test                      |
+| `ProcessingSettings.tsx`                 | Batch/retention/confidence config; composes many panels            |
+| `BatchPresetSelector.tsx`                | Preset selector for batch settings                                 |
+| `BatchSettingsTooltips.tsx`              | Validation feedback/tooltips for batch settings                    |
+| `BatchStatusMonitor.tsx`                 | Live batch aggregator status                                       |
+| `CleanupPreviewPanel.tsx`                | Dry-run preview of retention cleanup                               |
+| `OrphanCleanupPanel.tsx`                 | Orphan-file cleanup with configurable parameters                   |
+| `DetectionThresholdsPanel.tsx`           | Per-detector confidence thresholds                                 |
+| `DetectorSettings.tsx`                   | Detector configuration                                             |
+| `DlqMonitor.tsx`                         | Dead-letter queue monitor (+ `.msw.test.tsx`)                      |
+| `QueueSettings.tsx`                      | Queue config panel (no co-located test)                            |
+| `RateLimitingSettings.tsx`               | Rate-limit config panel (no co-located test)                       |
+| `NotificationSettings.tsx`               | Email/webhook notification status + tests                          |
+| `MqttSettings.tsx`                       | MQTT configuration (no co-located test)                            |
+| `AmbientStatusSettings.tsx`              | Ambient status display settings                                    |
+| `CalibrationPanel.tsx`                   | AI calibration and feedback statistics                             |
+| `AccessControlSettings.tsx`              | Access control config UI (no co-located test)                      |
+| `AccessScheduleEditor.tsx`               | Zone access schedule editor                                        |
+| `ZoneAccessSettings.tsx`                 | Zone-based access control                                          |
+| `PropertyManagement.tsx`                 | Properties and areas management                                    |
+| `HouseholdSettings.tsx`                  | Household organization management                                  |
+| `PromptManagementPanel.tsx`              | AI prompt management (also `prompts/` subdir)                      |
+| `prompts/`                               | Prompt editor, diff view, import/export components                 |
+| `StorageDashboard.tsx`                   | Disk usage + DB record counts (+ `.msw.test.tsx`)                  |
+| `AIModelsTab.tsx`                        | AI MODELS tab: AIModelsSettings + Model Zoo (+ no co-located test) |
+| `AIModelsSettings.tsx`                   | Detection + Nemotron status cards                                  |
+| `ModelManagementPanel.tsx`               | Model management panel (VRAM usage, statuses)                      |
+| `ModelZooPanel.tsx`                      | Model Zoo admin table with load/unload/reload                      |
+| `ModelCard.tsx`                          | One Model Zoo model card                                           |
+| `VRAMUsageCard.tsx`                      | GPU VRAM usage visualization                                       |
+| `FeatureTogglesPanel.tsx`                | AI processing feature toggles (test lives in `__tests__/`)         |
+| `GpuAssignmentTable.tsx`                 | GPU assignment table per AI service                                |
+| `GpuDeviceCard.tsx`                      | Single GPU device card                                             |
+| `GpuStrategySelector.tsx`                | GPU assignment strategy radio group                                |
+| `GpuBatchActions.tsx`                    | Batch GPU assignment actions                                       |
+| `GpuApplyButton.tsx`                     | Save/apply GPU configuration                                       |
+| `GpuVersionHistory.tsx`                  | Config version history + diff view (no co-located test)            |
+| `RawSettingsPanel.tsx`                   | Admin raw-settings editor (NEM-4951)                               |
+| `LoggingSettings.tsx`                    | Logging configuration UI                                           |
+| `RiskSensitivitySettings.tsx`            | Risk sensitivity configuration                                     |
+| `SeverityThresholds.tsx`                 | Risk-score threshold editor                                        |
+| `AdminSettings.tsx`                      | ADMIN tab (developer tools entry)                                  |
 
 ## Key Components
 
 ### SettingsPage.tsx
 
-**Purpose:** Main settings page with tabbed interface for different settings categories
+**Purpose:** Shell for the Settings page with route-based tab navigation
+(NEM-4938 converted the old in-page tabs to nested sub-routes).
 
 **Key Features:**
 
-- Headless UI Tab component for accessible tab navigation
-- Three settings tabs: CAMERAS, PROCESSING, AI MODELS
-- Tab icons: Camera, Settings, Cpu
-- NVIDIA dark theme with green accent for selected tab
-- Keyboard navigation support
-- Focus ring styling for accessibility
+- Tabs come from `settingsTabsConfig.ts` and render as `NavLink`s; each tab's
+  panel renders in an `<Outlet/>` from the router, not from local state
+- Eleven tabs: CAMERAS, RULES, PROCESSING, NOTIFICATIONS, AMBIENT,
+  CALIBRATION, ACCESS, PROMPTS, STORAGE, AI MODELS, ADMIN
+- Horizontal scroll with chevron buttons and fade shadows when tabs overflow
+  (NEM-3520); keyboard-accessible scroll buttons
+- Wraps content in `DebugModeProvider` (`../../contexts/DebugModeContext`)
+- Exported as `SettingsPageWithErrorBoundary` (also named export), which wraps
+  the page in `FeatureErrorBoundary` and shows `SecureContextWarning`
 
-**Tab Configuration:**
-
-```typescript
-const tabs = [
-  { id: 'cameras', name: 'CAMERAS', icon: Camera, component: CamerasSettings },
-  { id: 'processing', name: 'PROCESSING', icon: SettingsIcon, component: ProcessingSettings },
-  { id: 'ai-models', name: 'AI MODELS', icon: Cpu, component: AIModelsSettings },
-];
-```
-
-**No props** - Top-level page component
+**Props:** none (top-level page component). Panels are lazy-imported in
+`App.tsx` (`import('./components/settings/CamerasSettings')` etc.).
 
 ### CamerasSettings.tsx
 
-**Purpose:** Full CRUD interface for managing security cameras
+**Purpose:** CRUD interface for cameras, supporting FTP-folder and RTSP-stream
+ingestion.
 
 **Key Features:**
 
-- Table view of all cameras with status indicators
-- Add new camera via modal form
-- Edit existing camera (inline edit via modal)
-- Delete camera with confirmation dialog
-- Form validation: name (min 2 chars), folder_path (valid path format)
-- Status dropdown: active/inactive
-- Last seen timestamp display
-- Empty state with "Add Camera" call-to-action
-- Loading and error states with retry button
+- Table of cameras with status indicators and relative last-seen timestamps
+  (`formatRelativeTime` from `../../utils/time`)
+- Add/edit via Headless UI `Dialog` modal; delete with confirmation dialog
+- Validation via Zod `cameraFormSchema` (`../../schemas/camera.ts`), which
+  mirrors the backend Pydantic constraints (`_validate_folder_path`,
+  `CAMERA_STATUS_VALUES = online | offline | error | unknown`, RTSP URL
+  formats, motion sensitivity bounds)
+- Form fields: name, folder_path, status, motion_sensitivity, ingestion_mode
+  (`ftp` | `rtsp`), rtsp_url, rtsp_username, rtsp_password
+- RTSP connection testing through `useRtspTest` + `ConnectionStatusCard`
+- ONVIF network discovery through `ONVIFDiscoveryPanel`
+- Soft-delete/restore: deleted-camera list and restore via
+  `useDeletedCamerasQuery` / `useRestoreCameraMutation`
 
-**Props:**
-
-- No props (top-level settings component)
-
-**State Management:**
-
-```typescript
-const [cameras, setCameras] = useState<Camera[]>([]);
-const [loading, setLoading] = useState(boolean);
-const [error, setError] = useState<string | null>(null);
-const [isModalOpen, setIsModalOpen] = useState(boolean);
-const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(boolean);
-const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
-const [deletingCamera, setDeletingCamera] = useState<Camera | null>(null);
-const [formData, setFormData] = useState<CameraFormData>({});
-const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
-const [submitting, setSubmitting] = useState(boolean);
-```
-
-**Camera Interface:**
-
-```typescript
-interface Camera {
-  id: string;
-  name: string;
-  folder_path: string;
-  status: string; // "online", "offline", or "error"
-  last_seen_at?: string; // ISO timestamp
-}
-```
-
-**Validation:**
-
-- Name: Minimum 2 characters, trimmed
-- Folder path: Must match regex `/^[/.][a-zA-Z0-9_\-/.]+$/`
-- Shows inline error messages on validation failure
-
-**Modal Features (Headless UI):**
-
-- Animated entry/exit (fade + scale)
-- Backdrop blur
-- Click outside to close
-- Escape key to close
-- Form submission on Enter key
+**State:** data comes from hooks - `useCamerasQuery`, `useCameraMutation`
+(POST create / PATCH update / DELETE), `useSettingsQuery` +
+`useUpdateSettings`. No direct `fetch` calls.
 
 ### AIModelsSettings.tsx
 
-**Purpose:** Display AI model status and performance metrics
-
-**Key Features:**
-
-- Two model cards: YOLO26 (detection) and Nemotron (risk analysis)
-- Status badges: loaded (green), unloaded (gray), error (red)
-- Memory usage per model with progress bar
-- Inference speed (FPS) when model is loaded
-- Total GPU memory display at bottom
-- Read-only display (no configuration controls)
-- Handles null values gracefully (shows N/A)
+**Purpose:** Read-only status cards for the detection model and Nemotron.
 
 **Props:**
 
 ```typescript
 interface AIModelsSettingsProps {
-  yolo26Model?: ModelInfo;
+  rtdetrModel?: ModelInfo; // NOT named yolo26Model
   nemotronModel?: ModelInfo;
-  totalMemory?: number | null;
+  totalMemory?: number | null; // MB
   className?: string;
 }
 
 interface ModelInfo {
-  name: string; // "YOLO26", "Nemotron"
+  name: string;
   status: 'loaded' | 'unloaded' | 'error';
   memoryUsed: number | null; // MB
-  inferenceFps: number | null; // Frames per second
-  description: string; // Model description
+  inferenceFps: number | null;
+  description: string;
 }
 ```
 
-**Default Values:**
+**Default Behavior:** With no props, derives both models from `useAIMetrics()`
+(`../../hooks/useAIMetrics`); the detection model defaults to name
+`RT-DETRv2`, description "Real-time object detection model", and Nemotron
+gets "Risk analysis and reasoning model". Unloaded state shows N/A metrics.
 
-- YOLO26: "Real-time object detection model"
-- Nemotron: "Risk analysis and reasoning model"
-- Both default to 'unloaded' status with null metrics
+**Layout:** `grid grid-cols-1 gap-6 lg:grid-cols-2`; Tremor `Card`
+(`bg-[#1E1E1E] border-gray-800`) per model with `ProgressBar` for memory and
+status `Badge` (loaded green, unloaded gray, error red).
+
+Model **control** (load/unload/reload buttons) is not here - it lives in
+`ModelZooPanel.tsx` via `useLoadModel` / `useUnloadModel` / `useReloadModel` /
+`useUnloadAllModels` (`../../hooks/useModelZoo.ts`).
 
 ### ProcessingSettings.tsx
 
-**Purpose:** Editable event processing configuration with range sliders
+**Purpose:** Event-processing configuration plus a composition surface for
+related admin panels.
 
-**Key Features:**
+**Sliders (measured from the component):**
 
-- Batch window duration (30-300 seconds, step 10)
-- Idle timeout (10-120 seconds, step 5)
-- Retention period (1-90 days, step 1)
-- Confidence threshold (0.00-1.00, step 0.01)
-- Range sliders for intuitive value adjustment
-- Current value display next to each slider
-- Save Changes / Reset buttons
-- Success/error feedback messages
-- Storage usage indicator (placeholder)
-- Clear Old Data button (placeholder)
-- Application name and version display
+| Setting                        | Range     | Step |
+| ------------------------------ | --------- | ---- |
+| Batch Window Duration          | 30-300 s  | 10   |
+| Idle Timeout                   | 10-120 s  | 5    |
+| Event Retention Period         | 1-90 days | 1    |
+| Log Retention Period           | 1-90 days | 1    |
+| Detection Confidence Threshold | 0.00-1.00 | 0.01 |
+| Fast-Path Confidence Threshold | 0.00-1.00 | 0.01 |
 
-**Props:**
+Detection confidence is marked DEPRECATED in the backend
+(`ConfigResponse.detection_confidence_threshold`); the settings API
+(`/api/v1/settings`, through `useSettingsQuery` / `useUpdateSettings`) is the
+forward path.
 
-```typescript
-interface ProcessingSettingsProps {
-  className?: string;
-}
-```
+**Composition:** renders `BatchPresetSelector`, `BatchSettingsTooltips`,
+`BatchStatusMonitor`, `CleanupPreviewPanel`, `DetectionThresholdsPanel`,
+`DlqMonitor`, `QueueSettings`, `RateLimitingSettings`, `SeverityThresholds`,
+`StorageDashboard`, and `AnomalyConfigPanel` (from `../analytics`). The
+"Clear Old Data" button runs a real cleanup via `triggerCleanup()` (not a
+placeholder); the storage section is the live `StorageDashboard`.
 
-**State:**
-
-```typescript
-const [config, setConfig] = useState<SystemConfig | null>(null);
-const [editedConfig, setEditedConfig] = useState<SystemConfig | null>(null);
-const [loading, setLoading] = useState(boolean);
-const [saving, setSaving] = useState(boolean);
-const [error, setError] = useState<string | null>(null);
-const [success, setSuccess] = useState(boolean);
-```
-
-**SystemConfig Interface:**
-
-```typescript
-interface SystemConfig {
-  batch_window_seconds: number; // Default: 90
-  batch_idle_timeout_seconds: number; // Default: 30
-  retention_days: number; // Default: 30
-  detection_confidence_threshold: number; // Default: 0.5
-  app_name: string; // "NVIDIA Security Intelligence"
-  version: string; // e.g., "0.1.0"
-}
-```
-
-**API Integration:**
-
-- `fetchConfig()` - GET /api/system/config
-- `updateConfig(updates)` - PATCH /api/system/config
+**API Integration:** `fetchConfig()` GET /api/system/config, `updateConfig()`
+PATCH /api/system/config, plus `fetchAnomalyConfig()`. `SystemConfig` is the
+generated type re-exported from `../../services/api` (fields include
+`app_name`, `version`, `retention_days`, `log_retention_days`,
+`batch_window_seconds`, `batch_idle_timeout_seconds`,
+`detection_confidence_threshold`, `fast_path_confidence_threshold`,
+`grafana_url`, `debug`).
 
 ### DlqMonitor.tsx
 
-**Purpose:** Dead Letter Queue monitoring and management component
+**Purpose:** Dead-letter queue monitoring; embedded in ProcessingSettings.
 
-**Props Interface:**
+**Props:** `{ className?: string; refreshInterval?: number }` - default
+refresh 30000 ms; `refreshInterval <= 0` disables polling.
 
-```typescript
-interface DlqMonitorProps {
-  className?: string;
-  refreshInterval?: number; // Polling interval in ms. Default: 30000 (30s)
-}
-```
+**Queues tracked:** `dlq:detection_queue`, `dlq:analysis_queue`. Red `Badge`
+shows the total failed count; per-queue panels expand to show job error
+messages, timestamps, and original payloads.
 
-**Key Features:**
-
-- Badge showing total failed job count
-- Expandable panels for each queue (detection, analysis)
-- Job details with error messages and timestamps
-- "Requeue All" button with confirmation dialog
-- "Clear All" button with confirmation dialog
-- Auto-refresh capability (configurable interval)
-- Original job payload viewer (collapsible)
-
-**Queue Types:**
-
-- `dlq:detection_queue` - Failed YOLO26 detection jobs
-- `dlq:analysis_queue` - Failed Nemotron analysis jobs
-
-**Job Information:**
-
-- Error message
-- Attempt count
-- First failed timestamp
-- Last failed timestamp
-- Original job payload (JSON)
-
-**Actions:**
-
-- **Requeue All:** Moves all failed jobs back to their original queues for retry
-- **Clear All:** Permanently deletes all failed jobs (destructive)
-
-**Usage:**
-
-```tsx
-import DlqMonitor from './DlqMonitor';
-
-<DlqMonitor
-  refreshInterval={30000} // Auto-refresh every 30 seconds
-  className="mt-4"
-/>;
-```
-
----
+**Actions:** Requeue All -> `requeueAllDlqJobs()` ->
+POST `/api/dlq/requeue-all/{queue_name}`; Clear All -> DELETE
+`/api/dlq/{queue_name}` (destructive). Tests: `DlqMonitor.test.tsx` and
+`DlqMonitor.msw.test.tsx`.
 
 ### NotificationSettings.tsx
 
-**Purpose:** Display notification configuration status for email and webhook channels
+**Purpose:** Notification channel status (email/SMTP and webhook) with
+send-test buttons.
 
-**Key Features:**
-
-- Shows overall notification system enabled/disabled status
-- Email (SMTP) configuration panel:
-  - Configuration status badge (Configured/Not Configured)
-  - SMTP host, port, from address, TLS status
-  - Default recipients display with badges
-  - "Send Test Email" button with loading state
-- Webhook configuration panel:
-  - Configuration status badge
-  - Webhook URL display
-  - Timeout setting
-  - "Send Test Webhook" button with loading state
-- Available channels summary
-- Test result feedback (success/error with 5-second auto-dismiss)
-- Configuration note explaining environment variable setup
-
-**Props:**
-
-```typescript
-interface NotificationSettingsProps {
-  className?: string;
-}
-```
-
-**API Integration:**
-
-- `fetchNotificationConfig()` - GET /api/notifications/config
-- `testNotification(channel)` - POST /api/notifications/test/{channel}
+**API Integration:** `fetchNotificationConfig()` GET
+`/api/notification/config` (singular `notification`), updates via PATCH the
+same path, `testNotification()` POST `/api/notification/test`. Also uses
+`useIntegratedNotifications` and `useCamerasQuery` hooks.
 
 ### StorageDashboard.tsx
 
-**Purpose:** Real-time disk usage metrics and storage breakdown dashboard
+**Purpose:** Disk usage, per-category storage breakdown, and DB record counts.
 
-**Key Features:**
-
-- Overall disk usage with progress bar (color-coded by percentage):
-  - Green (<50%), Yellow (50-75%), Orange (75-90%), Red (>90%)
-- Storage breakdown by category (3-column grid):
-  - Thumbnails (cyan accent)
-  - Camera images (violet accent)
-  - Video clips (amber accent)
-- Database record counts (4-column grid):
-  - Events, Detections, GPU Stats, Logs
-- Cleanup preview with dry-run button showing:
-  - Records that would be deleted by category
-  - Space to be reclaimed
-  - Retention period
-- Auto-refresh with configurable poll interval (default: 60s)
-- Loading skeleton and error states with retry button
-
-**Props:**
-
-```typescript
-interface StorageDashboardProps {
-  className?: string;
-}
-```
-
-**Hooks Used:**
-
-- `useStorageStats({ pollInterval, enablePolling })` - Custom hook for storage data
-
-**Helper Functions:**
-
-- `formatBytes(bytes)` - Converts bytes to human-readable string (KB, MB, GB, TB)
-- `formatNumber(num)` - Adds thousands separator
+- Polls `useStorageStatsQuery({ refetchInterval: 60000 })`
+- Usage bar colors: emerald <50%, yellow <75%, orange <90%, red above
+- Breakdown cards (3-col): Thumbnails (cyan), Camera images (violet), Video
+  clips (amber)
+- Record counts (4-col): Events, Detections, GPU Stats, Logs
+- Cleanup preview via `useCleanupPreviewMutation` (dry-run)
+- Helpers `formatBytes()` / `formatNumber()` are local to the file
 
 ### AlertRulesSettings.tsx
 
-**Purpose:** CRUD interface for managing alert rules that trigger notifications
+**Purpose:** CRUD for alert rules that drive notifications.
 
-**Key Features:**
-
-- Table view of all alert rules
-- Add new rule via modal form
-- Edit existing rules
-- Delete rules with confirmation
-- Rule priority (1-10 scale)
-- Rule conditions: camera, zone, risk level, object type
-- Rule actions: email, webhook, both
-- Enable/disable toggle
-- Rule test button
-
-**Props:**
-
-```typescript
-interface AlertRulesSettingsProps {
-  className?: string;
-}
-```
-
-**Rule Interface:**
-
-```typescript
-interface AlertRule {
-  id: string;
-  name: string;
-  enabled: boolean;
-  priority: number;
-  conditions: {
-    camera_ids?: string[];
-    zone_ids?: string[];
-    risk_levels?: string[];
-    object_types?: string[];
-  };
-  actions: {
-    email?: boolean;
-    webhook?: boolean;
-  };
-  created_at: string;
-  updated_at: string;
-}
-```
-
----
+- Table + add/edit/delete modals, enable/disable toggle, and a "test rule
+  against recent events" action (`RuleTestResponse`)
+- Form conditions: `object_types`, `camera_ids`, risk levels, optional
+  schedule (`AlertRuleSchedule`; start/end times required when enabled)
+- Actions are a `channels: string[]` list (component-local form state) - the
+  canonical `AlertRule` / `AlertRuleCreate` / `AlertRuleUpdate` types come
+  from `../../services/api`
+- There is no numeric "priority" field on rules
 
 ### SeverityThresholds.tsx
 
-**Purpose:** Visual editor for risk score severity thresholds
+**Purpose:** Visual editor for risk-score severity thresholds.
 
-**Key Features:**
+**Threshold values:** `low_max` (slider 1-98), `medium_max` (slider
+`low_max + 1` to 99), `high_max` (slider `medium_max + 1` to 99). Critical is
+implied above `high_max`. Validation enforces low < medium < high.
 
-- Visual score distribution bar showing ranges
-- Editable range sliders for Low/Medium/High thresholds
-- Critical range auto-calculated from High max
-- Real-time validation (ranges must be contiguous)
-- Color-coded severity indicators
-- Save/Reset buttons
-- Current configuration table
-- Success/error/validation feedback
-
-**Props:**
-
-```typescript
-interface SeverityThresholdsProps {
-  className?: string;
-}
-```
-
-**Threshold Interface:**
-
-```typescript
-interface ThresholdValues {
-  low_max: number;    // 1-98
-  medium_max: number; // 2-99
-  high_max: number;   // 3-99
-}
-// Critical range: high_max + 1 to 100
-```
-
-**Validation Rules:**
-
-- Low max must be < Medium max
-- Medium max must be < High max
-- Ranges must be contiguous (no gaps)
-
-**API Endpoints:**
-
-- `GET /api/system/severity` - Fetch current thresholds
-- `PUT /api/system/severity` - Update thresholds
-
----
-
-### index.ts
-
-**Purpose:** Barrel export for settings components
-
-```typescript
-export { default as AIModelsSettings } from './AIModelsSettings';
-export type { AIModelsSettingsProps, ModelInfo } from './AIModelsSettings';
-export { default as AlertRulesSettings } from './AlertRulesSettings';
-export { default as CamerasSettings } from './CamerasSettings';
-export { default as ProcessingSettings } from './ProcessingSettings';
-export { default as SettingsPage } from './SettingsPage';
-```
+**API:** `fetchSeverityConfig()` GET /api/system/severity;
+`updateSeverityThresholds()` PUT /api/system/severity (both defined in
+`backend/api/routes/system.py`; the PUT requires `verify_api_key`).
 
 ### README.md
 
-Documentation for settings components with usage examples and integration notes.
-
-### Example Files
-
-- `AIModelsSettings.example.tsx` - Example usage of AIModelsSettings
-- `ProcessingSettings.example.tsx` - Example usage of ProcessingSettings
+Companion doc covering how settings panels fetch data and what
+`AIModelsSettings` renders. There is no barrel file and no `*.example.tsx`
+files in this directory (older revisions of this doc claimed both - they do
+not exist).
 
 ## Important Patterns
 
-### CRUD Operations (CamerasSettings)
+### Data fetching (all panels)
 
-Standard create-read-update-delete pattern:
+- Reads: `../../services/api` typed functions or TanStack Query hooks in
+  `../../hooks/` (`useSettingsApi` for the settings API, feature hooks like
+  `useCamerasQuery`)
+- Writes: POST/PATCH/DELETE through the same client, then rely on query
+  invalidation or refetch
+- `SettingsPage` passes no data down; it is routing only
 
-1. **Read:** Fetch on mount, display in table
-2. **Create:** Modal form -> validate -> POST -> reload list
-3. **Update:** Modal form (pre-filled) -> validate -> PUT -> reload list
-4. **Delete:** Confirmation modal -> DELETE -> reload list
+### CRUD (CamerasSettings)
 
-### Modal State Management
+1. Read: `useCamerasQuery` -> table
+2. Create: modal -> Zod validate -> `useCameraMutation` POST -> refetch
+3. Update: pre-filled modal -> validate -> PATCH -> refetch
+4. Delete: confirm modal -> DELETE (soft delete; restore available)
 
-Two modals with separate state:
+### Modal state (CamerasSettings)
 
-- `isModalOpen` + `editingCamera` - Add/edit modal
-- `isDeleteModalOpen` + `deletingCamera` - Delete confirmation
+`isModalOpen` + `editingCamera` for add/edit; `isDeleteModalOpen` +
+`deletingCamera` for delete; state cleared on close. Modals are Headless UI
+`Dialog`/`Transition` with fade+scale animation, backdrop blur, Escape to
+close.
 
-Clear state on close:
+### Loading/saving states
 
-```typescript
-const handleCloseModal = () => {
-  setIsModalOpen(false);
-  setEditingCamera(null);
-  setFormData({ name: '', folder_path: '', status: 'active' });
-  setFormErrors({});
-};
-```
-
-### Form Validation
-
-Client-side validation before API call. Uses centralized validation from the utils directory:
-
-```typescript
-import { validateCameraName, validateCameraFolderPath } from '../../utils/validation';
-
-const validateForm = (data: CameraFormData): CameraFormErrors => {
-  const errors: CameraFormErrors = {};
-
-  // Name validation (aligned with backend min_length=1, max_length=255)
-  const nameResult = validateCameraName(data.name);
-  if (!nameResult.isValid) {
-    errors.name = nameResult.error;  // "Name is required" or "Name must be at most 255 characters"
-  }
-
-  // Folder path validation (aligned with backend constraints)
-  const pathResult = validateCameraFolderPath(data.folderPath);
-  if (!pathResult.isValid) {
-    errors.folderPath = pathResult.error;
-  }
-
-  return errors;
-};
-```
-
-### Edit Detection (ProcessingSettings)
-
-Track changes between original and edited config:
-
-```typescript
-const hasChanges = editedConfig && config && (
-  editedConfig.batch_window_seconds !== config.batch_window_seconds ||
-  // ... compare other fields
-);
-```
-
-### Loading States
-
-Three-state pattern:
-
-1. **Loading:** Show skeletons or spinner
-2. **Error:** Show error message with retry button
-3. **Loaded:** Show data
-
-```tsx
-if (loading) return <LoadingSkeleton />;
-if (error) return <ErrorDisplay error={error} onRetry={loadData} />;
-return <DataDisplay data={data} />;
-```
+`loading` / `saving` / `error` / `success` booleans with Tremor banners
+(`bg-red-500/10` error, `bg-green-500/10` success); ProcessingSettings shows
+a `BatchSettingsTooltips` validation summary rather than raw slider min/max.
 
 ## Styling Conventions
 
-### SettingsPage
-
-- Page background: bg-[#121212]
-- Tab list: bg-[#1A1A1A], border-gray-800
-- Selected tab: bg-[#76B900], text-black
-- Tab panel: bg-[#1A1A1A], border-gray-800
-
-### CamerasSettings
-
-- Table: border-gray-800, divide-y divide-gray-800
-- Thead: bg-gray-900
-- Tbody: bg-card, hover:bg-gray-900/50
-- Action buttons: rounded p-1.5, hover:bg-gray-800
-- Modal: bg-panel, border-gray-800, backdrop-blur
-- Primary button: bg-primary (#76B900), text-gray-900
-- Danger button: bg-red-500, text-white
-
-### AIModelsSettings
-
-- Model cards: bg-[#1E1E1E], border-gray-800
-- Status badges: Tremor Badge with color coding
-- Progress bars: Tremor ProgressBar
-- GPU memory card: bg-[#1A1A1A]
-- Grid layout: 1 col -> 2 cols (lg breakpoint)
-
-### ProcessingSettings
-
-- Card: bg-[#1A1A1A], border-gray-800
-- Range sliders: accent-[#76B900]
-- Error banner: bg-red-500/10, border-red-500/30, text-red-500
-- Success banner: bg-green-500/10, border-green-500/30, text-green-500
-- Labels: text-gray-300, descriptions: text-gray-500
-- Application info: border-t border-gray-800, gray text
+- Page background: `bg-[#121212]`; tab strip `bg-[#1A1A1A] border-gray-800`;
+  active tab `bg-[#76B900] text-gray-950` (NVIDIA green)
+- Tables: `divide-y divide-gray-800 bg-card`, inputs `bg-card` with
+  `focus:ring-primary`
+- AI model cards: `bg-[#1E1E1E] border-gray-800`; storage panels
+  `bg-[#1A1A1A]/50`
+- Range sliders: `accent-[#76B900]` on `bg-gray-700` tracks
+- Error banner `bg-red-500/10 border-red-500/30 text-red-500`; success
+  `bg-green-500/10 border-green-500/30 text-green-500`
 
 ## Testing
 
-Comprehensive test coverage:
-
-- `SettingsPage.test.tsx` - Tab navigation, keyboard support, tab panel rendering
-- `CamerasSettings.test.tsx` - CRUD operations, modals, validation, loading/error states
-- `AIModelsSettings.test.tsx` - Model status display, memory usage, FPS display
-- `ProcessingSettings.test.tsx` - Config fetching, slider interaction, save/reset, error handling
+- Run this directory: `cd frontend && npm test -- src/components/settings/`
+- MSW integration variants exist for `DlqMonitor` and `StorageDashboard`
+- Extra suites in `__tests__/`: camera motion-sensitivity, FeatureTogglesPanel
+- Components with no co-located test today: `AIModelsTab`,
+  `AccessControlSettings`, `MqttSettings`, `QueueSettings`,
+  `RateLimitingSettings`, `GpuVersionHistory`
 
 ## Entry Points
 
-**Start here:** `SettingsPage.tsx` - Understand tabbed layout structure
-**Then explore:** `CamerasSettings.tsx` - Learn full CRUD pattern with modals
-**Next:** `ProcessingSettings.tsx` - See editable config with range sliders
-**Finally:** `AIModelsSettings.tsx` - Understand status display pattern
+**Start here:** `SettingsPage.tsx` + `settingsTabsConfig.ts` - routing shell
+**Then explore:** `CamerasSettings.tsx` - full CRUD + modal + Zod pattern
+**Next:** `ProcessingSettings.tsx` - composition surface + settings API
+**Model work:** `ModelZooPanel.tsx` + `../../hooks/useModelZoo.ts`
 
 ## Dependencies
 
-### SettingsPage
-
-- `@headlessui/react` - Tab component
-- `lucide-react` - Icons (Camera, Settings, Cpu)
-- `clsx` - Class composition
-
-### CamerasSettings
-
-- `@headlessui/react` - Dialog, Transition for modals
-- `lucide-react` - Icons (AlertCircle, Camera, Edit2, Plus, Trash2, X)
-- `clsx` - Conditional class composition
-- `../../services/api` - Camera CRUD functions
-
-### AIModelsSettings
-
-- `@tremor/react` - Card, ProgressBar, Title, Text, Badge
-- `lucide-react` - Icons (Brain, Cpu, Activity, Zap)
-- `clsx` - Class composition
-
-### ProcessingSettings
-
-- `@tremor/react` - Card, Title, Text, Button
-- `lucide-react` - Icons (AlertCircle, Settings, Save, RotateCcw, Trash2)
-- `../../services/api` - fetchConfig, updateConfig
+- `@tremor/react` - Card, Title, Text, Badge, Button, ProgressBar
+- `@headlessui/react` - Dialog/Transition (CamerasSettings modals)
+- `react-router-dom` - NavLink/Outlet (SettingsPage)
+- `lucide-react` - icons
+- `clsx` - class composition
+- `zod` - camera form schema in `../../schemas/camera.ts`
+- `../../services/api` - typed REST client
+- `../../hooks/` - `useCamerasQuery`, `useRtspTest`, `useSettingsApi`,
+  `useStorageStatsQuery`, `useModelZoo`, `useAIMetrics`,
+  `useIntegratedNotifications`
 
 ## API Endpoints Used
 
-- `GET /api/cameras` - List all cameras
-- `POST /api/cameras` - Create new camera
-- `PUT /api/cameras/:id` - Update camera
-- `DELETE /api/cameras/:id` - Delete camera
-- `GET /api/system/config` - Fetch system configuration
-- `PATCH /api/system/config` - Update system configuration
-- `GET /api/dlq/stats` - Fetch DLQ statistics
-- `GET /api/dlq/:queueName/jobs` - Fetch failed jobs for a queue
-- `POST /api/dlq/:queueName/requeue` - Requeue all failed jobs
-- `DELETE /api/dlq/:queueName` - Clear all failed jobs
+Verified in `backend/api/routes/` (and the client in
+`frontend/src/services/api.ts`):
+
+- `GET /api/cameras`, `POST /api/cameras`, `PATCH /api/cameras/{id}`,
+  `DELETE /api/cameras/{id}` (`backend/api/routes/cameras.py`; camera updates
+  are PATCH, not PUT)
+- `GET /api/system/config`, `PATCH /api/system/config`
+  (`backend/api/routes/system.py` `patch_config`)
+- `GET /api/system/severity`, `PUT /api/system/severity`
+  (`backend/api/routes/system.py`; PUT guarded by `verify_api_key`)
+- `GET /api/dlq/stats`, `GET /api/dlq/jobs/{queue_name}`,
+  `POST /api/dlq/requeue/{queue_name}`,
+  `POST /api/dlq/requeue-all/{queue_name}`, `DELETE /api/dlq/{queue_name}`
+  (`backend/api/routes/dlq.py`; the jobs path is `/jobs/{queue_name}`, not
+  `/{queueName}/jobs`)
+- `GET /api/notification/config`, `PATCH /api/notification/config`,
+  `POST /api/notification/test`, `GET /api/notification/history`
+  (`backend/api/routes/notification.py`; singular `notification`)
+- `GET /api/system/models`, `POST /api/system/models/{model_name}/load` /
+  `unload` / `reload`, `POST /api/system/models/unload-all`,
+  `GET /api/system/models/vram-summary`
+  (`backend/api/routes/model_management.py`) - Model Zoo panel
 
 ### ONVIFDiscoveryPanel.tsx
 
-**Purpose:** Modal component for discovering network cameras using ONVIF protocol
-
-**Key Features:**
-
-- Network subnet scanning for ONVIF-compatible cameras
-- Device list with manufacturer, model, and IP information
-- Auto-extraction of RTSP stream URLs from discovered devices
-- One-click camera addition from discovery results
-- Progress indicator during network scan
-- Error handling for network timeouts and unreachable devices
-
-**Props:**
+Modal for discovering ONVIF cameras on the network; device list with
+manufacturer/model/IP, RTSP URL extraction, one-click add, progress and
+timeout/error handling.
 
 ```typescript
 interface ONVIFDiscoveryPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectDevice: (device: OnvifDevice) => void;
-  className?: string;
+  onDeviceSelect: (device: OnvifDevice) => void; // not onSelectDevice
 }
 ```
 
 ### ConnectionStatusCard.tsx
 
-**Purpose:** Displays RTSP connection test results with stream capabilities
-
-**Key Features:**
-
-- Connection status indicator (success/failure/testing)
-- Stream capabilities display (resolution, codec, framerate)
-- Audio stream detection
-- PTZ capability detection
-- Latency and bitrate information
-- Error message display with troubleshooting hints
-
-**Props:**
+Renders an RTSP test result: status, stream capabilities (resolution, codec,
+framerate), audio/PTZ detection, latency/bitrate, troubleshooting hints.
 
 ```typescript
 interface ConnectionStatusCardProps {
-  testResult: RTSPTestResult | null;
-  isLoading: boolean;
-  error?: string;
-  className?: string;
+  result: RTSPTestResult | null; // single prop
 }
 ```
 
----
+## Already Implemented (older drafts listed these as "future")
 
-## Future Enhancements
+- Model reload/restart buttons - `ModelZooPanel` + `useModelZoo` hooks
+- Batch settings tooltips and presets - `BatchSettingsTooltips`,
+  `BatchPresetSelector` (NEM-3873)
+- Severity range validation - live in `SeverityThresholds`
+- Camera connection testing before save - `useRtspTest` + ConnectionStatusCard
+- Raw settings editing and version history - `RawSettingsPanel` (NEM-4951),
+  `GpuVersionHistory`
 
-### CamerasSettings
-
-- Test camera connection before saving
-- Bulk import/export cameras (JSON/CSV)
-- Camera groups/locations
-- Thumbnail preview in table
-- Sort and filter table columns
-- Camera health monitoring
-
-### AIModelsSettings
-
-- Reload/restart model buttons
-- Model switching (different versions)
-- Performance graphs (historical FPS)
-- Memory allocation controls
-- Model configuration parameters
-
-### ProcessingSettings
-
-- Validation with min/max dependencies
-- Restart required warnings
-- Advanced settings (debug mode, logging level)
-- Import/export configuration
-
-### General
-
-- Settings search/filter
-- Change history/audit log
-- Settings profiles (dev/staging/prod)
-- Help text and tooltips
-- Reset to defaults button
+Anything not on that list (settings search, audit log, profiles, bulk camera
+import) remains unbuilt; treat those as ideas, not behavior.

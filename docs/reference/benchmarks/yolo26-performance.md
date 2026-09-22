@@ -4,6 +4,18 @@
 
 This document provides detailed performance metrics for YOLO26 variants used in the detection pipeline. For the auto-generated benchmark results, see [yolo26-benchmarks.md](../../benchmarks/yolo26-benchmarks.md).
 
+> **Provenance (verified 2026-09-22):** The tables below are a curated benchmark from the TensorRT
+> FP16 era (CUDA 12.4 / TensorRT 10.0 / driver 550.54.14 on the RTX A5500) and are **not
+> reproducible with the scripts at the bottom of this page** -- `scripts/benchmark_yolo26_latency.py`
+> now measures through the Ultralytics `.pt` stack, and its regenerated output (the sibling
+> [yolo26-benchmarks.md](../../benchmarks/yolo26-benchmarks.md)) shows a very different profile
+> (e.g. yolo26n at 640x640: 44.83 ms mean there vs 5.2 ms here). The deployed detector also differs
+> from these tables: YOLO26m runs as **FP32 ONNX under Triton's ONNX Runtime backend inside
+> `ai-gateway`** (TensorRT was dropped for Triton -- 4 GB A400 workspace limits, see
+> [NVIDIA Technology Inventory](../nvidia-technology-inventory.md)), and TensorRT engines remain an
+> option only for the standalone dev server and the export pipeline. Treat the numbers as
+> best-case TensorRT reference points, not current production latency.
+
 ---
 
 ## Executive Summary

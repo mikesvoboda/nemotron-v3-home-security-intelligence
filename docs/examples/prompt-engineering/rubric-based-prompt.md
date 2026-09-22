@@ -98,7 +98,7 @@ time_context = 2 (Suspicious timing - late night)
 
 risk_score = (2 * 25) + (2 * 15) + (2 * 10)
            = 50 + 30 + 20
-           = 100 (capped from theoretical 100)
+           = 100
 
 risk_level = "critical" (85-100 range)
 ```

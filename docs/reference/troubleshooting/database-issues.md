@@ -96,7 +96,7 @@ For Docker, this is usually handled by the image.
 
 ---
 
-## Missing Migrations
+## Missing Tables (No Alembic)
 
 ### Symptoms
 
@@ -109,23 +109,27 @@ For Docker, this is usually handled by the image.
 ```bash
 # List existing tables
 psql -h localhost -U security -d security -c "\dt"
-
-# Check alembic version
-psql -h localhost -U security -d security -c "SELECT * FROM alembic_version;"
 ```
 
 ### Solutions
 
-**1. Run migrations:**
+This repository has **no Alembic migrations** — the migrations tree was removed
+(PR #4465) and there is no `alembic.ini`. The schema is created automatically by
+`init_db()` (`Base.metadata.create_all`) on backend startup:
+
+**1. Let the backend create the schema:**
 
 ```bash
-# Using alembic directly
-cd backend
-alembic upgrade head
+# Start the backend — init_db() creates all tables on a fresh database
+docker compose -f docker-compose.prod.yml up -d backend
 
-# Or in container
-docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+# Check logs if tables are still missing
+docker compose -f docker-compose.prod.yml logs backend | grep -i "init_db\|create_all"
 ```
+
+> `create_all` only creates **new** tables/columns; it never alters existing columns. A
+> model change to an existing column needs a manual `ALTER TABLE` (or wipe + recreate in
+> dev). See [Migrations](../../architecture/data-model/migrations.md).
 
 **2. Create database if needed:**
 
@@ -178,9 +182,11 @@ Look for:
 - Long-running transactions
 - Tests not cleaning up connections
 
-**3. Adjust connection pool:**
+**3. Adjust the backend connection pool:**
 
-The backend uses SQLAlchemy async pool. Default settings are usually sufficient.
+The backend uses a SQLAlchemy async pool sized by `DATABASE_POOL_SIZE` (default 20
+base connections) and `DATABASE_POOL_OVERFLOW` (default 30 burst — 50 total). Raise
+both in `.env` and restart the backend if PostgreSQL's `max_connections` allows it.
 
 ---
 
@@ -283,6 +289,8 @@ curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 
 # Actually clean up
 curl -X POST http://localhost:8000/api/system/cleanup
+
+# With API auth enabled (API_KEY_ENABLED=true) add:  -H "X-API-Key: <your-key>"
 ```
 
 **2. Vacuum to reclaim space:**
@@ -296,7 +304,7 @@ psql -h localhost -U security -d security -c "VACUUM FULL;"
 **3. Reduce retention:**
 
 ```bash
-# Default is 30 days
+# Defaults: RETENTION_DAYS=30, LOG_RETENTION_DAYS=7
 RETENTION_DAYS=14
 LOG_RETENTION_DAYS=3
 ```

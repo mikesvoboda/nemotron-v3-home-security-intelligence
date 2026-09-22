@@ -1,26 +1,41 @@
 # Settings Components
 
-This directory contains components for the Settings page of the home security dashboard.
+Components for the Settings page (`/settings`) of the home security dashboard.
+`AGENTS.md` in this directory is the authoritative file index; this README
+covers the two things an agent usually comes here for: how a settings panel
+gets its data, and what `AIModelsSettings` actually renders.
+
+## How Settings Panels Get Their Data
+
+There is no shared settings store. Each panel owns its own fetch:
+
+- Reads go through the typed client in `../../services/api` (or a TanStack
+  Query hook in `../../hooks/`).
+- Writes POST/PUT to the matching backend route, then re-fetch. Several panels
+  use the mutation hooks in `../../hooks/useServiceMutations`.
+- `SettingsPage.tsx` only handles tab routing; it does not pass data down.
+
+Backend model management lives in `backend/api/routes/model_management.py`
+under `/api/system/models`:
+
+- `GET /api/system/models` - list models with status
+- `GET /api/system/models/{model_name}/status` - one model
+- `POST /api/system/models/{model_name}/load` · `/unload` · `/reload`
+- `POST /api/system/models/unload-all`
+- `GET /api/system/models/vram-summary`
 
 ## AIModelsSettings
 
-Display AI model information and status for the YOLO26 object detection model and Nemotron risk analysis model.
-
-### Features
-
-- **Model Status Badges**: Shows loaded/unloaded/error status with color coding
-- **Memory Usage**: Displays GPU memory usage per model with progress bars
-- **Inference Speed**: Shows FPS performance when models are loaded
-- **Total GPU Memory**: Summary card showing total GPU memory
-- **NVIDIA Dark Theme**: Consistent with dashboard design
+Renders AI model status and metrics for the detection model and the Nemotron
+reasoning model.
 
 ### Props
 
 ```typescript
 interface AIModelsSettingsProps {
-  yolo26Model?: ModelInfo;
+  rtdetrModel?: ModelInfo;
   nemotronModel?: ModelInfo;
-  totalMemory?: number | null; // Total GPU memory in MB
+  totalMemory?: number | null; // MB
   className?: string;
 }
 
@@ -33,114 +48,51 @@ interface ModelInfo {
 }
 ```
 
+Note the prop name: it is `rtdetrModel`, not `yolo26Model`. The component
+label for the detection model follows whatever the backend reports.
+
 ### Default Behavior
 
-When no props are provided, the component displays placeholder data:
-
-- Both models shown as "unloaded"
-- Memory and FPS shown as "N/A"
-- Default names: "YOLO26" and "Nemotron"
-
-### Usage
-
-```typescript
-import { AIModelsSettings } from '@/components/settings';
-
-// Basic usage with default placeholder data
-<AIModelsSettings />
-
-// With real data
-<AIModelsSettings
-  yolo26Model={{
-    name: 'YOLO26',
-    status: 'loaded',
-    memoryUsed: 4096,
-    inferenceFps: 30,
-    description: 'Real-time object detection model'
-  }}
-  nemotronModel={{
-    name: 'Nemotron-3',
-    status: 'loaded',
-    memoryUsed: 8192,
-    inferenceFps: 15,
-    description: 'Risk analysis and reasoning model'
-  }}
-  totalMemory={24576}
-/>
-```
+Props are optional. With none supplied, the component calls `useAIMetrics()`
+and derives both models from that, falling back to placeholder cards: both
+models shown as unloaded, memory and FPS as `N/A`.
 
 ### Layout
 
-- Two-column grid on large screens (`lg:grid-cols-2`)
-- Single column on mobile
-- Each model gets its own card
-- Optional total memory summary card at bottom
+- Two-column grid on large screens (`lg:grid-cols-2`), one column on mobile
+- One card per model, each with a status badge and a Tremor `ProgressBar` for
+  memory
+- Optional total-memory summary card
 
-### Styling
+### Status Colors
 
-- **Cards**: Dark background (#1E1E1E, #1A1A1A) with gray borders
-- **NVIDIA Green**: #76B900 for active elements (icons, loaded status)
-- **Status Colors**:
-  - Green: loaded
-  - Gray: unloaded
-  - Red: error
-- **Progress Bars**: Tremor ProgressBar component with color coding
+Loaded = green, unloaded = gray, error = red. NVIDIA green (`#76B900`) marks
+active elements.
 
 ### Data Sources
 
-The component can be populated from:
+`useAIMetrics` (`../../hooks/useAIMetrics.ts`) aggregates:
 
-- **GPU Stats API**: `/api/system/gpu` - provides memory and FPS data
-- **Health API**: `/api/system/health` - could provide model status
-- **WebSocket**: `/ws/system` - real-time system status updates
-
-Currently, model management endpoints don't exist in the backend, so this component primarily shows static/mock data or data derived from GPU stats.
-
-### Examples
-
-See `AIModelsSettings.example.tsx` for complete examples:
-
-- Default placeholder display
-- With real GPU stats
-- Mixed states (one loaded, one unloaded)
-- Error state handling
-- Integration with hooks
+- `/api/system/health` - AI service health status
+- `/api/system/telemetry` - queue depths and basic latency
+- `/api/system/pipeline-latency` - latency percentiles
+- `/api/metrics` - Prometheus histograms
+- `/api/dlq/stats`, `/api/detections/stats`
 
 ### Testing
 
-Comprehensive test coverage in `AIModelsSettings.test.tsx`:
-
-- ✓ Status badge rendering (all states)
-- ✓ Memory usage display and formatting
-- ✓ Inference speed display
-- ✓ Total GPU memory
-- ✓ Null value handling
-- ✓ Edge cases (zero, decimals, large numbers)
-- ✓ Layout and grid
-- ✓ Custom className support
-
-Run tests:
+`AIModelsSettings.test.tsx` covers status badges for every state, memory and
+FPS formatting, null and edge-case values, grid layout, and `className`.
 
 ```bash
 cd frontend && npm test -- --run AIModelsSettings
 ```
 
-### Future Enhancements
+## Related Components
 
-Potential improvements:
-
-- Real-time model loading/unloading controls
-- Model configuration options
-- Performance history charts
-- Model version information
-- Temperature per model (if available)
-- Power consumption metrics
-
-### Related Components
-
-- `/dashboard/GpuStats.tsx` - GPU metrics display (uses same GPU data)
-- Other settings components (coming soon):
-  - `GeneralSettings.tsx`
-  - `CameraSettings.tsx`
-  - `AlertSettings.tsx`
-  - `StorageSettings.tsx`
+- `frontend/src/components/dashboard/GpuStats.tsx` - GPU metrics display using
+  the same GPU data
+- `frontend/src/components/settings/ModelZooPanel.tsx` - the Model Zoo table
+  (moved here from `system/` when the Infrastructure page was removed in #3471)
+- `frontend/src/components/system/AGENTS.md` - the operations page that
+  consumes the same health and telemetry endpoints

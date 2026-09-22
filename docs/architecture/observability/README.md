@@ -8,39 +8,42 @@ The observability infrastructure provides full visibility into system operation 
 
 All components are designed for correlation. Log entries include trace IDs and span IDs enabling navigation from logs to traces. Metrics include labels that map to trace attributes. Grafana datasources are configured with derived fields and trace-to-metrics queries for seamless navigation between observability data types.
 
-The stack runs entirely in containers alongside the application services, with Prometheus scraping metrics endpoints, Jaeger collecting traces, and Grafana providing unified visualization. Alertmanager routes alerts based on severity and component, with inhibition rules preventing alert storms.
-
-> **Note:** Loki log aggregation is planned but not currently deployed. The `docker-compose.prod.yml` does not include a Loki service. Log references to Loki in the architecture diagrams represent the intended future state.
+The stack runs entirely in containers alongside the application services: Prometheus scrapes
+metrics endpoints, Alloy receives OTLP traces and forwards them to Tempo, Loki stores logs, and
+Grafana provides unified visualization. Alertmanager routes alerts based on severity and component,
+with inhibition rules preventing alert storms (`monitoring/alertmanager.yml:45, 118`). Alloy also
+scrapes container logs and ships them to Loki (`monitoring/alloy/config.alloy:50-140`).
 
 ## Documents
 
-| Document                                           | Description                                             | Key Files                              |
-| -------------------------------------------------- | ------------------------------------------------------- | -------------------------------------- |
-| [structured-logging.md](./structured-logging.md)   | JSON log format, context propagation, trace correlation | `backend/core/logging.py:1-1232`       |
-| [prometheus-metrics.md](./prometheus-metrics.md)   | Custom metrics definitions, histogram buckets, labels   | `backend/core/metrics.py:1-3240`       |
-| [distributed-tracing.md](./distributed-tracing.md) | OpenTelemetry setup, span context, baggage propagation  | `backend/core/telemetry.py:1-1007`     |
-| [grafana-dashboards.md](./grafana-dashboards.md)   | Dashboard configurations, panel queries, datasources    | `monitoring/grafana/dashboards/*.json` |
-| [alertmanager.md](./alertmanager.md)               | Alert routing, notification channels, inhibition rules  | `monitoring/alertmanager.yml:1-215`    |
+| Document                                           | Description                                             | Key Files                                 |
+| -------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| [structured-logging.md](./structured-logging.md)   | JSON log format, context propagation, trace correlation | `backend/core/logging.py` (1255 lines)    |
+| [prometheus-metrics.md](./prometheus-metrics.md)   | Custom metrics definitions, histogram buckets, labels   | `backend/core/metrics.py` (5153 lines)    |
+| [distributed-tracing.md](./distributed-tracing.md) | OpenTelemetry setup, span context, baggage propagation  | `backend/core/telemetry.py` (1574 lines)  |
+| [grafana-dashboards.md](./grafana-dashboards.md)   | Dashboard configurations, panel queries, datasources    | `monitoring/grafana/dashboards/*.json`    |
+| [alertmanager.md](./alertmanager.md)               | Alert routing, notification channels, inhibition rules  | `monitoring/alertmanager.yml` (238 lines) |
 
 ## Architecture Diagram
 
 ```mermaid
 graph TD
     subgraph "Application Layer"
-        BE[Backend Service<br/>backend/api/main.py]
-        AI[AI Services<br/>ai-yolo26, ai-llm, ai-florence]
+        BE[Backend Service<br/>backend/main.py]
+        AI[AI Containers<br/>ai-gateway :8090, ai-llm :8091]
     end
 
     subgraph "Instrumentation"
-        LOG[Structured Logging<br/>backend/core/logging.py:842-912]
-        MET[Prometheus Metrics<br/>backend/core/metrics.py:107-500]
-        TRC[OpenTelemetry Tracing<br/>backend/core/telemetry.py:135-268]
+        LOG[Structured Logging<br/>backend/core/logging.py]
+        MET[Prometheus Metrics<br/>backend/core/metrics.py]
+        TRC[OpenTelemetry Tracing<br/>backend/core/telemetry.py]
     end
 
     subgraph "Collection Layer"
         PROM[Prometheus<br/>monitoring/prometheus.yml]
-        LOKI[Loki<br/>Log Aggregation]
-        JAEG[Jaeger<br/>Trace Collection]
+        LOKI[Loki<br/>log aggregation]
+        ALLOY[Alloy<br/>OTLP collector :4317]
+        TEMPO[Tempo<br/>trace storage :3200]
     end
 
     subgraph "Visualization & Alerting"
@@ -53,13 +56,15 @@ graph TD
     BE --> TRC
     AI --> MET
 
-    LOG --> LOKI
+    LOG --> |container logs| ALLOY
+    ALLOY --> |loki.write| LOKI
     MET --> PROM
-    TRC --> JAEG
+    TRC --> |OTLP gRPC| ALLOY
+    ALLOY --> |OTLP| TEMPO
 
     PROM --> GRAF
     LOKI --> GRAF
-    JAEG --> GRAF
+    TEMPO --> GRAF
     PROM --> AM
 
     AM --> |Webhooks| BE
@@ -67,28 +72,30 @@ graph TD
 
 ## Quick Reference
 
-| Component             | File                                   | Purpose                                            |
-| --------------------- | -------------------------------------- | -------------------------------------------------- |
-| `setup_logging`       | `backend/core/logging.py:842-912`      | Configure console, file, and database log handlers |
-| `CustomJsonFormatter` | `backend/core/logging.py:612-697`      | JSON log formatting with trace context             |
-| `ContextFilter`       | `backend/core/logging.py:467-609`      | Inject request ID, trace ID, span ID into logs     |
-| `setup_telemetry`     | `backend/core/telemetry.py:135-268`    | Initialize OpenTelemetry with auto-instrumentation |
-| `MetricsService`      | `backend/core/metrics.py:696-1244`     | Centralized Prometheus metric recording            |
-| Prometheus Config     | `monitoring/prometheus.yml:1-410`      | Scrape configuration for all services              |
-| Alertmanager Config   | `monitoring/alertmanager.yml:1-215`    | Alert routing and notification                     |
-| Alerting Rules        | `monitoring/alerting-rules.yml:1-1116` | Alert definitions with severity labels             |
+| Component             | File                                                           | Purpose                                            |
+| --------------------- | -------------------------------------------------------------- | -------------------------------------------------- |
+| `setup_logging`       | `backend/core/logging.py:842-924`                              | Configure console, file, and database log handlers |
+| `CustomJsonFormatter` | `backend/core/logging.py:612-699`                              | JSON log formatting with trace context             |
+| `ContextFilter`       | `backend/core/logging.py:467-611`                              | Inject request ID, trace ID, span ID into logs     |
+| `setup_telemetry`     | `backend/core/telemetry.py:145-410`                            | Initialize OpenTelemetry with auto-instrumentation |
+| `MetricsService`      | `backend/core/metrics.py:1239-1966`                            | Centralized Prometheus metric recording            |
+| Prometheus Config     | `monitoring/prometheus.yml` (449 lines; scrape_configs at :44) | Scrape configuration for all services              |
+| Alertmanager Config   | `monitoring/alertmanager.yml` (238 lines)                      | Alert routing and notification                     |
+| Alerting Rules        | `monitoring/alerting-rules.yml` (1241 lines)                   | Alert definitions with severity labels             |
 
 ## Key Concepts
 
 ### Trace Correlation
 
-Every log entry includes `trace_id` and `span_id` fields when OpenTelemetry is active. This enables navigation from logs to the corresponding distributed trace in Jaeger:
+Every log entry includes `trace_id` and `span_id` fields when OpenTelemetry is active. This enables
+navigation from logs to the corresponding distributed trace in Tempo:
 
 ```
 trace_id=abc123def456... span_id=789xyz...
 ```
 
-Grafana's Loki datasource is configured with derived fields to extract trace IDs and link directly to Jaeger (`monitoring/grafana/provisioning/datasources/prometheus.yml:198-214`).
+Grafana's Loki datasource is configured with derived fields to extract trace IDs and link directly
+to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:225-231`).
 
 ### Metric Cardinality Control
 
@@ -100,18 +107,24 @@ Alerts use multi-window burn rate calculations for SLO monitoring. Fast burns (1
 
 ## Configuration
 
-| Setting                       | Location                 | Default                    | Description                   |
-| ----------------------------- | ------------------------ | -------------------------- | ----------------------------- |
-| `LOG_LEVEL`                   | `backend/core/config.py` | `INFO`                     | Minimum log level             |
-| `LOG_FILE_PATH`               | `backend/core/config.py` | `/var/log/hsi/backend.log` | Log file location             |
-| `OTEL_ENABLED`                | `backend/core/config.py` | `False`                    | Enable OpenTelemetry tracing  |
-| `OTEL_SERVICE_NAME`           | `backend/core/config.py` | `nemotron-backend`         | Service name in traces        |
-| `OTEL_TRACE_SAMPLE_RATE`      | `backend/core/config.py` | `1.0`                      | Trace sampling rate (0.0-1.0) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `backend/core/config.py` | `http://localhost:4317`    | OTLP collector endpoint       |
+| Setting                       | Location                      | Default                  | Description                   |
+| ----------------------------- | ----------------------------- | ------------------------ | ----------------------------- |
+| `LOG_LEVEL`                   | `backend/core/config.py:1924` | `WARNING`                | Minimum log level             |
+| `LOG_FILE_PATH`               | `backend/core/config.py:1928` | `data/logs/security.log` | Log file location             |
+| `OTEL_ENABLED`                | `backend/core/config.py:1815` | `True`                   | Enable OpenTelemetry tracing  |
+| `OTEL_SERVICE_NAME`           | `backend/core/config.py:1820` | `nemotron-backend`       | Service name in traces        |
+| `OTEL_TRACE_SAMPLE_RATE`      | `backend/core/config.py:1835` | `1.0`                    | Trace sampling rate (0.0-1.0) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `backend/core/config.py:1825` | `http://alloy:4317`      | OTLP collector endpoint       |
 
 ## Monitoring Stack Components
 
-![Monitoring Stack showing Prometheus, Grafana, Loki, Jaeger, and Alertmanager integration](../../images/architecture/monitoring-stack.png)
+![Monitoring Stack showing Prometheus, Grafana, Loki, and Alertmanager integration](../../images/architecture/monitoring-stack.png)
+
+<!-- Diagram note: the image is stale on two counts. (1) It shows Jaeger as the trace backend;
+     since NEM-5545 the deployed path is Alloy (OTLP :4317) → Grafana Tempo. (2) It shows the AI
+     stack as five separate services (RT-DETR 8090, Florence 8092, CLIP 8093, Enrichment 8094);
+     since the gateway consolidation everything except the LLM runs inside ai-gateway on :8090,
+     with Nemotron on ai-llm :8091. -->
 
 The monitoring stack provides comprehensive observability through integrated components that share data and enable cross-correlation between metrics, logs, and traces.
 
@@ -119,11 +132,12 @@ The monitoring stack provides comprehensive observability through integrated com
 
 | Datasource   | Type                           | Purpose                       | Configuration                                                        |
 | ------------ | ------------------------------ | ----------------------------- | -------------------------------------------------------------------- |
-| Prometheus   | `prometheus`                   | Metrics queries and alerts    | `monitoring/grafana/provisioning/datasources/prometheus.yml:6-16`    |
-| Alertmanager | `alertmanager`                 | Alert state visualization     | `monitoring/grafana/provisioning/datasources/prometheus.yml:18-28`   |
-| Jaeger       | `jaeger`                       | Distributed trace exploration | `monitoring/grafana/provisioning/datasources/prometheus.yml:41-101`  |
-| Loki         | `loki`                         | Log aggregation and search    | `monitoring/grafana/provisioning/datasources/prometheus.yml:198-214` |
-| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:216-231` |
+| Prometheus   | `prometheus`                   | Metrics queries and alerts    | `monitoring/grafana/provisioning/datasources/prometheus.yml:13-23`   |
+| Alertmanager | `alertmanager`                 | Alert state visualization     | `monitoring/grafana/provisioning/datasources/prometheus.yml:25-35`   |
+| Backend-API  | `marcusolsson-json-datasource` | JSON API queries via backend  | `monitoring/grafana/provisioning/datasources/prometheus.yml:37-46`   |
+| Tempo        | `tempo`                        | Distributed trace exploration | `monitoring/grafana/provisioning/datasources/prometheus.yml:48-104`  |
+| Loki         | `loki`                         | Log aggregation and search    | `monitoring/grafana/provisioning/datasources/prometheus.yml:216-231` |
+| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:234-250` |
 
 ## Related Hubs
 

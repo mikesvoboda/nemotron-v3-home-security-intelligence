@@ -1,26 +1,38 @@
 # Event Lifecycle
 
-This document describes the complete lifecycle of a security event from creation through archival, including state transitions, data transformations, and retention policies.
+This document describes the complete lifecycle of a security event from creation through deletion, including state transitions, data transformations, and retention policies.
 
 ![Event Lifecycle Overview](../../images/architecture/dataflows/flow-event-lifecycle.png)
 
+<!-- Image predates the soft-delete model: it shows "resolve" and "archive to table"
+steps that do not exist in backend/api/routes/events.py or cleanup_service.py. -->
+
 ## Event State Machine
+
+Events carry no status column. Their lifecycle is driven by boolean/timestamp fields on `backend/models/event.py` (`reviewed`, `flagged`, `snooze_until`, `deleted_at`) plus the retention cleanup job.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Created: LLM analysis complete
     Created --> Broadcasted: WebSocket notification sent
-    Broadcasted --> Acknowledged: User views event
-    Broadcasted --> Archived: 30-day retention expired
-    Acknowledged --> Resolved: User marks resolved
-    Acknowledged --> Archived: 30-day retention expired
-    Resolved --> Archived: 30-day retention expired
-    Archived --> [*]: Data purged
+    Broadcasted --> Reviewed: PATCH /api/events/{id} sets reviewed=true
+    Broadcasted --> SoftDeleted: DELETE sets deleted_at
+    SoftDeleted --> Broadcasted: POST /api/events/{id}/restore
+    Reviewed --> SoftDeleted: DELETE sets deleted_at
+    Broadcasted --> Purged: retention_days (default 30) elapsed
+    Reviewed --> Purged: retention_days (default 30) elapsed
+    SoftDeleted --> Purged: cleanup DELETE
+    Purged --> [*]
 ```
+
+There is no resolve step: alert _instances_ are acknowledged or dismissed via `POST /api/alerts/{alert_id}/acknowledge` and `POST /api/alerts/{alert_id}/dismiss` (`backend/api/routes/alerts.py:566, 657`); events themselves are reviewed or snoozed.
 
 ## Event Creation
 
 ![Event States](../../images/architecture/dataflows/concept-event-states.png)
+
+<!-- Image shows an acknowledge/resolve state machine; the Event model has no status
+column — see the state diagram above for the field-driven lifecycle. -->
 
 **Source:** `backend/services/nemotron_analyzer.py:6-17`
 
@@ -58,21 +70,29 @@ Event:
     reasoning: str             # LLM reasoning for assessment
     started_at: datetime       # First detection in batch
     ended_at: datetime | None  # Last detection in batch (optional)
-    created_at: datetime       # Event creation timestamp
-    acknowledged_at: datetime | None  # User acknowledgment timestamp
-    resolved_at: datetime | None      # User resolution timestamp
+    reviewed: bool             # Marked reviewed by a user (also drives hsi_events_reviewed_total)
+    snooze_until: datetime     # NEM-2359 — suppress until this time
+    deleted_at: datetime       # Soft delete (restorable until cleanup purges it)
+    version: int               # Optimistic-locking counter (NEM-3625)
+    # Event has no created_at column — started_at is the event's time reference.
 ```
 
 ### Risk Level Derivation
 
-Risk level is derived from risk score:
+The Nemotron response supplies `risk_score`/`risk_level`; `Event.computed_risk_level`
+(`backend/models/event.py:367-399`) re-derives the level from configurable thresholds
+(`severity_low_max`/`severity_medium_max`/`severity_high_max`, `backend/core/config.py:2288-2303`):
 
 | Score Range | Risk Level |
 | ----------- | ---------- |
 | 0-29        | low        |
 | 30-59       | medium     |
-| 60-79       | high       |
-| 80-100      | critical   |
+| 60-84       | high       |
+| 85-100      | critical   |
+
+Safety override (NEM-5566): a fire detection forces `risk_score = 100` and
+`risk_level = "critical"` regardless of LLM output
+(`backend/services/nemotron_analyzer.py:2845-2860`).
 
 ## Event Broadcasting
 
@@ -176,9 +196,12 @@ self._client_acks: dict[WebSocket, int] = {}
 - Last 100 messages buffered for replay
 - Per-client ACK tracking for delivery confirmation
 
-## Event Acknowledgment
+## Event Review / Acknowledgment
 
-### User Acknowledgment Flow
+### Review Flow
+
+"Viewing" an event has no backend effect; the dashboard marks events reviewed
+by PATCHing the event itself (`backend/api/routes/events.py:1869-2060`):
 
 ```mermaid
 sequenceDiagram
@@ -186,60 +209,43 @@ sequenceDiagram
     participant FE as Frontend App
     participant API as Backend API
     participant DB as PostgreSQL
-    participant EB as EventBroadcaster
 
-    User->>FE: View event
-    FE->>API: PATCH /api/events/{id}/acknowledge
-    API->>DB: UPDATE events SET acknowledged_at = NOW()
-    DB-->>API: Success
-    API->>EB: Broadcast acknowledgment
-    EB-->>FE: WebSocket: event.acknowledged
-    API-->>FE: 200 OK
+    User->>FE: Mark reviewed / add notes / snooze
+    FE->>API: PATCH /api/events/{id} {reviewed: true, version: N}
+    API->>DB: UPDATE event (audit log + commit)
+    DB-->>API: Success (version incremented)
+    API-->>FE: 200 OK (updated EventResponse)
 ```
 
 ### API Endpoint
 
 ```
-PATCH /api/events/{event_id}/acknowledge
+PATCH /api/events/{event_id}
 
-Response:
-{
-    "id": 1,
-    "acknowledged_at": "2025-12-23T12:05:00Z",
-    ...
-}
+Body (all optional): reviewed, notes, snooze_until, version
+  - Include `version` for optimistic locking (NEM-3625): a stale version
+    returns 409 with {"detail": {"current_version": N}}.
+
+Response: the full updated Event (risk fields plus reviewed/notes/snooze_until).
+Side effects: hsi_events_reviewed_total and hsi_events_acknowledged_total are
+recorded when reviewed flips to true (NEM-770 / NEM-3288); cache is invalidated
+(NEM-1938). No WebSocket broadcast is sent for the update.
 ```
 
-## Event Resolution
+## Event Deletion (Soft Delete)
 
-### Resolution Flow
+Events are soft-deleted and restorable; there is no "resolved" state.
 
-```mermaid
-sequenceDiagram
-    participant User as Frontend User
-    participant FE as Frontend App
-    participant API as Backend API
-    participant DB as PostgreSQL
-    participant EB as EventBroadcaster
-
-    User->>FE: Mark resolved
-    FE->>API: PATCH /api/events/{id}/resolve
-    API->>DB: UPDATE events SET resolved_at = NOW()
-    DB-->>API: Success
-    API->>EB: Broadcast resolution
-    EB-->>FE: WebSocket: event.resolved
-    API-->>FE: 200 OK
+```
+DELETE /api/events/{event_id}            → sets deleted_at
+POST   /api/events/{event_id}/restore    → clears deleted_at (409 if not deleted)
+GET    /api/events/deleted               → list soft-deleted events
+DELETE /api/events/bulk                  → per-item results (207 Multi-Status)
 ```
 
-### Resolution Data
-
-```python
-# Resolution metadata
-Event:
-    resolved_at: datetime     # When user marked as resolved
-    resolution_notes: str     # Optional notes from user
-    resolved_by: str | None   # User who resolved (if auth enabled)
-```
+Rows stay until the cleanup job hard-deletes them once `started_at` is older
+than the retention cutoff. Alert-instance workflow (acknowledge/dismiss) is
+separate: `backend/api/routes/alerts.py:566, 657`.
 
 ## Event Archival
 
@@ -247,37 +253,41 @@ Event:
 
 **Default retention:** 30 days
 
-Events older than the retention period are subject to archival and eventual purging.
+There is no archive table: old rows are deleted outright by the cleanup service.
 
-### Archival Process
+### Cleanup Process
 
 ```mermaid
 sequenceDiagram
     participant Scheduler as Cleanup Scheduler
     participant CS as CleanupService
     participant DB as PostgreSQL
-    participant Metrics as Prometheus
+    participant RS as Redis (job status)
 
     Scheduler->>CS: Run cleanup job
-    CS->>DB: SELECT events WHERE created_at < NOW() - 30 days
-    loop For each batch of events
-        CS->>DB: Archive events to archive table
-        CS->>DB: DELETE from events table
-        CS->>Metrics: Record cleanup count
-    end
-    CS-->>Scheduler: Cleanup complete
+    CS->>RS: start_job (cleanup-YYYYMMDD-HHMMSS, data_cleanup)
+    CS->>DB: DELETE detections WHERE detected_at < cutoff
+    CS->>DB: DELETE events WHERE started_at < cutoff
+    CS->>DB: DELETE gpu_stats WHERE recorded_at < cutoff
+    CS->>DB: DELETE old logs
+    CS->>CS: Delete thumbnail/image files from disk
+    CS-->>RS: progress updates, job complete
 ```
 
 ### Cleanup Service
 
-The CleanupService handles data retention:
+Retention comes from settings, not constants
+(`backend/services/cleanup_service.py:141, 487`):
 
 ```python
-# Retention periods
-EVENT_RETENTION_DAYS = 30          # Keep events for 30 days
-DETECTION_RETENTION_DAYS = 30     # Keep detections for 30 days
-LOG_RETENTION_DAYS = 7            # Keep logs for 7 days
+settings.retention_days        # default 30 — events, detections (config.py:927-932)
+settings.log_retention_days    # default 7  — logs (config.py:1948-1951)
 ```
+
+Cutoff is `now(UTC) - timedelta(days=retention_days)`; events are matched on
+`started_at`, detections on `detected_at` (`cleanup_service.py:266-298`). A dry
+run mode (`cleanup_service.py:398`) reports what would be deleted without
+deleting it.
 
 ## Event Data Flow Summary
 
@@ -308,8 +318,8 @@ LOG_RETENTION_DAYS = 7            # Keep logs for 7 days
 │                                                                      │
 │  User Interaction                                                    │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐           │
-│  │ Acknowledge  │ -> │ Resolve      │ -> │ Archive      │           │
-│  │ (view)       │    │ (mark done)  │    │ (30 days)    │           │
+│  │ Review       │ -> │ SoftDelete   │ -> │ Purge        │           │
+│  │ (reviewed=1) │    │ (deleted_at) │    │ (30 days)    │           │
 │  └──────────────┘    └──────────────┘    └──────────────┘           │
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -317,34 +327,39 @@ LOG_RETENTION_DAYS = 7            # Keep logs for 7 days
 
 ## Event Timestamps
 
-| Timestamp         | Description              | Set When              |
-| ----------------- | ------------------------ | --------------------- |
-| `created_at`      | Event creation time      | LLM analysis complete |
-| `started_at`      | First detection in batch | From batch metadata   |
-| `ended_at`        | Last detection in batch  | From batch metadata   |
-| `acknowledged_at` | User viewed event        | User clicks event     |
-| `resolved_at`     | User marked resolved     | User resolves event   |
+| Field          | Description              | Set When                                                     |
+| -------------- | ------------------------ | ------------------------------------------------------------ |
+| `started_at`   | First detection in batch | From batch metadata (no `created_at` column exists on Event) |
+| `ended_at`     | Last detection in batch  | From batch metadata                                          |
+| `snooze_until` | Suppressed until         | User snoozes the event (NEM-2359)                            |
+| `deleted_at`   | Soft-deleted at          | `DELETE /api/events/{id}`                                    |
+| `version`      | Optimistic-lock counter  | Increments on every update (NEM-3625)                        |
 
 ## Event Relationships
 
 ```
-Event (1) ─────────┬───────── (*) Detection
+Event (1) ─────────┬───────── (*) Detection  (many-to-many via event_detections)
                    │
-                   └───────── (1) Camera
+                   ├───────── (1) Camera           (events.camera_id FK)
                    │
-                   └───────── (1) Batch
+                   ├───────── (1) EventAudit       (one quality audit per event)
                    │
-                   └───────── (*) AlertRule (triggers)
+                   ├───────── (1) EventFeedback    (one feedback row per event)
+                   │
+                   └───────── (*) Alert            (alerts triggered by AlertRules)
 ```
+
+`batch_id` is a plain string column linking the event to its upstream detection
+batch — there is no `batches` table or FK.
 
 ## Error Handling
 
 ### Broadcast Failures
 
-**Source:** `backend/services/event_broadcaster.py:145-244`
+**Source:** `backend/services/event_broadcaster.py:155-254`
 
 ```python
-# backend/services/event_broadcaster.py:145-182
+# backend/services/event_broadcaster.py:155-163 (abridged)
 async def broadcast_with_retry[T](
     broadcast_func: Callable[[], Awaitable[T]],
     message_type: str,
@@ -361,9 +376,9 @@ async def broadcast_with_retry[T](
 
 | Parameter             | Value | Source                                     |
 | --------------------- | ----- | ------------------------------------------ |
-| `DEFAULT_MAX_RETRIES` | 3     | `backend/services/event_broadcaster.py:72` |
-| `DEFAULT_BASE_DELAY`  | 1.0s  | `backend/services/event_broadcaster.py:73` |
-| `DEFAULT_MAX_DELAY`   | 30.0s | `backend/services/event_broadcaster.py:74` |
+| `DEFAULT_MAX_RETRIES` | 3     | `backend/services/event_broadcaster.py:82` |
+| `DEFAULT_BASE_DELAY`  | 1.0s  | `backend/services/event_broadcaster.py:83` |
+| `DEFAULT_MAX_DELAY`   | 30.0s | `backend/services/event_broadcaster.py:84` |
 
 ### Error Recovery
 
@@ -377,22 +392,25 @@ async def broadcast_with_retry[T](
 
 ### Event Metrics
 
-- `hsi_events_total` - Total events created
-- `hsi_events_by_risk_level` - Events by risk level
-- `hsi_events_by_camera` - Events by camera
-- `hsi_event_broadcast_duration_seconds` - Broadcast latency
+- `hsi_events_created_total` - Total events created (`backend/core/metrics.py:294`)
+- `hsi_events_by_risk_level_total` - Events by risk level (`backend/core/metrics.py:462`)
+- `hsi_events_by_camera_total` - Events by camera (`backend/core/metrics.py:652`)
+- `hsi_events_reviewed_total` / `hsi_events_acknowledged_total` - Review tracking
+  (NEM-770 / NEM-3288, `backend/core/metrics.py:659, 667`)
 
 ### Broadcast Metrics
 
 ```python
-# backend/services/event_broadcaster.py:79-98
+# backend/services/event_broadcaster.py:89-110 (abridged)
 @dataclass
 class BroadcastRetryMetrics:
     total_attempts: int = 0
     successful_broadcasts: int = 0
     failed_broadcasts: int = 0
     retries_exhausted: int = 0
-    retry_counts: dict[int, int]  # Count by retry attempts needed
+    retry_counts: dict[int, int] = field(
+        default_factory=lambda: {0: 0, 1: 0, 2: 0, 3: 0}
+    )  # Count by retry attempts needed
 ```
 
 ## Related Documents

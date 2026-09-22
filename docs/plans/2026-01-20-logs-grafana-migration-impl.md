@@ -1,5 +1,7 @@
 # Logs Page Grafana/Loki Migration - Implementation Plan
 
+> **Status:** Implemented — see `frontend/src/components/logs/LogsPage.tsx` and `monitoring/grafana/dashboards/logs.json`; the listed custom `components/logs/Logs*` components were removed.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace custom LogsDashboard with embedded Grafana dashboard powered by Loki

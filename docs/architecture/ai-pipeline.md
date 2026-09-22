@@ -85,7 +85,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
-    participant RT as YOLO26 (8095)
+    participant RT as ai-gateway /yolo26 (8090)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant AQ as analysis_queue
@@ -241,7 +241,8 @@ YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera 
 
 ### What It Does
 
-YOLO26 is a state-of-the-art transformer-based object detector that combines DETR's end-to-end detection approach with real-time inference speeds:
+YOLO26 is a transformer-based object detector (DETR-style end-to-end detection, tuned for real-time
+speed). For each image it receives:
 
 1. Receives camera images via HTTP POST
 2. Preprocesses images (RGB conversion, normalization)
@@ -252,7 +253,7 @@ YOLO26 is a state-of-the-art transformer-based object detector that combines DET
 
 ### API Format
 
-**Endpoint:** `POST http://localhost:8095/detect`
+**Endpoint:** `POST http://localhost:8090/yolo26/detect` (ai-gateway)
 
 **Request (multipart/form-data):**
 
@@ -348,15 +349,17 @@ Only these 9 COCO classes are returned (all others filtered):
 | Metric           | Value                            |
 | ---------------- | -------------------------------- |
 | Inference time   | 30-50ms per image                |
-| VRAM usage       | ~4GB                             |
 | Throughput       | ~20-30 images/second             |
 | Model warmup     | ~1-2 seconds (3 iterations)      |
 | Batch processing | Sequential (one image at a time) |
 
+VRAM for YOLO26 is allocated dynamically inside ai-gateway alongside the other Triton models
+(per-model `vram_mb` in `models.yml`; live usage via `/api/system/gpu`).
+
 ### Health Check
 
 ```bash
-curl http://localhost:8095/health
+curl http://localhost:8090/yolo26/health
 ```
 
 ```json
@@ -428,7 +431,9 @@ stateDiagram-v2
 
 ### Timing Parameters
 
---8<-- "docs/\_includes/batching-config.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/batching-config.md"
+<!-- prettier-ignore-end -->
 
 ### Redis Key Structure
 
@@ -634,7 +639,9 @@ The risk score is determined entirely by the LLM based on the prompt guidelines.
 
 > See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
 
---8<-- "docs/\_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-end -->
 
 ### Validation and Normalization
 
@@ -849,20 +856,26 @@ flowchart TB
 
 ### Environment Variables
 
-| Variable                         | Default                 | Description                            |
-| -------------------------------- | ----------------------- | -------------------------------------- |
-| `FOSCAM_BASE_PATH`               | `/export/foscam`        | Camera FTP upload directory            |
-| `YOLO26_URL`                     | `http://localhost:8095` | YOLO26 service URL                     |
-| `NEMOTRON_URL`                   | `http://localhost:8091` | Nemotron LLM service URL               |
-| `FLORENCE_URL`                   | `http://localhost:8092` | Florence-2 vision-language service URL |
-| `CLIP_URL`                       | `http://localhost:8093` | CLIP embedding service URL             |
-| `ENRICHMENT_URL`                 | `http://localhost:8094` | Enrichment service URL                 |
-| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence to store detection  |
-| `BATCH_WINDOW_SECONDS`           | `90`                    | Maximum batch duration                 |
-| `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                    | Idle timeout before closing batch      |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`                  | Confidence threshold for fast path     |
-| `FAST_PATH_OBJECT_TYPES`         | `["person"]`            | Object types eligible for fast path    |
-| `DEDUPE_TTL_SECONDS`             | `300`                   | File hash deduplication TTL            |
+Defaults below are the `.env.example` (native-dev) values. In `docker-compose.prod.yml` the AI URLs point
+at the ai-gateway container instead: `YOLO26_URL=http://ai-gateway:8090/yolo26`,
+`FLORENCE_URL=http://ai-gateway:8090/florence`, `CLIP_URL=http://ai-gateway:8090/clip`,
+`ENRICHMENT_URL=http://ai-gateway:8090/enrichment`, `ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt`,
+and `NEMOTRON_URL=http://ai-llm:8091`.
+
+| Variable                         | Default                            | Description                           |
+| -------------------------------- | ---------------------------------- | ------------------------------------- |
+| `FOSCAM_BASE_PATH`               | `/export/foscam`                   | Camera FTP upload directory           |
+| `YOLO26_URL`                     | `http://localhost:8090/yolo26`     | YOLO26 service URL (ai-gateway route) |
+| `NEMOTRON_URL`                   | `http://localhost:8091`            | Nemotron LLM service URL              |
+| `FLORENCE_URL`                   | `http://localhost:8090/florence`   | Florence-2 vision-language URL        |
+| `CLIP_URL`                       | `http://localhost:8090/clip`       | CLIP embedding service URL            |
+| `ENRICHMENT_URL`                 | `http://localhost:8090/enrichment` | Enrichment service URL                |
+| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                              | Minimum confidence to store detection |
+| `BATCH_WINDOW_SECONDS`           | `90`                               | Maximum batch duration                |
+| `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                               | Idle timeout before closing batch     |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`                             | Confidence threshold for fast path    |
+| `FAST_PATH_OBJECT_TYPES`         | `["person"]`                       | Object types eligible for fast path   |
+| `DEDUPE_TTL_SECONDS`             | `300`                              | File hash deduplication TTL           |
 
 ### Enrichment Feature Toggles
 
@@ -874,13 +887,10 @@ flowchart TB
 
 ### AI Service Ports
 
-| Service         | Port | Protocol | Description        |
-| --------------- | ---- | -------- | ------------------ |
-| YOLO26          | 8095 | HTTP     | Object detection   |
-| NVIDIA Nemotron | 8091 | HTTP     | LLM risk analysis  |
-| Florence        | 8092 | HTTP     | Vision-language    |
-| CLIP            | 8093 | HTTP     | Embeddings / re-ID |
-| Enrichment      | 8094 | HTTP     | Enrichment helpers |
+| Service           | Port                 | Routes                                                   | Description                                                                                    |
+| ----------------- | -------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| ai-gateway        | 8090 (+8002 metrics) | `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` | Single FastAPI + Triton gateway serving all detection, vision, embedding and enrichment models |
+| ai-llm (Nemotron) | 8091                 | `/completion`                                            | LLM risk analysis (llama.cpp)                                                                  |
 
 ### VRAM Requirements
 
@@ -902,14 +912,14 @@ _Host machine architecture showing GPU-accelerated AI services (YOLO26, Nemotron
 ```mermaid
 flowchart TB
     subgraph "Host Machine"
-        subgraph "GPU (RTX A5500 24GB)"
-            RT[YOLO26 Server<br/>Port 8095<br/>~4GB VRAM]
+        subgraph "GPU (via CDI)"
+            RT[ai-gateway<br/>Port 8090<br/>YOLO26 + enrichment via Triton]
             NEM[NVIDIA Nemotron llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*]
         end
 
         subgraph "Docker Containers"
             BE[Backend FastAPI<br/>Port 8000]
-            FE[Frontend React<br/>Port 5173]
+            FE[Frontend React<br/>dev :8444 HTTPS]
             RD[Redis<br/>Port 6379]
         end
     end

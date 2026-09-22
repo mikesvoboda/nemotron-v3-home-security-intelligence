@@ -85,7 +85,7 @@ npx tsx ~/.claude/skills/linear/skills/linear/scripts/linear-ops.ts help
 
 - The MCP server requires starting a **new Claude Code session** to load
 - Linear workspace URL: https://linear.app/nemotron-v3-home-security/team/NEM/active
-- The project's CLAUDE.md has already been updated to reference Linear instead of beads
+- The project's AGENTS.md has already been updated to reference Linear instead of beads
 - All 1,031 issues have been migrated from beads to Linear
 
 ---

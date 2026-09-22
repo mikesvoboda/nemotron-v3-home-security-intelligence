@@ -8,7 +8,9 @@
 
 This hub documents the security considerations and implementations for the Home Security Intelligence system. The system is designed for **single-user, trusted network deployment** - it operates on a local network without exposure to the public internet.
 
---8<-- "docs/\_includes/auth-model.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/auth-model.md"
+<!-- prettier-ignore-end -->
 
 The system implements defense-in-depth security measures including input validation, secure HTTP headers, path traversal protection, and SSRF prevention.
 

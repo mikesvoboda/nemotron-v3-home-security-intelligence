@@ -58,7 +58,7 @@ You don't need to do anything to make this work - the cameras, AI, and dashboard
 To view your security dashboard:
 
 1. **Open your web browser** (Chrome, Safari, Firefox, or Edge all work)
-2. **Go to this address:** `http://localhost:5173`
+2. **Go to the address the installer gives you.** On the machine the system runs on, the dashboard is served by the `frontend` container at `http://localhost:8080` (HTTP) or `https://localhost:8444` (HTTPS). Both host ports are configurable in `.env` via `FRONTEND_HTTP_PORT` and `FRONTEND_HTTPS_PORT`.
 
 That's it! The dashboard should appear automatically.
 
@@ -99,50 +99,58 @@ On the left side, you'll see navigation options organized into collapsible group
 | **Entities**  | Recognized people, vehicles, and tracked objects                      |
 | **Alerts**    | Events that need your attention                                       |
 
-**ANALYTICS**
+**ANALYTICS** (expanded by default)
 
-| Menu Item          | What's There                                |
-| ------------------ | ------------------------------------------- |
-| **Analytics**      | Charts and statistics about security events |
-| **AI Audit**       | Review AI decision-making and accuracy      |
-| **AI Performance** | Monitor AI model performance metrics        |
-| **Profiling**      | System performance profiling tools          |
+| Menu Item           | What's There                                |
+| ------------------- | ------------------------------------------- |
+| **Analytics**       | Charts and statistics about security events |
+| **Video Analytics** | Video-based analytics views                 |
+| **AI Audit**        | Review AI decision-making and accuracy      |
+| **AI Performance**  | Monitor AI model performance metrics        |
+| **AI Services**     | Status of each AI service                   |
+| **Profiling**       | System performance profiling tools          |
+| **Heatmaps**        | Where activity happens in each camera view  |
+
+The ANALYTICS group also includes Plate Reads, Face Recognition, Scene Changes, Object Tracks, Performance, Household, and Re-Identification.
 
 **OPERATIONS** (collapsed by default)
 
-| Menu Item    | What's There                            |
-| ------------ | --------------------------------------- |
-| **Jobs**     | Background job status and management    |
-| **Pipeline** | AI processing pipeline operations       |
-| **Tracing**  | Request tracing for debugging           |
-| **Logs**     | Technical system logs (troubleshooting) |
+| Menu Item             | What's There                            |
+| --------------------- | --------------------------------------- |
+| **Jobs**              | Background job status and management    |
+| **Pipeline**          | AI processing pipeline operations       |
+| **Notifications**     | Notification delivery status            |
+| **GPU Metrics**       | Per-GPU utilization charts              |
+| **Request Profiling** | Per-request timing                      |
+| **Tracing**           | Request tracing for debugging           |
+| **Logs**              | Technical system logs (troubleshooting) |
 
 **ADMIN** (collapsed by default)
 
-| Menu Item             | What's There                               |
-| --------------------- | ------------------------------------------ |
-| **Audit Log**         | Security audit trail                       |
-| **Data Management**   | Data import/export operations              |
-| **Scheduled Reports** | Configure automated report generation      |
-| **Webhooks**          | Manage webhook integrations                |
-| **Trash**             | Recover deleted events                     |
-| **GPU Settings**      | Configure GPU allocation for AI processing |
-| **Settings**          | Camera configuration and preferences       |
+| Menu Item             | What's There                                        |
+| --------------------- | --------------------------------------------------- |
+| **Zones**             | Detection zones per camera                          |
+| **Audit Log**         | Security audit trail                                |
+| **Data Management**   | Data import/export operations                       |
+| **Scheduled Reports** | Configure automated report generation               |
+| **Webhooks**          | Manage webhook integrations                         |
+| **Trash**             | Recover deleted events                              |
+| **GPU Settings**      | Configure GPU allocation for AI processing          |
+| **Settings**          | Batch window, retention, alerts, and other settings |
 
 ---
 
-## About the Demo Data
+## An Empty Dashboard Is Normal at First
 
-When you first start using the system, you might see **sample events** on the dashboard. This is normal!
+A freshly installed system has no events to show. The dashboard fills in only after cameras start uploading images and the AI pipeline processes them. Nothing is broken if the activity feed is empty on the first run.
 
-**What's happening:** While the AI pipeline is being set up or if there's no recent camera activity, the system shows demonstration data so you can see how everything works.
+To put real events through the pipeline without waiting for camera activity, an operator can run the seeding script, which pushes bundled synthetic images end-to-end (file watcher → detection → batching → risk analysis):
 
-**How to tell the difference:**
+```bash
+uv run python scripts/seed-events.py
+```
 
-- **Demo data** - Shows generic examples like "Person detected at Front Door"
-- **Real data** - Shows actual timestamps and AI-generated descriptions specific to what your cameras captured
-
-Once your cameras are connected and active, real events will start appearing automatically. Demo data helps you learn the interface without needing to wait for actual activity.
+Events created this way are ordinary events in the database, so they are indistinguishable from camera events after the fact. Delete them through **ADMIN > Data Management** or **ADMIN > Trash** when you are done experimenting.
 
 ---
 

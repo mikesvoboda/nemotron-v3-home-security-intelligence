@@ -1,18 +1,24 @@
 # Distributed Tracing
 
-> OpenTelemetry-based distributed tracing with automatic instrumentation, span context propagation, and Jaeger visualization.
+> OpenTelemetry-based distributed tracing with automatic instrumentation, span context propagation, and Grafana Tempo visualization.
 
 **Key Files:**
 
-- `backend/core/telemetry.py:1-1007` - OpenTelemetry configuration
-- `monitoring/grafana/provisioning/datasources/prometheus.yml:41-101` - Jaeger datasource
-- `monitoring/grafana/dashboards/tracing.json:1-332` - Tracing dashboard
+- `backend/core/telemetry.py` - OpenTelemetry configuration
+- `monitoring/alloy/config.alloy` - OTLP collector: receives traces, forwards to Tempo
+- `monitoring/tempo/tempo-config.yml` - Tempo receiver and local storage config
+- `monitoring/grafana/provisioning/datasources/prometheus.yml:47-101` - Tempo datasource (with trace-to-metrics queries)
+- `monitoring/grafana/dashboards/tracing.json` - Tracing dashboard
 
 ## Overview
 
 The system uses OpenTelemetry for distributed tracing, enabling end-to-end visibility into requests as they flow through the AI pipeline. Traces capture the full lifecycle from image detection through LLM analysis to event creation, with automatic instrumentation for HTTP requests, database queries, and Redis operations.
 
-Traces are exported to Jaeger via OTLP protocol. Jaeger provides storage, search, and visualization of traces. Grafana integrates with Jaeger for trace exploration and correlates traces with metrics and logs through derived fields and trace-to-metrics queries.
+Trace export path: backend → **Alloy** (OTLP collector, default endpoint `http://alloy:4317`) →
+**Tempo** (`otelcol.exporter.otlp "tempo"` in `monitoring/alloy/config.alloy`, endpoint `tempo:4317`).
+Grafana reads traces from the Tempo datasource for exploration and correlates traces with metrics and
+logs through derived fields and trace-to-metrics queries. Tempo replaced the former Jaeger +
+Elasticsearch stack (NEM-5545); no Jaeger service runs in `docker-compose.prod.yml`.
 
 The tracing implementation supports both synchronous and asynchronous code paths, with context propagation ensuring spans maintain parent-child relationships across async boundaries.
 
@@ -21,7 +27,7 @@ The tracing implementation supports both synchronous and asynchronous code paths
 ```mermaid
 graph TD
     subgraph "Application Layer"
-        REQ[HTTP Request] --> MW[Middleware<br/>telemetry.py:567-680]
+        REQ[HTTP Request] --> MW[FastAPI Instrumentor<br/>telemetry.py:320]
         MW --> SVC[Service Layer]
         SVC --> AI[AI Clients<br/>YOLO26, Nemotron]
         SVC --> DB[(PostgreSQL)]
@@ -37,18 +43,18 @@ graph TD
     end
 
     subgraph "Export"
-        SPAN1 --> PROC[BatchSpanProcessor<br/>telemetry.py:215-230]
+        SPAN1 --> PROC[BatchSpanProcessor]
         SPAN2 --> PROC
         SPAN3 --> PROC
         SPAN4 --> PROC
         SPAN5 --> PROC
-        PROC --> EXP[OTLPSpanExporter<br/>telemetry.py:200-210]
-        EXP --> |OTLP| JAEG[Jaeger Collector]
+        PROC --> EXP[OTLPSpanExporter]
+        EXP --> |OTLP gRPC| ALLOY[Alloy collector<br/>alloy:4317]
     end
 
-    subgraph "Visualization"
-        JAEG --> UI[Jaeger UI]
-        JAEG --> GRAF[Grafana<br/>Trace Panel]
+    subgraph "Storage & Visualization"
+        ALLOY --> |OTLP| TEMPO[Tempo<br/>tempo:4317, local storage]
+        TEMPO --> GRAF[Grafana Explore /<br/>Tracing dashboard]
     end
 ```
 
@@ -56,195 +62,161 @@ graph TD
 
 ### Initialization
 
-OpenTelemetry is initialized during application startup (`backend/core/telemetry.py:135-268`):
+`setup_telemetry(app, settings)` is called during application startup
+(`backend/main.py:703`; defined at `backend/core/telemetry.py:145-410`). It returns `True` when
+tracing is initialized, `False` when disabled or already active. In abbreviated form
+(`backend/core/telemetry.py:145-335`):
 
 ```python
-# From backend/core/telemetry.py:135-180
-def setup_telemetry(
-    service_name: str = "nemotron-backend",
-    *,
-    enable_auto_instrumentation: bool = True,
-    otel_endpoint: str | None = None,
-    sample_rate: float = 1.0,
-) -> None:
-    """Initialize OpenTelemetry with tracing and optional metrics."""
+# From backend/core/telemetry.py:145-335 (abbreviated)
+def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
+    """Initialize OpenTelemetry tracing for the application."""
     if not settings.otel_enabled:
-        logger.info("OpenTelemetry disabled by configuration")
-        return
+        logger.info("OpenTelemetry tracing disabled (OTEL_ENABLED=False)")
+        return False
 
-    # Create resource with service info
-    resource = Resource.create({
-        ResourceAttributes.SERVICE_NAME: service_name,
-        ResourceAttributes.SERVICE_VERSION: get_app_version(),
-        ResourceAttributes.DEPLOYMENT_ENVIRONMENT: settings.environment,
+    # Resource with service info, merged with automatic container/host/process detection
+    service_resource = Resource.create({
+        SERVICE_NAME: settings.otel_service_name,
+        "service.version": settings.app_version,
+        "deployment.environment": "production" if not settings.debug else "development",
     })
 
-    # Configure trace provider
-    provider = TracerProvider(resource=resource)
+    # Priority-based sampler (NEM-3793) with ParentBased fallback (NEM-3380)
+    sampler = create_otel_sampler(settings)  # backend/core/sampling.py
+
+    provider = TracerProvider(resource=resource, sampler=sampler)
     trace.set_tracer_provider(provider)
 
-    # Configure exporter
-    endpoint = otel_endpoint or settings.otel_exporter_otlp_endpoint
-    exporter = OTLPSpanExporter(endpoint=endpoint)
-
-    # Configure batch processor
-    processor = BatchSpanProcessor(
-        exporter,
-        max_queue_size=2048,
-        max_export_batch_size=512,
-        schedule_delay_millis=5000,
+    # OTLP exporter → Alloy collector
+    exporter = OTLPSpanExporter(
+        endpoint=settings.otel_exporter_otlp_endpoint,
+        insecure=settings.otel_exporter_otlp_insecure,
     )
-    provider.add_span_processor(processor)
+
+    # Batch processor tuned for high throughput (NEM-3433), all values from settings
+    batch_processor = BatchSpanProcessor(
+        exporter,
+        max_queue_size=settings.otel_batch_max_queue_size,
+        max_export_batch_size=settings.otel_batch_max_export_batch_size,
+        schedule_delay_millis=settings.otel_batch_schedule_delay_ms,
+        export_timeout_millis=settings.otel_batch_export_timeout_ms,
+    )
+    provider.add_span_processor(batch_processor)
+
+    # Composite propagator: W3C Trace Context + W3C Baggage (NEM-3382, :313-316)
+    # Auto-instrumentation: FastAPI, HTTPX, SQLAlchemy, Redis (:320-333)
 ```
 
 ### Configuration Options
 
-| Setting                       | Type    | Default                   | Description                 |
-| ----------------------------- | ------- | ------------------------- | --------------------------- |
-| `OTEL_ENABLED`                | `bool`  | `False`                   | Master toggle for tracing   |
-| `OTEL_SERVICE_NAME`           | `str`   | `"nemotron-backend"`      | Service name in traces      |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `str`   | `"http://localhost:4317"` | Jaeger collector endpoint   |
-| `OTEL_TRACE_SAMPLE_RATE`      | `float` | `1.0`                     | Sampling rate (0.0-1.0)     |
-| `OTEL_AUTO_INSTRUMENTATION`   | `bool`  | `True`                    | Enable auto-instrumentation |
-| `OTEL_PROPAGATORS`            | `str`   | `"tracecontext,baggage"`  | Context propagators         |
+Defaults are from `backend/core/config.py:1815-1874` (the effective production values are set by
+`docker-compose.prod.yml:489-492`, which mirrors these defaults; the development template
+`.env.example:1047-1120` disables tracing and points the endpoint at `http://localhost:4317`).
+
+| Setting                            | Type    | Default               | Description                          |
+| ---------------------------------- | ------- | --------------------- | ------------------------------------ |
+| `OTEL_ENABLED`                     | `bool`  | `True`                | Master toggle for tracing            |
+| `OTEL_SERVICE_NAME`                | `str`   | `"nemotron-backend"`  | Service name in traces               |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`      | `str`   | `"http://alloy:4317"` | OTLP gRPC endpoint (Alloy collector) |
+| `OTEL_EXPORTER_OTLP_INSECURE`      | `bool`  | `True`                | Non-TLS connection to the collector  |
+| `OTEL_TRACE_SAMPLE_RATE`           | `float` | `1.0`                 | Root sampling rate (0.0-1.0)         |
+| `OTEL_BATCH_MAX_QUEUE_SIZE`        | `int`   | `8192`                | Spans queued before dropping         |
+| `OTEL_BATCH_MAX_EXPORT_BATCH_SIZE` | `int`   | `1024`                | Spans per export batch               |
+| `OTEL_BATCH_SCHEDULE_DELAY_MS`     | `int`   | `2000`                | Delay between exports (ms)           |
+| `OTEL_BATCH_EXPORT_TIMEOUT_MS`     | `int`   | `30000`               | Export timeout (ms)                  |
+
+There are no `OTEL_AUTO_INSTRUMENTATION` or `OTEL_PROPAGATORS` settings: instrumentation
+(FastAPI, HTTPX, SQLAlchemy, Redis, logging) is always applied when `OTEL_ENABLED` is on, and the
+propagators are hardcoded to W3C Trace Context + W3C Baggage (`backend/core/telemetry.py:313-333`).
+Root-sampling priorities are tuned through the `OTEL_SAMPLING_*` variables
+(`backend/core/sampling.py:15-23`).
 
 ## Storage Backend
 
-### Elasticsearch Configuration
+### Tempo Local Storage
 
-Jaeger uses Elasticsearch for persistent trace storage with automatic retention management.
+Tempo (NEM-5545) replaced the former Jaeger + Elasticsearch stack; there is no Elasticsearch or
+Jaeger service in `docker-compose.prod.yml`. Tempo stores traces on its own local disk
+(`monitoring/tempo/tempo-config.yml`):
 
-| Setting                 | Value                       | Purpose                        |
-| ----------------------- | --------------------------- | ------------------------------ |
-| `SPAN_STORAGE_TYPE`     | `elasticsearch`             | Storage backend type           |
-| `ES_SERVER_URLS`        | `http://elasticsearch:9200` | ES cluster endpoint            |
-| `ES_INDEX_PREFIX`       | `jaeger`                    | Index name prefix              |
-| `ES_TAGS_AS_FIELDS_ALL` | `true`                      | Index all span tags for search |
+| Setting                     | Value               | Purpose                          |
+| --------------------------- | ------------------- | -------------------------------- |
+| `storage.trace.backend`     | `local`             | Storage backend type             |
+| `storage.trace.local.path`  | `/var/tempo/traces` | Trace block directory            |
+| `storage.trace.wal.path`    | `/var/tempo/wal`    | Write-ahead log                  |
+| `compactor.block_retention` | `720h`              | Retention: 30 days, then deleted |
+| `server.http_listen_port`   | `3200`              | Query API (Grafana reads this)   |
+| OTLP receiver               | `0.0.0.0:4317/4318` | gRPC / HTTP ingest (from Alloy)  |
 
-### Index Lifecycle Management
-
-Traces are automatically managed with the following lifecycle:
-
-| Phase  | Age       | Actions                        |
-| ------ | --------- | ------------------------------ |
-| Hot    | 0-1 day   | Active writes, high priority   |
-| Warm   | 2-30 days | Shrink to 1 shard, force merge |
-| Delete | 30+ days  | Automatic deletion             |
+Data persists in the `tempo_data` compose volume. The compactor applies retention automatically —
+no separate lifecycle tooling or init script is required. (`scripts/init-elasticsearch.sh` is a
+leftover from the Jaeger era and is not part of any current deployment step.)
 
 ### Resource Requirements
 
-| Component     | CPU     | Memory         | Disk      |
-| ------------- | ------- | -------------- | --------- |
-| Elasticsearch | 2 cores | 4GB (2GB heap) | 50GB+ SSD |
-| Jaeger        | 1 core  | 512MB          | -         |
+| Component         | CPU | Memory | Disk                |
+| ----------------- | --- | ------ | ------------------- |
+| Tempo             | 1   | 1GB    | `tempo_data` volume |
+| Alloy (collector) | 0.5 | 768MB  | -                   |
 
-### Initialization
-
-On first deployment, run the ILM initialization script:
-
-```bash
-./scripts/init-elasticsearch.sh
-```
-
-This creates the ILM policy and index template for automatic retention.
+(Limits from the `deploy.resources.limits` blocks in `docker-compose.prod.yml`.)
 
 ### Auto-Instrumentation
 
-The system auto-instruments common libraries (`backend/core/telemetry.py:270-340`):
+The system auto-instruments common libraries (`backend/core/telemetry.py:320-333, 377-381`):
 
-| Library      | Instrumentation             | What's Traced          |
-| ------------ | --------------------------- | ---------------------- |
-| `httpx`      | `HTTPXClientInstrumentor`   | Outbound HTTP requests |
-| `aiohttp`    | `AioHttpClientInstrumentor` | Async HTTP clients     |
-| `sqlalchemy` | `SQLAlchemyInstrumentor`    | Database queries       |
-| `redis`      | `RedisInstrumentor`         | Redis commands         |
-| `fastapi`    | `FastAPIInstrumentor`       | Inbound HTTP requests  |
-| `logging`    | Custom integration          | Log-trace correlation  |
+| Library      | Instrumentation           | What's Traced          |
+| ------------ | ------------------------- | ---------------------- |
+| `fastapi`    | `FastAPIInstrumentor`     | Inbound HTTP requests  |
+| `httpx`      | `HTTPXClientInstrumentor` | Outbound HTTP requests |
+| `sqlalchemy` | `SQLAlchemyInstrumentor`  | Database queries       |
+| `redis`      | `RedisInstrumentor`       | Redis commands         |
+| `logging`    | `LoggingInstrumentor`     | Log-trace correlation  |
 
 ## Span Operations
 
 ### Creating Manual Spans
 
-For operations not auto-instrumented, create manual spans (`backend/core/telemetry.py:380-450`):
+For operations not auto-instrumented, use the `trace_span` context manager
+(`backend/core/telemetry.py:1225-1266`). It takes the span name plus attributes as keyword
+arguments and records exceptions automatically:
 
 ```python
-# From backend/core/telemetry.py:380-420
-@contextmanager
-def create_span(
-    name: str,
-    *,
-    kind: SpanKind = SpanKind.INTERNAL,
-    attributes: dict[str, Any] | None = None,
-    record_exception: bool = True,
-) -> Generator[Span, None, None]:
-    """Create a traced span for custom operations."""
-    tracer = trace.get_tracer(__name__)
-    with tracer.start_as_current_span(
-        name,
-        kind=kind,
-        attributes=attributes or {},
-    ) as span:
-        try:
-            yield span
-        except Exception as e:
-            if record_exception:
-                span.record_exception(e)
-                span.set_status(Status(StatusCode.ERROR, str(e)))
-            raise
-```
-
-Usage:
-
-```python
-from backend.core.telemetry import create_span
-from opentelemetry.trace import SpanKind
+from backend.core.telemetry import trace_span
 
 async def analyze_image(image_path: str) -> dict:
-    with create_span(
-        "analyze_image",
-        kind=SpanKind.CLIENT,
-        attributes={"image.path": image_path},
-    ) as span:
+    with trace_span("analyze_image", image_path=image_path) as span:
         result = await run_analysis(image_path)
-        span.set_attribute("detection.count", len(result.detections))
+        span.set_attribute("detection_count", len(result.detections))
         return result
 ```
 
-### Async Span Context
+Related helpers in the same module:
 
-For async operations, use `create_async_span` (`backend/core/telemetry.py:453-500`):
-
-```python
-# From backend/core/telemetry.py:453-490
-@asynccontextmanager
-async def create_async_span(
-    name: str,
-    *,
-    kind: SpanKind = SpanKind.INTERNAL,
-    attributes: dict[str, Any] | None = None,
-) -> AsyncGenerator[Span, None]:
-    """Create a traced span for async operations."""
-    tracer = trace.get_tracer(__name__)
-    with tracer.start_as_current_span(name, kind=kind, attributes=attributes or {}) as span:
-        try:
-            yield span
-        except Exception as e:
-            span.record_exception(e)
-            span.set_status(Status(StatusCode.ERROR, str(e)))
-            raise
-```
+- `trace_function(...)` — decorator that wraps a sync or async function in a span
+  (`backend/core/telemetry.py:1279`)
+- `create_span_with_links(name, links=[...])` — span linked to spans from another async context,
+  e.g. batch work linked back to the originating detection spans (`backend/core/telemetry.py:675`)
+- `ai_service_span(...)` — client span with AI semantic attributes
+  (`backend/core/telemetry.py:1347`)
 
 ## Span Names and Attributes
 
 ### Pipeline Spans
 
-| Span Name              | Kind       | Key Attributes                                               |
-| ---------------------- | ---------- | ------------------------------------------------------------ |
-| `detection_processing` | `INTERNAL` | `camera_id`, `image_path`, `detection_count`                 |
-| `batch_aggregation`    | `INTERNAL` | `batch_id`, `batch_size`, `timeout_triggered`                |
-| `analysis_processing`  | `INTERNAL` | `batch_id`, `model`, `input_tokens`, `output_tokens`         |
-| `llm_inference`        | `CLIENT`   | `model`, `prompt_length`, `completion_length`, `duration_ms` |
-| `event_creation`       | `INTERNAL` | `event_id`, `risk_score`, `camera_id`                        |
+Pipeline spans are created with `tracer.start_as_current_span(...)` and annotated through the
+semantic-convention helpers in `backend/core/telemetry_ai_conventions.py`.
+
+| Span Name              | Where                                        | Key Attributes                                                                                                                                     |
+| ---------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `detection_processing` | `backend/services/pipeline_workers.py:498`   | `pipeline.camera_id`, `pipeline.stage`, `camera_id`, `file_path`, `media_type`                                                                     |
+| `analysis_processing`  | `backend/services/pipeline_workers.py:1012`  | `batch_id`, `detection_count`, `pipeline_stage`, `camera_id`                                                                                       |
+| `llm_inference`        | `backend/services/nemotron_analyzer.py:3946` | `ai.model.name`, `ai.model.version`, `ai.model.provider`, `ai.inference.device`, `ai.inference.batch_size`, `pipeline.*`, `llm_service`, `llm_url` |
+
+`AIModelAttributes.set_on_span(...)` writes the `ai.model.*` / `ai.inference.*` attributes and
+`set_pipeline_context_attributes(...)` writes `pipeline.camera_id`, `pipeline.batch_id`,
+`pipeline.stage`, and `pipeline.detection_count` (`backend/core/telemetry_ai_conventions.py:64-103, 106-147, 289-320`).
 
 ### HTTP Request Spans
 
@@ -286,7 +258,8 @@ Auto-instrumented by Redis instrumentor:
 
 ### W3C Trace Context
 
-The system uses W3C Trace Context headers for propagation (`backend/core/telemetry.py:550-565`):
+The system uses W3C Trace Context headers for propagation (propagator configured at
+`backend/core/telemetry.py:313-316`):
 
 ```
 traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01
@@ -369,49 +342,41 @@ async def call_yolo26(image_data: bytes) -> dict:
 
 ### Manual Propagation
 
-For non-HTTP transports (e.g., Redis queues), manually inject/extract context (`backend/core/telemetry.py:505-545`):
+For non-HTTP transports and incoming requests, use the helpers in `backend/core/telemetry.py`:
+
+- `get_trace_headers() -> dict` — injects the current trace context and baggage into a headers
+  dict (`traceparent`, `tracestate`, `baggage`) for outbound calls (`backend/core/telemetry.py:1178`)
+- `extract_context_from_headers(headers)` — extracts and attaches the context from incoming
+  headers using the composite propagator (`backend/core/telemetry.py:1143`)
 
 ```python
-# From backend/core/telemetry.py:505-530
-def inject_context_to_dict(carrier: dict[str, str]) -> None:
-    """Inject current trace context into a dictionary."""
-    propagator = get_global_textmap()
-    propagator.inject(carrier)
-
-def extract_context_from_dict(carrier: dict[str, str]) -> Context:
-    """Extract trace context from a dictionary."""
-    propagator = get_global_textmap()
-    return propagator.extract(carrier)
-```
-
-Usage for queue messages:
-
-```python
-# Producer
-message = {"data": payload}
-inject_context_to_dict(message)  # Adds traceparent, tracestate
+# Producer (e.g., pushing to a Redis queue)
+from backend.core.telemetry import get_trace_headers
+message = {"data": payload, **get_trace_headers()}  # adds traceparent/tracestate/baggage
 await queue.push(message)
 
 # Consumer
+from backend.core.telemetry import extract_context_from_headers
 message = await queue.pop()
-ctx = extract_context_from_dict(message)
-with trace.use_span(trace.get_current_span(), end_on_exit=False):
-    context.attach(ctx)
-    # Process message with trace context restored
+extract_context_from_headers({k: v for k, v in message.items() if k in {"traceparent", "tracestate", "baggage"}})
+# Trace context is now restored for spans created in this task
 ```
 
 ## Trace-to-Metrics Correlation
 
-Grafana's Jaeger datasource is configured with trace-to-metrics queries (`monitoring/grafana/provisioning/datasources/prometheus.yml:52-101`):
+Grafana's Tempo datasource is configured with trace-to-metrics queries
+(`monitoring/grafana/provisioning/datasources/prometheus.yml:59-104`):
 
 ```yaml
 tracesToMetrics:
-  datasourceUid: PBFA97CFB590B2093
+  datasourceUid: prometheus
   spanStartTimeShift: '-5m'
   spanEndTimeShift: '5m'
   tags:
     - key: 'service.name'
       value: 'service'
+    - key: 'db.system'
+      value: 'db_system'
     - key: 'http.method'
       value: 'method'
     - key: 'http.status_code'
@@ -421,22 +386,28 @@ tracesToMetrics:
       query: 'rate(hsi_pipeline_errors_total[1m]) * 60'
     - name: 'Detection Queue Depth'
       query: 'hsi_detection_queue_depth'
+    - name: 'Analysis Queue Depth'
+      query: 'hsi_analysis_queue_depth'
     - name: 'YOLO26 Latency (p95)'
       query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
+    # ... Nemotron tokens/sec, Florence/CLIP/Enrichment p95, batch latency percentiles
 ```
 
 This enables clicking from a trace span to related Prometheus metrics.
 
 ## Trace-to-Logs Correlation
 
-Logs are correlated via trace ID. The Loki datasource extracts trace IDs from logs (`monitoring/grafana/provisioning/datasources/prometheus.yml:198-214`):
+Logs are correlated via trace ID. The Loki datasource extracts trace IDs from logs and links them
+to Tempo (`monitoring/grafana/provisioning/datasources/prometheus.yml:225-231`), and the Tempo
+datasource links back to Loki from a trace
+(`tracesToLogsV2.datasourceUid: loki`, lines 56-58):
 
 ```yaml
 derivedFields:
   - name: TraceID
     matcherRegex: 'trace_id=([a-f0-9]{32})'
     url: '${__value.raw}'
-    datasourceUid: PC9A941E8F2E49454
+    datasourceUid: tempo
     urlDisplayLabel: 'View Trace'
 ```
 
@@ -448,90 +419,81 @@ Log format includes trace context:
 
 ## Grafana Tracing Dashboard
 
-The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`) provides:
+The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`) queries Tempo with TraceQL.
+Its trace-table panels:
 
 ### Pipeline Analysis Traces Panel
 
-Shows full pipeline traces (`monitoring/grafana/dashboards/tracing.json:65-77`):
+Full pipeline traces (`monitoring/grafana/dashboards/tracing.json:629-631`):
 
 ```json
 {
-  "targets": [
-    {
-      "queryType": "search",
-      "service": "nemotron-backend",
-      "operation": "analysis_processing",
-      "limit": 15
-    }
-  ]
+  "datasource": { "type": "tempo", "uid": "tempo" },
+  "queryType": "traceql",
+  "query": "{ resource.service.name = \"nemotron-backend\" && name = \"analysis_processing\" }",
+  "limit": 15
 }
 ```
 
 ### Detection Processing Panel
 
-Shows YOLO26 detection traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:131-143`):
-
-- Green: < 5s (5,000,000 microseconds)
-- Yellow: 5-30s
-- Red: > 30s
+Detection traces (`monitoring/grafana/dashboards/tracing.json:717-719`) — same TraceQL shape with
+`name = "detection_processing"`.
 
 ### LLM Inference Panel
 
-Shows Nemotron LLM traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:194-198`):
-
-- Green: < 30s
-- Yellow: 30-120s
-- Red: > 120s
+LLM inference traces (`monitoring/grafana/dashboards/tracing.json:797-799`) —
+`name = "llm_inference"`.
 
 ### Error Traces Panel
 
-Shows traces with errors (`monitoring/grafana/dashboards/tracing.json:241-250`):
+Traces carrying an error status (`monitoring/grafana/dashboards/tracing.json:871-873`):
 
 ```json
 {
-  "targets": [
-    {
-      "queryType": "search",
-      "service": "nemotron-backend",
-      "tags": "error=true",
-      "limit": 20
-    }
-  ]
+  "queryType": "traceql",
+  "query": "{ resource.service.name = \"nemotron-backend\" && status = error }"
 }
 ```
 
+### Other Panels
+
+The dashboard also has Prometheus-based overview panels (trace count / duration / error rate by
+service, span distribution, slowest endpoints, AI latency comparison) and a Tempo
+`serviceMap` Service Dependency Graph panel (`monitoring/grafana/dashboards/tracing.json:905`).
+
 ## Sampling Configuration
 
-For high-traffic deployments, configure sampling (`backend/core/telemetry.py:185-200`):
+Sampling is priority-based (NEM-3793): `create_otel_sampler(settings)` in
+`backend/core/sampling.py` returns a sampler that always keeps error traces, high-risk events, and
+high-priority endpoints, and rate-limits everything else. Parent-based decisions are preserved: a
+sampled (or unsampled) parent forces the same decision on children
+(`backend/core/telemetry.py:233-280`). Rates are configured through environment variables
+(`backend/core/sampling.py:15-23`, examples in `.env.example:1076-1100`):
 
-```python
-# From backend/core/telemetry.py:185-200
-if sample_rate < 1.0:
-    sampler = TraceIdRatioBased(sample_rate)
-else:
-    sampler = AlwaysOnSampler()
+| Variable                             | Default | Applies to                                                                |
+| ------------------------------------ | ------- | ------------------------------------------------------------------------- |
+| `OTEL_SAMPLING_ERROR_RATE`           | `1.0`   | Traces containing errors                                                  |
+| `OTEL_SAMPLING_HIGH_RISK_RATE`       | `1.0`   | High-risk (security-relevant) events                                      |
+| `OTEL_SAMPLING_HIGH_PRIORITY_RATE`   | `1.0`   | High-priority endpoints (`/api/events`, `/api/alerts`, `/api/detections`) |
+| `OTEL_SAMPLING_MEDIUM_PRIORITY_RATE` | `0.5`   | Medium-priority endpoints                                                 |
+| `OTEL_SAMPLING_BACKGROUND_RATE`      | `0.1`   | Background paths (`/health`, `/metrics`)                                  |
+| `OTEL_SAMPLING_DEFAULT_RATE`         | `0.1`   | Everything else                                                           |
+| `OTEL_TRACE_SAMPLE_RATE`             | `1.0`   | Fallback root rate if the priority sampler fails                          |
 
-provider = TracerProvider(
-    resource=resource,
-    sampler=sampler,
-)
-```
-
-Sampling strategies:
-
-| Rate   | Use Case                     |
-| ------ | ---------------------------- |
-| `1.0`  | Development, low traffic     |
-| `0.1`  | Production, 10% sampling     |
-| `0.01` | High-traffic, cost reduction |
+`OTEL_SAMPLING_HIGH_PRIORITY_PATHS`, `OTEL_SAMPLING_MEDIUM_PRIORITY_PATHS`, and
+`OTEL_SAMPLING_BACKGROUND_PATHS` override the path lists.
 
 ## Troubleshooting
 
 ### No Traces Appearing
 
-1. Check `OTEL_ENABLED=True` in configuration
-2. Verify Jaeger collector is reachable at `OTEL_EXPORTER_OTLP_ENDPOINT`
-3. Check for export errors in logs: `grep "OTLP" /var/log/hsi/backend.log`
+1. Check `OTEL_ENABLED` — `true` in production (`docker-compose.prod.yml:489`), but `.env.example`
+   ships it as `false` for development
+2. Verify the Alloy collector is reachable at `OTEL_EXPORTER_OTLP_ENDPOINT`
+   (default `http://alloy:4317`) and that Alloy forwards to Tempo (`monitoring/alloy/config.alloy`)
+3. Check backend logs and Tempo ingests: `podman logs backend | grep -i otlp` and
+   `podman logs tempo`
 
 ### Missing Span Relationships
 
@@ -553,13 +515,15 @@ Run tracing tests:
 uv run pytest backend/tests/unit/core/test_telemetry.py -v
 ```
 
-| Test                       | Purpose                     |
-| -------------------------- | --------------------------- |
-| `test_setup_telemetry`     | Initialization              |
-| `test_create_span`         | Manual span creation        |
-| `test_context_propagation` | Header injection/extraction |
-| `test_span_attributes`     | Attribute recording         |
-| `test_error_recording`     | Exception capture           |
+| Test                                                            | Purpose                      |
+| --------------------------------------------------------------- | ---------------------------- |
+| `test_setup_telemetry_disabled_by_default`                      | Disabled path                |
+| `test_setup_telemetry_success_initializes_all_instrumentations` | Initialization               |
+| `test_setup_telemetry_configures_parent_based_sampler`          | Sampler wiring (NEM-3380)    |
+| `test_setup_telemetry_configures_composite_propagator`          | Propagator wiring (NEM-3382) |
+| `test_trace_span_creates_span_with_attributes`                  | Manual span creation         |
+| `test_trace_span_records_exception_on_error`                    | Exception capture            |
+| `test_extract_context_from_headers_calls_propagate`             | Header extraction            |
 
 ## Related Documents
 

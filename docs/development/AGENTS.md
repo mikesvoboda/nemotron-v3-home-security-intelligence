@@ -97,7 +97,7 @@ development/
 
 **Topics Covered:**
 
-- Coverage thresholds (85% unit, 95% combined, 90% critical)
+- Coverage thresholds (80% combined absolute floor; unit 84 / integration 37 CI tier floors; PR diff baseline 85 relative; 90% critical paths)
 - Coverage tools (pytest-cov, Codecov, coverage-analysis.py)
 - Per-module coverage analysis
 - Trend tracking and regression detection
@@ -308,7 +308,7 @@ development/
 - Frontend testing with Vitest
 - E2E testing
 - Mocking strategies
-- Test coverage requirements (85% unit, 95% combined backend)
+- Test coverage requirements (80% combined absolute floor; tier floors and diff baseline in coverage.md)
 - Running tests locally
 - CI test pipeline
 
@@ -498,6 +498,6 @@ pre-commit run --all-files
 
 - **docs/AGENTS.md:** Documentation directory overview
 - **docs/architecture/:** Technical architecture details
-- **CLAUDE.md:** Claude Code instructions
+- **AGENTS.md:** Root instruction file (single root file; loaded by Claude Code and other agents)
 - **backend/AGENTS.md:** Backend architecture overview
 - **frontend/AGENTS.md:** Frontend architecture overview

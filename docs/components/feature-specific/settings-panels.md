@@ -16,25 +16,30 @@ Settings components provide configuration interfaces for cameras, AI models, not
 
 ### SettingsPage
 
-Main settings page with tab navigation.
+Main settings page with tab navigation. Each tab is a route (`/settings/<tab>`); the active tab is derived from `location.pathname`, so tab state lives in the URL.
 
 **Location:** `frontend/src/components/settings/SettingsPage.tsx`
 
-**Tab Structure:**
+**Tab Structure** (`settingsTabsConfig.ts`):
 
-- General (household, property)
-- Cameras
-- AI Models
-- Notifications
-- Storage
-- Advanced
+| Tab id          | Route                     |
+| --------------- | ------------------------- |
+| `cameras`       | `/settings/cameras`       |
+| `rules`         | `/settings/rules`         |
+| `processing`    | `/settings/processing`    |
+| `notifications` | `/settings/notifications` |
+| `ambient`       | `/settings/ambient`       |
+| `calibration`   | `/settings/calibration`   |
+| `access`        | `/settings/access`        |
+| `prompts`       | `/settings/prompts`       |
+| `storage`       | `/settings/storage`       |
+| `ai-models`     | `/settings/ai-models`     |
+| `admin`         | `/settings/admin`         |
 
 **Features:**
 
-- Persistent tab state in URL
-- Unsaved changes warning
-- Settings validation
-- Reset to defaults
+- Horizontally scrolling tab nav with keyboard-accessible chevron buttons when tabs overflow (`ScrollableNavList`)
+- Tab panels are lazy-loaded route components (see `App.tsx` lazy imports)
 
 ---
 
@@ -48,42 +53,38 @@ Camera configuration management.
 
 **Features:**
 
-- Camera list with status
-- Add/edit/remove cameras
-- Stream URL configuration
-- Snapshot intervals
-- Zone assignment
+- Camera list with add/edit forms
+- ONVIF device discovery (`ONVIFDiscoveryPanel`)
+- Zone assignment via `ZoneEditor` (from `components/zones`)
 
 ---
 
 ### CalibrationPanel
 
-Camera calibration interface.
+Camera calibration interface (calibration tab content). Fetches its own data; takes no camera prop.
 
 **Location:** `frontend/src/components/settings/CalibrationPanel.tsx`
 
 **Props:**
 
-| Prop       | Type         | Default | Description          |
-| ---------- | ------------ | ------- | -------------------- |
-| cameraId   | `string`     | -       | Camera to calibrate  |
-| onComplete | `() => void` | -       | Calibration complete |
+| Prop      | Type     | Default | Description            |
+| --------- | -------- | ------- | ---------------------- |
+| className | `string` | -       | Additional CSS classes |
 
 ---
 
 ### AreaCameraLinking
 
-Link cameras to property areas.
+Link cameras to property areas. Fetches properties/cameras itself.
 
 **Location:** `frontend/src/components/settings/AreaCameraLinking.tsx`
 
 **Props:**
 
-| Prop    | Type                         | Default | Description       |
-| ------- | ---------------------------- | ------- | ----------------- |
-| areas   | `Area[]`                     | -       | Property areas    |
-| cameras | `Camera[]`                   | -       | Available cameras |
-| onLink  | `(areaId, cameraId) => void` | -       | Link handler      |
+| Prop        | Type     | Default | Description                                                 |
+| ----------- | -------- | ------- | ----------------------------------------------------------- |
+| householdId | `number` | -       | Optional household filter (defaults to 1, single household) |
+| className   | `string` | -       | Additional CSS classes                                      |
 
 ---
 
@@ -95,13 +96,6 @@ AI model configuration dashboard.
 
 **Location:** `frontend/src/components/settings/AIModelsSettings.tsx`
 
-**Features:**
-
-- Model status overview
-- Enable/disable models
-- Model-specific configuration
-- VRAM usage monitoring
-
 ---
 
 ### AIModelsTab
@@ -110,35 +104,40 @@ AI models tab content.
 
 **Location:** `frontend/src/components/settings/AIModelsTab.tsx`
 
+**Props:**
+
+| Prop      | Type     | Default | Description                   |
+| --------- | -------- | ------- | ----------------------------- |
+| className | `string` | -       | Optional custom styling class |
+
 ---
 
 ### ModelManagementPanel
 
-Model download and update management.
+AI model management panel; model data comes from `useModelZooStatusQuery`.
 
 **Location:** `frontend/src/components/settings/ModelManagementPanel.tsx`
 
 **Features:**
 
-- Available models list
-- Download progress
-- Version management
-- Model deletion
+- VRAM usage overview with progress bar (`VRAMUsageCard`)
+- Model status summary (loaded / unloaded / disabled counts)
+- Model cards grouped by category
+- Per-model VRAM usage and load statistics
 
 ---
 
 ### DetectionThresholdsPanel
 
-Detection confidence thresholds.
+Detection confidence thresholds. Self-contained; takes no data props.
 
 **Location:** `frontend/src/components/settings/DetectionThresholdsPanel.tsx`
 
 **Props:**
 
-| Prop       | Type               | Default | Description        |
-| ---------- | ------------------ | ------- | ------------------ |
-| thresholds | `ThresholdConfig`  | -       | Current thresholds |
-| onSave     | `(config) => void` | -       | Save handler       |
+| Prop      | Type     | Default | Description            |
+| --------- | -------- | ------- | ---------------------- |
+| className | `string` | -       | Additional CSS classes |
 
 ---
 
@@ -152,11 +151,19 @@ GPU assignment configuration table.
 
 **Props:**
 
-| Prop        | Type                       | Default | Description         |
-| ----------- | -------------------------- | ------- | ------------------- |
-| gpus        | `GpuDevice[]`              | -       | Available GPUs      |
-| assignments | `Assignment[]`             | -       | Current assignments |
-| onAssign    | `(modelId, gpuId) => void` | -       | Assignment handler  |
+| Prop                   | Type                                                      | Default | Description                       |
+| ---------------------- | --------------------------------------------------------- | ------- | --------------------------------- |
+| assignments            | `GpuAssignment[]`                                         | -       | Current GPU assignments           |
+| gpus                   | `GpuDevice[]`                                             | -       | Available GPU devices             |
+| serviceStatuses        | `ServiceHealthStatus[]`                                   | -       | Service health status             |
+| strategy               | `string`                                                  | -       | Current assignment strategy       |
+| onAssignmentChange     | `(service: string, gpuIndex: number \| null) => void`     | -       | Change a service's GPU assignment |
+| onVramOverrideChange   | `(service: string, vramOverride: number \| null) => void` | -       | Change VRAM budget override       |
+| onExclusiveGpuChange   | `(service: string, exclusive: boolean) => void`           | -       | Exclusive GPU flag (NEM-4944)     |
+| onPriorityWeightChange | `(service: string, priority: number) => void`             | -       | Priority weight (NEM-4944)        |
+| isLoading              | `boolean`                                                 | -       | Loading state                     |
+| hasPendingChanges      | `boolean`                                                 | -       | Unsaved changes exist             |
+| className              | `string`                                                  | -       | Additional CSS classes            |
 
 ---
 
@@ -168,32 +175,42 @@ Individual GPU device card.
 
 **Props:**
 
-| Prop        | Type        | Default | Description         |
-| ----------- | ----------- | ------- | ------------------- |
-| gpu         | `GpuDevice` | -       | GPU device info     |
-| utilization | `number`    | -       | Current utilization |
+| Prop             | Type              | Default | Description                   |
+| ---------------- | ----------------- | ------- | ----------------------------- |
+| gpu              | `GpuDevice`       | -       | GPU device information        |
+| assignedServices | `GpuAssignment[]` | -       | Services assigned to this GPU |
+| isLoading        | `boolean`         | -       | Loading state                 |
+| className        | `string`          | -       | Additional CSS classes        |
 
 ---
 
 ### GpuStrategySelector
 
-GPU assignment strategy selector.
+GPU assignment strategy selector with server-side preview.
 
 **Location:** `frontend/src/components/settings/GpuStrategySelector.tsx`
 
 **Props:**
 
-| Prop     | Type                 | Default | Description      |
-| -------- | -------------------- | ------- | ---------------- |
-| strategy | `Strategy`           | -       | Current strategy |
-| onChange | `(strategy) => void` | -       | Change handler   |
+| Prop                | Type                                                     | Default | Description                  |
+| ------------------- | -------------------------------------------------------- | ------- | ---------------------------- |
+| selectedStrategy    | `string`                                                 | -       | Currently selected strategy  |
+| availableStrategies | `string[]`                                               | -       | Strategies from the backend  |
+| onStrategyChange    | `(strategy: string) => void`                             | -       | Selection handler            |
+| onPreview           | `(strategy: string) => Promise<StrategyPreviewResponse>` | -       | Preview strategy assignments |
+| isPreviewLoading    | `boolean`                                                | -       | Preview in progress          |
+| previewError        | `string \| null`                                         | -       | Preview error message        |
+| previewData         | `StrategyPreviewResponse \| null`                        | -       | Last preview result          |
+| disabled            | `boolean`                                                | -       | Disable the selector         |
+| className           | `string`                                                 | -       | Additional CSS classes       |
 
-**Strategies:**
+**Strategies** (ids in `GpuStrategySelector.tsx`; the list is served by the backend via `availableStrategies`):
 
-- `manual` - Manual assignment
-- `auto-balanced` - Distribute by VRAM
-- `dedicated` - One model per GPU
-- `shared` - All models on one GPU
+- `manual` - User assigns GPUs to services
+- `vram_based` - Distribute by VRAM availability
+- `latency_optimized` - Minimize pipeline latency
+- `isolation_first` - Isolate services across GPUs
+- `balanced` - Balanced distribution
 
 ---
 
@@ -205,28 +222,38 @@ VRAM usage visualization.
 
 **Props:**
 
-| Prop   | Type           | Default | Description           |
-| ------ | -------------- | ------- | --------------------- |
-| gpuId  | `string`       | -       | GPU device ID         |
-| used   | `number`       | -       | Used VRAM (MB)        |
-| total  | `number`       | -       | Total VRAM (MB)       |
-| models | `ModelUsage[]` | -       | Models using this GPU |
+| Prop         | Type      | Default | Description              |
+| ------------ | --------- | ------- | ------------------------ |
+| budgetMb     | `number`  | -       | Total VRAM budget in MB  |
+| usedMb       | `number`  | -       | Used VRAM in MB          |
+| availableMb  | `number`  | -       | Available VRAM in MB     |
+| usagePercent | `number`  | -       | Usage percentage (0-100) |
+| isLoading    | `boolean` | -       | Loading state            |
+| compact      | `boolean` | -       | Compact display mode     |
+| className    | `string`  | -       | Additional CSS classes   |
 
 ---
 
 ### GpuApplyButton
 
-Apply GPU configuration button.
+Save/apply GPU configuration.
 
 **Location:** `frontend/src/components/settings/GpuApplyButton.tsx`
 
 **Props:**
 
-| Prop       | Type         | Default | Description             |
-| ---------- | ------------ | ------- | ----------------------- |
-| hasChanges | `boolean`    | -       | Unsaved changes exist   |
-| onApply    | `() => void` | -       | Apply handler           |
-| isApplying | `boolean`    | -       | Application in progress |
+| Prop            | Type                            | Default | Description                                 |
+| --------------- | ------------------------------- | ------- | ------------------------------------------- |
+| hasChanges      | `boolean`                       | -       | Unsaved changes exist                       |
+| onSave          | `() => Promise<void>`           | -       | Save without restarting services            |
+| onApply         | `() => Promise<GpuApplyResult>` | -       | Save and restart services                   |
+| isSaving        | `boolean`                       | -       | Save in progress                            |
+| isApplying      | `boolean`                       | -       | Apply in progress                           |
+| serviceStatuses | `ServiceStatus[]`               | -       | Service statuses for restart progress       |
+| lastApplyResult | `GpuApplyResult \| null`        | -       | Last apply result (success/failure display) |
+| error           | `string \| null`                | -       | Error message                               |
+| disabled        | `boolean`                       | -       | Disable buttons                             |
+| className       | `string`                        | -       | Additional CSS classes                      |
 
 ---
 
@@ -240,11 +267,11 @@ Notification configuration panel.
 
 **Features:**
 
-- Email configuration
-- Webhook endpoints
-- Push notifications
-- Alert severity filters
-- Quiet hours
+- Email (SMTP) configuration status with test action
+- Webhook configuration status with test action
+- Desktop / push / audio notification controls (permission-aware)
+- Quiet hours scheduler (`useQuietHoursPeriods` and its mutations)
+- Risk-level filters with camera-threshold conflict detection
 
 ---
 
@@ -258,10 +285,8 @@ Alert rule management.
 
 **Features:**
 
-- Rule list with enable/disable
-- Create/edit rules
-- Trigger conditions
-- Action configuration
+- Create/edit alert rules (validation, including schedule start/end times)
+- Toggle rules enabled/disabled
 
 ---
 
@@ -269,24 +294,37 @@ Alert rule management.
 
 ### HouseholdSettings
 
-Household member management.
+Household member and vehicle management.
 
 **Location:** `frontend/src/components/settings/HouseholdSettings.tsx`
 
 **Features:**
 
-- Member list
-- Face enrollment
-- Trust levels
-- Access schedules
+- Household members CRUD (`HouseholdMemberCreate` / `HouseholdMemberUpdate`)
+- Member roles and trust levels (`full` = never trigger alerts, `partial` = reduced alert severity)
+- Vehicle management
 
 ---
 
 ### AccessControlSettings
 
-Access control configuration.
+Combined access control section: `HouseholdSettings` + `ZoneAccessSettings` in tabs (NEM-3608).
 
 **Location:** `frontend/src/components/settings/AccessControlSettings.tsx`
+
+---
+
+### ZoneAccessSettings
+
+Zone-based access control configuration.
+
+**Location:** `frontend/src/components/settings/ZoneAccessSettings.tsx`
+
+**Features:**
+
+- Zone selector, owner assignment
+- Allowed members / vehicles multi-select
+- Access schedule editor (embeds `AccessScheduleEditor`)
 
 ---
 
@@ -298,18 +336,13 @@ Time-based access schedule editor.
 
 **Props:**
 
-| Prop     | Type                 | Default | Description      |
-| -------- | -------------------- | ------- | ---------------- |
-| schedule | `Schedule`           | -       | Current schedule |
-| onChange | `(schedule) => void` | -       | Change handler   |
-
----
-
-### ZoneAccessSettings
-
-Zone-based access settings.
-
-**Location:** `frontend/src/components/settings/ZoneAccessSettings.tsx`
+| Prop      | Type                                    | Default | Description                     |
+| --------- | --------------------------------------- | ------- | ------------------------------- |
+| schedules | `AccessSchedule[]`                      | -       | Current access schedules        |
+| onChange  | `(schedules: AccessSchedule[]) => void` | -       | Change handler                  |
+| members   | `HouseholdMember[]`                     | -       | Household members for selection |
+| disabled  | `boolean`                               | -       | Disable the editor              |
+| className | `string`                                | -       | Additional CSS classes          |
 
 ---
 
@@ -317,40 +350,37 @@ Zone-based access settings.
 
 ### StorageDashboard
 
-Storage usage and cleanup dashboard.
+Storage usage and cleanup dashboard (real-time disk usage metrics, storage breakdown, cleanup dry-run preview via `useStorageStatsQuery` / `useCleanupPreviewMutation`).
 
 **Location:** `frontend/src/components/settings/StorageDashboard.tsx`
-
-**Features:**
-
-- Storage usage by category
-- Retention policies
-- Manual cleanup
-- Disk space warnings
 
 ---
 
 ### CleanupPreviewPanel
 
-Preview cleanup operations.
+Preview cleanup operations. Self-contained; takes no configuration props.
 
 **Location:** `frontend/src/components/settings/CleanupPreviewPanel.tsx`
 
 **Props:**
 
-| Prop       | Type         | Default | Description         |
-| ---------- | ------------ | ------- | ------------------- |
-| olderThan  | `number`     | -       | Days threshold      |
-| categories | `string[]`   | -       | Categories to clean |
-| onConfirm  | `() => void` | -       | Confirm cleanup     |
+| Prop      | Type     | Default | Description            |
+| --------- | -------- | ------- | ---------------------- |
+| className | `string` | -       | Additional CSS classes |
 
 ---
 
 ### OrphanCleanupPanel
 
-Orphaned file cleanup.
+Orphaned file cleanup with configurable parameters (NEM-3568; backend: `backend/api/routes/admin.py`).
 
 **Location:** `frontend/src/components/settings/OrphanCleanupPanel.tsx`
+
+**Features:**
+
+- `min_age_hours` slider (1-720 h) - minimum file age before deletion
+- `max_delete_gb` slider (0.1-100 GB) - maximum bytes deleted per run
+- Dry-run preview and confirmed cleanup with results display (files scanned, orphans found, deleted, bytes freed)
 
 ---
 
@@ -370,43 +400,49 @@ Full prompt management page.
 
 **Location:** `frontend/src/components/settings/prompts/PromptManagementPage.tsx`
 
+The `prompts/` directory also contains `EventSelector`, `ImportPreviewModal`, and `TestResultsComparison` used by the page.
+
 ---
 
 ### PromptConfigEditor
 
-Prompt template editor.
+Model configuration editor (modal).
 
 **Location:** `frontend/src/components/settings/prompts/PromptConfigEditor.tsx`
 
 **Props:**
 
-| Prop   | Type               | Default | Description          |
-| ------ | ------------------ | ------- | -------------------- |
-| prompt | `PromptConfig`     | -       | Prompt configuration |
-| onSave | `(config) => void` | -       | Save handler         |
-| onTest | `() => void`       | -       | Test handler         |
+| Prop          | Type                                                                   | Default | Description                  |
+| ------------- | ---------------------------------------------------------------------- | ------- | ---------------------------- |
+| isOpen        | `boolean`                                                              | -       | Modal visibility             |
+| onClose       | `() => void`                                                           | -       | Close handler                |
+| model         | `AIModelEnum`                                                          | -       | The AI model being edited    |
+| initialConfig | `Record<string, unknown>`                                              | -       | Initial configuration values |
+| onSave        | `(config: Record<string, unknown>, changeDescription: string) => void` | -       | Save handler                 |
+| isSaving      | `boolean`                                                              | -       | Save in progress             |
 
 ---
 
 ### PromptTestModal
 
-Prompt testing modal.
+Configuration testing modal.
 
 **Location:** `frontend/src/components/settings/prompts/PromptTestModal.tsx`
 
 **Props:**
 
-| Prop     | Type         | Default | Description      |
-| -------- | ------------ | ------- | ---------------- |
-| promptId | `string`     | -       | Prompt to test   |
-| isOpen   | `boolean`    | -       | Modal visibility |
-| onClose  | `() => void` | -       | Close handler    |
+| Prop           | Type                      | Default | Description                    |
+| -------------- | ------------------------- | ------- | ------------------------------ |
+| isOpen         | `boolean`                 | -       | Modal visibility               |
+| onClose        | `() => void`              | -       | Close handler                  |
+| model          | `AIModelEnum`             | -       | The AI model being tested      |
+| modifiedConfig | `Record<string, unknown>` | -       | Modified configuration to test |
 
 ---
 
 ### Model Configuration Forms
 
-Specialized configuration forms for each model type:
+Specialized configuration forms for each model type, in `frontend/src/components/settings/prompts/model-forms/`:
 
 - `NemotronConfigForm.tsx` - Nemotron model settings
 - `Florence2ConfigForm.tsx` - Florence-2 model settings
@@ -424,10 +460,11 @@ Configuration diff viewer.
 
 **Props:**
 
-| Prop   | Type     | Default | Description            |
-| ------ | -------- | ------- | ---------------------- |
-| before | `object` | -       | Previous configuration |
-| after  | `object` | -       | New configuration      |
+| Prop             | Type              | Default | Description                                 |
+| ---------------- | ----------------- | ------- | ------------------------------------------- |
+| diff             | `PromptDiffEntry` | -       | The diff entry to display                   |
+| collapsed        | `boolean`         | -       | Collapsed view (model name and status only) |
+| onToggleCollapse | `() => void`      | -       | Expand/collapse handler                     |
 
 ---
 
@@ -443,16 +480,9 @@ Configuration import/export.
 
 ### ProcessingSettings
 
-Pipeline processing configuration.
+Pipeline processing configuration: batch window, idle timeout, retention period, and confidence threshold, with batch presets (`BatchPresetSelector`, `BatchSettingsTooltips`, `BatchStatusMonitor`) and embedded queue/rate-limit settings (`QueueSettings`, NEM-3670).
 
 **Location:** `frontend/src/components/settings/ProcessingSettings.tsx`
-
-**Features:**
-
-- Batch window timing
-- Frame sampling rates
-- Queue limits
-- Worker counts
 
 ---
 
@@ -480,10 +510,9 @@ Dead letter queue monitoring.
 
 **Features:**
 
-- Failed message count
-- Error inspection
-- Retry/discard actions
-- Error patterns
+- Badge with total failed-job count; per-queue counts (detection, analysis)
+- Failed-job inspection
+- Retry and permanent-delete actions (delete requires confirmation)
 
 ---
 
@@ -497,7 +526,7 @@ Feature flag management.
 
 ### RiskSensitivitySettings
 
-Risk scoring sensitivity.
+Risk scoring sensitivity: view/adjust calibration thresholds (Low, Medium, High), adjust learning-rate decay factor, view feedback statistics, reset to defaults (NEM-2320).
 
 **Location:** `frontend/src/components/settings/RiskSensitivitySettings.tsx`
 
@@ -521,7 +550,7 @@ Ambient background status settings.
 
 ### PropertyManagement
 
-Property configuration.
+Property and area configuration: nested area management per property, camera count per area, navigation to `AreaCameraLinking` for camera assignment.
 
 **Location:** `frontend/src/components/settings/PropertyManagement.tsx`
 
@@ -538,7 +567,7 @@ Administrative settings.
 ## Testing
 
 ```bash
-cd frontend && npm test -- --testPathPattern=settings
+cd frontend && npm test -- src/components/settings
 ```
 
 Test coverage includes:

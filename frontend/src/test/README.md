@@ -78,6 +78,7 @@ it('handles API error', async () => {
 Custom render function that wraps components with QueryClientProvider and other necessary providers.
 
 **Parameters:**
+
 - `ui` - React element to render
 - `options` - Render options
   - `queryClientOptions` - Options for QueryClient constructor
@@ -109,6 +110,7 @@ const { result } = renderHook(() => useMyHook(), { wrapper });
 ### `createTestQueryClient(options?)`
 
 Create a QueryClient optimized for testing with:
+
 - No retries (fail fast)
 - No automatic refetch on window focus/reconnect
 - Short cache times (0ms)
@@ -121,8 +123,8 @@ import { createTestQueryClient } from '@/test/utils';
 
 const queryClient = createTestQueryClient({
   defaultOptions: {
-    queries: { retry: 3 } // Override default
-  }
+    queries: { retry: 3 }, // Override default
+  },
 });
 ```
 
@@ -140,7 +142,7 @@ const camera = cameraFactory({ name: 'Back Door' });
 
 // Multiple cameras
 const cameras = cameraFactoryList(3, (i) => ({
-  name: `Camera ${i}`
+  name: `Camera ${i}`,
 }));
 ```
 
@@ -153,7 +155,7 @@ import { eventFactory, eventFactoryList } from '@/test/factories';
 const event = eventFactory({
   risk_score: 85,
   risk_level: 'high',
-  summary: 'Suspicious activity detected'
+  summary: 'Suspicious activity detected',
 });
 
 // Multiple events
@@ -169,7 +171,7 @@ import { detectionFactory, detectionFactoryList } from '@/test/factories';
 const detection = detectionFactory({
   object_type: 'person',
   confidence: 0.95,
-  bbox: [100, 100, 300, 400]
+  bbox: [100, 100, 300, 400],
 });
 
 // Multiple detections
@@ -286,11 +288,7 @@ expectApiError(response, 404, 'Not found');
 ### Data Structure Assertions
 
 ```typescript
-import {
-  expectValidCamera,
-  expectValidEvent,
-  expectValidDetection
-} from '@/test/matchers';
+import { expectValidCamera, expectValidEvent, expectValidDetection } from '@/test/matchers';
 
 expectValidCamera(camera);
 expectValidEvent(event);
@@ -308,11 +306,7 @@ expectValidBoundingBox([100, 100, 200, 200]);
 ### Timestamp Assertions
 
 ```typescript
-import {
-  expectRecentTimestamp,
-  expectPastTimestamp,
-  expectTimestampBefore
-} from '@/test/matchers';
+import { expectRecentTimestamp, expectPastTimestamp, expectTimestampBefore } from '@/test/matchers';
 
 expectRecentTimestamp(event.started_at, 30); // Within 30 seconds
 expectPastTimestamp(event.ended_at);
@@ -355,10 +349,7 @@ import { http, HttpResponse } from 'msw';
 it('handles error', async () => {
   server.use(
     http.get('/api/cameras', () => {
-      return HttpResponse.json(
-        { detail: 'Server error' },
-        { status: 500 }
-      );
+      return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
     })
   );
 
@@ -559,14 +550,14 @@ await waitFor(() => {
 **Bad:**
 
 ```typescript
-await new Promise(resolve => setTimeout(resolve, 100));
+await new Promise((resolve) => setTimeout(resolve, 100));
 expect(screen.getByText('Data loaded')).toBeInTheDocument();
 ```
 
 ## Related Documentation
 
 - [Testing Guide](/docs/development/testing.md) - Comprehensive testing patterns
-- [CLAUDE.md](/CLAUDE.md) - TDD approach and workflow
+- [AGENTS.md](/AGENTS.md) - TDD approach and workflow
 - [MSW Documentation](https://mswjs.io/docs/) - API mocking library
 - [Testing Library](https://testing-library.com/docs/react-testing-library/intro/) - React testing utilities
 - [Vitest](https://vitest.dev/) - Test runner

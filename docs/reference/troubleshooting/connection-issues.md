@@ -18,13 +18,10 @@
 ### Diagnosis
 
 ```bash
-# Check if service is listening
+# Check if service is listening (production compose binds these to 127.0.0.1)
 ss -tlnp | grep 8000   # Backend
-ss -tlnp | grep 8095   # YOLO26
-ss -tlnp | grep 8091   # Nemotron
-ss -tlnp | grep 8092   # Florence-2 (optional)
-ss -tlnp | grep 8093   # CLIP (optional)
-ss -tlnp | grep 8094   # Enrichment (optional)
+ss -tlnp | grep 8090   # AI Gateway (Triton: YOLO26, Florence, CLIP, enrichment)
+ss -tlnp | grep 8091   # Nemotron (llama.cpp)
 
 # Check container status
 docker compose -f docker-compose.prod.yml ps
@@ -42,7 +39,7 @@ docker compose -f docker-compose.prod.yml logs backend
 docker compose -f docker-compose.prod.yml up -d
 
 # AI services only
-./scripts/start-ai.sh start
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 ```
 
 **2. Check port conflicts:**
@@ -62,13 +59,13 @@ For Docker:
 - Services on same network can use service names (`postgres`, `redis`)
 - External access uses `localhost:PORT`
 
-For production compose, AI services are reachable from the backend by compose DNS:
+For production compose, all AI models run inside `ai-gateway` (Triton) and the LLM runs
+in `ai-llm` — there are no standalone `ai-yolo26`/`ai-florence`/`ai-clip`/
+`ai-enrichment` containers. The backend reaches them by compose DNS:
 
-- `ai-yolo26:8095`
+- `ai-gateway:8090` (path-prefixed routers: `/yolo26`, `/florence`, `/clip`,
+  `/enrichment`, `/enrich-lt` — wired as `YOLO26_URL=http://ai-gateway:8090/yolo26`, etc.)
 - `ai-llm:8091`
-- `ai-florence:8092` (optional)
-- `ai-clip:8093` (optional)
-- `ai-enrichment:8094` (optional)
 
 For native development:
 
@@ -285,10 +282,11 @@ location /ws/ {
 
 **3. Check rate limits:**
 
-WebSocket connections limited to 10/minute by default. Adjust:
+WebSocket connection attempts are limited to 100/minute per client IP by default
+(allowed range 1-400). Adjust:
 
 ```bash
-RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=20
+RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=150
 ```
 
 ---
@@ -350,8 +348,8 @@ VITE_API_BASE_URL=http://localhost:8000
 # Check service response time
 time curl http://localhost:8000/health
 
-# Check AI service response time
-time curl http://localhost:8095/health
+# Check AI service response time (gateway aggregate + LLM)
+time curl http://localhost:8090/health
 time curl http://localhost:8091/health
 ```
 
@@ -360,10 +358,10 @@ time curl http://localhost:8091/health
 **1. Increase timeout settings:**
 
 ```bash
-AI_CONNECT_TIMEOUT=30.0
-AI_HEALTH_TIMEOUT=10.0
-YOLO26_READ_TIMEOUT=120.0
-NEMOTRON_READ_TIMEOUT=300.0
+AI_CONNECT_TIMEOUT=30.0       # Default 10.0 (max 60)
+AI_HEALTH_TIMEOUT=10.0        # Default 5.0 (max 30)
+YOLO26_READ_TIMEOUT=120.0     # Default 30.0 (max 120)
+NEMOTRON_READ_TIMEOUT=300.0   # Default 120.0 (max 600)
 ```
 
 **2. Check service load:**

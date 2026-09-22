@@ -1,5 +1,7 @@
 # Redeploy Script Python Refactor Plan
 
+> **Status:** Implemented — the Python redeploy tool shipped in #5048 (2026-01-30); the script was later retired in #6340 (2026-02-08) and `scripts/redeploy.*` is no longer in the tree.
+
 ## Overview
 
 Refactor `scripts/redeploy.sh` (2226 lines bash) into a Python CLI tool with proper structure, testing, and maintainability.

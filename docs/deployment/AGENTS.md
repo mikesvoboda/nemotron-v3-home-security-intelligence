@@ -6,10 +6,11 @@ This directory contains documentation for container orchestration, startup seque
 
 ## Files
 
-| File                         | Purpose                                            |
-| ---------------------------- | -------------------------------------------------- |
-| `container-orchestration.md` | Comprehensive container orchestrator documentation |
-| `yolo26-migration.md`        | YOLO26 detector migration guide and configuration  |
+| File                         | Purpose                                                      |
+| ---------------------------- | ------------------------------------------------------------ |
+| `container-orchestration.md` | Comprehensive container orchestrator documentation           |
+| `gpu-memory-limits.md`       | GPU/memory resource limits for services                      |
+| `yolo26-migration.md`        | YOLO26 detector migration guide (historical; superseded doc) |
 
 ## Key Topics
 
@@ -71,8 +72,9 @@ curl http://localhost:8000/api/system/health/ready
 curl http://localhost:8000/api/health/ai-services
 
 # Individual service health
-curl http://localhost:8095/health  # ai-yolo26 (YOLO26)
-curl http://localhost:8091/health  # ai-llm
+curl http://localhost:8090/health        # ai-gateway (aggregated Triton readiness)
+curl http://localhost:8090/yolo26/health # ai-gateway YOLO26 router
+curl http://localhost:8091/health        # ai-llm
 ```
 
 ### Service Management
@@ -82,9 +84,9 @@ curl http://localhost:8091/health  # ai-llm
 curl http://localhost:8000/api/system/services
 
 # Restart a service
-curl -X POST http://localhost:8000/api/system/services/ai-yolo26/restart
+curl -X POST http://localhost:8000/api/system/services/ai-gateway/restart
 
 # Enable/disable auto-restart
-curl -X POST http://localhost:8000/api/system/services/ai-yolo26/enable
-curl -X POST http://localhost:8000/api/system/services/ai-yolo26/disable
+curl -X POST http://localhost:8000/api/system/services/ai-gateway/enable
+curl -X POST http://localhost:8000/api/system/services/ai-gateway/disable
 ```

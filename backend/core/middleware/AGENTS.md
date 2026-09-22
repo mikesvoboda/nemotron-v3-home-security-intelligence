@@ -31,9 +31,9 @@ This directory may be used in the future for:
 - Background task middleware
 - Metrics collection middleware
 
-## Empty File Cleanup Note
+## Historical Cleanup Note
 
-**Note:** The parent `backend/core/` directory contains an empty `result.py` file (0 lines) that serves no purpose and should be removed. This is unrelated to the middleware directory but noted here for completeness.
+The empty `result.py` file once present in the parent `backend/core/` directory has been removed.
 
 ## Related Documentation
 

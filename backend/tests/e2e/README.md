@@ -305,4 +305,4 @@ After E2E tests are passing, proceed to:
 - `/backend/services/AGENTS.md` - Services architecture overview
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
 - `/backend/tests/integration/README.md` - Integration tests documentation
-- `/CLAUDE.md` - Project instructions and phase overview
+- `/AGENTS.md` - Project instructions and phase overview

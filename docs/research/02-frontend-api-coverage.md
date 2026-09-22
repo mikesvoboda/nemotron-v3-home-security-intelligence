@@ -1,5 +1,7 @@
 # Frontend API Client Coverage Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The frontend has **11 API client files** with **100+ documented endpoints**. Strong error handling patterns with retry logic, timeout, and request deduplication.

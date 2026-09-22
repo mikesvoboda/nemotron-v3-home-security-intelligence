@@ -24,6 +24,10 @@ Navigate to **Profiling** in the sidebar to access the embedded Grafana dashboar
 | **Open Pyroscope**  | Opens the native Pyroscope UI at `localhost:4040`                   |
 | **Refresh**         | Reloads the embedded dashboard                                      |
 
+The sidebar entry **ANALYTICS > Profiling** (`frontend/src/components/pyroscope/`)
+embeds the Pyroscope dashboard through the nginx `/grafana` reverse proxy. Set
+`GRAFANA_PORT` (default 3002) in `.env` if the host port collides.
+
 ### Direct Access
 
 | Interface    | URL                                            | Purpose                          |
@@ -33,47 +37,57 @@ Navigate to **Profiling** in the sidebar to access the embedded Grafana dashboar
 
 ## Profiled Services
 
-All services are instrumented with either the Python SDK (push-based) or py-spy profiler (sidecar approach):
+Profiling is on by default; set `PYROSCOPE_ENABLED=false` in `.env` to stop
+collection. Three mechanisms feed Pyroscope, and only two of them cover
+services this deployment actually runs:
 
-| Service          | Application Name      | Method     | Description                             |
-| ---------------- | --------------------- | ---------- | --------------------------------------- |
-| Backend          | `nemotron-backend`    | Python SDK | FastAPI backend with all business logic |
-| YOLO26           | `ai-yolo26`           | py-spy     | Object detection service                |
-| CLIP             | `ai-clip`             | py-spy     | Entity re-identification embeddings     |
-| Florence         | `ai-florence`         | py-spy     | Vision-language scene understanding     |
-| Enrichment       | `ai-enrichment`       | py-spy     | Heavy enrichment models (GPU 0)         |
-| Enrichment Light | `ai-enrichment-light` | py-spy     | Light enrichment models (GPU 1)         |
-| LLM (Nemotron)   | `ai-llm`              | py-spy     | Nemotron LLM inference                  |
+| Application name   | Service it profiles            | Mechanism           | Enabled by                                    |
+| ------------------ | ------------------------------ | ------------------- | --------------------------------------------- |
+| `nemotron-backend` | Backend business logic         | pyroscope-io SDK    | `PYROSCOPE_ENABLED=true` (backend container)  |
+| `backend`          | Same backend process, CPU      | py-spy sidecar      | `PYROSCOPE_ENABLED=true` (backend container)  |
+| `ai-llm`           | Nemotron inference (llama.cpp) | Alloy eBPF profiler | label `pyroscope.profile: 'true'` on `ai-llm` |
+
+`ai-gateway` is the only AI inference container in
+`docker-compose.prod.yml`, and it has neither the py-spy sidecar nor a
+`pyroscope.profile` label, so it produces no profiles today.
+
+### Why The Legacy AI Containers Have No Profiles
+
+The per-model AI containers — `ai-yolo26`, `ai-clip`, `ai-florence`,
+`ai-enrichment`, `ai-enrichment-light` — still ship `py-spy` and
+`scripts/ai-entrypoint.sh` in their images, which would push profiles under
+their own names. They are not services in `docker-compose.prod.yml`: one
+`ai-gateway` container (port 8090) now serves all of those models through
+Triton. Those profile names will not appear in Pyroscope on a current
+deployment.
 
 ### Profiling Methods
 
-**Python SDK (Backend)**
+**Python SDK (Backend CPU and memory)**
 
-The backend uses the `pyroscope-io` Python SDK which integrates directly with the Python interpreter:
+`init_profiling()` in `backend/core/telemetry.py` calls `pyroscope.configure`
+with `application_name="nemotron-backend"` and `PYROSCOPE_URL` (default
+`http://pyroscope:4040`). `PYROSCOPE_MEMORY_ENABLED=true` additionally turns on
+allocation profiling.
 
-```python
-# backend/core/telemetry.py
-import pyroscope
+**py-spy sidecar (Backend CPU)**
 
-pyroscope.configure(
-    application_name="nemotron-backend",
-    server_address=os.getenv("PYROSCOPE_URL", "http://pyroscope:4040"),
-    tags={"service": "backend", "environment": os.getenv("ENVIRONMENT", "development")},
-    oncpu=True,
-    gil_only=False,  # Profile all threads
-    enable_logging=True,
-)
-```
-
-**py-spy Profiler (AI Services)**
-
-AI services use py-spy in a sidecar pattern for minimal overhead:
+`backend/entrypoint.sh` launches `scripts/pyroscope-profiler.sh` in the
+background when `PYROSCOPE_ENABLED=true`. It records every
+`PROFILE_INTERVAL` seconds (default 30) and POSTs to the Pyroscope ingest
+endpoint:
 
 ```bash
-# scripts/pyroscope-profiler.sh
 py-spy record --pid "$PID" --duration 30 --format speedscope --nonblocking
-# Profiles are pushed to Pyroscope via HTTP
 ```
+
+**Alloy eBPF profiler (native processes)**
+
+Alloy runs `pyroscope.ebpf` against containers labelled
+`pyroscope.profile: 'true'`, using the `pyroscope.service` label as the
+application name. This is the only path that profiles a native (non-Python)
+process, which is why `ai-llm` carries the label. See
+`monitoring/alloy/config.alloy`.
 
 ## Reading Flamegraphs
 
@@ -185,9 +199,13 @@ Profiling data retention is configured in the Pyroscope server to prevent disk b
 | Retention Enforcement Interval | 5 min   | How often disk usage is checked                  |
 | Compaction Interval            | 2 hours | How often blocks are compacted                   |
 | Block Cleanup Interval         | 15 min  | How often retention cleanup runs                 |
-| Max Block Duration             | 3 hours | Maximum duration of a single block               |
+| Max Block Duration             | 1 hour  | Maximum duration of a single block               |
+| Deletion Delay                 | 2 hours | Grace period before marked blocks are removed    |
 
-**Storage Estimates** (typical workload with 7 profiled services at 100Hz):
+**Storage Estimates** measured against the earlier deployment, which pushed
+profiles from seven AI services. A current deployment sends only
+`nemotron-backend`, `backend` and `ai-llm`, so expect well under these
+figures:
 
 | Timeframe | Estimated Storage |
 | --------- | ----------------- |
@@ -262,7 +280,7 @@ This happens via the `ProfilingMiddleware` which wraps each request with trace c
 
 #### Finding the Profile for a Slow Request
 
-1. **Find the slow trace in Jaeger/Tempo:**
+1. **Find the slow trace in Tempo:**
 
    - Navigate to the [Tracing](../ui/tracing.md) page
    - Find the slow request by duration or error status
@@ -284,7 +302,7 @@ This happens via the `ProfilingMiddleware` which wraps each request with trace c
 
 ```bash
 # 1. Find slow traces (e.g., requests > 5 seconds)
-# In Jaeger: service=nemotron-backend, minDuration=5s
+# In Tempo: service=nemotron-backend, minDuration=5s
 
 # 2. Get trace_id from the slow trace
 # Example: 0123456789abcdef0123456789abcdef
@@ -320,14 +338,14 @@ If trace tagging is not available, use time-based correlation:
 
 ### Trace-to-Profile Navigation
 
-Grafana provides direct navigation from Jaeger traces to Pyroscope profiles (NEM-4129). This enables a seamless debugging workflow where you can jump from a slow trace span directly to the corresponding CPU profile.
+Grafana provides direct navigation from Tempo traces to Pyroscope profiles (NEM-4129). This enables a seamless debugging workflow where you can jump from a slow trace span directly to the corresponding CPU profile.
 
 #### How to Navigate from Trace to Profile
 
-1. **Find a slow trace in Jaeger:**
+1. **Find a slow trace in Tempo:**
 
    - Go to Grafana (http://localhost:3002)
-   - Navigate to **Explore** and select the **Jaeger** datasource
+   - Navigate to **Explore** and select the **Tempo** datasource
    - Search for traces by service name, operation, or duration
    - Click on a trace to open the trace detail view
 
@@ -359,7 +377,8 @@ The trace-to-profile integration is configured in Grafana's datasource provision
 
 ```yaml
 # monitoring/grafana/provisioning/datasources/prometheus.yml
-- name: Jaeger
+- name: Tempo
+  uid: tempo
   jsonData:
     tracesToProfiles:
       datasourceUid: pyroscope
@@ -379,7 +398,7 @@ For trace-to-profile navigation to work:
 
 1. **Pyroscope must be running:** `podman ps | grep pyroscope`
 2. **Backend must be profiled with trace tags:** Enabled by `ProfilingMiddleware` (NEM-4127)
-3. **Trace IDs must match:** Both Jaeger and Pyroscope must see the same trace_id
+3. **Trace IDs must match:** Both Tempo and Pyroscope must see the same trace_id
 
 #### Troubleshooting Navigation
 
@@ -551,7 +570,10 @@ Use this table to identify which endpoints are experiencing performance issues.
 
 To profile a specific slow request, you need its trace ID:
 
-1. Click the **Jaeger Traces** link in the dashboard header
+1. Click the **Jaeger Traces** link in the dashboard header — the label is
+   stale in `monitoring/grafana/dashboards/hsi-request-profiling.json`; the
+   trace datasource behind Grafana Explore is **Tempo** (select it in the
+   Explore picker if it is not preselected)
 2. In Grafana Explore, search for slow traces:
    - Service: `nemotron-backend` (or relevant service)
    - Min Duration: `500ms` (or your threshold)
@@ -585,11 +607,11 @@ Common hotspots and what they mean:
 | `GC.collect`                | Garbage collection pressure | Reduce allocations, use object pools |
 | `await` / async operations  | Waiting on I/O              | Check downstream dependencies        |
 
-### Alternative: Direct Navigation from Jaeger
+### Alternative: Direct Navigation from Tempo
 
 You can also navigate directly from a trace to its profile:
 
-1. Open the **Tracing** dashboard or Grafana Explore with Jaeger
+1. Open the **Tracing** dashboard or Grafana Explore with Tempo
 2. Find and click on a slow trace
 3. Click on the slow span within the trace
 4. Look for the **Profiles** tab or **Profiles for this span** link

@@ -1,5 +1,7 @@
 # Unexposed Backend Services Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); per-section status notes track later implementation. `backend/services/materialized_views.py` was removed from the tree after this survey.
+
 ## Executive Summary
 
 Analysis of 150+ backend services identified significant functionality NOT exposed via REST API endpoints. This document catalogs services with unexposed methods and recommends endpoints to add.

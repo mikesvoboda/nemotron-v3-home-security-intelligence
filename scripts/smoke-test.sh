@@ -52,7 +52,7 @@ SKIP_CLEANUP="${SKIP_CLEANUP:-false}"
 # We use a unique folder name pattern to identify our test camera.
 TEST_CAMERA_NAME="Smoke Test Camera"
 # Camera folders must be under FOSCAM_BASE_PATH (default: /export/foscam)
-# Format: /export/foscam/{camera_name}/ per CLAUDE.md convention
+# Format: /export/foscam/{camera_name}/ per AGENTS.md convention
 FOSCAM_BASE_PATH="${FOSCAM_BASE_PATH:-/export/foscam}"
 TEST_CAMERA_FOLDER="$FOSCAM_BASE_PATH/smoke_test_camera"
 TEST_IMAGE_PATH="$TEST_CAMERA_FOLDER/smoke_test_image.jpg"

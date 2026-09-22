@@ -485,20 +485,17 @@ Your dashboard configuration is stored in localStorage. Click **Configure** > **
 
 ## Navigation
 
-The left sidebar provides navigation to different areas of the application:
+The left sidebar (`frontend/src/components/layout/Sidebar.tsx`, items defined in
+`sidebarNav.ts`) groups navigation into four collapsible sections:
 
-| Button        | What It Does                              |
-| ------------- | ----------------------------------------- |
-| **Dashboard** | Main overview (current page)              |
-| **Timeline**  | All past events with filters              |
-| **Entities**  | Tracked people/objects (work in progress) |
-| **Alerts**    | High-priority events only                 |
-| **Logs**      | Technical logs                            |
-| **Audit Log** | Security-sensitive actions (advanced)     |
-| **System**    | Performance monitoring                    |
-| **Settings**  | Configuration options                     |
+| Group          | Items                                                                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Monitoring** | Dashboard, Timeline, Entities, Alerts                                                                                                                                                          |
+| **Analytics**  | Analytics, Video Analytics, AI Audit, AI Performance, AI Services, Profiling, Plate Reads, Face Recognition, Heatmaps, Scene Changes, Object Tracks, Performance, Household, Re-Identification |
+| **Operations** | Jobs, Pipeline, Dashboard (operations dashboard), Notifications, GPU Metrics, Request Profiling, Tracing, Logs                                                                                 |
+| **Admin**      | Zones, Audit Log, Data Management, Scheduled Reports, Webhooks, Trash, GPU Settings, Settings                                                                                                  |
 
-The current page is highlighted in bright green.
+The Operations and Admin groups start collapsed. The current page is highlighted.
 
 ### Keyboard Shortcuts
 

@@ -7,13 +7,21 @@
 - `backend/api/middleware/request_logging.py:1-321` - Primary implementation
 - `backend/api/middleware/request_timing.py:1-156` - Request timing measurement
 - `backend/api/middleware/request_id.py:1-90` - Request ID generation
-- `backend/core/config.py:1819-1823` - Configuration settings
+- `backend/core/config.py:2657-2661` - Configuration settings
 
 ## Overview
 
 The request logging middleware provides structured logging for all HTTP requests processed by the API. It captures request metadata, response status codes, timing information, and correlation IDs to enable log aggregation, analysis, and debugging in tools like Grafana Loki or ELK.
 
 The middleware integrates with OpenTelemetry for trace context propagation, allowing log-to-trace correlation in distributed tracing systems. It masks sensitive data (like client IP addresses) and excludes noisy endpoints (health checks, metrics) from logging to reduce log volume.
+
+> **Note (NEM-5558):** the standalone `RequestLoggingMiddleware` and
+> `RequestTimingMiddleware` classes still exist and remain tested, but the app
+> now registers a single **`ObservabilityMiddleware`**
+> (`backend/api/middleware/observability.py:97`) that merges timing, request
+> logging, and Prometheus metrics into one timer. It reuses `format_request_log`
+> and the log-level logic from `request_logging.py`. `RequestTimingMiddleware`'s
+> `X-Response-Time` header is emitted by the unified middleware.
 
 ## Architecture
 
@@ -115,7 +123,7 @@ Log levels are determined based on HTTP status code (`backend/api/middleware/req
 The `RequestIDMiddleware` (`backend/api/middleware/request_id.py:45-90`) generates and propagates correlation IDs:
 
 ```python
-# From backend/api/middleware/request_id.py:66-91
+# From backend/api/middleware/request_id.py:66-90
 async def dispatch(
     self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
 ) -> Response:
@@ -344,8 +352,12 @@ uv run pytest backend/tests/unit/api/middleware/ --cov=backend.api.middleware
 
 ### Enabling Request Logging
 
+In the shipped app this is enabled through the unified middleware
+(`backend/main.py` registers `ObservabilityMiddleware(enable_request_logging=...)`,
+gated by `request_logging_enabled`). Mounting the standalone class directly,
+e.g. in a custom ASGI app, looks like:
+
 ```python
-# In backend/main.py
 from backend.api.middleware import RequestLoggingMiddleware
 
 app = FastAPI()

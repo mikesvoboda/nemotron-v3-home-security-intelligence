@@ -78,7 +78,9 @@ RT-VLM and the LLM NIM are **both** vLLM engines, so VSS's default shape cannot 
 any precision.
 
 **Our architecture does not have this problem.** YOLO26, Florence-2, and CLIP are plain
-PyTorch/FastAPI HTTP servers, not vLLM engines. One vLLM engine for the text LLM plus N small
+HTTP model servers (since the consolidation, one `ai-gateway` container on port 8090 with routers
+`/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt`), not vLLM engines. One vLLM engine for
+the text LLM plus N small
 model servers is a supported configuration. The constraint that blocks VSS on a single GPU does
 not bind here.
 

@@ -6,51 +6,50 @@ This directory contains scripts to help you set up, test, and run the Nemotron v
 
 ### First Time Setup
 
-**Linux/macOS:**
+**Linux/macOS (and any platform with Python):**
 
 ```bash
-./scripts/setup.sh
+python setup.py          # repo root - cross-platform setup
 ```
 
-**Windows:**
+`setup.py` lives at the repository root. It checks prerequisites, creates
+`.venv` via [uv](https://docs.astral.sh/uv/), syncs Python dependencies,
+generates `.env` from `.env.example`, and installs pre-commit hooks when you
+pass `--dev`. The former `scripts/setup.sh` was removed in the setup
+consolidation (commit 84188795).
+
+**Windows extras:**
 
 ```powershell
-.\scripts\setup.ps1
+.\scripts\setup.ps1      # npm prerequisites + frontend deps on Windows
 ```
 
-This will:
-
-- Check prerequisites (Python 3.14+, Node.js 24 LTS, 22.12+ accepted, git, etc.)
-- Install all backend and frontend dependencies
-- Set up pre-commit hooks
-- Create `.env` configuration file
-- Verify installation
-
-### Setup Options
+Useful `setup.py` flags (`python setup.py --help` for the full list):
 
 ```bash
-# Show all options
-./scripts/setup.sh --help
+python setup.py --defaults   # non-interactive, all defaults
+python setup.py --dev        # install pre-commit hooks
+python setup.py --yes        # auto-accept prompts (quick mode)
+```
 
-# Skip GPU checks (for machines without NVIDIA GPUs)
-./scripts/setup.sh --skip-gpu
+### Install frontend dependencies
 
-# Skip verification tests (faster)
-./scripts/setup.sh --skip-tests
-
-# Clean and reinstall everything
-./scripts/setup.sh --clean
+```bash
+cd frontend
+npm ci                     # CI uses npm; bun.lock is also kept in sync
 ```
 
 ## Available Scripts
 
 ### Development Setup
 
-| Script           | Platform    | Purpose                                      |
-| ---------------- | ----------- | -------------------------------------------- |
-| `setup.sh`       | Linux/macOS | Full development environment setup           |
-| `setup.ps1`      | Windows     | Full development environment setup           |
-| `setup-hooks.sh` | Linux/macOS | Legacy setup script (use `setup.sh` instead) |
+| Script             | Platform    | Purpose                                                                                              |
+| ------------------ | ----------- | ---------------------------------------------------------------------------------------------------- |
+| (root) `setup.py`  | All         | Cross-platform dev environment setup (the entry point this README used to attribute to a `setup.sh`) |
+| `setup.ps1`        | Windows     | Windows dev environment extras (npm/prereq checks, frontend deps)                                    |
+| `setup-hooks.sh`   | Linux/macOS | Pre-commit / commit-msg / pre-push git hook setup                                                    |
+| `setup-systemd.sh` | Linux       | Install backend as a systemd service                                                                 |
+| `setup-launchd.sh` | macOS       | Install backend as a launchd service                                                                 |
 
 ### Testing
 
@@ -76,14 +75,14 @@ This will:
 git clone <repo-url>
 cd nemotron-v3-home-security-intelligence
 
-# 2. Run setup script
-./scripts/setup.sh
+# 2. Run setup (creates .venv + .env)
+python setup.py --dev
 
 # 3. Activate virtual environment
 source .venv/bin/activate
 
-# 4. Start development
-cd backend && uvicorn main:app --reload
+# 4. Start development (repo root)
+uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Running Tests
@@ -96,7 +95,7 @@ cd backend && uvicorn main:app --reload
 ./scripts/validate.sh
 
 # Specific test file
-pytest backend/tests/unit/test_feature.py -v
+uv run pytest backend/tests/unit/test_feature.py -v
 ```
 
 ### Running E2E Smoke Test
@@ -141,15 +140,15 @@ pytest backend/tests/unit/test_feature.py -v
 
 ### Required
 
-- **Python 3.14+** - [Download](https://www.python.org/downloads/)
-- **Node.js 24 LTS, 22.12+ accepted** - [Download](https://nodejs.org/) (Vite 7 requirement)
+- **Python 3.14+** (`requires-python = ">=3.14"` in `pyproject.toml`) - [Download](https://www.python.org/downloads/)
+- **uv** - creates `.venv` and syncs dependencies (`uv sync --extra dev`)
+- **Node.js 24 LTS, 22.12+ accepted** (`engines` in `frontend/package.json`; Vite 7 requirement) - [Download](https://nodejs.org/)
 - **git** - [Download](https://git-scm.com/)
 
 ### Optional
 
-- **Docker** - For containerized services (optional)
-- **NVIDIA GPU drivers** - For GPU-accelerated AI inference (optional)
-  - Use `--skip-gpu` flag if you don't have an NVIDIA GPU
+- **Podman or Docker** - for containerized services (this project standardizes on Podman; see `AGENTS.md`)
+- **NVIDIA GPU drivers** - for GPU-accelerated AI inference
 
 ### Windows-Specific
 
@@ -164,7 +163,7 @@ pytest backend/tests/unit/test_feature.py -v
 
 ```bash
 chmod +x scripts/*.sh
-./scripts/setup.sh
+python setup.py
 ```
 
 **Windows:**
@@ -181,15 +180,15 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 # Check Python version
 python3 --version  # Should be 3.14 or higher
 
-# If you have multiple Python versions, use specific version
-python3.14 -m venv .venv
+# uv can install and pin the right version
+uv python install 3.14
 ```
 
 ### Node.js version issues
 
 ```bash
 # Check Node version
-node --version  # Should be 24 or higher
+node --version  # Should be 24.x, or 22.12+
 
 # Use nvm (Node Version Manager) to install correct version
 nvm install 24
@@ -203,9 +202,6 @@ nvm use 24
 ```bash
 # Make scripts executable
 chmod +x scripts/*.sh
-
-# If you get permission errors for folders
-sudo chown -R $USER:$USER .
 ```
 
 **Windows:**
@@ -223,6 +219,7 @@ sudo chown -R $USER:$USER .
 pre-commit uninstall
 pre-commit install
 pre-commit install --hook-type commit-msg
+pre-commit install --hook-type pre-push
 
 # Run hooks manually to test
 pre-commit run --all-files
@@ -230,34 +227,35 @@ pre-commit run --all-files
 
 ### Database issues
 
+The database is PostgreSQL (no SQLite fallback). To reset it, tear the stack
+down and remove the compose-managed `postgres_data` volume (find its
+project-prefixed name first):
+
 ```bash
-# Delete and recreate database
-rm -f data/security.db
-
-# Start backend (will recreate database)
-cd backend
-uvicorn main:app --reload
-
-# Seed test data
-./scripts/seed-events.py
+podman compose -f docker-compose.prod.yml down
+podman volume ls | grep postgres_data        # e.g. workspace_postgres_data
+podman volume rm <that-name>
+podman compose -f docker-compose.prod.yml up -d postgres
 ```
 
 ## Environment Variables
 
-The setup script creates a `.env` file from `.env.example`. Review and update these variables:
+`setup.py` creates a `.env` file from `.env.example`. Review and update these
+variables (values below are the current `.env.example` defaults - grep it
+before copying; secrets like the database password are generated by setup):
 
 ```bash
 # Camera Configuration
 FOSCAM_BASE_PATH=/export/foscam
 
-# Database (PostgreSQL required)
-DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
+# Database (PostgreSQL; password generated by setup)
+# DATABASE_URL=postgresql+asyncpg://security:<GENERATED_BY_SETUP>@localhost:5432/security
 
 # Redis
-REDIS_URL=redis://localhost:6379
+REDIS_URL=redis://localhost:6379/0
 
-# AI Services
-YOLO26_URL=http://localhost:8095
+# AI Services (defaults point at the ai-gateway facade; see USE_AI_GATEWAY)
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
 
 # Processing
@@ -269,7 +267,7 @@ DETECTION_CONFIDENCE_THRESHOLD=0.5
 RETENTION_DAYS=30
 
 # GPU Monitoring
-GPU_POLL_INTERVAL_SECONDS=2
+GPU_POLL_INTERVAL_SECONDS=5.0
 
 # Frontend
 VITE_API_BASE_URL=http://localhost:8000
@@ -284,12 +282,10 @@ VITE_WS_BASE_URL=ws://localhost:8000
    nano .env  # or your preferred editor
    ```
 
-2. **Start backend server:**
+2. **Start backend server (repo root):**
 
    ```bash
-   source .venv/bin/activate
-   cd backend
-   uvicorn main:app --reload
+   uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 3. **Start frontend (in another terminal):**
@@ -312,10 +308,10 @@ VITE_WS_BASE_URL=ws://localhost:8000
 
 ## Getting Help
 
-- **Script help:** `./scripts/setup.sh --help`
+- **Setup help:** `python setup.py --help`
 - **Project documentation:** See `AGENTS.md` files in each directory
 - **Roadmap:** See `docs/ROADMAP.md`
-- **Git workflow:** See `CLAUDE.md` in project root
+- **Git workflow:** See `AGENTS.md` in project root
 
 ## For Developers
 
@@ -339,19 +335,12 @@ VITE_WS_BASE_URL=ws://localhost:8000
 
 ```bash
 # Test help message
-./scripts/setup.sh --help
-
-# Dry run (check without installing)
-# Add this to your script: --dry-run flag
-
-# Test on clean environment
-./scripts/setup.sh --clean
-./scripts/setup.sh
+python setup.py --help
 ```
 
 ## Related Documentation
 
 - **scripts/AGENTS.md** - Detailed technical documentation for AI agents
-- **CLAUDE.md** - Git and development workflow rules
+- **AGENTS.md** - Git and development workflow rules
 - **README.md** - Project overview and architecture
 - **docs/ROADMAP.md** - Future enhancements and features

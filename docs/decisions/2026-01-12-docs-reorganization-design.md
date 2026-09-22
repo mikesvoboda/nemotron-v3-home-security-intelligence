@@ -1,7 +1,7 @@
 # Documentation Reorganization Design
 
 **Date:** 2026-01-12
-**Status:** Approved
+**Status:** Implemented (reorganization landed 2026-01-12, commit 29d900b4)
 **Author:** Claude + Mike Svoboda
 
 ## Summary

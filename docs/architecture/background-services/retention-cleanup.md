@@ -373,8 +373,10 @@ except Exception as e:
 
 The cleanup service status is available via:
 
-- `GET /api/system/workers` - Shows cleanup service status
-- `GET /api/admin/cleanup/status` - Detailed cleanup statistics
+- `GET /api/system/cleanup/status` - Detailed cleanup statistics (`backend/api/routes/system.py:3937`)
+- `POST /api/system/cleanup` - Trigger a cleanup run (API-key protected, `:3272`)
+- `POST /api/system/cleanup/orphaned-files` - Sweep orphaned image files
+- `POST /api/admin/cleanup/orphans` - Admin orphan cleanup (`backend/api/routes/admin.py`)
 
 ## Related Documentation
 

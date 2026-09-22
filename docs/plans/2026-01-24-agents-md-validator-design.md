@@ -1,5 +1,7 @@
 # AGENTS.md Validator Design
 
+> **Status:** Implemented — see `.agents-md-validator.yml` and `.github/workflows/agents-md.yml`.
+
 **Date:** 2026-01-24
 **Status:** Approved
 

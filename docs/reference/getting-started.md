@@ -31,18 +31,23 @@ Home Security Intelligence is an AI-powered home security monitoring dashboard t
 
 ### Architecture Components
 
+Production AI runs as two containers: an AI **gateway** (Triton Inference Server on :8090)
+serving detection and enrichment models behind path-routed endpoints, and a standalone
+llama.cpp server for the LLM (:8091).
+
 ```
 Camera Images
       |
       v
-+-------------+      +-------------+      +-------------+
-|   YOLO26    |----->|  Enrichment |----->|  Florence-2 |
-|   (8095)    |      |   (8094)    |      |   (8092)    |
-+-------------+      +-------------+      +-------------+
-      |                    |                    |
-      v                    v                    v
++------------------------------------------------------------------+
+|              AI Gateway  (ai-gateway, :8090)                     |
+|  /yolo26   /enrichment   /enrich-lt   /florence   /clip          |
+|  detection  heavy models  light models  VLM       embeddings     |
++------------------------------------------------------------------+
+      |
+      v
 +-----------------------------------------------------------+
-|                    Nemotron (8091)                        |
+|              Nemotron (ai-llm, :8091)                     |
 |              Risk Analysis & Scoring                      |
 +-----------------------------------------------------------+
                           |
@@ -56,21 +61,23 @@ Camera Images
 
 ### Hardware
 
-| Component | Minimum    | Recommended |
-| --------- | ---------- | ----------- |
-| GPU       | 8 GB VRAM  | 24 GB VRAM  |
-| RAM       | 16 GB      | 32 GB       |
-| Storage   | 100 GB SSD | 500 GB NVMe |
-| CPU       | 4 cores    | 8+ cores    |
+| Component | Minimum                          | Recommended             |
+| --------- | -------------------------------- | ----------------------- |
+| GPU       | 8-12 GB VRAM (LLM partly on CPU) | 24 GB VRAM (full stack) |
+| RAM       | 16 GB                            | 32 GB+                  |
+| Storage   | 50 GB (core models)              | 100 GB+ (full zoo)      |
+| CPU       | 4 cores                          | 8+ cores                |
+
+Details and per-model VRAM breakdown: [Prerequisites](../getting-started/prerequisites.md).
 
 ### Software
 
-| Component         | Version       |
-| ----------------- | ------------- |
-| Python            | 3.14+         |
-| Node.js           | 20+           |
-| Container Runtime | Docker/Podman |
-| CUDA              | 12.0+         |
+| Component         | Version                     |
+| ----------------- | --------------------------- |
+| Python            | 3.14+                       |
+| Node.js           | ^22.12.0 or >=24.0.0        |
+| Container Runtime | Docker/Podman               |
+| CUDA              | 12.0+ (GPU capability 7.0+) |
 
 ---
 
@@ -78,20 +85,21 @@ Camera Images
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/your-org/home-security-intelligence.git
-cd home-security-intelligence
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 
-# 2. Run setup
-./setup.sh
+# 2. Run first-time setup (generates .env with real credentials + docker-compose.override.yml)
+python setup.py
 
-# 3. Download AI models
+# 3. Download AI models (manifest: models.yml)
 ./ai/download_models.sh
 
-# 4. Start services
-podman-compose -f docker-compose.prod.yml up -d
+# 4. Start services (docker works too — compose/podman compose both supported)
+podman compose -f docker-compose.prod.yml up -d
 
-# 5. Open dashboard
-open http://localhost:3000
+# 5. Open the dashboard (HTTP on 8080, HTTPS on 8444 — configurable via
+#    FRONTEND_HTTP_PORT / FRONTEND_HTTPS_PORT)
+open http://localhost:8080
 ```
 
 ---
@@ -151,12 +159,12 @@ See [Keyboard Shortcuts](keyboard-shortcuts.md) for complete reference.
 
 ## Configuration Files
 
-| File                         | Purpose                   |
-| ---------------------------- | ------------------------- |
-| `.env`                       | Environment configuration |
-| `docker-compose.prod.yml`    | Container orchestration   |
-| `config/gpu-assignments.yml` | GPU assignments           |
-| `pyproject.toml`             | Python dependencies       |
+| File                         | Purpose                                    |
+| ---------------------------- | ------------------------------------------ |
+| `.env`                       | Environment configuration                  |
+| `docker-compose.prod.yml`    | Container orchestration                    |
+| `config/gpu-assignments.yml` | GPU assignments (generated reference file) |
+| `pyproject.toml`             | Python dependencies                        |
 
 ---
 
@@ -190,12 +198,12 @@ See [Keyboard Shortcuts](keyboard-shortcuts.md) for complete reference.
 
 ## Troubleshooting
 
-| Issue                   | Solution                                           |
-| ----------------------- | -------------------------------------------------- |
-| No detections appearing | Check YOLO26 service: `curl localhost:8095/health` |
-| High risk scores        | Review Nemotron prompts and thresholds             |
-| GPU out of memory       | Reduce batch size or use smaller model             |
-| WebSocket disconnects   | Check Redis connection and backend logs            |
+| Issue                   | Solution                                                  |
+| ----------------------- | --------------------------------------------------------- |
+| No detections appearing | Check the AI gateway: `curl localhost:8090/yolo26/health` |
+| High risk scores        | Review Nemotron prompts and thresholds                    |
+| GPU out of memory       | Reduce batch size or use smaller model                    |
+| WebSocket disconnects   | Check Redis connection and backend logs                   |
 
 See [Troubleshooting Guide](troubleshooting/index.md) for detailed solutions.
 

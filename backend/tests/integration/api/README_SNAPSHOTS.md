@@ -213,5 +213,5 @@ pytest backend/tests/integration/api/test_*_snapshots.py -n0
 ## References
 
 - [Syrupy Documentation](https://github.com/tophat/syrupy)
-- [Testing Guide](../../../docs/development/testing.md)
-- [Test Patterns](../../../docs/developer/patterns/)
+- [Testing Guide](../../../../docs/development/testing.md)
+- [Test Patterns](../../../../docs/developer/patterns/)

@@ -23,20 +23,27 @@ Forms in this application use a combination of React Hook Form for state managem
 
 ### FormField
 
-Reusable form field wrapper with label and error display.
+Self-contained form field: label, input, error, and help text in one component. It renders its own `<input>` (there is no `children` slot) and spreads the remaining `InputHTMLAttributes` onto it. `FormTextarea` and `FormSelect` (which does take `children` for `<option>` elements) live in the same file.
 
 **Location:** `frontend/src/components/forms/FormField.tsx`
 
-**Props:**
+**Props (`FormFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'>`):**
 
-| Prop     | Type        | Default | Description        |
-| -------- | ----------- | ------- | ------------------ |
-| name     | `string`    | -       | Field name         |
-| label    | `string`    | -       | Field label        |
-| error    | `string`    | -       | Error message      |
-| required | `boolean`   | `false` | Required indicator |
-| hint     | `string`    | -       | Help text          |
-| children | `ReactNode` | -       | Input element      |
+| Prop           | Type                  | Default | Description                                                                 |
+| -------------- | --------------------- | ------- | --------------------------------------------------------------------------- |
+| name           | `string`              | -       | Field name (used for form data)                                             |
+| label          | `string`              | -       | Field label                                                                 |
+| error          | `string`              | -       | Error message                                                               |
+| helpText       | `string`              | -       | Help text displayed below the input                                         |
+| required       | `boolean`             | `false` | Required indicator                                                          |
+| className      | `string`              | -       | Class for the wrapper                                                       |
+| inputClassName | `string`              | -       | Class for the input                                                         |
+| leadingIcon    | `ReactNode`           | -       | Leading icon/element                                                        |
+| trailingIcon   | `ReactNode`           | -       | Trailing icon/element                                                       |
+| data-testid    | `string`              | -       | Test ID                                                                     |
+| ...input attrs | `InputHTMLAttributes` | -       | `type`, `placeholder`, `value`, `onChange`, etc. are forwarded to the input |
+
+Like `SubmitButton`, it reads the parent form's pending state via `useFormStatus()` and disables itself while pending.
 
 **Usage:**
 
@@ -46,36 +53,44 @@ import { FormField } from '@/components/forms';
 <FormField
   name="email"
   label="Email Address"
+  type="email"
   error={errors.email?.message}
   required
-  hint="We'll never share your email"
->
-  <input type="email" {...register('email')} />
-</FormField>;
+  helpText="We'll never share your email"
+  {...register('email')}
+/>;
 ```
 
 ---
 
 ### SubmitButton
 
-Form submit button with loading state.
+Form submit button that detects submission automatically through React 19's `useFormStatus()` - there is **no `loading` prop**. It must be rendered inside the `<form>` whose submission it tracks.
 
 **Location:** `frontend/src/components/forms/SubmitButton.tsx`
 
 **Props:**
 
-| Prop     | Type        | Default  | Description            |
-| -------- | ----------- | -------- | ---------------------- |
-| loading  | `boolean`   | `false`  | Submission in progress |
-| disabled | `boolean`   | `false`  | Disabled state         |
-| children | `ReactNode` | `Submit` | Button text            |
+| Prop        | Type                                   | Default | Description                                |
+| ----------- | -------------------------------------- | ------- | ------------------------------------------ |
+| children    | `ReactNode`                            | -       | Button content                             |
+| variant     | `'primary' \| 'secondary' \| 'danger'` | -       | Visual style variant                       |
+| size        | `'sm' \| 'md' \| 'lg'`                 | -       | Button size                                |
+| pendingText | `string`                               | -       | Text shown while the form is pending       |
+| pendingIcon | `ReactNode`                            | -       | Icon shown while pending (default Loader2) |
+| icon        | `ReactNode`                            | -       | Icon before the text                       |
+| disabled    | `boolean`                              | -       | Extra disable (besides pending state)      |
+| fullWidth   | `boolean`                              | -       | Full-width button                          |
+| className   | `string`                               | -       | Additional class names                     |
 
 **Usage:**
 
 ```tsx
 import { SubmitButton } from '@/components/forms';
 
-<SubmitButton loading={isSubmitting}>Save Changes</SubmitButton>;
+<form action={action}>
+  <SubmitButton pendingText="Saving...">Save Changes</SubmitButton>
+</form>;
 ```
 
 ---
@@ -93,18 +108,18 @@ import { useToast } from '@/hooks/useToast';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address'),
+  email: z.email('Invalid email address'),
   threshold: z.number().min(0).max(100),
 });
 
 type FormData = z.infer<typeof schema>;
 
 function SettingsForm() {
-  const { toast } = useToast();
+  const { success, error: showError } = useToast();
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -117,38 +132,43 @@ function SettingsForm() {
   const onSubmit = async (data: FormData) => {
     try {
       await saveSettings(data);
-      toast.success('Settings saved');
-    } catch (error) {
-      toast.error('Failed to save settings');
+      success('Settings saved');
+    } catch (err) {
+      showError('Failed to save settings');
     }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <FormField name="name" label="Name" error={errors.name?.message} required>
-        <input type="text" {...register('name')} className="input" />
-      </FormField>
+      <FormField
+        name="name"
+        label="Name"
+        error={errors.name?.message}
+        required
+        {...register('name')}
+      />
 
-      <FormField name="email" label="Email" error={errors.email?.message} required>
-        <input type="email" {...register('email')} className="input" />
-      </FormField>
+      <FormField
+        name="email"
+        label="Email"
+        type="email"
+        error={errors.email?.message}
+        required
+        {...register('email')}
+      />
 
       <FormField
         name="threshold"
         label="Risk Threshold"
+        type="number"
         error={errors.threshold?.message}
-        hint="0-100 scale"
-      >
-        <input
-          type="number"
-          {...register('threshold', { valueAsNumber: true })}
-          className="input"
-          min={0}
-          max={100}
-        />
-      </FormField>
+        helpText="0-100 scale"
+        min={0}
+        max={100}
+        {...register('threshold', { valueAsNumber: true })}
+      />
 
-      <SubmitButton loading={isSubmitting}>Save Settings</SubmitButton>
+      <SubmitButton>Save Settings</SubmitButton>
     </form>
   );
 }
@@ -160,7 +180,7 @@ function SettingsForm() {
 
 ```tsx
 function AlertRuleForm({ ruleId }: { ruleId?: string }) {
-  const { toast } = useToast();
+  const { success, error: showError } = useToast();
   const {
     register,
     handleSubmit,
@@ -185,9 +205,9 @@ function AlertRuleForm({ ruleId }: { ruleId?: string }) {
         return;
       }
 
-      toast.success('Alert rule saved');
-    } catch (error) {
-      toast.error('Failed to save alert rule');
+      success('Alert rule saved');
+    } catch (err) {
+      showError('Failed to save alert rule');
     }
   };
 
@@ -202,7 +222,7 @@ function AlertRuleForm({ ruleId }: { ruleId?: string }) {
 ```tsx
 function EntityLabelForm({ entity }: { entity: Entity }) {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { error: showError } = useToast();
 
   const mutation = useMutation({
     mutationFn: updateEntityLabel,
@@ -224,7 +244,7 @@ function EntityLabelForm({ entity }: { entity: Entity }) {
     onError: (err, newLabel, context) => {
       // Rollback on error
       queryClient.setQueryData(['entity', entity.id], context?.previousEntity);
-      toast.error('Failed to update label');
+      showError('Failed to update label');
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -243,6 +263,8 @@ function EntityLabelForm({ entity }: { entity: Entity }) {
 ---
 
 ### Multi-Step Form
+
+Generic pattern (the step components below are illustrative names, not components that exist in the tree; camera creation today is a form in `CamerasSettings` calling `createCamera()` from `services/api`):
 
 ```tsx
 function CameraSetupWizard() {
@@ -282,12 +304,16 @@ function CameraSetupWizard() {
 
 ### Common Zod Schemas
 
-```tsx
-// Email validation
-const emailSchema = z.string().email('Invalid email address');
+This project uses Zod v4 (`frontend/package.json`: `"zod": "^4.3.6"`). In v4 the
+`z.string().email()` / `z.string().url()` convenience methods are deprecated in
+favor of the top-level `z.email()` / `z.url()` parsers.
 
-// URL validation
-const urlSchema = z.string().url('Invalid URL');
+```tsx
+// Email validation (Zod v4)
+const emailSchema = z.email('Invalid email address');
+
+// URL validation (Zod v4)
+const urlSchema = z.url('Invalid URL');
 
 // Numeric range
 const thresholdSchema = z.number().min(0).max(100);

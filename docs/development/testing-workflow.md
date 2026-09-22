@@ -269,7 +269,7 @@ Before creating a PR, verify:
 - [ ] All new code has corresponding tests
 - [ ] Tests were written BEFORE implementation (TDD)
 - [ ] Tests cover happy path AND error cases
-- [ ] Coverage thresholds are met (85% backend unit, 95% backend combined)
+- [ ] Coverage thresholds are met (80% combined unit+integration via `./scripts/validate.sh --fail-under=80`; unit tier 84 and integration tier 37 enforced in CI only when the tier fully passed)
 - [ ] No tests were skipped or disabled
 - [ ] E2E tests pass for UI changes
 

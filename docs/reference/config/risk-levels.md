@@ -111,14 +111,25 @@ You can customize these thresholds via environment variables:
 
 ### Threshold Validation
 
-The system validates severity thresholds at startup. If the constraint is violated, the application will fail to start with a validation error.
+Validation happens in two places:
+
+1. **Per-field bounds (startup, pydantic):** each of `SEVERITY_LOW_MAX`,
+   `SEVERITY_MEDIUM_MAX`, and `SEVERITY_HIGH_MAX` must be an integer between 0 and 100
+   (`ge=0, le=100` in `backend/core/config.py`). A violation fails startup with a
+   pydantic `ValidationError`.
+2. **Cross-field ordering (first use of severity classification):** the ordering
+   constraint is enforced by `SeverityService.__init__` in
+   `backend/services/severity.py`, which runs when the service is first constructed
+   (lazily, on the first risk-score classification or call to `/api/system/severity`),
+   not at import time. A violation raises `ValueError`. The admin endpoint
+   `PUT /api/system/severity` performs the same ordering check up front and returns
+   HTTP 400.
 
 **Constraint Requirements:**
 
-- All values must be non-negative integers
+- All values must be non-negative integers ≤ 100
 - `SEVERITY_LOW_MAX` must be less than `SEVERITY_MEDIUM_MAX`
 - `SEVERITY_MEDIUM_MAX` must be less than `SEVERITY_HIGH_MAX`
-- `SEVERITY_HIGH_MAX` must be less than or equal to 100
 
 **Invalid Configuration Example:**
 
@@ -129,11 +140,10 @@ export SEVERITY_MEDIUM_MAX=40
 export SEVERITY_HIGH_MAX=84
 ```
 
-**Expected Error:**
+**Expected Error** (raised when `SeverityService` is first constructed, not at startup):
 
 ```
-pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
-  Value error, Severity thresholds must satisfy: 0 <= low_max (50) < medium_max (40) < high_max (84) <= 100
+ValueError: Invalid severity thresholds: low_max=50, medium_max=40, high_max=84. Must satisfy: 0 <= low_max < medium_max < high_max <= 100
 ```
 
 **Valid Configuration Example:**

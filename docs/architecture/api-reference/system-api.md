@@ -24,13 +24,14 @@ GET /api/system/health
 
 Get detailed system health check including database, Redis, and AI services.
 
-**Source:** `backend/api/routes/system.py:1049-1181`
+**Source:** `backend/api/routes/system.py:1260-1431`
 
 #### Response Caching
 
-Results are cached for 5 seconds to reduce load from frequent health probes.
+Results are cached for `HEALTH_CACHE_TTL_SECONDS` = 15 seconds, matching the
+Prometheus scrape interval to avoid redundant checks.
 
-**Source:** `backend/api/routes/system.py:308`
+**Source:** `backend/api/routes/system.py:341`
 
 #### Response
 
@@ -104,16 +105,20 @@ GET /api/system/health/ready
 
 Kubernetes-style readiness probe with detailed information.
 
-**Source:** `backend/api/routes/system.py:1188-1328`
+**Source:** `backend/api/routes/system.py:1465-1594`
 
 #### Checks Performed
 
 1. Database connectivity (critical)
 2. Redis connectivity (required for queue processing)
-3. Critical pipeline workers (detection, analysis)
-4. Worker supervisor health
+3. Critical pipeline workers (detection, analysis) — required when
+   `READINESS_REQUIRE_PIPELINE_WORKERS=true` (default)
+4. Worker supervisor health (`supervisor_healthy`)
 
-**Source:** `backend/api/routes/system.py:564-596`
+Database, Redis, and AI checks run in parallel (NEM-3892); responses are
+cached for `HEALTH_CACHE_TTL_SECONDS`.
+
+**Source:** `backend/api/routes/system.py:505, 671, 719`
 
 #### Response
 
@@ -121,11 +126,10 @@ Kubernetes-style readiness probe with detailed information.
 {
   "ready": true,
   "status": "ready",
-  "checks": {
-    "database": "healthy",
-    "redis": "healthy",
-    "pipeline_workers": "healthy",
-    "supervisor": "healthy"
+  "services": {
+    "database": { "status": "healthy", "message": "Database operational" },
+    "redis": { "status": "healthy", "message": "Redis connected" },
+    "ai": { "status": "healthy", "message": "AI services operational" }
   },
   "workers": [
     {
@@ -143,7 +147,9 @@ Kubernetes-style readiness probe with detailed information.
       "running": true,
       "message": null
     }
-  ]
+  ],
+  "supervisor_healthy": true,
+  "timestamp": "2026-01-23T12:00:00Z"
 }
 ```
 
@@ -152,7 +158,7 @@ Kubernetes-style readiness probe with detailed information.
 | Code | Description              |
 | ---- | ------------------------ |
 | 200  | Ready to receive traffic |
-| 503  | Not ready                |
+| 503  | Not ready or degraded    |
 
 ---
 
@@ -164,7 +170,7 @@ GET /api/system/health/websocket
 
 Check WebSocket broadcaster health.
 
-**Source:** `backend/api/routes/system.py:1331-1394`
+**Source:** `backend/api/routes/system.py:1596-1675`
 
 #### Response
 
@@ -187,9 +193,15 @@ GET /api/system/health/full
 
 Comprehensive health check including all AI services and circuit breakers.
 
-**Source:** `backend/api/schemas/health.py:316-385`
+**Source:** `backend/api/schemas/health.py:316-385` (schema),
+`backend/api/routes/system.py:5538-5624` (handler)
 
 #### Response
+
+At runtime the AI service entries report the gateway-consolidated URLs:
+`yolo26` (and the other detection/enrichment models) resolve through
+`http://ai-gateway:8090/yolo26` while `nemotron` points at
+`http://ai-llm:8091`.
 
 ```json
 {
@@ -215,7 +227,7 @@ Comprehensive health check including all AI services and circuit breakers.
       "name": "yolo26",
       "display_name": "YOLO26 Object Detection",
       "status": "healthy",
-      "url": "http://ai-yolo26:8095",
+      "url": "http://ai-gateway:8090/yolo26",
       "response_time_ms": 45.2,
       "circuit_state": "closed",
       "error": null,
@@ -225,7 +237,7 @@ Comprehensive health check including all AI services and circuit breakers.
       "name": "nemotron",
       "display_name": "Nemotron LLM",
       "status": "healthy",
-      "url": "http://nemotron:8080",
+      "url": "http://ai-llm:8091",
       "response_time_ms": 120.5,
       "circuit_state": "closed",
       "error": null,
@@ -263,26 +275,20 @@ Comprehensive health check including all AI services and circuit breakers.
 
 ## Monitoring Endpoints
 
-### Prometheus-Style Health
+### Monitoring Stack Health
 
 ```
 GET /api/system/monitoring/health
 ```
 
-Prometheus-compatible health endpoint for monitoring integrations.
+Health of the monitoring infrastructure itself: Prometheus reachability,
+per-job scrape target summary, exporter status
+(`redis-exporter:9121`, `json-exporter:7979`, `blackbox-exporter:9115` —
+`KNOWN_EXPORTERS`, `backend/api/routes/system.py:1670-1674`), metrics
+collection state, and an `issues` list.
 
-#### Response
-
-```json
-{
-  "status": "up",
-  "checks": {
-    "database": "up",
-    "redis": "up",
-    "ai_services": "up"
-  }
-}
-```
+**Source:** `backend/api/routes/system.py:1918-2016`, schema
+`backend/api/schemas/system.py:2804` (`MonitoringHealthResponse`)
 
 ---
 
@@ -292,26 +298,13 @@ Prometheus-compatible health endpoint for monitoring integrations.
 GET /api/system/monitoring/targets
 ```
 
-Get monitoring target information for service discovery.
+Proxies Prometheus' `/api/v1/targets` and returns every scrape target with
+`job`, `instance`, `health` (up/down), labels, `last_scrape`, `last_error`,
+and `scrape_duration_seconds`, plus `total`/`up`/`down` counts and the sorted
+`jobs` list. Returns 503 if Prometheus is unreachable.
 
-#### Response
-
-```json
-{
-  "targets": [
-    {
-      "name": "backend",
-      "url": "http://backend:8000",
-      "health_endpoint": "/api/system/health"
-    },
-    {
-      "name": "yolo26",
-      "url": "http://ai-yolo26:8095",
-      "health_endpoint": "/health"
-    }
-  ]
-}
-```
+**Source:** `backend/api/routes/system.py:2018-2106`, schema
+`backend/api/schemas/system.py:2890` (`MonitoringTargetsResponse`)
 
 ---
 
@@ -320,96 +313,111 @@ Get monitoring target information for service discovery.
 ### Get GPU Stats
 
 ```
-GET /api/system/gpu/stats
+GET /api/system/gpu
 ```
 
 Get current GPU utilization and memory statistics.
 
-**Source:** `backend/api/routes/system.py:634-683`
+**Source:** `backend/api/routes/system.py:2253-2376`
 
 #### Response
 
+`GPUStatsResponse` (`backend/api/schemas/system.py:203-374`) — all fields are
+nullable (null when telemetry is unavailable). `pstate` and `throttle_reasons`
+are raw NVML integers, not strings or lists.
+
 ```json
 {
-  "recorded_at": "2026-01-23T12:00:00Z",
-  "gpu_name": "NVIDIA GeForce RTX 4090",
-  "utilization": 45.5,
-  "memory_used": 8192,
-  "memory_total": 24576,
-  "temperature": 65,
-  "power_usage": 250,
+  "gpu_name": "NVIDIA RTX A5500",
+  "utilization": 75.5,
+  "memory_used": 12000,
+  "memory_total": 24000,
+  "temperature": 65.0,
+  "power_usage": 150.0,
   "inference_fps": 30.5,
   "fan_speed": 45,
-  "sm_clock": 2520,
+  "sm_clock": 1800,
   "memory_bandwidth_utilization": 35.2,
-  "pstate": "P0",
-  "throttle_reasons": [],
-  "power_limit": 450,
-  "sm_clock_max": 2520,
-  "compute_processes_count": 3,
+  "pstate": 0,
+  "throttle_reasons": 0,
+  "power_limit": 230.0,
+  "sm_clock_max": 1980,
+  "compute_processes_count": 2,
   "pcie_replay_counter": 0,
-  "temp_slowdown_threshold": 83,
-  "memory_clock": 10501,
-  "memory_clock_max": 10501,
+  "temp_slowdown_threshold": 83.0,
+  "memory_clock": 8001,
+  "memory_clock_max": 8501,
   "pcie_link_gen": 4,
   "pcie_link_width": 16,
-  "pcie_tx_throughput": 1024,
-  "pcie_rx_throughput": 512,
+  "pcie_tx_throughput": 120000,
+  "pcie_rx_throughput": 95000,
   "encoder_utilization": 0,
-  "decoder_utilization": 15,
+  "decoder_utilization": 0,
   "bar1_used": 256
 }
 ```
 
 #### Caching
 
-Results are cached for 5 seconds.
+Results are cached in two tiers: an in-memory L1 keyed on
+`HEALTH_CACHE_TTL_SECONDS` (15s) and a Redis L2 (`CacheService` SHORT_TTL,
+60s) that also feeds Prometheus cache hit/miss metrics.
 
-**Source:** `backend/api/routes/system.py:347-356`
+**Source:** `backend/api/routes/system.py:381-431` (`GPUStatsCacheEntry`),
+`2276-2291`
 
 ---
 
 ### Get GPU Stats History
 
 ```
-GET /api/system/gpu/stats/history
+GET /api/system/gpu/history
 ```
 
-Get historical GPU statistics.
+Get recent GPU stats samples as a time-series, in the standard pagination
+envelope (NEM-2178): `items` (chronological `GPUStatsSample` records) plus
+`pagination`.
+
+**Source:** `backend/api/routes/system.py:2378-2459`
 
 #### Query Parameters
 
-| Parameter  | Type    | Default | Description                            |
-| ---------- | ------- | ------- | -------------------------------------- |
-| `hours`    | integer | 24      | Number of hours to retrieve (1-168)    |
-| `interval` | string  | "5m"    | Aggregation interval (1m, 5m, 15m, 1h) |
+| Parameter | Type         | Default | Description                            |
+| --------- | ------------ | ------- | -------------------------------------- |
+| `since`   | ISO datetime | none    | Lower bound for `recorded_at`          |
+| `limit`   | integer      | 300     | Max samples to return (clamped 1-5000) |
 
 ---
 
 ## Configuration
 
-### Get Configuration
+### Get Configuration (deprecated)
 
 ```
 GET /api/system/config
 ```
 
-Get current system configuration.
+Get public (non-secret) configuration. Deprecated: the response carries
+`Deprecation`, `Sunset: 2026-07-01`, and a `Link` header pointing at
+`/api/v1/settings` as the successor.
+
+**Source:** `backend/api/routes/system.py:2461-2566`, schema
+`ConfigResponse` (`backend/api/schemas/system.py:461-539`)
 
 #### Response
 
 ```json
 {
-  "batch_timeout_seconds": 90,
-  "batch_idle_timeout_seconds": 30,
+  "app_name": "Home Security Intelligence",
+  "version": "0.1.0",
   "retention_days": 30,
+  "log_retention_days": 30,
+  "batch_window_seconds": 90,
+  "batch_idle_timeout_seconds": 30,
   "detection_confidence_threshold": 0.5,
-  "risk_score_thresholds": {
-    "low": 0,
-    "medium": 30,
-    "high": 60,
-    "critical": 80
-  }
+  "fast_path_confidence_threshold": 0.9,
+  "grafana_url": "http://localhost:3002",
+  "debug": false
 }
 ```
 
@@ -421,16 +429,26 @@ Get current system configuration.
 PATCH /api/system/config
 ```
 
-Update system configuration.
+Update system configuration (requires `verify_api_key`). Accepts a subset of
+processing-related settings (see `ConfigUpdateRequest`,
+`backend/api/schemas/system.py:541`); only the fields you send are changed.
+
+**Source:** `backend/api/routes/system.py:2568-2706`. Updated values are
+merged into `data/runtime.env` (`_write_runtime_env`,
+`backend/api/routes/system.py:2534`) so they survive restarts.
 
 #### Request Body
 
 ```json
 {
-  "batch_timeout_seconds": 120,
+  "batch_window_seconds": 120,
   "detection_confidence_threshold": 0.6
 }
 ```
+
+A separate `PATCH /api/system/anomaly-config` handler
+(`backend/api/routes/system.py:2740-2835`) updates anomaly detection
+thresholds (`threshold_stdev`, `min_samples`).
 
 ---
 
@@ -444,27 +462,42 @@ GET /api/system/circuit-breakers
 
 Get status of all circuit breakers.
 
+**Source:** `backend/api/routes/system.py:3795-3850`, schema
+`CircuitBreakersResponse` (`backend/api/schemas/system.py:1786-1810`)
+
 #### Response
+
+`circuit_breakers` is a map keyed by breaker name:
 
 ```json
 {
-  "breakers": [
-    {
+  "circuit_breakers": {
+    "yolo26": {
       "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
-      "last_failure": null,
-      "last_success": "2026-01-23T12:00:00Z"
+      "success_count": 1240,
+      "total_calls": 1240,
+      "rejected_calls": 0,
+      "last_failure_time": null,
+      "opened_at": null,
+      "config": { "failure_threshold": 5, "recovery_timeout": 30.0 }
     },
-    {
+    "nemotron": {
       "name": "nemotron",
       "state": "open",
       "failure_count": 3,
-      "last_failure": "2026-01-23T11:55:00Z",
-      "last_success": "2026-01-23T11:50:00Z",
-      "reset_at": "2026-01-23T12:00:30Z"
+      "success_count": 410,
+      "total_calls": 413,
+      "rejected_calls": 12,
+      "last_failure_time": 1769169300.0,
+      "opened_at": 1769169300.0,
+      "config": { "failure_threshold": 5, "recovery_timeout": 30.0 }
     }
-  ]
+  },
+  "total_count": 2,
+  "open_count": 1,
+  "timestamp": "2026-01-23T12:00:00Z"
 }
 ```
 
@@ -486,7 +519,9 @@ Get status of all circuit breakers.
 POST /api/system/circuit-breakers/{name}/reset
 ```
 
-Manually reset a circuit breaker to closed state.
+Manually reset a circuit breaker to closed state (requires `verify_api_key`).
+
+**Source:** `backend/api/routes/system.py:3852-3935`
 
 #### Path Parameters
 
@@ -498,60 +533,53 @@ Manually reset a circuit breaker to closed state.
 
 ## Worker Management
 
-### Get Worker Status
+### Get Supervisor / Worker Status
 
 ```
-GET /api/system/workers
+GET /api/system/supervisor
 ```
 
-Get status of all background workers.
+Status of the Worker Supervisor and every supervised pipeline worker. The
+supervisor watches worker tasks and restarts crashed ones with exponential
+backoff. `GET /api/system/supervisor/status` returns the same shape, and
+`GET /api/system/supervisor/restart-history` lists past restarts
+(`RestartHistoryResponse`).
+
+**Source:** `backend/api/routes/system.py:4308-4358` (supervisor),
+`4420-4464` (status), `4621-4773` (restart-history)
 
 #### Response
 
 ```json
 {
+  "running": true,
+  "worker_count": 3,
   "workers": [
     {
-      "name": "gpu_monitor",
-      "running": true,
-      "message": null
-    },
-    {
-      "name": "cleanup_service",
-      "running": true,
-      "message": null
-    },
-    {
-      "name": "file_watcher",
-      "running": true,
-      "message": null
-    },
-    {
       "name": "detection_worker",
-      "running": true,
-      "message": null
-    },
-    {
-      "name": "analysis_worker",
-      "running": true,
-      "message": null
-    },
-    {
-      "name": "batch_aggregator",
-      "running": true,
-      "message": null
+      "status": "running",
+      "restart_count": 0,
+      "max_restarts": 5,
+      "last_started_at": "2026-01-23T09:00:00Z",
+      "last_crashed_at": null,
+      "error": null
     }
-  ]
+  ],
+  "timestamp": "2026-01-23T12:00:00Z"
 }
 ```
 
-**Source:** `backend/api/routes/system.py:445-561`
+Worker `status` values: `running`, `stopped`, `crashed`, `restarting`,
+`failed` (exceeded restart limit). Use `POST /api/system/supervisor/reset/{worker_name}`
+(`system.py:4360-4418`) to clear a failed worker's backoff state.
 
 ---
 
 ## Data Models
 
 ### HealthResponse
+
+**Source:** `backend/api/schemas/system.py:130`
 
 | Field           | Type     | Description                                   |
 | --------------- | -------- | --------------------------------------------- |
@@ -562,12 +590,21 @@ Get status of all background workers.
 
 ### ReadinessResponse
 
-**Source:** `backend/api/schemas/health.py:86-134`
+**Source:** `backend/api/schemas/system.py:641-700` (the response model used
+by `/api/system/health/ready`)
 
-| Field    | Type    | Description              |
-| -------- | ------- | ------------------------ |
-| `ready`  | boolean | Overall readiness        |
-| `checks` | object  | Individual check results |
+| Field                | Type     | Description                          |
+| -------------------- | -------- | ------------------------------------ |
+| `ready`              | boolean  | Overall readiness                    |
+| `status`             | string   | ready / degraded / not_ready         |
+| `services`           | object   | database, redis and ai check results |
+| `workers`            | array    | Worker statuses                      |
+| `supervisor_healthy` | boolean  | Worker supervisor health             |
+| `timestamp`          | datetime | Response timestamp                   |
+
+A second, simpler `ReadinessResponse` (`ready` + `checks` map of
+`CheckResult`) lives at `backend/api/schemas/health.py:86-134` and backs the
+root-level `/ready` probe.
 
 ### CheckResult
 
@@ -636,9 +673,11 @@ Get status of all background workers.
 
 ## Circuit Breaker Implementation
 
-The health check system uses circuit breakers to prevent cascading failures.
+The health check system uses its own lightweight circuit breaker to stop
+probing services that are repeatedly failing (distinct from the AI-call
+circuit breakers surfaced by `GET /api/system/circuit-breakers`).
 
-**Source:** `backend/api/routes/system.py:158-254`
+**Source:** `backend/api/routes/system.py:169-265`
 
 ### Configuration
 
@@ -650,22 +689,22 @@ The health check system uses circuit breakers to prevent cascading failures.
 ### Behavior
 
 1. **Closed**: Normal operation, health checks executed
-2. **After N failures**: Circuit opens, health checks skipped
-3. **After timeout**: Circuit becomes half-open, allows one request
-4. **On success**: Circuit closes, normal operation resumes
+2. **After N failures**: Circuit opens, health checks skipped (cached error returned)
+3. **After timeout**: Circuit resets to closed and lets the next check through (half-open state is implicit)
+4. **On success**: Failure count resets, normal operation resumes
 
 ---
 
 ## Timeouts and Limits
 
-| Constant                          | Value | Description              |
-| --------------------------------- | ----- | ------------------------ |
-| `HEALTH_CHECK_TIMEOUT_SECONDS`    | 5.0   | Health check timeout     |
-| `HEALTH_CACHE_TTL_SECONDS`        | 5.0   | Health cache duration    |
-| `AI_HEALTH_CHECK_TIMEOUT_SECONDS` | 3.0   | AI service check timeout |
-| `MAX_CONCURRENT_HEALTH_CHECKS`    | 10    | Max concurrent checks    |
+| Constant                          | Value | Description                                                |
+| --------------------------------- | ----- | ---------------------------------------------------------- |
+| `HEALTH_CHECK_TIMEOUT_SECONDS`    | 5.0   | Health check timeout                                       |
+| `HEALTH_CACHE_TTL_SECONDS`        | 15.0  | Health cache duration (matches Prometheus scrape interval) |
+| `AI_HEALTH_CHECK_TIMEOUT_SECONDS` | 3.0   | AI service check timeout                                   |
+| `MAX_CONCURRENT_HEALTH_CHECKS`    | 10    | Max concurrent checks                                      |
 
-**Source:** `backend/api/routes/system.py:297-298, 308, 820-824`
+**Source:** `backend/api/routes/system.py:332, 341, 940, 944`
 
 ---
 

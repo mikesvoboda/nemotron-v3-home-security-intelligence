@@ -184,7 +184,8 @@ This rule is non-negotiable. Previous agents have violated this rule by:
 
 | Hook                      | Stage    | Purpose                            |
 | ------------------------- | -------- | ---------------------------------- |
-| `fast-test`               | pre-push | Runs unit tests before every push  |
+| `auto-rebase`             | pre-push | Rebase on origin/main before push  |
+| `parallel-tests`          | pre-push | Fast selected tiers before push    |
 | Backend Unit Tests        | CI       | Full unit test suite with coverage |
 | Backend Integration Tests | CI       | API and service integration tests  |
 | Frontend Tests            | CI       | Component and hook tests           |
@@ -228,7 +229,7 @@ In emergencies, you can skip specific hooks (CI will still catch issues):
 SKIP=hadolint,semgrep git commit -m "message"
 
 # Skip pre-push hooks
-SKIP=fast-test git push
+SKIP=parallel-tests git push
 ```
 
 **WARNING:** Skipping hooks should only be done when absolutely necessary. All changes will still be validated in CI.

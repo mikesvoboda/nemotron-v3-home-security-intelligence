@@ -2,9 +2,9 @@
 title: Mobile and PWA Guide
 description: Install the security dashboard on your phone, tablet, or desktop and receive instant security alerts
 source_refs:
-  - frontend/src/index.html
+  - frontend/index.html
   - frontend/public/manifest.json
-  - frontend/src/serviceWorker.ts
+  - frontend/src/services/serviceWorkerRegistration.ts
 ---
 
 # Mobile and PWA Guide
@@ -12,11 +12,18 @@ source_refs:
 > Install the security dashboard on your phone or tablet and receive instant security alerts.
 
 **Time to read:** ~15 min
-**Prerequisites:** [Getting Started](getting-started.md) or "None"
+**Prerequisites:** a running dashboard you can already open in the browser (see [Getting Started](getting-started.md) if you have not installed one yet)
 
 ---
 
-The Nemotron Security Dashboard works as a Progressive Web App (PWA), meaning you can install it on your phone, tablet, or desktop computer and use it like a native app. You can also enable push notifications to receive security alerts even when the browser is closed.
+The Nemotron Security Dashboard works as a Progressive Web App (PWA), meaning you can install it on your phone, tablet, or desktop computer and use it like a native app. You can also enable notifications to receive security alerts while the app is open.
+
+> **What notifications actually are today:** the app uses the browser
+> `Notification` API — alerts fire while the page or installed app is running
+> (`frontend/src/hooks/usePushNotifications.ts`). There is no server-side push
+> service: the backend never calls `pushManager.subscribe()` and there is no
+> VAPID key or push endpoint in `backend/`, so alerts are **not** delivered while
+> the app is fully closed, despite the "Web Push" wording you may see elsewhere.
 
 ---
 
@@ -47,7 +54,10 @@ Installing the dashboard as a PWA gives you:
 ### Before You Install
 
 1. Make sure you can access the dashboard in your browser
-2. Verify the URL (e.g., `http://your-server:5173` or your custom domain)
+2. Verify the URL — with the compose stack that is `http://your-server:8080`
+   (`FRONTEND_HTTP_PORT`) or `https://your-server:8444` (`FRONTEND_HTTPS_PORT`), or
+   your custom domain. Port 5173 is only the Vite dev-server port used when running
+   the frontend outside Docker.
 3. The site must load successfully before installation
 
 ---
@@ -157,9 +167,11 @@ After installing the PWA, complete these steps:
 ### 1. Allow Notifications
 
 1. Open the installed PWA
-2. Navigate to **Settings** > **Notifications**
-3. Click **"Enable Push Notifications"**
-4. When prompted, click **"Allow"**
+2. Navigate to **Settings > Notifications** (`/settings/notifications`)
+3. In the **Desktop & Push Notifications** section, click **Enable** on the
+   "Desktop Notifications" row (and on the "Push Notifications" row — both grant
+   the same browser notification permission)
+4. When the browser prompts, click **"Allow"**
 
 ### 2. Verify Connection
 
@@ -167,25 +179,24 @@ After installing the PWA, complete these steps:
 2. It should show "Connected" (green)
 3. If disconnected, verify your server is running
 
-### 3. Add to Favorites (Optional)
+### 3. Test Notifications
 
-1. Go to **Settings** > **Appearance**
-2. Configure your preferred default page
-3. Set auto-refresh interval if desired
-
-### 4. Test Notifications
-
-1. Go to **Settings** > **Notifications**
-2. Click **"Send Test Notification"**
-3. Verify you receive the test alert
+1. Go to **Settings > Notifications**
+2. Click the **Test** button on the Desktop Notifications row — it shows a local
+   "Test Notification" so you can confirm permission and display work
+3. Email and Webhook channels have their own **Send Test Email** /
+   **Send Test Webhook** buttons further down the same page
 
 ---
 
-## Push Notifications
+## Notifications
 
-Push notifications alert you to security events even when the app is not open. High-risk and critical events will send immediate notifications to your device.
+Notifications alert you to security events while the app is running. Medium,
+high, and critical events each raise a notification; low-risk events are silent.
+(As noted above, these are browser notifications shown by the running app —
+there is no server push, so nothing arrives while the app is closed.)
 
-### How Push Notifications Work
+### How Notifications Work
 
 ```mermaid
 %%{init: {
@@ -209,7 +220,7 @@ flowchart TD
     MED["Medium Risk"]
     HIGH["High Risk"]
     CRIT["Critical Risk"]
-    PUSH["Push notification<br/>sent via Web Push API"]
+    PUSH["Browser notification<br/>shown by the running app"]
     DEVICE["Your device receives<br/>notification"]
     TAP["Tap to open<br/>event details"]
     SILENT["Silent log<br/>(no notification)"]
@@ -238,12 +249,17 @@ flowchart TD
 
 ### Notification Risk Levels
 
-| Risk Level   | Sound    | Persistence  | Badge | Use Case                   |
-| ------------ | -------- | ------------ | ----- | -------------------------- |
-| **Low**      | Silent   | Auto-dismiss | No    | Routine detections         |
-| **Medium**   | Standard | Auto-dismiss | Yes   | Unusual activity           |
-| **High**     | Alert    | Stays        | Yes   | Concerning detections      |
-| **Critical** | Urgent   | Stays        | Yes   | Immediate attention needed |
+| Risk Level   | Sound                          | Persistence  | Use Case                   |
+| ------------ | ------------------------------ | ------------ | -------------------------- |
+| **Low**      | Silent (suppressed by the app) | Auto-dismiss | Routine detections         |
+| **Medium**   | Browser/system default         | Auto-dismiss | Unusual activity           |
+| **High**     | Browser/system default         | Stays open   | Concerning detections      |
+| **Critical** | Browser/system default         | Stays open   | Immediate attention needed |
+
+"Stays open" is the Notification API `requireInteraction` flag (set for high and
+critical in `usePushNotifications.ts`); low-risk alerts are sent `silent: true`.
+The app itself has one notification sound setting (the in-app audio channel
+volume in Settings > Notifications) — per-level ringtones are an OS-side choice.
 
 ### Notification Content
 
@@ -262,10 +278,10 @@ Each notification includes:
 **In the Dashboard:**
 
 1. Open **Settings**
-2. Click **Notifications** tab
-3. Click **"Enable Push Notifications"**
+2. Click the **Notifications** tab
+3. In **Desktop & Push Notifications**, click **Enable** on the desired row
 4. Browser prompt appears - click **"Allow"**
-5. Confirmation message: "Notifications enabled"
+5. The row's badge changes from "Not Set" to "Enabled"
 
 **If Prompt Does Not Appear:**
 
@@ -326,30 +342,27 @@ The dashboard is designed to work seamlessly on mobile devices with touch-friend
 
 ### Bottom Navigation
 
-On mobile viewports (under 768px), the dashboard displays a bottom navigation bar for easy thumb access:
+On mobile viewports (under 768px), the dashboard displays a bottom navigation bar for easy thumb access (`frontend/src/components/layout/MobileBottomNav.tsx`):
 
-| Icon  | Page      | Description                     |
-| ----- | --------- | ------------------------------- |
-| Home  | Dashboard | Main security overview          |
-| Clock | Timeline  | Event history and timeline      |
-| Users | Entities  | Tracked people and vehicles     |
-| Bell  | Alerts    | Active alerts and notifications |
-| Gear  | Settings  | Configuration and preferences   |
+| Icon  | Page      | Description                                                                    |
+| ----- | --------- | ------------------------------------------------------------------------------ |
+| Home  | Dashboard | Main security overview                                                         |
+| Clock | Timeline  | Event history and timeline                                                     |
+| Bell  | Alerts    | Active alerts and notifications                                                |
+| ⋯     | More      | Opens the full navigation menu for every other page (Entities, Settings, etc.) |
 
-The alerts icon shows a **red badge** when you have unread high-priority events.
+The alerts icon shows a **badge count** (capped at "9+") when you have unread events.
 
 ### Touch Gestures
 
 The mobile interface supports these touch gestures:
 
-| Gesture                       | Action                          | Where It Works          |
-| ----------------------------- | ------------------------------- | ----------------------- |
-| **Swipe left** on event card  | Quick action (dismiss/archive)  | Activity feed, timeline |
-| **Swipe right** on event card | Quick action (view details)     | Activity feed, timeline |
-| **Pull down** on any page     | Refresh content                 | All pages               |
-| **Pinch to zoom**             | Zoom on images and video        | Event details, lightbox |
-| **Tap and hold**              | Context menu (where applicable) | Entity cards, events    |
-| **Double tap**                | Quick zoom on images            | Lightbox view           |
+| Gesture                                | Action                                       | Where It Works                                   |
+| -------------------------------------- | -------------------------------------------- | ------------------------------------------------ |
+| **Swipe left** on event card           | Marks the event reviewed (archive behaviour) | Timeline (`MobileEventCard` + `useSwipeGesture`) |
+| **Swipe right** on event card          | Also marks the event reviewed                | Timeline                                         |
+| **Pull down** at the top of a list     | Refresh content (`PullToRefresh` wrapper)    | Timeline and other wrapped lists                 |
+| **Double-click** a detection thumbnail | Opens the full-size lightbox                 | Event detail modal                               |
 
 ### Mobile-Friendly Event Cards
 
@@ -406,36 +419,42 @@ The dashboard continues to work with limited functionality when you lose network
 
 **When network is lost:**
 
-1. An offline banner appears at the top: "You are offline"
-2. System status shows connectivity issue (orange/red)
-3. Cached event count displayed: "Showing X cached events"
-4. Auto-refresh pauses
+1. The `OfflineIndicator` appears (amber banner, bottom-left by default):
+   "Offline Mode" with "Last online: \<relative time\>" and the cached count
+   (e.g. "| 3 events cached"), plus an optional Retry button
+2. The header connection status flips to disconnected
+3. Queries stop refetching and fall back to cached data
 
 **When network returns:**
 
-1. "Back Online" notification appears
+1. The offline indicator disappears
 2. Data automatically syncs with server
 3. Missed events are loaded
 4. Real-time updates resume
 
 ### Cached Event Storage
 
-The app uses IndexedDB for local storage:
+What is actually cached, from the code:
 
-| Data Type     | Cached | Retention                |
-| ------------- | ------ | ------------------------ |
-| Event list    | Yes    | Most recent 100 events   |
-| Event details | Yes    | Events you have viewed   |
-| Thumbnails    | Yes    | Up to 50MB of images     |
-| Entity data   | Yes    | Recently viewed entities |
-| Settings      | Yes    | All preferences          |
-| Camera status | Yes    | Last known status        |
+| Data                          | Where cached                                                           | Limits (measured)                                         |
+| ----------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------- |
+| App shell (JS/CSS/HTML/icons) | Workbox precache (service worker)                                      | Everything built (`globPatterns` in `vite.config.ts`)     |
+| Images                        | Workbox `images-cache`                                                 | 100 entries, 30 days                                      |
+| API responses                 | Workbox `api-cache` (NetworkFirst)                                     | 50 entries, 5 minutes, 10s network timeout                |
+| Google Fonts                  | Workbox cache                                                          | 10 entries, 1 year                                        |
+| Events you saved for offline  | IndexedDB `nemotron-security` / `cached-events` (`useCachedEvents.ts`) | No hard cap in code — events are stored as you cache them |
+| UI preferences                | `localStorage` (per-browser)                                           | Survives until site data is cleared                       |
 
 **Cache Management:**
 
-- Cache clears automatically when storage exceeds limit
-- Force clear: Settings > Advanced > Clear Cache
-- Reinstalling PWA clears all cached data
+- The PWA updates automatically: the service worker is built with
+  `skipWaiting: true` / `clientsClaim: true` (`vite.config.ts`), so a new
+  version takes over on the next load without manual steps
+- **Settings > Admin** has a "Clear Cache" button — note it clears the backend's
+  **Redis** cache (`POST /api/admin/maintenance/clear-cache`), not this browser's
+  PWA cache
+- To clear this browser's PWA cache: clear site data in the browser, or
+  uninstall and reinstall the PWA
 
 ---
 
@@ -451,15 +470,16 @@ The app uses IndexedDB for local storage:
 
 ### Battery Optimization
 
-The PWA is designed to be battery-efficient:
+The PWA keeps background work light:
 
-| Feature              | How It Saves Battery               |
-| -------------------- | ---------------------------------- |
-| WebSocket heartbeat  | Minimal keep-alive packets         |
-| System notifications | Uses OS notification service       |
-| Background limits    | Minimal activity when not in focus |
-| Adaptive polling     | Reduces frequency on battery power |
-| Image compression    | Thumbnails compressed for mobile   |
+| Feature              | How It Saves Battery                                  |
+| -------------------- | ----------------------------------------------------- |
+| WebSocket connection | One persistent connection instead of constant polling |
+| System notifications | Uses OS notification service                          |
+| Service worker       | Assets served from local cache, no repeat fetches     |
+
+(The app does not currently read the Battery Status API, so query polling does
+not automatically slow down on low battery.)
 
 ### Data Usage Optimization
 
@@ -467,14 +487,12 @@ The PWA is designed to be battery-efficient:
 | -------------- | ----------------------------------- |
 | Thumbnail mode | Loads small images first            |
 | Lazy loading   | Only loads visible content          |
-| Compression    | Server compresses API responses     |
 | Cache reuse    | Does not re-download cached content |
 
 **To reduce data usage:**
 
-1. Settings > Appearance > Enable "Low Data Mode"
-2. Disable auto-refresh when on mobile data
-3. View thumbnails instead of full images
+1. Disable auto-refresh when on mobile data
+2. View thumbnails instead of full images
 
 ---
 
@@ -519,7 +537,7 @@ The PWA is designed to be battery-efficient:
 | ---------------------- | ------------------ | -------------------------------------------- |
 | "Disconnected" status  | Network issue      | Check WiFi/data connection                   |
 | Frequent reconnections | Unstable network   | Move closer to WiFi or check signal strength |
-| Slow loading           | Server performance | Check server health in Settings > System     |
+| Slow loading           | Server performance | Check backend health at `/api/system/health` |
 | Timeout errors         | Network latency    | Try on different network                     |
 
 ### Offline Mode Issues
@@ -528,7 +546,7 @@ The PWA is designed to be battery-efficient:
 | ------------------------ | -------------------------- | ------------------------------------------ |
 | No cached events         | Never viewed events online | View events while online to cache them     |
 | Stale data               | Cache not updated          | Connect to network and refresh             |
-| "Storage quota exceeded" | Too much cached data       | Clear cache in Settings > Advanced         |
+| "Storage quota exceeded" | Too much cached data       | Clear this site's data in browser settings |
 | Offline mode not working | Service worker disabled    | Enable service workers in browser settings |
 
 ---

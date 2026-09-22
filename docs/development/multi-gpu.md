@@ -48,14 +48,34 @@ The system is optimized for configurations like:
 
 ### VRAM Requirements by Service
 
-| Service             | Model                        | VRAM Estimate  | Default GPU |
-| ------------------- | ---------------------------- | -------------- | ----------- |
-| ai-llm              | Nemotron-3-Nano-30B (Q4_K_M) | ~14-18 GB      | 0           |
-| ai-yolo26           | YOLO26 TensorRT FP16         | ~5 MB          | 1           |
-| ai-florence         | Florence-2-Large             | ~1.5 GB        | 1           |
-| ai-clip             | CLIP ViT-L TensorRT          | ~0.8 GB        | 1           |
-| ai-enrichment-light | Pose/Threat/Reid/Pet/Depth   | ~1.2 GB        | 1           |
-| ai-enrichment       | Vehicle/Fashion/Demographics | ~4.3 GB budget | 1           |
+In production, the vision models run inside the single `ai-gateway` service
+(routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` on port
+8090). Its GPU is selected by `GPU_AI_SERVICES`; the LLM keeps its own GPU via
+`GPU_LLM` (see `docker-compose.prod.yml` and `.env.example`).
+
+| Service (compose) | Model                                     | VRAM Estimate  | Default GPU           |
+| ----------------- | ----------------------------------------- | -------------- | --------------------- |
+| ai-llm            | Nemotron-3-Nano-30B (Q4_K_M)              | ~14-18 GB      | 0 (`GPU_LLM`)         |
+| ai-gateway        | YOLO26 TensorRT FP16                      | ~5 MB          | 1 (`GPU_AI_SERVICES`) |
+| ai-gateway        | Florence-2-base (Triton `florence2`)      | ~460 MB (FP16) | 1                     |
+| ai-gateway        | SigLIP 2 Base (Triton `clip`)             | ~200 MB        | 1                     |
+| ai-gateway        | Pose/Threat/Reid/Pet/Depth (enrich-lt)    | ~1.2 GB        | 1                     |
+| ai-gateway        | Vehicle/Fashion/Demographics (enrichment) | ~6.8 GB budget | 1                     |
+
+> Note: the GPU Configuration API and UI still track the legacy per-model
+> names (`ai-yolo26`, `ai-florence`, `ai-clip`, `ai-enrichment`) — see
+> `AI_SERVICE_VRAM_REQUIREMENTS_MB` in `backend/api/routes/gpu_config.py`.
+> Those legacy names never report the consolidated `GPU_AI_SERVICES` gateway
+> assignment above. `.env.example` also still carries `GPU_FLORENCE`,
+> `GPU_YOLO26`, `GPU_CLIP`, `GPU_ENRICHMENT` and `GPU_ENRICHMENT_LIGHT`, but
+> `docker-compose.prod.yml` reads only `GPU_LLM` and `GPU_AI_SERVICES` — do
+> not bother setting the other five; they have no effect in production.
+> (The legacy Florence-2-Large and CLIP ViT-L weights are not resident; the
+> gateway runs `florence-2-base` and SigLIP 2 Base — see
+> [Model Zoo](../ai/model-zoo.md).)
+
+The enrichment budget default is 6.8 GB in the service code
+(`VRAM_BUDGET_GB` default in `ai/enrichment/model.py`).
 
 **Note (NEM-5369):** VRAM estimates for ai-llm depend on context size and flash attention settings:
 

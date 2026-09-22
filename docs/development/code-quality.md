@@ -198,24 +198,26 @@ def test_risk_score_bounds(score):
 **Configuration** (`pyproject.toml`):
 
 ```toml
-[tool.coverage.run]
-source = ["backend"]
-omit = ["backend/tests/*", "backend/examples/*", "backend/main.py"]
-
 [tool.coverage.report]
-fail_under = 95
+# Owner ruling A7.1: this 85 is the PR diff gate's RELATIVE baseline,
+# not an absolute floor. The executed absolute backend floor is 80 on
+# combined unit+integration (scripts/validate.sh --fail-under=80).
+fail_under = 85
 show_missing = true
 precision = 2
 ```
 
-**Coverage thresholds:**
+**Coverage gates:**
 
-| Test Type   | Threshold | Enforcement |
-| ----------- | --------- | ----------- |
-| Unit        | 85%       | CI          |
-| Integration | 50%       | CI          |
-| Combined    | 80%       | Local       |
-| Overall     | 95%       | CI (final)  |
+| Gate                               | Threshold              | Enforcement                                 |
+| ---------------------------------- | ---------------------- | ------------------------------------------- |
+| Combined unit+integration          | 80% (absolute floor)   | `./scripts/validate.sh`, nightly gate       |
+| Unit tier                          | 84%                    | CI merge step (only when tier fully passed) |
+| Integration tier                   | 37%                    | CI merge step (only when tier fully passed) |
+| PR diff gate baseline              | 85% (relative, ±0.5pp) | `scripts/check-test-coverage-gate.py`       |
+| Codecov project / patch / critical | 85% / 80% / 90%        | `codecov.yml`                               |
+
+See [Coverage Guide](coverage.md) for the full breakdown.
 
 ### Vulture - Dead Code Detection
 
@@ -456,8 +458,7 @@ pre-commit install --hook-type pre-push
 | eslint               | pre-commit | Frontend linting                            |
 | typescript-check     | pre-commit | Frontend type checking                      |
 | auto-rebase          | pre-push   | Rebase on origin/main                       |
-| fast-test            | pre-push   | Run unit tests                              |
-| api-types-contract   | pre-push   | Verify API types are current                |
+| parallel-tests       | pre-push   | Fast tier: 3 jobs selected for the diff     |
 | check-test-mocks     | pre-commit | Verify integration tests mock slow services |
 | check-test-timeouts  | pre-commit | Verify tests mock slow sleeps               |
 
@@ -472,7 +473,7 @@ pre-commit run ruff --all-files
 pre-commit run mypy --all-files
 
 # Skip hooks (emergencies only!)
-SKIP=fast-test git commit -m "message"
+SKIP=ruff git commit -m "message"
 ```
 
 ## CI/CD Enforcement
@@ -613,4 +614,4 @@ npx tsc --declaration --emitDeclarationOnly
 - [Contributing Guide](contributing.md) - Development workflow
 - [Testing Guide](testing.md) - Test strategy and patterns
 - [Setup Guide](setup.md) - Development environment setup
-- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions
+- [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) - Project instructions

@@ -1,5 +1,7 @@
 # Contextual Documentation Link Implementation Plan
 
+> **Status:** Implemented — see `frontend/src/components/layout/PageDocsLink.tsx`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a dynamic documentation link to the header that changes based on the current page.

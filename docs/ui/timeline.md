@@ -199,7 +199,7 @@ Three export methods for data analysis (all respect current filters):
    - Disabled when no events match current filters
    - Shows loading spinner during export
 2. **Advanced Export** - Expanded panel with:
-   - Format selection (CSV, Excel/XLSX)
+   - Format selection (CSV, JSON, ZIP, Excel)
    - Filter refinement specific to export
    - Export preview showing estimated record count
 3. **Export Modal** - Full-screen export dialog (`frontend/src/components/exports/ExportModal.tsx`) with additional options
@@ -227,12 +227,10 @@ When events are loaded, bulk operations become available:
 
 Each event displays as a card (`frontend/src/components/events/EventCard.tsx`) with:
 
-- **Left Border Color** - Risk level indicator (4px border):
+- **Left Border Color** - Risk level indicator (border widens with severity: 4px for low/medium, 5px for high, 6px for critical, with a glow + pulse on critical)
 
-  - Green (`border-l-risk-low`) = Low risk (0-30)
-  - Yellow (`border-l-risk-medium`) = Medium risk (31-60)
-  - Orange (`border-l-risk-high`) = High risk (61-85)
-  - Red (`border-l-red-500`) = Critical risk (86-100)
+  - Color comes from `getSeverityConfig` in `frontend/src/utils/severityColors.ts`, whose constants treat scores >= 80 as critical-styled (Low < 30, Medium 30-59, High 60-79, Critical >= 80)
+  - Note: the canonical bands (see "Understanding Risk Scores" below) put Critical at 85+; the card colors are a separate client constant, so a score of 80-84 renders with critical card styling while the `RiskBadge` label still reads High
 
 - **Thumbnail** - Detection image from the event (64x64 pixels)
   - Falls back to Eye icon placeholder if no image available
@@ -398,13 +396,14 @@ Risk scores are calculated by the Nemotron AI model analyzing:
 - **Detection confidence** - Lower confidence affects score
 - **Camera location** - Front door vs. backyard context
 
-Risk Levels:
-| Score Range | Level | Color | Meaning |
-|-------------|-------|-------|---------|
-| 0-30 | Low | Green | Normal activity, routine events |
-| 31-60 | Medium | Yellow | Worth monitoring, slightly unusual |
-| 61-85 | High | Orange | Significant event, review promptly |
-| 86-100 | Critical | Red | Potential threat, immediate attention |
+Risk Levels (the canonical bands from `backend/models/event.py` and `frontend/src/utils/risk.ts`; thresholds are live-editable via `GET/PUT /api/system/severity`):
+
+| Score Range | Level    | Color  | Meaning                               |
+| ----------- | -------- | ------ | ------------------------------------- |
+| 0-29        | Low      | Green  | Normal activity, routine events       |
+| 30-59       | Medium   | Yellow | Worth monitoring, slightly unusual    |
+| 60-84       | High     | Orange | Significant event, review promptly    |
+| 85-100      | Critical | Red    | Potential threat, immediate attention |
 
 ## Understanding Detection Confidence
 

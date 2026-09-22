@@ -1,5 +1,7 @@
 # WebSocket Feature Coverage Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The backend broadcasts **57 WebSocket message types** but the frontend only handles a subset. Significant gaps exist, particularly for **worker events** (complete gap), **Prometheus alerts**, and detailed **camera status**.

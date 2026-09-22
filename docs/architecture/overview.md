@@ -68,14 +68,18 @@ Home Security Intelligence transforms commodity IP cameras into an intelligent t
 
 ## High-Level Architecture
 
-![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (YOLO26, Nemotron, Florence-2, CLIP, and Enrichment containers with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
+![System architecture overview diagram showing four layers: Camera Layer (Foscam IP cameras uploading via FTP), Application Layer (React frontend and FastAPI backend with Redis), GPU Services Layer (ai-gateway serving YOLO26/Florence-2/CLIP/enrichment, plus the Nemotron LLM container, with GPU passthrough), and Data Layer (PostgreSQL database and filesystem storage for thumbnails)](../images/arch-system-overview.png)
 
 The system is organized into four layers:
 
 - **Camera Layer:** Foscam IP cameras upload images via FTP
 - **Application Layer:** React frontend + FastAPI backend
-- **GPU Services:** 5 AI inference containers (YOLO26, Nemotron, Florence-2, CLIP, Enrichment)
+- **GPU Services:** 2 AI containers — `ai-gateway` (YOLO26, Florence-2, CLIP and enrichment models via
+  Triton, port 8090) and `ai-llm` (Nemotron via llama.cpp, port 8091)
 - **Data Layer:** PostgreSQL, Redis, and filesystem storage
+
+> The linked PNG still shows the pre-consolidation layout with separate YOLO26/Florence/CLIP/Enrichment
+> containers; the text above and the diagrams below describe the current tree.
 
 ### Detailed System Architecture Diagram
 
@@ -98,16 +102,13 @@ flowchart TB
 
     subgraph Docker["Docker Services"]
         direction TB
-        FE["Frontend<br/>React + Vite<br/>:5173"]
+        FE["Frontend<br/>React + Vite<br/>:8444 HTTPS"]
         BE["Backend<br/>FastAPI<br/>:8000"]
         RD["Redis<br/>:6379"]
     end
 
     subgraph GPU["Containerized GPU Services"]
-        DET["YOLO26<br/>Object Detection<br/>:8095"]
-        FLO["Florence-2<br/>Vision extraction (optional)<br/>:8092"]
-        CLIP["CLIP<br/>Re-identification (optional)<br/>:8093"]
-        ENR["Enrichment API<br/>Model-zoo enrichment (optional)<br/>:8094"]
+        GW["ai-gateway :8090<br/>YOLO26 detection<br/>Florence-2 · CLIP ·<br/>Enrichment (Triton)"]
         LLM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
     end
 
@@ -120,10 +121,8 @@ flowchart TB
 
     FTPS -->|FileWatcher| BE
     BE <-->|Queues & Pub/Sub| RD
-    BE -->|HTTP /detect| DET
-    BE -->|HTTP (optional)| FLO
-    BE -->|HTTP (optional)| CLIP
-    BE -->|HTTP (optional)| ENR
+    BE -->|HTTP /yolo26/detect| GW
+    BE -->|HTTP /florence /clip /enrichment| GW
     BE -->|HTTP /completion| LLM
     BE <-->|SQLAlchemy| DB
     BE -->|PIL/Pillow| FS
@@ -139,24 +138,25 @@ flowchart TB
 
 | Layer                | Technology       | Version | Why This Choice                                                                |
 | -------------------- | ---------------- | ------- | ------------------------------------------------------------------------------ |
-| **Frontend**         | React            | 18.2    | Industry standard, excellent ecosystem, component model fits dashboard UI      |
-|                      | TypeScript       | 5.3     | Type safety catches bugs early, better IDE support, self-documenting code      |
+| **Frontend**         | React            | 19.3    | Industry standard, excellent ecosystem, component model fits dashboard UI      |
+|                      | TypeScript       | 6.0     | Type safety catches bugs early, better IDE support, self-documenting code      |
 |                      | Tailwind CSS     | 3.4     | Utility-first approach, dark theme customization, responsive design            |
-|                      | Tremor           | 3.17    | Pre-built data visualization components (charts, gauges) for dashboards        |
-|                      | Vite             | 5.0     | Fast dev server with HMR, modern bundling, excellent DX                        |
-| **Backend**          | Python           | 3.14+   | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
-|                      | FastAPI          | 0.104+  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
+|                      | Tremor           | 3.18    | Pre-built data visualization components (charts, gauges) for dashboards        |
+|                      | Vite             | 7.3     | Fast dev server with HMR, modern bundling, excellent DX                        |
+| **Backend**          | Python           | 3.14    | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
+|                      | FastAPI          | ≥0.115  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
 |                      | SQLAlchemy       | 2.0     | Async ORM, excellent PostgreSQL support, type-safe queries with `Mapped` hints |
 |                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                     |
-| **Database**         | PostgreSQL       | 15+     | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
-|                      | Redis            | 7.x     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
-| **AI - Detection**   | YOLO26        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained                |
+| **Database**         | PostgreSQL       | 16      | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
+|                      | Redis            | 7.4     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
+| **AI - Detection**   | YOLO26           | -       | Real-time transformer detector, 30-50ms inference, COCO-trained; served by ai-gateway via Triton |
+|                      | Triton           | -       | Single inference server hosting detection, vision, embedding and enrichment models |
 |                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                         |
-| **AI - Reasoning**   | Nemotron-3-Nano-30B | Q4_K_M  | NVIDIA v3 Nano 30B LLM, 128K context, ~14.7GB VRAM (dev: Mini 4B ~3GB)         |
+| **AI - Reasoning**   | Nemotron-3-Nano-30B | Q4_K_M | NVIDIA v3 Nano 30B LLM, ~14.7GB VRAM; context set by `CTX_SIZE` in `.env`      |
 |                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                     |
-| **Containerization** | Docker Compose   | 2.x     | Multi-service orchestration, health checks, networking                         |
-| **Monitoring**       | Prometheus       | 2.48    | Time-series metrics, optional monitoring stack                                 |
-|                      | Grafana          | 10.2    | Dashboards for system monitoring                                               |
+| **Containerization** | Docker/Podman Compose | -   | Multi-service orchestration, health checks, networking                         |
+| **Monitoring**       | Prometheus       | 3.1     | Time-series metrics, monitoring stack (`docker.io/prom/prometheus:v3.1.0`)     |
+|                      | Grafana          | custom  | Dashboards for system monitoring (built from `monitoring/grafana/Dockerfile`)  |
 
 ---
 
@@ -286,7 +286,9 @@ Used for: CRUD operations, data queries, configuration
 
 Used for: Real-time updates without polling
 
+<!-- prettier-ignore-start -->
 --8<-- "docs/_includes/websocket-channels.md"
+<!-- prettier-ignore-end -->
 
 **Message Format:**
 
@@ -337,7 +339,7 @@ Used for: AI inference requests
 
 ## Deployment Topology
 
-![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI (YOLO26, Nemotron, Florence-2, CLIP, Enrichment), Persistent Storage volumes, and NVIDIA RTX A5500 GPU](../images/architecture/overview-deployment-topology.svg)
+![Deployment topology diagram showing host machine with Docker Compose network (Frontend, Backend, Redis containers), Containerized GPU Services via CDI, Persistent Storage volumes, and the NVIDIA GPU. Image predates the AI-gateway consolidation: YOLO26/Florence/CLIP/Enrichment now run in one `ai-gateway` container (port 8090), not five separate containers.](../images/architecture/overview-deployment-topology.svg)
 
 <!--
 Original Mermaid diagram preserved for reference:
@@ -387,31 +389,28 @@ flowchart TB
 
 ### What Runs Where
 
-| Component      | Deployment                      | Why                                      |
-| -------------- | ------------------------------- | ---------------------------------------- |
-| **Frontend**   | Podman (dev: Vite, prod: Nginx) | No GPU needed, isolated environment      |
-| **Backend**    | Podman                          | No GPU needed, isolated environment      |
-| **Redis**      | Podman                          | No GPU needed, ephemeral data acceptable |
-| **PostgreSQL** | Podman                          | Database isolation, volume persistence   |
-| **YOLO26**  | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
-| **Nemotron**   | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
-| **Florence-2** | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
-| **CLIP**       | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
-| **Enrichment** | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
+| Component          | Deployment                      | Why                                      |
+| ------------------ | ------------------------------- | ---------------------------------------- |
+| **Frontend**       | Podman (dev: Vite, prod: Nginx) | No GPU needed, isolated environment      |
+| **Backend**        | Podman                          | No GPU needed, isolated environment      |
+| **Redis**          | Podman                          | No GPU needed, ephemeral data acceptable |
+| **PostgreSQL**     | Podman                          | Database isolation, volume persistence   |
+| **ai-gateway**     | Podman (GPU via CDI)            | YOLO26 + enrichment models via Triton; GPU access via NVIDIA Container Toolkit |
+| **Nemotron**       | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
 
 ### Port Summary
 
-| Port | Service         | Protocol | Exposed To                   |
-| ---- | --------------- | -------- | ---------------------------- |
-| 5173 | Frontend (dev)  | HTTP     | Browser                      |
-| 80   | Frontend (prod) | HTTP     | Browser                      |
-| 8000 | Backend API     | HTTP/WS  | Browser, Frontend container  |
-| 6379 | Redis           | TCP      | Backend container only       |
-| 8095 | YOLO26       | HTTP     | Backend container, localhost |
-| 8092 | Florence-2      | HTTP     | Backend container, localhost |
-| 8093 | CLIP            | HTTP     | Backend container, localhost |
-| 8094 | Enrichment      | HTTP     | Backend container, localhost |
-| 8091 | Nemotron        | HTTP     | Backend container, localhost |
+Host ports are `.env.example` defaults; all bind `127.0.0.1` except the frontend (`0.0.0.0`).
+
+| Port           | Service                          | Protocol | Exposed To                   |
+| -------------- | -------------------------------- | -------- | ---------------------------- |
+| 8444 / 8080    | Frontend (HTTPS / HTTP)          | HTTP     | Browser                      |
+| 8444 (dev)     | Frontend (Vite dev server, HTTPS) | HTTP    | Browser                      |
+| 8000           | Backend API                      | HTTP/WS  | Browser, Frontend container  |
+| 6379           | Redis                            | TCP      | Backend container only       |
+| 8090           | ai-gateway (YOLO26, Florence-2, CLIP, enrichment routes) | HTTP | Backend container, localhost |
+| 8002           | ai-gateway metrics               | HTTP     | Prometheus, localhost        |
+| 8091           | Nemotron (ai-llm)                | HTTP     | Backend container, localhost |
 
 ---
 
@@ -498,7 +497,9 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 
 **Batch timing:**
 
---8<-- "docs/\_includes/batching-config.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/batching-config.md"
+<!-- prettier-ignore-end -->
 
 ### Fast Path Flow
 
@@ -816,7 +817,9 @@ The `HealthMonitor` service:
 
 ## Security Model
 
---8<-- "docs/\_includes/auth-model.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/auth-model.md"
+<!-- prettier-ignore-end -->
 
 ### Production Hardening (Recommended)
 
@@ -842,7 +845,9 @@ The `HealthMonitor` service:
 
 ### Resource Usage
 
---8<-- "docs/\_includes/vram-requirements.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/vram-requirements.md"
+<!-- prettier-ignore-end -->
 
 **Other resource usage:**
 
@@ -865,12 +870,13 @@ See `docs/reference/config/env-reference.md` for complete reference.
 DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
 REDIS_URL=redis://localhost:6379/0
 
-# AI Services
-YOLO26_URL=http://localhost:8095
+# AI Services (all models served by the ai-gateway container on :8090)
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
-FLORENCE_URL=http://localhost:8092
-CLIP_URL=http://localhost:8093
-ENRICHMENT_URL=http://localhost:8094
+FLORENCE_URL=http://localhost:8090/florence
+CLIP_URL=http://localhost:8090/clip
+ENRICHMENT_URL=http://localhost:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://localhost:8090/enrich-lt
 
 # Optional enrichment feature toggles (see docs/reference/config/env-reference.md for authoritative list)
 VISION_EXTRACTION_ENABLED=true

@@ -4,16 +4,15 @@ Components for displaying loading states and progress indicators.
 
 ## LoadingSpinner
 
-Full-page loading spinner used as a fallback for React.lazy Suspense boundaries.
+Full-page loading spinner for page-level loading states (route pages such as Zones and Trash mount it while their data loads; lazy route `Suspense` boundaries use `RouteLoadingFallback` instead).
 
 **Location:** `frontend/src/components/common/LoadingSpinner.tsx`
 
 ### Features
 
-- Full-screen centered layout
-- Dark background matching app theme
-- Animated spinner with NVIDIA green accent
-- Respects prefers-reduced-motion
+- Full-screen centered layout on a dark (#121212) background
+- Animated spinner with green accent (`border-t-green-500`)
+- Respects prefers-reduced-motion (`motion-safe:animate-spin`)
 
 ---
 

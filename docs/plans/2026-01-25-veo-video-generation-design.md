@@ -1,5 +1,7 @@
 # Veo 3.1 Video Generation Design
 
+> **Status:** Abandoned — the Veo generator scripts were quarantined to `archive/docs-media/` in the 2026-09 cleanup; `docs/media/` no longer exists.
+
 ## Overview
 
 Generate a library of 8 promotional/demonstration videos for the Home Security Intelligence platform using NVIDIA's inference API with Google Veo 3.1. Videos will showcase the system's capabilities, highlight NVIDIA technologies (especially Nemotron v3 Nano), and demonstrate edge AI home security.

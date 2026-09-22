@@ -4,16 +4,31 @@ This document specifies the test coverage requirements enforced in CI/CD pipelin
 
 ## Overview
 
-Coverage gates ensure code quality by requiring minimum test coverage before merging. The project enforces:
+Coverage gates ensure code quality by requiring minimum test coverage before merging. The enforced model (as of the 2026-09 docs scan):
 
-- **Backend**: 85% unit coverage, 90% combined coverage
-- **Frontend**: Multi-metric coverage (statements, branches, functions, lines)
+- **Backend absolute floor**: 80% combined (unit + integration), executed by
+  `scripts/validate.sh --fail-under=80` and mirrored in
+  `.github/workflows/nightly-full-gate.yml`
+- **Backend PR diff gate**: `pyproject.toml` `fail_under = 85` is the PR diff
+  gate's _relative_ baseline over merged shard data (owner ruling A7.1,
+  2026-09-19) — not an absolute floor; the diff gate forgives drops up to its
+  0.5pp noise band
+- **Per-tier floors**: unit 84 / integration 37, enforced in the CI merge
+  steps only when the tier fully passed
+- **Frontend**: measured floors 80 (statements) / 74.6 (branches) /
+  78.4 (functions) / 80.9 (lines), enforced by
+  `frontend/scripts/merge-shard-coverage.mjs --enforce` in CI only when all
+  Vitest shards passed (R-1/WP2.3: declared floors must equal measured values)
+
+Measured backend coverage 2026-09-20: 84.12% blended / 86.02% line /
+76.27% branch — the three are different numbers; `--format=total` is the
+blend.
 
 ## Backend Coverage
 
 ### Configuration
 
-From `pyproject.toml:388-421`:
+From `pyproject.toml:529-568`:
 
 ```toml
 [tool.coverage.run]
@@ -44,7 +59,10 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 90
+# Owner ruling A7.1 (2026-09-19): this 85 is the WP0.9 PR diff gate's
+# RELATIVE baseline — NOT an absolute floor. The executed absolute backend
+# floor is 80 on combined unit+integration (validate.sh / nightly-full-gate).
+fail_under = 85
 show_missing = true
 precision = 2
 
@@ -54,11 +72,13 @@ directory = "coverage/backend"
 
 ### Coverage Gates
 
-| Metric                        | Threshold | Enforcement            |
-| ----------------------------- | --------- | ---------------------- |
-| Unit tests only               | 85%       | CI gate                |
-| Combined (unit + integration) | 90%       | CI gate                |
-| Branch coverage               | Required  | Measured but not gated |
+| Metric                        | Threshold         | Enforcement                                                                         |
+| ----------------------------- | ----------------- | ----------------------------------------------------------------------------------- |
+| Combined (unit + integration) | 80%               | Absolute floor — `validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml` |
+| PR diff gate baseline         | 85 (`fail_under`) | RELATIVE baseline over merged shard data (owner ruling A7.1); 0.5pp noise band      |
+| Unit tier                     | 84                | CI merge step, only when the unit tier fully passed                                 |
+| Integration tier              | 37                | CI merge step, only when the integration tier fully passed                          |
+| Branch coverage               | Measured          | Main publishes line and branch separately                                           |
 
 ### Running Coverage
 
@@ -66,8 +86,8 @@ directory = "coverage/backend"
 # Unit tests with coverage
 uv run pytest backend/tests/unit/ --cov=backend --cov-report=term-missing
 
-# Combined coverage
-uv run pytest backend/tests/ --cov=backend --cov-report=term-missing
+# Combined coverage (what the 80% absolute gate measures)
+./scripts/validate.sh
 
 # HTML report
 uv run pytest backend/tests/ --cov=backend --cov-report=html
@@ -75,9 +95,6 @@ uv run pytest backend/tests/ --cov=backend --cov-report=html
 
 # XML report (for CI)
 uv run pytest backend/tests/ --cov=backend --cov-report=xml
-
-# Check minimum coverage without running tests
-uv run coverage report --fail-under=90
 ```
 
 ### Coverage Output Example
@@ -94,12 +111,12 @@ backend/services/bbox_validation.py       156      0     42      0   100%
 -----------------------------------------------------------------------------------
 TOTAL                                    4523    135    892     23    95.12%
 
-Required coverage of 90% reached. Total 95.12%
+Required code coverage of 80.00% reached. Total 84.12%
 ```
 
 ### Excluded Files
 
-Files excluded from coverage (from `pyproject.toml:391-405`):
+Files excluded from coverage (from `pyproject.toml:532-546`):
 
 | Path                                      | Reason                        |
 | ----------------------------------------- | ----------------------------- |
@@ -114,7 +131,7 @@ Files excluded from coverage (from `pyproject.toml:391-405`):
 
 ### Excluded Lines
 
-Lines excluded from coverage (from `pyproject.toml:408-415`):
+Lines excluded from coverage (from `pyproject.toml:549-556`):
 
 | Pattern                      | Use Case                   |
 | ---------------------------- | -------------------------- |
@@ -129,30 +146,46 @@ Lines excluded from coverage (from `pyproject.toml:408-415`):
 
 ### Configuration
 
-Coverage is configured in the Vite config with both overall and per-file thresholds.
+Coverage is configured in `frontend/vite.config.ts` (`test.coverage`,
+provider `v8`), with floors set AT the measured values (WP2.3 / R-1):
+
+```typescript
+thresholds: {
+  // Floors are the merged-shard MEASURED values (run 35486259345,
+  // 2026-09-20), mirrored by merge-shard-coverage.mjs's FLOORS.
+  statements: 80,
+  branches: 74.6,
+  functions: 78.4,
+  lines: 80.9,
+},
+```
 
 ### Coverage Gates
 
-| Metric     | Threshold | Enforcement |
-| ---------- | --------- | ----------- |
-| Statements | 83%       | CI gate     |
-| Branches   | 77%       | CI gate     |
-| Functions  | 81%       | CI gate     |
-| Lines      | 84%       | CI gate     |
+| Metric     | Threshold | Enforcement                                               |
+| ---------- | --------- | --------------------------------------------------------- |
+| Statements | 80        | `merge-shard-coverage.mjs --enforce` on merged shard data |
+| Branches   | 74.6      | same                                                      |
+| Functions  | 78.4      | same                                                      |
+| Lines      | 80.9      | same                                                      |
+
+CI runs the merge step (`ci.yml` "Merge frontend coverage") with `--enforce`
+only when every Vitest shard passed — partial shard data is merged for the
+record but floors are not enforced against it.
 
 ### Running Coverage
 
 ```bash
 cd frontend
 
-# Run tests with coverage
-npm test -- --coverage
+# Run tests with coverage (vitest --coverage)
+npm run test:coverage
 
 # Watch mode with coverage
-npm test -- --coverage --watch
+npm run test:coverage -- --watch
 
-# HTML report
-npm test -- --coverage --reporter=html
+# HTML report (per vite config: ./coverage)
+npm run test:coverage -- --coverage.reporter=html
 # Open coverage/index.html in browser
 ```
 
@@ -173,91 +206,51 @@ All files       |   89.45 |   82.31 |   86.72 |   90.12 |
 
 ## CI/CD Enforcement
 
-### Backend CI Workflow
+### Backend CI (`.github/workflows/ci.yml`)
 
-The backend CI workflow runs coverage checks on every PR:
+Backend tests run as sharded jobs; coverage is collected with
+`--cov-fail-under=0` in the test steps and enforced AFTER merging shard data:
 
-```yaml
-# .github/workflows/backend.yml (conceptual)
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+- `unit-tests` → `unit-tests-coverage-merge` → `unit-tests-summary`
+- `integration-tests-{api,websocket,services,models}` →
+  `integration-coverage-merge` → `integration-tests-summary`
+- The merge steps combine per-shard `.coverage` files, publish line and
+  branch percentages, and diff against the `fail_under = 85` relative
+  baseline (WP0.9 diff gate, 0.5pp noise band). Per-tier absolute floors
+  (unit 84 / integration 37) are enforced in the merge steps only when the
+  tier fully passed.
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.14'
+### Frontend CI
 
-      - name: Install dependencies
-        run: uv sync --extra dev
+- `frontend-tests` runs Vitest shards (coverage collected per shard)
+- `frontend-coverage-merge` runs
+  `node frontend/scripts/merge-shard-coverage.mjs coverage-reports/ --out
+coverage-merged --enforce` — enforcement flag applied only when
+  `needs.frontend-tests.result == 'success'` (never gate floors on partial
+  shard data)
 
-      - name: Run unit tests with coverage
-        run: |
-          uv run pytest backend/tests/unit/ \
-            -n auto --dist=worksteal \
-            --cov=backend \
-            --cov-report=term-missing \
-            --cov-report=xml \
-            --cov-fail-under=85
+### Nightly Full Gate
 
-      - name: Run integration tests
-        run: |
-          uv run pytest backend/tests/integration/ \
-            -n8 --dist=worksteal
-
-      - name: Combined coverage check
-        run: |
-          uv run coverage report --fail-under=90
-```
-
-### Frontend CI Workflow
-
-```yaml
-# .github/workflows/frontend.yml (conceptual)
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: cd frontend && npm ci
-
-      - name: Run tests with coverage
-        run: cd frontend && npm test -- --coverage
-        # Fails if coverage thresholds not met
-```
+`.github/workflows/nightly-full-gate.yml` runs the absolute combined gate
+(`--fail-under=80` on merged unit+integration coverage) — the same contract
+as `./scripts/validate.sh`.
 
 ### Validation Script
 
-The `./scripts/validate.sh` script runs all coverage checks:
+`./scripts/validate.sh` is the local mirror of the CI coverage contract:
 
 ```bash
-#!/bin/bash
-set -e
-
-echo "Running backend unit tests with coverage..."
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal \
-    --cov=backend --cov-fail-under=85
-
-echo "Running backend integration tests..."
-uv run pytest backend/tests/integration/ -n8 --dist=worksteal
-
-echo "Checking combined coverage..."
-uv run coverage report --fail-under=90
-
-echo "Running frontend tests..."
-cd frontend && npm test -- --coverage
-
-echo "All validation checks passed!"
+# What it does (scripts/validate.sh, coverage sections):
+# 1. Unit tests:     coverage written to a shard data file with
+#                    --cov-fail-under=0 (so pyproject's fail_under=85
+#                    cannot fire early on partial data)
+# 2. Integration:    same, separate data file
+# 3. coverage combine → report gated at 80% on the merged data
+# 4. Frontend:       cd frontend && npm run test:coverage
 ```
+
+`./scripts/validate.sh --fast` skips the coverage proof entirely
+(change-scoped advisory tier).
 
 ## Improving Coverage
 
@@ -321,34 +314,44 @@ cd frontend && npm test -- --coverage --reporter=html
 
 For higher confidence in test quality, use mutation testing:
 
-From `pyproject.toml:478-494`:
+From `pyproject.toml:633-650` (mutmut 3.x — the old 2.x-era
+`paths_to_mutate`/`tests_dir` keys are deprecated and no longer used):
 
 ```toml
 [tool.mutmut]
-paths_to_mutate = [
-    "backend/services/bbox_validation.py",
-    "backend/services/severity.py",
-    "backend/services/prompt_parser.py",
-    "backend/services/search.py",
-    "backend/services/dedupe.py",
+# Denominator: every service + API-route module (mutmut 3's name for the
+# deprecated paths_to_mutate). Tests are excluded by construction.
+source_paths = [
+    "backend/services",
+    "backend/api/routes",
 ]
-tests_dir = ["backend/tests/unit/services/"]
+# Test selection = every backend UNIT test (selection is per-mutant anyway)
+pytest_add_cli_args_test_selection = [
+    "backend/tests/unit",
+]
 ```
 
-Running mutation tests:
+Running mutation tests (canonical runner is `scripts/mutation-run.sh`;
+per-module scores come from `scripts/mutation-score.py`):
 
 ```bash
-# Run mutation testing
-uv run mutmut run backend/services/bbox_validation.py
+# Full widened set
+./scripts/mutation-run.sh
 
-# View results
+# One module's mutants
+./scripts/mutation-run.sh severity
+
+# View surviving mutants
 uv run mutmut results
 
-# Show specific mutant
-uv run mutmut show <mutant_id>
+# Show a specific mutant
+uv run mutmut show <mutant_key>
 ```
 
-Mutation testing creates small changes (mutants) in your code and verifies that tests catch them. A high "mutation score" indicates effective tests.
+Mutation testing creates small changes (mutants) in your code and verifies
+that tests catch them. A high "mutation score" indicates effective tests.
+`mutate_only_covered_lines = true` keeps the denominator honest (mutants in
+uncovered lines are surfaced separately by `mutation-score.py`).
 
 ## Related Documentation
 

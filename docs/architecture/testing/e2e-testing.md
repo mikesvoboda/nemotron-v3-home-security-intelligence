@@ -46,47 +46,41 @@ frontend/tests/e2e/
 
 ### Playwright Configuration
 
-From `frontend/playwright.config.ts:1-78`:
+From `frontend/playwright.config.ts` (key blocks):
 
 ```typescript
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests/e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
-
+  // ...
   use: {
-    baseURL: 'http://localhost:5173',
+    // HTTP for E2E to avoid TLS handshake issues with self-signed certs
+    baseURL: 'http://localhost:8444',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
+    navigationTimeout: 15000,
+    actionTimeout: 5000,
+    // Product tour disabled via storage state from global setup
+    storageState: 'tests/e2e/.auth/storage-state.json',
+    ignoreHTTPSErrors: true,
   },
 
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-  ],
-
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    // dev:e2e runs Vite WITHOUT the API proxy, so Playwright's page.route()
+    // intercepts API calls directly instead of Vite forwarding to :8000
+    command: 'npm run dev:e2e',
+    url: 'http://localhost:8444',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });
 ```
+
+Chromium/WebKit/`Desktop Chrome`-style multi-browser projects are defined in
+`projects` (CI selects one browser per container via `--project`), and
+`playwright.config.build-validation.ts` covers the built-preview flow on
+port 4173.
 
 ### Page Object Model
 

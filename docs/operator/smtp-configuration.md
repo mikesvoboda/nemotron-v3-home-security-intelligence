@@ -46,32 +46,29 @@ The Home Security Intelligence monitoring stack supports email alerts through tw
 
 3. **Verify in Grafana UI:**
 
-   - Navigate to http://localhost:3002/admin/settings
+   - Navigate to http://localhost:3002/grafana/admin/settings
    - Check the SMTP section shows "enabled"
 
 ### Enable Alertmanager Email Alerts
 
-1. **Configure SMTP in `.env`:**
+> [!IMPORTANT]
+> Alertmanager is **not** env-substituted: `monitoring/alertmanager.yml` is mounted
+> read-only and its header states no envsubst templating is used. The
+> `ALERTMANAGER_SMTP_*` variables in `.env.example` are placeholders only — nothing reads
+> them. Edit `monitoring/alertmanager.yml` directly.
 
-   ```bash
-   ALERTMANAGER_SMTP_HOST=smtp.gmail.com:587
-   ALERTMANAGER_SMTP_FROM=alertmanager@example.com
-   ALERTMANAGER_SMTP_USER=your-email@gmail.com
-   ALERTMANAGER_SMTP_PASSWORD=your-app-password
-   ```
-
-2. **Uncomment SMTP settings in `monitoring/alertmanager.yml`:**
+1. **Uncomment SMTP settings in `monitoring/alertmanager.yml`:**
 
    ```yaml
    global:
      smtp_smarthost: 'smtp.gmail.com:587'
      smtp_from: 'alertmanager@example.com'
      smtp_auth_username: 'your-email@gmail.com'
-     smtp_auth_password: 'your-app-password' <!-- pragma: allowlist secret -->
+     smtp_auth_password: 'your-app-password' # pragma: allowlist secret
      smtp_require_tls: true
    ```
 
-3. **Enable email receivers:**
+2. **Enable email receivers:**
 
    ```yaml
    receivers:
@@ -81,10 +78,10 @@ The Home Security Intelligence monitoring stack supports email alerts through tw
            send_resolved: true
    ```
 
-4. **Restart Alertmanager:**
+3. **Restart Alertmanager** (there is no `/-/reload` endpoint):
 
    ```bash
-   podman-compose -f docker-compose.prod.yml restart alertmanager
+   podman compose -f docker-compose.prod.yml restart alertmanager
    ```
 
 ---
@@ -116,7 +113,7 @@ All Grafana SMTP settings are configured via environment variables in `docker-co
 
 ### Testing Grafana SMTP
 
-1. Go to Grafana: http://localhost:3002
+1. Go to Grafana: http://localhost:3002/grafana/
 2. Navigate to **Alerting > Contact points**
 3. Create a new contact point with email receiver
 4. Click **Test** to send a test email
@@ -135,7 +132,7 @@ global:
   smtp_smarthost: 'smtp.gmail.com:587'
   smtp_from: 'alertmanager@example.com'
   smtp_auth_username: 'your-email@gmail.com'
-  smtp_auth_password: 'your-app-password' <!-- pragma: allowlist secret -->
+  smtp_auth_password: 'your-app-password' # pragma: allowlist secret
   smtp_require_tls: true
   smtp_hello: 'localhost'
 ```
@@ -188,10 +185,11 @@ email_configs:
 
 ### Testing Alertmanager SMTP
 
-1. **Reload configuration:**
+1. **Restart Alertmanager** to pick up the edited config (there is no `/-/reload` endpoint —
+   Alertmanager is not started with `--web.enable-lifecycle`):
 
    ```bash
-   curl -X POST http://localhost:9093/-/reload
+   podman compose -f docker-compose.prod.yml restart alertmanager
    ```
 
 2. **Manually fire a test alert:**

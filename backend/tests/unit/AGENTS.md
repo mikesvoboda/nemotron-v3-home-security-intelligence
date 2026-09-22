@@ -6,68 +6,73 @@ Unit tests verify individual components in isolation. Each test focuses on a sin
 
 ## Directory Structure
 
+Counts below are `test_*.py` files measured on 2026-09-22.
+
 ```
-backend/tests/unit/
+backend/tests/unit/                 # 679 test files total
 ├── AGENTS.md                  # This file
 ├── conftest.py                # Unit test-specific fixtures
 ├── __init__.py                # Package initialization
 ├── .gitkeep                   # Directory placeholder
-├── test_websocket_README.md   # WebSocket testing documentation
-├── alembic/                   # Alembic migration helper tests (1 file)
-├── api/                       # API layer tests (56 route tests + 23 schema tests)
-│   ├── helpers/               # API helper tests
-│   ├── middleware/            # Middleware tests
-│   ├── routes/                # Route handler tests
-│   ├── schemas/               # Pydantic schema tests
+├── api/                       # API layer tests (10 root + subdirs below)
+│   ├── middleware/            # Middleware tests (22 files)
+│   ├── routes/                # Route handler tests (96 files)
+│   ├── schemas/               # Pydantic schema tests (53 files)
 │   └── utils/                 # API utility tests (1 file)
-├── core/                      # Core infrastructure tests (49 files)
-├── integration/               # Integration helper tests
-├── jobs/                      # Background job tests (2 files)
-├── middleware/                # Middleware tests
-├── models/                    # ORM model tests (24 files)
-├── repositories/              # Repository tests (3 files)
+├── config/                    # Config tests (6 files)
+├── core/                      # Core infrastructure tests (89 files)
+├── evaluation/                # Evaluation tests (6 files)
+├── integration/               # Integration helper tests (1 file)
+├── jobs/                      # Background job tests (3 files)
+├── middleware/                # Middleware tests (1 file)
+├── models/                    # ORM model tests (49 files)
+├── repositories/              # Repository tests (6 files)
 ├── routes/                    # Additional route tests (21 files)
-├── scripts/                   # Migration script tests (2 files)
-├── services/                  # Service layer tests (144 files)
+├── scripts/                   # Script tests (6 files)
+├── services/                  # Service layer tests (254 files)
 │   └── orchestrator/          # Orchestrator service tests (3 files)
-└── test_*.py                  # Root-level test files (18 files)
+├── setup_lib/                 # Setup library tests (14 files)
+└── test_*.py                  # Root-level test files (34 files)
 ```
 
 ## Running Tests
 
+Run through `uv run` so the project venv and `pyproject.toml` addopts apply (addopts already enable xdist `-n 8` and `-m 'not gpu'`).
+
 ```bash
 # All unit tests
-pytest backend/tests/unit/ -v
+uv run pytest backend/tests/unit/ -v
 
 # Single test file
-pytest backend/tests/unit/core/test_config.py -v
+uv run pytest backend/tests/unit/core/test_config.py -v
 
 # Specific test class
-pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults -v
+uv run pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults -v
 
 # Specific test
-pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults::test_default_app_settings -v
+uv run pytest backend/tests/unit/core/test_config.py::TestSettingsDefaults::test_default_app_settings -v
 
 # With coverage
-pytest backend/tests/unit/ -v --cov=backend --cov-report=html
+uv run pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 
 # Fast execution (no coverage)
-pytest backend/tests/unit/ -v --no-cov
+uv run pytest backend/tests/unit/ -v --no-cov
 ```
 
-## Test Files (300+ total)
+## Test Files (679 total)
 
-### Root Level Tests (18 files)
+### Root Level Tests (34 files)
 
-| File                              | Tests For                       |
-| --------------------------------- | ------------------------------- |
-| `test_benchmarks.py`              | Benchmark utilities and helpers |
-| `test_benchmark_vram.py`          | VRAM usage benchmarks           |
-| `test_business_metrics.py`        | Business metrics calculations   |
-| `test_main.py`                    | Application entrypoint testing  |
-| `test_migrate_sqlite_postgres.py` | SQLite to PostgreSQL migration  |
+| File                             | Tests For                                 |
+| -------------------------------- | ----------------------------------------- |
+| `test_benchmarks.py`             | Benchmark utilities and helpers           |
+| `test_benchmark_vram.py`         | VRAM usage benchmarks                     |
+| `test_business_metrics.py`       | Business metrics calculations             |
+| `test_main.py`                   | Application entrypoint testing            |
+| `test_route_mounting.py`         | Router registration on the app            |
+| `test_setup_guard_middleware.py` | Setup guard 503-until-registered behavior |
 
-### API Routes (`api/routes/`) - 56 files
+### API Routes (`api/routes/`) - 96 files
 
 | File                         | Tests For                        |
 | ---------------------------- | -------------------------------- |
@@ -83,12 +88,12 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_events_api.py`         | Event management endpoints       |
 | `test_events_export.py`      | Event export functionality       |
 | `test_metrics.py`            | Metrics endpoints                |
-| `test_prompt_management.py`  | Prompt management (empty file)   |
+| `test_prompt_management.py`  | Prompt management endpoints      |
 | `test_scene_changes.py`      | Scene change detection endpoints |
 | `test_system_models.py`      | System model endpoints           |
 | `test_telemetry_api.py`      | Telemetry endpoints              |
 
-### API Schemas (`api/schemas/`) - 23 files
+### API Schemas (`api/schemas/`) - 53 files
 
 | File                                 | Tests For                      |
 | ------------------------------------ | ------------------------------ |
@@ -98,7 +103,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_performance_schemas.py`        | Performance schema models      |
 | `test_system.py`                     | System schema validation       |
 
-### Core Components (`core/`) - 49 files
+### Core Components (`core/`) - 89 files
 
 | File                                | Tests For                           |
 | ----------------------------------- | ----------------------------------- |
@@ -129,7 +134,7 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_timeout.py`         | WebSocket timeout handling          |
 | `test_websocket_validation.py`      | WebSocket message validation        |
 
-### Database Models (`models/`) - 24 files
+### Database Models (`models/`) - 49 files
 
 | File                         | Tests For                  |
 | ---------------------------- | -------------------------- |
@@ -159,14 +164,13 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_cameras_routes.py`      | Camera CRUD endpoints      |
 | `test_detections_routes.py`   | Detection endpoints        |
 | `test_events_routes.py`       | Event management endpoints |
-| `test_logs_routes.py`         | Log management endpoints   |
 | `test_media_routes.py`        | Media file serving         |
 | `test_notification_routes.py` | Notification endpoints     |
 | `test_system_routes.py`       | System health and config   |
 | `test_websocket_routes.py`    | WebSocket handlers         |
 | `test_zones_routes.py`        | Zone CRUD endpoints        |
 
-### Services (`services/`) - 144 files
+### Services (`services/`) - 254 files
 
 **AI Pipeline Services:**
 
@@ -235,7 +239,7 @@ pytest backend/tests/unit/ -v --no-cov
 | File                                  | Tests For                     |
 | ------------------------------------- | ----------------------------- |
 | `test_audit.py`                       | Audit logging                 |
-| `test_audit_service.py`               | Audit service operations      |
+| `test_audit_logger.py`                | Audit logger service          |
 | `test_baseline.py`                    | Activity baseline service     |
 | `test_bbox_validation.py`             | Bounding box validation       |
 | `test_bbox_validation_integration.py` | BBox validation integration   |
@@ -266,35 +270,38 @@ pytest backend/tests/unit/ -v --no-cov
 | `test_websocket_circuit_breaker.py`   | WS circuit breaker            |
 | `test_zone_service.py`                | Zone management               |
 
-### Scripts (`scripts/`) - 2 files
+### Scripts (`scripts/`) - 6 files
 
-| File                              | Tests For                 |
-| --------------------------------- | ------------------------- |
-| `test_generate_openapi.py`        | OpenAPI schema generation |
-| `test_migrate_beads_to_linear.py` | Beads to Linear migration |
+| File                                 | Tests For                       |
+| ------------------------------------ | ------------------------------- |
+| `test_check_test_coverage_gate.py`   | Coverage-gate checking script   |
+| `test_check_version_consistency.py`  | Version consistency script      |
+| `test_comparison_engine.py`          | Evaluation comparison engine    |
+| `test_generate_openapi.py`           | OpenAPI schema generation       |
+| `test_validate_docs.py`              | Documentation validation script |
+| `test_validate_synthetic_quality.py` | Synthetic fixture quality check |
 
 ## Common Fixtures
 
-From `backend/tests/conftest.py`:
+Defined once in `backend/tests/conftest.py`, available to every test:
 
 | Fixture                | Description                                    |
 | ---------------------- | ---------------------------------------------- |
 | `isolated_db`          | Temporary PostgreSQL database with clean state |
 | `test_db`              | Database session factory                       |
 | `reset_settings_cache` | Auto-clears settings cache (autouse)           |
+| `mock_redis_client`    | Mocked Redis with common operations            |
+| `mock_http_client`     | Mocked httpx AsyncClient                       |
 
-Test-specific fixtures (common patterns):
+Fixtures defined locally in individual test files (copy the pattern, don't expect them globally):
 
-| Fixture             | Description                           |
-| ------------------- | ------------------------------------- |
-| `engine`            | In-memory SQLite engine               |
-| `session`           | Database session with rollback        |
-| `mock_redis_client` | Mocked Redis with common operations   |
-| `mock_session`      | Mocked database session               |
-| `temp_camera_root`  | Temporary camera directory            |
-| `sample_detections` | Pre-built detection objects           |
-| `mock_http_client`  | Mocked httpx AsyncClient              |
-| `clean_env`         | Isolated environment for config tests |
+| Fixture             | Description                           | Typical location                        |
+| ------------------- | ------------------------------------- | --------------------------------------- |
+| `mock_session`      | Mocked database session               | ~33 test files define their own         |
+| `sample_detections` | Pre-built detection objects           | several services tests                  |
+| `temp_camera_root`  | Temporary camera directory            | file-watcher style tests                |
+| `clean_env`         | Isolated environment for config tests | config/TLS tests                        |
+| `session`           | Database session with rollback        | `backend/tests/integration/conftest.py` |
 
 ## Mocking Patterns
 
@@ -409,7 +416,7 @@ This project uses Hypothesis for property-based testing. Property tests discover
 
 ### Hypothesis Profiles
 
-Defined in `pyproject.toml`:
+Registered in `backend/tests/conftest.py`; the active profile comes from the `HYPOTHESIS_PROFILE` env var (default `default`), or the `--hypothesis-profile` pytest flag.
 
 | Profile   | `max_examples` | Use Case                      |
 | --------- | -------------- | ----------------------------- |
@@ -417,6 +424,8 @@ Defined in `pyproject.toml`:
 | `ci`      | 200            | CI pipeline (more thorough)   |
 | `fast`    | 10             | Quick smoke tests             |
 | `debug`   | 10             | Debugging with verbose output |
+
+(`pyproject.toml` `[tool.hypothesis.profiles.*]` also carries `ci` and `dev` entries, but nothing reads those sections — the code-registered profiles above are what load.)
 
 Run with specific profile:
 
@@ -426,16 +435,16 @@ uv run pytest backend/tests/unit/ -xvs -k "hypothesis" --hypothesis-profile=ci
 
 ### Custom Strategies
 
-Located in `backend/tests/strategies.py`:
+54 strategies in `backend/tests/strategies.py` (see its `__all__` for the full list). Commonly used:
 
 | Strategy                      | Description                             |
 | ----------------------------- | --------------------------------------- |
 | `risk_scores`                 | Risk scores (0-100 integers)            |
-| `confidences`                 | Confidence values (0.0-1.0 floats)      |
-| `bbox_coordinates`            | Bounding box pixel coordinates          |
+| `risk_score_floats`           | Risk scores as floats                   |
+| `confidence_scores`           | Confidence values (0.0-1.0 floats)      |
 | `sha256_hashes`               | Valid SHA256 hex strings                |
-| `detection_strategy`          | Full Detection model instances          |
-| `event_strategy`              | Full Event model instances              |
+| `detection_dict_strategy`     | Detection-shaped dicts                  |
+| `detection_list_strategy`     | Lists of detection dicts                |
 | `valid_bbox_xyxy_strategy`    | Valid bboxes (x1 < x2, y1 < y2)         |
 | `invalid_bbox_xyxy_strategy`  | Invalid bboxes (zero/negative dims)     |
 | `bbox_and_image_strategy`     | Bbox + image dimensions (within bounds) |
@@ -561,7 +570,7 @@ class TestScoreProperties:
 
 ## Coverage Goals
 
-- **Target**: 98%+ for unit-tested components
+- **Executed floor**: 80% combined unit+integration (`scripts/validate.sh` gates the merged measurement at `--fail-under=80`); CI additionally floors the unit tier at 84 when all unit shards passed, and `pyproject.toml` keeps `fail_under = 85` as the PR diff gate's relative baseline. Measured unit coverage runs ~84% blended — aim to keep new code above that, not at a mythical 98%.
 - **Focus areas**:
   - Happy path (normal operation)
   - Error conditions (exceptions, timeouts)

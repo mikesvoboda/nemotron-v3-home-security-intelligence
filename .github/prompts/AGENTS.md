@@ -119,4 +119,4 @@ deleted; this prompt is retained for a future reviewer that costs nothing.
 ## Related Files
 
 - `../copilot-instructions.md` - GitHub Copilot context
-- `CLAUDE.md` - Project development guidelines
+- `AGENTS.md` - Project development guidelines

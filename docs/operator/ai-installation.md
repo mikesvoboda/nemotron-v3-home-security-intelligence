@@ -11,11 +11,11 @@
 
 ### VRAM Requirements by Deployment Scenario
 
-| Scenario                       | Models Used                                      | VRAM Required     | Recommended GPU |
-| ------------------------------ | ------------------------------------------------ | ----------------- | --------------- |
-| **Dev (host-run)**             | Nemotron Mini 4B + YOLO26                        | 8GB minimum       | RTX 3060/4060   |
-| **Prod (containerized, core)** | Nemotron-3-Nano-30B + YOLO26                     | 16GB minimum      | RTX 4080/A4000  |
-| **Prod (all services)**        | Nano 30B + YOLO26 + Florence + CLIP + Enrichment | 24GB+ recommended | RTX A5500/4090  |
+| Scenario                       | Models Used                                                     | VRAM Required     | Recommended GPU |
+| ------------------------------ | --------------------------------------------------------------- | ----------------- | --------------- |
+| **Dev (host-run)**             | Nemotron Mini 4B + standalone YOLO26                            | 8GB minimum       | RTX 3060/4060   |
+| **Prod (containerized, core)** | Nemotron-3-Nano-30B + ai-gateway (YOLO26, Florence-2, SigLIP 2) | 20GB minimum      | RTX 4080/A4000  |
+| **Prod (all services)**        | Nano 30B + full gateway (enrichment loaded on demand)           | 24GB+ recommended | RTX A5500/4090  |
 
 ### Minimum
 
@@ -23,15 +23,17 @@
 - **VRAM**: 8GB minimum (~7GB used + buffer)
 - **CUDA**: Version 11.8 or later
 - **System RAM**: 16GB
-- **Storage**: 10GB free space for models and cache
+- **Storage**: 40GB+ free space for models and cache (the `models.yml` manifest totals
+  ~33GB; the four required models are ~16GB)
 
 ### Recommended (Tested Configuration)
 
-- **GPU**: NVIDIA RTX A5500 (24GB VRAM)
-- **VRAM**: 12GB+ (comfortable headroom)
+- **GPU**: NVIDIA RTX A5500 (24GB VRAM) — or two GPUs, the default split is
+  `GPU_LLM=0` + `GPU_AI_SERVICES=1`
+- **VRAM**: 24GB+ (comfortable headroom)
 - **CUDA**: Version 12.x
 - **System RAM**: 32GB
-- **Storage**: 20GB free space
+- **Storage**: 60GB free space
 
 ### GPU Compatibility
 
@@ -65,26 +67,23 @@ flowchart TD
     end
 
     subgraph "Container Layer"
-        Toolkit[NVIDIA Container Toolkit]
+        Toolkit[NVIDIA Container Toolkit<br/>CDI spec for Podman]
         Runtime{Docker or Podman}
     end
 
     subgraph "Application Layer"
         Python[Python 3.10+]
-        Llama[llama.cpp<br/>with CUDA]
-        PyDeps[PyTorch + Transformers]
+        Llama[llama.cpp<br/>built in ai/nemotron image]
+        Triton[Triton Inference Server<br/>base of ai/gateway image]
     end
 
     subgraph "Model Layer"
-        YOLO26[YOLO26<br/>~160MB]
-        Nemotron[Nemotron<br/>2.5GB-18GB]
-        Optional[Optional Models<br/>Florence/CLIP/Enrichment]
+        Models[models.yml manifest<br/>~33GB, required ~16GB]
     end
 
     subgraph "Service Layer"
-        Detector[ai-yolo26:8095]
+        Gateway[ai-gateway:8090<br/>yolo26/florence/clip/<br/>enrichment/enrich-lt]
         LLM[ai-llm:8091]
-        OptServices[ai-florence:8092<br/>ai-clip:8093<br/>ai-enrichment:8094]
     end
 
     GPU --> Driver
@@ -94,22 +93,17 @@ flowchart TD
 
     Runtime --> Python
     Runtime --> Llama
-    Python --> PyDeps
+    Runtime --> Triton
 
-    PyDeps --> YOLO26
-    Llama --> Nemotron
-    PyDeps --> Optional
-
-    YOLO26 --> Detector
-    Nemotron --> LLM
-    Optional --> OptServices
+    Models --> Gateway
+    Models --> LLM
+    Llama --> LLM
 
     style GPU fill:#e1f5fe
     style Driver fill:#e8f5e9
     style Toolkit fill:#fff3e0
-    style Detector fill:#c8e6c9
+    style Gateway fill:#c8e6c9
     style LLM fill:#c8e6c9
-    style OptServices fill:#e1f5fe
 ```
 
 ### Operating System
@@ -141,6 +135,10 @@ sudo apt install nvidia-driver-550 nvidia-cuda-toolkit
 sudo dnf install akmod-nvidia xorg-x11-drv-nvidia-cuda
 ```
 
+For the container path, also install `nvidia-container-toolkit` and generate the CDI
+spec used by Podman (`sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml`) —
+see [GPU Setup](gpu-setup.md).
+
 ### 2. Python 3.10+
 
 ```bash
@@ -154,47 +152,25 @@ sudo apt install python3.10 python3-pip python3-venv
 sudo dnf install python3.10 python3-pip
 ```
 
-### 3. llama.cpp (for Nemotron)
+### 3. llama.cpp (host-run development only)
 
-llama.cpp provides the `llama-server` command for running the LLM.
-
-**Option A: Check if installed**
-
-```bash
-which llama-server
-```
-
-**Option B: Build from source** (recommended for best performance)
+Only needed if you run `./ai/start_llm.sh` / `./ai/start_nemotron.sh` on the host. The
+containerized `ai-llm` image builds llama.cpp from source inside the image
+(`ai/nemotron/Dockerfile`) — you do **not** need a host install for the compose stack.
 
 ```bash
-# Install build dependencies
-# Ubuntu/Debian
-sudo apt install build-essential cmake git libcurl4-openssl-dev
-
-# Fedora
-sudo dnf install gcc-c++ cmake git libcurl-devel
-
-# Clone and build
+# Build from source (the ai/nemotron Dockerfile does the same inside the image)
+sudo dnf install gcc-c++ cmake git libcurl-devel   # Ubuntu: build-essential cmake git libcurl4-openssl-dev
 cd /tmp
-git clone https://github.com/ggerganov/llama.cpp
+git clone https://github.com/ggml-org/llama.cpp
 cd llama.cpp
-make LLAMA_CUDA=1 -j$(nproc)
-
-# Install binary (choose one)
-# System-wide
-sudo install -m 755 llama-server /usr/local/bin/llama-server
-
-# User-local
-mkdir -p ~/.local/bin
-install -m 755 llama-server ~/.local/bin/llama-server
+cmake -B build -DGGML_CUDA=ON && cmake --build build --config Release -j$(nproc)
 
 # Verify
-llama-server --version
+build/bin/llama-server --version
 ```
 
-Build time: ~5-10 minutes depending on CPU.
-
-### 4. Python Dependencies (YOLO26)
+### 4. Python Dependencies (YOLO26 / dev tooling)
 
 ```bash
 cd $PROJECT_ROOT
@@ -204,13 +180,12 @@ cd $PROJECT_ROOT
 uv sync --extra dev
 
 # This creates .venv and installs all dependencies from pyproject.toml
-# The YOLO26 dependencies are included in the main project
 ```
 
 Key dependencies (defined in `pyproject.toml`):
 
-- `torch` + `torchvision` - PyTorch for deep learning
-- `transformers` - HuggingFace model loading/inference (YOLO26)
+- `torch` + `torchvision` - PyTorch for deep learning (standalone `ai/yolo26/model.py` server)
+- `transformers` - HuggingFace model loading/inference
 - `fastapi` + `uvicorn` - Web server
 - `pillow` + `opencv-python` - Image processing
 - `pynvml` - NVIDIA GPU monitoring
@@ -219,42 +194,41 @@ Key dependencies (defined in `pyproject.toml`):
 
 ## Model Downloads
 
-### LLM Model Versions
+All model weights are listed in the `models.yml` manifest at the repo root (30 models,
+~33GB total). `./ai/download_models.sh` reads that manifest and downloads into
+`${AI_MODELS_PATH:-/export/ai_models}`.
 
-This project supports two Nemotron LLM models for different deployment scenarios:
+### Models You Actually Need
 
-| Model                         | Size    | VRAM    | Use Case                   | Location                                                   |
-| ----------------------------- | ------- | ------- | -------------------------- | ---------------------------------------------------------- |
-| **Nemotron Mini 4B Instruct** | ~2.5GB  | ~3GB    | Development (host-run)     | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`        |
-| **Nemotron-3-Nano-30B-A3B**   | ~14.7GB | ~14.7GB | Production (containerized) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` |
+| Model                                                           | Size           | Required | Use Case                                      | Location (under `$AI_MODELS_PATH`)                  |
+| --------------------------------------------------------------- | -------------- | -------- | --------------------------------------------- | --------------------------------------------------- |
+| **Nemotron-3-Nano-30B-A3B**                                     | ~15GB (Q4_K_M) | yes      | Production LLM (`ai-llm`)                     | `nemotron/nemotron-3-nano-30b-a3b-q4km/`            |
+| **YOLO26**                                                      | ~67MB          | yes      | Detection (`ai-gateway /yolo26`)              | `model-zoo/yolo26/` (Triton)                        |
+| **Florence-2-base**                                             | ~1GB           | yes      | Vision-language (`/florence`)                 | `model-zoo/florence-2-base/`                        |
+| **SigLIP 2 base**                                               | ~400MB         | yes      | Embeddings/ReID (`/clip`)                     | `model-zoo/siglip2-base-patch16-224/`               |
+| Enrichment zoo (vehicle, pet, clothing, depth, pose, threat, …) | ~15GB combined | no       | `/enrichment`, `/enrich-lt`                   | `model-zoo/…`                                       |
+| **Nemotron Mini 4B Instruct**                                   | ~2.5GB         | no       | Host-run dev fallback for `./ai/start_llm.sh` | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
 
-**When to use each:**
+**When to use each LLM:**
 
 - **Mini 4B**: Fast iteration during development, lower quality reasoning but sufficient for testing pipelines
 - **Nano 30B**: Production deployment with higher quality risk analysis, requires more VRAM
 
-### Development Model (Mini 4B)
-
-#### Automated Download
+### Automated Download
 
 ```bash
 cd $PROJECT_ROOT
 ./ai/download_models.sh
 ```
 
-**Downloads:**
+This clones/downloads every model listed in `models.yml` into
+`${AI_MODELS_PATH:-/export/ai_models}/{nemotron,model-zoo}/`. Set `AI_MODELS_PATH` to
+use a different disk.
 
-1. **Nemotron Mini 4B Instruct (Q4_K_M)** - ~2.5GB
+### Development Model (Mini 4B)
 
-   - Source: HuggingFace (bartowski/nemotron-mini-4b-instruct-GGUF)
-   - Location: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
-   - Download time: ~5-10 minutes
-
-2. **YOLO26** - ~160MB
-   - Auto-downloaded on first use via HuggingFace transformers
-   - Location: `~/.cache/huggingface/`
-
-#### Manual Download (if automatic fails)
+`ai/start_llm.sh` looks for the mini model at `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
+(not under `$AI_MODELS_PATH`). Download it manually:
 
 ```bash
 cd ai/nemotron
@@ -264,183 +238,86 @@ wget https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/mai
 
 ### Production Model (Nano 30B)
 
-For production deployments with better reasoning quality, download from the official NVIDIA HuggingFace repository: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+If you skip `download_models.sh`, download the LLM directly. The manifest fetches the
+`unsloth/Nemotron-3-Nano-30B-A3B-GGUF` build; NVIDIA's own repository is
+[nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF):
 
 ```bash
 # Create production model directory
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 
-# Download the model (large download, ~14.7GB)
+# Download the model (large download, ~15GB)
 cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
   -O Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ```
 
-The `docker-compose.prod.yml` expects this model at `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`.
+The `docker-compose.prod.yml` `ai-llm` service expects this file under
+`/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/` (mounted at `/models`,
+selected via `LLM_MODEL_PATH`).
 
 ### Verify Downloads
 
 ```bash
-# Check development model
+# Check development model (if downloaded)
 ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 # Expected: ~2.5GB file
 
-# Check production model (if downloaded)
+# Check production model
 ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
-# Expected: ~14.7GB file
+# Expected: ~15GB file
 
-# YOLO26 downloads automatically on first inference
+# Check gateway models
+ls /export/ai_models/model-zoo/
+# Expected: yolo26/, florence-2-base/, siglip2-base-patch16-224/, enrichment dirs
 ```
 
 ---
 
 ## Verification
 
-Run the startup script with status check:
+There is no unified `scripts/start-ai.sh` (it was removed). Verify prerequisites
+directly:
 
 ```bash
-./scripts/start-ai.sh status
-```
+# GPU + driver
+nvidia-smi
 
-This identifies any missing prerequisites.
+# Container GPU access (Podman CDI)
+podman run --rm --device nvidia.com/gpu=all docker.io/nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
+
+# Model files present
+ls /export/ai_models/model-zoo/ /export/ai_models/nemotron/
+```
 
 ---
 
-## Optional AI Services Setup
+## Enrichment Services (inside ai-gateway)
 
-Beyond the core YOLO26 and Nemotron services, three optional AI services provide enhanced detection capabilities. These are only needed for production deployments requiring advanced features.
+Florence-2, CLIP/SigLIP 2 and the enrichment models are **not separate services**
+anymore — they run inside the single `ai-gateway` container behind routers
+`/florence`, `/clip`, `/enrichment` (heavy) and `/enrich-lt` (light). The old
+standalone containers and ports (8092 Florence, 8093 CLIP, 8094 enrichment, 8096
+enrichment-light) no longer exist.
 
-### Optional AI Services Startup Sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant DC as Docker Compose
-    participant GPU as GPU (VRAM)
-    participant FL as Florence-2
-    participant CL as CLIP
-    participant EN as Enrichment
-
-    Note over DC,EN: Optional services start after core services are healthy
-
-    DC->>GPU: Check available VRAM
-    GPU-->>DC: ~10GB available (after core services)
-
-    par Florence-2 Startup
-        DC->>FL: Start ai-florence
-        FL->>GPU: Allocate ~1.2GB VRAM
-        FL-->>DC: Healthy (30-45s)
-    and CLIP Startup
-        DC->>CL: Start ai-clip
-        CL->>GPU: Allocate ~800MB VRAM
-        CL-->>DC: Healthy (20-30s)
-    end
-
-    Note over DC,EN: Enrichment starts last (largest VRAM)
-    DC->>EN: Start ai-enrichment
-    EN->>GPU: Allocate ~6GB VRAM
-    EN-->>DC: Healthy (60-90s)
-
-    Note over DC,EN: Verify all services
-    DC->>FL: GET /health
-    FL-->>DC: 200 OK
-    DC->>CL: GET /health
-    CL-->>DC: 200 OK
-    DC->>EN: GET /health
-    EN-->>DC: 200 OK
-```
-
-### Service Overview
-
-| Service        | Port | VRAM   | Purpose                                                              |
-| -------------- | ---- | ------ | -------------------------------------------------------------------- |
-| **Florence-2** | 8092 | ~1.2GB | Vision-language captions, OCR, dense region descriptions             |
-| **CLIP**       | 8093 | ~800MB | Entity re-identification, scene anomaly detection                    |
-| **Enrichment** | 8094 | ~6GB   | Vehicle/pet/clothing classification, depth estimation, pose analysis |
-
-### Florence-2 Setup
-
-Provides detailed scene descriptions and OCR capabilities.
+To enable enrichment features you only need the model weights on disk and the
+gateway running:
 
 ```bash
-# Download Florence-2-large model
-mkdir -p /export/ai_models/model-zoo/florence-2-large
-cd /export/ai_models/model-zoo/florence-2-large
+# 1. Models already fetched by ./ai/download_models.sh (manifest: models.yml)
 
-# Clone from HuggingFace (requires git-lfs)
-git lfs install
-git clone https://huggingface.co/microsoft/Florence-2-large .
+# 2. Start the gateway
+podman compose -f docker-compose.prod.yml up -d ai-gateway
+
+# 3. Verify each router
+curl -s http://localhost:8090/florence/health | jq
+curl -s http://localhost:8090/clip/health | jq
+curl -s http://localhost:8090/enrichment/health | jq
+curl -s http://localhost:8090/enrich-lt/health | jq
 ```
 
-### CLIP Setup
-
-Enables entity tracking across cameras and anomaly detection.
-
-```bash
-# Download CLIP ViT-L model
-mkdir -p /export/ai_models/model-zoo/clip-vit-l
-cd /export/ai_models/model-zoo/clip-vit-l
-
-# Clone from HuggingFace
-git lfs install
-git clone https://huggingface.co/openai/clip-vit-large-patch14 .
-```
-
-### Enrichment Service Setup
-
-Requires multiple specialized models:
-
-```bash
-# Create model directories
-mkdir -p /export/ai_models/model-zoo/{vehicle-segment-classification,pet-classifier,fashion-clip,depth-anything-v2-small}
-
-# Vehicle classification model
-cd /export/ai_models/model-zoo/vehicle-segment-classification
-git lfs install
-git clone https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification .
-
-# Pet classifier
-cd /export/ai_models/model-zoo/pet-classifier
-git clone https://huggingface.co/microsoft/resnet-18 .
-
-# FashionCLIP for clothing analysis
-cd /export/ai_models/model-zoo/fashion-clip
-git clone https://huggingface.co/patrickjohncyh/fashion-clip .
-
-# Depth estimation
-cd /export/ai_models/model-zoo/depth-anything-v2-small
-git clone https://huggingface.co/depth-anything/Depth-Anything-V2-Small .
-```
-
-### Starting Optional Services
-
-Start individual services:
-
-```bash
-# Start Florence-2 only
-docker compose -f docker-compose.prod.yml up ai-florence -d
-
-# Start CLIP only
-docker compose -f docker-compose.prod.yml up ai-clip -d
-
-# Start Enrichment service only
-docker compose -f docker-compose.prod.yml up ai-enrichment -d
-```
-
-Or start all services including optional ones:
-
-```bash
-docker compose -f docker-compose.prod.yml up -d
-```
-
-### Verifying Optional Services
-
-```bash
-# Health checks
-curl http://localhost:8092/health  # Florence-2
-curl http://localhost:8093/health  # CLIP
-curl http://localhost:8094/health  # Enrichment
-```
+Which enrichment tier (heavy vs light) handles a given model is set by the
+`ENRICHMENT_*_SERVICE` variables — see [AI Configuration](ai-configuration.md).
 
 ---
 

@@ -14,9 +14,10 @@ not `/tmp`, which has wiped mid-analysis before.)
   each xdist worker appends `$DURATIONS_DIR/<worker>.tsv` rows immediately
   (`nodeid  when  dur  outcome  slow  timeout_mark`), so a mid-run worker
   crash only loses the in-flight test. Promoted from
-  `docs/superpowers/staged/2026-09-14/dur/` (M3 T4; the docs copy stays as
-  the historical record that produced the T4 measurement rows — the owner
-  ruling that un-armed `timeout_func_only` was decided on its output).
+  `docs/superpowers/staged/2026-09-14/dur/` (M3 T4; that gitignored staging
+  directory has since been cleaned up — this file is the surviving copy. The
+  owner ruling that un-armed `timeout_func_only` was decided on the staged
+  plugin's measurement output).
 
 Note: with xdist the plugin records every report twice — once in the worker
 (`gwN.tsv`) and once as the controller receives it (`main.tsv`), identical

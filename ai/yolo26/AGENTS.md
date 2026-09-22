@@ -264,10 +264,12 @@ detections = await client.detect_objects(
 
 ## Starting the Server
 
-### Container (Production)
+### Production (served by ai-gateway)
+
+Production detection runs inside the `ai-gateway` container (Triton + FastAPI on port 8090, router prefix `/yolo26`) - there is no standalone `ai-yolo26` compose service:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-yolo26
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 ```
 
 ### Native (Development)

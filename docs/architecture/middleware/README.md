@@ -109,74 +109,63 @@ Several middleware components use Python context variables to share state across
 
 ## Configuration
 
-| Setting                          | Location                         | Default             | Description                   |
-| -------------------------------- | -------------------------------- | ------------------- | ----------------------------- |
-| `api_key_enabled`                | `backend/core/config.py`         | `false`             | Enable API key authentication |
-| `cors_origins`                   | `backend/core/config.py:752-765` | Development origins | Allowed CORS origins          |
-| `rate_limit_enabled`             | `backend/core/config.py:1328`    | `true`              | Enable rate limiting          |
-| `rate_limit_requests_per_minute` | `backend/core/config.py:1332`    | `60`                | Default rate limit            |
-| `request_logging_enabled`        | `backend/core/config.py:1821`    | `true`              | Enable request logging        |
-| `request_recording_enabled`      | `backend/core/config.py`         | `false`             | Enable request recording      |
-| `idempotency_enabled`            | `backend/core/config.py`         | `false`             | Enable idempotency middleware |
-| `hsts_preload`                   | `backend/core/config.py`         | `false`             | HSTS preload directive        |
+| Setting                          | Location                         | Default             | Description                              |
+| -------------------------------- | -------------------------------- | ------------------- | ---------------------------------------- |
+| `api_key_enabled`                | `backend/core/config.py:1797`    | `false`             | Enable API key authentication            |
+| `cors_origins`                   | `backend/core/config.py:884-892` | HTTPS :8444 origins | Allowed CORS origins                     |
+| `rate_limit_enabled`             | `backend/core/config.py:2118`    | `true`              | Enable rate limiting                     |
+| `rate_limit_requests_per_minute` | `backend/core/config.py:2122`    | `60`                | Default rate limit                       |
+| `request_logging_enabled`        | `backend/core/config.py:2657`    | `true`              | Feed structured logs via ObservabilityMW |
+| `request_recording_enabled`      | `backend/core/config.py:2666`    | `false`             | Enable request recording (debug)         |
+| `idempotency_enabled`            | `backend/core/config.py:2199`    | `true`              | Enable idempotency middleware            |
+| `hsts_preload`                   | `backend/core/config.py:2689`    | `false`             | HSTS preload directive                   |
 
 ## Middleware Registration
 
-Middleware is registered in `backend/main.py:1083-1162`:
+Middleware is registered in `backend/main.py:1351-1441`. Note the order: with
+Starlette, the **last** `add_middleware()` call is the **outermost** layer, so
+requests flow bottom-up through this list:
 
 ```python
-# From backend/main.py:1083-1162
-# Add authentication middleware (if enabled in settings)
-app.add_middleware(AuthMiddleware)
+# From backend/main.py:1351-1441 (abridged, in registration order)
+app.add_middleware(SetupGuardMiddleware)  # 503 until first admin registered (NEM-5312)
 
-# Add Content-Type validation middleware for request body validation (NEM-1617)
-app.add_middleware(ContentTypeValidationMiddleware)
+# NEM-5527: global AuthMiddleware is intentionally NOT registered — single-user
+# deployment; per-route deps (verify_api_key, require_admin_access) protect
+# admin endpoints; 127.0.0.1 network binding is the security boundary.
 
-# Add request ID middleware for log correlation
-app.add_middleware(RequestIDMiddleware)
+app.add_middleware(ContentTypeValidationMiddleware)  # NEM-1617
+app.add_middleware(RequestIDMiddleware)              # log correlation
+app.add_middleware(BaggageMiddleware)                # W3C Baggage (NEM-3796)
+app.add_middleware(ProfilingMiddleware)              # Pyroscope trace-tags (NEM-4127)
 
-# Add OpenTelemetry Baggage middleware for cross-service context propagation (NEM-3796)
-app.add_middleware(BaggageMiddleware)
+# NEM-5558: one unified middleware replaces RequestTiming + RequestLogging
+app.add_middleware(
+    ObservabilityMiddleware,
+    enable_request_logging=get_settings().request_logging_enabled,
+)
 
-# Add request timing middleware for API latency tracking (NEM-1469)
-app.add_middleware(RequestTimingMiddleware)
-
-# Add request logging middleware for structured observability (NEM-1963)
-if get_settings().request_logging_enabled:
-    app.add_middleware(RequestLoggingMiddleware)
-
-# Add request recording middleware for debugging production issues (NEM-1964)
-if get_settings().request_recording_enabled:
+if get_settings().request_recording_enabled:          # NEM-1964, off by default
     app.add_middleware(RequestRecorderMiddleware)
 
-# Add RFC 8594 deprecation headers middleware (NEM-2089)
-app.add_middleware(DeprecationMiddleware, config=_get_deprecation_config())
+# NEM-5558: DeprecationMiddleware/DeprecationLoggerMiddleware removed
+# (zero deprecated endpoints registered).
 
-# Add deprecation logger middleware for tracking deprecated endpoint usage (NEM-2090)
-app.add_middleware(DeprecationLoggerMiddleware)
-
-# Security: Restrict CORS methods to only what's needed
-_cors_origins = get_settings().cors_origins
-_allow_credentials = "*" not in _cors_origins
+# NEM-5059: explicit header allowlist, not "*"
+_cors_allowed_headers = ["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=_allow_credentials,
+    allow_credentials=_allow_credentials,  # disabled when "*" is an origin
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=_cors_allowed_headers,
 )
 
-# Add security headers middleware for defense-in-depth
 app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_preload)
+app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # NEM-1614
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)       # NEM-3741
 
-# Add body size limit middleware to prevent DoS attacks (NEM-1614)
-app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
-
-# Add GZip compression middleware for response compression (NEM-3741)
-app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
-
-# Add idempotency middleware for mutation endpoints (NEM-1999)
-if get_settings().idempotency_enabled:
+if get_settings().idempotency_enabled:                # NEM-1999, ON by default
     app.add_middleware(IdempotencyMiddleware)
 ```
 
@@ -186,7 +175,7 @@ The middleware directory contains 25 modules. Key middleware not detailed here i
 
 ### SetupGuardMiddleware
 
-The `SetupGuardMiddleware` (`backend/api/middleware/setup_guard.py`) is a critical middleware that returns 503 for all API requests until the first admin user has been registered. This ensures the system is properly initialized before accepting traffic. It should be considered part of the execution order, running before `AuthMiddleware`.
+The `SetupGuardMiddleware` (`backend/api/middleware/setup_guard.py`) is a critical middleware that returns 503 for all non-whitelisted endpoints until the first admin user has been registered. This ensures the system is properly initialized before accepting traffic. It is registered first in `backend/main.py`, making it the outermost gate a request passes through.
 
 ## Related Hubs
 

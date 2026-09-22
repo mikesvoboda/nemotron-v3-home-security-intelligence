@@ -153,7 +153,9 @@ A single "person walks to door" event might generate 15+ camera images over 30 s
 
 Batch detections into time windows with idle timeout, then analyze the batch as a single event.
 
---8<-- "docs/\_includes/batching-config.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/batching-config.md"
+<!-- prettier-ignore-end -->
 
 ### Alternatives Considered
 
@@ -233,6 +235,13 @@ Use **fully containerized deployment** with Docker Compose for all services, inc
 ### Update History
 
 **2024-12-30:** Finalized fully containerized architecture. All services run in containers with GPU passthrough via NVIDIA Container Toolkit.
+
+**2026-09-22 (docs scan):** The container topology below is as-recorded and
+kept unchanged. As of the AI-gateway consolidation, YOLO26/CLIP/Florence/
+enrichment all run inside a single `ai-gateway` container on :8090 (the
+separate :8092-:8095 services were removed); only Nemotron remains separate
+on `ai-llm` :8091. The decision itself — fully containerized with CDI GPU
+passthrough — stands.
 
 ### Alternatives Considered
 
@@ -465,20 +474,22 @@ Use **FastAPI** (Python) for backend and **React + TypeScript + Tailwind + Tremo
 ### Alternatives Considered
 
 **Backend:**
-| Framework | Pros | Cons |
-|-----------|------|------|
-| **FastAPI** | Async-native, auto-docs, type hints, WebSocket support | Python ecosystem |
-| **Django** | Batteries-included, ORM | Sync by default, heavier |
-| **Node.js Express** | JavaScript everywhere | Different ecosystem from AI code |
-| **Go Fiber** | Very fast, low memory | Fewer AI/ML libraries |
+
+| Framework           | Pros                                                   | Cons                             |
+| ------------------- | ------------------------------------------------------ | -------------------------------- |
+| **FastAPI**         | Async-native, auto-docs, type hints, WebSocket support | Python ecosystem                 |
+| **Django**          | Batteries-included, ORM                                | Sync by default, heavier         |
+| **Node.js Express** | JavaScript everywhere                                  | Different ecosystem from AI code |
+| **Go Fiber**        | Very fast, low memory                                  | Fewer AI/ML libraries            |
 
 **Frontend:**
-| Framework | Pros | Cons |
-|-----------|------|------|
-| **React** | Huge ecosystem, hooks, well-documented | Bundle size, learning curve |
-| **Vue** | Simpler, good docs | Smaller ecosystem |
-| **Svelte** | Smallest bundle, fast | Newer, smaller community |
-| **HTMX** | Minimal JavaScript | Limited for complex UIs |
+
+| Framework  | Pros                                   | Cons                        |
+| ---------- | -------------------------------------- | --------------------------- |
+| **React**  | Huge ecosystem, hooks, well-documented | Bundle size, learning curve |
+| **Vue**    | Simpler, good docs                     | Smaller ecosystem           |
+| **Svelte** | Smallest bundle, fast                  | Newer, smaller community    |
+| **HTMX**   | Minimal JavaScript                     | Limited for complex UIs     |
 
 ### Consequences
 
@@ -554,7 +565,9 @@ const { isConnected, lastMessage } = useWebSocket({
 
 **WebSocket Channels:**
 
---8<-- "docs/\_includes/websocket-channels.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/websocket-channels.md"
+<!-- prettier-ignore-end -->
 
 ---
 
@@ -599,7 +612,9 @@ Let the **LLM determine risk scores** based on context, rather than using algori
 
 > See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
 
---8<-- "docs/\_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-end -->
 
 ---
 

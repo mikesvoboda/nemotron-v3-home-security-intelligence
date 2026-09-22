@@ -84,18 +84,20 @@ interface WebSocketStatusProps {
 
 ### Usage Example
 
+`useConnectionStatus()` aggregates both channels; `useWebSocketStatus()` tracks a single channel and is what `useConnectionStatus` builds on.
+
 ```tsx
 import { WebSocketStatus } from '@/components/common';
-import { useWebSocketStatus } from '@/hooks/useWebSocketStatus';
+import { useConnectionStatus } from '@/hooks/useConnectionStatus';
 
 function StatusBar() {
-  const { eventsChannel, systemChannel, retry, isPollingFallback } = useWebSocketStatus();
+  const { summary, isPollingFallback, retryConnection } = useConnectionStatus();
 
   return (
     <WebSocketStatus
-      eventsChannel={eventsChannel}
-      systemChannel={systemChannel}
-      onRetry={retry}
+      eventsChannel={summary.eventsChannel}
+      systemChannel={summary.systemChannel}
+      onRetry={retryConnection}
       isPollingFallback={isPollingFallback}
     />
   );
@@ -114,17 +116,35 @@ function StatusBar() {
 
 ## OfflineIndicator
 
-Displays network offline/online status.
+Compact offline status indicator with banner, badge, and minimal variants.
 
 **Location:** `frontend/src/components/common/OfflineIndicator.tsx`
+
+### Props
+
+The component is controlled — it renders from props, not from `navigator.onLine`.
+
+```typescript
+interface OfflineIndicatorProps {
+  isOffline: boolean; // Required - drives rendering
+  cachedEventsCount?: number; // Events queued for sync
+  lastOnlineAt?: Date | null; // Shows "time since last online"
+  position?: OfflineIndicatorPosition;
+  variant?: 'banner' | 'badge' | 'minimal'; // default: 'banner'
+  dismissible?: boolean; // default: false
+  onDismiss?: () => void;
+  onRetry?: () => void;
+  className?: string;
+  show?: boolean; // External visibility override
+}
+```
 
 ### Usage Example
 
 ```tsx
 import { OfflineIndicator } from '@/components/common';
 
-// Automatically shows when navigator.onLine is false
-<OfflineIndicator />;
+<OfflineIndicator isOffline={!isOnline} cachedEventsCount={queued.length} variant="banner" />;
 ```
 
 ---
@@ -133,16 +153,16 @@ import { OfflineIndicator } from '@/components/common';
 
 ### RiskBadge
 
-Displays risk level with color-coded badge.
+Displays risk level with color-coded badge. Pass `showScore` to render the numeric score alongside the label (hidden by default).
 
 **Location:** `frontend/src/components/common/RiskBadge.tsx`
 
 ```tsx
 import { RiskBadge } from '@/components/common';
 
-<RiskBadge level="high" score={85} />
+<RiskBadge level="high" score={85} showScore />
 <RiskBadge level="medium" />
-<RiskBadge level="low" score={15} />
+<RiskBadge level="low" score={15} showScore />
 ```
 
 ### ConfidenceBadge

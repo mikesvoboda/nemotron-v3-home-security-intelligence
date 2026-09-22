@@ -53,6 +53,10 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.snippets:
       base_path: ['.']
+      # Fail the build on a missing include instead of silently rendering nothing
+      # (a silently-dropped include is how the docs/\_includes/ escaping bug shipped
+      # empty Security Model sections for months).
+      check_paths: true
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.highlight:
@@ -187,6 +191,11 @@ nav:
           - Triton Rootless CUDA: reference/troubleshooting/triton-rootless-cuda.md
   - Decisions:
       - decisions/README.md
+      - Risk Score Validation Suite: decisions/2026-01-31-risk-score-validation-suite.md
+      - Entity-Detection Referential Integrity: decisions/entity-detection-referential-integrity.md
+      - Python 3.14 Adoption: decisions/python-314-adoption.md
+      - Documentation Reorganization: decisions/2026-01-12-docs-reorganization-design.md
+      - Grafana Integration: decisions/grafana-integration.md
 
 extra_css:
   - stylesheets/custom.css
