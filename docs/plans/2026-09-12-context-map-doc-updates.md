@@ -8898,3 +8898,218 @@ tests #6632 rewrote — do not fold retroactively); (2) a real frontend mutation
 score (Finding 5: harness defect, runner swap / downgrade / upstream issue —
 decide as its own WP); (3) R-1 wily-drop, R-2 gitleaks EULA, R-5 plugin-react
 owner rulings; (4) Node 26 revisit at LTS 2026-10-28.
+
+## M1 KILLED + M2 ROOT-CAUSED (branch mutation-testing, 2026-09-22) — the vitest-5 separator was the whole frontend death; the backend cache has NEVER banked an entry
+
+Two silent-red machines, both measured to the bucket this session; fixes
+on branch `mutation-testing` (`30a57d98` + the workflow commit).
+
+### M1 — frontend 0.00% green: vitest-5 full-name separator vs stryker's space-join
+
+DECIDE: root cause is `nameParts.join(' ')` in
+@stryker-mutator/vitest-runner 10.0.0 (dist/src/test-helpers.js +
+stryker-setup.js) against vitest 5's `testNamePattern` match on the
+FULL name joined `" > "` — the per-mutant filter matched 0 tests, every
+covered mutant became Survived, "Ran 0.00 tests per mutant", job green
+behind continue-on-error (run 35634327238). No supported stryker works
+on vitest 5 (10.0.0 latest; upstream #6210/#6213/#6214/#6220 open).
+Postinstall patch (house pattern, `frontend/scripts/patch-stryker-vitest5-names.cjs:48-50`
+TARGETS/NEEDLE/REPLACEMENT) is the fix; BOTH files patch together or a
+one-sided patch mismatches back to 0 tests.
+
+Measured repair (this session): `cd frontend && npm run test:mutation`
+(exact CI command; 384 mutants; 20m09s; node v22.22.1) →
+**All files 63.04 | covered 77.78 | killed 203 | timeout 0 | survived 58
+| no cov 61 | errors 62**, "Ran 15.20 tests per mutant" — EXACT match to
+#6588's honest baseline. Formula stryker: 203/(384-62-61)=63.04
+(CompileError=type-checker kills, excluded). Guard green-path
+`node scripts/mutation-guard.mjs reports/mutation/mutation.json` rc=0
+(avg_tests_per_mutant 22.36 from per-mutant testsCompleted — a different
+aggregation than stryker's console 15.20; both non-zero). Guard rules at
+`frontend/scripts/mutation-guard.mjs:104-110`; CI step wired;
+self-test `node scripts/test_mutation_guard.cjs` 11/11 green (run-29
+signature fixture → rc=1 citing vitest-name-filter). Patch durability:
+reverted runner to pristine → `npm ci` re-patched both files.
+`stryker.config.mjs:66` json reporter added (reporter-only);
+`break: null` (:76) untouched — cadence is owner-gated.
+
+### M2 — backend convergence: the cache never banked; three mechanical breaks (run 35496040596 forensics)
+
+DECIDE: the WP4.3 header's claim "A week whose prep overran the cap
+loses nothing: the cache keeps last week's verdicts" is REFUTED — run
+28 stranded 4,426 verdicts (37% of the entire 2026-09-19 point) via
+three INDEPENDENT breaks, each verified from the run log + Actions APIs:
+
+| #   | break                                                                                                                                                                                                                                                                                    | evidence                                                                                                                                                                                                                            | fix                                                                                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | actions/cache saves in a POST step; post steps do not run on failed jobs; the history push's GH006 (protected main expects required "CI Gate" ON the pushed commit — a bot commit minted in-workflow never carries one, so the direct push can NEVER land) failed the job → save skipped | log: `[main d154b62]` → `GH006 ... Required status check "CI Gate (Required Checks)" is expected` → `Process completed with exit code 1` → only "Post job cleanup" (no "Cache saved"); cache API lists ZERO mutmut-verdicts entries | explicit `actions/cache/save` step `if: always()` (`mutation-testing.yml:250-265`) + history lands via bot-branch PR + auto-merge (codeql-autofix #6592 house pattern; `:314`) |
+| 2   | key was per-run (`mutmut-verdicts-${run_id}`) + PREFIX restore-keys → a per-run save can never clobber the base entry; every restore lands on the SAME stale tar                                                                                                                         | run 28 log: `Cache not found for input keys: mutmut-verdicts-35496040596, mutmut-verdicts-`                                                                                                                                         | constant key `mutmut-verdicts-v1` + `overwrite: true` (`:177`, `:265`); pack shrink-guard `save_ok` refuses to bank fewer metas than restored (`:231-246`)                     |
+| 3   | upload-artifact v6 defaults `include-hidden-files: false` → the DOTFILE pack was silently skipped — the artifact was 5,989 bytes, the score JSON alone ("there will be 1 file uploaded")                                                                                                 | downloaded artifact r28art contained ONLY mutation-score.json; pack was 2,599,093 B (`-rw-r--r-- 1 runner runner 2599093 ... .mutmut-verdicts.tar.gz`)                                                                              | pack renamed `mutmut-verdicts.tar.gz` (non-dot; .gitignore updated)                                                                                                            |
+
+Also fixed same pass: `--repair` now runs AGAIN before the score step
+(a budget-kill can truncate a meta mid-save; the scorer's loader
+crashes on it — mutmut's own guard is FileNotFoundError-only);
+`gh pr merge` takes the PR URL explicitly (bare form resolves from the
+CURRENT branch = main, not the pushed head — review catch); previous
+un-merged history branches block duplicates (ls-remote guard); a
+landing failure opens ONE tracking issue (`:398`).
+
+### S1 note — local env fact banked: unit tests import cv2 (accept-header), which needs libxcb.so.1 + libGL from the host OS image
+
+First local `./scripts/mutation-run.sh metrics` died at the stats phase
+(`failed to collect stats. runner returned 1`) — pytest rc=1 collecting
+`backend/tests/unit/api/middleware/test_accept_header.py` →
+`ImportError: libxcb.so.1`. Fixed with `sudo apt-get install -y libxcb1
+libgl1 libglib2.0-0t64` (cv2 5.0.0 imports; sandbox has sudo). Cold-tree
+generation itself measured **267 files mutated in 18.3 s** (CI's 19-min
+fear is a CI-runner artifact, not the algorithm). mutmut 3.8 cold
+sequence confirmed from source (`__main__.py` run_stats_collection:
+generation → stats → clean tests → forced-fail → collect-only → per-
+mutant).
+
+### S2 first batch — 72 TEST-GAP mutants targeted in batch_aggregator (C6-C9, C11-C17), red-checked against real mutants (`4d4e9e1e`)
+
+Frozen feed `_clusters_final.json` tallies (measured this session, not
+carried over): the file carries 21 clusters; TEST-GAP share = 74 mutants
+across C1/C3 (gpu-monitor guard, 2), C6-C9 (recover, 26) and C11-C17
+(size-limit close, 46); EQUIVALENT/LOW-VALUE = C2/C4/C5/C10/C18-C21
+(129 mutants; log-text, exc_info, log_context correlation, decode-case
+and duration-arithmetic feeding only logger extras — per-cluster
+exclusion stands, blanket skips used nowhere).
+
+Gap anatomy (read off the existing suites before writing anything):
+`test_orphan_recovery.py` (148 lines) mocked `session.execute` and never
+inspected the passed statement; the size-limit tests asserted returned
+summaries but never the Redis calls. So the shipped CONTRACT was never
+under test — exactly what a survivor cluster means.
+
+New assertions: compiled-SQL contract (LEFT OUTER JOIN ON detections.id
+= event_detections.detection_id; event_id IS NULL; strict `<` cutoff
+bound-checked to the second against now()-3min; ORDER BY ASC; LIMIT 500;
+load_only carries all five re-injected columns), add_detection exact
+kwargs, closing-flag `set("batch:<id>:closing", "1", ex=300)`,
+`lrange(key, 0, -1)`, started_at read (value equality kills the
+get→None / `and False` fallbacks), summary keys, ANALYSIS_QUEUE push with
+QueueOverflowPolicy.DLQ, the seven-key delete list, every broadcast
+kwarg. Production code untouched — tests assert it as shipped.
+
+TDD red-check (mutants applied to source, then restored): drop `.limit`
+→ `assert sql.endswith("LIMIT 500")` fails (1 failed, 8 passed);
+closing-flag `"1"`→None → contract test fails (1 failed); restore →
+10-11 passed. Command: `uv run pytest <file> -q -o addopts="" -p
+no:randomly --timeout=120`. FULL module file after: 142 passed
+(`-n 8`, 7.11 s) — additions integrate with the existing 140.
+
+Follow-up commit `c327a4c5` closes the last 2 TEST-GAP mutants of the
+feed: C1 (setter asserted nothing about the module global — its own
+comment admitted it) and C3 (no test fed a NON-NORMAL level, so the
+inverted `is None` guard silently NORMALs every real reading). Red-check:
+applied both mutants; each fails exactly its new test; restored → 5
+passed. Feed tally now: 74/74 TEST-GAP mutants targeted, 0 blanket skips.
+
+ENV NOTE (banked): commits `30a57d98`/`c8c27359`/`4d4e9e1e` landed
+BEFORE this sandbox was found to have no pre-commit installed (bare
+`pre-commit` absent; hook git-file never written) — an INADVERTENT
+violation of the never-bypass rule. Remediation, in order: hooks
+installed (`pre-commit install` + python3.12 env + semgrep env repaired
+with `setuptools<81` — pkg_resources vanished in setuptools 81+), every
+hook re-run across ALL branch-changed files (all Passed/Skipped, no
+Failed — `5181df06` onward pass the real gate), and the drift it let
+through (one ruff PLC0207 + format) was fixed on top. No hook failure
+was ever skipped; none was bypassed knowingly.
+
+Per-mutant equivalence notes for the EQUIVALENT classes (why they are NOT
+killable at the shipped-contract level): log-message/extra payloads
+(C10 x45, C21 x45, C2/C4/C5 x31) propagate only into logger output —
+killing them would require production to bend (assertions on log text
+freeze incidental strings the codebase treats as non-contractual; the
+feed's classification stands). C19 (`utf-8`→`UTF-8` codec name) is
+literally equivalent at the codec level. C20 duration arithmetic feeds
+only a logger extra. C18 (x4) mutates log_context correlation keys.
+
+### CI-SANITY RED on PR #6639 root-caused — the 5s timer-vs-contract coin-toss, fixed with house explicit markers (`1d66e412`)
+
+PR #6639's only failing required job was Collection Sanity (run
+35723490624, job 106731541698, step "Run the anti-rot gates' own
+tests"): `1 failed, 179 passed, 8 warnings in 107.68s`, FAILED line
+`scripts/test_check_ai_provider_parity.py::test_real_tree_is_deterministic
+
+- Failed: Timeout (>5.0s) from pytest-timeout`. Read the job log via
+`gh api repos/.../actions/jobs/106731541698/logs` — the name of the job
+  ("zero-byte / zero-test tracked files") does not describe what killed
+  it; the pytest step did.
+
+Refutation-first, measured this session: the branch is NOT the cause.
+`git diff --name-only origin/main..HEAD` touches 12 files, zero of them
+a scanned .py under backend/ or ai/ (the two changed test files live
+under backend/tests/unit, which the parity scanner does not read); one
+scanned path is scripts/ itself and was untouched pre-fix. Local full
+`real_tree_*` leg: 5 passed 5.36s; whole file 27 passed 6.90s; single
+`real_report()` 0.47-0.57s — the CI cost is runner-load, not tree.
+
+The structural lie the file admits at lines 60-68 (WP0.1 erratum):
+pyproject `timeout = 5` (pyproject.toml:495) is a coin-toss for tests
+whose body is a full-tree subprocess scan. Two tests sat above it on
+hopes, not budgets: `test_real_tree_is_deterministic` pays TWO
+back-to-back scans; `test_real_tree_runtime_under_30s` ASSERTS a 30s
+budget its own 5s timer forbids ever reaching — a test that cannot
+exercise its contract. Fix = the documented, precedented override, not
+a floor move: `@pytest.mark.timeout(30)` / `@pytest.mark.timeout(35)`
+(conftest.py:445: explicit markers "always unchanged"; precedent
+backend/tests/integration/test_mqtt_integration.py:584 carries the same
+
+> 5s-under-contention justification). pytest-timeout bounds; the
+> determinism assertions and the <30s assertion stay exactly as written.
+
+### S2 batch 2 — evaluation_queue C01-C05: 12 of 13 TEST-GAP survivors red-checked (`2a03dcd8`)
+
+Frozen feed `evaluation_queue.md` tallies re-verified against the dossier
+(104 mutants / 50 survived / 13 TEST-GAP / 37 EQUIVALENT — log-cosmetic
+C06-C10 + codec-case C11; per-cluster exclusion stands, no blanket
+skip). Gap root cause read off the shipped suite: `zrange.return_value`
+was canned and `zrange.call_args` never read, so every index-clamp
+mutant survived; singleton tests asserted identity, so
+`EvaluationQueue(None)` passed the whole file.
+
+Added 4 tests (zero production change): zrange call contract
+`("evaluation:pending", 0, limit-1)`; default-limit stop index 99;
+inclusive-window fake ZRANGE over a bytes+str+int member mix (kills
+`limit+1`, `limit-2`, and the decode-everything `or True`); singleton
+`queue._redis is mock_redis`. Full file 30 passed 2.21s.
+
+Red-check, measured this session (apply real mutation → target test must
+fail → restore; git diff clean at exit): key→None FAIL; start 0→1 FAIL
+(2 tests); stop `limit+1` FAIL; stop `limit-2` FAIL; decode-all FAIL;
+singleton-arg→None FAIL; default `101` FAIL — 7/7 mutations caught by
+7/7 runs. `get_pending_events _14` (`and False` on the str branch)
+stays de-facto equivalent on CPython (int(b"..") legal) — the dossier's
+own accounting already exempted it; nothing hidden here.
+
+### S2 batch 3 — queue_status_service clusters 1/3/5/7/8/10-14/16/17/21/23/25: 25 red-checks, 3 dossier keys re-adjudicated EQUIVALENT-in-function (`136ae73f`)
+
+Frozen feed `queue_status_service.md`: 241 mutants / 69 survived / 50
+TEST-GAP. Root cause (dossier, confirmed on the shipped suite): every
+Redis call ran through argument-blind `AsyncMock` and asserts were
+`> 0`-style; `DLQ_ANALYSIS_QUEUE` was never imported by the test file —
+its absence _is_ why clusters 10/12 survived. 10 tests added across 4
+contract classes; full file 59 passed 2.64-2.77s, ruff clean.
+
+Red-check battery measured this session — 25 real-shape mutations, each
+applied one at a time, target asserted FAIL, source verified
+byte-equal after every run: w4 w10 w12 w18 w20 · t2 t8 t12 t15 ·
+o20 o34 o53 o57 · p2 p6 q7 q14 q21 · g34 · gallq-key→None · qstatus
+display-key→None (real m3 shape, from the feed's verbatim
+qs_diffs.txt) · factory(None). 25/25 killed.
+
+MEASURED DISAGREEMENT with the frozen dossier (recorded, not applied —
+unfreezing WP4.4 is a ruling, not a workaround): cluster 23 keys
+gallq 17/18 claim `get(q, None)` produces a pydantic ValidationError,
+but the except handler runs only for the four hard-coded queues, ALL
+four present in QUEUE_NAME_MAP, so the None default is never reached —
+no input makes them observably different; key 19 (`get(queue_name, )`
+trailing comma) is TEXTUALLY the original per the feed's own
+`qs_diffs.txt` hunk. All three are EQUIVALENT-in-function; cluster 23
+is 1-killed + 3-unkillable, so the honest TEST-GAP coverable-by-input
+count for this module is 47, not 50. (My first probe's apparent
+"survivor" for the dropped-default shape was exactly this: a mutation
+of a branch that cannot execute.)

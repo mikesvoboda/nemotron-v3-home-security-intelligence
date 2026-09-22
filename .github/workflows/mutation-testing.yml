@@ -4,16 +4,17 @@ name: Mutation Testing
 # backend/api/routes/, from [tool.mutmut]) and PUBLISHES scores three ways:
 #   1. step summary (immediate visibility),
 #   2. run artifacts (verdict pack + per-module score JSON, 14 days),
-#   3. .github/mutation-history.json committed back to main -- the series is
-#      the "tracked over time" record; a run that measures nothing refuses to
-#      commit (scripts/mutation-score.py rc=1 on an empty cache).
+#   3. .github/mutation-history.json -- the series is the "tracked over
+#      time" record; a run that measures nothing refuses to record it
+#      (scripts/mutation-score.py rc=1 on an empty cache).
 #
 # Why still non-blocking for PRs:
 # - Mutation testing is slow (hours, not minutes, over the widened set)
 # - Not all surviving mutants indicate real problems
 # - 100% mutation score is often impractical
-# The history file's commit lands on main through the normal CI gate; the
-# mutation score itself remains a tracked trend, not a merge blocker.
+# The history lands on main through the normal CI gate like any other
+# change; the mutation score itself remains a tracked trend, not a merge
+# blocker.
 #
 # History rewrite note: the pre-WP4.3 version of this workflow passed mutmut
 # 2.x flags (--paths-to-mutate/--runner) that mutmut 3.8 rejects; every call
@@ -24,19 +25,43 @@ name: Mutation Testing
 # Convergence note (WP4.3): the denominator is ~88k mutants (run5,
 # 2026-09-17) and no single job budget finishes a COLD run -- and a job
 # killed by its own timeout that keeps nothing would restart cold forever.
-# So verdicts ride a cache (actions/cache, few MB of *.py.meta + stats +
-# spans -- mutant copies regenerate with no test execution (~19 min local
-# for 269 files) and the function-hash merge preserves restored verdicts).
-# Projected convergence on run5's cost model: ~24.5% of the denominator per
-# 240-min CI step at 12x, so ~4 weekly runs to a completed point. Early history points are PARTIAL
-# (progress.completed=false): their score is pessimistic BY CONSTRUCTION
-# (unchecked counts as uncaught) and RISES as the cache converges -- read
-# progress.checked/total alongside, and only completed points are
-# comparable as a trend. Torn metas (a budget-kill mid-save) are deleted by
-# the repair step BEFORE the run, because mutmut's own loader crashes on
-# them. The run step is budgeted + continue-on-error so progress always
-# reaches the pack step; it is not a shield -- nothing-measured still exits
-# rc=1 at the score step and the push guard refuses a measurement-less run.
+# So verdicts ride a cache (few MB of *.py.meta + stats + spans -- mutant
+# copies regenerate with no test execution (~19 min local for 269 files)
+# and the function-hash merge preserves restored verdicts). Projected
+# convergence on run5's cost model: ~24.5% of the denominator per 240-min
+# CI step at 12x, so ~4 weekly runs to a completed point. Early history
+# points are PARTIAL (progress.completed=false): their score is pessimistic
+# BY CONSTRUCTION (unchecked counts as uncaught) and RISES as the cache
+# converges -- read progress.checked/total alongside, and only completed
+# points are comparable as a trend. Torn metas (a budget-kill mid-save) are
+# deleted by the repair step BEFORE scoring, because mutmut's own loader
+# crashes on them. The run step is budgeted + continue-on-error so progress
+# always reaches the pack step; it is not a shield -- nothing-measured
+# still exits rc=1 at the score step and the history guard refuses to
+# record a measurement-less run.
+#
+# Convergence FIX (2026-09-22, run 35496040596 forensics -- the pre-fix
+# header claimed "A week whose prep overran the cap loses nothing: the
+# cache keeps last week's verdicts"; evidence refutes it: that week lost
+# 4,426 verdicts, 37% of the entire 2026-09-19 point). Three independent
+# mechanical breaks, each verified from the run log + the Actions APIs:
+#  (1) actions/cache saves in a POST step, and post steps do not run on a
+#      failed job; the history push's GH006 rejection (protected main
+#      expects the required "CI Gate" check ON the pushed commit -- a bot
+#      commit made inside this workflow has no gate check, so the push can
+#      NEVER land) failed the job, so the post-save never ran. Verified:
+#      the Actions cache API shows ZERO mutmut-verdicts entries today,
+#      while run 29's successful sibling logged "Cache saved".
+#  (2) the old key was per-run (mutmut-verdicts-${run_id}) with restore-keys
+#      as a PREFIX match -- a per-run key's save can never clobber the base
+#      entry, so every restore lands on the SAME stale tar and every run
+#      re-warms from cold, forever.
+#  (3) upload-artifact defaults include-hidden-files:false, so the dotfile
+#      pack (.mutmut-verdicts.tar.gz, the run's ONLY verdict data, 2.6MB)
+#      was silently skipped -- the downloaded "backend-mutation-report"
+#      artifact is 5,989 bytes: the score JSON alone.
+# Repairs here are mechanical only -- cadence (schedule, budgets,
+# continue-on-error) is untouched per the WP4.3 ruling.
 
 on:
   # Weekly schedule (Sunday at 2 AM UTC)
@@ -79,7 +104,10 @@ jobs:
     # Widened set: thousands of mutants, each a single-process pytest boot.
     # Generous ceiling; last week's wall-clock is a trend line WP4.3 prints.
     timeout-minutes: 360
-    # history-commit push below (house pattern: semantic-release's bot commit)
+    # history PR landing below needs to push a branch + open the PR
+    # (house pattern: codeql-autofix PR #6592 -- the proven lane past
+    # branch protection; direct bot pushes to main are structurally
+    # impossible under the required CI Gate check)
     permissions:
       contents: write
 
@@ -119,15 +147,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      # Weekly-convergence contract (WP4.3). The widened denominator is
-      # ~88k mutants (run5 measured the count on 2026-09-17); a COLD job
-      # cannot finish it inside any job budget -- and a timeout-killed job
-      # that saved nothing would never converge, week after week, forever.
-      # mutmut's verdicts are durable per-mutant (_register_mutant_result
-      # saves the .meta on every checked mutant), so the missing piece is
-      # only carrying the verdict state across runs:
-      #   restore (few MB of *.py.meta + mutmut-stats.json) -> repair ->
-      #   budgeted run -> pack (always()) -> score.
+      # Weekly-convergence contract (WP4.3, mechanics fixed 2026-09-22). The
+      # widened denominator is ~88k mutants (run5 measured the count on
+      # 2026-09-17); a COLD job cannot finish it inside any job budget -- and
+      # a timeout-killed job that saved nothing would never converge, week
+      # after week, forever. mutmut's verdicts are durable per-mutant
+      # (_register_mutant_result saves the .meta on every checked mutant), so
+      # the missing piece is only carrying the verdict state across runs:
+      #   restore -> unpack+repair -> budgeted run -> pack (always()) ->
+      #   save (always()) -> score.
       # Cache content is verdict data ONLY: generation regenerates the
       # 1.4GB mutant tree without executing any test (~19 min for 269 files
       # measured locally under mutate_only_covered_lines, run4/run5 -- fits
@@ -136,25 +164,37 @@ jobs:
       # mutmut-stats.json also carries the test->function map, so a warm
       # run skips the full stats pass (only the coverage pass and a
       # collect-only listing rerun).
+      # KEY IS A CONSTANT (the old per-run-id key + prefix restore-keys is
+      # bug (2) of the forensics header above). The save happens ONCE PER
+      # RUN in its own always() step (see "Save verdict cache") -- unlike
+      # actions/cache's implicit post-save, an always() step runs on a
+      # FAILED job (bug (1): run 28's post step skipped after the history
+      # push failed, stranding 4,426 verdicts).
       - name: Restore mutmut verdict cache
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
-          path: .mutmut-verdicts.tar.gz
-          key: mutmut-verdicts-${{ github.run_id }}
-          restore-keys: |
-            mutmut-verdicts-
+          path: mutmut-verdicts.tar.gz
+          key: mutmut-verdicts-v1
 
       - name: Unpack verdicts + repair torn metas
         run: |
-          if [ -f .mutmut-verdicts.tar.gz ]; then
-            tar -xzf .mutmut-verdicts.tar.gz
-            echo "verdict cache restored ($(find mutants -name '*.py.meta' | wc -l) metas)"
+          if [ -f mutmut-verdicts.tar.gz ]; then
+            tar -xzf mutmut-verdicts.tar.gz
+            find mutants -name '*.py.meta' 2>/dev/null | wc -l > .mutmut-restored-metas
+            echo "verdict cache restored ($(cat .mutmut-restored-metas) metas)"
           else
+            echo 0 > .mutmut-restored-metas
             echo "cold cache -- this run starts the convergence series"
           fi
           # A prior budget-kill can truncate a meta mid-save; mutmut's own
-          # loader crashes on that (guards only FileNotFoundError), so
-          # repair BEFORE the run. rc!=0 here must stop the job loudly.
+          # loader crashes on that (guards only FileNotFoundError -- the
+          # 2026-09-19 cold run was exactly this crash, logged then the
+          # broken metas deleted), so repair runs FIRST inside this step:
+          # every later step -- the run, the pack, the score -- reads metas
+          # only after the repair touched them. rc!=0 here stops the job
+          # loudly. (No separate generation step: the bare `mutmut run`
+          # self-generates from the restored tree; a second generation pass
+          # would pay the ~19-min tree copy twice.)
           uv run python scripts/mutation-score.py --repair
 
       - name: Run mutation tests (widened set, config-driven)
@@ -163,34 +203,75 @@ jobs:
         # reported data, not a run failure. Real breakage must fail loudly.
         # Budgeted + continue-on-error is NOT a shield: a killed/broken run
         # still fails the job via the score step (rc=1 on nothing-measured)
-        # or the push guard -- it just cannot strand the pack step, which is
-        # what makes the weekly series converge instead of restarting cold.
+        # or the history guard -- it just cannot strand the pack step, which
+        # is what makes the weekly series converge instead of restarting
+        # cold.
         # The budget must fire as a STEP kill, not the job timeout: GitHub
         # caps hosted jobs at 6h and CI prep (coverage pass + clean tests
         # on a 4-core runner) eats 60-90 min of it, so 240 here is the
-        # largest budget that reliably ends the run while pack + score +
-        # history still get their turns. A week whose prep alone overran the
-        # cap loses nothing: the cache keeps last week's verdicts and the
-        # next run resumes.
+        # largest budget that reliably ends the run while pack + save +
+        # score + history still get their turns. A week whose prep alone
+        # overran the cap loses nothing: the always() save banks what this
+        # run has (never fewer metas than it restored -- see the pack's
+        # save_ok guard) and the next run resumes.
         timeout-minutes: 240
         continue-on-error: true
         run: ./scripts/mutation-run.sh "${{ github.event.inputs.backend_module }}"
 
       - name: Pack verdict state (always -- a budget-killed run keeps progress)
+        id: pack
         if: always()
         # Verdict data only (metas + stats + spans, ~a few MB): the 1.4GB of
         # regenerated mutant copies is reproducible and free-tier artifact
         # storage is capped (500MB Free plan), so the artifact ships THIS
-        # pack + the score JSON, never the whole mutants/ tree.
+        # pack + the score JSON, never the whole mutants/ tree. NOT a dotfile
+        # any more (bug (3): upload-artifact v6 silently skipped the dotfile
+        # pack -- "there will be 1 file uploaded", Final size 5,989 bytes --
+        # because include-hidden-files defaults to false).
+        # save_ok: never overwrite the banked entry with FEWER metas than
+        # this run restored -- a corrupted-tar restore whose metas all die
+        # at repair would otherwise turn one bad week into amnesia.
         run: |
           find mutants \( -name '*.py.meta' -o -name '*.py.spans' \
             -o -name 'mutmut-stats.json' -o -name 'mutmut-cicd-stats.json' \) \
             -print0 2>/dev/null \
-            | tar --null -czf .mutmut-verdicts.tar.gz --no-recursion -T -
-          ls -la .mutmut-verdicts.tar.gz
+            | tar --null -czf mutmut-verdicts.tar.gz --no-recursion -T -
+          ls -la mutmut-verdicts.tar.gz
+          NOW=$(find mutants -name '*.py.meta' 2>/dev/null | wc -l)
+          RESTORED=$(cat .mutmut-restored-metas 2>/dev/null || echo 0)
+          echo "metas: restored=${RESTORED} now=${NOW}"
+          if [ "${NOW}" -ge "${RESTORED}" ]; then
+            echo "save_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "save_ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::this run holds ${NOW} metas < ${RESTORED} restored -- cache NOT overwritten (a broken restore must not erase banked verdicts); the pack artifact below still carries what exists"
+          fi
+
+      - name: Save verdict cache (a failed job still banks)
+        # THE fix for bug (1) of the forensics header: actions/cache's own
+        # save is a post step and post steps do not run on failed jobs --
+        # run 28 stranded its whole 4,426-verdict pack that way (cache API:
+        # zero mutmut-verdicts entries; the same schedule's frontend job
+        # logged "Cache saved"). This always() step saves BEFORE the
+        # score/history steps can fail the job; overwrite:true replaces the
+        # constant-key entry in place. continue-on-error: a cache-save
+        # outage must not RED a job whose measurements are already packed
+        # and uploaded -- the series continues from the previous entry.
+        if: ${{ always() && steps.pack.outputs.save_ok == 'true' }}
+        continue-on-error: true
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: mutmut-verdicts.tar.gz
+          key: mutmut-verdicts-v1
+          overwrite: true
 
       - name: Per-module score + step summary
+        # --repair FIRST: a budget-killed run can truncate a meta mid-save
+        # and the scorer's own loader crashes on that (mutmut's guard is
+        # FileNotFoundError-only). Same repair the pre-run step applies;
+        # rc!=0 here stops the step loudly, exactly as before.
         run: |
+          uv run python scripts/mutation-score.py --repair
           uv run python scripts/mutation-score.py > mutation-score.json
           {
             echo "## Backend Mutation Results (WP4.3 widened set)"
@@ -220,24 +301,53 @@ jobs:
         # days would blow the free-tier artifact cap (500MB), and the tree
         # is regenerable from the pack by the next run anyway. The pack
         # carries no also_copy data (no .env etc. is matched by the find).
+        # include-hidden-files stays false: the pack is deliberately a
+        # NON-dot file now (bug (3) forensics), and nothing else here hides.
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-mutation-report
           path: |
             mutation-score.json
-            .mutmut-verdicts.tar.gz
+            mutmut-verdicts.tar.gz
           retention-days: 14
 
-      - name: Append history + push to main (tracked over time)
-        # The series file IS the done-when artifact. Appending happens on
-        # freshly fetched main (never the schedule's snapshot ref) so a
-        # concurrent merge cannot be clobbered; a run whose score step failed
-        # produced no mutants cache -> scorer rc=1 -> nothing appended ->
-        # nothing pushed. A measurement-less run never touches the series.
-        # No [skip ci]: the history commit lands on main and normal CI
-        # validates it like any other commit.
+      - name: Append history + land via PR (tracked over time)
+        # Direct push to main is STRUCTURALLY impossible: branch protection
+        # requires the "CI Gate" check on the pushed commit, and a bot
+        # commit minted inside this workflow never carries one (run
+        # 35496040596: GH006 "Protected branch update failed ... Required
+        # status check is expected"). The lane that DOES land is the proven
+        # house pattern (codeql-autofix PR #6592, bot-authored, landed):
+        # bot branch + PR + auto-merge. ci.yml fires on every pull_request,
+        # and a history-only diff matches none of detect-changes' backend/
+        # frontend filters -- the gate's path-conditional jobs arrive
+        # `skipped`, which its check_job treats as OK (ci.yml's own
+        # WP0.6 comment), so the required "CI Gate (Required Checks)" goes
+        # green on the unconditional jobs (lint/typecheck/version-
+        # consistency/...) within minutes.
+        # Appending happens on freshly fetched main (never the schedule's
+        # snapshot ref) so a concurrent merge cannot be clobbered; a run
+        # whose score step failed produced no score JSON -> no append ->
+        # no PR. A measurement-less run never touches the series.
         if: success()
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          if [ ! -s mutation-score.json ]; then
+            echo "::error::no measurement -- refusing to append the history"
+            exit 1
+          fi
+          # A stranded previous point is not an accident to re-PR weekly: if
+          # ANY prior mutation-history/* branch still exists, the previous
+          # week's PR was never auto-merged (someone left it open past the
+          # cron). Surfacing that once, loudly, beats filing duplicates --
+          # and the failure-issue step below opens the tracking issue.
+          if git ls-remote --exit-code --heads origin "mutation-history/*" >/dev/null 2>&1; then
+            echo "::error::a previous mutation-history/* branch is still on origin -- its PR was never merged; not filing a duplicate"
+            exit 1
+          fi
           git fetch origin main --quiet
           git checkout -B main origin/main --quiet
           uv run python scripts/mutation-score.py \
@@ -249,10 +359,58 @@ jobs:
           # is blind to untracked files -- staged-vs-HEAD catches creation too.
           git add .github/mutation-history.json
           if git diff --staged --quiet; then
-            echo "history unchanged -- nothing to push"; exit 0
+            echo "history unchanged -- nothing to land"; exit 0
           fi
-          git commit -m "chore(mutmut): weekly mutation history $(date -u +%F)"
-          git push origin HEAD:main
+          # One point per branch: if origin/main already carries this run's
+          # entry (e.g. the manual backfill merge landed first), stop.
+          git commit -q -m "chore(mutmut): weekly mutation history $(date -u +%F)"
+          if ! git diff --quiet origin/main -- .github/mutation-history.json; then
+            BR="mutation-history/$(date -u +%Y%m%d-%H%M%S)"
+            git push -q origin "HEAD:refs/heads/${BR}"
+            # PR body: exactly the measurement summary -- totals + progress.
+            {
+              echo "Weekly mutmut point appended by the scheduled run ([run](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})). Formula: mutmut badge (killed+timeout)/total."
+              echo ""
+              jq -r '"| killed | timeout | survived | no_tests | skipped | unchecked | score | checked/total | completed |",
+                "|---:|---:|---:|---:|---:|---:|---:|---:|:-:|",
+                "| \(.totals.killed) | \(.totals.timeout) | \(.totals.survived) | \(.totals.no_tests) | \(.totals.skipped) | \(.totals.not_checked) | \((.totals.score * 10000 | round) / 100)% | \(.progress.checked)/\(.progress.total) | \(.progress.completed) |"' mutation-score.json
+              echo ""
+              echo "Generated by \`.github/workflows/mutation-testing.yml\`; data source \`scripts/mutation-score.py\` over this run's mutmut cache."
+            } > /tmp/history-pr-body.md
+            # gh pr merge takes the PR URL explicitly: with no argument it
+            # resolves from the CURRENT branch, which here is the -B main
+            # checkout -- the PR's head is ${BR}, so bare `gh pr merge`
+            # would look up a PR for main and die (caught in review, not in CI).
+            PR_URL=$(gh pr create --base main --head "${BR}" \
+              --title "chore(mutmut): weekly mutation history $(date -u +%F)" \
+              --body-file /tmp/history-pr-body.md | tail -1)
+            # Auto-merge: lands with the FIRST green CI Gate and self-cancels
+            # on red. --squash matches main's observed history (one commit
+            # per PR, "(#NNNN)" suffix). If the repo ever disables squash,
+            # this fails LOUD -- an open PR with no auto-merge is a visible
+            # failure, not a silently stranded entry.
+            gh pr merge --auto --squash "${PR_URL}"
+            echo "history PR filed + auto-merge enabled: ${PR_URL}"
+          else
+            echo "origin/main already carries this run's entry -- nothing to land"
+          fi
+
+      - name: Open issue on failure (only if real progress was measured)
+        # Runs when THIS step's own chain failed (the history step went red
+        # -- e.g. the push lane died -- after the run measured something).
+        # continuesOnFailure == true means "some prior step failed AND this
+        # isn't reached past a cancel".
+        if: ${{ failure() && hashFiles('mutation-score.json') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="mutation history landing failed $(date -u +%F)"
+          if gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$TITLE in:title" | grep -q .; then
+            echo "open issue already exists -- not duplicating"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+                --body "The scheduled run measured progress but could not land it: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          fi
 
   # ============================================================================
   # Frontend Mutation Testing (Stryker)
@@ -283,6 +441,24 @@ jobs:
         run: |
           cd frontend
           npm run test:mutation || true
+
+      # Red-detecting guard (2026-09-22, silent-red fix). The stryker step
+      # above keeps `|| true` AND the job keeps continue-on-error (WP4.3
+      # cadence ruling — flipping either is an owner decision). But run
+      # 35634327238 proved a DEAD harness reports green under exactly that
+      # combination: Stryker printed "killed 0 | survived 261 | errors 62"
+      # (vitest-5 name separator broke the per-mutant filter; upstream
+      # stryker-js #6210/#6220) and the job succeeded at 0.00%. This step
+      # fails when the report shows a harness that measured nothing
+      # (0 killed with survived>0, all-error reports, missing/empty report)
+      # — a broken harness goes RED at the guard while a merely-LOW score
+      # stays informational, exactly like scripts/mutation-score.py rc=1
+      # on an empty cache is the backend's equivalent of this check.
+      - name: Guard harness health (measured-nothing must be loud)
+        run: |
+          cd frontend
+          node scripts/mutation-guard.mjs reports/mutation/mutation.json
+          node scripts/test_mutation_guard.cjs
 
       - name: Generate results summary
         run: |

@@ -59,7 +59,11 @@ export default {
   tsconfigFile: 'tsconfig.stryker.json',
 
   // Reporter configuration
-  reporters: ['progress', 'clear-text', 'html'],
+  // 'json' added 2026-09-22 (silent-red fix): scripts/mutation-guard.mjs is
+  // the CI red-detecting layer (a run that measured nothing must be loud —
+  // see its header) and parses reports/mutation/mutation.json. Reporter-only
+  // change: no effect on discovery, mutants, or score.
+  reporters: ['progress', 'clear-text', 'html', 'json'],
   htmlReporter: {
     fileName: 'reports/mutation/mutation-report.html',
   },
