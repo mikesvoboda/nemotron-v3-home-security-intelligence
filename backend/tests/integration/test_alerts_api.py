@@ -900,3 +900,43 @@ async def test_filter_by_severity_no_matches(client):
     # All returned rules should have critical severity
     for rule in data["items"]:
         assert rule["severity"] == "critical"
+
+
+@pytest.mark.asyncio
+async def test_list_alert_rules_includes_null_channels_rule(client, db_session):
+    """A rule row with channels=NULL (nullable JSONB column) must still list.
+
+    Session-learned defect (sandbox bring-up 2026-09-22): rows inserted
+    outside the POST route (seeder, migrations, SQL) can leave channels NULL.
+    AlertRuleResponse required list[str], so model_validate raised INSIDE
+    list_rules' broad `except Exception`, which swallowed it and answered a
+    silently EMPTY 200 — every rule vanished from the UI with no error to
+    follow. The response schema now normalizes NULL -> [] (matching
+    Alert.to_dict's existing convention).
+    """
+    from backend.models.alert import AlertRule, AlertSeverity
+
+    rule_name = unique_id("Null Channels Rule")
+    db_session.add(
+        AlertRule(
+            name=rule_name,
+            severity=AlertSeverity.HIGH,
+            risk_threshold=60,
+            channels=None,  # exactly the row shape the seeder produced
+            dedup_key_template=f"sandbox:{rule_name}",
+            cooldown_seconds=1800,
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/alerts/rules")
+    assert response.status_code == 200
+    data = response.json()
+
+    names = [rule["name"] for rule in data["items"]]
+    assert rule_name in names, (
+        f"a NULL-channels rule must not blank the whole list (schema error was: {data!r})"
+    )
+    row = next(r for r in data["items"] if r["name"] == rule_name)
+    assert row["channels"] == []
+    assert data["pagination"]["total"] >= 1
