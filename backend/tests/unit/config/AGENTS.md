@@ -171,8 +171,8 @@ uv run pytest backend/tests/unit/config/ --cov=backend.config --cov-report=term-
 
 ## Related Documentation
 
-| Path                           | Purpose                             |
-| ------------------------------ | ----------------------------------- |
-| `/backend/config/AGENTS.md`    | Config module documentation         |
-| `/backend/tests/AGENTS.md`     | Test infrastructure overview        |
-| `/docs/development/testing.md` | Testing patterns and best practices |
+| Path                         | Purpose                             |
+| ---------------------------- | ----------------------------------- |
+| `/backend/config/AGENTS.md`  | Config module documentation         |
+| `/backend/tests/AGENTS.md`   | Test infrastructure overview        |
+| `/docs/developer/testing.md` | Testing patterns and best practices |

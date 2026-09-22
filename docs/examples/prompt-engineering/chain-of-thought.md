@@ -237,5 +237,5 @@ else:
 
 - [Basic Risk Analysis](basic-risk-analysis.md) - Without reasoning
 - [Rubric-Based Prompt](rubric-based-prompt.md) - Structured scoring
-- [Main Documentation](../../development/nemotron-prompting.md)
+- [Main Documentation](../../developer/nemotron-prompting.md)
 - Implementation: `backend/services/prompts.py` - `CALIBRATED_SYSTEM_PROMPT_WITH_REASONING`

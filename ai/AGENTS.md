@@ -329,7 +329,7 @@ The enrichment service provides structured context to Nemotron for better risk a
 ### Multi-GPU Support
 
 The system supports distributing AI workloads across multiple GPUs. See
-**[Multi-GPU Support Guide](../docs/development/multi-gpu.md)** for
+**[Multi-GPU Support Guide](../docs/developer/multi-gpu.md)** for
 configuration instructions. Production selection is two env vars:
 `GPU_LLM` (ai-llm) and `GPU_AI_SERVICES` (ai-gateway).
 

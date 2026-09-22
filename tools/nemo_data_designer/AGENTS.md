@@ -242,4 +242,4 @@ Use `--preview` first to verify configuration before generating.
 
 - [NeMo Data Designer Docs](https://nvidia-nemo.github.io/DataDesigner/latest/)
 - [Design Document](../../docs/plans/2026-01-21-nemo-data-designer-integration-design.md)
-- [Testing Guide](../../docs/development/testing.md)
+- [Testing Guide](../../docs/developer/testing.md)

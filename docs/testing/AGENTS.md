@@ -9,10 +9,10 @@ summaries) were point-in-time artifacts of shipped work and now live in
 
 ## Where the living documentation is
 
-- **Coverage state:** `docs/development/coverage.md` (kept current; CI publishes
+- **Coverage state:** `docs/developer/test-coverage.md` (kept current; CI publishes
   the real numbers)
-- **Testing guide & TDD workflow:** `docs/development/testing.md`,
-  `docs/development/testing-workflow.md`
+- **Testing guide & TDD workflow:** `docs/developer/testing.md`,
+  `docs/developer/testing-workflow.md`
 - **Test patterns:** `docs/developer/patterns/AGENTS.md`
 
 ## Gotcha

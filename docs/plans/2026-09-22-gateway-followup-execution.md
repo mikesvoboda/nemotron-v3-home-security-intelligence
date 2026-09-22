@@ -299,3 +299,63 @@ missing rule-file mounts; ghcr: CTX_SIZE/PARALLEL to backend matching its ai-llm
   EVERY candidate hunk or use verb-context (edited/updated/wrote + path), never path-presence.
 - setup.py deliberately lacks top-level `import os` (bootstrap-gb300.sh injects it); its
   4 F821s are the accepted baseline — don't "fix" them.
+
+---
+
+## Status tick — 2026-09-22 (PR-B execution, branch `docs/gateway-consolidation-docs`)
+
+- [x] **coverage.md regeneration** ✅ `834bd82e` — regenerated from docs/openapi.json (387 paths /
+      469 ops; 385 consumed / 84 backend-only) with the template-literal-aware consumer matcher;
+      `generate-openapi --check`, `generate-types --check`, `check-api-coverage.sh` all green.
+- [x] **development→developer consolidation** ✅ (this commit) — 33 git-mv renames + 2 collision
+      renames (`coverage.md`→`test-coverage.md`, `patterns.md`→`patterns-and-conventions.md`),
+      3 folds (AGENTS.md 514L union; setup.md+local-setup.md merged; contributing.md+README.md
+      merged), 36 redirect stubs (`disabled: true` + `search: exclude: true` + JS
+      `location.replace`; contributing stub targets the dir index `developer/contributing/`,
+      NOT `/README/` — README.md renders there), mkdocs nav "Development Workflow" subsection
+      (33 titled entries), 71-file inbound link sweep. HARD-GATE retarget shipped same-commit:
+      `scripts/test_coverage_denominator.py` TESTING → `docs/developer/testing.md` (7 tests pass).
+      `flaky-test-detection.yml:378` anchor → `#troubleshooting` (pre-broken `#flaky-tests`).
+      mkdocs warnings ⊆ baseline: every residual is the pre-existing out-of-docs class
+      (`../../AGENTS.md`, `../../backend/…`), moved-file carryovers verified 1:1; net additions
+      are the folded contributing/README.md's own `../../../AGENTS.md`×4+`pyproject.toml`
+      links (same class, was 1 in the standalone file). agents_md_validator: 0 issues / 244 files.
+- [x] **entity-ADR annotation** ✅ `f8e540f1` (header-only status; body immutable).
+- [x] **Flag pile** ✅ landed across `f781ba20` + this commit. Verified-fixed this pass:
+      middleware README 23-module truth + CORS anchors; nvidia-inventory 14-dir repo (12 GPU/
+      2 CPU), GPUInferenceFailures expr guard, xclip→stgcn rows; models.md/video-analytics/
+      deployment README 14-model + xclip retirement; ai-ghcr-deployment download-rule basis
+      (25-of-30 / 33,579 MB); env-reference ObservabilityMiddleware wording; api-request-flow
+      real metric name; services/AGENTS.md restart example now uses real allowlist entries
+      (`ai/start_detector.sh`, `docker restart ai-yolo26-1` — `scripts/restart_yolo26.sh` never
+      existed); tracing/AGENTS.md FULL REWRITE (Grafana dashboard `hsi-tracing` iframe; Tempo,
+      not Jaeger; dead Open-Jaeger button documented as-is; never-built features deleted from
+      claims); profiling-runbook ALERT-REG-005 workaround fixed — the 09-22 block itself
+      carried the trap myth (`nv_inference_request_duration_seconds` histogram does NOT exist;
+      real = `nv_inference_request_duration_us` cumulative + success counter → mean until
+      `summary_latencies` is enabled). smoke README Jaeger line, ai-gateway/Dockerfile:15
+      (already truthful), archive README (already plain-mv truth) all verified.
+- [ ] **Grafana dashboard redesign** — DEFERRED to a follow-up ticket (owner call in PR body).
+      Panel retargets are code-side (monitoring/\_.yml) and were flagged with exact nv\_\_
+      mappings in PR-A's journal; the dashboards' Jaeger datasource panels need Tempo
+      retargeting + the nv\_\* rate/error panels — one coherent monitoring PR, not a docs PR.
+
+### Code-side queue carried to the PR body (NOT in this docs PR)
+
+1. TracingPage "Open Jaeger" button (`localhost:16686`, dead) → Tempo/Grafana-Explore link
+   (button + `jaeger-external-link` test + docs/ui/tracing.md:59 row flip together).
+2. `backend/services/container_discovery.py` jaeger ServiceConfig (:123, :304-307) → tempo.
+3. Dead `JAEGER_UI_PORT`/`JAEGER_OTLP_GRPC_PORT`/`JAEGER_OTLP_HTTP_PORT` in
+   `.env.example:871-873`, `setup.py:154-156`, env-reference rows; `FRONTEND_PORT` decision
+   (consumed by scripts/test-docker.sh + setup.py port-scanner only; compose never reads it).
+4. compose health-comment "Triton loads 13 models" (`docker-compose.prod.yml:337`,
+   `.ghcr.yml:235`) → 14.
+5. deploy.yml legacy matrix — RESOLVED (builds are backend/frontend only; verified 2026-09-22).
+
+### Owner-decision items surfaced in the PR body
+
+- Grafana dashboard redesign (defer, above); data/ai-pipeline-evaluation banner artifact;
+  ai-gateway/Dockerfile:15 close-as-not-reproducible (comment already truthful);
+  archive git-mv vs plain-mv precedence (README says plain `mv`; memory ruling says `git mv`
+  preserves history — operations have used plain mv, git rename-detection papers over it);
+  xclip full code removal (docs now say retired; code/config cleanup awaits owner).

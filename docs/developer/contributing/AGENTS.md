@@ -95,13 +95,13 @@ Quick setup prompt for Linear on new workstations:
 
 ## Related Resources
 
-| Resource                                                                          | Description                                         |
-| --------------------------------------------------------------------------------- | --------------------------------------------------- |
-| [docs/development/](../../development/AGENTS.md)                                  | Hooks, code quality, git workflow                   |
-| [docs/development/hooks.md](../../development/hooks.md)                           | Pre-commit hook details                             |
-| [docs/development/code-quality.md](../../development/code-quality.md)             | Linting tools                                       |
-| [docs/development/linear-integration.md](../../development/linear-integration.md) | Linear MCP tools reference                          |
-| [AGENTS.md](../../../AGENTS.md)                                                   | Project-level agent instructions (single root file) |
+| Resource                                                                      | Description                                         |
+| ----------------------------------------------------------------------------- | --------------------------------------------------- |
+| [docs/developer/](../../developer/AGENTS.md)                                  | Hooks, code quality, git workflow                   |
+| [docs/developer/hooks.md](../../developer/hooks.md)                           | Pre-commit hook details                             |
+| [docs/developer/code-quality.md](../../developer/code-quality.md)             | Linting tools                                       |
+| [docs/developer/linear-integration.md](../../developer/linear-integration.md) | Linear MCP tools reference                          |
+| [AGENTS.md](../../../AGENTS.md)                                               | Project-level agent instructions (single root file) |
 
 ## Entry Points
 

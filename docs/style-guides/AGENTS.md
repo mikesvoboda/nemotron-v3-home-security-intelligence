@@ -14,11 +14,11 @@ This directory contains style guides that define standards and conventions for c
 
 ## Related Documentation
 
-| Document                | Location                           | Purpose                                          |
-| ----------------------- | ---------------------------------- | ------------------------------------------------ |
-| Visual Style Guide      | `docs/images/style-guide.md`       | Colors, shapes, and design principles for images |
-| Documentation Standards | `docs/architecture/STANDARDS.md`   | Code citations and document structure            |
-| Contributing Guide      | `docs/development/contributing.md` | PR process and code standards                    |
+| Document                | Location                                | Purpose                                          |
+| ----------------------- | --------------------------------------- | ------------------------------------------------ |
+| Visual Style Guide      | `docs/images/style-guide.md`            | Colors, shapes, and design principles for images |
+| Documentation Standards | `docs/architecture/STANDARDS.md`        | Code citations and document structure            |
+| Contributing Guide      | `docs/developer/contributing/README.md` | PR process and code standards                    |
 
 ## Entry Points
 

@@ -432,4 +432,4 @@ except Exception as e:
 
 - [Batch Aggregator](./batch-aggregator.md) - Next stage in pipeline
 - [Pipeline Architecture](../detection-pipeline/README.md) - Full pipeline flow
-- [Testing Guide](../../development/testing.md) - Testing FileWatcher
+- [Testing Guide](../../developer/testing.md) - Testing FileWatcher

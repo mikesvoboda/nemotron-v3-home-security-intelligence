@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TESTING = REPO_ROOT / "docs" / "development" / "testing.md"
+TESTING = REPO_ROOT / "docs" / "developer" / "testing.md"
 
 
 def _text() -> str:
@@ -178,7 +178,7 @@ def test_agents_md_carries_measured_strength_not_85():
     t = AGENTS_MD.read_text()
     assert not re.search(r"Backend Unit\s*\|\s*85%", t), (
         "AGENTS.md's Backend Unit row must not lead with 85%: measured strength is "
-        "84.12 blended / 86.02 line / 76.27 branch (docs/development/testing.md WP2.1 section)"
+        "84.12 blended / 86.02 line / 76.27 branch (docs/developer/testing.md WP2.1 section)"
     )
     assert "84.12" in t and "86.02" in t and "76.27" in t, (
         "AGENTS.md must carry the measured triple (blended/line/branch), not a stale round number"

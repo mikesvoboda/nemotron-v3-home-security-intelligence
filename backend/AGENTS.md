@@ -1014,8 +1014,8 @@ The backend provides three health endpoints for different use cases:
 
 ### Project-Level Documentation
 
-| Path                           | Purpose                        |
-| ------------------------------ | ------------------------------ |
-| `/AGENTS.md`                   | Project-wide instructions      |
-| `/docs/development/testing.md` | Comprehensive testing patterns |
-| `/docs/ROADMAP.md`             | Post-MVP enhancements          |
+| Path                         | Purpose                        |
+| ---------------------------- | ------------------------------ |
+| `/AGENTS.md`                 | Project-wide instructions      |
+| `/docs/developer/testing.md` | Comprehensive testing patterns |
+| `/docs/ROADMAP.md`           | Post-MVP enhancements          |

@@ -159,5 +159,5 @@ sequenceDiagram
 - `parsers/AGENTS.md` - Citation extraction details
 - `reports/AGENTS.md` - Output formatting details
 - `validators/AGENTS.md` - Validation implementation details
-- `/docs/development/testing.md` - Testing guide
+- `/docs/developer/testing.md` - Testing guide
 ```

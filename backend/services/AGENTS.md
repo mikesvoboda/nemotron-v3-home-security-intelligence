@@ -2682,8 +2682,9 @@ healthy = await docker_manager.check_health(config)
 if not healthy:
     success = await docker_manager.restart(config)
 
-# Validate commands
-is_valid = validate_restart_command("scripts/restart_yolo26.sh")
+# Validate commands (allowlist: ai/start_detector.sh, ai/start_llm.sh, "docker restart <name>")
+is_valid = validate_restart_command("ai/start_detector.sh")
+is_valid = validate_restart_command("docker restart ai-yolo26-1")
 is_valid = validate_container_name("ai-yolo26-1")
 ```
 

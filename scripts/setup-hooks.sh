@@ -114,7 +114,7 @@ Examples:
   ./scripts/setup-hooks.sh --check
 
 For more information, see:
-  - docs/development/git-worktree-workflow.md
+  - docs/developer/git-worktree-workflow.md
   - .pre-commit-config.yaml
   - commitlint.config.js
 EOF

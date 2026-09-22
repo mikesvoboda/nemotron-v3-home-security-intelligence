@@ -60,7 +60,7 @@ Code patterns, testing strategies, and quality standards.
 
 | Document                                      | Description                              |
 | --------------------------------------------- | ---------------------------------------- |
-| [Testing Guide](../development/testing.md)    | TDD workflow, fixtures, coverage         |
+| [Testing Guide](../developer/testing.md)      | TDD workflow, fixtures, coverage         |
 | [Backend Patterns](backend-patterns.md)       | Repository pattern, Result types, errors |
 | [Resilience Patterns](resilience-patterns.md) | Circuit breakers, retry logic            |
 | [UX Patterns](ux-patterns.md)                 | Toast notifications, transitions         |
@@ -73,11 +73,11 @@ Code patterns, testing strategies, and quality standards.
 
 Everything you need to contribute to the project.
 
-| Document                                             | Description                   |
-| ---------------------------------------------------- | ----------------------------- |
-| [Contributing Guide](contributing/README.md)         | Full contributor workflow     |
-| [Code Quality Tools](../development/code-quality.md) | Linting, formatting, analysis |
-| [Pre-commit Hooks](../development/hooks.md)          | Hook configuration and usage  |
+| Document                                           | Description                   |
+| -------------------------------------------------- | ----------------------------- |
+| [Contributing Guide](contributing/README.md)       | Full contributor workflow     |
+| [Code Quality Tools](../developer/code-quality.md) | Linting, formatting, analysis |
+| [Pre-commit Hooks](../developer/hooks.md)          | Hook configuration and usage  |
 
 ### Quick Contribution Workflow
 
@@ -136,17 +136,17 @@ find . -name "AGENTS.md" -type f | head -20
 
 Core development documentation for contributing to the project.
 
-| Document                                                   | Description                          |
-| ---------------------------------------------------------- | ------------------------------------ |
-| [Testing Guide](../development/testing.md)                 | TDD workflow, fixtures, coverage     |
-| [Testing Workflow](../development/testing-workflow.md)     | RED-GREEN-REFACTOR cycle             |
-| [Code Quality Tools](../development/code-quality.md)       | Linting, formatting, static analysis |
-| [Git Workflow](../development/git-workflow.md)             | Git safety, pre-commit rules         |
-| [Pre-commit Hooks](../development/hooks.md)                | Hook configuration and usage         |
-| [Contributing Guide](../development/contributing.md)       | PR process and code standards        |
-| [Linear Integration](../development/linear-integration.md) | Issue tracking with Linear MCP tools |
-| [Coverage Guide](../development/coverage.md)               | Test coverage requirements           |
-| [Setup Guide](../development/setup.md)                     | Development environment setup        |
+| Document                                                  | Description                          |
+| --------------------------------------------------------- | ------------------------------------ |
+| [Testing Guide](../developer/testing.md)                  | TDD workflow, fixtures, coverage     |
+| [Testing Workflow](../developer/testing-workflow.md)      | RED-GREEN-REFACTOR cycle             |
+| [Code Quality Tools](../developer/code-quality.md)        | Linting, formatting, static analysis |
+| [Git Workflow](../developer/git-workflow.md)              | Git safety, pre-commit rules         |
+| [Pre-commit Hooks](../developer/hooks.md)                 | Hook configuration and usage         |
+| [Contributing Guide](../developer/contributing/README.md) | PR process and code standards        |
+| [Linear Integration](../developer/linear-integration.md)  | Issue tracking with Linear MCP tools |
+| [Coverage Guide](../developer/test-coverage.md)           | Test coverage requirements           |
+| [Setup Guide](../developer/local-setup.md)                | Development environment setup        |
 
 ---
 

@@ -3,7 +3,7 @@ title: API Deprecation Policy
 description: Guidelines and process for deprecating API endpoints, including timelines, migration guides, and communication standards
 source_refs:
   - docs/developer/api/README.md
-  - docs/development/contributing.md
+  - docs/developer/contributing/README.md
   - backend/api/routes/
 ---
 
@@ -674,7 +674,7 @@ Use this checklist when deprecating an endpoint:
 ## Related Documentation
 
 - [API Reference](../developer/api/README.md) - API documentation standards
-- [Contributing Guide](../development/contributing.md) - Development workflow
+- [Contributing Guide](../developer/contributing/README.md) - Development workflow
 - [CHANGELOG](../../CHANGELOG.md) - Project change history
 
 ---

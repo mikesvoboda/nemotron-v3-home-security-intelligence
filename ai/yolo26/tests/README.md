@@ -150,5 +150,5 @@ Follow TDD principles:
 ## Related Documentation
 
 - [YOLO26 Service Documentation](../README.md)
-- [TDD Workflow Guide](../../../docs/development/testing-workflow.md)
+- [TDD Workflow Guide](../../../docs/developer/testing-workflow.md)
 - [Testing Patterns](../../../docs/developer/patterns/AGENTS.md)
