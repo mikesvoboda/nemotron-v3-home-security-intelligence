@@ -210,10 +210,10 @@ class TestListModelsIntegration:
         assert service_status["ai-enrichment-light"] == "unhealthy"
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fake_catalogue")
     async def test_list_models_readiness_from_gateway_health_payloads(
         self,
         client: AsyncClient,
-        fake_catalogue,
     ) -> None:
         """With router health mocked, readiness comes from the health payloads
         keyed by the models.yml triton names, probed at {router}/health.
@@ -302,10 +302,10 @@ class TestModelStatusEndpoint:
         assert "load_count" in runtime
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fake_catalogue")
     async def test_get_model_status_backend_model_skips_router(
         self,
         client: AsyncClient,
-        fake_catalogue,
     ) -> None:
         """A model with no Triton mapping is answered from ModelManager only —
         no router is probed for it."""
@@ -361,11 +361,10 @@ class TestVramSummaryIntegration:
         assert totals["model_count"] == 0
 
     @pytest.mark.asyncio
+    @pytest.mark.usefixtures("fake_catalogue", "real_fashion_clip_config")
     async def test_vram_summary_sums_registry_estimates_of_ready_models(
         self,
         client: AsyncClient,
-        fake_catalogue,
-        real_fashion_clip_config,
     ) -> None:
         """Ready models on a lane sum the registry vram_mb estimates (the
         retired VRAM-manager accounting is gone and Triton exposes no live
