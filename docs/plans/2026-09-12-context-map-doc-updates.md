@@ -9611,3 +9611,48 @@ match_container_name = 35) are all dispositioned in-tree per the audit
 above (T-1b kills the create-helper cluster, T-4 the discover_all D1
 cluster, T-3a/b the match/name clusters), so the extraction deferral costs
 nothing real.
+
+### S1 — banking PROOF achieved: run 7 prompt_sanitizer 18/18 verdicts bank; M2 defect proven fixed at module scale (`a072dc1e`)
+
+Goal clause "prove harness honest BEFORE chasing score" / "one small module
+end-to-end, proving verdicts bank to mutants/\*.py.meta". Module selection
+MEASURED from mutants/mutmut-stats.json: prompt_sanitizer = 18 keys / 5
+functions, ALL mapped to unit tests (tests_by_mangled_function_name). The
+earlier metrics.py attempt (run 6, rc=1) was correctly loud, not a bug:
+its meta holds 0 keys — mutate_only_covered_lines never unit-hits the
+route, zero mutants generated, fnmatch hit mutmut's own
+`assert filtered_mutants`.
+
+Run 7: `./scripts/mutation-run.sh prompt_sanitizer` 21:19:27Z→21:55:40Z
+rc=0 (log /tmp/s1-run7.log; timestamps /tmp/watch-chain3.out). Meta after
+exit (mutants/backend/services/prompt_sanitizer.py.meta): **18 non-null /
+18 keys**; verdict multiset 15×"1" + 3×"0" → 15 killed / 3 survived
+(score-tool VERDICT_CODES import-pin: 1=killed, 0=survived).
+scripts/mutation-score.py measured row: killed 15, survived 3, total 18,
+score **83.33%** (badge formula (killed+timeout)/(total−skipped)).
+`--repair` ran first per the goal: silent rc=0 = zero torn metas.
+Cache-wide scan at same commit: 267 metas / 46,556 keys / 18 non-null —
+M2's whole-cache defect (0 banked) now has a measured counterexample:
+the bank path works; the weekly runs just never reach the write.
+
+S1's run exposed a NEW M3-class lie, fixed in `a072dc1e` (before it could
+ever touch history): the score tool skipped all-unchecked modules BEFORE
+progress, so this real 1-module cache published total=18/checked=18/
+completed=True — a cold cache claiming a finished denominator, violating
+the workflow's own contract ("early history points are PARTIAL
+progress.completed=false") and making S4's checked/total climb
+unmeasurable. TDD: test_never_checked_modules_still_ride_progress born-red
+(measured `assert 2 == 5`); fix routes never-checked key counts into
+progress.total/not_checked only (badge/modules[]/rc=1 contracts
+untouched — mutmut export shape preserved); suite 13 passed. Real-cache
+rescore after fix: totals unchanged 83.33% (15k/3s) with **progress
+checked 18 / total 46,556 / completed False** — the honest denominator
+S3 milestones will now measure against.
+
+prompt_sanitizer 3 survivors dispositioned at measured level — all three
+are `len(sanitized) > MAX → >=` truncation-guard flips whose bodies are
+`sanitized = sanitized[:MAX]` (prompt_sanitizer.py:193-194/231-232/
+303-304; MAX camera/zone=256, description=2048 at :50-53). At len==MAX the
+slice is the identity; every other length routes both versions to the same
+value — EQUIVALENT by construction, no test gap. Reachability probe:
+sanitize_camera_name("A"\*256) → len 256 (boundary hit, output identical).
