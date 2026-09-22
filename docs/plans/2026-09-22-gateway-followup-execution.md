@@ -359,3 +359,11 @@ missing rule-file mounts; ghcr: CTX_SIZE/PARALLEL to backend matching its ai-llm
   archive git-mv vs plain-mv precedence (README says plain `mv`; memory ruling says `git mv`
   preserves history — operations have used plain mv, git rename-detection papers over it);
   xclip full code removal (docs now say retired; code/config cleanup awaits owner).
+
+### CI round-trip on PR-B (2026-09-22)
+
+Head `b3ef9dde` red exactly one way: `Backend Lint (Ruff)` — CI's
+`ruff format --check backend/` reformats fenced python inside .md, local hook
+feeds only .py (the standing trap above, fired as written). Fixed `fac6bf1d`
+(2 middleware AGENTS.md fences); CI on `fac6bf1d`: **68 pass / 8 skipping / 0
+fail**, merge state CLEAN. PR: #6646.
