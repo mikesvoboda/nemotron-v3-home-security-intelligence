@@ -1,7 +1,7 @@
 """Unit tests for the Florence HTTP client service.
 
 Tests for backend/services/florence_client.py which provides an HTTP client
-interface to the ai-florence service.
+interface to the Florence-2 service (an AI gateway router).
 
 Tests cover:
     - Client initialization (default URL, custom URL, base_url parameter)
@@ -27,7 +27,6 @@ import pytest
 from PIL import Image
 
 from backend.services.florence_client import (
-    DEFAULT_FLORENCE_URL,
     FLORENCE_CONNECT_TIMEOUT,
     FLORENCE_HEALTH_TIMEOUT,
     FLORENCE_READ_TIMEOUT,
@@ -214,10 +213,6 @@ class TestFlorenceUnavailableError:
 
 class TestModuleConstants:
     """Tests for module-level constants."""
-
-    def test_default_florence_url(self) -> None:
-        """Test default Florence URL constant."""
-        assert DEFAULT_FLORENCE_URL == "http://ai-florence:8092"
 
     def test_florence_connect_timeout(self) -> None:
         """Test Florence connect timeout constant."""

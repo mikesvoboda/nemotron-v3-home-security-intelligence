@@ -15,7 +15,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.core.sanitization import URLValidationError, validate_grafana_url
@@ -231,12 +231,17 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # AI services
+    # Deprecated: the standalone ai-yolo26 / ai-florence / ai-clip /
+    # ai-enrichment / ai-enrichment-light containers are retired — those models
+    # are served by the ai-gateway container (single port, AI_GATEWAY_PORT,
+    # default 8090). These fields are kept so existing .env files keep parsing.
     yolo26_port: int = Field(
         8095,
         ge=1,
         le=65535,
         validation_alias="YOLO26_PORT",
-        description="YOLO26 (ai-yolo26) container service port for health checks.",
+        description="DEPRECATED (ai-yolo26 container retired; served by ai-gateway) — "
+        "legacy YOLO26 container port, kept so .env files keep parsing.",
     )
     nemotron_port: int = Field(
         8091,
@@ -250,28 +255,32 @@ class OrchestratorSettings(BaseSettings):
         ge=1,
         le=65535,
         validation_alias="FLORENCE_PORT",
-        description="Florence-2 (ai-florence) container service port for health checks.",
+        description="DEPRECATED (ai-florence container retired; served by ai-gateway) — "
+        "legacy Florence-2 container port, kept so .env files keep parsing.",
     )
     clip_port: int = Field(
         8093,
         ge=1,
         le=65535,
         validation_alias="CLIP_PORT",
-        description="CLIP (ai-clip) container service port for health checks.",
+        description="DEPRECATED (ai-clip container retired; served by ai-gateway) — "
+        "legacy CLIP container port, kept so .env files keep parsing.",
     )
     enrichment_port: int = Field(
         8094,
         ge=1,
         le=65535,
         validation_alias="ENRICHMENT_PORT",
-        description="Enrichment (ai-enrichment) container service port for health checks.",
+        description="DEPRECATED (ai-enrichment container retired; served by ai-gateway) — "
+        "legacy Enrichment container port, kept so .env files keep parsing.",
     )
     enrichment_light_port: int = Field(
         8096,
         ge=1,
         le=65535,
         validation_alias="ENRICHMENT_LIGHT_PORT",
-        description="Enrichment Light (ai-enrichment-light) container service port for health checks.",
+        description="DEPRECATED (ai-enrichment-light container retired; served by "
+        "ai-gateway) — legacy Enrichment Light container port, kept so .env files keep parsing.",
     )
 
     # Monitoring services
@@ -317,12 +326,15 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="BLACKBOX_EXPORTER_PORT",
         description="Blackbox Exporter container service port for health checks.",
     )
+    # Deprecated: Jaeger is retired (Tempo serves traces in prod compose).
+    # Kept so .env files that still set JAEGER_UI_PORT keep parsing.
     jaeger_port: int = Field(
         16686,
         ge=1,
         le=65535,
         validation_alias="JAEGER_UI_PORT",
-        description="Jaeger UI container service port for health checks.",
+        description="DEPRECATED (Jaeger retired; Tempo serves traces) — "
+        "legacy Jaeger UI port, kept so .env files keep parsing.",
     )
     loki_port: int = Field(
         3100,
@@ -848,18 +860,38 @@ class Settings(BaseSettings):
     )
 
     # Admin endpoints settings
-    # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
-    # This provides defense-in-depth against accidentally exposing admin endpoints
+    # SECURITY POSTURE (as actually implemented, verified against
+    # backend/api/routes/admin.py): ADMIN_ENABLED ALONE gates the seeding /
+    # cache-clearing / cleanup endpoints — require_admin_access() raises 403 only
+    # when admin_enabled is False. It does NOT consult DEBUG (this flag defaults
+    # True, so those endpoints are exposed by default) and it does NOT consult
+    # ADMIN_API_KEY. The declared boundary is therefore network-level: bind to
+    # 127.0.0.1 / keep the port on a trusted network (the single-user design
+    # decision; see backend/main.py near the NEM-5527 note). The global
+    # AuthMiddleware is disabled, so nothing else stands in front of them.
+    # The /api/admin/users CRUD endpoints are a separate case — they are gated by
+    # get_current_admin_user (authenticated admin session), not by this flag.
     admin_enabled: bool = Field(
         default=True,
         description="Enable admin endpoints for data seeding, cache clearing, and cleanup. "
-        "Protected by require_admin_access dependency. Network binding to 127.0.0.1 "
-        "is the primary security boundary for single-user local deployments.",
+        "require_admin_access() gates those routes on this flag alone — DEBUG is not "
+        "consulted and ADMIN_API_KEY is not enforced — so it defaults True and is the "
+        "only switch: set ADMIN_ENABLED=false to disable them. Network binding to "
+        "127.0.0.1 is the primary security boundary for single-user local deployments.",
     )
+    # NOT ENFORCED: no code path reads admin_api_key. It is declared here and is
+    # redacted in logs (backend/core/logging.py SENSITIVE_FIELD_NAMES), and the
+    # seeding endpoints' 401 response descriptions mention it, but
+    # require_admin_access() never checks it and nothing validates an
+    # X-Admin-API-Key header. Setting ADMIN_API_KEY changes nothing about who can
+    # call the admin routes — treat it as reserved/inert until an enforcement
+    # path exists.
     admin_api_key: SecretStr | None = Field(
         default=None,
-        description="Optional API key required for admin endpoints. "
-        "When set, all admin requests must include X-Admin-API-Key header.",
+        description="Reserved: currently enforced by NOTHING. Declared for a future "
+        "admin key check and redacted from logs, but no code path reads it and no "
+        "middleware validates an X-Admin-API-Key header — admin routes are gated by "
+        "ADMIN_ENABLED alone (see require_admin_access in backend/api/routes/admin.py).",
     )
 
     # API settings
@@ -1018,7 +1050,7 @@ class Settings(BaseSettings):
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
     # YOLO26 Detector Settings
-    # Development: http://localhost:8095 (local dev)
+    # Development: http://localhost:8090/yolo26 (local dev gateway)
     # Docker: http://ai-gateway:8090/yolo26 (via AI gateway)
     yolo26_url: str = Field(
         default="http://ai-gateway:8090/yolo26",
@@ -1128,7 +1160,7 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
         description="Maximum concurrent requests to enrichment HTTP services "
-        "(ai-enrichment, ai-enrichment-light). Limits GPU saturation.",
+        "(ai-gateway /enrichment, /enrich-lt routers). Limits GPU saturation.",
     )
     enrichment_quality_level: str = Field(
         default="full",
@@ -1154,16 +1186,85 @@ class Settings(BaseSettings):
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
 
+    # llama.cpp `--parallel` (compose: PARALLEL, default 8) — number of inference
+    # slots sharing one CTX_SIZE context pool.  Declared before
+    # nemotron_context_window so its validated value is available to the
+    # slot-division validator below.
+    llama_slot_count: int = Field(
+        default=8,
+        ge=1,
+        le=64,
+        validation_alias="PARALLEL",
+        description="llama.cpp parallel inference slots sharing the CTX_SIZE pool. "
+        "Reads from the PARALLEL env var passed to the ai-llm container. "
+        "Default: 8 slots.",
+    )
     # Nemotron context window settings (NEM-1723)
+    #
+    # Two variables, two scopes — they are intentionally NOT the same number:
+    #   - llama.cpp `--ctx-size`  <- CTX_SIZE (compose default 262144): the TOTAL
+    #     context pool, split evenly across PARALLEL slots (8 by default).
+    #   - this budget             <- CTX_SIZE / llama_slot_count: what ONE request
+    #     gets, because a request only ever occupies a single slot.
+    # Passing llama.cpp's raw pool into a per-request budget would overrun the slot
+    # (262,144 total / 8 slots = 32,768 per slot), so the budget is the per-slot
+    # figure, derived below.  Deriving it here keeps `.env`'s CTX_SIZE the single
+    # source of truth instead of adding a second number to keep in sync.
     nemotron_context_window: int = Field(
-        default=32768,
+        # Declared in llama.cpp's UNITS (the total pool), not per-slot, because
+        # defaults ARE validated: validate_default=True arrives via
+        # pydantic-settings' own BaseSettings.model_config (merged into the
+        # resolved Settings.model_config — it is NOT in the SettingsConfigDict
+        # this class declares, so don't go looking for it there).  The default
+        # therefore passes through _derive_slot_context_window too, so declaring
+        # the per-slot 32768 here would be divided a second time.  262144 // 8
+        # slots == the 32768 budget this setting has always resolved to when
+        # CTX_SIZE is unset.
+        default=262144,
+        # llama.cpp runs multiple slots against one CTX_SIZE pool, so one request
+        # can never exceed the whole pool; 262144 is the shipped CTX_SIZE default.
+        # NOTE these bounds are unreachable in practice, not a guard for anything:
+        # _derive_slot_context_window (mode="before") already clamps whatever
+        # numeric value it receives into this exact band with min()/max(), and
+        # non-numeric input falls back to 32768 — so no value reaching ge/le can
+        # violate it.  A value passed to the constructor as
+        # Settings(nemotron_context_window=...) is never seen by either the
+        # validator or ge/le: validation_alias="CTX_SIZE" (with populate_by_name
+        # unset) means ONLY CTX_SIZE feeds this field, so the kwarg is dropped as
+        # extra.  Kept as the documented band and as a backstop if the clamp is
+        # ever removed.
         ge=1000,
-        le=131072,
+        le=262144,
         validation_alias="CTX_SIZE",
-        description="Nemotron context window size in tokens. "
-        "Reads from CTX_SIZE in .env (single source of truth, shared with llama.cpp). "
+        description="Per-request Nemotron context budget in tokens. "
+        "Reads from CTX_SIZE (the llama.cpp --ctx-size total pool) divided by "
+        "llama_slot_count, because llama.cpp splits one context pool across PARALLEL "
+        "slots and each request only gets one slot. "
         "Prompts exceeding (context_window - max_output_tokens) will be truncated.",
     )
+
+    @field_validator("nemotron_context_window", mode="before")
+    @classmethod
+    def _derive_slot_context_window(cls, v: Any, info: ValidationInfo) -> int:
+        """Split the llama.cpp CTX_SIZE pool across PARALLEL slots.
+
+        Args:
+            v: Raw CTX_SIZE value — llama.cpp's total context pool
+            info: Validation context; carries the already-validated llama_slot_count
+
+        Returns:
+            Per-slot budget (pool // slots), clamped into the field's
+            1000..262144 band; the 32768 default when CTX_SIZE is not numeric
+        """
+        try:
+            total = int(str(v).strip())
+        except TypeError, ValueError, AttributeError:
+            return 32768
+        # Defaults are not populated into info.data when the field is absent from
+        # the env input, so fall back to the declared default of 8 slots.
+        slots = info.data.get("llama_slot_count") or 8
+        return min(262144, max(1000, total // max(1, int(slots))))
+
     nemotron_max_output_tokens: int = Field(
         default=1536,
         ge=100,
@@ -1283,23 +1384,28 @@ class Settings(BaseSettings):
             ) from None
 
     # Florence-2, CLIP, and Enrichment service URLs
-    # Development: http://localhost:8092, http://localhost:8093, http://localhost:8094 (local dev)
-    # Docker: http://ai-florence:8092, http://ai-clip:8093, http://ai-enrichment:8094 (container network)
+    # Standalone ai-florence / ai-clip / ai-enrichment / ai-enrichment-light containers
+    # are retired; each model is a router on the AI gateway. Health probes GET {url}/health
+    # directly from these fields and every gateway router serves /health under its
+    # prefix, so the router suffix is required here. In gateway mode the API clients
+    # bypass these fields and build {ai_gateway_url}/{router} themselves.
+    # Development: http://localhost:8090/florence, /clip, /enrichment, /enrich-lt (local gateway)
+    # Docker: http://ai-gateway:8090/florence, /clip, /enrichment, /enrich-lt (via AI gateway)
     florence_url: str = Field(
-        default="http://localhost:8092",
-        description="Florence-2 vision-language service URL. Development: http://localhost:8092, Docker: http://ai-florence:8092",
+        default="http://ai-gateway:8090/florence",
+        description="Florence-2 vision-language service URL. Development: http://localhost:8090/florence, Docker: http://ai-gateway:8090/florence",
     )
     clip_url: str = Field(
-        default="http://localhost:8093",
-        description="CLIP embedding service URL for re-identification. Development: http://localhost:8093, Docker: http://ai-clip:8093",
+        default="http://ai-gateway:8090/clip",
+        description="CLIP embedding service URL for re-identification. Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
     )
     enrichment_url: str = Field(
-        default="http://localhost:8094",
-        description="Heavy enrichment service URL for vehicle, clothing, demographics, action models. Development: http://localhost:8094, Docker: http://ai-enrichment:8094",
+        default="http://ai-gateway:8090/enrichment",
+        description="Heavy enrichment service URL for vehicle, clothing, demographics, action models. Development: http://localhost:8090/enrichment, Docker: http://ai-gateway:8090/enrichment",
     )
     enrichment_light_url: str = Field(
-        default="http://localhost:8096",
-        description="Light enrichment service URL for pose, threat, reid, pet, depth models. Development: http://localhost:8096, Docker: http://ai-enrichment-light:8096",
+        default="http://ai-gateway:8090/enrich-lt",
+        description="Light enrichment service URL for pose, threat, reid, pet, depth models. Development: http://localhost:8090/enrich-lt, Docker: http://ai-gateway:8090/enrich-lt",
     )
 
     # AI Gateway (Triton Inference Server migration)
@@ -1368,8 +1474,9 @@ class Settings(BaseSettings):
     )
 
     # Enrichment Model Assignment Configuration
-    # Each model can be assigned to "heavy" (GPU 0, ai-enrichment:8094) or "light" (GPU 1, ai-enrichment-light:8096)
-    # This allows flexible distribution of models across GPUs based on VRAM and compute requirements
+    # Each model can be assigned to "heavy" (ai-gateway /enrichment router) or "light" (ai-gateway /enrich-lt router)
+    # This allows flexible distribution of models across the gateway's two endpoints
+    # based on VRAM and compute requirements
     enrichment_pose_service: str = Field(
         default="light",
         description="Service for pose estimation model: 'heavy' or 'light'. YOLOv8n-pose (~300MB) recommended for light.",
@@ -1566,7 +1673,7 @@ class Settings(BaseSettings):
         except Exception as e:
             raise ValueError(
                 f"Invalid vision service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
-                f"Example: 'http://localhost:8092'. Error: {e}"
+                f"Example: 'http://localhost:8090/florence'. Error: {e}"
             ) from None
 
     # Vision extraction settings (Florence-2, CLIP re-id, scene analysis)
@@ -1815,7 +1922,7 @@ class Settings(BaseSettings):
     otel_enabled: bool = Field(
         default=True,
         description="Enable OpenTelemetry distributed tracing. When enabled, traces are "
-        "collected and exported to the configured OTLP endpoint (e.g., Jaeger, Tempo).",
+        "collected and exported to the configured OTLP endpoint (e.g., Tempo).",
     )
     otel_service_name: str = Field(
         default="nemotron-backend",
@@ -1824,7 +1931,7 @@ class Settings(BaseSettings):
     )
     otel_exporter_otlp_endpoint: str = Field(
         default="http://alloy:4317",
-        description="OTLP gRPC endpoint for trace export. Default uses Alloy collector which forwards to Jaeger. "
+        description="OTLP gRPC endpoint for trace export. Default uses Alloy collector which forwards to Tempo. "
         "Examples: 'http://alloy:4317' (Docker), 'http://localhost:4317' (local dev).",
     )
     otel_exporter_otlp_insecure: bool = Field(
@@ -3011,6 +3118,43 @@ class Settings(BaseSettings):
                 f"violence_definitive_threshold ({self.violence_definitive_threshold}) must be "
                 f"greater than violence_suspected_threshold ({self.violence_suspected_threshold}). "
                 "The tier boundaries must be: definitive > suspected > marginal."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_severity_thresholds(self) -> Settings:
+        """Validate severity tier boundary consistency.
+
+        The three boundaries must be strictly increasing so every tier keeps a
+        non-empty band:
+        - LOW 0..low_max < MEDIUM..medium_max < HIGH..high_max <= 100 CRITICAL
+
+        SeverityService.__init__ (backend/services/severity.py) checks this same
+        ordering, but only when the service is first constructed behind
+        get_severity_service()'s lru_cache — so a misordered SEVERITY_* config
+        surfaced deep at runtime, on the first request that classified a score.
+        Checking it here fails fast at Settings construction instead. The
+        0..100 extent is already enforced per-field by the ge/le constraints;
+        this validator covers the ordering between fields, which no single-field
+        constraint can express.
+
+        Returns:
+            self: The validated Settings instance
+
+        Raises:
+            ValueError: If the boundaries are not strictly ordered
+        """
+        if not self.severity_low_max < self.severity_medium_max:
+            raise ValueError(
+                f"severity_low_max ({self.severity_low_max}) must be less than "
+                f"severity_medium_max ({self.severity_medium_max}). "
+                "The tier boundaries must be: low_max < medium_max < high_max."
+            )
+        if not self.severity_medium_max < self.severity_high_max:
+            raise ValueError(
+                f"severity_medium_max ({self.severity_medium_max}) must be less than "
+                f"severity_high_max ({self.severity_high_max}). "
+                "The tier boundaries must be: low_max < medium_max < high_max."
             )
         return self
 

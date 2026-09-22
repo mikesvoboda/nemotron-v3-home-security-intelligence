@@ -224,7 +224,9 @@ class TestCollectTritonConfigs:
 class TestMain:
     """Tests for main() — integration with tmp_path and monkeypatch."""
 
-    def test_models_yml_missing_prints_warning_returns(self, tmp_path: Path, monkeypatch, capsys) -> None:
+    def test_models_yml_missing_prints_warning_returns(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
         from ai.gateway import patch_triton_configs
 
         missing = tmp_path / "nonexistent.yml"
@@ -249,7 +251,9 @@ class TestMain:
         captured = capsys.readouterr()
         assert "No triton_name/triton_kind" in captured.out
 
-    def test_config_missing_prints_warn_continues(self, tmp_path: Path, monkeypatch, capsys) -> None:
+    def test_config_missing_prints_warn_continues(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
         from ai.gateway import patch_triton_configs
 
         (tmp_path / "models.yml").write_text("""
@@ -328,24 +332,56 @@ instance_group [ { count: 1
         assert "verified" in captured.out
 
 
+def _entry_triton_names(entry: dict) -> set[str]:
+    """All triton names a catalogue entry maps to (nested triton_models or top-level)."""
+    names = {
+        str(tm["triton_name"])
+        for tm in entry.get("triton_models") or []
+        if isinstance(tm, dict) and tm.get("triton_name")
+    }
+    if entry.get("triton_name"):
+        names.add(str(entry["triton_name"]))
+    return names
+
+
 class TestModelsYamlConsistency:
     """Validation tests for models.yml vs Triton model repository."""
 
     def test_all_triton_names_map_to_existing_config(self) -> None:
-        from ai.gateway.patch_triton_configs import collect_triton_configs
         from setup_lib.models_config import load_models_yaml
+
+        from ai.gateway.patch_triton_configs import collect_triton_configs
 
         models = load_models_yaml()
         pairs = collect_triton_configs(models)
         repo_root = Path(__file__).resolve().parents[3] / "ai" / "triton" / "model_repository"
 
+        # An enabled:false catalogue entry may keep its triton_name as
+        # provisioning/registry history while its repository dir is retired to
+        # archive/ (owner ruling 2026-09-22: models.yml is immutable history of
+        # a disabled model). That is NOT a mapping drift — but it must stay a
+        # *deliberate* pair, so the disabled exemption is pinned by name.
+        deliberately_retired = {"xclip_action"}
+        disabled = {str(m.get("name")) for m in models if m.get("enabled") is False}
+
         for triton_name, _ in pairs:
             cfg_path = repo_root / triton_name / "config.pbtxt"
+            if not cfg_path.exists() and triton_name in deliberately_retired:
+                owners = [
+                    m.get("name")
+                    for m in models
+                    if _entry_triton_names(m) and triton_name in _entry_triton_names(m)
+                ]
+                assert owners and all(str(o) in disabled for o in owners), (
+                    f"{triton_name} dir is archived but catalogue owner(s) {owners} are not all enabled:false"
+                )
+                continue
             assert cfg_path.exists(), f"Config missing for triton_name={triton_name}"
 
     def test_all_triton_kinds_valid(self) -> None:
-        from ai.gateway.patch_triton_configs import collect_triton_configs
         from setup_lib.models_config import load_models_yaml
+
+        from ai.gateway.patch_triton_configs import collect_triton_configs
 
         models = load_models_yaml()
         pairs = collect_triton_configs(models)
@@ -355,8 +391,9 @@ class TestModelsYamlConsistency:
             assert triton_kind in valid, f"Invalid triton_kind={triton_kind} for {triton_name}"
 
     def test_no_duplicate_triton_names(self) -> None:
-        from ai.gateway.patch_triton_configs import collect_triton_configs
         from setup_lib.models_config import load_models_yaml
+
+        from ai.gateway.patch_triton_configs import collect_triton_configs
 
         models = load_models_yaml()
         pairs = collect_triton_configs(models)
@@ -386,8 +423,9 @@ class TestConfigRoundTrip:
 
     def test_round_trip_idempotent_for_all_models(self) -> None:
         """For each model in models.yml, set_instance_group with its kind yields same content."""
-        from ai.gateway.patch_triton_configs import collect_triton_configs, set_instance_group
         from setup_lib.models_config import load_models_yaml
+
+        from ai.gateway.patch_triton_configs import collect_triton_configs, set_instance_group
 
         models = load_models_yaml()
         pairs = collect_triton_configs(models)

@@ -241,7 +241,7 @@ The gateway swap is `use_ai_gateway` + `ai_gateway_url` in
 
 ### Nemotron (ai-llm compose service)
 
-**Model**: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) - NVIDIA's 30B parameter LLM optimized for reasoning tasks, quantized to GGUF format for efficient inference via llama.cpp.
+**Model**: [unsloth/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/unsloth/Nemotron-3-Nano-30B-A3B-GGUF) - NVIDIA's Nemotron-3-Nano-30B-A3B LLM (unsloth's ungated GGUF mirror of the nvidia repo, which 401s without gated access; models.yml `hf_repo` is the source of truth), quantized to Q4_K_M GGUF for efficient inference via llama.cpp.
 
 `.env` is the source of truth; compose maps it onto the container env:
 
@@ -397,13 +397,24 @@ podman-compose -f docker-compose.prod.yml \
 
 ### `download_models.sh`
 
-Downloads or locates models:
+Downloads the **models.yml download set** — the 25 entries (32.79 GiB ≈
+~32.8GB by `size_mb`) that `setup_lib`'s rule selects:
+`download_method != skip AND (hf_repo OR download_method)`
+(`setup_lib/models_config.py::get_downloadable_models`). Repo-root
+`models.yml` is the source of truth; the 5 `download_method: skip` entries
+(brisque-quality, fast-alpr, paddleocr, yolo26-general, zero-dce-plus-plus)
+are fetched by their libraries at runtime.
 
-- Nemotron-3-Nano-30B Q4_K_M (~14.7GB) from HuggingFace
-  (nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
-- YOLO26v2: auto-downloaded by HuggingFace Transformers on first run
-  (`PekingU/yolo26_r50vd_coco_o365`, ~165MB) - the script only prints this,
-  it does not download the detector weights
+`enabled` in models.yml governs backend model_zoo VRAM slots, NOT disk
+provisioning, so three `enabled: false` entries are still downloaded: `yolo26`
+(n/s/m `.pt` from ultralytics/assets release v8.4.0 — `ai/gateway/export/`
+`export_yolo26.py` + `scripts/prebuild-tensorrt-engines.sh` need
+`model-zoo/yolo26/yolo26m.pt` on disk), `xclip-base`
+(`backend/services/xclip_loader.py`), and `florence-2-large`
+(`backend/services/florence_extractor.py` via the model_zoo loader map).
+
+Largest single pull: Nemotron-3-Nano-30B Q4_K_M (~14.7GB,
+`unsloth/Nemotron-3-Nano-30B-A3B-GGUF`).
 
 ### `start_detector.sh`
 
@@ -457,12 +468,15 @@ with pool.get_stream() as stream:
     with torch.cuda.stream(stream):
         tensor = preprocess(image)
 
+
 # Full pipeline with overlapped execution
 def preprocess(images):
     return processor(images, return_tensors="pt").to("cuda")
 
+
 def postprocess(outputs, inputs):
     return outputs.logits.argmax(dim=-1).tolist()
+
 
 pipeline = StreamedInferencePipeline(
     model=model,

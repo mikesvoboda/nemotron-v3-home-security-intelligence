@@ -32,14 +32,17 @@ There is no `conftest.py` in this directory and there was never a `FaultInjector
 Chaos tests are safe to run in development environments. They use mocking and fault injection to simulate failures without touching real services.
 
 ```bash
-# Run all chaos tests serially (the suite is xdist-unsafe — see below)
+# Run all chaos tests (addopts' -n 8 xdist works; -n0 runs serially too)
+uv run pytest backend/tests/chaos/ -v -m chaos
+
+# Serial run
 uv run pytest backend/tests/chaos/ -v -m chaos -n0
 
 # Run one file
 uv run pytest backend/tests/chaos/test_redis_failures.py -v -m chaos -n0
 ```
 
-**Run serially.** `pyproject.toml` addopts enable xdist (`-n 8 --dist=worksteal`); this suite is xdist-unsafe by its own conftest-era "deadlock" docs (see the R-T7-POISON-CASCADE note in `scripts/validate.sh`), and a serial full-suite run was still unfinished after 10 minutes when measured on 2026-09-22 — individual files are the practical unit of work.
+**Serial and parallel both work** (measured 2026-09-22 after the worker-chaos fix): 84 tests in ~15 s under the addopts `-n 8` and ~45 s with `-n0`. The old "xdist-unsafe / serial run never finishes" state (R-T7-POISON-CASCADE in `scripts/validate.sh`) was a hang in `test_worker_chaos.py`: its list-only Redis mock met the product-default streams path, where `DetectionQueueWorker._run_loop`'s empty-read `continue` busy-spins without yielding (py-spy: 176k `xreadgroup` calls in 10 s) and starves every `asyncio.sleep`. pytest-timeout's per-test signal _did_ fire in the serial run (each test took its 5 s abort in turn) — what no timeout could rescue was the xdist master parked in `queue.get()` waiting on workers that could never finish. The module now forces the legacy BLPOP path via an autouse `disable_redis_streams` fixture (same guard as `backend/tests/unit/services/test_pipeline_workers.py`).
 
 ### Test Markers
 
@@ -165,7 +168,7 @@ uv run pytest backend/tests/chaos/test_redis_failures.py -v -m chaos -n0
 
 ### Tests Timing Out
 
-Some chaos tests intentionally inject delays, and `pyproject.toml` sets a global `timeout = 5` (seconds). Raise it for a chaos run:
+Some chaos tests intentionally inject delays. `pyproject.toml` sets a global `timeout = 5` (seconds), which the suite passes as-is (measured 2026-09-22); raise it only if added tests sleep longer:
 
 ```bash
 uv run pytest backend/tests/chaos/ -v -m chaos -n0 --timeout=60
@@ -175,7 +178,7 @@ uv run pytest backend/tests/chaos/ -v -m chaos -n0 --timeout=60
 
 Chaos tests involve timing-sensitive operations. If tests are flaky:
 
-1. **Run with `-n0`** — the suite is not parallel-safe under xdist
+1. **Reproduce with `-n0`** — a timing test that only fails under `-n 8` is load-sensitive; xdist itself is safe for this suite
 2. **Check system load** — high CPU causes timing issues
 3. **Review logs** — use `-v --tb=long` for detailed output
 

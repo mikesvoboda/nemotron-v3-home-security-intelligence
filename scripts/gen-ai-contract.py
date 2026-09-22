@@ -207,7 +207,9 @@ PHANTOM_OPS: dict[str, dict[str, Any]] = {
         "response": None,
         "evidence": (
             "backend/services/enrichment_client.py:3257; "
-            "backend/api/routes/model_management.py:186; "
+            "backend/api/routes/model_management.py no longer proxies "
+            "/models/status \u2014 the read endpoints probe router health "
+            "instead (_fetch_router_health does GET {router}/health); "
             "grep over ai/gateway/adapters/ returns 0 hits (re-verified at "
             "generation time by check_phantoms)"
         ),
@@ -225,7 +227,9 @@ PHANTOM_OPS: dict[str, dict[str, Any]] = {
         "response": None,
         "evidence": (
             "backend/services/enrichment_client.py:3287; "
-            "backend/api/routes/model_management.py:486,646"
+            "backend/api/routes/model_management.py load/reload return 501 "
+            "without egress since the ai-gateway consolidation "
+            "(load_model/reload_model handlers \u2014 no /models/preload caller there)"
         ),
     },
     "model_unload": {
@@ -242,8 +246,10 @@ PHANTOM_OPS: dict[str, dict[str, Any]] = {
         "response": None,
         "evidence": (
             "canonical ai/enrichment/model.py:3552 (query-param model_name); "
-            "backend posts /models/{name}/unload at model_management.py:560 - "
-            "404 even against the real server (WP7.3 Tier A)"
+            "backend no longer posts /models/{name}/unload \u2014 "
+            "model_management.py unload returns 501 without egress since the "
+            "ai-gateway consolidation (unload_model handler; former WP7.3 "
+            "Tier A 404 mismatch retired)"
         ),
     },
     "object_distance": {

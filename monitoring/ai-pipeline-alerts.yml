@@ -4,12 +4,12 @@
 # batch coalescing, score calibration, and CLIP/Florence service health.
 #
 # These alerts cover metrics added across the AI pipeline including:
-#   - GPU OOM detection (ai_gpu_oom_total from ai/gpu_oom_handler.py)
+#   - GPU/inference failure detection (nv_inference_request_failure from Triton)
 #   - Enrichment pipeline health (hsi_enrichment_* from backend/core/metrics.py)
 #   - LLM context and inference (hsi_llm_*, hsi_prompts_*, hsi_nemotron_*)
 #   - Batch coalescing effectiveness (hsi_batch_coalesce_*)
 #   - Risk score calibration drift (hsi_risk_tier_total, hsi_risk_score_distribution)
-#   - CLIP/Florence service availability (clip_inference_requests_total, florence_inference_requests_total)
+#   - CLIP/Florence model availability (nv_inference_request_success{model=...} from Triton)
 #
 # Alert Severity Levels:
 # - critical: Immediate action required. System is down or data loss is imminent.
@@ -23,24 +23,44 @@ groups:
   # =============================================================================
   # GPU & Infrastructure Alerts
   # =============================================================================
-  # Monitor GPU out-of-memory errors and memory pressure across AI services.
-  # OOM events are tracked by ai/gpu_oom_handler.py in each inference service.
+  # Monitor inference failures and memory pressure across AI serving.
+  # ai_gpu_oom_handler.py's OOM counter went out of service with the standalone
+  # AI containers it was imported into — Triton surfaces VRAM pressure as failed
+  # inferences instead, which is what this group alerts on now.
   - name: gpu_oom_alerts
     interval: 15s
     rules:
-      # Critical: Any GPU OOM error occurring
-      # OOM errors indicate the GPU is exhausting VRAM during inference.
-      # Even a single OOM can crash an inference pipeline.
-      - alert: GPUOOMCritical
-        expr: rate(ai_gpu_oom_total[5m]) > 0
+      # DELETED: GPUOOMCritical (expr: rate(ai_gpu_oom_total[5m]) > 0).
+      # ai_gpu_oom_total is defined in ai/gpu_oom_handler.py and imported only by
+      # the retired standalone inference services (ai/clip, ai/florence,
+      # ai/yolo26, ai/enrichment, ai/enrichment-light model.py). Nothing in
+      # ai/gateway imports it, so the series is never exported in the current
+      # topology and the alert could never fire. GPUInferenceFailures below is
+      # the Triton-backed replacement for inference-failure coverage (the
+      # ai-service-health.json panels that graphed ai_gpu_oom_total were
+      # retargeted to nv_inference_request_failure in the same sweep).
+
+      # Critical: Triton inference failures above 10% of served requests
+      # nv_inference_request_failure / nv_inference_request_success are Triton's
+      # per-model counters, scraped from ai-gateway:8002/metrics by the
+      # 'triton-metrics' job. A sustained failure share is the closest live
+      # signal to the retired OOM counter — VRAM exhaustion surfaces here as
+      # failed inferences.
+      - alert: GPUInferenceFailures
+        expr: |
+          (
+            sum(rate(nv_inference_request_failure[5m]))
+            /
+            (sum(rate(nv_inference_request_success[5m])) + 0.001)
+          ) > 0.1
         for: 5m
         labels:
           severity: critical
           component: gpu
           service: ai_inference
         annotations:
-          summary: 'GPU OOM errors detected on {{ $labels.service }}'
-          description: 'GPU out-of-memory errors are occurring on service {{ $labels.service }} (endpoint: {{ $labels.endpoint }}) at a rate of {{ $value | printf "%.3f" }}/sec. Any OOM is serious and may crash inference. Check VRAM usage and consider reducing batch sizes or unloading unused models.'
+          summary: 'Triton inference failure rate above 10%'
+          description: 'Triton is failing {{ $value | humanizePercentage }} of inference requests through ai-gateway. Common causes are VRAM exhaustion, an unloaded model, or a backend crash. Check per-model failure rates via nv_inference_request_failure{model=...} and consider reducing batch sizes or unloading unused models.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-oom'
 
       # Warning: GPU memory utilization above 90% (from JSON exporter hsi_gpu_* metrics)
@@ -335,19 +355,25 @@ groups:
   # =============================================================================
   # CLIP & Florence Service Health Alerts
   # =============================================================================
-  # Monitor CLIP and Florence AI service availability. These services provide
-  # critical enrichment capabilities (visual embeddings, scene understanding).
-  # Metrics come from the AI service containers themselves, scraped by Prometheus.
+  # Monitor CLIP and Florence availability. These models provide critical
+  # enrichment capabilities (visual embeddings, scene understanding). Both are
+  # served by Triton inside ai-gateway now, so the per-model counters come from
+  # the 'triton-metrics' job (nv_inference_request_success{model=...}). The
+  # retired standalone containers exported clip_inference_requests_total /
+  # florence_inference_requests_total; those series no longer exist.
+  # "or vector(0)" around the sum is deliberate: sum(rate(<no matching series>))
+  # returns EMPTY in PromQL (not 0), so without the fallback a model that has
+  # never exported anything would leave the expression silently empty instead of
+  # firing; the fallback makes a missing/unloaded model fire.
   - name: clip_florence_alerts
     interval: 15s
     rules:
-      # Critical: CLIP service not receiving any calls while enrichment is active
-      # clip_inference_requests_total is exposed by the ai-clip container.
+      # Critical: CLIP model not serving any requests while enrichment is active
       # If enrichment is running (hsi_enrichment_model_calls_total increasing)
-      # but no CLIP calls are happening, the CLIP service may be down.
+      # but Triton served no clip requests, the model is down or unloaded.
       - alert: CLIPServiceDown
         expr: |
-          rate(clip_inference_requests_total[10m]) == 0
+          (sum(rate(nv_inference_request_success{model="clip"}[10m])) or vector(0)) == 0
           and
           sum(rate(hsi_enrichment_model_calls_total[10m])) > 0
         for: 10m
@@ -356,15 +382,16 @@ groups:
           component: ai
           service: clip
         annotations:
-          summary: 'CLIP service receiving no requests while enrichment is active'
-          description: 'No CLIP inference requests have been made in the last 10 minutes, but the enrichment pipeline is actively processing. CLIP may be down or unreachable. Visual embedding and anomaly detection are unavailable.'
+          summary: 'CLIP model serving no requests while enrichment is active'
+          description: 'Triton has served no CLIP inference requests in the last 10 minutes, but the enrichment pipeline is actively processing. The clip model may be unloaded in ai-gateway or unreachable. Visual embedding and anomaly detection are unavailable.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/clip-service-down'
 
-      # Critical: Florence service not receiving any calls while enrichment is active
-      # florence_inference_requests_total is exposed by the ai-florence container.
+      # Critical: Florence model not serving any requests while enrichment is active
+      # Triton registers the Florence-2 model as "florence2" (ai/gateway/
+      # adapters/florence.py MODEL_NAME), not "florence".
       - alert: FlorenceServiceDown
         expr: |
-          rate(florence_inference_requests_total[10m]) == 0
+          (sum(rate(nv_inference_request_success{model="florence2"}[10m])) or vector(0)) == 0
           and
           sum(rate(hsi_enrichment_model_calls_total[10m])) > 0
         for: 10m
@@ -373,8 +400,8 @@ groups:
           component: ai
           service: florence
         annotations:
-          summary: 'Florence service receiving no requests while enrichment is active'
-          description: 'No Florence inference requests have been made in the last 10 minutes, but the enrichment pipeline is actively processing. Florence may be down or unreachable. Scene captioning and OCR are unavailable.'
+          summary: 'Florence model serving no requests while enrichment is active'
+          description: 'Triton has served no Florence-2 inference requests in the last 10 minutes, but the enrichment pipeline is actively processing. The florence2 model may be unloaded in ai-gateway or unreachable. Scene captioning and OCR are unavailable.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/florence-service-down'
 
       # Warning: CLIP anomaly scores consistently high across cameras
@@ -399,4 +426,4 @@ groups:
           service: clip
         annotations:
           summary: 'CLIP anomaly scoring error rate above 20%'
-          description: 'CLIP anomaly scoring is failing at a rate of {{ $value | humanizePercentage }}. Anomaly detection capabilities are degraded. Check CLIP service health, baseline availability, and network connectivity to ai-clip.'
+          description: 'CLIP anomaly scoring is failing at a rate of {{ $value | humanizePercentage }}. Anomaly detection capabilities are degraded. Check ai-gateway CLIP router health (:8090/clip/health), Triton clip model readiness, and baseline availability.'

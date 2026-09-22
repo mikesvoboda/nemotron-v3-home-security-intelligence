@@ -499,7 +499,7 @@ def _safe_read_json(file_path: Path, base_path: Path) -> dict[str, Any] | None:
 
         with resolved.open() as f:  # nosemgrep: path-traversal-open
             return json.load(f)
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return None
 
 
@@ -599,10 +599,7 @@ def discover_synthetic_scenarios(
                     if images:
                         # Filter out Git LFS pointer files (130-135 bytes of ASCII text,
                         # not actual image data). LFS objects must be pulled before seeding.
-                        real_images = [
-                            p for p in images
-                            if p.stat().st_size > 1024
-                        ]
+                        real_images = [p for p in images if p.stat().st_size > 1024]
                         if not real_images and images:
                             print(
                                 f"  Warning: {scenario_dir.name} media files appear to be "
@@ -991,7 +988,7 @@ async def _fix_selinux_context(file_path: Path) -> None:
             stderr=asyncio.subprocess.DEVNULL,
         )
         await asyncio.wait_for(proc.wait(), timeout=5)
-    except (TimeoutError, FileNotFoundError, OSError):
+    except TimeoutError, FileNotFoundError, OSError:
         pass  # Best-effort; batch fix at end will catch stragglers
 
 
@@ -1032,7 +1029,9 @@ async def flush_redis_queues() -> None:
             continue
 
     if client is None:
-        print(f"  WARNING: Could not connect to Redis at {redis_url} or localhost — skipping queue flush")
+        print(
+            f"  WARNING: Could not connect to Redis at {redis_url} or localhost — skipping queue flush"
+        )
         return
 
     keys_to_delete = [
@@ -1221,9 +1220,7 @@ async def seed_synthetic_scenarios(
                 try:
                     dest_path.unlink()
                 except PermissionError:
-                    subprocess.run(
-                        ["podman", "unshare", "rm", "-f", str(dest_path)], check=True
-                    )
+                    subprocess.run(["podman", "unshare", "rm", "-f", str(dest_path)], check=True)
             try:
                 shutil.copyfile(scenario.image_path, dest_path)
             except PermissionError:

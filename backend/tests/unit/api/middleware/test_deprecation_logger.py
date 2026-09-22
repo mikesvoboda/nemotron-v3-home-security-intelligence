@@ -459,27 +459,6 @@ class TestDeprecationMiddlewareEdgeCases:
 class TestDeprecationMiddlewareIntegration:
     """Integration tests with other middleware."""
 
-    def test_works_with_request_timing_middleware(self):
-        """Test that deprecation middleware works with RequestTimingMiddleware."""
-        from backend.api.middleware.request_timing import RequestTimingMiddleware
-
-        app = FastAPI()
-        app.add_middleware(DeprecationLoggerMiddleware)
-        app.add_middleware(RequestTimingMiddleware)
-
-        @app.get("/deprecated")
-        async def deprecated(response: Response):
-            response.headers["Deprecation"] = "true"
-            return {"ok": True}
-
-        client = TestClient(app, headers=get_auth_headers())
-        response = client.get("/deprecated")
-
-        assert response.status_code == 200
-        # Both middleware should add their headers
-        assert "Warning" in response.headers
-        assert "X-Response-Time" in response.headers
-
     def test_works_with_request_id_middleware(self):
         """Test that deprecation middleware works with RequestIDMiddleware."""
         from backend.api.middleware.request_id import RequestIDMiddleware

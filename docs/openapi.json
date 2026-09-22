@@ -44323,7 +44323,7 @@
     },
     "/api/admin/cleanup/orphans": {
       "post": {
-        "description": "Manually trigger orphaned file cleanup.\n\nScans camera upload directories for files that have no corresponding\ndatabase records and optionally deletes them.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nSafety features:\n- dry_run=True by default (no actual deletions)\n- min_age_hours threshold prevents deleting files being processed\n- max_delete_gb limits total deletion per run\n\nArgs:\n    request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)\n    http_request: FastAPI request for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleanup operation with statistics",
+        "description": "Manually trigger orphaned file cleanup.\n\nScans camera upload directories for files that have no corresponding\ndatabase records and optionally deletes them.\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nSafety features:\n- dry_run=True by default (no actual deletions)\n- min_age_hours threshold prevents deleting files being processed\n- max_delete_gb limits total deletion per run\n\nArgs:\n    request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)\n    http_request: FastAPI request for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleanup operation with statistics",
         "operationId": "admin_cleanup_orphans",
         "requestBody": {
           "content": {
@@ -44347,10 +44347,10 @@
             "description": "Orphan cleanup completed successfully"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "422": {
             "description": "Validation error"
@@ -44367,7 +44367,7 @@
     },
     "/api/admin/maintenance/clear-cache": {
       "post": {
-        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
+        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
         "operationId": "admin_clear_cache",
         "responses": {
           "200": {
@@ -44381,10 +44381,10 @@
             "description": "Cache cleared successfully"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "500": {
             "description": "Internal server error"
@@ -44398,7 +44398,7 @@
     },
     "/api/admin/maintenance/flush-queues": {
       "post": {
-        "description": "Flush all processing queues in Redis.\n\nClears the following queues:\n- Detection queue (incoming detection jobs)\n- Analysis queue (LLM analysis jobs)\n- DLQ detection queue (failed detection jobs)\n- DLQ analysis queue (failed analysis jobs)\n\nWARNING: This will discard any pending items in the queues.\nItems will need to be reprocessed from scratch.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of queue flush operation",
+        "description": "Flush all processing queues in Redis.\n\nClears the following queues:\n- Detection queue (incoming detection jobs)\n- Analysis queue (LLM analysis jobs)\n- DLQ detection queue (failed detection jobs)\n- DLQ analysis queue (failed analysis jobs)\n\nWARNING: This will discard any pending items in the queues.\nItems will need to be reprocessed from scratch.\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of queue flush operation",
         "operationId": "admin_flush_queues",
         "responses": {
           "200": {
@@ -44412,10 +44412,10 @@
             "description": "Queues flushed successfully"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "500": {
             "description": "Internal server error"
@@ -44429,7 +44429,7 @@
     },
     "/api/admin/seed/cameras": {
       "post": {
-        "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
+        "description": "Seed test cameras into the database.\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
         "operationId": "admin_seed_cameras",
         "requestBody": {
           "content": {
@@ -44453,10 +44453,10 @@
             "description": "Cameras created successfully"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "422": {
             "description": "Validation error"
@@ -44473,7 +44473,7 @@
     },
     "/api/admin/seed/clear": {
       "delete": {
-        "description": "Clear all seeded data (cameras, events, detections).\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires JSON body confirmation to prevent accidental data deletion:\n{\"confirm\": \"DELETE_ALL_DATA\"}\n\nArgs:\n    body: Request body with confirmation string\n    request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleared data counts\n\nRaises:\n    HTTPException: 400 if confirmation string is incorrect",
+        "description": "Clear all seeded data (cameras, events, detections).\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\nRequires JSON body confirmation to prevent accidental data deletion:\n{\"confirm\": \"DELETE_ALL_DATA\"}\n\nArgs:\n    body: Request body with confirmation string\n    request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleared data counts\n\nRaises:\n    HTTPException: 400 if confirmation string is incorrect",
         "operationId": "admin_clear_seeded_data",
         "requestBody": {
           "content": {
@@ -44500,10 +44500,10 @@
             "description": "Bad request - Confirmation required"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "422": {
             "content": {
@@ -44527,7 +44527,7 @@
     },
     "/api/admin/seed/events": {
       "post": {
-        "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
+        "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
         "operationId": "admin_seed_events",
         "requestBody": {
           "content": {
@@ -44554,10 +44554,10 @@
             "description": "Bad request - No cameras found"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "422": {
             "description": "Validation error"
@@ -44574,7 +44574,7 @@
     },
     "/api/admin/seed/pipeline-latency": {
       "post": {
-        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + YOLO26 inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
+        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires ADMIN_ENABLED=true \u2014 require_admin_access checks that\nflag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + YOLO26 inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
         "operationId": "admin_seed_pipeline_latency",
         "requestBody": {
           "content": {
@@ -44598,10 +44598,10 @@
             "description": "Pipeline latency data seeded successfully"
           },
           "401": {
-            "description": "Unauthorized - Admin API key required"
+            "description": "Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint"
           },
           "403": {
-            "description": "Forbidden - Debug mode or admin not enabled"
+            "description": "Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false)"
           },
           "422": {
             "content": {
@@ -64382,7 +64382,7 @@
     },
     "/api/system/models/unload-all": {
       "post": {
-        "description": "Unload all models from both enrichment services.\n\nReturns:\n    Summary of unloaded models and freed VRAM\n\nRaises:\n    HTTPException: 502 if service error, 503 if unavailable",
+        "description": "Unload all models \u2014 no longer possible after the ai-gateway consolidation.\n\nRaises:\n    HTTPException: 501 because unload is not supported",
         "operationId": "model-management_unload_all_models",
         "responses": {
           "200": {
@@ -64395,11 +64395,8 @@
             },
             "description": "Successful Response"
           },
-          "502": {
-            "description": "Enrichment service error"
-          },
-          "503": {
-            "description": "Enrichment service unavailable"
+          "501": {
+            "description": "Unload unsupported \u2014 models are Triton-resident on ai-gateway"
           }
         },
         "summary": "Unload All Models",
@@ -64410,7 +64407,7 @@
     },
     "/api/system/models/vram-summary": {
       "get": {
-        "description": "Get per-GPU VRAM usage summary from both enrichment services.\n\nReturns:\n    Per-GPU VRAM breakdown plus aggregate totals",
+        "description": "Get per-lane VRAM summary from gateway readiness plus registry estimates.\n\nused_mb is the sum of registry vram_mb estimates for the router's\nTriton-ready models (see module docstring \u2014 the VRAM-manager accounting\nthat previously backed this endpoint was retired with the standalone\nenrichment containers).\n\nReturns:\n    Per-lane VRAM breakdown plus aggregate totals",
         "operationId": "model-management_get_vram_summary",
         "responses": {
           "200": {
@@ -64478,7 +64475,7 @@
     },
     "/api/system/models/{model_name}/load": {
       "post": {
-        "description": "Load a model via the enrichment service.\n\nProxies the load request to the appropriate enrichment service\nbased on model-to-service mapping.\n\nArgs:\n    model_name: Name of the model to load\n\nReturns:\n    Load result with timing and VRAM info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  502 if service error, 503 if unavailable",
+        "description": "Load a model \u2014 no longer possible after the ai-gateway consolidation.\n\nTriton runs with --model-control-mode=none, so gateway models are\nresident and there is no load API; backend-process models load lazily\nthrough ModelManager on first use. Reported as 501 instead of a\nfabricated success.\n\nArgs:\n    model_name: Name of the model to load\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  501 because load is not supported",
         "operationId": "model-management_load_model",
         "parameters": [
           {
@@ -64518,11 +64515,8 @@
             },
             "description": "Validation Error"
           },
-          "502": {
-            "description": "Enrichment service error"
-          },
-          "503": {
-            "description": "Enrichment service unavailable"
+          "501": {
+            "description": "Load unsupported \u2014 models are Triton-resident on ai-gateway"
           }
         },
         "summary": "Load Model",
@@ -64533,7 +64527,7 @@
     },
     "/api/system/models/{model_name}/reload": {
       "post": {
-        "description": "Reload a model by unloading and then loading it.\n\nArgs:\n    model_name: Name of the model to reload\n\nReturns:\n    Load result with timing and VRAM info\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  502 if service error, 503 if unavailable",
+        "description": "Reload a model \u2014 no longer possible after the ai-gateway consolidation.\n\nSee load_model: Triton-resident models cannot be reloaded over HTTP.\n\nArgs:\n    model_name: Name of the model to reload\n\nRaises:\n    HTTPException: 404 if model not found, 400 if disabled,\n                  501 because reload is not supported",
         "operationId": "model-management_reload_model",
         "parameters": [
           {
@@ -64573,11 +64567,8 @@
             },
             "description": "Validation Error"
           },
-          "502": {
-            "description": "Enrichment service error"
-          },
-          "503": {
-            "description": "Enrichment service unavailable"
+          "501": {
+            "description": "Reload unsupported \u2014 models are Triton-resident on ai-gateway"
           }
         },
         "summary": "Reload Model",
@@ -64637,7 +64628,7 @@
     },
     "/api/system/models/{model_name}/unload": {
       "post": {
-        "description": "Unload a model via the enrichment service.\n\nProxies the unload request to the appropriate enrichment service\nbased on model-to-service mapping.\n\nArgs:\n    model_name: Name of the model to unload\n\nReturns:\n    Unload result with freed VRAM info\n\nRaises:\n    HTTPException: 404 if model not found,\n                  502 if service error, 503 if unavailable",
+        "description": "Unload a model \u2014 no longer possible after the ai-gateway consolidation.\n\nSee load_model: Triton-resident models cannot be unloaded over HTTP.\n\nArgs:\n    model_name: Name of the model to unload\n\nRaises:\n    HTTPException: 404 if model not found, 501 because unload is\n                  not supported",
         "operationId": "model-management_unload_model",
         "parameters": [
           {
@@ -64674,11 +64665,8 @@
             },
             "description": "Validation Error"
           },
-          "502": {
-            "description": "Enrichment service error"
-          },
-          "503": {
-            "description": "Enrichment service unavailable"
+          "501": {
+            "description": "Unload unsupported \u2014 models are Triton-resident on ai-gateway"
           }
         },
         "summary": "Unload Model",

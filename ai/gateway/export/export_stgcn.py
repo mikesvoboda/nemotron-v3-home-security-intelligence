@@ -25,8 +25,22 @@ def _build_coco_adjacency() -> np.ndarray:
     """Build COCO skeleton adjacency matrix (3, 17, 17)."""
     num_node = 17
     inward = [
-        (15, 13), (13, 11), (16, 14), (14, 12), (11, 5), (12, 6),
-        (9, 7), (7, 5), (10, 8), (8, 6), (5, 0), (6, 0), (1, 0), (3, 1), (2, 0), (4, 2),
+        (15, 13),
+        (13, 11),
+        (16, 14),
+        (14, 12),
+        (11, 5),
+        (12, 6),
+        (9, 7),
+        (7, 5),
+        (10, 8),
+        (8, 6),
+        (5, 0),
+        (6, 0),
+        (1, 0),
+        (3, 1),
+        (2, 0),
+        (4, 2),
     ]
     outward = [(j, i) for (i, j) in inward]
     self_link = [(i, i) for i in range(num_node)]
@@ -81,10 +95,19 @@ class _GCNUnit(nn.Module):
 
 
 class _TemporalConvWrap(nn.Module):
-    def __init__(self, in_ch: int, out_ch: int, kernel_size: int = 3, stride: int = 1,
-                 dilation: int = 1, padding: int = 1) -> None:
+    def __init__(
+        self,
+        in_ch: int,
+        out_ch: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        padding: int = 1,
+    ) -> None:
         super().__init__()
-        self.conv = nn.Conv2d(in_ch, out_ch, (kernel_size, 1), (stride, 1), (padding, 0), (dilation, 1))
+        self.conv = nn.Conv2d(
+            in_ch, out_ch, (kernel_size, 1), (stride, 1), (padding, 0), (dilation, 1)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.conv(x)
@@ -102,14 +125,22 @@ class _TCNUnit(nn.Module):
             ch = first_ch if i == 0 else branch_ch
             dilation = i + 1
             padding = dilation * (3 - 1) // 2
-            self.branches.append(nn.Sequential(
-                nn.Conv2d(channels, ch, 1), nn.BatchNorm2d(ch), nn.ReLU(inplace=True),
-                _TemporalConvWrap(ch, ch, 3, stride, dilation, padding),
-            ))
-        self.branches.append(nn.Sequential(nn.Conv2d(channels, branch_ch, 1), nn.BatchNorm2d(branch_ch)))
+            self.branches.append(
+                nn.Sequential(
+                    nn.Conv2d(channels, ch, 1),
+                    nn.BatchNorm2d(ch),
+                    nn.ReLU(inplace=True),
+                    _TemporalConvWrap(ch, ch, 3, stride, dilation, padding),
+                )
+            )
+        self.branches.append(
+            nn.Sequential(nn.Conv2d(channels, branch_ch, 1), nn.BatchNorm2d(branch_ch))
+        )
         self.branches.append(nn.Conv2d(channels, branch_ch, 1))
         self.bn = nn.BatchNorm2d(channels)
-        self.transform = nn.Sequential(nn.BatchNorm2d(channels), nn.ReLU(inplace=True), nn.Conv2d(channels, channels, 1))
+        self.transform = nn.Sequential(
+            nn.BatchNorm2d(channels), nn.ReLU(inplace=True), nn.Conv2d(channels, channels, 1)
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         res = self.transform(x)
@@ -135,7 +166,9 @@ class _STGCNPPBlock(nn.Module):
         self.gcn = _GCNUnit(in_ch, out_ch, A)
         self.tcn = _TCNUnit(out_ch, stride=stride)
         if in_ch != out_ch or stride != 1:
-            self.residual = nn.ModuleDict({"conv": nn.Conv2d(in_ch, out_ch, 1), "bn": nn.BatchNorm2d(out_ch)})
+            self.residual = nn.ModuleDict(
+                {"conv": nn.Conv2d(in_ch, out_ch, 1), "bn": nn.BatchNorm2d(out_ch)}
+            )
             self._has_block_residual = True
         else:
             self._has_block_residual = False
@@ -181,11 +214,11 @@ def _map_checkpoint_keys(state_dict: dict[str, torch.Tensor]) -> dict[str, torch
     for key, value in state_dict.items():
         new_key = key
         if new_key.startswith("backbone."):
-            new_key = new_key[len("backbone."):]
+            new_key = new_key[len("backbone.") :]
         if new_key.startswith("cls_head.fc_cls."):
             new_key = new_key.replace("cls_head.fc_cls.", "fc.")
         elif new_key.startswith("cls_head."):
-            new_key = new_key[len("cls_head."):]
+            new_key = new_key[len("cls_head.") :]
         mapped[new_key] = value
     return mapped
 
@@ -237,6 +270,7 @@ def main() -> int:
     )
 
     import onnx
+
     onnx_model = onnx.load(str(output_path))
     onnx.checker.check_model(onnx_model)
     print(f"ONNX saved to {output_path} ({output_path.stat().st_size / 1024 / 1024:.1f} MB)")

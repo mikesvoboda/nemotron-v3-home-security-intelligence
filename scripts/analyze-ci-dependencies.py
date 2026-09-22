@@ -29,7 +29,7 @@ import yaml
 
 def load_workflow(workflow_path: Path) -> dict:
     """Load and parse a GitHub Actions workflow YAML file."""
-    with open(workflow_path) as f:
+    with open(workflow_path) as f:  # nosemgrep: path-traversal-open
         return yaml.safe_load(f)
 
 

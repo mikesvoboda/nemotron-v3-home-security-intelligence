@@ -43,7 +43,7 @@ ai/triton/
     conftest.py             # Test fixtures
     test_client.py          # Client tests
   model_repository/         # Triton model repository (baked into the ai-gateway image at /models/repository)
-    yolo26/                 # config.pbtxt + 1/model.onnx (15 model dirs; see Model Repository below)
+    yolo26/                 # config.pbtxt + 1/model.onnx (14 model dirs; see Model Repository below)
     clip/
     clip_text/
     demographics_age/
@@ -57,7 +57,6 @@ ai/triton/
     stgcn_action/           # config only — not loaded until its weights are exported
     threat/
     vehicle/
-    xclip_action/
 ```
 
 Model weight files (`model.onnx`, `.plan`, model-data) are **not** in git. At
@@ -166,10 +165,12 @@ ai-gateway:
 
 ## Model Repository
 
-`model_repository/` ships 15 model directories. 13 are loadable at startup
-(config + an exported version dir linked from the model cache) — matching the
-compose healthcheck comment — and the `yolo26` / `stgcn_action` configs have no
-exported weights by default:
+`model_repository/` ships 14 model directories. 12 are loadable at startup
+(config + an exported version dir linked from the model cache) and the
+`yolo26` / `stgcn_action` configs have no exported weights by default — the
+compose healthcheck comments still say "13 models", stale since `xclip_action`
+was retired with NEM-5563 (its config/python `model.py` now live under
+`archive/triton-model-repository/`):
 
 | Model               | Backend     | max_batch_size  |
 | ------------------- | ----------- | --------------- |
@@ -185,8 +186,12 @@ exported weights by default:
 | pose                | onnxruntime | 0 (static 1)    |
 | threat              | onnxruntime | 0 (static 1)    |
 | florence2           | python      | 0               |
-| xclip_action        | python      | 0               |
 | stgcn_action        | onnxruntime | 0 (config only) |
+
+`florence2` is the only Triton Python-backend model left; `xclip_action`
+(python, zero-shot video action recognition) was superseded by the
+skeleton-based `stgcn_action` pipeline, whose per-frame pose stage the gateway
+drives itself (`ai/gateway/adapters/enrichment.py` `_infer_action`).
 
 ## Model Preparation
 

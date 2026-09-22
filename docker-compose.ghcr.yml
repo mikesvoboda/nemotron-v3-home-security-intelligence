@@ -20,8 +20,12 @@
 #   - GHCR_REPO: Repository name (default: nemotron-v3-home-security-intelligence)
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FOSCAM_BASE_PATH: Camera recordings path (default: /export/foscam)
-#   - FRONTEND_HTTPS_PORT: HTTPS port (default: 8443)
+#   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
+#   - CTX_SIZE: llama.cpp TOTAL context pool for ai-llm; backend divides it by
+#     PARALLEL for its per-request budget (default: 4096)
+#   - PARALLEL: llama.cpp slot count used for the backend's per-request context
+#     budget; default 2 matches the PARALLEL baked into the ghcr ai-llm image
 #
 # Quick Start:
 #   1. Copy .env.example to .env and configure POSTGRES_PASSWORD
@@ -185,6 +189,66 @@ services:
               count: 1
               capabilities: [gpu]
 
+  # AI Gateway (Triton + FastAPI) — serves YOLO26, Florence-2, CLIP and
+  # enrichment models through a single service (replaces the retired
+  # per-model ai-yolo26 / ai-florence / ai-clip / ai-enrichment containers)
+  ai-gateway:
+    security_opt:
+      - no-new-privileges:true
+      - label=disable
+    cap_drop:
+      - ALL
+    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-gateway:${IMAGE_TAG:-latest}
+    # Pass ALL GPUs so /dev/nvidia0 and /dev/nvidia1 both exist;
+    # CUDA_VISIBLE_DEVICES restricts Triton to the AI services GPU below.
+    devices:
+      - nvidia.com/gpu=all
+    ports:
+      - '127.0.0.1:${AI_GATEWAY_PORT:-8090}:8090'
+      - '127.0.0.1:${AI_GATEWAY_METRICS_PORT:-8002}:8002'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+      - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
+      # Persistent CUDA kernel cache (survives container redeploys)
+      - triton-kernel-cache:/root/.nv
+      # TensorRT temp artifacts cache (compilation intermediates)
+      - triton-tmp-cache:/tmp
+      # HuggingFace model cache (pre-downloaded models, avoids network downloads)
+      - hf_cache:/root/.cache/huggingface:U
+    environment:
+      - SERVICE_NAME=ai-gateway
+      - GATEWAY_PORT=8090
+      - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+      # Use the pre-downloaded HF cache (staging allows hub fallback if a model is missing)
+      - HF_HOME=/root/.cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      # INT8 quantization for vehicle/demographics models (NEM-5533)
+      - VEHICLE_QUANTIZED=${VEHICLE_QUANTIZED:-false}
+      - DEMOGRAPHICS_QUANTIZED=${DEMOGRAPHICS_QUANTIZED:-false}
+      - QUANTIZED_MODEL_DIR=${QUANTIZED_MODEL_DIR:-/models/quantized}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      # Triton loads 13 models — allow 3 minutes for all to initialize
+      start_period: 180s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 20G
+        reservations:
+          memory: 10G
+          devices:
+            - driver: nvidia
+              device_ids: ['${GPU_AI_SERVICES:-1}']
+              capabilities: [gpu]
+
   # =============================================================================
   # Application Services (GHCR Images)
   # =============================================================================
@@ -210,8 +274,25 @@ services:
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
+      # LLM context budget — must mirror the ai-llm service above so the backend's
+      # per-request token budget matches the slot it is actually served from.
+      # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count
+      # (--parallel).  The backend divides the two itself (config.py
+      # nemotron_context_window).  Defaults mirror this file's ai-llm pool: CTX_SIZE
+      # 4096 from the ai-llm block above, and 2 slots because the ghcr ai-llm image
+      # bakes PARALLEL=2 (ai/nemotron/Dockerfile) and this file's ai-llm service
+      # passes no override — 4096 / 2 = 2048 tokens per request.  Set PARALLEL in
+      # .env (and pass it to ai-llm too) if you raise the slot count.
+      - CTX_SIZE=${CTX_SIZE:-4096}
+      - PARALLEL=${PARALLEL:-2}
+      # AI Gateway routes — all enrichment models served via Triton through ai-gateway
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
+      - YOLO26_URL=http://ai-gateway:8090/yolo26
+      - FLORENCE_URL=http://ai-gateway:8090/florence
+      - CLIP_URL=http://ai-gateway:8090/clip
+      - ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+      - ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
       - GO2RTC_API_URL=http://go2rtc:1984
       - GO2RTC_WEBRTC_URL=${GO2RTC_WEBRTC_URL:-http://localhost:8555}
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
@@ -232,6 +313,9 @@ services:
       redis:
         condition: service_healthy
       ai-llm:
+        condition: service_healthy
+      # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
+      ai-gateway:
         condition: service_healthy
       go2rtc:
         condition: service_healthy
@@ -306,7 +390,7 @@ services:
       - /var/cache/nginx
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
     ports:
-      - '${FRONTEND_HTTPS_PORT:-8443}:8443'
+      - '${FRONTEND_HTTPS_PORT:-8444}:8443'
     volumes:
       - frontend_certs:/etc/nginx/certs:U
     environment:
@@ -349,81 +433,28 @@ services:
   # Access points:
   #   - Grafana: http://localhost:3002 (anonymous access enabled by default)
   #   - Prometheus: http://localhost:9090
-  #   - Jaeger: http://localhost:16686 (distributed tracing)
+  #   - Tempo: http://localhost:3200 (distributed tracing)
   #   - Alertmanager: http://localhost:9093
 
-  elasticsearch:
+  # Grafana Tempo for distributed tracing (NEM-5545, replaces Jaeger+Elasticsearch)
+  # Alloy receives OTLP on alloy:4317 and exports traces here — Jaeger is retired.
+  tempo:
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - IPC_LOCK
-    image: docker.io/elasticsearch:8.12.0
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - bootstrap.memory_lock=true
-      - 'ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-2g} -Xmx${ES_HEAP_SIZE:-2g}'
-      - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=85%
-      - cluster.routing.allocation.disk.watermark.high=90%
-      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    image: docker.io/grafana/tempo:2.7.1
+    container_name: tempo
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-      - ./monitoring/elasticsearch:/usr/share/elasticsearch/config/ilm:ro,z
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'curl -s http://localhost:9200/_cluster/health | grep -q ''"status":"green"\|"status":"yellow"''',
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: ${ES_MEMORY_LIMIT:-6G}
-
-  jaeger:
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    image: docker.io/jaegertracing/all-in-one:1.54
+      - ./monitoring/tempo/tempo-config.yml:/etc/tempo/config.yml:ro,z
+      - tempo_data:/var/tempo
+    command: -config.file=/etc/tempo/config.yml
     ports:
-      - '127.0.0.1:16686:16686'
-      - '127.0.0.1:4317:4317'
-      - '127.0.0.1:4318:4318'
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      - ES_INDEX_PREFIX=jaeger
-      - ES_TAGS_AS_FIELDS_ALL=true
-      - ES_NUM_SHARDS=1
-      - ES_NUM_REPLICAS=0
-      - ES_BULK_SIZE=5000000
-      - ES_BULK_WORKERS=1
-      - ES_BULK_FLUSH_INTERVAL=200ms
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+      - '127.0.0.1:${TEMPO_PORT:-3200}:3200'
+      - '127.0.0.1:${TEMPO_OTLP_GRPC:-4317}:4317'
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:16686']
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3200/ready']
       interval: 15s
       timeout: 5s
       retries: 3
@@ -434,7 +465,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 1G
 
   prometheus:
     security_opt:
@@ -449,7 +480,10 @@ services:
       - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro,z
       - ./monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro,z
       - ./monitoring/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro,z
+      - ./monitoring/profiling-recording-rules.yml:/etc/prometheus/profiling-recording-rules.yml:ro,z
+      - ./monitoring/profiling-regression-alerts.yml:/etc/prometheus/profiling-regression-alerts.yml:ro,z
       - ./monitoring/gpu-alerts.yml:/etc/prometheus/gpu-alerts.yml:ro,z
+      - ./monitoring/ai-pipeline-alerts.yml:/etc/prometheus/ai-pipeline-alerts.yml:ro,z
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -784,33 +818,51 @@ services:
       retries: 3
 
   alloy:
-    image: docker.io/grafana/alloy:v1.0.0
+    image: docker.io/grafana/alloy:v1.9.2
     container_name: alloy
-    # nosemgrep: yaml.docker-compose.security.privileged-service.privileged-service
-    privileged: true
+    # Minimal capabilities for eBPF profiling (replaces privileged: true)
+    # Requires host memlock limit: /etc/security/limits.d/50-memlock.conf
+    # Previously used privileged mode (NEM-4499) but alloy v1.9.2 works with caps + label=disable
+    cap_add:
+      - SYS_ADMIN # eBPF map creation, cgroup access
+      - BPF # eBPF program loading
+      - PERFMON # perf_event_open for profiling
+      - SYS_PTRACE # Reading /proc/<pid>/maps for symbol resolution
+      - SYS_RESOURCE # setrlimit for memlock
+    cap_drop:
+      - ALL
+    security_opt:
+      - label=disable
     pid: host
     user: root
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}:ro
+      # NOTE: rw required — Alloy reads container logs via Podman API
+      - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
+      # eBPF profiler symbol cache for stack trace resolution (NEM-3922)
       - alloy_symb_cache:/tmp/symb-cache
     ulimits:
+      # eBPF profiling requires increased memory lock limit
+      # Rootless containers cannot set unlimited (-1), so use a high limit (8GB)
+      # Host limit should be configured by setup.py in /etc/security/limits.d/
       memlock:
-        soft: -1
-        hard: -1
+        soft: 8589934592
+        hard: 8589934592
     environment:
       - HOST_PROC=/host/proc
+      - PODMAN_SOCKET=${PODMAN_SOCKET}
     command:
       - run
       - --stability.level=public-preview
+      - --storage.path=/tmp/alloy
       - /etc/alloy/config.alloy
     ports:
-      - '127.0.0.1:12345:12345'
-      - '4317'
-      - '4318'
+      - '127.0.0.1:${ALLOY_UI_PORT:-12345}:12345' # Alloy UI
+      - '4317' # OTLP gRPC (internal only)
+      - '4318' # OTLP HTTP (internal only)
     depends_on:
       - loki
       - pyroscope
@@ -833,7 +885,7 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  elasticsearch_data:
+  tempo_data:
     driver: local
   hf_cache:
     driver: local
@@ -850,6 +902,12 @@ volumes:
   alloy_symb_cache:
     driver: local
   frontend_certs:
+    driver: local
+  # Triton/Gateway CUDA kernel cache — persists CUDA JIT compilation across redeploys
+  triton-kernel-cache:
+    driver: local
+  # Triton TensorRT temporary compilation artifacts
+  triton-tmp-cache:
     driver: local
 
 networks:

@@ -39,9 +39,6 @@ ALLOWED_RESTART_SCRIPTS = frozenset(
     {
         "ai/start_detector.sh",
         "ai/start_llm.sh",
-        "scripts/restart_yolo26.sh",
-        "scripts/restart_nemotron.sh",
-        "scripts/restart_redis.sh",
     }
 )
 

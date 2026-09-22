@@ -34,7 +34,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-
 from scripts.benchmark.quality import QualityScorer
 
 
