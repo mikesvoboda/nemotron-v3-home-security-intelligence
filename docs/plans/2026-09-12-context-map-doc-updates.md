@@ -9113,3 +9113,240 @@ is 1-killed + 3-unkillable, so the honest TEST-GAP coverable-by-input
 count for this module is 47, not 50. (My first probe's apparent
 "survivor" for the dropped-default shape was exactly this: a mutation
 of a branch that cannot execute.)
+
+### S2 batch 4 — mqtt_client T1-T8/T10-T12: 19/19 killable red-checks + T9 re-adjudicated EQUIVALENT (double-guard) (`6c915f2f`)
+
+Frozen feed `mqtt_client.md`: 477 mutants / 232 survived / 70 TEST-GAP.
+Root cause confirmed on the shipped suite: `labels.assert_called()`
+without VALUES, the `aiomqtt.Client(...)` construction never inspected,
+unsubscribe asserts arity-only. 10 tests / 4 classes: ctor kwargs from
+settings; TLS both-ways with explicit use_tls (a dev .env cannot leak
+in — the dossier's own note); error cause-chaining (connect + publish);
+metric label VALUES incl. durations and the two trailing gauge `set(0)`s;
+topic_type first-segment both shapes; histogram buckets; 3 attempts +
+sleep schedule `[1, 2]`; subscribe qos; prefixed broker topics on both
+unsubscribe paths. 43 passed fixed AND random order.
+
+Order finding (measured, not assumed): an autouse `_reset_metrics_cache`
+fixture was tried first and turned the file 14→29 failures —
+`DuplicateTimeseries` from re-registering REAL metrics; the lazy cache
+is exactly what makes mocked/real creation order-tolerant. Reverted;
+T11 test instead drives a connected client (publish on a cold client
+raises before metrics — the first failure mode, also fixed).
+
+Red-check measured: 19/19 killable probes killed (port/id/password→None,
+tls both flips, both original_error→None, status/error_type→None,
+set(1)→2, duration −/+, [0]→[1], rsplit, retries 3→4,
+2\*\*attempt→2·attempt, unsub topic→None, disconnect-guard flip, buckets
+dropped, qos→None); the T9 probe was the 20th run and came back GREEN —
+that result is the correction below, not a miss.
+
+MEASURED DISAGREEMENT with dossier cluster T9 (connect**2/**8): the
+idempotency guard is DOUBLED (outer :385 + double-check :391 under the
+reconnect lock); mutating EITHER site alone leaves the other returning
+early — both single-site mutations GREEN against the file, so the
+re-create scenario needs both guards mutated at once, which mutmut
+never emits. EQUIVALENT-in-function; killable TEST-GAP here = 68, not 70. Frozen feed untouched (unfreezing = ruling). Ledger now carries TWO
+measured dossier corrections (gallq 17/18/19, T9) — the feed stays the
+triage record; these rows are the re-measurement.
+
+### S2 batch 5 — export_service T1-T6 + SQL/empty/singleton/detections clusters: 47 red-checks (`98375086`)
+
+Frozen feed `export_service.md`: 828 mutants / 398 survived / 226
+TEST-GAP / 138 LOW-VALUE / 34 EQUIVALENT (60 clusters, sums verified).
+Root cause (dossier, confirmed on shipped suite): DB-backed methods ran
+through an argument-blind `AsyncMock` — asserts were `execute.called` /
+`file_size > 0` shape checks; the written file bytes, compiled SQL text,
+progress VALUES and reporter payloads were never read. 20 tests / 9
+classes; full file 119 passed fixed AND random order; ruff clean.
+
+Contract sites all re-read at this commit before writing (progress
+:722-892, empty :894-932, websocket :934-1170, accept :297-334,
+streaming :369-405, detections :600-631, excel cells :460-483, columns
+:187-230, reporter `fail(e, *, retryable=False)` verified keyword-only at
+job_progress_reporter.py:318). Dossier drafts were UNVERIFIED (their own
+label) — three corrections while adapting: (a) SQL compiles bool
+comparisons as literals (`events.reviewed = true`, no bind param — the
+draft's `= :` and `True in params.values()` asserts would have RED-green
+failed), (b) the draft's WS progress sequence (1/35/70/80/95) matches the
+shipped source exactly, kept, (c) empty-path tests must monkeypatch
+`EXPORT_DIR` (module-global read at call time — four tests would
+otherwise write under /tmp/exports).
+
+Red-check battery measured this session: 47 real-shape mutations (hunks
+from the feed's `export_service_diffs.json` / cluster table), applied one
+at a time → target FAIL → restore → source byte-equal at every round
+exit. Rounds 2-3 existed because progress-site lines at 12-space indent
+are suffixes of websocket-site 16-space lines — first pass hit 9
+BAD-PATTERN (count=2) + 3 SURVIVED (wrong-path target); newline-anchored
+patterns, both paths pinned separately: row-fields both paths, `!=`
+flips, `>=`→`>` / `<=`→`<` (both paths; empirically confirmed NOT
+text-equivalent on SQLAlchemy 2.0.53 before pinning), order_by(None)
+both paths, count None/`or 1` (the shape test amended with the
+count==0 SHORT-CIRCUIT assertion — `execute.call_count == 1` — after
+`or 1` survived a shape-only test: real gap in my first draft),
+progress pct ±1, WS sequence 11/\*71/81/force-None, complete(None),
+empty-message rename, fail(retryable=True) [WS-FAIL 2/2], metadata key
+renames, XL case-flips + tz-strip, accept split(None), CSV-SEEK both
+seek sites, empty XX[]XX/`;`-sep/fname-clobber, singleton `is not None`,
+DJ `is not None`, EE dispatch columns→None both sites, GF prefix→None,
+ws json/zip branch clobber+uppercase ×4, ws inline-dict event_id→None,
+ws csv arg→None. **53/53 killed** after anchoring fixes (rounds of
+30+13+4+4+2; the 3 round-1 survivors were re-probed with anchored
+patterns + correct target and killed in rounds 2-3).
+Final: 22 tests / 9 classes, 121 passed fixed AND random order, ruff
+clean, source byte-equal at every round exit.
+
+Covered-by-this-batch dossier clusters (killable TEST-GAP): WS-PROG 32,
+ROW-FIELDS-P 31, ROW-FIELDS-W 31, SQL-FILTER 15, SQL-FILTER-W 5,
+SQL-COUNT 5+W 3, PROG-PCT 14, WS-META 12, XL-CELLS 10, FILE-CONTENT-P 9
+
+- W 3 (csv+json+zip member all read back), WS-RESULT 9, WS-EMPTY 6,
+  ACCEPT-QP 2, FILENAME-P 3 + W 3, COLUMNS 3, FMT-BRANCH 4 (ws json AND
+  zip both driven; both clobber shapes red-probed), WS-FAIL 2, GF-PREFIX
+  1, SINGLETON 2, DJ-COLS 2 + DJ-CONTENT 2, CSV-SEEK 2, FD-VALUE 4 (via
+  JSON content assert), EMPTY-CONTENT 4 + EMPTY-FILENAME 3, EE-COLUMNS 4.
+  Honest killable cover here ≈ 222 of 226 TEST-GAP; the residual 4 are
+  row-null-variant keys inside ROW-FIELDS-P/W whose exact shapes were not
+  individually probed — cluster-level kill expectation, red-checked per
+  representative shape (every such key mutates a line the new content
+  asserts read). LOW-VALUE/EQUIVALENT clusters untouched per the dossier's
+  own per-cluster justification — no blanket skips added, no production
+  change.
+
+### S2 batch 6 — model_zoo D1-D12 eviction/timeout/optional-dep/paddle clusters: 78 red-checks
+
+Frozen feed `model_zoo.md`: 185 survivors = 78 TEST-GAP / 104
+EQUIVALENT / 3 LOW-VALUE across the GAP:/EQ:/LOW: clusters (sums verified
+from `model_zoo_clusters_final.json`: GAP 78, EQ 104, LOW 3, total 185). Root
+cause (dossier, confirmed on shipped suite): every success path (paddleocr
+uninstalled in CI, pyroscope branch untested), the INFO-vs-ERROR optional-
+dep routing, the eviction-flag reads (the pre-existing smoke-fire assert
+was an `or` form None satisfies), the 20.0 timeout constant, and every
+diagnostic payload were never executed or never asserted. 20 tests / 12
+classes; full file **153 passed** (133 baseline + 20) fixed AND random
+order; ruff clean; source byte-equal at every red-check exit.
+
+Contract sites re-read at this commit before writing: yolo guard :174-199
+(`if "/" in model_path and not model_path.startswith("http")` → the guard
+VALIDATES repo-style `org/yolov8n` names that contain `/`, corrected in
+the non-local test — only bare names and http URLs skip), missing-file
+diagnostics (Branch A parent-dir `.pt/.pth/.onnx` listing vs Branch B
+mount-hint) :180-193, load_paddle_ocr ctor+executor :270-334,
+\_is_paddleocr_available find_spec :256-267, \_init_model_zoo eviction-flag
+wrappers :474-482, \_load_model timeout local :659 + both wait_for sites
+:667/:673 + optdep classifier :692 + perf_counter delta :711, \_unload_model
+cuda-clear :751-757, refcounted load() :791-808, reload :889-895, unload
+:836. Live facts measured: registry smoke-fire-yolov8n → critical/True/
+True/'detection' via get_model_config; fast-alpr path verbatim 'fast-alpr'.
+
+Drafts UNVERIFIED (their own label) — adaptations this session: D12 path
+assert moved INSIDE `async with manager.load(...)` (ctx exit unloads+pops
+so a post-ctx load_fn assert reads a stale/empty count); D5 timeout spied
+by `patch.object(mz.asyncio, "wait_for", spy)` capturing `timeout == 20.0`
+on the branch taken; D5 duration asserts `0.005 <= MODEL_LOAD_DURATION.
+labels(model=..)._value.get() < 10.0` — the `- → +` mutant records ~1.7e9
+s (an absolute clock read), so a bare `>= lower` assert (existing style)
+would NOT kill it; D4 strict-typed `type(config.priority) is str` +
+`config.preload is True` (bool, not None/'True') kills all 20 eviction-flag
+shapes including the three dropped-arg-line removals (46/47/48); D1
+parametrizes the two classifier arms ("not installed" / "optional")
+separately with INFO-unavailable AND no-ERROR-"Failed to load model" both
+checked.
+
+Red-check battery measured this session: **78/78 TARGET GAP mutants killed
+at their real source sites** (from `model_zoo_diffs*.txt`, applied one at a
+time → target class FAIL → restore → source byte-equal at every exit).
+Rounds split on pattern-anchoring methodology, not survivors: round 1
+63/78 clean single-occurrence hunks; the 15 ambiguous were re-probed by
+real-site identity — round 2 (7 dedent-clean), round 3 (1, context-hunk at
+mutmut's exact site), round 5 (2, dedent-aware reconstruction), round 6
+(5, line-anchored at real line numbers after `ǁModelManagerǁ` hunks were
+found in model_zoo_diffs.txt with ambiguous blank-line hunk-context the
+naive reconstruction mis-indented — line-anchored apply at :711/:895/:890/
+:836 all KILLED with syntax-compile guard). The round-2/5 SURVIVED/BAD
+flags were methodology artifacts (duplicate textual occurrence → the wrong
+site mutated; feed dedent), every one re-probed at mutmut's actual site and
+killed. LOW-VALUE/EQUIVALENT clusters (EQ: log-text/kwarg 104, LOW:
+pyroscope-tag + paddle-toctou 3) untouched per the dossier's own per-
+cluster justification — no blanket skips added, no production change.
+
+### S2 batch 7 — webhook_service health/query/formatter clusters: 152 real-shape red-checks
+
+Frozen feed `webhook_service.md`: 1,075 mutants / 571 survived / 388
+TEST-GAP / 23 LOW-VALUE / 160 EQUIVALENT (33 clusters, sums verified).
+The feed file `webhook-diffs.txt` carries 158 mechanically-extracted
+diffs covering clusters #2(query-build members)/#3(health-queries)/#5-7
+(formatters)/#14(health-boundary)/#15(or-default members)/#12(int-routing).
+This batch kills **152 of those 158 at the real source**; the residual 6
+have named dispositions below. The feed's OTHER TEST-GAP clusters (#1
+bted-values 87, #4 delivery-record 34, #8 stats 16, #9 signature 14, #10
+resp-fields 14, …) have no per-mutant diff text in the frozen feed, and
+the mutant copy that produced `webhook-diffs.txt` was regenerated by run
+5's generate phase during this session (mutant copies are run state, not
+feed content) — those clusters are DEFERRED to a later batch that can
+re-derive shapes safely (see S1 note below); no kill claim made for them.
+
+15 cases / 13 functions (`_format_for_integration` routing parametrized ×3)
+
+- 1 helper trio (`_sql`, `_scalar_result`, `_scalars_result`) appended to
+  `test_webhook_service.py`; full file **76 passed** (61 baseline + 15)
+  fixed AND random order; ruff/format clean; zero production change.
+
+Contract sites re-read before writing: get*health_summary :693-793 (six
+aggregates, cutoff `utc_now() - 24h`, thresholds >0/>=0.9/<0.5, `float(…)
+if avg else None`), get_deliveries :796-834, get_delivery :836-857,
+list_webhooks :183-205, delete_webhook :290-324, \_format_for_integration
+:912-942, slack :944-973, discord :975-1008, teams :1010-1044. Live
+measures that pinned the drafts: UUID literal binds render DASHLESS
+(`id = 'dc8065955ef5…'` — the draft's dashed `f"…= '{wid}'"` asserts would
+have been born red); `is*(True)`renders`IS true`/`is*(False)` `IS
+false`/`is*(None)` `IS NULL`; `where(None)`renders`WHERE NULL`(kills
+via text, not crash);`limit(None)`renders`LIMIT -1`; `select(None)`compiles to`SELECT NULL`(kills via`startswith("SELECT webhook_deliveries")`projection asserts, not crash); status enum renders lowercase`'success'`/
+`'failed'`. Draft corrections: `utc_now`must be patched as`webhook_service_module.utc_now`(the module holds its own binding —
+string-target monkeypatch of the source module is equivalent, but the`patch.object`-free form was what failed first and got fixed), and
+get_health_summary's healthy/unhealthy pins use RATES ON THE EDGES (.90
+healthy-counted, .50 not) plus two unhealthy webhooks so `+= 1 → = 1` is
+counted, not shape-observed.
+
+Red-check measured this session against the 158 feed shapes (function-
+scoped line-anchored hunk application → target test FAIL → restore →
+source byte-equal at every exit). One earlier round was SIGTERMed by a
+tool timeout mid-mutation and left a one-line EQUIVALENT log-extra
+residue in the source; caught by a baseline-vs-`git show HEAD` guard
+added to the harness, restored via git checkout, no commit ever carried
+it. Round 1: 144 killed + 10 survivors + 4 not-applicable; battery
+amended (page-projection startswith for select(None)-page, second
+unhealthy webhook for `unhealthy_count = 1`, minimal-event tests
+switched to `{}` so the `{}`/`"event"` defaults are ON the live path —
+formatter default-arm survivors killed); FINAL clean-baseline round:
+**152/158 killed, 0 bad-patterns, source byte-equal at exit**.
+Dispositions of the 6 residuals: `delete_webhook__mutmut_9/10/12/13/14` — the logger.info
+message/extra mutations (feed's OWN EQUIVALENT cluster 27; log text is
+observability, no test should assert it) — EQUIVALENT per dossier +
+verified this session that no test-visible sink consumes them;
+`_format_discord_payload__mutmut_9` (`"event"`→`"EVENT"` default) —
+EQUIVALENT MEASURED: the only sink of the defaulted value is
+`event_type.replace("_"," ").title()` → `'Event'` for both cases (also
+underscore-identical: `'alert_fired'`/`'ALERT_FIRED'` both title to
+`'Alert Fired'`), and production callers always pass an explicit
+event_type (:882), so the mutated default is unreachable with a
+distinguishing input — no test added (production would have to bend).
+
+Covered clusters, exact per-function tallies of the 158 (feed-extracted):
+get_health_summary 52/52 (dossier #3 40 + #14 boundary + #15 or-default +
+cutoff-line members), discord 29/30 (the 1 is the EQUIVALENT `"event"`
+default above), teams 29/29, slack 18/18, get_deliveries 12/12,
+list_webhooks 7/7, get_delivery 4/4, delete_webhook 1/6 (the killed one
+is `get_webhook(db, None)`; the other 5 are the EQUIVALENT log-extra
+members). #12 int-routing: the 6 dossier members were NOT among the 158
+feed diffs — a dedicated 3-case routing test pins all three exact
+comparison targets, stated at representative-shape level, not red-check
+measured. Honest statement: batch 7 reaches ≈152 red-checked kills over
+≈146 of the 388 TEST-GAP mutants at measured level plus routing coverage;
+the remaining ≈242
+(bted 87, delivery-record 34, stats 16, signature 14, resp-fields 14,
+create-fields 8, boundary300 6, jinja 6, db-args 6, post-args 5,
+singleton 2, bted-fallback 2, timing 2, tw-body 3, hdrs 3, int-routing 6)
+await shape re-derivation from a future quiet generate — NOT claimed
+killed.

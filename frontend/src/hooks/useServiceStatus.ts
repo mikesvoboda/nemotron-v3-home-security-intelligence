@@ -20,8 +20,19 @@ import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+// Must stay in sync with backend WebSocketServiceStatus
+// (backend/api/schemas/websocket.py) for every status ServiceHealthMonitor
+// actually broadcasts — useServiceStatus drops statuses its guard does not
+// list, and 'restart_disabled' (unhealthy service with restart_cmd=None,
+// e.g. AI_RESTART_ENABLED=false) was missing: the UI silently never saw the
+// service go down.
 export type ServiceStatusType =
-  'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+  | 'healthy'
+  | 'unhealthy'
+  | 'restarting'
+  | 'restart_failed'
+  | 'restart_disabled'
+  | 'failed';
 
 export interface ServiceStatus {
   service: ServiceName;
@@ -73,7 +84,14 @@ interface BackendServiceStatusMessage {
 
 const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];
 
-const UNHEALTHY_STATUSES: ServiceStatusType[] = ['unhealthy', 'failed', 'restart_failed'];
+// 'restart_disabled': unhealthy and no automatic restart is coming — strictly
+// worse than 'unhealthy', so it counts as unhealthy for derived flags.
+const UNHEALTHY_STATUSES: ServiceStatusType[] = [
+  'unhealthy',
+  'failed',
+  'restart_failed',
+  'restart_disabled',
+];
 
 function isServiceName(value: unknown): value is ServiceName {
   return typeof value === 'string' && SERVICE_NAMES.includes(value as ServiceName);
@@ -82,7 +100,14 @@ function isServiceName(value: unknown): value is ServiceName {
 function isServiceStatusType(value: unknown): value is ServiceStatusType {
   return (
     typeof value === 'string' &&
-    ['healthy', 'unhealthy', 'restarting', 'restart_failed', 'failed'].includes(value)
+    [
+      'healthy',
+      'unhealthy',
+      'restarting',
+      'restart_failed',
+      'restart_disabled',
+      'failed',
+    ].includes(value)
   );
 }
 

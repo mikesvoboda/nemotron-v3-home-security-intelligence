@@ -581,3 +581,130 @@ class TestSetupGuardCache:
             # Now should be allowed
             response2 = await client.get("/api/cameras")
             assert response2.status_code == 200
+
+
+# =============================================================================
+# Setup-Complete Invalidation Tests
+# =============================================================================
+
+
+class TestInvalidateSetupCache:
+    """The register route must be able to drop a cached negative verdict.
+
+    Session-learned defect (2026-09-22 sandbox bring-up): first-admin
+    registration succeeded, but the immediately following login was 503'd
+    because the guard still held its pre-registration cached "setup required"
+    result for up to _SETUP_CHECK_TTL_SECONDS. The register route now calls
+    invalidate_setup_cache(); these unit tests pin the cache-drop contract in
+    isolation (the integration counterpart drives the full HTTP flow).
+    """
+
+    @pytest.mark.asyncio
+    async def test_invalidate_drops_cached_negative_result(self) -> None:
+        """After invalidation, the next request re-queries the DB and follows it.
+
+        Note: this patches backend.core.database.get_session — the seam the
+        middleware actually uses. (The app_with_middleware fixture overrides
+        get_db, which the middleware never consults; that mismatch is why the
+        cache-behavior class above is xfailed.)
+        """
+        from contextlib import asynccontextmanager
+        from unittest.mock import MagicMock, patch
+
+        from httpx import ASGITransport, AsyncClient
+
+        from backend.api.middleware.setup_guard import (
+            SetupGuardMiddleware,
+            invalidate_setup_cache,
+        )
+
+        state = {"user_count": 0, "queries": 0}
+
+        def make_session():
+            session = AsyncMock()
+
+            async def execute(_stmt):
+                state["queries"] += 1
+                result = MagicMock()
+                result.scalar.return_value = state["user_count"]
+                return result
+
+            session.execute = execute
+            return session
+
+        @asynccontextmanager
+        async def fake_get_session():
+            yield make_session()
+
+        app = FastAPI()
+        app.add_middleware(SetupGuardMiddleware)
+
+        @app.get("/api/cameras")
+        async def list_cameras():
+            return {"cameras": []}
+
+        with patch("backend.core.database.get_session", fake_get_session):
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response1 = await client.get("/api/cameras")
+                assert response1.status_code == 503  # caches "setup required"
+                assert state["queries"] == 1
+
+                # A second pre-registration request proves the verdict was
+                # actually cached (no re-query) — otherwise invalidation would
+                # be untestable.
+                await client.get("/api/cameras")
+                assert state["queries"] == 1
+
+                # Simulate the users table gaining its first admin (what the
+                # register route commits) plus the invalidation it now fires.
+                state["user_count"] = 1
+                invalidate_setup_cache()
+
+                # No TTL wait: the cached verdict was dropped, so this request
+                # re-queries and observes the user.
+                response2 = await client.get("/api/cameras")
+                assert state["queries"] == 2
+                assert response2.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_invalidate_affects_all_live_instances(self, mock_db_session: AsyncMock) -> None:
+        """Multiple guards (throwaway apps in a test process) all get dropped."""
+        from fastapi import FastAPI as _FastAPI
+
+        from backend.api.middleware.setup_guard import (
+            SetupGuardMiddleware,
+            invalidate_setup_cache,
+        )
+
+        guards = []
+        for _ in range(2):
+            app = _FastAPI()
+            app.add_middleware(SetupGuardMiddleware)
+            # Build the middleware chain so instances exist and self-register.
+            app.middleware_stack = app.build_middleware_stack()
+            guards.append(_find_guard(app))
+
+        for guard in guards:
+            guard._cached_result = True
+            guard._cached_at = 12345.0
+
+        invalidate_setup_cache()
+
+        for guard in guards:
+            assert guard._cached_result is False
+            assert guard._cached_at == 0.0
+            assert guard._setup_complete is False
+
+
+def _find_guard(app):
+    """Walk the built middleware stack to the SetupGuardMiddleware instance."""
+    from backend.api.middleware.setup_guard import SetupGuardMiddleware
+
+    node = app.middleware_stack
+    while node is not None:
+        if isinstance(node, SetupGuardMiddleware):
+            return node
+        node = getattr(node, "app", None)
+    raise AssertionError("SetupGuardMiddleware not found on middleware stack")

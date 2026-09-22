@@ -669,6 +669,17 @@ class AlertRuleResponse(BaseModel):
     dedup_key_template: str = Field(..., description="Template for dedup key")
     cooldown_seconds: int = Field(..., description="Minimum seconds between duplicate alerts")
     channels: list[str] = Field(default_factory=list, description="Notification channels")
+
+    @field_validator("channels", mode="before")
+    @classmethod
+    def _null_rule_channels_to_empty(cls, v: list[str] | None) -> list[str]:
+        # The DB column is nullable JSONB (models/alert.py); a NULL row must
+        # not fail response validation — Alert.to_dict already reports NULL
+        # channels as []. Without this, one such row made model_validate raise
+        # inside list_rules' broad except, which then answered a silently
+        # EMPTY 200 for every rule (2026-09-22 sandbox bring-up diagnosis).
+        return [] if v is None else v
+
     dwell_time_enabled: bool = Field(
         default=False,
         description="Enable dwell time / loitering detection. "

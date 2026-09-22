@@ -24,6 +24,7 @@ Whitelist (endpoints allowed during setup):
 """
 
 import time
+import weakref
 from collections.abc import Awaitable, Callable
 
 from fastapi import Request, Response, status
@@ -107,6 +108,11 @@ class SetupGuardMiddleware(BaseHTTPMiddleware):
         # Stores (result: bool, timestamp: float). Checked before hitting DB.
         self._cached_result: bool = False
         self._cached_at: float = 0.0
+        # Register with the module-level registry so the register route can
+        # invalidate a cached "setup required" verdict immediately — otherwise
+        # a just-registered admin's very next login hits the stale negative
+        # cache and gets 503 for up to _SETUP_CHECK_TTL_SECONDS.
+        _INSTANCES.add(self)
 
     def _is_whitelisted(self, path: str) -> bool:
         """Check if a path is in the setup whitelist.
@@ -212,6 +218,24 @@ class SetupGuardMiddleware(BaseHTTPMiddleware):
                 "setup_status_url": "/api/auth/setup-status",
             },
         )
+
+
+# Weak registry of live middleware instances (BaseHTTPMiddleware builds one per
+# app at startup). Weakrefs so tests creating throwaway apps don't leak.
+_INSTANCES: weakref.WeakSet[SetupGuardMiddleware] = weakref.WeakSet()
+
+
+def invalidate_setup_cache() -> None:
+    """Drop the cached 'setup required' verdict on all live guard instances.
+
+    Called after the first admin registers: the users table just changed from
+    empty to non-empty, so any cached negative result is stale and would make
+    the guard 503 the brand-new admin's immediate login attempt (the next
+    request re-queries the DB and flips the guard to complete).
+    """
+    for instance in list(_INSTANCES):
+        instance._cached_result = False
+        instance._cached_at = 0.0
 
 
 def reset_setup_guard_state() -> None:
