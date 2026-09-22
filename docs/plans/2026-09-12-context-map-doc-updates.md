@@ -9113,3 +9113,103 @@ is 1-killed + 3-unkillable, so the honest TEST-GAP coverable-by-input
 count for this module is 47, not 50. (My first probe's apparent
 "survivor" for the dropped-default shape was exactly this: a mutation
 of a branch that cannot execute.)
+
+### S2 batch 4 — mqtt_client T1-T8/T10-T12: 19/19 killable red-checks + T9 re-adjudicated EQUIVALENT (double-guard) (`6c915f2f`)
+
+Frozen feed `mqtt_client.md`: 477 mutants / 232 survived / 70 TEST-GAP.
+Root cause confirmed on the shipped suite: `labels.assert_called()`
+without VALUES, the `aiomqtt.Client(...)` construction never inspected,
+unsubscribe asserts arity-only. 10 tests / 4 classes: ctor kwargs from
+settings; TLS both-ways with explicit use_tls (a dev .env cannot leak
+in — the dossier's own note); error cause-chaining (connect + publish);
+metric label VALUES incl. durations and the two trailing gauge `set(0)`s;
+topic_type first-segment both shapes; histogram buckets; 3 attempts +
+sleep schedule `[1, 2]`; subscribe qos; prefixed broker topics on both
+unsubscribe paths. 43 passed fixed AND random order.
+
+Order finding (measured, not assumed): an autouse `_reset_metrics_cache`
+fixture was tried first and turned the file 14→29 failures —
+`DuplicateTimeseries` from re-registering REAL metrics; the lazy cache
+is exactly what makes mocked/real creation order-tolerant. Reverted;
+T11 test instead drives a connected client (publish on a cold client
+raises before metrics — the first failure mode, also fixed).
+
+Red-check measured: 19/19 killable probes killed (port/id/password→None,
+tls both flips, both original_error→None, status/error_type→None,
+set(1)→2, duration −/+, [0]→[1], rsplit, retries 3→4,
+2\*\*attempt→2·attempt, unsub topic→None, disconnect-guard flip, buckets
+dropped, qos→None); the T9 probe was the 20th run and came back GREEN —
+that result is the correction below, not a miss.
+
+MEASURED DISAGREEMENT with dossier cluster T9 (connect**2/**8): the
+idempotency guard is DOUBLED (outer :385 + double-check :391 under the
+reconnect lock); mutating EITHER site alone leaves the other returning
+early — both single-site mutations GREEN against the file, so the
+re-create scenario needs both guards mutated at once, which mutmut
+never emits. EQUIVALENT-in-function; killable TEST-GAP here = 68, not 70. Frozen feed untouched (unfreezing = ruling). Ledger now carries TWO
+measured dossier corrections (gallq 17/18/19, T9) — the feed stays the
+triage record; these rows are the re-measurement.
+
+### S2 batch 5 — export_service T1-T6 + SQL/empty/singleton/detections clusters: 47 red-checks (`98375086`)
+
+Frozen feed `export_service.md`: 828 mutants / 398 survived / 226
+TEST-GAP / 138 LOW-VALUE / 34 EQUIVALENT (60 clusters, sums verified).
+Root cause (dossier, confirmed on shipped suite): DB-backed methods ran
+through an argument-blind `AsyncMock` — asserts were `execute.called` /
+`file_size > 0` shape checks; the written file bytes, compiled SQL text,
+progress VALUES and reporter payloads were never read. 20 tests / 9
+classes; full file 119 passed fixed AND random order; ruff clean.
+
+Contract sites all re-read at this commit before writing (progress
+:722-892, empty :894-932, websocket :934-1170, accept :297-334,
+streaming :369-405, detections :600-631, excel cells :460-483, columns
+:187-230, reporter `fail(e, *, retryable=False)` verified keyword-only at
+job_progress_reporter.py:318). Dossier drafts were UNVERIFIED (their own
+label) — three corrections while adapting: (a) SQL compiles bool
+comparisons as literals (`events.reviewed = true`, no bind param — the
+draft's `= :` and `True in params.values()` asserts would have RED-green
+failed), (b) the draft's WS progress sequence (1/35/70/80/95) matches the
+shipped source exactly, kept, (c) empty-path tests must monkeypatch
+`EXPORT_DIR` (module-global read at call time — four tests would
+otherwise write under /tmp/exports).
+
+Red-check battery measured this session: 47 real-shape mutations (hunks
+from the feed's `export_service_diffs.json` / cluster table), applied one
+at a time → target FAIL → restore → source byte-equal at every round
+exit. Rounds 2-3 existed because progress-site lines at 12-space indent
+are suffixes of websocket-site 16-space lines — first pass hit 9
+BAD-PATTERN (count=2) + 3 SURVIVED (wrong-path target); newline-anchored
+patterns, both paths pinned separately: row-fields both paths, `!=`
+flips, `>=`→`>` / `<=`→`<` (both paths; empirically confirmed NOT
+text-equivalent on SQLAlchemy 2.0.53 before pinning), order_by(None)
+both paths, count None/`or 1` (the shape test amended with the
+count==0 SHORT-CIRCUIT assertion — `execute.call_count == 1` — after
+`or 1` survived a shape-only test: real gap in my first draft),
+progress pct ±1, WS sequence 11/\*71/81/force-None, complete(None),
+empty-message rename, fail(retryable=True) [WS-FAIL 2/2], metadata key
+renames, XL case-flips + tz-strip, accept split(None), CSV-SEEK both
+seek sites, empty XX[]XX/`;`-sep/fname-clobber, singleton `is not None`,
+DJ `is not None`, EE dispatch columns→None both sites, GF prefix→None,
+ws json/zip branch clobber+uppercase ×4, ws inline-dict event_id→None,
+ws csv arg→None. **53/53 killed** after anchoring fixes (rounds of
+30+13+4+4+2; the 3 round-1 survivors were re-probed with anchored
+patterns + correct target and killed in rounds 2-3).
+Final: 22 tests / 9 classes, 121 passed fixed AND random order, ruff
+clean, source byte-equal at every round exit.
+
+Covered-by-this-batch dossier clusters (killable TEST-GAP): WS-PROG 32,
+ROW-FIELDS-P 31, ROW-FIELDS-W 31, SQL-FILTER 15, SQL-FILTER-W 5,
+SQL-COUNT 5+W 3, PROG-PCT 14, WS-META 12, XL-CELLS 10, FILE-CONTENT-P 9
+
+- W 3 (csv+json+zip member all read back), WS-RESULT 9, WS-EMPTY 6,
+  ACCEPT-QP 2, FILENAME-P 3 + W 3, COLUMNS 3, FMT-BRANCH 4 (ws json AND
+  zip both driven; both clobber shapes red-probed), WS-FAIL 2, GF-PREFIX
+  1, SINGLETON 2, DJ-COLS 2 + DJ-CONTENT 2, CSV-SEEK 2, FD-VALUE 4 (via
+  JSON content assert), EMPTY-CONTENT 4 + EMPTY-FILENAME 3, EE-COLUMNS 4.
+  Honest killable cover here ≈ 222 of 226 TEST-GAP; the residual 4 are
+  row-null-variant keys inside ROW-FIELDS-P/W whose exact shapes were not
+  individually probed — cluster-level kill expectation, red-checked per
+  representative shape (every such key mutates a line the new content
+  asserts read). LOW-VALUE/EQUIVALENT clusters untouched per the dossier's
+  own per-cluster justification — no blanket skips added, no production
+  change.
