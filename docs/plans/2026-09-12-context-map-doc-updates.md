@@ -9213,3 +9213,60 @@ SQL-COUNT 5+W 3, PROG-PCT 14, WS-META 12, XL-CELLS 10, FILE-CONTENT-P 9
   asserts read). LOW-VALUE/EQUIVALENT clusters untouched per the dossier's
   own per-cluster justification — no blanket skips added, no production
   change.
+
+### S2 batch 6 — model_zoo D1-D12 eviction/timeout/optional-dep/paddle clusters: 78 red-checks
+
+Frozen feed `model_zoo.md`: 185 survivors = 78 TEST-GAP / 104
+EQUIVALENT / 3 LOW-VALUE across the GAP:/EQ:/LOW: clusters (sums verified
+from `model_zoo_clusters_final.json`: GAP 78, EQ 104, LOW 3, total 185). Root
+cause (dossier, confirmed on shipped suite): every success path (paddleocr
+uninstalled in CI, pyroscope branch untested), the INFO-vs-ERROR optional-
+dep routing, the eviction-flag reads (the pre-existing smoke-fire assert
+was an `or` form None satisfies), the 20.0 timeout constant, and every
+diagnostic payload were never executed or never asserted. 20 tests / 12
+classes; full file **153 passed** (133 baseline + 20) fixed AND random
+order; ruff clean; source byte-equal at every red-check exit.
+
+Contract sites re-read at this commit before writing: yolo guard :174-199
+(`if "/" in model_path and not model_path.startswith("http")` → the guard
+VALIDATES repo-style `org/yolov8n` names that contain `/`, corrected in
+the non-local test — only bare names and http URLs skip), missing-file
+diagnostics (Branch A parent-dir `.pt/.pth/.onnx` listing vs Branch B
+mount-hint) :180-193, load_paddle_ocr ctor+executor :270-334,
+\_is_paddleocr_available find_spec :256-267, \_init_model_zoo eviction-flag
+wrappers :474-482, \_load_model timeout local :659 + both wait_for sites
+:667/:673 + optdep classifier :692 + perf_counter delta :711, \_unload_model
+cuda-clear :751-757, refcounted load() :791-808, reload :889-895, unload
+:836. Live facts measured: registry smoke-fire-yolov8n → critical/True/
+True/'detection' via get_model_config; fast-alpr path verbatim 'fast-alpr'.
+
+Drafts UNVERIFIED (their own label) — adaptations this session: D12 path
+assert moved INSIDE `async with manager.load(...)` (ctx exit unloads+pops
+so a post-ctx load_fn assert reads a stale/empty count); D5 timeout spied
+by `patch.object(mz.asyncio, "wait_for", spy)` capturing `timeout == 20.0`
+on the branch taken; D5 duration asserts `0.005 <= MODEL_LOAD_DURATION.
+labels(model=..)._value.get() < 10.0` — the `- → +` mutant records ~1.7e9
+s (an absolute clock read), so a bare `>= lower` assert (existing style)
+would NOT kill it; D4 strict-typed `type(config.priority) is str` +
+`config.preload is True` (bool, not None/'True') kills all 20 eviction-flag
+shapes including the three dropped-arg-line removals (46/47/48); D1
+parametrizes the two classifier arms ("not installed" / "optional")
+separately with INFO-unavailable AND no-ERROR-"Failed to load model" both
+checked.
+
+Red-check battery measured this session: **78/78 TARGET GAP mutants killed
+at their real source sites** (from `model_zoo_diffs*.txt`, applied one at a
+time → target class FAIL → restore → source byte-equal at every exit).
+Rounds split on pattern-anchoring methodology, not survivors: round 1
+63/78 clean single-occurrence hunks; the 15 ambiguous were re-probed by
+real-site identity — round 2 (7 dedent-clean), round 3 (1, context-hunk at
+mutmut's exact site), round 5 (2, dedent-aware reconstruction), round 6
+(5, line-anchored at real line numbers after `ǁModelManagerǁ` hunks were
+found in model_zoo_diffs.txt with ambiguous blank-line hunk-context the
+naive reconstruction mis-indented — line-anchored apply at :711/:895/:890/
+:836 all KILLED with syntax-compile guard). The round-2/5 SURVIVED/BAD
+flags were methodology artifacts (duplicate textual occurrence → the wrong
+site mutated; feed dedent), every one re-probed at mutmut's actual site and
+killed. LOW-VALUE/EQUIVALENT clusters (EQ: log-text/kwarg 104, LOW:
+pyroscope-tag + paddle-toctou 3) untouched per the dossier's own per-
+cluster justification — no blanket skips added, no production change.

@@ -2497,3 +2497,412 @@ class TestViTPoseModelManager:
 
             await manager.unload("vitpose-small")
             assert manager.total_loaded_vram == 0
+
+
+# =============================================================================
+# WP4.4 kill battery (frozen triage feed archive/wp25-feed/wp44-triage/
+# model_zoo.md, TEST-GAP clusters D1-D12 of 78; 104 EQUIVALENT log-text +
+# 3 LOW-VALUE stay excluded per the dossier's own per-cluster notes).
+# Root cause per dossier: success paths (paddleocr uninstalled in CI), the
+# INFO-vs-ERROR optional-dep routing, eviction-flag reads (the smoke-fire
+# assert was an `or` form None satisfies), timeout constant, and every
+# diagnostic payload never executed or never asserted. Drafts UNVERIFIED —
+# red/green-checked against the shipped source here; zero production change.
+# =============================================================================
+
+
+class TestOptionalDependencyLogRouting:
+    """D1 — GAP:optdep-error-classifier (9). The INFO-vs-ERROR routing of
+    optional-dependency load failures is the documented graceful-degradation
+    contract (NEM-2540); existing tests only catch the exception."""
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "dep_message",
+        [
+            "paddleocr package not installed",  # 'not installed' arm alone
+            "this dependency is optional",  # 'optional' arm alone
+        ],
+    )
+    async def test_load_model_logs_info_not_error_for_optional_dep(self, dep_message: str) -> None:
+        manager = ModelManager()
+
+        async def missing_dep_load(path: str) -> Any:
+            raise RuntimeError(dep_message)
+
+        mock_logger = MagicMock()
+        with (
+            patch.object(get_model_config("yolo11-license-plate"), "load_fn", missing_dep_load),
+            patch("backend.services.model_zoo.logger", mock_logger),
+            pytest.raises(RuntimeError, match=dep_message),
+        ):
+            await manager.preload("yolo11-license-plate")
+
+        info_msgs = [str(c.args[0]) for c in mock_logger.info.call_args_list if c.args]
+        err_msgs = [str(c.args[0]) for c in mock_logger.error.call_args_list if c.args]
+        assert any("unavailable" in m for m in info_msgs), (
+            f"optional-dep failure '{dep_message}' must log INFO with 'unavailable', "
+            f"got INFO={info_msgs}"
+        )
+        assert not any("Failed to load model" in m for m in err_msgs), (
+            f"optional-dep failure '{dep_message}' must not reach the ERROR branch"
+        )
+
+
+class TestYoloLocalPathValidation:
+    """D2a/D2b — GAP:yolo-local-path-validation-guard (9) + missing-file
+    diagnostics (6). Both existing yolo tests BYPASS the guard: the
+    ImportError test's mock raises before validation; the runtime-error test
+    uses a path where every mutant behaves identically."""
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_model_missing_local_file_raises_runtime_error(
+        self, tmp_path: Any
+    ) -> None:
+        from backend.services.model_zoo import load_yolo_model
+
+        missing = str(tmp_path / "models" / "yolo11-face.pt")
+        with patch.dict("sys.modules", {"ultralytics": MagicMock(YOLO=MagicMock())}):
+            with pytest.raises(RuntimeError, match="Model file not found"):
+                await load_yolo_model(missing)
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_model_skips_validation_for_non_local_paths(self) -> None:
+        """Bare ultralytics names (no '/') and http URLs must NOT be
+        pre-validated — ultralytics resolves/downloads those itself. (A
+        repo-style name like 'org/yolov8n' DOES contain '/' and IS
+        validated by the guard as shipped.)"""
+        from backend.services.model_zoo import load_yolo_model
+
+        mock_yolo_cls = MagicMock()
+        mock_model = MagicMock()
+        mock_yolo_cls.return_value = mock_model
+        fake_torch = MagicMock()
+        fake_torch.cuda.is_available.return_value = False
+        with patch.dict(
+            "sys.modules",
+            {"ultralytics": MagicMock(YOLO=mock_yolo_cls), "torch": fake_torch},
+        ):
+            for non_local in ("yolov8n.pt", "http://example.com/dir/y.pt"):
+                assert await load_yolo_model(non_local) is mock_model
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_model_warns_with_available_model_files(self, tmp_path: Any) -> None:
+        """Branch A (parent dir exists): the warning must list the sibling
+        .pt/.pth/.onnx files — that filtered listing IS the payload."""
+        from backend.services.model_zoo import load_yolo_model
+
+        (tmp_path / "dir").mkdir()
+        (tmp_path / "dir" / "a.pt").write_bytes(b"")
+        (tmp_path / "dir" / "b.txt").write_text("")
+        missing = str(tmp_path / "dir" / "ghost.pt")
+
+        mock_logger = MagicMock()
+        with (
+            patch("backend.services.model_zoo.logger", mock_logger),
+            pytest.raises(RuntimeError, match="Model file not found"),
+        ):
+            await load_yolo_model(missing)
+
+        warn_msgs = [str(c.args[0]) for c in mock_logger.warning.call_args_list if c.args]
+        assert any("Available model files" in m and "['a.pt']" in m for m in warn_msgs), (
+            f"warning must list exactly the .pt/.onnx siblings, got {warn_msgs}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_model_warns_with_mount_hint_when_dir_missing(
+        self, tmp_path: Any
+    ) -> None:
+        """Branch B (no parent dir): mount + download hint."""
+        from backend.services.model_zoo import load_yolo_model
+
+        missing = str(tmp_path / "ghosts" / "ghost.pt")
+        mock_logger = MagicMock()
+        with (
+            patch("backend.services.model_zoo.logger", mock_logger),
+            pytest.raises(RuntimeError, match="Model file not found"),
+        ):
+            await load_yolo_model(missing)
+
+        warn_msgs = [str(c.args[0]) for c in mock_logger.warning.call_args_list if c.args]
+        assert any("does not exist" in m for m in warn_msgs), warn_msgs
+
+
+class TestPaddleOcrSuccessPath:
+    """D3 — GAP:paddleocr-ctor-kwargs-and-executor-call (14). paddleocr is
+    uninstalled in CI: the success path (ctor kwargs + run_in_executor hop)
+    never runs under test."""
+
+    @pytest.mark.asyncio
+    async def test_load_paddle_ocr_constructs_with_expected_options(self) -> None:
+        from backend.services.model_zoo import load_paddle_ocr
+
+        mock_module = MagicMock()
+        mock_ctor = MagicMock()
+        mock_instance = MagicMock()
+        mock_ctor.return_value = mock_instance
+        mock_module.PaddleOCR = mock_ctor
+
+        with (
+            patch(
+                "backend.services.model_zoo._is_paddleocr_available",
+                return_value=True,
+                autospec=True,
+            ),
+            patch.dict("sys.modules", {"paddleocr": mock_module}),
+        ):
+            model = await load_paddle_ocr("config/path")
+
+        assert model is mock_instance
+        mock_ctor.assert_called_once_with(use_angle_cls=True, lang="en", show_log=False)
+
+    def test_is_paddleocr_available_queries_exact_module_name(self) -> None:
+        """D8 — GAP:is-paddleocr-available-find-spec-arg (3)."""
+        from backend.services.model_zoo import _is_paddleocr_available
+
+        seen: list[Any] = []
+
+        def fake_find_spec(name: Any) -> Any:
+            seen.append(name)
+            return MagicMock() if name == "paddleocr" else None
+
+        with patch("importlib.util.find_spec", side_effect=fake_find_spec, autospec=True):
+            assert _is_paddleocr_available() is True
+        assert seen == ["paddleocr"]
+
+
+class TestModelZooEvictionFlags:
+    """D4 — GAP:init-model-zoo-eviction-flags-strict (20). models.yml is the
+    single source of truth; the pre-existing smoke-fire assert was an `or`
+    form that None satisfies. priority/preload/never_evict feed VRAM
+    eviction and the BACKEND_MODEL_PRELOAD startup pass — a dropped
+    str()/bool() wrapper or damaged key read silently disables both."""
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+
+    def test_smoke_fire_eviction_fields_are_strictly_typed(self) -> None:
+        config = get_model_config("smoke-fire-yolov8n")
+        assert config is not None
+        assert type(config.priority) is str
+        assert config.priority == "critical"
+        assert config.preload is True  # bool True, not None / not 'True'
+        assert config.never_evict is True  # bool True, not None / not 'True'
+        assert type(config.category) is str
+        assert config.category == "detection"
+
+
+class TestModelLoadTimeoutAndDuration:
+    """D5 — GAP:load-model-timeout-constant-and-duration-metric (4)."""
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_load_model_applies_20s_timeout_constant(self) -> None:
+        """timeout=None silently removes the event-loop protection the
+        L654-658 comment promises; must stay exactly 20.0 on BOTH wait_for
+        call sites (pyroscope and no-pyroscope branches)."""
+        import backend.services.model_zoo as mz
+
+        captured: list[Any] = []
+
+        async def spy_wait_for(awaitable: Any, timeout: float | None = None) -> Any:
+            captured.append(timeout)
+            awaitable.close()
+            return MagicMock()
+
+        manager = ModelManager()
+
+        async def dummy_load(path: str) -> Any:
+            return MagicMock()
+
+        with (
+            patch.object(mz.asyncio, "wait_for", spy_wait_for),
+            patch.object(get_model_config("yolo11-license-plate"), "load_fn", dummy_load),
+        ):
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+        assert captured and all(t == 20.0 for t in captured)
+
+    @pytest.mark.asyncio
+    async def test_load_duration_metric_is_a_realistic_duration(self) -> None:
+        """MODEL_LOAD_DURATION must record a *duration* (perf_counter delta),
+        not an absolute clock reading (the - -> + mutant records ~1e9 s;
+        existing asserts are all >= lower bounds)."""
+        from backend.core.metrics import MODEL_LOAD_DURATION
+
+        manager = ModelManager()
+
+        async def slowish_load(path: str) -> Any:
+            await asyncio.sleep(0.01)
+            return MagicMock()
+
+        with patch.object(get_model_config("yolo11-face"), "load_fn", slowish_load):
+            async with manager.load("yolo11-face"):
+                pass
+
+        value = MODEL_LOAD_DURATION.labels(model="yolo11-face")._value.get()
+        assert 0.005 <= value < 10.0
+
+
+class TestResolveModelPathContracts:
+    """D6 — GAP:resolve-model-path-runtime-path-branch (4) + empty-local-
+    prefix (1). runtime_path is priority 1 and the sentinel entries depend
+    on it being used VERBATIM — damaged key lookups silently fall through to
+    the base_path join and hand loaders a nonexistent directory."""
+
+    def test_runtime_path_wins_verbatim(self) -> None:
+        from backend.services.model_zoo import _resolve_model_path
+
+        sentinel = {"runtime_path": "fast-alpr", "local_path": "model-zoo/fast-alpr"}
+        assert _resolve_model_path(sentinel, "/models/model-zoo") == "fast-alpr"
+
+    def test_empty_local_path_falls_back_to_base(self) -> None:
+        from backend.services.model_zoo import _resolve_model_path
+
+        assert _resolve_model_path({"local_path": None}, "/models/model-zoo") == (
+            "/models/model-zoo"
+        )
+        assert _resolve_model_path({}, "/models/model-zoo") == "/models/model-zoo"
+
+    def test_registry_sentinel_paths(self) -> None:
+        """Tripwire for the whole branch against real models.yml data."""
+        assert get_model_config("fast-alpr").path == "fast-alpr"
+
+
+class TestModelZooBasePathEnv:
+    """D7 — GAP:model-zoo-base-path-env-var-name (2). MODEL_ZOO_PATH is the
+    container-mount override; a renamed lookup silently reverts every
+    deployment to the baked-in default."""
+
+    def test_env_var_name_is_exact(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from backend.services.model_zoo import _get_model_zoo_base_path
+
+        monkeypatch.setenv("MODEL_ZOO_PATH", "/mnt/custom-models")
+        assert _get_model_zoo_base_path() == "/mnt/custom-models"
+
+    def test_default_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from backend.services.model_zoo import _get_model_zoo_base_path
+
+        monkeypatch.delenv("MODEL_ZOO_PATH", raising=False)
+        assert _get_model_zoo_base_path() == "/models/model-zoo"
+
+
+class TestReloadContracts:
+    """D9/D10/D11 — reload reference-count restore (2), stale-unload +
+    CUDA clear (2), unload phantom load-count entry (1)."""
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_reload_sets_single_reference_count(self) -> None:
+        """After reload() the model is owned exactly once; get_status() is
+        the public window onto _load_counts."""
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(get_model_config("yolo11-license-plate"), "load_fn", mock_load):
+            await manager.preload("yolo11-license-plate")
+            await manager.reload("yolo11-license-plate", "oom")
+            assert manager.get_status()["load_counts"] == {"yolo11-license-plate": 1}
+
+            await manager.unload("yolo11-license-plate")
+            assert manager.get_status()["load_counts"] == {}
+            assert not manager.is_loaded("yolo11-license-plate")
+
+    @pytest.mark.asyncio
+    async def test_reload_unloads_stale_model_and_clears_cuda_cache(self) -> None:
+        """reload() must drop the stale instance (else VRAM double-allocates
+        — the exact failure reload exists to fix) and clear the CUDA cache."""
+        manager = ModelManager()
+        models = iter([MagicMock(name="first-load"), MagicMock(name="second-load")])
+
+        async def mock_load(path: str) -> Any:
+            return next(models)
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = True
+
+        with (
+            patch.object(get_model_config("yolo11-face"), "load_fn", mock_load),
+            patch.dict("sys.modules", {"torch": mock_torch}),
+        ):
+            await manager.preload("yolo11-face")
+            mock_torch.cuda.empty_cache.assert_not_called()
+
+            await manager.reload("yolo11-face", "crash")
+            mock_torch.cuda.empty_cache.assert_called_once()
+            assert manager.is_loaded("yolo11-face")
+
+    @pytest.mark.asyncio
+    async def test_unload_removes_load_count_entry(self) -> None:
+        """D11: unload must POP the load-count entry (phantom entries make
+        get_status lie and later `count - 1` TypeErrors possible)."""
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        with patch.object(get_model_config("yolo11-face"), "load_fn", mock_load):
+            await manager.preload("yolo11-face")
+            await manager.unload("yolo11-face")
+
+        assert manager.get_status()["load_counts"] == {}
+
+
+class TestLoadFnPathArgument:
+    """D12 — GAP:load-fn-invocation-path-arg (1)."""
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_load_model_passes_configured_path_to_load_fn(self) -> None:
+        manager = ModelManager()
+        mock_model = MagicMock()
+        seen_paths: list[Any] = []
+
+        async def capture_load(path: Any) -> Any:
+            seen_paths.append(path)
+            return mock_model
+
+        config = get_model_config("yolo11-license-plate")
+        assert config is not None
+        with patch.object(config, "load_fn", capture_load):
+            async with manager.load("yolo11-license-plate"):
+                pass
+
+        assert seen_paths == [config.path]
