@@ -16,6 +16,27 @@ from fastapi.testclient import TestClient
 from backend.tests.integration.test_helpers import get_error_message
 
 
+def _bypass_setup_guard():
+    """Bypass SetupGuardMiddleware like the shared client fixture does.
+
+    This module-scoped client fixture builds its own TestClient and mocks
+    init_db, so the users table is empty on this worker. The real
+    SetupGuardMiddleware then returns 503 for every non-whitelisted request
+    (media routes are not whitelisted), making the endpoint contract
+    unobservable — but only when a prior file on the same xdist worker left
+    the DB *initialized*; if it left it uninitialized the guard's query
+    raises and it fails open (200). With --dist=worksteal and pytest-randomly
+    drawing a fresh seed per process, that ordering is nondeterministic, so
+    this file flaked pass/fail run-to-run. Mirrors NEM-5312's convention:
+    guard bypassed in integration tests (owner ruling F3).
+    """
+
+    return patch(
+        "backend.api.middleware.setup_guard.SetupGuardMiddleware._check_setup_complete",
+        AsyncMock(return_value=True),
+    )
+
+
 @pytest.fixture(scope="module")
 def module_temp_foscam_dir():
     """Create temporary Foscam directory structure once per module.
@@ -220,6 +241,7 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
         ),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
+        _bypass_setup_guard(),
     ):
         # Override the rate limiter dependency using FastAPI's dependency_overrides
         app.dependency_overrides[media_module.media_rate_limiter] = mock_rate_limiter
