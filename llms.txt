@@ -28,7 +28,7 @@ cd nemotron-v3-home-security-intelligence
 # 2. Configure environment (setup.py generates .env interactively; or copy the template)
 python setup.py            # or: cp .env.example .env
 
-# 3. Download AI models (~42GB total, takes 30-90 min on fast connection)
+# 3. Download AI models (~33GB total per the setup_lib download rule; takes 30-90 min on fast connection)
 ./ai/download_models.sh
 
 # 4. Start all services (builds AI containers on first run)
@@ -69,7 +69,7 @@ podman-compose -f docker-compose.prod.yml up -d
 
 **VRAM budget:** Nemotron Q4_K_M GGUF is ~14.7GB on disk (`models.yml` size_mb 15073) and ~21GB resident when fully on GPU (`backend/services/model_zoo.py:36` — 21,700 MB); detection/enrichment models load on demand through the gateway with LRU eviction. `GPU_LAYERS=auto` (default) fits the LLM to available VRAM.
 
-## AI Models (~42GB total)
+## AI Models (~33GB total — 25 entries per the setup_lib download rule)
 
 The download script (`./ai/download_models.sh`) fetches all required models:
 
