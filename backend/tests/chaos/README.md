@@ -70,8 +70,10 @@ There is no fault-injection framework to import. A test builds its fault inline 
 # Mock a service boundary (from test_nemotron_failures.py)
 analyzer = NemotronAnalyzer()
 
+
 async def timeout(*args, **kwargs):
     raise httpx.TimeoutException("Health check timeout")
+
 
 with patch("httpx.AsyncClient.get", side_effect=timeout):
     result = await analyzer.health_check()
@@ -83,8 +85,10 @@ with patch("httpx.AsyncClient.get", side_effect=timeout):
 config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=60.0)
 breaker = CircuitBreaker(name="nemotron_connection_test", config=config)
 
+
 async def connection_error():
     raise httpx.ConnectError("Nemotron unreachable")
+
 
 for _ in range(config.failure_threshold):
     try:
