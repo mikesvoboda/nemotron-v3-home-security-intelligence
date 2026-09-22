@@ -45,6 +45,8 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 GATE = Path(__file__).resolve().with_name("check-ai-provider-parity.py")
 # Installed at scripts/, so parents[1] IS the repo root — in-tree and in CI
 # checkout alike. The /tmp draft carried a machine-specific fallback path and
@@ -829,14 +831,26 @@ def test_real_tree_unanchored_documents_the_phantom_admin_route():
     assert any("/models/unload-all" in u for u in unanchored)
 
 
+@pytest.mark.timeout(30)  # two back-to-back real-tree scans; >5s on loaded runners
 def test_real_tree_is_deterministic():
+    # The ONLY test here that pays real_report() twice. pyproject's repo-wide
+    # timeout = 5 fits one scan on a runner but not two: it timed out on CI
+    # run 35723490624 (Collection Sanity, PR #6639) with zero change to the
+    # scanned tree -- a 5s coin-toss, not a regression. 30 matches the budget
+    # test_real_tree_runtime_under_30s already asserts ONE scan may take;
+    # explicit markers are the house pattern for structurally-slow tests
+    # (conftest.py:445: "Explicit @pytest.mark.timeout(N) -- always unchanged").
     _, a = real_report()
     _, b = real_report()
     assert [d["id"] for d in a["divergences"]] == [d["id"] for d in b["divergences"]]
     assert [d["op"] for d in a["declared"]] == [d["op"] for d in b["declared"]]
 
 
+@pytest.mark.timeout(35)  # 30s budget below must fit INSIDE the timeout
 def test_real_tree_runtime_under_30s():
+    # Same 5s-vs-contract contradiction as the determinism test above: this
+    # one ASSERTS a scan may take up to 30s while pyproject's 5s timer would
+    # kill it at 5 — the budget could never be exercised. 35 = 30 + headroom.
     start = time.monotonic()
     rc, _ = real_report()
     assert rc == 1
