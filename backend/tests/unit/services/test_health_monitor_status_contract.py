@@ -28,6 +28,7 @@ schema-side omission loud instead of silent.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -41,18 +42,37 @@ pytestmark = pytest.mark.unit
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
+_MUTANT_DEF = re.compile(r"__mutmut_\d+$")
+
+
 def _emitted_statuses() -> set[str]:
     """Collect every status literal passed to _broadcast_status in the monitor.
 
     Parsed from the module's AST so the probe tracks new emission sites in
     health_monitor.py automatically (it cannot drift from a hand-maintained
     list — that drift is what caused the original bug).
+
+    Mutation-runner safe: under mutmut this file runs from the mutant home,
+    where the source file additionally holds per-mutant variant copies of
+    every function (def names suffixed ``__mutmut_<N>``) carrying mutated
+    literals like "FAILED"/"XXunhealthyXX". The contract is about the SHIPPED
+    module, so calls inside numbered variant defs are pruned. A plain repo
+    checkout has no such defs (no-op there); ``__mutmut_orig`` copies are the
+    shipped bodies and stay. Verified: pruned mutant-copy probe returns
+    exactly the shipped status set.
     """
     source = REPO_ROOT / "backend/services/health_monitor.py"
     tree = ast.parse(source.read_text())
+    mutant_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if _MUTANT_DEF.search(node.name):
+                mutant_lines.update(range(node.lineno, node.end_lineno + 1))
     statuses: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
+            if node.lineno in mutant_lines:
+                continue
             func = node.func
             if isinstance(func, ast.Attribute) and func.attr == "_broadcast_status":
                 if len(node.args) >= 2:
