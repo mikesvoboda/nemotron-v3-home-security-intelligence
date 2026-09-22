@@ -28,7 +28,9 @@ from __future__ import annotations
 import pytest
 
 from backend.services.vision_extractor import (
+    VEHICLE_TERMS,
     BatchExtractionResult,
+    ConflictResolutionResult,
     CrossValidationError,
     clean_vqa_output,
     detect_cross_validation_error,
@@ -45,8 +47,11 @@ pytestmark = pytest.mark.unit
 class TestResolveVehicleTypeConflictAllBranches:
     """C5: every return branch pinned on ALL nine result fields."""
 
-    def test_both_missing_branch_exact(self):
-        r = resolve_vehicle_type_conflict(None, 0.5, None)
+    @pytest.mark.parametrize("yolo,florence", [(None, None), ("", "")])
+    def test_both_missing_branch_exact(self, yolo, florence):
+        # falsy-string inputs pin the stored yolo_class/florence_type fields:
+        # kwarg->None folds (19/37 yolo, 21/56 florence) print None not ""
+        r = resolve_vehicle_type_conflict(yolo, 0.5, florence)
         assert (
             r.resolved_type,
             r.source,
@@ -59,9 +64,9 @@ class TestResolveVehicleTypeConflictAllBranches:
             "unknown",
             "both",
             False,
-            None,
+            yolo,
             0.5,
-            None,
+            florence,
             "No classification available from either source",
         )
 
@@ -73,8 +78,13 @@ class TestResolveVehicleTypeConflictAllBranches:
         r = resolve_vehicle_type_conflict(None, 0.9, "sedan")
         assert r.source == "florence"
 
-    def test_only_florence_branch_exact(self):
-        r = resolve_vehicle_type_conflict(None, None, "pickup truck")
+    @pytest.mark.parametrize("conf", [None, 0.3])
+    @pytest.mark.parametrize("yolo", [None, ""])
+    def test_only_florence_branch_exact(self, yolo, conf):
+        # yolo="" (falsy, non-None) pins the stored yolo_class field and
+        # conf=0.3 pins yolo_confidence: kwarg->None folds (19/37/38) render
+        # None where shipped carries ""/0.3 through
+        r = resolve_vehicle_type_conflict(yolo, conf, "pickup truck")
         assert (
             r.resolved_type,
             r.source,
@@ -87,14 +97,17 @@ class TestResolveVehicleTypeConflictAllBranches:
             "pickup truck",
             "florence",
             False,
-            None,
-            None,
+            yolo,
+            conf,
             "pickup truck",
             "Only Florence classification available",
         )
 
-    def test_only_yolo_branch_exact(self):
-        r = resolve_vehicle_type_conflict("bus", 0.42, None)
+    @pytest.mark.parametrize("florence", [None, ""])
+    def test_only_yolo_branch_exact(self, florence):
+        # florence="" (falsy, non-None) pins the stored field: kwarg->None
+        # folds (21/56) print None where shipped carries ""
+        r = resolve_vehicle_type_conflict("bus", 0.42, florence)
         assert (
             r.resolved_type,
             r.source,
@@ -109,52 +122,51 @@ class TestResolveVehicleTypeConflictAllBranches:
             False,
             "bus",
             0.42,
-            None,
+            florence,
             "Only YOLO classification available",
         )
 
     def test_semantic_match_prefers_florence_exact(self):
+        # whole-result equality: the 4-field shape left yolo_class/
+        # yolo_confidence/florence_type unpinned (kwarg->None folds survive)
         r = resolve_vehicle_type_conflict("car", 0.91, "sedan")
-        assert (
-            r.resolved_type,
-            r.source,
-            r.conflict_detected,
-            r.confidence_note,
-        ) == (
-            "sedan",
-            "florence",
-            False,
-            "Semantic match: YOLO 'car' matches Florence 'sedan'",
+        assert r == ConflictResolutionResult(
+            resolved_type="sedan",
+            source="florence",
+            conflict_detected=False,
+            yolo_class="car",
+            yolo_confidence=0.91,
+            florence_type="sedan",
+            confidence_note="Semantic match: YOLO 'car' matches Florence 'sedan'",
         )
 
     def test_confidence_boundary_exactly_070_favors_yolo(self):
         # `>=` -> `>` at YOLO_HIGH_CONFIDENCE_THRESHOLD=0.70: exactly-0.70
-        # ships as high-confidence YOLO win
+        # ships as high-confidence YOLO win. Whole-result: pins the three
+        # echoed fields the 4-field shape left free.
         r = resolve_vehicle_type_conflict("truck", 0.70, "person")
-        assert (
-            r.resolved_type,
-            r.source,
-            r.conflict_detected,
-            r.confidence_note,
-        ) == (
-            "truck",
-            "yolo",
-            True,
-            "High confidence YOLO (70%) overrides Florence 'person'",
+        assert r == ConflictResolutionResult(
+            resolved_type="truck",
+            source="yolo",
+            conflict_detected=True,
+            yolo_class="truck",
+            yolo_confidence=0.70,
+            florence_type="person",
+            confidence_note="High confidence YOLO (70%) overrides Florence 'person'",
         )
 
     def test_just_below_boundary_favors_florence(self):
+        # whole-result equality (not 4 fields): the low branch's yolo_class=
+        # None fold (19) prints None where shipped carries "truck"
         r = resolve_vehicle_type_conflict("truck", 0.69, "person")
-        assert (
-            r.resolved_type,
-            r.source,
-            r.conflict_detected,
-            r.confidence_note,
-        ) == (
-            "person",
-            "florence",
-            False,
-            "Low YOLO confidence (69%), using Florence 'person'",
+        assert r == ConflictResolutionResult(
+            resolved_type="person",
+            source="florence",
+            conflict_detected=False,
+            yolo_class="truck",
+            yolo_confidence=0.69,
+            florence_type="person",
+            confidence_note="Low YOLO confidence (69%), using Florence 'person'",
         )
 
     def test_default_confidence_is_075_not_175(self):
@@ -461,3 +473,133 @@ class TestToDictExactKeys:
         assert EnvironmentContext(
             time_of_day="night", artificial_light=True, weather="clear"
         ).to_dict() == {"time_of_day": "night", "artificial_light": True, "weather": "clear"}
+
+
+class TestBatch10bResidue:
+    """Batch-10 red-check residue: inputs that die on exactly one shipped shape.
+
+    Round-1 left 24/294 SURVIVED; 19 are killable by a boundary input the
+    original fixtures never exercised (this class — the "XVQA>" fixture puts
+    the marker at index 1 and kills the `!= +1` fold too), 5 are
+    source-provably equivalent (clean_20: `!= -2` constant-True over a
+    condition that is itself never False — find("VQA>") after the `in` check
+    is never -1; note_10/note_14: "XXXX" vs "" defaults flow only into
+    `== "person"` / membership gates neither satisfies; is_valid_8 and
+    validate_8: the whitelist membership is only evaluated when the string
+    has len < 2 and every entry has len >= 2 (measured min == 2), so
+    lower()/upper() can never differ there). Every expected value below was
+    measured from shipped source at this commit, not guessed.
+    """
+
+    def test_double_vqa_marker_second_literal_leaks(self):
+        # find("VQA>") -> rfind (15): shipped cuts at the FIRST marker, so
+        # the second "VQA>" survives into the output; rfind cuts at the
+        # second marker and loses "mid VQA>tail"
+        assert clean_vqa_output("VQA>who<loc_1>mid VQA>tail<loc_2>end") == "mid VQA>tail end"
+
+    def test_marker_after_offset_with_later_angle_bracket(self):
+        # find("<", vqa_idx) -> rfind (26): shipped cuts at the first "<"
+        # after the marker and keeps later angle-bracket text; rfind cuts at
+        # the LAST "<" and leaks the question. Leading "X" defeats the
+        # anchored regex (^.*?VQA>) so the recovery branch actually runs.
+        assert clean_vqa_output("XVQA>what<loc_1>ans<extra") == "ans<extra"
+
+    def test_two_word_repetition_is_the_dedup_boundary(self):
+        # len(words) < 2 -> `<= 2` (42) and `< 3` (43): the 2-word input is
+        # exactly the boundary both mutants skip — shipped dedups it
+        assert clean_vqa_output("visible visible") == "visible"
+
+    @pytest.mark.parametrize("bad", [None, "", "  \t "])
+    def test_emptyish_inputs_rejected(self, bad):
+        # `not text or not text.strip()` -> `and` (1): None short-circuits
+        # shipped but the mutant evaluates None.strip() -> TypeError;
+        # guard `return False` -> True (4): ""/whitespace would report valid
+        assert is_valid_vqa_output(bad) is False
+
+    def test_vehicle_term_absent_from_equivalence_map_still_routes(self):
+        # `or` -> `and` (11) and left `not in` flip (12) both stop the
+        # vehicle-person branch for a VEHICLE_TERMS-only class: "van" is in
+        # VEHICLE_TERMS but not a YOLO_TO_FLORENCE_EQUIVALENCE key
+        e = detect_cross_validation_error("van", 0.9, "a person standing")
+        assert e is not None and e.is_critical is True
+        assert e.message.startswith("Vehicle-person mismatch: YOLO detected 'van'")
+
+    def test_yolo_person_never_takes_the_vehicle_gate(self):
+        # right `not in` flip (13): "person" is in NEITHER set, so the
+        # mutant's `not in YOLO_TO_FLORENCE_EQUIVALENCE` makes it a vehicle
+        # -> false Vehicle-person error on person-only text; shipped None
+        assert detect_cross_validation_error("person", 0.8, "a person walking") is None
+
+    def test_all_person_mismatch_needs_a_vehicle_term_present(self):
+        # any(v in florence) -> any(v not in florence) (22): shipped fires
+        # the mismatch note when ANY vehicle term APPEARS; the mutant fires
+        # when one is ABSENT — a florence string containing every term
+        # separates them (shipped mismatch, mutant plain-conflict note)
+        all_terms = " ".join(sorted(VEHICLE_TERMS))
+        assert generate_validation_note("person", 0.8, all_terms, "person", True) == (
+            "Cross-validation mismatch error: YOLO detected 'person' (80% conf), "
+            f"but Florence described '{all_terms}'. Resolved to 'person'."
+        )
+
+    def test_batch_to_dict_serializes_every_populated_subdict(self):
+        # ternary condition `-> and False` (7 scene, 11 env, 15 florence):
+        # shipped emits each populated sub-dict; the mutant None-ifies its
+        # one field — all five populated at once pins every branch
+        from backend.services.vision_extractor import (
+            EnvironmentContext,
+            FlorenceEnhancedScene,
+            SceneAnalysis,
+            VehicleAttributes,
+        )
+
+        vehicles = {
+            "v1": VehicleAttributes(
+                color="blue",
+                vehicle_type="sedan",
+                is_commercial=False,
+                commercial_text=None,
+                caption="cap",
+            )
+        }
+        b = BatchExtractionResult(
+            vehicle_attributes=vehicles,
+            scene_analysis=SceneAnalysis(unusual_objects=["ladder"], scene_description="driveway"),
+            environment_context=EnvironmentContext(
+                time_of_day="night", artificial_light=True, weather="clear"
+            ),
+            florence_enhanced=FlorenceEnhancedScene(),
+        )
+        assert b.to_dict() == {
+            "vehicle_attributes": {
+                "v1": {
+                    "color": "blue",
+                    "vehicle_type": "sedan",
+                    "is_commercial": False,
+                    "commercial_text": None,
+                    "caption": "cap",
+                    "validation_note": None,
+                    "yolo_class": None,
+                    "yolo_confidence": None,
+                }
+            },
+            "person_attributes": {},
+            "scene_analysis": {
+                "unusual_objects": ["ladder"],
+                "tools_detected": [],
+                "abandoned_items": [],
+                "scene_description": "driveway",
+            },
+            "environment_context": {
+                "time_of_day": "night",
+                "artificial_light": True,
+                "weather": "clear",
+            },
+            "florence_enhanced": {
+                "security_objects": None,
+                "dense_captions": [],
+                "text_regions": None,
+                "phrase_grounding": [],
+                "region_descriptions": {},
+                "security_vqa": {},
+            },
+        }
