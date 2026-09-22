@@ -4,7 +4,7 @@ This module tests the full middleware stack in main.py:
 1. AuthMiddleware - API key authentication (if enabled)
 2. ContentTypeValidationMiddleware - Content-Type validation
 3. RequestIDMiddleware - Request ID generation and propagation
-4. RequestTimingMiddleware - Request timing and slow request logging
+4. ObservabilityMiddleware - Request timing and slow request logging (NEM-5558)
 5. CORSMiddleware - Cross-Origin Resource Sharing
 6. SecurityHeadersMiddleware - Security headers (CSP, X-Frame-Options, etc.)
 7. BodySizeLimitMiddleware - Request body size limiting
@@ -49,8 +49,8 @@ async def test_request_id_middleware_accepts_client_provided_id(client):
 
 
 @pytest.mark.asyncio
-async def test_request_timing_middleware_adds_response_time_header(client):
-    """Test that RequestTimingMiddleware adds X-Response-Time header."""
+async def test_observability_middleware_adds_response_time_header(client):
+    """Test that ObservabilityMiddleware adds X-Response-Time header."""
     response = await client.get("/")
 
     assert response.status_code == 200
@@ -182,7 +182,7 @@ async def test_middleware_chain_order_all_headers_present(client):
     # RequestIDMiddleware
     assert "x-request-id" in response.headers
 
-    # RequestTimingMiddleware
+    # ObservabilityMiddleware
     assert "x-response-time" in response.headers
 
     # SecurityHeadersMiddleware
@@ -384,7 +384,7 @@ async def test_middleware_chain_timing_includes_all_middleware(client):
 
 @pytest.mark.asyncio
 async def test_middleware_chain_logs_slow_requests(client, caplog):
-    """Test that RequestTimingMiddleware logs slow requests above threshold."""
+    """Test that ObservabilityMiddleware logs slow requests above threshold."""
     # Mock a slow endpoint by patching the app to add delay
     from backend.main import app
 
@@ -459,7 +459,7 @@ async def test_middleware_chain_complete_flow(client):
     1. BodySizeLimitMiddleware - Check body size (outermost, applied last)
     2. SecurityHeadersMiddleware - Add security headers
     3. CORSMiddleware - Handle CORS
-    4. RequestTimingMiddleware - Start timing
+    4. ObservabilityMiddleware - Start timing
     5. RequestIDMiddleware - Generate request ID
     6. ContentTypeValidationMiddleware - Validate content type
     7. AuthMiddleware - Authenticate (if enabled)
@@ -481,7 +481,7 @@ async def test_middleware_chain_complete_flow(client):
     # Verify all middleware executed and added headers
     middleware_headers = {
         "x-request-id": "RequestIDMiddleware",
-        "x-response-time": "RequestTimingMiddleware",
+        "x-response-time": "ObservabilityMiddleware",
         "x-content-type-options": "SecurityHeadersMiddleware",
         "x-frame-options": "SecurityHeadersMiddleware",
         "content-security-policy": "SecurityHeadersMiddleware",

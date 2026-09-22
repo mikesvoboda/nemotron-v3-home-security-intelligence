@@ -1,13 +1,13 @@
 """
 Monitoring Stack Smoke Tests
 
-Verifies that the monitoring stack (Prometheus, Grafana, Jaeger) is operational.
+Verifies that the monitoring stack (Prometheus, Grafana, Tempo) is operational.
 These tests are optional for deployments without monitoring enabled.
 
 Test Scope:
 - Prometheus metrics collection
 - Grafana dashboard availability
-- Jaeger trace collection
+- Tempo trace collection (replaced Jaeger + Elasticsearch under NEM-5545)
 - Alert manager configuration
 """
 
@@ -27,14 +27,17 @@ class TestPrometheus:
         Note: This test requires Prometheus to be running.
         It can be skipped if monitoring is not enabled.
         """
-        response = http_client.get("http://localhost:9090/metrics", timeout=10.0)
+        try:
+            response = http_client.get("http://localhost:9090/metrics", timeout=10.0)
 
-        # Might not be available in all deployments
-        if response.status_code == 404:
+            # Might not be available in all deployments
+            if response.status_code == 404:
+                pytest.skip("Prometheus not available in this deployment")
+
+            assert response.status_code == 200, f"Prometheus metrics failed: {response.status_code}"
+            assert len(response.text) > 0, "Prometheus metrics should return data"
+        except httpx.RequestError:
             pytest.skip("Prometheus not available in this deployment")
-
-        assert response.status_code == 200, f"Prometheus metrics failed: {response.status_code}"
-        assert len(response.text) > 0, "Prometheus metrics should return data"
 
     @pytest.mark.monitoring
     def test_prometheus_query_endpoint(self, http_client: httpx.Client):
@@ -152,146 +155,118 @@ class TestGrafana:
             pytest.skip("Grafana not available in this deployment")
 
 
-class TestJaeger:
-    """Jaeger tracing endpoint tests."""
+class TestTempo:
+    """
+    Grafana Tempo tracing endpoint tests.
+
+    Tempo replaced Jaeger + Elasticsearch under NEM-5545: traces are exported to
+    Alloy (:4317), forwarded to Tempo (:4317), stored under Tempo's own `local`
+    backend (no Elasticsearch) and queried over Tempo's HTTP querier API on :3200.
+    Tempo ships no UI of its own - traces are viewed through Grafana Explore or the
+    dashboard's Tracing page - so these tests probe the query API directly.
+    """
 
     @pytest.mark.monitoring
     @pytest.mark.slow
-    def test_jaeger_ui_accessible(self, http_client: httpx.Client):
+    def test_tempo_ready_endpoint(self, http_client: httpx.Client):
         """
-        Jaeger web UI is accessible.
+        Tempo /ready readiness endpoint reports ready.
 
-        Note: Requires Jaeger to be running on localhost:16686
+        This is the same probe the compose healthcheck and
+        scripts/platform-healthcheck.py use (GET /ready, body "ready").
+
+        Note: Requires Tempo to be running on localhost:3200
+        """
+        try:
+            response = http_client.get("http://localhost:3200/ready", timeout=10.0)
+
+            if response.status_code == 404:
+                pytest.skip("Tempo not available in this deployment")
+
+            assert response.status_code == 200, f"Tempo readiness failed: {response.status_code}"
+            assert "ready" in response.text.lower(), (
+                f"Tempo /ready should report ready, got: {response.text!r}"
+            )
+        except httpx.RequestError:
+            pytest.skip("Tempo not available in this deployment")
+
+    @pytest.mark.monitoring
+    def test_tempo_api_responds(self, http_client: httpx.Client):
+        """
+        Tempo querier HTTP API is mounted and answering (GET /api/echo).
+
+        /api/echo is the querier's connectivity route - it answers 200 with the
+        plain-text body "echo" (text/plain, verified against tempo:2.7.1), which
+        proves the query frontend is serving, independent of stored data.
+
+        Note: Requires Tempo to be running on localhost:3200
+        """
+        try:
+            response = http_client.get("http://localhost:3200/api/echo", timeout=10.0)
+
+            if response.status_code == 404:
+                pytest.skip("Tempo not available in this deployment")
+
+            assert response.status_code == 200, f"Tempo API failed: {response.status_code}"
+            assert "echo" in response.text.lower(), "Tempo /api/echo should echo back"
+        except httpx.RequestError:
+            pytest.skip("Tempo not available in this deployment")
+
+    @pytest.mark.monitoring
+    def test_tempo_search_endpoint(self, http_client: httpx.Client):
+        """
+        Tempo /api/search answers a TraceQL query.
+
+        Tempo's search API requires at least one tag matcher, so {duration>0}
+        is used to match every span - the same probe as
+        scripts/verify-observability.sh.
+
+        Note: Requires Tempo to be running on localhost:3200
         """
         try:
             response = http_client.get(
-                "http://localhost:16686/",
-                follow_redirects=True,
+                "http://localhost:3200/api/search?q={duration>0}&limit=20",
                 timeout=10.0,
             )
 
             if response.status_code == 404:
-                pytest.skip("Jaeger not available in this deployment")
+                pytest.skip("Tempo not available in this deployment")
 
-            assert response.status_code == 200, f"Jaeger UI failed: {response.status_code}"
-            assert "text/html" in response.headers.get("content-type", "").lower(), (
-                "Jaeger should serve HTML"
-            )
-        except httpx.RequestError:
-            pytest.skip("Jaeger not available in this deployment")
-
-    @pytest.mark.monitoring
-    def test_jaeger_api_health(self, http_client: httpx.Client):
-        """
-        Jaeger API health endpoint responds.
-
-        Note: Requires Jaeger to be running.
-        """
-        try:
-            response = http_client.get("http://localhost:16686/api/health", timeout=10.0)
-
-            if response.status_code == 404:
-                pytest.skip("Jaeger not available in this deployment")
-
-            assert response.status_code == 200, f"Jaeger health failed: {response.status_code}"
-        except httpx.RequestError:
-            pytest.skip("Jaeger not available in this deployment")
-
-    @pytest.mark.monitoring
-    def test_jaeger_traces_endpoint(self, http_client: httpx.Client):
-        """
-        Jaeger /api/traces endpoint is available for trace queries.
-
-        Note: Requires Jaeger to be running.
-        """
-        try:
-            response = http_client.get(
-                "http://localhost:16686/api/traces?service=nemotron-backend-staging&limit=10",
-                timeout=10.0,
-            )
-
-            if response.status_code == 404:
-                pytest.skip("Jaeger not available in this deployment")
-
-            assert response.status_code == 200, f"Jaeger traces failed: {response.status_code}"
+            assert response.status_code == 200, f"Tempo search failed: {response.status_code}"
 
             data = response.json()
-            # Should have data structure even if no traces
-            assert "data" in data or "traces" in data, "Traces endpoint should return data"
+            assert "traces" in data, "Tempo search response should have a traces field"
+            assert isinstance(data["traces"], list), "Tempo traces should be an array"
+            # An empty list is acceptable - it just means no traces have landed yet.
         except httpx.RequestError:
-            pytest.skip("Jaeger not available in this deployment")
+            pytest.skip("Tempo not available in this deployment")
 
     @pytest.mark.monitoring
-    def test_elasticsearch_healthy(self, http_client: httpx.Client):
+    def test_tempo_search_tags_endpoint(self, http_client: httpx.Client):
         """
-        Verify Elasticsearch is healthy and accepting connections.
+        Tempo /api/search/tags enumerates the tags of stored spans.
 
-        Note: Requires Elasticsearch to be running on localhost:9200
+        Replaces the old Jaeger /api/services check: this exercises the same
+        read path (querier -> ingesters -> block store) that Grafana's trace
+        search uses, without needing a known trace ID.
+
+        Note: Requires Tempo to be running on localhost:3200
         """
         try:
-            response = http_client.get(
-                "http://localhost:9200/_cluster/health",
-                timeout=10.0,
-            )
+            response = http_client.get("http://localhost:3200/api/search/tags", timeout=10.0)
 
             if response.status_code == 404:
-                pytest.skip("Elasticsearch not available in this deployment")
+                pytest.skip("Tempo not available in this deployment")
 
-            assert response.status_code == 200, (
-                f"Elasticsearch health check failed: {response.status_code}"
-            )
+            assert response.status_code == 200, f"Tempo search tags failed: {response.status_code}"
 
-            health = response.json()
-            assert "status" in health, "Elasticsearch health should have status field"
-            assert health["status"] in ("green", "yellow"), (
-                f"Elasticsearch cluster status should be green or yellow, got: {health['status']}"
-            )
+            data = response.json()
+            assert "tagNames" in data, "Tempo search tags response should have tagNames"
+            assert isinstance(data["tagNames"], list), "Tempo tagNames should be an array"
+            # Note: tagNames may be empty if no traces have been ingested yet -
+            # that is acceptable, we are verifying the query path is wired up.
         except httpx.RequestError:
-            pytest.skip("Elasticsearch not available in this deployment")
-
-    @pytest.mark.monitoring
-    def test_jaeger_elasticsearch_backend(self, http_client: httpx.Client):
-        """
-        Verify Jaeger is using Elasticsearch backend.
-
-        This test queries Jaeger for services (exercising ES backend)
-        and verifies Elasticsearch has Jaeger indices.
-
-        Note: Requires both Jaeger and Elasticsearch to be running.
-        """
-        try:
-            # Query Jaeger for services (this exercises ES backend)
-            response = http_client.get(
-                "http://localhost:16686/api/services",
-                timeout=10.0,
-            )
-
-            if response.status_code == 404:
-                pytest.skip("Jaeger not available in this deployment")
-
-            assert response.status_code == 200, (
-                f"Jaeger services query failed: {response.status_code}"
-            )
-
-            # Verify ES has Jaeger indices
-            es_response = http_client.get(
-                "http://localhost:9200/_cat/indices/jaeger-*?format=json",
-                timeout=10.0,
-            )
-
-            if es_response.status_code == 404:
-                pytest.skip("Elasticsearch not available in this deployment")
-
-            assert es_response.status_code == 200, (
-                f"Elasticsearch indices query failed: {es_response.status_code}"
-            )
-
-            indices = es_response.json()
-            assert isinstance(indices, list), "Elasticsearch indices should be an array"
-            # Note: Indices might be empty if no traces have been stored yet
-            # This is acceptable - we're just verifying the backend is configured
-        except httpx.RequestError as e:
-            pytest.skip(f"Monitoring services not available: {e}")
+            pytest.skip("Tempo not available in this deployment")
 
 
 class TestAlertManager:

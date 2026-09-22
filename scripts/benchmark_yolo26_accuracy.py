@@ -225,7 +225,7 @@ def get_gpu_memory_mb() -> float:
             float(line.strip()) for line in result.stdout.strip().split("\n") if line.strip()
         )
         return total
-    except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
+    except subprocess.CalledProcessError, FileNotFoundError, ValueError:
         return 0.0
 
 
@@ -239,7 +239,7 @@ def get_gpu_name() -> str:
             check=True,
         )
         return result.stdout.strip().split("\n")[0]
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         return "Unknown GPU"
 
 

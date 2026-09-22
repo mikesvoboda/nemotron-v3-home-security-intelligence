@@ -249,7 +249,7 @@ async def sample_events_with_detections(isolated_db):
             (95, "critical", "person", 1),  # Single person, critical (e.g., weapon)
         ]
 
-        base_detection_id = random.randint(100000, 900000)  # noqa: S311
+        base_detection_id = random.randint(100000, 900000)  # noqa: S311  # nosemgrep: insecure-random
         base_time = datetime.now(UTC) - timedelta(days=15)
 
         for idx, (risk_score, risk_level, object_types, det_count) in enumerate(test_cases):
@@ -705,7 +705,7 @@ class TestEdgeCasesHighRisk:
         from backend.core.database import get_session
 
         camera_id = unique_id("camera")
-        detection_id = random.randint(100000, 999999)  # noqa: S311
+        detection_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
         batch_id = unique_id("weapon")
 
         # Create camera and detection
@@ -783,7 +783,7 @@ class TestEdgeCasesHighRisk:
 
         # Create multiple detections over time (simulating loitering)
         detection_ids = []
-        base_id = random.randint(100000, 900000)  # noqa: S311
+        base_id = random.randint(100000, 900000)  # noqa: S311  # nosemgrep: insecure-random
 
         async with get_session() as session:
             camera = Camera(
@@ -858,7 +858,7 @@ class TestEdgeCasesHighRisk:
         from backend.core.database import get_session
 
         camera_id = unique_id("camera")
-        detection_id = random.randint(100000, 999999)  # noqa: S311
+        detection_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
         batch_id = unique_id("night")
 
         # Detection at 3 AM
@@ -1544,7 +1544,7 @@ class TestBatchReplayScenarios:
         ]
 
         event_ids = []
-        base_id = random.randint(100000, 900000)  # noqa: S311
+        base_id = random.randint(100000, 900000)  # noqa: S311  # nosemgrep: insecure-random
 
         async with get_session() as session:
             # Create camera
@@ -1644,7 +1644,7 @@ class TestBatchReplayScenarios:
         ]
 
         event_ids = []
-        base_id = random.randint(100000, 900000)  # noqa: S311
+        base_id = random.randint(100000, 900000)  # noqa: S311  # nosemgrep: insecure-random
 
         async with get_session() as session:
             camera = Camera(

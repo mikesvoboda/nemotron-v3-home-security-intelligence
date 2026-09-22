@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import base64
 import io
-import json
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
@@ -19,6 +18,7 @@ from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 from ai.gateway.adapters.enrichment import (
+    NTU60_LABELS,
     _classify_with_text_embeddings,
     _infer_vehicle,
     _softmax,
@@ -62,6 +62,33 @@ def _make_demographics_logits(
     gender_logits[gender_idx] = 5.0
 
     return age_logits, gender_logits
+
+
+def _make_pose_output(confidence: float = 0.0) -> np.ndarray:
+    """Create a YOLOv8-pose output (1, 56, 8400) with one person in slot 0.
+
+    ``confidence`` <= 0 means "no detections" (all values zero).
+    """
+    output = np.zeros((1, 56, 8400), dtype=np.float32)
+    if confidence <= 0:
+        return output
+    output[0, 0, 0] = 320.0  # cx
+    output[0, 1, 0] = 320.0  # cy
+    output[0, 2, 0] = 100.0  # w
+    output[0, 3, 0] = 200.0  # h
+    output[0, 4, 0] = confidence
+    for i in range(17):
+        output[0, 5 + i * 3, 0] = 300.0 + i  # x
+        output[0, 6 + i * 3, 0] = 200.0 + i  # y
+        output[0, 7 + i * 3, 0] = 0.8  # visibility
+    return output
+
+
+def _make_stgcn_logits(action_idx: int = 42) -> np.ndarray:
+    """Create ST-GCN++ classification logits (60 NTU-60 classes)."""
+    logits = np.zeros((1, 60), dtype=np.float32)
+    logits[0, action_idx] = 5.0
+    return logits
 
 
 # ---------------------------------------------------------------------------
@@ -384,24 +411,24 @@ class TestDemographicsEndpoint:
 
 
 class TestActionClassifyEndpoint:
-    """Tests for the POST /action-classify endpoint."""
+    """Tests for the POST /action-classify endpoint (ST-GCN++ pipeline).
+
+    NEM-5563: xclip_action retired; /action-classify now runs each frame
+    through Triton ``pose`` (keypoint extraction), resamples the track to
+    (1, 2, 100, 17, 3) and classifies it with Triton ``stgcn_action``.
+    """
 
     async def test_action_classify_success(self, client, mock_triton):
-        """Action classification returns action labels."""
-        action_output = np.array([b"walking normally"], dtype=object)
-        confidence_output = np.array([0.85], dtype=np.float32)
-        scores_data = {
-            "all_scores": {"walking normally": 0.85, "running": 0.12},
-            "is_suspicious": False,
-            "risk_weight": 0.1,
-            "inference_time_ms": 50.0,
-        }
-        all_scores_output = np.array([json.dumps(scores_data).encode("utf-8")], dtype=object)
-        mock_triton.infer.return_value = {
-            "action": action_output,
-            "confidence": confidence_output,
-            "all_scores": all_scores_output,
-        }
+        """Frames with a person classify to an NTU-60 label."""
+        calls: list[str] = []
+
+        async def _infer(*, model_name, inputs, outputs, timeout=None):
+            calls.append(model_name)
+            if model_name == "pose":
+                return {"output0": _make_pose_output(confidence=0.9)}
+            return {"output": _make_stgcn_logits(action_idx=42)}  # falling
+
+        mock_triton.infer.side_effect = _infer
 
         response = await client.post(
             "/action-classify",
@@ -416,8 +443,107 @@ class TestActionClassifyEndpoint:
         # service (ai/enrichment/model.py) and the backend consumer
         # (enrichment_client.py ActionClassificationResult). The plural
         # "actions" list per-frame never existed anywhere.
-        assert data["action"] == "walking normally"
-        assert data["confidence"] == 0.85
+        assert calls == ["pose", "pose", "stgcn_action"]
+        assert data["action"] == NTU60_LABELS[42]  # "falling"
+        # softmax of a single logit-5.0 class over 60 classes
+        assert data["confidence"] == pytest.approx(0.7155, abs=0.01)
+        # NTU index 42 is in STGCN_HIGH_RISK_INDICES (stgcn_loader parity).
+        assert data["is_suspicious"] is True
+        assert data["risk_weight"] == 0.8
+        assert set(data["all_scores"]) <= set(NTU60_LABELS)
+        assert len(data["all_scores"]) == 5
+
+    async def test_action_classify_skeleton_tensor_shape(self, client, mock_triton):
+        """stgcn_action receives (1, 2, 100, 17, 3) FP32 named 'input'."""
+        seen: dict[str, np.ndarray] = {}
+
+        async def _infer(*, model_name, inputs, outputs, timeout=None):
+            if model_name == "pose":
+                return {"output0": _make_pose_output(confidence=0.9)}
+            seen["input"] = inputs["input"]
+            return {"output": _make_stgcn_logits(action_idx=7)}  # sitting down
+
+        mock_triton.infer.side_effect = _infer
+
+        response = await client.post(
+            "/action-classify",
+            json={"frames": [_make_b64_image()] * 4, "top_k": 3},
+        )
+
+        assert response.status_code == 200
+        tensor = seen["input"]
+        assert tensor.shape == (1, 2, 100, 17, 3)
+        assert tensor.dtype == np.float32
+        # Person slot 2 is the zero pad; slot 1 carries the resampled track.
+        assert np.allclose(tensor[0, 1], 0.0)
+        assert np.any(tensor[0, 0] != 0.0)
+        assert response.json()["is_suspicious"] is False
+        assert response.json()["risk_weight"] == 0.2
+
+    async def test_action_classify_picks_highest_confidence_person(self, client, mock_triton):
+        """Multi-person frames must feed ST-GCN++ the *best* detection.
+
+        Anchor order is not confidence order: a low-confidence person at an
+        early anchor must lose to a high-confidence person at a later anchor
+        (mirror of enrichment_light's argmax convention).
+        """
+        seen: dict[str, np.ndarray] = {}
+
+        def _two_person_output() -> np.ndarray:
+            out = np.zeros((1, 56, 8400), dtype=np.float32)
+            # Person A: early anchor, low conf, keypoints near (10, 20).
+            out[0, 4, 100] = 0.30
+            # Person B: later anchor, high conf, keypoints near (500, 600).
+            out[0, 4, 5000] = 0.95
+            for i in range(17):
+                out[0, 5 + i * 3, 100] = 10.0 + i  # A x
+                out[0, 6 + i * 3, 100] = 20.0 + i  # A y
+                out[0, 7 + i * 3, 100] = 0.5  # A visibility
+                out[0, 5 + i * 3, 5000] = 500.0 + i  # B x
+                out[0, 6 + i * 3, 5000] = 600.0 + i  # B y
+                out[0, 7 + i * 3, 5000] = 0.9  # B visibility
+            return out
+
+        async def _infer(*, model_name, inputs, outputs, timeout=None):
+            if model_name == "pose":
+                return {"output0": _two_person_output()}
+            seen["input"] = inputs["input"]
+            return {"output": _make_stgcn_logits(action_idx=7)}
+
+        mock_triton.infer.side_effect = _infer
+
+        response = await client.post("/action-classify", json={"frames": [_make_b64_image()] * 2})
+        assert response.status_code == 200
+
+        tensor = seen["input"]
+        xs = tensor[0, 0, :, :, 0]  # resampled track x-coords
+        ys = tensor[0, 0, :, :, 1]
+        # Person B coords (~500/600), not person A (~10/20): resampling only
+        # interpolates between frames, so every sample stays in B's range.
+        nonzero = xs > 0
+        assert nonzero.any()
+        assert xs[nonzero].min() > 400.0
+        assert ys[nonzero].min() > 500.0
+
+    async def test_action_classify_no_people_returns_unknown(self, client, mock_triton):
+        """Frames with no detections skip stgcn_action and report 'unknown'."""
+
+        async def _infer(*, model_name, inputs, outputs, timeout=None):
+            assert model_name == "pose"  # skeleton never sent: zero tracks
+            return {"output0": _make_pose_output(confidence=0.0)}
+
+        mock_triton.infer.side_effect = _infer
+
+        response = await client.post(
+            "/action-classify",
+            json={"frames": [_make_b64_image(), _make_b64_image()], "top_k": 5},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["action"] == "unknown"
+        assert data["confidence"] == 0.0
+        assert data["is_suspicious"] is False
 
     async def test_action_classify_empty_frames(self, client, mock_triton):
         """Empty frames list returns 400."""
@@ -427,9 +553,35 @@ class TestActionClassifyEndpoint:
         )
         assert response.status_code == 400
 
-    async def test_action_classify_triton_error(self, client, mock_triton):
-        """Triton failure returns 503."""
-        mock_triton.infer.side_effect = TritonClientError("Timeout")
+    async def test_action_classify_pose_down_returns_503(self, client, mock_triton):
+        """Pose failure on every frame is a serving outage, not 'no person'."""
+        mock_triton.infer.side_effect = TritonClientError("Pose model unavailable")
+
+        response = await client.post(
+            "/action-classify",
+            json={"frames": [_make_b64_image()], "top_k": 5},
+        )
+
+        assert response.status_code == 503
+
+    async def test_action_classify_undecodable_frames_return_400(self, client, mock_triton):
+        """Frames that are not images at all are a client error (400)."""
+        response = await client.post(
+            "/action-classify",
+            json={"frames": ["bm90LWFuLWltYWdl", "bm90LWFuLWltYWdl"], "top_k": 5},
+        )
+
+        assert response.status_code == 400
+
+    async def test_action_classify_stgcn_error_returns_503(self, client, mock_triton):
+        """ST-GCN++ failure after a good track returns 503."""
+
+        async def _infer(*, model_name, inputs, outputs, timeout=None):
+            if model_name == "pose":
+                return {"output0": _make_pose_output(confidence=0.9)}
+            raise TritonClientError("stgcn_action unavailable")
+
+        mock_triton.infer.side_effect = _infer
 
         response = await client.post(
             "/action-classify",

@@ -351,12 +351,23 @@ class TestNemotronResponseParsing:
 
     @pytest.mark.chaos
     @pytest.mark.asyncio
-    async def test_parse_partial_json_raises_error(self) -> None:
-        """Partial/truncated JSON raises appropriate error."""
+    async def test_parse_partial_json_recovers_or_raises(self) -> None:
+        """Truncated JSON: recoverable fragments are repaired, the rest raise.
+
+        NemotronAnalyzer has a truncation-recovery path (max_tokens mid-JSON,
+        added in 3396d3ef): a fragment carrying risk_score is completed with a
+        closing suffix and parsed. Only fragments that stay unusable after every
+        recovery attempt must raise ValueError.
+        """
         analyzer = NemotronAnalyzer()
 
+        # Recoverable: risk_score present, string value cut mid-token.
+        recovered = analyzer._parse_llm_response('{"risk_score": 50, "risk_level": "med')
+        assert recovered["risk_score"] == 50
+
+        # Unrecoverable: key truncated so no suffix yields a valid risk_score dict.
         with pytest.raises(ValueError):
-            analyzer._parse_llm_response('{"risk_score": 50, "risk_level": "med')
+            analyzer._parse_llm_response('{"risk_score"')
 
 
 class TestNemotronHealthMonitoring:

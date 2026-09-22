@@ -62,7 +62,7 @@ ALL_MODELS: list[str] = [
     "reid",
     "pose",
     "threat",
-    "xclip_action",
+    "stgcn_action",
 ]
 
 

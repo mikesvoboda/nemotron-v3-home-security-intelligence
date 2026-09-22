@@ -25,7 +25,7 @@
 #
 # Environment Variables (Optional):
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
-#   - FRONTEND_PORT: Host port for frontend HTTP (default: 5173)
+#   - FRONTEND_HTTP_PORT: Host port for frontend HTTP (default: 8080)
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
@@ -360,13 +360,13 @@ services:
     environment:
       - HOST_UID=${HOST_UID:-1000}
       - HOST_GID=${HOST_GID:-1000}
-    restart: "no"
+    restart: 'no'
     networks:
       - security-net
 
   backend:
     # Run as host user for Podman socket and data dir access; keep-id preserves UID across namespace
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    user: '${HOST_UID:-1000}:${HOST_GID:-1000}'
     userns_mode: keep-id
     # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU device passthrough
     tmpfs:
@@ -452,6 +452,14 @@ services:
       # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
+      # LLM context budget — must mirror the ai-llm service above so the backend's
+      # per-request token budget matches the slot it is actually served from.
+      # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count
+      # (--parallel).  The backend divides the two itself (config.py
+      # nemotron_context_window), so 262144 / 8 = 32768 tokens per request.
+      # Defaults here are identical to the ai-llm block's.
+      - CTX_SIZE=${CTX_SIZE:-262144}
+      - PARALLEL=${PARALLEL:-8}
       # AI Gateway routes — all enrichment models served via Triton through ai-gateway
       - USE_AI_GATEWAY=true
       - AI_GATEWAY_URL=http://ai-gateway:8090
@@ -884,7 +892,10 @@ services:
       - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro,z
       - ./monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro,z
       - ./monitoring/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro,z
+      - ./monitoring/profiling-recording-rules.yml:/etc/prometheus/profiling-recording-rules.yml:ro,z
+      - ./monitoring/profiling-regression-alerts.yml:/etc/prometheus/profiling-regression-alerts.yml:ro,z
       - ./monitoring/gpu-alerts.yml:/etc/prometheus/gpu-alerts.yml:ro,z
+      - ./monitoring/ai-pipeline-alerts.yml:/etc/prometheus/ai-pipeline-alerts.yml:ro,z
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

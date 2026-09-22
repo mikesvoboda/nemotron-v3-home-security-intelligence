@@ -1,14 +1,16 @@
 """Florence-2 HTTP client service for vision-language extraction.
 
-This service provides an HTTP client interface to the ai-florence service,
-sending images for attribute extraction using the Florence-2 vision-language model.
+This service provides an HTTP client interface to the Florence-2 vision-language
+model, sending images for attribute extraction.
 
-The ai-florence service runs Florence-2 as a dedicated HTTP service at http://ai-florence:8092
-to avoid loading the model on-demand in the backend, which improves VRAM management.
+Florence-2 is served by the AI gateway's /florence router (http://ai-gateway:8090/florence
+in Docker, http://localhost:8090/florence in development; the standalone ai-florence
+container is retired) to avoid loading the model on-demand in the backend, which
+improves VRAM management.
 
 Extraction Flow:
     1. Encode image to base64
-    2. POST to ai-florence service with image and prompt
+    2. POST to the Florence service with image and prompt
     3. Parse JSON response with extraction result
     4. Return extracted text
 
@@ -255,9 +257,6 @@ FLORENCE_CONNECT_TIMEOUT = 10.0  # Fallback, use settings.ai_connect_timeout
 FLORENCE_READ_TIMEOUT = 30.0  # Fallback, use settings.florence_read_timeout
 FLORENCE_HEALTH_TIMEOUT = 5.0  # Fallback, use settings.ai_health_timeout
 
-# Default Florence service URL
-DEFAULT_FLORENCE_URL = "http://ai-florence:8092"
-
 
 class FlorenceUnavailableError(Exception):
     """Raised when the Florence-2 service is unavailable.
@@ -285,7 +284,7 @@ class FlorenceUnavailableError(Exception):
 class FlorenceClient:
     """Client for interacting with Florence-2 vision-language service.
 
-    This client handles communication with the external ai-florence service,
+    This client handles communication with the external Florence-2 service,
     including health checks, image submission, and response parsing.
 
     The Florence-2 model supports various vision-language tasks:
@@ -311,7 +310,8 @@ class FlorenceClient:
 
         Args:
             base_url: Optional base URL for the Florence service.
-                     Defaults to settings.florence_url (http://localhost:8092 by default).
+                     Defaults to settings.florence_url (http://ai-gateway:8090/florence in
+                     Docker, http://localhost:8090/florence in development).
         """
         settings = get_settings()
 

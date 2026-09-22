@@ -493,8 +493,8 @@ groups:
       # Warning: Core Prometheus targets down
       # Only alerts on essential infrastructure services that should always be running:
       # - backend, prometheus, alertmanager, json-exporter, blackbox-exporter, redis
-      # Excludes optional AI services (ai-llm, ai-yolo26, ai-florence, ai-clip, ai-enrichment)
-      # and optional exporters (node-exporter, cadvisor, dcgm-exporter, pyroscope)
+      # Excludes optional AI services (ai-llm, ai-gateway/triton) and optional
+      # exporters (node-exporter, cadvisor, dcgm-exporter, pyroscope)
       - alert: PrometheusTargetsUnhealthy
         expr: |
           (
@@ -512,12 +512,13 @@ groups:
           description: 'More than 20% of core Prometheus scrape targets are down for more than 5 minutes. Current unhealthy: {{ $value | humanizePercentage }}. This excludes optional AI services and exporters.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/prometheus-targets-unhealthy'
 
-      # Info: Optional AI service targets down
-      # Fires when AI services (ai-llm, ai-yolo26, ai-florence, ai-clip, ai-enrichment) are down.
-      # These services are optional and may not always be running, so this is informational only.
+      # Info: Optional AI serving targets down
+      # Fires when AI scrape targets (llama.cpp sidecar, ai-gateway FastAPI
+      # layer, Triton metrics) are down. These services are optional and may not
+      # always be running, so this is informational only.
       - alert: PrometheusAITargetsDown
         expr: |
-          count(up{job=~"ai-llm-metrics|ai-yolo26-metrics|ai-florence-metrics|ai-clip-metrics|ai-enrichment-metrics"} == 0) > 0
+          count(up{job=~"ai-llm-metrics|ai-gateway-metrics|triton-metrics"} == 0) > 0
         for: 10m
         labels:
           severity: info
@@ -949,129 +950,30 @@ groups:
           summary: 'LLM context utilization approaching limits'
           description: 'P95 context utilization is {{ $value | humanizePercentage }}. Risk of truncation.'
 
-      # Critical: YOLO26 model not loaded
-      - alert: YOLO26ModelNotLoaded
-        expr: yolo26_model_loaded == 0
-        for: 1m
-        labels:
-          severity: critical
-          component: detection
-          service: yolo26
-        annotations:
-          summary: 'YOLO26 detection model not loaded'
-          description: 'YOLO26 model is not loaded. Object detection will fail.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
+      # Removed (gateway consolidation, 2026-09-22): YOLO26ModelNotLoaded and
+      # FlorenceModelNotLoaded keyed on yolo26_model_loaded / florence_model_loaded —
+      # gauges exported only by the retired ai/yolo26/metrics.py and ai/florence/
+      # model.py. Triton exports no model-loaded gauge (nv_* are request counters/
+      # duration histograms), so there is nothing to retarget onto without inventing
+      # a metric. Live coverage now: AIDetectorUnavailable (hsi_ai_healthy,
+      # prometheus_rules.yml) for the detector, and CLIPServiceDown /
+      # FlorenceServiceDown (ai-pipeline-alerts.yml, nv_inference_request_success
+      # {model=...}) for models idle while enrichment is active.
 
-      # Critical: Florence model not loaded
-      - alert: FlorenceModelNotLoaded
-        expr: florence_model_loaded == 0
-        for: 1m
-        labels:
-          severity: critical
-          component: enrichment
-          service: florence
-        annotations:
-          summary: 'Florence enrichment model not loaded'
-          description: 'Florence model is not loaded. Image enrichment will fail.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
-
-  # =============================================================================
-  # Enrichment Service Model Zoo VRAM Alerts (NEM-3149)
-  # =============================================================================
-  # Monitor VRAM usage and model evictions in the enrichment service's Model Zoo.
-  # The Model Zoo manages 9 on-demand models with LRU eviction within a 6.8GB budget.
-  - name: enrichment_model_zoo_alerts
-    rules:
-      # Critical: VRAM utilization exceeds 90% for extended period
-      - alert: EnrichmentVRAMUtilizationCritical
-        expr: enrichment_vram_utilization_percent > 90
-        for: 5m
-        labels:
-          severity: critical
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'Enrichment Model Zoo VRAM utilization critically high (>90%)'
-          description: 'Model Zoo VRAM utilization is {{ $value | printf "%.1f" }}% for more than 5 minutes. Models may be evicted aggressively, degrading inference performance.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-zoo-vram-critical'
-
-      # Warning: VRAM utilization elevated (>80%)
-      - alert: EnrichmentVRAMUtilizationHigh
-        expr: enrichment_vram_utilization_percent > 80
-        for: 10m
-        labels:
-          severity: warning
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'Enrichment Model Zoo VRAM utilization elevated (>80%)'
-          description: 'Model Zoo VRAM utilization is {{ $value | printf "%.1f" }}% for more than 10 minutes. Consider increasing VRAM budget or reducing concurrent model usage.'
-
-      # Critical: High model eviction rate (>10 evictions in 5 minutes)
-      - alert: EnrichmentModelEvictionRateHigh
-        expr: |
-          increase(enrichment_model_evictions_total[5m]) > 10
-        for: 2m
-        labels:
-          severity: critical
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'High model eviction rate in Enrichment Model Zoo'
-          description: 'More than 10 model evictions in 5 minutes. This indicates VRAM pressure causing thrashing. Current eviction rate: {{ $value | printf "%.0f" }} evictions/5min.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-zoo-eviction-storm'
-
-      # Warning: Moderate model eviction rate (>5 evictions in 5 minutes)
-      - alert: EnrichmentModelEvictionRateElevated
-        expr: |
-          increase(enrichment_model_evictions_total[5m]) > 5
-        for: 5m
-        labels:
-          severity: warning
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'Elevated model eviction rate in Enrichment Model Zoo'
-          description: 'More than 5 model evictions in 5 minutes. VRAM budget may be insufficient for workload. Eviction rate: {{ $value | printf "%.0f" }} evictions/5min.'
-
-      # Warning: CRITICAL priority model evicted (should be rare)
-      - alert: EnrichmentCriticalModelEvicted
-        expr: |
-          increase(enrichment_model_evictions_total{priority="CRITICAL"}[15m]) > 0
-        for: 1m
-        labels:
-          severity: warning
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'CRITICAL priority model evicted from Model Zoo'
-          description: 'A CRITICAL priority model (threat detection) was evicted. This should be rare and may indicate severe VRAM pressure.'
-
-      # Warning: Model load time slow (P95 > 30s)
-      - alert: EnrichmentModelLoadTimeSlow
-        expr: |
-          histogram_quantile(0.95, rate(enrichment_model_load_time_seconds_bucket[10m])) > 30
-        for: 5m
-        labels:
-          severity: warning
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'Enrichment Model Zoo model load times are slow'
-          description: 'P95 model load time is {{ $value | printf "%.1f" }}s. This may indicate I/O bottlenecks or GPU memory fragmentation.'
-
-      # Info: No models loaded (may be expected during low activity)
-      - alert: EnrichmentNoModelsLoaded
-        expr: enrichment_models_loaded == 0
-        for: 30m
-        labels:
-          severity: info
-          component: enrichment
-          service: model_zoo
-        annotations:
-          summary: 'No models loaded in Enrichment Model Zoo'
-          description: 'No models have been loaded in the Model Zoo for 30 minutes. This may be expected during low activity periods.'
-
+  # Removed (gateway consolidation, 2026-09-22): the enrichment_model_zoo_alerts
+  # group (NEM-3149) — EnrichmentVRAMUtilizationCritical/High, EnrichmentModel-
+  # EvictionRateHigh/Elevated, EnrichmentCriticalModelEvicted, EnrichmentModel-
+  # LoadTimeSlow, EnrichmentNoModelsLoaded. Their series (enrichment_vram_utilization_
+  # percent, enrichment_model_evictions_total, enrichment_model_load_time_seconds,
+  # enrichment_models_loaded) were exported only by the retired ai/enrichment
+  # Model Zoo (ai/enrichment/model_manager.py), which the gateway consolidation
+  # removed: Triton serves the enrichment models statelessly, so there are no
+  # load/evict events to alert on and no Triton series to retarget onto without
+  # inventing a metric. Closest live coverage for the VRAM-pressure half:
+  # HSIGPUMemoryElevated/High (gpu_alerts group above), GPUMemoryNearFull/High
+  # (gpu-alerts.yml, DCGM) and GPUMemoryHigh/Critical (ai-pipeline-alerts.yml,
+  # hsi_gpu_*); for the failed-model half, EnrichmentModelErrorRate/Critical
+  # (ai-pipeline-alerts.yml).
   # =============================================================================
   # Database and Cache Cascade Alerts
   # =============================================================================

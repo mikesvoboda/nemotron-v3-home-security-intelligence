@@ -434,7 +434,7 @@ class TestTraceCorrelationInResponse:
         assert "x-request-id" in response.headers
         assert "x-correlation-id" in response.headers
 
-        # Should have timing header from RequestTimingMiddleware
+        # Should have timing header from ObservabilityMiddleware
         assert "x-response-time" in response.headers
 
     @pytest.mark.asyncio

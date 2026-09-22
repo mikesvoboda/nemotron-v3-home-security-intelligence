@@ -275,7 +275,11 @@ def export_tensorrt(
 
     # Determine output path
     precision = "int8" if int8 else "fp16"
-    model_name = Path(model_path).stem if Path(model_path).exists() else model_path.split("/")[-1]
+    model_name = (
+        Path(model_path).stem
+        if Path(model_path).exists()
+        else model_path.rsplit("/", maxsplit=1)[-1]
+    )
     engine_name = f"{model_name}_{precision}.engine"
 
     if output_dir:

@@ -34,8 +34,15 @@ OP-28 DIVERGENCE RECORD (dossier cluster 4 F3/F4/F5; corrected against live
 code — the workflow prompt's "gateway 422 on empty frames" is wrong):
   * gateway empty frames → **400** `{"detail": "Frames list cannot be
     empty"}` — handler-level HTTPException, ai/gateway/adapters/enrichment.py
-    :749-750. 422 belongs to a MISSING or wrongly-typed `frames` field
-    (pydantic ActionClassifyRequest :343-345), a different case — both pinned.
+    :893-894. 422 belongs to a MISSING or wrongly-typed `frames` field
+    (pydantic ActionClassifyRequest :351-353), a different case — both pinned.
+  * xclip_action RETIRED (NEM-5563): the handler no longer ships the frame
+    list as one JSON blob to a single Triton call — it runs Triton ``pose``
+    per frame and classifies the resampled skeleton with Triton
+    ``stgcn_action`` (:640+ _infer_action). The wire contract (request/
+    response schema) is unchanged; the O1 drive mocks below were re-shaped
+    to the two-stage pipeline (they were PREDICTED-GREEN against the
+    retired xclip mock shape; GREEN at pytest after the re-shape).
   * fake empty frames → **200** with the seeded snapshot body (fake/app.py:69
     parses the body only for model_name echo) — and frame-count invariance:
     0/1/4/None frames produce BYTE-IDENTICAL bytes (the fake's determinism
@@ -231,6 +238,40 @@ def _mock_triton() -> AsyncMock:
     client.is_model_ready = AsyncMock(return_value=True)
     client.get_model_metadata = AsyncMock(return_value={"outputs": [{"name": "output0"}]})
     return client
+
+
+def _stgcn_pose_output(x: float = 300.0, confidence: float = 0.9) -> np.ndarray:
+    """YOLOv8-pose output (1, 56, 8400) with ONE person in anchor 0 whose 17
+    keypoints sit at x (y=200, visibility 0.8). Template:
+    ai/gateway/tests/test_adapters_enrichment.py::_make_pose_output."""
+    out = np.zeros((1, 56, 8400), dtype=np.float32)
+    out[0, 4, 0] = confidence
+    for i in range(17):
+        out[0, 5 + i * 3, 0] = x
+        out[0, 6 + i * 3, 0] = 200.0
+        out[0, 7 + i * 3, 0] = 0.8
+    return out
+
+
+def _action_pipeline_triton(action_idx: int = 42, order_probe: list[float] | None = None) -> Any:
+    """Route-aware side_effect for the RETIRED-xclip / live-ST-GCN action
+    pipeline (adapters/enrichment.py _infer_action :640+): Triton ``pose``
+    per frame, then ONE Triton ``stgcn_action`` call over the resampled
+    skeleton (ONNX logits over the 60 NTU-60 classes → softmax in the
+    adapter). ``order_probe`` makes frame i's keypoints sit at x=order_probe
+    [i] so the skeleton the adapter builds is order-inspectable."""
+    state = {"i": 0}
+
+    async def _infer(*, model_name: str, inputs: Any, outputs: Any) -> dict[str, Any]:
+        if model_name == "pose":
+            x = 300.0 if order_probe is None else order_probe[state["i"]]
+            state["i"] += 1
+            return {"output0": _stgcn_pose_output(x=x)}
+        logits = np.zeros((1, 60), dtype=np.float32)
+        logits[0, action_idx] = 5.0
+        return {"output": logits}
+
+    return _infer
 
 
 def _b64_image() -> str:
@@ -722,59 +763,61 @@ class TestO1ActionClassifyMultiFrame:
         (schemas/enrichment_action_classify.response.json — required
         action/confidence/inference_time_ms), all_scores is dict[str, float]
         (dossier O1/F2 assertion), and the is_suspicious/risk_weight pair is
-        derived from the ACTION NAME (SUSPICIOUS_ACTIONS keyword table,
-        adapters/enrichment.py:605-631 — 'loitering' → True / 0.8; observed
-        live with a shaped xclip mock). Mock shape follows the xclip Python
-        backend contract the handler parses (:570-596: object-dtype arrays;
-        all_scores is a JSON blob) — an unshaped AsyncMock AttributeError's
-        inside the handler (observed), so the mock IS part of the property."""
+        derived from the winning NTU-60 INDEX (STGCN_HIGH_RISK_INDICES,
+        adapters/enrichment.py:630-632 — index 42 'falling' → True / 0.8).
+        The xclip python backend is RETIRED (NEM-5563): the handler now runs
+        every frame through Triton ``pose`` and classifies the resampled
+        skeleton with Triton ``stgcn_action`` (ONNX logits → softmax). The
+        mock is a route-aware side_effect — an unshaped AsyncMock
+        AttributeError's inside the handler (observed), so the mock IS part
+        of the property. GREEN at pytest."""
         client, mock = gateway_client
-        scores = json.dumps({"all_scores": {"loitering": 0.9, "walking": 0.1}}).encode()
-        mock.infer.return_value = {
-            "action": np.array([b"loitering"], dtype=object),
-            "confidence": np.array([0.9]),
-            "all_scores": np.array([scores], dtype=object),
-        }
-        frames = ["aaa", "bbb", "ccc", "ddd"]  # intersection payload ONLY:
+        mock.infer.side_effect = _action_pipeline_triton(action_idx=42)
+        frames = [_b64_image() for _ in range(4)]  # intersection payload ONLY:
         # gateway takes frames+top_k, the NATIVE server takes frames+labels
         # (model.py:2838-2843) — send just frames, the shared surface
-        # (dossier O1/F2 divergence).
+        # (dossier O1/F2 divergence). Frames must be REAL images: the pose
+        # stage decodes each one (undecodable → 400).
         r = await client.post("/enrichment/action-classify", json={"frames": frames})
-        assert r.status_code == 200  # UNVERIFIED (observed in probe).
+        assert r.status_code == 200, r.text
         body = r.json()
-        jsonschema.validate(body, _snapshot(AC_OP))  # committed snapshot. UNVERIFIED.
+        jsonschema.validate(body, _snapshot(AC_OP))  # committed snapshot.
         assert isinstance(body["all_scores"], dict) and all(
             isinstance(v, float) for v in body["all_scores"].values()
-        )  # dossier O1/F2. UNVERIFIED.
-        assert body["action"] == "loitering"
+        )  # dossier O1/F2.
+        assert body["action"] == "falling"  # NTU60_LABELS[42]
         assert (
             body["is_suspicious"] is True and body["risk_weight"] == 0.8
-        )  # :605-631 pair. UNVERIFIED.
+        )  # :630-632 high-risk index pair.
 
     async def test_action_classify_gateway_preserves_frame_order(self, gateway_client) -> None:
         """OP-28's real content: ORDER is the contract for a temporal
-        sequence. The handler packs frames as a JSON array in request order
-        (adapters/enrichment.py:556-560 json.dumps(frames_b64) → object-
-        array input to xclip). Assert the mock triton received the EXACT
-        ordered list. Gateway-only (the fake body-ignores — frame ORDER is
-        unobservable there, dossier O3/F3; live-Triton order is WP8.4).
-        PREDICTED-GREEN gateway-app side. UNVERIFIED."""
+        sequence. xclip retired, the frames no longer ride one JSON blob:
+        the handler infers pose PER FRAME in request order and resamples the
+        per-frame keypoints to the (1, 2, 100, 17, 3) tensor stgcn_action
+        receives (adapters/enrichment.py:755-777 _build_skeleton_sequence).
+        Order is pinned two ways: the pose call SEQUENCE (one call per frame
+        — the xclip-era single-blob call is gone) and the SKELETON itself —
+        frame i carries x=100+100i, and linspace resampling maps sample 0 to
+        frame 0 and the last sample to frame N-1, so the track's x-coords
+        must start at frame 0's and end at the LAST frame's. Gateway-only
+        (the fake body-ignores — frame ORDER is unobservable there, dossier
+        O3/F3; live-Triton order is WP8.4). GREEN at pytest."""
         client, mock = gateway_client
-        scores = json.dumps({"all_scores": {"walking": 0.7}}).encode()
-        mock.infer.return_value = {
-            "action": np.array([b"walking"], dtype=object),
-            "confidence": np.array([0.7]),
-            "all_scores": np.array([scores], dtype=object),
-        }
-        sent = ["f1", "f2", "f3"]  # deliberately not sorted
+        sent = [_b64_image() for _ in range(3)]  # identical bytes; ORDER is
+        # carried by the handler's iteration order, so distinguish frames by
+        # what the pose mock returns per call, not by payload:
+        mock.infer.side_effect = _action_pipeline_triton(order_probe=[100.0, 200.0, 300.0])
         r = await client.post("/enrichment/action-classify", json={"frames": sent})
-        assert r.status_code == 200  # UNVERIFIED.
-        call = mock.infer.call_args
-        frames_input = call.kwargs["inputs"]["frames"]
-        payload = json.loads(
-            bytes(frames_input.flat[0]).decode("utf-8")
-        )  # :556-560 shape. UNVERIFIED.
-        assert payload == sent  # temporal order preserved to the wire. UNVERIFIED.
+        assert r.status_code == 200, r.text
+        calls = [c.kwargs["model_name"] for c in mock.infer.call_args_list]
+        assert calls == ["pose", "pose", "pose", "stgcn_action"]
+        skeleton = mock.infer.call_args_list[-1].kwargs["inputs"]["input"]
+        assert skeleton.shape == (1, 2, 100, 17, 3)
+        xs = skeleton[0, 0, :, 0, 0]  # person slot 1 (slot 2 is zero pad)
+        assert xs[0] == pytest.approx(100.0)  # first sample = FIRST frame
+        assert xs[-1] == pytest.approx(300.0)  # last sample = LAST frame
+        assert np.all(np.diff(skeleton[0, 0, :, 0, 0]) >= 0)  # monotone in order
 
 
 # ===========================================================================

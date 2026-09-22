@@ -542,7 +542,7 @@ def compare_with_baseline(report: QualityReport, tolerance: float = 0.05) -> Com
         try:
             baseline_val = baseline[parts[0]][parts[1]]
             current_val = current[parts[0]][parts[1]]
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             continue
 
         # Skip non-numeric values

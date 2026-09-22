@@ -210,7 +210,7 @@ run_export "ST-GCN++ action recognition -> ONNX" "${CACHE_DIR}/stgcn_action/1/mo
 log_step "[3/4] Verifying Triton model repository config files..."
 
 CONFIG_OK=true
-for model in yolo26 clip clip_text pose threat fashion_clip vehicle demographics_age demographics_gender pet depth reid florence2 xclip_action stgcn_action; do
+for model in yolo26 clip clip_text pose threat fashion_clip vehicle demographics_age demographics_gender pet depth reid florence2 stgcn_action; do
     config_path="${REPO_DIR}/${model}/config.pbtxt"
     if [ -f "$config_path" ]; then
         echo "  [OK] ${model}/config.pbtxt"

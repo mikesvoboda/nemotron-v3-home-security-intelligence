@@ -22,9 +22,10 @@ Expected Behavior:
 from __future__ import annotations
 
 import asyncio
+import tempfile
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -40,7 +41,7 @@ from backend.services.pipeline_workers import (
     PipelineWorkerManager,
     WorkerState,
 )
-from backend.services.retry_handler import RetryHandler
+from backend.services.retry_handler import RetryConfig, RetryHandler, RetryResult
 from backend.services.video_processor import VideoProcessor
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.chaos]
@@ -49,6 +50,39 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.chaos]
 # ============================================================================
 # Fixtures
 # ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def disable_redis_streams():
+    """Force the legacy list-queue (BLPOP) path for every test in this module.
+
+    The mock RedisClient below implements ONLY the list API (add_to_queue /
+    get_from_queue). With the product default use_redis_streams=True the worker
+    loops take the streams branch, where consume_detections() reads the bare
+    AsyncMock `_client.xreadgroup` and gets a truthy MagicMock back — items are
+    "processed" through a path the mocks never asserted, and on any empty reply
+    the loop's un-slept `continue` busy-spins at ~17k it/s (py-spy: 176,055
+    xreadgroup calls in 10s), starving every asyncio.sleep in the process.
+    Same guard as backend/tests/unit/services/test_pipeline_workers.py.
+    """
+    with (
+        patch("backend.services.pipeline_workers.get_settings", autospec=True) as mock_settings,
+        patch("backend.services.pipeline_workers.get_session", autospec=True) as mock_session,
+    ):
+        # No live DB here: the worker opens a session per item via
+        # `async with get_session() as session` (house pattern from
+        # test_pipeline_workers.py).
+        mock_session.return_value.__aenter__ = AsyncMock(return_value=None)
+        mock_session.return_value.__aexit__ = AsyncMock(return_value=None)
+        settings = mock_settings.return_value
+        settings.use_redis_streams = False
+        settings.video_frame_interval_seconds = 4.0
+        settings.video_max_frames = 30
+        settings.video_thumbnails_dir = tempfile.gettempdir()
+        settings.batch_check_interval_seconds = 0.5
+        settings.detection_worker_count = 1
+        settings.analysis_worker_count = 1
+        yield
 
 
 @pytest.fixture
@@ -88,6 +122,16 @@ def mock_redis() -> RedisClient:
     mock.delete_key = AsyncMock(side_effect=delete_key)
     mock._client = AsyncMock()
 
+    # Tests peek at the queue through the raw client (llen/lrange), so mirror the
+    # in-memory queue there too — a bare AsyncMock would return a MagicMock where
+    # the assertions expect a length/list.
+    mock._client.llen = AsyncMock(
+        side_effect=lambda key: len(queue_storage.get(key, [])),
+    )
+    mock._client.lrange = AsyncMock(
+        side_effect=lambda key, _start, _end: list(queue_storage.get(key, [])),
+    )
+
     # Helper method to access queue state for assertions
     mock._queue_storage = queue_storage
 
@@ -121,8 +165,31 @@ def mock_video_processor() -> VideoProcessor:
 
 @pytest.fixture
 def mock_retry_handler() -> RetryHandler:
-    """Create a mock retry handler for testing."""
+    """Create a mock retry handler for testing.
+
+    with_retry() runs the operation exactly once: RetryResult(success=True) on
+    success, RetryResult(success=False) on any exception. Single-attempt, no
+    backoff sleep, no DLQ round trip — chaos tests assert that workers SURVIVE
+    failures; retry cadence and DLQ behavior live in the retry-handler unit
+    tests. (A default-constructed AsyncMock would return a bare coroutine
+    object where the worker unpacks RetryResult fields.)
+    """
     mock = AsyncMock(spec=RetryHandler)
+
+    async def with_retry(operation, *args, **kwargs):
+        # Real signature is with_retry(operation, job_data, queue_name, *args,
+        # **kwargs) and the worker passes all three BY KEYWORD: job_data and
+        # queue_name are the handler's own bookkeeping and must never reach
+        # the operation.
+        kwargs.pop("job_data", None)
+        kwargs.pop("queue_name", None)
+        try:
+            result = await operation(*args, **kwargs)
+        except Exception as e:  # mirrors the real handler's catch-all
+            return RetryResult(success=False, error=str(e), attempts=1)
+        return RetryResult(success=True, result=result, attempts=1)
+
+    mock.with_retry = AsyncMock(side_effect=with_retry)
     mock.should_retry = AsyncMock(return_value=False)
     mock.retry_with_backoff = AsyncMock()
     return mock
@@ -168,7 +235,7 @@ async def analysis_worker(
     """Create an AnalysisQueueWorker for testing."""
     worker = AnalysisQueueWorker(
         redis_client=mock_redis,
-        nemotron_analyzer=mock_nemotron_analyzer,
+        analyzer=mock_nemotron_analyzer,
         poll_timeout=0.5,  # Short timeout for faster tests
         stop_timeout=2.0,  # Short stop timeout
     )
@@ -372,6 +439,11 @@ class TestWorkerCrashMidTask:
 
         # Assert: Task was cancelled
         assert detection_worker._task.cancelled() is True
+
+        # The task is gone (simulated SIGKILL — a real kill takes the bookkeeping
+        # with it). Clear the flag so the fixture's teardown stop() doesn't
+        # wait_for the cancelled task and re-raise CancelledError.
+        detection_worker._running = False
 
 
 # ============================================================================
@@ -1028,25 +1100,45 @@ class TestPipelineWorkerManagerChaos:
         3. Verify other workers continue
         4. Verify manager reports correct status
         """
-        # Arrange: Create manager
-        manager = PipelineWorkerManager(
-            redis_client=mock_redis,
-            detector_client=mock_detector_client,
-            batch_aggregator=mock_batch_aggregator,
-            nemotron_analyzer=mock_nemotron_analyzer,
-        )
+
+        # Arrange: Create manager (worker_stop_timeout keeps shutdown inside the
+        # test timeout; internals accessed directly as in test_pipeline_workers_multi).
+        # The manager builds its workers with the REAL RetryHandler — fast backoff
+        # so all 3 attempts + DLQ move land inside the 2s processing wait below
+        # (production cadence is 1s/2s delays and is covered by the retry-handler
+        # unit tests).
+        def _fast_retry_config(**_kwargs: Any) -> RetryConfig:
+            return RetryConfig(
+                max_retries=3,
+                base_delay_seconds=0.05,
+                max_delay_seconds=0.1,
+                exponential_base=2.0,
+                jitter=False,
+            )
+
+        with patch(
+            "backend.services.pipeline_workers.RetryConfig",
+            side_effect=_fast_retry_config,
+            autospec=True,
+        ):
+            manager = PipelineWorkerManager(
+                redis_client=mock_redis,
+                detector_client=mock_detector_client,
+                analyzer=mock_nemotron_analyzer,
+                worker_stop_timeout=2.0,
+            )
 
         try:
             # Act: Start manager
             await manager.start()
 
             # Verify all workers started
-            assert manager.detection_worker is not None
-            assert manager.detection_worker.running is True
-            assert manager.analysis_worker is not None
-            assert manager.analysis_worker.running is True
-            assert manager.batch_timeout_worker is not None
-            assert manager.batch_timeout_worker.running is True
+            assert len(manager._detection_workers) == 1
+            assert manager._detection_workers[0].running is True
+            assert len(manager._analysis_workers) == 1
+            assert manager._analysis_workers[0].running is True
+            assert manager._timeout_worker is not None
+            assert manager._timeout_worker.running is True
 
             # Simulate crash in detection worker by making detector fail repeatedly
             mock_detector_client.detect_objects.side_effect = RuntimeError("Crash")
@@ -1065,12 +1157,12 @@ class TestPipelineWorkerManagerChaos:
             await asyncio.sleep(2.0)  # mocked: chaos test
 
             # Assert: Detection worker logged error but still running
-            assert manager.detection_worker.running is True
-            assert manager.detection_worker.stats.errors > 0
+            assert manager._detection_workers[0].running is True
+            assert manager._detection_workers[0].stats.errors > 0
 
             # Other workers should still be running
-            assert manager.analysis_worker.running is True
-            assert manager.batch_timeout_worker.running is True
+            assert manager._analysis_workers[0].running is True
+            assert manager._timeout_worker.running is True
 
         finally:
             # Stop manager
@@ -1092,12 +1184,13 @@ class TestPipelineWorkerManagerChaos:
         4. Verify all workers stop gracefully
         5. Verify jobs remain in queue for next startup
         """
-        # Arrange: Create manager
+        # Arrange: Create manager (worker_stop_timeout keeps shutdown inside the
+        # test timeout; internals accessed directly as in test_pipeline_workers_multi)
         manager = PipelineWorkerManager(
             redis_client=mock_redis,
             detector_client=mock_detector_client,
-            batch_aggregator=mock_batch_aggregator,
-            nemotron_analyzer=mock_nemotron_analyzer,
+            analyzer=mock_nemotron_analyzer,
+            worker_stop_timeout=2.0,
         )
 
         # Start manager
@@ -1119,9 +1212,10 @@ class TestPipelineWorkerManagerChaos:
         await manager.stop()
 
         # Assert: All workers stopped
-        assert manager.detection_worker.running is False
-        assert manager.analysis_worker.running is False
-        assert manager.batch_timeout_worker.running is False
+        assert manager._detection_workers[0].running is False
+        assert manager._analysis_workers[0].running is False
+        assert manager._timeout_worker is not None
+        assert manager._timeout_worker.running is False
 
         # Jobs should remain in queue
         redis = mock_redis._client

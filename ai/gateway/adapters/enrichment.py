@@ -6,7 +6,7 @@ calls against multiple Triton models depending on the endpoint:
     /vehicle-classify   -> Triton ``vehicle`` model (ONNX Runtime)
     /clothing-classify  -> Triton ``fashion_clip`` model (TensorRT)
     /demographics       -> Triton ``demographics_age`` + ``demographics_gender`` (ONNX)
-    /action-classify    -> Triton ``xclip_action`` (Python backend)
+    /action-classify    -> Triton ``stgcn_action`` (ONNX Runtime, skeleton-based)
     /pet-classify       -> Triton ``pet`` model (ONNX Runtime)
     /depth-estimate     -> Triton ``depth`` model (ONNX Runtime)
     /enrich             -> Fan out to multiple models based on detection_type
@@ -29,7 +29,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from ai.gateway.triton_client import TritonClientError, get_triton_client
-from ai.gateway.utils import decode_base64_image, decode_base64_to_bytes, preprocess_clip
+from ai.gateway.utils import (
+    decode_base64_image,
+    decode_base64_to_bytes,
+    preprocess_clip,
+    preprocess_yolo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -550,89 +555,224 @@ async def _infer_demographics(image_b64: str) -> dict[str, Any]:
     }
 
 
-async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]:  # noqa: ARG001
-    """Run action classification via Triton xclip_action Python backend."""
+# ---------------------------------------------------------------------------
+# ST-GCN++ skeleton action recognition (NEM-5563: replaces X-CLIP)
+# ---------------------------------------------------------------------------
+
+# NTU RGB+D 60 action classes in classifier-index order — mirrors
+# backend/services/stgcn_loader.py NTU60_LABELS (the gateway must not import
+# backend code, so the list is duplicated here deliberately).
+NTU60_LABELS: list[str] = [
+    "drink water",
+    "eat meal/snack",
+    "brushing teeth",
+    "brushing hair",
+    "drop",
+    "pickup",
+    "throw",
+    "sitting down",
+    "standing up",
+    "clapping",
+    "reading",
+    "writing",
+    "tear up paper",
+    "wear jacket",
+    "take off jacket",
+    "wear a shoe",
+    "take off a shoe",
+    "wear on glasses",
+    "take off glasses",
+    "put on a hat/cap",
+    "take off a hat/cap",
+    "cheer up",
+    "hand waving",
+    "kicking something",
+    "reach into pocket",
+    "hopping",
+    "jump up",
+    "make a phone call",
+    "playing with phone/tablet",
+    "typing on a keyboard",
+    "pointing to something",
+    "taking a selfie",
+    "check time (from watch)",
+    "rub two hands together",
+    "nod head/bow",
+    "shake head",
+    "wipe face",
+    "salute",
+    "put the palms together",
+    "cross hands in front",
+    "sneeze/cough",
+    "staggering",
+    "falling",
+    "touch head (headache)",
+    "touch chest (stomachache/heart pain)",
+    "touch back (backache)",
+    "touch neck (neckache)",
+    "nausea or vomiting condition",
+    "use a fan/feeling warm",
+    "punching/slapping other person",
+    "kicking other person",
+    "pushing other person",
+    "pat on back of other person",
+    "point finger at other person",
+    "hugging other person",
+    "giving something to other person",
+    "touch other person's pocket",
+    "handshaking",
+    "walking towards each other",
+    "walking apart from each other",
+]
+
+# NTU-60 indices that warrant a security alert — mirrors stgcn_loader.py
+# SECURITY_RISK_MAP critical/high entries.
+STGCN_HIGH_RISK_INDICES: frozenset[int] = frozenset(
+    {42, 49, 50, 51, 56}  # falling, punching/slapping, kicking, pushing, pickpocketing
+)
+
+# Model input geometry: 2 persons (zero-padded), 100 frames (pyskl default),
+# 17 COCO joints, x/y/confidence (matches export/export_stgcn.py dummy input).
+STGCN_FRAMES = 100
+STGCN_KEYPOINTS = 17
+
+
+async def _infer_action(frames_b64: list[str], top_k: int = 5) -> dict[str, Any]:
+    """Run action classification via Triton stgcn_action (ONNX Runtime).
+
+    ST-GCN++ is skeleton-based: the base64 frames are first run through the
+    ``pose`` model, the top detector person's 17 COCO keypoints are buffered
+    across the frame sequence, then resampled to the (1, 2, 100, 17, 3)
+    tensor the ONNX graph expects (see export/export_stgcn.py).
+    """
     start = time.monotonic()
     triton = get_triton_client()
 
-    # Package frames as JSON array of base64 strings for Python backend
-    import json as _json
+    # --- Stage 1: per-frame pose keypoints -------------------------------
+    tracks: list[np.ndarray] = []
+    decode_failures = 0
+    pose_failures = 0
+    for frame_b64 in frames_b64:
+        try:
+            image_bytes = decode_base64_to_bytes(frame_b64)
+            input_tensor = preprocess_yolo(image_bytes, 640)
+        except (ValueError, OSError) as e:
+            # ValueError: bad base64; OSError: valid bytes, not a decodable image.
+            logger.warning("Action pipeline pose frame undecodable, dropped: %s", e)
+            decode_failures += 1
+            continue
+        try:
+            pose_result = await triton.infer(
+                model_name="pose",
+                inputs={"images": input_tensor.astype(np.float32)},
+                outputs=["output0"],
+            )
+        except TritonClientError as e:
+            logger.warning("Action pipeline pose frame failed, dropped: %s", e)
+            pose_failures += 1
+            continue
+        # Highest-confidence detection's keypoints (0 if none above threshold).
+        keypoints = _extract_top_person_keypoints(_postprocess_pose(pose_result["output0"]))
+        tracks.append(keypoints)
 
-    frames_json = _json.dumps(frames_b64)
-    frames_input = np.array([frames_json.encode("utf-8")], dtype=object)
-
-    result = await triton.infer(
-        model_name="xclip_action",
-        inputs={
-            "frames": frames_input,
-        },
-        outputs=["action", "confidence", "all_scores"],
-    )
-
-    # Parse outputs from the Python backend
-    all_scores_raw = result["all_scores"]
-    if all_scores_raw.dtype == object:
-        scores_str = (
-            bytes(all_scores_raw.flat[0]).decode("utf-8")
-            if isinstance(all_scores_raw.flat[0], bytes)
-            else str(all_scores_raw.flat[0])
-        )
-        scores_data = _json.loads(scores_str)
-    else:
-        scores_data = {}
+    # Whole-batch failures are service/input errors, not "no person":
+    # every frame failing at Triton means serving is down; every frame
+    # undecodable is bad input.
+    if pose_failures == len(frames_b64):
+        raise TritonClientError("Pose inference failed for every frame")
+    if decode_failures == len(frames_b64):
+        raise ValueError("No frame could be decoded as an image")
 
     inference_time_ms = (time.monotonic() - start) * 1000
 
-    # Build all_scores dict and extract top action
-    all_scores_dict = scores_data.get("all_scores", {})
+    # No frame produced a person track (decode failures or zero detections)
+    # — an all-zero skeleton is meaningless, so report neutral.
+    if not any(track.any() for track in tracks):
+        return {
+            "action": "unknown",
+            "confidence": 0.0,
+            "is_suspicious": False,
+            "risk_weight": 0.2,
+            "all_scores": {},
+            "inference_time_ms": round(inference_time_ms, 2),
+        }
 
-    # Determine top action
-    if all_scores_dict:
-        top_action = max(all_scores_dict, key=all_scores_dict.get)  # type: ignore[arg-type]
-        top_confidence = round(float(all_scores_dict[top_action]), 4)
-    else:
-        # Fall back to Triton's direct outputs
-        action_raw = result.get("action", np.array([b"unknown"]))
-        if action_raw.dtype == object:
-            top_action = (
-                bytes(action_raw.flat[0]).decode("utf-8")
-                if isinstance(action_raw.flat[0], bytes)
-                else str(action_raw.flat[0])
-            )
-        else:
-            top_action = "unknown"
-        conf_raw = result.get("confidence", np.array([0.0]))
-        top_confidence = round(float(conf_raw.flat[0]), 4)
+    # --- Stage 2: build the skeleton tensor ------------------------------
+    skeleton = _build_skeleton_sequence(tracks)
 
-    # Determine if action is suspicious based on security-relevant keywords
-    SUSPICIOUS_ACTIONS = {
-        "loitering",
-        "sneaking",
-        "running away",
-        "fighting",
-        "breaking",
-        "climbing",
-        "crawling",
-        "hiding",
-        "stealing",
-        "vandalism",
-        "throwing",
-        "attacking",
-        "trespassing",
-        "prowling",
-    }
-    action_lower = top_action.lower()
-    is_suspicious = any(s in action_lower for s in SUSPICIOUS_ACTIONS)
-    risk_weight = 0.8 if is_suspicious else 0.2
+    # --- Stage 3: ST-GCN++ inference --------------------------------------
+    result = await triton.infer(
+        model_name="stgcn_action",
+        inputs={"input": skeleton},
+        outputs=["output"],
+    )
+
+    logits = np.asarray(result["output"]).reshape(-1)
+    probs = _softmax(logits.astype(np.float32))
+
+    top_k = max(1, min(int(top_k), len(NTU60_LABELS), int(probs.size)))
+    order = np.argsort(probs)[::-1]
+    top_indices = [int(i) for i in order[:top_k]]
+
+    top_index = top_indices[0]
+    inference_time_ms = (time.monotonic() - start) * 1000
 
     return {
-        "action": top_action,
-        "confidence": top_confidence,
-        "is_suspicious": is_suspicious,
-        "risk_weight": risk_weight,
-        "all_scores": {k: round(float(v), 4) for k, v in all_scores_dict.items()},
+        "action": NTU60_LABELS[top_index],
+        "confidence": round(float(probs[top_index]), 4),
+        "is_suspicious": top_index in STGCN_HIGH_RISK_INDICES,
+        "risk_weight": 0.8 if top_index in STGCN_HIGH_RISK_INDICES else 0.2,
+        "all_scores": {NTU60_LABELS[i]: round(float(probs[i]), 4) for i in top_indices},
         "inference_time_ms": round(inference_time_ms, 2),
     }
+
+
+def _extract_top_person_keypoints(persons: list[dict[str, Any]]) -> np.ndarray:
+    """Reduce one frame's pose detections to a (17, 3) keypoint array.
+
+    Args:
+        persons: Output of :func:`_postprocess_pose` for a single frame
+            (detector/anchor order — NOT confidence-ordered, so the pick
+            below is an explicit argmax, mirroring enrichment_light).
+
+    Returns:
+        Array (17, 3) of x, y, confidence — all zeros when no person was
+        detected, which the ST-GCN++ data_bn treats as an absent track.
+    """
+    arr = np.zeros((STGCN_KEYPOINTS, 3), dtype=np.float32)
+    if not persons:
+        return arr
+    best = max(persons, key=lambda p: p["confidence"])
+    keypoints = best["keypoints"]
+    for i in range(min(STGCN_KEYPOINTS, len(keypoints))):
+        kp = keypoints[i]
+        arr[i, 0] = float(kp["x"])
+        arr[i, 1] = float(kp["y"])
+        arr[i, 2] = float(kp["confidence"])
+    return arr
+
+
+def _build_skeleton_sequence(tracks: list[np.ndarray]) -> np.ndarray:
+    """Stack per-frame keypoints into the ST-GCN++ input tensor.
+
+    Mirrors backend/services/stgcn_loader.py ``classify_skeleton_action``:
+    resample the sequence to 100 frames (pyskl default) and pad the second
+    person slot with zeros.
+
+    Args:
+        tracks: One (17, 3) array per decoded frame, in temporal order.
+
+    Returns:
+        Array (1, 2, 100, 17, 3) float32 — [batch, persons, frames, joints, xyconf].
+    """
+    if tracks:
+        seq = np.stack(tracks).astype(np.float32)  # (T, 17, 3)
+        indices = np.linspace(0, len(seq) - 1, STGCN_FRAMES, dtype=int)
+        seq = seq[indices]
+    else:
+        seq = np.zeros((STGCN_FRAMES, STGCN_KEYPOINTS, 3), dtype=np.float32)
+    persons = np.stack([seq, np.zeros_like(seq)], axis=0)  # (2, 100, 17, 3)
+    return persons[np.newaxis, ...].astype(np.float32)  # (1, 2, 100, 17, 3)
 
 
 def _softmax(x: np.ndarray) -> np.ndarray:
@@ -685,7 +825,8 @@ def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[
     ]
 
     results = []
-    for det in preds:
+    kept_conf = confidences[mask]
+    for det_idx, det in enumerate(preds):
         kp_data = det[5:]  # 17*3 = 51 values
         keypoints = []
         for i in range(17):
@@ -700,7 +841,7 @@ def _postprocess_pose(output: np.ndarray, conf_threshold: float = 0.25) -> list[
                     "confidence": round(kc, 4),
                 }
             )
-        results.append({"keypoints": keypoints})
+        results.append({"keypoints": keypoints, "confidence": float(kept_conf[det_idx])})
 
     return results
 

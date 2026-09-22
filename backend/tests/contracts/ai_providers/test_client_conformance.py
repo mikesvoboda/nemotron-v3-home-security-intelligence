@@ -1201,11 +1201,14 @@ class TestTierAMissingPaths:
 
 
 class TestTierAUnloadPathMismatch:
-    """Tier A row 3: the backend posts ``POST /models/{name}/unload``
-    (model_management.py:560,:639) but the server's route is
+    """Tier A row 3 (half remaining): the server's canonical route is
     ``POST /models/unload`` with model_name as a QUERY param
-    (ai/enrichment/model.py:3552; the registry op model_unload path agrees) →
-    404 even against the real undeployed server."""
+    (ai/enrichment/model.py:3552; the registry op model_unload path agrees).
+    The backend's former ``POST /models/{name}/unload`` proxy leg is gone —
+    model_management.py's lifecycle routes return 501 without egress after
+    the ai-gateway consolidation — so the client-side AST pin that asserted
+    the wrong shape still shipped was deleted when that fix landed; the
+    registry-shape leg below stays as the durable guard."""
 
     @_aio
     async def test_registry_unload_is_query_param_not_path_param(self, fake_app) -> None:
@@ -1215,30 +1218,8 @@ class TestTierAUnloadPathMismatch:
         assert "/models/{model_name}/unload" not in {op.path for op in OPERATIONS.values()}
         r2 = await _one_shot(fake_app, "POST", "/models/pose/unload")
         assert r2.status_code == 404, (
-            "the /models/{name}/unload shape is now served — Tier A row 3 is "
-            "fixed: update model_management.py:560,639 and delete this pin"
-        )
-
-    def test_backend_route_still_posts_the_wrong_shape(self) -> None:
-        """AST pin on the URL template (the route-level test would need a live
-        enrichment service to 404 against). PREDICTED-GREEN. UNVERIFIED: the
-        f-string may be assembled from fragments; the AST walk only catches a
-        single JoinedStr containing both '/models/' and '/unload'."""
-        import ast
-
-        src = (REPO_ROOT / "backend/api/routes/model_management.py").read_text(encoding="utf-8")
-        tree = ast.parse(src)
-        bad = [
-            node.lineno
-            for node in ast.walk(tree)
-            if isinstance(node, ast.JoinedStr)
-            and "/unload" in ast.unparse(node)
-            and "/models/" in ast.unparse(node)
-        ]
-        assert bad, (
-            "no f-string posting /models/{model_name}/unload found — Tier A row 3 "
-            "FIXED (or the URL moved out of an f-string); re-read the route and "
-            "delete this pin"
+            "the /models/{name}/unload shape is now served — Tier A row 3's "
+            "server side grew a path-param route; re-verify the registry op"
         )
 
 

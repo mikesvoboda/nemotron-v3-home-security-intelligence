@@ -11,7 +11,6 @@ TDD Phase: RED - Tests are written first and should FAIL until implementation is
 from typing import Any
 
 import pytest
-
 from scripts.benchmark.quality import (
     QualityReport,
     QualityScorer,

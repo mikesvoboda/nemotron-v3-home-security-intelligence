@@ -39,7 +39,7 @@ def redis_config():
     return ServiceConfig(
         name="redis",
         health_url="redis://localhost:6379",
-        restart_cmd="scripts/restart_redis.sh",  # Allowed restart script
+        restart_cmd=None,  # Redis restarts via docker restart; health checks only here
     )
 
 

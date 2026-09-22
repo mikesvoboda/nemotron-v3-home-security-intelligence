@@ -33,16 +33,22 @@ echo ""
 # Service ports (use .env values or defaults)
 LOKI_PORT="${LOKI_PORT:-3100}"
 PYROSCOPE_PORT="${PYROSCOPE_PORT:-4040}"
-ALLOY_PORT="${ALLOY_PORT:-12345}"
+# Alloy's host port is published as ALLOY_UI_PORT in .env (12345); ALLOY_PORT is
+# kept as a fallback for older .env files.
+ALLOY_PORT="${ALLOY_UI_PORT:-${ALLOY_PORT:-12345}}"
 PROMETHEUS_PORT="${PROMETHEUS_PORT:-9090}"
-JAEGER_PORT="${JAEGER_PORT:-16686}"
+TEMPO_PORT="${TEMPO_PORT:-3200}"
 GRAFANA_PORT="${GRAFANA_PORT:-3002}"
+
+# OTLP ingest chain: services export to Alloy :4317, Alloy forwards to Tempo :4317.
+# Host-side the OTLP gRPC port is published via TEMPO_OTLP_GRPC in .env (4317).
+TEMPO_OTLP_GRPC="${TEMPO_OTLP_GRPC:-4317}"
 
 declare -A SERVICES=(
     ["loki"]="$LOKI_PORT|/ready"
     ["pyroscope"]="$PYROSCOPE_PORT|/ready"
     ["prometheus"]="$PROMETHEUS_PORT|/-/ready"
-    ["jaeger"]="$JAEGER_PORT|/"
+    ["tempo"]="$TEMPO_PORT|/ready"
     ["grafana"]="$GRAFANA_PORT|/api/health"
 )
 
@@ -57,7 +63,7 @@ if podman ps --format "{{.Names}} {{.Status}}" 2>/dev/null | grep -q "alloy.*Up"
     echo -e "${GREEN}OK (container running)${NC}"
 else
     echo -e "${RED}FAIL${NC}"
-    ((failed++))
+    ((failed++)) || true
 fi
 for svc in "${!SERVICES[@]}"; do
     IFS='|' read -r port endpoint <<< "${SERVICES[$svc]}"
@@ -67,7 +73,7 @@ for svc in "${!SERVICES[@]}"; do
         echo -e "${GREEN}OK${NC}"
     else
         echo -e "${RED}FAIL${NC}"
-        ((failed++))
+        ((failed++)) || true
     fi
 done
 
@@ -86,20 +92,35 @@ fi
 
 # Verify profile ingestion (Pyroscope)
 printf "  Pyroscope profiles:  "
-pyroscope_ready=$(curl -sf --max-time 5 "http://localhost:$PYROSCOPE_PORT/ready" 2>/dev/null)
+pyroscope_ready=$(curl -sf --max-time 5 "http://localhost:$PYROSCOPE_PORT/ready" 2>/dev/null || true)
 if [ "$pyroscope_ready" = "ready" ]; then
     echo -e "${GREEN}ready${NC}"
 else
     echo -e "${YELLOW}not ready${NC}"
 fi
 
-# Verify trace ingestion (Jaeger)
-printf "  Jaeger services:     "
-jaeger_services=$(curl -s --max-time 5 "http://localhost:$JAEGER_PORT/api/services" 2>/dev/null | jq -r '.data | length' 2>/dev/null || echo "0")
-if [ "$jaeger_services" -gt 0 ] 2>/dev/null; then
-    echo -e "${GREEN}$jaeger_services services found${NC}"
+# Verify trace ingestion (Tempo, fed by Alloy's OTLP receiver)
+printf "  Tempo trace search:  "
+# Tempo's search API needs at least one tag matcher; {duration>0} matches every span.
+tempo_traces=$(curl -s --max-time 5 "http://localhost:$TEMPO_PORT/api/search?q=%7Bduration%3E0%7D&limit=20" 2>/dev/null | jq -r '.traces | length' 2>/dev/null || echo "0")
+if [ "$tempo_traces" -gt 0 ] 2>/dev/null; then
+    echo -e "${GREEN}$tempo_traces recent traces found${NC}"
 else
-    echo -e "${YELLOW}no services (traces may not be flowing yet)${NC}"
+    echo -e "${YELLOW}no traces (traces may not be flowing yet)${NC}"
+fi
+
+# Verify OTLP ingest. Services export to alloy:4317 on the internal network
+# (Alloy forwards to tempo:4317); Alloy's 4317 has no fixed host mapping, so
+# host-side :4317 is Tempo's OTLP gRPC listener — the end of that chain. TCP
+# probe only: OTLP is gRPC, so there is no HTTP endpoint to curl here.
+printf "  OTLP ingest:         "
+if timeout 5 bash -c "cat < /dev/null > /dev/tcp/localhost/$TEMPO_OTLP_GRPC" 2>/dev/null; then
+    echo -e "${GREEN}accepting on :$TEMPO_OTLP_GRPC${NC}"
+else
+    echo -e "${RED}FAIL (nothing on :$TEMPO_OTLP_GRPC)${NC}"
+    # `|| true` — failed is 0 here if every service above passed, and a bare
+    # ((failed++)) would return 1 and abort the script under `set -e`.
+    ((failed++)) || true
 fi
 
 echo ""
@@ -118,7 +139,7 @@ echo ""
 echo "Useful URLs:"
 echo "  Grafana:    http://localhost:$GRAFANA_PORT"
 echo "  Prometheus: http://localhost:$PROMETHEUS_PORT"
-echo "  Jaeger:     http://localhost:$JAEGER_PORT"
+echo "  Tempo:      http://localhost:$TEMPO_PORT (traces via Grafana Explore)"
 echo "  Loki:       http://localhost:$LOKI_PORT (via Grafana Explore)"
 echo "  Pyroscope:  http://localhost:$PYROSCOPE_PORT (via Grafana Explore)"
 echo "  Alloy:      http://localhost:$ALLOY_PORT"

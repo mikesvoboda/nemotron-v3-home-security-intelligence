@@ -235,8 +235,8 @@ export interface paths {
          *     Scans camera upload directories for files that have no corresponding
          *     database records and optionally deletes them.
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *
          *     Safety features:
          *     - dry_run=True by default (no actual deletions)
@@ -280,8 +280,8 @@ export interface paths {
          *     - Alerts cache
          *     - Summaries cache
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *
          *     Args:
          *         http_request: FastAPI request for audit logging
@@ -320,8 +320,8 @@ export interface paths {
          *     WARNING: This will discard any pending items in the queues.
          *     Items will need to be reprocessed from scratch.
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *
          *     Args:
          *         http_request: FastAPI request for audit logging
@@ -351,8 +351,8 @@ export interface paths {
          * Seed Cameras
          * @description Seed test cameras into the database.
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *
          *     Args:
          *         request: Seed configuration (count, clear_existing, create_folders)
@@ -384,8 +384,8 @@ export interface paths {
          * Clear Seeded Data
          * @description Clear all seeded data (cameras, events, detections).
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *     Requires JSON body confirmation to prevent accidental data deletion:
          *     {"confirm": "DELETE_ALL_DATA"}
          *
@@ -420,8 +420,8 @@ export interface paths {
          * Seed Events
          * @description Seed mock events and detections into the database.
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *     Requires cameras to exist first.
          *
          *     Args:
@@ -457,8 +457,8 @@ export interface paths {
          *     latency samples for UI testing and development. Data is distributed
          *     across the specified time span with realistic variance.
          *
-         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
-         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     SECURITY: Requires ADMIN_ENABLED=true — require_admin_access checks that
+         *     flag alone (DEBUG is not consulted; ADMIN_API_KEY is not enforced).
          *
          *     Typical latency ranges (ms):
          *     - watch_to_detect: 50-200ms (file processing + YOLO26 inference)
@@ -10782,13 +10782,10 @@ export interface paths {
         put?: never;
         /**
          * Unload All Models
-         * @description Unload all models from both enrichment services.
-         *
-         *     Returns:
-         *         Summary of unloaded models and freed VRAM
+         * @description Unload all models — no longer possible after the ai-gateway consolidation.
          *
          *     Raises:
-         *         HTTPException: 502 if service error, 503 if unavailable
+         *         HTTPException: 501 because unload is not supported
          */
         post: operations["model-management_unload_all_models"];
         delete?: never;
@@ -10806,10 +10803,15 @@ export interface paths {
         };
         /**
          * Get Vram Summary
-         * @description Get per-GPU VRAM usage summary from both enrichment services.
+         * @description Get per-lane VRAM summary from gateway readiness plus registry estimates.
+         *
+         *     used_mb is the sum of registry vram_mb estimates for the router's
+         *     Triton-ready models (see module docstring — the VRAM-manager accounting
+         *     that previously backed this endpoint was retired with the standalone
+         *     enrichment containers).
          *
          *     Returns:
-         *         Per-GPU VRAM breakdown plus aggregate totals
+         *         Per-lane VRAM breakdown plus aggregate totals
          */
         get: operations["model-management_get_vram_summary"];
         put?: never;
@@ -10860,20 +10862,19 @@ export interface paths {
         put?: never;
         /**
          * Load Model
-         * @description Load a model via the enrichment service.
+         * @description Load a model — no longer possible after the ai-gateway consolidation.
          *
-         *     Proxies the load request to the appropriate enrichment service
-         *     based on model-to-service mapping.
+         *     Triton runs with --model-control-mode=none, so gateway models are
+         *     resident and there is no load API; backend-process models load lazily
+         *     through ModelManager on first use. Reported as 501 instead of a
+         *     fabricated success.
          *
          *     Args:
          *         model_name: Name of the model to load
          *
-         *     Returns:
-         *         Load result with timing and VRAM info
-         *
          *     Raises:
          *         HTTPException: 404 if model not found, 400 if disabled,
-         *                       502 if service error, 503 if unavailable
+         *                       501 because load is not supported
          */
         post: operations["model-management_load_model"];
         delete?: never;
@@ -10893,17 +10894,16 @@ export interface paths {
         put?: never;
         /**
          * Reload Model
-         * @description Reload a model by unloading and then loading it.
+         * @description Reload a model — no longer possible after the ai-gateway consolidation.
+         *
+         *     See load_model: Triton-resident models cannot be reloaded over HTTP.
          *
          *     Args:
          *         model_name: Name of the model to reload
          *
-         *     Returns:
-         *         Load result with timing and VRAM info
-         *
          *     Raises:
          *         HTTPException: 404 if model not found, 400 if disabled,
-         *                       502 if service error, 503 if unavailable
+         *                       501 because reload is not supported
          */
         post: operations["model-management_reload_model"];
         delete?: never;
@@ -10952,20 +10952,16 @@ export interface paths {
         put?: never;
         /**
          * Unload Model
-         * @description Unload a model via the enrichment service.
+         * @description Unload a model — no longer possible after the ai-gateway consolidation.
          *
-         *     Proxies the unload request to the appropriate enrichment service
-         *     based on model-to-service mapping.
+         *     See load_model: Triton-resident models cannot be unloaded over HTTP.
          *
          *     Args:
          *         model_name: Name of the model to unload
          *
-         *     Returns:
-         *         Unload result with freed VRAM info
-         *
          *     Raises:
-         *         HTTPException: 404 if model not found,
-         *                       502 if service error, 503 if unavailable
+         *         HTTPException: 404 if model not found, 501 because unload is
+         *                       not supported
          */
         post: operations["model-management_unload_model"];
         delete?: never;
@@ -44554,14 +44550,14 @@ export interface operations {
                     "application/json": components["schemas"]["OrphanCleanupResponse"];
                 };
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44602,14 +44598,14 @@ export interface operations {
                     "application/json": components["schemas"]["ClearCacheResponse"];
                 };
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44643,14 +44639,14 @@ export interface operations {
                     "application/json": components["schemas"]["FlushQueuesResponse"];
                 };
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44688,14 +44684,14 @@ export interface operations {
                     "application/json": components["schemas"]["SeedCamerasResponse"];
                 };
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44747,14 +44743,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44808,14 +44804,14 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -44860,14 +44856,14 @@ export interface operations {
                     "application/json": components["schemas"]["SeedPipelineLatencyResponse"];
                 };
             };
-            /** @description Unauthorized - Admin API key required */
+            /** @description Unauthorized - Only produced by the global auth middleware, which is disabled for this single-user deployment (NEM-5527, backend/main.py); ADMIN_API_KEY is not enforced by this endpoint */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Forbidden - Debug mode or admin not enabled */
+            /** @description Forbidden - Admin endpoints disabled (ADMIN_ENABLED=false) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -59395,15 +59391,8 @@ export interface operations {
                     "application/json": components["schemas"]["UnloadAllResponse"];
                 };
             };
-            /** @description Enrichment service error */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Enrichment service unavailable */
-            503: {
+            /** @description Unload unsupported — models are Triton-resident on ai-gateway */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -59512,15 +59501,8 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Enrichment service error */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Enrichment service unavailable */
-            503: {
+            /** @description Load unsupported — models are Triton-resident on ai-gateway */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -59571,15 +59553,8 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Enrichment service error */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Enrichment service unavailable */
-            503: {
+            /** @description Reload unsupported — models are Triton-resident on ai-gateway */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -59668,15 +59643,8 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Enrichment service error */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Enrichment service unavailable */
-            503: {
+            /** @description Unload unsupported — models are Triton-resident on ai-gateway */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -250,8 +250,8 @@ class TestValidatePasswordStrength:
     def test_sequential_chars_reduce_strength(self) -> None:
         """Sequential characters (abc, 123) reduce strength."""
         # Password with sequential pattern
-        password = (
-            "abc123DEF!@#abcdefghij"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
+        password = (  # nosemgrep: hardcoded-password
+            "abc123DEF!@#abcdefghij"  # pragma: allowlist secret
         )
         strength = validate_password_strength(password)
         # Should be penalized but still could be medium due to length/variety
@@ -259,8 +259,8 @@ class TestValidatePasswordStrength:
 
     def test_repeated_chars_reduce_strength(self) -> None:
         """Repeated characters (aaa, 111) reduce strength."""
-        password = (
-            "AAAAAAbbbbbb123456!!!!!!!"  # pragma: allowlist secret  # nosemgrep: hardcoded-password
+        password = (  # nosemgrep: hardcoded-password
+            "AAAAAAbbbbbb123456!!!!!!!"  # pragma: allowlist secret
         )
         strength = validate_password_strength(password)
         assert strength in (PasswordStrength.WEAK, PasswordStrength.MEDIUM)

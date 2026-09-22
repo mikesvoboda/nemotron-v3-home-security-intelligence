@@ -103,7 +103,8 @@ start_frontend() {
     cd "$PROJECT_ROOT/frontend"
     nohup npm run dev > "$PROJECT_ROOT/logs/frontend.log" 2>&1 &
     echo $! > "$PID_DIR/frontend.pid"
-    echo -e "${GREEN}Frontend started (PID: $!) - http://localhost:5173${NC}"
+    # vite.config.ts pins the dev server to https://localhost:8444 (strictPort)
+    echo -e "${GREEN}Frontend started (PID: $!) - https://localhost:8444${NC}"
 }
 
 stop_backend() {
@@ -172,7 +173,7 @@ status() {
 
     # Frontend status
     if [ -f "$PID_DIR/frontend.pid" ] && kill -0 "$(cat "$PID_DIR/frontend.pid")" 2>/dev/null; then
-        echo -e "Frontend: ${GREEN}RUNNING${NC} (PID: $(cat "$PID_DIR/frontend.pid")) - http://localhost:5173"
+        echo -e "Frontend: ${GREEN}RUNNING${NC} (PID: $(cat "$PID_DIR/frontend.pid")) - https://localhost:8444"
     else
         echo -e "Frontend: ${RED}STOPPED${NC}"
     fi
