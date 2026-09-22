@@ -862,21 +862,21 @@ Middleware is registered in `backend/main.py` during application startup, in thi
 
 ```python
 # backend/main.py registration order
-app.add_middleware(SetupGuardMiddleware)             # 503 until first admin (NEM-5312)
+app.add_middleware(SetupGuardMiddleware)  # 503 until first admin (NEM-5312)
 app.add_middleware(ContentTypeValidationMiddleware)  # NEM-1617
-app.add_middleware(RequestIDMiddleware)              # log correlation
-app.add_middleware(BaggageMiddleware)                # W3C Baggage (NEM-3796)
-app.add_middleware(ProfilingMiddleware)              # trace-to-profile (NEM-4127)
-app.add_middleware(                                  # one pass: timing + logging + metrics
-    ObservabilityMiddleware,                         # (NEM-5558)
+app.add_middleware(RequestIDMiddleware)  # log correlation
+app.add_middleware(BaggageMiddleware)  # W3C Baggage (NEM-3796)
+app.add_middleware(ProfilingMiddleware)  # trace-to-profile (NEM-4127)
+app.add_middleware(  # one pass: timing + logging + metrics
+    ObservabilityMiddleware,  # (NEM-5558)
     enable_request_logging=get_settings().request_logging_enabled,
 )
-if get_settings().request_recording_enabled:         # off by default
+if get_settings().request_recording_enabled:  # off by default
     app.add_middleware(RequestRecorderMiddleware)
-app.add_middleware(CORSMiddleware, ...)              # explicit header allowlist (NEM-5059)
+app.add_middleware(CORSMiddleware, ...)  # explicit header allowlist (NEM-5059)
 app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_preload)
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # NEM-1614
-app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)        # NEM-3741
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)  # NEM-3741
 if get_settings().idempotency_enabled:
     app.add_middleware(IdempotencyMiddleware)
 ```

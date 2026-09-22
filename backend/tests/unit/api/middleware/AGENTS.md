@@ -96,8 +96,12 @@ def test_log_output_is_json_parseable(self):
     from backend.api.middleware.observability import format_request_log
 
     log_data = format_request_log(
-        method="GET", path="/api/test", status_code=200, duration_ms=45.5,
-        client_ip="192.168.1.1", request_id="req-123",
+        method="GET",
+        path="/api/test",
+        status_code=200,
+        duration_ms=45.5,
+        client_ip="192.168.1.1",
+        request_id="req-123",
     )
     assert isinstance(log_data, dict)
     assert json.loads(json.dumps(log_data))["status_code"] == 200
