@@ -9113,3 +9113,37 @@ is 1-killed + 3-unkillable, so the honest TEST-GAP coverable-by-input
 count for this module is 47, not 50. (My first probe's apparent
 "survivor" for the dropped-default shape was exactly this: a mutation
 of a branch that cannot execute.)
+
+### S2 batch 4 — mqtt_client T1-T8/T10-T12: 20 red-checks, T9 re-adjudicated EQUIVALENT (double-guard) (`6c915f2f`)
+
+Frozen feed `mqtt_client.md`: 477 mutants / 232 survived / 70 TEST-GAP.
+Root cause confirmed on the shipped suite: `labels.assert_called()`
+without VALUES, the `aiomqtt.Client(...)` construction never inspected,
+unsubscribe asserts arity-only. 10 tests / 4 classes: ctor kwargs from
+settings; TLS both-ways with explicit use_tls (a dev .env cannot leak
+in — the dossier's own note); error cause-chaining (connect + publish);
+metric label VALUES incl. durations and the two trailing gauge `set(0)`s;
+topic_type first-segment both shapes; histogram buckets; 3 attempts +
+sleep schedule `[1, 2]`; subscribe qos; prefixed broker topics on both
+unsubscribe paths. 43 passed fixed AND random order.
+
+Order finding (measured, not assumed): an autouse `_reset_metrics_cache`
+fixture was tried first and turned the file 14→29 failures —
+`DuplicateTimeseries` from re-registering REAL metrics; the lazy cache
+is exactly what makes mocked/real creation order-tolerant. Reverted;
+T11 test instead drives a connected client (publish on a cold client
+raises before metrics — the first failure mode, also fixed).
+
+Red-check measured: 20/20 probes killed (port/id/password→None, tls
+both flips, both original_error→None, status/error_type→None, set(1)→2,
+duration −/+, [0]→[1], rsplit, retries 3→4, 2\*\*attempt→2·attempt,
+unsub topic→None, disconnect-guard flip, buckets dropped, qos→None).
+
+MEASURED DISAGREEMENT with dossier cluster T9 (connect**2/**8): the
+idempotency guard is DOUBLED (outer :385 + double-check :391 under the
+reconnect lock); mutating EITHER site alone leaves the other returning
+early — both single-site mutations GREEN against the file, so the
+re-create scenario needs both guards mutated at once, which mutmut
+never emits. EQUIVALENT-in-function; killable TEST-GAP here = 68, not 70. Frozen feed untouched (unfreezing = ruling). Ledger now carries TWO
+measured dossier corrections (gallq 17/18/19, T9) — the feed stays the
+triage record; these rows are the re-measurement.
