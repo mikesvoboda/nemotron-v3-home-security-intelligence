@@ -1,11 +1,23 @@
 """Batch-9 mutation-kill battery: container_discovery config-builders (WP4.4 feed re-derivation).
 
+HONEST SCOPE (dossier ``container_discovery.md``, reconciled post-drafting):
+the module's 696 meta-era survivors were already 644-killed by the WP4.4
+tests that landed at ``336b4c53`` (#6561); of the 52 named residuals, 30 are
+killed by those same in-tree tests (T-1b direct helper call, T-2
+compose-fallback flag, T-3a sort, T-3b no-``.tags``, T-4 debug-extra
+contract), 19 are EQUIVALENT bit-identical kwarg deletions (BSD-J 4, BSD-M
+14, I1 1 — output-identical per the cdfeefa5 census), and 1 (C1: compose
+fallback ``logger.warning`` message -> None) is killed ONLY by this file's
+verbatim warning-text asserts. This battery is therefore primarily a
+REDUNDANCY LOCK: an independent 25-service x 9-field full-table readback of
+the same contract, so a future regression trips in either file.
+
 The frozen wp44 feed has no per-mutant diff file for this module, so the 746
-single-hunk shapes below were re-extracted mechanically from the fresh
-generate (variant block vs ``__mutmut_orig`` block, def-name normalized).
-The 137 class-mangled survivors (``xǁContainerDiscoveryServiceǁ*``) have no
-orig blocks in the mutant copy and are NOT covered here — deferred, stated in
-the ledger.
+single-hunk shapes were re-extracted mechanically from the fresh generate
+(variant block vs ``__mutmut_orig`` block, def-name normalized). The 137
+class-mangled blocks (``xǁContainerDiscoveryServiceǁ*``) have no orig blocks
+in the mutant copy — that is an EXTRACTION-scope limit, not a survivor
+claim: the meta-era class-method survivors are 35, all dispositioned above.
 
 ``build_service_configs`` is a pure data function: ONE full-table readback of
 all 25 services (display_name, category, port, health endpoint/cmd,
