@@ -9114,7 +9114,7 @@ count for this module is 47, not 50. (My first probe's apparent
 "survivor" for the dropped-default shape was exactly this: a mutation
 of a branch that cannot execute.)
 
-### S2 batch 4 — mqtt_client T1-T8/T10-T12: 20 red-checks, T9 re-adjudicated EQUIVALENT (double-guard) (`6c915f2f`)
+### S2 batch 4 — mqtt_client T1-T8/T10-T12: 19/19 killable red-checks + T9 re-adjudicated EQUIVALENT (double-guard) (`6c915f2f`)
 
 Frozen feed `mqtt_client.md`: 477 mutants / 232 survived / 70 TEST-GAP.
 Root cause confirmed on the shipped suite: `labels.assert_called()`
@@ -9134,10 +9134,12 @@ is exactly what makes mocked/real creation order-tolerant. Reverted;
 T11 test instead drives a connected client (publish on a cold client
 raises before metrics — the first failure mode, also fixed).
 
-Red-check measured: 20/20 probes killed (port/id/password→None, tls
-both flips, both original_error→None, status/error_type→None, set(1)→2,
-duration −/+, [0]→[1], rsplit, retries 3→4, 2\*\*attempt→2·attempt,
-unsub topic→None, disconnect-guard flip, buckets dropped, qos→None).
+Red-check measured: 19/19 killable probes killed (port/id/password→None,
+tls both flips, both original_error→None, status/error_type→None,
+set(1)→2, duration −/+, [0]→[1], rsplit, retries 3→4,
+2\*\*attempt→2·attempt, unsub topic→None, disconnect-guard flip, buckets
+dropped, qos→None); the T9 probe was the 20th run and came back GREEN —
+that result is the correction below, not a miss.
 
 MEASURED DISAGREEMENT with dossier cluster T9 (connect**2/**8): the
 idempotency guard is DOUBLED (outer :385 + double-check :391 under the
