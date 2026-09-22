@@ -2106,6 +2106,129 @@ async def test_close_batch_for_size_limit_queue_warning_logged(
     assert any("overflow" in record.message.lower() for record in caplog.records)
 
 
+# -----------------------------------------------------------------------------
+# WP4.4 kill tests (frozen triage feed archive/wp25-feed/wp44-triage,
+# clusters C11-C17 -- 46 surviving mutants of _close_batch_for_size_limit).
+# The pre-existing tests exercise return values but never inspect the Redis
+# CALLS the close sequence makes, so mutations to the lrange key/range args,
+# the closing-flag store, the delete() key list, the summary dict keys, the
+# queue name/overflow policy and the _broadcast_detection_batch kwargs all
+# survived. Each of those IS shipped contract: the key names are how other
+# processes find batch state, the delete list is the orphan-prevention
+# guarantee (NEM-2013), the summary keys are what the analysis queue
+# consumer reads, and the broadcast kwargs are what the WebSocket clients
+# render (NEM-2506).
+# -----------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_full_redis_contract(
+    batch_aggregator, mock_redis_instance
+):
+    """C11-C17: every Redis write/read, summary key, queue push and broadcast
+    kwarg of the size-limit close is asserted at its exact shipped value."""
+    from backend.core.constants import ANALYSIS_QUEUE
+    from backend.services.batch_aggregator import BATCH_CLOSING_FLAG_TTL_SECONDS
+
+    batch_id = "batch_contract"
+    camera_id = "cam_side"
+    started_at = time.time() - 60.0
+    pipeline_start = "2026-09-22T10:00:00.000000"
+
+    async def mock_get(key):
+        return {
+            f"batch:{batch_id}:camera_id": camera_id,
+            f"batch:{batch_id}:started_at": str(started_at),
+            f"batch:{batch_id}:pipeline_start_time": pipeline_start,
+        }.get(key)
+
+    mock_redis_instance.get.side_effect = mock_get
+    client = mock_redis_instance._client
+    client.set = AsyncMock(return_value=True)
+    client.lrange = AsyncMock(return_value=["11", "12", "13"])
+
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+    assert summary is not None
+
+    # C13: closing flag stored under the exact key, sentinel value "1", TTL
+    # (NEM-2507 -- a mutated value/TTL silently disables orphan-lock expiry).
+    client.set.assert_awaited_once_with(
+        f"batch:{batch_id}:closing", "1", ex=BATCH_CLOSING_FLAG_TTL_SECONDS
+    )
+
+    # C11: the detection list is read from the exact key over the full range.
+    client.lrange.assert_awaited_once_with(f"batch:{batch_id}:detections", 0, -1)
+
+    # C15: started_at is READ (not time.time()-substituted) and lands in the
+    # summary; ended_at is present and not-before it. Value equality kills
+    # the get->None / key-mangled / "and False" fallback mutants.
+    assert summary["started_at"] == pytest.approx(started_at)
+    assert summary["ended_at"] >= summary["started_at"]
+
+    # C14: summary keys and values exactly as the queue consumer reads them.
+    assert summary["batch_id"] == batch_id
+    assert summary["camera_id"] == camera_id
+    assert summary["detection_ids"] == [11, 12, 13]
+    assert summary["reason"] == "max_size"
+    assert summary["pipeline_start_time"] == pipeline_start
+
+    # C16: pushed under the shipped queue name WITH the DLQ overflow policy.
+    mock_redis_instance.add_to_queue_safe.assert_awaited_once()
+    push_args = mock_redis_instance.add_to_queue_safe.await_args
+    assert push_args.args[0] == ANALYSIS_QUEUE
+    assert push_args.kwargs["overflow_policy"] is QueueOverflowPolicy.DLQ
+    assert push_args.args[1] is summary
+
+    # C12: cleanup deletes EXACTLY the seven shipped keys (NEM-2013).
+    mock_redis_instance.delete.assert_awaited_once_with(
+        f"batch:{camera_id}:current",
+        f"batch:{batch_id}:camera_id",
+        f"batch:{batch_id}:detections",
+        f"batch:{batch_id}:started_at",
+        f"batch:{batch_id}:last_activity",
+        f"batch:{batch_id}:pipeline_start_time",
+        f"batch:{batch_id}:closing",
+    )
+
+    # C17: WebSocket broadcast carries every shipped kwarg (NEM-2506).
+    batch_aggregator._broadcast_detection_batch = AsyncMock()
+    summary2 = await batch_aggregator._close_batch_for_size_limit(batch_id)
+    assert summary2 is not None
+    kwargs = batch_aggregator._broadcast_detection_batch.await_args.kwargs
+    assert kwargs == {
+        "batch_id": batch_id,
+        "camera_id": camera_id,
+        "detection_ids": [11, 12, 13],
+        "started_at": pytest.approx(started_at),
+        "closed_at": pytest.approx(summary["ended_at"], abs=5.0),
+        "close_reason": "max_size",
+    }
+
+
+@pytest.mark.asyncio
+async def test_close_batch_for_size_limit_started_at_falls_back_when_absent(
+    batch_aggregator, mock_redis_instance
+):
+    """C15 counterpart: with no started_at stored, the summary still carries a
+    numeric started_at (time.time() fallback) -- and it is DISTINCT from the
+    stored path, so the fallback branch itself is under test."""
+    batch_id = "batch_no_started"
+    camera_id = "cam_n"
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange = AsyncMock(return_value=["1"])
+
+    before = time.time()
+    summary = await batch_aggregator._close_batch_for_size_limit(batch_id)
+    assert summary is not None
+    assert before <= summary["started_at"] <= time.time()
+
+
 # =============================================================================
 # Property-Based Tests (Hypothesis)
 # =============================================================================
