@@ -329,3 +329,82 @@ def test_cli_exit_code_on_drop(isolated_cwd, monkeypatch):
     # Must be the DROP verdict, not the collection-failure branch — the two
     # paths share an exit code and only one is the gate's point.
     assert "DROPPED" in r.stdout, f"CLI failed for the wrong reason: {r.stdout[-300:]}"
+    assert "DROPPED" in r.stdout, f"CLI failed for the wrong reason: {r.stdout[-300:]}"
+
+
+# ---------------------------------------------------------------------------
+# Separation of concerns: this gate measures COVERAGE. Test failures are the
+# unit-test tier's verdict (ci.yml "Backend Unit Tests (1-4)"), not this
+# gate's. Before 2026-09-19 the inline collection used check=True, so a single
+# flaky test anywhere in the ~27.5k-test suite returned
+# "Coverage collection failed (rc=1)" and reddened the REQUIRED CI Gate.
+# Measured that day: four consecutive runs across #6553/#6560 failed this way
+# (2, 4, 3, 4 failures) while the coverage number was healthy and identical.
+# ---------------------------------------------------------------------------
+
+
+class _FakeProc:
+    def __init__(self, returncode: int, stdout: str = "", stderr: str = ""):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+@pytest.fixture()
+def _cleanup_root_coverage_json():
+    """The inline path reads REPO_ROOT/coverage.json (gitignored). Remove it."""
+    target = REPO_ROOT / "coverage.json"
+    preexisting = target.exists()
+    yield target
+    if not preexisting and target.exists():
+        target.unlink()
+
+
+def test_failing_tests_do_not_fail_the_coverage_gate(
+    isolated_cwd, monkeypatch, _cleanup_root_coverage_json
+):
+    """pytest exiting non-zero must NOT redden this gate when coverage was measured."""
+    base = isolated_cwd / "base.json"
+    write_coverage_json(base, 70.0)
+    monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
+
+    mod = get_gate_module()
+    target = _cleanup_root_coverage_json
+
+    def fake_run(*args, **kwargs):
+        # pytest-cov writes the report even when tests fail.
+        write_coverage_json(target, 75.0)
+        # Honour the real API: subprocess.run raises INTERNALLY on check=True.
+        # A fake that ignores `check` makes this test vacuous — it passed
+        # against the pre-fix code until that was corrected.
+        if kwargs.get("check"):
+            raise subprocess.CalledProcessError(
+                1, args[0] if args else "pytest", output="= 3 failed, 27503 passed ="
+            )
+        return _FakeProc(1, stdout="= 3 failed, 27503 passed =")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    ok, msg = mod.check_coverage_diff("origin/main")
+    assert ok, f"a red unit suite must not fail the COVERAGE gate: {msg}"
+    assert "failed" not in msg.lower() or "75" in msg, msg
+
+
+def test_no_coverage_data_produced_fails_and_is_not_a_skip(
+    isolated_cwd, monkeypatch, _cleanup_root_coverage_json
+):
+    """No data = this gate could not do its job. That is a failure, not a pass."""
+    base = isolated_cwd / "base.json"
+    write_coverage_json(base, 70.0)
+    monkeypatch.setenv("COVERAGE_BASE_JSON", str(base))
+
+    mod = get_gate_module()
+
+    def fake_run(*args, **kwargs):
+        return _FakeProc(2, stderr="collection died")
+
+    monkeypatch.setattr(mod.subprocess, "run", fake_run)
+
+    ok, msg = mod.check_coverage_diff("origin/main")
+    assert not ok, f"absent coverage data must not pass vacuously: {msg}"
+    assert "no coverage data produced" in msg, msg

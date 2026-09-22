@@ -594,6 +594,25 @@ class TestSubscriberReconnection:
         received: list[dict] = []
 
         try:
+            # redis-py's subscribe() resolves when the SUBSCRIBE command is
+            # WRITTEN, not when the server registers it — a PUBLISH on another
+            # connection can overtake the registration and be dropped (CI-only
+            # flake: len(received) == 0 at the assert below). Drain the server's
+            # subscribe confirmation first; it is only sent after registration,
+            # so the publish that follows is guaranteed a subscriber. Bounded
+            # and tolerant: if no confirmation surfaces (already consumed),
+            # proceed and let the existing collection timeout decide.
+            try:
+
+                async def drain_confirmation() -> None:
+                    async for confirmation in pubsub2.listen():
+                        if confirmation["type"] == "subscribe":
+                            return
+
+                await asyncio.wait_for(drain_confirmation(), timeout=1.0)
+            except TimeoutError:
+                pass
+
             await real_redis.publish(channel, {"msg": "after_resub"})
 
             async def collect():

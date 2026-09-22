@@ -455,21 +455,33 @@ def check_coverage_diff(
                         "-q",
                     ],
                     cwd=project_root,
-                    check=True,
+                    # check=False on purpose: pytest's exit code is the UNIT-TEST
+                    # tier's verdict, not this gate's. With check=True any single
+                    # failure in the ~27.5k-test suite raised and returned
+                    # "Coverage collection failed (rc=1)", reddening the REQUIRED
+                    # CI Gate for a reason this gate does not adjudicate. Observed
+                    # 2026-09-19: four consecutive runs across #6553 and #6560
+                    # failed this way (2, 4, 3, 4 failures) while the coverage
+                    # number itself was healthy and identical. The --reruns above
+                    # absorbs FLAKES; this absorbs genuine reds, which the Backend
+                    # Unit Tests (1-4) jobs in ci.yml already report honestly and
+                    # are the tier that should fail for them. pytest-cov still
+                    # writes coverage.json when tests fail, so the measurement
+                    # survives either way.
+                    check=False,
                     capture_output=True,
                     text=True,
                 )
-            except subprocess.CalledProcessError as e:
-                # pytest writes findings to stdout; reporting only stderr gave
-                # a useless empty "collection failed:" detail on the first
-                # real occurrence. Report whichever side has content.
-                detail = ((e.stderr or "") + "\n" + (e.stdout or "")).strip()[-300:]
-                return False, f"Coverage collection failed (rc={e.returncode}): {detail}"
             except OSError as e:
                 return False, f"Coverage collection failed to launch: {e}"
             current_percent = _read_percent(project_root / "coverage.json")
             if current_percent is None:
-                return True, "No coverage data collected, skipping coverage diff check"
+                # NOT a vacuous skip: no data means this gate could not measure,
+                # which is a real failure of the gate's own job. pytest's output
+                # is reported here because a missing coverage.json after a run
+                # usually means collection died, not that tests failed.
+                detail = ((proc.stderr or "") + "\n" + (proc.stdout or "")).strip()[-300:]
+                return False, f"no coverage data produced (pytest rc={proc.returncode}): {detail}"
 
     drop = base_percent - current_percent
     if drop > COVERAGE_DIFF_EPSILON_PP:
