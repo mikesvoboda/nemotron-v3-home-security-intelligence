@@ -188,12 +188,11 @@ class TestRecoverOrphanedDetections:
         assert count == 1  # a mutated/None stmt crashes the compile -> count 0
         assert isinstance(stmt, Select)
 
-        sql = " ".join(
-            str(stmt.compile(compile_kwargs={"literal_binds": True})).split()
-        )
+        sql = " ".join(str(stmt.compile(compile_kwargs={"literal_binds": True})).split())
         # C6: orphan definition = LEFT JOIN that MISSES event_detections rows.
         assert (
-            "LEFT OUTER JOIN event_detections ON detections.id = event_detections.detection_id" in sql
+            "LEFT OUTER JOIN event_detections ON detections.id = event_detections.detection_id"
+            in sql
         )
         assert "event_detections.event_id IS NULL" in sql
         # C6: the age gate is a strict LESS-THAN against the cutoff literal.
@@ -209,7 +208,7 @@ class TestRecoverOrphanedDetections:
         count, stmt = await self._run_and_capture_stmt()
         assert count == 1
         sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
-        select_clause = sql.split("FROM")[0]
+        select_clause = sql.split("FROM", maxsplit=1)[0]
         # add_detection reads exactly these five columns off each row; the
         # projection must carry them all or the re-injection would lazy-load
         # after the session closed (and the mutant silently "passes" the mocks).

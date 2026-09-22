@@ -8768,6 +8768,7 @@ works" — that line runs where this plan says it runs.
 every genuine upgrade, never silently drop a proposal).
 
 **What landed:**
+
 - **#6628 (MERGED `9ba8f7a4`, 17:07:53Z)** — the root-cause config fix: `pip`→`uv`
   ecosystem at `/`, `ignore` floors (typescript≥7, eslint≥10, @eslint/js≥10,
   plugin-security≥4, docker node≥26), `requirements-audit.txt` +
@@ -8831,7 +8832,7 @@ R-2 (gitleaks 3 EULA, #6614), R-3 (GPU compat → gates #6631 merge), R-5 (plugi
 ### Mutation-testing truth correction (2026-09-21 evening)
 
 The "stryker 10 green" claim in the execution record above is WRONG as to a
-*score*: the batch made the harness run end-to-end for the first time in repo
+_score_: the batch made the harness run end-to-end for the first time in repo
 history (checker-init wall broken — that part holds), but the full pass reports
 0 killed / 384 mutants with "0.00 tests per mutant" — a stryker-vitest-runner ↔
 vitest 5 integration defect, not test quality. No frontend mutation score has ever
@@ -8855,14 +8856,14 @@ auto-merge UPDATER never fired on BEHIND — measured repeatedly — so a side-l
 sent the REST `PUT /pulls/N/update-branch` nudge, and the pool needed two zombie
 CI cancellations before runs scheduled at all):
 
-| PR    | merged (UTC) | SHA        | contents                                       |
-| ----- | ------------ | ---------- | ---------------------------------------------- |
-| #6628 | 17:07:53     | `9ba8f7a4` | dependabot config: uv ecosystem + ignore floors |
-| #6633 | 18:19:02     | `c7617931` | python-minor-patch group ×12 (first uv-era PR)  |
-| #6630 | 19:29:10     | `71a0b6c6` | filelock 4.0.1 + gdown 6.4.0                    |
+| PR    | merged (UTC) | SHA        | contents                                                      |
+| ----- | ------------ | ---------- | ------------------------------------------------------------- |
+| #6628 | 17:07:53     | `9ba8f7a4` | dependabot config: uv ecosystem + ignore floors               |
+| #6633 | 18:19:02     | `c7617931` | python-minor-patch group ×12 (first uv-era PR)                |
+| #6630 | 19:29:10     | `71a0b6c6` | filelock 4.0.1 + gdown 6.4.0                                  |
 | #6632 | 20:20:46     | `2d361b11` | npm batch: vitest 5, stryker 10, TS 6.0.3 + 9/10 of the group |
-| #6631 | 21:24:47     | `c1128110` | NGC bases: tensorrt 26.08, cuda 13.3.1 (R-3 gated) |
-| #6629 | 22:27:41     | `57a7da5c` | actions bundle + harvester stale-page hardening trio |
+| #6631 | 21:24:47     | `c1128110` | NGC bases: tensorrt 26.08, cuda 13.3.1 (R-3 gated)            |
+| #6629 | 22:27:41     | `57a7da5c` | actions bundle + harvester stale-page hardening trio          |
 
 Close dispositions (every one posted as a `Superseded by #N (<mergeSHA>)`
 comment on the merge of its superseder, per the owner's supersede model):
@@ -8939,11 +8940,11 @@ loses nothing: the cache keeps last week's verdicts" is REFUTED — run
 28 stranded 4,426 verdicts (37% of the entire 2026-09-19 point) via
 three INDEPENDENT breaks, each verified from the run log + Actions APIs:
 
-| # | break | evidence | fix |
-| - | ----- | -------- | --- |
-| 1 | actions/cache saves in a POST step; post steps do not run on failed jobs; the history push's GH006 (protected main expects required "CI Gate" ON the pushed commit — a bot commit minted in-workflow never carries one, so the direct push can NEVER land) failed the job → save skipped | log: `[main d154b62]` → `GH006 ... Required status check "CI Gate (Required Checks)" is expected` → `Process completed with exit code 1` → only "Post job cleanup" (no "Cache saved"); cache API lists ZERO mutmut-verdicts entries | explicit `actions/cache/save` step `if: always()` (`mutation-testing.yml:250-265`) + history lands via bot-branch PR + auto-merge (codeql-autofix #6592 house pattern; `:314`) |
-| 2 | key was per-run (`mutmut-verdicts-${run_id}`) + PREFIX restore-keys → a per-run save can never clobber the base entry; every restore lands on the SAME stale tar | run 28 log: `Cache not found for input keys: mutmut-verdicts-35496040596, mutmut-verdicts-` | constant key `mutmut-verdicts-v1` + `overwrite: true` (`:177`, `:265`); pack shrink-guard `save_ok` refuses to bank fewer metas than restored (`:231-246`) |
-| 3 | upload-artifact v6 defaults `include-hidden-files: false` → the DOTFILE pack was silently skipped — the artifact was 5,989 bytes, the score JSON alone ("there will be 1 file uploaded") | downloaded artifact r28art contained ONLY mutation-score.json; pack was 2,599,093 B (`-rw-r--r-- 1 runner runner 2599093 ... .mutmut-verdicts.tar.gz`) | pack renamed `mutmut-verdicts.tar.gz` (non-dot; .gitignore updated) |
+| #   | break                                                                                                                                                                                                                                                                                    | evidence                                                                                                                                                                                                                            | fix                                                                                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | actions/cache saves in a POST step; post steps do not run on failed jobs; the history push's GH006 (protected main expects required "CI Gate" ON the pushed commit — a bot commit minted in-workflow never carries one, so the direct push can NEVER land) failed the job → save skipped | log: `[main d154b62]` → `GH006 ... Required status check "CI Gate (Required Checks)" is expected` → `Process completed with exit code 1` → only "Post job cleanup" (no "Cache saved"); cache API lists ZERO mutmut-verdicts entries | explicit `actions/cache/save` step `if: always()` (`mutation-testing.yml:250-265`) + history lands via bot-branch PR + auto-merge (codeql-autofix #6592 house pattern; `:314`) |
+| 2   | key was per-run (`mutmut-verdicts-${run_id}`) + PREFIX restore-keys → a per-run save can never clobber the base entry; every restore lands on the SAME stale tar                                                                                                                         | run 28 log: `Cache not found for input keys: mutmut-verdicts-35496040596, mutmut-verdicts-`                                                                                                                                         | constant key `mutmut-verdicts-v1` + `overwrite: true` (`:177`, `:265`); pack shrink-guard `save_ok` refuses to bank fewer metas than restored (`:231-246`)                     |
+| 3   | upload-artifact v6 defaults `include-hidden-files: false` → the DOTFILE pack was silently skipped — the artifact was 5,989 bytes, the score JSON alone ("there will be 1 file uploaded")                                                                                                 | downloaded artifact r28art contained ONLY mutation-score.json; pack was 2,599,093 B (`-rw-r--r-- 1 runner runner 2599093 ... .mutmut-verdicts.tar.gz`)                                                                              | pack renamed `mutmut-verdicts.tar.gz` (non-dot; .gitignore updated)                                                                                                            |
 
 Also fixed same pass: `--repair` now runs AGAIN before the score step
 (a budget-kill can truncate a meta mid-save; the scorer's loader
@@ -8965,3 +8966,44 @@ fear is a CI-runner artifact, not the algorithm). mutmut 3.8 cold
 sequence confirmed from source (`__main__.py` run_stats_collection:
 generation → stats → clean tests → forced-fail → collect-only → per-
 mutant).
+
+### S2 first batch — 72 TEST-GAP mutants targeted in batch_aggregator (C6-C9, C11-C17), red-checked against real mutants (`4d4e9e1e`)
+
+Frozen feed `_clusters_final.json` tallies (measured this session, not
+carried over): the file carries 21 clusters; TEST-GAP share = 74 mutants
+across C1/C3 (gpu-monitor guard, 2), C6-C9 (recover, 26) and C11-C17
+(size-limit close, 46); EQUIVALENT/LOW-VALUE = C2/C4/C5/C10/C18-C21
+(129 mutants; log-text, exc_info, log_context correlation, decode-case
+and duration-arithmetic feeding only logger extras — per-cluster
+exclusion stands, blanket skips used nowhere).
+
+Gap anatomy (read off the existing suites before writing anything):
+`test_orphan_recovery.py` (148 lines) mocked `session.execute` and never
+inspected the passed statement; the size-limit tests asserted returned
+summaries but never the Redis calls. So the shipped CONTRACT was never
+under test — exactly what a survivor cluster means.
+
+New assertions: compiled-SQL contract (LEFT OUTER JOIN ON detections.id
+= event_detections.detection_id; event_id IS NULL; strict `<` cutoff
+bound-checked to the second against now()-3min; ORDER BY ASC; LIMIT 500;
+load_only carries all five re-injected columns), add_detection exact
+kwargs, closing-flag `set("batch:<id>:closing", "1", ex=300)`,
+`lrange(key, 0, -1)`, started_at read (value equality kills the
+get→None / `and False` fallbacks), summary keys, ANALYSIS_QUEUE push with
+QueueOverflowPolicy.DLQ, the seven-key delete list, every broadcast
+kwarg. Production code untouched — tests assert it as shipped.
+
+TDD red-check (mutants applied to source, then restored): drop `.limit`
+→ `assert sql.endswith("LIMIT 500")` fails (1 failed, 8 passed);
+closing-flag `"1"`→None → contract test fails (1 failed); restore →
+10-11 passed. Command: `uv run pytest <file> -q -o addopts="" -p
+no:randomly --timeout=120`.
+
+Per-mutant equivalence notes for the EQUIVALENT classes (why they are NOT
+killable at the shipped-contract level): log-message/extra payloads
+(C10 x45, C21 x45, C2/C4/C5 x31) propagate only into logger output —
+killing them would require production to bend (assertions on log text
+freeze incidental strings the codebase treats as non-contractual; the
+feed's classification stands). C19 (`utf-8`→`UTF-8` codec name) is
+literally equivalent at the codec level. C20 duration arithmetic feeds
+only a logger extra. C18 (x4) mutates log_context correlation keys.
