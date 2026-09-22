@@ -9,25 +9,33 @@
 
 ## Overview
 
-This guide covers deploying the AI services stack from source. Currently, the CI/CD pipeline publishes the **backend** and **frontend** images to GHCR, while AI service images are built locally due to their GPU-specific requirements and large model dependencies.
+The **Deploy** workflow (`.github/workflows/deploy.yml`, runs on every push to `main`)
+publishes `backend` and `frontend` (linux/amd64 + linux/arm64) and `ai-llm`
+(amd64 only) to GHCR, tagged `latest` plus the bare commit SHA.
+
+The vision models no longer ship as separate images: YOLO26, Florence-2, CLIP and the
+enrichment tiers were consolidated into a single **`ai-gateway`** Triton container that
+`docker-compose.prod.yml` builds locally from `ai/gateway/Dockerfile`. The Deploy
+workflow still pushes the legacy per-model image names (`ai-yolo26`, `ai-florence`,
+`ai-clip`, `ai-enrichment` — their `ai/*/Dockerfile`s remain in the tree), but no
+compose file references them anymore.
 
 ### Image Availability
 
-| Service           | GHCR Image                                                                   | Notes                               |
-| ----------------- | ---------------------------------------------------------------------------- | ----------------------------------- |
-| **backend**       | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | Published on every merge to main    |
-| **frontend**      | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | Published on every merge to main    |
-| **ai-yolo26**     | Build locally                                                                | YOLO26 object detection             |
-| **ai-llm**        | Build locally                                                                | Nemotron LLM (llama.cpp)            |
-| **ai-florence**   | Build locally                                                                | Florence-2 vision-language          |
-| **ai-clip**       | Build locally                                                                | CLIP embeddings                     |
-| **ai-enrichment** | Build locally                                                                | Vehicle/pet/clothing classification |
+| Service                                               | Source                                                                | Notes                                                     |
+| ----------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| **backend**                                           | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend`  | Published on every merge to main (multi-arch)             |
+| **frontend**                                          | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend` | Published on every merge to main (multi-arch)             |
+| **ai-llm**                                            | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/ai-llm`   | Published (amd64 only); used by `docker-compose.ghcr.yml` |
+| **ai-gateway**                                        | Local build: `ai/gateway/Dockerfile` (Triton base)                    | Not published — see below                                 |
+| ~~ai-yolo26 / ai-florence / ai-clip / ai-enrichment~~ | Legacy image names still pushed by CI                                 | No compose service uses them; merged into `ai-gateway`    |
 
-### Why AI Services Are Built Locally
+### Why ai-gateway Is Built Locally
 
-AI service containers are intentionally not published to GHCR because:
+The Triton gateway container is intentionally not published to GHCR because:
 
-1. **Model files**: Large AI models (2-18GB) need to be mounted at runtime
+1. **Model files**: The models come from the `models.yml` manifest (~33GB total;
+   individual models range from 67MB to 15GB) and are mounted at runtime
 2. **GPU drivers**: CUDA version must match the host's nvidia-container-toolkit
 3. **Build customization**: Operators may need different quantization levels or model versions
 4. **Storage costs**: Multi-GB images would be expensive to host and transfer
@@ -43,102 +51,121 @@ AI service containers are intentionally not published to GHCR because:
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
-# 2. Build AI services locally (first time only, ~10-15 min)
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+# 2. Build the AI containers locally (first time only, ~10-15 min)
+podman compose -f docker-compose.prod.yml build ai-gateway ai-llm
 
-# 3. Start the full stack
-podman-compose -f docker-compose.prod.yml up -d
+# 3. Download models (manifest: models.yml)
+./ai/download_models.sh
 
-# 4. Verify deployment
-curl http://localhost:8000/api/system/health/ready
+# 4. Start the full stack
+podman compose -f docker-compose.prod.yml up -d
+
+# 5. Verify deployment
+curl -s http://localhost:8000/api/system/health/ready | jq
+curl -s http://localhost:8090/health | jq       # ai-gateway
+curl -s http://localhost:8091/health | jq       # ai-llm
 ```
 
-### Deploy Core AI Only (No Optional Services)
+> [!NOTE] > `docker-compose.ghcr.yml` is an older GHCR-pinned variant: it pulls
+> `backend`/`frontend`/`ai-llm` from GHCR but predates the gateway consolidation (it has
+> no `ai-gateway` service, still ships jaeger/elasticsearch, and its `ai-llm` mounts a
+> Q2_K_L benchmark model). Prefer `docker-compose.prod.yml`.
+
+### Deploy Core AI Only
 
 ```bash
-# Build and start only YOLO26 and Nemotron
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm
-podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm
+# Build and start the gateway + LLM
+podman compose -f docker-compose.prod.yml build ai-gateway ai-llm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 
 # Verify
-curl http://localhost:8095/health  # YOLO26
+curl http://localhost:8090/health  # ai-gateway (all Triton models)
 curl http://localhost:8091/health  # Nemotron
 ```
 
 ---
 
-## AI Service Container Reference
+## AI Container Reference
 
-### ai-yolo26 (YOLO26)
+### ai-gateway (Triton + FastAPI)
 
-Object detection service using YOLO26 transformer model.
+Single container serving detection and all enrichment models behind one router per
+model family: `/yolo26`, `/florence`, `/clip`, `/enrichment` (heavy), `/enrich-lt`
+(light).
 
-| Property         | Value                                           |
-| ---------------- | ----------------------------------------------- |
-| **Port**         | 8095                                            |
-| **VRAM**         | ~3-4GB                                          |
-| **Base Image**   | `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime` |
-| **Model**        | Auto-downloads from HuggingFace on first start  |
-| **Health Check** | `GET /health`                                   |
+| Property         | Value                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| **Ports**        | `${AI_GATEWAY_PORT:-8090}` (API), `${AI_GATEWAY_METRICS_PORT:-8002}` (Triton metrics)     |
+| **Base Image**   | `nvcr.io/nvidia/tritonserver:26.01-py3`                                                   |
+| **VRAM**         | ~4GB base resident, ~6GB peak (GPU `GPU_AI_SERVICES`, default 1)                          |
+| **Models**       | `models.yml` manifest via `./ai/download_models.sh` (30 models, ~33GB)                    |
+| **Health Check** | `GET /health` — `healthy` only when Triton and all models are ready (`start_period` 180s) |
+| **Limits**       | 20G memory, 8 CPUs                                                                        |
 
 **Build:**
 
 ```bash
-podman-compose -f docker-compose.prod.yml build ai-yolo26
+podman compose -f docker-compose.prod.yml build ai-gateway
 ```
 
-**Environment Variables:**
-
-| Variable            | Default                          | Description                              |
-| ------------------- | -------------------------------- | ---------------------------------------- |
-| `YOLO26_CONFIDENCE` | `0.5`                            | Detection confidence threshold (0.0-1.0) |
-| `YOLO26_MODEL_PATH` | `PekingU/yolo26_r50vd_coco_o365` | HuggingFace model ID                     |
-
-**Volume Mounts:**
+**Volume Mounts** (from `docker-compose.prod.yml`):
 
 ```yaml
 volumes:
-  # :U tells Podman to recursively chown the volume to match container user
-  # Docker ignores the :U flag, making this backward compatible
-  - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
+  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/zoo:ro
+  - ${AI_MODELS_PATH:-/export/ai_models}/triton:/models/cache
+  - ${AI_MODELS_PATH:-/export/ai_models}/quantized:/models/quantized:ro
+  - triton-kernel-cache:/root/.nv
+  - triton-tmp-cache:/tmp
+  - ${HF_CACHE_PATH:-/home/ubuntu/.cache/huggingface}:/root/.cache/huggingface
 ```
 
-### ai-llm (Nemotron)
+**Notable environment:** `GATEWAY_PORT=8090`, `CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}` (all GPUs are
+passed via CDI; this selects the card — see [GPU Setup](gpu-setup.md)),
+`HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}` (models must be pre-downloaded), and
+`VEHICLE_QUANTIZED` / `DEMOGRAPHICS_QUANTIZED` toggles that swap in files from
+`/models/quantized`.
 
-Large language model service for risk analysis using llama.cpp.
+### ai-llm (Nemotron, llama.cpp)
 
-| Property         | Value                                    |
-| ---------------- | ---------------------------------------- |
-| **Port**         | 8091                                     |
-| **VRAM**         | ~3GB (Mini 4B) or ~14GB (Nano 30B)       |
-| **Base Image**   | `nvidia/cuda:12.4.1-runtime-ubuntu22.04` |
-| **Model**        | Requires manual download (see below)     |
-| **Health Check** | `GET /health`                            |
+| Property         | Value                                                               |
+| ---------------- | ------------------------------------------------------------------- |
+| **Port**         | `${LLM_PORT:-8091}`                                                 |
+| **VRAM**         | ~3GB (Mini 4B) or ~14.7GB (Nano 30B Q4_K_M)                         |
+| **Base Image**   | `nvidia/cuda:13.3.1-runtime-ubuntu22.04` (llama.cpp built in-image) |
+| **Model**        | Downloaded by `./ai/download_models.sh` or manually (see below)     |
+| **Health Check** | `GET /health` (`start_period` 300s)                                 |
+| **Limits**       | 12G memory, 4 CPUs                                                  |
 
 **Build:**
 
 ```bash
-podman-compose -f docker-compose.prod.yml build ai-llm
+podman compose -f docker-compose.prod.yml build ai-llm
 ```
 
-**Environment Variables:**
+**Environment Variables** (defaults from `.env.example` / compose):
 
-| Variable     | Default  | Description                              |
-| ------------ | -------- | ---------------------------------------- |
-| `GPU_LAYERS` | `35`     | Number of model layers to offload to GPU |
-| `CTX_SIZE`   | `131072` | Context window size (tokens)             |
-| `PARALLEL`   | `1`      | Number of parallel inference slots       |
+| Variable         | Default                                       | Description                                        |
+| ---------------- | --------------------------------------------- | -------------------------------------------------- |
+| `LLM_MODEL_PATH` | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | GGUF file exposed as `MODEL_PATH` in the container |
+| `GPU_LAYERS`     | `auto`                                        | Layers offloaded to GPU (`auto` = all)             |
+| `CTX_SIZE`       | `262144`                                      | Context window, split across `PARALLEL` slots      |
+| `PARALLEL`       | `8`                                           | Parallel inference slots (8 × 32,768 tokens)       |
 
 **Volume Mounts:**
 
 ```yaml
 volumes:
   - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+  - llama-cache:/home/llama/.cache
+  - llama-nv-cache:/home/llama/.nv
 ```
 
 **Model Download (Production - Nano 30B):**
 
-Download from the official NVIDIA HuggingFace repository: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+`./ai/download_models.sh` fetches this from `models.yml` (hf_repo
+`unsloth/Nemotron-3-Nano-30B-A3B-GGUF`). Manual alternative — the NVIDIA repository is
+at [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF):
 
 ```bash
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
@@ -146,184 +173,59 @@ cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ```
 
-### ai-florence (Florence-2)
+### Florence-2 / CLIP / Enrichment — consolidated
 
-Vision-language model for dense captioning and visual understanding.
-
-| Property         | Value                                           |
-| ---------------- | ----------------------------------------------- |
-| **Port**         | 8092                                            |
-| **VRAM**         | ~1.2GB                                          |
-| **Base Image**   | `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime` |
-| **Model**        | Requires manual download                        |
-| **Health Check** | `GET /health`                                   |
-
-**Build:**
-
-```bash
-podman-compose -f docker-compose.prod.yml build ai-florence
-```
-
-**Environment Variables:**
-
-| Variable     | Default                    | Description              |
-| ------------ | -------------------------- | ------------------------ |
-| `MODEL_PATH` | `/models/florence-2-large` | Path to Florence-2 model |
-
-**Volume Mounts:**
-
-```yaml
-volumes:
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
-```
-
-**Model Download:**
-
-```bash
-mkdir -p /export/ai_models/model-zoo/florence-2-large
-cd /export/ai_models/model-zoo/florence-2-large
-git lfs install
-git clone https://huggingface.co/microsoft/Florence-2-large .
-```
-
-### ai-clip (CLIP ViT-L)
-
-CLIP embedding service for entity re-identification.
-
-| Property         | Value                                           |
-| ---------------- | ----------------------------------------------- |
-| **Port**         | 8093                                            |
-| **VRAM**         | ~800MB                                          |
-| **Base Image**   | `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime` |
-| **Model**        | Requires manual download                        |
-| **Health Check** | `GET /health`                                   |
-
-**Build:**
-
-```bash
-podman-compose -f docker-compose.prod.yml build ai-clip
-```
-
-**Environment Variables:**
-
-| Variable          | Default              | Description        |
-| ----------------- | -------------------- | ------------------ |
-| `CLIP_MODEL_PATH` | `/models/clip-vit-l` | Path to CLIP model |
-
-**Volume Mounts:**
-
-```yaml
-volumes:
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
-```
-
-**Model Download:**
-
-```bash
-mkdir -p /export/ai_models/model-zoo/clip-vit-l
-cd /export/ai_models/model-zoo/clip-vit-l
-git lfs install
-git clone https://huggingface.co/openai/clip-vit-large-patch14 .
-```
-
-### ai-enrichment (Combined Classification)
-
-Combined service for vehicle, pet, and clothing classification.
-
-| Property         | Value                                           |
-| ---------------- | ----------------------------------------------- |
-| **Port**         | 8094                                            |
-| **VRAM**         | ~2.5GB (all models loaded)                      |
-| **Base Image**   | `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime` |
-| **Models**       | Requires manual download (4 models)             |
-| **Health Check** | `GET /health`                                   |
-
-**Build:**
-
-```bash
-podman-compose -f docker-compose.prod.yml build ai-enrichment
-```
-
-**Environment Variables:**
-
-| Variable              | Default                                  | Description              |
-| --------------------- | ---------------------------------------- | ------------------------ |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier model |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier model     |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model        |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimation model   |
-
-**Volume Mounts:**
-
-```yaml
-volumes:
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-  - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
-```
-
-**Model Downloads:**
-
-```bash
-# Create directories
-mkdir -p /export/ai_models/model-zoo/{vehicle-segment-classification,pet-classifier,fashion-clip,depth-anything-v2-small}
-
-# Vehicle classification
-cd /export/ai_models/model-zoo/vehicle-segment-classification
-git lfs install
-git clone https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification .
-
-# Pet classifier
-cd /export/ai_models/model-zoo/pet-classifier
-git clone https://huggingface.co/microsoft/resnet-18 .
-
-# FashionCLIP
-cd /export/ai_models/model-zoo/fashion-clip
-git clone https://huggingface.co/patrickjohncyh/fashion-clip .
-
-# Depth estimation
-cd /export/ai_models/model-zoo/depth-anything-v2-small
-git clone https://huggingface.co/depth-anything/Depth-Anything-V2-Small .
-```
+The old `ai-florence` (8092), `ai-clip` (8093), `ai-enrichment` (8094) and
+`ai-enrichment-light` (8096) containers no longer exist. Their models are Triton
+models inside `ai-gateway`, reachable at `http://<gateway>:8090/florence`, `/clip`,
+`/enrichment` and `/enrich-lt`. Model weights land under
+`${AI_MODELS_PATH:-/export/ai_models}/model-zoo/` (mounted read-only at
+`/models/zoo`) when you run `./ai/download_models.sh` against the `models.yml`
+manifest — no per-repo `git clone` steps are needed anymore.
 
 ---
 
 ## GPU Configuration
 
-### GPU Passthrough (Docker Compose)
+### GPU Passthrough (Podman / compose)
 
-All AI services require GPU access. The `docker-compose.prod.yml` includes this configuration:
+`docker-compose.prod.yml` gives both AI containers all GPUs via the Podman CDI spec and
+then restricts each with `CUDA_VISIBLE_DEVICES` (using `nvidia.com/gpu=N` alone creates
+only `/dev/nvidiaN`, which CUDA cannot initialize):
 
 ```yaml
-deploy:
-  resources:
-    reservations:
-      devices:
-        - driver: nvidia
-          count: 1
-          capabilities: [gpu]
+# ai-gateway
+devices:
+  - nvidia.com/gpu=all
+environment:
+  - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
+# ai-llm
+devices:
+  - nvidia.com/gpu=${GPU_LLM:-0}
+environment:
+  - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
 ```
+
+See [GPU Setup](gpu-setup.md) for the CDI setup (`sudo nvidia-ctk cdi generate
+--output=/etc/cdi/nvidia.yaml`) and the multi-GPU variables.
 
 ### Verify GPU Access
 
 ```bash
-# Test GPU access from container
 podman run --rm --device nvidia.com/gpu=all \
-  nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
-
-# Or for Docker
-docker run --rm --gpus all \
-  nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
+  docker.io/nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 ```
 
 ### VRAM Requirements
 
-| Deployment Scenario   | Services                      | Total VRAM |
-| --------------------- | ----------------------------- | ---------- |
-| **Core only**         | ai-yolo26 + ai-llm (Mini 4B)  | ~7GB       |
-| **Core (production)** | ai-yolo26 + ai-llm (Nano 30B) | ~18GB      |
-| **Full stack**        | All 5 AI services             | ~22-24GB   |
+| Deployment Scenario   | Services                                | Total VRAM |
+| --------------------- | --------------------------------------- | ---------- |
+| **Core only**         | ai-gateway (YOLO26) + ai-llm (Mini 4B)  | ~7GB       |
+| **Core (production)** | ai-gateway + ai-llm (Nano 30B, ~14.7GB) | ~18-20GB   |
+| **Full stack**        | All gateway models + Nemotron 30B       | ~22-24GB   |
+
+With the default two-GPU split (`GPU_LLM=0`, `GPU_AI_SERVICES=1`) the load is ~16GB on
+GPU 0 and ~6GB on GPU 1.
 
 ---
 
@@ -331,74 +233,71 @@ docker run --rm --gpus all \
 
 ### Pattern 1: Full Production Stack
 
-Deploy everything from GHCR + locally built AI:
-
 ```bash
 # Clone the repository
 git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
 cd nemotron-v3-home-security-intelligence
 
-# Run setup script
-./setup.sh
+# Run setup script (creates .env, installs deps)
+python setup.py
 
 # Pull backend/frontend from GHCR
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
-# Build AI services
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+# Build AI containers locally
+podman compose -f docker-compose.prod.yml build ai-gateway ai-llm
 
-# Download models (see Model Downloads section above)
+# Download models (see Model Downloads above)
+./ai/download_models.sh
 
 # Start all services
-podman-compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 ```
 
 ### Pattern 2: Core Services Only
 
-Deploy without optional AI services (Florence, CLIP, Enrichment):
+Skip Florence/CLIP/enrichment by simply not needing them — they load on demand inside
+the gateway; the baseline is YOLO26 + Florence-2 + SigLIP (~4GB). Start only the
+essential services:
 
 ```bash
-# Build only core AI
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm
+# Build core AI containers
+podman compose -f docker-compose.prod.yml build ai-gateway ai-llm
 
-# Download Nemotron model from official NVIDIA repository
+# Download Nemotron model (or run ./ai/download_models.sh)
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 wget -O /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
   https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 
 # Start core services only
-podman-compose -f docker-compose.prod.yml up -d \
-  postgres redis backend frontend ai-yolo26 ai-llm
+podman compose -f docker-compose.prod.yml up -d \
+  postgres redis backend frontend ai-gateway ai-llm
 ```
 
 ### Pattern 3: AI Services on Separate GPU Host
 
-Run AI services on a dedicated GPU machine:
+Run AI on a dedicated GPU machine:
 
 **On GPU host:**
 
 ```bash
-# Clone repo on GPU host
 git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
 cd nemotron-v3-home-security-intelligence
-
-# Build and start AI services only
-podman-compose -f docker-compose.prod.yml build ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
-podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+podman compose -f docker-compose.prod.yml build ai-gateway ai-llm
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 ```
 
 **On application host:**
 
-Configure `.env` to point to the GPU host:
+Point `.env` at the GPU host (the gateway binds `127.0.0.1` by default — expose it via
+a reverse proxy or SSH tunnel, see [AI TLS](ai-tls.md) and
+[Deployment Modes](deployment-modes.md) Mode 4):
 
 ```bash
 GPU_HOST=10.0.0.50  # Your GPU host IP
-YOLO26_URL=http://${GPU_HOST}:8095
+AI_GATEWAY_URL=http://${GPU_HOST}:8090
 NEMOTRON_URL=http://${GPU_HOST}:8091
-FLORENCE_URL=http://${GPU_HOST}:8092
-CLIP_URL=http://${GPU_HOST}:8093
-ENRICHMENT_URL=http://${GPU_HOST}:8094
 ```
 
 Start non-AI services:
@@ -407,7 +306,7 @@ Start non-AI services:
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
-podman-compose -f docker-compose.prod.yml up -d postgres redis backend frontend
+podman compose -f docker-compose.prod.yml up -d postgres redis backend frontend
 ```
 
 ---
@@ -422,7 +321,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:l
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
 
 # Recreate containers with new images
-podman-compose -f docker-compose.prod.yml up -d backend frontend
+podman compose -f docker-compose.prod.yml up -d backend frontend
 ```
 
 ### Update AI Services (Rebuild)
@@ -431,11 +330,11 @@ podman-compose -f docker-compose.prod.yml up -d backend frontend
 # Pull latest source code
 git pull origin main
 
-# Rebuild AI containers
-podman-compose -f docker-compose.prod.yml build --no-cache ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+# Rebuild AI containers (--no-cache: cached layers hold stale code)
+podman compose -f docker-compose.prod.yml build --no-cache ai-gateway ai-llm
 
 # Recreate containers
-podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment
+podman compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 ```
 
 ### Use Specific Version (SHA Tag)
@@ -445,6 +344,7 @@ podman-compose -f docker-compose.prod.yml up -d ai-yolo26 ai-llm ai-florence ai-
 SHA=abc123
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${SHA}
 podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${SHA}
+IMAGE_TAG=${SHA} podman compose -f docker-compose.ghcr.yml up -d   # ghcr stack only
 ```
 
 ---
@@ -454,15 +354,12 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:
 ### Quick Health Check
 
 ```bash
-# All services
-curl http://localhost:8000/api/system/health/ready  # Backend
+curl http://localhost:8000/api/system/health/ready   # Backend
 
-# AI services individually
-curl http://localhost:8095/health  # YOLO26
-curl http://localhost:8091/health  # Nemotron
-curl http://localhost:8092/health  # Florence-2
-curl http://localhost:8093/health  # CLIP
-curl http://localhost:8094/health  # Enrichment
+# AI services
+curl http://localhost:8090/health                    # ai-gateway (aggregate)
+curl http://localhost:8090/yolo26/health             # per-router
+curl http://localhost:8091/health                    # Nemotron
 ```
 
 ### Comprehensive Check Script
@@ -472,17 +369,19 @@ curl http://localhost:8094/health  # Enrichment
 echo "=== Health Check ==="
 
 services=(
-  "backend:8000/api/system/health/ready"
-  "ai-yolo26:8095/health"
-  "ai-llm:8091/health"
-  "ai-florence:8092/health"
-  "ai-clip:8093/health"
-  "ai-enrichment:8094/health"
+  "backend:http://localhost:8000/api/system/health/ready"
+  "ai-gateway:http://localhost:8090/health"
+  "ai-gateway-yolo26:http://localhost:8090/yolo26/health"
+  "ai-gateway-florence:http://localhost:8090/florence/health"
+  "ai-gateway-clip:http://localhost:8090/clip/health"
+  "ai-gateway-enrichment:http://localhost:8090/enrichment/health"
+  "ai-gateway-enrich-lt:http://localhost:8090/enrich-lt/health"
+  "ai-llm:http://localhost:8091/health"
 )
 
 for svc in "${services[@]}"; do
   name="${svc%%:*}"
-  url="http://localhost:${svc#*:}"
+  url="${svc#*:}"
   if curl -sf "$url" > /dev/null 2>&1; then
     echo "[OK] $name"
   else
@@ -509,8 +408,11 @@ nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv
 
 ```bash
 # Check container logs
-podman-compose -f docker-compose.prod.yml logs ai-yolo26
-podman-compose -f docker-compose.prod.yml logs ai-llm
+podman compose -f docker-compose.prod.yml logs ai-gateway
+podman compose -f docker-compose.prod.yml logs ai-llm
+
+# Triton model-load failures show up first in the gateway log
+podman logs ai-gateway 2>&1 | grep -iE "error|failed|model"
 
 # Check if model files exist
 ls -la /export/ai_models/nemotron/
@@ -527,7 +429,8 @@ nvidia-ctk --version
 sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 
 # Test GPU access
-podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
+podman run --rm --device nvidia.com/gpu=all \
+  docker.io/nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 ```
 
 ### CUDA Out of Memory
@@ -536,30 +439,26 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nv
 # Check current VRAM usage
 nvidia-smi
 
-# Reduce GPU layers for Nemotron (in .env or docker-compose.override.yml)
-GPU_LAYERS=25  # Default is 35
+# Reduce GPU layers for Nemotron (in .env)
+GPU_LAYERS=25  # default is `auto` (all layers on GPU)
 
-# Stop optional AI services to free VRAM
-podman-compose -f docker-compose.prod.yml stop ai-florence ai-clip ai-enrichment
+# Move the gateway to a second GPU instead of shrinking the LLM
+GPU_AI_SERVICES=1   # already the default two-GPU split
 ```
 
 ### Service Timeout on Startup
 
-AI services have long startup times due to model loading:
+AI containers have long startup times due to model loading:
 
-| Service       | Expected Startup Time |
-| ------------- | --------------------- |
-| ai-yolo26     | 60-90 seconds         |
-| ai-llm        | 120-180 seconds       |
-| ai-florence   | 60-120 seconds        |
-| ai-clip       | 30-60 seconds         |
-| ai-enrichment | 120-180 seconds       |
+| Container    | Healthcheck `start_period` | What happens during startup        |
+| ------------ | -------------------------- | ---------------------------------- |
+| `ai-gateway` | 180s                       | Triton initialises 13 models       |
+| `ai-llm`     | 300s                       | 30B GGUF tensors load onto the GPU |
 
 Wait for health checks to pass before testing:
 
 ```bash
-# Watch service logs during startup
-podman-compose -f docker-compose.prod.yml logs -f ai-llm
+podman compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
 ---

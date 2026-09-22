@@ -26,39 +26,42 @@ no text overlays"
 
 ### GPU (Required)
 
-| Requirement            | Minimum | Recommended |
-| ---------------------- | ------- | ----------- |
-| **VRAM**               | 8GB     | 12GB+       |
-| **CUDA Compute**       | 7.0+    | 8.0+        |
-| **Combined AI Memory** | ~6GB    | ~6GB        |
+How much VRAM you need depends on which models you want running:
 
-The system runs two AI models simultaneously:
+| VRAM       | What You Can Run                                                          | Example GPUs                        |
+| ---------- | ------------------------------------------------------------------------- | ----------------------------------- |
+| **24GB**   | Full stack, all models loaded                                             | RTX 3090, 4090, A5000, A5500, A6000 |
+| **16GB**   | Nemotron (reduced layers) + YOLO26                                        | RTX 4080, A4000, Tesla T4           |
+| **8–12GB** | Nemotron partially offloaded via `GPU_LAYERS` (slow), YOLO26 + embeddings | RTX 3070, 4060 Ti, RTX 3080         |
 
-- **YOLO26** (object detection): ~4GB VRAM ([`ai/start_detector.sh:6-7`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/start_detector.sh#L6))
-- **Nemotron** (risk analysis): ~14.7GB VRAM production (Nemotron-3-Nano-30B) or ~3GB development (Mini 4B)
+- **NVIDIA CUDA capability** 7.0 or newer (Volta and later).
+- The production LLM is **Nemotron-3-Nano-30B** at Q4_K_M: a ~14.7GB GGUF file, roughly 21GB resident when fully on GPU. On smaller cards, reduce `GPU_LAYERS` to offload layers to system RAM (see [Multi-GPU guide](../development/multi-gpu.md)) — the system degrades gracefully.
+- **YOLO26 + the gateway models** (Triton, on-demand loading) add several GB on top; with the full stack the measured footprint is ~23GB of a 24GB card.
 
-**Supported GPUs:**
-
-- NVIDIA RTX 30-series (3060 and above)
-- NVIDIA RTX 40-series (any)
-- NVIDIA RTX A-series (A2000 and above)
-- NVIDIA Tesla/Quadro with 8GB+ VRAM
+**Supported GPUs:** NVIDIA RTX 30-series and newer, RTX A-series, and Tesla/Quadro cards with CUDA support. Below ~16GB set `GPU_LAYERS` below `auto` so part of the LLM spills into system RAM — analysis gets slow, but the LLM still runs (risk scoring is LLM-determined; there is no run mode without it).
 
 ### CPU & Memory
 
-| Component   | Minimum | Recommended |
-| ----------- | ------- | ----------- |
-| **CPU**     | 4 cores | 8+ cores    |
-| **RAM**     | 8GB     | 16GB+       |
-| **Storage** | 50GB    | 100GB+ SSD  |
+| Component   | Minimum            | Recommended           |
+| ----------- | ------------------ | --------------------- |
+| **CPU**     | 4 cores            | 8+ cores              |
+| **RAM**     | 16GB               | 32GB+                 |
+| **Storage** | 50GB (core models) | 100GB+ SSD (full zoo) |
 
-> **Note:** Storage requirements increase with camera count and retention period. Plan for ~1GB/day per active camera.
+> **Note:** The AI model zoo is ~42GB if you download everything. Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
+
+> **Sizing note:** `docker-compose.prod.yml` caps its 19 default services with
+> `deploy.resources.limits` summing to ~25 CPUs and ~49GB memory of _ceilings_
+> (ai-gateway 8 CPU/20G, ai-llm 4 CPU/12G, backend 2 CPU/10G dominate) — a busy
+> full-stack box comfortably uses 32GB+, and measured steady-state usage on a
+> production host is ~16GB system RAM. The minimums above are the floor for a
+> core-services-only run, matching the rest of the docs.
 
 ### Network
 
 - Cameras must be able to FTP upload to the server
 - Local network access (no internet required after setup)
-- Default ports: 80 (web), 8000 (API), 8095 (detection), 8091 (LLM)
+- Default ports (all configurable in `.env`): **8080** dashboard HTTP, **8444** dashboard HTTPS, **8000** API, **8090** AI gateway, **8091** Nemotron LLM, **5432** PostgreSQL, **6379** Redis, **3002** Grafana. Everything except the dashboard binds to `127.0.0.1` only.
 
 ---
 
@@ -196,11 +199,11 @@ podman machine start
 
 </details>
 
-> **macOS Note:** If using Podman on macOS, set `AI_HOST=host.containers.internal` before starting containers. Docker Desktop uses `host.docker.internal` by default.
+> **macOS Note (host-run AI only):** There is no `AI_HOST` variable — the backend reaches AI services through URL variables. If AI servers run on the host, point `YOLO26_URL`/`NEMOTRON_URL` (in `.env`) at `http://host.docker.internal:<port>` for Docker Desktop or `http://host.containers.internal:<port>` for Podman. A fully containerized deployment needs no host access at all.
 
 ### llama.cpp
 
-Required for running the Nemotron LLM server.
+Required **only** if you run the Nemotron server on the host (`./ai/start_llm.sh`, Development Mode). In Production Mode the `ai-llm` container bundles its own llama.cpp build.
 
 ```bash
 # Verify llama-server is available
@@ -242,7 +245,7 @@ docker --version && docker compose version   # Docker
 # OR
 podman --version && podman-compose --version  # Podman
 
-# llama.cpp
+# llama.cpp (only needed for host-run AI, Development Mode)
 which llama-server
 ```
 

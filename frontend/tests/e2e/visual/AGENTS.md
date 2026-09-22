@@ -14,14 +14,21 @@ Visual regression tests capture screenshots and compare them against baseline im
 
 ```
 frontend/tests/e2e/visual/
-├── AGENTS.md                    # This documentation
-├── dashboard.visual.spec.ts     # Dashboard page visual tests
-├── timeline.visual.spec.ts      # Timeline page visual tests
-├── settings.visual.spec.ts      # Settings page visual tests
-├── system.visual.spec.ts        # System page visual tests
-├── components.visual.spec.ts    # Reusable component visual tests
-├── responsive.visual.spec.ts    # Responsive design tests (3 viewports)
-└── *.png                        # Baseline snapshot images (auto-generated)
+├── AGENTS.md                        # This documentation
+├── dashboard.visual.spec.ts         # Dashboard page visual tests
+├── timeline.visual.spec.ts          # Timeline page visual tests
+├── settings.visual.spec.ts          # Settings page visual tests
+├── system.visual.spec.ts            # System page visual tests
+├── components.visual.spec.ts        # Reusable component visual tests
+├── responsive.visual.spec.ts        # Responsive design tests (3 viewports)
+├── ai-audit.visual.spec.ts          # AI audit page
+├── ai-performance.visual.spec.ts    # AI performance page
+├── alerts.visual.spec.ts            # Alerts page
+├── analytics.visual.spec.ts         # Analytics page
+├── audit.visual.spec.ts             # Audit log page
+├── entities.visual.spec.ts          # Entities page
+├── logs.visual.spec.ts              # Logs page
+└── *.visual.spec.ts-snapshots/      # Committed baseline images per spec
 ```
 
 ## Running Visual Tests
@@ -47,14 +54,23 @@ npx playwright show-report
 
 ## Test Categories
 
-| File                      | Description                              | Screenshots |
-| ------------------------- | ---------------------------------------- | ----------- |
-| `dashboard.visual.spec.ts`| Dashboard page, stats row, camera grid   | 6           |
-| `timeline.visual.spec.ts` | Event timeline, cards, filters           | 6           |
-| `settings.visual.spec.ts` | Settings tabs (cameras, processing, etc) | 6           |
-| `system.visual.spec.ts`   | System monitoring panels and metrics     | 10          |
-| `components.visual.spec.ts`| Reusable UI components                  | 15+         |
-| `responsive.visual.spec.ts`| 3 viewports x 4 pages                   | 12+         |
+`toHaveScreenshot` calls per file (measured):
+
+| File                            | Description                                 | Screenshots |
+| ------------------------------- | ------------------------------------------- | ----------- |
+| `dashboard.visual.spec.ts`      | Dashboard page, stats row, camera grid      | 6           |
+| `timeline.visual.spec.ts`       | Event timeline, cards, filters              | 6           |
+| `settings.visual.spec.ts`       | Settings tabs (cameras, processing, etc)    | 6           |
+| `system.visual.spec.ts`         | System monitoring panels and metrics        | 9           |
+| `components.visual.spec.ts`     | Reusable UI components                      | 15          |
+| `responsive.visual.spec.ts`     | 3 viewports x pages (desktop/tablet/mobile) | 10          |
+| `ai-audit.visual.spec.ts`       | AI audit page                               | 9           |
+| `ai-performance.visual.spec.ts` | AI performance page                         | 9           |
+| `alerts.visual.spec.ts`         | Alerts page                                 | 7           |
+| `analytics.visual.spec.ts`      | Analytics page                              | 8           |
+| `audit.visual.spec.ts`          | Audit log page                              | 7           |
+| `entities.visual.spec.ts`       | Entities page                               | 7           |
+| `logs.visual.spec.ts`           | Logs page                                   | 2           |
 
 ## Viewport Sizes
 
@@ -90,7 +106,7 @@ await expect(page).toHaveScreenshot('page.png', {
     page.locator('[data-testid="timestamp"]'),
     page.locator('time'),
     page.locator('[data-testid="live-metrics"]'),
-    page.locator('img'),  // Camera snapshots vary
+    page.locator('img'), // Camera snapshots vary
   ],
 });
 ```
@@ -100,18 +116,22 @@ await expect(page).toHaveScreenshot('page.png', {
 When UI changes are intentional:
 
 1. **Local update:**
+
    ```bash
    npx playwright test --project=visual-chromium --update-snapshots
    ```
 
 2. **Review changes:**
+
    ```bash
    npx playwright show-report
    ```
 
-3. **Commit updated snapshots:**
+3. **Commit updated snapshots** (baselines live in per-spec
+   `*.visual.spec.ts-snapshots/` directories):
+
    ```bash
-   git add frontend/tests/e2e/visual/*.png
+   git add 'frontend/tests/e2e/visual/*.visual.spec.ts-snapshots'
    git commit -m "chore: update visual regression baselines"
    ```
 
@@ -126,7 +146,10 @@ When UI changes are intentional:
 
 Visual tests run in `.github/workflows/visual-tests.yml`:
 
-- **Triggers:** PR and push to main (frontend changes only)
+- **Triggers:** push to main with `frontend/**` changes only (not PRs), plus
+  a manual `workflow_dispatch` with an `update_snapshots` boolean input that
+  reruns with `--update-snapshots` and uploads the new baselines as an
+  artifact
 - **Browser:** Chromium only (for consistency)
 - **Artifacts (generated during CI runs):**
   - HTML report (output in CI artifacts)
@@ -156,6 +179,7 @@ Visual tests run in `.github/workflows/visual-tests.yml`:
 When visual tests fail:
 
 1. **View the HTML report:**
+
    ```bash
    npx playwright show-report
    ```
@@ -179,6 +203,7 @@ Visual tests are separate from functional E2E tests:
 - **Visual tests (this directory)**: Test appearance and layout
 
 Both use the same:
+
 - Page objects (`../pages/`)
 - Fixtures (`../fixtures/`)
 - Mock configurations

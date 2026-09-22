@@ -32,15 +32,19 @@ The `CleanupService` runs daily to enforce retention policies and reclaim disk s
 
 ### Cleanup Schedule
 
-The cleanup service runs daily at a configurable time (default: 03:00). Configure in the service initialization:
+The cleanup service runs daily at a configurable time (default: 03:00). It is started from the
+FastAPI lifespan with no arguments (`cleanup_service = CleanupService()` in `backend/main.py`),
+so it runs on the constructor defaults below. Changing them means editing that call site
+(`CleanupService.__init__` in `backend/services/cleanup_service.py`):
 
 ```python
-# backend/services/cleanup_service.py
-cleanup_service = CleanupService(
+# backend/services/cleanup_service.py — constructor defaults
+CleanupService(
     cleanup_time="03:00",        # HH:MM (24-hour format)
-    retention_days=30,           # Override config default
+    retention_days=None,         # None = use RETENTION_DAYS from config
     thumbnail_dir="data/thumbnails",
-    delete_images=False          # Keep original camera images
+    delete_images=False,         # Keep original camera images
+    batch_size=1000,
 )
 ```
 

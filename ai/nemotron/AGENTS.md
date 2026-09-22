@@ -9,7 +9,7 @@ Contains configuration for **NVIDIA Nemotron** language models that power AI-dri
 ## Port and Resources
 
 - **Port**: 8091
-- **Server**: llama.cpp with CUDA 13.1.1 (or HuggingFace Transformers for `model_hf.py`)
+- **Server**: llama.cpp with CUDA 13.3.1 (or HuggingFace Transformers for `model_hf.py`)
 - **Inference Time**: 2-5s per analysis
 - **Format**: ChatML with `<|im_start|>` / `<|im_end|>` message delimiters
 
@@ -153,13 +153,13 @@ Multi-stage build for llama.cpp with CUDA support:
 
 **Stage 1 (Builder):**
 
-- Base: `nvidia/cuda:13.1.1-devel-ubuntu22.04`
+- Base: `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04`
 - Clones llama.cpp from GitHub (commit `b7972`)
 - Builds with `GGML_CUDA=ON` for GPU support
 
 **Stage 2 (Runtime):**
 
-- Base: `nvidia/cuda:13.1.1-runtime-ubuntu22.04`
+- Base: `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`
 - Copies compiled `llama-server` binary
 - Non-root user: `llama` for security
 - Health check with 120s start period for model loading
@@ -170,11 +170,15 @@ Multi-stage build for llama.cpp with CUDA support:
 MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 PORT=8091
 GPU_LAYERS=35        # Layers offloaded to GPU (adjust for VRAM)
-CTX_SIZE=131072      # Full 128K context window
-PARALLEL=1           # Single-slot dedicated inference
+CTX_SIZE=32768       # Per-container default
+PARALLEL=2           # Inference slots
 ```
 
-**CMD:**
+`docker-compose.prod.yml` overrides these at runtime:
+`GPU_LAYERS=${GPU_LAYERS:-auto}` (llama.cpp auto-fit), `CTX_SIZE=${CTX_SIZE:-262144}`
+(8 slots x 32K each, from `.env`) and `PARALLEL=${PARALLEL:-8}`.
+
+**CMD (abridged - see `ai/nemotron/Dockerfile` for the full form):**
 
 ```bash
 llama-server --model ${MODEL_PATH} \
@@ -184,6 +188,11 @@ llama-server --model ${MODEL_PATH} \
   --parallel ${PARALLEL} \
   --cont-batching --metrics
 ```
+
+The full CMD additionally sets `--threads`/`--threads-batch`,
+`--batch-size`/`--ubatch-size`, `--cache-type-k`/`--cache-type-v`,
+`--cache-reuse 256`, `--mlock`, and conditionally `--flash-attn on`
+(`FLASH_ATTENTION=true`) plus MoE CPU-offload overrides.
 
 ### `config.json`
 
@@ -269,65 +278,38 @@ NVIDIA Nemotron uses ChatML format for message structuring. All prompts use thes
 
 ### Prompt Templates
 
-The backend uses five prompt templates with increasing sophistication. Selection is automatic based on available enrichment data:
+Two ChatML risk-analysis templates exist, as constants in
+`backend/services/prompts.py` (older revisions of this doc listed five
+env-var-configurable tiers - only these two exist):
 
-| Template        | When Used                                     | Key Features                                       |
-| --------------- | --------------------------------------------- | -------------------------------------------------- |
-| `basic`         | Fallback when enrichment unavailable          | Camera, time, detection list only                  |
-| `enriched`      | Zone/baseline/cross-camera context available  | Adds zone analysis, baseline comparison, deviation |
-| `full_enriched` | Enriched + license plates/faces from pipeline | Adds vision enrichment (plates, faces, OCR)        |
-| `vision`        | Florence-2 extraction + context enrichment    | Detailed attributes, re-ID, scene analysis         |
-| `model_zoo`     | Full model zoo enrichment available           | Violence, weather, clothing, vehicles, pets, depth |
+- `RISK_ANALYSIS_PROMPT` (metrics label `basic`): camera name, time window,
+  detection list with timestamps and confidence, risk-level guidelines.
+- `MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT` (label `model_zoo`): adds
+  Model Zoo enrichment context - violence/action recognition, weather and
+  visibility, clothing analysis (FashionCLIP), face covering, vehicle type
+  and damage, pet detections (false-positive filtering), pose, image
+  quality/tampering indicators, plus a risk interpretation guide.
 
-### Prompt Template Details
+Selection is automatic in `NemotronAnalyzer` (`nemotron_analyzer.py`, the
+`template_name` near the prompt build): `model_zoo` when enriched baselines
+or an enrichment result are available, otherwise `basic`.
 
-**Basic Prompt** (`RISK_ANALYSIS_PROMPT`):
+Supporting blocks in the same module: `CALIBRATED_SYSTEM_PROMPT` (and
+`_WITH_REASONING`), `SCORING_REFERENCE_TABLE`, `NON_RISK_FACTORS`,
+`HOUSEHOLD_CONTEXT_TEMPLATE`.
 
-- Camera name and time window
-- Simple detection list with timestamps and confidence
-- Risk level guidelines
-
-**Enriched Prompt** (`ENRICHED_RISK_ANALYSIS_PROMPT`):
-
-- Zone analysis (entry points, high-security areas)
-- Baseline comparison (expected vs. actual activity)
-- Deviation score (0 = normal, 1 = highly unusual)
-- Cross-camera correlation summary
-
-**Full Enriched Prompt** (`FULL_ENRICHED_RISK_ANALYSIS_PROMPT`):
-
-- All enriched context plus:
-- License plate detections (known vs. unknown)
-- Face detections for identity review
-- OCR text from images
-
-**Vision Enhanced Prompt** (`VISION_ENHANCED_RISK_ANALYSIS_PROMPT`):
-
-- Florence-2 vision-language attributes (clothing, actions, carrying items)
-- Person/vehicle re-identification context
-- Scene analysis (environment description)
-- Service worker detection (lower risk)
-
-**Model Zoo Enhanced Prompt** (`MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT`):
-
-- Violence detection alerts
-- Weather/visibility context
-- Detailed clothing analysis (FashionCLIP + SegFormer)
-- Face covering detection
-- Vehicle type and damage analysis
-- Pet detection (false positive filtering)
-- Pose and action recognition
-- Image quality/tampering indicators
-- Comprehensive risk interpretation guide
+Prompts are editable at runtime through the prompt management service
+(`backend/services/prompt_service.py`, `prompt_storage.py`, routes in
+`backend/api/routes/prompt_management.py`) - not via environment variables.
 
 ### Generation Parameters
 
 ```python
 payload = {
     "prompt": prompt,
-    "temperature": 0.7,    # Balanced creativity/consistency
-    "top_p": 0.95,         # Nucleus sampling
-    "max_tokens": 1536,    # Room for detailed explanations
+    "temperature": 0.3,    # Low temp for consistent risk scoring (NEM-3734)
+    "top_p": 0.95,
+    "max_tokens": max_output_tokens,  # settings.nemotron_max_output_tokens, default 1536
     "stop": ["<|im_end|>", "<|im_start|>"]  # ChatML terminators
 }
 ```
@@ -411,7 +393,7 @@ Configuration for `start_nemotron.sh`:
 ## Prerequisites
 
 - **llama.cpp**: `llama-server` binary must be available (built in container)
-- **CUDA**: NVIDIA CUDA 13.1.1 (container uses nvidia/cuda:13.1.1 base images)
+- **CUDA**: NVIDIA CUDA 13.3.1 (container uses nvidia/cuda:13.3.1 base images)
 - **VRAM**: ~3 GB (4B model) or ~14.7 GB (30B model)
 - **Disk**: ~2.5 GB (4B model) or ~18 GB (30B model)
 

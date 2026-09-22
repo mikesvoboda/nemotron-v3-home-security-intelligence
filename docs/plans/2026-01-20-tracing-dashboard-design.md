@@ -1,5 +1,7 @@
 # HSI Distributed Tracing Dashboard Design
 
+> **Status:** Implemented — `monitoring/grafana/dashboards/tracing.json` plus `frontend/src/components/tracing/TracingPage.tsx` (now backed by Tempo, not Jaeger).
+
 **Date:** 2026-01-20
 **Status:** Approved
 

@@ -5,7 +5,7 @@
 **Key Files:**
 
 - `backend/api/middleware/rate_limit.py:1-536` - Rate limiting implementation
-- `backend/core/config.py:1326-1397` - Rate limit configuration
+- `backend/core/config.py:2118-2185` - Rate limit configuration
 - `backend/api/exception_handlers.py:506-548` - Rate limit error handling
 
 ## Overview
@@ -41,10 +41,10 @@ sequenceDiagram
 
 ## Rate Limit Tiers
 
-The system defines multiple rate limit tiers for different endpoint types (`backend/api/middleware/rate_limit.py:170-179`):
+The system defines multiple rate limit tiers for different endpoint types (`backend/api/middleware/rate_limit.py:283-291`):
 
 ```python
-# From backend/api/middleware/rate_limit.py:170-179
+# From backend/api/middleware/rate_limit.py:283-291
 class RateLimitTier(str, Enum):
     """Rate limit tiers for different endpoint types."""
 
@@ -71,10 +71,10 @@ class RateLimitTier(str, Enum):
 
 ## Configuration
 
-Rate limit settings are defined in `backend/core/config.py:1326-1397`:
+Rate limit settings are defined in `backend/core/config.py:2118-2185`:
 
 ```python
-# From backend/core/config.py:1328-1397
+# From backend/core/config.py:2118-2185 (abridged)
 rate_limit_enabled: bool = Field(
     default=True,
     description="Enable rate limiting for API endpoints",
@@ -113,10 +113,10 @@ rate_limit_burst: int = Field(
 
 ### RateLimiter Class
 
-The `RateLimiter` class (`backend/api/middleware/rate_limit.py:266-436`) implements the sliding window algorithm:
+The `RateLimiter` class (`backend/api/middleware/rate_limit.py:379-537`) implements the sliding window algorithm:
 
 ```python
-# From backend/api/middleware/rate_limit.py:266-316
+# From backend/api/middleware/rate_limit.py:393-414 (abridged)
 class RateLimiter:
     """FastAPI dependency for rate limiting using Redis sliding window.
 
@@ -140,55 +140,60 @@ class RateLimiter:
 
 ### Sliding Window Algorithm
 
-The sliding window uses Redis sorted sets (`backend/api/middleware/rate_limit.py:328-399`):
+The sliding window runs as an **atomic Lua script** on Redis — a pipeline could
+race (several concurrent requests passing the count check before any increments
+it). The script lives in `backend/scripts/sliding_window_rate_limit.lua` and is
+script-load/evalsha'd by `_execute_rate_limit_script`
+(`backend/api/middleware/rate_limit.py:48, 97-140`):
+
+```lua
+-- backend/scripts/sliding_window_rate_limit.lua (abridged)
+-- KEYS[1] = rate limit key, ARGV = now, window_seconds, limit
+redis.call('ZREMRANGEBYSCORE', key, '-inf', window_start)  -- drop stale entries
+local count = redis.call('ZCARD', key)                     -- count in window
+if count < limit then
+    redis.call('ZADD', key, now, tostring(now))            -- record this request
+    redis.call('EXPIRE', key, window + 10)
+    return {1, count + 1}                                  -- allowed, new count
+else
+    redis.call('EXPIRE', key, window + 10)
+    return {0, count}                                      -- denied
+end
+```
 
 ```python
-# From backend/api/middleware/rate_limit.py:355-393
+# backend/api/middleware/rate_limit.py:441-500 (abridged)
 async def _check_rate_limit(
     self,
     redis_client: RedisClient,
     client_ip: str,
 ) -> tuple[bool, int, int]:
     """Check if request is within rate limits using sliding window."""
-    key = self._make_key(client_ip)
-    now = time.time()
-    window_start = now - self.window_seconds
+    settings = get_settings()
+    if not settings.rate_limit_enabled:
+        return (True, 0, self.requests_per_minute)
 
-    # Total limit including burst
+    key = self._make_key(client_ip)          # "rate_limit:{tier}:{ip}"
+    now = time.time()
     total_limit = self.requests_per_minute + self.burst
 
-    client = redis_client._ensure_connected()
-
-    # Use Redis pipeline for atomic operations
-    pipe = client.pipeline()
-
-    # Remove expired entries (outside the sliding window)
-    pipe.zremrangebyscore(key, "-inf", window_start)
-
-    # Count current requests in window
-    pipe.zcard(key)
-
-    # Add current request with timestamp
-    pipe.zadd(key, {f"{now}": now})
-
-    # Set expiry on the key (slightly longer than window)
-    pipe.expire(key, self.window_seconds + 10)
-
-    results = await pipe.execute()
-
-    # Pipeline returns: removed count, current count, added count, expiry set
-    current_count = results[1]
-
-    # Check if over limit (count is before adding current request)
-    is_allowed = current_count < total_limit
+    try:
+        is_allowed, current_count = await _execute_rate_limit_script(
+            redis_client, key, now, self.window_seconds, total_limit
+        )
+        return (is_allowed, current_count, total_limit)
+    except Exception as e:
+        # On Redis errors, fail open (allow the request)
+        logger.error(f"Rate limit check failed: {e}", exc_info=True)
+        return (True, 0, self.requests_per_minute)
 ```
 
 ## Client IP Extraction
 
-The `get_client_ip` function (`backend/api/middleware/rate_limit.py:219-264`) extracts the client IP securely:
+The `get_client_ip` function (`backend/api/middleware/rate_limit.py:332-377`) extracts the client IP securely:
 
 ```python
-# From backend/api/middleware/rate_limit.py:219-264
+# From backend/api/middleware/rate_limit.py:332-377
 def get_client_ip(request: Request | WebSocket) -> str:
     """Extract client IP address from request.
 

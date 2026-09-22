@@ -8,7 +8,7 @@
 
 ```bash
 # 1. Set up development environment
-./setup.sh                    # Generate .env and docker-compose.override.yml
+python setup.py               # Generate .env and docker-compose.override.yml
 uv sync --extra dev           # Install Python dependencies
 cd frontend && npm install    # Install frontend dependencies
 
@@ -83,16 +83,16 @@ gh pr create --title "feat: my feature (NEM-123)"
 
 All commits must pass pre-commit hooks. **Never bypass them.**
 
-| Hook        | Stage      | Purpose                |
-| ----------- | ---------- | ---------------------- |
-| ruff        | pre-commit | Python linting         |
-| ruff-format | pre-commit | Python formatting      |
-| mypy        | pre-commit | Python type checking   |
-| eslint      | pre-commit | TypeScript linting     |
-| prettier    | pre-commit | Code formatting        |
-| hadolint    | pre-commit | Dockerfile linting     |
-| semgrep     | pre-commit | Security scanning      |
-| fast-test   | pre-push   | Unit tests before push |
+| Hook           | Stage      | Purpose                     |
+| -------------- | ---------- | --------------------------- |
+| ruff           | pre-commit | Python linting              |
+| ruff-format    | pre-commit | Python formatting           |
+| mypy           | pre-commit | Python type checking        |
+| eslint         | pre-commit | TypeScript linting          |
+| prettier       | pre-commit | Code formatting             |
+| hadolint       | pre-commit | Dockerfile linting          |
+| semgrep        | pre-commit | Security scanning           |
+| parallel-tests | pre-push   | Fast selected tier pre-push |
 
 **Forbidden Commands:**
 
@@ -212,13 +212,13 @@ This rule is non-negotiable:
 
 ### Required Hooks
 
-| Hook                      | Stage    | Purpose                |
-| ------------------------- | -------- | ---------------------- |
-| fast-test                 | pre-push | Unit tests before push |
-| Backend Unit Tests        | CI       | Full test suite        |
-| Backend Integration Tests | CI       | API and service tests  |
-| Frontend Tests            | CI       | Component tests        |
-| E2E Tests                 | CI       | Browser tests          |
+| Hook                      | Stage    | Purpose                     |
+| ------------------------- | -------- | --------------------------- |
+| parallel-tests            | pre-push | Fast selected tier pre-push |
+| Backend Unit Tests        | CI       | Full test suite             |
+| Backend Integration Tests | CI       | API and service tests       |
+| Frontend Tests            | CI       | Component tests             |
+| E2E Tests                 | CI       | Browser tests               |
 
 ---
 
@@ -305,7 +305,7 @@ frontend/
 | [Testing Guide](../../development/testing.md)     | Test patterns and fixtures |
 | [Code Quality](../../development/code-quality.md) | Tool configuration         |
 | [Pre-commit Hooks](../../development/hooks.md)    | Hook documentation         |
-| [CLAUDE.md](../../../CLAUDE.md)                   | Project instructions       |
+| [AGENTS.md](../../../AGENTS.md)                   | Project instructions       |
 
 ---
 
@@ -323,4 +323,4 @@ Setup guides for AI-assisted development and debugging tools.
 
 ---
 
-[Back to Developer Hub](../README.md) | [Back to Documentation Index](../../README.md)
+[Back to Developer Hub](../README.md) | [Back to Documentation Index](../../index.md)

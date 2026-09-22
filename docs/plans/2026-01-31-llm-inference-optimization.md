@@ -1,5 +1,7 @@
 # LLM Inference Optimization Design
 
+> **Status:** Superseded — results were published as `docs/archive/llm-inference-optimization-report.md` (moved out of `docs/reports/` during the 2026-09 cleanup).
+
 **Issue:** NEM-4536
 **Status:** Planning
 **Author:** AI Engineering Team

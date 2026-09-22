@@ -8,7 +8,13 @@
 
 Home Security Intelligence is designed as a **single-user, local deployment**:
 
-- **No authentication by default** - Assumes trusted network
+- **First-time admin registration required** - `SetupGuardMiddleware` returns 503 on the
+  API until the first user is created. After registration the API is open (no per-request
+  login) — the `127.0.0.1` service bindings are the primary security boundary. The global
+  `AuthMiddleware` class exists for future multi-user support but is not active.
+- **Per-route guards for sensitive operations** - destructive/admin routes sit behind
+  `verify_api_key` (`API_KEY_ENABLED`) and/or `require_admin_access` (`DEBUG` +
+  `ADMIN_ENABLED`, optionally `ADMIN_API_KEY` via `X-Admin-API-Key`).
 - **No cloud connectivity** - All processing is local
 - **No internet exposure** - Designed for LAN access only
 
@@ -16,14 +22,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 
 ## Default Security Posture
 
-| Feature         | Default        | Production Recommendation      |
-| --------------- | -------------- | ------------------------------ |
-| Authentication  | Disabled       | Enable for exposed deployments |
-| HTTPS/TLS       | Disabled       | Enable for production          |
-| Rate Limiting   | Enabled        | Keep enabled                   |
-| Admin Endpoints | Disabled       | Keep disabled unless needed    |
-| Debug Mode      | Disabled       | Keep disabled                  |
-| CORS            | Localhost only | Restrict to your domains       |
+| Feature         | Default                                                               | Production Recommendation  |
+| --------------- | --------------------------------------------------------------------- | -------------------------- |
+| API auth        | Open after first admin registers; `API_KEY_ENABLED=false`             | Enable API keys if exposed |
+| HTTPS/TLS       | Disabled (`TLS_MODE=disabled`)                                        | Enable for production      |
+| Rate Limiting   | Enabled                                                               | Keep enabled               |
+| Admin Endpoints | `ADMIN_ENABLED=true` **but gated by `DEBUG=false`** → closed          | Keep DEBUG off             |
+| Debug Mode      | Disabled                                                              | Keep disabled              |
+| CORS            | `https://{localhost,127.0.0.1,0.0.0.0}:8444` + `http://frontend:8080` | Restrict to your domains   |
 
 ---
 
@@ -43,11 +49,11 @@ environment:
 
 **Option 1: Interactive Setup (Recommended)**
 
-The setup script generates secure 32-character passwords automatically:
+The setup script generates secure passwords automatically (there is no `setup.sh`):
 
 ```bash
-./setup.sh              # Quick mode - generates secure password
-./setup.sh --guided     # Guided mode - explains each step
+python setup.py              # Quick mode - generates secure password
+python setup.py --guided     # Guided mode - explains each step
 ```
 
 **Option 2: Manual .env File**
@@ -177,7 +183,7 @@ Admin endpoints require **both** conditions:
 DEBUG=true
 ADMIN_ENABLED=true
 
-# Optional: Require API key for admin endpoints
+# Optional: Require API key for admin endpoints (X-Admin-API-Key header)
 ADMIN_API_KEY=your-admin-api-key
 ```
 
@@ -314,10 +320,19 @@ TLS_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
 | Remote AI services | HTTPS    | Required       |
 
 ```bash
-# Production AI service URLs
-YOLO26_URL=https://your-yolo26-host:8095
-NEMOTRON_URL=https://your-nemotron-host:8091
+# Production AI service URLs — terminate TLS at a proxy (the AI containers
+# themselves serve plain HTTP; see ../ai-tls.md)
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=https://your-ai-host
+YOLO26_URL=https://your-ai-host/yolo26
+NEMOTRON_URL=https://your-ai-host
 ```
+
+> [!IMPORTANT]
+> The backend's AI clients (`httpx.AsyncClient` with default verification) have **no**
+> custom-CA setting — `AI_VERIFY_SSL` / `AI_CA_CERT_PATH` do not exist. An `https://` AI
+> URL only works when the certificate chains to the OS trust store inside the backend
+> container.
 
 ---
 
@@ -327,22 +342,23 @@ NEMOTRON_URL=https://your-nemotron-host:8091
 
 Only expose necessary ports:
 
-| Port   | Service     | Exposure          |
-| ------ | ----------- | ----------------- |
-| 80/443 | Frontend    | User access       |
-| 8000   | Backend API | User access       |
-| 5432   | PostgreSQL  | **Internal only** |
-| 6379   | Redis       | **Internal only** |
-| 8095   | YOLO26      | **Internal only** |
-| 8091   | Nemotron    | **Internal only** |
+| Port        | Service                 | Exposure                                   |
+| ----------- | ----------------------- | ------------------------------------------ |
+| 8080 (HTTP) | Frontend                | Published `0.0.0.0` — user access          |
+| 8444 (TLS)  | Frontend + `/grafana/`  | Published `0.0.0.0` — user access          |
+| 8000        | Backend API             | Bound `127.0.0.1:${API_PORT}` — host-local |
+| 5432        | PostgreSQL              | Bound `127.0.0.1` — **internal only**      |
+| 6379        | Redis                   | Bound `127.0.0.1` — **internal only**      |
+| 8090        | ai-gateway (YOLO26 etc) | Bound `127.0.0.1` — **internal only**      |
+| 8091        | ai-llm (Nemotron)       | Bound `127.0.0.1` — **internal only**      |
+
+Most host bindings are already `127.0.0.1` (the compose files bind them that way), so the
+firewall mainly needs to allow the frontend ports for LAN users:
 
 ```bash
 # UFW example (Linux)
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw allow 8000/tcp
-ufw deny 5432/tcp
-ufw deny 6379/tcp
+ufw allow from 192.168.1.0/24 to any port 8080 proto tcp
+ufw allow from 192.168.1.0/24 to any port 8444 proto tcp
 ufw enable
 ```
 
@@ -382,23 +398,25 @@ services:
 Rate limiting is enabled by default to prevent abuse:
 
 ```bash
-# .env (defaults shown)
+# .env (defaults from backend/core/config.py shown)
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_REQUESTS_PER_MINUTE=60
 RATE_LIMIT_BURST=10
 RATE_LIMIT_MEDIA_REQUESTS_PER_MINUTE=120
-RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=10
+RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=100
 RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE=30
+RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE=10
 ```
 
 ### Rate Limit Tiers
 
-| Endpoint Type             | Limit/min      | Burst | Purpose                     |
-| ------------------------- | -------------- | ----- | --------------------------- |
-| General API               | 60             | 10    | Normal operations           |
-| Media (images/thumbnails) | 120            | -     | Higher for dashboards       |
-| Search                    | 30             | -     | Lower (expensive operation) |
-| WebSocket                 | 10 connections | -     | Prevent connection storms   |
+| Endpoint Type             | Limit/min       | Burst | Purpose                      |
+| ------------------------- | --------------- | ----- | ---------------------------- |
+| General API               | 60              | 10    | Normal operations            |
+| Media (images/thumbnails) | 120             | -     | Higher for dashboards        |
+| Search                    | 30              | -     | Lower (expensive operation)  |
+| CSV export                | 10              | -     | Limit bulk data exfiltration |
+| WebSocket                 | 100 connections | -     | Prevent connection storms    |
 
 ---
 
@@ -497,7 +515,7 @@ This project supports Docker secrets for enhanced credential security:
 
 ```bash
 # Create secrets with the setup script
-./setup.sh --create-secrets
+python setup.py --create-secrets
 
 # Or manually:
 mkdir -p secrets

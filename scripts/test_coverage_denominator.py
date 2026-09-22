@@ -113,11 +113,12 @@ def test_sharded_pytest_pins_a_run_scoped_seed():
 # alone published a number that is neither line nor branch coverage, and
 # neither of THOSE was published anywhere. These tests pin that line and
 # branch are published separately on every main run (unit side, into the
-# baseline artifact every consumer reads) and that root CLAUDE.md stopped
-# claiming "85%" as the unit tier's strength.
+# baseline artifact every consumer reads) and that the root instruction file
+# (AGENTS.md — CLAUDE.md was retired by owner ruling 2026-09, see that file's
+# line 3) stopped claiming "85%" as the unit tier's strength.
 # ---------------------------------------------------------------------------
 
-CLAUDE_MD = REPO_ROOT / "CLAUDE.md"
+AGENTS_MD = REPO_ROOT / "AGENTS.md"
 
 
 def _step_run(path: Path, job_id: str, step_name: str) -> str:
@@ -173,12 +174,12 @@ def test_integration_combine_reports_line_and_branch():
         )
 
 
-def test_claude_md_carries_measured_strength_not_85():
-    t = CLAUDE_MD.read_text()
+def test_agents_md_carries_measured_strength_not_85():
+    t = AGENTS_MD.read_text()
     assert not re.search(r"Backend Unit\s*\|\s*85%", t), (
-        "CLAUDE.md's Backend Unit row must not lead with 85%: measured strength is "
+        "AGENTS.md's Backend Unit row must not lead with 85%: measured strength is "
         "84.12 blended / 86.02 line / 76.27 branch (docs/development/testing.md WP2.1 section)"
     )
     assert "84.12" in t and "86.02" in t and "76.27" in t, (
-        "CLAUDE.md must carry the measured triple (blended/line/branch), not a stale round number"
+        "AGENTS.md must carry the measured triple (blended/line/branch), not a stale round number"
     )

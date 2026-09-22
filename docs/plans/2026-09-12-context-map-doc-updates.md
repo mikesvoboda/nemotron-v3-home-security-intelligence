@@ -733,7 +733,7 @@ verified no-op-on-existing) — the error was MY sequencing, not the script.
 
 ### M3 added (2026-09-14): test-suite audit committed + Milestone 3 plan authored
 
-`docs/development/test-suite-audit-2026-09-13.md` (previously scratch-only) is now
+`docs/archive/test-suite-audit-2026-09-13.md` (previously scratch-only) is now
 tracked — it is the authority for WHAT to fix, with provenance tags that bind:
 [VERIFIED] act, [REPORTED] re-verify before bulk action, [ESTIMATE] payoff numbers
 are hypotheses to MEASURE. Milestone 3 plan lands at
@@ -2212,7 +2212,7 @@ All under /tmp/wave2-drafts/ (repo untouched by drafters; lease held). Reviewer-
 
 Owner decision: VM memory 62.69 -> 96 GiB (restart required). Gate 15 killed at ~15 min (backend green, frontend ESLint stage) — pre-verdict, no signal lost; gate 16 on the new box records M1 §6 on identical tip (9eb02b3e + docs commits) with the two frontend fixes already file-verified. Rationale: 8 workers x 8 GiB heap caps (T3 arm 1) fit worst-case only at 96; clears validate.sh's 64 GiB auto-parallel gate honestly (no threshold ruling needed anymore); margin for compose-alongside-gate later. CPU ceiling unchanged (16 cores -> ~8-12 vitest workers sweet spot regardless of RAM).
 **RULINGS RECORDED:** M3-T5 timeout swap APPROVED as written (signal + func_only=false + timeout=5; execution per packet §5: conftest CLI-honoring fix + stamp-plugin retirement -> pyproject swap -> /tmp/t5 smoke both arms -> gate x2).
-**Restart-proofing:** all /tmp draft assets copied to docs/superpowers/staged/2026-09-14/ (t3-draft, t5, t2, wave2-drafts, wave3-drafts, dur plugin, timeout_stamp_plugin.py); env backup mirrored to /home/agent/env-backup-gb300.env; measurement runs mirrored to /home/agent/dur-runs-backup. Goal hook + monitors die with the session — re-issue goal from docs/goal-prompt-m1-m2-m3-2026-09-14.md (updated below) after restart.
+**Restart-proofing:** all /tmp draft assets copied to docs/superpowers/staged/2026-09-14/ (t3-draft, t5, t2, wave2-drafts, wave3-drafts, dur plugin, timeout_stamp_plugin.py); env backup mirrored to /home/agent/env-backup-gb300.env; measurement runs mirrored to /home/agent/dur-runs-backup. Goal hook + monitors die with the session — re-issue goal from docs/archive/goal-prompt-m1-m2-m3-2026-09-14.md (updated below) after restart.
 
 ## M3 T5 execution — steps 1–2 landed + smoke verdict (2026-09-14, pre-restart)
 
@@ -3924,7 +3924,7 @@ tests/AGENTS.md + contracts/AGENTS.md mentions updated.
 
 Census (mirroring manifest detector 1 over all tracked test\_\*.py) found 8
 zero-test-name files; 6 are integration-tier (never in-tier); 2 reachable:
-the stub (row above) and backend/tests/test_utils.py — a 256-line shared
+the stub (row above) and backend/tests/testing_utils.py (then named test_utils.py) — a 256-line shared
 HELPER module imported at runtime by integration/conftest.py:43, kept
 IN-TIER by the f4 filter's top-level class. fast_select's changed-test rule
 selects it the moment anyone edits it -> CANNOT-RUN -> any push touching
@@ -4822,9 +4822,9 @@ PARALLEL FEED (same day, while run5/run6 checked; full program post-close-out):
 waves 1-54 triaged 17,719 survivors across 122 modules read-only (detector gate
 
 > =150 checked & >=100 survivors, tree-canonical dedupe ledger
-> .wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
+> archive/wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
 > 15% LOW-VALUE, 796 drafted UNVERIFIED kill-tests + 8 cross-module fix
-> patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
+> patterns (archive/wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
 > share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
 > 93%-gap module can shift the survivor-weighted share, and wave 33's
 > mqtt_publisher (43 of 100 LOW-VALUE) settled it at 65/21/13 and wave 36's
@@ -5170,8 +5170,8 @@ run — 57/57 unique in the current band); workers exec the venv python directly
 no:cacheprovider (no shared .pytest_cache under mutants/). Tier mutmut runs,
 integration pytest, and validate.sh STAY strictly serial and outrank the lane:
 the launcher polls /tmp/wp25/fanout.pause and terminates all workers while it
-exists. Tools: scripts/.wp44-killcount.py (resumable per-module JSONL verdict
-stream) + scripts/.wp44-fanout.py (launcher; dossier/recursive test-file
+exists. Tools: archive/.wp44-killcount.py (resumable per-module JSONL verdict
+stream) + archive/.wp44-fanout.py (launcher; dossier/recursive test-file
 resolution, never guesses). MEASURE that motivated it: serial-only census =
 10.5 s/probe -> 940-probe untouched band ≈ 2.7 h serial vs ~25 min at 7
 workers; full-G-tier censusing ≈ 35 h vs ~5 h — the parallel lane makes
@@ -5183,11 +5183,11 @@ wording delivered in-session 2026-09-18).
 
 MEASURE: full surviving-mutant census of backend/services/container_discovery.py
 against the CURRENT unit suite (all 696 tier-era survivors probed, one
-MUTANT_UNDER_TEST pytest run each — scripts/.wp44-killcount.py, serial lane,
+MUTANT_UNDER_TEST pytest run each — archive/.wp44-killcount.py, serial lane,
 ~2 h): **644 killed / 696 probed = 92.5%; 52 survivors remain**. Projected
 module tier score once kills commit and run7 re-measures: (162+644)/858 =
 **94.0%** (was 18.9%). The 52 survivor keys ARE the surviving-mutant record —
-recorded at .wp25-feed/wp44-kills/container_discovery-survivors.md; nothing in
+recorded at archive/wp25-feed/wp44-kills/container_discovery-survivors.md; nothing in
 this module is deleted or declared covered except against that file.
 Distribution: build_service_configs 18 (regular ~27-index spacing => one
 repeating per-entry pattern — single-insight drafting candidate), discover_all
@@ -5918,7 +5918,7 @@ for unreachable code:
 
 - `backend/services/job_state_service.py` — gen-1 dossier 147 mutants / **42
   survivors** (mutants/backend/services/job_state_service.py.meta);
-  generation-2 queue row "| 42 | 70.7 | NEW |" (.wp25-feed/wp44-queue-gen2.md).
+  generation-2 queue row "| 42 | 70.7 | NEW |" (archive/wp25-feed/wp44-queue-gen2.md).
   RETRACTED: the module has zero non-test consumers; a mutation record is
   evidence about test strength, never a deletion veto for dead code.
 - `backend/services/scene_change_service.py` — gen-1 dossier 88 keys / **39
@@ -7075,9 +7075,9 @@ PARALLEL FEED (same day, while run5/run6 checked; full program post-close-out):
 waves 1-54 triaged 17,719 survivors across 122 modules read-only (detector gate
 
 > =150 checked & >=100 survivors, tree-canonical dedupe ledger
-> .wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
+> archive/wp25-feed/triage-waves/dispatched.txt) -> 62% TEST-GAP / 23% EQUIVALENT /
 > 15% LOW-VALUE, 796 drafted UNVERIFIED kill-tests + 8 cross-module fix
-> patterns (.wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
+> patterns (archive/wp25-feed/wp44-triage/ + wp44-queue-index.md). The ~23% EQUIVALENT
 > share is SURVIVOR-WEIGHTED (64/22/14 held thirty-one waves; container_discovery's dataclass-table weight moved the aggregate to 66/21/13 — one
 > 93%-gap module can shift the survivor-weighted share, and wave 33's
 > mqtt_publisher (43 of 100 LOW-VALUE) settled it at 65/21/13 and wave 36's
@@ -7732,7 +7732,7 @@ retry lane) now red on cancelled too; the API cancelled+retry-passed
 exception stays green. `skipped` stays forgiven everywhere (a never-run
 shard is not a verdict — same stance as ci-gate's `check_job`).
 
-**Red-first:** new gate test `scripts/test_summary_verdicts.sh` extracts
+**Red-first:** new gate test `archive/scripts/test_summary_verdicts.sh` extracts
 each summary's verdict step FROM ci.yml, substitutes `${{ }}` expressions
 the way the runner does (result strings inside already-quoted args, empty =
 inert) and EXECUTES them over the full result matrix. 8 assertions red

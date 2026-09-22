@@ -106,4 +106,4 @@ paths-ignore:
 
 - `../workflows/codeql.yml` - Workflow that uses this config
 - `../AGENTS.md` - Parent directory overview
-- `CLAUDE.md` - Project security requirements
+- `AGENTS.md` - Project security requirements

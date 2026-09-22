@@ -148,7 +148,8 @@ def test_worker_statuses():
 
     app.dependency_overrides[get_health_service_registry_dep] = lambda: mock_registry
 
-    response = client.get("/api/system/workers/status")
+    # Worker statuses are reported in the readiness payload
+    response = client.get("/api/system/health/ready")
     assert response.status_code == 200
 ```
 

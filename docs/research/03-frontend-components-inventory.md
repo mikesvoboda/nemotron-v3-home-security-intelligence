@@ -1,5 +1,7 @@
 # Frontend Components Inventory
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 - **Total Components:** 358 in `/frontend/src/components/`

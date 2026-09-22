@@ -18,12 +18,12 @@ This project is moving fast. Use this page to interpret what you see in the UI a
 
 ## Current Status (High-level)
 
-| Area                                                                 | Level      | Notes                                                                            |
-| -------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------- |
-| **Core pipeline** (camera uploads → detections → events → dashboard) | **Stable** | Detection + LLM reasoning + event streaming are the primary path                 |
-| **Operator runbooks** (deploy/monitor/backup/retention)              | **Beta**   | Commands and endpoints are accurate, but operational tooling continues to evolve |
-| **Entities** page                                                    | **WIP**    | Present in the UI with a WIP badge; behavior may be incomplete                   |
-| **Audit Log** page                                                   | **Beta**   | Intended for admins/power users; schema/content may expand                       |
+| Area                                                                 | Level      | Notes                                                                                           |
+| -------------------------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------- |
+| **Core pipeline** (camera uploads → detections → events → dashboard) | **Stable** | Detection + LLM reasoning + event streaming are the primary path                                |
+| **Operator runbooks** (deploy/monitor/backup/retention)              | **Beta**   | Commands and endpoints are accurate, but operational tooling continues to evolve                |
+| **Entities** page                                                    | **WIP**    | Present in the UI (sidebar "Entities"; no WIP badge is shown today); behavior may be incomplete |
+| **Audit Log** page                                                   | **Beta**   | Intended for admins/power users; schema/content may expand                                      |
 
 ---
 

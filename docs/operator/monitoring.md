@@ -12,7 +12,7 @@ This guide covers the three core observability pillars:
 
 ## GPU Monitoring
 
-The GPU monitoring service (`GPUMonitor`) provides real-time metrics for NVIDIA GPUs used by AI services (YOLO26 and Nemotron).
+The GPU monitoring service (`GPUMonitor`) provides real-time metrics for NVIDIA GPUs used by AI services (`ai-gateway` and `ai-llm`).
 
 ### How It Works
 
@@ -20,7 +20,8 @@ The GPU monitor uses a fallback strategy to collect metrics:
 
 1. **pynvml** (preferred) - Direct NVIDIA Management Library bindings for lowest latency
 2. **nvidia-smi** - Subprocess fallback when pynvml is unavailable (containerized environments)
-3. **AI Container Endpoints** - Queries YOLO26 `/health` endpoint for GPU stats
+3. **AI Container Endpoints** - Queries the detector URL (`YOLO26_URL`, default
+   `http://ai-gateway:8090/yolo26` in compose) at its `/health` endpoint for GPU stats
 4. **Mock Data** - Development mode when no GPU is available
 
 ### Metrics Tracked
@@ -125,10 +126,10 @@ The frontend dashboard displays GPU metrics in the **System Status** panel:
 nvidia-smi
 
 # Check backend logs for GPU monitor initialization
-docker compose -f docker-compose.prod.yml logs backend | grep -i gpu
+podman compose -f docker-compose.prod.yml logs backend | grep -i gpu
 
 # Test AI container health endpoint
-curl http://localhost:8095/health  # YOLO26
+curl http://localhost:8090/yolo26/health  # ai-gateway /yolo26 router
 ```
 
 **High memory pressure alerts:**
@@ -156,24 +157,34 @@ Token counting uses [tiktoken](https://github.com/openai/tiktoken) for accurate 
 
 The Nemotron model context window varies by deployment profile:
 
-| Model Profile                               | Context Window | VRAM Required |
-| ------------------------------------------- | -------------- | ------------- |
-| **Production (Nemotron-3-Nano-30B-A3B)**    | 131,072 tokens | ~14.7 GB      |
-| **Development (Nemotron Mini 4B Instruct)** | 4,096 tokens   | ~3 GB         |
+| Model Profile                               | llama.cpp `CTX_SIZE`                        | VRAM Required |
+| ------------------------------------------- | ------------------------------------------- | ------------- |
+| **Production (Nemotron-3-Nano-30B-A3B)**    | 262,144 total (8 `PARALLEL` slots × 32,768) | ~14.7 GB      |
+| **Development (Nemotron Mini 4B Instruct)** | 4,096 tokens                                | ~3 GB         |
 
-**Environment Variables:**
+**Settings** (`backend/core/config.py`):
 
-| Setting                      | Default       | Description                          |
-| ---------------------------- | ------------- | ------------------------------------ |
-| `NEMOTRON_CONTEXT_WINDOW`    | `131072`      | Total context window size (tokens)   |
-| `NEMOTRON_MAX_OUTPUT_TOKENS` | `1536`        | Tokens reserved for LLM output       |
-| `LLM_TOKENIZER_ENCODING`     | `cl100k_base` | Tiktoken encoding (GPT-4 compatible) |
+| Setting                      | Default                | Description                                                                                                                                                       |
+| ---------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CTX_SIZE`                   | `32768` (code default) | Backend prompt-validation budget. The field (internally `nemotron_context_window`) reads the **`CTX_SIZE`** variable, the same name the llama.cpp container uses. |
+| `NEMOTRON_MAX_OUTPUT_TOKENS` | `1536`                 | Tokens reserved for LLM output                                                                                                                                    |
+| `LLM_TOKENIZER_ENCODING`     | `cl100k_base`          | Tiktoken encoding (GPT-4 compatible)                                                                                                                              |
 
-**Note:** The `CTX_SIZE` environment variable in the AI container (`ai/nemotron/`) controls the llama.cpp server context size, while `NEMOTRON_CONTEXT_WINDOW` controls the backend's prompt validation. Both should be configured consistently.
+> [!WARNING]
+> The backend validator caps `CTX_SIZE` at **131,072** (`le=131072` in
+> `backend/core/config.py`), but llama.cpp's total context in `.env.example` is
+> **262,144** (8 `PARALLEL` slots × 32,768). Two consequences:
+>
+> - The containerized backend never sees `CTX_SIZE` (compose does not pass it to the
+>   `backend` service and no `.env` is mounted), so it validates prompts against the
+>   32,768 code default — exactly one llama.cpp slot. This is the intended steady state.
+> - A host-run backend reads `CTX_SIZE` from `.env`; set it to **32768 or lower** (up to
+>   131,072 is accepted). Exporting `CTX_SIZE=262144` into the backend's environment
+>   makes settings fail validation at startup.
 
 **Available tokens for prompt:** `context_window - max_output_tokens`
 
-- Production (128K): 131,072 - 1,536 = **129,536 tokens**
+- Production slot budget (32K): 32,768 - 1,536 = **31,232 tokens**
 - Development (4K): 4,096 - 1,536 = **2,560 tokens**
 
 ### Utilization Thresholds
@@ -244,12 +255,12 @@ token_count = counter.count_tokens(prompt_text)
 result = counter.validate_prompt(prompt_text)
 if not result.is_valid:
     # Truncate enrichment data
-    truncated = counter.truncate_enrichment_data(prompt_text, max_tokens=2364)
+    truncated = counter.truncate_enrichment_data(prompt_text, max_tokens=31232)
     print(f"Removed sections: {truncated.sections_removed}")
 
 # Get context budget
 budget = counter.get_context_budget()
-# {"context_window": 3900, "max_output_tokens": 1536, "available_for_prompt": 2364}
+# {"context_window": 32768, "max_output_tokens": 1536, "available_for_prompt": 31232}
 ```
 
 ### Troubleshooting
@@ -258,7 +269,7 @@ budget = counter.get_context_budget()
 
 1. Check logs for truncation warnings
 2. Review `sections_removed` in truncation results
-3. Consider increasing `NEMOTRON_CONTEXT_WINDOW` if using a larger model
+3. Consider increasing `CTX_SIZE` if using a larger model (shared by llama.cpp and the backend validator)
 4. Disable less useful enrichment sources
 
 **High context utilization alerts:**
@@ -268,7 +279,7 @@ budget = counter.get_context_budget()
 curl http://localhost:8000/metrics | grep hsi_llm_context
 
 # Review recent prompts in logs
-docker compose -f docker-compose.prod.yml logs backend | grep "context utilization"
+podman compose -f docker-compose.prod.yml logs backend | grep "context utilization"
 ```
 
 ---
@@ -290,46 +301,31 @@ Trace context is propagated via W3C Trace Context headers (`traceparent`, `trace
 
 ### Configuration
 
-| Variable                      | Default                 | Description                        |
-| ----------------------------- | ----------------------- | ---------------------------------- |
-| `OTEL_ENABLED`                | `false`                 | Enable/disable distributed tracing |
-| `OTEL_SERVICE_NAME`           | `nemotron-backend`      | Service name in traces             |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` | OTLP gRPC endpoint                 |
-| `OTEL_EXPORTER_OTLP_INSECURE` | `true`                  | Use insecure connection            |
-| `OTEL_TRACE_SAMPLE_RATE`      | `1.0`                   | Sampling rate (0.0-1.0)            |
+| Variable                      | Default                                                                            | Description                        |
+| ----------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------- |
+| `OTEL_ENABLED`                | `false` in `.env.example`; compose defaults it to `true` for the backend service   | Enable/disable distributed tracing |
+| `OTEL_SERVICE_NAME`           | `nemotron-backend`                                                                 | Service name in traces             |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4317` in `.env.example`; compose defaults to `http://alloy:4317` | OTLP gRPC endpoint                 |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `true`                                                                             | Use insecure connection            |
+| `OTEL_TRACE_SAMPLE_RATE`      | `1.0`                                                                              | Sampling rate (0.0-1.0)            |
 
-**Enable tracing:**
+**Enable tracing** (already the default inside the compose stack):
 
 ```bash
 # .env
 OTEL_ENABLED=true
 OTEL_SERVICE_NAME=nemotron-backend
-OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
 ```
 
-### Trace Collection Backends
+### Trace Collection Pipeline
 
-The system exports traces to any OTLP-compatible backend:
-
-| Backend               | Endpoint             | Description                 |
-| --------------------- | -------------------- | --------------------------- |
-| **Jaeger**            | `http://jaeger:4317` | Popular open-source tracing |
-| **Grafana Tempo**     | `http://tempo:4317`  | Grafana-native tracing      |
-| **Zipkin** (via OTLP) | `http://zipkin:4317` | Alternative tracing backend |
-
-**Docker Compose addition for Jaeger:**
-
-```yaml
-# docker-compose.override.yml
-services:
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - '16686:16686' # Jaeger UI
-      - '4317:4317' # OTLP gRPC
-    environment:
-      COLLECTOR_OTLP_ENABLED: 'true'
-```
+The backend exports OTLP/gRPC to **Alloy** (`alloy:4317`), which forwards traces to
+**Grafana Tempo** (`tempo:4317`) — see `monitoring/alloy/config.alloy`
+(`otelcol.receiver.otlp` -> `otelcol.exporter.otlp "tempo"`). Tempo is a compose service
+(`docker.io/grafana/tempo:2.7.1`, config `monitoring/tempo/tempo-config.yml`) with its
+querier on port 3200. Jaeger and its Elasticsearch storage were retired under NEM-5545;
+any OTLP-compatible backend still works if you repoint `OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 ### Log-to-Trace Correlation
 
@@ -386,17 +382,14 @@ logger.info("Processing", extra={"trace_id": get_trace_id()})
 
 ### Viewing Traces
 
-**Jaeger UI (default: http://localhost:16686):**
+Traces are queried through **Grafana Tempo** (there is no standalone Jaeger UI port):
 
-1. Select service: `nemotron-backend`
-2. Search by operation or trace ID
-3. View span timeline and service map
+1. Open Grafana (http://localhost:3002, or through the frontend proxy at `/grafana/`)
+2. Go to Explore > select the **Tempo** datasource
+3. Search by trace ID or by tag query
+4. View trace details with linked Loki logs
 
-**Grafana Tempo:**
-
-1. Go to Explore > Tempo
-2. Search by trace ID or query
-3. View trace details with linked logs
+The frontend also embeds this at the `/tracing` page (see [docs/ui/tracing.md](../ui/tracing.md)).
 
 ### Sampling Configuration
 
@@ -419,9 +412,10 @@ OTEL_TRACE_SAMPLE_RATE=1.0
 grep OTEL .env
 
 # Check backend logs for initialization
-docker compose -f docker-compose.prod.yml logs backend | grep -i telemetry
+podman compose -f docker-compose.prod.yml logs backend | grep -i telemetry
 
-# Test OTLP endpoint connectivity
+# Test OTLP endpoint connectivity (host port 4317 maps to Tempo's OTLP gRPC;
+# inside the compose network the backend sends to alloy:4317)
 curl -v http://localhost:4317
 ```
 
@@ -490,10 +484,10 @@ GPU_POLL_INTERVAL_SECONDS=5.0
 CONTEXT_UTILIZATION_WARNING_THRESHOLD=0.80
 CONTEXT_TRUNCATION_ENABLED=true
 
-# Distributed Tracing (opt-in)
+# Distributed Tracing (already on by default in docker-compose.prod.yml)
 OTEL_ENABLED=true
 OTEL_SERVICE_NAME=nemotron-backend
-OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317
 ```
 
 ### Diagnostic Commands
@@ -507,7 +501,7 @@ curl http://localhost:8000/api/system/gpu
 curl http://localhost:8000/metrics | grep hsi_
 
 # Backend logs with trace context
-docker compose -f docker-compose.prod.yml logs backend | grep trace_id
+podman compose -f docker-compose.prod.yml logs backend | grep trace_id
 ```
 
 ---
@@ -518,113 +512,77 @@ The monitoring stack is included by default in `docker-compose.prod.yml` and pro
 
 ### Service Overview
 
-| Service           | Port  | Purpose                               | Access URL             |
-| ----------------- | ----- | ------------------------------------- | ---------------------- |
-| Prometheus        | 9090  | Metrics collection and alerting rules | http://localhost:9090  |
-| Grafana           | 3002  | Dashboards and visualization          | http://localhost:3002  |
-| Jaeger            | 16686 | Distributed tracing UI                | http://localhost:16686 |
-| Alertmanager      | 9093  | Alert routing and delivery            | http://localhost:9093  |
-| Blackbox Exporter | 9115  | HTTP/TCP endpoint probing             | http://localhost:9115  |
-| JSON Exporter     | 7979  | JSON-to-Prometheus metric conversion  | http://localhost:7979  |
-| Redis Exporter    | 9121  | Redis metrics for Prometheus          | http://localhost:9121  |
+All ports below are the host bindings from `docker-compose.prod.yml` (bound to
+`127.0.0.1` unless noted).
+
+| Service           | Host Port  | Purpose                                         | Access URL                                                           |
+| ----------------- | ---------- | ----------------------------------------------- | -------------------------------------------------------------------- |
+| Prometheus        | 9090       | Metrics collection and alerting rules           | http://localhost:9090                                                |
+| Grafana           | 3002       | Dashboards and visualization                    | http://localhost:3002 (direct) or `/grafana/` via the frontend proxy |
+| Tempo             | 3200, 4317 | Distributed tracing (replaces Jaeger, NEM-5545) | via Grafana Explore / `/tracing` page                                |
+| Alertmanager      | 9093       | Alert routing and delivery                      | http://localhost:9093                                                |
+| Loki              | 3100       | Log storage                                     | http://localhost:3100/ready                                          |
+| Alloy             | 12345      | Log/eBPF-profile/trace collection               | http://localhost:12345                                               |
+| Pyroscope         | 4040       | Continuous profiling                            | http://localhost:4040                                                |
+| Blackbox Exporter | 9115       | HTTP/TCP endpoint probing                       | http://localhost:9115                                                |
+| JSON Exporter     | 7979       | JSON-to-Prometheus metric conversion            | http://localhost:7979                                                |
+| Redis Exporter    | 9121       | Redis metrics for Prometheus                    | http://localhost:9121                                                |
 
 ---
 
-### Jaeger (Distributed Tracing)
+### Tempo (Distributed Tracing)
 
-Jaeger provides distributed tracing for cross-service request correlation. When a request flows through multiple services (frontend -> backend -> AI services -> database), Jaeger captures the complete trace to help identify latency bottlenecks and failures.
+Grafana Tempo provides distributed tracing for cross-service request correlation. When a
+request flows through multiple services (frontend -> backend -> AI services ->
+database), the backend's OpenTelemetry exporter sends spans to Alloy, Alloy forwards
+them to Tempo, and traces are queried through Grafana. Tempo **replaced Jaeger +
+Elasticsearch** under NEM-5545; the compose stack has no jaeger or elasticsearch
+service.
 
 **Port Mappings:**
 
-| Port  | Protocol | Purpose            |
-| ----- | -------- | ------------------ |
-| 16686 | HTTP     | Jaeger UI          |
-| 4317  | gRPC     | OTLP gRPC receiver |
-| 4318  | HTTP     | OTLP HTTP receiver |
+| Port | Protocol | Purpose                             |
+| ---- | -------- | ----------------------------------- |
+| 3200 | HTTP     | Tempo querier / query API           |
+| 4317 | gRPC     | OTLP gRPC receiver (host-published) |
 
-**Configuration:**
+**Configuration:** `monitoring/tempo/tempo-config.yml`, mounted read-only with the
+`tempo_data` named volume for block storage. Limits: 1 CPU / 1G memory. Healthcheck
+spiders `http://localhost:3200/ready`.
 
-```bash
-# Environment variables (docker-compose.prod.yml)
-COLLECTOR_OTLP_ENABLED=true                    # Enable OTLP collector
-SPAN_STORAGE_TYPE=elasticsearch                # Elasticsearch storage backend
-ES_SERVER_URLS=http://elasticsearch:9200       # Elasticsearch endpoint
-ES_INDEX_PREFIX=jaeger                         # Index name prefix
-ES_TAGS_AS_FIELDS_ALL=true                     # Store all tags as indexed fields
-ES_NUM_SHARDS=1                                # Shards per index (single-node)
-ES_NUM_REPLICAS=0                              # No replicas (single-node)
-```
+**Accessing traces:**
 
-**Environment Variables:**
+1. Open Grafana (http://localhost:3002 or `/grafana/` through the frontend)
+2. Explore -> **Tempo** datasource (provisioned at `monitoring/grafana/provisioning/datasources/`, url `http://tempo:3200`)
+3. Search by trace ID or tag query
 
-| Variable                 | Default                     | Description                               |
-| ------------------------ | --------------------------- | ----------------------------------------- |
-| `SPAN_STORAGE_TYPE`      | `elasticsearch`             | Storage backend (elasticsearch or memory) |
-| `ES_SERVER_URLS`         | `http://elasticsearch:9200` | Elasticsearch endpoint(s)                 |
-| `ES_INDEX_PREFIX`        | `jaeger`                    | Index name prefix for Jaeger data         |
-| `ES_TAGS_AS_FIELDS_ALL`  | `true`                      | Store all tags as indexed fields          |
-| `ES_NUM_SHARDS`          | `1`                         | Number of shards per index                |
-| `ES_NUM_REPLICAS`        | `0`                         | Number of replicas (0 for single-node)    |
-| `ES_BULK_SIZE`           | `5000000`                   | Bulk request size in bytes                |
-| `ES_BULK_WORKERS`        | `1`                         | Number of bulk workers                    |
-| `ES_BULK_FLUSH_INTERVAL` | `200ms`                     | Bulk flush interval                       |
+The dashboard's **Tracing** page embeds the same query flow (see
+[docs/ui/tracing.md](../ui/tracing.md)).
 
-**Accessing Jaeger UI:**
-
-1. Open http://localhost:16686
-2. Select a service from the "Service" dropdown (e.g., `nemotron-backend`)
-3. Click "Find Traces" to view recent traces
-4. Click a trace to view the span timeline and service interactions
-
-**Connecting Backend to Jaeger:**
-
-The backend sends traces to Jaeger via OpenTelemetry. Configure in `.env`:
+**Connecting the backend:** already wired in `docker-compose.prod.yml`:
 
 ```bash
-OTEL_ENABLED=true
+OTEL_ENABLED=true                                   # compose default for backend
 OTEL_SERVICE_NAME=nemotron-backend
-OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
-OTEL_TRACE_SAMPLE_RATE=1.0  # 1.0 = 100% of traces
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4317       # Alloy forwards to tempo:4317
+OTEL_TRACE_SAMPLE_RATE=1.0                          # 1.0 = 100% of traces
 ```
 
 **Useful Queries:**
 
 ```bash
-# Check Jaeger health
-curl http://localhost:16686
+# Check Tempo readiness
+curl http://localhost:3200/ready
 
-# View services being traced
-curl http://localhost:16686/api/services | jq
-
-# Get traces for a specific service
-curl "http://localhost:16686/api/traces?service=nemotron-backend&limit=20" | jq
+# Fetch a trace by ID (replace <trace_id>)
+curl "http://localhost:3200/api/trace/<trace_id>" | jq '.batch | length'
 ```
 
 **Production Considerations:**
 
-The default configuration uses Elasticsearch for persistent trace storage with the following characteristics:
-
-1. **Elasticsearch Backend**: Traces are stored in Elasticsearch with 30-day ILM retention (configured in `monitoring/elasticsearch/`)
-2. **Index Lifecycle Management**: Jaeger indices follow the `jaeger-span-*` pattern with automatic rollover
-3. **Sampling**: Reduce `OTEL_TRACE_SAMPLE_RATE` to 0.1 (10%) for high-traffic systems
-4. **Resource Limits**: Elasticsearch is configured with `ES_HEAP_SIZE` (default 2GB) and `ES_MEMORY_LIMIT` (default 4GB)
-
-**Elasticsearch Dependency:**
-
-Jaeger depends on Elasticsearch being healthy before starting:
-
-```yaml
-depends_on:
-  elasticsearch:
-    condition: service_healthy
-```
-
-If Elasticsearch is not available, Jaeger will fail to start. Check Elasticsearch health:
-
-```bash
-curl http://localhost:9200/_cluster/health | jq '.status'
-# Expected: "green" or "yellow"
-```
+1. **Storage**: traces land in the `tempo_data` volume; retention/compaction settings live in `monitoring/tempo/tempo-config.yml`
+2. **Sampling**: reduce `OTEL_TRACE_SAMPLE_RATE` to 0.1 (10%) for high-traffic systems
+3. **Dependency**: Grafana waits for Prometheus health; Alloy (the trace path) depends on Loki and Pyroscope, not Tempo
 
 ---
 
@@ -667,13 +625,20 @@ Prometheus scrapes blackbox exporter with target URLs as parameters. Example scr
 
 **Probed Endpoints (Default Configuration):**
 
-| Probe Type  | Endpoints Monitored                    |
-| ----------- | -------------------------------------- |
-| Health      | `backend:8000/api/system/health`       |
-| Readiness   | `backend:8000/api/system/health/ready` |
-| Liveness    | `backend:8000/health`, `frontend:8080` |
-| AI Services | All AI service `/health` endpoints     |
-| TCP         | `postgres:5432`, `redis:6379`          |
+| Probe Type               | Endpoints Monitored                                                                                                       |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Health                   | `backend:8000/api/system/health`                                                                                          |
+| Readiness                | `backend:8000/api/system/health/ready`                                                                                    |
+| Liveness                 | `backend:8000/health`, `frontend:8080`                                                                                    |
+| AI (`blackbox-http-2xx`) | `ai-llm:8091/health` plus stale legacy targets `ai-florence:8092`, `ai-clip:8093`, `ai-enrichment:8094`, `ai-yolo26:8095` |
+| TCP                      | `postgres:5432`, `redis:6379`                                                                                             |
+
+> [!WARNING]
+> The `blackbox-http-2xx` job in `monitoring/prometheus.yml` still lists the retired
+> per-model AI hostnames; those four probes report failures because the services were
+> consolidated into `ai-gateway`. The gateway's availability is covered instead by the
+> aggregate `ai-gateway` healthcheck and its Triton metrics job. (Config cleanup
+> pending — see the stale-target comment block above the `triton-metrics` job.)
 
 **Key Metrics Exported:**
 
@@ -880,15 +845,19 @@ Both the Redis service and Redis exporter use this environment variable.
 
 ### Alloy (Log Collection)
 
-Alloy is Grafana's telemetry collector that collects container logs from Podman and forwards them to Loki for centralized log aggregation and querying.
+Alloy is Grafana's telemetry collector. It runs three pipelines
+(`monitoring/alloy/config.alloy`): container logs from Podman -> **Loki**, OTLP traces
+(received on `0.0.0.0:4317` from the backend) -> **Tempo**, and eBPF-based continuous
+profiles -> **Pyroscope**.
 
-**Port:** 12345 (Alloy UI)
+**Port:** 12345 (Alloy UI, `ALLOY_UI_PORT`); internal OTLP receivers on 4317/4318
 
 **Configuration File:** `monitoring/alloy/config.alloy`
 
 **Dependencies:**
 
 - **Loki** - Log storage backend (port 3100)
+- **Pyroscope** - Profile storage backend (port 4040) — `depends_on: [loki, pyroscope]`
 - **Podman Socket** - Container discovery and log collection
 
 **CRITICAL: Podman Socket Requirement**
@@ -919,11 +888,13 @@ srw-rw----. 1 user user 0 Jan 23 14:09 /run/user/1000/podman/podman.sock
 
 **Socket Mount:**
 
-The `docker-compose.prod.yml` file mounts the Podman socket into the Alloy container:
+The `docker-compose.prod.yml` file mounts the Podman socket into the Alloy container.
+The path comes from the `PODMAN_SOCKET` variable (your actual UID, not always 1000),
+and the mount is read-write because Alloy reads container logs through the Podman API:
 
 ```yaml
 volumes:
-  - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+  - ${PODMAN_SOCKET:?PODMAN_SOCKET must be set}:${PODMAN_SOCKET}
 ```
 
 **How It Works:**
@@ -1011,7 +982,7 @@ file /run/user/1000/podman/podman.sock
 
 # Restart Alloy to pick up the socket
 podman stop alloy && podman rm alloy
-podman-compose -f docker-compose.prod.yml up -d alloy
+podman compose -f docker-compose.prod.yml up -d alloy
 ```
 
 **No logs appearing in Loki:**
@@ -1057,7 +1028,7 @@ Loki is a log aggregation system designed for storing and querying logs collecte
 - **Label-based indexing** - Efficient querying using labels (not full-text indexing)
 - **LogQL** - Powerful query language similar to PromQL
 - **Grafana integration** - Native datasource for Grafana dashboards
-- **Retention** - Configurable log retention (default: 7 days)
+- **Retention** - Configured in `monitoring/loki/loki-config.yml` (`retention_period: 720h` — 30 days)
 
 **Accessing Loki:**
 
@@ -1090,7 +1061,7 @@ deploy:
   resources:
     limits:
       cpus: '0.25'
-      memory: 512M
+      memory: 1G
 ```
 
 For high-volume deployments, increase memory limits and configure object storage (S3, GCS) for log storage.
@@ -1119,12 +1090,12 @@ labels:
   pyroscope.service: 'backend'
 ```
 
-**Supported Services:**
+**Profiled Services:**
 
-- `backend` - FastAPI backend
-- `ai-yolo26` - YOLO26 object detection
-- `ai-florence` - Florence-2 vision-language
-- `ai-enrichment` - Entity enrichment
+- `backend` - FastAPI backend (SDK-based py-spy profiling when `PYROSCOPE_ENABLED=true`)
+- `ai-llm` - llama.cpp process, profiled via Alloy's **eBPF** pipeline (container label
+  `pyroscope.profile=true`, service name from `pyroscope.service`)
+- any other container carrying the `pyroscope.profile=true` label
 
 **Accessing Pyroscope UI:**
 
@@ -1148,7 +1119,7 @@ After starting the stack, verify all services are healthy:
 
 ```bash
 # Check all monitoring containers are running
-docker compose -f docker-compose.prod.yml ps | grep -E "(prometheus|grafana|jaeger|alertmanager|blackbox|json-exporter|redis-exporter)"
+podman compose -f docker-compose.prod.yml ps | grep -E "(prometheus|grafana|tempo|loki|alloy|pyroscope|alertmanager|blackbox|json-exporter|redis-exporter|node-exporter)"
 
 # Verify Prometheus targets
 curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, health: .health}'
@@ -1159,17 +1130,21 @@ curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.
 
 **Expected Healthy Targets:**
 
-| Job Name               | Target                      | Expected Health |
-| ---------------------- | --------------------------- | --------------- |
-| `hsi-backend-metrics`  | `backend:8000`              | up              |
-| `redis`                | `redis-exporter:9121`       | up              |
-| `json-exporter`        | `json-exporter:7979`        | up              |
-| `blackbox-exporter`    | `blackbox-exporter:9115`    | up              |
-| `blackbox-http-health` | Backend health endpoint     | up              |
-| `blackbox-http-ready`  | Backend readiness endpoint  | up              |
-| `blackbox-http-live`   | Backend/frontend liveness   | up              |
-| `blackbox-http-2xx`    | AI service health endpoints | up              |
-| `blackbox-tcp`         | postgres:5432, redis:6379   | up              |
+| Job Name               | Target                                                 | Expected Health |
+| ---------------------- | ------------------------------------------------------ | --------------- |
+| `hsi-backend-metrics`  | `backend:8000`                                         | up              |
+| `ai-llm-metrics`       | `ai-llm:8091`                                          | up              |
+| `triton-metrics`       | `ai-gateway:8002`                                      | up              |
+| `hsi-health`           | Backend health via JSON exporter                       | up              |
+| `hsi-gpu`              | Backend GPU stats via JSON exporter                    | up              |
+| `redis`                | `redis-exporter:9121`                                  | up              |
+| `json-exporter`        | `json-exporter:7979`                                   | up              |
+| `blackbox-exporter`    | `blackbox-exporter:9115`                               | up              |
+| `blackbox-http-health` | Backend health endpoint                                | up              |
+| `blackbox-http-ready`  | Backend readiness endpoint                             | up              |
+| `blackbox-http-live`   | Backend/frontend liveness                              | up              |
+| `blackbox-http-2xx`    | AI health endpoints (4 of 5 stale — see warning above) | mixed           |
+| `blackbox-tcp`         | postgres:5432, redis:6379                              | up              |
 
 ---
 

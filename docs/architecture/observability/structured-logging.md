@@ -296,14 +296,16 @@ session.commit()
 
 ## Configuration
 
-| Setting                 | Type   | Default                    | Description                     |
-| ----------------------- | ------ | -------------------------- | ------------------------------- |
-| `LOG_LEVEL`             | `str`  | `"INFO"`                   | Minimum log level to emit       |
-| `LOG_FILE_PATH`         | `str`  | `/var/log/hsi/backend.log` | Log file location               |
-| `LOG_FILE_MAX_BYTES`    | `int`  | `10485760` (10MB)          | Max size before rotation        |
-| `LOG_FILE_BACKUP_COUNT` | `int`  | `5`                        | Number of rotated files to keep |
-| `LOG_DB_ENABLED`        | `bool` | `True`                     | Enable database logging         |
-| `LOG_DB_MIN_LEVEL`      | `str`  | `"DEBUG"`                  | Minimum level for database      |
+| Setting                 | Type   | Default                  | Description                     |
+| ----------------------- | ------ | ------------------------ | ------------------------------- |
+| `LOG_LEVEL`             | `str`  | `"WARNING"`              | Minimum log level to emit       |
+| `LOG_FILE_PATH`         | `str`  | `data/logs/security.log` | Log file location               |
+| `LOG_FILE_MAX_BYTES`    | `int`  | `10485760` (10MB)        | Max size before rotation        |
+| `LOG_FILE_BACKUP_COUNT` | `int`  | `7`                      | Number of rotated files to keep |
+| `LOG_DB_ENABLED`        | `bool` | `True`                   | Enable database logging         |
+| `LOG_DB_MIN_LEVEL`      | `str`  | `"DEBUG"`                | Minimum level for database      |
+
+(Defaults from `backend/core/config.py:1924-1947`.)
 
 ## Instance Identification
 

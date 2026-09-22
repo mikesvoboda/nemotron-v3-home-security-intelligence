@@ -39,7 +39,7 @@ interface AnimatedModalProps {
 
 ## ResponsiveModal
 
-Wrapper that auto-switches between AnimatedModal on desktop and BottomSheet on mobile.
+Wrapper that auto-switches between AnimatedModal on desktop and BottomSheet on mobile. Props are defined in `ResponsiveModalProps` in the same file.
 
 **Location:** `frontend/src/components/common/ResponsiveModal.tsx`
 

@@ -15,10 +15,10 @@ This guide covers enabling HTTPS for the frontend nginx server, including certif
 
 The frontend nginx server supports both HTTP and HTTPS modes:
 
-- **HTTPS mode (default):** SSL is enabled by default with auto-generated self-signed certificates
-- **HTTP mode:** Can be used by setting `SSL_ENABLED=false`
+- **HTTP mode (default):** `SSL_ENABLED` defaults to `false` (set in `docker-compose.prod.yml` and `frontend/docker-entrypoint.sh`); nginx serves HTTP only
+- **HTTPS mode:** Set `SSL_ENABLED=true`; nginx auto-generates a self-signed certificate if none is provided
 
-HTTPS is conditionally enabled at container startup based on environment variables and certificate availability. When `SSL_ENABLED=true` (the default), nginx will auto-generate a self-signed certificate if none is provided.
+HTTPS is conditionally enabled at container startup based on environment variables and certificate availability. When `SSL_ENABLED=true`, nginx will auto-generate a self-signed certificate if none is provided.
 
 ## Quick Start (Development)
 
@@ -35,20 +35,23 @@ echo "SSL_ENABLED=true" >> .env
 docker compose -f docker-compose.prod.yml restart frontend
 ```
 
-Access the application at `https://localhost:443` (or your configured HTTPS port).
+Access the application at `https://localhost:8444` (the default `FRONTEND_HTTPS_PORT` host mapping onto container port 8443).
 
 ## Configuration
 
 ### Environment Variables
 
-| Variable              | Default                     | Description                                    |
-| --------------------- | --------------------------- | ---------------------------------------------- |
-| `SSL_ENABLED`         | `true`                      | Enable/disable HTTPS server (default: enabled) |
-| `SSL_CERT_DIR`        | `./certs`                   | Host directory containing certificates         |
-| `SSL_CERT_PATH`       | `/etc/nginx/certs/cert.pem` | Container path to certificate                  |
-| `SSL_KEY_PATH`        | `/etc/nginx/certs/key.pem`  | Container path to private key                  |
-| `FRONTEND_PORT`       | `5173`                      | HTTP port mapping (host:8080)                  |
-| `FRONTEND_HTTPS_PORT` | `8443`                      | HTTPS port mapping (host:8443)                 |
+| Variable              | Default                     | Description                                        |
+| --------------------- | --------------------------- | -------------------------------------------------- |
+| `SSL_ENABLED`         | `false`                     | Enable/disable HTTPS server (HTTP-only by default) |
+| `SSL_CERT_PATH`       | `/etc/nginx/certs/cert.pem` | Container path to certificate                      |
+| `SSL_KEY_PATH`        | `/etc/nginx/certs/key.pem`  | Container path to private key                      |
+| `FRONTEND_HTTP_PORT`  | `8080`                      | Host port for nginx HTTP (container port 8080)     |
+| `FRONTEND_HTTPS_PORT` | `8444`                      | Host port for HTTPS (container port 8443)          |
+
+> **Note:** Certificates live in the `frontend_certs` volume mounted at
+> `/etc/nginx/certs` (compose), not a host `SSL_CERT_DIR` variable — the
+> entrypoint derives the cert directory from `SSL_CERT_PATH`.
 
 > **Note:** The default HTTPS port is 8443 (not 443) to avoid requiring root/sudo privileges. Non-root users cannot bind to ports below 1024.
 
@@ -175,12 +178,12 @@ HSTS tells browsers to always use HTTPS for this domain for 1 year.
 
 The frontend uses unprivileged ports inside the container (non-root cannot bind to ports < 1024):
 
-| Protocol | External (Host) | Internal (Container) |
-| -------- | --------------- | -------------------- |
-| HTTP     | 5173 (default)  | 8080                 |
-| HTTPS    | 8443 (default)  | 8443                 |
+| Protocol | External (Host)              | Internal (Container) |
+| -------- | ---------------------------- | -------------------- |
+| HTTP     | 8080 (`FRONTEND_HTTP_PORT`)  | 8080                 |
+| HTTPS    | 8444 (`FRONTEND_HTTPS_PORT`) | 8443                 |
 
-> **Why 8443?** The default HTTPS port is 8443 (not 443) because non-root users cannot bind to ports below 1024. Rootless containers (Podman, Docker with --userns) require unprivileged ports. If you need port 443, set `FRONTEND_HTTPS_PORT=443` and run with appropriate privileges.
+> **Why 8443 inside the container?** The nginx container listens on 8443 (not 443) because non-root users cannot bind to ports below 1024. Rootless containers (Podman, Docker with --userns) require unprivileged ports. The host side defaults to 8444; if you need host port 443, set `FRONTEND_HTTPS_PORT=443` and run with appropriate privileges.
 
 ## Behavior by Mode
 

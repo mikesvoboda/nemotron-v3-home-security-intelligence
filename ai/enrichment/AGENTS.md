@@ -442,29 +442,49 @@ Estimate distance to object at bounding box.
 
 Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
+### POST /demographics
+
+Estimate age range and gender for a person crop.
+
+### POST /action-classify
+
+Classify an action from a multi-frame clip (X-CLIP).
+
+### GET /readiness, GET /models/registry, GET /metrics
+
+Readiness probe (loads without failing until all CRITICAL models are warm),
+the full model registry (names, VRAM, priority, loaded state), and Prometheus
+metrics.
+
 ## Environment Variables
 
-| Variable                       | Default                                  | Description                            |
-| ------------------------------ | ---------------------------------------- | -------------------------------------- |
-| `HOST`                         | `0.0.0.0`                                | Bind address                           |
-| `PORT`                         | `8094`                                   | Listen port                            |
-| `VRAM_BUDGET_GB`               | `6.0`                                    | VRAM budget for on-demand models       |
-| `VEHICLE_MODEL_PATH`           | `/models/vehicle-segment-classification` | Vehicle classifier path                |
-| `PET_MODEL_PATH`               | `/models/pet-classifier`                 | Pet classifier path                    |
-| `CLOTHING_MODEL_PATH`          | `/models/fashion-clip`                   | FashionCLIP/FashionSigLIP model path   |
-| `DEPTH_MODEL_PATH`             | `/models/depth-anything-v2-small`        | Depth estimator path                   |
-| `POSE_MODEL_PATH`              | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
-| `POSE_USE_TENSORRT`            | `false`                                  | Enable TensorRT for pose (2-3x faster) |
-| `POSE_TENSORRT_ENGINE_PATH`    | (auto)                                   | Custom TensorRT engine path            |
-| `POSE_TENSORRT_FP16`           | `true`                                   | Use FP16 precision for TensorRT        |
-| `THREAT_MODEL_PATH`            | `/models/threat-detection`               | Threat detection model path            |
-| `AGE_MODEL_PATH`               | `/models/vit-age-classifier`             | Age classifier path                    |
-| `GENDER_MODEL_PATH`            | `/models/vit-gender-classifier`          | Gender classifier path                 |
-| `REID_MODEL_PATH`              | `/models/osnet-reid`                     | OSNet ReID model path                  |
-| `ACTION_MODEL_PATH`            | `microsoft/xclip-base-patch32`           | X-CLIP model path                      |
-| `YOLO26_ENRICHMENT_MODEL_PATH` | `/models/yolo26m.pt`                     | YOLO26 detector model path             |
-| `VITPOSE_MODEL_PATH`           | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)           |
-| `HF_HOME`                      | `/cache/huggingface`                     | HuggingFace cache dir                  |
+| Variable                                       | Default                                                                                                    | Description                              |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `HOST`                                         | `0.0.0.0`                                                                                                  | Bind address                             |
+| `PORT`                                         | `8094`                                                                                                     | Listen port                              |
+| `VRAM_BUDGET_GB`                               | `6.8`                                                                                                      | VRAM budget for on-demand models         |
+| `VEHICLE_MODEL_PATH`                           | `/models/vehicle-segment-classification`                                                                   | Vehicle classifier path                  |
+| `PET_MODEL_PATH`                               | `/models/pet-classifier`                                                                                   | Pet classifier path                      |
+| `CLOTHING_MODEL_PATH`                          | `/models/fashion-clip`                                                                                     | FashionCLIP/FashionSigLIP model path     |
+| `DEPTH_MODEL_PATH`                             | `/models/depth-anything-v2-tiny`                                                                           | Depth estimator path                     |
+| `POSE_MODEL_PATH`                              | `/models/yolov8n-pose/yolov8n-pose.pt` (registry) / `/models/vitpose-plus-small` (`model.py` server entry) | Pose model path - two defaults, see note |
+| `POSE_USE_TENSORRT`                            | `false`                                                                                                    | Enable TensorRT for pose (2-3x faster)   |
+| `POSE_TENSORRT_ENGINE_PATH`                    | (auto)                                                                                                     | Custom TensorRT engine path              |
+| `POSE_TENSORRT_FP16`                           | `true`                                                                                                     | Use FP16 precision for TensorRT          |
+| `THREAT_MODEL_PATH`                            | `/models/threat-detection-yolov8n` (`model.py`; registry uses its `weights/best.pt`)                       | Threat detection model path              |
+| `AGE_MODEL_PATH`                               | `/models/vit-age-classifier`                                                                               | Age classifier path                      |
+| `GENDER_MODEL_PATH`                            | (unset - derived from age model setup)                                                                     | Gender classifier path                   |
+| `REID_MODEL_PATH`                              | `/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth`                                                         | OSNet ReID model path                    |
+| `ACTION_MODEL_PATH`                            | `/models/xclip-base-patch16-16-frames`                                                                     | X-CLIP model path                        |
+| `YOLO26_ENRICHMENT_MODEL_PATH`                 | `/models/yolo26m.pt`                                                                                       | YOLO26 detector model path               |
+| `PET_DEVICE` / `REID_DEVICE`                   | cuda:0 (cpu fallback)                                                                                      | Force pet / re-ID model onto CPU         |
+| `VEHICLE_QUANTIZED` / `DEMOGRAPHICS_QUANTIZED` | `false`                                                                                                    | Use INT8 copies (NEM-5533)               |
+
+Note: `VITPOSE_MODEL_PATH` does not exist anywhere in the code - the
+ViTPose path comes from `POSE_MODEL_PATH` (see the two-default note above).
+`model.py` (standalone server) and `model_registry.py` (Model Zoo) each read
+`POSE_MODEL_PATH` with different defaults.
+| `HF_HOME` | `/cache/huggingface` | HuggingFace cache dir |
 
 ## Model Links
 
@@ -531,10 +551,12 @@ result = await pipeline.enrich_batch(detections, images, camera_id)
 
 ## Starting the Server
 
-### Container (Production)
+### Production (served by ai-gateway)
+
+enrichment runs inside the `ai-gateway` container (Triton + FastAPI on port 8090, router prefix `/enrichment`) - there is no standalone `ai-enrichment` compose service:
 
 ```bash
-docker compose -f docker-compose.prod.yml up ai-enrichment
+podman compose -f docker-compose.prod.yml up -d ai-gateway
 ```
 
 ### Native (Development)

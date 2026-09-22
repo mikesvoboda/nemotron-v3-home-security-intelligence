@@ -150,7 +150,8 @@ Status dots appear throughout the UI with consistent styling:
 
 ## Job Types
 
-The system supports several background job types:
+`GET /api/jobs/types` returns the advertised catalogue (`JOB_TYPES` in
+`backend/api/routes/jobs.py`):
 
 | Type        | Internal Key  | Description                                            |
 | ----------- | ------------- | ------------------------------------------------------ |
@@ -159,6 +160,17 @@ The system supports several background job types:
 | Backup      | `backup`      | Create a backup of system data                         |
 | Import      | `import`      | Import events from external files                      |
 | Batch Audit | `batch_audit` | Batch AI pipeline audit processing for multiple events |
+
+What the backend actually creates differs from that catalogue (measured call
+sites of `job_tracker.create_job`): `export` (`routes/jobs.py`,
+`routes/exports.py`), `batch_audit` (`routes/ai_audit.py`), `orphan_cleanup`
+(`services/orphan_cleanup_service.py`, `jobs/orphan_cleanup_job.py`),
+`orphaned_file_cleanup` and `data_cleanup` (`services/cleanup_service.py`), and
+`evaluation` / `background_evaluation` (`services/background_evaluator.py`).
+`backup` and `import` are never created today, and the new-style cleanup and
+evaluation types are missing from the catalogue and from the page's Type
+dropdown (which offers Export, Batch Audit, Cleanup, Re-evaluation — note
+"Re-evaluation" filters `re_evaluation`, a key nothing currently emits).
 
 ### Job Lifecycle
 
@@ -291,14 +303,13 @@ For developers wanting to understand the underlying systems.
 | `JobHeader.tsx`           | Job title, status badge, and progress bar                |
 | `JobMetadata.tsx`         | Timestamps (created, started, completed), duration, type |
 | `JobLogsViewer.tsx`       | Real-time log viewer with WebSocket streaming            |
-| `JobsSearchBar.tsx`       | Search input and filter dropdowns                        |
+| `JobsSearchBar.tsx`       | Search input plus the status/type filter dropdowns       |
 | `JobsEmptyState.tsx`      | Empty state when no jobs exist                           |
 | `JobActions.tsx`          | Cancel/Abort/Retry/Delete action buttons                 |
+| `JobErrorModal.tsx`       | Error detail modal for failed jobs                       |
 | `ConfirmDialog.tsx`       | Confirmation modal for destructive actions               |
 | `ConnectionIndicator.tsx` | WebSocket connection status indicator                    |
 | `StatusDot.tsx`           | Colored status indicator dot                             |
-| `StatusDropdown.tsx`      | Status filter dropdown component                         |
-| `TypeDropdown.tsx`        | Job type filter dropdown component                       |
 | `JobHistoryTimeline.tsx`  | Collapsible timeline of job state transitions            |
 | `TimelineEntry.tsx`       | Individual entry in the history timeline                 |
 | `LogLine.tsx`             | Individual log entry row                                 |

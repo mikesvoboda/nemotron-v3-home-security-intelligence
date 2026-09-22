@@ -8,247 +8,247 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 This directory contains **90+ hooks/utilities** organized into the following categories:
 
-| Category | Hook Count | Description |
-|----------|------------|-------------|
-| AI Services | 6 | AI degradation, metrics, model status |
-| Monitoring | 8 | Circuit breakers, health, performance |
-| WebSocket | 12 | Real-time data connections |
-| Data Queries | 25 | TanStack Query hooks for fetching |
-| Data Mutations | 10 | TanStack Query mutations for writes |
-| UI/UX | 12 | Keyboard, gestures, toasts, navigation |
-| PWA/Offline | 3 | Network status, caching, notifications |
-| Utilities | 8 | Event emitter, throttling, storage, forms |
-| Pagination | 4 | Cursor and offset pagination |
+| Category       | Hook Count | Description                               |
+| -------------- | ---------- | ----------------------------------------- |
+| AI Services    | 6          | AI degradation, metrics, model status     |
+| Monitoring     | 8          | Circuit breakers, health, performance     |
+| WebSocket      | 12         | Real-time data connections                |
+| Data Queries   | 25         | TanStack Query hooks for fetching         |
+| Data Mutations | 10         | TanStack Query mutations for writes       |
+| UI/UX          | 12         | Keyboard, gestures, toasts, navigation    |
+| PWA/Offline    | 3          | Network status, caching, notifications    |
+| Utilities      | 8          | Event emitter, throttling, storage, forms |
+| Pagination     | 4          | Cursor and offset pagination              |
 
 ## Comprehensive Hooks Reference
 
 ### AI Services Hooks
 
-| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
-|------|---------|------------|--------------|-----------------|
-| `useAIServiceStatus` | Track AI service degradation via WebSocket | None | `{ degradationMode, services, availableFeatures, hasUnavailableService, isOffline, isDegraded, getServiceState, isFeatureAvailable, lastUpdate }` | `/ws/events` |
-| `useAIMetrics` | Fetch AI performance metrics from multiple endpoints | `{ pollingInterval?: number }` | `{ data: AIPerformanceState, isLoading, error, refresh }` | `/api/metrics`, `/api/system/telemetry`, `/api/system/health` |
-| `useModelZooStatus` | Poll Model Zoo status with VRAM stats (legacy) | `{ pollingInterval?: number }` | `{ models, vramStats, isLoading, error, refresh }` | `/api/system/models` |
-| `useModelZooStatusQuery` | TanStack Query for Model Zoo status | `{ enabled?, refetchInterval? }` | `{ data, models, vramStats, isLoading, isRefetching, error, refetch }` | `/api/system/models` |
-| `useAnalysisStream` | SSE-based streaming LLM analysis | `{ onProgress?, onComplete?, onError? }` | `{ status, accumulatedText, result, error, startStream, stopStream, isStreaming }` | `/api/analysis/stream` |
-| `useDetectionEnrichment` | Fetch enrichment data for a detection | `detectionId: number` | `{ data, isLoading, error, refetch }` | `/api/detections/{id}/enrichment` |
+| Hook                     | Purpose                                              | Parameters                               | Return Value                                                                                                                                      | Endpoint/Source                                               |
+| ------------------------ | ---------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `useAIServiceStatus`     | Track AI service degradation via WebSocket           | None                                     | `{ degradationMode, services, availableFeatures, hasUnavailableService, isOffline, isDegraded, getServiceState, isFeatureAvailable, lastUpdate }` | `/ws/events`                                                  |
+| `useAIMetrics`           | Fetch AI performance metrics from multiple endpoints | `{ pollingInterval?: number }`           | `{ data: AIPerformanceState, isLoading, error, refresh }`                                                                                         | `/api/metrics`, `/api/system/telemetry`, `/api/system/health` |
+| `useModelZooStatus`      | Poll Model Zoo status with VRAM stats (legacy)       | `{ pollingInterval?: number }`           | `{ models, vramStats, isLoading, error, refresh }`                                                                                                | `/api/system/models`                                          |
+| `useModelZooStatusQuery` | TanStack Query for Model Zoo status                  | `{ enabled?, refetchInterval? }`         | `{ data, models, vramStats, isLoading, isRefetching, error, refetch }`                                                                            | `/api/system/models`                                          |
+| `useAnalysisStream`      | SSE-based streaming LLM analysis                     | `{ onProgress?, onComplete?, onError? }` | `{ status, accumulatedText, result, error, startStream, stopStream, isStreaming }`                                                                | `/api/analysis/stream`                                        |
+| `useDetectionEnrichment` | Fetch enrichment data for a detection                | `detectionId: number`                    | `{ data, isLoading, error, refetch }`                                                                                                             | `/api/detections/{id}/enrichment`                             |
 
 ### Monitoring Hooks
 
-| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
-|------|---------|------------|--------------|-----------------|
-| `useCircuitBreakerStatus` | Track circuit breaker states via WebSocket | None | `{ breakers, summary, hasOpenBreaker, hasHalfOpenBreaker, allClosed, lastUpdate, getBreaker, isConnected }` | `/ws/system` |
-| `useSystemStatus` | System health via WebSocket | None | `{ status, isConnected }` | `/ws/system` |
-| `useHealthStatus` | REST-based health polling (legacy) | `{ pollingInterval?, enabled? }` | `{ health, isLoading, error, overallStatus, services, refresh }` | `/api/system/health` |
-| `useHealthStatusQuery` | TanStack Query health status | `{ enabled?, refetchInterval? }` | `{ data, isLoading, error, isStale, refetch }` | `/api/system/health` |
-| `useFullHealthQuery` | Comprehensive health with circuit breakers | `{ enabled?, refetchInterval? }` | `{ data, overallStatus, postgres, redis, aiServices, circuitBreakers, workers, criticalUnhealthyCount }` | `/api/system/health/full` |
-| `usePerformanceMetrics` | Real-time performance via WebSocket | None | `{ current, history, alerts, isConnected, timeRange, setTimeRange }` | `/ws/system` |
-| `useGpuStatsQuery` | TanStack Query GPU stats | `{ enabled?, refetchInterval? }` | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }` | `/api/system/gpu` |
-| `useGpuHistory` | GPU polling with history buffer (legacy) | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }` | `/api/system/gpu` |
+| Hook                      | Purpose                                    | Parameters                                         | Return Value                                                                                                | Endpoint/Source           |
+| ------------------------- | ------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `useCircuitBreakerStatus` | Track circuit breaker states via WebSocket | None                                               | `{ breakers, summary, hasOpenBreaker, hasHalfOpenBreaker, allClosed, lastUpdate, getBreaker, isConnected }` | `/ws/system`              |
+| `useSystemStatus`         | System health via WebSocket                | None                                               | `{ status, isConnected }`                                                                                   | `/ws/system`              |
+| `useHealthStatus`         | REST-based health polling (legacy)         | `{ pollingInterval?, enabled? }`                   | `{ health, isLoading, error, overallStatus, services, refresh }`                                            | `/api/system/health`      |
+| `useHealthStatusQuery`    | TanStack Query health status               | `{ enabled?, refetchInterval? }`                   | `{ data, isLoading, error, isStale, refetch }`                                                              | `/api/system/health`      |
+| `useFullHealthQuery`      | Comprehensive health with circuit breakers | `{ enabled?, refetchInterval? }`                   | `{ data, overallStatus, postgres, redis, aiServices, circuitBreakers, workers, criticalUnhealthyCount }`    | `/api/system/health/full` |
+| `usePerformanceMetrics`   | Real-time performance via WebSocket        | None                                               | `{ current, history, alerts, isConnected, timeRange, setTimeRange }`                                        | `/ws/system`              |
+| `useGpuStatsQuery`        | TanStack Query GPU stats                   | `{ enabled?, refetchInterval? }`                   | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }`                                 | `/api/system/gpu`         |
+| `useGpuHistory`           | GPU polling with history buffer (legacy)   | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }`                                         | `/api/system/gpu`         |
 
 ### WebSocket Hooks
 
-| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
-|------|---------|------------|--------------|-----------------|
-| `useWebSocket` | Low-level WebSocket connection manager | `WebSocketOptions` | `{ isConnected, lastMessage, send, connect, disconnect, hasExhaustedRetries, reconnectCount, lastHeartbeat }` | Any WebSocket |
-| `useWebSocketStatus` | Enhanced WebSocket with channel status | `{ url, name, ...options }` | `{ channelStatus, lastMessage, send, connect, disconnect }` | Any WebSocket |
-| `useConnectionStatus` | Unified status for events+system channels | None | `{ summary, events, systemStatus, clearEvents }` | `/ws/events`, `/ws/system` |
-| `useEventStream` | Security events via WebSocket | None | `{ events, isConnected, latestEvent, clearEvents }` | `/ws/events` |
-| `useAlertWebSocket` | Alert state changes via WebSocket | `{ onAlertCreated?, onAlertUpdated?, onAlertAcknowledged?, onAlertResolved?, autoInvalidateCache? }` | `{ isConnected, lastAlert, lastEventType, connect, disconnect, hasExhaustedRetries, reconnectCount }` | `/ws/events` |
-| `useEventLifecycleWebSocket` | Event lifecycle (create/update/delete) | `{ onEventCreated?, onEventUpdated?, onEventDeleted?, autoInvalidateCache? }` | `{ isConnected, lastEventPayload, lastEventType, connect, disconnect }` | `/ws/events` |
-| `useCameraStatusWebSocket` | Camera status changes via WebSocket | `{ onCameraOnline?, onCameraOffline?, onCameraError?, onCameraUpdated? }` | `{ cameraStatuses, isConnected, reconnectCount, lastEvent, reconnect }` | `/ws/events` |
-| `useSceneChangeAlerts` | Scene change detection alerts | `{ maxAlerts?, autoDismissMs? }` | `{ alerts, unacknowledgedCount, hasAlerts, dismissAlert, dismissAll, hasBlockedCameras, hasTamperedCameras, blockedCameraIds, tamperedCameraIds }` | `/ws/events` |
-| `useJobWebSocket` | Background job status updates | `{ jobType?, onJobUpdate? }` | `{ jobs, isConnected, reconnectCount }` | `/ws/jobs` |
-| `useJobLogsWebSocket` | Streaming job logs via WebSocket | `{ jobId, enabled? }` | `{ logs, isConnected, clearLogs }` | `/ws/jobs/{id}/logs` |
-| `useWebSocketEvent` | Subscribe to specific WebSocket event types | `{ eventType, handler }` | `{ isConnected }` | Any WebSocket |
-| `useWebSocketEvents` | Subscribe to multiple WebSocket event types | `{ handlers: Record }` | `{ isConnected }` | Any WebSocket |
+| Hook                         | Purpose                                     | Parameters                                                                                           | Return Value                                                                                                                                       | Endpoint/Source            |
+| ---------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `useWebSocket`               | Low-level WebSocket connection manager      | `WebSocketOptions`                                                                                   | `{ isConnected, lastMessage, send, connect, disconnect, hasExhaustedRetries, reconnectCount, lastHeartbeat }`                                      | Any WebSocket              |
+| `useWebSocketStatus`         | Enhanced WebSocket with channel status      | `{ url, name, ...options }`                                                                          | `{ channelStatus, lastMessage, send, connect, disconnect }`                                                                                        | Any WebSocket              |
+| `useConnectionStatus`        | Unified status for events+system channels   | None                                                                                                 | `{ summary, events, systemStatus, clearEvents }`                                                                                                   | `/ws/events`, `/ws/system` |
+| `useEventStream`             | Security events via WebSocket               | None                                                                                                 | `{ events, isConnected, latestEvent, clearEvents }`                                                                                                | `/ws/events`               |
+| `useAlertWebSocket`          | Alert state changes via WebSocket           | `{ onAlertCreated?, onAlertUpdated?, onAlertAcknowledged?, onAlertResolved?, autoInvalidateCache? }` | `{ isConnected, lastAlert, lastEventType, connect, disconnect, hasExhaustedRetries, reconnectCount }`                                              | `/ws/events`               |
+| `useEventLifecycleWebSocket` | Event lifecycle (create/update/delete)      | `{ onEventCreated?, onEventUpdated?, onEventDeleted?, autoInvalidateCache? }`                        | `{ isConnected, lastEventPayload, lastEventType, connect, disconnect }`                                                                            | `/ws/events`               |
+| `useCameraStatusWebSocket`   | Camera status changes via WebSocket         | `{ onCameraOnline?, onCameraOffline?, onCameraError?, onCameraUpdated? }`                            | `{ cameraStatuses, isConnected, reconnectCount, lastEvent, reconnect }`                                                                            | `/ws/events`               |
+| `useSceneChangeAlerts`       | Scene change detection alerts               | `{ maxAlerts?, autoDismissMs? }`                                                                     | `{ alerts, unacknowledgedCount, hasAlerts, dismissAlert, dismissAll, hasBlockedCameras, hasTamperedCameras, blockedCameraIds, tamperedCameraIds }` | `/ws/events`               |
+| `useJobWebSocket`            | Background job status updates               | `{ jobType?, onJobUpdate? }`                                                                         | `{ jobs, isConnected, reconnectCount }`                                                                                                            | `/ws/jobs`                 |
+| `useJobLogsWebSocket`        | Streaming job logs via WebSocket            | `{ jobId, enabled? }`                                                                                | `{ logs, isConnected, clearLogs }`                                                                                                                 | `/ws/jobs/{id}/logs`       |
+| `useWebSocketEvent`          | Subscribe to specific WebSocket event types | `{ eventType, handler }`                                                                             | `{ isConnected }`                                                                                                                                  | Any WebSocket              |
+| `useWebSocketEvents`         | Subscribe to multiple WebSocket event types | `{ handlers: Record }`                                                                               | `{ isConnected }`                                                                                                                                  | Any WebSocket              |
 
 ### Data Query Hooks (TanStack Query)
 
-| Hook | Purpose | Parameters | Return Value | Endpoint |
-|------|---------|------------|--------------|----------|
-| `useCamerasQuery` | Fetch all cameras | `{ enabled? }` | `{ data, cameras, isLoading, error, refetch }` | `/api/cameras` |
-| `useCameraQuery` | Fetch single camera | `cameraId: string` | `{ data, isLoading, error, refetch }` | `/api/cameras/{id}` |
-| `useEventsInfiniteQuery` | Infinite scroll security events | `{ filters?, limit? }` | `{ data, events, hasNextPage, fetchNextPage, isLoading }` | `/api/events` |
-| `useRecentEventsQuery` | Recent events for dashboard | `{ limit?, enabled? }` | `{ data, events, isLoading, error }` | `/api/events/recent` |
-| `useDetectionsInfiniteQuery` | Infinite scroll detections | `{ filters?, limit? }` | `{ data, detections, hasNextPage, fetchNextPage }` | `/api/detections` |
-| `useAlertsInfiniteQuery` | Infinite scroll alerts | `{ riskFilter?, status? }` | `{ data, alerts, hasNextPage, fetchNextPage }` | `/api/alerts` |
-| `useEntitiesInfiniteQuery` | Infinite scroll entities | `{ timeRange?, limit? }` | `{ data, entities, hasNextPage, fetchNextPage }` | `/api/entities` |
-| `useEntityHistory` | Entity sighting history | `entityId: string` | `{ data, history, isLoading, error }` | `/api/entities/{id}/history` |
-| `useEntityStats` | Entity statistics | `entityId: string` | `{ data, stats, isLoading, error }` | `/api/entities/{id}/stats` |
-| `useStorageStatsQuery` | Storage disk usage | `{ enabled?, refetchInterval? }` | `{ data, diskUsagePercent, diskTotalBytes, isLoading, error }` | `/api/system/storage` |
-| `useCameraUptimeQuery` | Camera uptime statistics | `cameraId: string` | `{ data, isLoading, error }` | `/api/cameras/{id}/uptime` |
-| `useDetectionTrendsQuery` | Detection trends over time | `{ timeRange }` | `{ data, trends, isLoading, error }` | `/api/analytics/detection-trends` |
-| `useJobsSearchQuery` | Search background jobs | `{ query?, status?, type? }` | `{ data, jobs, isLoading, error }` | `/api/jobs/search` |
-| `useJobHistoryQuery` | Job execution history | `jobId: string` | `{ data, history, isLoading, error }` | `/api/jobs/{id}/history` |
-| `useJobLogsQuery` | Fetch job logs (REST) | `jobId: string` | `{ data, logs, isLoading, error }` | `/api/jobs/{id}/logs` |
-| `useRecordingsQuery` | Fetch request recordings | `{ limit?, enabled? }` | `{ data, recordings, totalCount, isEmpty, isLoading }` | `/api/debug/recordings` |
-| `useDebugConfigQuery` | Debug configuration | `{ enabled? }` | `{ data, entries, isLoading, error }` | `/api/debug/config` |
-| `useLogLevelQuery` | Current log level | `{ enabled? }` | `{ data, level, isLoading, error }` | `/api/debug/log-level` |
-| `useProfileQuery` | Profiling status | `{ enabled? }` | `{ data, isActive, isLoading, error }` | `/api/debug/profile` |
-| `useSystemConfigQuery` | System configuration | `{ enabled? }` | `{ data, config, isLoading, error }` | `/api/system/config` |
-| `usePromptConfig` | Prompt configuration | `promptName: string` | `{ data, config, isLoading, error }` | `/api/prompts/{name}` |
-| `usePromptHistory` | Prompt version history | `promptName: string` | `{ data, versions, isLoading, error }` | `/api/prompts/{name}/history` |
-| `usePipelineErrorsQuery` | Pipeline error logs | `{ enabled? }` | `{ data, errors, isLoading, error }` | `/api/debug/pipeline-errors` |
-| `useRedisDebugInfoQuery` | Redis debug info | `{ enabled? }` | `{ data, info, isLoading, error }` | `/api/debug/redis` |
-| `useWebSocketConnectionsQuery` | Active WebSocket connections | `{ enabled? }` | `{ data, connections, isLoading, error }` | `/api/debug/websocket-connections` |
+| Hook                           | Purpose                         | Parameters                       | Return Value                                                   | Endpoint                           |
+| ------------------------------ | ------------------------------- | -------------------------------- | -------------------------------------------------------------- | ---------------------------------- |
+| `useCamerasQuery`              | Fetch all cameras               | `{ enabled? }`                   | `{ data, cameras, isLoading, error, refetch }`                 | `/api/cameras`                     |
+| `useCameraQuery`               | Fetch single camera             | `cameraId: string`               | `{ data, isLoading, error, refetch }`                          | `/api/cameras/{id}`                |
+| `useEventsInfiniteQuery`       | Infinite scroll security events | `{ filters?, limit? }`           | `{ data, events, hasNextPage, fetchNextPage, isLoading }`      | `/api/events`                      |
+| `useRecentEventsQuery`         | Recent events for dashboard     | `{ limit?, enabled? }`           | `{ data, events, isLoading, error }`                           | `/api/events/recent`               |
+| `useDetectionsInfiniteQuery`   | Infinite scroll detections      | `{ filters?, limit? }`           | `{ data, detections, hasNextPage, fetchNextPage }`             | `/api/detections`                  |
+| `useAlertsInfiniteQuery`       | Infinite scroll alerts          | `{ riskFilter?, status? }`       | `{ data, alerts, hasNextPage, fetchNextPage }`                 | `/api/alerts`                      |
+| `useEntitiesInfiniteQuery`     | Infinite scroll entities        | `{ timeRange?, limit? }`         | `{ data, entities, hasNextPage, fetchNextPage }`               | `/api/entities`                    |
+| `useEntityHistory`             | Entity sighting history         | `entityId: string`               | `{ data, history, isLoading, error }`                          | `/api/entities/{id}/history`       |
+| `useEntityStats`               | Entity statistics               | `entityId: string`               | `{ data, stats, isLoading, error }`                            | `/api/entities/{id}/stats`         |
+| `useStorageStatsQuery`         | Storage disk usage              | `{ enabled?, refetchInterval? }` | `{ data, diskUsagePercent, diskTotalBytes, isLoading, error }` | `/api/system/storage`              |
+| `useCameraUptimeQuery`         | Camera uptime statistics        | `cameraId: string`               | `{ data, isLoading, error }`                                   | `/api/cameras/{id}/uptime`         |
+| `useDetectionTrendsQuery`      | Detection trends over time      | `{ timeRange }`                  | `{ data, trends, isLoading, error }`                           | `/api/analytics/detection-trends`  |
+| `useJobsSearchQuery`           | Search background jobs          | `{ query?, status?, type? }`     | `{ data, jobs, isLoading, error }`                             | `/api/jobs/search`                 |
+| `useJobHistoryQuery`           | Job execution history           | `jobId: string`                  | `{ data, history, isLoading, error }`                          | `/api/jobs/{id}/history`           |
+| `useJobLogsQuery`              | Fetch job logs (REST)           | `jobId: string`                  | `{ data, logs, isLoading, error }`                             | `/api/jobs/{id}/logs`              |
+| `useRecordingsQuery`           | Fetch request recordings        | `{ limit?, enabled? }`           | `{ data, recordings, totalCount, isEmpty, isLoading }`         | `/api/debug/recordings`            |
+| `useDebugConfigQuery`          | Debug configuration             | `{ enabled? }`                   | `{ data, entries, isLoading, error }`                          | `/api/debug/config`                |
+| `useLogLevelQuery`             | Current log level               | `{ enabled? }`                   | `{ data, level, isLoading, error }`                            | `/api/debug/log-level`             |
+| `useProfileQuery`              | Profiling status                | `{ enabled? }`                   | `{ data, isActive, isLoading, error }`                         | `/api/debug/profile`               |
+| `useSystemConfigQuery`         | System configuration            | `{ enabled? }`                   | `{ data, config, isLoading, error }`                           | `/api/system/config`               |
+| `usePromptConfig`              | Prompt configuration            | `promptName: string`             | `{ data, config, isLoading, error }`                           | `/api/prompts/{name}`              |
+| `usePromptHistory`             | Prompt version history          | `promptName: string`             | `{ data, versions, isLoading, error }`                         | `/api/prompts/{name}/history`      |
+| `usePipelineErrorsQuery`       | Pipeline error logs             | `{ enabled? }`                   | `{ data, errors, isLoading, error }`                           | `/api/debug/pipeline-errors`       |
+| `useRedisDebugInfoQuery`       | Redis debug info                | `{ enabled? }`                   | `{ data, info, isLoading, error }`                             | `/api/debug/redis`                 |
+| `useWebSocketConnectionsQuery` | Active WebSocket connections    | `{ enabled? }`                   | `{ data, connections, isLoading, error }`                      | `/api/debug/websocket-connections` |
 
 ### RTSP/ONVIF Mutation Hooks
 
-| Hook | Purpose | Parameters | Return Value | Endpoint |
-|------|---------|------------|--------------|----------|
-| `useRtspTest` | RTSP connection testing mutation | None | `{ mutate, mutateAsync, isPending, error, data: RTSPTestResult }` | `POST /api/cameras/rtsp/test` |
-| `useOnvifDiscovery` | ONVIF device discovery mutation | None | `{ mutate, mutateAsync, isPending, error, data: OnvifDiscoveryResponse }` | `POST /api/cameras/onvif/discover` |
-| `useRtspPreview` | WebRTC preview with RTCPeerConnection lifecycle | `{ streamId?: string }` | `{ startPreview, stopPreview, peerConnection, connectionState, error }` | `POST /api/cameras/preview/start`, `DELETE /api/cameras/preview/{stream_id}/stop` |
+| Hook                | Purpose                                         | Parameters              | Return Value                                                              | Endpoint                                                                          |
+| ------------------- | ----------------------------------------------- | ----------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `useRtspTest`       | RTSP connection testing mutation                | None                    | `{ mutate, mutateAsync, isPending, error, data: RTSPTestResult }`         | `POST /api/cameras/rtsp/test`                                                     |
+| `useOnvifDiscovery` | ONVIF device discovery mutation                 | None                    | `{ mutate, mutateAsync, isPending, error, data: OnvifDiscoveryResponse }` | `POST /api/cameras/onvif/discover`                                                |
+| `useRtspPreview`    | WebRTC preview with RTCPeerConnection lifecycle | `{ streamId?: string }` | `{ startPreview, stopPreview, peerConnection, connectionState, error }`   | `POST /api/cameras/preview/start`, `DELETE /api/cameras/preview/{stream_id}/stop` |
 
 ### Data Mutation Hooks (TanStack Query)
 
-| Hook | Purpose | Parameters | Return Value | Endpoint |
-|------|---------|------------|--------------|----------|
-| `useCameraMutation` | Create/update/delete cameras | None | `{ createMutation, updateMutation, deleteMutation }` | `/api/cameras` |
-| `useRecordingMutations` | Replay/delete request recordings | None | `{ replayMutation, deleteMutation, clearAllMutation, isReplaying, isDeleting, isClearing }` | `/api/debug/recordings` |
-| `useProfilingMutations` | Start/stop/download profiling | None | `useStartProfilingMutation`, `useStopProfilingMutation`, `useDownloadProfileMutation` | `/api/debug/profile` |
-| `useJobMutations` | Cancel/retry/delete jobs | None | `{ cancelMutation, retryMutation, deleteMutation }` | `/api/jobs` |
-| `useCleanupPreviewMutation` | Preview storage cleanup | None | `{ mutation, previewData, isPending, preview, reset }` | `/api/system/storage/cleanup` |
-| `useCleanupMutation` | Execute storage cleanup | None | `{ mutation, isPending, error }` | `/api/system/storage/cleanup` |
-| `useAdminMutations` | Admin seed/clear operations | None | `useSeedCamerasMutation`, `useSeedEventsMutation`, `useClearSeededDataMutation` | `/api/admin/*` |
-| `useUpdatePromptConfig` | Update prompt configuration | None | `{ mutation, isPending, error }` | `/api/prompts/{name}` |
-| `useRestorePromptVersion` | Restore prompt to version | None | `{ mutation, isPending, error }` | `/api/prompts/{name}/restore` |
-| `useSetLogLevelMutation` | Change log level | None | `{ setLevel, isPending, error }` | `/api/debug/log-level` |
-| `useSnoozeEvent` | Snooze security event | None | `{ snooze, isPending, error }` | `/api/events/{id}/snooze` |
+| Hook                        | Purpose                          | Parameters | Return Value                                                                                | Endpoint                      |
+| --------------------------- | -------------------------------- | ---------- | ------------------------------------------------------------------------------------------- | ----------------------------- |
+| `useCameraMutation`         | Create/update/delete cameras     | None       | `{ createMutation, updateMutation, deleteMutation }`                                        | `/api/cameras`                |
+| `useRecordingMutations`     | Replay/delete request recordings | None       | `{ replayMutation, deleteMutation, clearAllMutation, isReplaying, isDeleting, isClearing }` | `/api/debug/recordings`       |
+| `useProfilingMutations`     | Start/stop/download profiling    | None       | `useStartProfilingMutation`, `useStopProfilingMutation`, `useDownloadProfileMutation`       | `/api/debug/profile`          |
+| `useJobMutations`           | Cancel/retry/delete jobs         | None       | `{ cancelMutation, retryMutation, deleteMutation }`                                         | `/api/jobs`                   |
+| `useCleanupPreviewMutation` | Preview storage cleanup          | None       | `{ mutation, previewData, isPending, preview, reset }`                                      | `/api/system/storage/cleanup` |
+| `useCleanupMutation`        | Execute storage cleanup          | None       | `{ mutation, isPending, error }`                                                            | `/api/system/storage/cleanup` |
+| `useAdminMutations`         | Admin seed/clear operations      | None       | `useSeedCamerasMutation`, `useSeedEventsMutation`, `useClearSeededDataMutation`             | `/api/admin/*`                |
+| `useUpdatePromptConfig`     | Update prompt configuration      | None       | `{ mutation, isPending, error }`                                                            | `/api/prompts/{name}`         |
+| `useRestorePromptVersion`   | Restore prompt to version        | None       | `{ mutation, isPending, error }`                                                            | `/api/prompts/{name}/restore` |
+| `useSetLogLevelMutation`    | Change log level                 | None       | `{ setLevel, isPending, error }`                                                            | `/api/debug/log-level`        |
+| `useSnoozeEvent`            | Snooze security event            | None       | `{ snooze, isPending, error }`                                                              | `/api/events/{id}/snooze`     |
 
 ### Saved Searches & Persistence Hooks
 
-| Hook | Purpose | Parameters | Return Value | Storage |
-|------|---------|------------|--------------|---------|
-| `useSavedSearches` | Manage saved searches | None | `{ savedSearches, saveSearch, deleteSearch, loadSearch, clearAll }` | localStorage (`hsi_saved_searches`) |
-| `useLocalStorage` | Generic localStorage persistence | `key: string, defaultValue: T` | `[value, setValue]` | localStorage |
-| `useSettings` | App settings management | None | `{ settings, updateSettings, resetSettings }` | localStorage |
-| `useSystemPageSections` | System page section states | None | `{ sectionStates, toggleSection, expandAll, collapseAll }` | localStorage |
-| `useDevToolsSections` | Dev tools section states | None | `{ sectionStates, toggleSection }` | localStorage |
+| Hook                    | Purpose                          | Parameters                     | Return Value                                                        | Storage                             |
+| ----------------------- | -------------------------------- | ------------------------------ | ------------------------------------------------------------------- | ----------------------------------- |
+| `useSavedSearches`      | Manage saved searches            | None                           | `{ savedSearches, saveSearch, deleteSearch, loadSearch, clearAll }` | localStorage (`hsi_saved_searches`) |
+| `useLocalStorage`       | Generic localStorage persistence | `key: string, defaultValue: T` | `[value, setValue]`                                                 | localStorage                        |
+| `useSettings`           | App settings management          | None                           | `{ settings, updateSettings, resetSettings }`                       | localStorage                        |
+| `useSystemPageSections` | System page section states       | None                           | `{ sectionStates, toggleSection, expandAll, collapseAll }`          | localStorage                        |
+| `useDevToolsSections`   | Dev tools section states         | None                           | `{ sectionStates, toggleSection }`                                  | localStorage                        |
 
 ### UI/UX Hooks
 
-| Hook | Purpose | Parameters | Return Value |
-|------|---------|------------|--------------|
-| `useKeyboardShortcuts` | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }` | `{ isPendingChord }` |
-| `useListNavigation` | j/k style list navigation | `{ itemCount, onSelect?, wrap? }` | `{ selectedIndex, setSelectedIndex, resetSelection }` |
-| `useToast` | Toast notifications via sonner | None | `{ success, error, warning, info, loading, dismiss, promise }` |
-| `useIsMobile` | Mobile viewport detection | `breakpoint?: number` | `boolean` |
-| `useSwipeGesture` | Touch swipe detection | `{ onSwipe, threshold?, timeout? }` | `ref callback` |
-| `useInfiniteScroll` | Intersection observer for infinite scroll | `{ onLoadMore, hasMore, threshold? }` | `{ ref, isLoading }` |
-| `useDateRangeState` | Date range with URL persistence | `{ defaultPreset? }` | `{ range, preset, setPreset, setCustomRange }` |
-| `usePaginationState` | Pagination state with URL sync | `{ type, defaultPageSize? }` | Cursor or offset pagination state |
-| `useRateLimitCountdown` | Countdown timer for rate limits | None | `{ isLimited, secondsRemaining, formattedCountdown, current }` |
-| `useAudioNotifications` | Audio alert sounds | `{ enabled? }` | `{ playSound, stopSound }` |
-| `useDesktopNotifications` | Desktop notification API | `{ enabled? }` | `{ show, permission, requestPermission }` |
+| Hook                      | Purpose                                    | Parameters                               | Return Value                                                   |
+| ------------------------- | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------- |
+| `useKeyboardShortcuts`    | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }` | `{ isPendingChord }`                                           |
+| `useListNavigation`       | j/k style list navigation                  | `{ itemCount, onSelect?, wrap? }`        | `{ selectedIndex, setSelectedIndex, resetSelection }`          |
+| `useToast`                | Toast notifications via sonner             | None                                     | `{ success, error, warning, info, loading, dismiss, promise }` |
+| `useIsMobile`             | Mobile viewport detection                  | `breakpoint?: number`                    | `boolean`                                                      |
+| `useSwipeGesture`         | Touch swipe detection                      | `{ onSwipe, threshold?, timeout? }`      | `ref callback`                                                 |
+| `useInfiniteScroll`       | Intersection observer for infinite scroll  | `{ onLoadMore, hasMore, threshold? }`    | `{ ref, isLoading }`                                           |
+| `useDateRangeState`       | Date range with URL persistence            | `{ defaultPreset? }`                     | `{ range, preset, setPreset, setCustomRange }`                 |
+| `usePaginationState`      | Pagination state with URL sync             | `{ type, defaultPageSize? }`             | Cursor or offset pagination state                              |
+| `useRateLimitCountdown`   | Countdown timer for rate limits            | None                                     | `{ isLimited, secondsRemaining, formattedCountdown, current }` |
+| `useAudioNotifications`   | Audio alert sounds                         | `{ enabled? }`                           | `{ playSound, stopSound }`                                     |
+| `useDesktopNotifications` | Desktop notification API                   | `{ enabled? }`                           | `{ show, permission, requestPermission }`                      |
 
 ### PWA/Offline Hooks
 
-| Hook | Purpose | Parameters | Return Value |
-|------|---------|------------|--------------|
-| `useNetworkStatus` | Browser connectivity tracking | `{ onOnline?, onOffline? }` | `{ isOnline, isOffline, lastOnlineAt, wasOffline, clearWasOffline }` |
-| `useCachedEvents` | IndexedDB event caching | None | `{ cachedEvents, cachedCount, isInitialized, cacheEvent, loadCachedEvents, removeCachedEvent, clearCache }` |
-| `usePushNotifications` | Browser push notifications | None | `{ permission, isSupported, hasPermission, requestPermission, showNotification, showSecurityAlert }` |
+| Hook                   | Purpose                       | Parameters                  | Return Value                                                                                                |
+| ---------------------- | ----------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `useNetworkStatus`     | Browser connectivity tracking | `{ onOnline?, onOffline? }` | `{ isOnline, isOffline, lastOnlineAt, wasOffline, clearWasOffline }`                                        |
+| `useCachedEvents`      | IndexedDB event caching       | None                        | `{ cachedEvents, cachedCount, isInitialized, cacheEvent, loadCachedEvents, removeCachedEvent, clearCache }` |
+| `usePushNotifications` | Browser push notifications    | None                        | `{ permission, isSupported, hasPermission, requestPermission, showNotification, showSecurityAlert }`        |
 
 ### Utility Hooks
 
-| Hook | Purpose | Parameters | Return Value |
-|------|---------|------------|--------------|
-| `usePolling` | Generic REST endpoint polling | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }` |
-| `useThrottledValue` | Throttle value updates | `value: T, { interval? }` | `T` (throttled) |
-| `useRetry` | Retry with exponential backoff | `{ maxAttempts?, baseDelay? }` | `{ retry, isRetrying, retryCount, reset }` |
-| `useCursorPaginatedQuery` | Generic cursor pagination | `{ queryKey, fetcher, limit? }` | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }` |
-| `useFormWithApiErrors` | Map API validation errors to forms | `form: UseFormReturn` | `{ applyApiValidationErrors, useApiMutation }` |
-| `useServiceStatus` | Per-service status tracking | `{ onStatusChange? }` | `{ services, getStatus }` |
-| `useDebounce` | Debounce value updates | `value: T, delay: number` | `T` (debounced) |
-| `typedEventEmitter` | Type-safe WebSocket event emitter class | N/A (class) | `TypedWebSocketEmitter` |
+| Hook                      | Purpose                                 | Parameters                                              | Return Value                                                                      |
+| ------------------------- | --------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `usePolling`              | Generic REST endpoint polling           | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }`                                               |
+| `useThrottledValue`       | Throttle value updates                  | `value: T, { interval? }`                               | `T` (throttled)                                                                   |
+| `useRetry`                | Retry with exponential backoff          | `{ maxAttempts?, baseDelay? }`                          | `{ retry, isRetrying, retryCount, reset }`                                        |
+| `useCursorPaginatedQuery` | Generic cursor pagination               | `{ queryKey, fetcher, limit? }`                         | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }` |
+| `useFormWithApiErrors`    | Map API validation errors to forms      | `form: UseFormReturn`                                   | `{ applyApiValidationErrors, useApiMutation }`                                    |
+| `useServiceStatus`        | Per-service status tracking             | `{ onStatusChange? }`                                   | `{ services, getStatus }`                                                         |
+| `useDebounce`             | Debounce value updates                  | `value: T, delay: number`                               | `T` (debounced)                                                                   |
+| `typedEventEmitter`       | Type-safe WebSocket event emitter class | N/A (class)                                             | `TypedWebSocketEmitter`                                                           |
 
 ## Key Files
 
-| File                         | Purpose                                                           | Exported |
-| ---------------------------- | ----------------------------------------------------------------- | -------- |
-| `index.ts`                   | Central export point for hooks and types                          | N/A      |
-| `typedEventEmitter.ts`       | Type-safe WebSocket event emitter with compile-time checking      | Yes      |
-| `usePolling.ts`              | Generic polling hook for REST endpoints with interval fetching    | Yes      |
-| `useWebSocket.ts`            | Low-level WebSocket connection manager                            | Yes      |
-| `useWebSocketStatus.ts`      | Enhanced WebSocket with channel status tracking                   | Yes      |
-| `useConnectionStatus.ts`     | Unified connection status for all WS channels                     | Yes      |
-| `useEventStream.ts`          | Security events via `/ws/events` WebSocket                        | Yes      |
-| `useSystemStatus.ts`         | System health via `/ws/system` WebSocket                          | Yes      |
-| `useGpuHistory.ts`           | GPU metrics polling with history buffer                           | Yes      |
-| `useHealthStatus.ts`         | REST-based health status polling (legacy)                         | Yes      |
-| `useHealthStatusQuery.ts`    | TanStack Query-based health status fetching                       | Yes      |
-| `useFullHealthQuery.ts`      | TanStack Query for comprehensive health with circuit breakers     | Yes      |
-| `useCamerasQuery.ts`         | TanStack Query hooks for camera CRUD operations                   | Yes      |
-| `useGpuStatsQuery.ts`        | TanStack Query for GPU stats and history                          | Yes      |
-| `useModelZooStatusQuery.ts`  | TanStack Query for Model Zoo status with VRAM stats               | Yes      |
-| `useStorageStatsQuery.ts`    | TanStack Query for storage stats with cleanup mutation            | Yes      |
-| `usePerformanceMetrics.ts`   | System performance metrics via WebSocket                          | Yes      |
-| `useAIMetrics.ts`            | Fetches AI performance metrics from multiple endpoints            | Yes      |
-| `useAIServiceStatus.ts`      | AI service degradation and circuit breaker status via WebSocket   | Yes      |
-| `useDetectionEnrichment.ts`  | Fetches enrichment data for a specific detection                  | Yes      |
-| `useModelZooStatus.ts`       | Fetches and polls Model Zoo status with VRAM stats (legacy)       | Yes      |
-| `useSavedSearches.ts`        | Manages saved searches in localStorage                            | Yes      |
-| `useLocalStorage.ts`         | Generic localStorage persistence hook                             | Yes      |
-| `useThrottledValue.ts`       | Throttles value updates to reduce re-renders                      | Yes      |
-| `useToast.ts`                | Toast notifications using sonner                                  | Yes      |
-| `useKeyboardShortcuts.ts`    | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)              | Yes      |
-| `useListNavigation.ts`       | j/k style list navigation with Enter selection                    | Yes      |
-| `useIsMobile.ts`             | Mobile viewport detection via MediaQueryList                      | Yes      |
-| `useSwipeGesture.ts`         | Touch swipe gesture detection                                     | Yes      |
-| `useNetworkStatus.ts`        | Browser network connectivity tracking for PWA                     | Yes      |
-| `useCachedEvents.ts`         | Offline event caching using IndexedDB                             | Yes      |
-| `usePushNotifications.ts`    | Browser push notification permissions and display                 | Yes      |
-| `useStorageStats.ts`         | Storage disk usage polling with cleanup preview (uses usePolling) | No       |
-| `useServiceStatus.ts`        | Per-service status tracking                                       | No       |
-| `useSidebarContext.ts`       | Context hook for mobile sidebar state                             | No       |
-| `useSystemPageSections.ts`   | System page collapsible section state management                  | No       |
-| `webSocketManager.ts`        | Singleton WebSocket connection manager with deduplication         | No       |
+| File                        | Purpose                                                           | Exported |
+| --------------------------- | ----------------------------------------------------------------- | -------- |
+| `index.ts`                  | Central export point for hooks and types                          | N/A      |
+| `typedEventEmitter.ts`      | Type-safe WebSocket event emitter with compile-time checking      | Yes      |
+| `usePolling.ts`             | Generic polling hook for REST endpoints with interval fetching    | Yes      |
+| `useWebSocket.ts`           | Low-level WebSocket connection manager                            | Yes      |
+| `useWebSocketStatus.ts`     | Enhanced WebSocket with channel status tracking                   | Yes      |
+| `useConnectionStatus.ts`    | Unified connection status for all WS channels                     | Yes      |
+| `useEventStream.ts`         | Security events via `/ws/events` WebSocket                        | Yes      |
+| `useSystemStatus.ts`        | System health via `/ws/system` WebSocket                          | Yes      |
+| `useGpuHistory.ts`          | GPU metrics polling with history buffer                           | Yes      |
+| `useHealthStatus.ts`        | REST-based health status polling (legacy)                         | Yes      |
+| `useHealthStatusQuery.ts`   | TanStack Query-based health status fetching                       | Yes      |
+| `useFullHealthQuery.ts`     | TanStack Query for comprehensive health with circuit breakers     | Yes      |
+| `useCamerasQuery.ts`        | TanStack Query hooks for camera CRUD operations                   | Yes      |
+| `useGpuStatsQuery.ts`       | TanStack Query for GPU stats and history                          | Yes      |
+| `useModelZooStatusQuery.ts` | TanStack Query for Model Zoo status with VRAM stats               | Yes      |
+| `useStorageStatsQuery.ts`   | TanStack Query for storage stats with cleanup mutation            | Yes      |
+| `usePerformanceMetrics.ts`  | System performance metrics via WebSocket                          | Yes      |
+| `useAIMetrics.ts`           | Fetches AI performance metrics from multiple endpoints            | Yes      |
+| `useAIServiceStatus.ts`     | AI service degradation and circuit breaker status via WebSocket   | Yes      |
+| `useDetectionEnrichment.ts` | Fetches enrichment data for a specific detection                  | Yes      |
+| `useModelZooStatus.ts`      | Fetches and polls Model Zoo status with VRAM stats (legacy)       | Yes      |
+| `useSavedSearches.ts`       | Manages saved searches in localStorage                            | Yes      |
+| `useLocalStorage.ts`        | Generic localStorage persistence hook                             | Yes      |
+| `useThrottledValue.ts`      | Throttles value updates to reduce re-renders                      | Yes      |
+| `useToast.ts`               | Toast notifications using sonner                                  | Yes      |
+| `useKeyboardShortcuts.ts`   | Global keyboard navigation shortcuts (g+d, ?, Cmd+K)              | Yes      |
+| `useListNavigation.ts`      | j/k style list navigation with Enter selection                    | Yes      |
+| `useIsMobile.ts`            | Mobile viewport detection via MediaQueryList                      | Yes      |
+| `useSwipeGesture.ts`        | Touch swipe gesture detection                                     | Yes      |
+| `useNetworkStatus.ts`       | Browser network connectivity tracking for PWA                     | Yes      |
+| `useCachedEvents.ts`        | Offline event caching using IndexedDB                             | Yes      |
+| `usePushNotifications.ts`   | Browser push notification permissions and display                 | Yes      |
+| `useStorageStats.ts`        | Storage disk usage polling with cleanup preview (uses usePolling) | No       |
+| `useServiceStatus.ts`       | Per-service status tracking                                       | No       |
+| `useSidebarContext.ts`      | Context hook for mobile sidebar state                             | No       |
+| `useSystemPageSections.ts`  | System page collapsible section state management                  | No       |
+| `webSocketManager.ts`       | Singleton WebSocket connection manager with deduplication         | No       |
 
 ### Test Files
 
-| File                              | Coverage                                                  |
-| --------------------------------- | --------------------------------------------------------- |
-| `typedEventEmitter.test.ts`       | Event subscription, emission, once, message handling      |
-| `usePolling.test.ts`              | Generic polling, callbacks, error handling, interval      |
-| `useWebSocket.test.ts`            | Connection lifecycle, message handling, reconnects        |
-| `useWebSocket.timeout.test.ts`    | Connection timeout scenarios                              |
-| `useWebSocketStatus.test.ts`      | Channel status tracking, reconnect state                  |
-| `useConnectionStatus.test.ts`     | Multi-channel status aggregation                          |
-| `useEventStream.test.ts`          | Event buffering, envelope parsing, non-event filtering    |
-| `useSystemStatus.test.ts`         | Backend message transformation, type guards               |
-| `useGpuHistory.test.ts`           | Polling, history buffer, start/stop controls              |
-| `useHealthStatus.test.ts`         | REST polling, error handling, refresh                     |
-| `useHealthStatus.msw.test.ts`     | MSW-based integration tests                               |
-| `useHealthStatusQuery.test.ts`    | TanStack Query health status, caching, refetch            |
-| `useCamerasQuery.test.ts`         | TanStack Query cameras CRUD, cache invalidation           |
-| `useGpuStatsQuery.test.ts`        | TanStack Query GPU stats and history                      |
-| `useModelZooStatusQuery.test.ts`  | TanStack Query Model Zoo polling, VRAM calculation        |
-| `useStorageStatsQuery.test.ts`    | TanStack Query storage stats and cleanup preview          |
-| `useStorageStats.test.ts`         | Storage polling, cleanup preview                          |
-| `useStorageStats.msw.test.ts`     | MSW-based integration tests                               |
-| `useServiceStatus.test.ts`        | Service status parsing                                    |
-| `usePerformanceMetrics.test.ts`   | WebSocket performance metrics, alerts, history buffer     |
-| `useAIMetrics.test.ts`            | Multi-endpoint fetching, state combination, polling       |
-| `useAIServiceStatus.test.ts`      | AI degradation mode, service status, feature availability |
-| `useDetectionEnrichment.test.ts`  | Detection enrichment fetching, loading/error states       |
-| `useModelZooStatus.test.ts`       | Model Zoo polling, VRAM calculation, refresh              |
-| `useModelZooStatus.msw.test.ts`   | MSW-based integration tests                               |
-| `useSavedSearches.test.ts`        | LocalStorage persistence, CRUD operations, cross-tab sync |
-| `useLocalStorage.test.ts`         | LocalStorage read/write, SSR safety                       |
-| `useThrottledValue.test.ts`       | Value throttling, interval batching                       |
-| `useToast.test.ts`                | Toast variants, actions, promise-based toasts             |
-| `useKeyboardShortcuts.test.ts`    | Chord detection, modifier keys, input field bypass        |
-| `useListNavigation.test.ts`       | j/k navigation, Home/End, Enter selection                 |
-| `useIsMobile.test.ts`             | Viewport detection, resize handling                       |
-| `useSwipeGesture.test.ts`         | Swipe detection, threshold, timeout                       |
-| `useNetworkStatus.test.ts`        | Online/offline detection, callbacks                       |
-| `useCachedEvents.test.ts`         | IndexedDB CRUD operations                                 |
-| `usePushNotifications.test.ts`    | Permission handling, notification display                 |
-| `useSidebarContext.test.tsx`      | Context provider, mobile menu state                       |
-| `webSocketManager.test.ts`        | Connection deduplication, ref counting, subscribers       |
-| `webSocketManager.timeout.test.ts`| Timeout and reconnection scenarios                        |
+| File                               | Coverage                                                  |
+| ---------------------------------- | --------------------------------------------------------- |
+| `typedEventEmitter.test.ts`        | Event subscription, emission, once, message handling      |
+| `usePolling.test.ts`               | Generic polling, callbacks, error handling, interval      |
+| `useWebSocket.test.ts`             | Connection lifecycle, message handling, reconnects        |
+| `useWebSocket.timeout.test.ts`     | Connection timeout scenarios                              |
+| `useWebSocketStatus.test.ts`       | Channel status tracking, reconnect state                  |
+| `useConnectionStatus.test.ts`      | Multi-channel status aggregation                          |
+| `useEventStream.test.ts`           | Event buffering, envelope parsing, non-event filtering    |
+| `useSystemStatus.test.ts`          | Backend message transformation, type guards               |
+| `useGpuHistory.test.ts`            | Polling, history buffer, start/stop controls              |
+| `useHealthStatus.test.tsx`         | REST polling, error handling, refresh                     |
+| `useHealthStatus.msw.test.tsx`     | MSW-based integration tests                               |
+| `useHealthStatusQuery.test.ts`     | TanStack Query health status, caching, refetch            |
+| `useCamerasQuery.test.ts`          | TanStack Query cameras CRUD, cache invalidation           |
+| `useGpuStatsQuery.test.ts`         | TanStack Query GPU stats and history                      |
+| `useModelZooStatusQuery.test.ts`   | TanStack Query Model Zoo polling, VRAM calculation        |
+| `useStorageStatsQuery.test.ts`     | TanStack Query storage stats and cleanup preview          |
+| `useStorageStats.test.ts`          | Storage polling, cleanup preview                          |
+| `useStorageStats.msw.test.ts`      | MSW-based integration tests                               |
+| `useServiceStatus.test.ts`         | Service status parsing                                    |
+| `usePerformanceMetrics.test.ts`    | WebSocket performance metrics, alerts, history buffer     |
+| `useAIMetrics.test.ts`             | Multi-endpoint fetching, state combination, polling       |
+| `useAIServiceStatus.test.ts`       | AI degradation mode, service status, feature availability |
+| `useDetectionEnrichment.test.ts`   | Detection enrichment fetching, loading/error states       |
+| `useModelZooStatus.test.ts`        | Model Zoo polling, VRAM calculation, refresh              |
+| `useModelZooStatus.msw.test.ts`    | MSW-based integration tests                               |
+| `useSavedSearches.test.ts`         | LocalStorage persistence, CRUD operations, cross-tab sync |
+| `useLocalStorage.test.ts`          | LocalStorage read/write, SSR safety                       |
+| `useThrottledValue.test.ts`        | Value throttling, interval batching                       |
+| `useToast.test.ts`                 | Toast variants, actions, promise-based toasts             |
+| `useKeyboardShortcuts.test.ts`     | Chord detection, modifier keys, input field bypass        |
+| `useListNavigation.test.ts`        | j/k navigation, Home/End, Enter selection                 |
+| `useIsMobile.test.ts`              | Viewport detection, resize handling                       |
+| `useSwipeGesture.test.ts`          | Swipe detection, threshold, timeout                       |
+| `useNetworkStatus.test.ts`         | Online/offline detection, callbacks                       |
+| `useCachedEvents.test.ts`          | IndexedDB CRUD operations                                 |
+| `usePushNotifications.test.ts`     | Permission handling, notification display                 |
+| `useSidebarContext.test.tsx`       | Context provider, mobile menu state                       |
+| `webSocketManager.test.ts`         | Connection deduplication, ref counting, subscribers       |
+| `webSocketManager.timeout.test.ts` | Timeout and reconnection scenarios                        |
 
 ## Hook Details
 
@@ -320,9 +320,9 @@ TanStack Query hook for comprehensive system health with circuit breaker states.
 
 ```typescript
 interface UseFullHealthQueryOptions {
-  enabled?: boolean;              // default: true
+  enabled?: boolean; // default: true
   refetchInterval?: number | false; // default: 30000
-  staleTime?: number;             // default: REALTIME_STALE_TIME (5s)
+  staleTime?: number; // default: REALTIME_STALE_TIME (5s)
 }
 ```
 
@@ -363,12 +363,12 @@ Hook for tracking AI service degradation status via WebSocket.
 
 **Degradation Modes:**
 
-| Mode | Description |
-|------|-------------|
-| `normal` | All AI services healthy |
-| `degraded` | Non-critical services (Florence-2, CLIP) unavailable |
-| `minimal` | Critical services (YOLO26, Nemotron) partially available |
-| `offline` | All AI services unavailable |
+| Mode       | Description                                              |
+| ---------- | -------------------------------------------------------- |
+| `normal`   | All AI services healthy                                  |
+| `degraded` | Non-critical services (Florence-2, CLIP) unavailable     |
+| `minimal`  | Critical services (YOLO26, Nemotron) partially available |
+| `offline`  | All AI services unavailable                              |
 
 **Types:**
 
@@ -436,11 +436,11 @@ Hook for tracking circuit breaker states via WebSocket. Circuit breakers protect
 
 **Circuit Breaker States:**
 
-| State | Description |
-|-------|-------------|
-| `closed` | Normal operation, requests flow through |
-| `open` | Service unhealthy, requests are blocked |
-| `half_open` | Testing if service has recovered |
+| State       | Description                             |
+| ----------- | --------------------------------------- |
+| `closed`    | Normal operation, requests flow through |
+| `open`      | Service unhealthy, requests are blocked |
+| `half_open` | Testing if service has recovered        |
 
 **Types:**
 
@@ -448,7 +448,7 @@ Hook for tracking circuit breaker states via WebSocket. Circuit breakers protect
 type CircuitBreakerStateType = 'closed' | 'open' | 'half_open';
 
 interface CircuitBreakerState {
-  name: string;                      // e.g., 'yolo26', 'nemotron'
+  name: string; // e.g., 'yolo26', 'nemotron'
   state: CircuitBreakerStateType;
   failure_count: number;
   success_count: number;
@@ -470,9 +470,9 @@ interface CircuitBreakerSummary {
 interface UseCircuitBreakerStatusReturn {
   breakers: Record<string, CircuitBreakerState>;
   summary: CircuitBreakerSummary;
-  hasOpenBreaker: boolean;      // True if any breaker is open
-  hasHalfOpenBreaker: boolean;  // True if any breaker is half_open
-  allClosed: boolean;           // True if all breakers are healthy
+  hasOpenBreaker: boolean; // True if any breaker is open
+  hasHalfOpenBreaker: boolean; // True if any breaker is half_open
+  allClosed: boolean; // True if all breakers are healthy
   lastUpdate: string | null;
   getBreaker: (name: string) => CircuitBreakerState | null;
   isConnected: boolean;
@@ -516,11 +516,11 @@ Hook for tracking unacknowledged scene change alerts from WebSocket. Scene chang
 
 **Change Types:**
 
-| Type | Severity | Description |
-|------|----------|-------------|
-| `view_blocked` | High | Camera view is obstructed |
-| `view_tampered` | High | Camera has been tampered with |
-| `angle_changed` | Medium | Camera angle has shifted |
+| Type            | Severity | Description                   |
+| --------------- | -------- | ----------------------------- |
+| `view_blocked`  | High     | Camera view is obstructed     |
+| `view_tampered` | High     | Camera has been tampered with |
+| `angle_changed` | Medium   | Camera angle has shifted      |
 
 **Types:**
 
@@ -530,14 +530,14 @@ interface SceneChangeAlert {
   cameraId: string;
   detectedAt: string;
   changeType: string;
-  similarityScore: number;  // 0-1, lower = more different from baseline
+  similarityScore: number; // 0-1, lower = more different from baseline
   dismissed: boolean;
   receivedAt: Date;
 }
 
 interface UseSceneChangeAlertsOptions {
-  maxAlerts?: number;       // Default: 50
-  autoDismissMs?: number;   // 0 = never auto-dismiss
+  maxAlerts?: number; // Default: 50
+  autoDismissMs?: number; // 0 = never auto-dismiss
 }
 ```
 
@@ -550,8 +550,8 @@ interface UseSceneChangeAlertsReturn {
   hasAlerts: boolean;
   dismissAlert: (id: number) => void;
   dismissAll: () => void;
-  acknowledgeAlert: (id: number) => void;  // alias for dismissAlert
-  acknowledgeAll: () => void;              // alias for dismissAll
+  acknowledgeAlert: (id: number) => void; // alias for dismissAlert
+  acknowledgeAll: () => void; // alias for dismissAll
   clearAlerts: () => void;
   isConnected: boolean;
   hasBlockedCameras: boolean;
@@ -605,7 +605,7 @@ type AnalysisStreamStatus = 'idle' | 'connecting' | 'connected' | 'complete' | '
 
 interface AnalysisStreamResult {
   eventId: number;
-  riskScore: number;    // 0-100
+  riskScore: number; // 0-100
   riskLevel: string;
   summary: string;
 }
@@ -622,7 +622,7 @@ interface AnalysisStreamError {
 ```typescript
 interface UseAnalysisStreamReturn {
   status: AnalysisStreamStatus;
-  accumulatedText: string;         // Progressive text during streaming
+  accumulatedText: string; // Progressive text during streaming
   result: AnalysisStreamResult | null;
   error: AnalysisStreamError | null;
   startStream: (params: AnalysisStreamParams) => void;
@@ -733,7 +733,7 @@ interface UseStartProfilingMutationReturn {
 
 interface UseStopProfilingMutationReturn {
   stop: () => Promise<StopProfilingResponse>;
-  results: StopProfilingResponse | undefined;  // Top functions by CPU time
+  results: StopProfilingResponse | undefined; // Top functions by CPU time
   isPending: boolean;
   error: Error | null;
   reset: () => void;
@@ -831,10 +831,10 @@ Generic reusable hook for polling REST endpoints at a configurable interval.
 
 ```typescript
 interface UsePollingOptions<T> {
-  fetcher: () => Promise<T>;     // Async function to fetch data
-  interval: number;               // Polling interval in milliseconds
-  enabled?: boolean;              // Enable polling (default: true)
-  onSuccess?: (data: T) => void;  // Called on successful fetch
+  fetcher: () => Promise<T>; // Async function to fetch data
+  interval: number; // Polling interval in milliseconds
+  enabled?: boolean; // Enable polling (default: true)
+  onSuccess?: (data: T) => void; // Called on successful fetch
   onError?: (error: Error) => void; // Called on fetch error
 }
 ```
@@ -843,10 +843,10 @@ interface UsePollingOptions<T> {
 
 ```typescript
 interface UsePollingReturn<T> {
-  data: T | null;                 // Fetched data
-  loading: boolean;               // Initial loading state only
-  error: Error | null;            // Error from last fetch
-  refetch: () => Promise<void>;   // Manual refetch function
+  data: T | null; // Fetched data
+  loading: boolean; // Initial loading state only
+  error: Error | null; // Error from last fetch
+  refetch: () => Promise<void>; // Manual refetch function
 }
 ```
 
@@ -855,7 +855,7 @@ interface UsePollingReturn<T> {
 ```typescript
 const { data, loading, error, refetch } = usePolling({
   fetcher: () => fetchStorageStats(),
-  interval: 60000,        // Poll every minute
+  interval: 60000, // Poll every minute
   enabled: true,
   onSuccess: (data) => console.log('Fetched:', data),
   onError: (error) => console.error('Error:', error),
@@ -1380,7 +1380,7 @@ Hook for fetching and polling Model Zoo status including VRAM statistics. This i
 
 ```typescript
 interface UseModelZooStatusOptions {
-  pollingInterval?: number;  // default: 10000 (10 seconds), 0 to disable
+  pollingInterval?: number; // default: 10000 (10 seconds), 0 to disable
 }
 ```
 
@@ -1388,10 +1388,10 @@ interface UseModelZooStatusOptions {
 
 ```typescript
 interface VRAMStats {
-  budget_mb: number;       // Total VRAM budget
-  used_mb: number;         // Currently used VRAM
-  available_mb: number;    // Available VRAM
-  usage_percent: number;   // Usage percentage (0-100)
+  budget_mb: number; // Total VRAM budget
+  used_mb: number; // Currently used VRAM
+  available_mb: number; // Available VRAM
+  usage_percent: number; // Usage percentage (0-100)
 }
 
 interface ModelStatusResponse {
@@ -1463,11 +1463,11 @@ Hook for managing saved searches with localStorage persistence. Allows users to 
 
 ```typescript
 interface SavedSearch {
-  id: string;              // Unique identifier (generated)
-  name: string;            // User-defined name
-  query: string;           // The search query string
-  filters: SearchFilters;  // Applied filters
-  createdAt: string;       // ISO timestamp
+  id: string; // Unique identifier (generated)
+  name: string; // User-defined name
+  query: string; // The search query string
+  filters: SearchFilters; // Applied filters
+  createdAt: string; // ISO timestamp
 }
 
 interface LoadedSearch {
@@ -1480,7 +1480,7 @@ interface LoadedSearch {
 
 ```typescript
 interface UseSavedSearchesReturn {
-  savedSearches: SavedSearch[];  // Newest first
+  savedSearches: SavedSearch[]; // Newest first
   saveSearch: (name: string, query: string, filters: SearchFilters) => void;
   deleteSearch: (id: string) => void;
   loadSearch: (id: string) => LoadedSearch | null;
@@ -1608,16 +1608,16 @@ Hook providing global keyboard navigation shortcuts.
 
 **Chord Routes:**
 
-| Chord | Route |
-|-------|-------|
+| Chord | Route         |
+| ----- | ------------- |
 | g + d | / (Dashboard) |
-| g + t | /timeline |
-| g + a | /analytics |
-| g + l | /alerts |
-| g + e | /entities |
-| g + o | /logs |
-| g + s | /system |
-| g + , | /settings |
+| g + t | /timeline     |
+| g + a | /analytics    |
+| g + l | /alerts       |
+| g + e | /entities     |
+| g + o | /logs         |
+| g + s | /system       |
+| g + , | /settings     |
 
 **Return Interface:**
 
@@ -1772,25 +1772,25 @@ WebSocket hook for real-time alert state changes. Subscribes to alert events and
 
 **Events Handled:**
 
-| Event | Description |
-|-------|-------------|
-| `alert_created` | New alert triggered from rule evaluation |
-| `alert_updated` | Alert modified (metadata, channels updated) |
-| `alert_acknowledged` | Alert marked as seen by user |
-| `alert_resolved` | Alert resolved/dismissed |
+| Event                | Description                                 |
+| -------------------- | ------------------------------------------- |
+| `alert_created`      | New alert triggered from rule evaluation    |
+| `alert_updated`      | Alert modified (metadata, channels updated) |
+| `alert_acknowledged` | Alert marked as seen by user                |
+| `alert_resolved`     | Alert resolved/dismissed                    |
 
 **Options Interface:**
 
 ```typescript
 interface UseAlertWebSocketOptions {
-  url?: string;                    // WebSocket URL (default: env or ws://localhost:8000/ws/events)
-  autoInvalidateCache?: boolean;   // Auto-invalidate React Query cache (default: true)
+  url?: string; // WebSocket URL (default: env or ws://localhost:8000/ws/events)
+  autoInvalidateCache?: boolean; // Auto-invalidate React Query cache (default: true)
   onAlertCreated?: AlertEventHandler;
   onAlertUpdated?: AlertEventHandler;
   onAlertAcknowledged?: AlertEventHandler;
   onAlertResolved?: AlertEventHandler;
   onAnyAlertEvent?: (eventType: string, alert: WebSocketAlertData) => void;
-  enabled?: boolean;               // Enable connection (default: true)
+  enabled?: boolean; // Enable connection (default: true)
 }
 ```
 
@@ -1831,18 +1831,18 @@ WebSocket hook for real-time security event lifecycle changes (create/update/del
 
 **Events Handled:**
 
-| Event | Description |
-|-------|-------------|
-| `event.created` | New security event detected and stored |
+| Event           | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `event.created` | New security event detected and stored             |
 | `event.updated` | Security event modified (risk score, status, etc.) |
-| `event.deleted` | Security event removed |
+| `event.deleted` | Security event removed                             |
 
 **Options Interface:**
 
 ```typescript
 interface UseEventLifecycleWebSocketOptions {
   url?: string;
-  autoInvalidateCache?: boolean;  // Auto-invalidate events query cache (default: true)
+  autoInvalidateCache?: boolean; // Auto-invalidate events query cache (default: true)
   onEventCreated?: (event: EventCreatedPayload) => void;
   onEventUpdated?: (event: EventUpdatedPayload) => void;
   onEventDeleted?: (event: EventDeletedPayload) => void;
@@ -1891,11 +1891,11 @@ Hook for subscribing to camera status WebSocket events. Provides real-time updat
 
 **Events Handled:**
 
-| Event | Description |
-|-------|-------------|
-| `camera.online` | Camera came online |
-| `camera.offline` | Camera went offline |
-| `camera.error` | Camera encountered an error |
+| Event            | Description                  |
+| ---------------- | ---------------------------- |
+| `camera.online`  | Camera came online           |
+| `camera.offline` | Camera went offline          |
+| `camera.error`   | Camera encountered an error  |
 | `camera.updated` | Camera configuration updated |
 
 **Options Interface:**
@@ -1909,7 +1909,7 @@ interface UseCameraStatusWebSocketOptions {
   onCameraError?: (event: CameraStatusEventPayload) => void;
   onCameraUpdated?: (event: CameraStatusEventPayload) => void;
   onCameraStatusChange?: (event: CameraStatusEventPayload) => void;
-  enabled?: boolean;  // Default: true
+  enabled?: boolean; // Default: true
 }
 ```
 
@@ -2040,10 +2040,10 @@ The base `useWebSocket` hook handles reconnection with counter tracking:
 
 This codebase has both patterns for historical reasons:
 
-| Pattern | Hooks | Use When |
-|---------|-------|----------|
-| TanStack Query | `use*Query`, `use*Mutation` | New code, need caching/deduplication |
-| usePolling | `useHealthStatus`, `useGpuHistory`, `useModelZooStatus` | Legacy, being migrated |
+| Pattern        | Hooks                                                   | Use When                             |
+| -------------- | ------------------------------------------------------- | ------------------------------------ |
+| TanStack Query | `use*Query`, `use*Mutation`                             | New code, need caching/deduplication |
+| usePolling     | `useHealthStatus`, `useGpuHistory`, `useModelZooStatus` | Legacy, being migrated               |
 
 Prefer TanStack Query hooks for new development.
 

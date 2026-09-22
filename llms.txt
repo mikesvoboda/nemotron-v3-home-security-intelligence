@@ -10,12 +10,12 @@ This file provides deployment and architecture context for LLM-powered coding as
 - `docker-compose.prod.yml` - Container orchestration (core + monitoring stack; `ai-gateway` is the single AI entrypoint)
 - `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
 - `frontend/` - React TypeScript dashboard (Tailwind + Tremor)
-- `ai/` - AI service containers (YOLO26, Nemotron, Florence, CLIP, Enrichment)
+- `ai/` - AI service code (`ai/gateway/` serves all detection/enrichment models via Triton; `ai/nemotron/` is the standalone llama.cpp LLM container)
 
 **Architecture:**
 ```
 Cameras (FTP) --> FileWatcher --> YOLO26 --> Batch Aggregator --> Nemotron --> Dashboard
-                                  (detection)                        (risk analysis)
+                                (via ai-gateway :8090)          (llama.cpp :8091)
 ```
 
 ## Quick Deploy (First Time)
@@ -25,8 +25,8 @@ Cameras (FTP) --> FileWatcher --> YOLO26 --> Batch Aggregator --> Nemotron --> D
 git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
 cd nemotron-v3-home-security-intelligence
 
-# 2. Configure environment
-cp .env.example .env
+# 2. Configure environment (setup.py generates .env interactively; or copy the template)
+python setup.py            # or: cp .env.example .env
 
 # 3. Download AI models (~42GB total, takes 30-90 min on fast connection)
 ./ai/download_models.sh
@@ -38,12 +38,13 @@ podman-compose -f docker-compose.prod.yml up -d
 watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
 ```
 
-**Access:** http://localhost:5173 or https://localhost:8444 (Dashboard) | http://localhost:8000/docs (API)
+**Access:** https://localhost:8444 (Dashboard, nginx container; plain HTTP on host 8080 for tunnel setups) | http://localhost:8000/docs (API)
+
+> First launch requires admin registration: `SetupGuardMiddleware` returns 503 on most API routes until the first user is created via the browser setup flow.
 
 ## Update Deployment (GHCR)
 
-Pre-built frontend/backend containers are published to GitHub Container Registry.
-AI service images publish to GHCR (`docker-compose.ghcr.yml`); build locally only when GPU-specific rebuilds are needed.
+Pre-built frontend/backend/ai-llm containers are published to GitHub Container Registry (`docker-compose.ghcr.yml`). AI gateway images publish too; build locally when GPU-specific rebuilds are needed.
 
 ```bash
 # Pull latest frontend + backend from GHCR
@@ -63,10 +64,10 @@ podman-compose -f docker-compose.prod.yml up -d
 | VRAM | Capability | Example GPUs |
 |------|------------|--------------|
 | **24GB** | Full stack, all models loaded | RTX 3090, 4090, A5000, A5500, A6000 |
-| **16GB** | Reduced GPU layers (`GPU_LAYERS=30`) | RTX 4080, A4000 |
+| **16GB** | Reduced GPU layers (`GPU_LAYERS`) | RTX 4080, A4000 |
 | **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
 
-**Full stack VRAM usage:** Nemotron ~21GB resident + YOLO26 ~650MB; detection/enrichment models load on demand via the gateway
+**VRAM budget:** Nemotron Q4_K_M GGUF is ~14.7GB on disk (`models.yml` size_mb 15073) and ~21GB resident when fully on GPU (`backend/services/model_zoo.py:36` — 21,700 MB); detection/enrichment models load on demand through the gateway with LRU eviction. `GPU_LAYERS=auto` (default) fits the LLM to available VRAM.
 
 ## AI Models (~42GB total)
 
@@ -75,13 +76,14 @@ The download script (`./ai/download_models.sh`) fetches all required models:
 | Model | Size | Purpose |
 |-------|------|---------|
 | Nemotron-3-Nano-30B (Q4_K_M) | ~14.7GB | Risk reasoning LLM |
-| YOLO26 | ~165MB | Object detection (auto-download) |
-| Florence-2-Large | ~3GB | Vision-language captions |
-| CLIP-ViT-L | ~1.7GB | Entity re-identification |
+| YOLO26 (n/s/m) | ~67MB | Object detection |
+| Florence-2-Large (legacy) | ~3GB | Vision-language (gateway loads Florence-2-base, ~1GB, `models.yml`) |
+| CLIP-ViT-L (legacy) | ~1.7GB | Re-ID (gateway's `/clip` router runs SigLIP 2 Base, ~400MB on disk / ~200MB VRAM) |
 | Fashion-CLIP | ~3.5GB | Clothing classification |
-| Vehicle-Segment-Classification | ~100MB | Vehicle types |
-| Pet-Classifier | ~100MB | Cat/dog detection |
-| Depth-Anything-V2-Small | ~95MB | Depth estimation |
+| Vehicle-Segment-Classification | ~350MB | Vehicle types |
+| Pet-Classifier (resnet-18) | ~45MB | Cat/dog detection |
+| Depth-Anything-V2-Tiny | ~98MB | Depth estimation |
+| Model Zoo remainder | ~19GB | Weather, pose, violence, plate OCR, etc. |
 
 ### Custom Model Path
 
@@ -109,33 +111,45 @@ ${AI_MODELS_PATH}/
     ├── fashion-clip/                  # Clothing
     ├── vehicle-segment-classification/ # Vehicles
     ├── pet-classifier/                # Pets
-    └── depth-anything-v2-small/       # Depth
+    ├── vitpose-plus-small/            # Pose
+    └── depth-anything-v2-tiny/        # Depth
 ```
 
 ## Services & Ports
 
-### Core Services (9)
+Host port defaults come from `.env` / `.env.example`; `docs/reference/config/env-reference.md` is the authoritative reference.
 
-| Service | Port | Container | GPU | Description |
-|---------|------|-----------|-----|-------------|
-| Frontend HTTP | 5173 | frontend | No | React dashboard via nginx |
-| Frontend HTTPS | 8444 | frontend | No | React dashboard via nginx (SSL) |
+### Core Services
+
+| Service | Host Port | Container | GPU | Description |
+|---------|-----------|-----------|-----|-------------|
+| Frontend HTTPS | 8444 | frontend | No | React dashboard via nginx (internal 8443) |
+| Frontend HTTP | 8080 | frontend | No | nginx HTTP for Cloudflare tunnel / Brev link (internal 8080) |
 | Backend | 8000 | backend | No | FastAPI REST + WebSocket |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
-| AI Gateway | 8090 | ai-gateway | no (on demand) | Detection/enrichment routers: /yolo26 /florence /clip /enrichment |
-| Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
+| go2rtc API | 1984 | go2rtc | No | Stream management API |
+| go2rtc WebRTC | 8555 | go2rtc | No | Browser WebRTC streaming |
+| AI Gateway | 8090 | ai-gateway | Yes | Triton routers: `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt` |
+| Nemotron | 8091 | ai-llm | Yes | llama.cpp risk-analysis LLM |
+| vLLM (optional) | 8097 | ai-llm-vllm | Yes | Compose profile `vllm`, off by default |
 
-> Frontend serves via nginx in production. SSL enabled by default (self-signed). Port 5173 is also used by Vite dev server in local development.
+> Since commit bc7d6101 the standalone YOLO26/Florence/CLIP/enrichment containers are gone — those models run inside `ai-gateway`. The legacy `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094`, `ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference/local-dev only. `FRONTEND_PORT=5173` is likewise no longer mapped by prod compose.
 
-### Monitoring Services (4)
+### Monitoring Services
 
 | Service | Port | Description |
 |---------|------|-------------|
 | Prometheus | 9090 | Metrics collection |
-| Grafana | 3002 | Dashboards (proxied at /grafana via frontend) |
+| Grafana | 3002 | Dashboards (proxied at /grafana via nginx) |
+| Tempo | 3200 | Distributed tracing (replaces Jaeger) |
+| Loki | 3100 | Log aggregation |
+| Pyroscope | 4040 | Continuous profiling |
+| Alertmanager | 9093 | Alert routing |
+| Alloy | 12345 | Log/metrics collector UI |
 | Redis Exporter | 9121 | Redis metrics |
 | JSON Exporter | 7979 | Custom metrics |
+| Node / DCGM / Blackbox exporters | 9100 / 9400 / 9115 | Host, GPU, endpoint metrics |
 
 ## Common Commands
 
@@ -157,7 +171,7 @@ podman-compose -f docker-compose.prod.yml down
 nvidia-smi
 
 # Database shell
-podman exec -it nemotron-v3-home-security-intelligence_postgres_1 psql -U security -d security
+podman exec -it $(podman ps -qf name=postgres) psql -U security -d security
 ```
 
 ## Deploy from CI/CD Containers
@@ -196,8 +210,8 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
 
 **Out of VRAM:**
 ```bash
-# Edit .env or docker-compose.prod.yml
-GPU_LAYERS=30  # Reduce from default 35
+# In .env: reduce LLM GPU layers (default: auto = fit to VRAM)
+GPU_LAYERS=30
 ```
 
 **AI service slow/not responding:**
@@ -215,7 +229,7 @@ curl http://localhost:8091/health  # Nemotron
 | AI model setup & downloads | [docs/operator/ai-installation.md](docs/operator/ai-installation.md) |
 | Container configuration | [docs/operator/deployment/](docs/operator/deployment/) |
 | Full operator guide | [docs/operator/](docs/operator/) |
-| Development setup | [CLAUDE.md](CLAUDE.md) |
+| Development setup | [AGENTS.md](AGENTS.md) |
 | User guide | [docs/user/README.md](docs/user/README.md) |
 
 ## Project Structure
@@ -232,9 +246,9 @@ nemotron-v3-home-security-intelligence/
 │       ├── components/      # UI components
 │       ├── hooks/           # WebSocket + data hooks
 │       └── services/        # API client
-├── ai/                       # AI service containers
+├── ai/                       # AI service code
 │   ├── gateway/             # Single AI entrypoint :8090 (router-per-model since bc7d6101)
-│   ├── yolo26/              # Detection server (runs inside gateway in prod)
+│   ├── yolo26/              # Detection code (runs inside gateway in prod)
 │   ├── nemotron/            # Risk reasoning LLM (port 8091)
 │   └── florence/ clip/ enrichment/  # model code behind gateway routes
 └── docs/                     # Documentation

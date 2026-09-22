@@ -104,14 +104,15 @@ gh pr create --title "feat: my feature"
 
 ### Service Ports
 
-| Service     | Port | Protocol |
-| ----------- | ---- | -------- |
-| Frontend    | 5173 | HTTP     |
-| Backend API | 8000 | HTTP/WS  |
-| PostgreSQL  | 5432 | TCP      |
-| Redis       | 6379 | TCP      |
-| YOLO26      | 8095 | HTTP     |
-| Nemotron    | 8091 | HTTP     |
+| Service             | Port                   | Protocol     |
+| ------------------- | ---------------------- | ------------ |
+| Frontend (prod)     | 8444 HTTPS / 8080 HTTP | HTTPS/HTTP   |
+| Frontend (dev)      | 8444                   | HTTPS (Vite) |
+| Backend API         | 8000                   | HTTP/WS      |
+| PostgreSQL          | 5432                   | TCP          |
+| Redis               | 6379                   | TCP          |
+| AI Gateway (models) | 8090                   | HTTP         |
+| Nemotron LLM        | 8091                   | HTTP         |
 
 ### AGENTS.md Navigation
 
@@ -159,4 +160,4 @@ Core development documentation for contributing to the project.
 
 ---
 
-[Back to Documentation Index](../README.md)
+[Back to Documentation Index](../index.md)

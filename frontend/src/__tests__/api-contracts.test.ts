@@ -174,7 +174,7 @@ describe('Event API Contract', () => {
       },
     };
 
-    // Default pagination values per CLAUDE.md
+    // Default pagination values per backend/api/pagination.py
     expect(response.pagination.limit).toBe(50);
     expect(response.pagination.offset).toBe(0);
   });

@@ -360,23 +360,28 @@ _Sequence diagram showing how AI decisions are logged for audit and later retrie
 | Method | Endpoint                                   | Description                           |
 | ------ | ------------------------------------------ | ------------------------------------- |
 | POST   | `/api/ai-audit/batch`                      | Trigger batch audit processing        |
+| GET    | `/api/ai-audit/batch/{job_id}`             | Get batch audit job status            |
 | GET    | `/api/ai-audit/events/{event_id}`          | Get audit for specific event          |
 | POST   | `/api/ai-audit/events/{event_id}/evaluate` | Trigger full event evaluation         |
 | GET    | `/api/ai-audit/leaderboard`                | Get model leaderboard by contribution |
-| GET    | `/api/ai-audit/prompt-config/{model}`      | Get prompt configuration (DB)         |
-| PUT    | `/api/ai-audit/prompt-config/{model}`      | Update prompt configuration (DB)      |
-| GET    | `/api/ai-audit/prompts`                    | Get all prompt configurations         |
-| GET    | `/api/ai-audit/prompts/export`             | Export all configurations as JSON     |
-| GET    | `/api/ai-audit/prompts/history`            | Get history for all models            |
-| GET    | `/api/ai-audit/prompts/history/{model}`    | Get history for specific model        |
-| POST   | `/api/ai-audit/prompts/history/{version}`  | Restore a prompt version              |
-| POST   | `/api/ai-audit/prompts/import`             | Import configurations from JSON       |
-| POST   | `/api/ai-audit/prompts/test`               | Test modified prompt config           |
-| GET    | `/api/ai-audit/prompts/{model}`            | Get prompt for specific model         |
-| PUT    | `/api/ai-audit/prompts/{model}`            | Update prompt for specific model      |
 | GET    | `/api/ai-audit/recommendations`            | Get prompt improvement suggestions    |
 | GET    | `/api/ai-audit/stats`                      | Get aggregate audit statistics        |
-| POST   | `/api/ai-audit/test-prompt`                | Test custom prompt (A/B testing)      |
+
+Prompt management is a separate router (`APIRouter(prefix="/api/prompts")` in
+`backend/api/routes/prompt_management.py`):
+
+| Method | Endpoint                            | Description                      |
+| ------ | ----------------------------------- | -------------------------------- |
+| GET    | `/api/prompts`                      | Get all prompt configurations    |
+| GET    | `/api/prompts/export`               | Export all configurations (JSON) |
+| GET    | `/api/prompts/history`              | Get history for all models       |
+| POST   | `/api/prompts/history/{version_id}` | Restore a prompt version         |
+| POST   | `/api/prompts/import`               | Import configurations from JSON  |
+| POST   | `/api/prompts/import/preview`       | Preview import changes           |
+| POST   | `/api/prompts/test`                 | Test modified prompt config      |
+| POST   | `/api/prompts/test-prompt`          | Test custom prompt (A/B testing) |
+| GET    | `/api/prompts/{model}`              | Get prompt for specific model    |
+| PUT    | `/api/prompts/{model}`              | Update prompt for specific model |
 
 ### Batch Audit Processing
 
@@ -494,171 +499,150 @@ GET /api/ai-audit/leaderboard?days=7
 
 ### Prompt Configuration Management
 
-#### Get Prompt Config (Database-backed)
+> The old `/api/ai-audit/prompt-config/{model}` endpoints were removed; the
+> database-backed per-model config now lives at `/api/prompts/{model}` (NEM-2695).
+
+#### Get Model Prompt
 
 ```bash
-GET /api/ai-audit/prompt-config/nemotron
+GET /api/prompts/nemotron
 ```
+
+Valid `{model}` values: `nemotron`, `florence2`, `yolo_world`, `xclip`,
+`fashion_clip`.
 
 **Response:**
 
 ```json
 {
   "model": "nemotron",
-  "system_prompt": "You are a security analysis AI...",
-  "temperature": 0.1,
-  "max_tokens": 2048,
-  "version": 5,
-  "created_at": "2025-12-23T10:00:00Z"
+  "config": {
+    "system_prompt": "You are a home security AI assistant...",
+    "temperature": 0.7,
+    "max_tokens": 2048
+  },
+  "version": 3,
+  "created_at": "2026-01-03T10:30:00Z",
+  "created_by": "admin",
+  "change_description": "Added weather context to prompt"
 }
 ```
 
-#### Update Prompt Config (Database-backed)
+#### Update Model Prompt
 
 ```bash
-PUT /api/ai-audit/prompt-config/nemotron
+PUT /api/prompts/nemotron
 Content-Type: application/json
 
 {
-  "system_prompt": "You are an expert security analyst...",
-  "temperature": 0.15,
-  "max_tokens": 3000
+  "config": {
+    "system_prompt": "You are a home security AI assistant...",
+    "temperature": 0.7,
+    "max_tokens": 2048
+  },
+  "change_description": "Increased temperature for more creative responses",
+  "expected_version": 3
 }
 ```
+
+**Parameters:**
+
+| Name               | Type    | Default | Description                                                         |
+| ------------------ | ------- | ------- | ------------------------------------------------------------------- |
+| change_description | string  | null    | Optional description of what changed                                |
+| expected_version   | integer | null    | Optimistic locking; returns `409 Conflict` if it mismatches current |
+
+**Response:** the updated `ModelPromptConfig` (same shape as the GET above,
+with the incremented `version`).
 
 ### Prompt Management
 
 #### Get All Prompts
 
 ```bash
-GET /api/ai-audit/prompts
+GET /api/prompts
 ```
 
 **Response:**
 
 ```json
 {
+  "version": "1.0",
+  "exported_at": "2026-01-03T10:30:00Z",
   "prompts": {
     "nemotron": {
-      "system_prompt": "...",
-      "temperature": 0.1,
-      "max_tokens": 2048,
-      "version": 5
+      "system_prompt": "You are a home security AI assistant...",
+      "temperature": 0.7,
+      "max_tokens": 2048
     },
-    "florence-2": {
-      "system_prompt": "...",
-      "temperature": 0.0,
-      "max_tokens": 512,
-      "version": 3
+    "florence2": {
+      "vqa_queries": ["What is this person wearing?", "Is this person carrying anything?"]
     }
   }
 }
 ```
 
-#### Get Model Prompt
-
-```bash
-GET /api/ai-audit/prompts/nemotron
-```
-
-#### Update Model Prompt
-
-```bash
-PUT /api/ai-audit/prompts/nemotron
-Content-Type: application/json
-
-{
-  "system_prompt": "Updated prompt content...",
-  "temperature": 0.1,
-  "max_tokens": 2048,
-  "description": "Added weather context handling"
-}
-```
-
-**Response:**
-
-```json
-{
-  "model": "nemotron",
-  "version": 6,
-  "previous_version": 5,
-  "description": "Added weather context handling",
-  "updated_at": "2025-12-23T14:00:00Z"
-}
-```
-
 ### Prompt History
 
-#### Get All Models History
+#### Get Version History
 
 ```bash
-GET /api/ai-audit/prompts/history?limit=10
+GET /api/prompts/history?model=nemotron&limit=50&offset=0
 ```
 
 **Parameters:**
 
-| Name  | Type    | Default | Description                    |
-| ----- | ------- | ------- | ------------------------------ |
-| limit | integer | 10      | Max versions per model (1-100) |
-
-#### Get Model History
-
-```bash
-GET /api/ai-audit/prompts/history/nemotron?limit=50&offset=0
-```
-
-**Parameters:**
-
-| Name   | Type    | Default | Description                |
-| ------ | ------- | ------- | -------------------------- |
-| limit  | integer | 50      | Max versions to return     |
-| offset | integer | 0       | Number of versions to skip |
+| Name   | Type    | Default | Description                    |
+| ------ | ------- | ------- | ------------------------------ |
+| model  | string  | null    | Optional model filter          |
+| limit  | integer | 50      | Max versions to return (1-100) |
+| offset | integer | 0       | Number of versions to skip     |
 
 **Response:**
 
 ```json
 {
-  "model": "nemotron",
   "versions": [
     {
-      "version": 6,
-      "system_prompt": "...",
-      "temperature": 0.1,
-      "description": "Added weather context",
-      "created_at": "2025-12-23T14:00:00Z"
+      "id": 15,
+      "model": "nemotron",
+      "version": 3,
+      "created_at": "2026-01-03T10:30:00Z",
+      "created_by": "admin",
+      "change_description": "Added weather context to prompt",
+      "is_active": true
     },
     {
-      "version": 5,
-      "system_prompt": "...",
-      "temperature": 0.1,
-      "description": "Initial prompt",
-      "created_at": "2025-12-22T10:00:00Z"
+      "id": 12,
+      "model": "nemotron",
+      "version": 2,
+      "created_at": "2026-01-02T14:00:00Z",
+      "created_by": "system",
+      "change_description": "Initial configuration",
+      "is_active": false
     }
   ],
-  "total": 6
+  "total_count": 3
 }
 ```
 
 #### Restore Prompt Version
 
-```bash
-POST /api/ai-audit/prompts/history/5?model=nemotron
-Content-Type: application/json
+Restore is keyed by the version record `id` (the `id` field from the history
+response), not the model name:
 
-{
-  "description": "Reverting to version 5"
-}
+```bash
+POST /api/prompts/history/15
 ```
 
 **Response:**
 
 ```json
 {
+  "restored_version": 3,
   "model": "nemotron",
-  "restored_version": 5,
-  "new_version": 7,
-  "description": "Reverting to version 5",
-  "restored_at": "2025-12-23T15:00:00Z"
+  "new_version": 4,
+  "message": "Successfully restored version 3 as new version 4"
 }
 ```
 
@@ -667,61 +651,65 @@ Content-Type: application/json
 #### Export All Prompts
 
 ```bash
-GET /api/ai-audit/prompts/export
+GET /api/prompts/export
 ```
 
-**Response:**
+**Response:** the same shape as `GET /api/prompts`
+(`version`, `exported_at`, `prompts`).
 
-```json
+#### Preview Import Changes
+
+Validate an import payload and diff it against current configs without
+applying anything:
+
+```bash
+POST /api/prompts/import/preview
+Content-Type: application/json
+
 {
+  "version": "1.0",
   "prompts": {
     "nemotron": {
-      "system_prompt": "...",
-      "temperature": 0.1,
+      "system_prompt": "You are a home security AI assistant...",
+      "temperature": 0.8,
       "max_tokens": 2048
-    },
-    "florence-2": {
-      "system_prompt": "...",
-      "temperature": 0.0,
-      "max_tokens": 512
     }
-  },
-  "exported_at": "2025-12-23T12:00:00Z",
-  "version": "1.0"
+  }
 }
 ```
+
+**Response:** per-model diff entries (`model`, `has_changes`,
+`current_version`, `current_config`, `imported_config`, `changes`), plus
+`total_changes`, `validation_errors`, and `unknown_models`.
 
 #### Import Prompts
 
 ```bash
-POST /api/ai-audit/prompts/import
+POST /api/prompts/import
 Content-Type: application/json
 
 {
+  "version": "1.0",
   "prompts": {
     "nemotron": {
-      "system_prompt": "...",
-      "temperature": 0.1,
+      "system_prompt": "You are a home security AI assistant...",
+      "temperature": 0.7,
       "max_tokens": 2048
     }
-  },
-  "overwrite": false
+  }
 }
 ```
-
-**Parameters:**
-
-| Name      | Type    | Default | Description                       |
-| --------- | ------- | ------- | --------------------------------- |
-| overwrite | boolean | false   | Overwrite existing configurations |
 
 **Response:**
 
 ```json
 {
-  "imported": ["nemotron"],
-  "skipped": ["florence-2"],
-  "errors": []
+  "imported_models": ["nemotron"],
+  "skipped_models": ["yolo_world"],
+  "new_versions": {
+    "nemotron": 4
+  },
+  "message": "Successfully imported 1 prompt configurations, skipped 1"
 }
 ```
 
@@ -729,20 +717,21 @@ Content-Type: application/json
 
 #### Test Modified Prompt Config
 
-Test a prompt configuration against an event:
+Test a candidate configuration against an event (rate limited to 10
+requests/minute per client):
 
 ```bash
-POST /api/ai-audit/prompts/test
+POST /api/prompts/test
 Content-Type: application/json
 
 {
   "model": "nemotron",
-  "event_id": 45,
   "config": {
     "system_prompt": "Modified prompt for testing...",
     "temperature": 0.2,
     "max_tokens": 2048
-  }
+  },
+  "event_id": 12345
 }
 ```
 
@@ -750,35 +739,38 @@ Content-Type: application/json
 
 ```json
 {
-  "event_id": 45,
   "model": "nemotron",
-  "current_result": {
-    "risk_score": 75,
-    "summary": "Current analysis result..."
+  "before_score": 65,
+  "after_score": 45,
+  "before_response": {
+    "risk_score": 65,
+    "risk_level": "medium",
+    "summary": "Person detected at front door during evening hours"
   },
-  "modified_result": {
-    "risk_score": 80,
-    "summary": "Modified analysis result..."
+  "after_response": {
+    "risk_score": 45,
+    "risk_level": "low",
+    "summary": "Regular visitor detected - matches known delivery pattern"
   },
-  "comparison": {
-    "risk_score_diff": 5,
-    "latency_diff_ms": 150
-  }
+  "improved": true,
+  "test_duration_ms": 1250,
+  "error": null
 }
 ```
 
 #### Test Custom Prompt (A/B Testing)
 
-Test a custom prompt for the Prompt Playground:
+Test a custom prompt for the Prompt Playground. Results are **not**
+persisted. Same rate limit as above:
 
 ```bash
-POST /api/ai-audit/test-prompt
+POST /api/prompts/test-prompt
 Content-Type: application/json
 
 {
-  "event_id": 45,
+  "event_id": 12345,
   "custom_prompt": "Analyze this security event with focus on...",
-  "temperature": 0.1,
+  "temperature": 0.7,
   "max_tokens": 2048,
   "model": "nemotron"
 }
@@ -788,15 +780,15 @@ Content-Type: application/json
 
 ```json
 {
-  "event_id": 45,
-  "result": {
-    "risk_score": 78,
-    "risk_level": "high",
-    "summary": "Analysis based on custom prompt...",
-    "reasoning": "..."
-  },
-  "latency_ms": 4200,
-  "tokens_used": 1650
+  "risk_score": 45,
+  "risk_level": "low",
+  "reasoning": "The detected person matches the expected delivery pattern...",
+  "summary": "Delivery person detected at front door during expected hours",
+  "entities": [{ "type": "person", "confidence": 0.95 }],
+  "flags": [],
+  "recommended_action": "No action required",
+  "processing_time_ms": 1250,
+  "tokens_used": 512
 }
 ```
 

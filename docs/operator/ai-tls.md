@@ -19,7 +19,20 @@ TLS is **optional** for this system's MVP deployment:
 | Exposed to network          | Yes              |
 | Compliance requirements     | Yes              |
 
-**Note:** AI services are designed for local/trusted network communication. For internet-facing deployments, use a reverse proxy (nginx, Traefik) with TLS termination.
+**Note:** `ai-gateway` (:8090) and `ai-llm` (:8091) serve **plain HTTP only** — nothing in
+`ai/gateway/` passes `ssl_certfile`/`ssl_keyfile` to uvicorn or Triton, and llama.cpp's
+`llama-server` has no TLS listener. Both containers bind `127.0.0.1` on the host by
+default, which is the primary boundary. For any network exposure, terminate TLS at a
+reverse proxy.
+
+> [!IMPORTANT] > **Backend trust:** the AI clients (`backend/services/detector_client.py`,
+> `nemotron_analyzer.py`, …) use default-verification `httpx.AsyncClient` instances, and
+> there is **no** `AI_VERIFY_SSL` / `AI_CA_CERT_PATH` setting in
+> `backend/core/config.py` or `.env.example`. Pointing `*_URL` variables at an
+> `https://` endpoint with a self-signed certificate will fail TLS verification. Either
+> use a proxy with a certificate the OS trust store accepts, or add trust configuration
+> before going down this path. (`TLS_MODE` / `TLS_CERT_PATH` in the backend configure the
+> **backend's own** API server, not its AI clients.)
 
 ---
 
@@ -27,7 +40,8 @@ TLS is **optional** for this system's MVP deployment:
 
 ### Self-Signed Certificates (Development)
 
-Generate certificates for testing:
+Generate certificates for testing (they will be presented by the **proxy**, not the AI
+services themselves):
 
 ```bash
 # Create certificate directory
@@ -72,76 +86,10 @@ Certificates stored in `/etc/letsencrypt/live/ai.yourdomain.com/`.
 
 ---
 
-## YOLO26 TLS Setup
-
-Modify `ai/yolo26/model.py` to enable SSL:
-
-```python
-# Add to uvicorn.run()
-uvicorn.run(
-    app,
-    host="0.0.0.0",
-    port=8095,
-    ssl_certfile="/path/to/server.crt",
-    ssl_keyfile="/path/to/server.key"
-)
-```
-
-**Environment variables:**
-
-```bash
-YOLO26_SSL_CERTFILE=/path/to/server.crt
-YOLO26_SSL_KEYFILE=/path/to/server.key
-```
-
----
-
-## Nemotron TLS Setup
-
-llama-server supports TLS directly:
-
-```bash
-llama-server \
-  --model /path/to/model.gguf \
-  --port 8091 \
-  --host 0.0.0.0 \
-  --ssl-cert-file /path/to/server.crt \
-  --ssl-key-file /path/to/server.key
-```
-
-Modify `ai/start_llm.sh` to include TLS options.
-
----
-
-## Backend Configuration
-
-Update backend to use HTTPS for AI services:
-
-```bash
-# .env
-YOLO26_URL=https://localhost:8095
-NEMOTRON_URL=https://localhost:8091
-
-# For self-signed certificates, disable verification (development only)
-AI_VERIFY_SSL=false
-```
-
-**Warning:** Do not disable SSL verification in production.
-
-### Custom CA Certificate
-
-For self-signed or private CA:
-
-```bash
-# .env
-AI_CA_CERT_PATH=/path/to/ca.crt
-```
-
----
-
 ## Reverse Proxy Approach (Recommended)
 
-Instead of configuring TLS on each service, use a reverse proxy:
+Since neither AI container speaks TLS, a TLS-terminating proxy in front of `127.0.0.1:8090`
+and `127.0.0.1:8091` is the supported pattern.
 
 ### Nginx Example
 
@@ -153,14 +101,16 @@ server {
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
 
-    location /detect {
-        proxy_pass http://localhost:8095;
+    # ai-gateway routers (pass the router path through)
+    location ~ ^/(yolo26|florence|clip|enrichment|enrich-lt|health|metrics) {
+        proxy_pass http://127.0.0.1:8090;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
+    # ai-llm (llama.cpp) — detection worker sends POST /completion
     location /completion {
-        proxy_pass http://localhost:8091;
+        proxy_pass http://127.0.0.1:8091;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -184,33 +134,48 @@ services:
       - 'traefik.http.routers.ai.tls=true'
 ```
 
+### Backend Configuration
+
+Once the proxy presents certificates the backend's trust store accepts:
+
+```bash
+# .env — host-run backend against a TLS-terminating proxy
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=https://ai.yourdomain.com
+YOLO26_URL=https://ai.yourdomain.com/yolo26
+NEMOTRON_URL=https://ai.yourdomain.com
+```
+
+**Warning:** Do not disable SSL verification in production. Remember the trust limitation
+above: with the code as shipped, self-signed proxy certs require an added trust mechanism
+(OS trust store entry for the CA is enough — `httpx` uses it).
+
 ---
 
 ## Verification
 
-Test TLS connectivity:
+Test TLS connectivity through the proxy:
 
 ```bash
 # Test certificate
-openssl s_client -connect localhost:8095 -CAfile ca.crt
+openssl s_client -connect localhost:443 -CAfile ai/certs/ca.crt -servername ai.yourdomain.com
 
-# Test HTTPS endpoint
-curl --cacert ca.crt https://localhost:8095/health
-
-# Verify in browser
-# Navigate to https://localhost:8095/health
+# Test HTTPS endpoints
+curl --cacert ai/certs/ca.crt https://ai.yourdomain.com/health
+curl --cacert ai/certs/ca.crt https://ai.yourdomain.com/yolo26/health
 ```
 
 ---
 
 ## Security Considerations
 
-| Practice             | Recommendation                   |
-| -------------------- | -------------------------------- |
-| Certificate rotation | Automate with certbot or similar |
-| Key permissions      | `chmod 600` on private keys      |
-| Cipher suites        | Use TLS 1.3 when possible        |
-| Certificate pinning  | Consider for production          |
+| Practice             | Recommendation                                           |
+| -------------------- | -------------------------------------------------------- |
+| Certificate rotation | Automate with certbot or similar                         |
+| Key permissions      | `chmod 600` on private keys                              |
+| Cipher suites        | Use TLS 1.3 when possible                                |
+| Certificate pinning  | Consider for production                                  |
+| Binding              | Keep the AI ports on `127.0.0.1`; publish only the proxy |
 
 ---
 
@@ -226,6 +191,7 @@ curl --cacert ca.crt https://localhost:8095/health
 - [AI Configuration](ai-configuration.md) - Environment variables
 - [Environment Variable Reference](../reference/config/env-reference.md) - TLS configuration variables
 - [AI Overview](ai-overview.md) - Architecture and capabilities
+- [Deployment Modes](deployment-modes.md) - Network layout options
 
 ---
 

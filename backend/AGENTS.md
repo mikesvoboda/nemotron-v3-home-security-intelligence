@@ -398,41 +398,41 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ### AI and Analysis Routes
 
-| Route                   | Prefix                    | Description                               |
-| ----------------------- | ------------------------- | ----------------------------------------- |
-| `ai_audit.py`           | `/api/ai-audit`           | AI pipeline audit and performance metrics |
-| `prompt_management.py`  | `/api/ai-audit/prompts`   | LLM prompt version management             |
-| `analytics.py`          | `/api/analytics`          | Detection and event analytics             |
-| `analytics_zones.py`    | `/api/analytics-zones`    | Analytics zone configuration              |
-| `calibration.py`        | `/api/calibration`        | Detection calibration settings            |
-| `cost_analytics.py`     | `/api/cost-analytics`     | AI inference cost analytics               |
-| `detector.py`           | `/api/detector`           | Detector configuration                    |
-| `entity_recognition.py` | `/api/entity-recognition` | Entity recognition operations             |
-| `face_recognition.py`   | `/api/face-recognition`   | Face recognition management               |
-| `heatmaps.py`           | `/api/heatmaps`           | Heatmap generation and queries            |
-| `llm_reasoning.py`      | `/api/llm-reasoning`      | LLM reasoning inspection                  |
-| `model_management.py`   | `/api/models`             | AI model management                       |
-| `reid.py`               | `/api/reid`               | Person re-identification                  |
-| `summaries.py`          | `/api/summaries`          | Event summaries                           |
-| `trends.py`             | `/api/trends`             | Trend analysis                            |
+| Route                   | Prefix                                   | Description                               |
+| ----------------------- | ---------------------------------------- | ----------------------------------------- |
+| `ai_audit.py`           | `/api/ai-audit`                          | AI pipeline audit and performance metrics |
+| `prompt_management.py`  | `/api/prompts`                           | LLM prompt version management             |
+| `analytics.py`          | `/api/analytics`                         | Detection and event analytics             |
+| `analytics_zones.py`    | `/api/analytics-zones`                   | Analytics zone configuration              |
+| `calibration.py`        | `/api/calibration`                       | Detection calibration settings            |
+| `cost_analytics.py`     | `/api/analytics/costs`                   | AI inference cost analytics               |
+| `detector.py`           | `/system/detectors`                      | Detector configuration                    |
+| `entity_recognition.py` | `/api/summaries/entities`                | Entity recognition operations             |
+| `face_recognition.py`   | `/api/known-persons`, `/api/face-events` | Face recognition management               |
+| `heatmaps.py`           | `/api/heatmaps`                          | Heatmap generation and queries            |
+| `llm_reasoning.py`      | `/api/llm-reasoning`                     | LLM reasoning inspection                  |
+| `model_management.py`   | `/api/system/models`                     | AI model management                       |
+| `reid.py`               | `/api/reid`                              | Person re-identification                  |
+| `summaries.py`          | `/api/summaries`                         | Event summaries                           |
+| `trends.py`             | `/api/summaries/trends`                  | Trend analysis                            |
 
 ### System and Infrastructure Routes
 
-| Route                   | Prefix                 | Description                               |
-| ----------------------- | ---------------------- | ----------------------------------------- |
-| `system.py`             | `/api/system`          | Health checks, GPU stats, pipeline status |
-| `services.py`           | `/api/system/services` | Service management and control            |
-| `metrics.py`            | `/api`                 | Prometheus metrics endpoint               |
-| `dlq.py`                | `/api/dlq`             | Dead-letter queue management              |
-| `admin.py`              | `/api/admin`           | Admin operations and cache management     |
-| `debug.py`              | `/api/debug`           | Debug endpoints for development           |
-| `gpu_config.py`         | `/api/gpu-config`      | GPU configuration management              |
-| `health_ai_services.py` | `/api/health/ai`       | AI service health checks                  |
-| `hierarchy.py`          | `/api/hierarchy`       | Hierarchical organization                 |
-| `jobs.py`               | `/api/jobs`            | Background job management                 |
-| `queues.py`             | `/api/queues`          | Queue status and management               |
-| `settings_api.py`       | `/api/settings`        | Application settings API                  |
-| `system_settings.py`    | `/api/system-settings` | System-wide settings                      |
+| Route                   | Prefix                    | Description                               |
+| ----------------------- | ------------------------- | ----------------------------------------- |
+| `system.py`             | `/api/system`             | Health checks, GPU stats, pipeline status |
+| `services.py`           | `/api/system/services`    | Service management and control            |
+| `metrics.py`            | `/api/metrics`            | Prometheus metrics endpoint               |
+| `dlq.py`                | `/api/dlq`                | Dead-letter queue management              |
+| `admin.py`              | `/api/admin`              | Admin operations and cache management     |
+| `debug.py`              | `/api/debug`              | Debug endpoints for development           |
+| `gpu_config.py`         | `/api/system/gpu-config`  | GPU configuration management              |
+| `health_ai_services.py` | `/api/health/ai-services` | AI service health checks                  |
+| `hierarchy.py`          | `/api/v1/households`      | Household/property/area hierarchy         |
+| `jobs.py`               | `/api/jobs`               | Background job management                 |
+| `queues.py`             | `/api/queues`             | Queue status and management               |
+| `settings_api.py`       | `/api/v1/settings`        | Application settings API                  |
+| `system_settings.py`    | `/api/v1/system-settings` | System-wide settings                      |
 
 ### Media and Logging Routes
 
@@ -445,14 +445,15 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ### Notification and Alerting Routes
 
-| Route                         | Prefix                          | Description                     |
-| ----------------------------- | ------------------------------- | ------------------------------- |
-| `alertmanager.py`             | `/api/alertmanager`             | Alertmanager integration        |
-| `alert_service.py`            | `/api/alert-service`            | Alert service operations        |
-| `alerts.py`                   | `/api/alerts/rules`             | Alert rule CRUD and evaluation  |
-| `notification.py`             | `/api/notification`             | Notification channel management |
-| `notification_preferences.py` | `/api/notification-preferences` | User notification preferences   |
-| `scheduled_reports.py`        | `/api/scheduled-reports`        | Scheduled report management     |
+| Route                         | Prefix                          | Description                                       |
+| ----------------------------- | ------------------------------- | ------------------------------------------------- |
+| `alertmanager.py`             | `/api/v1/alertmanager`          | Alertmanager integration                          |
+| `alert_service.py`            | `/api/alert-service`            | Alert service operations                          |
+| `alerts.py`                   | `/api/alerts/rules`             | Alert rule CRUD and evaluation                    |
+| `alerts.py`                   | `/api/alerts`                   | Alert instance queries (`alerts_instance_router`) |
+| `notification.py`             | `/api/notification`             | Notification channel management                   |
+| `notification_preferences.py` | `/api/notification-preferences` | User notification preferences                     |
+| `scheduled_reports.py`        | `/api/scheduled-reports`        | Scheduled report management                       |
 
 ### Security and Compliance Routes
 
@@ -464,25 +465,25 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ### Household and Zone Routes
 
-| Route                  | Prefix                   | Description                   |
-| ---------------------- | ------------------------ | ----------------------------- |
-| `household.py`         | `/api/household`         | Household management          |
-| `household_matcher.py` | `/api/household-matcher` | Household matching operations |
-| `plate_reads.py`       | `/api/plate-reads`       | License plate read queries    |
-| `zone_anomalies.py`    | `/api/zone-anomalies`    | Zone anomaly detection        |
-| `zone_household.py`    | `/api/zone-household`    | Zone-household configuration  |
+| Route                  | Prefix                           | Description                   |
+| ---------------------- | -------------------------------- | ----------------------------- |
+| `household.py`         | `/api/household`                 | Household management          |
+| `household_matcher.py` | `/api/household-matcher`         | Household matching operations |
+| `plate_reads.py`       | `/api/plate-reads`               | License plate read queries    |
+| `zone_anomalies.py`    | `/api/zones/anomalies`           | Zone anomaly detection        |
+| `zone_household.py`    | `/api/zones/{zone_id}/household` | Zone-household configuration  |
 
 ### Integration Routes
 
-| Route                  | Prefix                   | Description                    |
-| ---------------------- | ------------------------ | ------------------------------ |
-| `backup.py`            | `/api/backup`            | Backup management              |
-| `inbound_webhooks.py`  | `/api/inbound-webhooks`  | Inbound webhook handlers       |
-| `mqtt_config.py`       | `/api/mqtt-config`       | MQTT configuration             |
-| `onvif.py`             | `/api/onvif`             | ONVIF camera discovery/control |
-| `outbound_webhooks.py` | `/api/outbound-webhooks` | Outbound webhook configuration |
-| `webhooks.py`          | `/api/webhooks`          | Webhook management             |
-| `action_events.py`     | `/api/action-events`     | Action event management        |
+| Route                  | Prefix                           | Description                    |
+| ---------------------- | -------------------------------- | ------------------------------ |
+| `backup.py`            | `/api/backup`                    | Backup management              |
+| `inbound_webhooks.py`  | `/api/webhooks/inbound`          | Inbound webhook handlers       |
+| `mqtt_config.py`       | `/api/mqtt-config`               | MQTT configuration             |
+| `onvif.py`             | `/api/cameras/{camera_id}/onvif` | ONVIF camera discovery/control |
+| `outbound_webhooks.py` | `/api/outbound-webhooks`         | Outbound webhook configuration |
+| `webhooks.py`          | `/api/webhooks`                  | Webhook management             |
+| `action_events.py`     | `/api/action-events`             | Action event management        |
 
 ### Real-time Routes
 
@@ -940,8 +941,12 @@ REDIS_URL=redis://localhost:6379/0
 # Camera configuration
 FOSCAM_BASE_PATH=/export/foscam
 
-# AI service endpoints
-YOLO26_URL=http://localhost:8095
+# AI service endpoints - all vision models run behind the single ai-gateway
+# container on port 8090 (routers: /yolo26 /florence /clip /enrichment /enrich-lt).
+# Nemotron stays separate on llama.cpp (LLM_PORT 8091). Values below match .env.example.
+USE_AI_GATEWAY=true
+AI_GATEWAY_URL=http://ai-gateway:8090
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
 
 # Detection settings
@@ -988,31 +993,31 @@ The backend provides three health endpoints for different use cases:
 
 ### Backend Subdirectories
 
-| Path                                | Purpose                            |
-| ----------------------------------- | ---------------------------------- |
-| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated) |
-| `/backend/api/AGENTS.md`            | API layer overview                 |
-| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)          |
-| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)      |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (25 modules) |
-| `/backend/api/utils/AGENTS.md`      | API utility modules                |
-| `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)   |
-| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments |
-| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure     |
-| `/backend/evaluation/AGENTS.md`       | Prompt-evaluation harness          |
-| `/backend/jobs/AGENTS.md`           | Background job modules             |
-| `/backend/models/AGENTS.md`         | Database models (52 models)        |
-| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)|
-| `/backend/services/AGENTS.md`       | Service layer (204 modules)        |
-| `/backend/tests/AGENTS.md`          | Test infrastructure                |
-| `/backend/examples/AGENTS.md`         | Example scripts (Redis usage)      |
-| `/backend/scripts/AGENTS.md`          | Utility scripts (VRAM benchmarking)|
+| Path                                | Purpose                                          |
+| ----------------------------------- | ------------------------------------------------ |
+| `/backend/ai_contract/AGENTS.md`    | AI-tier operation registry (generated)           |
+| `/backend/api/AGENTS.md`            | API layer overview                               |
+| `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
+| `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)                    |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (25 modules)               |
+| `/backend/api/utils/AGENTS.md`      | API utility modules                              |
+| `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)                 |
+| `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
+| `/backend/core/websocket/AGENTS.md` | WebSocket event infrastructure                   |
+| `/backend/evaluation/AGENTS.md`     | Prompt-evaluation harness                        |
+| `/backend/jobs/AGENTS.md`           | Background job modules                           |
+| `/backend/models/AGENTS.md`         | Database models (52 models)                      |
+| `/backend/repositories/AGENTS.md`   | Repository pattern (base + 7 repos)              |
+| `/backend/services/AGENTS.md`       | Service layer (204 modules)                      |
+| `/backend/tests/AGENTS.md`          | Test infrastructure                              |
+| `/backend/examples/AGENTS.md`       | Example scripts (Redis usage)                    |
+| `/backend/scripts/AGENTS.md`        | Utility scripts (VRAM benchmarking)              |
 | `/backend/data/`                    | Runtime data directory (no AGENTS.md - data dir) |
 
 ### Project-Level Documentation
 
-| Path                                | Purpose                        |
-| ----------------------------------- | ------------------------------ |
-| `/CLAUDE.md`                        | Project-wide instructions      |
-| `/docs/development/testing.md`      | Comprehensive testing patterns |
-| `/docs/ROADMAP.md`                  | Post-MVP enhancements          |
+| Path                           | Purpose                        |
+| ------------------------------ | ------------------------------ |
+| `/AGENTS.md`                   | Project-wide instructions      |
+| `/docs/development/testing.md` | Comprehensive testing patterns |
+| `/docs/ROADMAP.md`             | Post-MVP enhancements          |

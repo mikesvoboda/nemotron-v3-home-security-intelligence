@@ -1,5 +1,7 @@
 # Orphaned Frontend Components Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607). The recommended deletions were not carried out — `frontend/src/components/DateRangePicker.tsx` and `RetryIndicator.tsx` still exist.
+
 ## Executive Summary
 
 Analysis identified **5 orphaned components** that are exported but never imported elsewhere in the codebase. After detailed code review:

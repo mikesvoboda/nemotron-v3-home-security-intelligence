@@ -110,5 +110,5 @@ uv run python tools/nemo_data_designer/multimodal_evaluation.py
 
 ## Related Documentation
 
-- [NeMo Data Designer Integration Design](docs/plans/2026-01-21-nemo-data-designer-integration-design.md)
-- [Multimodal Evaluation (Phase 6)](docs/plans/2026-01-21-nemo-data-designer-integration-design.md#multimodal-evaluation-phase-6)
+- [NeMo Data Designer Integration Design](../../../../../docs/plans/2026-01-21-nemo-data-designer-integration-design.md)
+- [Multimodal Evaluation (Phase 6)](../../../../../docs/plans/2026-01-21-nemo-data-designer-integration-design.md#multimodal-evaluation-phase-6)

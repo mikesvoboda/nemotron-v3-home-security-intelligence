@@ -68,7 +68,7 @@ _Decision tree for diagnosing system health issues: Start with the health check 
 
 ```bash
 # Check if events exist in database
-curl -s http://localhost:8000/api/events?limit=5 | jq .count
+curl -s http://localhost:8000/api/events?limit=5 | jq '.pagination.total'
 
 # Check pipeline status
 curl -s http://localhost:8000/api/system/pipeline | jq .
@@ -86,7 +86,7 @@ curl -s http://localhost:8000/api/system/pipeline | jq .
 **1. Check file watcher status:**
 
 ```bash
-curl -s http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name | contains("detection"))'
+curl -s http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name | test("file_watcher|detection"))'
 ```
 
 If not running, restart backend: `docker compose -f docker-compose.prod.yml restart backend`
@@ -100,11 +100,12 @@ ls -lt /export/foscam/*/  # Should show recent files
 **3. Check AI service health:**
 
 ```bash
-curl http://localhost:8095/health  # YOLO26
-curl http://localhost:8091/health  # Nemotron
-curl http://localhost:8092/health  # Florence-2 (optional)
-curl http://localhost:8093/health  # CLIP (optional)
-curl http://localhost:8094/health  # Enrichment (optional)
+curl http://localhost:8090/yolo26/health     # YOLO26 (AI gateway router)
+curl http://localhost:8091/health            # Nemotron (ai-llm container)
+curl http://localhost:8090/florence/health   # Florence-2 (optional router)
+curl http://localhost:8090/clip/health       # CLIP (optional router)
+curl http://localhost:8090/enrichment/health # Heavy enrichment (optional router)
+curl http://localhost:8090/enrich-lt/health  # Light enrichment (optional router)
 ```
 
 **4. Check queue depths:**
@@ -131,7 +132,7 @@ See: [Connection Issues](connection-issues.md#file-watcher-issues), [AI Issues](
 
 ```bash
 # Check recent events for risk scores
-curl -s http://localhost:8000/api/events?limit=3 | jq '.events[].risk_score'
+curl -s http://localhost:8000/api/events?limit=3 | jq '.items[].risk_score'
 
 # Check Nemotron health
 curl -s http://localhost:8091/health
@@ -156,9 +157,9 @@ docker compose -f docker-compose.prod.yml up -d ai-llm
 **2. Check Nemotron logs:**
 
 ```bash
-tail -f /tmp/nemotron-llm.log
-# Or in container:
 docker compose -f docker-compose.prod.yml logs -f ai-llm
+# Host-run ./ai/start_nemotron.sh writes /tmp/nemotron.log;
+# ./ai/start_llm.sh logs to its terminal
 ```
 
 **3. Increase timeout if needed:**
@@ -192,7 +193,7 @@ See: [AI Issues - Analysis Failing](ai-issues.md#analysis-failing)
 
 ```bash
 # Check camera status in database
-curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, status, last_seen_at}'
+curl -s http://localhost:8000/api/cameras | jq '.items[] | {id, name, status, last_seen_at}'
 
 # Check if images exist in camera folder
 ls -lt /export/foscam/<camera_name>/ | head -5
@@ -217,7 +218,7 @@ watch -n 5 'ls -lt /export/foscam/<camera_name>/ | head -3'
 **2. Check folder path in camera settings:**
 
 ```bash
-curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, folder_path}'
+curl -s http://localhost:8000/api/cameras | jq '.items[] | {id, name, folder_path}'
 ```
 
 **3. Fix permissions:**
@@ -251,16 +252,16 @@ See: [Connection Issues - File Watcher](connection-issues.md#file-watcher-issues
 # Overall AI status
 curl -s http://localhost:8000/api/system/health | jq '.services.ai'
 
-# Individual service checks
-curl http://localhost:8095/health  # Should return {"status": "ok", ...}
-curl http://localhost:8091/health  # Should return {"status": "ok"}
+# Individual service checks (production topology: Triton gateway + LLM container)
+curl http://localhost:8090/yolo26/health  # Should return {"status": "healthy", ...}
+curl http://localhost:8091/health         # Should return {"status": "ok"}
 ```
 
 ### Possible Causes (Most Likely First)
 
-1. **AI services not started** - Need to start them manually
-2. **Port conflicts** - Something else using 8095/8091
-3. **GPU not available** - CUDA not initialized
+1. **AI containers not running** - `ai-gateway` and `ai-llm` start with the stack
+2. **Port conflicts** - Something else using 8090/8091
+3. **GPU not available** - CUDA not initialized (see [Triton Rootless CUDA](triton-rootless-cuda.md) under rootless Podman)
 4. **Model files missing** - Models not downloaded
 
 ### Solutions
@@ -268,18 +269,18 @@ curl http://localhost:8091/health  # Should return {"status": "ok"}
 **1. Start AI services:**
 
 ```bash
-# Both services
-./scripts/start-ai.sh start
+# Production (containers)
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
 
-# Or individually
-./ai/start_detector.sh  # YOLO26
-./ai/start_llm.sh       # Nemotron
+# Host-run development (no unified wrapper script exists)
+./ai/start_detector.sh  # Standalone YOLO26 server (PORT default 8090)
+./ai/start_llm.sh       # Host-run Nemotron dev LLM on 8091
 ```
 
 **2. Check for port conflicts:**
 
 ```bash
-lsof -i :8095  # YOLO26 port
+lsof -i :8090  # AI gateway port (8095 if using YOLO26_PORT from .env)
 lsof -i :8091  # Nemotron port
 ```
 
@@ -293,14 +294,16 @@ python3 -c "import torch; print(torch.cuda.is_available())"
 
 ```bash
 ./ai/download_models.sh
-ls -la ai/nemotron/*.gguf  # Should show ~2.5GB file
+# Nemotron lands in ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/
+# (Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf, ~14.7GB); the rest go to model-zoo/
 ```
 
 **5. Check AI service logs:**
 
 ```bash
-cat /tmp/yolo26-detector.log
-cat /tmp/nemotron-llm.log
+docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway ai-llm
+# Host-run: start_nemotron.sh writes /tmp/nemotron.log; start_detector.sh/start_llm.sh
+# log to their terminal
 ```
 
 See: [AI Issues](ai-issues.md), [GPU Issues](gpu-issues.md)
@@ -354,10 +357,10 @@ docker compose -f docker-compose.prod.yml logs -f backend | grep -i websocket
 WEBSOCKET_IDLE_TIMEOUT_SECONDS=600  # Increase from default 300
 ```
 
-**4. Check rate limits:**
+**4. Check live WebSocket connections:**
 
 ```bash
-curl -s http://localhost:8000/api/system/telemetry | jq '.websocket'
+curl -s http://localhost:8000/api/system/health/websocket | jq
 ```
 
 **5. Clear browser cache and reload**
@@ -399,13 +402,13 @@ curl -s http://localhost:8000/api/dlq/stats
 **1. Check and clear queues if backed up:**
 
 ```bash
-# View queue sizes
-redis-cli llen detection_queue
-redis-cli llen analysis_queue
+# View queue sizes (Redis Streams mode is the default — USE_REDIS_STREAMS=true)
+redis-cli xlen detections:stream
+redis-cli xlen analysis:stream
 
 # If severely backed up, you may need to clear
-# CAUTION: This loses queued jobs
-redis-cli del detection_queue
+# CAUTION: This loses queued jobs (with consumer groups, delete/recreate the group too)
+redis-cli del detections:stream
 ```
 
 **2. Increase container memory limits:**
@@ -498,7 +501,7 @@ See: [Database Issues - Disk Space](database-issues.md#disk-space)
 
 ### What You See
 
-- Detection takes >100ms (expected: 30-50ms)
+- Detection takes >100ms (expected: 5-20ms per frame via the gateway's TensorRT engines — see [YOLO26 performance](../benchmarks/yolo26-performance.md))
 - LLM responses take >30s (expected: 2-5s)
 - Queue backlogs growing
 
@@ -508,8 +511,8 @@ See: [Database Issues - Disk Space](database-issues.md#disk-space)
 # Check GPU utilization
 nvidia-smi
 
-# Check device being used
-curl -s http://localhost:8095/health | jq '.device'
+# Check the gateway reports models ready
+curl -s http://localhost:8090/health | jq
 
 # Check pipeline latency
 curl -s http://localhost:8000/api/system/pipeline-latency | jq .
@@ -527,11 +530,11 @@ curl -s http://localhost:8000/api/system/pipeline-latency | jq .
 **1. Verify GPU is being used:**
 
 ```bash
-# YOLO26 should show "cuda" or "cuda:0"
-curl -s http://localhost:8095/health | jq '.device'
-
-# Check GPU processes
+# tritonserver and llama-server should hold GPU memory
 nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
+
+# A host-run standalone detector reports its device directly
+curl -s http://localhost:8095/health | jq '.device'  # "cuda:0" or "cpu"
 ```
 
 **2. Check temperature:**
@@ -543,11 +546,8 @@ nvidia-smi  # Temperature should be < 85C
 **3. Free GPU memory:**
 
 ```bash
-# Kill conflicting GPU processes if any
-sudo fuser -k /dev/nvidia*
-
-# Restart AI services
-./scripts/start-ai.sh restart
+# Restart the AI stack (drops loaded models and re-initialises CUDA)
+docker compose -f docker-compose.prod.yml restart ai-gateway ai-llm
 ```
 
 See: [GPU Issues](gpu-issues.md)
@@ -565,17 +565,17 @@ See: [GPU Issues](gpu-issues.md)
 ### Quick Diagnosis
 
 ```bash
-# Test CORS headers
-curl -v -X OPTIONS -H "Origin: http://localhost:5173" \
+# Test CORS headers (origin = whatever the browser actually reports, e.g. the Vite dev server)
+curl -v -X OPTIONS -H "Origin: https://localhost:8444" \
   http://localhost:8000/api/events 2>&1 | grep -i "access-control"
 ```
 
 ### Solutions
 
-**1. Update CORS_ORIGINS in .env:**
+**1. Update CORS_ORIGINS in .env** (default ships `https://localhost:8444` and internal `http://frontend:8080`):
 
 ```bash
-CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173", "https://your-domain.com"]
+CORS_ORIGINS=["https://localhost:8444", "https://192.168.1.20:8444", "https://your-domain.com"]
 ```
 
 **2. Restart backend after changes:**
@@ -613,11 +613,12 @@ See: [Connection Issues - CORS](connection-issues.md#cors-errors)
 2. Create backup: `pg_dump -h localhost -U security security > backup_emergency.sql`
 3. Check for issues: `psql -h localhost -U security -d security -c "\dt"`
 4. If corrupted, restore from backup
-5. As last resort, recreate database:
+5. As last resort, recreate the database (this project has no Alembic — the schema
+   is created directly from the SQLAlchemy models on next backend start):
    ```bash
    dropdb -h localhost -U postgres security
    createdb -h localhost -U postgres -O security security
-   cd backend && alembic upgrade head
+   docker compose -f docker-compose.prod.yml up -d backend   # init_db creates the schema
    ```
 
 ### Complete Data Loss Recovery
@@ -641,13 +642,14 @@ See: [Connection Issues - CORS](connection-issues.md#cors-errors)
 **Steps:**
 
 1. Immediately stop external access
-2. Check API key usage if enabled:
+2. Check for rejected requests — with `API_KEY_ENABLED=true`, calls without a valid
+   `X-API-Key` header are refused with `401` and show up in the backend logs:
    ```bash
-   curl -s http://localhost:8000/api/system/telemetry | jq '.api_requests'
+   docker compose -f docker-compose.prod.yml logs backend | grep -iE "401|unauthorized"
    ```
 3. Review logs for suspicious activity:
    ```bash
-   grep -i "unauthorized\|forbidden\|invalid" data/logs/security.log
+   grep -i "unauthorized\|forbidden\|invalid" backend/data/logs/security.log
    ```
 4. Rotate API keys if used
 5. Review CORS origins and network exposure
@@ -700,7 +702,7 @@ If you can't resolve an issue:
 
 1. **Check this index first** - Most common problems are covered
 2. **Review specific troubleshooting pages** - Detailed solutions for each area
-3. **Search [GitHub Issues](https://github.com/mikesvoboda/home-security-intelligence/issues)** - Someone may have solved it
+3. **Search [GitHub Issues](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/issues)** - Someone may have solved it
 4. **Open a new issue** with:
    - Clear description of the problem
    - Steps to reproduce

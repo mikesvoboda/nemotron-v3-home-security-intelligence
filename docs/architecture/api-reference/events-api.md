@@ -450,13 +450,15 @@ GET /api/events/{event_id}/enrichments
 
 Get enrichment data for all detections in an event.
 
-### Generate Event Clip
+### Get / Generate Event Clip
 
 ```
-POST /api/events/{event_id}/clip
+GET  /api/events/{event_id}/clip            → ClipInfoResponse (:2326)
+POST /api/events/{event_id}/clip/generate   → 200 (exists) / 201 (created) (:2398)
 ```
 
-Generate a video clip for an event.
+`GET` returns clip metadata (`clip_path` etc.); `POST .../clip/generate` queues
+or returns the generated clip. A POST with no detections returns 400.
 
 ---
 

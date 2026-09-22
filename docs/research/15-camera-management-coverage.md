@@ -1,5 +1,7 @@
 # Camera Management Coverage Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 Camera management has **comprehensive backend support** for RTSP streaming, ONVIF integration, and advanced configuration, but the **frontend UI significantly lags behind**. A design document exists for phased implementation.

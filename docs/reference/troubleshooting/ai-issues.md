@@ -1,9 +1,17 @@
 # AI Service Troubleshooting
 
-> Solving AI service and pipeline problems (YOLO26, Nemotron, and optional Florence/CLIP/Enrichment).
+> Solving AI service and pipeline problems (YOLO26, Nemotron, and the enrichment models
+> — Florence-2, CLIP/SigLIP, enrichment — served by the Triton `ai-gateway` container).
 
 **Time to read:** ~6 min
 **Prerequisites:** [GPU Issues](gpu-issues.md) for hardware problems
+
+In production, AI is two containers: `ai-gateway` (:8090, Triton serving YOLO26,
+Florence-2, CLIP and enrichment models behind path routers `/yolo26`, `/florence`,
+`/clip`, `/enrichment`, `/enrich-lt`) and `ai-llm` (:8091, llama.cpp). Standalone
+host-run servers exist for debugging: `./ai/start_detector.sh` (YOLO26) and
+`./ai/start_nemotron.sh` / `./ai/start_llm.sh` (llama.cpp). There is no
+`scripts/start-ai.sh` — that wrapper was removed.
 
 ---
 
@@ -18,24 +26,27 @@
 ### Diagnosis
 
 ```bash
-# Check AI service status
-./scripts/start-ai.sh status
+# Check AI container status
+docker compose -f docker-compose.prod.yml ps ai-gateway ai-llm
 
-# Check if processes are running
-pgrep -f "model.py"      # YOLO26
-pgrep -f "llama-server"  # Nemotron
+# Check host-run processes (only if you run AI on the host)
+pgrep -f "model.py"      # YOLO26 standalone
+pgrep -f "llama-server"  # Nemotron (llama.cpp)
 
 # Check logs
-tail -f /tmp/yolo26-detector.log
-tail -f /tmp/nemotron-llm.log
+docker compose -f docker-compose.prod.yml logs --tail=50 ai-gateway
+docker compose -f docker-compose.prod.yml logs --tail=50 ai-llm
+# Host-run: start_detector.sh logs to its terminal; start_nemotron.sh writes /tmp/nemotron.log
 ```
 
-If you are running the optional services, also check:
+Per-model health through the gateway:
 
 ```bash
-curl http://localhost:8092/health  # Florence-2 (optional)
-curl http://localhost:8093/health  # CLIP (optional)
-curl http://localhost:8094/health  # Enrichment (optional)
+curl http://localhost:8090/health              # aggregate (all models)
+curl http://localhost:8090/yolo26/health
+curl http://localhost:8090/florence/health
+curl http://localhost:8090/clip/health
+curl http://localhost:8090/enrichment/health
 ```
 
 ### Solutions
@@ -43,27 +54,31 @@ curl http://localhost:8094/health  # Enrichment (optional)
 **1. Start AI services:**
 
 ```bash
-./scripts/start-ai.sh start
+# Containerized (production)
+docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm
+
+# Host-run (debug mode)
+./ai/start_detector.sh &
+./ai/start_nemotron.sh
 ```
 
 **2. Check for startup errors:**
 
 ```bash
-cat /tmp/yolo26-detector.log
-cat /tmp/nemotron-llm.log
+docker compose -f docker-compose.prod.yml logs ai-gateway | tail -50
 ```
 
 Common startup errors:
 
 - Missing model files (run `./ai/download_models.sh`)
 - Port already in use
-- CUDA initialization failure
+- CUDA initialization failure (see [Triton Rootless CUDA](triton-rootless-cuda.md))
 
 **3. Check model files exist:**
 
 ```bash
-ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
-# Should be ~2.5GB
+# Production LLM (ai-llm container): Nemotron-3-Nano-30B-A3B Q4_K_M, ~14.7GB
+ls -la "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/"
 ```
 
 ---
@@ -79,15 +94,15 @@ ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 ### Diagnosis
 
 ```bash
-# Check overall service health (includes AI service URLs from config)
+# Check overall service health
 curl http://localhost:8000/api/system/health | jq .services
 
-# Check individual AI services
-curl http://localhost:8095/health  # YOLO26
-curl http://localhost:8091/health  # Nemotron
-curl http://localhost:8092/health  # Florence-2 (optional)
-curl http://localhost:8093/health  # CLIP (optional)
-curl http://localhost:8094/health  # Enrichment (optional)
+# Check the two AI services the backend health checks track
+curl http://localhost:8090/health  # AI Gateway (YOLO26 + enrichment models)
+curl http://localhost:8091/health  # Nemotron (llama.cpp)
+
+# Per-model detail from the backend's perspective (includes circuit-breaker state)
+curl http://localhost:8000/api/health/ai-services | jq .services
 ```
 
 ### Solutions
@@ -105,15 +120,19 @@ curl http://localhost:8094/health  # Enrichment (optional)
 
 ---
 
-## Optional Enrichment Issues (Florence / CLIP / Enrichment)
+## Enrichment Issues (Florence / CLIP / Enrichment)
 
-The optional enrichment services (Florence-2, CLIP, Enrichment) provide enhanced context for detections, including:
+The enrichment models (Florence-2, CLIP/SigLIP embeddings, enrichment) provide enhanced
+context for detections, including:
 
 - **Florence-2**: Visual attributes, OCR, dense captions
-- **CLIP**: Embedding generation for re-identification
-- **Enrichment**: Orchestrates and aggregates enrichment data
+- **CLIP** (SigLIP 2 in the Triton gateway): Embedding generation for re-identification
+- **Enrichment**: Orchestrates and aggregates enrichment data (vehicle, clothing,
+  demographics, action, pose, pet, depth models)
 
-These services are **optional** - the core detection and risk analysis pipeline works without them.
+In production these all run inside the `ai-gateway` container (port 8090, routers
+`/florence`, `/clip`, `/enrichment`, `/enrich-lt`). The enrichment pipeline is
+**optional** — the core detection and risk analysis pipeline works without it.
 
 ### Symptoms
 
@@ -125,19 +144,20 @@ These services are **optional** - the core detection and risk analysis pipeline 
 ### Quick Diagnosis
 
 ```bash
-# Confirm the backend is configured to reach the optional services
-curl http://localhost:8000/api/system/config | jq '.florence_url, .clip_url, .enrichment_url'
+# Confirm the URLs the backend uses (gateway-routed in production)
+docker compose -f docker-compose.prod.yml exec -T backend env | grep -E 'FLORENCE_URL|CLIP_URL|ENRICHMENT_URL|AI_GATEWAY'
 
 # Check feature toggles (are enrichment features enabled?)
-curl http://localhost:8000/api/system/config | jq '.vision_extraction_enabled, .reid_enabled, .scene_change_enabled'
+curl http://localhost:8000/api/v1/settings | jq '.features'
 
-# Check health endpoints
-curl http://localhost:8092/health  # Florence-2
-curl http://localhost:8093/health  # CLIP
-curl http://localhost:8094/health  # Enrichment
+# Check per-model health in the gateway
+curl http://localhost:8090/florence/health
+curl http://localhost:8090/clip/health
+curl http://localhost:8090/enrichment/health
 
-# Check circuit breaker status
-curl http://localhost:8000/api/system/circuit-breakers | jq '.florence, .clip, .enrichment'
+# Check circuit breaker status (breakers are named per operation, e.g. florence_extract,
+# clip_embed, enrichment_vehicle — see GET /api/system/circuit-breakers)
+curl http://localhost:8000/api/system/circuit-breakers | jq '.circuit_breakers | keys'
 ```
 
 ### Understanding Feature Toggles
@@ -151,8 +171,8 @@ curl http://localhost:8000/api/system/circuit-breakers | jq '.florence, .clip, .
 ### Common Causes
 
 1. **Wrong URL from backend** (container vs host networking)
-2. **GPU/VRAM pressure** (too many services competing for limited VRAM)
-3. **Timeouts** (services are up, but slow to respond under load)
+2. **GPU/VRAM pressure** (too many models competing for limited VRAM inside `ai-gateway`)
+3. **Timeouts** (models are up, but slow to respond under load)
 4. **Circuit breakers open** (service failures triggered protection)
 5. **Feature toggles disabled** (enrichment turned off in config)
 
@@ -160,8 +180,12 @@ curl http://localhost:8000/api/system/circuit-breakers | jq '.florence, .clip, .
 
 **1. Fix container vs host networking**
 
-- **Production compose**: backend should use compose DNS names (`http://ai-florence:8092`, `http://ai-clip:8093`, `http://ai-enrichment:8094`)
-- **Host-run AI**: backend should use `localhost` (or `host.docker.internal` / `host.containers.internal` when backend is containerized)
+- **Production compose**: backend should use the gateway URL and routers —
+  `FLORENCE_URL=http://ai-gateway:8090/florence`, `CLIP_URL=http://ai-gateway:8090/clip`,
+  `ENRICHMENT_URL=http://ai-gateway:8090/enrichment` (what `docker-compose.prod.yml` sets).
+- **Host-run AI**: backend should use `http://localhost:8090/<router>` (or
+  `http://host.docker.internal:8090/<router>` when the backend is containerized).
+  See [Deployment Modes](../../operator/deployment-modes.md).
 
 **2. Disable optional enrichment temporarily**
 
@@ -179,15 +203,15 @@ docker compose -f docker-compose.prod.yml restart backend
 
 Then re-enable one-by-one after stabilizing GPU/latency.
 
-**3. Adjust timeouts for slow services**
+**3. Adjust timeouts for slow models**
 
-If services are healthy but timing out under load:
+If models are healthy but timing out under load:
 
 ```bash
-# In .env - increase timeouts
-FLORENCE_READ_TIMEOUT=60.0   # Default: 30s
-CLIP_READ_TIMEOUT=30.0       # Default: 15s
-ENRICHMENT_READ_TIMEOUT=120.0 # Default: 60s
+# In .env - increase timeouts (defaults in comments)
+FLORENCE_READ_TIMEOUT=60.0    # Default 30.0 (max 120)
+CLIP_READ_TIMEOUT=30.0        # Default 5.0 (max 60)
+ENRICHMENT_READ_TIMEOUT=120.0 # Default 60.0 (max 180)
 ```
 
 **4. Reset circuit breakers**
@@ -195,13 +219,13 @@ ENRICHMENT_READ_TIMEOUT=120.0 # Default: 60s
 If circuit breakers opened due to transient failures:
 
 ```bash
-# Check circuit breaker status
-curl http://localhost:8000/api/system/circuit-breakers | jq
+# Check circuit breaker status and registered names
+curl http://localhost:8000/api/system/circuit-breakers | jq '.circuit_breakers | keys'
 
-# Reset specific circuit breaker (if API available)
-curl -X POST http://localhost:8000/api/system/circuit-breakers/florence/reset
-curl -X POST http://localhost:8000/api/system/circuit-breakers/clip/reset
-curl -X POST http://localhost:8000/api/system/circuit-breakers/enrichment/reset
+# Reset a specific breaker by its registered name
+# (e.g. florence_extract, clip_embed, enrichment_vehicle; API key header required
+#  when API_KEY_ENABLED=true)
+curl -X POST http://localhost:8000/api/system/circuit-breakers/florence_extract/reset
 
 # Or restart backend to reset all circuit breakers
 docker compose -f docker-compose.prod.yml restart backend
@@ -209,16 +233,17 @@ docker compose -f docker-compose.prod.yml restart backend
 
 **5. Check GPU/VRAM availability**
 
-Optional services compete for GPU memory. Check utilization:
+All gateway models share one GPU. Check utilization:
 
 ```bash
 nvidia-smi
 
-# Expected VRAM usage per service:
-# - YOLO26: ~4GB
-# - Nemotron: ~3GB (Q4_K_M), ~14GB (30B)
-# - Florence-2: ~2-4GB
-# - CLIP: ~1-2GB
+# Expected VRAM usage:
+# - YOLO26 (TensorRT): ~2GB
+# - Nemotron LLM: ~14.7GB (30B Q4_K_M), ~3GB (host-run mini 4B)
+# - Florence-2: ~1.5GB
+# - SigLIP 2 embeddings: ~0.2GB
+# (full table: docs/_includes/vram-requirements.md)
 ```
 
 If GPU is overloaded, consider:
@@ -232,31 +257,31 @@ If GPU is overloaded, consider:
 If re-ID is slow or producing poor matches:
 
 ```bash
-# Adjust similarity threshold (higher = stricter matching)
+# Adjust similarity threshold (higher = stricter matching; default 0.85, range 0.5-1.0)
 REID_SIMILARITY_THRESHOLD=0.85
 
-# Reduce TTL if embeddings are stale
+# Reduce TTL if embeddings are stale (default 24h, max 168)
 REID_TTL_HOURS=12
 
-# Limit concurrent re-ID operations
-REID_MAX_CONCURRENT=2
-REID_TIMEOUT_SECONDS=10.0
+# Limit concurrent re-ID operations (default 10, range 1-100)
+REID_MAX_CONCURRENT_REQUESTS=2
+
+# Timeout for embedding generation (seconds; default 30)
+REID_EMBEDDING_TIMEOUT=10.0
 ```
 
 **7. Restart failed services**
 
 ```bash
-# Just YOLO26
+# Host-run detector only
 ./ai/start_detector.sh
 
-# Just Nemotron
-./ai/start_llm.sh
+# Host-run Nemotron only
+./ai/start_nemotron.sh
 
-# All AI services (if using docker compose)
-docker compose -f docker-compose.prod.yml restart ai-florence ai-clip ai-enrichment
-
-# Both core services
-./scripts/start-ai.sh restart
+# Containerized stack
+docker compose -f docker-compose.prod.yml restart ai-gateway   # YOLO26 + all enrichment models
+docker compose -f docker-compose.prod.yml restart ai-llm       # LLM
 ```
 
 ### Verifying Enrichment is Working
@@ -264,14 +289,17 @@ docker compose -f docker-compose.prod.yml restart ai-florence ai-clip ai-enrichm
 After enabling enrichment, verify data is being populated:
 
 ```bash
-# Get a recent event with enrichment data
-curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment'
+# Get a recent event, then inspect its detections' enrichment_data
+EVENT_ID=$(curl -s "http://localhost:8000/api/events?limit=1" | jq -r '.items[0].id')
 
-# Check for Florence attributes
-curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment.attributes'
+# All enrichment results for the event's detections (plates, faces, clothing, violence...)
+curl -s "http://localhost:8000/api/events/$EVENT_ID/enrichments" | jq '.enrichments[0]'
 
-# Check for CLIP embeddings (should show embedding exists, not the actual vector)
-curl -s http://localhost:8000/api/events?limit=1 | jq '.events[0].detections[0].enrichment.has_embedding'
+# Composite enrichment fields on a detection (vehicle/person/pet/weather)
+curl -s "http://localhost:8000/api/events/$EVENT_ID/detections" | jq '.items[0].enrichment_data'
+
+# Pipeline coverage summary for the event
+curl -s "http://localhost:8000/api/events/$EVENT_ID" | jq '.enrichment_status'
 ```
 
 ---
@@ -302,16 +330,17 @@ curl http://localhost:8000/api/system/health/ready | jq .workers
 **1. Check batch settings:**
 
 ```bash
-# Default: 90 second window, 30 second idle timeout
+# Defaults: 90 second window, 30 second idle timeout
 BATCH_WINDOW_SECONDS=90
 BATCH_IDLE_TIMEOUT_SECONDS=30
 ```
 
 **2. Check analysis worker:**
 
+The readiness endpoint reports each worker with a boolean `running` field:
+
 ```bash
-# Worker should be "running"
-curl http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name=="analysis_worker")'
+curl http://localhost:8000/api/system/health/ready | jq '.workers[] | select(.name=="analysis_worker") | .running'
 ```
 
 **3. Check Nemotron service:**
@@ -343,9 +372,10 @@ redis-cli keys "batch:*"
 curl http://localhost:8091/health
 
 # Check Nemotron logs
-tail -f /tmp/nemotron-llm.log
+docker compose -f docker-compose.prod.yml logs --tail=50 ai-llm   # containerized
+tail -f /tmp/nemotron.log                                          # ./ai/start_nemotron.sh
 
-# Test Nemotron directly
+# Test Nemotron directly (llama.cpp completion endpoint)
 curl -X POST http://localhost:8091/completion \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Test prompt", "max_tokens": 50}'
@@ -357,21 +387,25 @@ curl -X POST http://localhost:8091/completion \
 
 If health check passes but analysis fails:
 
-- Check for timeout (increase `NEMOTRON_READ_TIMEOUT`)
-- Check model is fully loaded (first requests take longer)
+- Check for timeout (increase `NEMOTRON_READ_TIMEOUT`, default 120s)
+- Check model is fully loaded (first requests take longer; the compose health check
+  allows a 300s start period)
 
 **2. Check prompt/response:**
 
 ```bash
 # Watch Nemotron logs during analysis
-tail -f /tmp/nemotron-llm.log
+docker compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
 **3. Restart Nemotron:**
 
 ```bash
-./scripts/start-ai.sh stop
-./ai/start_llm.sh
+# Containerized
+docker compose -f docker-compose.prod.yml restart ai-llm
+
+# Host-run
+pkill -f llama-server && ./ai/start_llm.sh
 ```
 
 ---
@@ -391,7 +425,7 @@ tail -f /tmp/nemotron-llm.log
 ```bash
 # Higher = fewer detections, less false positives
 # Lower = more detections, more false positives
-DETECTION_CONFIDENCE_THRESHOLD=0.6  # Default: 0.5
+DETECTION_CONFIDENCE_THRESHOLD=0.6  # Default: 0.40
 ```
 
 **Check image quality:**
@@ -442,15 +476,16 @@ See [GPU Issues - Thermal Throttling](gpu-issues.md#thermal-throttling)
 
 **3. Reduce concurrent load:**
 
-- Lower `--parallel` in Nemotron startup
+- Lower `PARALLEL` in `.env` for the containerized `ai-llm` (default 8 slots;
+  host-run `./ai/start_llm.sh` uses `--parallel 2`)
 - Process fewer cameras simultaneously
 
 **4. Optimize settings:**
 
 ```bash
-# YOLO26: ensure batching for multiple images
-# Nemotron: adjust context size
---ctx-size 2048  # Smaller than default 4096
+# Nemotron context window: compose default is CTX_SIZE=262144 (8 slots x 32768).
+# A much smaller value reduces VRAM pressure from KV cache:
+CTX_SIZE=65536
 ```
 
 ---
@@ -474,20 +509,25 @@ See [GPU Issues - Thermal Throttling](gpu-issues.md#thermal-throttling)
 **2. Verify model files:**
 
 ```bash
-# Nemotron model
-ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
-# Should be ~2.5GB
+# Production LLM: Nemotron-3-Nano-30B-A3B Q4_K_M (~14.7GB), mounted into ai-llm at /models
+ls -la "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km/"
 
-# YOLO26 (auto-downloads to HuggingFace cache)
-ls -la ~/.cache/huggingface/
+# Triton model zoo (YOLO26, Florence-2, SigLIP 2, enrichment models)
+ls -la "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/"
+
+# Host-run fallback LLM (./ai/start_llm.sh only — not downloaded by download_models.sh)
+ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 ```
 
 **3. Check model path configuration:**
 
 ```bash
-# For custom paths
+# Backend-side model-path settings (used by the host-run standalone server)
 NEMOTRON_MODEL_PATH=/path/to/model.gguf
 YOLO26_MODEL_PATH=/path/to/yolo26
+
+# Containerized LLM model file: LLM_MODEL_PATH (compose default
+# /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf inside the ai-llm container)
 ```
 
 ---
@@ -511,9 +551,14 @@ curl http://localhost:8000/api/system/circuit-breakers | jq
 
 **1. Wait for automatic recovery:**
 
-Circuit breakers auto-reset after timeout (default: 30s).
+- Health-check circuitry ("unavailable (circuit open)" in `/api/system/health`) is
+  in-process and half-opens implicitly after a 30s reset timeout (3 consecutive
+  failures open it). It is not exposed on the reset endpoint.
+- Registry breakers (listed by `GET /api/system/circuit-breakers`) recover after their
+  configured timeout — 30s for `yolo26`/`nemotron`, 60s for `detector_*`.
 
-**2. Manual reset:**
+**2. Manual reset** (registry breakers only; API key header required when
+`API_KEY_ENABLED=true`):
 
 ```bash
 curl -X POST http://localhost:8000/api/system/circuit-breakers/yolo26/reset

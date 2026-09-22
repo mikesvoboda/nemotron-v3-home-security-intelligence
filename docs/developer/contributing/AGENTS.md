@@ -95,13 +95,13 @@ Quick setup prompt for Linear on new workstations:
 
 ## Related Resources
 
-| Resource                                                                          | Description                            |
-| --------------------------------------------------------------------------------- | -------------------------------------- |
-| [docs/development/](../../development/AGENTS.md)                                  | Hooks, code quality, git workflow      |
-| [docs/development/hooks.md](../../development/hooks.md)                           | Pre-commit hook details                |
-| [docs/development/code-quality.md](../../development/code-quality.md)             | Linting tools                          |
-| [docs/development/linear-integration.md](../../development/linear-integration.md) | Linear MCP tools reference             |
-| [CLAUDE.md](../../../CLAUDE.md)                                                   | Project-level Claude Code instructions |
+| Resource                                                                          | Description                                         |
+| --------------------------------------------------------------------------------- | --------------------------------------------------- |
+| [docs/development/](../../development/AGENTS.md)                                  | Hooks, code quality, git workflow                   |
+| [docs/development/hooks.md](../../development/hooks.md)                           | Pre-commit hook details                             |
+| [docs/development/code-quality.md](../../development/code-quality.md)             | Linting tools                                       |
+| [docs/development/linear-integration.md](../../development/linear-integration.md) | Linear MCP tools reference                          |
+| [AGENTS.md](../../../AGENTS.md)                                                   | Project-level agent instructions (single root file) |
 
 ## Entry Points
 

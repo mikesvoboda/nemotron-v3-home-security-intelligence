@@ -3,9 +3,15 @@
 **Date:** 2026-01-21
 **Status:** Implemented
 
-> **Implementation Status (Updated 2026-01-28):** Python 3.14 is now the primary runtime.
-> The `pyproject.toml` specifies `requires-python = ">=3.14"` and all tooling
-> (ruff, mypy) is configured for Python 3.14. Phase 1 is complete.
+> **Implementation Status (Updated 2026-09-22):** Python 3.14 is the primary runtime.
+> `pyproject.toml` pins `requires-python = ">=3.14"`, `.python-version` is `3.14`, and
+> ruff (`target-version = "py314"`) and mypy (`python_version = "3.14"`) match.
+> `backend/Dockerfile` builds from `python:3.14-slim-bookworm` (GIL enabled). The
+> free-threaded `3.14t` image is available but opt-in: switching to it is a commented
+> `FROM` line in `backend/Dockerfile`, so production still runs with the GIL on.
+> Code detects free-threading at runtime via
+> `is_free_threaded()` (`backend/core/executors.py`), and new ID generation
+> already uses `uuid7()`.
 
 ---
 

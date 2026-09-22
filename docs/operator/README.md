@@ -22,15 +22,15 @@ This hub is for **sysadmins, DevOps engineers, and technically savvy users** who
 
 ```bash
 # 1. Clone and setup
-git clone https://github.com/your-org/home-security-intelligence.git
-cd home-security-intelligence
-python setup.py         # Quick mode - generates .env with secure passwords
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
+python setup.py         # Generates .env with secure passwords
 
-# 2. Download AI models (~2.7GB)
+# 2. Download AI models (~33GB total; Nemotron alone is 15GB)
 ./ai/download_models.sh
 
 # 3. Start services
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # 4. Verify
 curl http://localhost:8000/api/system/health/ready
@@ -50,7 +50,9 @@ curl http://localhost:8000/api/system/health/ready
 
 **AI VRAM Usage (Production):**
 
---8<-- "docs/\_includes/vram-requirements.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/vram-requirements.md"
+<!-- prettier-ignore-end -->
 
 **Supported GPUs:** RTX 30/40 series, RTX A-series, Tesla/V100/A100
 
@@ -60,8 +62,8 @@ curl http://localhost:8000/api/system/health/ready
 
 ```
 Camera uploads --> backend FileWatcher --> detection_queue
-  --> YOLO26 (8095) --> detections (DB)
-  --> batching + enrichment
+  --> YOLO26 via ai-gateway (8090/yolo26) --> detections (DB)
+  --> batching + enrichment via ai-gateway (8090/enrichment, /enrich-lt)
   --> Nemotron (8091) --> events (DB)
   --> WebSocket dashboard
 ```
@@ -86,40 +88,35 @@ The following diagram shows the complete container topology, network connections
 }}%%
 flowchart TB
     subgraph External["External Access"]
-        Browser["Browser<br/>:5173 / :8443"]
+        Browser["Browser<br/>host 8080 HTTP / 8444 HTTPS"]
         Camera["Foscam Cameras<br/>FTP Upload"]
     end
 
     subgraph Frontend["Frontend Layer"]
-        FE["frontend<br/>nginx :8080<br/>Ports: 5173, 8443"]
+        FE["frontend<br/>nginx container 8080 HTTP / 8443 HTTPS<br/>Proxies /api, /ws, /grafana/"]
     end
 
     subgraph Backend["Backend Layer"]
-        BE["backend<br/>FastAPI :8000<br/>Port: 8000"]
+        BE["backend<br/>FastAPI :8000"]
     end
 
     subgraph AI["AI Services (GPU)"]
-        YOLO["ai-yolo26<br/>TensorRT :8095<br/>GPU: YOLO26"]
-        LLM["ai-llm<br/>Nemotron :8091<br/>GPU: LLM"]
-        FLOR["ai-florence<br/>Florence-2 :8092<br/>GPU: Florence"]
-        CLIP["ai-clip<br/>CLIP :8093<br/>GPU: CLIP"]
-        ENR["ai-enrichment<br/>Heavy Models :8094<br/>GPU: Enrichment"]
-        ENRL["ai-enrichment-light<br/>Light Models :8096<br/>GPU: CLIP"]
+        GW["ai-gateway :8090<br/>Triton: /yolo26 /florence /clip<br/>/enrichment /enrich-lt"]
+        LLM["ai-llm<br/>Nemotron llama.cpp :8091"]
     end
 
     subgraph Data["Data Layer"]
         PG[("postgres<br/>PostgreSQL :5432")]
         RD[("redis<br/>Redis :6379")]
-        ES[("elasticsearch<br/>ES :9200")]
     end
 
     subgraph Monitoring["Monitoring Stack"]
-        PROM["prometheus<br/>:9090"]
-        GRAF["grafana<br/>:3002"]
-        JAEG["jaeger<br/>:16686"]
+        PROM["prometheus<br/>host 9090"]
+        GRAF["grafana<br/>host 3002 · /grafana/ via frontend"]
+        TEMPO["tempo<br/>:3200"]
         LOKI["loki<br/>:3100"]
         PYRO["pyroscope<br/>:4040"]
-        ALLOY["alloy<br/>:12345"]
+        ALLOY["alloy<br/>UI 12345"]
         AM["alertmanager<br/>:9093"]
         BB["blackbox-exporter<br/>:9115"]
         RE["redis-exporter<br/>:9121"]
@@ -130,24 +127,21 @@ flowchart TB
     Browser --> FE
     Camera --> BE
 
-    %% Frontend to Backend
-    FE -->|"HTTP/WS"| BE
+    %% Frontend proxies to Backend
+    FE -->|"HTTP/WS /api /ws"| BE
+    FE -->|"HTTP /grafana/"| GRAF
 
     %% Backend to Data
     BE -->|"asyncpg"| PG
     BE -->|"aioredis"| RD
 
     %% Backend to AI Services
-    BE -->|"HTTP"| YOLO
+    BE -->|"HTTP"| GW
     BE -->|"HTTP"| LLM
-    BE -->|"HTTP"| FLOR
-    BE -->|"HTTP"| CLIP
-    BE -->|"HTTP"| ENR
-    BE -->|"HTTP"| ENRL
 
     %% Monitoring connections
     PROM --> BE
-    PROM --> YOLO
+    PROM -->|"ai-gateway:8002"| GW
     PROM --> LLM
     PROM --> RE
     PROM --> JE
@@ -155,11 +149,11 @@ flowchart TB
     PROM --> AM
     GRAF --> PROM
     GRAF --> LOKI
-    GRAF --> JAEG
+    GRAF --> TEMPO
     GRAF --> PYRO
-    JAEG --> ES
     ALLOY --> LOKI
     ALLOY --> PYRO
+    ALLOY -->|"OTLP"| TEMPO
     BE -->|"OTLP"| ALLOY
 ```
 
@@ -196,38 +190,63 @@ flowchart TB
 
 **Volume Mounts:**
 
-| Service                    | Volume                            | Purpose                 |
-| -------------------------- | --------------------------------- | ----------------------- |
-| postgres                   | `postgres_data`                   | Database persistence    |
-| redis                      | `redis_data`                      | Cache persistence       |
-| elasticsearch              | `elasticsearch_data`              | Trace storage           |
-| prometheus                 | `prometheus_data`                 | Metrics storage         |
-| grafana                    | `grafana_data`                    | Dashboard persistence   |
-| loki                       | `loki_data`                       | Log storage             |
-| pyroscope                  | `pyroscope_data`                  | Profile storage         |
-| alertmanager               | `alertmanager_data`               | Alert state             |
-| frontend                   | `frontend_certs`                  | SSL certificates        |
-| ai-clip                    | `clip-tensorrt-cache`             | TensorRT engine cache   |
-| ai-enrichment-light        | `enrichment-light-tensorrt-cache` | TensorRT engine cache   |
-| ai-florence, ai-enrichment | `hf_cache`                        | HuggingFace model cache |
-| backend                    | `/cameras` (bind mount)           | Camera FTP directory    |
-| backend                    | `/models/model-zoo` (bind)        | AI model files          |
+| Service      | Volume                                | Purpose                            |
+| ------------ | ------------------------------------- | ---------------------------------- |
+| postgres     | `postgres_data`                       | Database persistence               |
+| redis        | `redis_data`                          | Cache persistence                  |
+| tempo        | `tempo_data`                          | Trace storage                      |
+| prometheus   | `prometheus_data`                     | Metrics storage                    |
+| grafana      | `grafana_data`                        | Dashboard persistence              |
+| loki         | `loki_data`                           | Log storage                        |
+| pyroscope    | `pyroscope_data`                      | Profile storage                    |
+| alertmanager | `alertmanager_data`                   | Alert state                        |
+| alloy        | `alloy_symb_cache`                    | eBPF profiler symbol cache         |
+| frontend     | `frontend_certs`                      | SSL certificates                   |
+| ai-gateway   | `triton-kernel-cache`                 | CUDA kernel cache across redeploys |
+| ai-gateway   | `triton-tmp-cache`                    | TensorRT compilation artifacts     |
+| ai-gateway   | `${HF_CACHE_PATH}` (bind)             | HuggingFace model cache            |
+| ai-gateway   | `${AI_MODELS_PATH}` (binds)           | `model-zoo`, `triton`, `quantized` |
+| ai-llm       | `llama-cache`, `llama-nv-cache`       | llama.cpp / CUDA JIT caches        |
+| ai-llm       | `${AI_MODELS_PATH}/nemotron/…` (bind) | Nemotron GGUF weights              |
+| ai-llm-vllm  | `hf_cache`                            | HuggingFace model cache (profile)  |
+| backend      | `/cameras` (bind mount)               | Camera FTP directory               |
+| backend      | `/models/model-zoo` (bind)            | AI model files                     |
 
 ### Ports Reference
 
-| Service          | Port | Purpose                               |
-| ---------------- | ---- | ------------------------------------- |
-| Frontend         | 80   | Web dashboard (production)            |
-| Frontend         | 5173 | Web dashboard (development)           |
-| Backend          | 8000 | REST API + WebSocket                  |
-| YOLO26           | 8095 | Object detection service              |
-| Nemotron         | 8091 | LLM risk analysis service             |
-| Florence-2       | 8092 | Vision extraction (optional)          |
-| CLIP             | 8093 | Re-identification (optional)          |
-| Enrichment       | 8094 | Vehicle/pet classification (optional) |
-| Enrichment Light | 8096 | Lightweight enrichment (optional)     |
-| PostgreSQL       | 5432 | Database                              |
-| Redis            | 6379 | Cache + message broker                |
+Host ports come from `.env`; every service except `frontend` binds `127.0.0.1` only.
+Access Grafana and the API through the frontend nginx proxy for anything off-host.
+
+| Service            | Env var                   | Host port | Container port | Purpose                                       |
+| ------------------ | ------------------------- | --------- | -------------- | --------------------------------------------- |
+| Frontend (HTTP)    | `FRONTEND_HTTP_PORT`      | 8080      | 8080           | Web dashboard via tunnel / plain HTTP         |
+| Frontend (HTTPS)   | `FRONTEND_HTTPS_PORT`     | 8444      | 8443           | Web dashboard (TLS, opt-in via `SSL_ENABLED`) |
+| Backend            | `API_PORT`                | 8000      | 8000           | REST API + WebSocket                          |
+| AI gateway         | `AI_GATEWAY_PORT`         | 8090      | 8090           | YOLO26, Florence-2, CLIP, enrichment          |
+| AI gateway metrics | `AI_GATEWAY_METRICS_PORT` | 8002      | 8002           | Triton Prometheus metrics                     |
+| Nemotron           | `LLM_PORT`                | 8091      | 8091           | LLM risk analysis (llama.cpp)                 |
+| vLLM (profile)     | `VLLM_PORT`               | 8097      | 8000           | Optional `vllm` profile engine                |
+| PostgreSQL         | `POSTGRES_PORT`           | 5432      | 5432           | Database                                      |
+| Redis              | `REDIS_PORT`              | 6379      | 6379           | Cache + message broker                        |
+| go2rtc             | `GO2RTC_API_PORT`         | 1984      | 1984           | Stream REST API                               |
+| go2rtc             | `GO2RTC_WEBRTC_PORT`      | 8555      | 8555           | WebRTC streaming                              |
+| Prometheus         | `PROMETHEUS_PORT`         | 9090      | 9090           | Metrics                                       |
+| Grafana            | `GRAFANA_PORT`            | 3002      | 3000           | Dashboards (served at `/grafana/`)            |
+| Alertmanager       | `ALERTMANAGER_PORT`       | 9093      | 9093           | Alert routing                                 |
+| Loki               | `LOKI_PORT`               | 3100      | 3100           | Logs                                          |
+| Tempo              | `TEMPO_PORT`              | 3200      | 3200           | Traces (HTTP API/UI)                          |
+| Pyroscope          | `PYROSCOPE_PORT`          | 4040      | 4040           | Continuous profiling                          |
+| Alloy              | `ALLOY_UI_PORT`           | 12345     | 12345          | Collection pipeline UI                        |
+| node-exporter      | `NODE_EXPORTER_PORT`      | 9100      | 9100           | Host metrics                                  |
+| redis-exporter     | `REDIS_EXPORTER_PORT`     | 9121      | 9121           | Redis metrics                                 |
+| json-exporter      | `JSON_EXPORTER_PORT`      | 7979      | 7979           | JSON API metrics                              |
+| blackbox-exporter  | `BLACKBOX_EXPORTER_PORT`  | 9115      | 9115           | HTTP/TCP probes                               |
+| dcgm-exporter      | `DCGM_EXPORTER_PORT`      | 9400      | 9400           | GPU metrics (`gpu-rootful` profile)           |
+
+`docker-compose.prod.yml` defines 21 services; two are behind profiles (`vllm`,
+`gpu-rootful`), so a default `up -d` starts 19. The `5173` Vite port in
+`.env.example` (`FRONTEND_PORT`) is unused by the compose file — the Vite dev
+server listens on HTTPS `8444` (see `frontend/vite.config.ts`).
 
 ---
 
@@ -237,17 +256,17 @@ flowchart TB
 
 ```bash
 # Start all services (production)
-docker compose -f docker-compose.prod.yml up -d
+podman compose -f docker-compose.prod.yml up -d
 
 # Stop all services
-docker compose -f docker-compose.prod.yml down
+podman compose -f docker-compose.prod.yml down
 
 # View logs
-docker compose -f docker-compose.prod.yml logs -f
-docker compose -f docker-compose.prod.yml logs -f backend
+podman compose -f docker-compose.prod.yml logs -f
+podman compose -f docker-compose.prod.yml logs -f backend
 
 # Restart a service
-docker compose -f docker-compose.prod.yml restart backend
+podman compose -f docker-compose.prod.yml restart backend
 ```
 
 ### Health Checks
@@ -260,14 +279,15 @@ curl http://localhost:8000/api/system/health/ready
 curl http://localhost:8000/api/system/health/full
 
 # AI services
-curl http://localhost:8095/health   # YOLO26
-curl http://localhost:8091/health   # Nemotron
+curl http://localhost:8090/health            # ai-gateway (YOLO26/Florence/CLIP/enrichment)
+curl http://localhost:8090/yolo26/health     # per-router health
+curl http://localhost:8091/health            # Nemotron
 
 # Database
-docker compose exec postgres pg_isready
+podman compose -f docker-compose.prod.yml exec postgres pg_isready
 
 # Redis
-docker compose exec redis redis-cli ping
+podman compose -f docker-compose.prod.yml exec redis redis-cli ping
 ```
 
 ### GPU Management
@@ -317,10 +337,10 @@ fuser -k /dev/nvidia*
 curl http://localhost:8000/api/system/health/full | jq
 
 # Container status
-docker compose -f docker-compose.prod.yml ps
+podman compose -f docker-compose.prod.yml ps
 
 # Recent logs
-docker compose -f docker-compose.prod.yml logs --tail=100 backend
+podman compose -f docker-compose.prod.yml logs --tail=100 backend
 
 # GPU availability
 nvidia-smi
@@ -350,10 +370,10 @@ curl http://localhost:8000/api/system/health | jq
 nvidia-smi
 
 # Container status
-docker compose -f docker-compose.prod.yml ps
+podman compose -f docker-compose.prod.yml ps
 
 # Recent logs
-docker compose -f docker-compose.prod.yml logs --tail=100 backend
+podman compose -f docker-compose.prod.yml logs --tail=100 backend
 ```
 
 ---

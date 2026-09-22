@@ -87,9 +87,13 @@ Detected file patterns:
 
 - **Purpose:** Fast, isolated unit tests
 - **Parallelization:** 4 shards with pytest-split, xdist parallelization within shards
-- **Coverage:** Collected per-shard, merged in coverage job
+- **Coverage:** Collected per-shard, merged in `unit-tests-coverage-merge`
 - **Services:** PostgreSQL 16
-- **Threshold:** 85% (checked after merging)
+- **Threshold:** absolute floor 84, enforced in the merge job only when every
+  unit shard passed (measured value, R-1). Shards run with
+  `--cov-fail-under=0`; the executed absolute backend floor is 80% combined
+  (validate.sh / nightly). `pyproject.toml` `fail_under = 85` is the PR diff
+  gate's RELATIVE baseline, not an absolute floor (owner ruling A7.1).
 
 #### 5. Integration Tests (4 Parallel Jobs)
 
@@ -314,12 +318,24 @@ Enforces test coverage requirements on PRs.
 
 ### Coverage Requirements
 
-| Layer               | Requirement        | Threshold |
-| ------------------- | ------------------ | --------- |
-| API Routes          | Unit + Integration | 95%       |
-| Services            | Unit + Integration | 90%       |
-| Models              | Unit tests         | 85%       |
-| Frontend Components | Unit tests         | 80%       |
+The gate is a **diff gate**, not a set of per-layer thresholds:
+`test-coverage-gate.yml` runs `scripts/check-test-coverage-gate.py
+--base-branch … --strict`, which compares the PR's coverage against
+`coverage-baseline.json` published by main (`pyproject.toml` `fail_under = 85`
+is that gate's RELATIVE baseline, not an absolute floor — owner ruling A7.1).
+The layer labels below are the expected test types the gate's PR-failure
+comment template prints; **no per-layer percentage is evaluated**:
+
+| Layer                       | Expected test type | Comment label (`min_coverage`) |
+| --------------------------- | ------------------ | ------------------------------ |
+| API Routes                  | Unit + Integration | 85%                            |
+| Services                    | Unit + Integration | 85%                            |
+| Models                      | Unit tests         | 85%                            |
+| Frontend Components / Hooks | Unit tests         | 80%                            |
+
+The enforced floors — combined 80% via `validate.sh`/nightly, unit tier 84,
+integration tier 37 in the CI merge steps — are in
+[Coverage Requirements](coverage.md).
 
 ### Checks
 
@@ -409,10 +425,11 @@ npm test
 podman-compose -f docker-compose.prod.yml build --no-cache backend
 podman-compose -f docker-compose.prod.yml build --no-cache frontend
 
-# Run smoke tests
+# Run smoke tests (frontend host ports: FRONTEND_HTTP_PORT=8080,
+# FRONTEND_HTTPS_PORT=8444 per .env.example)
 ./scripts/ci-smoke-test.sh \
   --backend-url http://localhost:8000 \
-  --frontend-url http://localhost:3000
+  --frontend-url http://localhost:8080
 ```
 
 ---

@@ -15,36 +15,36 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 
 ## Quick Reference
 
-| Hook                       | Stage      | Purpose                                | Runtime |
-| -------------------------- | ---------- | -------------------------------------- | ------- |
-| trailing-whitespace        | pre-commit | Remove trailing whitespace             | <1s     |
-| end-of-file-fixer          | pre-commit | Ensure files end with newline          | <1s     |
-| check-yaml                 | pre-commit | Validate YAML syntax                   | <1s     |
-| check-json                 | pre-commit | Validate JSON syntax                   | <1s     |
-| check-added-large-files    | pre-commit | Prevent large files (>1MB)             | <1s     |
-| check-merge-conflict       | pre-commit | Detect merge conflict markers          | <1s     |
-| detect-private-key         | pre-commit | Prevent committing private keys        | <1s     |
-| conventional-pre-commit    | commit-msg | Enforce conventional commit format     | <1s     |
-| hadolint                   | pre-commit | Lint Dockerfiles                       | 1-2s    |
-| semgrep                    | pre-commit | Security scanning (Python)             | 2-5s    |
-| ruff                       | pre-commit | Python linting                         | 1-2s    |
-| ruff-format                | pre-commit | Python formatting                      | 1-2s    |
-| mypy                       | pre-commit | Python type checking                   | 3-10s   |
-| prettier                   | pre-commit | Format non-frontend files              | 1-2s    |
-| prettier-frontend          | pre-commit | Format frontend files                  | 1-2s    |
-| eslint                     | pre-commit | Frontend linting                       | 2-5s    |
-| typescript-check           | pre-commit | Frontend type checking                 | 3-10s   |
-| uv-lock-check              | pre-commit | Verify uv lock file is up-to-date      | 1-2s    |
-| npm-install-check          | pre-commit | Verify npm dependencies are consistent | 1-3s    |
-| check-test-mocks           | pre-commit | Verify integration tests mock services | <1s     |
-| check-test-timeouts        | pre-commit | Verify tests mock slow operations      | <1s     |
-| check-validation-drift     | pre-commit | Detect Pydantic/Zod schema drift       | <1s     |
-| check-integration-tests    | pre-commit | Verify API/service changes have tests  | <1s     |
-| detect-secrets             | pre-commit | Detect secrets and credentials         | 1-2s    |
-| generate-openapi           | pre-commit | Auto-regenerate OpenAPI spec           | 1-2s    |
-| auto-rebase                | pre-push   | Rebase on origin/main                  | 2-10s   |
-| check-new-files-have-tests | pre-push   | Verify new source files have tests     | <1s     |
-| parallel-tests             | pre-push   | Run all test validations (5 jobs)      | 60-180s |
+| Hook                       | Stage      | Purpose                                 | Runtime |
+| -------------------------- | ---------- | --------------------------------------- | ------- |
+| trailing-whitespace        | pre-commit | Remove trailing whitespace              | <1s     |
+| end-of-file-fixer          | pre-commit | Ensure files end with newline           | <1s     |
+| check-yaml                 | pre-commit | Validate YAML syntax                    | <1s     |
+| check-json                 | pre-commit | Validate JSON syntax                    | <1s     |
+| check-added-large-files    | pre-commit | Prevent large files (>1MB)              | <1s     |
+| check-merge-conflict       | pre-commit | Detect merge conflict markers           | <1s     |
+| detect-private-key         | pre-commit | Prevent committing private keys         | <1s     |
+| conventional-pre-commit    | commit-msg | Enforce conventional commit format      | <1s     |
+| hadolint                   | pre-commit | Lint Dockerfiles                        | 1-2s    |
+| semgrep                    | pre-commit | Security scanning (Python)              | 2-5s    |
+| ruff                       | pre-commit | Python linting                          | 1-2s    |
+| ruff-format                | pre-commit | Python formatting                       | 1-2s    |
+| mypy                       | pre-commit | Python type checking                    | 3-10s   |
+| prettier                   | pre-commit | Format non-frontend files               | 1-2s    |
+| prettier-frontend          | pre-commit | Format frontend files                   | 1-2s    |
+| eslint                     | pre-commit | Frontend linting                        | 2-5s    |
+| typescript-check           | pre-commit | Frontend type checking                  | 3-10s   |
+| uv-lock-check              | pre-commit | Verify uv lock file is up-to-date       | 1-2s    |
+| npm-install-check          | pre-commit | Verify npm dependencies are consistent  | 1-3s    |
+| check-test-mocks           | pre-commit | Verify integration tests mock services  | <1s     |
+| check-test-timeouts        | pre-commit | Verify tests mock slow operations       | <1s     |
+| check-validation-drift     | pre-commit | Detect Pydantic/Zod schema drift        | <1s     |
+| check-integration-tests    | pre-commit | Verify API/service changes have tests   | <1s     |
+| detect-secrets             | pre-commit | Detect secrets and credentials          | 1-2s    |
+| generate-openapi           | pre-commit | Auto-regenerate OpenAPI spec            | 1-2s    |
+| auto-rebase                | pre-push   | Rebase on origin/main                   | 2-10s   |
+| check-new-files-have-tests | pre-push   | Verify new source files have tests      | <1s     |
+| parallel-tests             | pre-push   | Fast tier: 3 jobs selected for the diff | ≤15 min |
 
 ## Hook Execution Flow
 
@@ -147,12 +147,10 @@ flowchart TB
         REBASE["Rebase on main"]
     end
 
-    subgraph Parallel["Parallel Tests (5 jobs)"]
-        JOB1["Job 1: Backend Unit<br/>pytest + 85% coverage"]
-        JOB2["Job 2: E2E Tests<br/>Playwright Chromium"]
-        JOB3["Job 3: API Types<br/>openapi-typescript"]
-        JOB4["Job 4: Integration<br/>pytest integration"]
-        JOB5["Job 5: Frontend Unit<br/>vitest + coverage"]
+    subgraph Parallel["Fast Pre-Push Tier (3 jobs)"]
+        JOB1["Job 1: API Types<br/>generate-types.sh --check"]
+        JOB2["Job 2: Backend SELECTED tier<br/>unit+contracts for this diff"]
+        JOB3["Job 3: Frontend SELECTED tier<br/>vitest --related for this diff"]
     end
 
     PUSH --> FETCH
@@ -163,7 +161,7 @@ flowchart TB
     REBASE -->|"success"| Parallel
     REBASE -->|"conflicts"| CONFLICT["Resolve conflicts<br/>manually"]
 
-    JOB1 & JOB2 & JOB3 & JOB4 & JOB5 --> WAIT["Wait for all jobs"]
+    JOB1 & JOB2 & JOB3 --> WAIT["Wait for all jobs"]
 
     WAIT -->|"all pass"| SUCCESS["Push to remote"]
     WAIT -->|"any fail"| FAIL["Push aborted"]
@@ -247,7 +245,7 @@ pre-commit run --hook-stage pre-push --all-files
 
 ```bash
 # Skip specific hook
-SKIP=fast-test git commit -m "message"
+SKIP=ruff git commit -m "message"
 
 # Skip multiple hooks
 SKIP=hadolint,semgrep git commit -m "message"
@@ -1217,33 +1215,35 @@ SKIP=auto-rebase git push
 
 ### parallel-tests
 
-**Purpose:** Run validation tests in parallel before push for faster feedback.
+**Purpose:** Run the WP2.4 fast pre-push tier: selected tests for the pushed
+diff, in parallel, for faster feedback.
 
-**What it runs (5 parallel jobs):**
+**What it runs (3 jobs, selected for THIS diff):**
 
-1. **Job 1:** Backend unit tests with 85% coverage (pytest) - ~2-3 min
-2. **Job 2:** E2E + Accessibility tests (Playwright Chromium) - ~30-60s
-3. **Job 3:** API types contract check (openapi-typescript) - ~10-20s
-4. **Job 4:** Backend integration tests (subset for speed) - ~30-60s
-5. **Job 5:** Frontend unit tests (vitest with coverage) - ~10-30s
-
-**Total time:** max(job1, job2, job3, job4, job5) instead of sum (~60-70% faster than sequential)
+1. **Job 1:** API types contract check (`./scripts/generate-types.sh --check`) - ~10-20s
+2. **Job 2:** Backend SELECTED tier — `scripts/fast_select.py` picks the tests the diff touches, filtered to unit + contracts (plus unmarked top-level test files); integration/security/chaos stay out by tier definition (they have their own `-n0` gate)
+3. **Job 3:** Frontend SELECTED tier — `vitest --related` against the same base (`scripts/fast-frontend-runner.sh`)
 
 **Script:** `scripts/pre-push-tests.sh`
 
-**Runtime:** 60-180 seconds (depends on longest job, typically Job 1)
+**Runtime:** bounded by `FAST_PREPUSH_BUDGET` (default 900s). Measured
+wired-shape p50 ~428s, p95 ~513s. A mega-diff that hits the budget gets a
+loud handoff notice — the timeout bounds wall time only; the selection is
+never narrowed to fit the clock. Run full validation yourself with
+`./scripts/validate.sh`.
 
-**Why pre-push not pre-commit:** Full test suite takes ~2-3 minutes, too slow for every commit.
+**Why pre-push not pre-commit:** Even the selected tier takes minutes, too
+slow for every commit.
 
-**Job Details:**
+**Notes:**
 
-| Job | Type                | Command                                                                      | Timeout | Exit on First Failure |
-| --- | ------------------- | ---------------------------------------------------------------------------- | ------- | --------------------- |
-| 1   | Backend Unit        | `uv run pytest backend/tests/unit/ --cov --cov-fail-under=85 -n auto`        | None    | No                    |
-| 2   | E2E + Accessibility | `cd frontend && npm run test:e2e -- --project=chromium`                      | None    | No                    |
-| 3   | API Types           | `./scripts/generate-types.sh --check`                                        | None    | No                    |
-| 4   | Backend Integration | `uv run pytest backend/tests/integration/ -n0 --tb=short -q -x --timeout=60` | 60s     | Yes (-x)              |
-| 5   | Frontend Unit       | `cd frontend && npm test -- --coverage --run`                                | None    | No                    |
+- If the diff base can't be resolved, the tier falls back (loudly) to the
+  legacy fixed-smoke jobs for that push only.
+- Empty in-tier selections are green **with a manifest** (`NOT-SELECTED-FILE`
+  proof the tier ran and honestly found nothing), not vacuous passes.
+- If staged-but-uncommitted changes exist, the tier tests the working tree,
+  which is ahead of what the push ships — you get a loud notice; CI remains
+  the authority on the pushed tree.
 
 **Skip:**
 
@@ -1398,4 +1398,4 @@ npm run typecheck
 - [Code Quality Tools](code-quality.md) - Comprehensive tool documentation
 - [Contributing Guide](contributing.md) - Development workflow
 - [Testing Guide](testing.md) - Test strategy and patterns
-- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions
+- [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) - Project instructions

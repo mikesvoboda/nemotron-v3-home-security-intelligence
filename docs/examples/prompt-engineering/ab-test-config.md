@@ -116,14 +116,23 @@ from backend.evaluation.ab_experiment_runner import (
     analyze_experiment,
     summarize_results,
 )
+from backend.evaluation.prompt_evaluator import evaluate_prediction
 
-# Extract accuracy scores from results
+# Extract accuracy scores from results (1.0 accurate, 0.0 not)
 control_scores = [
-    1.0 if is_score_in_range(m["score"], sample) else 0.0
+    1.0
+    if evaluate_prediction(
+        sample, actual_score=m["score"], actual_level=m["level"]
+    ).is_accurate
+    else 0.0
     for m in results["control"]
 ]
 variant_scores = [
-    1.0 if is_score_in_range(m["score"], sample) else 0.0
+    1.0
+    if evaluate_prediction(
+        sample, actual_score=m["score"], actual_level=m["level"]
+    ).is_accurate
+    else 0.0
     for m in results["variant"]
 ]
 

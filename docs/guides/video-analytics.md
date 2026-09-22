@@ -8,15 +8,15 @@ Home Security Intelligence provides a multi-model AI pipeline that transforms ra
 
 ### Key Capabilities
 
-| Feature                 | Description                                     | Models Used              |
-| ----------------------- | ----------------------------------------------- | ------------------------ |
-| **Object Detection**    | Detect people, vehicles, animals, and objects   | YOLO26                   |
-| **Scene Understanding** | Generate captions and descriptions              | Florence-2               |
-| **Anomaly Detection**   | Compare against learned baselines               | CLIP ViT-L/14            |
-| **Threat Detection**    | Identify weapons and dangerous items            | Threat-Detection-YOLOv8n |
-| **Person Analysis**     | Pose, demographics, clothing, re-identification | Multiple models          |
-| **Vehicle Analysis**    | Vehicle type, damage, license plates            | Multiple models          |
-| **Risk Assessment**     | LLM-based contextual risk analysis              | Nemotron-3-Nano-30B      |
+| Feature                 | Description                                     | Models Used               |
+| ----------------------- | ----------------------------------------------- | ------------------------- |
+| **Object Detection**    | Detect people, vehicles, animals, and objects   | YOLO26                    |
+| **Scene Understanding** | Generate captions and descriptions              | Florence-2-base           |
+| **Anomaly Detection**   | Compare against learned baselines               | SigLIP 2 Base (as `clip`) |
+| **Threat Detection**    | Identify weapons and dangerous items            | Threat-Detection-YOLOv8n  |
+| **Person Analysis**     | Pose, demographics, clothing, re-identification | Multiple models           |
+| **Vehicle Analysis**    | Vehicle type, damage, license plates            | Multiple models           |
+| **Risk Assessment**     | LLM-based contextual risk analysis              | Nemotron-3-Nano-30B       |
 
 ---
 
@@ -52,7 +52,7 @@ flowchart LR
 
     subgraph Detection["2. Object Detection"]
         DQ[(detection_queue)]
-        YOLO[YOLO26<br/>port 8095<br/>~30-50ms]
+        YOLO[YOLO26<br/>ai-gateway /yolo26<br/>port 8090]
     end
 
     subgraph Batching["3. Batch Aggregation"]
@@ -61,9 +61,9 @@ flowchart LR
     end
 
     subgraph Enrichment["4. Context Enrichment"]
-        FLOR[Florence-2<br/>Scene captions<br/>port 8092]
-        CLIP[CLIP ViT-L/14<br/>Anomaly detection<br/>port 8093]
-        MZ[Model Zoo<br/>On-demand models]
+        FLOR[Florence-2-base<br/>Scene captions<br/>ai-gateway /florence]
+        CLIP[SigLIP 2 Base<br/>Anomaly detection<br/>ai-gateway /clip]
+        MZ[Model Zoo<br/>On-demand models<br/>ai-gateway /enrichment]
     end
 
     subgraph Analysis["5. Risk Assessment"]
@@ -101,31 +101,45 @@ flowchart LR
 6. **Risk Analysis**: Nemotron LLM evaluates the complete context
 7. **Event Creation**: Security events are created and broadcast via WebSocket
 
-### Always-Loaded Models (~4GB VRAM)
+### Where the Models Run
 
-These models are permanently loaded for real-time processing:
+All detection, vision-language, embedding and enrichment models run inside one
+container, `ai-gateway`. A FastAPI front on port 8090 translates HTTP to gRPC
+for a Triton Inference Server that runs in the same container on the GPU. The
+backend reaches each model through a router prefix:
 
-| Model                | Purpose                       | VRAM   | Port |
-| -------------------- | ----------------------------- | ------ | ---- |
-| **YOLO26**           | Primary object detection      | ~2GB   | 8095 |
-| **Florence-2-large** | Scene understanding, captions | ~1.2GB | 8092 |
-| **CLIP ViT-L/14**    | Anomaly detection baseline    | ~800MB | 8093 |
+| Router        | Models served                                              |
+| ------------- | ---------------------------------------------------------- |
+| `/yolo26`     | YOLO26 object detection                                    |
+| `/florence`   | Florence-2-base                                            |
+| `/clip`       | SigLIP 2 Base (registered as `clip` / `clip_text`)         |
+| `/enrichment` | vehicle, fashion-clip, demographics, action (heavy models) |
+| `/enrich-lt`  | pose, threat, reid, pet, depth (light models)              |
 
-### On-Demand Models (~6.8GB Budget)
+Triton loads its whole model list when the container starts; the compose
+healthcheck allows three minutes for it. The list lives in
+`ai/gateway/main.py` (`ALL_MODELS`), and `models.yml` decides whether each
+model lands on the GPU or the CPU.
 
-Loaded when needed and evicted using LRU with priority ordering:
+### Models Used Per Analysis Step
 
-| Model              | Purpose                  | VRAM   | Priority |
-| ------------------ | ------------------------ | ------ | -------- |
-| Threat Detector    | Weapon detection         | ~400MB | CRITICAL |
-| Pose Estimator     | Body posture analysis    | ~300MB | HIGH     |
-| Demographics       | Age/gender estimation    | ~500MB | HIGH     |
-| FashionCLIP        | Clothing analysis        | ~800MB | HIGH     |
-| OSNet Re-ID        | Person re-identification | ~100MB | MEDIUM   |
-| Vehicle Classifier | Vehicle type             | ~1.5GB | MEDIUM   |
-| Pet Classifier     | Cat/dog detection        | ~200MB | MEDIUM   |
-| Depth Anything v2  | Distance estimation      | ~150MB | LOW      |
-| X-CLIP             | Action recognition       | ~1.5GB | LOW      |
+Per-model VRAM from `models.yml`:
+
+| Model                          | Purpose                  | VRAM (MB) | Served under  |
+| ------------------------------ | ------------------------ | --------- | ------------- |
+| threat-detection-yolov8n       | Weapon detection         | 300       | `/enrich-lt`  |
+| yolov8n-pose                   | Body posture analysis    | 200       | `/enrich-lt`  |
+| osnet-ain-x1-0                 | Person re-identification | 100       | `/enrich-lt`  |
+| pet-classifier                 | Cat/dog detection        | 200       | `/enrich-lt`  |
+| depth-anything-v2-tiny         | Distance estimation      | 100       | `/enrich-lt`  |
+| vit-age-classifier             | Age estimation           | 200       | `/enrichment` |
+| vit-gender-classifier          | Gender estimation        | 200       | `/enrichment` |
+| fashion-clip                   | Clothing analysis        | 500       | `/enrichment` |
+| vehicle-segment-classification | Vehicle type             | 1500      | `/enrichment` |
+| xclip_action                   | Action recognition       | 0 (CPU)   | `/enrichment` |
+
+Set `ENRICHMENT_<TASK>_SERVICE` in `.env` to move a task between the heavy and
+light endpoints; the defaults are in `.env.example`.
 
 ---
 
@@ -133,15 +147,18 @@ Loaded when needed and evicted using LRU with priority ordering:
 
 ### YOLO26 Detection
 
-The primary object detector uses YOLO26 for fast, accurate detection:
+The primary object detector uses YOLO26 for fast, accurate detection. Run the
+requests against the AI gateway, not a standalone detector container:
 
 ```bash
 # Check detector health
-curl http://localhost:8095/health
+curl http://localhost:8090/yolo26/health
 
-# Detection endpoint (internal use)
-POST http://localhost:8095/detect
-Content-Type: multipart/form-data
+# Single-image detection (multipart upload)
+curl -F "file=@frame.jpg" http://localhost:8090/yolo26/detect
+
+# Batch detection
+curl -F "files=@a.jpg" -F "files=@b.jpg" http://localhost:8090/yolo26/detect/batch
 ```
 
 **Detected Object Classes:**
@@ -159,11 +176,12 @@ Content-Type: multipart/form-data
   "detections": [
     {
       "class": "person",
-      "confidence": 0.92,
-      "bbox": [120, 80, 280, 450],
-      "center": [200, 265]
+      "confidence": 0.9214,
+      "bbox": { "x": 120, "y": 80, "width": 160, "height": 370 }
     }
   ],
+  "image_width": 1920,
+  "image_height": 1080,
   "inference_time_ms": 5.76
 }
 ```
@@ -172,7 +190,7 @@ Content-Type: multipart/form-data
 
 Detections are filtered by:
 
-- **Confidence threshold**: Configurable minimum confidence (default: 0.5)
+- **Confidence threshold**: Minimum confidence to keep a detection. `.env.example` ships `DETECTION_CONFIDENCE_THRESHOLD=0.5`; classes listed in `DETECTION_CLASS_THRESHOLDS` use their own value instead (for example `person` 0.40, `car` 0.50, `bus` 0.55)
 - **Object classes**: Filter to security-relevant objects
 - **Zone filtering**: Only process detections in defined zones
 
@@ -182,36 +200,47 @@ Detections are filtered by:
 
 ### Florence-2 Captioning
 
-Florence-2 provides rich scene descriptions:
+Florence-2-base provides rich scene descriptions. The gateway exposes it as a
+task-token prompt API, not a per-task endpoint — you post an image and a
+Florence task token:
 
 ```bash
 # Health check
-curl http://localhost:8092/health
+curl http://localhost:8090/florence/health
 
-# Caption endpoint
-POST http://localhost:8092/caption
-{
-  "image": "<base64>",
-  "task": "detailed_caption"
-}
+# Caption a frame
+curl -X POST http://localhost:8090/florence/extract \
+  -H 'Content-Type: application/json' \
+  -d '{"image": "<base64>", "prompt": "<MORE_DETAILED_CAPTION>"}'
 ```
 
-**Available Tasks:**
+**Task tokens the backend sends to `/extract`:**
 
-| Task                    | Description                    |
-| ----------------------- | ------------------------------ |
-| `caption`               | Brief scene description        |
-| `detailed_caption`      | Comprehensive scene analysis   |
-| `more_detailed_caption` | Extended detailed description  |
-| `ocr`                   | Text detection and recognition |
-| `dense_region_caption`  | Per-region descriptions        |
-| `object_detection`      | Bounding box detection         |
+| Token                     | Description                   |
+| ------------------------- | ----------------------------- |
+| `<CAPTION>`               | Brief scene description       |
+| `<DETAILED_CAPTION>`      | Comprehensive scene analysis  |
+| `<MORE_DETAILED_CAPTION>` | Extended detailed description |
+
+**Other Florence endpoints on the same router:**
+
+| Endpoint                            | Description                |
+| ----------------------------------- | -------------------------- |
+| `/florence/ocr`                     | Text recognition           |
+| `/florence/ocr-with-regions`        | Text with bounding boxes   |
+| `/florence/detect`                  | Bounding box detection     |
+| `/florence/dense-caption`           | Per-region descriptions    |
+| `/florence/describe-region`         | Caption one region         |
+| `/florence/phrase-grounding`        | Ground a phrase to boxes   |
+| `/florence/detect_security_objects` | Fixed security vocabulary  |
+| `/florence/batch-extract`           | Many images in one request |
 
 **Response Example:**
 
 ```json
 {
-  "caption": "A person in a blue jacket approaches the front door carrying a package",
+  "result": "A person in a blue jacket approaches the front door carrying a package",
+  "prompt_used": "<MORE_DETAILED_CAPTION>",
   "inference_time_ms": 145.2
 }
 ```
@@ -220,15 +249,15 @@ POST http://localhost:8092/caption
 
 ## Anomaly Detection
 
-### CLIP Baseline Comparison
+### Zone Baseline Comparison
 
-The system learns normal activity patterns and detects anomalies:
+The system learns normal activity patterns per zone and flags deviations from
+them (`backend/services/zone_anomaly_service.py`):
 
-**How It Works:**
-
-1. CLIP generates embeddings for each scene
-2. Embeddings are compared against historical baselines
-3. Significant deviations trigger anomaly flags
+1. Detections accumulate into per-zone baselines
+2. Each new detection is scored against the baseline in standard deviations
+3. A deviation past the threshold raises an anomaly (severity: >= 3.0 std is
+   WARNING, >= 4.0 std is CRITICAL)
 
 **Baseline Metrics:**
 
@@ -239,12 +268,15 @@ The system learns normal activity patterns and detects anomalies:
 | `typical_dwell_time`    | Average time objects stay in view      |
 | `typical_crossing_rate` | Expected zone crossings per hour       |
 
-**Anomaly Types:**
+**Anomaly Checks** (all three compare in standard deviations against the
+baseline; default trigger is 2.0 std):
 
-- **Unusual time**: Activity outside normal hours
-- **Unusual frequency**: Detection spike or drop (3+ std deviations)
-- **Unusual dwell**: Object lingering 2x longer than typical
-- **Unusual entity**: First-time visitor to sensitive zone
+- **Unusual time**: detection at an hour the zone is normally quiet
+- **Unusual frequency**: a spike or drop in recent detections for the zone
+- **Unusual dwell**: an object in view far longer than the zone typical
+
+New people and vehicles are handled separately, by household matching and face
+recognition — see [Face Recognition Guide](face-recognition.md).
 
 ### Baseline Visualization
 
@@ -285,11 +317,14 @@ A color-coded card showing how current activity compares to baseline:
 
 | Color  | Interpretation           | Deviation Range      |
 | ------ | ------------------------ | -------------------- |
-| Blue   | Far below / Below normal | < -1.5 std dev       |
-| Green  | Normal                   | -1.5 to +1.5 std dev |
-| Yellow | Slightly above normal    | +1.5 to +2.0 std dev |
+| Blue   | Far below / Below normal | < -1.0 std dev       |
+| Green  | Normal                   | -1.0 to +1.0 std dev |
+| Yellow | Slightly above normal    | +1.0 to +2.0 std dev |
 | Orange | Above normal             | +2.0 to +3.0 std dev |
-| Red    | Far above normal         | > +3.0 std dev       |
+| Red    | Far above normal         | >= +3.0 std dev      |
+
+The "far below" and "below normal" bands split again at -2.0 std; both render
+in blue.
 
 The card displays:
 
@@ -321,7 +356,8 @@ API endpoints for programmatic control are documented in [Baseline Configuration
 
 ### Pose Estimation
 
-YOLOv8n-pose detects 17 COCO keypoints:
+`POST http://localhost:8090/enrich-lt/pose-analyze` runs yolov8n-pose (17 COCO
+keypoints) and derives a posture from the keypoint geometry:
 
 ```json
 {
@@ -330,66 +366,70 @@ YOLOv8n-pose detects 17 COCO keypoints:
     { "name": "left_shoulder", "x": 0.42, "y": 0.25, "confidence": 0.92 }
   ],
   "posture": "standing",
-  "is_suspicious": false
+  "alerts": [],
+  "num_people": 1,
+  "inference_time_ms": 12.4
 }
 ```
 
-**Posture Classifications:**
-
-| Posture       | Description                      |
-| ------------- | -------------------------------- |
-| `standing`    | Upright position                 |
-| `walking`     | Moving, upright                  |
-| `running`     | Fast movement                    |
-| `crouching`   | Low position (suspicious)        |
-| `lying_down`  | Horizontal position              |
-| `reaching_up` | Arms raised (potential climbing) |
-
-**Suspicious Poses:**
-
-- `crouching` - Potential hiding/break-in behavior
-- `crawling` - Unusual movement pattern
-- `hiding` - Concealment attempt
-- `reaching_up` - Potential climbing/entry
+**Posture values the gateway emits:** `standing`, `crouching`, `lying`,
+`bending`, `unknown`. A `crouching` or `lying` posture adds a text alert to the
+`alerts` list.
 
 ### Demographics
 
-ViT-based age and gender estimation:
+`POST http://localhost:8090/enrichment/demographics` estimates age and gender
+from a face crop:
 
 ```json
 {
-  "age_range": "21-35",
+  "age_range": "21-30",
+  "age_confidence": 0.81,
   "gender": "male",
-  "confidence": 0.87
+  "gender_confidence": 0.93,
+  "inference_time_ms": 22.1
 }
 ```
 
-**Age Ranges:** 0-10, 11-20, 21-35, 36-50, 51-65, 65+
+**Age Ranges:** 0-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71+ — the
+labels the gateway maps `demographics_age` class indices onto in
+`ai/gateway/adapters/enrichment.py`. The `DemographicsResults.age_range` check
+constraint in `backend/models/enrichment.py` accepts those plus `71-80`, `81+`
+and `unknown`.
 
 ### Clothing Analysis
 
-FashionCLIP zero-shot clothing classification:
+`POST http://localhost:8090/enrichment/clothing-classify` runs the Marqo
+FashionSigLIP zero-shot clothing classifier:
 
 ```json
 {
-  "type": "casual",
-  "colors": ["blue", "black"],
+  "clothing_type": "jacket",
+  "color": "blue",
+  "style": "casual",
+  "confidence": 0.74,
+  "top_category": "outerwear",
+  "description": "Blue jacket, dark trousers",
   "is_suspicious": false,
-  "description": "Blue jacket, black pants"
+  "is_service_uniform": false,
+  "inference_time_ms": 31.0
 }
 ```
 
 ### Person Re-Identification
 
-OSNet generates 512-dimensional embeddings for tracking across cameras:
+`POST http://localhost:8090/enrich-lt/person-reid` runs OSNet-AIN x1.0 and
+returns a normalized 512-dimensional embedding for tracking across cameras:
 
 ```json
 {
-  "embedding": [0.12, -0.34, ...],
-  "embedding_hash": "abc123...",
-  "match_threshold": 0.7
+  "embedding": [0.0123, -0.0341, 0.0187],
+  "embedding_dimension": 512,
+  "inference_time_ms": 8.9
 }
 ```
+
+Matching and match thresholds are applied in the backend, not by the gateway.
 
 **Use Cases:**
 
@@ -403,33 +443,38 @@ OSNet generates 512-dimensional embeddings for tracking across cameras:
 
 ### Vehicle Classification
 
-ViT-based vehicle type classification:
+`POST http://localhost:8090/enrichment/vehicle-classify` runs a ResNet-50
+trained on MIO-TCD. It scores eleven labels, drops `background` and
+`pedestrian`, and returns the best remaining one:
 
 ```json
 {
   "vehicle_type": "car",
-  "display_name": "Sedan",
-  "confidence": 0.91
+  "display_name": "car/sedan",
+  "confidence": 0.91,
+  "is_commercial": false,
+  "all_scores": { "car": 0.91, "pickup_truck": 0.05 },
+  "inference_time_ms": 18.3
 }
 ```
 
-**Vehicle Classes:**
-
-- articulated_truck, bus, car, motorcycle, bicycle
-- pickup_truck, single_unit_truck, work_van
-- non_motorized_vehicle
+**Vehicle Classes:** articulated_truck, bicycle, bus, car, motorcycle,
+non_motorized_vehicle, pickup_truck, single_unit_truck, work_van
 
 ### License Plate Detection
 
-YOLO-based license plate detection with PaddleOCR:
+The enrichment pipeline prefers FastALPR (end-to-end detection plus OCR,
+`backend/services/fast_alpr_loader.py`). When FastALPR is unavailable it falls
+back to yolo11-license-plate detection followed by PaddleOCR. Either path
+produces plate text plus a box for the pipeline's `license_plates` list:
 
 ```json
 {
-  "plates": [
+  "license_plates": [
     {
       "text": "ABC 1234",
-      "confidence": 0.88,
-      "bbox": [100, 200, 200, 240]
+      "ocr_confidence": 0.88,
+      "bbox": { "x": 100, "y": 200, "width": 100, "height": 40 }
     }
   ]
 }
@@ -441,30 +486,29 @@ YOLO-based license plate detection with PaddleOCR:
 
 ### Weapon Detection
 
-CRITICAL priority detection for security threats:
+The enrichment pipeline routes threat checks to
+`POST http://localhost:8090/enrich-lt/threat-detect`, which runs
+threat-detection-yolov8n:
 
 ```json
 {
-  "threats": [
+  "threats_detected": [
     {
-      "threat_type": "knife",
+      "class": "knife",
       "confidence": 0.85,
-      "bbox": [150, 200, 180, 280],
-      "severity": "high"
+      "bbox": { "x": 150, "y": 200, "width": 30, "height": 80 }
     }
   ],
-  "has_threat": true,
-  "max_severity": "high"
+  "is_threat": true,
+  "max_confidence": 0.85,
+  "inference_time_ms": 9.1
 }
 ```
 
-**Threat Classes:**
-
-| Class              | Severity |
-| ------------------ | -------- |
-| gun, rifle, pistol | CRITICAL |
-| knife              | HIGH     |
-| bat, crowbar       | MEDIUM   |
+**Detection classes the gateway post-processes:** `knife`, `pistol`, `rifle`,
+`threat_object`. The backend applies severity separately — see
+`ai/enrichment/models/threat_detector.py`, which maps gun/rifle/pistol to
+critical, knife and sword-type items to high, and bat/crowbar/hammer to medium.
 
 ---
 
@@ -472,7 +516,11 @@ CRITICAL priority detection for security threats:
 
 ### Nemotron LLM Analysis
 
-The Nemotron-3-Nano-30B model provides contextual risk assessment:
+The Nemotron-3-Nano-30B model provides contextual risk assessment. It runs in
+its own container, `ai-llm`, on llama.cpp at port 8091 (`NEMOTRON_URL`); the
+optional `vllm` compose profile swaps in `ai-llm-vllm` instead. Inspect a
+finished event's prompt and response through the backend at
+`/api/llm-reasoning/events/{event_id}`.
 
 **Input Context:**
 
@@ -553,29 +601,57 @@ curl "http://localhost:8000/api/analytics/detection-trends?start_date=2026-01-01
 
 ## Model Status API
 
-### Check Model Status
+Model status and loading go through the backend under `/api/system/models`
+(`backend/api/routes/model_management.py`). Do not call the enrichment service
+ports directly.
 
 ```bash
-# Get all model statuses
-curl http://localhost:8094/models/status
+# Every model in the registry, with runtime state
+curl http://localhost:8000/api/system/models
 
-# Response
+# One model
+curl http://localhost:8000/api/system/models/pet-classifier/status
+
+# Combined VRAM totals
+curl http://localhost:8000/api/system/models/vram-summary
+
+# Load / unload / reload
+curl -X POST http://localhost:8000/api/system/models/pet-classifier/load
+curl -X POST http://localhost:8000/api/system/models/pet-classifier/unload
+curl -X POST http://localhost:8000/api/system/models/pet-classifier/reload
+```
+
+`GET /api/system/models` returns one entry per registry model:
+
+```json
 {
-  "vram_budget_mb": 6963.2,
-  "vram_used_mb": 2500,
-  "vram_utilization_percent": 35.9,
-  "loaded_models": [
-    {"name": "pose_estimator", "vram_mb": 300, "priority": "HIGH"}
-  ]
+  "models": [
+    {
+      "name": "pet-classifier",
+      "category": "classification",
+      "estimated_vram_mb": 200,
+      "enabled": true,
+      "service": "ai-enrichment-light",
+      "gpu_id": 1,
+      "runtime": {
+        "loaded": true,
+        "actual_vram_mb": 187,
+        "last_used": "2026-09-22T10:30:00Z",
+        "load_count": 5
+      }
+    }
+  ],
+  "service_status": {
+    "ai-enrichment": "healthy",
+    "ai-enrichment-light": "healthy"
+  }
 }
 ```
 
-### Preload Models
-
-```bash
-# Preload a model before use
-curl -X POST "http://localhost:8094/models/preload?model_name=threat_detector"
-```
+`backend/api/routes/system.py` exposes a second, simpler pair: `GET
+/api/system/models` for names and `GET /api/system/models/{model_name}` for one
+model. `model_management.py` is registered first, so it answers the bare
+`/api/system/models` request.
 
 ---
 
@@ -609,7 +685,7 @@ curl -X POST "http://localhost:8094/models/preload?model_name=threat_detector"
 
 1. Check camera is uploading to correct directory
 2. Verify file watcher is running: `curl http://localhost:8000/api/system/pipeline`
-3. Check YOLO26 health: `curl http://localhost:8095/health`
+3. Check the AI gateway: `curl http://localhost:8090/yolo26/health`
 4. Review detection queue depth in system telemetry
 
 ### Slow Analysis

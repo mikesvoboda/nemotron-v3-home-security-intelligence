@@ -4,7 +4,11 @@
 
 ## Overview
 
-The data model uses several PostgreSQL-specific index types to optimize different query patterns:
+The data model uses several PostgreSQL-specific index types to optimize different query patterns.
+Index and constraint definitions live on the SQLAlchemy models' `__table_args__` in
+`backend/models/` — Alembic migrations were removed in PR #4465, and schema is created
+from the models (see [Migrations](./migrations.md)). The SQL shown below is what
+`create_all` emits from those definitions.
 
 | Index Type | Best For                            | Size       | Update Cost |
 | ---------- | ----------------------------------- | ---------- | ----------- |
@@ -56,7 +60,7 @@ WHERE enrichment_data @> '{"vehicle": {"color": "red"}}';
 
 **Index:** `ix_entities_entity_metadata_gin`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:593-599`
+**Source:** `backend/models/entity.py:124-129`
 
 ```sql
 CREATE INDEX ix_entities_entity_metadata_gin
@@ -93,7 +97,7 @@ ORDER BY started_at DESC;
 
 **Index:** `idx_logs_search_vector`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:211`
+**Source:** `backend/models/log.py:67`
 
 ```sql
 CREATE INDEX idx_logs_search_vector
@@ -155,7 +159,7 @@ ON events USING brin (started_at);
 
 **Index:** `ix_gpu_stats_recorded_at_brin`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:251-253`
+**Source:** `backend/models/gpu_stats.py:86-90`
 
 ```sql
 CREATE INDEX ix_gpu_stats_recorded_at_brin
@@ -166,7 +170,7 @@ ON gpu_stats USING brin (recorded_at);
 
 **Index:** `ix_audit_logs_timestamp_brin`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:177-178`
+**Source:** `backend/models/audit.py:124-128`
 
 ```sql
 CREATE INDEX ix_audit_logs_timestamp_brin
@@ -177,7 +181,7 @@ ON audit_logs USING brin (timestamp);
 
 **Index:** `ix_logs_timestamp_brin`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:210`
+**Source:** `backend/models/log.py:61-65`
 
 ```sql
 CREATE INDEX ix_logs_timestamp_brin
@@ -223,7 +227,7 @@ LIMIT 10;
 
 **Index:** `idx_scene_changes_acknowledged_false`
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:985-989`
+**Source:** `backend/models/scene_change.py:98-102`
 
 ```sql
 CREATE INDEX idx_scene_changes_acknowledged_false
@@ -284,7 +288,7 @@ CREATE INDEX idx_events_export_covering ON events (
 | `idx_alerts_dedup_key_created_at` | `dedup_key, created_at`           | Deduplication + time |
 | `idx_alerts_event_rule_delivered` | `event_id, rule_id, delivered_at` | Combined lookup      |
 
-**Source:** `backend/alembic/versions/e36700c35af6_initial_schema.py:1117-1121`
+**Source:** `backend/models/alert.py:145-148`
 
 ---
 

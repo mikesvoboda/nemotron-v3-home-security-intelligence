@@ -415,7 +415,9 @@ async def _run_loop(self) -> None:
 
 Batching timing parameters (also documented in the [AI Pipeline Architecture](../ai-pipeline.md#timing-parameters)):
 
---8<-- "docs/\_includes/batching-config.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/batching-config.md"
+<!-- prettier-ignore-end -->
 
 Additional batch-aggregator settings:
 

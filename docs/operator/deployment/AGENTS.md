@@ -67,7 +67,7 @@ deployment/
 1. Read `README.md` - Prerequisites section
 2. Run `python setup.py` - Generate configuration (.env with secure passwords)
 3. Run `./ai/download_models.sh` - Download AI models
-4. Run `docker compose -f docker-compose.prod.yml up -d`
+4. Run `podman compose -f docker-compose.prod.yml up -d`
 5. Verify with `curl http://localhost:8000/api/system/health/ready`
 
 ### Set Up GPU CI/CD
@@ -83,7 +83,7 @@ deployment/
 1. Check `README.md` - Troubleshooting section
 2. Verify GPU access: `nvidia-smi`
 3. Test container GPU: `docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi`
-4. Check AI health endpoints: `curl http://localhost:8095/health`
+4. Check AI health endpoints: `curl http://localhost:8090/health` (ai-gateway), `curl http://localhost:8091/health` (ai-llm)
 
 ## Target Audience
 
@@ -95,15 +95,15 @@ deployment/
 
 ## Related Resources
 
-| Resource             | Location                           | Description                     |
-| -------------------- | ---------------------------------- | ------------------------------- |
-| Operator Hub         | `../AGENTS.md`                     | Parent operator documentation   |
-| GPU Setup Details    | `../gpu-setup.md`                  | Detailed GPU configuration      |
-| AI Overview          | `../ai-overview.md`                | AI pipeline architecture        |
-| Monitoring Guide     | `../monitoring/`                   | Health checks and metrics       |
-| Administration Guide | `../admin/`                        | Configuration and secrets       |
-| Docker Compose Files | `/docker-compose.*.yml`            | Container orchestration files   |
-| AI Model Scripts     | `/ai/download_models.sh`           | Model download automation       |
+| Resource             | Location                 | Description                   |
+| -------------------- | ------------------------ | ----------------------------- |
+| Operator Hub         | `../AGENTS.md`           | Parent operator documentation |
+| GPU Setup Details    | `../gpu-setup.md`        | Detailed GPU configuration    |
+| AI Overview          | `../ai-overview.md`      | AI pipeline architecture      |
+| Monitoring Guide     | `../monitoring/`         | Health checks and metrics     |
+| Administration Guide | `../admin/`              | Configuration and secrets     |
+| Docker Compose Files | `/docker-compose.*.yml`  | Container orchestration files |
+| AI Model Scripts     | `/ai/download_models.sh` | Model download automation     |
 
 ## Key Patterns
 

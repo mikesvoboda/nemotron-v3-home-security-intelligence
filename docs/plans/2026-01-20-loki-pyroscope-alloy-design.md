@@ -1,5 +1,7 @@
 # Loki, Pyroscope, and Alloy Integration Design
 
+> **Status:** Implemented — Loki, Alloy, Pyroscope and Tempo are live services in `docker-compose.prod.yml`.
+
 **Date:** 2026-01-20
 **Status:** Approved
 **Epic:** TBD

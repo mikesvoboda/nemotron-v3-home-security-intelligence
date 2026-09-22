@@ -22,7 +22,7 @@ with additional context by running on-demand AI models:
 
 The pipeline can use either:
 - Local models via ModelManager (default, for single-process deployments)
-- Remote HTTP service at ai-enrichment:8094 (for containerized deployments)
+- Remote HTTP service at ai-gateway:8090 (routes `/enrichment` and `/enrich-lt`, for containerized deployments)
 """
 ```
 
@@ -383,19 +383,31 @@ For containerized deployments, enrichment can use a remote HTTP service:
 
 ### Remote Service URL
 
-```
-ai-enrichment:8094
-```
+In the containerized deployment the enrichment routes live on the ai-gateway container:
+`http://ai-gateway:8090/enrichment` (heavy models) and `http://ai-gateway:8090/enrich-lt`
+(light models — threat detection, person re-ID). Set `USE_AI_GATEWAY=true` with
+`AI_GATEWAY_URL=http://ai-gateway:8090` and the clients route all calls through the gateway
+(`backend/services/enrichment_client.py`).
 
 ### Endpoints
 
-| Endpoint                  | Purpose                       |
-| ------------------------- | ----------------------------- |
-| `POST /classify/vehicle`  | Vehicle make/model/color      |
-| `POST /classify/pet`      | Pet species/breed             |
-| `POST /classify/clothing` | Clothing attributes           |
-| `POST /detect/plates`     | License plate detection + OCR |
-| `POST /detect/faces`      | Face detection + embedding    |
+The HTTP calls the enrichment client makes (names from `backend/services/enrichment_client.py`; on
+ai-gateway they are prefixed with `/enrichment` or `/enrich-lt`):
+
+| Endpoint                  | Route prefix | Purpose                     |
+| ------------------------- | ------------ | --------------------------- |
+| `POST /vehicle-classify`  | enrichment   | Vehicle make/model/color    |
+| `POST /pet-classify`      | enrichment   | Pet species/breed           |
+| `POST /clothing-classify` | enrichment   | Clothing attributes         |
+| `POST /pose-analyze`      | enrichment   | Body keypoints              |
+| `POST /action-classify`   | enrichment   | Temporal action recognition |
+| `POST /demographics`      | enrichment   | Age/gender estimation       |
+| `POST /depth-estimate`    | enrichment   | Depth map                   |
+| `POST /threat-detect`     | enrich-lt    | Threat posture detection    |
+| `POST /person-reid`       | enrich-lt    | Person re-identification    |
+
+License-plate and face text are not separate HTTP routes: they come from Florence-2 OCR via the
+`/florence/ocr` and `/florence/detect_security_objects` routes (`backend/services/scene_ocr_service.py`).
 
 ## Graceful Degradation
 
@@ -472,12 +484,12 @@ from backend.core.metrics import (
 
 ## Configuration
 
-| Setting                   | Default | Purpose                   |
-| ------------------------- | ------- | ------------------------- |
-| `use_enriched_context`    | True    | Enable context enrichment |
-| `use_enrichment_pipeline` | True    | Enable model enrichment   |
-| `enrichment_timeout`      | 30s     | Per-model timeout         |
-| `use_enrichment_service`  | False   | Use remote HTTP service   |
+| Setting                   | Default | Purpose                                                                                           |
+| ------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `use_enriched_context`    | True    | Enable context enrichment (analyzer constructor, `backend/services/nemotron_analyzer.py:306`)     |
+| `use_enrichment_pipeline` | True    | Enable model enrichment (analyzer constructor, same file:307)                                     |
+| `ENRICHMENT_READ_TIMEOUT` | 60s     | Per-request HTTP timeout (`backend/core/config.py`)                                               |
+| `use_enrichment_service`  | True    | Use the HTTP enrichment service instead of loading models locally (`backend/core/config.py:1351`) |
 
 ## Related Documents
 

@@ -3,12 +3,14 @@
 ## TL;DR
 
 **✅ Use these commands:**
+
 ```bash
 npm test              # Run Vitest tests
 bun run test          # Also runs Vitest tests
 ```
 
 **❌ Do NOT use:**
+
 ```bash
 bun test              # This uses Bun's native test runner (incompatible!)
 ```
@@ -37,13 +39,13 @@ When you run `bun test`, you'll encounter these errors:
 
 ### Why Tests Use Vitest
 
-| Feature | Vitest | Bun Native | Status |
-|---------|--------|------------|--------|
-| `vi.mock()` | ✅ | ❌ Different API | Required by tests |
-| jsdom environment | ✅ | ❌ Manual setup | Required by tests |
-| setupFiles | ✅ | ❌ Different approach | Required by tests |
-| @testing-library/jest-dom | ✅ | ❌ Incompatible | Required by tests |
-| Vite integration | ✅ | ⚠️ Limited | Used by project |
+| Feature                   | Vitest | Bun Native            | Status            |
+| ------------------------- | ------ | --------------------- | ----------------- |
+| `vi.mock()`               | ✅     | ❌ Different API      | Required by tests |
+| jsdom environment         | ✅     | ❌ Manual setup       | Required by tests |
+| setupFiles                | ✅     | ❌ Different approach | Required by tests |
+| @testing-library/jest-dom | ✅     | ❌ Incompatible       | Required by tests |
+| Vite integration          | ✅     | ⚠️ Limited            | Used by project   |
 
 ---
 
@@ -114,6 +116,7 @@ test: {
 ### Test Setup (`src/test/setup.ts`)
 
 The setup file configures:
+
 - jsdom polyfills (ResizeObserver, IntersectionObserver)
 - MSW (Mock Service Worker) for API mocking
 - Test cleanup between tests
@@ -122,6 +125,7 @@ The setup file configures:
 ### Vitest-Specific APIs Used
 
 Tests throughout the codebase use:
+
 - `vi.mock()` - Mock modules
 - `vi.spyOn()` - Spy on functions
 - `vi.mocked()` - TypeScript-safe mock access
@@ -140,9 +144,13 @@ If you need to make tests compatible with Bun's native test runner:
 4. **Rewrite or adapt** custom matchers
 5. **Update configuration** in `bunfig.toml`
 
-**Estimated effort:** High (affects 100+ test files)
+**Estimated effort:** High (affects ~800 test files)
 
 **Recommendation:** Continue using Vitest. It's purpose-built for Vite projects and has excellent React Testing Library integration.
+
+Note also that CI never runs Bun: every workflow installs with `npm ci` and runs
+`npm run` scripts, so `package-lock.json` is the authoritative lockfile. Bun is
+a local convenience only.
 
 ---
 
@@ -157,10 +165,10 @@ If you need to make tests compatible with Bun's native test runner:
 
 ## Summary
 
-| Command | What It Does | Compatible? |
-|---------|-------------|-------------|
-| `bun test` | Runs Bun's native test runner | ❌ No - will fail |
+| Command        | What It Does                        | Compatible?       |
+| -------------- | ----------------------------------- | ----------------- |
+| `bun test`     | Runs Bun's native test runner       | ❌ No - will fail |
 | `bun run test` | Runs Vitest via package.json script | ✅ Yes - use this |
-| `npm test` | Runs Vitest via package.json script | ✅ Yes - use this |
+| `npm test`     | Runs Vitest via package.json script | ✅ Yes - use this |
 
 **Always use `bun run test` or `npm test`**, never `bun test` directly.

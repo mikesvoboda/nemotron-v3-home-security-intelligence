@@ -10,6 +10,11 @@ Detection zones let you define specific regions within a camera's field of view 
 
 Zones are configured through the Zone Editor, accessible from the Settings > Cameras tab by clicking the map pin icon on any camera card.
 
+There is also a separate read-only **Zone Intelligence** page at `/zones`
+(`frontend/src/pages/ZonesPage.tsx`): per-zone status cards, dwell statistics,
+line-zone crossing feeds, anomaly alerts, and heatmap views. This guide covers
+zone _configuration_; that page covers zone _activity_.
+
 ## Why Use Zones?
 
 Zones help you:
@@ -467,13 +472,19 @@ For developers wanting to understand the underlying systems.
 
 ### API Endpoints
 
-| Endpoint                  | Method | Description             |
-| ------------------------- | ------ | ----------------------- |
-| `/api/cameras/{id}/zones` | GET    | List zones for a camera |
-| `/api/cameras/{id}/zones` | POST   | Create a new zone       |
-| `/api/zones/{id}`         | PUT    | Update a zone           |
-| `/api/zones/{id}`         | DELETE | Delete a zone           |
-| `/api/zones/{id}/toggle`  | PATCH  | Enable/disable a zone   |
+All zone CRUD lives under the camera prefix (`backend/api/routes/zones.py`):
+
+| Endpoint                            | Method | Description                                    |
+| ----------------------------------- | ------ | ---------------------------------------------- |
+| `/api/cameras/{id}/zones`           | GET    | List zones for a camera (`?enabled=` filter)   |
+| `/api/cameras/{id}/zones`           | POST   | Create a new zone                              |
+| `/api/cameras/{id}/zones/{zone_id}` | GET    | Get a single zone                              |
+| `/api/cameras/{id}/zones/{zone_id}` | PUT    | Update a zone (enable/disable = set `enabled`) |
+| `/api/cameras/{id}/zones/{zone_id}` | DELETE | Delete a zone                                  |
+
+There is no `PATCH /api/zones/{id}/toggle` — the Eye toggle sends a `PUT` with
+the changed `enabled` flag. (`/api/zones/...` paths do exist, but they serve the
+zone-household trust config in `backend/api/routes/zone_household.py`.)
 
 ### Zone Data Model
 

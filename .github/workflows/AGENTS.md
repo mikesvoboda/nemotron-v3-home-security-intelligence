@@ -764,4 +764,4 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 - `../codeql/codeql-config.yml` - CodeQL configuration
 - `../prompts/code-review.prompt.md` - AI review prompt
 - `../dependabot.yml` - Dependency automation
-- `CLAUDE.md` - Project CI/CD requirements
+- `AGENTS.md` - Project CI/CD requirements

@@ -21,24 +21,25 @@
 
 ## Service Ports
 
-| Service        | Port | Protocol | Description                                                     |
-| -------------- | ---- | -------- | --------------------------------------------------------------- |
-| Frontend HTTP  | 5173 | HTTP     | React dashboard via nginx (configurable: `FRONTEND_PORT`)       |
-| Frontend HTTPS | 8443 | HTTPS    | React dashboard via nginx (configurable: `FRONTEND_HTTPS_PORT`) |
-| Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                        |
-| YOLO26         | 8095 | HTTP     | Object detection service                                        |
-| Nemotron       | 8091 | HTTP     | LLM risk analysis service                                       |
-| Florence-2     | 8092 | HTTP     | Vision extraction service (optional)                            |
-| CLIP           | 8093 | HTTP     | Re-identification service (optional)                            |
-| Enrichment     | 8094 | HTTP     | Enrichment HTTP service (optional)                              |
-| PostgreSQL     | 5432 | TCP      | Database                                                        |
-| Redis          | 6379 | TCP      | Cache, queues, pub/sub                                          |
+| Service        | Port | Protocol | Description                                                           |
+| -------------- | ---- | -------- | --------------------------------------------------------------------- |
+| Frontend HTTP  | 8080 | HTTP     | nginx in the `frontend` container, host port `FRONTEND_HTTP_PORT`     |
+| Frontend HTTPS | 8444 | HTTPS    | nginx in the `frontend` container, host port `FRONTEND_HTTPS_PORT`    |
+| Backend API    | 8000 | HTTP/WS  | FastAPI REST + WebSocket (`API_PORT`)                                 |
+| AI Gateway     | 8090 | HTTP     | Triton gateway serving YOLO26, Florence-2, CLIP and enrichment models |
+| Nemotron       | 8091 | HTTP     | LLM risk analysis (llama.cpp, compose service `ai-llm`)               |
+| PostgreSQL     | 5432 | TCP      | Database (`POSTGRES_PORT`)                                            |
+| Redis          | 6379 | TCP      | Cache, queues, pub/sub (`REDIS_PORT`)                                 |
+| Grafana        | 3002 | HTTP     | Dashboards at the `/grafana/` sub-path (`GRAFANA_PORT`)               |
+| Prometheus     | 9090 | HTTP     | Metrics (`PROMETHEUS_PORT`)                                           |
+| Tempo          | 3200 | HTTP     | Distributed tracing query API (`TEMPO_PORT`; OTLP gRPC on 4317)       |
 
 > **Frontend Port Details:**
 >
-> - **Production containers:** nginx serves the built React app on internal ports 8080 (HTTP) and 8443 (HTTPS), mapped to host ports via `FRONTEND_PORT` (default 5173) and `FRONTEND_HTTPS_PORT` (default 8443)
-> - **Local development:** Vite dev server runs on port 5173 (`npm run dev` in frontend/)
+> - **Production containers:** nginx serves the built React app on container ports 8080 (HTTP) and 8443 (HTTPS), mapped to host ports `FRONTEND_HTTP_PORT` (default 8080) and `FRONTEND_HTTPS_PORT` (default 8444) in `docker-compose.prod.yml`
+> - **Local development:** `npm run dev` in `frontend/` runs the Vite dev server on **https://localhost:8444** (set in `frontend/vite.config.ts`); `FRONTEND_PORT=5173` is left over from the Vite dev default and is not referenced by `docker-compose.prod.yml`
 > - **SSL:** Enabled by default in production with auto-generated self-signed certificates. See [SSL/HTTPS Configuration](../development/ssl-https.md)
+> - Compose maps AI, database and monitoring ports to `127.0.0.1` only — they are reachable from the host, not from your LAN.
 
 ---
 
@@ -52,8 +53,10 @@ Complete reference: [Environment Variable Reference](config/env-reference.md)
 | -------------- | -------- | -------------------------- | ------------------------- |
 | `DATABASE_URL` | **Yes**  | -                          | PostgreSQL connection URL |
 | `REDIS_URL`    | No       | `redis://localhost:6379/0` | Redis connection URL      |
-| `YOLO26_URL`   | No       | `http://localhost:8095`    | YOLO26 service URL        |
+| `YOLO26_URL`   | No       | see note below             | YOLO26 service URL        |
 | `NEMOTRON_URL` | No       | `http://localhost:8091`    | Nemotron LLM service URL  |
+
+> `YOLO26_URL` has two sources of truth: the backend default (`backend/core/config.py`) is `http://ai-gateway:8090/yolo26` for containerized deployments, while `.env.example` ships `http://localhost:8090/yolo26` for host-run development. Set it explicitly to match where your gateway runs.
 
 ### Database Configuration
 
@@ -85,13 +88,16 @@ REDIS_URL=redis://redis:6379/0
 
 ### AI Service URLs
 
-| Variable         | Default                 | Description                           |
-| ---------------- | ----------------------- | ------------------------------------- |
-| `YOLO26_URL`     | `http://localhost:8095` | YOLO26 object detection service       |
-| `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service                  |
-| `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision-language (optional) |
-| `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service (optional)     |
-| `ENRICHMENT_URL` | `http://localhost:8094` | Enrichment service (optional)         |
+`.env.example` routes every model except Nemotron through the AI **gateway** (Triton) using per-service path prefixes; set `AI_GATEWAY_URL`/`USE_AI_GATEWAY` accordingly. The "standalone" column is the backend fallback default and the port a host-run server in `ai/<service>/model.py` binds to.
+
+| Variable               | Default (`.env.example`, via gateway) | Fallback / standalone | Description                                       |
+| ---------------------- | ------------------------------------- | --------------------- | ------------------------------------------------- |
+| `YOLO26_URL`           | `http://localhost:8090/yolo26`        | `ai-gateway:8090`     | YOLO26 object detection                           |
+| `NEMOTRON_URL`         | `http://localhost:8091`               | `ai-llm:8091`         | Nemotron LLM (only AI service **not** in gateway) |
+| `FLORENCE_URL`         | `http://localhost:8090/florence`      | `:8092`               | Florence-2 vision-language (optional)             |
+| `CLIP_URL`             | `http://localhost:8090/clip`          | `:8093`               | CLIP embeddings (optional)                        |
+| `ENRICHMENT_URL`       | `http://localhost:8090/enrichment`    | `:8094`               | Heavy enrichment models (optional)                |
+| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt`     | `:8096`               | Light enrichment models (optional)                |
 
 > **Warning:** Use HTTPS in production to prevent MITM attacks.
 
@@ -101,7 +107,7 @@ REDIS_URL=redis://redis:6379/0
 | ----------------------- | ------- | ------- | -------------------------- |
 | `AI_CONNECT_TIMEOUT`    | `10.0`  | 1-60s   | Connection timeout         |
 | `AI_HEALTH_TIMEOUT`     | `5.0`   | 1-30s   | Health check timeout       |
-| `YOLO26_READ_TIMEOUT`   | `60.0`  | 10-300s | Detection response timeout |
+| `YOLO26_READ_TIMEOUT`   | `30.0`  | 5-120s  | Detection response timeout |
 | `NEMOTRON_READ_TIMEOUT` | `120.0` | 30-600s | LLM response timeout       |
 
 ### Batch Processing
@@ -128,11 +134,12 @@ Camera images are expected at: `{FOSCAM_BASE_PATH}/{camera_name}/`
 
 ### Frontend
 
-| Variable            | Default                 | Description                      |
-| ------------------- | ----------------------- | -------------------------------- |
-| `VITE_API_BASE_URL` | `http://localhost:8000` | Backend API URL                  |
-| `VITE_WS_BASE_URL`  | `ws://localhost:8000`   | WebSocket URL                    |
-| `FRONTEND_PORT`     | `5173`                  | Host port for frontend container |
+| Variable              | Default                 | Description                            |
+| --------------------- | ----------------------- | -------------------------------------- |
+| `VITE_API_BASE_URL`   | `http://localhost:8000` | Backend API URL                        |
+| `VITE_WS_BASE_URL`    | `ws://localhost:8000`   | WebSocket URL                          |
+| `FRONTEND_HTTP_PORT`  | `8080`                  | Host port for frontend container HTTP  |
+| `FRONTEND_HTTPS_PORT` | `8444`                  | Host port for frontend container HTTPS |
 
 For complete environment variable documentation, see [Environment Variable Reference](config/env-reference.md).
 
@@ -146,7 +153,7 @@ AI services run directly on the host while the backend runs in a container:
 
 ```bash
 # macOS with Docker Desktop (default)
-YOLO26_URL=http://host.docker.internal:8095
+YOLO26_URL=http://host.docker.internal:8090/yolo26
 NEMOTRON_URL=http://host.docker.internal:8091
 
 # macOS with Podman
@@ -159,23 +166,27 @@ podman-compose up -d
 
 ### Production Mode (Fully Containerized)
 
-All services including AI run in containers:
+All services including AI run in containers — one Triton gateway (`ai-gateway`) plus the standalone LLM (`ai-llm`):
 
 ```bash
-# Uses container network names (set in docker-compose.prod.yml)
-YOLO26_URL=http://ai-yolo26:8095
+# Set by docker-compose.prod.yml for the backend
+YOLO26_URL=http://ai-gateway:8090/yolo26
 NEMOTRON_URL=http://ai-llm:8091
+FLORENCE_URL=http://ai-gateway:8090/florence
+CLIP_URL=http://ai-gateway:8090/clip
+ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 ```
 
 ### Quick Reference: AI_HOST by Platform
 
-| Platform | Runtime | Development (host AI)            | Production (container AI)   |
-| -------- | ------- | -------------------------------- | --------------------------- |
-| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)     |
-| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)     |
-| Linux    | Docker  | Host IP or `host-gateway`        | `ai-yolo26`, `ai-llm`, etc. |
-| Linux    | Podman  | Host IP or `host-gateway`        | `ai-yolo26`, `ai-llm`, etc. |
-| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)     |
+| Platform | Runtime | Development (host AI)            | Production (container AI) |
+| -------- | ------- | -------------------------------- | ------------------------- |
+| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)   |
+| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)   |
+| Linux    | Docker  | Host IP or `host-gateway`        | `ai-gateway`, `ai-llm`    |
+| Linux    | Podman  | Host IP or `host-gateway`        | `ai-gateway`, `ai-llm`    |
+| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)   |
 
 ---
 
@@ -237,23 +248,24 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 
 ### Common Issues Quick Reference
 
-| Symptom                     | Likely Cause             | Quick Fix                                        |
-| --------------------------- | ------------------------ | ------------------------------------------------ |
-| Dashboard shows no events   | File watcher or AI down  | Restart backend                                  |
-| Risk gauge stuck at 0       | Nemotron unavailable     | Start Nemotron LLM                               |
-| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                      |
-| AI not responding           | Services not started     | `./ai/start_detector.sh` and `./ai/start_llm.sh` |
-| WebSocket disconnected      | Backend down             | Restart backend                                  |
-| "Connection refused" errors | Service not running      | Start the service                                |
-| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                            |
+| Symptom                     | Likely Cause             | Quick Fix                                                           |
+| --------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| Dashboard shows no events   | File watcher or AI down  | Restart backend                                                     |
+| Risk gauge stuck at 0       | Nemotron unavailable     | Start the `ai-llm` container                                        |
+| Camera shows offline        | FTP or folder path issue | Check FTP and folder config                                         |
+| AI not responding           | Services not started     | `docker compose -f docker-compose.prod.yml up -d ai-gateway ai-llm` |
+| WebSocket disconnected      | Backend down             | Restart backend                                                     |
+| "Connection refused" errors | Service not running      | Start the service                                                   |
+| CORS errors in browser      | URL mismatch             | Update `CORS_ORIGINS`                                               |
 
 ### Detailed Troubleshooting Guides
 
 - [Troubleshooting Index](troubleshooting/index.md) - Start here for any issue
 - [AI Issues](troubleshooting/ai-issues.md) - YOLO26, Nemotron, pipeline problems
 - [Connection Issues](troubleshooting/connection-issues.md) - Network, containers, WebSocket
-- [Database Issues](troubleshooting/database-issues.md) - PostgreSQL connection, migrations
+- [Database Issues](troubleshooting/database-issues.md) - PostgreSQL connection, schema
 - [GPU Issues](troubleshooting/gpu-issues.md) - CUDA, VRAM, thermal issues
+- [Triton Rootless CUDA](troubleshooting/triton-rootless-cuda.md) - Gateway CUDA init failure under rootless Podman
 
 ---
 
@@ -264,14 +276,15 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 | `.env`                    | Local environment overrides (not in git) |
 | `.env.example`            | Template with documented defaults        |
 | `data/runtime.env`        | Runtime overrides (loaded after .env)    |
-| `docker-compose.yml`      | Development Docker configuration         |
 | `docker-compose.prod.yml` | Production Docker configuration          |
+| `docker-compose.ci.yml`   | CI pipeline configuration                |
+| `docker-compose.test.yml` | Test harness configuration               |
 
 ### Loading Order
 
 1. Default values from `backend/core/config.py`
 2. `.env` file (if exists)
-3. `data/runtime.env` file (if exists)
+3. `data/runtime.env` file (if exists; path overridable via `HSI_RUNTIME_ENV_PATH`)
 4. Environment variables override all
 
 ---
@@ -281,13 +294,12 @@ docker compose -f docker-compose.prod.yml logs --tail=50 backend
 Test your configuration:
 
 ```bash
-# Check backend config loads correctly
-cd backend
-python -c "from core.config import get_settings; s = get_settings(); print(s.model_dump_json(indent=2))"
+# Check backend config loads correctly (run from the repo root)
+uv run python -c "from backend.core.config import get_settings; s = get_settings(); print(s.model_dump_json(indent=2))"
 
 # Test service connectivity
 curl http://localhost:8000/api/system/health     # Backend
-curl http://localhost:8095/health                # YOLO26
+curl http://localhost:8090/yolo26/health         # YOLO26 (AI gateway router)
 curl http://localhost:8091/health                # Nemotron
 redis-cli ping                                   # Redis
 ```
@@ -323,6 +335,7 @@ Symptom-based problem-solving guides.
 - [Connection Issues](troubleshooting/connection-issues.md) - Network and connectivity
 - [Database Issues](troubleshooting/database-issues.md) - PostgreSQL problems
 - [GPU Issues](troubleshooting/gpu-issues.md) - GPU and CUDA issues
+- [Triton Rootless CUDA](troubleshooting/triton-rootless-cuda.md) - Gateway CUDA init failure under rootless Podman
 
 ---
 

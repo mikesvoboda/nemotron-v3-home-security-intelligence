@@ -1,5 +1,7 @@
 # Documentation Drift Detection Design
 
+> **Status:** Implemented — `.github/workflows/docs-drift.yml` runs the drift detection pipeline.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Automatically detect when code changes require documentation updates and create detailed Linear tasks in backlog.

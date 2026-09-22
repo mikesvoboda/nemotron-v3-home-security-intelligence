@@ -575,7 +575,7 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 
 **Purpose:** HTTP client for Florence-2 vision-language extraction.
 
-**Service:** Runs at `http://ai-florence:8092` as dedicated container.
+**Service:** In production compose the Florence models run inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client targets `http://ai-gateway:8090/florence`. Standalone mode (gateway off) falls back to `florence_url` (`http://localhost:8092`, Docker `http://ai-florence:8092`).
 
 **Supported Tasks:**
 
@@ -607,7 +607,7 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 
 **Purpose:** HTTP client for CLIP embedding generation.
 
-**Service:** Runs at `http://ai-clip:8093` as dedicated container.
+**Service:** In production compose CLIP runs inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client targets `http://ai-gateway:8090/clip`. Standalone mode (gateway off) falls back to `clip_url` (`http://localhost:8093`, Docker `http://ai-clip:8093`).
 
 **Features:**
 
@@ -626,7 +626,7 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 
 **Purpose:** HTTP client for the ai-enrichment service providing unified detection enrichment.
 
-**Service:** Runs at `http://ai-enrichment:8094` as dedicated container.
+**Service:** In production compose the enrichment models run inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client uses `http://ai-gateway:8090/enrichment` for heavy models and `http://ai-gateway:8090/enrich-lt` for light ones. Standalone mode (gateway off) falls back to `enrichment_url` (`http://localhost:8094`, Docker `http://ai-enrichment:8094`) and `enrichment_light_url` (`http://localhost:8096`, Docker `http://ai-enrichment-light:8096`).
 
 **Endpoints:**
 
@@ -791,7 +791,7 @@ Detection.enrichment_data = {
 
 **Integration with Enrichment Service:**
 
-The enrichment service (`ai-enrichment:8094`) generates OSNet embeddings via the `/enrich` endpoint when `detection_type="person"`. These embeddings are stored by the backend and can be queried by ReIDMatcher.
+The enrichment service generates OSNet embeddings via the `/enrich` endpoint (gateway: `http://ai-gateway:8090/enrichment/enrich`) when `detection_type="person"`. These embeddings are stored by the backend and can be queried by ReIDMatcher.
 
 ### scene_change_detector.py
 
@@ -944,10 +944,10 @@ from backend.services.health_monitor_orchestrator import (
 # Create registry and register services
 registry = ServiceRegistry()
 service = ManagedService(
-    name="ai-yolo26",
+    name="ai-gateway",
     container_id="abc123",
-    image="ghcr.io/.../yolo26:latest",
-    port=8095,
+    image="ghcr.io/.../ai-gateway:latest",
+    port=8090,
     health_endpoint="/health",
     category=ServiceCategory.AI,
 )
@@ -966,7 +966,7 @@ async with DockerClient() as docker:
     await monitor.stop()
 
 # Check individual service health
-healthy = await check_http_health("localhost", 8095, "/health")
+healthy = await check_http_health("localhost", 8090, "/health")
 healthy = await check_cmd_health(docker_client, "container_id", "pg_isready")
 ```
 
@@ -2474,11 +2474,11 @@ from backend.api.schemas.services import ServiceCategory, ContainerServiceStatus
 
 # Create a managed service
 service = ManagedService(
-    name="ai-yolo26",
-    display_name="YOLO26v2",
+    name="ai-gateway",
+    display_name="AI Gateway (Triton)",
     container_id="abc123",
-    image="ghcr.io/.../yolo26:latest",
-    port=8095,
+    image="ghcr.io/.../ai-gateway:latest",
+    port=8090,
     health_endpoint="/health",
     category=ServiceCategory.AI,
     status=ContainerServiceStatus.RUNNING,
@@ -2662,9 +2662,9 @@ from backend.services.service_managers import (
 
 # Create config
 config = ServiceConfig(
-    name="yolo26",
-    health_url="http://localhost:8095/health",
-    restart_cmd="scripts/restart_yolo26.sh",  # Must be in allowlist
+    name="ai-gateway",
+    health_url="http://localhost:8090/health",
+    restart_cmd="ai/start_detector.sh",  # Must be in ALLOWED_RESTART_SCRIPTS
     health_timeout=5.0,
     max_retries=3,
     backoff_base=5.0,
@@ -3369,12 +3369,10 @@ assert clamped == (10, 10, 100, 100)
 
 ### External Services
 
-- **YOLO26v2 HTTP server** (port 8095) - Object detection
-- **ai-florence HTTP server** (port 8092) - Florence-2 vision-language
-- **ai-clip HTTP server** (port 8093) - CLIP embeddings
-- **llama.cpp server** (port 8080) - Nemotron LLM inference
-- **Redis** - Queue and cache storage
-- **PostgreSQL** - Persistent storage
+- **ai-gateway** (host port `AI_GATEWAY_PORT` 8090, metrics 8002) - Triton-based gateway serving YOLO26 (`/yolo26`), Florence-2 (`/florence`), CLIP (`/clip`), heavy enrichment (`/enrichment`) and light enrichment (`/enrich-lt`) behind one container
+- **ai-llm / llama.cpp server** (host port `LLM_PORT` 8091, container port 8091) - Nemotron LLM inference
+- **Redis** (`REDIS_PORT` 6379) - Queue and cache storage
+- **PostgreSQL** (`POSTGRES_PORT` 5432) - Persistent storage
 - **ffmpeg/ffprobe** - Video processing
 
 ### Python Packages

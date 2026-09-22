@@ -1,5 +1,7 @@
 # Face Recognition and Person Re-ID Coverage Analysis
 
+> **Status:** Snapshot from 2026-01-31 gap analysis (#5607); findings reflect the codebase as of that date.
+
 ## Executive Summary
 
 The system has **comprehensive backend capabilities** for face recognition and person re-identification, but **significant gaps exist in frontend exposure**. This represents one of the largest feature gaps in the codebase.

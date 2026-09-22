@@ -2,14 +2,28 @@
 
 ## Overview
 
-The AI model zoo provides comprehensive visual analysis for home security through multiple specialized models working together. The system uses VRAM-efficient on-demand loading to maximize capability while respecting GPU memory constraints.
+The AI model zoo provides comprehensive visual analysis for home security through multiple specialized models working together.
 
-The architecture separates models into two categories:
+Two inference runtimes exist in this repo, and only one runs in production:
 
-1. **Always-loaded services** - Core detection and analysis models that run continuously
-2. **On-demand models** - Specialized enrichment models loaded dynamically based on detection type
+1. **`ai-gateway`** — the deployment topology in `docker-compose.prod.yml`. One
+   container (port 8090) fronts NVIDIA Triton with a FastAPI translation layer
+   and serves YOLO26, Florence-2, CLIP and both enrichment tiers under router
+   prefixes. See [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md).
+2. **Legacy per-model containers** — `ai-yolo26`, `ai-florence`, `ai-clip`,
+   `ai-enrichment` and `ai-enrichment-light`. Each loads its models on demand
+   under a VRAM budget with LRU eviction. Their images are still built by
+   `.github/workflows/deploy.yml`, but they are not services in
+   `docker-compose.prod.yml`.
+
+The sections below give the production router path for each model first, and
+note the legacy container's port and response shape where the two differ. The
+on-demand loading machinery in [VRAM Management](#vram-management) applies
+only to the legacy containers and to the backend's own model zoo.
 
 ## Architecture Diagram
+
+Current production topology:
 
 ```mermaid
 %%{init: {
@@ -33,69 +47,98 @@ flowchart TB
         ENR --> NEM[Nemotron]
     end
 
-    subgraph EnrichmentHeavy["Enrichment Heavy (ai-enrichment:8094) - GPU 0"]
-        subgraph HeavyModels["Heavy Models (~6.0GB budget)"]
-            VEHICLE[Vehicle Classification]
-            FASHION[Fashion Analysis]
-            DEMO[Demographics]
-            ACTION[Action Recognition]
-        end
+    subgraph GW["ai-gateway :8090 (FastAPI) -> Triton :8001 gRPC, GPU"]
+        YR["/yolo26"]
+        FR["/florence"]
+        CR["/clip"]
+        HR["/enrichment<br/>vehicle, fashion, demographics, action"]
+        LR["/enrich-lt<br/>pose, threat, reid, pet, depth"]
     end
 
-    subgraph EnrichmentLight["Enrichment Light (ai-enrichment-light:8096) - GPU 1"]
-        subgraph LightModels["Light Models (~1.2GB)"]
-            POSE[Pose Estimation]
-            THREAT[Threat Detection]
-            REID[Person Re-ID]
-            PET[Pet Classifier]
-            DEPTH[Depth Estimation]
-        end
+    subgraph LLM["ai-llm :8091"]
+        NEMC[Nemotron-3-Nano-30B llama.cpp]
     end
 
-    Pipeline --> EnrichmentHeavy
-    Pipeline --> EnrichmentLight
+    Pipeline --> GW
+    Pipeline --> LLM
 ```
 
 ## Service Architecture
 
-### Core Services (Containerized)
+### Services In Production (`docker-compose.prod.yml`)
 
-| Service            | Container           | Port | Model                    | VRAM    | Purpose                               |
-| ------------------ | ------------------- | ---- | ------------------------ | ------- | ------------------------------------- |
-| YOLO26             | ai-yolo26           | 8095 | YOLO26m (TensorRT FP16)  | ~2GB    | Primary object detection              |
-| Nemotron           | ai-llm              | 8091 | Nemotron-3-Nano-30B-A3B  | ~14.7GB | Risk reasoning and analysis           |
-| Florence-2         | ai-florence         | 8092 | Florence-2-Large         | ~1.2GB  | Scene understanding, OCR              |
-| CLIP               | ai-clip             | 8093 | CLIP ViT-L/14            | ~800MB  | Embeddings, anomaly detection         |
-| Enrichment (Heavy) | ai-enrichment       | 8094 | Transformers (on-demand) | ~6.0GB  | Heavy models (vehicle, fashion, etc.) |
-| Enrichment (Light) | ai-enrichment-light | 8096 | Small models (on-demand) | ~1.2GB  | Light models (pose, threat, reid)     |
+| Service            | Container     | Port | Models                                                |
+| ------------------ | ------------- | ---- | ----------------------------------------------------- |
+| AI Gateway         | `ai-gateway`  | 8090 | YOLO26, Florence-2, SigLIP 2, all enrichment models   |
+| AI Gateway metrics | `ai-gateway`  | 8002 | Triton + gateway Prometheus metrics                   |
+| LLM                | `ai-llm`      | 8091 | Nemotron-3-Nano-30B-A3B (llama.cpp)                   |
+| LLM (optional)     | `ai-llm-vllm` | 8097 | vLLM variant (`VLLM_PORT`), behind the `vllm` profile |
 
-### Enrichment Service Split
+Port variables come from `.env`: `AI_GATEWAY_PORT`,
+`AI_GATEWAY_METRICS_PORT` and `LLM_PORT`.
 
-The enrichment models are split across two services based on GPU requirements:
+### How The Backend Reaches Each Model
+
+`USE_AI_GATEWAY=true` in `.env.example` and in the compose backend environment
+selects the gateway. The base URLs in `.env.example` carry the router prefix:
+
+| Variable               | Default                            |
+| ---------------------- | ---------------------------------- |
+| `YOLO26_URL`           | `http://localhost:8090/yolo26`     |
+| `FLORENCE_URL`         | `http://localhost:8090/florence`   |
+| `CLIP_URL`             | `http://localhost:8090/clip`       |
+| `ENRICHMENT_URL`       | `http://localhost:8090/enrichment` |
+| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt`  |
+| `NEMOTRON_URL`         | `http://localhost:8091`            |
+
+### Legacy Enrichment Split
+
+The legacy containers still split enrichment models across two services by GPU
+requirement, and `ENRICHMENT_<TASK>_SERVICE` in `.env` still routes between
+heavy and light:
 
 | Service                 | Port | Target GPU   | Models                                |
 | ----------------------- | ---- | ------------ | ------------------------------------- |
 | **ai-enrichment**       | 8094 | GPU 0 (24GB) | Vehicle, fashion, age, gender, action |
 | **ai-enrichment-light** | 8096 | GPU 1 (4GB)  | Pose, threat, reid, pet, depth        |
 
-The backend routes requests to the appropriate service based on `ENRICHMENT_*_SERVICE` environment variables. See [AI Enrichment Light Service](../operator/services/ai-enrichment-light.md) for detailed documentation.
+The same variable names control the gateway, where "heavy" and "light" select
+the `/enrichment` and `/enrich-lt` routers rather than separate GPUs. See
+[AI Enrichment Light Service](../operator/services/ai-enrichment-light.md) for
+the legacy service documentation.
 
 ### Enrichment Pipeline Split
 
-The enrichment router in the backend directs each detection to either the heavy or light service based on the model requirements. Heavy models run on a GPU with larger VRAM, while light models run on a separate GPU with a smaller budget.
+The backend routes each detection to either the heavy or the light target. In
+the legacy deployment those land on two different GPUs with different VRAM
+budgets; in the gateway deployment they are two routers over one Triton
+instance.
 
 ```mermaid
+%%{init: {
+  'theme': 'dark',
+  'themeVariables': {
+    'primaryColor': '#3B82F6',
+    'primaryTextColor': '#FFFFFF',
+    'primaryBorderColor': '#60A5FA',
+    'secondaryColor': '#A855F7',
+    'tertiaryColor': '#009688',
+    'background': '#121212',
+    'mainBkg': '#1a1a2e',
+    'lineColor': '#666666'
+  }
+}}%%
 flowchart TB
     DET[Detection from YOLO26] --> ROUTER{Enrichment Router}
-    ROUTER -->|Heavy models| HEAVY["Enrichment Heavy<br/>:8094"]
-    ROUTER -->|Light models| LIGHT["Enrichment Light<br/>:8096"]
-    subgraph HEAVY_SVC["Heavy Service (full GPU models)"]
-        FC[FashionCLIP]
+    ROUTER -->|Heavy models| HEAVY["/enrichment"]
+    ROUTER -->|Light models| LIGHT["/enrich-lt"]
+    subgraph HEAVY_SVC["Heavy targets"]
+        FC[FashionSigLIP]
         VC[Vehicle Classifier]
-        WX[Weather Classification]
-        XC[X-CLIP Action Recognition]
+        DM[Demographics]
+        XC[Action Recognition]
     end
-    subgraph LIGHT_SVC["Light Service (minimal GPU)"]
+    subgraph LIGHT_SVC["Light targets"]
         PR[Person Re-ID]
         PE[Pose Estimation]
         TD[Threat Detection]
@@ -122,11 +165,11 @@ flowchart TB
 }}%%
 flowchart TB
     CAM[Camera Images]
-    CAM --> YOLO["YOLO26<br/>(8095)"]
-    YOLO --> ENR["Enrichment<br/>(8094)"]
+    CAM --> YOLO["YOLO26<br/>ai-gateway :8090/yolo26"]
+    YOLO --> ENR["Enrichment<br/>ai-gateway :8090/enrichment"]
     YOLO -->|Detections| NEM
     ENR -->|Classified Detections| NEM
-    NEM["Nemotron (8091)<br/>Risk Analysis & Scoring"]
+    NEM["Nemotron :8091<br/>Risk Analysis & Scoring"]
     NEM --> EVT[Risk Events]
 ```
 
@@ -134,7 +177,11 @@ flowchart TB
 
 ### Always-Loaded Models
 
-#### YOLO26 (ai-yolo26:8095)
+#### YOLO26 (gateway router `/yolo26`)
+
+In production the gateway serves this model at
+`http://localhost:8090/yolo26` (Triton name `yolo26`). The legacy standalone
+container answered on port 8095.
 
 - **Model**: YOLO26m (Ultralytics with TensorRT)
 - **Architecture**: YOLO26 object detection with TensorRT FP16 optimization
@@ -151,45 +198,63 @@ SECURITY_CLASSES = {
 }
 ```
 
-**API Endpoints**:
+**API Endpoints** (under the `/yolo26` router):
 
-- `GET /health` - Health status
-- `POST /detect` - Single image detection
-- `POST /detect/batch` - Batch detection
+- `GET /yolo26/health` - Health status
+- `POST /yolo26/detect` - Single image detection
+- `POST /yolo26/detect/batch` - Batch detection
 
-#### Florence-2-Large (ai-florence:8092)
+#### Florence-2 (gateway router `/florence`)
 
-- **Model**: microsoft/Florence-2-large
+In production the gateway serves `florence-2-base` (`microsoft/Florence-2-base`
+in `models.yml`, Triton name `florence2`) at
+`http://localhost:8090/florence`. The legacy standalone container loaded
+Florence-2-large and answered on port 8092.
+
 - **Architecture**: Vision-language transformer
-- **VRAM**: ~1.2GB
+- **VRAM**: ~1GB download (`size_mb: 1024` in `models.yml`)
 - **Inference Time**: 100-300ms per query
 - **Tasks**: Caption, Dense Region Caption, OCR, Open Vocabulary Detection
 
 **Supported Prompts**:
-| Prompt | Output | Use Case |
-| ------ | ------ | -------- |
-| `<CAPTION>` | Brief description | Quick scene summary |
-| `<DETAILED_CAPTION>` | Detailed paragraph | Event logging |
-| `<OD>` | Objects with bboxes | Object localization |
-| `<DENSE_REGION_CAPTION>` | Caption per region | Scene understanding |
-| `<OCR>` | Detected text | License plates, signs |
-| `<OCR_WITH_REGION>` | Text with bboxes | Text localization |
 
-**API Endpoints**:
+| Prompt                   | Output              | Use Case              |
+| ------------------------ | ------------------- | --------------------- |
+| `<CAPTION>`              | Brief description   | Quick scene summary   |
+| `<DETAILED_CAPTION>`     | Detailed paragraph  | Event logging         |
+| `<OD>`                   | Objects with bboxes | Object localization   |
+| `<DENSE_REGION_CAPTION>` | Caption per region  | Scene understanding   |
+| `<OCR>`                  | Detected text       | License plates, signs |
+| `<OCR_WITH_REGION>`      | Text with bboxes    | Text localization     |
 
-- `GET /health` - Health status
-- `POST /extract` - Generic extraction with prompt
-- `POST /ocr` - Text extraction
-- `POST /detect` - Object detection
-- `POST /dense-caption` - Region captioning
+**API Endpoints** (under the `/florence` router, `ai/gateway/adapters/florence.py`):
 
-#### CLIP ViT-L/14 (ai-clip:8093)
+- `GET /florence/health` - Health status
+- `POST /florence/extract` - Generic extraction with prompt
+- `POST /florence/batch-extract` - Multiple prompts in one call
+- `POST /florence/ocr` - Text extraction
+- `POST /florence/ocr-with-regions` - Text with bounding boxes
+- `POST /florence/detect` - Object detection
+- `POST /florence/dense-caption` - Region captioning
+- `POST /florence/describe-region` - Caption one region
+- `POST /florence/phrase-grounding` - Ground a phrase to boxes
+- `POST /florence/detect_security_objects` - Pre-formatted security prompt
 
-- **Model**: openai/clip-vit-large-patch14
-- **Architecture**: Vision-Language contrastive model
-- **VRAM**: ~800MB
+#### CLIP (gateway router `/clip`)
+
+In production the gateway serves **SigLIP 2 Base**
+(`onnx-community/siglip2-base-patch16-224-ONNX`, registered in `models.yml`
+under the Triton names `clip` and `clip_text`) at
+`http://localhost:8090/clip`. The legacy standalone container loaded
+`openai/clip-vit-large-patch14` and answered on port 8093.
+
+- **Architecture**: Vision-Language contrastive model (ONNX)
+- **VRAM**: 200MB (`vram_mb` in `models.yml`)
 - **Embedding Dimension**: 768
 - **Output**: Normalized image embeddings, similarity scores
+
+The `clip_text` half runs on CPU: it is a quantized INT8 model whose
+MatMulInteger ops block the CUDA execution provider (comment in `models.yml`).
 
 **Use Cases**:
 
@@ -197,14 +262,14 @@ SECURITY_CLASSES = {
 - Scene anomaly detection via baseline comparison
 - Zero-shot classification
 
-**API Endpoints**:
+**API Endpoints** (under the `/clip` router, `ai/gateway/adapters/clip.py`):
 
-- `GET /health` - Health status
-- `POST /embed` - Generate 768-dim embedding
-- `POST /anomaly-score` - Compare to baseline
-- `POST /classify` - Zero-shot classification
-- `POST /similarity` - Image-text similarity
-- `POST /batch-similarity` - Batch similarity comparison
+- `GET /clip/health` - Health status
+- `POST /clip/embed` - Generate 768-dim embedding
+- `POST /clip/anomaly-score` - Compare to baseline
+- `POST /clip/classify` - Zero-shot classification
+- `POST /clip/similarity` - Image-text similarity
+- `POST /clip/batch-similarity` - Batch similarity comparison
 
 #### Nemotron (ai-llm:8091)
 
@@ -214,7 +279,9 @@ SECURITY_CLASSES = {
 - **Architecture**: Large Language Model via llama.cpp with Mixture-of-Experts (MoE) routing
 - **Parameters**: 30 billion (A3B active routing variant)
 - **VRAM**: ~14.7GB
-- **Context Window**: 131,072 tokens (128K)
+- **Context Window**: `CTX_SIZE=262144` in `.env.example` (llama.cpp splits it
+  across `PARALLEL=8` slots of 32,768 tokens each)
+- **GPU Layers**: `GPU_LAYERS=auto` — llama.cpp `--fit` decides based on free VRAM
 - **Purpose**: Risk reasoning, threat analysis, natural language generation
 
 **Development Model (resource-constrained environments):**
@@ -226,46 +293,67 @@ SECURITY_CLASSES = {
 
 **Risk Score Ranges**:
 
---8<-- "docs/\_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-start -->
+--8<-- "docs/_includes/risk-scoring-levels.md"
+<!-- prettier-ignore-end -->
 
 ### On-Demand Models (Enrichment Services)
 
-The enrichment models are split across two services:
+Every model in this section is registered in `models.yml` with
+`priority: medium` except `smoke-fire-yolov8n`, which is
+`priority: critical` with preload and never-evict set. In the gateway
+deployment Triton loads the enrichment models at container start, so the
+headings below describe which router answers each request, not a load-on-demand
+order. Under the legacy containers the manager evicted models by LRU within a
+budget — see [VRAM Management](#vram-management).
 
-- **ai-enrichment** (port 8094): Heavy transformer models running on GPU 0 (~6.0GB budget)
-- **ai-enrichment-light** (port 8096): Small efficient models running on GPU 1 (~1.2GB budget)
+The legacy containers split the models across two services:
 
-The backend routes requests to the appropriate service based on the `ENRICHMENT_*_SERVICE` environment variables (e.g., `ENRICHMENT_POSE_SERVICE=light`).
+- **ai-enrichment** (port 8094): Heavy transformer models running on GPU 0 (~6.8GB budget, `VRAM_BUDGET_GB` default in `ai/enrichment/model.py`)
+- **ai-enrichment-light** (port 8096): Small efficient models running on GPU 1
 
-#### Threat Detection (CRITICAL Priority)
+In production the same split survives as two routers on one gateway:
+`/enrichment` and `/enrich-lt`. The backend still picks between them with the
+`ENRICHMENT_*_SERVICE` environment variables (e.g.
+`ENRICHMENT_POSE_SERVICE=light` in `docker-compose.prod.yml`).
+
+#### Threat Detection
 
 ![Threat Detection](../images/concepts/threat-detection.png)
 
-- **Model**: Subh775/Threat-Detection-YOLOv8n
-- **VRAM**: ~300MB (per model_zoo.py)
-- **Purpose**: Detect weapons (knives, guns, etc.)
-- **Trigger**: All person detections in security-sensitive contexts
-- **Eviction**: Never evicted if possible
+- **Model**: Subh775/Threat-Detection-YOLOv8n (`triton_name: threat`)
+- **VRAM**: 300MB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrich-lt/threat-detect`
+- **Purpose**: Detect weapons (knives, guns, bats — classes per the `models.yml`
+  description)
+- **Trigger**: Person detections in security-sensitive contexts
 
-**Input**: Cropped person image
-**Output**:
+**Input**: Cropped person image.
+**Output** (`ThreatResponse` in `ai/gateway/adapters/enrichment_light.py`):
 
 ```json
 {
-  "detected": true,
-  "threat_type": "knife",
-  "confidence": 0.89,
-  "bbox": [x1, y1, x2, y2]
+  "threats_detected": [{ "class": "knife", "confidence": 0.89, "bbox": [...] }],
+  "is_threat": true,
+  "max_confidence": 0.89,
+  "inference_time_ms": 12.4
 }
 ```
 
-#### Pose Estimation (HIGH Priority)
+The legacy container returned a different shape (`detected`, `threat_type`,
+`severity` per threat — `ThreatDetectionResult` in
+`ai/enrichment/models/threat_detector.py`).
 
-- **Model**: ViTPose+ Small (primary, ~1.5GB), YOLOv8n-pose (fallback, ~200MB)
-- **VRAM**: ~1.5GB (ViTPose) or ~200MB (YOLOv8n-pose)
+#### Pose Estimation
+
+- **Model**: YOLOv8n-pose (`triton_name: pose`, 200MB in `models.yml`).
+  `vitpose-small` also ships in `models.yml` (1.5GB, backend service);
+  `ai/enrichment/vitpose.py` is the legacy container's analyzer.
+- **Served at**: `POST http://localhost:8090/enrich-lt/pose-analyze` (a second
+  `POST /enrichment/pose-analyze` exists on the heavy router)
 - **Purpose**: Body pose detection, posture classification
 - **Trigger**: Person detections
-- **Output**: 17 COCO keypoints per person
+- **Output**: 17 COCO keypoints per person (`num_people` beside them)
 
 **COCO Keypoints**:
 
@@ -278,38 +366,51 @@ COCO_KEYPOINT_NAMES = [
 ]
 ```
 
-**Posture Classifications**: standing, walking, running, sitting, crouching, lying_down
+**Posture Classifications** (`_derive_posture` in
+`ai/gateway/adapters/enrichment_light.py`): standing, crouching, lying,
+bending, unknown
 
-**Security Alerts**:
+**Security Alerts** the gateway emits from a posture:
 
-- `crouching` - Potential hiding/break-in behavior
-- `lying_down` - Possible medical emergency
-- `hands_raised` - Potential surrender/robbery scenario
-- `fighting_stance` - Aggressive posture
+- `crouching` - "Person is crouching - potentially hiding or concealing activity"
+- `lying` - "Person is lying down - possible medical emergency or unusual behavior"
 
-#### Demographics (HIGH Priority)
+The legacy container classified more postures (running, reaching_up and
+others — `ai/enrichment/models/pose_estimator.py`).
 
-- **Model**: ViT Age Classifier (~200MB) + ViT Gender Classifier (~200MB)
-- **VRAM**: ~400MB total (200MB each, loaded separately)
+#### Demographics
+
+- **Models**: `nateraw/vit-age-classifier` + `rizvandwiki/gender-classification`
+  (Triton names `demographics_age` and `demographics_gender`, 200MB each in
+  `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrichment/demographics`
 - **Purpose**: Age range and gender estimation from face crops
 - **Trigger**: Person detections with visible face
 
-**Input**: Cropped face image
+**Input**: Cropped face image.
 **Output**:
 
 ```json
 {
-  "age_range": "25-35",
-  "gender": "male",
+  "age_range": "21-30",
   "age_confidence": 0.82,
-  "gender_confidence": 0.94
+  "gender": "male",
+  "gender_confidence": 0.94,
+  "inference_time_ms": 22.1
 }
 ```
 
-#### Clothing Analysis (HIGH Priority)
+The gateway maps model class indices onto `0-10, 11-20, 21-30, 31-40, 41-50,
+51-60, 61-70, 71+` (`ai/gateway/adapters/enrichment.py`). The legacy
+`AGE_RANGES` list in `ai/enrichment/models/demographics.py` is a different
+vocabulary (21-35, 36-50, 51-65, 65+ among them).
 
-- **Model**: Marqo/marqo-fashionSigLIP (FashionSigLIP) - upgraded from FashionCLIP for 57% accuracy improvement
-- **VRAM**: ~800MB
+#### Clothing Analysis
+
+- **Model**: Marqo/marqo-fashionSigLIP (FashionSigLIP) - `models.yml`
+  describes the upgrade from FashionCLIP as +57%
+- **VRAM**: 500MB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrichment/clothing-classify`
 - **Purpose**: Identify clothing types, uniforms, suspicious attire
 - **Trigger**: Person detections
 
@@ -339,11 +440,13 @@ SECURITY_CLOTHING_PROMPTS = [
 }
 ```
 
-#### Vehicle Classification (MEDIUM Priority)
+#### Vehicle Classification
 
-- **Model**: lxyuan/vit-base-patch16-224-vehicle-segment-classification
-- **VRAM**: ~1.5GB
-- **Purpose**: Vehicle make, model, type identification
+- **Model**: AventIQ-AI/ResNet-50-Vehicle-Segment-classification (`models.yml`;
+  Triton name `vehicle`) — ResNet-50 over the MIO-TCD segments
+- **VRAM**: 1.5GB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrichment/vehicle-classify`
+- **Purpose**: Vehicle type identification
 - **Trigger**: Vehicle detections (car, truck, bus, motorcycle, bicycle)
 
 **Vehicle Classes**:
@@ -367,12 +470,15 @@ VEHICLE_SEGMENT_CLASSES = [
 }
 ```
 
-#### Pet Classification (MEDIUM Priority)
+#### Pet Classification
 
-- **Model**: microsoft/resnet-18
-- **VRAM**: ~200MB
-- **Purpose**: Cat/dog classification and breed identification
-- **Trigger**: Animal detections (dog, cat, bird)
+- **Model**: microsoft/resnet-18 (`triton_name: pet`)
+- **VRAM**: 200MB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrichment/pet-classify`
+  (also `POST /enrich-lt/pet-classify`)
+- **Purpose**: Dog/cat classification for false positive reduction (breed is a
+  passthrough field the classifier does not infer)
+- **Trigger**: Animal detections (dog, cat)
 
 **Output**:
 
@@ -385,10 +491,12 @@ VEHICLE_SEGMENT_CLASSES = [
 }
 ```
 
-#### Person Re-ID (MEDIUM Priority)
+#### Person Re-ID
 
-- **Model**: OSNet-x0.25
-- **VRAM**: ~100MB
+- **Model**: OSNet-AIN x1.0 (`osnet-ain-x1-0` in `models.yml`, Triton name
+  `reid`)
+- **VRAM**: 100MB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrich-lt/person-reid`
 - **Purpose**: Generate 512-dimensional embeddings for tracking individuals
 - **Trigger**: Person detections requiring cross-camera tracking
 
@@ -401,10 +509,12 @@ VEHICLE_SEGMENT_CLASSES = [
 }
 ```
 
-#### Vehicle Damage Detection (MEDIUM Priority)
+#### Vehicle Damage Detection
 
 - **Model**: harpreetsahota/car-dd-segmentation-yolov11 (YOLOv11x-seg)
-- **VRAM**: ~2GB
+- **VRAM**: 2GB (`vram_mb` in `models.yml`)
+- **Where it runs**: the backend model zoo — `service: backend` in `models.yml`,
+  so the gateway does not serve it
 - **Purpose**: Detect and segment vehicle damage for security analysis
 - **Trigger**: Vehicle detections (car, truck, bus, motorcycle)
 - **License**: AGPL-3.0
@@ -482,33 +592,51 @@ Vehicle Damage Detected (2 instances):
 - Loader: `backend/services/vehicle_damage_loader.py`
 - Model Zoo Entry: `backend/services/model_zoo.py`
 
-#### Depth Estimation (LOW Priority)
+#### Depth Estimation
 
-- **Model**: depth-anything/Depth-Anything-V2-Small-hf
-- **VRAM**: ~150MB
+- **Model**: `depth-anything/Depth-Anything-V2-Small-hf`, shipped as
+  `depth-anything-v2-tiny` in `models.yml` (Triton name `depth`)
+- **VRAM**: 100MB (`vram_mb` in `models.yml`)
+- **Served at**: `POST http://localhost:8090/enrich-lt/depth-estimate`
 - **Purpose**: Spatial reasoning, distance estimation
 - **Trigger**: Detections requiring distance context
 
-**Output**:
+**Output** (`DepthResponse` in `ai/gateway/adapters/enrichment_light.py`):
 
 ```json
 {
   "depth_map_base64": "<base64-png>",
-  "estimated_distance_m": 3.5,
-  "relative_depth": 0.35,
-  "proximity_label": "close"
+  "min_depth": 0.8,
+  "max_depth": 12.4,
+  "mean_depth": 3.5,
+  "inference_time_ms": 18.2
 }
 ```
 
-#### Action Recognition (LOW Priority)
+The legacy container returned `estimated_distance_m`, `relative_depth` and
+`proximity_label` instead (`/object-distance` and `/depth-estimate` in
+`ai/enrichment/model.py`).
 
-- **Model**: microsoft/xclip-base-patch32 (X-CLIP)
-- **VRAM**: ~2GB (with float16)
+#### Action Recognition
+
+- **Model**: microsoft/xclip-base-patch32 (X-CLIP), Triton name `xclip_action`.
+  The Triton Python backend loads it from the local model-zoo mirror
+  (`ai/triton/model_repository/xclip_action/1/model.py`) because its custom
+  cross-frame temporal attention cannot export to ONNX. `models.yml` also lists
+  `stgcn-plus-plus` (ST-GCN++, Triton name `stgcn_action`, 20MB) and marks
+  `xclip-base` `enabled: false` with a "replaced by stgcn-plus-plus" note, but
+  the gateway's `/action-classify` router still invokes `xclip_action`
+  (`ai/gateway/adapters/enrichment.py`) and `ALL_MODELS` waits for it.
+- **VRAM**: ~2GB (with float16, per the legacy registry)
+- **Served at**: `POST http://localhost:8090/enrichment/action-classify`
 - **Purpose**: Video-based action classification
 - **Trigger**: Person detected >3 seconds with multiple frames, unusual pose detected
 
-**Input**: Multiple frames (video clip)
-**Output**:
+**Input**: Multiple frames (video clip). The Triton wrapper accepts a JSON array
+of base64 frames plus optional zero-shot labels and returns the top action, its
+confidence, and `all_scores` with `is_suspicious` and `risk_weight`.
+
+**Output** shape:
 
 ```json
 {
@@ -527,13 +655,18 @@ Vehicle Damage Detected (2 instances):
 
 ![VRAM Management](../images/concepts/vram-management.png)
 
+This section describes the on-demand loading machinery in
+`ai/enrichment/model_manager.py` (legacy containers) and
+`backend/services/model_zoo.py` (backend). The gateway does not run it: Triton
+loads `ALL_MODELS` (in `ai/gateway/main.py`) at container start.
+
 ### On-Demand Loading Architecture
 
 The `OnDemandModelManager` class manages GPU memory efficiently:
 
 ```python
 class OnDemandModelManager:
-    def __init__(self, vram_budget_gb: float = 6.0):
+    def __init__(self, vram_budget_gb: float = 6.8):
         self.vram_budget = vram_budget_gb * 1024  # MB
         self.loaded_models = OrderedDict()  # LRU tracking
         self.model_registry = {}
@@ -549,12 +682,17 @@ class OnDemandModelManager:
 
 ### Priority System
 
-| Priority | Value | Models                       | Eviction Behavior                         |
-| -------- | ----- | ---------------------------- | ----------------------------------------- |
-| CRITICAL | 0     | Threat Detection             | Never evicted unless absolutely necessary |
-| HIGH     | 1     | Pose, Demographics, Clothing | Evicted only when VRAM critical           |
-| MEDIUM   | 2     | Vehicle, Pet, Re-ID          | Standard LRU eviction                     |
-| LOW      | 3     | Depth, Action                | Evicted first                             |
+Priorities below are the ones in the legacy registry
+(`ai/enrichment/model_registry.py`). The `priority` field in `models.yml`
+(which drives backend model_zoo eviction) is `medium` for every model except
+`smoke-fire-yolov8n`, which is `critical`.
+
+| Priority | Value | Legacy Registry Models          | Eviction Behavior                         |
+| -------- | ----- | ------------------------------- | ----------------------------------------- |
+| CRITICAL | 0     | Threat Detection                | Never evicted unless absolutely necessary |
+| HIGH     | 1     | Pose, Demographics              | Evicted only when VRAM critical           |
+| MEDIUM   | 2     | Vehicle, Pet, Re-ID, Clothing   | Standard LRU eviction                     |
+| LOW      | 3     | Depth, Action, YOLO26 secondary | Evicted first                             |
 
 ### VRAM Allocation and Eviction Overview
 
@@ -562,10 +700,10 @@ The following diagram shows the two-tier VRAM architecture: always-loaded core m
 
 ```mermaid
 flowchart TB
-    subgraph Always["Always Loaded (~4GB)"]
+    subgraph Always["Always Loaded (~2.7GB)"]
         Y["YOLO26<br/>~2GB"]
-        F["Florence-2<br/>~1.2GB"]
-        C["CLIP<br/>~800MB"]
+        F["Florence-2-base<br/>~460MB"]
+        C["SigLIP 2 Base<br/>~200MB"]
     end
     subgraph Budget["On-Demand Budget (~6GB)"]
         CRIT["CRITICAL<br/>Threat Detection"]
@@ -599,102 +737,83 @@ candidates = sorted(
 
 Based on actual values from `backend/services/model_zoo.py`:
 
-| Category               | Budget     | Models                                                   |
-| ---------------------- | ---------- | -------------------------------------------------------- |
-| Always Loaded          | ~21.7GB    | Nemotron LLM (production)                                |
-| Primary Detection      | ~2GB       | YOLO26 (TensorRT)                                        |
-| Model Zoo Budget       | ~1.65GB    | On-demand models (loaded sequentially, not concurrently) |
-| **Total (Production)** | **~25GB+** | Full stack with all models                               |
+The header of `backend/services/model_zoo.py` states the backend's own budget:
+Nemotron LLM 21,700 MB and YOLO26v2 650 MB always loaded, ~1,650 MB left for
+model-zoo models, loaded sequentially rather than concurrently.
 
-**On-Demand Model VRAM (from model_zoo.py):**
+**Backend model-zoo VRAM (`vram_mb` in `models.yml`):**
 
-| Model                          | VRAM      |
-| ------------------------------ | --------- |
-| yolo11-license-plate           | 300MB     |
-| yolo11-face                    | 200MB     |
-| paddleocr                      | 100MB     |
-| clip-vit-l                     | 800MB     |
-| florence-2-large               | 1.2GB     |
-| yolo-world-s                   | 1.5GB     |
-| vitpose-small                  | 1.5GB     |
-| depth-anything-v2-small        | 150MB     |
-| violence-detection             | 500MB     |
-| weather-classification         | 200MB     |
-| segformer-b2-clothes           | 1.5GB     |
-| xclip-base                     | 2GB       |
-| fashion-clip (FashionSigLIP)   | 800MB     |
-| brisque-quality                | 0MB (CPU) |
-| vehicle-segment-classification | 1.5GB     |
-| vehicle-damage-detection       | 2GB       |
-| pet-classifier                 | 200MB     |
-| osnet-x0-25                    | 100MB     |
-| threat-detection-yolov8n       | 300MB     |
-| vit-age-classifier             | 200MB     |
-| vit-gender-classifier          | 200MB     |
-| yolov8n-pose                   | 200MB     |
+| Model                          | VRAM                                                       |
+| ------------------------------ | ---------------------------------------------------------- |
+| siglip2-base-patch16-224       | 200MB                                                      |
+| vehicle-segment-classification | 1.5GB                                                      |
+| pet-classifier                 | 200MB                                                      |
+| depth-anything-v2-tiny         | 100MB                                                      |
+| osnet-ain-x1-0                 | 100MB                                                      |
+| yolov8n-pose                   | 200MB                                                      |
+| threat-detection-yolov8n       | 300MB                                                      |
+| vit-age-classifier             | 200MB                                                      |
+| vit-gender-classifier          | 200MB                                                      |
+| stgcn-plus-plus                | 20MB                                                       |
+| xclip-base                     | 0 (`enabled: false`, superseded by `stgcn-plus-plus`)      |
+| weather-classification         | 200MB                                                      |
+| violence-detection             | 500MB                                                      |
+| fashion-clip (FashionSigLIP)   | 500MB                                                      |
+| yolo11-face                    | 200MB                                                      |
+| yolo11-license-plate           | 300MB                                                      |
+| smoke-fire-yolov8n             | 350MB                                                      |
+| yolo-world-s                   | 1.5GB                                                      |
+| zero-dce-plus-plus             | 5MB (`enabled: false`)                                     |
+| vitpose-small                  | 1.5GB                                                      |
+| segformer-b2-clothes           | 1.5GB                                                      |
+| vehicle-damage-detection       | 2GB                                                        |
+| brisque-quality                | 0MB (CPU)                                                  |
+| fast-alpr                      | 28MB                                                       |
+| paddleocr                      | 100MB                                                      |
+| florence-2-large               | 1.2GB (`enabled: false` - runs as a gateway model instead) |
 
 ## API Reference
 
 ### Unified Enrichment Endpoint
 
+Production (gateway):
+
 ```
-POST http://ai-enrichment:8094/enrich
+POST http://localhost:8090/enrich/enrich
 ```
 
-**Request**:
+**Request** (`EnrichRequest` in `ai/gateway/adapters/enrichment.py`):
 
 ```json
 {
   "image": "<base64>",
-  "detection_type": "person|vehicle|animal|object",
-  "bbox": {"x1": 0, "y1": 0, "x2": 100, "y2": 100},
-  "frames": ["<base64>", ...],
-  "options": {
-    "action_recognition": true,
-    "include_depth": true
-  }
+  "detection_type": "person",
+  "bbox": { "x": 0, "y": 0, "width": 100, "height": 100 },
+  "extra": {}
 }
 ```
 
-**Response**:
+**Response** (`EnrichmentResponse`): a `detection_type`, an `enrichments` object
+whose keys depend on the detection type, and `inference_time_ms`.
 
-```json
-{
-  "pose": {
-    "keypoints": [...],
-    "posture": "standing",
-    "alerts": []
-  },
-  "clothing": {
-    "type": "hoodie",
-    "color": "dark",
-    "is_suspicious": true
-  },
-  "demographics": {
-    "age_range": "25-35",
-    "gender": "male"
-  },
-  "threat": {
-    "detected": false
-  },
-  "reid_embedding": [...],
-  "vehicle": null,
-  "action": {
-    "action": "walking",
-    "confidence": 0.92
-  },
-  "depth": {
-    "estimated_distance_m": 3.5
-  },
-  "inference_time_ms": 245.6
-}
-```
+Legacy container (`POST http://ai-enrichment:8094/enrich`, still built):
+
+**Request** takes `image`, `detection_type`, `bbox`, `frames` and an `options`
+object (`action_recognition`, `include_depth`). Its response has one named field
+per result (`pose`, `clothing`, `demographics`, `threat`, `reid_embedding`,
+`vehicle`, `pet`, `action`, `depth`, `models_used`, `inference_time_ms` -
+`EnrichmentResponse` in `ai/enrichment/model.py`).
 
 ### Model Status Endpoint
 
 ```
 GET http://ai-enrichment:8094/models/status
 ```
+
+Legacy container only (`SystemStatus` in `ai/enrichment/model.py`). In a
+gateway deployment the backend exposes model status instead:
+`GET http://localhost:8000/api/system/models` and
+`/api/system/models/vram-summary`.
 
 **Response**:
 
@@ -726,6 +845,8 @@ GET http://ai-enrichment:8094/models/status
 
 ### Model Preload Endpoint
 
+Legacy container only.
+
 ```
 POST http://ai-enrichment:8094/models/preload?model_name=threat_detector
 ```
@@ -743,15 +864,29 @@ POST http://ai-enrichment:8094/models/preload?model_name=threat_detector
 
 ### Individual Classification Endpoints
 
-| Endpoint             | Method | Purpose                     |
-| -------------------- | ------ | --------------------------- |
-| `/health`            | GET    | Service health status       |
-| `/vehicle-classify`  | POST   | Vehicle type classification |
-| `/pet-classify`      | POST   | Pet type classification     |
-| `/clothing-classify` | POST   | Clothing analysis           |
-| `/depth-estimate`    | POST   | Full depth map              |
-| `/object-distance`   | POST   | Object distance estimation  |
-| `/pose-analyze`      | POST   | Human pose keypoints        |
+Gateway routers (base `http://localhost:8090`, adapters in
+`ai/gateway/adapters/`):
+
+| Endpoint                        | Method | Purpose                                 |
+| ------------------------------- | ------ | --------------------------------------- |
+| `/health`                       | GET    | Gateway health (Triton model readiness) |
+| `/enrichment/vehicle-classify`  | POST   | Vehicle type classification             |
+| `/enrichment/clothing-classify` | POST   | Clothing analysis                       |
+| `/enrichment/demographics`      | POST   | Age + gender estimation                 |
+| `/enrichment/action-classify`   | POST   | Video action recognition                |
+| `/enrichment/pet-classify`      | POST   | Pet type classification                 |
+| `/enrichment/depth-estimate`    | POST   | Depth map                               |
+| `/enrichment/pose-analyze`      | POST   | Human pose keypoints                    |
+| `/enrich-lt/pose-analyze`       | POST   | Pose + posture + alerts                 |
+| `/enrich-lt/threat-detect`      | POST   | Weapon detection                        |
+| `/enrich-lt/person-reid`        | POST   | 512-dim re-ID embedding                 |
+| `/enrich-lt/pet-classify`       | POST   | Pet type classification                 |
+| `/enrich-lt/depth-estimate`     | POST   | Depth map (min/max/mean)                |
+
+The legacy container answers the same names un-prefixed on port 8094, plus
+`/object-distance`, `/models/unload` and `/models/registry`, which have no
+gateway equivalent. The gateway has no `/models/status` or preload route:
+Triton owns loading there.
 
 ## Enrichment Result Schema
 
@@ -759,97 +894,109 @@ The enrichment pipeline returns structured results for each detection. These res
 
 ### EnrichmentResult Structure
 
-The `EnrichmentResult` object aggregates all enrichment outputs for a batch of detections:
-
-```python
-class EnrichmentResult:
-    threat_detection: ThreatDetectionResult | None
-    age_classifications: dict[str, AgeClassificationResult]  # detection_id -> result
-    gender_classifications: dict[str, GenderClassificationResult]  # detection_id -> result
-    person_embeddings: dict[str, PersonEmbeddingResult]  # detection_id -> result
-```
+The backend's `EnrichmentResult` (`backend/services/enrichment_pipeline.py`)
+aggregates per-batch enrichment outputs: `license_plates`, `faces`,
+`vision_extraction` (Florence-2), `person_reid_matches`,
+`vehicle_reid_matches`, `person_household_matches`,
+`vehicle_household_matches`, `scene_change`, `violence_detection`,
+`weather_classification`, structured error lists and `processing_time_ms`.
+Per-detection model results (pose, demographics, embeddings, ...) are stored
+on the detection's `enrichment_data` rather than on this object.
 
 ### ThreatDetectionResult
 
 Weapon and threat detection results from the YOLO threat detector model.
+These fields come from `ThreatDetection.to_dict()` in the legacy
+`ai/enrichment/models/threat_detector.py`; the gateway's
+`/enrich-lt/threat-detect` response instead reports `threats_detected`,
+`is_threat` and `max_confidence`.
 
 ```json
 {
   "threat_type": "knife",
   "confidence": 0.89,
-  "severity": "critical",
+  "severity": "high",
   "bbox": [120, 80, 180, 200]
 }
 ```
 
-| Field         | Type   | Description                                               |
-| ------------- | ------ | --------------------------------------------------------- |
-| `threat_type` | string | Type of threat detected: `knife`, `gun`, `weapon`, `none` |
-| `confidence`  | float  | Detection confidence score (0.0-1.0)                      |
-| `severity`    | string | Threat severity: `low`, `medium`, `high`, `critical`      |
-| `bbox`        | array  | Bounding box `[x1, y1, x2, y2]` of detected threat        |
+| Field         | Type   | Description                                                                                               |
+| ------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| `threat_type` | string | Threat class name (`knife`, `gun`, `rifle`, `pistol`, `bat`, `crowbar`, ... per `THREAT_CLASSES_BY_NAME`) |
+| `confidence`  | float  | Detection confidence score (0.0-1.0)                                                                      |
+| `severity`    | string | Mapped severity: `critical` (firearms), `high` (blades), `medium` (blunt objects)                         |
+| `bbox`        | array  | Bounding box `[x1, y1, x2, y2]` of detected threat                                                        |
 
 ### AgeClassificationResult
 
-Age range estimation from ViT age classifier.
+Age-group classification from the ViT age classifier, as returned by the
+**backend** loader (`AgeClassificationResult` in
+`backend/services/age_classifier_loader.py`). The AI services return a
+different shape — the gateway reports `age_range`/`age_confidence` (see
+[Demographics](#demographics)) and the legacy module a
+`DemographicsResult` with `age_range`/`age_confidence`.
 
 ```json
 {
-  "age_range": "25-35",
+  "age_group": "teenager",
   "confidence": 0.82,
-  "raw_prediction": 28.5
+  "display_name": "teenager (13-19 years)",
+  "all_scores": { "teenager": 0.82, "child": 0.12, "young_adult": 0.04 },
+  "is_minor": true
 }
 ```
 
-| Field            | Type   | Description                                   |
-| ---------------- | ------ | --------------------------------------------- |
-| `age_range`      | string | Estimated age range bracket                   |
-| `confidence`     | float  | Classification confidence (0.0-1.0)           |
-| `raw_prediction` | float  | Raw model prediction (estimated age in years) |
-
-**Age Range Brackets:**
-
-- `0-12` (child)
-- `13-17` (teenager)
-- `18-24` (young adult)
-- `25-35` (adult)
-- `36-50` (middle-aged)
-- `51-65` (mature adult)
-- `65+` (senior)
+| Field          | Type   | Description                                 |
+| -------------- | ------ | ------------------------------------------- |
+| `age_group`    | string | Classified group from the `AGE_GROUPS` list |
+| `confidence`   | float  | Classification confidence (0.0-1.0)         |
+| `display_name` | string | Human-readable description                  |
+| `all_scores`   | object | Per-class scores (top 3)                    |
+| `is_minor`     | bool   | True for `infant`, `child` or `teenager`    |
 
 ### GenderClassificationResult
 
-Gender classification from ViT gender classifier.
+Gender classification from the ViT gender classifier, as returned by the
+**backend** loader (`GenderClassificationResult` in
+`backend/services/gender_classifier_loader.py`).
 
 ```json
 {
   "gender": "male",
-  "confidence": 0.94
+  "confidence": 0.94,
+  "male_score": 0.94,
+  "female_score": 0.06
 }
 ```
 
-| Field        | Type   | Description                                   |
-| ------------ | ------ | --------------------------------------------- |
-| `gender`     | string | Predicted gender: `male`, `female`, `unknown` |
-| `confidence` | float  | Classification confidence (0.0-1.0)           |
+| Field          | Type   | Description                          |
+| -------------- | ------ | ------------------------------------ |
+| `gender`       | string | Predicted gender: `male` or `female` |
+| `confidence`   | float  | Classification confidence (0.0-1.0)  |
+| `male_score`   | float  | Raw score for the male class         |
+| `female_score` | float  | Raw score for the female class       |
 
 ### PersonEmbeddingResult
 
-512-dimensional embedding vector from OSNet for person re-identification across cameras.
+512-dimensional embedding vector from OSNet-AIN x1.0 for person
+re-identification across cameras (`PersonEmbeddingResult.to_dict()` in
+`backend/services/osnet_loader.py`).
 
 ```json
 {
-  "embedding": [0.123, -0.456, 0.789, ...],
-  "embedding_dimension": 512,
-  "model": "osnet_x0_25"
+  "embedding": [0.123, -0.456, 0.789, "..."],
+  "detection_id": "det_abc123",
+  "confidence": 1.0,
+  "embedding_dim": 512
 }
 ```
 
-| Field                 | Type   | Description                                  |
-| --------------------- | ------ | -------------------------------------------- |
-| `embedding`           | array  | 512-dimensional float vector (normalized L2) |
-| `embedding_dimension` | int    | Embedding vector length (always 512)         |
-| `model`               | string | Model used for embedding generation          |
+| Field           | Type   | Description                                   |
+| --------------- | ------ | --------------------------------------------- |
+| `embedding`     | array  | 512-dimensional float vector (normalized L2)  |
+| `detection_id`  | string | Detection the embedding was extracted from    |
+| `confidence`    | float  | Embedding quality estimate from input quality |
+| `embedding_dim` | int    | Embedding vector length (512)                 |
 
 **Use Cases:**
 
@@ -861,52 +1008,31 @@ Gender classification from ViT gender classifier.
 
 Full response from the `/enrich` endpoint for a person detection:
 
+The legacy container's `POST /enrich` (port 8094) response for a person
+detection aggregates its model results directly — the gateway's
+`/enrichment/enrich` returns a `detection_type` / `enrichments` /
+`inference_time_ms` envelope instead (see the API Reference above). Shape, per
+the named fields of `EnrichmentResponse` in `ai/enrichment/model.py`:
+
 ```json
 {
-  "threat_detection": {
-    "threat_type": "none",
-    "confidence": 0.0,
-    "severity": "low",
-    "bbox": null
-  },
-  "age_classifications": {
-    "det_abc123": {
-      "age_range": "25-35",
-      "confidence": 0.82,
-      "raw_prediction": 28.5
-    }
-  },
-  "gender_classifications": {
-    "det_abc123": {
-      "gender": "male",
-      "confidence": 0.94
-    }
-  },
-  "person_embeddings": {
-    "det_abc123": {
-      "embedding": [0.123, -0.456, ...],
-      "embedding_dimension": 512,
-      "model": "osnet_x0_25"
-    }
-  },
-  "pose": {
-    "keypoints": [...],
-    "posture": "standing",
-    "alerts": []
-  },
-  "clothing": {
-    "type": "casual",
-    "color": "blue",
-    "is_suspicious": false,
-    "is_service_uniform": false
-  },
+  "pose": { "keypoints": ["..."], "posture": "standing", "alerts": [] },
+  "clothing": { "clothing_type": "casual", "confidence": 0.7 },
+  "demographics": { "age_range": "21-30", "gender": "male" },
+  "threat": { "has_threat": false, "threats": [] },
+  "reid_embedding": [0.123, -0.456, "..."],
+  "vehicle": null,
+  "pet": null,
+  "action": { "action": "walking", "confidence": 0.92 },
+  "depth": { "mean_depth": 3.5 },
+  "models_used": ["pose_estimator", "threat_detector"],
   "inference_time_ms": 312.5
 }
 ```
 
 ### Integration with Risk Analysis
 
-The enrichment results feed directly into Nemotron's risk analysis prompt:
+Enrichment results feed directly into Nemotron's risk analysis prompt:
 
 1. **Threat Detection**: Weapons trigger immediate critical risk elevation
 2. **Demographics**: Age/gender provide context for behavior analysis
@@ -919,6 +1045,8 @@ The backend stores enrichment results in the detection record and passes the com
 
 ### YOLO26
 
+Legacy standalone container only (`ai/yolo26/model.py`):
+
 | Variable            | Default                                      | Description              |
 | ------------------- | -------------------------------------------- | ------------------------ |
 | `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
@@ -927,27 +1055,45 @@ The backend stores enrichment results in the detection record and passes the com
 
 ### Nemotron
 
-| Variable     | Default                                       | Description     |
-| ------------ | --------------------------------------------- | --------------- |
-| `MODEL_PATH` | `/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf` | GGUF model path |
-| `PORT`       | `8091`                                        | Server port     |
-| `GPU_LAYERS` | `35`                                          | Layers on GPU   |
-| `CTX_SIZE`   | `131072`                                      | Context window  |
+From the `ai-llm` service in `docker-compose.prod.yml`:
+
+| Variable     | Default                                                          | Description                       |
+| ------------ | ---------------------------------------------------------------- | --------------------------------- |
+| `MODEL_PATH` | `${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}` | GGUF model path                   |
+| `PORT`       | `8091`                                                           | Server port                       |
+| `GPU_LAYERS` | `auto`                                                           | llama.cpp `--fit` picks the count |
+| `CTX_SIZE`   | `262144`                                                         | Total context (8 slots x 32K)     |
+| `PARALLEL`   | `8`                                                              | Parallel inference slots          |
 
 ### Enrichment
+
+Legacy enrichment container only (`ai/enrichment/model.py`). The gateway
+ignores these; its model paths and devices come from `models.yml`
+(`ai/gateway/entrypoint.sh` exports the device variables,
+`ai/gateway/patch_triton_configs.py` rewrites Triton instance groups at
+startup).
 
 | Variable              | Default                                  | Description           |
 | --------------------- | ---------------------------------------- | --------------------- |
 | `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier    |
 | `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier        |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP           |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator       |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+              |
-| `ACTION_MODEL_PATH`   | `microsoft/xclip-base-patch32`           | X-CLIP                |
-| `VRAM_BUDGET_GB`      | `6.0`                                    | On-demand VRAM budget |
+| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionSigLIP         |
+| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-tiny`         | Depth estimator       |
+| `ACTION_MODEL_PATH`   | `/models/xclip-base-patch16-16-frames`   | X-CLIP                |
+| `VRAM_BUDGET_GB`      | `6.8`                                    | On-demand VRAM budget |
 | `PORT`                | `8094`                                   | Server port           |
 
 ## Adding New Models
+
+The steps below are for the legacy enrichment container
+(`ai/enrichment/`). To add a model to the production gateway instead, add an
+entry to `models.yml` (its `triton_name` must match a model directory under
+`ai/triton/model_repository/` and an entry in `ALL_MODELS` in
+`ai/gateway/main.py`), export it to ONNX if applicable
+(`ai/gateway/export/`), and wire a router call in the matching adapter under
+`ai/gateway/adapters/`. `models.yml` is the single source of truth for
+GPU/CPU placement — `ai/gateway/patch_triton_configs.py` rewrites the Triton
+`config.pbtxt` files from it at boot.
 
 ### Step 1: Create Model Wrapper
 
@@ -1040,7 +1186,8 @@ async def new_classify(request: ImageRequest) -> NewClassifyResponse:
 
 ### Step 5: Update Docker Compose
 
-Add model volume mount in `docker-compose.prod.yml`:
+For the legacy service, add the model volume mount in
+`docker-compose.prod.yml`:
 
 ```yaml
 ai-enrichment:
@@ -1052,19 +1199,24 @@ ai-enrichment:
 
 1. Add model details to this file (`docs/ai/model-zoo.md`)
 2. Update `ai/enrichment/AGENTS.md` with endpoint documentation
-3. Add HuggingFace link to model links table
+3. Add the HuggingFace link where that service's `AGENTS.md` names the model
+   (for gateway models, the HF repo goes in the `hf_repo` field of `models.yml`)
 
 ## Hardware Requirements
 
-- **GPU**: NVIDIA with CUDA support (tested on RTX A5500 24GB)
-- **Minimum VRAM**: 12GB for basic operation
-- **Recommended VRAM**: 24GB for all models simultaneously
-- **Container Runtime**: Docker or Podman with NVIDIA Container Toolkit
+The compose files size GPU placement around a two-GPU host: the LLM gets one
+GPU and Triton the other (the comments in `docker-compose.prod.yml` describe an
+RTX A5500 24GB for the LLM side and an NVIDIA A400 4GB class card for the light
+enrichment side; `GPU_LLM`/`GPU_AI` in `.env` pick the devices).
+
+- **GPU**: NVIDIA with CUDA support, via the NVIDIA Container Toolkit
+- **Container Runtime**: Podman (this project standard) or Docker
 
 ## Related Documentation
 
 - [AI Pipeline AGENTS.md](../../ai/AGENTS.md) - Service overview
-- [Enrichment Service AGENTS.md](../../ai/enrichment/AGENTS.md) - Detailed endpoint docs
+- [AI Gateway AGENTS.md](../../ai/gateway/AGENTS.md) - Current production inference service
+- [Enrichment Service AGENTS.md](../../ai/enrichment/AGENTS.md) - Detailed endpoint docs (legacy container)
 - [YOLO26 AGENTS.md](../../ai/yolo26/AGENTS.md) - Detection service
 - [Florence-2 AGENTS.md](../../ai/florence/AGENTS.md) - Vision-language service
 - [CLIP AGENTS.md](../../ai/clip/AGENTS.md) - Embedding service

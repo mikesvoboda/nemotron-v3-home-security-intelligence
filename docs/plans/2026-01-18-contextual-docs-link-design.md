@@ -1,5 +1,7 @@
 # Contextual Documentation Link Design
 
+> **Status:** Implemented — see `frontend/src/components/layout/PageDocsLink.tsx`.
+
 **Date:** 2026-01-18
 **Status:** Approved
 **Author:** maui + Mike Svoboda

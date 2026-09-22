@@ -2,7 +2,7 @@
 
 > Performance benchmarks and measurements for the Home Security Intelligence AI pipeline.
 
-This directory contains benchmark results documenting AI model performance, VRAM usage, load times, and inference speeds on the target hardware (NVIDIA RTX A5500).
+> **Status: historical.** These are point-in-time results on an NVIDIA RTX A5500, last refreshed in early 2026. The model names in the tables reflect the model zoo of that date, not the live manifest — `models.yml` at the repo root is the current source of truth (e.g. CLIP-era entries were replaced by `siglip2-base-patch16-224`, `osnet-ain-x1-0` supersedes the old `osnet` variant, `depth-anything-v2-tiny` replaced the small variant). Re-run the scripts below to regenerate results before citing any number here as current.
 
 ---
 
@@ -11,8 +11,8 @@ This directory contains benchmark results documenting AI model performance, VRAM
 | Benchmark                                         | Description                                     | Last Updated |
 | ------------------------------------------------- | ----------------------------------------------- | ------------ |
 | [Model Zoo Benchmark](model-zoo-benchmark.md)     | Performance metrics for all Model Zoo AI models | 2026-01-01   |
-| [YOLO26 Benchmarks](yolo26-benchmarks.md)         | YOLO26 detection model performance benchmarks   | -            |
-| [YOLO26 Export Formats](yolo26-export-formats.md) | YOLO26 model export format comparison           | -            |
+| [YOLO26 Benchmarks](yolo26-benchmarks.md)         | YOLO26 detection model performance benchmarks   | 2026-01-26   |
+| [YOLO26 Export Formats](yolo26-export-formats.md) | YOLO26 model export format comparison           | 2026-01-26   |
 
 ---
 
@@ -33,7 +33,7 @@ The Model Zoo benchmark tests AI models for:
 | Max load time      | <5s     |
 | VRAM recovered     | Yes     |
 
-### Current Results
+### Last Recorded Results (2026-01-01 run)
 
 | Model                  | Status | VRAM  | Inference |
 | ---------------------- | ------ | ----- | --------- |
@@ -108,4 +108,4 @@ When creating new benchmark files:
 
 ---
 
-[Back to Documentation Index](../README.md)
+[Back to Documentation Index](../index.md)

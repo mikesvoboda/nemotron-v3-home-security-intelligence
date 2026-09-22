@@ -11,15 +11,20 @@ decisions/
 ├── AGENTS.md                                    # This file
 ├── README.md                                    # Decisions overview and index
 ├── 2026-01-12-docs-reorganization-design.md     # Documentation reorganization design ADR
-└── grafana-integration.md                       # Grafana integration strategy decision
+├── 2026-01-31-risk-score-validation-suite.md    # Automated risk score validation suite ADR
+├── entity-detection-referential-integrity.md    # Application-level FK alternative for partitioned detections
+├── grafana-integration.md                       # Grafana integration strategy decision
+└── python-314-adoption.md                       # Python 3.14 / free-threading adoption decision
 ```
 
 ## Current Decisions
 
+See [README.md](README.md) for the full indexed table. Statuses below match each ADR's own header.
+
 ### 2026-01-12-docs-reorganization-design.md
 
 **Date:** 2026-01-12
-**Status:** Decided
+**Status:** Implemented
 
 **Decision Summary:**
 
@@ -29,7 +34,7 @@ Design specification for reorganizing documentation into a hub-and-spoke archite
 
 **Date:** 2025-12-27
 **Status:** Decided
-**Related Beads:** 6fj, c3s
+**Related Issues:** Beads 6fj, c3s (issue tracking has since moved to Linear — see [Linear Setup](../developer/contributing/linear-setup.md))
 
 **Decision Summary:**
 
@@ -41,15 +46,6 @@ Design specification for reorganizing documentation into a hub-and-spoke archite
 - Project is a local single-user deployment for home security monitoring
 - Needed to decide how to display system metrics
 - Evaluated embedding Grafana vs using native charts
-
-**Options Evaluated:**
-
-| Option                   | Description                            | Outcome                                                |
-| ------------------------ | -------------------------------------- | ------------------------------------------------------ |
-| Grafana iframe embed     | Embed Grafana panels in dashboard      | Rejected - auth complexity, CSP/X-Frame-Options issues |
-| Grafana public snapshots | Use shareable dashboards               | Rejected - overkill for local use                      |
-| Pull Grafana images      | Server-side rendered images            | Rejected - stale data, polling overhead                |
-| **Native Tremor charts** | Use Tremor components with backend API | **Selected** - simple, no auth, real-time              |
 
 **Key Rationale:**
 
@@ -139,4 +135,4 @@ Do NOT create an ADR for:
 
 - **docs/AGENTS.md:** Documentation directory guide
 - **docs/plans/:** Design specifications that inform decisions
-- **CLAUDE.md:** Claude Code instructions
+- **AGENTS.md:** Root instruction file (single root file; loaded by Claude Code and other agents)

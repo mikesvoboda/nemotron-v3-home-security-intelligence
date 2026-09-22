@@ -54,6 +54,8 @@ Press `g` followed by a letter to jump directly to any page:
 | `g y`    | System      |
 | `g s`    | Settings    |
 
+> **Known issue:** `g y` (System) currently navigates to `/system`, which no longer exists in the app router — it lands on "Page not found" until the chord is repointed at `/operations`. See [Keyboard Shortcuts](keyboard-shortcuts.md).
+
 ### List Navigation
 
 When viewing event lists, activity feeds, or search results:

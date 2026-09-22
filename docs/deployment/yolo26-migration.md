@@ -1,6 +1,8 @@
 # YOLO26 Deployment Guide
 
-This guide documents the YOLO26 object detection service deployment in the Home Security Intelligence system.
+> **SUPERSEDED (2026-09-22).** The standalone `ai-yolo26` container this guide describes no longer exists in `docker-compose.prod.yml`. Since the AI-gateway consolidation (commit bc7d6101), YOLO26 runs as a Triton model inside **`ai-gateway`**, served at `http://ai-gateway:8090/yolo26/*` (host: `http://localhost:8090/yolo26/*`). Benchmark tables and export notes below are kept as the historical record. Current AI topology: [Container Orchestration](./container-orchestration.md).
+
+This guide documents the YOLO26 object detection model's deployment in the Home Security Intelligence system.
 
 ## Overview
 
@@ -13,9 +15,11 @@ YOLO26 is the object detection model used in this project, featuring:
 - **TensorRT optimization** for NVIDIA GPUs with FP16 precision
 - **Security-focused class filtering** for home monitoring (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
 
+In the current deployment the model is loaded by the gateway's Triton server (`ai/gateway/adapters/yolo26.py`, model name `yolo26`) and exposed through the FastAPI router at `/yolo26` with endpoints `/health`, `/detect`, `/detect/batch`, `/segment`. The standalone HuggingFace-Transformers server (`ai/yolo26/model.py`, launched by `./ai/start_detector.sh`) survives only for host-run development.
+
 ### Performance Characteristics
 
-YOLO26 with TensorRT FP16 provides excellent performance for security monitoring:
+YOLO26 with TensorRT FP16 provides excellent performance for security monitoring (historical benchmark, standalone TensorRT server):
 
 | Metric           | YOLO26m TensorRT FP16 |
 | ---------------- | --------------------- |
@@ -45,19 +49,9 @@ YOLO26 with TensorRT FP16 provides excellent performance for security monitoring
 
 ### Model Files
 
-Before migrating, ensure the TensorRT engine file exists:
+The gateway's Triton model repository is built and cached automatically (`triton-kernel-cache`/`triton-tmp-cache` volumes plus `${AI_MODELS_PATH}/triton` mounted at `/models/cache`). For the standalone dev server, `YOLO26_MODEL_PATH` points at a weights file — current default `/models/yolo26/yolo26m.pt` (`.env.example`): a `.pt` triggers an automatic TensorRT rebuild on first start; a pre-built `.engine` is used directly.
 
-```bash
-# Check for the model file
-ls -la /export/ai_models/model-zoo/yolo26/exports/yolo26m_fp16.engine
-
-# Expected output:
-# -rw-r--r-- 1 user user 43.1M Jan 26 00:00 yolo26m_fp16.engine
-```
-
-If the engine file doesn't exist, see [Exporting TensorRT Engines](#exporting-tensorrt-engines) below.
-
-### Directory Structure
+Historical export layout (produced by `scripts/export_yolo26.py`, see [Exporting TensorRT Engines](#exporting-tensorrt-engines)):
 
 ```
 /export/ai_models/model-zoo/yolo26/
@@ -72,167 +66,76 @@ If the engine file doesn't exist, see [Exporting TensorRT Engines](#exporting-te
 
 ## Configuration Options
 
-### Environment Variables
+### Environment Variables (current)
 
-| Variable                       | Default                                      | Description                                      |
-| ------------------------------ | -------------------------------------------- | ------------------------------------------------ |
-| `YOLO26_URL`                   | `http://ai-yolo26:8095`                      | YOLO26 service endpoint (Docker network)         |
-| `YOLO26_CONFIDENCE`            | `0.5`                                        | Minimum confidence threshold (0.0-1.0)           |
-| `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | Path to TensorRT engine inside container         |
-| `YOLO26_API_KEY`               | (none)                                       | Optional API key for service authentication      |
-| `YOLO26_READ_TIMEOUT`          | `30.0`                                       | Inference timeout in seconds (5-120)             |
-| `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0=disabled) |
+| Variable                            | Default                                             | Description                                                                                                 |
+| ----------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `YOLO26_URL`                        | `http://ai-gateway:8090/yolo26`                     | Detector endpoint the backend calls (compose); native dev: `http://localhost:8090`                          |
+| `AI_GATEWAY_URL` + `USE_AI_GATEWAY` | `http://ai-gateway:8090` / `true`                   | When gateway mode is on, the backend derives the detector URL from the gateway URL and ignores `YOLO26_URL` |
+| `YOLO26_MODEL_PATH`                 | `/models/yolo26/yolo26m.pt`                         | Weights for the standalone dev server (`.pt` auto-rebuilds an engine)                                       |
+| `YOLO26_API_KEY`                    | (none)                                              | Optional API key for service authentication                                                                 |
+| `YOLO26_READ_TIMEOUT`               | `30.0`                                              | Inference timeout in seconds                                                                                |
+| `DETECTION_CONFIDENCE_THRESHOLD`    | `0.40` (config default; `.env.example` ships `0.5`) | Backend-side minimum confidence for detections, with per-class overrides                                    |
+
+> **Historical:** the standalone-container variables `YOLO26_CONFIDENCE` (the gateway adapter uses a hardcoded `CONFIDENCE_THRESHOLD = 0.25`), `YOLO26_CACHE_CLEAR_FREQUENCY`, and the `YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine` engine default belong to the retired `ai-yolo26` container and are no longer read in the gateway path.
 
 ### Model Selection
 
-| Model   | File                  | Speed   | Accuracy | Use Case                         |
-| ------- | --------------------- | ------- | -------- | -------------------------------- |
-| yolo26n | `yolo26n_fp16.engine` | 223 FPS | Lower    | Maximum throughput, edge devices |
-| yolo26s | `yolo26s_fp16.engine` | 206 FPS | Medium   | Balanced speed/accuracy          |
-| yolo26m | `yolo26m_fp16.engine` | 174 FPS | Higher   | Best accuracy (recommended)      |
+| Variant | Typical latency (gateway, batch 1) | Use Case                     |
+| ------- | ---------------------------------- | ---------------------------- |
+| yolo26n | 44.83ms                            | Lightweight, edge deployment |
+| yolo26s | 73.74ms                            | Maximum throughput per frame |
+| yolo26m | 138.84ms                           | Default, best accuracy       |
 
-## Migration Steps
+(Latencies measured end-to-end on RTX A5500 at 640x640 — see [YOLO26 Benchmarks](../benchmarks/yolo26-benchmarks.md). The 5.76ms figures in the overview table are raw inference on the retired standalone TensorRT server.)
 
-### Step 1: Verify Model Files Exist
+## Deployment Steps (current topology)
+
+### Step 1: Start the Gateway
 
 ```bash
-# Check that the TensorRT engine exists
-if [ -f "/export/ai_models/model-zoo/yolo26/exports/yolo26m_fp16.engine" ]; then
-    echo "Model file found"
-    ls -lh /export/ai_models/model-zoo/yolo26/exports/
-else
-    echo "ERROR: Model file not found. Run export script first."
-    exit 1
-fi
+# The gateway is part of the standard stack
+podman compose -f docker-compose.prod.yml up -d ai-gateway
+
+# Triton warm-up can take up to its 180s health start_period
+podman compose -f docker-compose.prod.yml ps ai-gateway
 ```
 
-### Step 2: Build the ai-yolo26 Container
+### Step 2: Verify the YOLO26 Router
 
 ```bash
-# Navigate to project root
-cd /path/to/home-security-intelligence
+# Router health (model readiness via Triton)
+curl -s http://localhost:8090/yolo26/health | jq .
 
-# Build the YOLO26 container (always use --no-cache for clean builds)
-podman-compose -f docker-compose.prod.yml build --no-cache ai-yolo26
-
-# Verify the build succeeded
-podman images | grep ai-yolo26
+# Aggregated gateway health (all Triton models)
+curl -s http://localhost:8090/health | jq .models.yolo26
 ```
 
-### Step 3: Configure YOLO26
-
-Configure YOLO26 options in your `.env` file:
+### Step 3: Test Detection
 
 ```bash
-# Optional: Adjust confidence threshold if needed
-YOLO26_CONFIDENCE=0.5
-
-# Optional: Use a different model variant
-# YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26s_fp16.engine  # For faster inference
-```
-
-### Step 4: Start the YOLO26 Service
-
-```bash
-# Start the YOLO26 container
-podman-compose -f docker-compose.prod.yml up -d ai-yolo26
-
-# Wait for model loading (typically 30-60 seconds)
-sleep 60
-
-# Check container status
-podman-compose -f docker-compose.prod.yml ps ai-yolo26
-```
-
-### Step 5: Restart the Backend Service
-
-The backend must be restarted to pick up the new `DETECTOR_TYPE` setting:
-
-```bash
-# Restart backend to use YOLO26
-podman-compose -f docker-compose.prod.yml restart backend
-
-# Or rebuild if you made code changes
-podman-compose -f docker-compose.prod.yml build --no-cache backend
-podman-compose -f docker-compose.prod.yml up -d --force-recreate backend
-```
-
-### Step 6: Verify Health Endpoint
-
-```bash
-# Check YOLO26 service health
-curl -s http://localhost:8095/health | jq .
-
-# Expected response:
-# {
-#   "status": "healthy",
-#   "model_loaded": true,
-#   "device": "cuda:0",
-#   "cuda_available": true,
-#   "model_name": "/models/yolo26/exports/yolo26m_fp16.engine",
-#   "vram_used_gb": 0.1,
-#   "tensorrt_enabled": true
-# }
-```
-
-### Step 7: Test Detection
-
-```bash
-# Test with a sample image
 curl -X POST \
   -F "file=@/path/to/test-image.jpg" \
-  http://localhost:8095/detect | jq .
-
-# Expected response:
-# {
-#   "detections": [
-#     {
-#       "class": "person",
-#       "confidence": 0.92,
-#       "bbox": { "x": 100, "y": 50, "width": 200, "height": 400 }
-#     }
-#   ],
-#   "inference_time_ms": 5.8,
-#   "image_width": 1920,
-#   "image_height": 1080
-# }
+  http://localhost:8090/yolo26/detect | jq .
 ```
 
-## Rollback Procedure
+## Historical: the standalone `ai-yolo26` container
 
-If you encounter issues after migration, rolling back is simple:
-
-### Step 1: Update Environment
+These steps described the pre-consolidation deployment and no longer work — `docker-compose.prod.yml` has no `ai-yolo26` service, and no image named `ai-yolo26` is built. Retained for reference when reading older issues and runbooks.
 
 ```bash
-# Edit .env to switch back to YOLO26
-DETECTOR_TYPE=yolo26
+# HISTORICAL — do not run
+podman-compose -f docker-compose.prod.yml build --no-cache ai-yolo26
+podman-compose -f docker-compose.prod.yml up -d ai-yolo26
+curl -s http://localhost:8095/health        # port 8095 no longer served
+curl -X POST -F "file=@test.jpg" http://localhost:8095/detect
 ```
 
-### Step 2: Restart Backend
+### Historical: Rollback Procedure
 
-```bash
-# Restart the backend to use YOLO26
-podman-compose -f docker-compose.prod.yml restart backend
-```
+Rolling the detector back is no longer possible: `detector_client.py` states YOLO26 is the only supported detector, and no alternative detector implementation remains in the tree. (The old `DETECTOR_TYPE=yolo26` toggle and the `Stop ai-yolo26` note applied to the retired container.)
 
-### Step 3: Verify Rollback
-
-```bash
-# Check backend logs to confirm detector type
-podman-compose -f docker-compose.prod.yml logs backend | grep -i "detector"
-
-# Expected: "DetectorClient initialized" with "detector_type": "yolo26"
-```
-
-### Important Notes on Rollback
-
-- **No data migration required**: Both detectors produce identical detection format
-- **Detections are preserved**: Existing detections in the database remain valid
-- **No schema changes**: The Detection model works with both detectors
-- **Optionally stop YOLO26**: `podman-compose -f docker-compose.prod.yml stop ai-yolo26`
-
-## Performance Expectations
+## Performance Expectations (historical benchmarks)
 
 ### Benchmark Results (RTX A5500 24GB)
 
@@ -264,14 +167,29 @@ YOLO26n:    ████ ~50MB
 
 - TensorRT FP16 has <0.1% mAP loss compared to FP32
 - YOLO26m provides the best accuracy among YOLO26 variants
-- For maximum accuracy requirements, continue using YOLO26
 - Run accuracy validation: `scripts/benchmark_yolo26_accuracy.py`
 
 ## Monitoring
 
-### Prometheus Metrics
+### Current metrics
 
-YOLO26 exposes metrics with the `yolo26_` prefix:
+Prometheus no longer scrapes a per-service `yolo26_*` endpoint — the standalone metrics target was removed with the container. Equivalent signals:
+
+- **Triton metrics** (`triton-metrics` job → `ai-gateway:8002/metrics`, merged into `:8090/metrics`): `nv_inference_request_success/failure`, inference duration histograms per model (`model="yolo26"`).
+- **Backend metrics**: detector round-trips are tracked by the backend regardless of topology:
+
+```promql
+# AI request duration attributed to the detector
+rate(hsi_ai_request_duration_seconds_sum{ai_service="yolo26"}[5m])
+  / rate(hsi_ai_request_duration_seconds_count{ai_service="yolo26"}[5m])
+
+# Detection counts
+hsi_detections_processed_total
+```
+
+### Historical: `yolo26_*` metrics from the standalone server
+
+These names are emitted only by the retired `ai/yolo26/model.py` dev server (`curl http://localhost:8090/metrics` when running it locally); they are not in the production scrape set:
 
 | Metric                             | Type      | Description                       |
 | ---------------------------------- | --------- | --------------------------------- |
@@ -284,230 +202,72 @@ YOLO26 exposes metrics with the `yolo26_` prefix:
 | `yolo26_gpu_temperature_celsius`   | Gauge     | GPU temperature in Celsius        |
 | `yolo26_gpu_power_watts`           | Gauge     | GPU power consumption in Watts    |
 
-### Accessing Metrics
-
-```bash
-# Prometheus metrics endpoint
-curl http://localhost:8095/metrics
-
-# Example output:
-# yolo26_model_loaded 1.0
-# yolo26_inference_latency_seconds_bucket{endpoint="detect",le="0.01"} 847.0
-# yolo26_gpu_memory_used_gb 0.098
-# yolo26_gpu_utilization_percent 15.0
-```
-
-### Grafana Dashboard Integration
-
-The YOLO26 metrics integrate with the existing AI Services dashboard. Key panels:
-
-1. **Inference Latency** - P50, P95, P99 latency over time
-2. **Request Rate** - Detections per second
-3. **GPU Utilization** - GPU usage and temperature
-4. **Model Status** - Health and availability
-
-To add YOLO26 panels to Grafana:
-
-```promql
-# Average inference latency
-rate(yolo26_inference_latency_seconds_sum[5m]) / rate(yolo26_inference_latency_seconds_count[5m])
-
-# Requests per second
-rate(yolo26_inference_requests_total[1m])
-
-# P95 latency
-histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))
-```
-
-### Backend Metrics
-
-The backend also tracks detector metrics with labels:
-
-```promql
-# AI request duration by detector type
-hsi_ai_request_duration_seconds{ai_service="yolo26"}
-
-# Detection counts
-hsi_detections_processed_total
-```
-
 ## Troubleshooting
 
-### Common Issues and Solutions
-
-#### 1. Model File Not Found
-
-**Symptom:** Container starts but returns 503 on `/detect`
-
-```json
-{ "detail": "Model not loaded" }
-```
-
-**Solution:** Ensure the TensorRT engine exists and is mounted correctly:
+### Gateway YOLO26 router unhealthy
 
 ```bash
-# Check host path
-ls -la /export/ai_models/model-zoo/yolo26/exports/
+# Router + Triton readiness
+curl -s http://localhost:8090/yolo26/health | jq .
+curl -s http://localhost:8090/health | jq '{status, models_loaded, models_total}'
 
-# Check container mount
-podman exec ai-yolo26 ls -la /models/yolo26/exports/
-
-# If missing, export the engine (see below)
+# Gateway logs
+podman compose -f docker-compose.prod.yml logs ai-gateway | grep -i "yolo26\|triton"
 ```
 
-#### 2. TensorRT Engine Incompatibility
+### Detections missing or too few
 
-**Symptom:** Container crashes on startup with TensorRT error
+1. Check the backend confidence gate: `DETECTION_CONFIDENCE_THRESHOLD` (with per-class overrides) — too high a value suppresses real detections.
+2. Verify the class is security-relevant: person, car, truck, dog, cat, bird, bicycle, motorcycle, bus.
+3. Exercise the router directly: `curl -X POST -F "file=@test.jpg" http://localhost:8090/yolo26/detect`.
 
-```
-[TRT] Error: The engine was generated with a different version of TensorRT
-```
-
-**Solution:** Re-export the TensorRT engine for your GPU/TensorRT version:
-
-```bash
-# Run export inside container with matching TensorRT version
-podman run --rm \
-    --security-opt=label=disable \
-    --hooks-dir=/usr/share/containers/oci/hooks.d/ \
-    --device nvidia.com/gpu=all \
-    -v /export/ai_models/model-zoo:/models:z \
-    ghcr.io/your-org/ai-yolo26:latest \
-    python -c "
-from ultralytics import YOLO
-model = YOLO('yolo26m.pt')
-model.export(format='engine', half=True, device=0)
-"
-```
-
-#### 3. CUDA Out of Memory
-
-**Symptom:** OOM error during inference
-
-```
-RuntimeError: CUDA out of memory
-```
-
-**Solution:**
+### CUDA Out of Memory
 
 1. Use a smaller model variant (`yolo26n` instead of `yolo26m`)
-2. Ensure no other processes are using GPU memory
-3. Reduce batch size if using batch endpoint
+2. Ensure no host processes are using GPU memory: `nvidia-smi`
+3. Inside the gateway, models evict by priority under pressure — check `http://localhost:8000/api/system/models/vram-summary`
+
+### Backend can't reach the detector
 
 ```bash
-# Check GPU memory usage
-nvidia-smi
+# From the backend container
+podman compose -f docker-compose.prod.yml exec backend \
+  python -c "import httpx; print(httpx.get('http://ai-gateway:8090/yolo26/health', timeout=5).status_code)"
 
-# Use smaller model
-YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26n_fp16.engine
+# What URL is the backend actually using?
+podman compose -f docker-compose.prod.yml exec backend env | grep -E "YOLO26_URL|AI_GATEWAY_URL|USE_AI_GATEWAY"
 ```
 
-#### 4. Connection Refused from Backend
+### Health Check Endpoints (current)
 
-**Symptom:** Backend logs show connection errors to YOLO26
+| Endpoint               | Method | Description                           |
+| ---------------------- | ------ | ------------------------------------- |
+| `/yolo26/health`       | GET    | YOLO26 router/model readiness         |
+| `/yolo26/detect`       | POST   | Object detection                      |
+| `/yolo26/detect/batch` | POST   | Batched detection                     |
+| `/yolo26/segment`      | POST   | Segmentation                          |
+| `/health`              | GET    | Aggregated Triton model health        |
+| `/metrics`             | GET    | Prometheus metrics (Triton + gateway) |
 
-```
-httpx.ConnectError: Connection refused
-```
-
-**Solution:** Verify the service is running and accessible:
-
-```bash
-# Check container status
-podman-compose -f docker-compose.prod.yml ps ai-yolo26
-
-# Check if service is listening
-podman exec ai-yolo26 curl -s http://localhost:8095/health
-
-# Verify network connectivity from backend
-podman exec backend curl -s http://ai-yolo26:8095/health
-```
-
-#### 5. High Latency (Not Matching Benchmarks)
-
-**Symptom:** Inference times much higher than expected
-
-**Solution:**
-
-1. Verify TensorRT engine is being used (not PyTorch fallback)
-2. Check GPU utilization during inference
-3. Ensure CUDA cache clearing is not too aggressive
-
-```bash
-# Check if TensorRT is enabled
-curl http://localhost:8095/health | jq .tensorrt_enabled
-
-# Should return: true
-
-# Disable aggressive cache clearing if needed
-YOLO26_CACHE_CLEAR_FREQUENCY=0
-```
-
-#### 6. Detections Not Appearing
-
-**Symptom:** No detections returned for images that should have objects
-
-**Solution:**
-
-1. Verify confidence threshold is not too high
-2. Check that the object class is in the security-relevant list
-3. Test with the `/detect` endpoint directly
-
-```bash
-# Test with lower confidence
-YOLO26_CONFIDENCE=0.3
-
-# Security-relevant classes:
-# person, car, truck, dog, cat, bird, bicycle, motorcycle, bus
-```
-
-### Health Check Endpoints
-
-| Endpoint   | Method | Description        |
-| ---------- | ------ | ------------------ |
-| `/health`  | GET    | Full health status |
-| `/metrics` | GET    | Prometheus metrics |
-| `/detect`  | POST   | Object detection   |
-
-### Log Analysis
-
-```bash
-# View YOLO26 container logs
-podman-compose -f docker-compose.prod.yml logs -f ai-yolo26
-
-# Filter for errors
-podman-compose -f docker-compose.prod.yml logs ai-yolo26 2>&1 | grep -i error
-
-# Check backend detector logs
-podman-compose -f docker-compose.prod.yml logs backend | grep -i "yolo26\|detector"
-```
+(all on port 8090, inside `ai-gateway`)
 
 ## Exporting TensorRT Engines
 
-If you need to create or recreate TensorRT engines:
+The export script exists, but the `Dockerfile.yolo26-benchmark` containerized recipe that used to accompany it is no longer in the repo. Run the export on the host (requires `ultralytics` + a matching TensorRT install):
 
 ```bash
-# Build benchmark container
-podman build -t yolo26-benchmark -f Dockerfile.yolo26-benchmark .
-
-# Export all model variants
-podman run --rm \
-    --security-opt=label=disable \
-    --hooks-dir=/usr/share/containers/oci/hooks.d/ \
-    --device nvidia.com/gpu=all \
-    -v /export/ai_models/model-zoo:/models:z \
-    -v $(pwd)/scripts:/scripts:z \
-    yolo26-benchmark python3 /scripts/export_yolo26.py \
-    --output-dir /models/yolo26/exports \
+python scripts/export_yolo26.py \
+    --output-dir /export/ai_models/model-zoo/yolo26/exports \
     --variants n s m \
     --format engine \
     --half
 ```
 
-**Important:** TensorRT engines are GPU-specific. If you change GPUs, you must re-export the engines.
+**Important:** TensorRT engines are GPU- and TensorRT-version-specific. If you change GPUs or upgrade TensorRT, re-export (or just point `YOLO26_MODEL_PATH` back at a `.pt` and let the dev server rebuild).
 
 ## Related Documentation
 
 - [YOLO26 Export Formats](../benchmarks/yolo26-export-formats.md)
+- [YOLO26 Benchmarks](../benchmarks/yolo26-benchmarks.md)
 - [Container Orchestration](./container-orchestration.md)
 - [Multi-GPU Support](../development/multi-gpu.md)

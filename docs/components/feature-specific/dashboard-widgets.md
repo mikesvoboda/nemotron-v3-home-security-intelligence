@@ -30,33 +30,27 @@ Main dashboard orchestrating all widgets.
 **Data Dependencies:**
 
 - `useSystemStatus()` - System health (WebSocket-based real-time updates)
-- `useHealthStatusQuery()` - Service health (TanStack Query with caching)
 - `useRecentEventsQuery()` - Recent events list
-- `useCamerasQuery()` - Camera status and list
-- `useGpuStatsQuery()` - GPU metrics (polling)
-- `useGpuStatsWebSocket()` - GPU metrics (real-time WebSocket updates)
+- `useEventStream()` - Live events over WebSocket
+- `useSceneChangeEvents()` - Scene-change event stream
+- `useThreatDetection()` - Active threat detection state
+- `useSummaries()` - Hourly/daily AI summaries
+- `useAIMetrics()` - AI pipeline metrics
+- `useDateRangeState()` - Shared date-range filter state
+- Cameras and event stats load in `useEffect` via `fetchCameras()` and `fetchEventStats()` from `services/api`
 
 ---
 
 ### DashboardLayout
 
-Responsive layout wrapper for dashboard widgets.
+Responsive layout wrapper for dashboard widgets. Takes a `widgetProps` bag plus one render function per widget (`renderStatsRow`, `renderAISummaryRow?`, `renderCameraGrid`, `renderActivityFeed`, `renderGpuStats`, `renderPipelineTelemetry`, ...), so the layout stays agnostic of data fetching.
 
 **Location:** `frontend/src/components/dashboard/DashboardLayout.tsx`
 
-**Props:**
+**Layout structure** (Tailwind classes on the widget containers):
 
-| Prop     | Type        | Default | Description       |
-| -------- | ----------- | ------- | ----------------- |
-| children | `ReactNode` | -       | Widget components |
-
-**Layout Breakpoints:**
-
-| Breakpoint | Columns | Description             |
-| ---------- | ------- | ----------------------- |
-| < 640px    | 1       | Mobile - single column  |
-| 640-1024px | 2       | Tablet - two columns    |
-| > 1024px   | 3       | Desktop - three columns |
+- Main area (camera grid + activity feed): single column, two-column at `lg` (`lg:grid-cols-[1.5fr,1fr]`, `xl:grid-cols-[2fr,1fr]`)
+- System widgets area (GPU stats, pipeline telemetry, pipeline queues): `grid-cols-1`, `sm:grid-cols-2`, `lg:grid-cols-3`
 
 ---
 
@@ -68,19 +62,16 @@ Modal for configuring dashboard preferences.
 
 **Props:**
 
-| Prop    | Type                                | Default | Description      |
-| ------- | ----------------------------------- | ------- | ---------------- |
-| isOpen  | `boolean`                           | -       | Modal visibility |
-| onClose | `() => void`                        | -       | Close handler    |
-| config  | `DashboardConfig`                   | -       | Current config   |
-| onSave  | `(config: DashboardConfig) => void` | -       | Save handler     |
+| Prop           | Type                                | Default | Description      |
+| -------------- | ----------------------------------- | ------- | ---------------- |
+| isOpen         | `boolean`                           | -       | Modal visibility |
+| onClose        | `() => void`                        | -       | Close handler    |
+| config         | `DashboardConfig`                   | -       | Current config   |
+| onConfigChange | `(config: DashboardConfig) => void` | -       | Change handler   |
 
 **Configurable Options:**
 
-- Widget visibility toggles
-- Refresh intervals
-- Default time range
-- Display density
+- Widget visibility toggles (switch per widget)
 
 ---
 
@@ -132,18 +123,25 @@ Responsive camera thumbnail grid.
 
 **Props:**
 
-| Prop       | Type                   | Default | Description            |
-| ---------- | ---------------------- | ------- | ---------------------- |
-| cameras    | `Camera[]`             | -       | Camera list            |
-| onSelect   | `(id: string) => void` | -       | Camera select handler  |
-| showStatus | `boolean`              | `true`  | Show status indicators |
+| Prop                   | Type                                        | Default | Description                                        |
+| ---------------------- | ------------------------------------------- | ------- | -------------------------------------------------- |
+| cameras                | `CameraStatus[]`                            | -       | Camera list                                        |
+| selectedCameraId       | `string`                                    | -       | Currently selected camera                          |
+| onCameraClick          | `(cameraId: string) => void`                | -       | Camera select handler                              |
+| enableWebSocketUpdates | `boolean`                                   | `false` | Real-time camera status via WebSocket              |
+| onCameraStatusChange   | `(event: CameraStatusEventPayload) => void` | -       | Callback on WebSocket status change                |
+| sceneChangeActivityIds | `Set<string> \| string[]`                   | -       | Cameras with recent scene-change activity          |
+| cameraActivityMap      | `Record<string, CameraActivityState>`       | -       | Per-camera activity state for the richer indicator |
+| enableSnapshotRefresh  | `boolean`                                   | `true`  | Show per-card snapshot refresh button              |
+| onSnapshotRefresh      | `(cameraId: string) => void`                | -       | Snapshot refresh handler                           |
+| className              | `string`                                    | -       | Additional CSS classes                             |
 
 **Features:**
 
-- Live thumbnail refresh
+- Thumbnail per camera (loaded for online/recording cameras; placeholder otherwise)
 - Online/offline status
-- Last motion indicator
-- Click to expand
+- Manual snapshot refresh button per card (NEM-4947)
+- Optional real-time status updates (NEM-2295)
 
 ---
 
@@ -155,12 +153,14 @@ Scrolling event feed with auto-scroll.
 
 **Props:**
 
-| Prop         | Type                   | Default | Description               |
-| ------------ | ---------------------- | ------- | ------------------------- |
-| events       | `Event[]`              | -       | Recent events             |
-| maxItems     | `number`               | `20`    | Max visible items         |
-| autoScroll   | `boolean`              | `true`  | Auto-scroll on new events |
-| onEventClick | `(id: string) => void` | -       | Event click handler       |
+| Prop         | Type                        | Default | Description               |
+| ------------ | --------------------------- | ------- | ------------------------- |
+| events       | `ActivityEvent[]`           | -       | Recent events             |
+| maxItems     | `number`                    | `10`    | Max visible items         |
+| autoScroll   | `boolean`                   | `true`  | Auto-scroll on new events |
+| onEventClick | `(eventId: string) => void` | -       | Event click handler       |
+| showHeader   | `boolean`                   | `true`  | Show the feed header      |
+| className    | `string`                    | -       | Additional CSS classes    |
 
 **Features:**
 
@@ -179,16 +179,29 @@ GPU utilization metrics display.
 
 **Props:**
 
-| Prop        | Type         | Default | Description            |
-| ----------- | ------------ | ------- | ---------------------- |
-| gpuData     | `GpuMetrics` | -       | GPU metrics            |
-| showHistory | `boolean`    | `true`  | Show utilization chart |
+All metric props are optional overrides — the widget fetches its own data via `useGpuStatsQuery` (polling, 5 s) and `useGpuHistoryQuery`, and renders the passed values until data arrives.
+
+| Prop                | Type                        | Default | Description                                       |
+| ------------------- | --------------------------- | ------- | ------------------------------------------------- |
+| gpuName             | `string \| null`            | -       | GPU device name (e.g. `NVIDIA RTX A5500`)         |
+| utilization         | `number \| null`            | -       | GPU utilization 0-100% (initial/override display) |
+| memoryUsed          | `number \| null`            | -       | Memory used in MB                                 |
+| memoryTotal         | `number \| null`            | -       | Memory total in MB                                |
+| temperature         | `number \| null`            | -       | Temperature in Celsius                            |
+| powerUsage          | `number \| null`            | -       | Power usage in Watts                              |
+| inferenceFps        | `number \| null`            | -       | Inference FPS                                     |
+| statsQueryOptions   | `UseGpuStatsQueryOptions`   | -       | Options for the GPU stats query hook              |
+| historyQueryOptions | `UseGpuHistoryQueryOptions` | -       | Options for the GPU history query hook            |
+| timeRange           | `TimeRange`                 | -       | Historical data range (`5m` / `15m` / `60m`)      |
+| historyData         | `GPUStatsSample[]`          | -       | External history data (bypasses internal query)   |
+| className           | `string`                    | -       | Additional CSS classes                            |
 
 **Displays:**
 
 - GPU utilization percentage
 - Memory usage (used/total)
 - Temperature
+- Power usage and inference FPS
 - Historical utilization chart
 
 ---
@@ -201,17 +214,20 @@ AI pipeline queue depth display.
 
 **Props:**
 
-| Prop      | Type            | Default | Description      |
-| --------- | --------------- | ------- | ---------------- |
-| queues    | `QueueStatus[]` | -       | Queue metrics    |
-| showAlert | `boolean`       | `true`  | Alert on backlog |
+| Prop             | Type                           | Default | Description                                        |
+| ---------------- | ------------------------------ | ------- | -------------------------------------------------- |
+| detectionQueue   | `number`                       | -       | Detection queue depth (fallback value)             |
+| analysisQueue    | `number`                       | -       | Analysis queue depth (fallback value)              |
+| queuesStatus     | `QueuesStatusResponse \| null` | -       | Detailed status from `useQueuesStatus` (preferred) |
+| isLoading        | `boolean`                      | -       | Queue status loading state                         |
+| warningThreshold | `number`                       | `10`    | Depth above which a warning is shown               |
+| className        | `string`                       | -       | Additional CSS classes                             |
 
 **Displays:**
 
-- Frame capture queue
-- Detection queue
-- Enrichment queue
-- Alert threshold indicator
+- Detection queue depth
+- Analysis queue depth
+- Warning indicator when a queue exceeds `warningThreshold`
 
 ---
 
@@ -223,17 +239,20 @@ Pipeline latency and throughput metrics.
 
 **Props:**
 
-| Prop      | Type              | Default | Description        |
-| --------- | ----------------- | ------- | ------------------ |
-| telemetry | `PipelineMetrics` | -       | Pipeline metrics   |
-| timeRange | `string`          | `1h`    | Metrics time range |
+The widget fetches its own telemetry (polling, default 5 s) — it takes no metrics prop.
+
+| Prop                    | Type     | Default | Description                                  |
+| ----------------------- | -------- | ------- | -------------------------------------------- |
+| pollingInterval         | `number` | `5000`  | Telemetry polling interval in ms             |
+| queueWarningThreshold   | `number` | `10`    | Queue depth above which a warning is shown   |
+| latencyWarningThreshold | `number` | `10000` | Latency in ms above which a warning is shown |
+| className               | `string` | -       | Additional CSS classes                       |
 
 **Displays:**
 
-- End-to-end latency (p50, p95, p99)
-- Frames processed per second
-- Detection success rate
-- Enrichment latency
+- Processing latency (avg, p95, p99) per pipeline stage
+- Throughput history
+- Queue depth with warning thresholds
 
 ---
 
@@ -245,11 +264,16 @@ Summary card container for dashboard overview.
 
 **Props:**
 
-| Prop      | Type        | Default | Description   |
-| --------- | ----------- | ------- | ------------- |
-| summaries | `Summary[]` | -       | Summary data  |
-| isLoading | `boolean`   | `false` | Loading state |
-| error     | `Error`     | -       | Error state   |
+| Prop         | Type                         | Default | Description                      |
+| ------------ | ---------------------------- | ------- | -------------------------------- |
+| hourly       | `Summary \| null`            | -       | Hourly summary data              |
+| daily        | `Summary \| null`            | -       | Daily summary data               |
+| isLoading    | `boolean`                    | -       | Loading state                    |
+| error        | `Error \| null`              | -       | Error state                      |
+| onRetry      | `() => void`                 | -       | Retry after error                |
+| isRetrying   | `boolean`                    | -       | Retry in progress                |
+| onViewFull   | `(summary: Summary) => void` | -       | "View Full Summary" handler      |
+| onViewEvents | `() => void`                 | -       | Navigate to events (empty state) |
 
 **Related Components:**
 
@@ -268,10 +292,11 @@ Batch processing status aggregator.
 
 **Props:**
 
-| Prop          | Type          | Default | Description          |
-| ------------- | ------------- | ------- | -------------------- |
-| batchStatus   | `BatchStatus` | -       | Current batch status |
-| onViewDetails | `() => void`  | -       | View details handler |
+| Prop       | Type                     | Default | Description                          |
+| ---------- | ------------------------ | ------- | ------------------------------------ |
+| batchState | `BatchAggregatorUIState` | -       | Batch state from `usePipelineStatus` |
+| isLoading  | `boolean`                | -       | Loading state                        |
+| className  | `string`                 | -       | Additional CSS classes               |
 
 **Displays:**
 
@@ -290,12 +315,13 @@ Expandable summary section.
 
 **Props:**
 
-| Prop        | Type        | Default | Description       |
-| ----------- | ----------- | ------- | ----------------- |
-| title       | `string`    | -       | Section title     |
-| summary     | `string`    | -       | Collapsed summary |
-| children    | `ReactNode` | -       | Expanded content  |
-| defaultOpen | `boolean`   | `false` | Initial state     |
+| Prop            | Type                          | Default | Description                        |
+| --------------- | ----------------------------- | ------- | ---------------------------------- |
+| summary         | `Summary`                     | -       | The summary data to display        |
+| defaultExpanded | `boolean`                     | -       | Whether the card starts expanded   |
+| onExpandChange  | `(expanded: boolean) => void` | -       | Fired when expansion state changes |
+| summaryType     | `'hourly' \| 'daily'`         | -       | Used for unique ARIA ID generation |
+| className       | `string`                      | -       | Additional CSS classes             |
 
 ---
 
@@ -307,10 +333,13 @@ Severity level badge component.
 
 **Props:**
 
-| Prop     | Type                                           | Default | Description        |
-| -------- | ---------------------------------------------- | ------- | ------------------ |
-| severity | `'info' \| 'warning' \| 'error' \| 'critical'` | -       | Severity level     |
-| showIcon | `boolean`                                      | `true`  | Show severity icon |
+| Prop      | Type                                               | Default | Description                         |
+| --------- | -------------------------------------------------- | ------- | ----------------------------------- |
+| level     | `SeverityLevel` (`clear/low/medium/high/critical`) | -       | Severity level to display           |
+| count     | `number`                                           | -       | Event count to show                 |
+| pulsing   | `boolean`                                          | -       | Pulsing animation (critical alerts) |
+| size      | `'sm' \| 'md'`                                     | -       | Size variant                        |
+| className | `string`                                           | -       | Additional CSS classes              |
 
 ---
 
@@ -341,21 +370,21 @@ WebSocket Connection
 
 ## Refresh Patterns
 
-| Widget            | Refresh Method    | Interval   |
-| ----------------- | ----------------- | ---------- |
-| StatsRow          | WebSocket push    | Real-time  |
-| CameraGrid        | Thumbnail polling | 5 seconds  |
-| ActivityFeed      | WebSocket push    | Real-time  |
-| GpuStats          | REST polling      | 10 seconds |
-| PipelineQueues    | WebSocket push    | Real-time  |
-| PipelineTelemetry | REST polling      | 30 seconds |
+| Widget            | Refresh Method                                                                                          | Interval                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| StatsRow          | `/ws/system` push (`useSystemStatus`) + event stats queries                                             | System channel cadence (5 s) |
+| CameraGrid        | Manual per-card snapshot refresh (`onSnapshotRefresh`); optional WebSocket status updates               | On demand                    |
+| ActivityFeed      | `/ws/events` push (`useEventStream`)                                                                    | Real-time                    |
+| GpuStats          | `useGpuStatsQuery` polling (`statsQueryOptions.refetchInterval`)                                        | 5 s default                  |
+| PipelineQueues    | `queuesStatus` from `useQueuesStatus` polling, else the `detectionQueue`/`analysisQueue` fallback props | 5 s default                  |
+| PipelineTelemetry | `fetchTelemetry` polling (`pollingInterval`)                                                            | 5 s default                  |
 
 ---
 
 ## Testing
 
 ```bash
-cd frontend && npm test -- --testPathPattern=dashboard
+cd frontend && npm test -- src/components/dashboard
 ```
 
 Test coverage includes:

@@ -70,11 +70,12 @@ flowchart LR
 - **Pending count** - Files awaiting processing (Files and Batch stages)
 
 **Health Status Colors**:
-| Border Color | Status | Meaning |
-|-------------|--------|---------|
-| Emerald | Healthy | Queue < 10, latency normal |
-| Yellow | Degraded | Queue 10-50 or latency 2-5x baseline |
-| Red | Critical | Queue > 50 or latency > 5x baseline |
+
+| Border Color | Status   | Meaning                              |
+| ------------ | -------- | ------------------------------------ |
+| Emerald      | Healthy  | Queue < 10, latency normal           |
+| Yellow       | Degraded | Queue 10-50 or latency 2-5x baseline |
+| Red          | Critical | Queue > 50 or latency > 5x baseline  |
 
 **Background Workers Section**: Below the pipeline shows worker status with a summary badge indicating how many workers are running (e.g., "5/5 Running"). Click "Expand Details" to see the full list with status for each worker.
 
@@ -99,11 +100,12 @@ Worker status dots:
 Circuit breakers protect the system from cascading failures by temporarily blocking requests to failing services. The panel header displays a summary badge (e.g., "3/3 Healthy") showing how many circuit breakers are in a healthy closed state.
 
 **Circuit States**:
-| State | Badge Color | Description |
-|-------|------------|-------------|
-| closed | Green | Normal operation, requests pass through |
-| open | Red | Service failing, requests blocked |
-| half_open | Yellow | Testing if service recovered |
+
+| State     | Badge Color | Description                             |
+| --------- | ----------- | --------------------------------------- |
+| closed    | Green       | Normal operation, requests pass through |
+| open      | Red         | Service failing, requests blocked       |
+| half_open | Yellow      | Testing if service recovered            |
 
 **Circuit Breaker Details** (shown for each circuit breaker):
 
@@ -286,7 +288,7 @@ Generate test data for development with the `TestDataPanel` component:
 
 ### Grafana Integration Banner
 
-A blue Callout banner appears below the page header, linking to Grafana at the configured URL (default: `http://localhost:3002`).
+A blue Callout banner appears below the page header, linking to Grafana at the configured URL (backend config default: `/grafana`, the reverse-proxy sub-path served on the frontend's port; Grafana itself listens on host port 3002).
 
 The banner reads: "View detailed metrics, historical data, and system monitoring dashboards in Grafana." with an "Open Grafana" link that opens in a new tab.
 
@@ -303,7 +305,7 @@ Operations page settings are managed through environment variables and backend c
 
 ### Grafana URL
 
-Set via `GRAFANA_URL` environment variable or backend config API. Default: `http://localhost:3002`. The frontend fetches this from `/api/system/config` on page load.
+Set via `GRAFANA_URL` environment variable or backend config API. Default: `/grafana` (`grafana_url` in `backend/core/config.py`). The frontend fetches this from `/api/system/config` on page load and resolves it with `frontend/src/utils/grafanaUrl.ts` (falling back to `/grafana` if the fetch fails).
 
 ### Cleanup Configuration
 
@@ -390,7 +392,7 @@ The collapsible sections (Circuit Breakers, File Operations) persist their expan
 
 **Resolution**:
 
-1. Check container status in Grafana or with `docker ps`
+1. Check container status in Grafana or with `podman ps`
 2. Review container logs for error messages
 3. Restart the affected container
 4. Check system resources (memory, disk)

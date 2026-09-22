@@ -15,12 +15,15 @@ Home Security Intelligence uses **PostgreSQL 16+** as its primary data store. Po
 
 ### Schema Summary
 
-| Table Group   | Tables                                        | Purpose              |
-| ------------- | --------------------------------------------- | -------------------- |
-| Security Data | `cameras`, `events`, `detections`, `zones`    | Core monitoring data |
-| Alerting      | `alerts`, `alert_rules`                       | Notification system  |
-| System        | `gpu_stats`, `logs`, `audit_logs`, `api_keys` | Operations and audit |
-| Analytics     | `activity_baselines`, `class_baselines`       | Anomaly detection    |
+| Table Group   | Tables                                                                             | Purpose              |
+| ------------- | ---------------------------------------------------------------------------------- | -------------------- |
+| Security Data | `cameras`, `events`, `detections`, `camera_zones`, `line_zones`, `polygon_zones`   | Core monitoring data |
+| Alerting      | `alerts`, `alert_rules`                                                            | Notification system  |
+| System        | `gpu_stats`, `gpu_devices`, `gpu_configurations`, `logs`, `audit_logs`, `api_keys` | Operations and audit |
+| Analytics     | `activity_baselines`, `class_baselines`, `heatmap_data`, `dwell_time_records`      | Anomaly detection    |
+
+The full table list is `__tablename__` in `backend/models/*.py`; see
+[Data Model](../architecture/data-model/README.md).
 
 ### Storage Estimates
 
@@ -40,10 +43,10 @@ GPU stats at 5-second polling adds ~100MB/month.
 
 ```bash
 # Start PostgreSQL container
-docker compose -f docker-compose.prod.yml up -d postgres
+podman compose -f docker-compose.prod.yml up -d postgres
 
 # Verify health
-docker compose -f docker-compose.prod.yml ps postgres
+podman compose -f docker-compose.prod.yml ps postgres
 ```
 
 **Required credentials (must be set in .env):**
@@ -69,16 +72,12 @@ CREATE DATABASE security OWNER security;
 \q
 ```
 
-### Run Migrations
+### Schema Creation
 
-```bash
-source .venv/bin/activate
-cd backend
-alembic upgrade head
-
-# Verify
-alembic current
-```
+There is **no Alembic step** — the Alembic migrations tree was removed (PR #4465). The
+schema is created/synced by `init_db()` (`Base.metadata.create_all`) when the backend
+starts; the backend entrypoint only waits for the database to be reachable. See
+[Migrations](../architecture/data-model/migrations.md).
 
 ---
 
@@ -102,57 +101,29 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 
 ### Connection Pool Settings
 
-Default pool configuration (tunable in `backend/core/database.py`):
+Pool settings come from `backend/core/config.py` and are applied in
+`backend/core/database.py`:
 
-| Setting        | Default | Description         |
-| -------------- | ------- | ------------------- |
-| `pool_size`    | 10      | Base connections    |
-| `max_overflow` | 20      | Burst capacity      |
-| `pool_timeout` | 30s     | Wait for connection |
-| `pool_recycle` | 1800s   | Connection lifetime |
+| Setting                  | Default | Env var                  | Description                                                                |
+| ------------------------ | ------- | ------------------------ | -------------------------------------------------------------------------- |
+| `database_pool_size`     | 20      | `DATABASE_POOL_SIZE`     | Base connections                                                           |
+| `database_pool_overflow` | 30      | `DATABASE_POOL_OVERFLOW` | Burst capacity (20 + 30 = 50 max connections; earlier defaults were 10/20) |
+| `database_pool_timeout`  | 30      | `DATABASE_POOL_TIMEOUT`  | Wait for connection (s)                                                    |
+| `database_pool_recycle`  | 1800    | `DATABASE_POOL_RECYCLE`  | Connection lifetime (s)                                                    |
 
 ---
 
-## Migrations
+## Schema Management (No Alembic)
 
-![Database Migration Timeline](../images/architecture/database-migration-timeline.png)
+There are **no Alembic migrations** in this repository — the migrations tree was removed
+(PR #4465) and there is no `alembic.ini` or `backend/alembic/`. The schema is created by
+`init_db()` via `Base.metadata.create_all` on backend startup: new columns from model
+changes are created for fresh databases, but **existing columns are never altered** by
+`create_all` — a model change that modifies an existing column needs a manual `ALTER
+TABLE` (or a wipe + recreate in dev). The old "Database Migration Timeline" diagram in
+`docs/images/architecture/` is a leftover artifact from the Alembic era.
 
-_Database migration timeline showing Alembic version history and upgrade/downgrade paths._
-
-### Common Commands
-
-```bash
-cd backend
-
-# Apply all migrations
-alembic upgrade head
-
-# Check status
-alembic current
-alembic history
-
-# Roll back one migration
-alembic downgrade -1
-
-# Roll back to specific revision
-alembic downgrade <revision_id>
-```
-
-### Creating Migrations (Developers)
-
-```bash
-# Auto-generate from model changes
-alembic revision --autogenerate -m "description"
-
-# Preview SQL without applying
-alembic upgrade head --sql
-```
-
-### Handling Failures
-
-1. Check error: `alembic upgrade head 2>&1`
-2. Verify state: `SELECT * FROM alembic_version;`
-3. Fix and stamp: `alembic stamp <revision_id>`
+See [Migrations](../architecture/data-model/migrations.md) for the full policy.
 
 ---
 
@@ -162,7 +133,7 @@ alembic upgrade head --sql
 
 ```bash
 # Via container
-docker compose exec postgres psql -U security -d security -c "VACUUM ANALYZE;"
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d security -c "VACUUM ANALYZE;"
 ```
 
 ```sql
@@ -209,8 +180,12 @@ CleanupService runs daily at 03:00.
 
 ### Preview Cleanup
 
+The cleanup endpoint is guarded by `verify_api_key` — send `X-API-Key` when
+`API_KEY_ENABLED=true`:
+
 ```bash
-curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
+curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true" \
+  -H "X-API-Key: your-api-key"
 ```
 
 ### Manual Cleanup
@@ -231,13 +206,13 @@ VACUUM ANALYZE;
 
 ```bash
 # Verify PostgreSQL is running
-docker compose -f docker-compose.prod.yml ps postgres
+podman compose -f docker-compose.prod.yml ps postgres
 
 # Test connectivity
 pg_isready -h localhost -p 5432 -U security
 
 # Check logs
-docker compose -f docker-compose.prod.yml logs postgres
+podman compose -f docker-compose.prod.yml logs postgres
 ```
 
 **Fix:** Ensure `DATABASE_URL` uses `postgres` for container or `localhost` for native.
@@ -246,21 +221,21 @@ docker compose -f docker-compose.prod.yml logs postgres
 
 ```bash
 # Test credentials
-docker compose exec postgres psql -U security -d security -c "SELECT 1;"
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d security -c "SELECT 1;"
 
 # Reset password
-docker compose exec postgres psql -U postgres -c \
+podman compose -f docker-compose.prod.yml exec postgres psql -U postgres -c \
   "ALTER USER security WITH PASSWORD 'new_password';"
 ```
 
-### Migration Conflicts
+### Schema Drift After a Model Change
+
+`create_all` does not alter existing columns. If a deploy changes a column's type or adds
+a constraint, inspect and fix it manually, then restart the backend:
 
 ```bash
-# Check state
-alembic current
-
-# If schema matches but tracking is off
-alembic stamp <revision_id>
+podman compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U security -d security -c "\d+ events"
 ```
 
 ### Slow Queries
@@ -282,7 +257,7 @@ VACUUM ANALYZE;
 
 ```bash
 # Check space
-docker system df
+podman system df
 
 # Emergency cleanup
 DELETE FROM gpu_stats WHERE recorded_at < NOW() - INTERVAL '7 days';
@@ -297,22 +272,19 @@ VACUUM FULL;
 
 ```bash
 # Start database
-docker compose -f docker-compose.prod.yml up -d postgres
+podman compose -f docker-compose.prod.yml up -d postgres
 
 # Connect to database
-docker compose exec postgres psql -U security -d security
-
-# Run migrations
-cd backend && alembic upgrade head
+podman compose -f docker-compose.prod.yml exec postgres psql -U security -d security
 
 # Check health
-docker compose exec postgres pg_isready -U security -d security
+podman compose -f docker-compose.prod.yml exec postgres pg_isready -U security -d security
 
 # Backup
-docker compose exec postgres pg_dump -U security security > backup.sql
+podman compose -f docker-compose.prod.yml exec postgres pg_dump -U security security > backup.sql
 
 # Restore
-docker compose exec -T postgres psql -U security security < backup.sql
+podman compose -f docker-compose.prod.yml exec -T postgres psql -U security security < backup.sql
 ```
 
 ### Connection URLs

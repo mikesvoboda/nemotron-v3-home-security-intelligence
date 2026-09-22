@@ -1,5 +1,7 @@
 # Webhook Management Interface Definitions (NEM-3624)
 
+> **Status:** Implemented — see `backend/api/routes/inbound_webhooks.py`, `backend/api/routes/outbound_webhooks.py`, `frontend/src/pages/WebhooksPage.tsx`.
+
 This document defines the shared interfaces for the Webhook Management feature implementation.
 All agents must follow these interface contracts.
 

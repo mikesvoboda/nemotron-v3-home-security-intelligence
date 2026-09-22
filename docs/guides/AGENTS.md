@@ -2,27 +2,35 @@
 
 ## Purpose
 
-This directory contains comprehensive feature guides for video analytics, zone configuration, face recognition, and observability capabilities in Home Security Intelligence.
+This directory contains comprehensive feature guides for video analytics, zone
+configuration, face recognition, household registration, and observability
+capabilities in Home Security Intelligence.
 
 ## Directory Contents
 
 ```
 docs/guides/
-  AGENTS.md              # This file - directory guide
-  video-analytics.md     # AI pipeline overview, detection, scene understanding
-  zone-configuration.md  # Zone setup, dwell time, line crossing, household integration
-  face-recognition.md    # Face detection, person re-ID, household matching
-  profiling.md           # Pyroscope continuous profiling guide
+  AGENTS.md                        # This file - directory guide
+  video-analytics.md               # AI pipeline overview, detection, scene understanding
+  zone-configuration.md            # Zone setup, dwell time, line crossing, household integration
+  face-recognition.md              # Face detection, person re-ID, household matching
+  household-registration.md        # Household member and vehicle registration workflow
+  profiling.md                     # Pyroscope continuous profiling guide
+  metrics-coverage.md              # Prometheus metric to Grafana panel mapping
+  detection-validation-coverage.md # Synthetic-scenario coverage for detection validation
 ```
 
 ## Guide Overview
 
-| Guide                                       | Purpose                                        | Audience              |
-| ------------------------------------------- | ---------------------------------------------- | --------------------- |
-| [Video Analytics](video-analytics.md)       | Complete AI pipeline documentation             | Developers, operators |
-| [Zone Configuration](zone-configuration.md) | Detection zone setup and intelligence features | Users, operators      |
-| [Face Recognition](face-recognition.md)     | Face detection and person identification       | Users, operators      |
-| [Profiling](profiling.md)                   | Continuous profiling with Pyroscope            | Developers, operators |
+| Guide                                                             | Purpose                                                       | Audience              |
+| ----------------------------------------------------------------- | ------------------------------------------------------------- | --------------------- |
+| [Video Analytics](video-analytics.md)                             | Complete AI pipeline documentation                            | Developers, operators |
+| [Zone Configuration](zone-configuration.md)                       | Detection zone setup and intelligence features                | Users, operators      |
+| [Face Recognition](face-recognition.md)                           | Face detection and person identification                      | Users, operators      |
+| [Household Registration](household-registration.md)               | Register members and vehicles for trust and alert suppression | Users, operators      |
+| [Profiling](profiling.md)                                         | Continuous profiling with Pyroscope                           | Developers, operators |
+| [Metrics Coverage](metrics-coverage.md)                           | Prometheus metrics mapped to Grafana panels                   | Developers, operators |
+| [Detection Validation Coverage](detection-validation-coverage.md) | Improve synthetic-scenario coverage of the detection pipeline | Developers            |
 
 ## Key Topics by Guide
 
@@ -39,7 +47,8 @@ docs/guides/
 
 ### Zone Configuration Guide
 
-- Zone types (entry_point, exit_point, restricted, monitored)
+- CameraZone types (entry_point, driveway, sidewalk, yard, other) and the
+  separate PolygonZone types (monitored, excluded, restricted)
 - Drawing rectangle and polygon zones
 - Dwell time tracking
 - Line crossing detection

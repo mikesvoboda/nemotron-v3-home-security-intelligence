@@ -186,7 +186,7 @@ Log data retention is configured in Loki:
 
 ### Dashboard Shows "No Data"
 
-1. **Check Loki is running**: `docker ps | grep loki`
+1. **Check Loki is running**: `podman ps -a --filter name=loki`
 2. **Verify Alloy is collecting logs**: Check Alloy container logs
 3. **Check time range**: Ensure the selected time range has log data
 4. **Verify datasource**: Confirm Loki is configured in Grafana

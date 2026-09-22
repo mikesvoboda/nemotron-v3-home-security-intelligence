@@ -1,5 +1,7 @@
 # Pyroscope Profiling Page Design
 
+> **Status:** Implemented — `frontend/src/components/pyroscope/PyroscopePage.tsx`.
+
 **Date:** 2026-01-20
 **Status:** Approved
 **Author:** Claude (with Mike Svoboda)

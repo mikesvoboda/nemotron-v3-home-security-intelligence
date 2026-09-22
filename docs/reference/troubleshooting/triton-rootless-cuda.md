@@ -10,11 +10,11 @@
 
 **CUDA Driver API vs Runtime API:**
 
-| Component | API | Rootless behavior |
-|-----------|-----|-------------------|
-| **ai-llm (llama.cpp)** | CUDA Driver API (`libcuda.so`) | ✅ Works |
+| Component               | API                               | Rootless behavior   |
+| ----------------------- | --------------------------------- | ------------------- |
+| **ai-llm (llama.cpp)**  | CUDA Driver API (`libcuda.so`)    | ✅ Works            |
 | **ai-gateway (Triton)** | CUDA Runtime API (`libcudart.so`) | ❌ Fails with err=3 |
-| **nvidia-smi** | NVML (Driver API) | ✅ Works |
+| **nvidia-smi**          | NVML (Driver API)                 | ✅ Works            |
 
 On driver 525+, the CUDA Runtime API may require `nvidia-cap` device access for initialization. Rootless Podman's user namespace prevents proper nvidia-cap passthrough even when `/dev/nvidia0` and other devices are present.
 
@@ -140,12 +140,15 @@ podman compose -f docker-compose.prod.yml -f docker-compose.override.rootless-gp
 ```yaml
 ai-gateway:
   devices:
-    - nvidia.com/gpu=0   # or nvidia.com/gpu=all for multi-GPU
+    - nvidia.com/gpu=all # ALL GPUs via CDI so /dev/nvidia0 exists
   environment:
-    - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-0}
+    - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
 ```
 
-For single GPU (e.g. Brev A100): set `GPU_AI_SERVICES=0` in `.env`.
+The compose file deliberately passes `nvidia.com/gpu=all` (a single `nvidia.com/gpu=N`
+with N>0 creates only `/dev/nvidiaN`, which the CUDA Runtime cannot use) and then
+restricts Triton via `CUDA_VISIBLE_DEVICES`. For single GPU (e.g. Brev A100): set
+`GPU_AI_SERVICES=0` in `.env`.
 
 ### USE_AI_GATEWAY fallback
 

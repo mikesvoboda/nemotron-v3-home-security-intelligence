@@ -1,5 +1,7 @@
 # Full Platform Seed Script Design
 
+> **Status:** Implemented — `scripts/seed-events.py` is now an 8,300-line full-platform seeder.
+
 **Date:** 2026-01-21
 **Goal:** Expand `scripts/seed-events.py` to exercise all 47 database tables with realistic, production-like data.
 

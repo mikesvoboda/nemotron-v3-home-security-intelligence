@@ -336,4 +336,4 @@ For questions or issues, refer to:
 
 - `docs/development/buildkit-secrets.md` - General BuildKit secrets guide
 - `ai/nemotron/README.md` - Nemotron-specific build instructions
-- `CLAUDE.md` - Project guidelines
+- `AGENTS.md` - Project guidelines

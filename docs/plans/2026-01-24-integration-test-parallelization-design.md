@@ -1,5 +1,7 @@
 # Integration Test Parallelization Design
 
+> **Status:** Implemented — integration tests run under pytest-xdist (`scripts/validate.sh`, `.github/workflows/integration-shard.yml`).
+
 > Accelerate integration tests via database-per-worker isolation
 
 **Date:** 2026-01-24

@@ -12,11 +12,11 @@ Auxiliary test suites that run outside the backend/frontend trees: model benchma
 
 ## Directory Contents
 
-| Suite        | Purpose                                                          | How to run                            |
-| ------------ | -------------------------------------------------------------- | ------------------------------------- |
-| `benchmark/` | AI model benchmark tests (engine comparison, quality, metrics) | `uv run pytest tests/benchmark/ -v`   |
-| `load/`      | K6 load-test scripts (cameras, events, WebSocket, Redis)        | `k6 run tests/load/<script>.js`       |
-| `smoke/`     | Post-deployment smoke tests (health, monitoring, WebSocket)     | `uv run pytest tests/smoke/ -v`       |
+| Suite        | Purpose                                                        | How to run                          |
+| ------------ | -------------------------------------------------------------- | ----------------------------------- |
+| `benchmark/` | AI model benchmark tests (engine comparison, quality, metrics) | `uv run pytest tests/benchmark/ -v` |
+| `load/`      | K6 load-test scripts (cameras, events, WebSocket, Redis)       | `k6 run tests/load/<script>.js`     |
+| `smoke/`     | Post-deployment smoke tests (health, monitoring, WebSocket)    | `uv run pytest tests/smoke/ -v`     |
 
 Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGENTS.md` with details.
 
@@ -31,4 +31,4 @@ Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGE
 - **backend/tests/AGENTS.md:** Backend test infrastructure
 - **frontend/tests/e2e/:** E2E test documentation
 - **docs/development/testing.md:** Comprehensive testing guide
-- **CLAUDE.md:** TDD requirements and testing policy
+- **AGENTS.md:** TDD requirements and testing policy

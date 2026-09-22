@@ -35,9 +35,9 @@ The Profiling page provides continuous profiling capabilities powered by Pyrosco
 +----------------------------------------------------------+
 ```
 
-The page embeds the HSI Profiling dashboard from Grafana, which provides:
+The page embeds the HSI Profiling dashboard from Grafana (`/grafana/d/hsi-profiling/hsi-profiling`), which provides:
 
-- **Service Selector** - Choose which service to profile (backend, YOLO26, Nemotron)
+- **Service Selector** - Choose which service to profile (`nemotron-backend` via the Python SDK, `ai-llm` via Alloy eBPF, `alloy` self-profiling)
 - **Profile Type** - Switch between CPU and memory profiles
 - **Time Range** - Select the time period to analyze
 - **Flame Graph** - Visual representation of where time/memory is spent
@@ -82,14 +82,15 @@ The flame graph is the primary visualization for understanding where time or mem
 
 ### Service Selection
 
-The dashboard can profile these services:
+Profiled today (names as they appear in the selector):
 
-| Service          | Description                       |
-| ---------------- | --------------------------------- |
-| **hsi-backend**  | Main FastAPI backend service      |
-| **hsi-yolo26**   | YOLO26 object detection service   |
-| **hsi-nemotron** | Nemotron LLM inference service    |
-| **alloy**        | Grafana Alloy telemetry collector |
+| Service              | How it is profiled                                                                                               |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **nemotron-backend** | In-process Python SDK (`pyroscope-io`), enabled by `PYROSCOPE_ENABLED=true` in compose; CPU at 100 Hz + memory   |
+| **ai-llm**           | Alloy eBPF native profiling — the container carries labels `pyroscope.profile=true` / `pyroscope.service=ai-llm` |
+| **alloy**            | Alloy self-profiling                                                                                             |
+
+Other services (gateway, frontend) have no profiler attached yet.
 
 ## Understanding Profiling Data
 
@@ -150,30 +151,32 @@ The Grafana URL is automatically configured from the backend. If the embedded da
 
 ### Pyroscope Data Source
 
-Pyroscope must be configured as a data source in Grafana:
+The Pyroscope data source is provisioned with Grafana:
 
 ```yaml
 # Grafana provisioning (monitoring/grafana/provisioning/datasources/prometheus.yml)
 - name: Pyroscope
-  type: pyroscope
+  uid: pyroscope
+  type: grafana-pyroscope-datasource
   url: http://pyroscope:4040
   access: proxy
 ```
 
 ### Retention
 
-Profiling data retention is configured in Pyroscope:
+Retention is disk/space-driven, configured in `monitoring/pyroscope/pyroscope-config.yml`:
 
-| Setting          | Default    | Description                   |
-| ---------------- | ---------- | ----------------------------- |
-| Retention Period | 15 days    | How long profile data is kept |
-| Resolution       | 10 seconds | Profile sampling interval     |
+| Setting                        | Default                     | Description                                      |
+| ------------------------------ | --------------------------- | ------------------------------------------------ |
+| `limits` block retention       | 720h (30d)                  | Blocks older than this are marked for deletion   |
+| `pyroscopedb.min_free_disk_gb` | 10                          | Oldest blocks deleted when free disk drops below |
+| `PYROSCOPE_SAMPLE_RATE`        | 100 (backend) / 10 (ai-llm) | CPU samples per second                           |
 
 ## Troubleshooting
 
 ### Dashboard Shows "No Data"
 
-1. **Check Pyroscope is running**: `docker ps | grep pyroscope`
+1. **Check Pyroscope and Alloy are running**: `podman ps -a --filter name=pyroscope --filter name=alloy`
 2. **Verify services are instrumented**: Check that services have Pyroscope SDK configured
 3. **Check time range**: Ensure the selected time range has profiling data
 4. **Verify datasource**: Confirm Pyroscope is configured in Grafana
@@ -208,14 +211,13 @@ The frontend couldn't fetch the Grafana URL from the backend:
 ```mermaid
 flowchart LR
     subgraph Services["Profiled Services"]
-        B[Backend]
-        R[YOLO26]
-        N[Nemotron]
+        B[nemotron-backend]
+        L[ai-llm container]
     end
 
     subgraph Collection["Data Collection"]
-        A[Alloy]
-        P[Pyroscope]
+        A[Alloy eBPF]
+        P[Pyroscope :4040]
     end
 
     subgraph Visualization["Visualization"]
@@ -223,9 +225,8 @@ flowchart LR
         F[Frontend]
     end
 
-    B -->|profiles| A
-    R -->|profiles| A
-    N -->|profiles| A
+    B -->|"pyroscope-io SDK → http://pyroscope:4040"| P
+    L -->|"discovered via pyroscope.profile=true label"| A
     A -->|push| P
     P -->|query| G
     G -->|iframe| F
@@ -254,11 +255,12 @@ flowchart LR
 
 ### Data Flow
 
-1. Services are instrumented with Pyroscope SDK
-2. Profile data is pushed to Grafana Alloy
-3. Alloy forwards profiles to Pyroscope
-4. Grafana queries Pyroscope for visualization
-5. Frontend embeds Grafana dashboard in iframe
+1. The backend's `pyroscope-io` SDK pushes CPU/memory profiles directly to Pyroscope
+   (`PYROSCOPE_URL=http://pyroscope:4040`, `backend/core/telemetry.py`)
+2. Containers labelled `pyroscope.profile=true` (currently `ai-llm`) are profiled natively by
+   Alloy's `pyroscope.ebpf` component and pushed to Pyroscope
+3. Grafana queries Pyroscope for visualization
+4. Frontend embeds the Grafana dashboard in an iframe under the `/grafana/` base path
 
 ---
 

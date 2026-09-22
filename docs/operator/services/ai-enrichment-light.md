@@ -1,205 +1,139 @@
-# AI Enrichment Light Service
+# Enrichment Light (`/enrich-lt`) — inside ai-gateway
 
-The `ai-enrichment-light` service is a lightweight GPU microservice designed for small, efficient AI models that run on a secondary GPU (e.g., NVIDIA A400 4GB). It complements the heavier `ai-enrichment` service by hosting models with lower VRAM requirements.
+> [!IMPORTANT] > `ai-enrichment-light` is **no longer a standalone container**. The lightweight models
+> (pose, threat, person ReID, pet, depth) run as Triton models inside the single
+> `ai-gateway` container and are served by the **`/enrich-lt` router** on the gateway's
+> port (`${AI_GATEWAY_PORT:-8090}`). The old service and its port 8096 no longer exist;
+> the `ai/enrichment-light/` directory survives only as the legacy server image that CI
+> still builds. The heavy counterparts live on the `/enrichment` router in the same
+> container.
 
 ## Overview
 
-| Property             | Value                               |
-| -------------------- | ----------------------------------- |
-| **Container Name**   | `ai-enrichment-light`               |
-| **Port**             | 8096                                |
-| **Expected VRAM**    | ~1.2GB (with TensorRT optimization) |
-| **Target GPU**       | GPU 1 (secondary, e.g., A400 4GB)   |
-| **Source Directory** | `ai/enrichment-light/`              |
+| Property          | Value                                                                                                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Container**     | `ai-gateway` (Triton + FastAPI)                                                                                                                                    |
+| **Router**        | `/enrich-lt` on port 8090                                                                                                                                          |
+| **Source**        | `ai/gateway/adapters/enrichment_light.py`                                                                                                                          |
+| **GPU**           | `GPU_AI_SERVICES` (gateway-wide, default 1)                                                                                                                        |
+| **Model weights** | `${AI_MODELS_PATH:-/export/ai_models}/model-zoo/` (manifest: `models.yml`)                                                                                         |
+| **Preload list**  | `ENRICHMENT_LIGHT_PRELOAD_MODELS` env var — values use the _config_ names: `pose_estimator`, `threat_detector`, `person_reid`, `pet_classifier`, `depth_estimator` |
 
 ## Models Hosted
 
-The service hosts five lightweight models optimized for efficient inference:
+Triton model names in parentheses — this is what health checks and metrics use:
 
-| Model                 | VRAM   | Purpose                    | Security Value                                  |
-| --------------------- | ------ | -------------------------- | ----------------------------------------------- |
-| **YOLOv8n-pose**      | ~300MB | Human pose estimation      | Detect suspicious postures (crouching, running) |
-| **Threat Detector**   | ~400MB | Weapon detection           | Identify knives, guns, bats, etc.               |
-| **OSNet-x0.25**       | ~100MB | Person re-identification   | Track individuals across cameras                |
-| **Pet Classifier**    | ~200MB | Cat/dog classification     | Reduce false positives from pets                |
-| **Depth Anything V2** | ~150MB | Monocular depth estimation | Distance context for detections                 |
+| Model (`triton_name`)           | VRAM (est.) | Purpose                    | Security Value                                  |
+| ------------------------------- | ----------- | -------------------------- | ----------------------------------------------- |
+| **YOLOv8n-pose** (`pose`)       | ~300MB      | Human pose estimation      | Detect suspicious postures (crouching, running) |
+| **Threat Detector** (`threat`)  | ~400MB      | Weapon detection           | Identify knives, guns, bats, etc.               |
+| **OSNet** (`reid`)              | ~100MB      | Person re-identification   | Track individuals across cameras                |
+| **Pet Classifier** (`pet`)      | ~200MB      | Cat/dog classification     | Reduce false positives from pets                |
+| **Depth Anything V2** (`depth`) | ~150MB      | Monocular depth estimation | Distance context for detections                 |
+
+These run inside the gateway's shared VRAM budget (~4GB base, ~6GB peak) — there is no
+separate 4GB-GPU budget any more. Triton runs with `--model-control-mode=none`
+(`ai/gateway/entrypoint.sh`), so every model in the repository is loaded at startup.
 
 ## API Endpoints
 
+All paths are prefixed with `/enrich-lt` on the gateway: `POST
+http://<gateway>:8090/enrich-lt/<endpoint>`.
+
+The image-carrying endpoints (`/pose-analyze`, `/threat-detect`, `/person-reid`,
+`/pet-classify`) take a JSON body with a base64 image **plus a `bbox`** (crop region) —
+`{"image_base64": "...", "bbox": {"x": 0, "y": 0, "width": 100, "height": 200}}` (a
+`[x1, y1, x2, y2]` list also works). Only `/depth-estimate` takes the full image
+(`{"image_base64": "..."}`).
+
 ### Health Check
 
-```http
-GET /health
+```bash
+curl -s http://localhost:8090/enrich-lt/health | jq
 ```
 
-**Response:**
+**Response** (per-model Triton readiness):
 
 ```json
 {
   "status": "healthy",
-  "models_loaded": {
-    "pose_estimator": true,
-    "threat_detector": true,
-    "person_reid": true,
-    "pet_classifier": true,
-    "depth_estimator": true
-  },
-  "gpu_available": true,
-  "gpu_memory_used_gb": 1.15,
-  "uptime_seconds": 3600.5
+  "models": {
+    "pose": true,
+    "threat": true,
+    "reid": true,
+    "pet": true,
+    "depth": true
+  }
 }
 ```
+
+`status` is `"degraded"` when any model is not ready.
 
 ### Pose Analysis
 
 ```http
-POST /pose-analyze
+POST /enrich-lt/pose-analyze
 Content-Type: application/json
 
-{
-  "image_base64": "<base64-encoded-image>"
-}
+{ "image_base64": "<base64-crop>", "bbox": { "x": 100, "y": 80, "width": 120, "height": 300 } }
 ```
 
-**Response:**
-
-```json
-{
-  "keypoints": [
-    { "name": "nose", "x": 320, "y": 150, "confidence": 0.95 },
-    { "name": "left_shoulder", "x": 280, "y": 200, "confidence": 0.92 }
-  ],
-  "posture": "standing",
-  "alerts": [],
-  "inference_time_ms": 15.3
-}
-```
+Returns `keypoints`, a derived `posture` (e.g. `standing`, `crouching`), `alerts`, and
+`inference_time_ms`.
 
 ### Threat Detection
 
 ```http
-POST /threat-detect
-Content-Type: application/json
-
-{
-  "image_base64": "<base64-encoded-image>"
-}
+POST /enrich-lt/threat-detect
 ```
 
-**Response:**
-
-```json
-{
-  "threats_detected": [
-    {
-      "class": "knife",
-      "confidence": 0.87,
-      "bbox": { "x": 100, "y": 150, "width": 50, "height": 120 }
-    }
-  ],
-  "is_threat": true,
-  "max_confidence": 0.87,
-  "inference_time_ms": 12.5
-}
-```
+Returns `threats_detected[]` (class, confidence, bbox), `is_threat`, `max_confidence`.
 
 ### Person Re-identification
 
 ```http
-POST /person-reid
-Content-Type: application/json
-
-{
-  "image_base64": "<base64-encoded-image>"
-}
+POST /enrich-lt/person-reid
 ```
 
-**Response:**
-
-```json
-{
-  "embedding": [0.123, -0.456, 0.789, ...],
-  "embedding_dim": 512,
-  "inference_time_ms": 8.2
-}
-```
+Returns the embedding vector and `inference_time_ms`.
 
 ### Pet Classification
 
 ```http
-POST /pet-classify
-Content-Type: application/json
-
-{
-  "image_base64": "<base64-encoded-image>"
-}
+POST /enrich-lt/pet-classify
 ```
 
-**Response:**
-
-```json
-{
-  "pet_type": "dog",
-  "breed": "unknown",
-  "confidence": 0.94,
-  "is_household_pet": true,
-  "inference_time_ms": 10.1
-}
-```
+Returns `pet_type`, `confidence`, and household-pet matching.
 
 ### Depth Estimation
 
 ```http
-POST /depth-estimate
+POST /enrich-lt/depth-estimate
 Content-Type: application/json
 
-{
-  "image_base64": "<base64-encoded-image>"
-}
+{ "image_base64": "<base64-full-image>" }
 ```
 
-**Response:**
-
-```json
-{
-  "depth_map_base64": "<base64-encoded-png>",
-  "min_depth": 0.15,
-  "max_depth": 0.95,
-  "mean_depth": 0.52,
-  "inference_time_ms": 18.7
-}
-```
+Returns normalized depth statistics (min/max/mean) for the frame.
 
 ### Prometheus Metrics
 
-```http
-GET /metrics
+```bash
+curl -s http://localhost:8090/metrics      # gateway + merged Triton metrics
+curl -s http://localhost:8002/metrics      # Triton native (per-model)
 ```
 
-Returns Prometheus-formatted metrics for monitoring.
+Gateway-level metrics emitted per call: `hsi_ai_inference_duration_seconds{service,
+endpoint}` (histogram) and `hsi_ai_inference_errors_total{service, endpoint}` (counter);
+Triton adds `nv_inference_*` per model. Prometheus scrapes both via the `triton-metrics`
+job. The retired `enrichment_light_*` metrics no longer exist.
 
 ## Configuration
 
-### Environment Variables
-
-| Variable            | Default                                            | Description                 |
-| ------------------- | -------------------------------------------------- | --------------------------- |
-| `HOST`              | `0.0.0.0`                                          | Server bind address         |
-| `PORT`              | `8096`                                             | Server port                 |
-| `POSE_MODEL_PATH`   | `/models/yolov8n-pose/yolov8n-pose.pt`             | Pose model path             |
-| `THREAT_MODEL_PATH` | `/models/threat-detection-yolov8n/weights/best.pt` | Threat model path           |
-| `REID_MODEL_PATH`   | `/models/osnet-x0-25/osnet_x0_25.pth`              | Re-ID model path            |
-| `PET_MODEL_PATH`    | `/models/pet-classifier`                           | Pet classifier path         |
-| `DEPTH_MODEL_PATH`  | `/models/depth-anything-v2-small`                  | Depth model path            |
-| `PYROSCOPE_ENABLED` | `true`                                             | Enable continuous profiling |
-| `PYROSCOPE_URL`     | `http://pyroscope:4040`                            | Pyroscope server URL        |
-
-### Model Assignment
-
-Models are assigned to either `light` or `heavy` service via environment variables:
+### Tier Routing (which service handles which model)
 
 ```bash
-# In docker-compose.prod.yml or .env
+# .env — route a model to the light or heavy router
 ENRICHMENT_POSE_SERVICE=light      # Default: light
 ENRICHMENT_THREAT_SERVICE=light    # Default: light
 ENRICHMENT_REID_SERVICE=light      # Default: light
@@ -207,170 +141,76 @@ ENRICHMENT_PET_SERVICE=light       # Default: light
 ENRICHMENT_DEPTH_SERVICE=light     # Default: light
 ```
 
-### Preload Configuration
+The backend's `enrichment_client.py` resolves each model's URL from these values
+against `ENRICHMENT_LIGHT_URL` (`http://ai-gateway:8090/enrich-lt` in compose) or
+`ENRICHMENT_URL` (`…/enrichment`).
 
-Control which models load at startup vs on-demand:
-
-```bash
-# Preload specific models at startup (comma-separated)
-ENRICHMENT_LIGHT_PRELOAD_MODELS=pose_estimator,threat_detector
-
-# Empty = all models load on-demand (saves startup time)
-ENRICHMENT_LIGHT_PRELOAD_MODELS=
-```
-
-Available model names for preloading:
-
-- `pose_estimator`
-- `threat_detector`
-- `person_reid`
-- `pet_classifier`
-- `depth_estimator`
-
-### TensorRT Acceleration
-
-YOLO models support TensorRT optimization for faster inference:
+### Preload
 
 ```bash
-POSE_USE_TENSORRT=true      # Default: true
-THREAT_USE_TENSORRT=true    # Default: true
+# Models loaded eagerly at gateway startup instead of on demand (comma-separated)
+ENRICHMENT_LIGHT_PRELOAD_MODELS=pose_estimator,threat_detector,person_reid,pet_classifier,depth_estimator
 ```
 
-TensorRT engines are cached in `/cache/tensorrt/` and persist across container restarts.
+### Quantization / device overrides
 
-## Docker Compose Configuration
-
-```yaml
-ai-enrichment-light:
-  build:
-    context: .
-    dockerfile: ai/enrichment-light/Dockerfile
-  ports:
-    - '8096:8096'
-  volumes:
-    - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
-    - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-    - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
-    - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-    - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
-    - enrichment-light-tensorrt-cache:/cache/tensorrt
-  environment:
-    - SERVICE_NAME=ai-enrichment-light
-    - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-    - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_LIGHT_PRELOAD_MODELS:-}
-  deploy:
-    resources:
-      reservations:
-        devices:
-          - driver: nvidia
-            device_ids: ['${GPU_CLIP:-1}']
-            capabilities: [gpu]
-```
+Per-model quantization toggles (`VEHICLE_QUANTIZED`, `DEMOGRAPHICS_QUANTIZED`) and the
+`device_env_var` entries in `models.yml` (e.g. `POSE_DEVICE`) are applied by
+`ai/gateway/entrypoint.sh` and `patch_triton_configs.py` at container start — see
+[GPU Setup](../gpu-setup.md).
 
 ## Backend Integration
 
-The backend routes requests to the appropriate enrichment service based on configuration:
-
 ```python
-# From backend/services/enrichment_client.py
-ENRICHMENT_URL = os.environ.get("ENRICHMENT_URL", "http://ai-enrichment:8094")
-ENRICHMENT_LIGHT_URL = os.environ.get("ENRICHMENT_LIGHT_URL", "http://ai-enrichment-light:8096")
-
-# Route based on model assignment
-if os.environ.get("ENRICHMENT_POSE_SERVICE", "light") == "light":
-    response = await httpx.post(f"{ENRICHMENT_LIGHT_URL}/pose-analyze", ...)
+# backend/services/enrichment_client.py (simplified)
+light_url = settings.enrichment_light_url          # ENRICHMENT_LIGHT_URL
+if settings.enrichment_pose_service == "light":
+    await client.post(f"{light_url}/pose-analyze", json={...})
 else:
-    response = await httpx.post(f"{ENRICHMENT_URL}/pose-analyze", ...)
+    await client.post(f"{settings.enrichment_url}/pose-analyze", json={...})
 ```
 
-## Prometheus Metrics
+## Health Checks (compose)
 
-| Metric                                                        | Type      | Description               |
-| ------------------------------------------------------------- | --------- | ------------------------- |
-| `enrichment_light_inference_requests_total{endpoint, status}` | Counter   | Total inference requests  |
-| `enrichment_light_inference_latency_seconds{endpoint}`        | Histogram | Inference latency         |
-| `enrichment_light_gpu_memory_used_gb`                         | Gauge     | GPU memory usage          |
-| `enrichment_light_model_loaded{model}`                        | Gauge     | Model loaded status (0/1) |
-
-## Health Checks
-
-The service uses an HTTP health check:
+The router has no separate healthcheck — container health is the gateway's aggregate
+check:
 
 ```yaml
+# ai-gateway (docker-compose.prod.yml)
 healthcheck:
-  test:
-    [
-      'CMD',
-      'python',
-      '-c',
-      "import httpx; r = httpx.get('http://localhost:8096/health'); r.raise_for_status()",
-    ]
-  interval: 30s
-  timeout: 10s
-  start_period: 90s
-  retries: 3
+  test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
+  start_period: 180s # Triton initialises 13 models
 ```
 
-The 90-second start period allows time for model loading.
+`/health` reports `healthy` only when Triton's server is ready **and** every model is
+ready.
 
-## GPU Memory Budget
+## Light vs Heavy Enrichment (both on :8090)
 
-Typical VRAM allocation on a 4GB GPU:
-
-| Model             | VRAM (TensorRT) | VRAM (PyTorch) |
-| ----------------- | --------------- | -------------- |
-| YOLOv8n-pose      | ~200MB          | ~300MB         |
-| Threat Detector   | ~250MB          | ~400MB         |
-| OSNet-x0.25       | ~100MB          | ~100MB         |
-| Pet Classifier    | ~150MB          | ~200MB         |
-| Depth Anything V2 | ~150MB          | ~150MB         |
-| **Total**         | **~850MB**      | **~1.2GB**     |
-
-This leaves headroom for CUDA context and dynamic allocations on a 4GB GPU.
-
-## Comparison: Light vs Heavy Enrichment
-
-| Aspect          | ai-enrichment-light            | ai-enrichment                         |
-| --------------- | ------------------------------ | ------------------------------------- |
-| **Port**        | 8096                           | 8094                                  |
-| **Target GPU**  | GPU 1 (A400 4GB)               | GPU 0 (A5500 24GB)                    |
-| **VRAM Budget** | ~1.2GB                         | ~6.8GB                                |
-| **Model Types** | Small, efficient               | Large transformers                    |
-| **Models**      | Pose, threat, reid, pet, depth | Vehicle, fashion, age, gender, action |
+| Aspect        | `/enrich-lt`                           | `/enrichment`                                                          |
+| ------------- | -------------------------------------- | ---------------------------------------------------------------------- |
+| **Models**    | pose, threat, reid, pet, depth         | vehicle, clothing, demographics, action (+ pose/pet/depth also served) |
+| **Character** | Small, efficient                       | Larger transformers                                                    |
+| **GPU**       | shared gateway GPU (`GPU_AI_SERVICES`) | shared gateway GPU                                                     |
 
 ## Troubleshooting
 
-### Model Not Loading
-
-Check model assignment:
-
 ```bash
-# Verify model is assigned to light service
-echo $ENRICHMENT_POSE_SERVICE  # Should be 'light'
+# Which models are ready?
+curl -s http://localhost:8090/enrich-lt/health | jq
 
-# Check preload configuration
-echo $ENRICHMENT_LIGHT_PRELOAD_MODELS
+# Triton's view of one model
+podman exec ai-gateway curl -s http://localhost:8002/v2/models/pose | jq '.state,.ready'
+
+# Model-load failures show up first in the gateway log
+podman logs ai-gateway 2>&1 | grep -iE "pose|threat|reid|pet|depth|error"
+
+# Weights present on the host?
+ls /export/ai_models/model-zoo/   # yolov8n-pose/, osnet-ain-x1-0/, threat-detection*/, pet-classifier/, depth-anything-v2-tiny/
 ```
 
-### GPU Memory Issues
-
-```bash
-# Check GPU memory from container
-docker exec ai-enrichment-light nvidia-smi
-
-# Check which models are loaded
-curl http://localhost:8096/health | jq '.models_loaded'
-```
-
-### TensorRT Engine Not Building
-
-```bash
-# Check TensorRT cache
-docker exec ai-enrichment-light ls -la /cache/tensorrt/
-
-# View container logs for TensorRT build progress
-docker logs ai-enrichment-light 2>&1 | grep -i tensorrt
-```
+If a model reports `degraded`, run `./ai/download_models.sh` (manifest `models.yml`) and
+restart the gateway: `podman compose -f docker-compose.prod.yml restart ai-gateway`.
 
 ## Related Documentation
 

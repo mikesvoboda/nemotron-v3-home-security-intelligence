@@ -24,7 +24,7 @@ This rule is non-negotiable. If tests are failing:
 2. **FIX THE TESTS** - If the tests are incorrect
 3. **NEVER** disable, skip, or lower coverage thresholds
 
-See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete policy on testing requirements.
+See [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) for the complete policy on testing requirements.
 
 ## Test Architecture
 
@@ -36,9 +36,9 @@ _Frontend test provider tree showing the testing wrapper hierarchy for React Tes
 flowchart TB
     subgraph Pyramid["Test Pyramid"]
         direction TB
-        E2E["E2E Tests<br/>2358 tests / 17 files"]
-        INT["Integration Tests<br/>1499 tests"]
-        UNIT["Unit Tests<br/>7193 tests"]
+        E2E["E2E Tests<br/>1616 tests / 43 spec files"]
+        INT["Integration Tests<br/>4174 tests"]
+        UNIT["Unit Tests<br/>27726 tests"]
     end
 
     subgraph Coverage["Coverage Targets"]
@@ -62,19 +62,19 @@ flowchart TB
 
 ### Test Categories
 
-| Category                      | Location                     | Count        | Timeout | Coverage Target |
-| ----------------------------- | ---------------------------- | ------------ | ------- | --------------- |
-| **Backend Unit Tests**        | `backend/tests/unit/`        | 27,555 tests | 1s      | see below¹      |
-| **Backend Integration**       | `backend/tests/integration/` | 1499 tests   | 5s      | N/A (combined)  |
-| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files      | 30s     | -               |
-| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file       | -       | -               |
-| **Benchmarks**                | `backend/tests/benchmarks/`  | 3 files      | -       | -               |
-| **Chaos Tests**               | `backend/tests/chaos/`       | -            | -       | -               |
-| **Contract Tests**            | `backend/tests/contracts/`   | -            | -       | -               |
-| **Security Tests**            | `backend/tests/security/`    | -            | -       | -               |
-| **Test Utilities**            | `backend/tests/utils/`       | -            | -       | -               |
-| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -            | -       | 83%+            |
-| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 2358 tests   | 15s     | -               |
+| Category                      | Location                     | Count        | Timeout | Coverage Target          |
+| ----------------------------- | ---------------------------- | ------------ | ------- | ------------------------ |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 27,726 tests | 1s      | see below¹               |
+| **Backend Integration**       | `backend/tests/integration/` | 4,174 tests  | 5s      | N/A (combined)           |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files      | 30s     | -                        |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file       | -       | -                        |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files      | -       | -                        |
+| **Chaos Tests**               | `backend/tests/chaos/`       | -            | -       | -                        |
+| **Contract Tests**            | `backend/tests/contracts/`   | -            | -       | -                        |
+| **Security Tests**            | `backend/tests/security/`    | -            | -       | -                        |
+| **Test Utilities**            | `backend/tests/utils/`       | -            | -       | -                        |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -            | -       | floors 80/74.6/78.4/80.9 |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 1616 tests   | 15s     | -                        |
 
 **Note:** The executed backend floor is **80% on combined unit+integration**
 (`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
@@ -154,7 +154,7 @@ expected both rises "once WP2.1's seed fix reaches measurement").
 Until the first fixed-seed run lands, **the CI figure must not be used as the
 tier's strength** and the local figure must not be called "the CI coverage".
 `scripts/test_coverage_denominator.py` pins this section's claims.
-Frontend thresholds: 83% statements, 77% branches, 81% functions, 84% lines (see `vite.config.ts`).
+Frontend thresholds (R-1, measured): 80% statements, 74.6% branches, 78.4% functions, 80.9% lines (see `vite.config.ts` `coverage.thresholds`).
 
 ## Quick Reference
 
@@ -225,7 +225,7 @@ npm run test:e2e
 
 ### Multi-Browser E2E Tests (Playwright)
 
-The frontend E2E test suite runs **2358 tests across 17 spec files** using Playwright. Tests execute across multiple browsers and viewport configurations for comprehensive cross-platform coverage.
+The frontend E2E suite runs **1,616 tests across 43 top-level spec files** (53 including `user-journeys/`, plus a separate `visual/` suite) using Playwright. Tests execute across multiple browsers and viewport configurations for comprehensive cross-platform coverage.
 
 #### Browser and Viewport Matrix
 
@@ -860,14 +860,12 @@ pytest backend/tests/ --cov=backend --cov-report=term-missing
 
 ### Pre-push Hook
 
-The `fast-test` hook runs unit tests before every push ([.pre-commit-config.yaml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.pre-commit-config.yaml#L106)):
-
-```yaml
-- id: fast-test
-  name: Quick Backend Tests (Unit Only)
-  entry: bash -c 'source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no -x -n0'
-  stages: [pre-push]
-```
+The `parallel-tests` hook runs the WP2.4 fast tier before every push
+([.pre-commit-config.yaml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.pre-commit-config.yaml)):
+3 jobs selected for the pushed diff — API types contract check, backend
+unit+contracts selection (`scripts/fast_select.py`), and frontend
+`vitest --related` — under a `FAST_PREPUSH_BUDGET` (default 900s). See
+[Hooks Guide](hooks.md#parallel-tests).
 
 ### CI Pipeline
 
@@ -902,12 +900,12 @@ podman-compose -f docker-compose.prod.yml up -d postgres redis
 pytest backend/tests/ -v
 ```
 
-Default URLs (set in `.env` or via `./setup.sh`):
+Default URLs (set in `.env` or via `python setup.py`):
 
 - PostgreSQL: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
 - Redis: `redis://localhost:6379/15` (DB 15 for test isolation)
 
-> **Note:** Tests use the password configured in your `.env` file. Run `./setup.sh` to generate secure credentials.
+> **Note:** Tests use the password configured in your `.env` file. Run `python setup.py` to generate secure credentials.
 
 ### Parallel Test Isolation
 

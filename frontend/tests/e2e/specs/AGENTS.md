@@ -6,50 +6,52 @@ Playwright test specification files that verify end-to-end application behavior.
 
 ## Test Files
 
-| File                           | Focus Area                                    |
-| ------------------------------ | --------------------------------------------- |
-| `accessibility.spec.ts`        | WCAG 2.1 AA compliance testing                |
-| `ai-audit.spec.ts`             | AI pipeline audit page                        |
-| `ai-error-handling.spec.ts`    | AI-specific error handling scenarios          |
-| `ai-performance.spec.ts`       | AI performance metrics and monitoring         |
-| `alert-rules.spec.ts`          | Alert rule configuration and management       |
-| `alerts.spec.ts`               | Alert management and filtering                |
-| `alerts-workflow.spec.ts`      | Alert workflow end-to-end scenarios           |
-| `analytics-advanced.spec.ts`   | Advanced analytics features                   |
-| `analytics.spec.ts`            | Analytics page and charts                     |
-| `audit.spec.ts`                | Audit log viewer                              |
-| `batch-operations.spec.ts`     | Batch operations and bulk actions             |
-| `calibration.spec.ts`          | Camera calibration features                   |
-| `concurrent-operations.spec.ts`| Concurrent operation handling                 |
-| `dashboard.spec.ts`            | Dashboard components and states               |
-| `entities.spec.ts`             | Entity tracking                               |
-| `entity-trust.spec.ts`         | Entity trust and verification features        |
-| `error-handling.spec.ts`       | Error states and recovery                     |
-| `event-detail.spec.ts`         | Event detail modal and interactions           |
-| `event-export.spec.ts`         | Event export functionality                    |
-| `events.spec.ts`               | Event timeline and details                    |
-| `feedback.spec.ts`             | User feedback system                          |
-| `forms-validation.spec.ts`     | Form validation across the application        |
-| `jobs.spec.ts`                 | Background jobs monitoring                    |
-| `logs.spec.ts`                 | Application logs viewer                       |
-| `mobile-optimization.spec.ts`  | Mobile-specific optimizations                 |
-| `navigation.spec.ts`           | Route navigation and transitions              |
-| `network-conditions.spec.ts`   | Network condition simulation tests            |
-| `performance.spec.ts`          | Performance metrics and monitoring            |
-| `realtime.spec.ts`             | WebSocket and live updates                    |
-| `realtime-updates.spec.ts`     | Real-time update scenarios                    |
-| `responsive.spec.ts`           | Mobile/tablet viewports                       |
-| `retry-isolation.spec.ts`      | Retry mechanism isolation tests               |
-| `settings.spec.ts`             | Application settings                          |
-| `smoke.spec.ts`                | Basic loading and visibility                  |
-| `system.spec.ts`               | System monitoring panels                      |
-| `test-tagging.spec.ts`         | Test tagging demonstration                    |
-| `trash.spec.ts`                | Trash/deleted items management                |
-| `user-journeys/`               | User journey test subdirectory                |
-| `utils-demo.spec.ts`           | Utility demonstration tests                   |
-| `video-playback.spec.ts`       | Video playback features                       |
-| `websocket.spec.ts`            | WebSocket connection tests                    |
-| `zones.spec.ts`                | Camera zone configuration                     |
+| File                            | Focus Area                              |
+| ------------------------------- | --------------------------------------- |
+| `accessibility.spec.ts`         | WCAG 2.1 AA compliance testing          |
+| `ai-audit.spec.ts`              | AI pipeline audit page                  |
+| `ai-error-handling.spec.ts`     | AI-specific error handling scenarios    |
+| `ai-performance.spec.ts`        | AI performance metrics and monitoring   |
+| `alert-rules.spec.ts`           | Alert rule configuration and management |
+| `alerts.spec.ts`                | Alert management and filtering          |
+| `alerts-workflow.spec.ts`       | Alert workflow end-to-end scenarios     |
+| `analytics-advanced.spec.ts`    | Advanced analytics features             |
+| `analytics.spec.ts`             | Analytics page and charts               |
+| `audit.spec.ts`                 | Audit log viewer                        |
+| `batch-operations.spec.ts`      | Batch operations and bulk actions       |
+| `build-validation.spec.ts`      | Build output validation                 |
+| `calibration.spec.ts`           | Camera calibration features             |
+| `concurrent-operations.spec.ts` | Concurrent operation handling           |
+| `dashboard.spec.ts`             | Dashboard components and states         |
+| `entities.spec.ts`              | Entity tracking                         |
+| `entity-trust.spec.ts`          | Entity trust and verification features  |
+| `error-handling.spec.ts`        | Error states and recovery               |
+| `event-detail.spec.ts`          | Event detail modal and interactions     |
+| `event-export.spec.ts`          | Event export functionality              |
+| `events.spec.ts`                | Event timeline and details              |
+| `feedback.spec.ts`              | User feedback system                    |
+| `forms-validation.spec.ts`      | Form validation across the application  |
+| `jobs.spec.ts`                  | Background jobs monitoring              |
+| `logs.spec.ts`                  | Application logs viewer                 |
+| `mobile-optimization.spec.ts`   | Mobile-specific optimizations           |
+| `model-zoo.spec.ts`             | Model Zoo admin page                    |
+| `navigation.spec.ts`            | Route navigation and transitions        |
+| `network-conditions.spec.ts`    | Network condition simulation tests      |
+| `performance.spec.ts`           | Performance metrics and monitoring      |
+| `realtime.spec.ts`              | WebSocket and live updates              |
+| `realtime-updates.spec.ts`      | Real-time update scenarios              |
+| `responsive.spec.ts`            | Mobile/tablet viewports                 |
+| `retry-isolation.spec.ts`       | Retry mechanism isolation tests         |
+| `settings.spec.ts`              | Application settings                    |
+| `smoke.spec.ts`                 | Basic loading and visibility            |
+| `system.spec.ts`                | System monitoring panels                |
+| `test-tagging.spec.ts`          | Test tagging demonstration              |
+| `trash.spec.ts`                 | Trash/deleted items management          |
+| `user-journeys/`                | User journey test subdirectory          |
+| `utils-demo.spec.ts`            | Utility demonstration tests             |
+| `video-playback.spec.ts`        | Video playback features                 |
+| `websocket.spec.ts`             | WebSocket connection tests              |
+| `zones.spec.ts`                 | Camera zone configuration               |
 
 ## Test Structure Pattern
 

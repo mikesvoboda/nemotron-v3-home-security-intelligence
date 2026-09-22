@@ -59,8 +59,8 @@ WP0.9's coverage-diff gate honestly logged a skip, then reported "All test cover
 passed." That was the lying signal the headline named. It is no longer the state of the repo.
 
 _Fix, re-verified at `origin/main` [V]:_ shards set `COVERAGE_FILE: coverage-unit-shard-N-pyX.Y.dat`
-(`ci.yml:413`) and upload the `.dat` (`:498`); the merge job now tests
-`compgen -G "coverage-reports/*.dat"` and combines real data files (`ci.yml:552-553`). The
+(`ci.yml:422`) and upload the `.dat` (`:498`); the merge job now tests
+`compgen -G "coverage-reports/*.dat"` and combines real data files (`ci.yml:561`). The
 merged path publishes `coverage-baseline.json` from real merged data (line-split json added by
 WP2.2), and `check-test-coverage-gate.py` enforces a strict `current < base` **fail** on that
 baseline. One honest annotation to the original consequence: per ruling A7.1, `fail_under = 85`
@@ -77,7 +77,7 @@ Measured actuals reported as 79.97 / 74.60 / 78.44 / 80.93 — **below every thr
 
 _Fix, re-verified at `origin/main` [V]:_ the merge-tier shards now run
 `--coverage --coverage.reporter=json --coverage.reportsDirectory=coverage/shard-N` with thresholds
-zeroed per-shard (`ci.yml:1774-1780` — the "do NOT add `--coverage`" note that used to sit here
+zeroed per-shard (`ci.yml:1798-1801` — the "do NOT add `--coverage`" note that used to sit here
 was itself corrected: per-shard thresholds would fail on partial data, so enforcement was moved,
 not removed). A stdlib-only Node merger (`frontend/scripts/merge-shard-coverage.mjs`, with its own
 `node --test` suite run in-job) combines the shard reports, and since WP2.3 it **enforces** the
@@ -142,7 +142,8 @@ _Still open [V]:_ the done-when drift. The close-out PR (#6556) was **closed unm
 2026-09-19T14:28Z and its branch (`feat/wp44-closeout`) never landed — 25 of its 26
 survivor dossiers are absent from `main` (only `container_discovery` arrived, via #6555).
 The triage corpus itself — the TEST-GAP/EQUIVALENT/LOW-VALUE classification records under
-`.wp25-feed/` — **is** on `main` (added by #6552, #6555), so the licensed deletion candidates
+`.wp25-feed/` — **is** on `main` (added by #6552, #6555; relocated to `archive/wp25-feed/` by
+`#6637` on 2026-09-21), so the licensed deletion candidates
 are landable; nobody has spent the day §3 recommended for it. This is now a scheduled-work
 item (WP4.4 survivor-triage dispatch on the fresh full-tree census), not a discovery.
 
@@ -247,12 +248,14 @@ The recommendation's vehicle is gone: **PR #6556 was closed unmerged on 2026-09-
 substance did **not** fully re-land:
 
 - The triage corpus **is** on `main`: `.wp25-feed/` (queue index, classification records,
-  triage evidence — 2 872 paths) arrived via #6552/#6555 on 2026-09-18/19. Its own handoff
+  triage evidence — 2 872 paths) arrived via #6552/#6555 on 2026-09-18/19; #6637 moved it to
+  `archive/wp25-feed/` on 2026-09-21. Its own handoff
   records the split as TEST-GAP ~67 / EQUIVALENT ~22 / LOW-VALUE ~10 (the 62/23/15 above was
   the earlier wave's figure) with ~220 drafted items UNVERIFIED.
 - What did **not** land: #6556's census perf fix (probes `-n 0` + module sharding, 3.5-4.5 h →
-  ~25 min/module) and 25 of its 26 survivor dossiers — `scripts/.wp44-fanout.py` on `main` is
-  the pre-perf version; only `container_discovery`'s dossier arrived (#6555). The branch
+  ~25 min/module) and 25 of its 26 survivor dossiers — `.wp44-fanout.py` on `main` (since #6637
+  at `archive/.wp44-fanout.py`, formerly `scripts/.wp44-fanout.py`) is the pre-perf version; only
+  `container_discovery`'s dossier arrived (#6555). The branch
   `feat/wp44-closeout` still exists remotely and carries them; the next WP4.4 day should
   re-land the runner change, not re-derive it.
 - _"Do not re-baseline the ratchet to clear the red"_ — kept; this became standing ruling R-1
@@ -316,7 +319,8 @@ in order:
 
 1. **§1.6's import-bound seam fixture** — the one test artifact that most directly protects a
    pipeline swap, and the only §1 item whose core defect still exists.
-2. **§1.5's deletion-record cashing** — the corpus is on `main` (`.wp25-feed/`); one day with the
+2. **§1.5's deletion-record cashing** — the corpus is on `main` (quarantined at
+   `archive/wp25-feed/` by #6637); one day with the
    mode inverted per §3, still unspent.
 3. **§1.7's frontend classification** — the blast radius that plausibly exceeds the backend's is
    still unmeasured.

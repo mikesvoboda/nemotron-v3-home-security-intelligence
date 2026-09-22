@@ -47,7 +47,7 @@ This project follows **Test-Driven Development (TDD)**. Write tests before imple
 | Frontend            | floors = measured values 80/74.6/78.4/80.9 (R-1), enforced by merge-shard-coverage | `cd frontend && npm test`                      |
 | **Full validation** | **80% combined absolute floor** (`--fail-under=80`)                                | `./scripts/validate.sh`                        |
 
-> Authoritative current numbers and rulings live in `CLAUDE.md` (Testing table) and
+> Authoritative current numbers and rulings live in `AGENTS.md` (Testing & Coverage Gates) and
 > `docs/development/testing.md` — this table states gate semantics, not aspirations.
 
 Always run full validation before opening a pull request:
@@ -85,9 +85,7 @@ These hooks run linting and formatting checks automatically on every commit and 
 
 ## Issue Tracking
 
-- **GitHub Issues** -- for bug reports, feature requests, and discussion
-- Labels: `good-first-issue`, `help-wanted`, `frontend`, `backend`, `ai`, `documentation`
-- Issues sync automatically to our internal planning tool
+Active work is tracked in **Linear** (team NEM): [Active board](https://linear.app/nemotron-v3-home-security/team/NEM/active). GitHub Issues accept bug reports and feature requests; a nightly workflow (`.github/workflows/linear-github-sync.yml`) closes GitHub issues whose matching Linear tasks are done.
 
 ## Finding Your Way Around
 
@@ -99,7 +97,7 @@ Key entry points:
 | ------------------------------------------------------ | ----------------------------------------------- |
 | [Developer Hub](docs/developer/README.md)              | Architecture, API reference, development guides |
 | [Architecture Docs](docs/architecture/README.md)       | System design and key decisions                 |
-| [CLAUDE.md](CLAUDE.md)                                 | Project conventions and design decisions        |
+| [AGENTS.md](AGENTS.md)                                 | Project conventions and design decisions        |
 | [Testing Guide](docs/development/testing.md)           | Full testing documentation                      |
 | [Git Workflow Guide](docs/development/git-workflow.md) | Branch strategy and commit conventions          |
 
@@ -116,8 +114,9 @@ frontend/
   src/hooks/           # Custom hooks
   src/services/        # API client
 ai/
-  yolo26/              # YOLO26 detection server
-  nemotron/            # Nemotron model files
+  gateway/             # AI Gateway: single AI entrypoint in production (port 8090)
+  yolo26/              # YOLO26 detection code (served by the gateway in prod)
+  nemotron/            # Nemotron LLM container (llama.cpp, port 8091)
 ```
 
 ## Code of Conduct

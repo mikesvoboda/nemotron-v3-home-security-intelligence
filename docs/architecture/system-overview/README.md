@@ -13,7 +13,7 @@ This hub provides high-level architecture understanding of the Home Security Int
 ```mermaid
 flowchart TB
     subgraph Frontend["Frontend Layer"]
-        FE["React + TypeScript<br/>Vite + Tailwind + Tremor<br/>:5173 (dev) / :8080 (prod)"]
+        FE["React + TypeScript<br/>Vite + Tailwind + Tremor<br/>dev :8444 HTTPS / prod :8080 :8444"]
     end
 
     subgraph Backend["Backend Layer"]
@@ -22,11 +22,8 @@ flowchart TB
     end
 
     subgraph AI["AI Services Layer"]
-        DET["YOLO26<br/>Object Detection<br/>:8095"]
+        GW["ai-gateway :8090<br/>YOLO26 · Florence-2 ·<br/>CLIP · Enrichment<br/>(via Triton)"]
         LLM["Nemotron 30B<br/>Risk Analysis<br/>:8091"]
-        FLO["Florence-2<br/>Vision Extraction<br/>:8092"]
-        CLIP["CLIP ViT-L<br/>Re-identification<br/>:8093"]
-        ENR["Enrichment API<br/>Multi-Model Hub<br/>:8094"]
     end
 
     subgraph Data["Data Layer"]
@@ -37,11 +34,8 @@ flowchart TB
 
     FE <-->|REST API| BE
     FE <-->|WebSocket| WS
-    BE --> DET
+    BE --> GW
     BE --> LLM
-    BE --> FLO
-    BE --> CLIP
-    BE --> ENR
     BE <--> PG
     BE <--> RD
     BE --> FS
@@ -51,21 +45,18 @@ flowchart TB
 
 ![Service Dependency Graph](../../images/architecture/service-dependencies.png)
 
-| Service          | Port                    | Container       | Source                        | Description                             |
-| ---------------- | ----------------------- | --------------- | ----------------------------- | --------------------------------------- |
-| **Frontend**     | 5173 (dev), 8080 (prod) | `frontend`      | `frontend/`                   | React dashboard with real-time updates  |
-| **Backend**      | 8000                    | `backend`       | `backend/main.py:992`         | FastAPI server with WebSocket support   |
-| **PostgreSQL**   | 5432                    | `postgres`      | `docker-compose.prod.yml:41`  | Primary database for events, detections |
-| **Redis**        | 6379                    | `redis`         | `docker-compose.prod.yml:403` | Queues, pub/sub, batch state            |
-| **YOLO26**       | 8095                    | `ai-yolo26`     | `ai/yolo26/`                  | Real-time object detection              |
-| **Nemotron LLM** | 8091                    | `ai-llm`        | `ai/nemotron/`                | Risk analysis via llama.cpp             |
-| **Florence-2**   | 8092                    | `ai-florence`   | `ai/florence/`                | Vision-language extraction              |
-| **CLIP**         | 8093                    | `ai-clip`       | `ai/clip/`                    | Entity re-identification                |
-| **Enrichment**   | 8094                    | `ai-enrichment` | `ai/enrichment/`              | Multi-model enrichment hub              |
-| **Prometheus**   | 9090                    | `prometheus`    | `docker-compose.prod.yml:534` | Metrics collection                      |
-| **Grafana**      | 3002                    | `grafana`       | `docker-compose.prod.yml:564` | Monitoring dashboards                   |
-| **Jaeger**       | 16686                   | `jaeger`        | `docker-compose.prod.yml:507` | Distributed tracing                     |
-| **Alertmanager** | 9093                    | `alertmanager`  | `docker-compose.prod.yml:656` | Alert routing                           |
+| Service          | Port                        | Container      | Source                         | Description                                                      |
+| ---------------- | --------------------------- | -------------- | ------------------------------ | ---------------------------------------------------------------- |
+| **Frontend**     | host 8444 HTTPS / 8080 HTTP | `frontend`     | `frontend/`                    | React dashboard with real-time updates                           |
+| **Backend**      | 8000                        | `backend`      | `backend/main.py:1314`         | FastAPI server with WebSocket support                            |
+| **PostgreSQL**   | 5432                        | `postgres`     | `docker-compose.prod.yml:44`   | Primary database for events, detections                          |
+| **Redis**        | 6379                        | `redis`        | `docker-compose.prod.yml:540`  | Queues, pub/sub, batch state                                     |
+| **ai-gateway**   | 8090 (+8002 metrics)        | `ai-gateway`   | `ai/gateway/`                  | YOLO26, Florence-2, CLIP and enrichment models served via Triton |
+| **Nemotron LLM** | 8091                        | `ai-llm`       | `ai/nemotron/`                 | Risk analysis via llama.cpp                                      |
+| **Prometheus**   | 9090                        | `prometheus`   | `docker-compose.prod.yml:871`  | Metrics collection                                               |
+| **Grafana**      | host 3002 (container 3000)  | `grafana`      | `docker-compose.prod.yml:915`  | Monitoring dashboards at `/grafana/` via proxy                   |
+| **Tempo**        | 3200                        | `tempo`        | `docker-compose.prod.yml:842`  | Distributed trace storage (replaces Jaeger)                      |
+| **Alertmanager** | 9093                        | `alertmanager` | `docker-compose.prod.yml:1044` | Alert routing                                                    |
 
 ## Technology Stack
 
@@ -76,26 +67,27 @@ flowchart TB
 
         subgraph FE["Frontend"]
             React["React 19"]
-            TS["TypeScript 5.3"]
+            TS["TypeScript 6.0"]
             Tailwind["Tailwind CSS 3.4"]
-            Tremor["Tremor 3.17"]
-            Vite["Vite 5.0"]
+            Tremor["Tremor 3.18"]
+            Vite["Vite 7.3"]
         end
 
         subgraph BE["Backend"]
-            Python["Python 3.14+"]
-            FastAPI["FastAPI 0.104+"]
+            Python["Python 3.14"]
+            FastAPI["FastAPI ≥0.115"]
             SQLAlchemy["SQLAlchemy 2.0"]
             Pydantic["Pydantic 2.0"]
         end
 
         subgraph DB["Database"]
-            PG["PostgreSQL 15+"]
-            Redis["Redis 7.x"]
+            PG["PostgreSQL 16"]
+            Redis["Redis 7.4"]
         end
 
         subgraph ML["AI/ML"]
             PyTorch["PyTorch 2.x"]
+            Triton["Triton (ai-gateway)"]
             YOLO26["YOLO26"]
             Nemotron["Nemotron-3-Nano-30B"]
             LlamaCpp["llama.cpp"]

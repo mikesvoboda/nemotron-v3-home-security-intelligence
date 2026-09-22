@@ -2,13 +2,10 @@
 title: Installation
 description: Step-by-step installation guide for Home Security Intelligence
 source_refs:
+  - setup.py:1
   - scripts/setup-hooks.sh:1
-  - scripts/setup-hooks.sh:26-51
-  - scripts/setup-hooks.sh:54-67
-  - scripts/setup-hooks.sh:71-82
   - ai/download_models.sh:1
-  - ai/download_models.sh:90-167
-  - ai/download_models.sh:169-253
+  - ai/download_models.sh:342
   - docker-compose.prod.yml:1
 ---
 
@@ -28,203 +25,106 @@ no text overlays"
 
 ## Overview
 
-The installation consists of four steps:
-
 ![Installation Workflow](../images/installation-workflow.png)
 
 _Four-step installation workflow: Clone Repository, Setup Environment, Download Models, and Configure._
+
+There are two setup paths. Run `python setup.py` — it is the supported first-time setup, because it generates a `.env` with real random credentials and a `docker-compose.override.yml` for your paths and ports. `./scripts/setup-hooks.sh` is the developer path: it installs the dev toolchain (virtualenv, npm packages, git hooks) and does not produce a working configuration by itself.
 
 ---
 
 ## Step 1: Clone the Repository
 
+Clone the repository and change into it:
+
 ```bash
-git clone https://github.com/your-org/home-security-intelligence.git
-cd home-security-intelligence
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 ```
 
 ---
 
-## Step 2: Run Setup Script
+## Step 2: Run First-Time Setup
 
-The setup script ([`scripts/setup-hooks.sh`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh)) automates environment configuration:
+```bash
+python setup.py
+```
+
+The interactive script ([`setup.py`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/setup.py)) asks for your camera upload path, AI models path, and credentials, then writes:
+
+- `.env` — with generated passwords (`POSTGRES_PASSWORD` etc.) and port assignments. File permissions are set to 600.
+- `docker-compose.override.yml` — port mappings and the camera-path volume mount, merged automatically with `docker-compose.prod.yml`.
+
+Run `python setup.py --guided` for step-by-step explanations, or `python setup.py --defaults` to accept every default non-interactively.
+
+> **Do not** create `.env` with `cp .env.example .env`. `.env.example` uses placeholder credentials and `setup.py` is what generates real ones. If you insist on editing by hand, at minimum set `POSTGRES_PASSWORD` (generate with `openssl rand -base64 32`) and make `DATABASE_URL` match `POSTGRES_USER`/`POSTGRES_DB`/`POSTGRES_PASSWORD`.
+
+### Developer extras (optional)
+
+If you will contribute code, also install the dev toolchain:
 
 ```bash
 ./scripts/setup-hooks.sh
 ```
 
-### What It Does
-
-1. **Creates Python virtual environment** ([lines 26-51](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L26))
-
-   ```bash
-   # Creates .venv/ and installs all dependencies from pyproject.toml
-   # Uses uv (recommended - 10-100x faster than pip)
-   uv sync --extra dev
-   ```
-
-   **Note:** Dependencies are defined in `pyproject.toml` and locked in `uv.lock` for reproducible builds.
-
-2. **Installs Node.js dependencies** ([lines 54-67](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L54))
-
-   ```bash
-   cd frontend && npm install
-   ```
-
-3. **Configures pre-commit hooks** ([lines 71-82](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup-hooks.sh#L71))
-
-   ```bash
-   pre-commit install
-   pre-commit install --hook-type commit-msg
-   ```
-
-### Expected Output
-
-```
-Setting up Python environment...
-Creating Python virtual environment...
-Installing backend dependencies...
-✓ Python environment ready
-
-Setting up Node.js environment...
-Installing frontend dependencies...
-✓ Node.js environment ready
-
-Setting up pre-commit hooks...
-✓ Pre-commit hooks installed
-
-Setup complete!
-```
+It runs `uv sync --extra dev` for the Python environment and installs the frontend dependencies plus pre-commit, commit-msg, and pre-push git hooks.
 
 ---
 
 ## Step 3: Download AI Models
 
-The model download script ([`ai/download_models.sh`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/download_models.sh)) fetches the required AI models:
-
 ```bash
 ./ai/download_models.sh
 ```
 
-### Models Downloaded
+The script ([`ai/download_models.sh`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/download_models.sh)) writes to `${AI_MODELS_PATH}` (default `/export/ai_models`). Set `AI_MODELS_PATH=./models ./ai/download_models.sh` to use a different root.
 
-| Model                   | Size    | Purpose              | Location                                                                                                                                   |
-| ----------------------- | ------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Nemotron-3-Nano-30B** | ~14.7GB | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`                                                                                 |
-| **Nemotron Mini 4B**    | ~2.5GB  | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/ai/download_models.sh#L90)) |
-| **YOLO26**              | varies  | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service                                                                              |
+### What it downloads
 
-### Using Pre-downloaded Models
+| Model                                               | Size    | Purpose                | Destination                                                    |
+| --------------------------------------------------- | ------- | ---------------------- | -------------------------------------------------------------- |
+| **Nemotron-3-Nano-30B** (Q4_K_M)                    | ~14.7GB | Risk analysis (LLM)    | `$AI_MODELS_PATH/nemotron/nemotron-3-nano-30b-a3b-q4km/`       |
+| **YOLO26v2** (`PekingU/yolo26_r50vd_coco_o365`)     | ~165MB  | Object detection       | Not downloaded — HuggingFace fetches it on first service start |
+| **Florence-2-Large**                                | varies  | Scene description      | `$AI_MODELS_PATH/model-zoo/`                                   |
+| **CLIP ViT-L**, **Fashion-CLIP**, enrichment models | varies  | Embeddings, attributes | `$AI_MODELS_PATH/model-zoo/`                                   |
+| **YOLO26** Ultralytics variants                     | ~67MB   | Detection (backup)     | `$AI_MODELS_PATH/model-zoo/yolo26/`                            |
 
-If you have models cached locally (e.g., on a shared network drive), you can skip the download:
-
-```bash
-# For Nemotron (GGUF format) - Production 30B model
-export NEMOTRON_GGUF_PATH=/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
-# Or for development (Mini 4B)
-# export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
-
-# YOLO26 is loaded via HuggingFace (configure via YOLO26_MODEL_PATH if needed)
-export YOLO26_MODEL_PATH=PekingU/yolo26_r50vd_coco_o365
-
-# Then run the script
-./ai/download_models.sh
-```
-
-The script will copy from your local path instead of downloading.
-
-### Model Search Paths
-
-The script automatically searches these locations for existing models:
-
-```bash
-# Nemotron search paths
-/export/ai_models/nemotron
-/export/ai_models/weights
-/export/ai_models/cache
-
-# YOLO26 search paths
-/export/ai_models/yolo26v2
-/export/ai_models/yolo26v2/weights
-/export/ai_models/yolo26v2/optimized
-```
+If a Nemotron GGUF already exists anywhere the script searches (`$NEMOTRON_GGUF_PATH`, `/export/ai_models/weights/`, the HuggingFace cache), it links or copies that file instead of re-downloading 14.7GB.
 
 ---
 
-## Step 4: Configure Environment
+## Step 4: Check Your Settings
 
-### Create Environment File
-
-Copy the example environment file:
+After `setup.py` has written `.env`, review the values that depend on your hardware:
 
 ```bash
-cp .env.example .env
-```
-
-### Required Configuration
-
-> **Recommended:** Run `./setup.sh` to generate a `.env` file with secure database credentials automatically.
-
-Or manually edit `.env` with your settings:
-
-```bash
-# Database (POSTGRES_PASSWORD is REQUIRED - generate with: openssl rand -base64 32)
-DATABASE_URL=postgresql+asyncpg://security:<your-password>@postgres:5432/security
-REDIS_URL=redis://redis:6379
-
-# AI Services (pick URLs based on your deployment mode)
-# See: docs/operator/deployment-modes.md
-#
-# Production (docker-compose.prod.yml): backend reaches AI via compose DNS
-# YOLO26_URL=http://ai-yolo26:8095
-# NEMOTRON_URL=http://ai-llm:8091
-# FLORENCE_URL=http://ai-florence:8092
-# CLIP_URL=http://ai-clip:8093
-# ENRICHMENT_URL=http://ai-enrichment:8094
-#
-# Development (host-run AI):
-# YOLO26_URL=http://localhost:8095
-# NEMOTRON_URL=http://localhost:8091
-
-# Camera Upload Directory
+# Camera upload directory (host path where cameras FTP images)
 FOSCAM_BASE_PATH=/export/foscam
+
+# AI models root — must match what you used in Step 3
+AI_MODELS_PATH=/export/ai_models
+
+# GPU assignment (see docs/development/multi-gpu.md)
+GPU_LLM=0            # GPU running Nemotron
+GPU_AI_SERVICES=1    # GPU running the ai-gateway models
 ```
 
-### Platform-Specific Configuration
-
-#### macOS
+AI service URLs are already set correctly for the containerized deployment in both `.env.example` and the compose file itself — every model except Nemotron routes through the AI gateway:
 
 ```bash
-# Docker Desktop (default works automatically)
-# Uses host.docker.internal
-
-# Podman on macOS
-export AI_HOST=host.containers.internal
+AI_GATEWAY_URL=http://ai-gateway:8090
+YOLO26_URL=http://ai-gateway:8090/yolo26      # also /florence /clip /enrichment /enrich-lt
+NEMOTRON_URL=http://ai-llm:8091               # llama.cpp keeps its own container
 ```
 
-#### Linux
+Inside the backend container the camera directory is always mounted at `/cameras`, regardless of your host path (the compose file sets `FOSCAM_BASE_PATH=/cameras` for the backend service).
 
-```bash
-# Docker Engine (default works automatically for most setups)
-# Uses host.docker.internal
+### Mount the camera directory
 
-# Podman on Linux - use your host's IP address
-export AI_HOST=192.168.1.100  # Replace with your IP
-```
-
-### Configure Camera Paths
-
-Mount your camera upload directory. Edit `docker-compose.prod.yml` or set the environment variable:
-
-```bash
-# In .env or shell
-export FOSCAM_BASE_PATH=/path/to/your/camera/uploads
-```
-
-The directory structure should be:
+`setup.py` adds the camera volume to `docker-compose.override.yml`. Check it points at your real upload path, which must contain one subfolder per camera:
 
 ```
-/path/to/camera/uploads/
+/export/foscam/
 ├── front_door/
 │   └── ... (FTP uploaded images)
 ├── back_yard/
@@ -237,27 +137,23 @@ The directory structure should be:
 
 ## Verify Installation
 
-After completing all steps, verify the installation:
+```bash
+# .env and override exist and .env is private
+ls -l .env docker-compose.override.yml
+
+# Models are present
+ls -lh /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/
+
+# Compose file resolves with your .env
+docker compose -f docker-compose.prod.yml config -q   # silent = valid
+# OR
+podman compose -f docker-compose.prod.yml config -q
+```
+
+For the dev environment (if you ran `setup-hooks.sh`):
 
 ```bash
-# Check Python environment
-source .venv/bin/activate
-python --version
-pip list | grep -E "(fastapi|sqlalchemy|redis)"
-
-# Check Node environment
-cd frontend && npm list --depth=0
-
-# Check models exist
-ls -la ai/nemotron/*.gguf
-
-# YOLO26 weights live in HuggingFace cache. Verify by starting the service and hitting /health:
-# curl http://localhost:8095/health
-
-# Check container runtime (choose one)
-docker --version && docker compose version   # Docker
-# OR
-podman --version && podman-compose --version  # Podman
+source .venv/bin/activate && python --version   # 3.14.x
 ```
 
 ---
@@ -267,30 +163,27 @@ podman --version && podman-compose --version  # Podman
 ### Setup script fails
 
 ```bash
-# Ensure Python 3.14+ is available
+# Requires Python 3.14+ (see .python-version)
 python3 --version
-
-# Try with explicit Python version
-python3.14 -m venv .venv
 ```
 
 ### Model download fails
 
 ```bash
-# Check network connectivity
+# Check connectivity to HuggingFace
 curl -I https://huggingface.co
 
-# Use pre-downloaded models (see Step 3)
+# Point the script at a pre-downloaded file instead
 export NEMOTRON_GGUF_PATH=/your/local/model.gguf
+./ai/download_models.sh
 ```
 
-### Node.js dependency issues
+### Node.js dependency issues (dev environment)
 
 ```bash
-# Clear npm cache and retry
 cd frontend
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules
+npm ci        # or: npm install
 ```
 
 ---

@@ -1,7 +1,7 @@
 ---
 title: Agent Coordination Protocol
 source_refs:
-  - CLAUDE.md:1
+  - AGENTS.md:1
   - docs/development/contributing.md:66
   - docs/development/testing.md:405
 ---
@@ -103,13 +103,13 @@ Before each agent begins work, declare scope explicitly:
 | **Isolated** | Single service file + its tests             | LOW           |
 | **Bounded**  | One API route + schema + tests              | MEDIUM        |
 | **Shared**   | Config files, models, shared hooks          | HIGH          |
-| **Global**   | `CLAUDE.md`, `pyproject.toml`, CI workflows | SEQUENTIAL    |
+| **Global**   | `AGENTS.md`, `pyproject.toml`, CI workflows | SEQUENTIAL    |
 
 ### Forbidden Parallel Modifications
 
 These files should NEVER be modified by parallel agents:
 
-- `CLAUDE.md` - Project instructions (single agent only)
+- `AGENTS.md` - Project instructions (single agent only)
 - `pyproject.toml` - Python dependencies and config
 - `package.json` / `package-lock.json` - Node dependencies
 - `.pre-commit-config.yaml` - Pre-commit hooks
@@ -482,7 +482,7 @@ Agent 3: Update operator guides
   Scope: docs/operator/
 
 -> Different doc directories. PARALLEL OK.
--> BUT: Do NOT modify CLAUDE.md or root README.md in parallel!
+-> BUT: Do NOT modify AGENTS.md or root README.md in parallel!
 ```
 
 ## Skills and Tools Reference
@@ -654,4 +654,4 @@ If unsure whether to run tasks in parallel:
 
 - [Contributing Guide](contributing.md) - PR process and code standards
 - [Testing Guide](testing.md) - Test infrastructure and patterns
-- [CLAUDE.md](../../CLAUDE.md) - Project instructions and rules
+- [AGENTS.md](../../AGENTS.md) - Project instructions and rules

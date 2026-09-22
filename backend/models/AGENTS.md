@@ -367,12 +367,7 @@ providing better query performance, referential integrity, and standard SQL patt
 
 **Migration Notes:**
 
-The migration (`add_event_detections_junction_table.py`) handles both data formats:
-
-- JSON array: `"[1, 2, 3]"`
-- Legacy CSV: `"1,2,3"`
-
-The legacy `detection_ids` column is retained for backward compatibility during transition.
+The original incremental migration (`add_event_detections_junction_table.py`, which converted legacy `detection_ids` JSON arrays and CSV strings into junction rows) was deleted in the migration consolidation (df65aabc). All migrations were then consolidated into a single initial schema, and current databases build the junction table directly via `ModelsBase.metadata.create_all` in `backend/core/database.py`. The legacy `detection_ids` column no longer exists on the `Event` model — `event_records` (via `secondary="event_detections"`) is the only access path.
 
 ## `entity.py` - Entity Model (NEM-1880, NEM-2210, NEM-2431, NEM-2670)
 

@@ -101,19 +101,24 @@ print(settings.database_url)
 | `CACHE_SWR_ENABLED`   | true    | Enable SWR pattern            |
 | `SNAPSHOT_CACHE_TTL`  | 3600    | Camera snapshot cache TTL     |
 
-**Source:** `backend/core/config.py:441-480`
+**Source:** `backend/core/config.py:728-765`
 
 ### AI Service Endpoints
 
-| Variable         | Default                 | Description               |
-| ---------------- | ----------------------- | ------------------------- |
-| `YOLO26_URL`     | `http://localhost:8095` | YOLO26 detection service  |
-| `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service      |
-| `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision service |
-| `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service    |
-| `ENRICHMENT_URL` | `http://localhost:8094` | Enrichment API service    |
+All AI models (YOLO26, Florence-2, CLIP, enrichment) run inside one `ai-gateway` container on port
+8090 and are addressed by path prefix. `.env.example` defaults:
 
-**Source:** `backend/core/config.py:651-869`
+| Variable               | Default                            | Description                                |
+| ---------------------- | ---------------------------------- | ------------------------------------------ |
+| `YOLO26_URL`           | `http://localhost:8090/yolo26`     | YOLO26 detection route                     |
+| `NEMOTRON_URL`         | `http://localhost:8091`            | Nemotron LLM (separate `ai-llm` container) |
+| `FLORENCE_URL`         | `http://localhost:8090/florence`   | Florence-2 vision route                    |
+| `CLIP_URL`             | `http://localhost:8090/clip`       | CLIP embedding route                       |
+| `ENRICHMENT_URL`       | `http://localhost:8090/enrichment` | Heavy enrichment route                     |
+| `ENRICHMENT_LIGHT_URL` | `http://localhost:8090/enrich-lt`  | Light enrichment route                     |
+
+In containers the same routes use `http://ai-gateway:8090/...` and `NEMOTRON_URL=http://ai-llm:8091`
+(`docker-compose.prod.yml`, backend `AI Gateway routes` block).
 
 ### AI Service Timeouts
 
@@ -121,13 +126,13 @@ print(settings.database_url)
 | ------------------------- | ------- | ---------------------------- |
 | `AI_CONNECT_TIMEOUT`      | 10.0    | Connection timeout (seconds) |
 | `AI_HEALTH_TIMEOUT`       | 5.0     | Health check timeout         |
-| `YOLO26_READ_TIMEOUT`     | 60.0    | Detection response timeout   |
+| `YOLO26_READ_TIMEOUT`     | 30.0    | Detection response timeout   |
 | `NEMOTRON_READ_TIMEOUT`   | 120.0   | LLM response timeout         |
 | `FLORENCE_READ_TIMEOUT`   | 30.0    | Florence-2 timeout           |
-| `CLIP_READ_TIMEOUT`       | 15.0    | CLIP embedding timeout       |
+| `CLIP_READ_TIMEOUT`       | 5.0     | CLIP embedding timeout       |
 | `ENRICHMENT_READ_TIMEOUT` | 60.0    | Enrichment service timeout   |
 
-**Source:** `backend/core/config.py:678-725`
+**Source:** `backend/core/config.py:1046-1100`
 
 ### Batch Processing
 
@@ -138,7 +143,7 @@ print(settings.database_url)
 | `BATCH_CHECK_INTERVAL_SECONDS` | 5.0     | Timeout check frequency      |
 | `BATCH_MAX_DETECTIONS`         | 500     | Max detections before split  |
 
-**Source:** `backend/core/config.py:625-649`
+**Source:** `backend/core/config.py:935-956`
 
 ### Fast Path Configuration
 
@@ -148,7 +153,7 @@ print(settings.database_url)
 | `FAST_PATH_CONFIDENCE_THRESHOLD` | 0.90         | Confidence threshold        |
 | `FAST_PATH_OBJECT_TYPES`         | `["person"]` | Object types for fast path  |
 
-**Source:** `docker-compose.prod.yml:341-343`
+**Source:** `docker-compose.prod.yml:485-487`, `backend/core/config.py:1757-1770`
 
 ### Application Settings
 
@@ -156,13 +161,13 @@ print(settings.database_url)
 | ---------------- | ------------ | ---------------------- |
 | `DEBUG`          | false        | Enable debug mode      |
 | `ENVIRONMENT`    | `production` | Deployment environment |
-| `ADMIN_ENABLED`  | false        | Enable admin endpoints |
+| `ADMIN_ENABLED`  | true         | Enable admin endpoints |
 | `ADMIN_API_KEY`  | None         | Admin API key          |
 | `API_HOST`       | `0.0.0.0`    | API bind address       |
 | `API_PORT`       | 8000         | API port               |
 | `RETENTION_DAYS` | 30           | Data retention period  |
 
-**Source:** `backend/core/config.py:531-623`
+**Source:** `backend/core/config.py:842-930`
 
 ### CORS Settings
 
@@ -170,32 +175,32 @@ print(settings.database_url)
 | -------------- | ----------- | -------------------- |
 | `CORS_ORIGINS` | (see below) | Allowed CORS origins |
 
-Default CORS origins:
+Default CORS origins (see `backend/core/config.py:884-894`):
 
 ```python
 [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:5173",
-    "http://0.0.0.0:3000",
-    "http://0.0.0.0:5173",
+    # HTTPS origins for external browser access
+    "https://localhost:8444",
+    "https://127.0.0.1:8444",
+    "https://0.0.0.0:8444",
+    # Internal container communication (HTTP within Docker network)
+    "http://frontend:8080",
 ]
 ```
 
-**Source:** `backend/core/config.py:575-585`
+Set `CORS_ORIGINS` to your own hostnames for LAN access.
 
 ### Nemotron Context Settings
 
-| Variable                                | Default       | Description             |
-| --------------------------------------- | ------------- | ----------------------- |
-| `NEMOTRON_CONTEXT_WINDOW`               | 131072        | Context window (tokens) |
-| `NEMOTRON_MAX_OUTPUT_TOKENS`            | 1536          | Max output tokens       |
-| `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | 0.80          | Warning threshold       |
-| `CONTEXT_TRUNCATION_ENABLED`            | true          | Enable smart truncation |
-| `LLM_TOKENIZER_ENCODING`                | `cl100k_base` | Token counting encoding |
+| Variable                                | Default       | Description                                                                    |
+| --------------------------------------- | ------------- | ------------------------------------------------------------------------------ |
+| `CTX_SIZE`                              | 262144        | Context window (tokens) — sets `nemotron_context_window` (field default 32768) |
+| `NEMOTRON_MAX_OUTPUT_TOKENS`            | 1536          | Max output tokens                                                              |
+| `CONTEXT_UTILIZATION_WARNING_THRESHOLD` | 0.80          | Warning threshold                                                              |
+| `CONTEXT_TRUNCATION_ENABLED`            | true          | Enable smart truncation                                                        |
+| `LLM_TOKENIZER_ENCODING`                | `cl100k_base` | Token counting encoding                                                        |
 
-**Source:** `backend/core/config.py:743-798`
+**Source:** `backend/core/config.py:1158-1227`, `.env.example:365`
 
 ### Feature Toggles
 
@@ -208,7 +213,7 @@ Default CORS origins:
 | `FLORENCE_DETECTION_CAPTIONS_ENABLED` | true    | Detection captions            |
 | `FLORENCE_VQA_ENABLED`                | true    | Visual QA extraction          |
 
-**Source:** `backend/core/config.py:968-999`
+**Source:** `backend/core/config.py:1573-1593`
 
 ## Nested Settings Classes
 
@@ -286,12 +291,10 @@ The configuration system follows a clear precedence hierarchy where environment 
 
 ## Environment Files
 
-| File              | Purpose                         |
-| ----------------- | ------------------------------- |
-| `.env`            | Local development configuration |
-| `.env.example`    | Template with default values    |
-| `.env.production` | Production overrides            |
-| `.env.test`       | Test environment settings       |
+| File           | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| `.env`         | Local configuration, created from the template by `python setup.py` |
+| `.env.example` | Template with default values                                        |
 
 ### Example .env File
 
@@ -303,12 +306,13 @@ DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security  # p
 REDIS_URL=redis://localhost:6379/0
 REDIS_PASSWORD=
 
-# AI Services (Docker)
-YOLO26_URL=http://ai-yolo26:8095
+# AI Services (Docker — single ai-gateway container)
+YOLO26_URL=http://ai-gateway:8090/yolo26
 NEMOTRON_URL=http://ai-llm:8091
-FLORENCE_URL=http://ai-florence:8092
-CLIP_URL=http://ai-clip:8093
-ENRICHMENT_URL=http://ai-enrichment:8094
+FLORENCE_URL=http://ai-gateway:8090/florence
+CLIP_URL=http://ai-gateway:8090/clip
+ENRICHMENT_URL=http://ai-gateway:8090/enrichment
+ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt
 
 # Batch Processing
 BATCH_WINDOW_SECONDS=90
@@ -362,4 +366,4 @@ def configure_client(settings: Settings) -> None:
 
 - [Deployment Topology](deployment-topology.md) - Container environment variables
 - [Design Decisions](design-decisions.md) - Why these configuration choices
-- [Environment Reference](/docs/reference/config/env-reference.md) - Complete variable list
+- [Environment Reference](/reference/config/env-reference.md) - Complete variable list

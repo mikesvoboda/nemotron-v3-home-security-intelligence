@@ -65,31 +65,33 @@ The command palette provides fuzzy search for quick navigation.
 
 | Destination    | Search Keywords                         |
 | -------------- | --------------------------------------- |
-| Dashboard      | home, main, overview                    |
+| Dashboard      | home, main, overview, cameras           |
 | Timeline       | events, history, time                   |
 | Analytics      | charts, graphs, statistics, stats       |
 | Alerts         | notifications, warnings                 |
 | Entities       | people, objects, detection              |
 | Logs           | system, debug, output                   |
 | System         | monitoring, health, status, performance |
-| AI Performance | model, inference, gpu, nemotron, yolo26 |
+| AI Performance | model, inference, gpu, nemotron, rtdetr |
 | Audit Log      | history, changes, tracking              |
 | Settings       | preferences, configuration, options     |
+
+> **Known issue:** the "System" palette entry points at `/system`, a path that no longer exists in the app router — selecting it currently lands on "Page not found". The system monitoring page now lives at `/operations` (sidebar: **Pipeline**).
 
 ### Chord Commands (g + key)
 
 Press `g` followed by another key within 1 second to navigate directly to a page.
 
-| Chord | Destination |
-| ----- | ----------- |
-| `g d` | Dashboard   |
-| `g t` | Timeline    |
-| `g n` | Analytics   |
-| `g a` | Alerts      |
-| `g e` | Entities    |
-| `g o` | Logs        |
-| `g y` | System      |
-| `g s` | Settings    |
+| Chord | Destination                                                          |
+| ----- | -------------------------------------------------------------------- |
+| `g d` | Dashboard                                                            |
+| `g t` | Timeline                                                             |
+| `g n` | Analytics                                                            |
+| `g a` | Alerts                                                               |
+| `g e` | Entities                                                             |
+| `g o` | Logs                                                                 |
+| `g y` | System (see known issue above — currently lands on "Page not found") |
+| `g s` | Settings                                                             |
 
 ---
 

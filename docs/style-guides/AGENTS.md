@@ -28,5 +28,5 @@ This directory contains style guides that define standards and conventions for c
 
 ## Navigation
 
-- Parent: [Documentation Index](../README.md)
+- Parent: [Documentation Index](../index.md)
 - Related: [Architecture Standards](../architecture/STANDARDS.md)

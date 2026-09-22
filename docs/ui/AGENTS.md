@@ -10,6 +10,7 @@ Page-specific documentation for the Nemotron Home Security dashboard. Each file 
 ui/
   AGENTS.md              # This file
   README.md              # UI documentation hub
+  accessibility.md       # Accessibility reference
   ai-audit.md            # AI Audit page
   ai-performance.md      # AI Performance page
   alerts.md              # Alerts page
@@ -17,44 +18,51 @@ ui/
   audit-log.md           # Audit Log page
   dashboard.md           # Dashboard page
   entities.md            # Entities page
+  getting-started.md     # Pointer to ../getting-started/ (page moved)
   interface-guide.md     # Interface usability guide
   jobs.md                # Background Jobs page
   keyboard-shortcuts.md  # Keyboard shortcuts reference
   logs.md                # Application Logs page
   mobile-pwa.md          # Mobile and PWA guide
   operations.md          # System Monitoring page
+  pyroscope.md           # Continuous Profiling page
   settings.md            # Settings page
   timeline.md            # Event Timeline page
+  tracing.md             # Distributed Tracing page (Alloy + Tempo)
   trash.md               # Trash/Deleted Events page
+  understanding-alerts.md# Risk-score/alert-level explainer
   zones.md               # Detection Zones page
 ```
 
 ## Quick Navigation
 
-| File                | Page                 | Frontend Component                                        |
-| ------------------- | -------------------- | --------------------------------------------------------- |
-| `dashboard.md`      | Main Dashboard       | `frontend/src/components/dashboard/DashboardPage.tsx`     |
-| `timeline.md`       | Event Timeline       | `frontend/src/components/events/EventTimeline.tsx`        |
-| `entities.md`       | Entities             | `frontend/src/components/entities/EntitiesPage.tsx`       |
-| `alerts.md`         | Alerts               | `frontend/src/components/alerts/AlertsPage.tsx`           |
-| `zones.md`          | Detection Zones      | `frontend/src/components/zones/ZoneEditor.tsx`            |
-| `audit-log.md`      | Audit Log            | `frontend/src/components/audit/AuditLogPage.tsx`          |
-| `analytics.md`      | Analytics            | `frontend/src/components/analytics/AnalyticsPage.tsx`     |
-| `jobs.md`           | Background Jobs      | `frontend/src/components/jobs/JobsPage.tsx`               |
-| `ai-audit.md`       | AI Audit             | `frontend/src/components/ai/AIAuditPage.tsx`              |
-| `ai-performance.md` | AI Performance       | `frontend/src/components/ai/AIPerformancePage.tsx`        |
-| `operations.md`     | System Monitoring    | `frontend/src/components/system/SystemMonitoringPage.tsx` |
-| `trash.md`          | Trash/Deleted Events | `frontend/src/pages/TrashPage.tsx`                        |
-| `logs.md`           | Application Logs     | `frontend/src/components/logs/LogsPage.tsx`               |
-| `settings.md`       | Settings             | `frontend/src/components/settings/SettingsPage.tsx`       |
+| File                | Page                 | Frontend Component                                             |
+| ------------------- | -------------------- | -------------------------------------------------------------- |
+| `dashboard.md`      | Main Dashboard       | `frontend/src/components/dashboard/DashboardPage.tsx`          |
+| `timeline.md`       | Event Timeline       | `frontend/src/components/events/EventTimeline.tsx`             |
+| `entities.md`       | Entities             | `frontend/src/components/entities/EntitiesPage.tsx`            |
+| `alerts.md`         | Alerts               | `frontend/src/components/alerts/AlertsPage.tsx`                |
+| `zones.md`          | Detection Zones      | `frontend/src/components/zones/ZoneEditor.tsx`                 |
+| `audit-log.md`      | Audit Log            | `frontend/src/components/audit/AuditLogPage.tsx`               |
+| `analytics.md`      | Analytics            | `frontend/src/components/analytics/AnalyticsPage.tsx`          |
+| `jobs.md`           | Background Jobs      | `frontend/src/components/jobs/JobsPage.tsx`                    |
+| `ai-audit.md`       | AI Audit             | `frontend/src/components/ai/AIAuditPage.tsx`                   |
+| `ai-performance.md` | AI Performance       | `frontend/src/components/ai/AIPerformancePage.tsx`             |
+| `operations.md`     | System Monitoring    | `frontend/src/components/system/SystemMonitoringPage.tsx`      |
+| `trash.md`          | Trash/Deleted Events | `frontend/src/pages/TrashPage.tsx`                             |
+| `logs.md`           | Application Logs     | `frontend/src/components/logs/LogsPage.tsx`                    |
+| `settings.md`       | Settings             | `frontend/src/components/settings/SettingsPage.tsx`            |
+| `tracing.md`        | Distributed Tracing  | `frontend/src/components/tracing/` (exports `TracingPage`)     |
+| `pyroscope.md`      | Continuous Profiling | `frontend/src/components/pyroscope/` (exports `PyroscopePage`) |
 
 ## Usability Guides
 
-| File                    | Purpose                                            |
-| ----------------------- | -------------------------------------------------- |
-| `interface-guide.md`    | Visual feedback, loading indicators, toasts        |
-| `keyboard-shortcuts.md` | Command palette, navigation, accessibility         |
-| `mobile-pwa.md`         | Mobile responsive, PWA install, push notifications |
+| File                    | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| `interface-guide.md`    | Visual feedback, loading indicators, toasts   |
+| `keyboard-shortcuts.md` | Command palette, navigation, accessibility    |
+| `mobile-pwa.md`         | Mobile responsive, PWA install, notifications |
+| `accessibility.md`      | Keyboard, screen reader, motion, contrast     |
 
 ## Document Structure
 

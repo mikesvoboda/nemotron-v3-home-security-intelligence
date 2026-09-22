@@ -1,7 +1,7 @@
 ---
 title: Contributing Guide
 source_refs:
-  - CLAUDE.md:176
+  - AGENTS.md:213
   - .pre-commit-config.yaml:1
   - .github/workflows/ci.yml:1
   - pyproject.toml:7
@@ -18,7 +18,7 @@ Be respectful, professional, and constructive in all interactions. Focus on the 
 ## Getting Started
 
 1. Set up your development environment following [setup.md](setup.md)
-2. Read [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for project rules and conventions
+2. Read [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) for project rules and conventions
 3. Review the [testing guide](testing.md) to understand test requirements
 
 ## Development Workflow
@@ -92,7 +92,7 @@ This project uses **Linear** for issue tracking:
 - If you discover multiple issues, create separate Linear issues
 - Commit messages should reference the issue: `fix(NEM-123): description`
 
-See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete one-task-one-PR policy.
+See [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) for the complete one-task-one-PR policy.
 
 ### Closing a Task
 
@@ -107,7 +107,7 @@ See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelli
 # mcp__linear__update_issue(issueId="NEM-123", status="38267c1e-4458-4875-aa66-4b56381786e9")
 ```
 
-If tests fail, fix the issue and re-run before closing. See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) for the complete closure checklist.
+If tests fail, fix the issue and re-run before closing. See [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) for the complete closure checklist.
 
 ### 2. Create a Feature Branch
 
@@ -145,16 +145,16 @@ See [testing-workflow.md](testing-workflow.md) for detailed TDD patterns by laye
 
 All commits must pass pre-commit hooks. **Never bypass them.**
 
-| Hook        | Stage      | Purpose                |
-| ----------- | ---------- | ---------------------- |
-| ruff        | pre-commit | Python linting         |
-| ruff-format | pre-commit | Python formatting      |
-| mypy        | pre-commit | Python type checking   |
-| eslint      | pre-commit | TypeScript linting     |
-| prettier    | pre-commit | Code formatting        |
-| hadolint    | pre-commit | Dockerfile linting     |
-| semgrep     | pre-commit | Security scanning      |
-| fast-test   | pre-push   | Unit tests before push |
+| Hook           | Stage      | Purpose                         |
+| -------------- | ---------- | ------------------------------- |
+| ruff           | pre-commit | Python linting                  |
+| ruff-format    | pre-commit | Python formatting               |
+| mypy           | pre-commit | Python type checking            |
+| eslint         | pre-commit | TypeScript linting              |
+| prettier       | pre-commit | Code formatting                 |
+| hadolint       | pre-commit | Dockerfile linting              |
+| semgrep        | pre-commit | Security scanning               |
+| parallel-tests | pre-push   | Selected fast tiers before push |
 
 ```bash
 # Hooks run automatically on commit
@@ -174,7 +174,7 @@ pre-commit run --all-files
 - `git push --no-verify`
 - `SKIP=hook-name git commit` (except emergencies)
 
-See [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) and [git-workflow.md](git-workflow.md) for the complete policy.
+See [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) and [git-workflow.md](git-workflow.md) for the complete policy.
 
 #### Commit Message Format
 
@@ -235,7 +235,7 @@ Before submitting a PR:
 
 - [ ] All pre-commit hooks pass
 - [ ] All tests pass locally
-- [ ] Code coverage meets thresholds (85% unit, 95% combined)
+- [ ] Code coverage meets thresholds (80% combined unit+integration via `./scripts/validate.sh`; PR diff gate baseline 85% relative)
 - [ ] No new linting warnings
 - [ ] TypeScript compiles without errors
 - [ ] Documentation updated if needed
@@ -279,18 +279,18 @@ Closes #123
 
 All CI jobs must pass before merge:
 
-| Job                       | Required | Description                            |
-| ------------------------- | -------- | -------------------------------------- |
-| Backend Lint              | Yes      | Ruff check and format                  |
-| Backend Type Check        | Yes      | MyPy                                   |
-| Backend Unit Tests        | Yes      | 85% coverage threshold                 |
-| Backend Integration Tests | Yes      | Combined 80% floor (validate.sh; A7.1) |
-| Frontend Lint             | Yes      | ESLint                                 |
-| Frontend Type Check       | Yes      | TypeScript compilation                 |
-| Frontend Tests            | Yes      | Vitest                                 |
-| Frontend E2E              | Yes      | Playwright                             |
-| Build Docker Images       | Yes      | Verify builds succeed                  |
-| Security Validation       | Yes      | Admin endpoint checks                  |
+| Job                       | Required | Description                                                                 |
+| ------------------------- | -------- | --------------------------------------------------------------------------- |
+| Backend Lint              | Yes      | Ruff check and format                                                       |
+| Backend Type Check        | Yes      | MyPy                                                                        |
+| Backend Unit Tests        | Yes      | Merged coverage floor 84 (CI merge step, only when all shards passed; A7.1) |
+| Backend Integration Tests | Yes      | Combined 80% floor (validate.sh/nightly; tier floor 37 in CI; A7.1)         |
+| Frontend Lint             | Yes      | ESLint                                                                      |
+| Frontend Type Check       | Yes      | TypeScript compilation                                                      |
+| Frontend Tests            | Yes      | Vitest                                                                      |
+| Frontend E2E              | Yes      | Playwright                                                                  |
+| Build Docker Images       | Yes      | Verify builds succeed                                                       |
+| Security Validation       | Yes      | Admin endpoint checks                                                       |
 
 ### Code Review
 
@@ -538,4 +538,4 @@ Setup guides for AI-assisted development and debugging tools.
 | [Linear Integration](linear-integration.md)                                                            | Linear MCP tools reference           |
 | [Diagram Style Guide](../style-guides/diagrams.md)                                                     | Mermaid themes and conventions       |
 | [Visual Style Guide](../images/style-guide.md)                                                         | Colors and design principles         |
-| [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) | Project instructions                 |
+| [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) | Project instructions                 |

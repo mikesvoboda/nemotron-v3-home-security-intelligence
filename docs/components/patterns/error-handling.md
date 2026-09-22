@@ -30,21 +30,23 @@ Application
 
 ### Error Boundary Wrapper
 
+`FeatureErrorBoundary` takes a required `feature` prop (the feature name shown in error messages).
+
 ```tsx
 import { FeatureErrorBoundary } from '@/components/common';
 
 function Dashboard() {
   return (
     <div className="grid grid-cols-2 gap-4">
-      <FeatureErrorBoundary featureName="Camera Grid">
+      <FeatureErrorBoundary feature="Camera Grid">
         <CameraGrid />
       </FeatureErrorBoundary>
 
-      <FeatureErrorBoundary featureName="Activity Feed">
+      <FeatureErrorBoundary feature="Activity Feed">
         <ActivityFeed />
       </FeatureErrorBoundary>
 
-      <FeatureErrorBoundary featureName="Stats">
+      <FeatureErrorBoundary feature="Stats">
         <StatsRow />
       </FeatureErrorBoundary>
     </div>
@@ -54,36 +56,17 @@ function Dashboard() {
 
 ### Error State Component
 
+The shared `ErrorState` (`frontend/src/components/common/ErrorState.tsx`) requires a `title` and supports an optional `message` (string or `Error`), `onRetry` (with `retryLabel` and `isRetrying`), and a `variant` (`'default'` full display, `'compact'` inline):
+
 ```tsx
 import { ErrorState } from '@/components/common';
 
-function ErrorState({
-  title = 'Something went wrong',
-  message,
-  onRetry,
-  showSupport = false,
-}: ErrorStateProps) {
-  return (
-    <div className="flex flex-col items-center justify-center p-8 text-center">
-      <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
-      <h3 className="text-lg font-medium text-white mb-2">{title}</h3>
-      {message && <p className="text-gray-400 mb-4">{message}</p>}
-      <div className="flex gap-2">
-        {onRetry && (
-          <Button onClick={onRetry}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
-        )}
-        {showSupport && (
-          <Button variant="secondary" onClick={() => window.open('/support')}>
-            Contact Support
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
+<ErrorState
+  title="Failed to load events"
+  message={error.message}
+  onRetry={refetch}
+  isRetrying={isFetching}
+/>;
 ```
 
 ---
@@ -121,27 +104,29 @@ function EventsList() {
 
 ### Mutation Error Handling
 
+`useToast()` returns the toast methods directly (`success`, `error`, `warning`, `info`, `loading`, `dismiss`, `promise`), not a `toast` object. `Button` uses `isLoading`, not `loading`.
+
 ```tsx
 import { useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 
 function SaveButton({ data }: { data: FormData }) {
-  const { toast } = useToast();
+  const { success, error } = useToast();
 
   const mutation = useMutation({
     mutationFn: saveData,
     onSuccess: () => {
-      toast.success('Saved successfully');
+      success('Saved successfully');
     },
-    onError: (error) => {
-      toast.error(getErrorMessage(error));
+    onError: (err) => {
+      error(getErrorMessage(err));
     },
   });
 
   return (
     <Button
       onClick={() => mutation.mutate(data)}
-      loading={mutation.isPending}
+      isLoading={mutation.isPending}
       disabled={mutation.isPending}
     >
       Save
@@ -246,6 +231,8 @@ function FormWithErrors() {
 
 ### Inline Field Errors
 
+Conceptual markup pattern only - the real `FormField` in `frontend/src/components/forms/FormField.tsx` renders its own input and takes no `children` (see [Form Patterns](form-patterns.md)).
+
 ```tsx
 function FormField({ name, label, error, children }: FormFieldProps) {
   const hasError = !!error;
@@ -315,7 +302,7 @@ function RetryableContent({ onRetry, error }: RetryableContentProps) {
     <div className="text-center p-8">
       <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
       <p className="text-gray-400 mb-4">{getErrorMessage(error)}</p>
-      <Button onClick={handleRetry} loading={isRetrying}>
+      <Button onClick={handleRetry} isLoading={isRetrying}>
         <RefreshCw className="h-4 w-4 mr-2" />
         Retry
       </Button>
@@ -384,12 +371,16 @@ class ErrorBoundary extends React.Component {
 
 ## Testing Error Handling
 
+Tests use MSW v2 (`msw: ^2.12.x`) with the `http` / `HttpResponse` API (see `frontend/src/mocks/`):
+
 ```tsx
+import { http, HttpResponse } from 'msw';
+
 describe('Error Handling', () => {
   it('shows error state on API failure', async () => {
     server.use(
-      rest.get('/api/events', (req, res, ctx) => {
-        return res(ctx.status(500));
+      http.get('/api/events', () => {
+        return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
       })
     );
 
@@ -403,10 +394,12 @@ describe('Error Handling', () => {
   it('allows retry on error', async () => {
     let calls = 0;
     server.use(
-      rest.get('/api/events', (req, res, ctx) => {
+      http.get('/api/events', () => {
         calls++;
-        if (calls === 1) return res(ctx.status(500));
-        return res(ctx.json({ events: [] }));
+        if (calls === 1) {
+          return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
+        }
+        return HttpResponse.json({ events: [] });
       })
     );
 

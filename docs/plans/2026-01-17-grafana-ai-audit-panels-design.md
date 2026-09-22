@@ -1,5 +1,7 @@
 # Grafana AI Audit Panels Design
 
+> **Status:** Implemented — `frontend/src/components/ai/AIPerformancePage.tsx` embeds the consolidated Grafana dashboard.
+
 **Date:** 2026-01-17
 **Status:** Approved
 **Author:** Claude (brainstorming session with Mike)
@@ -42,19 +44,21 @@ These will be added as new Grafana panels using the existing JSON datasource.
 #### Layout (24-unit grid)
 
 **Row 1:**
-| Panel | Width | Type |
-|-------|-------|------|
-| Quality Score Trend | 8 | Time series |
-| Enrichment Utilization | 4 | Gauge |
-| Consistency Rate | 4 | Gauge |
-| Audit Coverage | 4 | Stat |
+
+| Panel                  | Width | Type        |
+| ---------------------- | ----- | ----------- |
+| Quality Score Trend    | 8     | Time series |
+| Enrichment Utilization | 4     | Gauge       |
+| Consistency Rate       | 4     | Gauge       |
+| Audit Coverage         | 4     | Stat        |
 
 **Row 2:**
-| Panel | Width | Type |
-|-------|-------|------|
-| Model Contribution Heatmap | 12 | Heatmap/Table |
-| Quality Correlation Leaderboard | 6 | Table |
-| Recommendation Frequency | 6 | Bar chart |
+
+| Panel                           | Width | Type          |
+| ------------------------------- | ----- | ------------- |
+| Model Contribution Heatmap      | 12    | Heatmap/Table |
+| Quality Correlation Leaderboard | 6     | Table         |
+| Recommendation Frequency        | 6     | Bar chart     |
 
 ### Panel Specifications
 

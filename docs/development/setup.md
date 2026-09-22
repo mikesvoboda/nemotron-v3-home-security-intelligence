@@ -1,7 +1,7 @@
 ---
 title: Development Environment Setup
 source_refs:
-  - scripts/setup.sh:1
+  - setup.py:1
   - scripts/setup-hooks.sh:1
   - scripts/validate.sh:1
   - pyproject.toml:1
@@ -49,21 +49,21 @@ The fastest way to set up your development environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mikesvoboda/home_security_intelligence.git
-cd home_security_intelligence
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 
-# Run the automated setup script
-./scripts/setup.sh
+# Run the interactive setup script
+python setup.py
 ```
 
-This script ([scripts/setup.sh](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/scripts/setup.sh)) automatically:
+This script ([setup.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/setup.py)) automatically:
 
-1. Checks all prerequisites
-2. Creates a Python virtual environment (`.venv`)
-3. Installs backend dependencies
-4. Installs frontend dependencies
-5. Sets up pre-commit hooks
-6. Verifies the installation
+1. Prompts for camera/model paths, ports, and security credentials
+2. Generates `.env` with secure, unique values (JWT secret, database password)
+3. Generates a `docker-compose.override.yml` with your port choices
+4. Optionally installs pre-commit hooks (`python setup.py --dev`)
+
+Then sync dependencies (see Manual Setup below): `uv sync --extra dev` and `cd frontend && npm install`.
 
 ## Manual Setup
 
@@ -72,8 +72,8 @@ If you prefer step-by-step control or the automated script fails:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/mikesvoboda/home_security_intelligence.git
-cd home_security_intelligence
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 ```
 
 ### 2. Backend Setup
@@ -126,7 +126,8 @@ The pre-commit configuration ([.pre-commit-config.yaml](https://github.com/mikes
 | `prettier`            | pre-commit | Frontend code formatting      |
 | `eslint`              | pre-commit | TypeScript/JavaScript linting |
 | `typescript-check`    | pre-commit | TypeScript type checking      |
-| `fast-test`           | pre-push   | Run unit tests before push    |
+| `auto-rebase`         | pre-push   | Rebase on origin/main         |
+| `parallel-tests`      | pre-push   | Selected fast test tiers      |
 
 ### 5. Environment Configuration
 
@@ -151,7 +152,9 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints (optional for dev)
-YOLO26_URL=http://localhost:8095
+# Models are served through the AI gateway (port 8090); see .env.example
+AI_GATEWAY_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090/yolo26
 NEMOTRON_URL=http://localhost:8091
 ```
 
@@ -342,7 +345,7 @@ echo "SSL_ENABLED=true" >> .env
 docker compose -f docker-compose.prod.yml restart frontend
 ```
 
-Access at `https://localhost:443`. See [SSL/HTTPS Configuration](ssl-https.md) for complete documentation.
+Access at `https://localhost:8444` (the default `FRONTEND_HTTPS_PORT` host mapping). See [SSL/HTTPS Configuration](ssl-https.md) for complete documentation.
 
 ## Next Steps
 
@@ -353,6 +356,6 @@ Access at `https://localhost:443`. See [SSL/HTTPS Configuration](ssl-https.md) f
 
 ## Related Documentation
 
-- [CLAUDE.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/CLAUDE.md) - Project instructions and rules
+- [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) - Project instructions and rules
 - [Backend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/AGENTS.md) - Backend architecture overview
 - [Frontend AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/AGENTS.md) - Frontend architecture overview
