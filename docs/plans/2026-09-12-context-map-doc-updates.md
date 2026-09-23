@@ -10126,3 +10126,17 @@ disk report). Measured from the fresh `frontend/reports/mutation/mutation.json`
 - CompileError 62 unchanged from the stale report: those mutants fail to
   compile (stryker excludes them from covered score); they stay visible in
   the total-denominator reading above rather than being hidden.
+
+### Row — FE survivor id 169 disposition: EQUIVALENT (per-mutant justification)
+
+`src/utils/time.ts:25` EqualityOperator `durationMs < 0` → `durationMs <= 0`.
+The two predicates differ ONLY at `durationMs === 0`. Shipped at zero: falls
+through to `formatDurationValue(0)` → `seconds=0`, all magnitude branches
+zero → returns `` `0s` ``. Mutant at zero: early-returns `'0s'`. Identical
+observable output at the only distinguishing input, on every input; no test
+can kill it without asserting a difference that does not exist. Disposition:
+EQUIVALENT — justified, not skipped; the fresh 99.69% covered score already
+excludes it from the killable universe (covered 321/322 with this one
+surviving as the sole non-killed covered mutant). No test authored; no
+production change. FE batch-1 therefore has NOTHING left to kill in the
+killable set.
