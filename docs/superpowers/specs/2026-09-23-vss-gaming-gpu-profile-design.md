@@ -3,7 +3,8 @@
 **Status:** approved design (§1-§8 approved section by section by the owner, 2026-09-23), ready for implementation planning
 **Date:** 2026-09-23
 **Branch:** `feat/vss-gaming-gpu-profile`
-**Revision:** rev 2 (2026-09-23). Amended after a Codex adversarial review, owner-approved:
+**Revision:** rev 3 (2026-09-23): three test environments (D2, D10, D12, §8), an engine-agnostic
+OpenAI-compatible VLM provider (§3), and a Brev hardware matrix (step 2.3). Rev 2 (2026-09-23). Amended after a Codex adversarial review, owner-approved:
 null-safe failure delivery (D11, §4, §6, step 0.25) and self-contained eval items replacing the
 event-FK replay (D7, §4, §5, §7).
 **Companion documents:** [`docs/vss-integration/`](../../vss-integration/AGENTS.md) holds the research
@@ -35,32 +36,33 @@ consumer tier.
 
 ## Decisions (locked by owner, 2026-09-23)
 
-| #   | Decision                                                                                                                                                                                                                                                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | **Downstream-first.** The work lands in this repo, behind the `backend/ai_contract` seam, shaped so it can go upstream later (R9).                                                                                                                                                                                  |
-| D2  | **Test box:** the amd64 RTX A5500, 24 GB, sm_86, **single GPU**. The A400 is retired. The implementation agent runs **on that box**. Ampere has no FP8 or FP4 tensor cores, so this box proves fit and salience, not native NVFP4 speed.                                                                            |
-| D3  | **Per-event architecture: detector + one VLM.** The detector gates every upload and supplies geometry. One VLM describes, verifies and scores candidates from the evidence stills in **one constrained call**. Florence-2 and most enrichment retire. The face, re-ID and plate specialists stay, loaded on demand. |
-| D4  | **Engine: contract-first.** llama.cpp (GGUF + mmproj) ships first. RT-VLM, VSS's engine, follows behind the same contract in a **gated** phase; its A5500 fit, or its failure, is recorded as upstream evidence. The VSS Delta build is produced in that phase.                                                     |
-| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M is the **interim placeholder**, used only by the legacy path until cutover.                                                                    |
-| D6  | **Ingest is FTP stills only.** Live streaming is R1.                                                                                                                                                                                                                                                                |
-| D7  | **Evaluation is replay, not live shadow,** over **self-contained eval items** that production retention cannot touch. The legacy and VLM modes do not fit on one card together. The control is the verdict recorded by the dual-GPU 30B pipeline, or an offline 30B replay where none was recorded.                 |
-| D8  | **Success criteria S1-S6** (below) gate the cutover.                                                                                                                                                                                                                                                                |
-| D9  | **Out of scope:** everything in [`12`](../../vss-integration/12-postponed-roadmap.md).                                                                                                                                                                                                                              |
-| D10 | **Real-camera data stays on the box,** in an eval store outside the repo. Only synthetic items and aggregate metrics enter git.                                                                                                                                                                                     |
-| D11 | **Failure delivery is null-safe end to end.** A `verification_failed` event has a NULL score and level, and it still reaches the dashboard and the detector-only notification. It does **not** require acknowledgment; acknowledgment stays reserved for scored risk ≥ 80.                                          |
+| #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Downstream-first.** The work lands in this repo, behind the `backend/ai_contract` seam, shaped so it can go upstream later (R9).                                                                                                                                                                                                                                                                                                                                            |
+| D2  | **Three test environments** (§8). **The GB300** (this repo's development box) is the development loop and runs the salience bake-off. **The amd64 RTX A5500** (24 GB, sm_86, **single GPU**; the A400 is retired) runs the real-data steps and the production cutover. **Brev VMs** supply the per-tier hardware matrix. An agent runs wherever a step's environment is. Ampere has no FP8 or FP4 tensor cores, so the A5500 proves fit and salience, not native NVFP4 speed. |
+| D3  | **Per-event architecture: detector + one VLM.** The detector gates every upload and supplies geometry. One VLM describes, verifies and scores candidates from the evidence stills in **one constrained call**. Florence-2 and most enrichment retire. The face, re-ID and plate specialists stay, loaded on demand.                                                                                                                                                           |
+| D4  | **Engine: contract-first.** llama.cpp (GGUF + mmproj) ships first. RT-VLM, VSS's engine, follows behind the same contract in a **gated** phase; its A5500 fit, or its failure, is recorded as upstream evidence. The VSS Delta build is produced in that phase.                                                                                                                                                                                                               |
+| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M is the **interim placeholder**, used only by the legacy path until cutover.                                                                                                                                                                                                                              |
+| D6  | **Ingest is FTP stills only.** Live streaming is R1.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D7  | **Evaluation is replay, not live shadow,** over **self-contained eval items** that production retention cannot touch. The legacy and VLM modes do not fit on one card together. The control is the verdict recorded by the dual-GPU 30B pipeline, or an offline 30B replay where none was recorded.                                                                                                                                                                           |
+| D8  | **Success criteria S1-S6** (below) gate the cutover.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D9  | **Out of scope:** everything in [`12`](../../vss-integration/12-postponed-roadmap.md).                                                                                                                                                                                                                                                                                                                                                                                        |
+| D10 | **Real-camera data stays out of git.** It may live on the owner's machines (A5500, GB300) and on Brev VMs used for evaluation. Transfer it over SSH, and wipe the eval store from a Brev VM at teardown. Only synthetic items and aggregate metrics enter git.                                                                                                                                                                                                                |
+| D11 | **Failure delivery is null-safe end to end.** A `verification_failed` event has a NULL score and level, and it still reaches the dashboard and the detector-only notification. It does **not** require acknowledgment; acknowledgment stays reserved for scored risk ≥ 80.                                                                                                                                                                                                    |
+| D12 | **Development VLM endpoints on the GB300.** The co-resident `cosmos-reason2-8b` (vLLM, `127.0.0.1:8001`) serves development at no extra VRAM. Use it lightly, because that stack shares the GPU. Our own llama.cpp `ai-vlm` with Qwen3-VL-4B runs in the free VRAM (~9 GiB on 2026-09-23) and exercises the production engine path. Cosmos-Reason2-8B joins the bake-off.                                                                                                     |
 
 ## Success criteria
 
 Measured on the A5500.
 
-| #   | Criterion       | Bar                                                                                                                                                         |
-| --- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1  | Fit             | Peak VRAM ≤ **20.4 GiB** (0.85 × 24 GB) with the detector, on-demand specialists and the VLM resident; no CPU offload of the VLM                            |
-| S2  | False positives | On labeled-benign items, the VLM path's rate at `risk_level ≥ medium` is **≤ 50% of the control's**                                                         |
-| S3  | No new misses   | Recall on labeled incidents (real + synthetic) **≥ the control's**                                                                                          |
-| S4  | Latency         | p95 per-batch verdict ≤ **30 s**, including cold starts                                                                                                     |
-| S5  | Robustness      | **0** unparseable verdicts. Every failure surfaces as `verification_failed`, never as a default score, and reaches the dashboard and the notification path. |
-| S6  | Contract        | The conformance suite is green including `vlm_assess`, and the FakeProvider covers it                                                                       |
+| #   | Criterion       | Bar                                                                                                                                                                                                                    |
+| --- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1  | Fit             | Peak VRAM ≤ **20.4 GiB** (0.85 × 24 GB) with the detector, on-demand specialists and the VLM resident; no CPU offload of the VLM. Measured on 24 GB-class hardware (the A5500, or a Brev A10G or L4), not on the GB300 |
+| S2  | False positives | On labeled-benign items, the VLM path's rate at `risk_level ≥ medium` is **≤ 50% of the control's**                                                                                                                    |
+| S3  | No new misses   | Recall on labeled incidents (real + synthetic) **≥ the control's**                                                                                                                                                     |
+| S4  | Latency         | p95 per-batch verdict ≤ **30 s**, including cold starts, measured on 24 GB-class hardware                                                                                                                              |
+| S5  | Robustness      | **0** unparseable verdicts. Every failure surfaces as `verification_failed`, never as a default score, and reaches the dashboard and the notification path.                                                            |
+| S6  | Contract        | The conformance suite is green including `vlm_assess`, and the FakeProvider covers it                                                                                                                                  |
 
 ## §2 Architecture
 
@@ -118,7 +120,10 @@ parser expects are maintained separately.
 
 **Slots:**
 
-- Add `ProviderId.LLAMACPP_VLM` and `ProviderId.RTVI_VLM`
+- Add `ProviderId.OPENAI_VLM` and `ProviderId.RTVI_VLM`. `OPENAI_VLM` is engine-agnostic. It speaks
+  standard OpenAI chat completions with `response_format: json_schema`, which both llama.cpp
+  (production) and vLLM (the GB300's co-resident Cosmos endpoint) accept, and its provenance records
+  the actual engine. RT-VLM gets its own slot because its adapter differs (Engine 2).
   (`backend/ai_contract/provider.py:22-35`). Each registers with `required={"vlm_assess"}`, the
   subset pattern `llamacpp-serve` uses.
 - The FakeProvider returns a deterministic verdict keyed on an image hash.
@@ -129,7 +134,9 @@ parser expects are maintained separately.
 - **Wire:** `POST /v1/chat/completions` with up to 4 base64 `image_url` parts and a `json_schema`
   response format.
 - **Enforcement probe:** it proves enforcement by requesting a schema with a required constant field
-  and checking the output. **A 2xx alone proves nothing.**
+  and checking the output. **A 2xx alone proves nothing.** It runs once per endpoint.
+- **The same client reaches other OpenAI-compatible servers.** On the GB300 it also targets the
+  co-resident vLLM `cosmos-reason2-8b` (D12).
 - **llama.cpp pin:** `b7972` (`ai/nemotron/Dockerfile`) runs Qwen3-VL. Nemotron-12B-VL needs a newer
   pin with its multimodal support, merged 2026-02-14 or later, so the bake-off includes that bump.
 
@@ -247,8 +254,14 @@ points, which is too coarse for S2.
 - **S3:** incidents at or above their expected minimum level, divided by all incidents.
 - `uncertain` items count at their scored level.
 
-**Bake-off.** Run the same replay per candidate: Qwen3-VL-4B, Qwen3-VL-8B, and Nemotron-12B-VL after
-the llama.cpp bump. Cosmos3-Edge-4B follows in Phase 4 through RT-VLM. Report per candidate:
+**Bake-off.** Run the same replay per candidate: Qwen3-VL-4B, Qwen3-VL-8B, Nemotron-12B-VL (after
+the llama.cpp bump), and Cosmos-Reason2-8B. Cosmos-Reason2-8B is the GB300's co-resident vLLM build
+(BF16), a quality reference only; a consumer tier would need a quantized build. Cosmos3-Edge-4B
+follows in Phase 4 through RT-VLM.
+
+Salience depends on the model build (weights, quantization, engine), not on the GPU. So run each
+candidate in the build it would ship in; any environment then gives the same S2/S3. Fit and latency
+come from the hardware matrix (step 2.3). Report per candidate:
 
 - S1-S5 and the `uncertain` rate;
 - the **tool-calling probe** through llama.cpp, which keeps R3 open;
@@ -330,6 +343,30 @@ floors, the conformance tier's no-xfail/skip rule, the contract drift gate (`gen
 
 ## §8 Phasing and milestones
 
+**Where each step runs** (D2):
+
+| Environment         | Steps                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| GB300 (development) | Phase G0; the code for 0.25, 0.3 and 0.4; all of Phase 1; Phase 2 replay and bake-off runs, on synthetic and copied real items |
+| A5500 (production)  | 0.1, 0.2 and 0.5; deploying 0.25, 0.3 and 0.4; S1 and S4 on its 24 GB; Phase 3 cutover                                         |
+| Brev VMs            | The hardware matrix (step 2.3); RT-VLM fit per architecture (step 4.2)                                                         |
+
+**Phase G0: GB300 development environment** (can start immediately; see the checklist below)
+
+- G0.1 **Backend dev environment:** the uv venv (arm64; the unit tier already collects on 64 KiB
+  pages), test Postgres and Redis on rootless podman, and a free API port. The co-resident vLLM holds
+  `127.0.0.1:8000`.
+- G0.2 **Point the `OPENAI_VLM` client at the co-resident `cosmos-reason2-8b`** (`127.0.0.1:8001`),
+  and run the enforcement probe against it.
+- G0.3 **Build llama.cpp for aarch64 and sm_103** (`CUDA_ARCHITECTURES=103`, per
+  `env-templates/gb300.env.template`). Serve Qwen3-VL-4B within the free VRAM.
+- G0.4 **Synthetic eval items** from `scripts/synthetic`, so replay works before any real item is
+  frozen.
+
+The full live pipeline on the GB300 (FTP → YOLO26 on Triton → batch → VLM) needs the arm64 port's
+milestones 1 and 2 (`docs/superpowers/specs/2026-09-12-arm64-gb300-milestone1-design.md`). It is not
+on this design's critical path.
+
 **Phase 0: Foundations** (independent of VSS)
 
 - **0.1 Freeze the control first.** Record the switch timestamp, then build eval items (§5) from
@@ -374,6 +411,14 @@ tier is green.
 
 - 2.1 The replay harness, plus the offline 30B control replay for synthetic items.
 - 2.2 The bake-off runs and report.
+- 2.3 **Hardware matrix on Brev.** This is evidence, not a cutover gate.
+  - Run the leading candidates on A10G (24 GB, sm_86), L4 (24 GB, sm_89), RTX PRO 4500 (32 GB,
+    sm_120 [A]) and T4 (16 GB), and record S1 and S4 for each tier.
+  - On the RTX PRO 4500, run the NVFP4-QAD checkpoint in vLLM and read the resolved quantization
+    method from the startup log ([`04`](../../vss-integration/04-fp4-and-deployment.md) §6). That
+    settles whether NVFP4 computes natively on consumer Blackwell (03 Q1).
+  - Confirm each VM's architecture with `nvidia-smi --query-gpu=compute_cap` before trusting a
+    result.
 
 **M2:** the owner picks the VLM.
 
@@ -387,12 +432,27 @@ tier is green.
 **Phase 4: The RT-VLM provider** (gated: starts after M2, not required for M3)
 
 - 4.1 The adapter, the KV-bytes compose patch, conformance.
-- 4.2 The A5500 fit attempt, with the outcome recorded in `docs/vss-integration/` as upstream evidence.
+- 4.2 The RT-VLM fit attempt on the A5500 and on Brev's A10G, L4 and RTX PRO 4500, with each
+  outcome recorded in `docs/vss-integration/` as upstream evidence.
 - 4.3 The **VSS skill Delta build**: `_builds/hsi-consumer-24gb/override.env` + compose patches. It needs zero
   upstream changes ([`08`](../../vss-integration/08-audit-profile-anatomy.md) §9). It configures the
   base profile's RT-VLM for 24 GB, with our llama.cpp as its remote LLM.
 
 **M4:** RT-VLM conformance is green, the fit record is committed, and the Delta build exists.
+
+### GB300 development checklist (Phase G0)
+
+- [ ] **Two container daemons.** Our stack runs on rootless podman. The co-resident `dgx-inference`
+      stack runs on rootful docker and holds ports (vLLM on `127.0.0.1:8000` and `:8001`, LiteLLM on
+      `:4000`). Debug ours with `podman`.
+- [ ] **GPU headroom.** The co-resident stack held ~246 of 256 GiB on 2026-09-23. Check free memory
+      with `nvidia-smi` before loading any model.
+- [ ] **Architecture.** aarch64 with 64 KiB pages. There is no host CUDA toolkit, so build CUDA code
+      in containers. llama.cpp uses `CUDA_ARCHITECTURES=103`.
+- [ ] **Env template.** Start from `env-templates/gb300.env.template`.
+- [ ] **Codex reviews.** `/codex:*` sandboxing needs `bwrap` user namespaces. This host loads Ubuntu's
+      `bwrap-userns-restrict` AppArmor profile for that (added 2026-09-23). If a Codex review comes
+      back empty, run `codex sandbox -- true` first.
 
 ### A5500 bring-up checklist (step 0.2)
 
@@ -460,11 +520,12 @@ VSS moves fast, so re-verify any line before relying on it.
 
 **VLM candidates** (all ungated; confirm sizes from the GGUF blobs):
 
-| Candidate                 | License                   | Notes                                                                                                                                                                 |
-| ------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Qwen3-VL-4B / 8B-Instruct | Apache-2.0                | Tool-calling template; runs on llama.cpp `b7972`                                                                                                                      |
-| Nemotron-Nano-12B-v2-VL   | NVIDIA Open Model License | Community GGUF Q4_K_M ≈ 7.5 GB + mmproj 1.69 GB [E]; tool calling plus a thinking toggle; needs the llama.cpp bump. The NVFP4-QAD checkpoint serves the RT-VLM phase. |
-| Cosmos3-Edge-4B           | —                         | RT-VLM phase only                                                                                                                                                     |
+| Candidate                 | License                      | Notes                                                                                                                                                                 |
+| ------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qwen3-VL-4B / 8B-Instruct | Apache-2.0                   | Tool-calling template; runs on llama.cpp `b7972`                                                                                                                      |
+| Nemotron-Nano-12B-v2-VL   | NVIDIA Open Model License    | Community GGUF Q4_K_M ≈ 7.5 GB + mmproj 1.69 GB [E]; tool calling plus a thinking toggle; needs the llama.cpp bump. The NVFP4-QAD checkpoint serves the RT-VLM phase. |
+| Cosmos-Reason2-8B         | Check license and gating [?] | Served now on the GB300 by the co-resident vLLM (BF16, `127.0.0.1:8001`). A quality reference; a consumer build would need quantization.                              |
+| Cosmos3-Edge-4B           | —                            | RT-VLM phase only                                                                                                                                                     |
 
 ## Risks and open questions
 
@@ -475,5 +536,8 @@ VSS moves fast, so re-verify any line before relying on it.
 | Four images per batch on sm_86: does S4 hold, and how many image tokens do tiling VLMs spend?                                               | The bake-off                                                                                                                    |
 | RT-VLM on sm_86: VSS treats FP8 as unsupported on Ampere [A]; the NVFP4 weight-only path is unknown; the BF16 12B blob (26 GB) does not fit | Phase 4 records the outcome, whichever it is                                                                                    |
 | Labels arrive after retention deleted the event                                                                                             | Label within the 30-day window (step 0.5); labeled post-switch events and synthetic items add items with an offline 30B control |
+| The GB300's shared GPU (100% busy) skews timing and has no 24 GB cap                                                                        | Measure S1 and S4 only on 24 GB-class hardware (the A5500, Brev A10G/L4)                                                        |
+| A Brev VM's GPU differs from its label                                                                                                      | Check `nvidia-smi --query-gpu=compute_cap` before each run                                                                      |
+| Real-camera items left on a Brev VM                                                                                                         | Wipe the eval store at teardown (D10)                                                                                           |
 | Too few feedback labels for ≥100/≥20                                                                                                        | Step 0.5 budgets owner labeling time; synthetic incidents cover the incident side                                               |
 | Replay drifts from live behaviour (key-frame choice, batching)                                                                              | The 14-day observation window and the rollback triggers                                                                         |

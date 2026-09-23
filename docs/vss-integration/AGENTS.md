@@ -7,7 +7,7 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
 
 - **Implementing, planning, or asking "what did we decide?"** → the design spec,
   [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
-  It holds the locked decisions (D1-D11), success criteria (S1-S6), phases and milestones (M0-M4),
+  It holds the locked decisions (D1-D12), success criteria (S1-S6), phases and milestones (M0-M4),
   and an A5500 bring-up checklist. It is the single source of truth for the plan.
 - **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
   (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
@@ -20,8 +20,8 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
 
 **The design in one breath:** a detector gates FTP stills, and **one VLM** describes, verifies and
 scores each candidate in a single constrained call. llama.cpp serves it first; VSS's RT-VLM joins
-behind the same `ai_contract` op in a gated phase. It is proven by replay on a single RTX A5500 (24
-GB, sm_86) before a flag-controlled cutover.
+behind the same `ai_contract` op in a gated phase. It is developed on the GB300, proven by replay, measured across a Brev hardware matrix, and cut over
+behind a flag on a single RTX A5500 (24 GB, sm_86).
 
 ## Purpose
 
