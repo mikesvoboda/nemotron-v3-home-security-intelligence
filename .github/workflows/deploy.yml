@@ -74,7 +74,7 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@8c1e8f8e5bf845ba3773a14f3967965548a2341e # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v6
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
@@ -164,7 +164,7 @@ jobs:
       # Build and push AI image (amd64 only - NVIDIA CUDA)
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v5
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
