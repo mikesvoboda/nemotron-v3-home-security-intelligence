@@ -10607,3 +10607,40 @@ KILLED (previous row). Batch-15-era feed: 76/1 with the one survivor
 EQUIVALENT, per-mutant justified above. webhook_service has no open
 triage. (Fleet after this landing: rs19b in the redis lane, ns16b ->
 survivor-rechecks in auth1, batch-17 cache-gen in auth2.)
+
+### Row — logs13c lands 10/0 (rc=0, PERFECT): the dossier's 8 SCHEMA-SHIELDED claims are dead by measurement — sanitizer EXPANSION makes raw-cap-valid inputs exceed their sanitize caps — logs lineage CLOSED at 61/61 with zero residual
+
+**logs13c MEASURED this session** (`/tmp/redcheck-logs13c.log`, rc=0
+06:23Z "source clean"; stdout `keys: 10 applied: 10 tally: {'KILLED':
+10}`): the 10 logs13b residual keys {13,14,31,32,75,76,90,92,103,107} vs
+shipped + batch-13b + batch-13c. All 10 KILLED — every kill carried by a
+MEASURED pin in batch-13c (commit `3424004f`, 6 tests, 6 passed 11.27s;
+13b+13c combined 20 passed 11.02s; harness DRY 10/10 assignable rc=0).
+
+**Why the shield claim failed (the transferable finding, per-mutant
+corrected, not blanket-reversed)**: `sanitize_log_value` replaces every
+`${…}` with the 20-char `[EXPRESSION_REMOVED]` **before** the
+`max_length` truncation, so sanitized output can be LONGER than the raw
+input. A schema-valid raw input at the raw cap therefore crosses the
+sanitize cap: component `"${a}"*25` (raw 100 == schema max*length=100,
+valid) sanitizes to 500 → shipped truncates at 100 to 5 whole blocks +
+suffix (MEASURED len 114, pinned exact in both the `extra` value and the
+message text); user_agent `"${b}"*125`(raw 500 == schema 500) → shipped
+cap 500 truncation (MEASURED len 515); context key`"${c}"_12`(raw 48,
+passes the len≤50 loop filter) → the truncation lands INSIDE the`ctx_`-prefixed extra KEY NAME (50-cut + suffix, pinned by exact key
+membership). Kwarg-removal mutants (default 10000 → no suffix) and N+1
+mutants (different cut) all change the emitted string — 8 GAP kills where
+the frozen dossier said equivalent. Keys 90/92: the public-route C14
+equivalence (enum-validated level ⇒ default unreachable via the route)
+STANDS; at helper level the `.get(…, logging.INFO)`default is the shipped
+defensive contract and is pinned (duck`.value="TRACE"` → MEASURED log
+level 20; ERROR control 40), helper-only reachability disclosed in the
+battery docstring.
+
+**Logs lineage CLOSED**: frozen feed 61 keys = logs13b 51 KILLED + these
+10 → 61/61, zero residual, every disposition either a kill or a
+per-mutant-justified equivalence. The shield-correction pattern (cap
+comparisons must account for sanitizer expansion) is the one to re-apply
+wherever other dossiers claimed raw-cap == sanitize-cap shielding.
+(Fleet: rs19b redis, ns16b → rechecks auth1, batch-17 cache-gen auth2 —
+all still running.)
