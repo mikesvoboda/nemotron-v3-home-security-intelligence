@@ -1,5 +1,7 @@
 # FP4, Local Deployment, and the Consumer Fit
 
+> **Errata (2026-09-23):** E1, E8, E9, E13, E14, E15, E16, E17, E27 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 **Investigated 2026-09-19** against VSS `cdad5cc0e`, with an adversarial verification pass.
 Three recon claims were downgraded by that pass and are marked **[CORRECTED]**. This document
 supersedes the FP4 arithmetic in [`02-model-inventory.md`](02-model-inventory.md).

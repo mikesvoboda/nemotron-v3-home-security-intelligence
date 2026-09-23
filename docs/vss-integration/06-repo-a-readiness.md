@@ -1,5 +1,7 @@
 # Repo A Readiness: What Must Be Fixed Before Any Swap
 
+> **Errata (2026-09-23):** E5, E7, E25, E26 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 Findings from a 14-agent assessment on 2026-09-18, **independently re-verified** where marked
 **[V]**. This document is about _this repository_, not VSS.
 

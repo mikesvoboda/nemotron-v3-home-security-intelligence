@@ -1,5 +1,7 @@
 # Open Questions Register
 
+> **Errata (2026-09-23):** E8, E9, E19 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 Everything not yet established. **Update this file as questions are answered** — move resolved
 items into the relevant topic document with a **[V]** marker and a citation, and strike them here
 with the answer and the date.
