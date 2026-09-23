@@ -10079,3 +10079,26 @@ assignable: 61 deferred: 0 unassignable: 0`. Battery md5 ec83f1bd verified
   Full run launched detached this session; log `/tmp/redcheck-logs13b.log`.
   **No kill tally claimed for 13b** — that number comes only from the lane log
   once the run exits "source clean".
+
+### Row — js14b2 red-check tally: batch-14b battery kills all 34 list/query survivors
+
+MEASURED from lane logs this session (`/tmp/redcheck-js14b2.log`,
+`/tmp/js14b2-stdout.log`, exit line `[js14b2] rc=0 2026-09-23T04:15:31Z`,
+"source clean"):
+
+- Feed = the 34 keys `js14c` left SURVIVING against the batch-14 battery
+  (`/tmp/extracts/job_service_survivors.tsv`, 34 lines), battery
+  `test_job_service_batch14b.py` (md5 52b9bb66 verified in the job lane).
+- Main run: **33 KILLED / 1 LOC-AMBIG(0<1)** — no SURVIVED verdicts. The one
+  LOC-AMBIG (`xǁDatabaseJobServiceǁlist_jobs__mutmut_8`,
+  `query = select(Job)` → `select(None)`) was an ASSIGNMENT miss (harness
+  located 0 occurrences of the shape inside the resolved scope at run time),
+  NOT a measured survival — no mutant was ever applied for that key, so it is
+  neither killed nor survived by the main run.
+- Dedicated clean re-measure of just that key this session
+  (`/tmp/lane_js14b2_recheck.py`, one-line feed, same lane/guards):
+  `keys: 1 applied: 1 tally: {'KILLED': 1}` — "source clean",
+  `/tmp/redcheck-js14b2-recheck.log`. Honest combined verdict: **34/34 of the
+  js14c survivor set killed by the batch-14b battery**, one key via a second
+  dedicated run. The assignment-miss mechanism was not reproducible on the
+  restored source (immediate DRY re-check: `assignable: 34 unassignable: 0`).
