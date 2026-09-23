@@ -56,13 +56,13 @@ exports[`ThumbnailStrip > snapshots > renders detection without object type or c
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -187,13 +187,13 @@ exports[`ThumbnailStrip > snapshots > renders single detection 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -275,13 +275,13 @@ exports[`ThumbnailStrip > snapshots > renders with high confidence detection 1`]
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -363,13 +363,13 @@ exports[`ThumbnailStrip > snapshots > renders with low confidence detection 1`] 
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -451,13 +451,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -520,13 +520,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -589,13 +589,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -658,13 +658,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -727,13 +727,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -796,13 +796,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -865,13 +865,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -934,13 +934,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1003,13 +1003,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1072,13 +1072,13 @@ exports[`ThumbnailStrip > snapshots > renders with pagination (show more button)
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1204,13 +1204,13 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1273,13 +1273,13 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1342,13 +1342,13 @@ exports[`ThumbnailStrip > snapshots > renders with selected detection 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1430,13 +1430,13 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1499,13 +1499,13 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span
@@ -1568,13 +1568,13 @@ exports[`ThumbnailStrip > snapshots > renders with three detections 1`] = `
             width="24"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path
-              d="M12 6v6l4 2"
-            />
             <circle
               cx="12"
               cy="12"
               r="10"
+            />
+            <path
+              d="M12 6v6l4 2"
             />
           </svg>
           <span

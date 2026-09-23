@@ -101,7 +101,7 @@ exports[`VehicleMatchBadge > snapshots > renders unknown vehicle badge correctly
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-triangle-alert h-4 w-4"
+    class="lucide lucide-triangle-alert lucide-alert-triangle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"

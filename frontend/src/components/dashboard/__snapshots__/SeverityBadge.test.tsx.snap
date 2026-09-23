@@ -10,7 +10,7 @@ exports[`SeverityBadge > snapshots > renders clear severity level correctly 1`] 
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-check-big h-4 w-4"
+    class="lucide lucide-circle-check-big lucide-check-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -44,7 +44,7 @@ exports[`SeverityBadge > snapshots > renders critical level with pulsing animati
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-x h-4 w-4"
+    class="lucide lucide-circle-x lucide-x-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -83,7 +83,7 @@ exports[`SeverityBadge > snapshots > renders critical severity level correctly 1
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-x h-4 w-4"
+    class="lucide lucide-circle-x lucide-x-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -122,7 +122,7 @@ exports[`SeverityBadge > snapshots > renders high severity level correctly 1`] =
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-triangle-alert h-4 w-4"
+    class="lucide lucide-triangle-alert lucide-alert-triangle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -159,7 +159,7 @@ exports[`SeverityBadge > snapshots > renders low severity level correctly 1`] = 
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-check-big h-4 w-4"
+    class="lucide lucide-circle-check-big lucide-check-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -193,7 +193,7 @@ exports[`SeverityBadge > snapshots > renders md size variant correctly 1`] = `
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-alert h-4 w-4"
+    class="lucide lucide-circle-alert lucide-alert-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -238,7 +238,7 @@ exports[`SeverityBadge > snapshots > renders medium severity level correctly 1`]
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-alert h-4 w-4"
+    class="lucide lucide-circle-alert lucide-alert-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -283,7 +283,7 @@ exports[`SeverityBadge > snapshots > renders sm size variant correctly 1`] = `
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-alert h-3 w-3"
+    class="lucide lucide-circle-alert lucide-alert-circle h-3 w-3"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -328,7 +328,7 @@ exports[`SeverityBadge > snapshots > renders with count 1`] = `
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-triangle-alert h-4 w-4"
+    class="lucide lucide-triangle-alert lucide-alert-triangle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
@@ -373,7 +373,7 @@ exports[`SeverityBadge > snapshots > renders with custom className 1`] = `
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-circle-check-big h-4 w-4"
+    class="lucide lucide-circle-check-big lucide-check-circle h-4 w-4"
     fill="none"
     height="24"
     stroke="currentColor"
