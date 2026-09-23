@@ -111,9 +111,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - name: ai-yolo26
-            context: .
-            dockerfile: ./ai/yolo26/Dockerfile
+          # ai-yolo26 retired 2026-09-23 (owner ruling): Triton on ai-gateway
+          # serves yolo26 among the 14 models — see archive/ai-yolo26-image/.
           - name: ai-llm
             context: .
             dockerfile: ./ai/nemotron/Dockerfile
@@ -250,7 +249,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Download digests
@@ -489,7 +488,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [backend, frontend, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Log in to Container Registry
@@ -738,7 +737,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [backend, frontend, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Checkout

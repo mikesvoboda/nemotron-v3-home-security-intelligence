@@ -30,5 +30,5 @@ Each suite has its own `README.md`; `benchmark/` and `load/` have their own `AGE
 
 - **backend/tests/AGENTS.md:** Backend test infrastructure
 - **frontend/tests/e2e/:** E2E test documentation
-- **docs/development/testing.md:** Comprehensive testing guide
+- **docs/developer/testing.md:** Comprehensive testing guide
 - **AGENTS.md:** TDD requirements and testing policy

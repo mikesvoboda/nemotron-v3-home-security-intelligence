@@ -249,7 +249,7 @@ if [ -n "$EXPERT_WEIGHT_PATTERN" ]; then
 else
     echo -e "${YELLOW}No automatic pattern could be determined.${NC}"
     echo -e "Manually inspect the tensor names above and set LLM_MOE_OFFLOAD_PATTERN in .env."
-    echo -e "See docs/development/moe-offloading.md for guidance."
+    echo -e "See docs/developer/moe-offloading.md for guidance."
 fi
 
 echo ""
@@ -272,4 +272,4 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}Done.${NC} See docs/development/moe-offloading.md for full documentation."
+echo -e "${GREEN}Done.${NC} See docs/developer/moe-offloading.md for full documentation."

@@ -21,7 +21,9 @@ Environment Variables:
     PYTORCH_PROFILE_DIR: Output directory for traces (default: "/tmp/profiles")
 
 Viewing Traces:
-    1. Copy trace files from container: podman cp ai-yolo26:/tmp/profiles ./profiles
+    1. Copy trace files from the serving container (e.g. the retired
+       ai-yolo26 image used to run this; Triton-on-ai-gateway serves
+       yolo26 now): podman cp <container>:/tmp/profiles ./profiles
     2. Open https://ui.perfetto.dev in Chrome
     3. Drag and drop the .json trace file
 """

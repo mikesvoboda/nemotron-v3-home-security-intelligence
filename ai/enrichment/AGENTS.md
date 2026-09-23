@@ -6,7 +6,7 @@ _Fan-out enrichment pipeline showing parallel model inference for detection cont
 
 ## Purpose
 
-Combined enrichment service providing on-demand model loading for comprehensive detection analysis. Consolidates vehicle, pet, clothing, depth, pose, threat detection, demographics, re-identification, and action recognition into a single containerized service with VRAM-aware model management.
+Combined enrichment service providing on-demand model loading for comprehensive detection analysis. Consolidates vehicle, pet, clothing, depth, pose, threat detection, demographics, and re-identification into a single containerized service with VRAM-aware model management. (Action recognition retired here with NEM-5563 — it runs as Triton `stgcn_action` on the ai-gateway.)
 
 ## Architecture
 
@@ -31,8 +31,12 @@ Combined enrichment service providing on-demand model loading for comprehensive 
 | Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings                  |
 | Plate OCR              | ~500 MB | MEDIUM   | License plate text recognition          |
 | Depth Anything V2      | ~150 MB | LOW      | Distance estimation                     |
-| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition         |
 | YOLO26 Detector        | ~100 MB | LOW      | Secondary object detection (opt.)       |
+
+The Action Recognizer row (X-CLIP, ~1.5-2 GB) was retired with NEM-5563:
+action recognition now runs as Triton `stgcn_action` on the ai-gateway
+(`/action-classify`); the X-CLIP class itself lives in
+`archive/ai-enrichment/action_recognizer.py`.
 
 ## Directory Contents
 
@@ -53,7 +57,6 @@ ai/enrichment/
 │   ├── demographics.py    # Age/gender estimation
 │   ├── person_reid.py     # OSNet re-ID embeddings
 │   ├── plate_ocr.py       # PaddleOCR license plate text (NEM-5372)
-│   ├── action_recognizer.py # X-CLIP action recognition
 │   └── yolo26_detector.py # YOLO26 secondary detector
 ├── utils/                 # Utility modules (NEM-3719)
 │   ├── AGENTS.md          # Utils documentation
@@ -66,7 +69,6 @@ ai/enrichment/
 │   ├── test_model_manager.py     # Model manager unit tests
 │   ├── test_pose_estimator.py    # Pose estimation tests
 │   ├── test_demographics.py      # Demographics tests
-│   ├── test_action_recognizer.py # Action recognition tests
 │   ├── test_plate_ocr.py         # Plate OCR tests (NEM-5372)
 │   ├── test_video_processing.py  # Video processing utilities tests
 │   └── test_yolo26_detector.py   # YOLO26 detector tests
@@ -94,9 +96,17 @@ FastAPI server hosting all classification models with unified `/enrich` endpoint
 
 ```python
 VEHICLE_SEGMENT_CLASSES = [
-    "articulated_truck", "background", "bicycle", "bus", "car",
-    "motorcycle", "non_motorized_vehicle", "pedestrian",
-    "pickup_truck", "single_unit_truck", "work_van"
+    "articulated_truck",
+    "background",
+    "bicycle",
+    "bus",
+    "car",
+    "motorcycle",
+    "non_motorized_vehicle",
+    "pedestrian",
+    "pickup_truck",
+    "single_unit_truck",
+    "work_van",
 ]
 ```
 
@@ -122,13 +132,15 @@ VRAM-aware model manager implementing LRU eviction with priority ordering.
 
 ```python
 manager = OnDemandModelManager(vram_budget_gb=6.0)
-manager.register_model(ModelConfig(
-    name="vehicle",
-    vram_mb=1500,
-    priority=ModelPriority.MEDIUM,
-    loader_fn=lambda: VehicleClassifier(...).load_model(),
-    unloader_fn=lambda m: _unload_model(m),
-))
+manager.register_model(
+    ModelConfig(
+        name="vehicle",
+        vram_mb=1500,
+        priority=ModelPriority.MEDIUM,
+        loader_fn=lambda: VehicleClassifier(...).load_model(),
+        unloader_fn=lambda m: _unload_model(m),
+    )
+)
 
 # Get model (loads if necessary, evicts LRU if needed)
 model = await manager.get_model("vehicle")
@@ -141,20 +153,23 @@ status = manager.get_status()
 
 Defines model configurations and the `create_model_registry()` factory function.
 
-**Available Models (10 total):**
+**Available Models (9 total):**
 
-| Model Name         | VRAM   | Priority | Trigger Conditions                |
-| ------------------ | ------ | -------- | --------------------------------- |
-| fashion_clip       | 800 MB | MEDIUM   | Person detected                   |
-| vehicle_classifier | 1.5 GB | MEDIUM   | Vehicle detected                  |
-| pet_classifier     | 200 MB | MEDIUM   | Cat/dog detected                  |
-| depth_estimator    | 150 MB | LOW      | Any detection                     |
-| pose_estimator     | 300 MB | HIGH     | Person detected                   |
-| threat_detector    | 400 MB | CRITICAL | Always checked for security       |
-| demographics       | 500 MB | HIGH     | Person with face detected         |
-| person_reid        | 100 MB | MEDIUM   | Person detected for tracking      |
-| action_recognizer  | 1.5 GB | LOW      | Suspicious pose + multiple frames |
-| yolo26_detector    | 100 MB | LOW      | Optional secondary detection      |
+| Model Name         | VRAM   | Priority | Trigger Conditions           |
+| ------------------ | ------ | -------- | ---------------------------- |
+| fashion_clip       | 800 MB | MEDIUM   | Person detected              |
+| vehicle_classifier | 1.5 GB | MEDIUM   | Vehicle detected             |
+| pet_classifier     | 200 MB | MEDIUM   | Cat/dog detected             |
+| depth_estimator    | 100 MB | LOW      | Any detection                |
+| pose_estimator     | 300 MB | HIGH     | Person detected              |
+| threat_detector    | 400 MB | CRITICAL | Always checked for security  |
+| demographics       | 500 MB | HIGH     | Person with face detected    |
+| person_reid        | 100 MB | MEDIUM   | Person detected for tracking |
+| yolo26_detector    | 100 MB | LOW      | Optional secondary detection |
+
+The X-CLIP `action_recognizer` (1.5–2 GB, LOW) row was removed with the
+NEM-5563 retirement — action recognition now runs as Triton `stgcn_action`
+behind the ai-gateway's `/action-classify` adapter.
 
 ### Model Implementations
 
@@ -219,7 +234,7 @@ ThreatResult(
     threats=[ThreatDetection(threat_type="knife", confidence=0.85, bbox=[...], severity="high")],
     has_threat=True,
     max_severity="high",
-    inference_time_ms=45.2
+    inference_time_ms=45.2,
 )
 ```
 
@@ -248,25 +263,16 @@ Person re-identification embeddings for tracking across cameras.
 
 **Input Dimensions:** 256x128 (OSNet standard)
 
-#### `models/action_recognizer.py` (X-CLIP)
+#### Action recognition — RETIRED (NEM-5563)
 
-Video-based action recognition using Microsoft's X-CLIP model.
-
-**Trigger Conditions:**
-
-- Person detected for >3 seconds
-- Multiple frames available in buffer
-- Unusual pose detected (from pose estimator)
-
-**Security Actions:**
-
-```python
-SUSPICIOUS_ACTIONS = {
-    "fighting", "climbing", "breaking window",
-    "picking lock", "hiding", "loitering",
-    "looking around suspiciously"
-}
-```
+The X-CLIP `ActionRecognizer` no longer lives in this package; the retired
+class is in `archive/ai-enrichment/action_recognizer.py`. Action
+recognition now runs skeleton-based: the ai-gateway's `/action-classify`
+adapter drives Triton `stgcn_action` over gateway-computed pose keypoints
+(`ai/gateway/adapters/enrichment.py`), and the backend pipeline uses
+`_recognize_actions_from_skeleton()`. The legacy `/enrich` wire contract
+still ACCEPTS `frames` / an `action_recognition` option but ignores both,
+and `EnrichmentResponse.action` stays `None`.
 
 #### `models/plate_ocr.py` (PaddleOCR License Plate Text - NEM-5372)
 
@@ -285,13 +291,13 @@ License plate text recognition using PaddleOCR with specialized preprocessing fo
 
 ```python
 PlateOCRResult(
-    plate_text="ABC123",         # Filtered alphanumeric text
-    raw_text="ABC 123",          # Original OCR output
-    ocr_confidence=0.95,         # Aggregate confidence (0-1)
-    char_confidences=[...],      # Per-character confidence
-    image_quality_score=0.85,    # Quality assessment (0-1)
-    is_enhanced=False,           # Whether CLAHE was applied
-    is_blurry=False              # Motion blur detected
+    plate_text="ABC123",  # Filtered alphanumeric text
+    raw_text="ABC 123",  # Original OCR output
+    ocr_confidence=0.95,  # Aggregate confidence (0-1)
+    char_confidences=[...],  # Per-character confidence
+    image_quality_score=0.85,  # Quality assessment (0-1)
+    is_enhanced=False,  # Whether CLAHE was applied
+    is_blurry=False,  # Motion blur detected
 )
 ```
 
@@ -384,7 +390,7 @@ Manually preload a model into VRAM.
 Manually unload a model from VRAM.
 
 ```json
-{ "model_name": "action_recognizer" }
+{ "model_name": "person_reid" }
 ```
 
 ### POST /enrich
@@ -399,7 +405,7 @@ Unified enrichment endpoint for detections. Automatically loads required models.
   "detection_type": "person",
   "bbox": [100, 150, 300, 400],
   "is_suspicious": false,
-  "frames": ["<base64>", "<base64>", ...]  // Optional, for action recognition
+  "frames": ["<base64>", "<base64>", ...]  // Accepted, ignored since NEM-5563 (action retired here)
 }
 ```
 
@@ -413,7 +419,7 @@ Unified enrichment endpoint for detections. Automatically loads required models.
   "threat": {"has_threat": false, "max_severity": "none"},
   "depth": {"estimated_distance_m": 3.5},
   "reid": {"embedding": [...], "embedding_hash": "abc123..."},
-  "action": {"action": "walking normally", "is_suspicious": false},
+  "action": null,
   "inference_time_ms": 245.6
 }
 ```
@@ -446,9 +452,12 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
 Estimate age range and gender for a person crop.
 
-### POST /action-classify
+### POST /action-classify — RETIRED HERE
 
-Classify an action from a multi-frame clip (X-CLIP).
+Removed with the xclip cleanup (NEM-5563): this route 404s by design.
+Action classification from multi-frame clips is served by Triton
+`stgcn_action` through the ai-gateway's `/enrichment/action-classify`
+adapter (`ai/gateway/adapters/enrichment.py`).
 
 ### GET /readiness, GET /models/registry, GET /metrics
 
@@ -475,7 +484,7 @@ metrics.
 | `AGE_MODEL_PATH`                               | `/models/vit-age-classifier`                                                                               | Age classifier path                      |
 | `GENDER_MODEL_PATH`                            | (unset - derived from age model setup)                                                                     | Gender classifier path                   |
 | `REID_MODEL_PATH`                              | `/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth`                                                         | OSNet ReID model path                    |
-| `ACTION_MODEL_PATH`                            | `/models/xclip-base-patch16-16-frames`                                                                     | X-CLIP model path                        |
+| `ACTION_MODEL_PATH`                            | (retired — no reader since NEM-5563)                                                                       | Former X-CLIP model path                 |
 | `YOLO26_ENRICHMENT_MODEL_PATH`                 | `/models/yolo26m.pt`                                                                                       | YOLO26 detector model path               |
 | `PET_DEVICE` / `REID_DEVICE`                   | cuda:0 (cpu fallback)                                                                                      | Force pet / re-ID model onto CPU         |
 | `VEHICLE_QUANTIZED` / `DEMOGRAPHICS_QUANTIZED` | `false`                                                                                                    | Use INT8 copies (NEM-5533)               |
@@ -488,19 +497,19 @@ ViTPose path comes from `POSE_MODEL_PATH` (see the two-default note above).
 
 ## Model Links
 
-| Model                      | HuggingFace URL                                                                                                                                 | Description                                           |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| FashionSigLIP              | [Marqo/marqo-fashionSigLIP](https://huggingface.co/Marqo/marqo-fashionSigLIP)                                                                   | Zero-shot clothing classification (57% more accurate) |
-| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)                     |
-| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification                                |
-| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation                            |
-| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints)                  |
-| YOLOv8n-pose               | [ultralytics/yolov8n-pose](https://docs.ultralytics.com/tasks/pose/)                                                                            | Human pose estimation (17 keypoints)                  |
-| Threat Detection           | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n)                                                     | Weapon detection                                      |
-| Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                                  |
-| OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification                              |
-| X-CLIP                     | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition                              |
-| YOLO26                     | [ultralytics](https://docs.ultralytics.com/models/)                                                                                             | Secondary object detection                            |
+| Model                      | HuggingFace URL                                                                                                                                 | Description                                                                                                                                                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| FashionSigLIP              | [Marqo/marqo-fashionSigLIP](https://huggingface.co/Marqo/marqo-fashionSigLIP)                                                                   | Zero-shot clothing classification (57% more accurate)                                                                                                                                                                                            |
+| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)                                                                                                                                                                                                                |
+| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification                                                                                                                                                                                                                           |
+| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation                                                                                                                                                                                                                       |
+| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints)                                                                                                                                                                                                             |
+| YOLOv8n-pose               | [ultralytics/yolov8n-pose](https://docs.ultralytics.com/tasks/pose/)                                                                            | Human pose estimation (17 keypoints)                                                                                                                                                                                                             |
+| Threat Detection           | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n)                                                     | Weapon detection                                                                                                                                                                                                                                 |
+| Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                                                                                                                                                                                                                             |
+| OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification                                                                                                                                                                                                                         |
+| X-CLIP (retired)           | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition — retired NEM-5563; no reader remains (backend `xclip_loader.py`/`action_recognition_service.py` archived to `archive/xclip-backend-chain/` 2026-09-23, download row dropped from `ai/download_models.sh` the same day) |
+| YOLO26                     | [ultralytics](https://docs.ultralytics.com/models/)                                                                                             | Secondary object detection                                                                                                                                                                                                                       |
 
 ## Backend Integration
 
@@ -598,10 +607,9 @@ curl -X POST http://localhost:8094/enrich \
 6. **Demographics**: `models/demographics.py:DemographicsEstimator` - Age/gender estimation
 7. **Re-ID**: `models/person_reid.py:PersonReID` - OSNet embedding extraction
 8. **Plate OCR**: `models/plate_ocr.py:PlateOCR` - PaddleOCR license plate text (NEM-5372)
-9. **Action recognition**: `models/action_recognizer.py:ActionRecognizer` - X-CLIP video analysis
-10. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
-11. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
-12. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
+9. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
+10. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
+11. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
 
 ## Related Documentation
 
@@ -616,13 +624,13 @@ For comprehensive feature documentation:
 
 This enrichment service powers the following video analytics capabilities:
 
-| Feature                 | Service Component                          | Documentation                                                                      |
-| ----------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Scene Understanding** | `/enrich` endpoint with Florence-2         | [Video Analytics](../../docs/guides/video-analytics.md#scene-understanding)        |
-| **Person Analysis**     | Pose, demographics, clothing, re-ID        | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |
-| **Face Detection**      | Demographics + backend `face_detector.py`  | [Face Recognition](../../docs/guides/face-recognition.md)                          |
-| **Person Re-ID**        | `PersonReID` model                         | [Face Recognition](../../docs/guides/face-recognition.md#person-re-identification) |
-| **Vehicle Analysis**    | Vehicle classifier + plate detector        | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
-| **License Plate OCR**   | `PlateOCR` model with PaddleOCR            | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
-| **Threat Detection**    | `ThreatDetector` model (CRITICAL priority) | [Video Analytics](../../docs/guides/video-analytics.md#threat-detection)           |
-| **Action Recognition**  | `ActionRecognizer` with X-CLIP             | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |
+| Feature                 | Service Component                                                                     | Documentation                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Scene Understanding** | `/enrich` endpoint with Florence-2                                                    | [Video Analytics](../../docs/guides/video-analytics.md#scene-understanding)        |
+| **Person Analysis**     | Pose, demographics, clothing, re-ID                                                   | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |
+| **Face Detection**      | Demographics + backend `face_detector.py`                                             | [Face Recognition](../../docs/guides/face-recognition.md)                          |
+| **Person Re-ID**        | `PersonReID` model                                                                    | [Face Recognition](../../docs/guides/face-recognition.md#person-re-identification) |
+| **Vehicle Analysis**    | Vehicle classifier + plate detector                                                   | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
+| **License Plate OCR**   | `PlateOCR` model with PaddleOCR                                                       | [Video Analytics](../../docs/guides/video-analytics.md#vehicle-analysis)           |
+| **Threat Detection**    | `ThreatDetector` model (CRITICAL priority)                                            | [Video Analytics](../../docs/guides/video-analytics.md#threat-detection)           |
+| **Action Recognition**  | RETIRED here (NEM-5563) — Triton `stgcn_action` via the ai-gateway `/action-classify` | [Video Analytics](../../docs/guides/video-analytics.md#person-analysis)            |

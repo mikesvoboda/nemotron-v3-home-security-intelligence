@@ -87,22 +87,22 @@ class ExampleLoader(ModelLoaderBase[Any]):
 
 ## Remaining Loaders to Migrate
 
-| Loader                         | Model Name                     | VRAM (MB) | Status      |
-| ------------------------------ | ------------------------------ | --------- | ----------- |
-| `clip_loader.py`               | clip-vit-l                     | 800       | ✅ Complete |
-| `florence_loader.py`           | florence-2-large               | 1200      | Pending     |
-| `yolo_world_loader.py`         | yolo-world-s                   | 1500      | Pending     |
-| `vitpose_loader.py`            | vitpose-small                  | 1500      | Pending     |
-| `depth_anything_loader.py`     | depth-anything-v2-small        | 150       | Pending     |
-| `violence_loader.py`           | violence-detection             | 500       | Pending     |
-| `weather_loader.py`            | weather-classification         | 200       | Pending     |
-| `segformer_loader.py`          | segformer-b2-clothes           | 1500      | Pending     |
-| `xclip_loader.py`              | xclip-base                     | 2000      | Pending     |
-| `fashion_clip_loader.py`       | fashion-clip                   | 500       | Pending     |
-| `image_quality_loader.py`      | brisque-quality                | 0         | Pending     |
-| `vehicle_classifier_loader.py` | vehicle-segment-classification | 1500      | Pending     |
-| `vehicle_damage_loader.py`     | vehicle-damage-detection       | 2000      | Pending     |
-| `pet_classifier_loader.py`     | pet-classifier                 | 200       | Pending     |
+| Loader                         | Model Name                     | VRAM (MB) | Status                                                                                      |
+| ------------------------------ | ------------------------------ | --------- | ------------------------------------------------------------------------------------------- |
+| `clip_loader.py`               | clip-vit-l                     | 800       | ✅ Complete                                                                                 |
+| `florence_loader.py`           | florence-2-large               | 1200      | Pending                                                                                     |
+| `yolo_world_loader.py`         | yolo-world-s                   | 1500      | Pending                                                                                     |
+| `vitpose_loader.py`            | vitpose-small                  | 1500      | Pending                                                                                     |
+| `depth_anything_loader.py`     | depth-anything-v2-small        | 150       | Pending                                                                                     |
+| `violence_loader.py`           | violence-detection             | 500       | Pending                                                                                     |
+| `weather_loader.py`            | weather-classification         | 200       | Pending                                                                                     |
+| `segformer_loader.py`          | segformer-b2-clothes           | 1500      | Pending                                                                                     |
+| `xclip_loader.py`              | xclip-base                     | 2000      | Retired — archived 2026-09-23 with the full X-CLIP removal (`archive/xclip-backend-chain/`) |
+| `fashion_clip_loader.py`       | fashion-clip                   | 500       | Pending                                                                                     |
+| `image_quality_loader.py`      | brisque-quality                | 0         | Pending                                                                                     |
+| `vehicle_classifier_loader.py` | vehicle-segment-classification | 1500      | Pending                                                                                     |
+| `vehicle_damage_loader.py`     | vehicle-damage-detection       | 2000      | Pending                                                                                     |
+| `pet_classifier_loader.py`     | pet-classifier                 | 200       | Pending                                                                                     |
 
 ## Benefits
 

@@ -11,6 +11,7 @@ ai/gateway/tests/
 ├── AGENTS.md                          # This file
 ├── __init__.py                        # Package marker
 ├── test_main.py                       # App, health aggregation, metrics, router mounting
+├── test_metrics_middleware.py         # hsi_ai_inference_* duration/error observation + labels
 ├── test_triton_client.py              # gRPC wrapper: pooling, timeouts, error paths
 ├── test_patch_triton_configs.py       # models.yml -> config.pbtxt rewriting
 ├── test_adapters_yolo26.py            # /yolo26 endpoints

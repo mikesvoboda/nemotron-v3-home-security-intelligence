@@ -4,7 +4,6 @@ This package contains model implementations that can be loaded on-demand
 to reduce VRAM usage when not needed.
 
 Models:
-- ActionRecognizer: X-CLIP video action recognition (~1.5GB VRAM)
 - DemographicsEstimator: ViT-based age and gender estimation (~500MB VRAM)
 - FaceRecognizer: InsightFace face detection and recognition (~1.5GB VRAM)
 - PersonReID: OSNet-AIN x1.0 for person re-identification (~100MB VRAM)
@@ -14,13 +13,6 @@ Models:
 - YOLO26Detector: YOLO26 secondary object detection (~100MB VRAM, LOW priority)
 """
 
-from ai.enrichment.models.action_recognizer import (
-    SECURITY_ACTIONS,
-    SUSPICIOUS_ACTIONS,
-    ActionRecognizer,
-    ActionResult,
-    load_action_recognizer,
-)
 from ai.enrichment.models.demographics import (
     AGE_RANGES,
     DEFAULT_AGE_CONFIDENCE_THRESHOLD,
@@ -101,17 +93,13 @@ __all__ = [
     "LOW_LIGHT_THRESHOLD",
     "MIN_QUALITY_SCORE",
     "MOTION_BLUR_THRESHOLD",
-    "SECURITY_ACTIONS",
     "SEVERITY_ORDER",
-    "SUSPICIOUS_ACTIONS",
     "SUSPICIOUS_POSES",
     "THREAT_CLASSES",
     "THREAT_CLASSES_BY_NAME",
     "VALID_CHARS",
     "YOLO26_DEFAULT_MODEL",
     "YOLO26_MODEL_PATH_ENV",
-    "ActionRecognizer",
-    "ActionResult",
     "DemographicsEstimator",
     "DemographicsResult",
     "Detection",
@@ -130,7 +118,6 @@ __all__ = [
     "ThreatResult",
     "YOLO26Detector",
     "YOLO26Result",
-    "load_action_recognizer",
     "load_demographics",
     "load_face_recognizer",
     "load_person_reid",

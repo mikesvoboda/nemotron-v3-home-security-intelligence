@@ -173,15 +173,10 @@ MODEL_ZOO: list[ModelSpec] = [
         description="Violence/aggression detection (98.8% accuracy)",
         model_type="transformers",
     ),
-    # X-CLIP 16-frame patch16 model (NEM-3908: upgraded for +4% accuracy)
-    ModelSpec(
-        name="xclip-base",
-        hf_repo="microsoft/xclip-base-patch16-16-frames",
-        phase=2,
-        vram_mb=2000,
-        description="Zero-shot video action recognition (16 frames, +4% accuracy)",
-        model_type="transformers",
-    ),
+    # xclip-base row removed 2026-09-23 (full X-CLIP removal, owner ruling;
+    # NEM-5563 migration to skeleton-based Triton stgcn_action behind the
+    # ai-gateway /action-classify adapter). The owner-owned models.yml keeps
+    # the xclip-base provenance entry — sweep both together when it is ruled.
     ModelSpec(
         name="fashion-clip",
         hf_repo="Marqo/marqo-fashionCLIP",

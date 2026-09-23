@@ -472,6 +472,16 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_clip_client_cleanup_on_reset(self):
         """Test that reset_clip_client properly cleans up resources."""
+        import backend.services.clip_client as clip_mod
+
+        # Discard (never close) any singleton an earlier test leaked: its
+        # pooled proxy connection may be bound to a since-closed event loop,
+        # and aclose()ing it from THIS loop raises RuntimeError('Event loop
+        # is closed') once a real socket was actually pooled (tier/proxy
+        # environments). Plain assignment — no restore — matches the None
+        # state reset_clip_client itself leaves behind.
+        clip_mod._clip_client = None
+
         with patch("backend.services.clip_client.get_settings", autospec=True) as mock_get_settings:
             mock_get_settings.return_value = MagicMock(
                 clip_url="http://test:8093",
@@ -500,6 +510,11 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_florence_client_cleanup_on_reset(self):
         """Test that reset_florence_client properly cleans up resources."""
+        import backend.services.florence_client as florence_mod
+
+        # Same leaked-singleton discard as the CLIP cleanup test above.
+        florence_mod._florence_client = None
+
         with patch(
             "backend.services.florence_client.get_settings", autospec=True
         ) as mock_get_settings:
@@ -533,6 +548,11 @@ class TestGlobalClientCleanup:
     @pytest.mark.asyncio
     async def test_enrichment_client_cleanup_on_reset(self):
         """Test that reset_enrichment_client properly cleans up resources."""
+        import backend.services.enrichment_client as enrichment_mod
+
+        # Same leaked-singleton discard as the CLIP cleanup test above.
+        enrichment_mod._enrichment_client = None
+
         with patch(
             "backend.services.enrichment_client.get_settings", autospec=True
         ) as mock_get_settings:

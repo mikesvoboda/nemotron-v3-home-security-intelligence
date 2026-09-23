@@ -66,7 +66,6 @@ HEAVY_MODELS = frozenset(
     {
         "vehicle-segment-classification",
         "fashion-clip",
-        "xclip-base",
         "segformer-b2-clothes",
         "yolo-world-s",
         "vitpose-small",

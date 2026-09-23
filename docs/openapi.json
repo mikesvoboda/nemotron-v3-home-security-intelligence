@@ -582,147 +582,6 @@
         "title": "AcknowledgeRequest",
         "type": "object"
       },
-      "ActionAnalyzeRequest": {
-        "description": "Schema for action analysis request.\n\nUsed to trigger action recognition on a set of frames.",
-        "example": {
-          "camera_id": "front_door",
-          "confidence_threshold": 0.5,
-          "frame_paths": [
-            "/export/foscam/front_door/frame_001.jpg",
-            "/export/foscam/front_door/frame_002.jpg",
-            "/export/foscam/front_door/frame_003.jpg",
-            "/export/foscam/front_door/frame_004.jpg",
-            "/export/foscam/front_door/frame_005.jpg",
-            "/export/foscam/front_door/frame_006.jpg",
-            "/export/foscam/front_door/frame_007.jpg",
-            "/export/foscam/front_door/frame_008.jpg"
-          ],
-          "track_id": 42
-        },
-        "properties": {
-          "camera_id": {
-            "description": "Camera ID for the frames",
-            "title": "Camera Id",
-            "type": "string"
-          },
-          "confidence_threshold": {
-            "default": 0.5,
-            "description": "Minimum confidence threshold for creating an action event",
-            "maximum": 1.0,
-            "minimum": 0.0,
-            "title": "Confidence Threshold",
-            "type": "number"
-          },
-          "frame_paths": {
-            "description": "List of frame file paths to analyze (1-32 frames)",
-            "items": {
-              "type": "string"
-            },
-            "maxItems": 32,
-            "minItems": 1,
-            "title": "Frame Paths",
-            "type": "array"
-          },
-          "save_event": {
-            "default": true,
-            "description": "Whether to save the action event to the database",
-            "title": "Save Event",
-            "type": "boolean"
-          },
-          "track_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Optional track ID to associate with the action",
-            "title": "Track Id"
-          }
-        },
-        "required": [
-          "camera_id",
-          "frame_paths"
-        ],
-        "title": "ActionAnalyzeRequest",
-        "type": "object"
-      },
-      "ActionAnalyzeResponse": {
-        "description": "Schema for action analysis response.\n\nReturns the detected action along with all scores and optional saved event.",
-        "example": {
-          "action": "walking normally",
-          "all_scores": {
-            "climbing": 0.02,
-            "loitering": 0.04,
-            "running": 0.05,
-            "walking normally": 0.89
-          },
-          "confidence": 0.89,
-          "event_id": 1,
-          "frame_count": 8,
-          "is_suspicious": false,
-          "saved": true
-        },
-        "properties": {
-          "action": {
-            "description": "Detected action label",
-            "title": "Action",
-            "type": "string"
-          },
-          "all_scores": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "All action scores",
-            "title": "All Scores",
-            "type": "object"
-          },
-          "confidence": {
-            "description": "Action classification confidence",
-            "title": "Confidence",
-            "type": "number"
-          },
-          "event_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Saved action event ID (if save_event=True)",
-            "title": "Event Id"
-          },
-          "frame_count": {
-            "description": "Number of frames analyzed",
-            "title": "Frame Count",
-            "type": "integer"
-          },
-          "is_suspicious": {
-            "description": "Whether the action is security-relevant",
-            "title": "Is Suspicious",
-            "type": "boolean"
-          },
-          "saved": {
-            "description": "Whether the event was saved to the database",
-            "title": "Saved",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "action",
-          "confidence",
-          "is_suspicious",
-          "all_scores",
-          "frame_count",
-          "saved"
-        ],
-        "title": "ActionAnalyzeResponse",
-        "type": "object"
-      },
       "ActionEnrichment": {
         "description": "Action recognition results from X-CLIP temporal analysis.\n\nProvides detected actions from video frame sequences, identifying\nsecurity-relevant activities like loitering, climbing, or delivering packages.",
         "example": {
@@ -43950,53 +43809,9 @@
         ]
       }
     },
-    "/api/action-events/analyze": {
-      "post": {
-        "description": "Trigger action analysis on a set of video frames.\n\nThis endpoint loads frames from disk, runs X-CLIP classification,\nand optionally saves the result to the database.\n\nThe X-CLIP model analyzes frame sequences to detect security-relevant\nactions like walking, running, climbing, loitering, etc.\n\nArgs:\n    request: Analysis request with frame paths and options\n    db: Database session\n\nReturns:\n    ActionAnalyzeResponse with detected action and scores\n\nRaises:\n    HTTPException: 400 if no valid frames, 503 if model unavailable",
-        "operationId": "action-events_analyze_action",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ActionAnalyzeRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ActionAnalyzeResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "400": {
-            "description": "Invalid request (no valid frames)"
-          },
-          "422": {
-            "description": "Validation error"
-          },
-          "500": {
-            "description": "Internal server error"
-          },
-          "503": {
-            "description": "X-CLIP model unavailable"
-          }
-        },
-        "summary": "Analyze Action",
-        "tags": [
-          "action-events"
-        ]
-      }
-    },
     "/api/action-events/camera/{camera_id}": {
       "get": {
-        "description": "Get action events for a specific camera.\n\nConvenience endpoint for camera-specific queries.\n\nArgs:\n    camera_id: Camera ID to filter by\n    start_time: Filter by timestamp >= start_time\n    end_time: Filter by timestamp <= end_time\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    ActionEventListResponse with events and pagination info",
+        "description": "Get action events for a specific camera.\n\nConvenience endpoint for camera-specific queries.\n\nArgs:\n    camera_id: Camera ID to filter by\n    start_time: Filter by timestamp >= start time\n    end_time: Filter by timestamp <= end time\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    ActionEventListResponse with events and pagination info",
         "operationId": "action-events_get_camera_action_events",
         "parameters": [
           {
@@ -44235,7 +44050,7 @@
     },
     "/api/action-events/{event_id}": {
       "delete": {
-        "description": "Delete an action event.\n\nArgs:\n    event_id: Action event ID to delete\n    db: Database session\n\nRaises:\n    HTTPException: 404 if event not found",
+        "description": "Delete an action event.\n\nArgs:\n    event_id: Action event ID to delete\n\nRaises:\n    HTTPException: 404 if event not found",
         "operationId": "action-events_delete_action_event",
         "parameters": [
           {

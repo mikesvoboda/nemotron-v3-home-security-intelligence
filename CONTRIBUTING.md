@@ -48,7 +48,7 @@ This project follows **Test-Driven Development (TDD)**. Write tests before imple
 | **Full validation** | **80% combined absolute floor** (`--fail-under=80`)                                | `./scripts/validate.sh`                        |
 
 > Authoritative current numbers and rulings live in `AGENTS.md` (Testing & Coverage Gates) and
-> `docs/development/testing.md` — this table states gate semantics, not aspirations.
+> `docs/developer/testing.md` — this table states gate semantics, not aspirations.
 
 Always run full validation before opening a pull request:
 
@@ -93,13 +93,13 @@ Every directory in this project contains an `AGENTS.md` file that documents purp
 
 Key entry points:
 
-| Resource                                               | Description                                     |
-| ------------------------------------------------------ | ----------------------------------------------- |
-| [Developer Hub](docs/developer/README.md)              | Architecture, API reference, development guides |
-| [Architecture Docs](docs/architecture/README.md)       | System design and key decisions                 |
-| [AGENTS.md](AGENTS.md)                                 | Project conventions and design decisions        |
-| [Testing Guide](docs/development/testing.md)           | Full testing documentation                      |
-| [Git Workflow Guide](docs/development/git-workflow.md) | Branch strategy and commit conventions          |
+| Resource                                             | Description                                     |
+| ---------------------------------------------------- | ----------------------------------------------- |
+| [Developer Hub](docs/developer/README.md)            | Architecture, API reference, development guides |
+| [Architecture Docs](docs/architecture/README.md)     | System design and key decisions                 |
+| [AGENTS.md](AGENTS.md)                               | Project conventions and design decisions        |
+| [Testing Guide](docs/developer/testing.md)           | Full testing documentation                      |
+| [Git Workflow Guide](docs/developer/git-workflow.md) | Branch strategy and commit conventions          |
 
 ## Project Structure
 

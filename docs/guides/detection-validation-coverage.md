@@ -391,7 +391,7 @@ If validation tests fail:
 
 ## See Also
 
-- [Testing Guide](../development/testing.md) - Overall testing strategy
+- [Testing Guide](../developer/testing.md) - Overall testing strategy
 - [Video Analytics Guide](video-analytics.md) - AI pipeline architecture
 - [Detection Validation Script](../../scripts/validate_detections.py) - Script source code
 - [Risk Score Validation Tests](../../backend/tests/integration/test_risk_score_validation.py) - Test suite source

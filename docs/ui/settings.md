@@ -373,7 +373,7 @@ Choose from available AI models:
 - **Nemotron** - Risk analysis and reasoning
 - **Florence-2** - Scene analysis
 - **YOLO-World** - Object detection
-- **X-CLIP** - Action recognition
+- **X-CLIP** - Action recognition (legacy prompt-config label; action recognition served by Triton stgcn_action since 2026-09-23)
 - **Fashion-CLIP** - Clothing analysis
 
 #### Current Configuration

@@ -171,16 +171,14 @@ Every model carries a priority in `models.yml` that sets its eviction order unde
 ### Downloading Models
 
 ```bash
-# Download all models the setup_lib rule selects (25 entries, ~33GB — sum of
-# models.yml size_mb estimates; the script header carries the exact re-derivation).
+# Download the models the setup_lib rule selects (rule selects 25 entries,
+# ~33GB sum of models.yml size_mb; the script fetches 24, ~32.2GB — the
+# xclip-base row was removed 2026-09-23, full X-CLIP removal owner ruling;
+# the script header carries the exact re-derivation).
 # Reads only the AI_MODELS_PATH shell variable (not .env — export it to match
 # setup.py's choice, below) and the target must already exist and be writable:
 # setup.py sudo-creates it; otherwise sudo mkdir -p + chown first.
 ./ai/download_models.sh
-
-# Subset-only alternative (10 enrichment models, no Nemotron/YOLO26/Florence;
-# targets ./models, not the container mount path — not usable by the stack as-is)
-python scripts/download_models.py
 
 # Custom models directory (default /export/ai_models; the containers mount this)
 AI_MODELS_PATH=/path/to/models ./ai/download_models.sh
@@ -220,12 +218,12 @@ curl http://localhost:8000/api/system/models/<name>/status
 
 ### Minimum vs Recommended
 
-| Component      | Minimum               | Recommended       | This Project Uses                                         |
-| -------------- | --------------------- | ----------------- | --------------------------------------------------------- |
-| **GPU VRAM**   | 12GB (reduced layers) | 24GB              | RTX A5500 (24GB)                                          |
-| **System RAM** | 32GB                  | 64GB+             | 128GB                                                     |
-| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~33GB per `models.yml` (25 entries the setup_lib rule selects) |
-| **CPU**        | 8 cores               | 16+ cores         | AMD Ryzen 9                                               |
+| Component      | Minimum               | Recommended       | This Project Uses                                                                                           |
+| -------------- | --------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| **GPU VRAM**   | 12GB (reduced layers) | 24GB              | RTX A5500 (24GB)                                                                                            |
+| **System RAM** | 32GB                  | 64GB+             | 128GB                                                                                                       |
+| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~33GB per `models.yml` (rule selects 25 entries; script fetches 24, ~32.2GB — xclip row removed 2026-09-23) |
+| **CPU**        | 8 cores               | 16+ cores         | AMD Ryzen 9                                                                                                 |
 
 ### GPU Compatibility
 
@@ -397,7 +395,9 @@ wrong; the server really binds 8444 per `frontend/vite.config.ts`.)
 
 Useful when iterating on AI model code directly on the host. The host-run detector
 replaces only the gateway's `/yolo26` router — Florence/CLIP/enrichment still need the
-`ai-gateway` container.
+`ai-gateway` container. (The standalone `ai-yolo26` GPU image was retired 2026-09-23 —
+Triton inside `ai-gateway` serves yolo26; the build recipe lives at
+`archive/ai-yolo26-image/Dockerfile`.)
 
 ```bash
 # Start the AI servers on the host (separate terminals)

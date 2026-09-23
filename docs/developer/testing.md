@@ -1,0 +1,1134 @@
+---
+title: Testing Guide
+source_refs:
+  - pyproject.toml:91
+  - backend/tests/conftest.py:1
+  - backend/tests/AGENTS.md:1
+  - backend/tests/unit/AGENTS.md:1
+  - backend/tests/integration/AGENTS.md:1
+  - .pre-commit-config.yaml:99
+  - .github/workflows/ci.yml:67
+---
+
+# Testing Guide
+
+This project follows a strict Test-Driven Development (TDD) approach. All features must have tests written at the time of development.
+
+## Test Philosophy
+
+> **ABSOLUTE RULE: Unit and integration tests must NEVER be disabled, removed, or bypassed.**
+
+This rule is non-negotiable. If tests are failing:
+
+1. **FIX THE CODE** - If the implementation is wrong
+2. **FIX THE TESTS** - If the tests are incorrect
+3. **NEVER** disable, skip, or lower coverage thresholds
+
+See [AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/AGENTS.md) for the complete policy on testing requirements.
+
+## Test Architecture
+
+![Frontend Test Providers](../images/architecture/frontend-test-providers.png)
+
+_Frontend test provider tree showing the testing wrapper hierarchy for React Testing Library._
+
+```mermaid
+flowchart TB
+    subgraph Pyramid["Test Pyramid"]
+        direction TB
+        E2E["E2E Tests<br/>1616 tests / 43 spec files"]
+        INT["Integration Tests<br/>4174 tests"]
+        UNIT["Unit Tests<br/>27726 tests"]
+    end
+
+    subgraph Coverage["Coverage Targets"]
+        direction TB
+        UNIT_COV["Unit: 85% diff baseline"]
+        INT_COV["Integration: N/A"]
+        TOTAL_COV["Combined: 80% floor"]
+    end
+
+    UNIT --> UNIT_COV
+    INT --> INT_COV
+    E2E --> TOTAL_COV
+
+    style UNIT fill:#2d4a3e,stroke:#4a7c59,color:#fff
+    style INT fill:#1e3a5f,stroke:#3a6a9f,color:#fff
+    style E2E fill:#4a3a2d,stroke:#7a5a3d,color:#fff
+    style UNIT_COV fill:#2d4a3e,stroke:#4a7c59,color:#fff
+    style INT_COV fill:#1e3a5f,stroke:#3a6a9f,color:#fff
+    style TOTAL_COV fill:#4a3a2d,stroke:#7a5a3d,color:#fff
+```
+
+### Test Categories
+
+| Category                      | Location                     | Count        | Timeout | Coverage Target          |
+| ----------------------------- | ---------------------------- | ------------ | ------- | ------------------------ |
+| **Backend Unit Tests**        | `backend/tests/unit/`        | 27,726 tests | 1s      | see below¹               |
+| **Backend Integration**       | `backend/tests/integration/` | 4,174 tests  | 5s      | N/A (combined)           |
+| **Backend E2E Tests**         | `backend/tests/e2e/`         | 2 files      | 30s     | -                        |
+| **GPU Tests**                 | `backend/tests/gpu/`         | 1 file       | -       | -                        |
+| **Benchmarks**                | `backend/tests/benchmarks/`  | 6 files      | -       | -                        |
+| **Chaos Tests**               | `backend/tests/chaos/`       | -            | -       | -                        |
+| **Contract Tests**            | `backend/tests/contracts/`   | -            | -       | -                        |
+| **Security Tests**            | `backend/tests/security/`    | -            | -       | -                        |
+| **Test Utilities**            | `backend/tests/utils/`       | -            | -       | -                        |
+| **Frontend Unit**             | `frontend/src/**/*.test.ts`  | -            | -       | floors 80/74.6/78.4/80.9 |
+| **Frontend E2E (Playwright)** | `frontend/tests/e2e/`        | 1616 tests   | 15s     | -                        |
+
+**Note:** The executed backend floor is **80% on combined unit+integration**
+(`scripts/validate.sh --fail-under=80`, mirrored in `nightly-full-gate.yml`).
+`pyproject.toml` `fail_under = 85` is the PR diff gate's RELATIVE baseline,
+not an absolute floor (owner ruling A7.1, 2026-09-19).
+
+¹ The retired cell said "85%+"; no measurement ever produced that as a current
+unit-tier value (R-6: docs follow measurements). The measured numbers — with
+their denominators — are below.
+
+### The backend coverage numbers (WP2.1, measured 2026-09-20)
+
+**One denominator, stated:** every figure below is `--cov=backend` over the
+pyproject `[tool.coverage.run]` tree — `source=["backend"]`, the configured
+`omit` list, and the `exclude_lines` regexes — which resolves to **527 files /
+78,916 statements**. Both measurement paths below share that denominator
+exactly (verified: identical file and statement counts), so comparing them is
+comparing executions, not yardsticks. `branch = true` makes every percentage
+here the coverage-7.16.1 **blended** figure (statements+branches together,
+`format=total`); the line/branch split is given with each number.
+
+| Path                      | Blended | Line   | Branch | What it counts                                                                                                      |
+| ------------------------- | ------- | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| **Local (fallback path)** | 84.12%  | 86.02% | 76.27% | the PR diff gate's inline collection: `pytest backend/tests/unit/ --cov=backend` in ONE process — the 84.39 lineage |
+| **CI merged (4 shards)**  | 70.32%  | 73.14% | 58.71% | `coverage-baseline.json` from run 2ab66ff1 — **a known undercount, see below**                                      |
+
+**Why the CI number is an undercount (mechanism, measured same day):** the
+repo's pytest addopts carry `-p randomly` (pytest-randomly), which draws a
+fresh shuffle seed **per process**. Each of the four shard jobs shuffled the
+suite differently BEFORE `pytest-split --splits 4` sliced it, so the four
+`--group` slices overlapped and the run executed only part of the tier: run
+35475023071's junit carries 27,647 case rows but only **18,520 unique tests
+(67%)** — `collect-only` reproduces the arithmetic exactly (random seeds:
+union 18,256/27,555, pairwise overlap 1,449; fixed seed: union 27,555/27,555,
+overlap 0). The fix shipped in the same package: the sharded legs pin
+`--randomly-seed=${{ github.run_id }}` (identical across one run's shard jobs
+= disjoint + complete groups; different across runs = order randomization
+keeps its value). Expect the CI figure to jump ~14pp to meet the local number
+on the first main run with the fix; until then the CI figure understates the
+tier and any floor wired to it inherits the drift.
+
+**What every main run publishes (WP2.2):** `coverage report --format=total` —
+the blended figure alone — used to be all `coverage-baseline.json` carried, so
+the published number was neither line nor branch coverage and neither of those
+existed anywhere. `unit-tests-coverage-merge` now also emits `coverage json`
+(the only report that exposes the split) and writes all three into the
+baseline: `percent_covered` (blended — the flat key
+`check-test-coverage-gate.py` parses; siblings added, never moved),
+`percent_line`, and `percent_branch`. The integration merge reports line /
+branch / blended to its step summary.
+
+**The wired floors (WP2.3, R-1: floors at MEASURED values):**
+
+| Floor                                    | Value                            | Where enforced                                                           |
+| ---------------------------------------- | -------------------------------- | ------------------------------------------------------------------------ |
+| Backend unit, absolute                   | 84 (WP2.5 re-measure)            | `unit-tests-coverage-merge`, only when all unit shards passed            |
+| Backend integration, absolute            | 37                               | `integration-coverage-merge`, only when every integration shard passed   |
+| Frontend statements/branches/funcs/lines | 80 / 74.6 / 78.4 / 80.9          | `merge-shard-coverage.mjs --enforce`, only when all Vitest shards passed |
+| Combined (unit+integration)              | 80 (unchanged)                   | nightly-full-gate + `validate.sh` — now only runs when BOTH tiers passed |
+| PR diff vs main's baseline               | no drop past **0.5pp** (epsilon) | `check-test-coverage-gate.py` — band = post-seed-pin noise (0.03pp ×10)  |
+
+Every completeness guard is the same rule: a floor verdict needs a
+full-execution measurement, so enforcement is skipped (with a warning naming
+the non-success tier) when a tier is red — a test failure must never arrive
+labeled as a coverage failure. P measured exactly that misattribution 3 of
+the last 4 nightly runs; `scripts/test_coverage_floors.py` executes the
+committed nightly step body against missing and complete data to pin both
+directions. The frontend floors replace declared 83/77/81/84, which sat above
+every observed run (merged 80.0/74.6/78.4/80.9, run 35486259345). The
+backend unit floor was 70 (the pre-WP2.1 published lineage 70.32 — an
+overlap UNDERCOUNT) until WP2.5 re-measured five seed-pinned runs
+(84.09–84.12) and raised it to 84 = observed minimum rounded down; the
+diff-gate epsilon likewise dropped 2.0pp → 0.5pp because its band was
+calibrated on the ~1.6pp overlap drift WP2.1 deleted (WP2.3's own text
+expected both rises "once WP2.1's seed fix reaches measurement").
+
+Until the first fixed-seed run lands, **the CI figure must not be used as the
+tier's strength** and the local figure must not be called "the CI coverage".
+`scripts/test_coverage_denominator.py` pins this section's claims.
+Frontend thresholds (R-1, measured): 80% statements, 74.6% branches, 78.4% functions, 80.9% lines (see `vite.config.ts` `coverage.thresholds`).
+
+## Quick Reference
+
+```bash
+# Fast feedback (TDD cycle)
+pytest --testmon                              # Only affected tests (fastest)
+pytest backend/tests/unit/ -m "not slow"      # Fast unit tests only
+
+# Full validation
+./scripts/validate.sh                         # Pre-PR validation
+pytest backend/tests/ --cov=backend           # All tests with coverage
+
+# Coverage report
+pytest backend/tests/ --cov=backend --cov-report=html
+open coverage/backend/index.html
+```
+
+## Running Tests
+
+### Backend Tests
+
+```bash
+# Activate virtual environment first
+source .venv/bin/activate
+
+# All backend tests
+pytest backend/tests/ -v
+
+# Unit tests only
+pytest backend/tests/unit/ -v
+
+# Integration tests only
+pytest backend/tests/integration/ -v
+
+# E2E tests
+pytest backend/tests/e2e/ -v
+
+# With coverage report
+pytest backend/tests/ -v --cov=backend --cov-report=html
+
+# Disable timeouts for debugging
+pytest backend/tests/ -v --timeout=0
+
+# Parallel execution (4 workers)
+pytest backend/tests/ -v -n 4
+
+# Affected-only tests (TDD fast feedback)
+pytest --testmon
+```
+
+### Frontend Tests
+
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Run with coverage
+npm run test:coverage
+
+# Watch mode for development
+npm run test -- --watch
+
+# E2E tests (Playwright)
+npm run test:e2e
+```
+
+### Multi-Browser E2E Tests (Playwright)
+
+The frontend E2E suite runs **1,616 tests across 43 top-level spec files** (53 including `user-journeys/`, plus a separate `visual/` suite) using Playwright. Tests execute across multiple browsers and viewport configurations for comprehensive cross-platform coverage.
+
+#### Browser and Viewport Matrix
+
+| Project         | Device/Browser  | Viewport | Action Timeout |
+| --------------- | --------------- | -------- | -------------- |
+| `chromium`      | Desktop Chrome  | 1280x720 | 5s             |
+| `firefox`       | Desktop Firefox | 1280x720 | 8s             |
+| `webkit`        | Desktop Safari  | 1280x720 | 8s             |
+| `mobile-chrome` | Pixel 5         | 393x851  | 5s             |
+| `mobile-safari` | iPhone 12       | 390x844  | 5s             |
+| `tablet`        | iPad (gen 7)    | 810x1080 | 5s             |
+
+#### Running E2E Tests
+
+```bash
+cd frontend
+
+# Run all browsers (local development)
+npm run test:e2e
+
+# Run specific browser
+npm run test:e2e -- --project=chromium
+npm run test:e2e -- --project=firefox
+npm run test:e2e -- --project=webkit
+
+# Run mobile viewport tests
+npm run test:e2e -- --project=mobile-chrome
+npm run test:e2e -- --project=mobile-safari
+
+# Run tablet viewport tests
+npm run test:e2e -- --project=tablet
+
+# Run with visible browser (headed mode)
+npm run test:e2e -- --headed
+
+# Run single test file
+npm run test:e2e -- tests/e2e/specs/dashboard.spec.ts
+
+# Debug mode with Playwright Inspector
+npm run test:e2e -- --debug
+```
+
+#### CI Configuration
+
+In CI, browsers run in parallel containers via the `--project` flag:
+
+- **Chromium job**: `npx playwright test --project=chromium`
+- **Firefox job**: `npx playwright test --project=firefox`
+- **WebKit job**: `npx playwright test --project=webkit`
+
+Configuration details:
+
+- **Retries**: 2 retries in CI to handle flaky tests
+- **Workers**: 4 parallel workers in CI
+- **Artifacts**: Screenshots, videos, and traces on failure
+- **Reports**: GitHub annotations, HTML report, JUnit XML
+
+#### Playwright Configuration
+
+See [`/frontend/playwright.config.ts`](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/frontend/playwright.config.ts) for full configuration:
+
+- Global test timeout: 15 seconds
+- Expect timeout: 3 seconds
+- Navigation timeout: 10 seconds
+- WebKit tests have extended 30s timeout for complex workflows
+
+### Build Validation Tests
+
+**Purpose:** Detect circular dependency issues in Vite builds that can cause TDZ (Temporal Dead Zone) errors at runtime (NEM-3494).
+
+**Location:** `frontend/tests/e2e/specs/build-validation.spec.ts`
+
+**Config:** `frontend/playwright.config.build-validation.ts`
+
+**Background:** Vite's manual chunk splitting was disabled (vite.config.ts:278-283) after circular import deadlocks between vendor chunks caused production errors. These tests ensure the build remains safe.
+
+#### What the Tests Check
+
+1. **Static Analysis (File System):**
+
+   - Analyzes built JavaScript chunks for circular import patterns
+   - Detects self-referencing variable initializations
+   - Identifies excessive imports from same module
+   - Tracks Rollup interop helper usage
+   - Monitors chunk sizes for code splitting issues
+
+2. **Runtime Validation (Browser):**
+   - Verifies React renders without TDZ errors
+   - Detects reference errors during initial page load
+   - Validates all JavaScript modules load successfully
+   - Checks for duplicate module initialization
+   - Monitors script load order
+
+#### Running Build Validation Tests
+
+```bash
+cd frontend
+
+# Build the frontend first (required)
+npm run build
+
+# Run all build validation tests (static + runtime)
+npx playwright test --config playwright.config.build-validation.ts
+
+# Run only static analysis tests
+npx playwright test --config playwright.config.build-validation.ts --grep "Build Validation Tests"
+
+# Run only runtime tests
+npx playwright test --config playwright.config.build-validation.ts --grep "Runtime Build Validation"
+
+# Run with visible browser for debugging
+npx playwright test --config playwright.config.build-validation.ts --headed
+```
+
+**Note:** Build validation tests use a separate Playwright config that:
+
+- Serves the production build via `vite preview` (port 4173)
+- Runs only on Chromium for consistent results
+- Uses longer timeouts for build analysis (30s)
+
+#### Integration with Validation Workflow
+
+Build validation tests are **not** run automatically by `scripts/validate.sh` because:
+
+- They require a production build (adds ~25s to validation time)
+- They analyze static files (can run independently)
+- Runtime tests are more appropriate for pre-release validation
+
+**When to run:**
+
+- **Always:** Before creating PRs that modify `vite.config.ts` or build configuration
+- **Recommended:** After Vite upgrades or dependency updates affecting bundling
+- **Required:** When re-enabling manual chunk splitting (vite.config.ts:278-283)
+- **Optional:** As part of pre-release validation for production deployments
+
+To include in automated validation, add to your pre-PR checklist:
+
+```bash
+# Full validation + build validation
+./scripts/validate.sh && \
+  cd frontend && \
+  npm run build && \
+  npx playwright test --config playwright.config.build-validation.ts
+```
+
+#### Interpreting Results
+
+The tests output detailed analysis:
+
+```
+=== Chunk Analysis Summary ===
+Total chunks: 97
+Chunks analyzed: 97
+
+Interop helper usage:
+  (none detected - good sign)
+
+Large chunks (>500KB):
+  Tracker-M9IbjXzI.js: 829.95 KB
+  index-A0-RzToH.js: 805.83 KB
+
+=== Potential Issues Detected ===
+(none detected)
+```
+
+**What to look for:**
+
+- **Red flags:** Self-referencing patterns, excessive same-module imports (>5)
+- **Warnings:** Chunks >1MB (consider code splitting)
+- **Info:** Interop helper usage (normal for ESM/CJS interop)
+
+#### Troubleshooting
+
+**Test fails with "Production build not found":**
+
+```bash
+cd frontend && npm run build
+```
+
+**Port 4173 already in use:**
+
+```bash
+# Kill existing preview server
+pkill -f "vite preview"
+# Or use a different port in playwright.config.build-validation.ts
+```
+
+**Runtime tests fail with TDZ errors:**
+
+1. Check the console error output in test results
+2. Review recent changes to `vite.config.ts` rollupOptions
+3. Consider if manual chunk splitting was re-enabled incorrectly
+4. Check for new dependencies with circular imports
+
+### Full Validation
+
+```bash
+# Full validation suite (recommended before PRs)
+./scripts/validate.sh
+
+# Backend only
+./scripts/validate.sh --backend
+
+# Frontend only
+./scripts/validate.sh --frontend
+
+# Test runner with coverage
+./scripts/test-runner.sh
+```
+
+## Pytest Configuration
+
+The pytest configuration is defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L91):
+
+```toml
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
+timeout = 5
+timeout_method = "thread"
+```
+
+### Test Markers
+
+Available markers defined in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L100):
+
+| Marker                     | Purpose                 | Timeout |
+| -------------------------- | ----------------------- | ------- |
+| `@pytest.mark.asyncio`     | Mark as async test      | -       |
+| `@pytest.mark.unit`        | Unit test marker        | 1s      |
+| `@pytest.mark.integration` | Integration test marker | 5s      |
+| `@pytest.mark.e2e`         | End-to-end test marker  | 30s     |
+| `@pytest.mark.gpu`         | GPU-specific test       | -       |
+| `@pytest.mark.slow`        | Legitimately slow test  | 30s     |
+
+### Timeout Configuration
+
+Timeouts are automatically assigned based on test location ([conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/conftest.py#L164)):
+
+| Test Type         | Timeout | Configuration                                  |
+| ----------------- | ------- | ---------------------------------------------- |
+| Unit tests        | 1s      | Default from pyproject.toml                    |
+| Integration tests | 5s      | Auto-assigned in pytest_collection_modifyitems |
+| Slow-marked tests | 30s     | `@pytest.mark.slow`                            |
+| CLI override      | varies  | `--timeout=N` (0 disables)                     |
+
+### Fast Feedback Loop (Excluding Slow Tests)
+
+For rapid test-driven development, you can exclude slow tests to get faster feedback:
+
+```bash
+# Run tests excluding slow tests (fast feedback)
+pytest -m "not slow"
+
+# Run only slow tests (full validation)
+pytest -m slow
+
+# Run unit tests excluding slow tests
+pytest backend/tests/unit/ -m "not slow"
+
+# Run integration tests excluding slow tests
+pytest backend/tests/integration/ -m "not slow"
+```
+
+**Slow Test Thresholds:**
+Tests are marked as `slow` when they:
+
+- Take longer than 1 second (unit tests)
+- Take longer than 5 seconds (integration tests)
+- Require external resources (network, containers)
+- Perform complex computations (AI inference, large datasets)
+
+See `scripts/audit-test-durations.py` for test duration analysis.
+
+### Affected-Only Test Execution (pytest-testmon) — ADVISORY ONLY (WP2.1 DECIDE)
+
+> **Status (2026-09-16):** the 20-commit bake-off ([selector
+> evaluation](selector-evaluation.md)) decided the gate-role contest:
+> `scripts/fast_select.py` (with its WP2.2 transitive closure) is the test
+> selector for the fast tier — fault-arm recall 136/136 vs testmon 92/136,
+> outcome arm 15/15 vs 14/16, and 0–2s stateless selection vs a 82–165s full
+> parent run just to warm testmon's database. testmon is **demoted to an
+> advisory, developer-local tool**: fine for personal TDD loops, never the
+> gate's authority, and never a CI selector. Measured costs below supersede
+> the pre-bake-off estimates that used to live here.
+
+For even faster **local** feedback, `pytest-testmon` can run only tests
+affected by code changes (advisory — see status box):
+
+```bash
+# First run: runs all tests and creates .testmondata tracking database
+pytest --testmon
+
+# Subsequent runs: only runs tests affected by code changes since last run
+pytest --testmon
+
+# Force full test run (ignores testmon cache)
+pytest
+
+# Combine with other options
+pytest --testmon -m "not slow"                    # Fast feedback: only affected, exclude slow
+pytest --testmon backend/tests/unit/ -n auto      # Only affected unit tests, parallel
+
+# Clear testmon cache (forces full re-run next time)
+rm .testmondata*
+```
+
+**How it works:**
+
+- `pytest-testmon` tracks which tests cover which source files
+- On subsequent runs with `--testmon`, it only runs tests that cover files that changed
+- Significantly faster than running all tests during active development
+- Best for TDD workflows and rapid iteration cycles
+
+**When to use:**
+
+- ✅ **Local development:** During active TDD cycles for instant feedback
+- ✅ **Feature branches:** When iterating on a specific module
+- ✅ **Pre-commit checks:** Quick validation before committing
+- ❌ **CI pipelines:** CI should always run full test suite for validation
+- ❌ **Before PRs:** Always run full validation (`./scripts/validate.sh`)
+
+**Limitations:**
+
+- Only tracks Python source files (not config, templates, or external files)
+- May miss indirect dependencies (e.g., fixtures, conftest.py changes)
+- Cache can become stale (clear with `rm .testmondata*` if unsure)
+- Automatically deactivated when selecting specific tests manually (e.g., `pytest test_file.py::test_name --testmon`)
+
+**Performance (bake-off measured, 2026-09-16):**
+Warm incremental runs genuinely are cheap (selection then only the affected
+tests). The honest cost is everything BEFORE that: a populated `.testmondata`
+requires a FULL run of the parent commit — measured 82–165s across the sample,
+every single push — plus 6–17s for the selection pass itself, and stale-db runs
+silently fall back to large selection sets. The static selector answers the
+same question in 0–2s with no database to warm, share, or invalidate.
+
+**CI Integration Note:**
+This implementation keeps testmon **opt-in via --testmon flag only**. CI workflows continue running full test suites by default (without `--testmon`). This ensures:
+
+- ✅ CI always validates the complete test suite for reliability
+- ✅ No risk of missing test failures due to stale testmon cache
+- ✅ Local developers opt-in when they want fast feedback
+- ✅ No CI workflow changes required
+
+## Fixtures
+
+### Shared Fixtures
+
+Core fixtures are defined in [backend/tests/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/conftest.py). Integration-specific fixtures are in [backend/tests/integration/conftest.py](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/conftest.py). **DO NOT duplicate these in subdirectory conftest files.**
+
+### Synthetic Test Fixtures
+
+Synthetic scenarios generated by [NeMo Data Designer](nemo-data-designer.md) provide ground-truth validated test data for Nemotron prompt evaluation.
+
+**Location:** `backend/tests/fixtures/synthetic/`
+
+| File                | Format  | Contents                                |
+| ------------------- | ------- | --------------------------------------- |
+| `scenarios.parquet` | Parquet | 24-column scenario dataset              |
+| `ground_truth.json` | JSON    | Risk ranges and expected key points     |
+| `embeddings.npy`    | NumPy   | Pre-computed semantic vectors           |
+| `images/`           | PNG     | Multimodal test images by scenario type |
+
+#### Using the `synthetic_scenarios` Fixture
+
+```python
+import pytest
+
+@pytest.mark.asyncio
+async def test_risk_score_within_range(synthetic_scenarios):
+    """Test that risk scores fall within ground truth ranges."""
+    for scenario in synthetic_scenarios.itertuples():
+        result = await evaluate_prompt(scenario.formatted_prompt_input)
+        min_score, max_score = scenario.ground_truth_risk_range
+        assert min_score <= result.risk_score <= max_score
+
+@pytest.mark.asyncio
+async def test_context_usage_for_full_enrichment(scenario_by_type):
+    """Test that full enrichment context appears in reasoning."""
+    # scenario_by_type groups scenarios by type for targeted testing
+    full_enrichment = scenario_by_type["threat"]
+    for scenario in full_enrichment[full_enrichment.enrichment_level == "full"].itertuples():
+        result = await evaluate_prompt(scenario.formatted_prompt_input)
+        for key_point in scenario.reasoning_key_points:
+            assert key_point.lower() in result.reasoning.lower()
+```
+
+#### Fixture Definitions
+
+These fixtures are defined in `backend/tests/conftest.py`:
+
+```python
+import pandas as pd
+import pytest
+from pathlib import Path
+
+SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "synthetic"
+
+@pytest.fixture(scope="session")
+def synthetic_scenarios() -> pd.DataFrame:
+    """Load pre-generated NeMo Data Designer scenarios."""
+    return pd.read_parquet(SYNTHETIC_FIXTURES_DIR / "scenarios.parquet")
+
+@pytest.fixture(scope="session")
+def scenario_by_type(synthetic_scenarios):
+    """Group scenarios for targeted testing."""
+    return {
+        "normal": synthetic_scenarios[synthetic_scenarios.scenario_type == "normal"],
+        "suspicious": synthetic_scenarios[synthetic_scenarios.scenario_type == "suspicious"],
+        "threat": synthetic_scenarios[synthetic_scenarios.scenario_type == "threat"],
+        "edge_case": synthetic_scenarios[synthetic_scenarios.scenario_type == "edge_case"],
+    }
+```
+
+For more details on scenario columns and generation, see [NeMo Data Designer Integration](nemo-data-designer.md).
+
+#### Database Fixtures
+
+| Fixture           | Scope    | Location             | Description                                        |
+| ----------------- | -------- | -------------------- | -------------------------------------------------- |
+| `isolated_db`     | function | Main conftest.py     | Function-scoped isolated PostgreSQL database       |
+| `test_db`         | function | Main conftest.py     | Callable session factory for unit tests            |
+| `session`         | function | Main conftest.py     | Savepoint-based transaction isolation              |
+| `integration_env` | function | Integration conftest | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
+| `integration_db`  | function | Integration conftest | Initializes PostgreSQL via testcontainers or local |
+| `db_session`      | function | Integration conftest | Direct AsyncSession access for integration tests   |
+
+#### Redis Fixtures
+
+| Fixture      | Scope    | Description                                             |
+| ------------ | -------- | ------------------------------------------------------- |
+| `mock_redis` | function | AsyncMock Redis client with pre-configured health_check |
+| `real_redis` | function | Real Redis client via testcontainers (flushes DB 15)    |
+
+#### HTTP Fixtures
+
+| Fixture  | Scope    | Description                                             |
+| -------- | -------- | ------------------------------------------------------- |
+| `client` | function | httpx AsyncClient with ASGITransport (no server needed) |
+
+#### Utility Fixtures
+
+| Fixture                | Scope    | Description                                      |
+| ---------------------- | -------- | ------------------------------------------------ |
+| `reset_settings_cache` | autouse  | Clears settings cache before/after each test     |
+| `unique_id(prefix)`    | function | Generates unique IDs for parallel test isolation |
+
+### Example Fixture Usage
+
+```python
+import pytest
+from backend.models import Camera
+
+@pytest.mark.asyncio
+async def test_camera_creation(isolated_db):
+    """Test creating a camera with isolated database."""
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(id="test_cam", name="Test Camera")
+        session.add(camera)
+        await session.commit()
+
+        assert camera.id == "test_cam"
+```
+
+## Writing Tests
+
+### Unit Test Patterns
+
+Unit tests verify individual components in isolation. All external dependencies (Redis, HTTP, file system) must be mocked.
+
+See [backend/tests/unit/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/unit/AGENTS.md) for complete patterns.
+
+```python
+# Example: Mocking Redis
+@pytest.fixture
+def mock_redis_client():
+    mock_client = AsyncMock(spec=RedisClient)
+    mock_client.get = AsyncMock(return_value=None)
+    mock_client.set = AsyncMock(return_value=True)
+    return mock_client
+
+# Example: Mocking HTTP clients
+with patch("httpx.AsyncClient") as mock_http:
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"result": "success"}
+    mock_client = AsyncMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+    mock_http.return_value.__aenter__.return_value = mock_client
+```
+
+#### Mock specs are mandatory where the role is known (M3 T9)
+
+A bare `MagicMock()`/`AsyncMock()` accepts ANY attribute — when production later
+reads a renamed or removed one, the mock silently invents it and the test stays
+green on a lie. The rules the six M3 hot-file sweeps established:
+
+- **Mock stands in for a shipped object → `spec=` that class.** Sessions
+  `spec=AsyncSession`, engines `spec=AsyncEngine`, ORM results `spec=Result`,
+  settings doubles `create_autospec(Settings, instance=True)`, HTTP replies
+  `spec=httpx.Response(status_code=200)` (instance-spec — `status_code` is not
+  on the class dir). Child stubs on a spec'd parent (`mock_session.commit =
+AsyncMock()`) are fine; a whole invented object shape is not.
+- **Patching a shipped function → `patch("backend.…", autospec=True)`.**
+  Signature drift then raises at call time. Two exceptions: `autospec` +
+  `new=` is a TypeError (use `as m; m.return_value = …` instead), and a target
+  already patched by a generator fixture's live patch cannot be re-patched
+  with `autospec` inside the test (mock introspects the outer mock —
+  InvalidSpecError; keep the outer one and skip the inner).
+- **Pydantic v2 trap:** `MagicMock(spec=Settings)` does NOT enforce model-field
+  names (fields aren't on the class dir) — it silently permits typos. Use
+  `create_autospec(Settings, instance=True)` for real enforcement.
+- **Spec failures are findings, not obstacles.** When a spec surfaces an
+  AttributeError, fix the stub to carry the fields production actually reads
+  (see the init_db `use_pgbouncer` fix in commit `66bc45af`), or document the
+  mock as a deliberate pre-existing lie to fix forward — never over-spec-and-
+  delete or `spec_set=None` it away.
+
+### Integration Test Patterns
+
+Integration tests verify that multiple components work together correctly.
+
+See [backend/tests/integration/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/integration/AGENTS.md) for complete patterns.
+
+```python
+@pytest.mark.asyncio
+async def test_api_endpoint(client):
+    """Test API endpoint with real database."""
+    response = await client.get("/api/cameras")
+    assert response.status_code == 200
+    data = response.json()
+    assert "cameras" in data
+```
+
+### Test Organization
+
+Group related tests in classes:
+
+```python
+class TestCameraModel:
+    """Tests for Camera model operations."""
+
+    def test_create_camera_with_defaults(self, session):
+        camera = Camera(id="test", name="Test Camera")
+        session.add(camera)
+        session.commit()
+        assert camera.status == "online"
+
+    def test_camera_validation_fails_empty_name(self, session):
+        with pytest.raises(ValueError):
+            Camera(id="test", name="")
+```
+
+### Async Testing
+
+All async tests must use the `@pytest.mark.asyncio` decorator:
+
+```python
+@pytest.mark.asyncio
+async def test_async_operation(isolated_db):
+    async with get_session() as session:
+        result = await some_async_function(session)
+        assert result is not None
+```
+
+### Error Testing
+
+Always test both success and failure paths:
+
+```python
+@pytest.mark.asyncio
+async def test_handles_connection_error():
+    """Test graceful handling of connection failures."""
+    with patch("httpx.AsyncClient.post", side_effect=ConnectionError):
+        result = await detector.detect_objects("test.jpg", "cam1", session)
+        assert result == []  # Graceful failure
+```
+
+## Coverage Requirements
+
+### Backend Coverage
+
+Configured in [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml#L109):
+
+```toml
+[tool.coverage.run]
+source = ["backend"]
+omit = [
+    "backend/tests/*",
+    "backend/examples/*",
+    "backend/main.py",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+```
+
+### CI Coverage Thresholds
+
+From [.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml#L67) and [pyproject.toml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/pyproject.toml):
+
+| Test Type | Number | What it actually is (A7.1, 2026-09-19)                                                                                             |
+| --------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Unit      | 85%    | `pyproject.toml` fail_under = the PR diff gate's RELATIVE baseline (ci.yml publishes merged data and diffs; not an absolute floor) |
+| Combined  | 80%    | THE executed absolute floor: `validate.sh --fail-under=80` + `nightly-full-gate.yml`                                               |
+
+**Note:** Integration tests run in parallel shards without per-shard coverage thresholds.
+The only absolute backend coverage gate that executes is the 80% combined floor; it is green.
+
+### Generating Coverage Reports
+
+```bash
+# HTML report
+pytest backend/tests/ --cov=backend --cov-report=html
+open coverage/backend/index.html
+
+# Terminal report with missing lines
+pytest backend/tests/ --cov=backend --cov-report=term-missing
+```
+
+## Pre-commit and CI Integration
+
+### Pre-push Hook
+
+The `parallel-tests` hook runs the WP2.4 fast tier before every push
+([.pre-commit-config.yaml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.pre-commit-config.yaml)):
+3 jobs selected for the pushed diff — API types contract check, backend
+unit+contracts selection (`scripts/fast_select.py`), and frontend
+`vitest --related` — under a `FAST_PREPUSH_BUDGET` (default 900s). See
+[Hooks Guide](hooks.md#parallel-tests).
+
+### CI Pipeline
+
+The CI workflow ([.github/workflows/ci.yml](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/.github/workflows/ci.yml)) runs:
+
+1. **Backend Lint** - Ruff check and format
+2. **Backend Type Check** - MyPy
+3. **Backend Unit Tests** - coverage collected; 85% is the PR diff baseline, not a run-time floor
+4. **Backend Integration Tests** - combined unit+integration checked at the 80% floor in validate.sh / nightly
+5. **Frontend Lint** - ESLint
+6. **Frontend Type Check** - TypeScript
+7. **Frontend Tests** - Vitest
+8. **Frontend E2E** - Playwright
+
+All jobs must pass before a PR can be merged.
+
+## Database Testing
+
+### PostgreSQL via Testcontainers
+
+Tests automatically start PostgreSQL via testcontainers when:
+
+- `TEST_DATABASE_URL` is not set
+- Local PostgreSQL on port 5432 is not available
+
+### Local Development
+
+With Podman/Docker running PostgreSQL:
+
+```bash
+podman-compose -f docker-compose.prod.yml up -d postgres redis
+pytest backend/tests/ -v
+```
+
+Default URLs (set in `.env` or via `python setup.py`):
+
+- PostgreSQL: `postgresql+asyncpg://security:<your-password>@localhost:5432/security`
+- Redis: `redis://localhost:6379/15` (DB 15 for test isolation)
+
+> **Note:** Tests use the password configured in your `.env` file. Run `python setup.py` to generate secure credentials.
+
+### Parallel Test Isolation
+
+Tests use these strategies for parallel isolation:
+
+1. **Savepoint rollback** - Each test uses SAVEPOINT/ROLLBACK
+2. **unique_id()** - Generate unique IDs to prevent conflicts
+3. **Advisory locks** - Schema creation coordinated via `pg_advisory_lock(12345)`
+4. **xdist_group markers** - Tests requiring sequential execution grouped
+
+## Troubleshooting
+
+### "Database not initialized"
+
+- Use `isolated_db` or `integration_db` fixture
+- Ensure `get_settings.cache_clear()` is called
+- Check `await init_db()` is called after setting DATABASE_URL
+
+### Parallel test conflicts
+
+- Use `unique_id()` for test data IDs
+- Add `@pytest.mark.xdist_group(name="group_name")` for sequential tests
+- Check for global state mutations
+
+### Timeout errors
+
+- Add `@pytest.mark.slow` for tests needing > 1s
+- Mock external services (HTTP, Redis)
+- Check for background tasks not properly mocked
+
+### Import errors
+
+- Backend path is auto-added in conftest.py
+- Check module names match file structure
+- Activate virtual environment
+
+## Mutation Testing
+
+Mutation testing verifies that your tests actually catch bugs by making small changes (mutations) to source code and checking if tests fail.
+
+### Running Mutation Tests
+
+```bash
+# Run all mutation tests (backend + frontend)
+./scripts/mutation-test.sh
+
+# Backend only (mutmut)
+./scripts/mutation-test.sh --backend
+
+# Frontend only (Stryker)
+./scripts/mutation-test.sh --frontend
+
+# Specific backend module
+./scripts/mutation-test.sh --module backend/services/severity.py
+```
+
+### Target Modules
+
+Mutation testing starts with well-tested utility modules:
+
+| Backend Module                        | Frontend Module           |
+| ------------------------------------- | ------------------------- |
+| `backend/services/bbox_validation.py` | `src/utils/risk.ts`       |
+| `backend/services/severity.py`        | `src/utils/time.ts`       |
+|                                       | `src/utils/confidence.ts` |
+
+### Interpreting Results
+
+| Mutation Score | Rating    | Action Needed            |
+| -------------- | --------- | ------------------------ |
+| 90-100%        | Excellent | Maintain current quality |
+| 80-89%         | Good      | Minor improvements       |
+| 60-79%         | Fair      | Add targeted tests       |
+| Below 60%      | Poor      | Significant test gaps    |
+
+For detailed guidance, see [Mutation Testing Guide](../developer/patterns/mutation-testing.md).
+
+## Snapshot Testing with Syrupy (NEM-5021)
+
+Snapshot testing validates API response schemas by capturing structure-only snapshots. This detects breaking changes while ignoring dynamic data like timestamps and IDs.
+
+### When to Use Snapshot Testing
+
+- **API endpoints:** Validate response structure stays consistent
+- **Schema validation:** Detect unintended field additions/removals
+- **Regression prevention:** Catch breaking changes in CI
+
+### Basic Usage
+
+```python
+import pytest
+from syrupy.assertion import SnapshotAssertion
+from backend.tests.conftest import extract_schema
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_get_cameras_response_schema(
+    client,
+    snapshot: SnapshotAssertion,
+):
+    """Test GET /api/cameras response schema with snapshot."""
+    response = await client.get("/api/cameras")
+    assert response.status_code == 200
+
+    # Extract structure-only schema (types instead of values)
+    schema = extract_schema(response.json())
+    assert schema == snapshot
+```
+
+### Schema Extraction Utility
+
+The `extract_schema()` function recursively converts response data to type names:
+
+```python
+# Input
+{
+    "id": 123,
+    "name": "Camera 1",
+    "active": True,
+    "tags": ["indoor", "front"],
+    "created_at": "2024-01-01T00:00:00Z"
+}
+
+# Output (snapshot)
+{
+    "id": "int",
+    "name": "str",
+    "active": "bool",
+    "tags": ["str"],
+    "created_at": "str"
+}
+```
+
+### Parameters
+
+- `preserve_lengths=False`: Use first item as representative (default)
+- `preserve_lengths=True`: Preserve list lengths for validation
+
+```python
+# Default: [item1, item2] → [schema_of_item1]
+schema = extract_schema(data)
+
+# Preserve lengths: [item1, item2] → [schema1, schema2]
+schema = extract_schema(data, preserve_lengths=True)
+```
+
+### Updating Snapshots
+
+When schemas change intentionally:
+
+```bash
+# Run tests and review diff
+pytest backend/tests/integration/api/test_*_snapshots.py -v
+
+# Update snapshots after review
+pytest backend/tests/integration/api/test_*_snapshots.py --snapshot-update
+
+# Commit updated snapshots
+git add **/__snapshots__/
+git commit -m "Update API snapshots for schema change"
+```
+
+### Best Practices
+
+1. **Test all endpoints:** Create, Read, Update, Delete operations
+2. **Test error responses:** Validate error schema consistency
+3. **Test pagination:** Validate pagination metadata structure
+4. **Test empty responses:** Ensure empty lists maintain structure
+5. **Cross-endpoint consistency:** Validate same resource returns same schema
+
+### Example: Complete Endpoint Coverage
+
+```python
+# Success responses
+async def test_create_resource_schema(client, snapshot):
+    response = await client.post("/api/resource", json=data)
+    assert extract_schema(response.json()) == snapshot
+
+async def test_get_resource_schema(client, snapshot):
+    response = await client.get("/api/resource/1")
+    assert extract_schema(response.json()) == snapshot
+
+async def test_list_resources_schema(client, snapshot):
+    response = await client.get("/api/resource")
+    assert extract_schema(response.json()) == snapshot
+
+# Error responses
+async def test_not_found_error_schema(client, snapshot):
+    response = await client.get("/api/resource/999999")
+    assert response.status_code == 404
+    assert extract_schema(response.json()) == snapshot
+
+async def test_validation_error_schema(client, snapshot):
+    response = await client.post("/api/resource", json={})
+    assert response.status_code == 422
+    assert extract_schema(response.json()) == snapshot
+```
+
+### Snapshot Files Location
+
+Snapshots are stored in `__snapshots__/` directories:
+
+```
+backend/tests/integration/api/
+├── test_calibration_routes_snapshots.py
+├── test_feedback_routes_snapshots.py
+└── __snapshots__/
+    ├── test_calibration_routes_snapshots.ambr
+    └── test_feedback_routes_snapshots.ambr
+```
+
+### CI Integration
+
+Snapshots are automatically validated in CI:
+
+- **Test failures:** Indicate schema changes that need review
+- **Snapshot updates:** Must be committed with code changes
+- **Diff review:** Required for all snapshot updates in PRs
+
+## Related Documentation
+
+- [Setup Guide](local-setup.md) - Development environment setup
+- [Contributing Guide](contributing/README.md) - PR process and code standards
+- [Code Patterns](patterns-and-conventions.md) - Testing patterns in detail
+- [backend/tests/AGENTS.md](https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/blob/main/backend/tests/AGENTS.md) - Test infrastructure overview
+- [Mutation Testing Guide](../developer/patterns/mutation-testing.md) - Mutation testing with mutmut and Stryker

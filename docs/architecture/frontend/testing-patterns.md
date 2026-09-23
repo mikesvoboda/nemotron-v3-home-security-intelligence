@@ -586,7 +586,7 @@ cd frontend && npm test -- --reporter=verbose
 
 - [Custom Hooks](./custom-hooks.md) - Hook testing patterns
 - [Component Hierarchy](./component-hierarchy.md) - Component structure
-- [Testing Guide](../../development/testing.md) - Project-wide testing docs
+- [Testing Guide](../../developer/testing.md) - Project-wide testing docs
 
 ---
 

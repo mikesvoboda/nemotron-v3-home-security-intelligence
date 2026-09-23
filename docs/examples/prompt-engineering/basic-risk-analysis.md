@@ -109,4 +109,4 @@ async def analyze_basic(prompt: str) -> dict:
 
 - [Rubric-Based Prompt Example](rubric-based-prompt.md) - More structured scoring
 - [Chain-of-Thought Example](chain-of-thought.md) - Transparent reasoning
-- [Main Documentation](../../development/nemotron-prompting.md)
+- [Main Documentation](../../developer/nemotron-prompting.md)

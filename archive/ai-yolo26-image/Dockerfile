@@ -3,6 +3,14 @@
 # Uses Ultralytics YOLO with TensorRT for optimized inference
 # Port: 8095 | Expected VRAM: ~2GB
 #
+# RETIRED 2026-09-23 (owner ruling): the standalone ai/yolo26 GPU image is
+# retired — Triton on ai-gateway serves yolo26 among the 14 models, and the
+# compose stack no longer has a yolo26 service. This build recipe is kept for
+# reference only; no CI or deploy job builds it any more (see archive/README.md
+# and ai/yolo26/AGENTS.md). The live package is the pure-leaf contract home for
+# backend prompt-building (ai/yolo26/contract.py) plus the model modules the
+# AI-contract conformance tests still AST-read.
+#
 # Multi-stage build: Uses shared base image to reduce build time by 60-80%
 # Build order: nvcr.io/nvidia/tensorrt -> builder stage -> base image extensions
 #
@@ -76,8 +84,8 @@ RUN (groupadd -g 1000 yolo26 || true) && \
 
 # Copy application files with ownership set to non-root user
 # A7.3 (WP6-A): contract.py ships flat so model.py's `from contract import`
-# resolves in-container; ai-yolo26-image-smoke (ci.yml) proves the import
-# inside the built image.
+# resolves in-container; the ai-yolo26-image-smoke job (retired from ci.yml in
+# PR-C) used to prove the import inside the built image.
 COPY --chown=1000:1000 ai/yolo26/contract.py .
 COPY --chown=1000:1000 ai/yolo26/model.py .
 COPY --chown=1000:1000 ai/yolo26/metrics.py .

@@ -35,7 +35,7 @@ How much VRAM you need depends on which models you want running:
 | **8–12GB** | Nemotron partially offloaded via `GPU_LAYERS` (slow), YOLO26 + embeddings | RTX 3070, 4060 Ti, RTX 3080         |
 
 - **NVIDIA CUDA capability** 7.0 or newer (Volta and later).
-- The production LLM is **Nemotron-3-Nano-30B** at Q4_K_M: a ~14.7GB GGUF file, roughly 21GB resident when fully on GPU. On smaller cards, reduce `GPU_LAYERS` to offload layers to system RAM (see [Multi-GPU guide](../development/multi-gpu.md)) — the system degrades gracefully.
+- The production LLM is **Nemotron-3-Nano-30B** at Q4_K_M: a ~14.7GB GGUF file, roughly 21GB resident when fully on GPU. On smaller cards, reduce `GPU_LAYERS` to offload layers to system RAM (see [Multi-GPU guide](../developer/multi-gpu.md)) — the system degrades gracefully.
 - **YOLO26 + the gateway models** (Triton, on-demand loading) add several GB on top; with the full stack the measured footprint is ~23GB of a 24GB card.
 
 **Supported GPUs:** NVIDIA RTX 30-series and newer, RTX A-series, and Tesla/Quadro cards with CUDA support. Below ~16GB set `GPU_LAYERS` below `auto` so part of the LLM spills into system RAM — analysis gets slow, but the LLM still runs (risk scoring is LLM-determined; there is no run mode without it).
@@ -48,7 +48,7 @@ How much VRAM you need depends on which models you want running:
 | **RAM**     | 16GB               | 32GB+                 |
 | **Storage** | 50GB (core models) | 100GB+ SSD (full zoo) |
 
-> **Note:** The AI model zoo is ~42GB if you download everything. Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
+> **Note:** The AI model zoo is ~33GB if you download everything (the setup_lib download rule selects 25 manifest entries / 33,579 MB; `./ai/download_models.sh` fetches 24 of them, ~32.2GB — the xclip-base row was removed 2026-09-23, full X-CLIP removal owner ruling). Storage for events grows with camera count and retention period — plan for ~1GB/day per active camera.
 
 > **Sizing note:** `docker-compose.prod.yml` caps its 19 default services with
 > `deploy.resources.limits` summing to ~25 CPUs and ~49GB memory of _ceilings_

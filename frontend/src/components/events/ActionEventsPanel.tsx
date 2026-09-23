@@ -1,7 +1,7 @@
 /**
- * ActionEventsPanel - Displays X-CLIP action recognition results for an event
+ * ActionEventsPanel - Displays action recognition results for an event
  *
- * Shows detected actions from the X-CLIP model including action type,
+ * Shows detected actions from the ST-GCN++ skeleton action model including action type,
  * confidence scores, timestamps, and suspicious action indicators.
  * Used in EventDetailModal to surface action recognition results.
  *
@@ -383,9 +383,9 @@ export default function ActionEventsPanel({
         )}
       </div>
 
-      {/* Footer with X-CLIP info */}
+      {/* Footer with model provenance */}
       <div className="border-t border-gray-800 bg-black/20 px-4 py-2">
-        <p className="text-xs text-gray-500">Actions detected by X-CLIP video analysis model</p>
+        <p className="text-xs text-gray-500">Actions detected by ST-GCN++ skeleton action model</p>
       </div>
     </div>
   );

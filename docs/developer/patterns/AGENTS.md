@@ -93,13 +93,13 @@ patterns/
 
 ## Related Resources
 
-| Topic            | Location                               | Notes                           |
-| ---------------- | -------------------------------------- | ------------------------------- |
-| TDD Workflow     | `docs/development/testing-workflow.md` | RED-GREEN-REFACTOR cycle        |
-| Testing Guide    | `docs/development/testing.md`          | Test infrastructure, fixtures   |
-| Code Quality     | `docs/development/code-quality.md`     | Linting, formatting, analysis   |
-| Backend Patterns | `docs/developer/backend-patterns.md`   | Repository pattern, Result type |
-| Testing Guide    | `docs/development/testing.md`          | Comprehensive testing examples  |
+| Topic            | Location                             | Notes                           |
+| ---------------- | ------------------------------------ | ------------------------------- |
+| TDD Workflow     | `docs/developer/testing-workflow.md` | RED-GREEN-REFACTOR cycle        |
+| Testing Guide    | `docs/developer/testing.md`          | Test infrastructure, fixtures   |
+| Code Quality     | `docs/developer/code-quality.md`     | Linting, formatting, analysis   |
+| Backend Patterns | `docs/developer/backend-patterns.md` | Repository pattern, Result type |
+| Testing Guide    | `docs/developer/testing.md`          | Comprehensive testing examples  |
 
 ## Target Audience
 

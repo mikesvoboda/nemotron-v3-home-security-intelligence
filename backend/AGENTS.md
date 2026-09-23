@@ -29,7 +29,7 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 | Services            | 204   | Business logic, AI pipeline, background workers |
 | Models              | 53    | SQLAlchemy ORM model modules                    |
 | Schemas             | 85    | Pydantic request/response schemas               |
-| Middleware          | 25    | Request processing pipeline                     |
+| Middleware          | 23    | Request processing pipeline                     |
 | Repositories        | 8     | Data access layer (base + 7 repositories)       |
 | Core Infrastructure | 52    | Database, Redis, config, logging, etc.          |
 
@@ -59,7 +59,7 @@ backend/
 ├── api/                    # REST API layer
 │   ├── routes/             # 60 API route modules
 │   ├── schemas/            # 85 Pydantic schema modules
-│   ├── middleware/         # 25 middleware components
+│   ├── middleware/         # 23 middleware components
 │   └── utils/              # API utility modules
 ├── config/                 # Prompt A/B rollout, experiments, shadow deployment
 ├── core/                   # Infrastructure (52 modules)
@@ -493,7 +493,7 @@ See `api/routes/AGENTS.md` for detailed documentation. The API layer contains 60
 
 ## API Middleware (`api/middleware/`)
 
-The middleware layer contains 25 components for request processing:
+The middleware layer contains 23 components for request processing:
 
 | Middleware                  | Purpose                                           |
 | --------------------------- | ------------------------------------------------- |
@@ -515,9 +515,7 @@ The middleware layer contains 25 components for request processing:
 | `prometheus.py`             | Prometheus metrics collection                     |
 | `rate_limit.py`             | Request rate limiting                             |
 | `request_id.py`             | Request ID generation and propagation             |
-| `request_logging.py`        | Request/response logging                          |
 | `request_recorder.py`       | Request recording for debugging                   |
-| `request_timing.py`         | Request duration metrics                          |
 | `security_headers.py`       | Security headers (CSP, HSTS, etc.)                |
 | `observability.py`          | Unified timing + logging + Prometheus metrics     |
 | `setup_guard.py`            | Blocks API access until first admin is registered |
@@ -576,27 +574,27 @@ See `services/AGENTS.md` for detailed documentation. The service layer contains 
 
 ### AI Model Loaders (Lazy Loading)
 
-| Service                        | Model                         |
-| ------------------------------ | ----------------------------- |
-| `clip_loader.py`               | CLIP embeddings               |
-| `clip_client.py`               | CLIP client interface         |
-| `florence_loader.py`           | Florence-2 vision-language    |
-| `florence_client.py`           | Florence client interface     |
-| `florence_extractor.py`        | Florence feature extraction   |
-| `depth_anything_loader.py`     | Depth estimation              |
-| `segformer_loader.py`          | Semantic segmentation         |
-| `vitpose_loader.py`            | Pose estimation               |
-| `yolo_world_loader.py`         | YOLO-World detection          |
-| `xclip_loader.py`              | X-CLIP video understanding    |
-| `fashion_clip_loader.py`       | Fashion-specific CLIP         |
-| `pet_classifier_loader.py`     | Pet/animal classification     |
-| `vehicle_classifier_loader.py` | Vehicle classification        |
-| `vehicle_damage_loader.py`     | Vehicle damage detection      |
-| `violence_loader.py`           | Violence detection            |
-| `weather_loader.py`            | Weather classification        |
-| `image_quality_loader.py`      | Image quality assessment      |
-| `model_loader_base.py`         | Base class for model loaders  |
-| `model_zoo.py`                 | Model registry and management |
+| Service                        | Model                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clip_loader.py`               | CLIP embeddings                                                                                                                                                                                                                                                                                                                      |
+| `clip_client.py`               | CLIP client interface                                                                                                                                                                                                                                                                                                                |
+| `florence_loader.py`           | Florence-2 vision-language                                                                                                                                                                                                                                                                                                           |
+| `florence_client.py`           | Florence client interface                                                                                                                                                                                                                                                                                                            |
+| `florence_extractor.py`        | Florence feature extraction                                                                                                                                                                                                                                                                                                          |
+| `depth_anything_loader.py`     | Depth estimation                                                                                                                                                                                                                                                                                                                     |
+| `segformer_loader.py`          | Semantic segmentation                                                                                                                                                                                                                                                                                                                |
+| `vitpose_loader.py`            | Pose estimation                                                                                                                                                                                                                                                                                                                      |
+| `yolo_world_loader.py`         | YOLO-World detection                                                                                                                                                                                                                                                                                                                 |
+| `stgcn_loader.py`              | ST-GCN++ skeleton action recognition (NEM-5563 successor to X-CLIP; the old `xclip_loader.py`/`action_recognition_service.py` chain — including the `/api/action-events` analyze route it backed — was archived 2026-09-23 to `archive/xclip-backend-chain/`; models.yml keeps `xclip-base` as an `enabled: false` provenance entry) |
+| `fashion_clip_loader.py`       | Fashion-specific CLIP                                                                                                                                                                                                                                                                                                                |
+| `pet_classifier_loader.py`     | Pet/animal classification                                                                                                                                                                                                                                                                                                            |
+| `vehicle_classifier_loader.py` | Vehicle classification                                                                                                                                                                                                                                                                                                               |
+| `vehicle_damage_loader.py`     | Vehicle damage detection                                                                                                                                                                                                                                                                                                             |
+| `violence_loader.py`           | Violence detection                                                                                                                                                                                                                                                                                                                   |
+| `weather_loader.py`            | Weather classification                                                                                                                                                                                                                                                                                                               |
+| `image_quality_loader.py`      | Image quality assessment                                                                                                                                                                                                                                                                                                             |
+| `model_loader_base.py`         | Base class for model loaders                                                                                                                                                                                                                                                                                                         |
+| `model_zoo.py`                 | Model registry and management                                                                                                                                                                                                                                                                                                        |
 
 ### Detection Enrichment Pipeline
 
@@ -999,7 +997,7 @@ The backend provides three health endpoints for different use cases:
 | `/backend/api/AGENTS.md`            | API layer overview                               |
 | `/backend/api/routes/AGENTS.md`     | API endpoints (60 routes)                        |
 | `/backend/api/schemas/AGENTS.md`    | Pydantic schemas (85 modules)                    |
-| `/backend/api/middleware/AGENTS.md` | Middleware components (25 modules)               |
+| `/backend/api/middleware/AGENTS.md` | Middleware components (23 modules)               |
 | `/backend/api/utils/AGENTS.md`      | API utility modules                              |
 | `/backend/core/AGENTS.md`           | Core infrastructure (52 modules)                 |
 | `/backend/config/AGENTS.md`         | Prompt A/B rollout and experiments               |
@@ -1016,8 +1014,8 @@ The backend provides three health endpoints for different use cases:
 
 ### Project-Level Documentation
 
-| Path                           | Purpose                        |
-| ------------------------------ | ------------------------------ |
-| `/AGENTS.md`                   | Project-wide instructions      |
-| `/docs/development/testing.md` | Comprehensive testing patterns |
-| `/docs/ROADMAP.md`             | Post-MVP enhancements          |
+| Path                         | Purpose                        |
+| ---------------------------- | ------------------------------ |
+| `/AGENTS.md`                 | Project-wide instructions      |
+| `/docs/developer/testing.md` | Comprehensive testing patterns |
+| `/docs/ROADMAP.md`           | Post-MVP enhancements          |

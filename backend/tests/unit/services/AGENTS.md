@@ -44,7 +44,6 @@ backend/tests/unit/services/
 ├── test_violence_loader.py            # Violence detection
 ├── test_vitpose_loader.py             # ViTPose pose estimation
 ├── test_weather_loader.py             # Weather classification
-├── test_xclip_loader.py               # X-CLIP video model
 ├── test_yolo_world_loader.py          # YOLO World
 │
 │ # Broadcaster Services
@@ -121,7 +120,7 @@ backend/tests/unit/services/
 | `test_florence_loader.py`          | Florence model loader     |
 | `test_vision_extractor.py`         | Vision feature extraction |
 
-### Model Loaders (13 files)
+### Model Loaders (12 files)
 
 | File                                | Tests For               |
 | ----------------------------------- | ----------------------- |
@@ -136,7 +135,6 @@ backend/tests/unit/services/
 | `test_violence_loader.py`           | Violence detection      |
 | `test_vitpose_loader.py`            | ViTPose pose estimation |
 | `test_weather_loader.py`            | Weather classification  |
-| `test_xclip_loader.py`              | X-CLIP video model      |
 | `test_yolo_world_loader.py`         | YOLO World              |
 
 ### Broadcaster Services (3 files)

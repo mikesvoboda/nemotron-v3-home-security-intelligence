@@ -58,29 +58,29 @@ class ModelConfig:
 
 ### Available Models (Backend)
 
-| Model                            | Category       | VRAM (MB) | Purpose                      |
-| -------------------------------- | -------------- | --------- | ---------------------------- |
-| `yolo11-license-plate`           | detection      | 300       | License plate detection      |
-| `yolo11-face`                    | detection      | 200       | Face detection               |
-| `paddleocr`                      | ocr            | 100       | OCR text extraction          |
-| `clip-vit-l`                     | embedding      | 800       | Re-identification embeddings |
-| `yolo-world-s`                   | detection      | 1500      | Open-vocabulary detection    |
-| `vitpose-small`                  | pose           | 1500      | Human pose keypoints         |
-| `depth-anything-v2-small`        | depth          | 150       | Depth estimation             |
-| `violence-detection`             | classification | 500       | Violence detection           |
-| `weather-classification`         | classification | 200       | Weather conditions           |
-| `segformer-b2-clothes`           | segmentation   | 1500      | Clothing segmentation        |
-| `xclip-base`                     | action         | 2000      | Temporal action recognition  |
-| `fashion-clip`                   | classification | 500       | Clothing classification      |
-| `brisque-quality`                | quality        | 0         | Image quality (CPU-based)    |
-| `vehicle-segment-classification` | classification | 1500      | Vehicle type                 |
-| `vehicle-damage-detection`       | detection      | 2000      | Vehicle damage segmentation  |
-| `pet-classifier`                 | classification | 200       | Cat/dog classification       |
-| `osnet-x0-25`                    | embedding      | 100       | Person re-identification     |
-| `threat-detection-yolov8n`       | detection      | 300       | Weapon detection             |
-| `vit-age-classifier`             | classification | 200       | Age estimation               |
-| `vit-gender-classifier`          | classification | 200       | Gender classification        |
-| `yolov8n-pose`                   | pose           | 200       | Alternative pose model       |
+| Model                            | Category           | VRAM (MB) | Purpose                                                                                                                                |
+| -------------------------------- | ------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `yolo11-license-plate`           | detection          | 300       | License plate detection                                                                                                                |
+| `yolo11-face`                    | detection          | 200       | Face detection                                                                                                                         |
+| `paddleocr`                      | ocr                | 100       | OCR text extraction                                                                                                                    |
+| `clip-vit-l`                     | embedding          | 800       | Re-identification embeddings                                                                                                           |
+| `yolo-world-s`                   | detection          | 1500      | Open-vocabulary detection                                                                                                              |
+| `vitpose-small`                  | pose               | 1500      | Human pose keypoints                                                                                                                   |
+| `depth-anything-v2-small`        | depth              | 150       | Depth estimation                                                                                                                       |
+| `violence-detection`             | classification     | 500       | Violence detection                                                                                                                     |
+| `weather-classification`         | classification     | 200       | Weather conditions                                                                                                                     |
+| `segformer-b2-clothes`           | segmentation       | 1500      | Clothing segmentation                                                                                                                  |
+| `stgcn-plus-plus`                | action-recognition | 20        | Temporal action recognition, skeleton-based (replaced `xclip-base`, whose backend loader was removed 2026-09-23 — full X-CLIP removal) |
+| `fashion-clip`                   | classification     | 500       | Clothing classification                                                                                                                |
+| `brisque-quality`                | quality            | 0         | Image quality (CPU-based)                                                                                                              |
+| `vehicle-segment-classification` | classification     | 1500      | Vehicle type                                                                                                                           |
+| `vehicle-damage-detection`       | detection          | 2000      | Vehicle damage segmentation                                                                                                            |
+| `pet-classifier`                 | classification     | 200       | Cat/dog classification                                                                                                                 |
+| `osnet-x0-25`                    | embedding          | 100       | Person re-identification                                                                                                               |
+| `threat-detection-yolov8n`       | detection          | 300       | Weapon detection                                                                                                                       |
+| `vit-age-classifier`             | classification     | 200       | Age estimation                                                                                                                         |
+| `vit-gender-classifier`          | classification     | 200       | Gender classification                                                                                                                  |
+| `yolov8n-pose`                   | pose               | 200       | Alternative pose model                                                                                                                 |
 
 ## Enrichment Model Manager
 

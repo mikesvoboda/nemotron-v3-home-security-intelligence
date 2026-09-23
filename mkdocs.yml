@@ -129,6 +129,40 @@ nav:
       - developer/README.md
       - Codebase Tour: developer/codebase-tour.md
       - Local Setup: developer/local-setup.md
+      - Development Workflow:
+          - Testing Guide: developer/testing.md
+          - Testing Workflow: developer/testing-workflow.md
+          - Test Coverage: developer/test-coverage.md
+          - Flaky Test Detection: developer/flaky-test-detection.md
+          - Model Testing: developer/model-testing.md
+          - Validation Alignment: developer/validation-alignment.md
+          - Synthetic Data Quality: developer/synthetic-data-quality.md
+          - Selector Evaluation: developer/selector-evaluation.md
+          - Confidence Loop Measurements: developer/fast-confidence-loop-measurements.md
+          - Code Quality Tools: developer/code-quality.md
+          - Git Workflow: developer/git-workflow.md
+          - Git Worktree Workflow: developer/git-worktree-workflow.md
+          - Pre-commit Hooks: developer/hooks.md
+          - CI/CD Pipeline: developer/ci-cd.md
+          - BuildKit Secrets: developer/buildkit-secrets.md
+          - Nemotron BuildKit Secrets: developer/nemotron-buildkit-secrets.md
+          - API Breaking Change Detection: developer/api-breaking-change-detection.md
+          - Migration Rollback: developer/migration-rollback.md
+          - Port Standardization: developer/PORT_STANDARDIZATION.md
+          - Agent Coordination: developer/AGENT_COORDINATION.md
+          - Linear Integration: developer/linear-integration.md
+          - Docs Maintenance: developer/docs-maintenance.md
+          - Health Monitoring DI: developer/health-monitoring-di.md
+          - Metrics Implementation Status: developer/metrics-implementation-status.md
+          - Patterns and Conventions: developer/patterns-and-conventions.md
+          - Multi-GPU Support: developer/multi-gpu.md
+          - SSL & HTTPS: developer/ssl-https.md
+          - Python 3.14 Features: developer/python-3.14-features.md
+          - LLM Inference Optimization: developer/llm-inference-optimization.md
+          - MoE Offloading: developer/moe-offloading.md
+          - Nemotron Prompting: developer/nemotron-prompting.md
+          - NeMo Data Designer: developer/nemo-data-designer.md
+          - Prompt Evaluation Results: developer/prompt-evaluation-results.md
       - API Reference:
           - developer/api/README.md
           - Core Resources: developer/api/core-resources.md

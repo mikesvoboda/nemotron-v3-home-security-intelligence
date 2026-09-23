@@ -68,18 +68,12 @@ docs/
 │   ├── AGENTS.md                # Developer docs navigation
 │   ├── api/                     # API guides
 │   ├── architecture/            # Architecture guides
-│   ├── contributing/            # Developer tool guides (redirects to development/)
+│   ├── contributing/            # Contribution guide + tool guides
 │   ├── patterns/                # Code patterns
-│   └── *.md                     # Topic-specific docs
+│   └── *.md                     # Topic-specific docs (testing, git workflow,
+│                                #   code quality, hooks, multi-GPU, ...)
 │
-├── development/                 # Development workflow docs
-│   ├── AGENTS.md                # Development navigation
-│   ├── contributing.md          # **Canonical** contributing guide
-│   ├── testing.md               # Testing guide
-│   ├── hooks.md                 # Git hooks
-│   ├── code-quality.md          # Code quality tools
-│   ├── multi-gpu.md             # Multi-GPU support guide
-│   └── *.md                     # Other development docs
+├── development/                 # Redirect stubs (consolidated into developer/)
 │
 ├── getting-started/             # Installation and setup
 │   ├── AGENTS.md                # Getting started navigation
@@ -230,7 +224,6 @@ Each major directory has its own AGENTS.md:
 | `developer/architecture/AGENTS.md`    | Developer architecture guides  |
 | `developer/contributing/AGENTS.md`    | Contribution guidelines        |
 | `developer/patterns/AGENTS.md`        | Code and testing patterns      |
-| `development/AGENTS.md`               | Development workflow           |
 | `getting-started/AGENTS.md`           | Installation navigation        |
 | `images/AGENTS.md`                    | Visual assets                  |
 | `operations/AGENTS.md`                | Operational runbooks           |

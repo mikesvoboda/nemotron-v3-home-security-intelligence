@@ -279,7 +279,7 @@ User Action → Frontend Component → API Call → Backend Route
 
 - [Pipeline Overview](pipeline-overview.md) - Deep dive into detection flow
 - [Data Model](data-model.md) - Database schema reference
-- [Hooks](../development/hooks.md) - Pre-commit hook configuration
+- [Hooks](../developer/hooks.md) - Pre-commit hook configuration
 
 ---
 

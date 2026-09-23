@@ -186,13 +186,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
-          "legendFormat": "Inference FPS",
+          "expr": "hsi_inference_fps",
+          "legendFormat": "FPS",
           "refId": "A"
         }
       ],
       "title": "Inference FPS",
-      "type": "stat"
+      "type": "stat",
+      "description": "Backend-reported inference FPS (json-exporter hsi_inference_fps from /api/system/gpu). Replaces retired yolo26_inference_requests_total rate."
     },
     {
       "datasource": {
@@ -3063,8 +3064,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
-          "legendFormat": "Inference FPS",
+          "expr": "hsi_inference_fps",
+          "legendFormat": "FPS",
           "refId": "A"
         }
       ],
@@ -4316,7 +4317,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "GPU memory usage per AI container",
+      "description": "Triton server GPU VRAM (nv_gpu_memory_used_bytes, triton-metrics job). Per-container GPU memory was retired with the standalone AI containers; Triton reports only server-level VRAM.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4390,39 +4391,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "yolo26_gpu_memory_used_gb",
-          "legendFormat": "YOLO26",
+          "expr": "sum(nv_gpu_memory_used_bytes{job=\"triton-metrics\"})",
+          "legendFormat": "triton (server)",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "florence_gpu_memory_used_gb",
-          "legendFormat": "Florence",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "clip_gpu_memory_used_gb",
-          "legendFormat": "CLIP",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "enrichment_gpu_memory_used_gb",
-          "legendFormat": "Enrichment",
-          "refId": "D"
         }
       ],
-      "title": "Container GPU Memory",
+      "title": "GPU Memory (Triton server)",
       "type": "timeseries"
     },
     {
@@ -14755,7 +14729,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "YOLO26 object detection model status",
+      "description": "Gateway /yolo26/health probe success (blackbox-http-2xx). Replaces retired yolo26_model_loaded.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -14819,8 +14793,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "yolo26_model_loaded",
-          "legendFormat": "YOLO26",
+          "expr": "sum(probe_success{job=\"blackbox-http-2xx\", model=\"yolo26\"} == 1)",
+          "legendFormat": "gateway /yolo26/health",
           "refId": "A"
         }
       ],
@@ -14832,7 +14806,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Florence-2 vision-language model status",
+      "description": "Gateway /florence/health probe success. Replaces retired florence_model_loaded.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -14896,8 +14870,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "florence_model_loaded",
-          "legendFormat": "Florence-2",
+          "expr": "sum(probe_success{job=\"blackbox-http-2xx\", model=\"florence2\"} == 1)",
+          "legendFormat": "gateway /florence/health",
           "refId": "A"
         }
       ],
@@ -14909,7 +14883,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "CLIP embedding model status",
+      "description": "Gateway /clip/health probe success. Replaces retired clip_model_loaded.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -14973,8 +14947,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "clip_model_loaded",
-          "legendFormat": "CLIP",
+          "expr": "sum(probe_success{job=\"blackbox-http-2xx\", model=\"clip\"} == 1)",
+          "legendFormat": "gateway /clip/health",
           "refId": "A"
         }
       ],
@@ -14986,7 +14960,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Enrichment service models (vehicle, pet, clothing, depth)",
+      "description": "Gateway /enrichment + /enrich-lt health probe success. Replaces retired per-container model_loaded gauges.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -15069,8 +15043,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "enrichment_vehicle_model_loaded + enrichment_pet_model_loaded + enrichment_clothing_model_loaded + enrichment_depth_model_loaded",
-          "legendFormat": "Enrichment",
+          "expr": "sum(probe_success{job=\"blackbox-http-2xx\", model=\"enrichment\"} == 1) + sum(probe_success{job=\"blackbox-http-2xx\", model=\"enrichment-light\"} == 1)",
+          "legendFormat": "gateway enrichment health probes",
           "refId": "A"
         }
       ],
@@ -15170,7 +15144,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Native inference latency from AI containers (P50, P95, P99)",
+      "description": "Mean Triton inference latency per model (nv_inference_request_duration_us / nv_inference_request_success). Triton exposes no percentiles (summary_latencies off) - MEAN only.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -15251,8 +15225,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, rate(yolo26_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "YOLO26 P50",
+          "expr": "(sum(rate(nv_inference_request_duration_us{model=\"yolo26\"}[5m])) / (sum(rate(nv_inference_request_success{model=\"yolo26\"}[5m])) + 0.001)) / 1000000",
+          "legendFormat": "yolo26 mean",
           "refId": "A"
         },
         {
@@ -15260,8 +15234,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "YOLO26 P95",
+          "expr": "(sum(rate(nv_inference_request_duration_us{model=\"florence2\"}[5m])) / (sum(rate(nv_inference_request_success{model=\"florence2\"}[5m])) + 0.001)) / 1000000",
+          "legendFormat": "florence2 mean",
           "refId": "B"
         },
         {
@@ -15269,39 +15243,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, rate(florence_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "Florence P50",
+          "expr": "(sum(rate(nv_inference_request_duration_us{model=\"clip\"}[5m])) / (sum(rate(nv_inference_request_success{model=\"clip\"}[5m])) + 0.001)) / 1000000",
+          "legendFormat": "clip mean",
           "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, rate(florence_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "Florence P95",
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.50, rate(clip_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "CLIP P50",
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "histogram_quantile(0.95, rate(clip_inference_latency_seconds_bucket[5m]))",
-          "legendFormat": "CLIP P95",
-          "refId": "F"
         }
       ],
-      "title": "Native Inference Latency",
+      "title": "Mean Inference Latency (Triton)",
       "type": "timeseries"
     },
     {
@@ -15309,7 +15256,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Request rate per AI container",
+      "description": "Successful Triton inferences per model (nv_inference_request_success).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -15383,8 +15330,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(yolo26_inference_requests_total{status=\"success\"}[1m]))",
-          "legendFormat": "YOLO26",
+          "expr": "sum(rate(nv_inference_request_success{model=\"yolo26\"}[1m]))",
+          "legendFormat": "yolo26",
           "refId": "A"
         },
         {
@@ -15392,8 +15339,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(florence_inference_requests_total{status=\"success\"}[1m]))",
-          "legendFormat": "Florence",
+          "expr": "sum(rate(nv_inference_request_success{model=\"florence2\"}[1m]))",
+          "legendFormat": "florence2",
           "refId": "B"
         },
         {
@@ -15401,8 +15348,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(clip_inference_requests_total{status=\"success\"}[1m]))",
-          "legendFormat": "CLIP",
+          "expr": "sum(rate(nv_inference_request_success{model=\"clip\"}[1m]))",
+          "legendFormat": "clip",
           "refId": "C"
         },
         {
@@ -15410,8 +15357,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(enrichment_inference_requests_total{status=\"success\"}[1m]))",
-          "legendFormat": "Enrichment",
+          "expr": "sum(rate(nv_inference_request_success{model!~\"yolo26|clip|clip_text|florence2\"}[1m]))",
+          "legendFormat": "enrichment models",
           "refId": "D"
         }
       ],
@@ -15423,7 +15370,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Error rate per AI container",
+      "description": "Failed Triton inferences per model (nv_inference_request_failure).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -15501,8 +15448,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(yolo26_inference_requests_total{status=\"error\"}[1m]))",
-          "legendFormat": "YOLO26 Errors",
+          "expr": "sum(rate(nv_inference_request_failure{model=\"yolo26\"}[1m]))",
+          "legendFormat": "yolo26",
           "refId": "A"
         },
         {
@@ -15510,8 +15457,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(florence_inference_requests_total{status=\"error\"}[1m]))",
-          "legendFormat": "Florence Errors",
+          "expr": "sum(rate(nv_inference_request_failure{model=\"florence2\"}[1m]))",
+          "legendFormat": "florence2",
           "refId": "B"
         },
         {
@@ -15519,8 +15466,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(clip_inference_requests_total{status=\"error\"}[1m]))",
-          "legendFormat": "CLIP Errors",
+          "expr": "sum(rate(nv_inference_request_failure{model=\"clip\"}[1m]))",
+          "legendFormat": "clip",
           "refId": "C"
         },
         {
@@ -15528,8 +15475,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(enrichment_inference_requests_total{status=\"error\"}[1m]))",
-          "legendFormat": "Enrichment Errors",
+          "expr": "sum(rate(nv_inference_request_failure{model!~\"yolo26|clip|clip_text|florence2\"}[1m]))",
+          "legendFormat": "enrichment models",
           "refId": "D"
         }
       ],
@@ -15541,7 +15488,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Average detections per image from YOLO26",
+      "description": "Detection confidence from live histogram hsi_detection_confidence. Per-image detection count was a retired standalone-container metric with no Triton equivalent.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -15616,8 +15563,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, rate(yolo26_detections_per_image_bucket[5m]))",
-          "legendFormat": "P50",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_detection_confidence_bucket[5m])) by (le))",
+          "legendFormat": "median detection confidence",
           "refId": "A"
         },
         {
@@ -15625,12 +15572,12 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, rate(yolo26_detections_per_image_bucket[5m]))",
-          "legendFormat": "P95",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_detection_confidence_bucket[5m])) by (le))",
+          "legendFormat": "p95 detection confidence",
           "refId": "B"
         }
       ],
-      "title": "Detections Per Image",
+      "title": "Detection Confidence (median/p95)",
       "type": "timeseries"
     },
     {
@@ -16904,6 +16851,298 @@
         }
       ],
       "title": "HTTP Processing Time",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 943
+      },
+      "id": 355,
+      "panels": [],
+      "title": "Gateway Inference Traffic (hsi_ai_inference_*)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Gateway-side p50/p90/p95/p99 request duration from hsi_ai_inference_duration_seconds{service,endpoint} \u2014 observed by the gateway's GatewayMetricsMiddleware (ai/gateway/main.py) on every non-health, non-scrape request; scrape job ai-gateway-metrics. Before first inference traffic rate() over these families is EMPTY, not 0 \u2014 the 'or vector(0)' keeps the panel at zero instead of No-data. Mirrors the same-named panel on the AI Services dashboard (ai-services.json).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Duration (seconds)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 944
+      },
+      "id": 356,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "min"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_ai_inference_duration_seconds_bucket[5m])) by (le)) or vector(0)",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "histogram_quantile(0.90, sum(rate(hsi_ai_inference_duration_seconds_bucket[5m])) by (le)) or vector(0)",
+          "legendFormat": "p90",
+          "refId": "B"
+        },
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_ai_inference_duration_seconds_bucket[5m])) by (le)) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "C"
+        },
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "histogram_quantile(0.99, sum(rate(hsi_ai_inference_duration_seconds_bucket[5m])) by (le)) or vector(0)",
+          "legendFormat": "p99",
+          "refId": "D"
+        }
+      ],
+      "title": "Gateway Inference Latency Percentiles (all services)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Gateway-side request rate per service+endpoint \u2014 rate() over the histogram's auto-generated _count series. Labels: service = adapter prefix (yolo26|clip|florence|enrichment|enrich-lt), endpoint = route under it. Empty (not 0) until the first request is observed, hence 'or vector(0)'.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Requests / sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 944
+      },
+      "id": 357,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "min"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "sum(rate(hsi_ai_inference_duration_seconds_count[5m])) by (service, endpoint) or vector(0)",
+          "legendFormat": "{{service}}/{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Gateway Request Rate by Service/Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Gateway-side inference errors from hsi_ai_inference_errors_total (_total suffix is part of the metric name) \u2014 counted on 5xx responses or handler crashes, per service+endpoint. 'or vector(0)' so a quiet gateway shows 0, not No-data. Wire-only per owner ruling \u2014 no alert rules for these series.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Errors / sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 952
+      },
+      "id": 358,
+      "options": {
+        "legend": {
+          "calcs": ["mean", "max", "min"],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "type": "prometheus",
+          "uid": "prometheus",
+          "expr": "sum(rate(hsi_ai_inference_errors_total[5m])) by (service, endpoint) or vector(0)",
+          "legendFormat": "{{service}}/{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Gateway Inference Errors by Service/Endpoint",
       "type": "timeseries"
     }
   ],

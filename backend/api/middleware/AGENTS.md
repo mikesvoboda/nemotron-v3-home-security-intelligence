@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/middleware/` directory contains 25 HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
+The `backend/api/middleware/` directory contains 23 HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
 
 ## Files
 
@@ -22,7 +22,7 @@ Package initialization with public exports:
 - `rate_limit_default`, `rate_limit_media`, `rate_limit_search` - Convenience dependencies
 - `SecurityHeadersMiddleware` - Security headers middleware (CSP, X-Frame-Options, etc.)
 - `RequestIDMiddleware` - Request ID generation and propagation middleware
-- `RequestTimingMiddleware` - Request timing and slow request logging middleware
+- `ObservabilityMiddleware` - Unified timing + request logging + Prometheus metrics middleware (NEM-5558)
 - `get_correlation_headers` - Get correlation headers for outgoing requests
 - `merge_headers_with_correlation` - Merge headers with correlation IDs
 - `get_correlation_id` - Get current correlation ID from context
@@ -172,52 +172,6 @@ if get_event_priority_from_baggage() == "high":
 - Extracts `request.source` from `X-Request-Source` header (defaults to "api")
 - Extracts `camera.id` from URL path patterns like `/cameras/{camera_id}/...`
 - Preserves incoming baggage from upstream services
-
-### `request_timing.py`
-
-Request timing middleware for measuring API latency and logging slow requests.
-
-**Purpose:**
-
-Measures request/response duration, adds timing headers to responses, and logs requests that exceed a configurable threshold. Implements NEM-1469 (Request timing middleware).
-
-**Classes:**
-
-| Class                     | Purpose                                     |
-| ------------------------- | ------------------------------------------- |
-| `RequestTimingMiddleware` | Middleware for request duration measurement |
-
-**Features:**
-
-- High-precision timing using `time.perf_counter()`
-- Adds `X-Response-Time` header to all responses (format: "123.45ms")
-- Logs slow requests above configurable threshold (default: 500ms)
-- Structured logging with method, path, status code, duration, client IP
-- Handles exceptions gracefully (still logs timing even on error)
-
-**Configuration:**
-
-```python
-app.add_middleware(
-    RequestTimingMiddleware,
-    slow_request_threshold_ms=500,  # Log requests slower than 500ms
-)
-```
-
-**Log Format:**
-
-```json
-{
-  "level": "WARNING",
-  "message": "Slow request: GET /api/events - 200 - 523.45ms (threshold: 500ms)",
-  "method": "GET",
-  "path": "/api/events",
-  "status_code": 200,
-  "duration_ms": 523.45,
-  "threshold_ms": 500,
-  "client_ip": "127.0.0.1"
-}
-```
 
 ### `security_headers.py`
 
@@ -531,28 +485,6 @@ Provides AppException base class and common exception types for standardized API
 | `get_request_id`              | Get request ID from current context |
 | `register_exception_handlers` | Register global exception handlers  |
 
-### `request_logging.py`
-
-Structured HTTP request/response logging middleware.
-
-**Purpose:**
-
-Logs HTTP requests and responses with structured JSON output including method, path, status code, duration, and client IP. Supports configurable log levels and sensitive data redaction.
-
-**Classes:**
-
-| Class                      | Purpose                             |
-| -------------------------- | ----------------------------------- |
-| `RequestLoggingMiddleware` | Structured request/response logging |
-
-**Features:**
-
-- Structured JSON log format
-- Request/response duration timing
-- Client IP extraction (with proxy support)
-- Sensitive header redaction
-- Configurable paths to exclude from logging
-
 ### `request_recorder.py`
 
 Request recording middleware for replay debugging (NEM-1646).
@@ -606,7 +538,7 @@ Provides utilities for safely handling exceptions with sensitive data minimizati
 
 ### `observability.py`
 
-Unified observability middleware combining request timing, structured logging, and Prometheus metrics in one ASGI layer (preferred over composing `request_timing.py` + `request_logging.py` + `prometheus.py` separately).
+Unified observability middleware combining request timing, structured logging, and Prometheus metrics in one ASGI layer (NEM-5558). It is registered in `backend/main.py` and is the only path for timing, request logging, and HTTP metrics — the former `request_timing.py`, `request_logging.py`, and standalone `PrometheusMiddleware` passes it replaces were deleted.
 
 ### `etag.py`
 
@@ -926,20 +858,30 @@ On Redis errors, the rate limiter fails open (allows the request) to prevent ser
 
 ## Integration with FastAPI
 
-Middleware is registered in the FastAPI application during startup:
+Middleware is registered in `backend/main.py` during application startup, in this `add_middleware()` order (Starlette runs them in reverse — the last registered is the outermost layer):
 
 ```python
-from backend.api.middleware import AuthMiddleware
-
-app = FastAPI()
-app.add_middleware(AuthMiddleware)
-app.add_middleware(RequestIDMiddleware)
+# backend/main.py registration order
+app.add_middleware(SetupGuardMiddleware)  # 503 until first admin (NEM-5312)
+app.add_middleware(ContentTypeValidationMiddleware)  # NEM-1617
+app.add_middleware(RequestIDMiddleware)  # log correlation
+app.add_middleware(BaggageMiddleware)  # W3C Baggage (NEM-3796)
+app.add_middleware(ProfilingMiddleware)  # trace-to-profile (NEM-4127)
+app.add_middleware(  # one pass: timing + logging + metrics
+    ObservabilityMiddleware,  # (NEM-5558)
+    enable_request_logging=get_settings().request_logging_enabled,
+)
+if get_settings().request_recording_enabled:  # off by default
+    app.add_middleware(RequestRecorderMiddleware)
+app.add_middleware(CORSMiddleware, ...)  # explicit header allowlist (NEM-5059)
+app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_preload)
+app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)  # NEM-1614
+app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)  # NEM-3741
+if get_settings().idempotency_enabled:
+    app.add_middleware(IdempotencyMiddleware)
 ```
 
-**Order matters:** Middleware is executed in reverse order of registration. For typical setups:
-
-1. Register `AuthMiddleware` first (runs last, after request ID is set)
-2. Register `RequestIDMiddleware` second (runs first, sets context for all handlers)
+**`AuthMiddleware` is intentionally NOT registered** (NEM-5527): it blocked all ~450 non-exempt endpoints with 401. The single-user deployment uses the 127.0.0.1 network binding as its security boundary, with per-route auth dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`) protecting admin endpoints. `DeprecationMiddleware` and `DeprecationLoggerMiddleware` are likewise not registered (NEM-5558: zero deprecated endpoints).
 
 ---
 

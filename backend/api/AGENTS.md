@@ -16,7 +16,7 @@ backend/api/
 ├── validators.py            # Request validation helpers
 ├── routes/                  # 28 API route handlers (endpoints)
 ├── schemas/                 # 43 Pydantic schemas for request/response validation
-├── middleware/              # 20 HTTP middleware components
+├── middleware/              # 23 HTTP middleware components
 └── utils/                   # API utility modules
 ```
 
@@ -237,12 +237,13 @@ Contains Pydantic models for request/response validation (43 schema files):
 
 ### Middleware (`middleware/`)
 
-HTTP middleware for cross-cutting concerns (20 middleware files):
+HTTP middleware for cross-cutting concerns (23 middleware files):
 
 | File                        | Purpose                                                |
 | --------------------------- | ------------------------------------------------------ |
 | `accept_header.py`          | Accept header parsing and validation                   |
 | `auth.py`                   | API key authentication (HTTP and WebSocket)            |
+| `baggage.py`                | OpenTelemetry Baggage context propagation (NEM-3796)   |
 | `body_limit.py`             | Request body size limits for DoS protection            |
 | `content_negotiation.py`    | Content negotiation handling                           |
 | `content_type_validator.py` | Content-Type header validation for request bodies      |
@@ -250,15 +251,18 @@ HTTP middleware for cross-cutting concerns (20 middleware files):
 | `deprecation.py`            | API deprecation handling                               |
 | `deprecation_logger.py`     | Deprecated endpoint logging                            |
 | `error_handler.py`          | Error response formatting                              |
+| `etag.py`                   | ETag generation for conditional GET requests           |
 | `exception_handler.py`      | Exception handling utilities with data minimization    |
 | `file_validator.py`         | File magic number validation for upload security       |
 | `idempotency.py`            | Idempotency key handling                               |
+| `observability.py`          | Unified timing + logging + Prometheus metrics          |
+| `profiling.py`              | Pyroscope trace-to-profile correlation                 |
+| `prometheus.py`             | Prometheus HTTP request duration metrics               |
 | `rate_limit.py`             | Redis-based sliding window rate limiting               |
 | `request_id.py`             | Request ID generation and propagation for tracing      |
-| `request_logging.py`        | Structured HTTP request/response logging               |
 | `request_recorder.py`       | Request recording for replay debugging (NEM-1646)      |
-| `request_timing.py`         | Request timing and slow request logging                |
 | `security_headers.py`       | Security headers (CSP, X-Frame-Options, etc.)          |
+| `setup_guard.py`            | Blocks API until first admin is registered             |
 | `websocket_auth.py`         | WebSocket token authentication (separate from API key) |
 
 ## Architecture Overview
@@ -330,7 +334,7 @@ Both use broadcaster pattern for efficient multi-client messaging. WebSocket aut
 
 ### Authentication Middleware
 
-Optional API key authentication (configurable via environment):
+`AuthMiddleware` exists in `middleware/auth.py` but is intentionally NOT registered in `backend/main.py` (NEM-5527), so API-key auth is not applied to general routes. The single-user local deployment treats the 127.0.0.1 network binding as the security boundary; admin endpoints are protected by per-route auth dependencies (`verify_api_key`, `require_admin_access`, `get_current_admin_user`). The behavior below describes the middleware itself, should it be re-enabled for multi-user support:
 
 - Configurable via `API_KEY_ENABLED` environment variable
 - SHA-256 hashed API keys for validation

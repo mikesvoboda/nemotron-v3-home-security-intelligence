@@ -14,9 +14,9 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 
 | Document                                         | Description                                           | Key Files                                                                                       |
 | ------------------------------------------------ | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [request-logging.md](./request-logging.md)       | Structured request/response logging for observability | `backend/api/middleware/request_logging.py`                                                     |
+| [request-logging.md](./request-logging.md)       | Structured request/response logging for observability | `backend/api/middleware/observability.py`, `backend/api/middleware/request_id.py`               |
 | [error-handling.md](./error-handling.md)         | Global exception handlers and error response formats  | `backend/api/exception_handlers.py`, `backend/api/middleware/error_handler.py`                  |
-| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1127-1139`, `backend/core/config.py:752-765`                                   |
+| [cors-configuration.md](./cors-configuration.md) | CORS settings for frontend integration                | `backend/main.py:1413-1418`, `backend/core/config.py:916-928`                                   |
 | [request-validation.md](./request-validation.md) | Pydantic validation, path parameter parsing           | `backend/api/middleware/content_type_validator.py`, `backend/api/exception_handlers.py:305-374` |
 | [rate-limiting.md](./rate-limiting.md)           | Rate limit configuration and tiers                    | `backend/api/middleware/rate_limit.py`                                                          |
 
@@ -25,24 +25,22 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 ```mermaid
 graph TD
     subgraph "Incoming Request"
-        REQ[HTTP Request] --> AUTH
+        REQ[HTTP Request] --> IDEM
     end
 
     subgraph "Middleware Stack (Execution Order)"
-        AUTH[AuthMiddleware<br/>backend/api/middleware/auth.py] --> CT
-        CT[ContentTypeValidationMiddleware<br/>backend/api/middleware/content_type_validator.py] --> RID
-        RID[RequestIDMiddleware<br/>backend/api/middleware/request_id.py] --> BAG
-        BAG[BaggageMiddleware<br/>backend/api/middleware/baggage.py] --> RT
-        RT[RequestTimingMiddleware<br/>backend/api/middleware/request_timing.py] --> RL
-        RL[RequestLoggingMiddleware<br/>backend/api/middleware/request_logging.py] --> RR
-        RR[RequestRecorderMiddleware<br/>backend/api/middleware/request_recorder.py] --> DEP
-        DEP[DeprecationMiddleware<br/>backend/api/middleware/deprecation.py] --> DEPL
-        DEPL[DeprecationLoggerMiddleware<br/>backend/api/middleware/deprecation_logger.py] --> CORS
-        CORS[CORSMiddleware<br/>FastAPI builtin] --> SEC
-        SEC[SecurityHeadersMiddleware<br/>backend/api/middleware/security_headers.py] --> BL
-        BL[BodySizeLimitMiddleware<br/>backend/api/middleware/body_limit.py] --> GZIP
-        GZIP[GZipMiddleware<br/>FastAPI builtin] --> IDEM
-        IDEM[IdempotencyMiddleware<br/>backend/api/middleware/idempotency.py] --> ROUTE
+        IDEM[IdempotencyMiddleware — if idempotency_enabled<br/>backend/api/middleware/idempotency.py] --> GZIP
+        GZIP[GZipMiddleware<br/>FastAPI builtin] --> BL
+        BL[BodySizeLimitMiddleware<br/>backend/api/middleware/body_limit.py] --> SEC
+        SEC[SecurityHeadersMiddleware<br/>backend/api/middleware/security_headers.py] --> CORS
+        CORS[CORSMiddleware<br/>FastAPI builtin] --> RR
+        RR[RequestRecorderMiddleware — if request_recording_enabled<br/>backend/api/middleware/request_recorder.py] --> OBS
+        OBS[ObservabilityMiddleware<br/>backend/api/middleware/observability.py] --> PROF
+        PROF[ProfilingMiddleware<br/>backend/api/middleware/profiling.py] --> BAG
+        BAG[BaggageMiddleware<br/>backend/api/middleware/baggage.py] --> RID
+        RID[RequestIDMiddleware<br/>backend/api/middleware/request_id.py] --> CT
+        CT[ContentTypeValidationMiddleware<br/>backend/api/middleware/content_type_validator.py] --> SG
+        SG[SetupGuardMiddleware<br/>backend/api/middleware/setup_guard.py] --> ROUTE
     end
 
     subgraph "Route Processing"
@@ -54,31 +52,40 @@ graph TD
         EH --> RESP[HTTP Response]
     end
 
-    style AUTH fill:#f9f,stroke:#333
+    style OBS fill:#f9f,stroke:#333
     style CORS fill:#bbf,stroke:#333
     style SEC fill:#bfb,stroke:#333
+    style SG fill:#ffc,stroke:#333
     style EH fill:#fbb,stroke:#333
 ```
 
+AuthMiddleware is **not** in this chain — it is intentionally unregistered (NEM-5527);
+see [Middleware Registration](#middleware-registration) below.
+
 ## Quick Reference
 
-| Component                       | File                                               | Purpose                           |
-| ------------------------------- | -------------------------------------------------- | --------------------------------- |
-| AuthMiddleware                  | `backend/api/middleware/auth.py`                   | API key authentication            |
-| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py` | Validate Content-Type headers     |
-| RequestIDMiddleware             | `backend/api/middleware/request_id.py`             | Generate/propagate request IDs    |
-| BaggageMiddleware               | `backend/api/middleware/baggage.py`                | OpenTelemetry context propagation |
-| RequestTimingMiddleware         | `backend/api/middleware/request_timing.py`         | Measure request duration          |
-| RequestLoggingMiddleware        | `backend/api/middleware/request_logging.py`        | Structured request logging        |
-| RequestRecorderMiddleware       | `backend/api/middleware/request_recorder.py`       | Debug request recording           |
-| DeprecationMiddleware           | `backend/api/middleware/deprecation.py`            | RFC 8594 deprecation headers      |
-| DeprecationLoggerMiddleware     | `backend/api/middleware/deprecation_logger.py`     | Log deprecated endpoint usage     |
-| CORSMiddleware                  | FastAPI builtin                                    | Cross-Origin Resource Sharing     |
-| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py`       | Security response headers         |
-| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py`             | Request body size limits          |
-| GZipMiddleware                  | FastAPI builtin                                    | Response compression              |
-| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py`            | Idempotency-Key support           |
-| RateLimiter                     | `backend/api/middleware/rate_limit.py`             | Rate limiting (route dependency)  |
+| Component                       | File                                               | Purpose                                                      |
+| ------------------------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| AuthMiddleware                  | `backend/api/middleware/auth.py`                   | API key/session auth — **not registered** (NEM-5527)         |
+| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py` | Validate Content-Type headers                                |
+| RequestIDMiddleware             | `backend/api/middleware/request_id.py`             | Generate/propagate request IDs                               |
+| BaggageMiddleware               | `backend/api/middleware/baggage.py`                | OpenTelemetry context propagation                            |
+| ObservabilityMiddleware         | `backend/api/middleware/observability.py`          | Timing, request logging and metrics in one pass (NEM-5558)   |
+| RequestRecorderMiddleware       | `backend/api/middleware/request_recorder.py`       | Debug request recording (conditional)                        |
+| DeprecationMiddleware           | `backend/api/middleware/deprecation.py`            | RFC 8594 deprecation headers — **not registered** (NEM-5558) |
+| DeprecationLoggerMiddleware     | `backend/api/middleware/deprecation_logger.py`     | Deprecation logging — **not registered** (NEM-5558)          |
+| CORSMiddleware                  | FastAPI builtin                                    | Cross-Origin Resource Sharing                                |
+| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py`       | Security response headers                                    |
+| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py`             | Request body size limits                                     |
+| GZipMiddleware                  | FastAPI builtin                                    | Response compression                                         |
+| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py`            | Idempotency-Key support (conditional)                        |
+| ProfilingMiddleware             | `backend/api/middleware/profiling.py`              | Pyroscope trace-to-profile tags (NEM-4127)                   |
+| SetupGuardMiddleware            | `backend/api/middleware/setup_guard.py`            | 503 until first admin is registered (NEM-5312)               |
+| RateLimiter                     | `backend/api/middleware/rate_limit.py`             | Rate limiting (route dependency)                             |
+
+`RequestTimingMiddleware` and `RequestLoggingMiddleware` no longer exist — their files were
+deleted in NEM-5558 and `ObservabilityMiddleware` replaced both (the names survive only in
+`observability.py` docstrings).
 
 ## Key Concepts
 
@@ -93,7 +100,9 @@ Request:  Client -> Last Registered -> ... -> First Registered -> Route
 Response: Route -> First Registered -> ... -> Last Registered -> Client
 ```
 
-This means `AuthMiddleware` (registered first in `backend/main.py:1084`) processes requests first and responses last.
+This means `IdempotencyMiddleware` — the **last** `add_middleware()` call in `backend/main.py:1351-1441`
+(where enabled) — processes requests first and responses last, while `SetupGuardMiddleware` — the first
+call — is innermost. `AuthMiddleware` never processes requests: it is not registered (NEM-5527).
 
 ### Exception Handlers vs Middleware
 
@@ -111,14 +120,14 @@ Several middleware components use Python context variables to share state across
 
 | Setting                          | Location                         | Default             | Description                              |
 | -------------------------------- | -------------------------------- | ------------------- | ---------------------------------------- |
-| `api_key_enabled`                | `backend/core/config.py:1797`    | `false`             | Enable API key authentication            |
-| `cors_origins`                   | `backend/core/config.py:884-892` | HTTPS :8444 origins | Allowed CORS origins                     |
-| `rate_limit_enabled`             | `backend/core/config.py:2118`    | `true`              | Enable rate limiting                     |
-| `rate_limit_requests_per_minute` | `backend/core/config.py:2122`    | `60`                | Default rate limit                       |
-| `request_logging_enabled`        | `backend/core/config.py:2657`    | `true`              | Feed structured logs via ObservabilityMW |
-| `request_recording_enabled`      | `backend/core/config.py:2666`    | `false`             | Enable request recording (debug)         |
-| `idempotency_enabled`            | `backend/core/config.py:2199`    | `true`              | Enable idempotency middleware            |
-| `hsts_preload`                   | `backend/core/config.py:2689`    | `false`             | HSTS preload directive                   |
+| `api_key_enabled`                | `backend/core/config.py:1904`    | `false`             | Enable API key authentication            |
+| `cors_origins`                   | `backend/core/config.py:916-928` | HTTPS :8444 origins | Allowed CORS origins                     |
+| `rate_limit_enabled`             | `backend/core/config.py:2225`    | `true`              | Enable rate limiting                     |
+| `rate_limit_requests_per_minute` | `backend/core/config.py:2229`    | `60`                | Default rate limit                       |
+| `request_logging_enabled`        | `backend/core/config.py:2764`    | `true`              | Feed structured logs via ObservabilityMW |
+| `request_recording_enabled`      | `backend/core/config.py:2773`    | `false`             | Enable request recording (debug)         |
+| `idempotency_enabled`            | `backend/core/config.py:2306`    | `true`              | Enable idempotency middleware            |
+| `hsts_preload`                   | `backend/core/config.py:2796`    | `false`             | HSTS preload directive                   |
 
 ## Middleware Registration
 
@@ -171,11 +180,11 @@ if get_settings().idempotency_enabled:                # NEM-1999, ON by default
 
 ## Additional Middleware
 
-The middleware directory contains 25 modules. Key middleware not detailed here include: `setup_guard.py` (SetupGuardMiddleware - blocks API with 503 until admin setup is complete), `etag.py` (ETag caching), `profiling.py` (request profiling), `prometheus.py` (metrics), `baggage.py` (context propagation).
+The middleware directory contains 23 modules. Key middleware not detailed here include: `setup_guard.py` (SetupGuardMiddleware - blocks API with 503 until admin setup is complete), `etag.py` (ETag caching), `profiling.py` (request profiling), `prometheus.py` (metrics), `baggage.py` (context propagation).
 
 ### SetupGuardMiddleware
 
-The `SetupGuardMiddleware` (`backend/api/middleware/setup_guard.py`) is a critical middleware that returns 503 for all non-whitelisted endpoints until the first admin user has been registered. This ensures the system is properly initialized before accepting traffic. It is registered first in `backend/main.py`, making it the outermost gate a request passes through.
+The `SetupGuardMiddleware` (`backend/api/middleware/setup_guard.py`) is a critical middleware that returns 503 for all non-whitelisted endpoints until the first admin user has been registered. This ensures the system is properly initialized before accepting traffic. It is registered first in `backend/main.py`, making it the innermost gate — the last check a request passes before route dispatch.
 
 ## Related Hubs
 

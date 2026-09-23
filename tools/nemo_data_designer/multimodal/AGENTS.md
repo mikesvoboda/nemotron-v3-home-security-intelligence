@@ -264,4 +264,4 @@ Cache files are named `{image_stem}_{content_hash}.json` where content_hash is t
 
 - [Parent AGENTS.md](../AGENTS.md) - NeMo Data Designer overview
 - [NVIDIA Vision API](https://build.nvidia.com) - API documentation
-- [Testing Guide](../../../docs/development/testing.md) - Test patterns
+- [Testing Guide](../../../docs/developer/testing.md) - Test patterns

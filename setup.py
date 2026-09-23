@@ -116,7 +116,7 @@ def load_ports_from_env_example(env_example_path: Path | None = None) -> dict[st
                     ports[key] = int(value)
                 except ValueError:
                     pass  # Skip non-integer values
-    except (OSError, UnicodeDecodeError):
+    except OSError, UnicodeDecodeError:
         pass
 
     return ports
@@ -141,26 +141,20 @@ def get_default_ports() -> dict[str, int]:
         "redis": "REDIS_PORT",
         "go2rtc_api": "GO2RTC_API_PORT",
         "go2rtc_webrtc": "GO2RTC_WEBRTC_PORT",
-        "yolo26": "YOLO26_PORT",
+        # Retired standalone AI containers (yolo26/florence/clip/enrichment/
+        # enrichment_light) no longer get host ports — those models are served
+        # by ai-gateway at AI_GATEWAY_PORT (see generate_env_content below).
         "nemotron": "LLM_PORT",
-        "florence": "FLORENCE_PORT",
-        "clip": "CLIP_PORT",
-        "enrichment": "ENRICHMENT_PORT",
-        "enrichment_light": "ENRICHMENT_LIGHT_PORT",
         "grafana": "GRAFANA_PORT",
         "prometheus": "PROMETHEUS_PORT",
         "alertmanager": "ALERTMANAGER_PORT",
         "loki": "LOKI_PORT",
-        "jaeger_ui": "JAEGER_UI_PORT",
-        "jaeger_otlp_grpc": "JAEGER_OTLP_GRPC_PORT",
-        "jaeger_otlp_http": "JAEGER_OTLP_HTTP_PORT",
         "pyroscope": "PYROSCOPE_PORT",
         "alloy_ui": "ALLOY_UI_PORT",
         "node_exporter": "NODE_EXPORTER_PORT",
         "redis_exporter": "REDIS_EXPORTER_PORT",
         "json_exporter": "JSON_EXPORTER_PORT",
         "blackbox_exporter": "BLACKBOX_EXPORTER_PORT",
-        "elasticsearch": "ELASTICSEARCH_PORT",
         "cadvisor": "CADVISOR_PORT",
         "dcgm_exporter": "DCGM_EXPORTER_PORT",
     }
@@ -175,26 +169,17 @@ def get_default_ports() -> dict[str, int]:
         "redis": 6379,
         "go2rtc_api": 1984,
         "go2rtc_webrtc": 8555,
-        "yolo26": 8095,
         "nemotron": 8091,
-        "florence": 8092,
-        "clip": 8093,
-        "enrichment": 8094,
-        "enrichment_light": 8096,
         "grafana": 3002,
         "prometheus": 9090,
         "alertmanager": 9093,
         "loki": 3100,
-        "jaeger_ui": 16686,
-        "jaeger_otlp_grpc": 4317,
-        "jaeger_otlp_http": 4318,
         "pyroscope": 4040,
         "alloy_ui": 12345,
         "node_exporter": 9100,
         "redis_exporter": 9121,
         "json_exporter": 7979,
         "blackbox_exporter": 9115,
-        "elasticsearch": 9200,
         "cadvisor": 8082,
         "dcgm_exporter": 9400,
     }
@@ -226,28 +211,22 @@ def build_services_dict() -> dict[str, ServiceInfo]:
         "redis": {"category": "Core", "desc": "Redis cache/queue"},
         "go2rtc_api": {"category": "Core", "desc": "go2rtc streaming API"},
         "go2rtc_webrtc": {"category": "Core", "desc": "go2rtc WebRTC"},
-        # AI Services
-        "yolo26": {"category": "AI", "desc": "YOLO26 object detection"},
+        # AI Services — standalone YOLO26/Florence/CLIP/Enrichment containers
+        # are retired (models served by ai-gateway at AI_GATEWAY_PORT=8090,
+        # which setup.py does not port-probe; the gateway URL lines below are
+        # fixed at the .env.example default).
         "nemotron": {"category": "AI", "desc": "Nemotron LLM reasoning"},
-        "florence": {"category": "AI", "desc": "Florence-2 vision-language"},
-        "clip": {"category": "AI", "desc": "CLIP embeddings"},
-        "enrichment": {"category": "AI", "desc": "Entity enrichment"},
-        "enrichment_light": {"category": "AI", "desc": "Light enrichment"},
         # Monitoring Services
         "grafana": {"category": "Monitoring", "desc": "Grafana dashboards"},
         "prometheus": {"category": "Monitoring", "desc": "Prometheus metrics"},
         "alertmanager": {"category": "Monitoring", "desc": "Alert manager"},
         "loki": {"category": "Monitoring", "desc": "Log aggregation"},
-        "jaeger_ui": {"category": "Monitoring", "desc": "Jaeger tracing UI"},
-        "jaeger_otlp_grpc": {"category": "Monitoring", "desc": "Jaeger OTLP gRPC"},
-        "jaeger_otlp_http": {"category": "Monitoring", "desc": "Jaeger OTLP HTTP"},
         "pyroscope": {"category": "Monitoring", "desc": "Continuous profiling"},
         "alloy_ui": {"category": "Monitoring", "desc": "Alloy collector UI"},
         "node_exporter": {"category": "Monitoring", "desc": "Node metrics"},
         "redis_exporter": {"category": "Monitoring", "desc": "Redis exporter"},
         "json_exporter": {"category": "Monitoring", "desc": "JSON exporter"},
         "blackbox_exporter": {"category": "Monitoring", "desc": "Blackbox exporter"},
-        "elasticsearch": {"category": "Monitoring", "desc": "Elasticsearch"},
         # Privileged Monitoring (require sudo podman)
         "cadvisor": {"category": "Privileged", "desc": "Container metrics"},
         "dcgm_exporter": {"category": "Privileged", "desc": "GPU metrics"},
@@ -316,7 +295,7 @@ def load_existing_env(env_path: Path | None = None) -> dict[str, str]:
                 if value and value[0] in ('"', "'") and value[-1] == value[0]:
                     value = value[1:-1]
                 env_values[key] = value
-    except (OSError, UnicodeDecodeError):
+    except OSError, UnicodeDecodeError:
         # Can't read file - return empty dict
         pass
 
@@ -336,7 +315,7 @@ def prompt_with_default(prompt: str, default: str) -> str:
     try:
         user_input = input(f"{prompt} [{default}]: ").strip()
         return user_input if user_input else default
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print()
         return default
 
@@ -448,11 +427,15 @@ def generate_env_content(config: dict) -> str:
         f"DATABASE_URL=postgresql+asyncpg://security:{config.get('postgres_password', '')}@postgres:{ports.get('postgres', 5432)}/security",
         "",
         "# -- Service URLs " + "-" * 43,
-        f"YOLO26_URL=http://ai-yolo26:{ports.get('yolo26', 8095)}",
+        # Standalone AI containers are retired; the gateway serves these models
+        # at route prefixes (mirrors the docker-compose backend env verbatim:
+        # prod :466-470 gateway routes + :454 ai-llm, same in ghcr).
+        "YOLO26_URL=http://ai-gateway:8090/yolo26",
         f"NEMOTRON_URL=http://ai-llm:{ports.get('nemotron', 8091)}",
-        f"FLORENCE_URL=http://ai-florence:{ports.get('florence', 8092)}",
-        f"CLIP_URL=http://ai-clip:{ports.get('clip', 8093)}",
-        f"ENRICHMENT_URL=http://ai-enrichment:{ports.get('enrichment', 8094)}",
+        "FLORENCE_URL=http://ai-gateway:8090/florence",
+        "CLIP_URL=http://ai-gateway:8090/clip",
+        "ENRICHMENT_URL=http://ai-gateway:8090/enrichment",
+        "ENRICHMENT_LIGHT_URL=http://ai-gateway:8090/enrich-lt",
         f"REDIS_URL=redis://redis:{ports.get('redis', 6379)}",
         "",
         "# -- Host Ports " + "-" * 45,
@@ -497,28 +480,23 @@ def generate_env_content(config: dict) -> str:
         f"GO2RTC_WEBRTC_PORT={ports.get('go2rtc_webrtc', 8555)}",
         "",
         "# -- AI Service Ports " + "-" * 39,
-        f"YOLO26_PORT={ports.get('yolo26', 8095)}",
+        # Standalone YOLO26/Florence-2/CLIP/Enrichment/Enrichment-Light
+        # containers are retired — those models are served by ai-gateway at
+        # AI_GATEWAY_PORT (8090); see .env.example for the legacy reference
+        # ports (not provisioned here).
         f"LLM_PORT={ports.get('nemotron', 8091)}",
-        f"FLORENCE_PORT={ports.get('florence', 8092)}",
-        f"CLIP_PORT={ports.get('clip', 8093)}",
-        f"ENRICHMENT_PORT={ports.get('enrichment', 8094)}",
-        f"ENRICHMENT_LIGHT_PORT={ports.get('enrichment_light', 8096)}",
         "",
         "# -- Monitoring Service Ports " + "-" * 31,
         f"PROMETHEUS_PORT={ports.get('prometheus', 9090)}",
         f"GRAFANA_PORT={ports.get('grafana', 3002)}",
         f"ALERTMANAGER_PORT={ports.get('alertmanager', 9093)}",
         f"LOKI_PORT={ports.get('loki', 3100)}",
-        f"JAEGER_UI_PORT={ports.get('jaeger_ui', 16686)}",
-        f"JAEGER_OTLP_GRPC_PORT={ports.get('jaeger_otlp_grpc', 4317)}",
-        f"JAEGER_OTLP_HTTP_PORT={ports.get('jaeger_otlp_http', 4318)}",
         f"PYROSCOPE_PORT={ports.get('pyroscope', 4040)}",
         f"ALLOY_UI_PORT={ports.get('alloy_ui', 12345)}",
         f"NODE_EXPORTER_PORT={ports.get('node_exporter', 9100)}",
         f"REDIS_EXPORTER_PORT={ports.get('redis_exporter', 9121)}",
         f"JSON_EXPORTER_PORT={ports.get('json_exporter', 7979)}",
         f"BLACKBOX_EXPORTER_PORT={ports.get('blackbox_exporter', 9115)}",
-        f"ELASTICSEARCH_PORT={ports.get('elasticsearch', 9200)}",
         "",
         "# -- Privileged Monitoring Ports (sudo podman) " + "-" * 14,
         f"CADVISOR_PORT={ports.get('cadvisor', 8082)}",
@@ -1224,6 +1202,10 @@ def main() -> None:
                 def __getattr__(self, name):
                     return getattr(self.stream, name)
 
+            # nosemgrep: path-traversal-open — log_path is the operator's own
+            # --log-file CLI argument (resolve()'d above); writing the deploy
+            # log where the operator points is the intended behavior, not
+            # untrusted input. Same rationale as async_utils.py's annotations.
             with open(log_path, "w", encoding="utf-8") as log_file:
                 tee = TeeOutput(sys.stdout, log_file)
                 original_stdout = sys.stdout
@@ -1348,7 +1330,7 @@ def main() -> None:
                     capture_output=True,
                 )
                 print("+ Pre-push hook installed (unit tests run before push)")
-            except (FileNotFoundError, subprocess.CalledProcessError):
+            except FileNotFoundError, subprocess.CalledProcessError:
                 print("! Could not install pre-commit hooks")
                 print("  Install manually with:")
                 print("    pre-commit install")
@@ -1420,9 +1402,7 @@ def main() -> None:
 
         # Combine reboot signals: driver upgrade OR kernel parameter changes
         # Both require a reboot before GPU containers can start.
-        reboot_required = optimizer_reboot or (
-            not args.defaults and driver_was_upgraded
-        )
+        reboot_required = optimizer_reboot or (not args.defaults and driver_was_upgraded)
 
         # Download AI models (skip in defaults mode, but enable for --yes mode)
         if not args.defaults or args.yes:
@@ -1440,10 +1420,8 @@ def main() -> None:
                 print("=" * 60)
                 print()
                 try:
-                    proceed = input(
-                        "Continue with model downloads anyway? [y/N]: "
-                    ).strip().lower()
-                except (EOFError, KeyboardInterrupt):
+                    proceed = input("Continue with model downloads anyway? [y/N]: ").strip().lower()
+                except EOFError, KeyboardInterrupt:
                     print()
                     proceed = "n"
 
@@ -1486,7 +1464,7 @@ def main() -> None:
             print()
             try:
                 reboot_now = input("Reboot now? [Y/n]: ").strip().lower()
-            except (EOFError, KeyboardInterrupt):
+            except EOFError, KeyboardInterrupt:
                 print()
                 reboot_now = "n"
 

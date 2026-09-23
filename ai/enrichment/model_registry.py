@@ -7,7 +7,7 @@ loader/unloader functions, and loading triggers.
 The registry is used by OnDemandModelManager to know which models are available
 and how to load them on-demand when needed for specific detection types.
 
-Available models (10 total):
+Available models (9 total):
 - fashion_clip: Clothing attribute extraction (FashionSigLIP, ~800MB, MEDIUM priority)
 - vehicle_classifier: Vehicle type classification (~1.5GB, MEDIUM priority)
 - pet_classifier: Cat/dog classification (~200MB, MEDIUM priority)
@@ -16,8 +16,12 @@ Available models (10 total):
 - threat_detector: Weapon detection (~400MB, CRITICAL priority)
 - demographics: Age-gender from face crops (~500MB, HIGH priority)
 - person_reid: OSNet re-identification (~100MB, MEDIUM priority)
-- action_recognizer: X-CLIP video action recognition (~2GB, LOW priority)
 - yolo26_detector: YOLO26 secondary object detection (~100MB, LOW priority)
+
+Action recognition retired: the X-CLIP ActionRecognizer was superseded by the
+skeleton-based ST-GCN++ pipeline (NEM-5563); the gateway's /action-classify
+adapter runs Triton stgcn_action. The retired class lives in
+archive/ai-enrichment/action_recognizer.py.
 """
 
 from __future__ import annotations
@@ -287,59 +291,6 @@ def load_person_reid(model_path: str, device: str = "cuda:0") -> Any:
         ) from err
 
 
-def load_action_recognizer(model_path: str, device: str = "cuda:0") -> tuple[Any, Any]:
-    """Load X-CLIP model for zero-shot action recognition.
-
-    Video-level action classification using text prompts.
-    Only loaded for suspicious activity analysis.
-
-    Args:
-        model_path: Path or HuggingFace model ID for X-CLIP
-            (e.g., "microsoft/xclip-base-patch16-16-frames").
-        device: CUDA device string for model placement.
-
-    Returns:
-        Tuple of (model, processor) for X-CLIP.
-
-    Note:
-        Requires transformers[video] for video processing.
-        Memory-intensive (~2GB VRAM for patch16-16-frames model).
-        Uses 16 frames for ~4% improved accuracy (NEM-3908).
-    """
-    from pathlib import Path
-
-    try:
-        from transformers import XCLIPModel, XCLIPProcessor
-    except ImportError as e:
-        logger.error("transformers package required for action recognition")
-        raise ImportError(
-            "transformers package with video support is required for action recognition. "
-            "Install with: pip install transformers[video]"
-        ) from e
-
-    # Resolve to absolute path for local model directories
-    # HuggingFace's from_pretrained validates repo_id format before checking if it's
-    # a local path. Using Path.resolve() ensures the path is properly normalized and
-    # the transformers library recognizes it as a local directory rather than a repo_id.
-    model_dir = Path(model_path)
-    if model_dir.exists():
-        local_path = str(model_dir.resolve())
-        logger.info(f"Loading action recognizer from local path: {local_path}")
-    else:
-        local_path = model_path
-        logger.info(f"Loading action recognizer from: {local_path}")
-
-    processor = XCLIPProcessor.from_pretrained(local_path)
-    model = XCLIPModel.from_pretrained(local_path)
-
-    if "cuda" in device and torch.cuda.is_available():
-        model = model.to(device)
-
-    model.eval()
-    logger.info(f"Action recognizer (X-CLIP) loaded from {model_path}")
-    return (model, processor)
-
-
 def _unload_model(model: Any) -> None:
     """Helper function to unload a model and free its resources.
 
@@ -463,18 +414,9 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_pose_estimator,
     )
 
-    # Action Recognizer - X-CLIP (~2GB) (NEM-3908: upgraded to patch16-16-frames)
-    # Trigger conditions: Person detected >3 seconds, multiple frames available,
-    # unusual pose detected (trigger from pose estimator)
-    # Uses 16 frames for ~4% improved accuracy over 8-frame patch32 model
-    action_path = os.environ.get("ACTION_MODEL_PATH", "/models/xclip-base-patch16-16-frames")
-    registry["action_recognizer"] = ModelConfig(
-        name="action_recognizer",
-        vram_mb=2000,  # Upgraded from 1500MB for patch16-16-frames
-        priority=ModelPriority.LOW,  # Expensive, use sparingly
-        loader_fn=lambda: _create_action_recognizer(action_path, device),
-        unloader_fn=_unload_action_recognizer,
-    )
+    # Action recognition retired (NEM-5563): the X-CLIP action_recognizer slot
+    # was removed; /action-classify is served by Triton stgcn_action via the
+    # ai-gateway adapter.
 
     # Person Re-Identification - OSNet-AIN x1.0 (~100MB) — GPU by default (NEM-5551)
     # OSNet-AIN x1.0 (NEM-5562): 4x better accuracy than x0.25, GPU: ~5ms (vs CPU 15-25ms)
@@ -564,33 +506,6 @@ def _unload_pose_estimator(model: Any) -> None:
     """
     if hasattr(model, "unload"):
         model.unload()
-
-
-def _create_action_recognizer(model_path: str, device: str) -> Any:
-    """Create and load an ActionRecognizer instance.
-
-    Args:
-        model_path: Path to X-CLIP model or HuggingFace model ID
-        device: Device to load the model on
-
-    Returns:
-        Loaded ActionRecognizer instance
-    """
-    from models.action_recognizer import ActionRecognizer
-
-    recognizer = ActionRecognizer(model_path=model_path, device=device)
-    recognizer.load_model()
-    return recognizer
-
-
-def _unload_action_recognizer(model: Any) -> None:
-    """Unload an ActionRecognizer instance.
-
-    Args:
-        model: The ActionRecognizer instance to unload
-    """
-    if hasattr(model, "unload_model"):
-        model.unload_model()
 
 
 def _create_person_reid(model_path: str, device: str) -> Any:
@@ -728,8 +643,10 @@ def _create_and_load_model(model_class: type, model_path: str, device: str) -> A
 
 def get_models_for_detection_type(
     detection_type: str,
-    is_suspicious: bool = False,
-    has_multiple_frames: bool = False,
+    # Trigger params kept for API compatibility: the X-CLIP action_recognizer
+    # they once triggered was retired (NEM-5563), so ruff sees them as unused.
+    is_suspicious: bool = False,  # noqa: ARG001
+    has_multiple_frames: bool = False,  # noqa: ARG001
 ) -> list[str]:
     """Get model names that should be loaded for a detection type.
 
@@ -738,10 +655,11 @@ def get_models_for_detection_type(
 
     Args:
         detection_type: Type of detection (e.g., "person", "car", "dog")
-        is_suspicious: Whether the detection is flagged as suspicious
-                      (triggers action recognition for person detections)
-        has_multiple_frames: Whether multiple frames are available
-                            (required for action recognition)
+        is_suspicious: Accepted for call-site compatibility; no longer used —
+                      the X-CLIP action_recognizer it once triggered is retired
+                      (NEM-5563; action recognition runs via Triton
+                      stgcn_action in the ai-gateway).
+        has_multiple_frames: Same — kept only for compatibility.
 
     Returns:
         List of model names that should be loaded for this detection type.
@@ -782,12 +700,8 @@ def get_models_for_detection_type(
                 models = model_list.copy()
                 break
 
-    # Add action recognition for suspicious person detections with multiple frames
-    # Trigger conditions from design doc:
-    # - Person detected for >3 seconds (implied by has_multiple_frames)
-    # - Multiple frames available in buffer
-    # - Unusual pose detected (implied by is_suspicious flag)
-    if detection_type_lower == "person" and is_suspicious and has_multiple_frames:
-        models.append("action_recognizer")
+    # Action recognition no longer appears here: the X-CLIP action_recognizer
+    # this used to add for suspicious multi-frame persons was retired by the
+    # ST-GCN++ migration (NEM-5563), which runs in the ai-gateway.
 
     return models

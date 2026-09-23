@@ -707,4 +707,4 @@ Before committing diagrams, verify:
 - [Visual Style Guide](../images/style-guide.md) - Colors, shapes, and design principles
 - [Documentation Standards](../architecture/STANDARDS.md) - Code citations and structure
 - [Dataflow Template](../architecture/templates/dataflow-template.md) - Template for dataflow documents
-- [Contributing Guide](../development/contributing.md) - PR process and standards
+- [Contributing Guide](../developer/contributing/README.md) - PR process and standards

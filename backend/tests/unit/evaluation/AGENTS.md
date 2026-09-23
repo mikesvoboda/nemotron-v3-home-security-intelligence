@@ -233,4 +233,4 @@ uv run pytest backend/tests/unit/evaluation/ -v --ignore-glob="**/test_*.py" || 
 | ------------------------------- | ----------------------------------- |
 | `/backend/evaluation/AGENTS.md` | Evaluation module documentation     |
 | `/backend/tests/AGENTS.md`      | Test infrastructure overview        |
-| `/docs/development/testing.md`  | Testing patterns and best practices |
+| `/docs/developer/testing.md`    | Testing patterns and best practices |

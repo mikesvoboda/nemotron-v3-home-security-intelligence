@@ -302,7 +302,7 @@ class TestPhase1ParallelExecution:
             ),
             patch.object(
                 pipeline,
-                "_recognize_actions",
+                "_recognize_actions_from_skeleton",
                 new_callable=AsyncMock,
                 return_value=None,
             ),

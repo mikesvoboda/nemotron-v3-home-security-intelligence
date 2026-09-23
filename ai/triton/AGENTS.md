@@ -157,7 +157,7 @@ ai-gateway:
     - CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}
   healthcheck:
     test: ['CMD', 'curl', '-f', 'http://localhost:8090/health']
-    start_period: 180s # Triton loads 13 models — allow 3 minutes
+    start_period: 180s # Triton loads 14 models — allow 3 minutes
 ```
 
 (The gateway container is named `ai-gateway`; internal Triton HTTP/gRPC ports
@@ -167,10 +167,11 @@ ai-gateway:
 
 `model_repository/` ships 14 model directories. 12 are loadable at startup
 (config + an exported version dir linked from the model cache) and the
-`yolo26` / `stgcn_action` configs have no exported weights by default — the
-compose healthcheck comments still say "13 models", stale since `xclip_action`
-was retired with NEM-5563 (its config/python `model.py` now live under
-`archive/triton-model-repository/`):
+`yolo26` / `stgcn_action` configs have no exported weights by default. The
+compose healthcheck comments used to say "13 models" — stale since
+`xclip_action` was retired with NEM-5563 (its config/python `model.py` now
+live under `archive/triton-model-repository/`) — and were corrected to 14 in
+the gateway-consolidation follow-up:
 
 | Model               | Backend     | max_batch_size  |
 | ------------------- | ----------- | --------------- |

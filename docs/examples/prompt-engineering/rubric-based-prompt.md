@@ -158,5 +158,5 @@ def verify_calculation(response: dict) -> bool:
 
 - [Basic Risk Analysis](basic-risk-analysis.md) - Simpler prompt without rubrics
 - [Chain-of-Thought Example](chain-of-thought.md) - Add reasoning transparency
-- [Main Documentation](../../development/nemotron-prompting.md)
+- [Main Documentation](../../developer/nemotron-prompting.md)
 - Implementation: `backend/services/risk_rubrics.py`

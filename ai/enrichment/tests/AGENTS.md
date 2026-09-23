@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Unit tests for the AI Enrichment Service's Model Zoo architecture. Tests validate on-demand model loading, VRAM management, model registry, and individual model implementations (pose estimation, threat detection, demographics, person re-ID, action recognition) without requiring a GPU or actual model files.
+Unit tests for the AI Enrichment Service's Model Zoo architecture. Tests validate on-demand model loading, VRAM management, model registry, and individual model implementations (pose estimation, threat detection, demographics, person re-ID, plate OCR, yolo26 enrichment detection) without requiring a GPU or actual model files. Action recognition is no longer tested here: the X-CLIP `ActionRecognizer` retired with the NEM-5563 migration to skeleton-based Triton `stgcn_action` (served by the ai-gateway `/action-classify` adapter); its suite moved to `archive/ai-enrichment/`.
 
 ## Directory Structure
 
@@ -11,11 +11,13 @@ ai/enrichment/tests/
 ├── AGENTS.md                    # This file
 ├── __init__.py                  # Package marker
 ├── conftest.py                  # pytest configuration (path setup)
-├── test_action_recognizer.py    # X-CLIP action recognition tests
 ├── test_demographics.py         # Age/gender estimation tests
+├── test_enrichment_metrics.py   # Video-analytics metrics tests (NEM-3722)
+├── test_meta_tensor_handling.py # Meta-tensor detection/materialization tests
 ├── test_model_manager.py        # OnDemandModelManager VRAM tests
 ├── test_model_registry.py       # Model registry configuration tests
 ├── test_person_reid.py          # OSNet re-ID embedding tests
+├── test_plate_ocr.py            # PaddleOCR plate text tests (NEM-5372)
 ├── test_pose_estimator.py       # YOLOv8n-pose estimation tests
 ├── test_threat_detector.py      # Weapon detection tests
 ├── test_video_processing.py     # Video processing utilities tests (NEM-3719)
@@ -44,7 +46,7 @@ uv run pytest ai/enrichment/tests/ -n auto --dist=worksteal
 
 Pytest configuration that adds the project root to `sys.path` for proper imports of `ai.enrichment` modules.
 
-### `test_model_manager.py` (831 lines)
+### `test_model_manager.py` (830 lines)
 
 Tests for the `OnDemandModelManager` class that handles VRAM-aware model loading.
 
@@ -75,7 +77,7 @@ Tests for the `OnDemandModelManager` class that handles VRAM-aware model loading
 - Prometheus metrics for VRAM monitoring
 - Model larger than budget raises RuntimeError
 
-### `test_model_registry.py` (514 lines)
+### `test_model_registry.py` (512 lines)
 
 Tests for model registration and detection-type-to-model mapping.
 
@@ -92,45 +94,34 @@ Tests for model registration and detection-type-to-model mapping.
 | `TestLoaderFunctionErrors`       | Import error handling               | 4     |
 | `TestDeviceConfiguration`        | CUDA/CPU device configuration       | 3     |
 
-**Expected Model Registry:**
+**Expected Model Registry (9 models):**
 
 | Model              | VRAM   | Priority |
 | ------------------ | ------ | -------- |
 | fashion_clip       | 800 MB | MEDIUM   |
 | vehicle_classifier | 1.5 GB | MEDIUM   |
 | pet_classifier     | 200 MB | MEDIUM   |
-| depth_estimator    | 150 MB | LOW      |
+| depth_estimator    | 100 MB | LOW      |
 | pose_estimator     | 300 MB | HIGH     |
 | threat_detector    | 400 MB | CRITICAL |
 | demographics       | 500 MB | HIGH     |
 | person_reid        | 100 MB | MEDIUM   |
-| action_recognizer  | 1.5 GB | LOW      |
+| yolo26_detector    | 100 MB | LOW      |
 
-### `test_action_recognizer.py` (414 lines)
+> The table mirrors `EXPECTED_MODELS`/`EXPECTED_VRAM`/`EXPECTED_PRIORITIES` in
+> `test_model_registry.py`. The former `action_recognizer` row (X-CLIP, 1.5 GB
+> LOW) went with the NEM-5563 retirement — the registry now maps action
+> recognition to Triton `stgcn_action` behind the gateway, not a Model Zoo entry.
 
-Tests for X-CLIP video action recognition.
+### ~~`test_action_recognizer.py`~~ — moved to `archive/ai-enrichment/`
 
-**Test Classes:**
+The X-CLIP `ActionRecognizer` suite (8 classes / 29 tests) retired with the
+class on 2026-09-23 (full X-CLIP removal, owner ruling; NEM-5563 migration to
+skeleton-based Triton `stgcn_action`). Both the suite and its subject moved
+byte-identical to `archive/ai-enrichment/`. Action recognition for live code is
+the gateway `/action-classify` adapter — covered there, not here.
 
-| Class                                | Description                       | Tests |
-| ------------------------------------ | --------------------------------- | ----- |
-| `TestActionResult`                   | ActionResult dataclass            | 2     |
-| `TestSecurityActions`                | Security action class definitions | 5     |
-| `TestActionRecognizerFrameSampling`  | Frame sampling logic              | 9     |
-| `TestActionRecognizerModelLoading`   | Model load/unload behavior        | 4     |
-| `TestActionRecognizerInference`      | Action recognition with mocks     | 3     |
-| `TestActionRecognizerBatchInference` | Batch inference validation        | 3     |
-| `TestLoadActionRecognizer`           | Factory function                  | 1     |
-| `TestSuspiciousActionFlagging`       | Suspicious action identification  | 2     |
-
-**Security Actions (15 total):**
-
-```python
-SECURITY_ACTIONS = ["walking normally", "running", "delivering package", ...]
-SUSPICIOUS_ACTIONS = {"fighting", "climbing", "breaking window", "picking lock", "hiding", "loitering", "looking around suspiciously"}
-```
-
-### `test_demographics.py` (773 lines)
+### `test_demographics.py` (772 lines)
 
 Tests for ViT-based age/gender estimation.
 
@@ -157,7 +148,7 @@ Tests for ViT-based age/gender estimation.
 AGE_RANGES = ["0-10", "11-20", "21-35", "36-50", "51-65", "65+"]
 ```
 
-### `test_person_reid.py` (749 lines)
+### `test_person_reid.py` (818 lines)
 
 Tests for OSNet person re-identification embeddings.
 
@@ -186,7 +177,7 @@ OSNET_INPUT_WIDTH = 128
 DEFAULT_SIMILARITY_THRESHOLD = 0.7
 ```
 
-### `test_pose_estimator.py` (580 lines)
+### `test_pose_estimator.py` (715 lines)
 
 Tests for YOLOv8n-pose human pose estimation.
 
@@ -212,7 +203,7 @@ Tests for YOLOv8n-pose human pose estimation.
 SUSPICIOUS_POSES = {"crouching", "crawling", "hiding", "reaching_up"}
 ```
 
-### `test_threat_detector.py` (786 lines)
+### `test_threat_detector.py` (1017 lines)
 
 Tests for YOLO-based weapon detection.
 

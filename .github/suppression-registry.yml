@@ -1131,25 +1131,25 @@ pytest_skip_imperative:
     expires: null
     reason: No confidence scores found in detections
     host_justification: synthetic-scenario DB rows (data chain), not repo content
-  - id: backend/tests/security/test_docker_compose_security.py:190
+  - id: backend/tests/security/test_docker_compose_security.py:189
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:203
+  - id: backend/tests/security/test_docker_compose_security.py:202
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:227
+  - id: backend/tests/security/test_docker_compose_security.py:226
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:238
+  - id: backend/tests/security/test_docker_compose_security.py:237
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

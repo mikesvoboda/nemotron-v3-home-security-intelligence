@@ -20,7 +20,7 @@ Models:
     - violence-detection: Binary violence classification on full frame
     - weather-classification: Weather condition classification (5 classes)
     - segformer-b2-clothes: Clothing segmentation on person detections
-    - xclip-base: Temporal action recognition in video sequences
+    - stgcn-plus-plus: Skeleton-based action recognition from pose keypoints
     - fashion-clip: Zero-shot clothing classification for security context
     - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
     - vehicle-segment-classification: Detailed vehicle type classification (11 types)
@@ -72,7 +72,6 @@ from backend.services.vehicle_damage_loader import load_vehicle_damage_model
 from backend.services.violence_loader import load_violence_model
 from backend.services.vitpose_loader import load_vitpose_model
 from backend.services.weather_loader import load_weather_model
-from backend.services.xclip_loader import load_xclip_model
 from backend.services.yolo_world_loader import load_yolo_world_model
 from backend.services.zero_dce_loader import load_zero_dce_model
 
@@ -382,7 +381,6 @@ _LOADER_MAP: dict[str, Callable[[str], Awaitable[Any]]] = {
     "depth-anything-v2-tiny": load_depth_model,
     # Action recognition
     "stgcn-plus-plus": load_stgcn_model,
-    "xclip-base": load_xclip_model,
     # Vision-language
     "florence-2-large": load_florence_model,
     # Preprocessing

@@ -22,18 +22,23 @@ sequenceDiagram
     Nginx->>Uvicorn: Proxy request
 
     rect rgb(240, 240, 255)
-        Note over MW: Middleware Stack (in order)
-        Uvicorn->>MW: RequestIDMiddleware
+        Note over MW: Middleware Stack (outer to inner)
+        Uvicorn->>MW: IdempotencyMiddleware (if idempotency_enabled)
+        MW->>MW: GZipMiddleware
         MW->>MW: BodySizeLimitMiddleware
-        MW->>MW: ContentTypeValidationMiddleware
         MW->>MW: SecurityHeadersMiddleware
-        MW->>MW: AuthMiddleware
-        MW->>MW: RequestLoggingMiddleware
-        MW->>MW: RequestTimingMiddleware
+        MW->>MW: CORSMiddleware
+        MW->>MW: RequestRecorderMiddleware (if request_recording_enabled)
+        MW->>MW: ObservabilityMiddleware
+        MW->>MW: ProfilingMiddleware
+        MW->>MW: BaggageMiddleware
+        MW->>MW: RequestIDMiddleware
+        MW->>MW: ContentTypeValidationMiddleware
+        MW->>MW: SetupGuardMiddleware
     end
 
     MW->>Router: Route matching
-    Router->>Handler: Call handler with deps
+    Router->>Handler: Call handler with deps (incl. per-route auth guards)
 
     rect rgb(255, 240, 240)
         Note over Handler: Request Processing
@@ -57,39 +62,58 @@ sequenceDiagram
 
 ## Middleware Stack
 
-**Source:** `backend/main.py:21-34`
+**Source:** imports at `backend/main.py:24-40`, registration at `backend/main.py:1351-1441`
 
-### Middleware Order (outer to inner)
+### Middleware Imports (what actually gets registered)
 
 ```python
-# backend/main.py:21-34
+# backend/main.py:24-25 (FastAPI builtins)
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+# backend/main.py:29-40
 from backend.api.middleware import (
-    AuthMiddleware,
+    BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
-    DeprecationConfig,
-    DeprecationLoggerMiddleware,
-    DeprecationMiddleware,
     IdempotencyMiddleware,
-    RequestLoggingMiddleware,
+    ObservabilityMiddleware,
+    ProfilingMiddleware,
     RequestRecorderMiddleware,
-    RequestTimingMiddleware,
     SecurityHeadersMiddleware,
+    SetupGuardMiddleware,
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 ```
 
-| Order | Middleware                        | Purpose                       |
-| ----- | --------------------------------- | ----------------------------- |
-| 1     | `RequestIDMiddleware`             | Assign unique request ID      |
-| 2     | `BodySizeLimitMiddleware`         | Limit request body size       |
-| 3     | `ContentTypeValidationMiddleware` | Validate Content-Type header  |
-| 4     | `SecurityHeadersMiddleware`       | Add security response headers |
-| 5     | `AuthMiddleware`                  | API key authentication        |
-| 6     | `IdempotencyMiddleware`           | Idempotent request handling   |
-| 7     | `DeprecationMiddleware`           | API deprecation warnings      |
-| 8     | `RequestLoggingMiddleware`        | Log request/response          |
-| 9     | `RequestTimingMiddleware`         | Track request latency         |
+No `AuthMiddleware` import and no `Deprecation*` imports: those classes are not registered (NEM-5527 / NEM-5558, see below).
+
+### Middleware Order (outer to inner)
+
+With Starlette, the **last** `add_middleware()` call becomes the **outermost** layer, so requests hit the bottom of the registration block first:
+
+| Order | Middleware                        | Purpose                                              | Gating                                         |
+| ----- | --------------------------------- | ---------------------------------------------------- | ---------------------------------------------- |
+| 1     | `IdempotencyMiddleware`           | Cache responses by `Idempotency-Key` (mutating only) | `idempotency_enabled`, default on              |
+| 2     | `GZipMiddleware`                  | Compress responses > 1 KB                            | always                                         |
+| 3     | `BodySizeLimitMiddleware`         | Limit request body size (10 MB)                      | always                                         |
+| 4     | `SecurityHeadersMiddleware`       | Add security response headers                        | always                                         |
+| 5     | `CORSMiddleware`                  | Cross-origin requests + preflight                    | always                                         |
+| 6     | `RequestRecorderMiddleware`       | Record requests for debug replay                     | `request_recording_enabled`, default off       |
+| 7     | `ObservabilityMiddleware`         | Timing, structured logging, Prometheus metrics       | always (logging via `request_logging_enabled`) |
+| 8     | `ProfilingMiddleware`             | Tag Pyroscope profiles with trace IDs                | always                                         |
+| 9     | `BaggageMiddleware`               | W3C Baggage context propagation                      | always                                         |
+| 10    | `RequestIDMiddleware`             | Assign/propagate `X-Request-ID`                      | always                                         |
+| 11    | `ContentTypeValidationMiddleware` | Validate Content-Type header                         | always                                         |
+| 12    | `SetupGuardMiddleware`            | 503 until the first admin is registered              | always (whitelist excepted)                    |
+
+**Present-but-unregistered middleware:**
+
+- `AuthMiddleware` (`backend/api/middleware/auth.py`) — **not registered** (NEM-5527). It
+  returned 401 for all non-exempt endpoints and broke Grafana dashboards and GPU settings;
+  auth is handled by per-route dependencies instead (see Authentication Flow).
+- `DeprecationMiddleware` / `DeprecationLoggerMiddleware` (`deprecation.py`, `deprecation_logger.py`) —
+  **not registered** (NEM-5558). Zero deprecated endpoints were registered; re-add them when endpoints are deprecated.
 
 ### Request ID
 
@@ -118,34 +142,53 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 ## Authentication Flow
 
-### API Key Authentication
+There is **no global authentication step on the live request path**. The single-user
+local deployment model (AGENTS.md "Auth model") means that after first-admin
+registration, API endpoints are open by design — network binding to `127.0.0.1` is
+the primary security boundary — and only specific sensitive routes carry auth
+guards, in the form of per-route FastAPI dependencies, not middleware:
+
+| Guard                    | Defined in                                                         | Used by                                                                                                                                     | Fails with                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `verify_api_key`         | `backend/api/routes/system.py:272`, `backend/api/routes/dlq.py:41` | selected `/api/system` routes (config, anomaly-config, severity, cleanup, circuit-breaker reset), destructive `/api/dlq` POST/DELETE routes | 401 only when `api_key_enabled=true` (default `false` → guard is a no-op)                                   |
+| `verify_api_key`         | `backend/api/routes/inbound_webhooks.py:121`                       | inbound webhook POST routes                                                                                                                 | 401 whenever the `X-API-Key` header is missing or shorter than 16 chars (not gated on `api_key_enabled`)    |
+| `require_admin_access`   | `backend/api/routes/admin.py:262`                                  | destructive/seeding `/api/admin` routes                                                                                                     | 403 when `admin_enabled=false` (default `true` → passes; the flag is a kill switch, not a credential check) |
+| `get_current_admin_user` | `backend/api/routes/auth.py:474`                                   | `/api/auth` api-key-management routes and three `/api/admin` routes — 403 unless the user `is_admin`                                        | 401 without a valid `session_id` cookie (checked via Redis session store)                                   |
+
+A general route such as `GET /api/events` has no guard at all: a 401 there is
+impossible on the live path.
+
+### API Key Authentication (per-route dependency)
+
+The 401 flow that remains lives in the `verify_api_key` dependency of the guarded routes:
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Auth as AuthMiddleware
+    participant Guard as verify_api_key (route dependency)
     participant Settings
 
-    Client->>Auth: Request with X-API-Key header
-    Auth->>Settings: Check api_key_enabled
-    alt Auth disabled
-        Auth-->>Client: Continue (no auth required)
+    Client->>Guard: Request with X-API-Key header
+    Guard->>Settings: Check api_key_enabled
+    alt Auth disabled (default)
+        Guard-->>Client: Continue (no auth required)
     else Auth enabled
-        Auth->>Auth: Extract API key from header
+        Guard->>Guard: Extract API key from header
         alt Key matches
-            Auth-->>Client: Continue
+            Guard-->>Client: Continue to handler
         else Key missing/invalid
-            Auth-->>Client: 401 Unauthorized
+            Guard-->>Client: 401 Unauthorized
         end
     end
 ```
 
 ### Supported Authentication Methods
 
-| Method      | Header/Parameter   | Example                        |
-| ----------- | ------------------ | ------------------------------ |
-| API Key     | `X-API-Key` header | `X-API-Key: your-api-key`      |
-| Query param | `api_key`          | `/api/events?api_key=your-key` |
+| Method      | Header/Parameter    | Example                         | Notes                                       |
+| ----------- | ------------------- | ------------------------------- | ------------------------------------------- |
+| API Key     | `X-API-Key` header  | `X-API-Key: your-api-key`       | Guarded routes only, when `api_key_enabled` |
+| Query param | `api_key`           | `/api/dlq/...?api_key=your-key` | Fallback accepted by `dlq.py`'s guard       |
+| Session     | `session_id` cookie | browser login via `/api/auth`   | Routes using `get_current_admin_user`       |
 
 ## Route Registration
 
@@ -249,22 +292,25 @@ async def get_queue_stats(
 
 ```
 Time 0ms:   Request received by Uvicorn
-Time 1ms:   RequestIDMiddleware assigns ID
+Time 1ms:   IdempotencyMiddleware — pass-through for GETs
 Time 2ms:   BodySizeLimitMiddleware checks size
-Time 3ms:   ContentTypeValidationMiddleware validates
-Time 4ms:   SecurityHeadersMiddleware prepares headers
-Time 5ms:   AuthMiddleware validates API key
-Time 6ms:   RequestLoggingMiddleware logs start
-Time 7ms:   Route matching
-Time 8ms:   Dependency resolution (get_session, etc.)
-Time 10ms:  Handler execution starts
+Time 3ms:   SecurityHeadersMiddleware prepares headers
+Time 4ms:   CORS check (preflight OPTIONS stops here)
+Time 5ms:   ObservabilityMiddleware starts timer (logs/metrics emitted on the way out)
+Time 6ms:   RequestIDMiddleware assigns ID
+Time 7ms:   ContentTypeValidationMiddleware validates
+Time 8ms:   SetupGuardMiddleware check (503 if no users exist yet)
+Time 9ms:   Route matching
+Time 10ms:  Dependency resolution (get_session, per-route auth guards, etc.)
+Time 12ms:  Handler execution starts
             ...
             Handler execution (variable)
             ...
 Time N ms:  Handler returns response
-Time N+1ms: RequestLoggingMiddleware logs completion
-Time N+2ms: RequestTimingMiddleware records latency
-Time N+3ms: Response sent
+Time N+1ms: RequestIDMiddleware echoes X-Request-ID / X-Correlation-ID
+Time N+2ms: ObservabilityMiddleware adds X-Response-Time, logs completion,
+            observes the duration histogram
+Time N+3ms: Response sent (gzip-compressed if > 1 KB)
 ```
 
 ## Caching Strategy
@@ -439,13 +485,15 @@ class PaginatedResponse(BaseModel, Generic[T]):
 1. Client sends:
    GET /api/events/42
    Headers:
-     X-API-Key: your-api-key
      Accept: application/json
 
-2. Middleware processing:
+2. Middleware processing (outer to inner):
+   - Idempotency: pass-through (GET is not a mutating method)
+   - BodySizeLimit / SecurityHeaders / CORS: checked, pass
+   - Observability: timer started
    - RequestID: req-abc123 assigned
-   - Auth: API key validated
-   - Logging: Request logged
+   - SetupGuard: users exist, pass
+   (No auth step: /api/events carries no auth guard — see Authentication Flow)
 
 3. Route matching:
    - Matched: GET /api/events/{event_id}
@@ -479,10 +527,11 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
 ### Request Metrics
 
-- `hsi_http_requests_total` - Total requests by path and status
-- `hsi_http_request_duration_seconds` - Request latency histogram
-- `hsi_http_request_size_bytes` - Request body size
-- `hsi_http_response_size_bytes` - Response body size
+- `http_request_duration_seconds` - Request latency histogram (Prometheus
+  middleware, `backend/api/middleware/prometheus.py`), labeled `method`,
+  `handler`, `status`, `http_route`. Request totals and rate come from the
+  histogram's derived `_count` series. No separate `hsi_http_requests_total`,
+  `hsi_http_request_duration_seconds` or request/response size metrics exist.
 
 ### Request Tracing
 

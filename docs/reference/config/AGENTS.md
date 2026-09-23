@@ -38,41 +38,41 @@ config/
 
 **Sections:**
 
-| Section                | Variables                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| **Database**           | `DATABASE_URL`                                                                       |
-| **Redis**              | `REDIS_URL`                                                                          |
-| **AI Services**        | `YOLO26_URL`, `NEMOTRON_URL`, timeouts, API keys                                     |
-| **Camera Integration** | `FOSCAM_BASE_PATH`                                                                   |
-| **File Watcher**       | `FILE_WATCHER_POLLING`, `FILE_WATCHER_POLLING_INTERVAL`                              |
-| **Detection**          | `DETECTION_CONFIDENCE_THRESHOLD`                                                     |
-| **Fast Path**          | `FAST_PATH_CONFIDENCE_THRESHOLD`, `FAST_PATH_OBJECT_TYPES`                           |
-| **Batch Processing**   | `BATCH_WINDOW_SECONDS`, `BATCH_IDLE_TIMEOUT_SECONDS`                                 |
-| **Retention**          | `RETENTION_DAYS`, `LOG_RETENTION_DAYS`                                               |
-| **GPU Monitoring**     | `GPU_POLL_INTERVAL_SECONDS`, `GPU_STATS_HISTORY_MINUTES`                             |
-| **Deduplication**      | `DEDUPE_TTL_SECONDS`                                                                 |
-| **Severity**           | `SEVERITY_LOW_MAX`, `SEVERITY_MEDIUM_MAX`, `SEVERITY_HIGH_MAX`                       |
-| **Logging**            | `LOG_LEVEL`, `LOG_FILE_PATH`, file rotation settings                                 |
-| **API Server**         | `DEBUG`, `API_HOST`, `API_PORT`                                                      |
-| **Authentication**     | `API_KEY_ENABLED`, `API_KEYS`                                                        |
-| **Rate Limiting**      | `RATE_LIMIT_*` variables for all tiers                                               |
-| **WebSocket**          | `WEBSOCKET_IDLE_TIMEOUT_SECONDS`, ping interval, max size                            |
-| **TLS/HTTPS**          | `TLS_MODE`, certificate paths, verification options                                  |
-| **CORS**               | `CORS_ORIGINS`                                                                       |
-| **Notifications**      | SMTP settings, webhook configuration                                                 |
-| **Queue Settings**     | `QUEUE_MAX_SIZE`, overflow policy, backpressure                                      |
-| **DLQ**                | Circuit breaker settings for dead-letter queue                                       |
-| **Video Processing**   | Frame interval, thumbnails directory, max frames                                     |
-| **Clip Generation**    | Pre/post roll, clips directory, enabled flag                                         |
-| **Service Health**     | `AI_RESTART_ENABLED`                                                                 |
-| **Admin Endpoints**    | `ADMIN_ENABLED`, `ADMIN_API_KEY`                                                     |
-| **Cache / Timeouts**   | Cache TTLs, internal service timeouts                                                |
-| **Workers & Queues**   | Worker supervisor, orchestrator, job management, pagination                          |
-| **Media**              | Thumbnails, hardware acceleration, transcode cache                                   |
-| **Observability**      | Profiling, slow query logging, request logging/recording                             |
-| **Security**           | HSTS, idempotency                                                                    |
-| **Misc**               | Background evaluation, orphan file cleanup, Model Zoo                                |
-| **Frontend**           | `VITE_API_BASE_URL`, `VITE_WS_BASE_URL`, `FRONTEND_HTTP_PORT`, `FRONTEND_HTTPS_PORT` |
+| Section                | Variables                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| **Database**           | `DATABASE_URL`                                                                               |
+| **Redis**              | `REDIS_URL`                                                                                  |
+| **AI Services**        | `YOLO26_URL`, `NEMOTRON_URL`, timeouts, API keys                                             |
+| **Camera Integration** | `FOSCAM_BASE_PATH`                                                                           |
+| **File Watcher**       | `FILE_WATCHER_POLLING`, `FILE_WATCHER_POLLING_INTERVAL`                                      |
+| **Detection**          | `DETECTION_CONFIDENCE_THRESHOLD`                                                             |
+| **Fast Path**          | `FAST_PATH_CONFIDENCE_THRESHOLD`, `FAST_PATH_OBJECT_TYPES`                                   |
+| **Batch Processing**   | `BATCH_WINDOW_SECONDS`, `BATCH_IDLE_TIMEOUT_SECONDS`                                         |
+| **Retention**          | `RETENTION_DAYS`, `LOG_RETENTION_DAYS`                                                       |
+| **GPU Monitoring**     | `GPU_POLL_INTERVAL_SECONDS`, `GPU_STATS_HISTORY_MINUTES`                                     |
+| **Deduplication**      | `DEDUPE_TTL_SECONDS`                                                                         |
+| **Severity**           | `SEVERITY_LOW_MAX`, `SEVERITY_MEDIUM_MAX`, `SEVERITY_HIGH_MAX`                               |
+| **Logging**            | `LOG_LEVEL`, `LOG_FILE_PATH`, file rotation settings                                         |
+| **API Server**         | `DEBUG`, `API_HOST`, `API_PORT`                                                              |
+| **Authentication**     | `API_KEY_ENABLED`, `API_KEYS`                                                                |
+| **Rate Limiting**      | `RATE_LIMIT_*` variables for all tiers                                                       |
+| **WebSocket**          | `WEBSOCKET_IDLE_TIMEOUT_SECONDS`, ping interval, max size                                    |
+| **TLS/HTTPS**          | `TLS_MODE`, certificate paths, verification options                                          |
+| **CORS**               | `CORS_ORIGINS`                                                                               |
+| **Notifications**      | SMTP settings, webhook configuration                                                         |
+| **Queue Settings**     | `QUEUE_MAX_SIZE`, overflow policy, backpressure                                              |
+| **DLQ**                | Circuit breaker settings for dead-letter queue                                               |
+| **Video Processing**   | Frame interval, thumbnails directory, max frames                                             |
+| **Clip Generation**    | Pre/post roll, clips directory, enabled flag                                                 |
+| **Service Health**     | `AI_RESTART_ENABLED`                                                                         |
+| **Admin Endpoints**    | `ADMIN_ENABLED` (the only gate; DEBUG not consulted), `ADMIN_API_KEY` (reserved, unenforced) |
+| **Cache / Timeouts**   | Cache TTLs, internal service timeouts                                                        |
+| **Workers & Queues**   | Worker supervisor, orchestrator, job management, pagination                                  |
+| **Media**              | Thumbnails, hardware acceleration, transcode cache                                           |
+| **Observability**      | Profiling, slow query logging, request logging/recording                                     |
+| **Security**           | HSTS, idempotency                                                                            |
+| **Misc**               | Background evaluation, orphan file cleanup, Model Zoo                                        |
+| **Frontend**           | `VITE_API_BASE_URL`, `VITE_WS_BASE_URL`, `FRONTEND_HTTP_PORT`, `FRONTEND_HTTPS_PORT`         |
 
 **Format for Each Variable:**
 

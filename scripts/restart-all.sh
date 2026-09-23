@@ -8,9 +8,10 @@
 # Usage:
 #   ./scripts/restart-all.sh [start|stop|restart|status]
 #
-# Services:
+# Services (docker-compose.prod.yml live set — standalone YOLO26/Florence/CLIP/
+# Enrichment containers retired; ai-gateway serves those models since bc7d6101):
 #   Core:       postgres, redis, backend, frontend
-#   AI:         ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
+#   AI:         ai-gateway, ai-llm (ai-llm-vllm is opt-in via --profile vllm)
 #   Monitoring: prometheus, grafana, redis-exporter, json-exporter
 #
 
@@ -35,7 +36,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Service groups
 CORE_SERVICES="postgres redis backend frontend"
-AI_SERVICES="ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment"
+AI_SERVICES="ai-gateway ai-llm"
 MONITORING_SERVICES="prometheus grafana redis-exporter json-exporter"
 ALL_SERVICES="$CORE_SERVICES $AI_SERVICES $MONITORING_SERVICES"
 
@@ -175,13 +176,12 @@ health_check() {
     echo "=========================================="
     echo ""
 
+    # AI Gateway serves the detection/vision/embedding models the retired
+    # standalone YOLO26/Florence/CLIP/Enrichment containers used to expose.
     local services=(
         "Backend:http://localhost:8000/api/system/health/ready"
-        "YOLO26:http://localhost:8095/health"
+        "AI Gateway:http://localhost:8090/health"
         "Nemotron:http://localhost:8091/health"
-        "Florence:http://localhost:8092/health"
-        "CLIP:http://localhost:8093/health"
-        "Enrichment:http://localhost:8094/health"
         "Prometheus:http://localhost:9090/-/healthy"
         "Grafana:http://localhost:3002/api/health"
     )

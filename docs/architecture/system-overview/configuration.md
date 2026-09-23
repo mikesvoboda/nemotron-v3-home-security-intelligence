@@ -157,15 +157,15 @@ In containers the same routes use `http://ai-gateway:8090/...` and `NEMOTRON_URL
 
 ### Application Settings
 
-| Variable         | Default      | Description            |
-| ---------------- | ------------ | ---------------------- |
-| `DEBUG`          | false        | Enable debug mode      |
-| `ENVIRONMENT`    | `production` | Deployment environment |
-| `ADMIN_ENABLED`  | true         | Enable admin endpoints |
-| `ADMIN_API_KEY`  | None         | Admin API key          |
-| `API_HOST`       | `0.0.0.0`    | API bind address       |
-| `API_PORT`       | 8000         | API port               |
-| `RETENTION_DAYS` | 30           | Data retention period  |
+| Variable         | Default      | Description                            |
+| ---------------- | ------------ | -------------------------------------- |
+| `DEBUG`          | false        | Enable debug mode                      |
+| `ENVIRONMENT`    | `production` | Deployment environment                 |
+| `ADMIN_ENABLED`  | true         | Enable admin endpoints                 |
+| `ADMIN_API_KEY`  | None         | Admin API key (reserved, not enforced) |
+| `API_HOST`       | `0.0.0.0`    | API bind address                       |
+| `API_PORT`       | 8000         | API port                               |
+| `RETENTION_DAYS` | 30           | Data retention period                  |
 
 **Source:** `backend/core/config.py:842-930`
 

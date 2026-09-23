@@ -230,7 +230,7 @@ Top 10 Largest Gaps:
 
 ## References
 
-- [Testing Guide](../development/testing.md)
+- [Testing Guide](../developer/testing.md)
 - [Detection Validation Coverage Guide](../guides/detection-validation-coverage.md)
 - [Video Analytics Guide](../guides/video-analytics.md)
 - [Test Suite Source](../../backend/tests/integration/test_risk_score_validation.py)

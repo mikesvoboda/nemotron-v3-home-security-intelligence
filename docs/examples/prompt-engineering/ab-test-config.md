@@ -277,6 +277,6 @@ async def shadow_test(sample, experiment):
 
 - [Basic Risk Analysis](basic-risk-analysis.md) - Control prompt example
 - [Rubric-Based Prompt](rubric-based-prompt.md) - Variant prompt example
-- [Main Documentation](../../development/nemotron-prompting.md#ab-testing-framework)
+- [Main Documentation](../../developer/nemotron-prompting.md#ab-testing-framework)
 - Implementation: `backend/config/prompt_ab_config.py`
 - Implementation: `backend/evaluation/ab_experiment_runner.py`

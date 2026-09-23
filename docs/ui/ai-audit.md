@@ -78,20 +78,20 @@ A horizontal bar chart showing the contribution rate of each AI model to event a
 - Number of events the model contributed to
 - Percentage contribution rate (0-100%)
 
-| Model              | Description                                 |
-| ------------------ | ------------------------------------------- |
-| YOLO26             | Object detection (always active)            |
-| Florence-2         | Visual question-answering for scene details |
-| X-CLIP             | Action recognition (walking, running, etc.) |
-| Violence Detection | Violence classifier for suspicious behavior |
-| Clothing Analysis  | FashionCLIP clothing identification         |
-| Vehicle Detection  | Vehicle type and color classification       |
-| Pet Detection      | Pet vs. wildlife classification             |
-| Weather Analysis   | Environmental condition assessment          |
-| Image Quality      | Camera image quality scoring                |
-| Zone Analysis      | Entry point and security zone context       |
-| Baseline           | Historical activity pattern comparison      |
-| Cross-Camera       | Correlation with other camera detections    |
+| Model              | Description                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| YOLO26             | Object detection (always active)                                                                                     |
+| Florence-2         | Visual question-answering for scene details                                                                          |
+| X-CLIP             | Action recognition (walking, running, etc.) — model retired 2026-09-23, replaced by ST-GCN++ via Triton stgcn_action |
+| Violence Detection | Violence classifier for suspicious behavior                                                                          |
+| Clothing Analysis  | FashionCLIP clothing identification                                                                                  |
+| Vehicle Detection  | Vehicle type and color classification                                                                                |
+| Pet Detection      | Pet vs. wildlife classification                                                                                      |
+| Weather Analysis   | Environmental condition assessment                                                                                   |
+| Image Quality      | Camera image quality scoring                                                                                         |
+| Zone Analysis      | Entry point and security zone context                                                                                |
+| Baseline           | Historical activity pattern comparison                                                                               |
+| Cross-Camera       | Correlation with other camera detections                                                                             |
 
 Models are sorted by contribution rate in descending order. Higher contribution rates indicate the model data was available and used in analyses.
 
@@ -137,7 +137,7 @@ Each model has an accordion-style editor. The first model (Nemotron) is expanded
 | Nemotron     | Full text editor with syntax highlighting | System prompt with highlighted variables like `{detections}`, `{cross_camera_data}`, `{weather}`, `{time_context}`. Also includes Temperature slider (0-2) and Max Tokens input (100-8192). |
 | Florence-2   | Multi-line text (one per line)            | VQA queries for visual scene analysis                                                                                                                                                       |
 | YOLO-World   | Multi-line text + slider                  | Object classes (one per line) + confidence threshold slider (0-1)                                                                                                                           |
-| X-CLIP       | Multi-line text                           | Action recognition classes (one per line)                                                                                                                                                   |
+| X-CLIP       | Multi-line text                           | Action recognition classes (one per line) — prompt-config editor remains; model retired 2026-09-23, replaced by ST-GCN++                                                                    |
 | Fashion-CLIP | Two text areas                            | Clothing categories + suspicious indicators (one per line each)                                                                                                                             |
 
 **Syntax Highlighting:** The Nemotron editor highlights prompt variables like `{variable_name}` in green with a subtle background, and includes line numbers.
@@ -281,7 +281,7 @@ View and restore previous prompt configurations.
 #### Version History Features
 
 - **Model Filter Dropdown** - Filter versions by specific model or view "All Models"
-  - Available options: All Models, Nemotron, Florence-2, YOLO-World, X-CLIP, Fashion-CLIP
+  - Available options: All Models, Nemotron, Florence-2, YOLO-World, X-CLIP (prompt-config history only — model retired 2026-09-23, replaced by ST-GCN++), Fashion-CLIP
 - **Refresh Button** - Reload the version history
 - **Version Table** - Shows version number, model, date, changes, status, and actions
 

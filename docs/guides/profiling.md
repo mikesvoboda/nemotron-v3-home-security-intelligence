@@ -53,13 +53,16 @@ services this deployment actually runs:
 
 ### Why The Legacy AI Containers Have No Profiles
 
-The per-model AI containers — `ai-yolo26`, `ai-clip`, `ai-florence`,
-`ai-enrichment`, `ai-enrichment-light` — still ship `py-spy` and
-`scripts/ai-entrypoint.sh` in their images, which would push profiles under
-their own names. They are not services in `docker-compose.prod.yml`: one
-`ai-gateway` container (port 8090) now serves all of those models through
-Triton. Those profile names will not appear in Pyroscope on a current
-deployment.
+The per-model AI containers — `ai-clip`, `ai-florence`, `ai-enrichment`,
+`ai-enrichment-light` — still ship `py-spy` and `scripts/ai-entrypoint.sh` in
+their images, which would push profiles under their own names. They are not
+services in `docker-compose.prod.yml`: one `ai-gateway` container (port 8090)
+now serves all of those models through Triton. Those profile names will not
+appear in Pyroscope on a current deployment. (`ai-yolo26` is further behind:
+its image was retired fully 2026-09-23 — `archive/ai-yolo26-image/` — so its
+`yolo26_*` profiles can never reappear, and the `ai-yolo26` container name in
+the example commands below is a legacy placeholder; substitute whichever
+container actually exists on your host, e.g. `ai-gateway`.)
 
 ### Profiling Methods
 

@@ -281,9 +281,11 @@ from backend.services.weather_loader import (
     WeatherResult,
     classify_weather,
 )
-from backend.services.xclip_loader import (
-    classify_actions,
-)
+# (the former xclip_loader import — classify_actions — retired 2026-09-23:
+# the module moved to archive/xclip-backend-chain/ with the full X-CLIP
+# removal; action recognition runs skeleton-based via
+# EnrichmentClient.classify_action() → gateway /action-classify / Triton
+# stgcn_action)
 ```
 
 ## Enrichment Models

@@ -97,8 +97,8 @@ docs/
 ├── ROADMAP.md          # Post-MVP features
 │
 ├── getting-started/    # Installation and setup
-├── developer/          # Architecture, API, patterns, contributing
-├── development/        # Testing, git workflow, code quality guides
+├── developer/          # Architecture, API, patterns, contributing,
+│                       #   testing, git workflow, code quality
 ├── operator/           # Deployment, monitoring, admin
 ├── user/               # End-user dashboard guides
 ├── guides/             # Feature guides (video analytics, zones, faces)
@@ -144,10 +144,10 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 
 Synthetic data generation and prompt evaluation using NVIDIA NeMo Data Designer improves Nemotron prompt quality through systematic testing.
 
-| Resource                      | Location                                                                             | Description                        |
-| ----------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------- |
-| **NeMo Data Designer**        | [development/nemo-data-designer.md](development/nemo-data-designer.md)               | Setup, configuration, and workflow |
-| **Prompt Evaluation Results** | [development/prompt-evaluation-results.md](development/prompt-evaluation-results.md) | Pre/post metrics tracking          |
+| Resource                      | Location                                                                         | Description                        |
+| ----------------------------- | -------------------------------------------------------------------------------- | ---------------------------------- |
+| **NeMo Data Designer**        | [developer/nemo-data-designer.md](developer/nemo-data-designer.md)               | Setup, configuration, and workflow |
+| **Prompt Evaluation Results** | [developer/prompt-evaluation-results.md](developer/prompt-evaluation-results.md) | Pre/post metrics tracking          |
 
 **Key benefits:**
 
@@ -158,14 +158,14 @@ Synthetic data generation and prompt evaluation using NVIDIA NeMo Data Designer 
 
 ### Development Workflow
 
-| Resource               | Location                                                               | Description                          |
-| ---------------------- | ---------------------------------------------------------------------- | ------------------------------------ |
-| **Testing Workflow**   | [development/testing-workflow.md](development/testing-workflow.md)     | TDD cycle, test patterns             |
-| **Testing Guide**      | [development/testing.md](development/testing.md)                       | Test infrastructure and fixtures     |
-| **Git Workflow**       | [development/git-workflow.md](development/git-workflow.md)             | Git safety, pre-commit rules         |
-| **Code Quality**       | [development/code-quality.md](development/code-quality.md)             | Linting, formatting, static analysis |
-| **Contributing**       | [development/contributing.md](development/contributing.md)             | PR process and code standards        |
-| **Linear Integration** | [development/linear-integration.md](development/linear-integration.md) | Issue tracking MCP tools             |
+| Resource               | Location                                                           | Description                          |
+| ---------------------- | ------------------------------------------------------------------ | ------------------------------------ |
+| **Testing Workflow**   | [developer/testing-workflow.md](developer/testing-workflow.md)     | TDD cycle, test patterns             |
+| **Testing Guide**      | [developer/testing.md](developer/testing.md)                       | Test infrastructure and fixtures     |
+| **Git Workflow**       | [developer/git-workflow.md](developer/git-workflow.md)             | Git safety, pre-commit rules         |
+| **Code Quality**       | [developer/code-quality.md](developer/code-quality.md)             | Linting, formatting, static analysis |
+| **Contributing**       | [developer/contributing.md](developer/contributing.md)             | PR process and code standards        |
+| **Linear Integration** | [developer/linear-integration.md](developer/linear-integration.md) | Issue tracking MCP tools             |
 
 ---
 

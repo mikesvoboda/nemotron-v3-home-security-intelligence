@@ -197,4 +197,4 @@ Potential areas for further consolidation:
 
 - Linear Issue: NEM-3152
 - Pytest Fixture Discovery: https://docs.pytest.org/en/stable/how-to/fixtures.html
-- Project Test Documentation: `docs/development/testing.md`
+- Project Test Documentation: `docs/developer/testing.md`

@@ -219,13 +219,23 @@ Metrics are defined in `/backend/core/metrics.py` (Prometheus) and `/backend/cor
 
 ## Video Analytics - Action Recognition Metrics
 
-| Metric                                    | Type      | Labels                     | Dashboard       | Panel                                        | Description                           |
-| ----------------------------------------- | --------- | -------------------------- | --------------- | -------------------------------------------- | ------------------------------------- |
-| `hsi_action_recognition_total`            | Counter   | `action_type`, `camera_id` | Video Analytics | Actions Recognized, Actions by Type          | Actions recognized by type            |
-| `hsi_action_recognition_confidence`       | Histogram | `action_type`              | Video Analytics | Median Confidence, Confidence by Action Type | Action recognition confidence scores  |
-| `hsi_action_recognition_duration_seconds` | Histogram | -                          | Video Analytics | Inference Latency P95                        | Action recognition inference duration |
+| Metric                                  | Type      | Labels                     | Dashboard       | Panel                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------- | --------- | -------------------------- | --------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hsi_action_detections_total`           | Counter   | `action_type`, `camera_id` | Video Analytics | Actions Recognized (1h), Actions by Type (1h) | Action detections recorded by `record_action_detection`; the series was **defined inside** `backend/services/action_recognition_service.py` (not `backend/core/metrics.py`), so the 2026-09-23 archive of that chain (full X-CLIP removal, incl. the `POST /api/action-events` analyze endpoint) removed the definition itself — the series no longer exists until a ST-GCN++-era feeder defines and emits it |
+| `hsi_action_confidence`                 | Histogram | `action_type`              | Video Analytics | Median Confidence, Confidence by Action Type  | Action confidence scores (same status as `hsi_action_detections_total`: defined in the archived service, so the series no longer exists)                                                                                                                                                                                                                                                                      |
+| `hsi_enrichment_model_duration_seconds` | Histogram | `model`                    | Video Analytics | Inference Latency P95                         | Action-inference latency from the Triton `stgcn_action` skeleton path (`{model="stgcn"}`)                                                                                                                                                                                                                                                                                                                     |
 
 **Action Types:** `walking`, `loitering`, `fighting`, and others
+
+**Retired:** `hsi_action_recognition_total` / `_confidence` / `_duration_seconds`
+(the `backend/core/metrics.py` video-analytics family) and the
+`enrichment_action_recognition_*` families (removed from
+`ai/enrichment/metrics.py` with the NEM-5563 xclip retirement) are never
+observed outside tests. The labelled members export nothing; the unlabelled
+`_duration_seconds` histogram does scrape as zero-valued buckets
+(`prometheus_client` emits unlabelled histograms unconditionally), so panels
+against it would read a flat 0, never real latency — no panel may query any of
+them for signal.
 
 ---
 
@@ -357,15 +367,15 @@ The following metrics exist in the codebase but do not have dedicated dashboard 
 
 ## Dashboard Reference
 
-| Dashboard                   | UID               | Purpose                          | Primary Metrics                                                               |
-| --------------------------- | ----------------- | -------------------------------- | ----------------------------------------------------------------------------- |
-| **Consolidated**            | `consolidated`    | Main operations dashboard        | Pipeline, AI services, GPU, workers, costs                                    |
-| **AI Services**             | `ai-services`     | YOLO26 detection monitoring      | `yolo26_*` (from ai/yolo26 service)                                           |
-| **HSI Analytics**           | `hsi-analytics`   | Events and risk analysis         | Backend API data (JSON datasource)                                            |
-| **Video Analytics**         | `video-analytics` | Tracking, zones, faces, actions  | `hsi_tracks_*`, `hsi_zone_*`, `hsi_face_*`, `hsi_action_*`, `hsi_loitering_*` |
-| **HSI Profiling**           | `hsi-profiling`   | Continuous profiling (Pyroscope) | CPU and memory flame graphs                                                   |
-| **HSI System Logs**         | `hsi-logs`        | Centralized logging (Loki)       | Log volume, error patterns                                                    |
-| **HSI Distributed Tracing** | `hsi-tracing`     | Request tracing (Jaeger)         | Trace search and analysis                                                     |
+| Dashboard                   | UID               | Purpose                                  | Primary Metrics                                                               |
+| --------------------------- | ----------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| **Consolidated**            | `consolidated`    | Main operations dashboard                | Pipeline, AI services, GPU, workers, costs                                    |
+| **AI Services**             | `ai-services`     | AI gateway / Triton detection monitoring | `hsi_ai_*` / `hsi_yolo26_*` (backend/core/metrics.py, gateway-served)         |
+| **HSI Analytics**           | `hsi-analytics`   | Events and risk analysis                 | Backend API data (JSON datasource)                                            |
+| **Video Analytics**         | `video-analytics` | Tracking, zones, faces, actions          | `hsi_tracks_*`, `hsi_zone_*`, `hsi_face_*`, `hsi_action_*`, `hsi_loitering_*` |
+| **HSI Profiling**           | `hsi-profiling`   | Continuous profiling (Pyroscope)         | CPU and memory flame graphs                                                   |
+| **HSI System Logs**         | `hsi-logs`        | Centralized logging (Loki)               | Log volume, error patterns                                                    |
+| **HSI Distributed Tracing** | `hsi-tracing`     | Request tracing (Jaeger)                 | Trace search and analysis                                                     |
 
 ---
 

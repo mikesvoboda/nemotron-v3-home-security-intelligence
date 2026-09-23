@@ -252,8 +252,8 @@ class DetectionQueueWorker:
             batch_aggregator: Aggregator for batching detections. If None, will be created.
             video_processor: Processor for video frame extraction. If None, will be created.
             retry_handler: Handler for retry logic and DLQ. If None, will be created.
-            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action
-                recognition. If None, will use the global singleton. Pass explicitly for testing.
+            frame_buffer: FrameBuffer for accumulating frames for temporal action
+                recognition (ST-GCN++ path). If None, will use the global singleton. Pass explicitly for testing.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
@@ -262,7 +262,7 @@ class DetectionQueueWorker:
         """
         settings = get_settings()
         self._redis = redis_client
-        # Use provided frame_buffer or get the global singleton for X-CLIP integration
+        # Use provided frame_buffer or get the global singleton for the ST-GCN++ action path
         self._frame_buffer = frame_buffer if frame_buffer is not None else get_frame_buffer()
         self._detector = detector_client or DetectorClient(frame_buffer=self._frame_buffer)
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
@@ -1525,8 +1525,8 @@ class PipelineWorkerManager:
             redis_client: Redis client for queue operations
             detector_client: Optional DetectorClient instance
             analyzer: Optional NemotronAnalyzer instance
-            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action
-                recognition. If None, workers will use the global singleton.
+            frame_buffer: FrameBuffer for accumulating frames for temporal action
+                recognition (ST-GCN++ path). If None, workers will use the global singleton.
             enable_detection_worker: Whether to start detection queue worker
             enable_analysis_worker: Whether to start analysis queue worker
             enable_timeout_worker: Whether to start batch timeout worker

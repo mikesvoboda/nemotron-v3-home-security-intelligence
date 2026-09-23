@@ -95,7 +95,7 @@ podman compose -f docker-compose.prod.yml up -d ai-gateway
 
 | Service      | `start_period` | Why                                            |
 | ------------ | -------------- | ---------------------------------------------- |
-| `ai-gateway` | 180s           | Triton initialises 13 models                   |
+| `ai-gateway` | 180s           | Triton initialises all models                  |
 | `ai-llm`     | 300s           | 31B parameter model loads tensors onto the GPU |
 
 A service reported `unhealthy` inside its `start_period` is still loading, not broken.

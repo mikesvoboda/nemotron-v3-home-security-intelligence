@@ -7,7 +7,7 @@
  * - Retry job (create new job from failed)
  * - Delete job (remove record)
  *
- * @see docs/development/testing-workflow.md for TDD patterns
+ * @see docs/developer/testing-workflow.md for TDD patterns
  */
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';

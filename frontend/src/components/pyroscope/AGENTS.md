@@ -43,28 +43,32 @@ The profiling page follows an iframe embedding pattern similar to the TracingPag
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `PyroscopePage.tsx` | Main page component embedding Grafana dashboard with Pyroscope datasource |
+| File                     | Purpose                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `PyroscopePage.tsx`      | Main page component embedding Grafana dashboard with Pyroscope datasource  |
 | `PyroscopePage.test.tsx` | Unit tests covering rendering, refresh, external links, and config loading |
-| `index.ts` | Barrel export for PyroscopePage component |
+| `index.ts`               | Barrel export for PyroscopePage component                                  |
 
 ## Features
 
 ### Profile Timeline
+
 - Time-series visualization of CPU/memory usage across services
 - Clickable timeline to view specific profile snapshots
 - Configurable time range (1h, 6h, 24h, 7d)
 - Real-time updates with refresh capability
 
 ### Service Flame Graphs
+
 - Per-service flame graph visualization
 - Supported services: Backend, YOLO26, Nemotron, Florence
 - Profile type selection: CPU or Memory
 - Drill-down into hot code paths and resource consumption
 
 ### Model Zoo Filtering
+
 When Backend service is selected, dashboard shows per-model profiling breakdown for:
+
 - `yolo11-license-plate` (300 MB VRAM)
 - `yolo11-face` (200 MB VRAM)
 - `paddleocr` (100 MB VRAM)
@@ -75,7 +79,7 @@ When Backend service is selected, dashboard shows per-model profiling breakdown 
 - `violence-detection` (500 MB VRAM)
 - `weather-classification` (200 MB VRAM)
 - `segformer-b2-clothes` (1500 MB VRAM)
-- `xclip-base` (2000 MB VRAM)
+- `stgcn-plus-plus` (20 MB VRAM — CPU skeleton model; replaced `xclip-base`, retired 2026-09-23 full X-CLIP removal)
 - `fashion-clip` (500 MB VRAM)
 - `brisque-quality` (0 MB VRAM - CPU only)
 - `vehicle-segment-classification` (1500 MB VRAM)
@@ -83,6 +87,7 @@ When Backend service is selected, dashboard shows per-model profiling breakdown 
 - `pet-classifier` (200 MB VRAM)
 
 ### External Links
+
 - **Open in Grafana**: Direct link to dashboard for kiosk-free editing
 - **Explore**: Opens Grafana Explore for ad-hoc profiling queries with Pyroscope datasource
 - **Open Pyroscope**: Direct access to native Pyroscope UI on localhost:4040 for power users
@@ -111,6 +116,7 @@ const pyroscopeLink = 'http://localhost:4040';
 ```
 
 Parameters:
+
 - `orgId=1`: Grafana organization ID
 - `kiosk=1`: Kiosk mode for cleaner embedded UI (dashboard only)
 - `theme=dark`: Dark theme matching application styling
@@ -120,6 +126,7 @@ Parameters:
 ## Dependencies
 
 ### External Services
+
 - **Grafana**: Provides dashboard and Explore UI with iframe embedding
 - **Pyroscope**: Profiling backend collecting CPU/memory profiles
 - **Prometheus**: Metrics backend for correlation queries
@@ -127,12 +134,14 @@ Parameters:
 - **AI Services**: Model inference profiling with per-model labels
 
 ### React Hooks
+
 - `useState`: Managing loading, error, and refresh states
 - `useEffect`: Fetching Grafana configuration
 - `useRef`: Accessing iframe for refresh functionality
 - `useCallback`: Memoizing refresh handler
 
 ### Icons (lucide-react)
+
 - `Flame`: Page header icon for profiling
 - `RefreshCw`: Refresh button icon
 - `ExternalLink`: External link icons
@@ -142,13 +151,16 @@ Parameters:
 ## Testing Instructions
 
 ### Run Unit Tests
+
 ```bash
 cd frontend
 npm test pyroscope/PyroscopePage.test.tsx
 ```
 
 ### Test Coverage
+
 Unit tests cover:
+
 1. **Rendering**: Loading state, loaded state, error state
 2. **Config Loading**: Fetching Grafana URL from backend config
 3. **Error Handling**: Display error banner on config fetch failure
@@ -158,6 +170,7 @@ Unit tests cover:
 7. **Explore URL**: Correct Pyroscope datasource configuration
 
 ### Manual Testing
+
 1. Navigate to `/pyroscope` in application
 2. Verify Grafana dashboard loads within iframe showing profile timeline
 3. Click "Open in Grafana" - should open dashboard in new tab (editable)
@@ -176,10 +189,12 @@ For detailed architecture decisions, feature rationale, dashboard panels, and im
 ## Pattern Reference
 
 This component follows the same iframe embedding pattern as:
-- `TracingPage.tsx` - Distributed tracing with Grafana/Jaeger
+
+- `TracingPage.tsx` - Distributed tracing with Grafana/Tempo
 - `AIPerformancePage.tsx` - AI metrics with Grafana panels
 
 Key pattern principles:
+
 - Use `resolveGrafanaUrl()` utility for URL resolution
 - Construct Grafana URLs with proper encoding
 - Provide external links for direct access to underlying tools

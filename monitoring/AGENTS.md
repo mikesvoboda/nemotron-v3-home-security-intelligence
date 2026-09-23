@@ -17,36 +17,50 @@ This directory contains observability and monitoring infrastructure configuratio
 ```
 monitoring/
   AGENTS.md                    # This file
-  alerting-rules.yml           # Alert notification rules
-  alertmanager.yml             # Alertmanager configuration
+  ai-pipeline-alerts.yml       # GPU/OOM, enrichment, prompt/LLM, coalescing,
+                               #   risk-calibration, CLIP/Florence alerts (mounted rule file)
+  alerting-rules.yml           # Pipeline/db/redis/gpu/queue/LLM alerts + Prometheus
+                               #   self-monitoring + profiling server alerts (mounted rule file)
+  alertmanager.yml             # Alertmanager routing configuration
   alloy/                       # Grafana Alloy collector configuration
     config.alloy               # Alloy collector configuration
-  cadvisor/                    # cAdvisor unit (container metrics)
-  dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
+  cadvisor/                    # cAdvisor systemd unit (container metrics)
+  dcgm/                        # NVIDIA DCGM GPU exporter (see dcgm/AGENTS.md)
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
-    dashboards/                # Dashboard JSON definitions
+    dashboards/                # Dashboard JSON definitions (15 dashboards; see dashboards/AGENTS.md)
       AGENTS.md                # Dashboards guide
-      consolidated.json        # Unified monitoring dashboard (consolidates pipeline + synthetic)
     provisioning/              # Auto-provisioning configs
       AGENTS.md                # Provisioning guide
       dashboards/
         dashboard.yml          # Dashboard provider config
       datasources/
         prometheus.yml         # Datasource configuration
+  gpu-alerts.yml               # DCGM-based GPU alerts (mounted rule file)
   json-exporter-config.yml     # JSON Exporter module definitions
-  elasticsearch/               # ILM policy + index template (log storage)
   loki/                        # Loki log aggregation configuration
     loki-config.yml            # Loki server configuration
-  prometheus.yml               # Prometheus scrape configuration
-  prometheus-rules.yml         # Prometheus recording rules
+  profiling-recording-rules.yml       # Recording rules feeding regression detection (NEM-4133)
+  profiling-regression-alerts.yml     # CPU/memory/latency regression alerts (NEM-4133)
+  prometheus.yml               # Prometheus scrape configuration (LIVE config; no templating)
+  prometheus-rules.yml         # Backend SLI / error-budget recording rules
   prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   pyroscope/                   # Pyroscope continuous profiling configuration
     pyroscope-config.yml       # Pyroscope server configuration (NEM-3928: retention policy)
     Dockerfile                 # Custom Pyroscope image with health check tools
   tempo/                       # Tempo trace storage (tempo-config.yml)
 ```
+
+> The seven files listed in `rule_files:` inside `prometheus.yml` (`prometheus_rules.yml`,
+> `prometheus-rules.yml`, `alerting-rules.yml`, `profiling-recording-rules.yml`,
+> `profiling-regression-alerts.yml`, `gpu-alerts.yml`, `ai-pipeline-alerts.yml`) are each
+> bind-mounted into the prometheus container by BOTH `docker-compose.prod.yml` and
+> `docker-compose.ghcr.yml` — prometheus exits fatally at startup on a listed-but-absent
+> rule file. Add a rule file to `rule_files:` only together with its mount in both compose
+> files. There are no `.template` variants any more: `prometheus.yml.template` and
+> `prometheus_rules.yml.template` had zero consumers (nothing ever ran envsubst over them)
+> and now live under `../archive/` pending the owner's delete ruling.
 
 ### pyroscope-config.yml (NEM-3928)
 
@@ -72,53 +86,76 @@ monitoring/
 
 ### prometheus.yml
 
-**Purpose:** Prometheus server configuration for metrics scraping.
+**Purpose:** Prometheus server configuration for metrics scraping. LIVE config:
+compose bind-mounts it read-only; nothing templates or substitutes into it at startup.
 
-**Scrape Jobs:**
+**Scrape Jobs (22, as of the gateway consolidation):**
 
-| Job Name         | Endpoint                                | Interval | Description                         |
-| ---------------- | --------------------------------------- | -------- | ----------------------------------- |
-| hsi-health       | /api/system/health via JSON exporter    | 10s      | System health status                |
-| hsi-telemetry    | /api/system/telemetry via JSON exporter | 10s      | Pipeline queue depths and latencies |
-| hsi-stats        | /api/system/stats via JSON exporter     | 30s      | Camera, event, detection counts     |
-| hsi-gpu          | /api/system/gpu via JSON exporter       | 10s      | GPU utilization and memory          |
-| backend-liveness | /health                                 | 10s      | Direct liveness probe               |
-| redis            | redis-exporter:9121                     | 15s      | Redis metrics via redis_exporter    |
-| prometheus       | localhost:9090                          | Default  | Prometheus self-monitoring          |
-| json-exporter    | json-exporter:7979                      | Default  | JSON exporter health                |
+| Job Name             | Target                                          | Path/Module          | Interval |
+| -------------------- | ----------------------------------------------- | -------------------- | -------- |
+| hsi-backend-metrics  | backend:8000                                    | /api/metrics         | 15s      |
+| ai-llm-metrics       | ai-llm:8091 (llama.cpp `--metrics`)             | /metrics             | 15s      |
+| triton-metrics       | ai-gateway:8002 (Triton native)                 | /metrics             | 15s      |
+| ai-gateway-metrics   | ai-gateway:8090 (FastAPI layer; `nv_*` dropped) | /metrics             | 15s      |
+| hsi-health           | backend /api/system/health via json-exporter    | /probe (health)      | 10s      |
+| hsi-telemetry        | backend /api/system/telemetry via json-exporter | /probe (telemetry)   | 10s      |
+| hsi-stats            | backend /api/system/stats via json-exporter     | /probe (stats)       | 30s      |
+| hsi-gpu              | backend /api/system/gpu via json-exporter       | /probe (gpu)         | 10s      |
+| node-exporter        | node-exporter:9100                              | /metrics             | 15s      |
+| redis                | redis-exporter:9121                             | /metrics             | 15s      |
+| prometheus           | localhost:9090                                  | /metrics             | 15s      |
+| json-exporter        | json-exporter:7979                              | /metrics             | 15s      |
+| alertmanager         | alertmanager:9093                               | /metrics             | 15s      |
+| blackbox-exporter    | blackbox-exporter:9115                          | /metrics             | 15s      |
+| pyroscope            | pyroscope:4040                                  | /metrics             | 15s      |
+| blackbox-http-health | backend /api/system/health                      | /probe (http_health) | 15s      |
+| blackbox-http-ready  | backend /api/system/health/ready                | /probe (http_ready)  | 15s      |
+| blackbox-http-live   | backend /health + frontend:8080                 | /probe (http_live)   | 10s      |
+| blackbox-http-2xx    | AI service health endpoints (7 probes)          | /probe (http_2xx)    | 30s      |
+| cadvisor             | host.containers.internal:8088                   | /metrics             | 15s      |
+| blackbox-tcp         | postgres:5432, redis:6379                       | /probe (tcp_connect) | 15s      |
+| dcgm-exporter        | host.containers.internal:9400                   | /metrics             | 15s      |
 
 **Architecture:**
 
 ```
-Backend API --> JSON Exporter --> Prometheus --> Grafana
-     |
-     +--> Direct liveness probe
+Backend /api/metrics ─────────────────────────────┐
+ai-llm (llama.cpp) / triton / ai-gateway /metrics ─┤
+json-exporter (backend health/telemetry/stats/gpu) ┼──> Prometheus ──> Grafana
+blackbox-exporter (http/tcp probes) ────────────────┤         │
+cadvisor / dcgm-exporter / node / redis ──────────┘         └──> Alertmanager
 ```
 
 ### prometheus_rules.yml
 
-**Purpose:** Alerting rules for AI pipeline monitoring (NEM-1731).
+**Purpose:** Alerting rules for AI pipeline monitoring (NEM-1731). This is a LIVE file
+— compose bind-mounts it directly (the old `.template` twin with its envsubst header is
+archived; see the tree note above).
 
-**Alert Groups:**
+**Alert Groups (2, as of the gateway consolidation):**
 
-1. **ai_pipeline_alerts** - Core AI service monitoring
+1. **ai_pipeline_alerts** - Core AI service monitoring (15 active, incl. the DLQ trio)
 
-   | Alert                   | Severity | Description                          |
-   | ----------------------- | -------- | ------------------------------------ |
-   | AIDetectorUnavailable   | critical | YOLO26 detector service down for 2m  |
-   | AIBackendDown           | critical | Backend API unreachable for 1m       |
-   | AINemotronTimeout       | warning  | Nemotron P95 inference > 120s for 5m |
-   | AIDetectorSlow          | warning  | YOLO26 P95 detection > 5s for 5m     |
-   | AIHighErrorRate         | warning  | Pipeline error rate > 10% over 5m    |
-   | AIPipelineErrorSpike    | warning  | > 50 errors in 5m window             |
-   | AIGPUOverheating        | critical | GPU temperature > 85C for 2m         |
-   | AIGPUTemperatureWarning | warning  | GPU temperature > 75C for 5m         |
-   | AIGPUMemoryCritical     | critical | GPU VRAM > 95% for 2m                |
-   | AIGPUMemoryWarning      | warning  | GPU VRAM > 85% for 5m                |
-   | AIDetectionQueueBacklog | warning  | Detection queue > 100 items for 5m   |
-   | AIAnalysisQueueBacklog  | warning  | Analysis queue > 50 batches for 5m   |
-   | AISystemDegraded        | warning  | System health degraded for 5m        |
-   | AISystemUnhealthy       | critical | System health unhealthy for 2m       |
+   | Alert                   | Severity | Description                         |
+   | ----------------------- | -------- | ----------------------------------- |
+   | AIDetectorUnavailable   | critical | YOLO26 detector service down for 2m |
+   | AIBackendDown           | critical | Backend API unreachable for 1m      |
+   | AIHighErrorRate         | warning  | Pipeline error rate > 10% over 5m   |
+   | AIPipelineErrorSpike    | warning  | > 50 errors in 5m window            |
+   | AIGPUOverheating        | critical | GPU temperature > 85C for 2m        |
+   | AIGPUTemperatureWarning | warning  | GPU temperature > 75C for 5m        |
+   | AIGPUMemoryCritical     | critical | GPU VRAM > 95% for 2m               |
+   | AIGPUMemoryWarning      | warning  | GPU VRAM > 85% for 5m               |
+   | AIDetectionQueueBacklog | warning  | Detection queue > 100 items for 5m  |
+   | AIAnalysisQueueBacklog  | warning  | Analysis queue > 50 batches for 5m  |
+   | AIDLQHasMessages        | warning  | Dead-letter queue depth > 0         |
+   | AIDLQGrowing            | warning  | DLQ gained > 5 messages in 15m      |
+   | AIDLQCritical           | critical | DLQ depth > 50                      |
+   | AISystemDegraded        | warning  | System health degraded for 5m       |
+   | AISystemUnhealthy       | critical | System health unhealthy for 2m      |
+
+   `AINemotronTimeout` and `AIDetectorSlow` are commented out in the file (kept as a
+   re-enable sketch); do not list them as active.
 
 2. **infrastructure_alerts** - Dependency monitoring
 
@@ -128,26 +165,14 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
    | RedisUnhealthy       | critical | Redis unreachable for 2m      |
    | PrometheusTargetDown | warning  | Any scrape target down for 5m |
 
-3. **prometheus_self_monitoring_alerts** - Prometheus health (NEM-2468)
-
-   | Alert                                | Severity | Description                            |
-   | ------------------------------------ | -------- | -------------------------------------- |
-   | PrometheusNotScrapingSelf            | critical | Prometheus not scraping itself for 2m  |
-   | PrometheusConfigReloadFailed         | critical | Config reload failing for 5m           |
-   | PrometheusRuleEvaluationFailures     | warning  | Rule evaluation errors in 5m window    |
-   | PrometheusRuleEvaluationSlow         | warning  | Rule eval exceeds interval for 10m     |
-   | PrometheusScrapeFailuresHigh         | critical | >10% scrape sync failures for 5m       |
-   | PrometheusTargetsUnhealthy           | warning  | >20% targets down for 5m               |
-   | PrometheusNotificationQueueFull      | warning  | Notification queue >90% for 5m         |
-   | PrometheusNotificationsFailing       | critical | >5 notification failures in 5m         |
-   | PrometheusTSDBCompactionsFailing     | warning  | TSDB compaction failures in 6h         |
-   | PrometheusTSDBHeadTruncationsFailing | critical | TSDB head truncation failures in 1h    |
-   | PrometheusTSDBWALCorruptions         | warning  | WAL corruptions detected in 1h         |
-   | PrometheusStorageFillingUp           | warning  | TSDB storage >80% full for 15m         |
-   | PrometheusQueryLoadHigh              | warning  | Avg query duration >10s for 10m        |
-   | PrometheusRestarted                  | info     | Prometheus instance restarted          |
-   | PrometheusAlertmanagerDown           | warning  | No Alertmanager discovered for 5m      |
-   | PrometheusSamplesRejected            | warning  | Out-of-order/duplicate samples for 10m |
+**Where the other rule files' alerts live:** the self-monitoring group
+`prometheus_self_monitoring_alerts` (NEM-2468: PrometheusNotScrapingSelf,
+PrometheusStorageFillingUp, ... 16 alerts) is in **alerting-rules.yml**, not here.
+The full mounted set: `alerting-rules.yml` (pipeline/db/redis/gpu/queue/LLM/workers/
+circuit-breaker + self-monitoring + profiling-server groups), `ai-pipeline-alerts.yml`
+(GPU/Triton, enrichment, prompt/LLM, coalescing, risk-calibration, CLIP/Florence),
+`gpu-alerts.yml` (DCGM), `profiling-regression-alerts.yml` (NEM-4133 regressions),
+`profiling-recording-rules.yml` + `prometheus-rules.yml` (recording rules, no alerts).
 
 **Severity Levels:**
 
@@ -158,9 +183,19 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 **Validation:**
 
 ```bash
-# Validate rules with promtool
-cat monitoring/prometheus_rules.yml | podman run --rm -i --entrypoint sh \
-  docker.io/prom/prometheus:v2.48.0 -c "cat > /tmp/rules.yml && promtool check rules /tmp/rules.yml"
+# Validate every mounted rule file with promtool (prometheus v3.1.0 = the
+# compose image tag):
+podman run --rm --entrypoint promtool \
+  -v "$(pwd)/monitoring:/m:ro,z" \
+  docker.io/prom/prometheus:v3.1.0 check rules \
+  /m/prometheus_rules.yml /m/prometheus-rules.yml /m/alerting-rules.yml \
+  /m/profiling-recording-rules.yml /m/profiling-regression-alerts.yml \
+  /m/gpu-alerts.yml /m/ai-pipeline-alerts.yml
+
+# And the scrape config (also resolves the rule_files: list):
+podman run --rm --entrypoint promtool \
+  -v "$(pwd)/monitoring:/m:ro,z" \
+  docker.io/prom/prometheus:v3.1.0 check config /m/prometheus.yml
 ```
 
 ### blackbox-exporter.yml
@@ -183,13 +218,13 @@ cat monitoring/prometheus_rules.yml | podman run --rm -i --entrypoint sh \
 
 **Prometheus Scrape Jobs:**
 
-| Job Name             | Module      | Targets                              | Interval |
-| -------------------- | ----------- | ------------------------------------ | -------- |
-| blackbox-http-health | http_health | Backend health endpoint              | 15s      |
-| blackbox-http-ready  | http_ready  | Backend readiness endpoint           | 10s      |
-| blackbox-http-live   | http_live   | Backend/Frontend liveness endpoints  | 10s      |
-| blackbox-http-2xx    | http_2xx    | AI service health endpoints (5 svcs) | 30s      |
-| blackbox-tcp         | tcp_connect | PostgreSQL, Redis                    | 15s      |
+| Job Name             | Module      | Targets                                | Interval |
+| -------------------- | ----------- | -------------------------------------- | -------- |
+| blackbox-http-health | http_health | Backend health endpoint                | 15s      |
+| blackbox-http-ready  | http_ready  | Backend readiness endpoint             | 15s      |
+| blackbox-http-live   | http_live   | Backend/Frontend liveness endpoints    | 10s      |
+| blackbox-http-2xx    | http_2xx    | AI service health endpoints (7 probes) | 30s      |
+| blackbox-tcp         | tcp_connect | PostgreSQL, Redis                      | 15s      |
 
 **Validation:**
 
@@ -250,11 +285,14 @@ podman run --rm -v $(pwd)/monitoring/blackbox-exporter.yml:/config.yml:ro,z \
 ### Starting Monitoring Stack
 
 ```bash
-# With Podman Compose (this project uses Podman, not Docker)
+# With Podman Compose (this project uses Podman, not Docker). The monitoring
+# stack (prometheus, grafana, alertmanager, loki, tempo, pyroscope, alloy,
+# exporters) is defined inside docker-compose.prod.yml — there is no separate
+# monitoring compose file and no root docker-compose.yml.
 podman-compose -f docker-compose.prod.yml up -d
 
-# Or individual services (if monitoring compose file exists)
-podman-compose -f docker-compose.monitoring.yml up -d prometheus grafana json-exporter redis-exporter
+# Individual services:
+podman-compose -f docker-compose.prod.yml up -d prometheus grafana json-exporter
 ```
 
 Note: This project uses **Podman** for container management. Replace `docker` with `podman` and `docker compose` with `podman-compose` in all commands.
@@ -293,9 +331,9 @@ hsi_gpu_utilization
 The JSON exporter uses JSONPath expressions:
 
 ```yaml
-path: "{ .status }"               # Top-level field
-path: "{ .services.redis.status }" # Nested field
-path: "{ .queues.detection_queue }" # Nested numeric
+path: '{ .status }' # Top-level field
+path: '{ .services.redis.status }' # Nested field
+path: '{ .queues.detection_queue }' # Nested numeric
 ```
 
 ### Value Mappings
@@ -339,7 +377,7 @@ relabel_configs:
 
 ## Related Files
 
-- `docker-compose.yml` - Service definitions
+- `docker-compose.prod.yml` - Service definitions (prometheus/grafana/etc. live here)
 - `backend/api/routes/system.py` - Backend endpoints for metrics
 - `grafana/dashboards/consolidated.json` - Main unified monitoring dashboard
 - `grafana/provisioning/` - Auto-provisioning configs

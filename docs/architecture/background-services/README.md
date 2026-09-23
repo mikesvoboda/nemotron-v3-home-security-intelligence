@@ -229,5 +229,5 @@ The alert engine provides the notification pipeline for security events, integra
 ## Related Documentation
 
 - [Detection Pipeline](../detection-pipeline/README.md) - Detection and analysis pipeline
-- [Testing Guide](../../development/testing.md) - Testing background services
+- [Testing Guide](../../developer/testing.md) - Testing background services
 - [Observability](../observability/README.md) - Monitoring and alerting

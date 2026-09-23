@@ -1490,19 +1490,20 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_enrichment_model_calls_total{model=\"action\"}[1h]))",
+          "expr": "sum(increase(hsi_action_detections_total[1h]))",
           "refId": "A"
         }
       ],
       "title": "Actions Recognized (1h)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Total action detections in the last hour. Retargeted from hsi_enrichment_model_calls_total{model=\"action\"}, which counts inference CALLS, not action detections. hsi_action_detections_total is the metric whose label carries the action; the POST /api/action-events/analyze path that fed it was removed with the 2026-09-23 X-CLIP retirement and the ST-GCN++ pipeline path records detections in the DB but emits no per-action counter, so this reads 0 until a ST-GCN++-era feeder is wired (feed gap flagged to the backend owner)."
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Average action recognition confidence",
+      "description": "Median hsi_action_confidence over the last hour - action-confidence histogram whose only emitter (action_recognition_service.py record_action_detection, behind POST /api/action-events/analyze) was archived with the 2026-09-23 X-CLIP removal, so it reads 0 until a ST-GCN++-era feeder is wired. The previous expr was the literal placeholder 0, so the panel always read 0.00 and its thresholds coloured it red. Bucket edges (0.5-0.95) make the median coarse by design.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1559,7 +1560,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "0",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_action_confidence_bucket[1h])) by (le))",
           "refId": "A"
         }
       ],
@@ -1571,7 +1572,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Action recognition inference latency P95",
+      "description": "P95 action-inference latency from hsi_enrichment_model_duration_seconds{model=\"stgcn\"} - the ST-GCN++ skeleton path is the only live action-recognizer (enrichment_pipeline.py observes it at :4713/:4742). Retired hsi_action_recognition_duration_seconds is defined in backend/core/metrics.py but never observed outside tests, so it is never exported: this panel was permanently empty. (The \"xclip\" / \"action-via-service\" labels on the same histogram belong to the X-CLIP code paths the backend owner is retiring.)",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1625,7 +1626,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(hsi_action_recognition_duration_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_enrichment_model_duration_seconds_bucket{model=\"stgcn\"}[5m])) by (le))",
           "refId": "A"
         }
       ],
@@ -1637,7 +1638,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Actions recognized by type",
+      "description": "Last-hour action detections by risk category. Retargeted from hsi_enrichment_model_calls_total{model=\"action\"} with a hardcoded \"Action Recognition\" legend, which drew one single slice no matter what was detected - the metric has no action_type label. hsi_action_detections_total is labelled by risk category, so the pie now actually splits by type. Same feed caveat as \"Actions Recognized (1h)\".",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1685,8 +1686,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(hsi_enrichment_model_calls_total{model=\"action\"}[1h]))",
-          "legendFormat": "Action Recognition",
+          "expr": "sum by (action_type) (increase(hsi_action_detections_total[1h]))",
+          "legendFormat": "{{action_type}}",
           "refId": "A"
         }
       ],
@@ -1698,7 +1699,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Action recognition confidence over time by type",
+      "description": "Median confidence per action risk category (action_type), 5m rate, from hsi_action_confidence - the live action-confidence histogram. Retargeted from the literal placeholder 0 with legend \"Not Available\"; the retired hsi_action_recognition_confidence histogram is never observed outside tests, so it is never exported.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1776,8 +1777,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "0",
-          "legendFormat": "Not Available",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_action_confidence_bucket[5m])) by (le, action_type))",
+          "legendFormat": "{{action_type}}",
           "refId": "A"
         }
       ],
@@ -1794,7 +1795,7 @@
       "id": 39,
       "options": {
         "mode": "markdown",
-        "content": "### Action Recognition\n\nAI-powered detection of specific human actions and behaviors in video feeds.\n\n**Supported Actions:**\n- **Loitering**: Person staying in one area longer than threshold\n- **Falls**: Sudden vertical movement indicating a fall event\n- **Aggression**: Fighting or aggressive physical behavior\n- **Running**: Rapid movement that may indicate urgency\n\n**Confidence Interpretation:**\n- >80%: High confidence, likely accurate detection\n- 60-80%: Moderate confidence, review recommended\n- <60%: Low confidence, may be false positive\n\n**Reducing False Positives:**\n- Adjust minimum confidence thresholds per action type\n- Configure excluded zones where certain actions are normal"
+        "content": "### Action Recognition\n\nAI-powered detection of specific human actions and behaviors in video feeds.\n\n**Supported Actions:**\n- **Loitering**: Person staying in one area longer than threshold\n- **Falls**: Sudden vertical movement indicating a fall event\n- **Aggression**: Fighting or aggressive physical behavior\n- **Running**: Rapid movement that may indicate urgency\n\n**Confidence Interpretation:**\n- >80%: High confidence, likely accurate detection\n- 60-80%: Moderate confidence, review recommended\n- <60%: Low confidence, may be false positive\n\n**Reducing False Positives:**\n- Adjust minimum confidence thresholds per action type\n- Configure excluded zones where certain actions are normal\n\n**What feeds these panels:**\n- `hsi_action_detections_total` / `hsi_action_confidence` - per-action metrics whose only emitter (`record_action_detection` behind `POST /api/action-events/analyze`) was archived with the 2026-09-23 X-CLIP removal; they read 0 until a ST-GCN++-era feeder is wired.\n- `hsi_enrichment_model_duration_seconds{model=\"stgcn\"}` - action-inference latency from the ST-GCN++ skeleton path (the only live action recognizer, NEM-5563).\n- The X-CLIP chain (loader, service, pipeline fallback, analyze endpoint) was archived 2026-09-23 to `archive/xclip-backend-chain/`; `xclip-base` in models.yml is an `enabled: false` provenance entry only.\n- `hsi_action_recognition_total` / `_confidence` / `_duration_seconds` are defined but never observed outside tests, so they are never exported - no panel may query them."
       },
       "title": "Documentation",
       "type": "text"

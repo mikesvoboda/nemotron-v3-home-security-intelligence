@@ -811,7 +811,7 @@ class AIServiceClient:
 | Document                                                  | Purpose                      |
 | --------------------------------------------------------- | ---------------------------- |
 | [Architecture: Resilience](../architecture/resilience.md) | Full resilience architecture |
-| [Code Patterns](../development/patterns.md)               | General code patterns        |
+| [Code Patterns](../developer/patterns-and-conventions.md) | General code patterns        |
 | [Security Guide](../operator/admin/security.md)           | Security configuration       |
 | [Detection Service](detection-service.md)                 | YOLO26 integration details   |
 | [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration     |
