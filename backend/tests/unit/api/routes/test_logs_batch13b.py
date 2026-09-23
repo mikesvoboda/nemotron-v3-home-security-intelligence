@@ -8,6 +8,12 @@ dict — so key renames, CASE renames, value→None swaps, sanitize-cap tweaks, 
 the context item/size-budget arithmetic all survived. This battery pins the
 EXACT extra dict, EXACT truncation shapes, and the budget/cap boundaries.
 
+Red-check outcome (13b lane, this session): 50 KILLED / 11 SURVIVED — the 11
+are the 8 SCHEMA-SHIELDED + 2 dossier EQUIVALENT + key 83, whose kill needs
+NON-uniform item sizes so reset-vs-accumulate diverge (the first run's
+uniform-size test missed it; ``test_budget_accumulates_not_resets`` now pins
+the measured shipped shape).
+
 Disposition per the frozen dossier: 8 keys are SCHEMA-SHIELDED equivalent
 (component cap 100 vs schema max_length=100; entry-UA cap vs schema 500;
 ctx-key cap vs the >50 loop filter; label cap vs component≤100) and 2 are
@@ -170,9 +176,22 @@ class TestContextLimits:
         _, _, _, extra = run(entry(context=over))
         assert sorted(k for k in extra if k.startswith("ctx_")) == ["ctx_k0000"]
 
+    def test_budget_accumulates_not_resets(self):
+        # 4 items x 4000 bytes (MEASURED: shipped stores exactly k000,k001 —
+        # 4000+4000+4000=12000>10000 breaks at the third). A last-item-only
+        # accumulator (`context_size = item_size` reset, key 83) sees 8000 and
+        # `context_size -= item_size` (key 84) sees 0 — both would store all
+        # 4, so `== 2` kills reset AND accumulate at once. (The uniform-5003
+        # pattern cannot do this: its first accumulation == reset, so it only
+        # kills the -= mutant.)
+        seq = {f"k{i:03d}": "v" * 3996 for i in range(4)}
+        _, _, _, extra = run(entry(context=seq))
+        assert sorted(k for k in extra if k.startswith("ctx_")) == ["ctx_k000", "ctx_k001"]
+
     def test_budget_breaks_loop(self):
-        # 5 items x 5003 bytes: second would exceed -> break (not continue!).
-        # accumulator mutants (`size = item`, `size -= item`) would store all 5.
+        # 5 items x 5006 bytes ("ctx_k0"=6 + 5000): shipped stops at 1
+        # (5006; 5006+5006=10012 > 10000 breaks at the second). Kills the
+        # `size -= item` accumulator (would store all 5).
         few = {f"k{i}": "v" * 5000 for i in range(5)}
         _, _, _, extra = run(entry(context=few))
         assert sum(1 for k in extra if k.startswith("ctx_")) == 1

@@ -10208,3 +10208,47 @@ services.credential_service*"` (backend/services/credential_service.py,
   auto-asserts non-empty banked verdicts at exit → `/tmp/s1-run2.log`.
   A second module banking at THIS session's commit is belt-and-braces
   evidence; the goal clause stays PROVEN by run 7 regardless.
+
+### Row — 13b red-check RECONCILES with the frozen dossier; key 83 was MY gap, now killed
+
+- First 13b lane run finished `[logs13b] rc=0 2026-09-23T04:37:41Z`,
+  "source clean": `/tmp/redcheck-logs13b.log` = **50 KILLED / 11 SURVIVED**
+  of 61. Survivor keys: 13, 14, 31, 32, 75, 76, 83, 90, 92, 103, 107.
+  **10 of the 11 are EXACTLY the dossier's non-TEST-GAP residual set** — the
+  8 SCHEMA-SHIELDED (13/14 component cap vs schema ≤100; 31/32 entry-UA vs
+  schema ≤500; 75/76 ctx-key cap vs the >50 loop filter; 103/107 label cap vs
+  component ≤100) + the 2 EQUIVALENT (90, 92: `_LOG_LEVEL_MAP` default
+  unreachable for enum values). Independent lane measurement CONFIRMS the
+  frozen dossier's classification to the key.
+- Key **83 (`context_size = item_size`, accumulator→reset) was a real gap in
+  MY battery, not a dossier error**: with uniform-size items the FIRST
+  comparison is identical under add-accumulate and reset (0+item == item), so
+  the old uniform-5003 test could never diverge — simulation: shipped stores
+  1, reset stores 1, `-= ` stores 5. Kill requires NON-uniform items:
+  measured shipped on 4×4000-byte items stores EXACTLY [k000, k001]
+  (4000→8000→12000>10000 breaks at the third), while reset and `-= item`
+  would store all 4. New `test_budget_accumulates_not_resets` pins that
+  measured shape (`ctx_k000, ctx_k001`); battery re-measured **14 passed,
+  20.21s**, ruff clean; v2 battery md5 33664f41 synced byte-identical to the
+  lane.
+- **logs13b2 re-check queued** (`/tmp/logs13b_seq.sh`) — full 61-key feed vs
+  the v2 battery, serialized on the webhook lane behind whserv AND wh15c2.
+  Expected honest outcome when it exits: 51 KILLED / 10 survivors all
+  per-dossier (8 schema-shielded + 2 equivalent).
+
+### Row — wh15c rc=4 = baseline-guard HONEST abort under sequencer race; wh15c2 re-armed
+
+- wh15c woke from the 15s settle at the SAME moment as whserv (both seq
+  scripts keyed on logs13b's exit). whserv applied a `get_webhook_service`
+  shape; wh15c's baseline pytest imported webhook_service.py mid-mutation and
+  correctly saw 2 failures (`test_get_webhook_service_singleton_roundtrip`,
+  `…_reuses_preexisting_holder_instance` — exactly the tests covering the
+  mutated function). Baseline guard ABORTED rc=4 before touching the log:
+  ZERO verdicts written, direction safe (an abort, not a false KILLED — the
+  race could not fake a kill because the failing-baseline path exits before
+  any apply). The entry-time source==HEAD guard cannot catch this class: it
+  is a point-in-time check and the concurrent writer flits the file.
+- Fix = strict queue: `/tmp/wh15c_seq2.sh` gates on the ENTIRE whserv chain
+  (lane process + wrapper, bracketed self-excluding patterns), then settle,
+  then run (log `/tmp/wh15c2-stdout.log`). whserv itself DRY-verified 42/42
+  assignable before its queue fired.
