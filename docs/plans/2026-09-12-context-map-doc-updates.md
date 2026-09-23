@@ -9850,3 +9850,35 @@ invalid-sort fallback string; `select(Job)`→`select(None)` main-query text);
 `get_job_by_id` 1 (`select(Job)`→`select(None)` columns half unpinned).
 Kill battery `test_job_service_batch14b.py` in authoring (this session, background author); its red-check `js14b` follows the same lane contract;
 tallies land here only after exit.
+
+### S2 batch 17 — performance_collector collection battery: 105 KILLED / 9 documented-equivalent survivors, dossier-shape in-memory kill matrix (`/tmp/b17-killlog2.txt`)
+
+Battery `backend/tests/unit/services/test_performance_collector_batch17.py`
+(`ec9af869`; 1462 lines, 64 tests; probe-first: every literal measured via
+/tmp/b17-probe-{a..e}.py consolidated to /tmp/b17-probes.json; shipped-wins
+audit in module docstring — the dossier's `check_throttle_status` /
+`THROTTLE_*` / 200/500/1000 severity literals do NOT exist in this module;
+author verified production md5/mtime unchanged and refused to assert
+nonexistent behavior when handed an audit citing them — correct under the
+iron rule, recorded here so the record shows why no throttle pins exist).
+
+KILL MATRIX (honesty class: dossier-shape TEXT mutants exec'd into the live
+module dict — NOT the mutmut cache feed; this measures kill power against
+dossier clusters, not a re-bankable bank run): run 2 (`/tmp/b17-killlog2.txt`)
+**105 KILLED / 9 SURVIVED / 0 errors** of 114 shapes (run 1 had 1
+pattern-not-found error, fixed in run 2; C17 timeout=None-arg killed in run 2
+after the battery pinned the exact `Timeout(5.0)` kwarg). The 9 survivors are
+measured equivalences with evidence lines in the module docstring: C01
+logger-arg swap (nothing observes log records), C05 codec case, C07
+overwritten pre-assign, C08 round 1↔2dp on exact values, C10 debug-log-only
+counter, C15a timestamp default-equal, C17 kwarg-removal (httpx default IS
+Timeout(5.0), measured), C06a guard-normalized filler, C11 pg filler (un-
+applicable pattern in run 2). Cluster→test mapping in docstring; module-global
+`THRESHOLDS` exact-registry equality + autouse save/restore.
+
+NOT yet done (disclosed): standard contract red-check vs a /tmp/extracts/
+performance_collector.tsv feed (feed not extracted; the mutmut-generation
+census for this module not yet measured — S1-adjacent cache-gen question like
+webhook's). Battery is landed green (64 passed, ruff clean, 0 convertible
+patch sites); tally above stands as kill-matrix, not feed red-check, until
+the feed run exits.
