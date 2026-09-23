@@ -9977,3 +9977,65 @@ auth1 lane, same 533-key nemotron feed — battery md5-verified byte-identical i
 which also re-runs ns16 on the post-ruff battery copy (ns16c). Tallies land in
 `/tmp/ns16b-stdout.log` / `/tmp/redcheck-ns16b.log` at exit. WP4.2 fast-path
 rc=0 on the file; ruff/format clean pre-commit.
+
+### Row — rs11b + js14c red-check tallies (measured from lane logs) + batch-18 battery
+
+MEASURED from the lane logs this session (`grep -c` on the log files cited):
+
+- **rs11b (batch-11 battery vs the full 854-mutant redis_streams feed)**:
+  `/tmp/redcheck-rs11b.log` — **481 KILLED / 373 SURVIVED / 854 total**
+  (battery md5 0206ca36-… verified byte-identical in the lane; "source clean"
+  recorded). Kill rate 56.3% of the widened-set redis_streams mutants.
+- **js14c (batch-14 battery vs job_service)**: `/tmp/redcheck-js14c.log` —
+  **170 KILLED / 34 SURVIVED / 204 total** ("source clean"). The 34 survivors
+  fed batch-14b (`test_job_service_batch14b.py`, shipped `561e86f5`, 17 tests
+  measured green); its re-check **js14b2** launched on the job lane this
+  session (feed = the 34 derived keys; battery md5 52b9bb66 verified in lane).
+- **batch-18 battery SHIPPED `3f3d175f`**:
+  `test_redis_streams_batch18.py` — **59 tests, 59 passed** — measured three
+  times this session (`uv run pytest -q -p no:randomly`: 17.80s / 17.18s /
+  18.01s). Targets the rs11b battery-only survivor set: mechanical literal
+  analysis of the 373 survivors against the shipped suites + batch-11
+  (`/tmp/rs18-gaps.tsv`) → 76 literal-bearing gaps = 73 batch-7-precedent
+  log-text/extra-key cluster (NOT asserted — disposition stays in the frozen
+  WP4.4 dossier) + **3 `record_pipeline_error` METRIC LABELS asserted**
+  (`stream_dlq_move`, `analysis_stream_dlq_move`, `analysis_stream_parse_error`
+  — alerting keys, not observability) + 59 literal-less call-arg/state/default
+  mutants (init stored state incl. `_group_created is False`;
+  `_ensure_consumer_group` xgroup_create shape/flag/BUSYGROUP/non-BUSYGROUP;
+  `should_move_to_dlq` boundary 2/3/4; add_detection EXACT fields dict with
+  patched clock; move_to_dlq DLQ dict + kwargs + ack args (both services);
+  trim_stream 6 default/arithmetic shapes; the three getters' mapping defaults
+  - no-such-key fallback incl. `.lower()` case-fold; claim_stale both sides
+    (custom claim_min_idle_ms forwarded positionally, pending dict/positional row
+    fallbacks, None-deleted skip, short/empty replies, error propagation);
+    acknowledge rc=0/1/2 truthiness + ANALYSIS xack args; add_batch fields;
+    both `from_stream_entry` families (float/ISO/garbage ts, Z→+00:00, raw_data
+    identity); consume parse-skip metric). Every literal MEASURED via
+    `/tmp/b18-harness.py` → `/tmp/b18-probes.json` (59 sections) +
+    `/tmp/b18-extra.py`. Production NOT bent to any mutant. **No kill tallies
+    claimed for batch-18** — those come only from the rs18 lane red-check
+    (`/tmp/lane_rs18.py`, idle redis lane, feed = the 373 rs11b survivors, log
+    `/tmp/redcheck-rs18.log`; source integrity restored first: both the job and
+    redis lanes carried leftover mutant text from the contaminated rs11/js14 runs
+    — `data.get("[]")` in redis_streams, `order="DESC"` in job_service — caught
+    by the source==HEAD guards and `git checkout`-restored, md5-verified).
+- **Lane-guard fix** (in `lane_rs18`/`lane_js14b2`/`lane_ns16b`): a `mutmut run`
+  now only conflicts when its `/proc/<pid>/cwd` lies INSIDE the lane tree. The
+  over-broad pgrep false-aborted js14b2 (rc=3) against the workspace S1
+  dispatcher run, which writes a DIFFERENT cache.
+
+### Row — S1 (M3 harness honesty) + S0 (frontend M1) probes LAUNCHED
+
+- **S1**: `mutmut run "backend.services.dispatcher*"` launched detached at
+  03:43:32Z (`/tmp/s1_run.sh`, workspace cache; whole-tree generation is the
+  one-time global cost — NOT killed this time). Script auto-asserts at exit:
+  non-empty `exit_code_by_key` in `mutants/backend/services/dispatcher.py.meta`
+  (result line appended to `/tmp/s1-run.log`). The 267 pre-existing metas all
+  had EMPTY `exit_code_by_key`; until this banks, S1 stays UNPROVEN.
+- **S0**: `npm run test:mutation` (stryker) launched detached 03:43:39Z in
+  `frontend/` (`/tmp/s0-fe.log`) to reproduce run 29. Stale committed
+  `frontend/reports/mutation/mutation.json` read at session start: 384 mutants,
+  Killed 203 / Survived 58 / NoCoverage 61 / CompileError 62 = (203+0)/384
+  killed+timeout over total ≈ **52.9%** by the badge formula — NOT yet a claim;
+  the fresh run must land first.
