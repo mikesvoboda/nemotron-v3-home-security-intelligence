@@ -10303,4 +10303,6 @@ is QUEUED in the single serialized webhook-lane chain `/tmp/wl_chain.sh`
 behind the live wh15c run, followed by logs13b2 — one writer at a time,
 which is the fix for the wh15c rc=4 race (two independent seq scripts keyed
 on the same exit predicate; a single chain script removes the class).
-Expected honest whserv2 outcome at exit: 40 KILLED / 3 EQUIVALENT (keys 3/8/9).
+Expected honest whserv2 outcome at exit: 39 KILLED / 3 SURVIVED-EQUIVALENT (keys 3/8/9) —
+corrected from "40" the same session: 19 previously killed + 20 newly covered = 39;
+42 keys − 3 equivalents = 39, and 40+3=43 ≠ 42.
