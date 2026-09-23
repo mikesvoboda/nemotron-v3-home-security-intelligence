@@ -10879,3 +10879,29 @@ I adjudicate its fresh verdicts incl. the prior-run anomalies
 `build_service_configs__359/467` (grace=30 removals — the golden table DOES
 assert grace, so survival there would be an artifact of the vanished run) and
 `compose__9` (success-info message->''; batch-20 now pins that message too).
+
+### Row — batch-16c kill-check MEASURED 64 KILLED / 57 SURVIVED of 121; ns16-recheck landed 2/301 and the 385/386 flips are CONFIRMED kills, independently reproduced
+
+**Measured this session**: batch-16c (commit 703a82ea, 9 tests green
+first-pass) ran its 121-key ns16c∩ns16b survivor feed on the FREE enrich
+tree (`/tmp/redcheck-ns16c16c.log` rc=0 09:16:20Z "source clean"):
+**64 KILLED / 57 SURVIVED**. Cross-check vs the parallel ns16-recheck
+(auth1, 303-key batch-16-only re-run, `/tmp/redcheck-ns16-recheck.log`
+rc=0 09:07:45Z "source clean", **2 KILLED / 301 SURVIVED**): the ONLY two
+keys ns16-recheck flipped from run-3's 303-survivor set are
+`x_analyze_batch_streaming__mutmut_385/386` (`enrichment_result=`/
+`enriched_context=` kwarg removals at the call_llm site), and BOTH were
+killed INDEPENDENTLY in my 16c run (neither is in its 57-survivor set) —
+the batch-16c pins (`kw["enrichment_result"] is er`, sorted-11-keys) hit
+exactly those kwargs. Two batteries, two trees, same verdict: the flips
+are real batch-16 coverage, reproduced across trees, not artifacts.
+
+**Residual triage (57 keys, shapes extracted `/tmp/s57-diffs.tsv`)**:
+40 analyze_batch_streaming + 17 call_llm_streaming; 55 unique diff shapes,
+all DOWNSTREAM-KWARG/ARG SWALLOW families the 9-test battery doesn't yet
+pin: `started_at=start_time`→None/removal (LLMInteraction fields),
+`risk_data.get("risk_score"|"risk_level", d)` key renames (None/XX/UPPER),
+`record_event_by_camera(camera_id, camera_name)` arg→None pair,
+`_get_recent_scene_changes(camera_id, session)` positional→None/removal,
+`.model_dump()` `recoverable=True` removal. DECIDE: these are batch-21's
+kill-list — same measured-drive method (probe shipped shapes, pin exact).
