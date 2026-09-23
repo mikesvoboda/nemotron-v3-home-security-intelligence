@@ -10572,3 +10572,38 @@ success. Serialization holds: rs19b/rs19c own the redis lane tree and no
 other source-mutating job touches it (ns16b→auth1, wh15d→webhook,
 batch-17 cache-gen→auth2). No kill tally claimed here — actuals come only
 from `/tmp/redcheck-rs19{b,c}.log` at exit.
+
+### Row — wh15d lands 76/1 (rc=0): the lone survivor is discord-default key 9 AGAIN, and my batch-15c claim it was "killed by the titles pin" was WRONG — MEASURED this session it is EQUIVALENT (default literal consumed only through case-normalizing `.title()`), corrected per-mutant here
+
+**wh15d MEASURED this session** (`/tmp/redcheck-wh15d.log`, rc=0
+06:16:48Z "source clean"; stdout `keys: 77 applied: 77 tally: {'KILLED':
+76, 'SURVIVED': 1}`): the batch-15-era 77-key webhook_service feed vs
+shipped + batch-15 + 15b + 15c. Documented expectation was 77/0; actual
+**76 KILLED / 1 SURVIVED** — corrected here, not restated.
+
+**The survivor, per-mutant (final disposition): EQUIVALENT.**
+`_format_discord_payload__mutmut_9` swaps the default
+`payload.get("event_type", "event")` -> `"EVENT"`. My batch-15c note said
+this was "Killed by pinning the MEASURED shipped titles (absent
+event*type -> title Event)". That is FALSE, discovered by measurement this
+session: the default literal is consumed **only** through
+`event_type.replace("*", " ").title()`— and`"EVENT".replace("_", " ").
+title() == "Event" == "event".replace("_", " ").title()` (probe run:
+present-`"event"`input -> title "Event"; absent-key default path identical
+under both literals;`"event".title() == "EVENT".title()`). For an ABSENT
+key the shipped default yields "Event" and the mutant's default yields
+"Event" — same embed; for a PRESENT key the default is never read at all.
+No input in the function's domain separates them (no underscore to
+re-split, `.title()`erases the only difference, and the raw string is
+never surfaced in the discord output — unlike`\_format_teams_payload`,
+which DOES surface raw `event_type`in`summary` and has no such survivor).
+So wh15c2's 76/1 and wh15d's 76/1 are the same honest truth: the kill was
+never there to make. The 15c titles pin stays in the suite — it pins the
+shipped contract — but the row's earlier claim that it killed key 9 is
+retracted.
+
+**Webhook lineage CLOSED.** Current-generation denominator: whserv3 42/42
+KILLED (previous row). Batch-15-era feed: 76/1 with the one survivor
+EQUIVALENT, per-mutant justified above. webhook_service has no open
+triage. (Fleet after this landing: rs19b in the redis lane, ns16b ->
+survivor-rechecks in auth1, batch-17 cache-gen in auth2.)
