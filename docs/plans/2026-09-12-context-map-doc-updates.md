@@ -10140,3 +10140,19 @@ excludes it from the killable universe (covered 321/322 with this one
 surviving as the sole non-killed covered mutant). No test authored; no
 production change. FE batch-1 therefore has NOTHING left to kill in the
 killable set.
+
+### Row — wh15c re-arm: guard false-abort fixed + serialized behind logs13b
+
+- The prior wh15c attempt logged `ABORT: a mutmut run is active` — the SAME
+  over-broad pgrep guard already fixed for rs18/js14b2/ns16b: it matched the
+  workspace S1 dispatcher run, a DIFFERENT cache. `lane_wh15c.py` now carries
+  the cwd-inside-ROOT check (syntax-verified).
+- Serialization: wh15c and the live logs13b run BOTH mutate the webhook-lane
+  tree (`/home/agent/lanes/webhook`) and `webhook_service` imports `logs.py`
+  (route module) — a held logs.py mutation would poison wh15c verdicts (the
+  dangerous false-KILLED direction). Per the import-chain rule, wh15c is now
+  QUEUED behind logs13b via `/tmp/wh15c_seq.sh` (pgrep-gated on the
+  lane_logs13b literal with bracket self-exclusion, then 15s settle). Its
+  TARGETS = the three format functions, feed = webhook_arch15.tsv (the 77
+  wh15 shapes) against the post-autospec-conversion battery md5
+  d4fd2b85 (verified lane == workspace).
