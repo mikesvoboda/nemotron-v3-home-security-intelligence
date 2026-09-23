@@ -178,15 +178,20 @@ class TestContextLimits:
 
     def test_budget_accumulates_not_resets(self):
         # 4 items x 4000 bytes (MEASURED: shipped stores exactly k000,k001 —
-        # 4000+4000+4000=12000>10000 breaks at the third). A last-item-only
+        # 4000→8000→12000>10000 breaks at the third). A last-item-only
         # accumulator (`context_size = item_size` reset, key 83) sees 8000 and
         # `context_size -= item_size` (key 84) sees 0 — both would store all
-        # 4, so `== 2` kills reset AND accumulate at once. (The uniform-5003
+        # 4, so `== 2` kills reset AND accumulate at once. (The uniform-5006
         # pattern cannot do this: its first accumulation == reset, so it only
         # kills the -= mutant.)
         seq = {f"k{i:03d}": "v" * 3996 for i in range(4)}
         _, _, _, extra = run(entry(context=seq))
         assert sorted(k for k in extra if k.startswith("ctx_")) == ["ctx_k000", "ctx_k001"]
+        # second, softer sequence (6 x 2000): shipped stores 5 (6th would hit
+        # 12000); reset would store ALL 6 — belt-and-braces on key 83.
+        many = {f"k{i:04d}": "v" * 1995 for i in range(6)}
+        _, _, _, extra = run(entry(context=many))
+        assert sum(1 for k in extra if k.startswith("ctx_")) == 5
 
     def test_budget_breaks_loop(self):
         # 5 items x 5006 bytes ("ctx_k0"=6 + 5000): shipped stops at 1

@@ -10252,3 +10252,55 @@ services.credential_service*"` (backend/services/credential_service.py,
   (lane process + wrapper, bracketed self-excluding patterns), then settle,
   then run (log `/tmp/wh15c2-stdout.log`). whserv itself DRY-verified 42/42
   assignable before its queue fired.
+
+### Row — cg13c CONFIRMATION: post-autospec battery re-measures the SAME 340/80
+
+`/tmp/redcheck-cg13c.log` (exit "source clean", clip lane): **340 KILLED /
+80 SURVIVED / 420 total** — bit-for-bit the pre-conversion `cg13` tally from
+the batch-13 row. The autospec=True conversion changed no verdict, exactly
+as a conversion-only edit must not. The 80 survivors keep their existing
+per-shape dossier-classified disposition (61 logger-arg/message shapes + the
+rest, itemized in the batch-13 row); cg13b's battery covers the killable
+subset and its re-check stays armed.
+
+### Row — whserv first pass: 19/42 current-gen webhook keys already killed by shipped+batch15; 23 feed batch-15b
+
+`/tmp/redcheck-whserv.log` (`[whserv] rc=0 2026-09-23T04:51:27Z`, "source
+clean", webhook lane): **19 KILLED / 23 SURVIVED** of the 42 CURRENT-cache
+keys. Survivors: `__init___1` + 22 `trigger_webhooks_for_event` keys (2,3,4,
+8–21,25,26,28–30). Triaged against MEASURED shipped behavior
+(`/tmp/b15b-harness.py` → `/tmp/b15b-probes.json`, `/tmp/b15b-sql.json`):
+
+- **SQL-shape family (12–21, 11 keys): TEST-GAP** — shipped suites never
+  COMPILE the trigger query, so text-level mutants inside it were invisible.
+  Every shape MEASURED: `select(None)` builds `SELECT NULL AS anon_1`;
+  `and_(None, any)` → `NULL AND 'alert_fired' = ANY (…)`; dropped clauses lose
+  their conjunct; `is_(None)/is_(False)` → `IS NULL`/`IS false`;
+  `any(None)` → `NULL = ANY (…)`; all fail the full-shape text pin
+  (`enabled IS true` AND `'alert_fired' = ANY (…)`, batch-14's compiled-SQL
+  vehicle).
+- **ternary family 2/4/10: TEST-GAP, killed by enum+plain-str pins** —
+  `WebhookEventType` is a `StrEnum` (MEASURED mro
+  `WebhookEventType→StrEnum→str→ReprEnum`; `str(e) == e.value` True), so the
+  ternary only diverges for plain-str inputs: shipped emits `'motion' = ANY`
+  for "motion"; key 2 (`value = None`) and key 4 (`hasattr(event_type, None)`
+  → TypeError) and key 10 (`else str(None)` → "None") all fail the pinned
+  text.
+- **ternary family 3/8/9: EQUIVALENT per-mutant** — `hasattr(None,"value")`
+  and the "XXvalueXX"/"VALUE" spellings all fall through to
+  `str(event_type)`, which MEASURED equals `event_type.value` on every enum
+  input and IS the shipped branch for str inputs. No distinguishing input
+  exists; documented, no test admissible.
+- **debug-log family 25/26/28/29/30: TEST-GAP** — exact message strings and
+  the `extra` KEY (`event_type`, `webhook_count`) pinned.
+- **`__init___1`: TEST-GAP** — stored-client identity.
+
+Kill battery authored this session: `test_webhook_service_batch15b.py` —
+**5 tests, 5 passed, 13.86s measured** (ruff clean; every expected string
+copy-pasted from the probes, production not bent). Its red-check `whserv2`
+(42 keys vs shipped ∪ batch15 ∪ batch15b, lane webhook, md5 da259d95 synced)
+is QUEUED in the single serialized webhook-lane chain `/tmp/wl_chain.sh`
+behind the live wh15c run, followed by logs13b2 — one writer at a time,
+which is the fix for the wh15c rc=4 race (two independent seq scripts keyed
+on the same exit predicate; a single chain script removes the class).
+Expected honest whserv2 outcome at exit: 40 KILLED / 3 EQUIVALENT (keys 3/8/9).
