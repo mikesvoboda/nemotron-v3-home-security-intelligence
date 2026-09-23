@@ -259,7 +259,7 @@ jobs:
         # and uploaded -- the series continues from the previous entry.
         if: ${{ always() && steps.pack.outputs.save_ok == 'true' }}
         continue-on-error: true
-        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: mutmut-verdicts.tar.gz
           key: mutmut-verdicts-v1
