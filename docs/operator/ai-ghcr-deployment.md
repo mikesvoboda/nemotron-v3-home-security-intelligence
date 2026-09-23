@@ -142,7 +142,7 @@ passed via CDI; this selects the card — see [GPU Setup](gpu-setup.md)),
 | ---------------- | ------------------------------------------------------------------- |
 | **Port**         | `${LLM_PORT:-8091}`                                                 |
 | **VRAM**         | ~3GB (Mini 4B) or ~14.7GB (Nano 30B Q4_K_M)                         |
-| **Base Image**   | `nvidia/cuda:13.3.1-runtime-ubuntu22.04` (llama.cpp built in-image) |
+| **Base Image**   | `nvidia/cuda:13.4.1-runtime-ubuntu22.04` (llama.cpp built in-image) |
 | **Model**        | Downloaded by `./ai/download_models.sh` or manually (see below)     |
 | **Health Check** | `GET /health` (`start_period` 300s)                                 |
 | **Limits**       | 12G memory, 4 CPUs                                                  |
