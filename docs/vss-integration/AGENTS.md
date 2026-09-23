@@ -7,7 +7,7 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
 
 - **Implementing, planning, or asking "what did we decide?"** → the design spec,
   [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
-  It holds the locked decisions (D1-D10), success criteria (S1-S6), phases and milestones (M0-M4),
+  It holds the locked decisions (D1-D11), success criteria (S1-S6), phases and milestones (M0-M4),
   and an A5500 bring-up checklist. It is the single source of truth for the plan.
 - **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
   (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
