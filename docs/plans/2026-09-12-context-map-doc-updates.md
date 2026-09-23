@@ -10102,3 +10102,27 @@ MEASURED from lane logs this session (`/tmp/redcheck-js14b2.log`,
   js14c survivor set killed by the batch-14b battery**, one key via a second
   dedicated run. The assignment-miss mechanism was not reproducible on the
   restored source (immediate DRY re-check: `assignable: 34 unassignable: 0`).
+
+### Row — S0/M1: FRESH frontend stryker run measured green this session
+
+`npm run test:mutation` (stryker, run launched 03:43:39Z, finished
+`[s0] rc=0 end 2026-09-23T04:23:30Z`, 39m41s — full fresh run, NOT the stale
+disk report). Measured from the fresh `frontend/reports/mutation/mutation.json`
+(untracked build artifact) via this session's parser:
+
+- 384 mutants total: **Killed 321 / Timeout 0 / Survived 1 / NoCoverage 0 /
+  CompileError 62**.
+- Stryker's own table agrees: All files covered score **99.69%**; per file
+  confidence.ts 53/53, risk.ts 62/62, time.ts 206/207 — 100/100/99.52%.
+- Badge formula reading (killed+timeout)/total = **321/384 = 83.59%**.
+- The session-start stale read (203/384 ≈ 52.9%) is SUPERSEDED: the M1
+  "frontend silently red" baseline is replaced by a fresh, green,
+  kill-verifying run — **killed=321 > 0, rc=0**, floor 63.04% cleared under
+  BOTH readings (covered 99.69%, badge-shape 83.59%).
+- The lone survivor is pinned: `src/utils/time.ts` line 25 (col 9–23),
+  EqualityOperator mutant on `if (durationMs < 0) return '0s'` — a real
+  behavior gap (negative-duration input), armed as the next FE kill target,
+  not hand-waved.
+- CompileError 62 unchanged from the stale report: those mutants fail to
+  compile (stryker excludes them from covered score); they stay visible in
+  the total-denominator reading above rather than being hidden.
