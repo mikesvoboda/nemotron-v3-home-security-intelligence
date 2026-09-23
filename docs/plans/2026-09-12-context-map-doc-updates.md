@@ -9882,3 +9882,36 @@ census for this module not yet measured — S1-adjacent cache-gen question like
 webhook's). Battery is landed green (64 passed, ruff clean, 0 convertible
 patch sites); tally above stands as kill-matrix, not feed red-check, until
 the feed run exits.
+
+### S2 batch 13 — clip_generator battery red-check: 420 shapes, 340 KILLED / 80 SURVIVED (source clean) (`/tmp/redcheck-cg13.log`, lane run)
+
+Battery `backend/tests/unit/services/test_clip_generator_batch13.py`
+(`8f9181e9`; 28 tests; post-commit `autospec=True` conversion at 10 sites —
+WP4.2 fast-path context disclosed in the batch-15 row; battery re-measured
+28 passed after conversion). Red-check `lane_cg13.py` in worktree
+`/home/agent/lanes/clip` (feed `/tmp/extracts/clip_generator.tsv`, exit
+22:13 "source clean"): **340 KILLED / 80 SURVIVED / 0 deferred**.
+PRE-conversion tally; `cg13c` re-check on the shipped autospec-converted
+file armed behind the rs11b→js14c→wh15c→ec12b chain (import-closure rule),
+tally appends here after exit.
+
+Survivor dump against feed shapes — all 80, classified by hand off the
+per-shape dump (exact counts): **61 logger-arg/message shapes**
+(`logger.X(None)`, message case/XX flips, `' '.join`→`'XX XX'.join`,
+`exc_info=True` removal/None/False, and the
+`_validate_roll_seconds(x, None/XX/CASE)` label carriers whose label
+reaches shipped output only through the caught-exception log line) — the
+dossier's reason-1 class: the battery has no caplog observer; one caplog
+harness kills the class. **4 stderr-fallback text shapes**
+(`stderr.decode() if stderr else "Unknown error"` `or True` guard +
+case/XX variants — text surfaces in BOTH log and the returned
+ClipGenerationError, so killable via either observer). **15 structural
+shapes**: `x_get_clip_generator` singleton flip + `= None` (2);
+`str(path).startswith("-")` dashes-guard `str(None)`/`"XX-XX"`
+(images 2 + video 2); `_create_concat_file` `delete=False`→`delete=None`
+
+- quote-escape XX/None (3); `generate_clip_for_event`
+  `generate_clip_from_images(event, image_paths, fps=validated_fps)`
+  arg-clobber family (6). Kill battery batch-13b armed this session: caplog
+  harness for the 61+4 + plain asserts for the 15; its red-check `cg13b`
+  follows the same lane contract; no kill claims before measurement.
