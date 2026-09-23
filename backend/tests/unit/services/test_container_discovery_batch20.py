@@ -1,17 +1,28 @@
 """Batch-20 mutation-kill battery: container_discovery INFO-payload + settings legs.
 
-Target: the 7 TRUE-GAP survivors of the 52-key dossier-residual cd52 lane run
+Target: the TRUE-GAP survivors of the 52-key dossier-residual cd52 lane run
 (/tmp/redcheck-cd52.log, rc=0, 25 KILLED / 27 SURVIVED; feed /tmp/cd52-feed.tsv).
-The other 20 survivors are per-mutant-measured EQUIVALENTs (BSD-J grace=60 x4,
-BSD-M max_failures=5 x14 via rebuild-minus-kwarg bit-identity with a postgres
-grace=10 discriminator; init__5 flag-dead else-branch; cms__13 []-vs-None
-falsiness) and are justified per-mutant in the ledger — NOT in scope here.
+Originally triaged 7 gaps + 20 equivalents; on authoring, init__5 flipped from
+"dead else-branch" to a REACHABLE true gap (settings=None compose fallback —
+see correction below), so 8 keys here and 19 per-mutant-measured EQUIVALENTs
+(BSD-J grace=60 x4, BSD-M max_failures=5 x14 via rebuild-minus-kwarg
+bit-identity with a postgres grace=10 discriminator; cms__13 []-vs-None
+falsiness) justified in the ledger — NOT in scope here.
 
-Root cause of the 7-gap class: no test ever CAPTURED the two observability
+Root cause of the gap class: no test ever CAPTURED the two observability
 INFO sites (compose-success in build_configs_from_compose, discovery-summary
-in discover_all), and the WP44 fallback test checks the monitoring FLAG leg
-only, so the __init__ compose-branch `settings=None` mutant keeps the flag and
-reverts ports invisibly.
+in discover_all), the WP44 fallback test checks the monitoring FLAG leg
+only (so the __init__ compose-branch `settings=None` mutant keeps the flag
+and reverts ports invisibly), and NOTHING drives the __init__ ternary's
+settings=None else-leg (WP44 always passes settings).
+
+Correction logged during authoring: init__5 (else-leg True->False) was
+first triaged "flag-dead equivalent" — WRONG. MEASURED this session:
+ContainerDiscoveryService(cli, compose_file=missing) with settings omitted
+is shipped-reachable: include_monitoring=True -> fallback INCLUDES
+prometheus; the mutant's False excludes it. It is a true gap and killed by
+test_settingsless_compose_fallback_keeps_monitoring below. The cd20
+red-check below therefore covers 8 keys, not 7.
 
 Every expected value MEASURED against shipped production this session
 (probe drives below; production NOT bent):
@@ -79,6 +90,17 @@ class TestInitComposeBranchForwardsSettings:
 
         # MEASURED shipped 15432; settings=None mutant -> 5432 .env default
         assert svc.get_config("postgres").port == 15432
+
+    def test_settingsless_compose_fallback_keeps_monitoring(self, tmp_path):
+        """__init__'s settings=None default must stay True (monitoring kept).
+
+        MEASURED shipped: compose_file=missing + NO settings -> fallback
+        INCLUDES prometheus. The else-leg True->False mutant drops it — WP44
+        always passes settings, so nothing drove this leg before.
+        """
+        missing = tmp_path / "nope-compose-init5.yml"
+        svc = ContainerDiscoveryService(MagicMock(), compose_file=missing)
+        assert "prometheus" in svc._configs
 
 
 class TestDiscoverySummaryInfoPayload:
