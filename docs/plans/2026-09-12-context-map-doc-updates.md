@@ -9915,3 +9915,37 @@ shapes**: `x_get_clip_generator` singleton flip + `= None` (2);
   arg-clobber family (6). Kill battery batch-13b armed this session: caplog
   harness for the 61+4 + plain asserts for the 15; its red-check `cg13b`
   follows the same lane contract; no kill claims before measurement.
+
+### S2 batch 16 + 14b — nemotron_streaming request-shape battery (23) and job_service survivor-kill battery (17) (`561e86f5`)
+
+Battery `test_nemotron_streaming_batch16.py`: pins the dossier's request-build
+clusters — C1/C2 request+payload (exact six-key payload, temperature 0.3 /
+top_p 0.95 hardcoded, max_tokens carrier 1536→1536 / 2048→2048, stop-pair,
+`timeout=analyzer._timeout` identity, single AsyncClient construction),
+SSE-frame parsing (exact `"data: "` prefix only; malformed frames non-fatal;
+`[DONE]` breaks before later chunks; non-string truthy content yields —
+all MEASURED e2/e5 probes), C21/C22 sanitizer-return-into-`_build_prompt`
+chain, C9 camera WHERE (`cameras.id = 'test_camera'` literal_binds, no
+LIMIT), C10/C11 fetch + enrichment-cache call args (identity pins),
+C12 household dict list (four-key bbox guard), C14 detection-dicts
+(confidence-None filtered, object_type-None → "unknown"), C19 junction
+INSERT exact compiled string + params, LLMInteraction wiring (raw_response
+= accumulated text, snapshot/context-sources identity). 23 passed this
+session against pristine source. The agent-authored first draft's docstring
+claimed all 23 dossier clusters killed — FALSE at this size; corrected
+BEFORE commit to the clusters this file actually pins, error-path clusters
+(C6/C7/C8/C15–C18/C20) explicitly armed for batch-16b with their literals
+already measured in `/tmp/b16-probes.json`. No kill tallies claimed here;
+lane red-check pending (js14b2 armed; 16 harness next).
+
+Battery `test_job_service_batch14b.py`: targets the 34 survivors of the
+batch-14 red-check (170/34/1 of 205, row 031f51c2) via survivors-only feed
+`/tmp/extracts/job_service_survivors.tsv` (34 keys derived mechanically from
+`/tmp/lane-js14.out`). Gaps closed: `cleanup_old_jobs` log surface
+(caplog: zero-rowcount not logged, exact message + extra payload, no extra
+attrs), `get_job_stats` type/oldest-pending compiled SQL verbatim,
+`list_jobs` DEFAULT kwargs reaching rendered SQL + documented-signature
+contract, sort-fallback column. 17 passed this session. In-file
+equivalence disclosures kept (order-default SQL-blindness MEASURED
+identical SQL; microsecond-cutoff carrier) — signature pin, not a faked
+SQL. WP4.2 fast-path rc=0 on both files.
