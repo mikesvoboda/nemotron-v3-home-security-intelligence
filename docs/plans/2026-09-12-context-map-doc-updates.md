@@ -9818,3 +9818,35 @@ distinguishes the pair. Cache-gen disclosure (S1-adjacent): current mutmut
 generation for webhook_service holds 42 keys/4 functions — dossier's 571
 survivors are the WP4.4-era generation; C2/C3 SQL-shape clusters follow in
 batch-15b via the batch-14 compiled-SQL vehicle against a re-generated feed.
+
+### S2 batch 14 — job_service query-shape battery: 205 shapes, 170 killed, 34 survivors triaged TEST-GAP, 1 unparseable (`/tmp/redcheck-js14.log`, lane run)
+
+Battery `backend/tests/unit/services/test_job_service_batch14.py` (13 tests,
+probe-measured shipped SQL/outputs; battery green re-measured 13 passed
+21:52 after post-red-check `autospec=True` conversion — WP4.2 fast-path hook
+context: `check-mock-spec.py --staged` flags convertible added-line sites
+regardless of registry, so the 3 sites converted with the repo's own
+autospec-sweep; tally below is PRE-conversion; `js14c` re-check armed in lane
+`/home/agent/lanes/job` against the shipped file re-measures it, serial behind
+the rs11b/cg13 convoy per the import-closure rule).
+
+Red-check `lane_js14.py` (worktree `/home/agent/lanes/job`, feed
+`/tmp/extracts/job_service.tsv` restricted to the 5 targeted DatabaseJobService
+methods), exit 21:42 with "source clean": **170 KILLED / 34 SURVIVED /
+1 DEFERRED-unparseable of 205 applied** (verdict lines verbatim in
+`/tmp/redcheck-js14.log`; TALLY line is the log's own last line — read from
+the exit file, not carried).
+
+All 34 survivors dumped against feed shapes and dispositioned: every one is
+TEST-GAP (no EQUIVALENTs found): `cleanup_old_jobs` 13 (cutoff microsecond
+floor m10, tz-aware cutoff m11, `deleted_count > 0` boundary m32/m33, log
+message + `extra={...}` payload renames/case-flips m34–m44 — none observable
+because batch-14 never runs the logger path with a real caplog or the µs≠0
+clock); `get_job_stats` 7 (`type_query` and `oldest_pending_query` compiled
+text never pinned — batch-14 pins the other five SQLs); `list_jobs` 12
+(default args limit=50/offset=0/sort/order never reach the SQL because every
+battery call passes explicit args; `scalar() or 0`→`or 1` total-fallback;
+invalid-sort fallback string; `select(Job)`→`select(None)` main-query text);
+`get_job_by_id` 1 (`select(Job)`→`select(None)` columns half unpinned).
+Kill battery `test_job_service_batch14b.py` in authoring (this session, background author); its red-check `js14b` follows the same lane contract;
+tallies land here only after exit.
