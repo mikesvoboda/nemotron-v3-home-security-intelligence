@@ -125,8 +125,13 @@ dev = [
     "pytest-memray>=1.5.0",
     # CI/CD - Security
     "bandit>=1.7.0",
-    # CI/CD - Complexity
-    "wily>=1.25.0",
+    # CI/CD - Complexity (R-1 2026-09-23: was `wily>=1.25.0`, whose transitive
+    # radon 5.1.x this extra's consumers actually call. nightly.yml runs wily
+    # isolated via `uv tool run`, so the project-env pin existed only to leak
+    # radon — now declared directly, which also lifts wily's plotly/colorlog/
+    # mando caps. ci.yml:331's `uv run radon` is a hard gate: radon ships same
+    # commit as wily leaves.)
+    "radon>=5.1.0",
     # CI/CD - Big-O analysis
     "big-o>=0.11.0",
     # Video processing
@@ -135,7 +140,6 @@ dev = [
     "defusedxml>=0.7.0",
     # Dead code detection
     "vulture>=2.11",
-    # Note: radon is provided by wily dependency (5.1.x)
     # Mutation testing
     "mutmut>=3.2.0",
     # Performance profiling (NEM-1644)
@@ -266,7 +270,9 @@ mutation = [
 
 # Code Quality Analysis (complexity, dead code)
 quality = [
-    "wily>=1.25.0",  # Note: radon is provided by wily dependency (5.1.x)
+    # R-1 2026-09-23: wily dropped (see dev-extra note at its old site);
+    # radon declared directly — it is what ci.yml/weekly-audit actually run.
+    "radon>=5.1.0",
     "vulture>=2.11",
 ]
 
