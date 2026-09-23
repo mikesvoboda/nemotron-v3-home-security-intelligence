@@ -55,6 +55,7 @@ SLOW_TEST_PATTERNS = [
     r"TestDurationTracking::test_duration_after_start",  # persistent spike x10/17 runs, 18s peak (WP1.3)
     r"test_fast_path_high_priority_detection",  # persistent x8/17, 18.5s peak (WP1.3)
     r"TestHandleUnhealthy::test_handle_unhealthy_stamps",  # persistent x7/17, 18.2s peak (WP1.3)
+    r"test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate",  # 4.18s x2 + 4.297s main corpus, 1.20s alone — -n8 contention (2026-09-23)
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely
