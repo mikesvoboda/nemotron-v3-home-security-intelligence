@@ -10933,3 +10933,89 @@ exact + fallback-return ports/flag legs discriminated).
 above: 24 KILLED / 15 SURVIVED (8 batch-20 + 7 info-family kills; 19
 equivalents + 5 batch-22 gaps survive). Actuals will be rowed as measured,
 prediction or not.
+
+### Row — cd39 VERIFY RUN MEASURED 18 KILLED / 21 SURVIVED of 39 — my dispatched prediction (24/15) had the two sets swapped and the 3-key residual is the subset-feed occurrence-remap artifact
+
+**Measured**: cd39 (redis lane, 39 cdfull survivors vs suite+batch-20,
+63-passed baseline) `/tmp/redcheck-cd39.log` rc=0 09:41:57Z "source
+clean": **18 KILLED / 21 SURVIVED**. **Prediction correction (honest)**:
+the dispatched row said "24 KILLED / 15 SURVIVED (8 batch-20 + 7
+info-family kills; 19 equivalents + 5 batch-22 gaps survive)" — the
+parenthetical itself computes 15 killed / 24 survived; I printed the two
+sets in swapped order. The real gap to actuals (15 predicted-killed vs
+18 measured) is keys **22/23/25**: they SURVIVED cdfull (assigned to the
+generic-Exception fallback-return L84) but were KILLED in cd39 — in the
+subset feed they remap to occurrence-1 (the FileNotFoundError-leg return
+L81) which the WP44 test drives directly. Same occurrence-mapping
+sensitivity as keys 17/18/19/20 (L81 occurrences, KILLED in cdfull) vs
+22/23/25 (L84, survived) — occurrence mapping decides WHICH leg's return
+a shape-mutant sits on, so cross-run comparisons of same-shape keys must
+carry their twins. **cd39's 21 survivors = exactly 19 cd52-equivalents +
+keys 16/21** (the two exception-leg warning-text->None gaps): the
+designed batch-22 kill-list, zero surprises.
+
+### Row — batch-22 cd22 CONFIRM RUN MEASURED 9 KILLED / 0 SURVIVED — container_discovery module CLOSED at 864 KILLED + 19 MEASURED EQUIVALENTs = 883/883, zero undispositioned
+
+**Measured**: cd22 (redis lane, battery `test_container_discovery_batch22.py`
+commit 38e83ae9, baseline 69 passed) vs 9-key feed 16,17,18,19,20,21,22,
+23,25 — twins RESTORED deliberately so occurrence mapping reproduces the
+cdfull assignment (22/23/25 land on L84, 17–20 on L81): **9/9 KILLED**
+rc=0 09:46:12Z "source clean" `/tmp/redcheck-cd22.log`. Kills the two
+exception-leg warning-text->None gaps (16 FileNotFoundError-leg, 21
+parse-leg) and re-confirms the fallback-return arg-swallow family against
+the both-legs battery. **Module close-out accounting (unique keys,
+883-key full feed)**: 844 cdfull-killed + 18 cd39-killed + 2 cd22-new
+(16/21) = **864 KILLED**, + 19 per-mutant MEASURED EQUIVALENTs (cd52
+adjudication, unchanged — defaults-identity/falsiness/empty-tail families)
+= **883/883 adjudicated, zero undispositioned**. container_discovery is
+CLOSED; no further cd runs armed.
+
+### Row — batch-21 MEASURED 102 KILLED / 19 SURVIVED of 121 + adjudication: 10 per-mutant MEASURED EQUIVALENTs / 9 true gaps — pre-run "5 equivalents" docstring estimate WRONG, corrected by measurement
+
+**Measured**: batch-21 (`test_nemotron_streaming_batch21.py` commit
+90251a1f, 20 tests; battery 16c+21, baseline 29 passed) on the enrich
+lane: `/tmp/redcheck-b21.log` rc=0 09:44:53Z "source clean": **102
+KILLED / 19 SURVIVED** of the 121-key feed — 38 of the 57 s57 survivors
+died. **19-survivor adjudication (probe-driven, production NOT bent)**:
+**10 MEASURED EQUIVALENTs** — recoverable=True removal x3 (field default
+MEASURED True via inspect.signature), content ""->None x2 (falsy in
+`if content:`), risk-fallback DICT-LITERAL renames x4 (A#289/290/292/293
+— renaming the literal key AND reading it back with the SAME .get default
+is value-identity by construction), break->return at loop-end (A#78 —
+MEASURED: nothing follows the SSE loop). **9 true gaps**: A#220
+analyzer-kwarg identity never asserted, A#247 accumulated_text (progress
+events ship the CUMULATIVE string; removal ships field-default ''),
+A#307/308/316 Event batch_id/camera_id, L#42-45 stop-token payload
+strings. The batch-21 docstring's pre-run claim "5 of the 57 are
+equivalents" was wrong — measurement adjudicated 38 killed / 10 equiv /
+9 gaps; docstring carries the post-run correction (in the batch-23
+commit).
+
+### Row — batch-23 KILLS the 9 true gaps; b23b confirm MEASURED 10 KILLED / 0 SURVIVED — occurrence-remap FALSE-SURVIVED caught and adjudicated by probe (batch-22 lesson re-paid within one session)
+
+**Measured**: batch-23 (`test_nemotron_streaming_batch23.py` commit
+ee26d397, 4 tests green; pins analyzer IDENTITY, Event batch_id/
+camera_id, cumulative progress 'X','XY', EXACT payload incl. stop-token
+list) vs 9-key subset feed, batch-23-only battery: **8 KILLED / 1
+SURVIVED** (`/tmp/redcheck-b23.log`). The survivor: A#308
+`camera_id=camera_id,`->None. **Root-cause by shape-group census**: the
+shape occurs TWICE (tuner-call L231 occurrence-1, Event L343
+occurrence-2) with feed keys 150/308; b21's full-feed mapping put
+150->tuner (KILLED) and 308->Event (SURVIVED); my 9-key subset feed
+remapped 308 onto the TUNER occurrence, which batch-23-only does not pin
+— a FALSE-SURVIVED of the mutant-at-that-site, not of key 308's real
+site. **Probes (serialized, enrich tree)**: tuner-occurrence vs b21
+battery (16c+21): KILLED; vs 16c-only: KILLED, failing test NAMED by
+captured stdout — `TestEnrichmentFlowsToEverySite::test_tuner_called_with_camera_id_and_session`
+(`assert kw["camera_id"] == "test_camera"`) — so the tuner site was
+ALREADY covered; batch-23's `test_event_identity_columns` pins Event.
+**Confirm run b23b**: 10-key feed (9 + twin 150 restoring occurrence
+order) vs UNION battery 16c+21+23: **10 KILLED / 0 SURVIVED** rc=0
+12:21:21Z "source clean" `/tmp/redcheck-b23b.log`.
+**nemotron_streaming ns16c-feed lineage CLOSED**: 64 (16c) + 38 (b21) +
+9 (b23 via b23b) = 111 KILLED + 10 per-mutant MEASURED EQUIVALENTs =
+**121/121 adjudicated, zero undispositioned**. LESSON (2nd instance,
+memory-worthy): subset kill-feeds MUST carry shape-twin keys even when
+the twin is already killed — occurrence order is part of a key's
+identity; a subset feed without twins silently re-tests a different
+mutation site and manufactures false verdicts in BOTH directions.
