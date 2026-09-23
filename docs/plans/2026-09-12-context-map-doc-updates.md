@@ -10644,3 +10644,56 @@ comparisons must account for sanitizer expansion) is the one to re-apply
 wherever other dossiers claimed raw-cap == sanitize-cap shielding.
 (Fleet: rs19b redis, ns16b → rechecks auth1, batch-17 cache-gen auth2 —
 all still running.)
+
+### Row — rs19b lands 186/31 (rc=0) and rs19c lands 5/26 (rc=0): batch-19b's log/raise pins carried 186 of the 217 rs18 survivors; 19c's structural pins added the 5 trim/ISO kills exactly as designed; the 26 residue is 11 MEASURED gaps (batch-19d live, `6b9d4810`) + 15 docstring-equivalents
+
+**rs19b MEASURED this session** (`/tmp/redcheck-rs19b.log`, rc=0 06:42:58Z
+"source clean"): the 217 rs18-survivor keys vs the batch-19b battery
+alone — **186 KILLED / 31 SURVIVED** (chain: `/tmp/rs19_chain.sh`, DRY
+217/217 assignable rc=0 at dispatch). Batch-19b (raise-text + log
+message/extra EXACT pins) therefore carried 186 of the 217 — the census
+estimate "~40 raise + ~88 log-shape ≈ 128 killable by text pins"
+UNDER-counted: 186 keys die to exact-text pins because one pin site kills
+its whole mutant family (None/XX/lower/UPPER/case-rename per message).
+
+**rs19c MEASURED** (`/tmp/redcheck-rs19c.log`, rc=0 06:47:40Z "source
+clean"): the 31 rs19b survivors vs batch-19b **+ 19c** — **5 KILLED / 26
+SURVIVED**, and the 5 are EXACTLY the batch-19c design set: trim_stream
+`info.get("length", 0)` default mutants on the current_length line
+(mutmut_12/14, separating input `[{}, {"length": -5}]` → ret 5 vs mutant
+ret 0), the except-branch `current_length = 0` mutant (\_18), the
+`removed > 1` mutant (\_48, removed==1 logs), and the ISO
+`replace("Z",…)` → `replace("z",…)` mutant (Ana fse \_25 — MEASURED 3.14
+`fromisoformat` rejects lowercase z). No expectation miss: those five are
+the five 19c authored to kill.
+
+**The 26 residue, per-mutant dispositioned** (no blanket skip):
+
+- **11 real gaps, MEASURED kill designs shipped as batch-19d** (commit
+  `6b9d4810`, 5 tests, 5 passed 8.70s; 19b+19c+19d combined 32 passed):
+  add_detection XADD FIELDS-dict key renames \_65/\_66 and add_batch \_39/\_40
+  (19b pinned the DEBUG extra but never the `xadd` call args — wire-format
+  dict pinned EXACT via /tmp/b19d-harness.py → /tmp/b19d-probes.json),
+  consume_batches success message_id/dc \_21/\_23/\_27 (MEASURED ids ["7-1"]
+  dc [1]), analysis claim `entry[:3]` \_21 (3-tuple parses under [:2],
+  MEASURED n 1), detection claim parse-fail WARNING \_77/\_78/\_79 (MEASURED
+  distinct text "Failed to parse claimed message" — why 19b's consume
+  parse-fail pin missed it). One expectation was caught WRONG BY
+  MEASUREMENT before running: I expected the claim path to log
+  `claimed_count: 0`; shipped logs NOTHING at zero parsed (only info call
+  "Created consumer group", MEASURED) — test and docstring corrected to
+  the shipped shape, not bent.
+- **15 equivalents per 19c's docstring** (fse default mutants ×6 — the
+  falsy/raise paths rejoin the same branch; Ana fse \_24 XXZXX + 3.14 raw-Z
+  accept; add_detection \_41 identity; get_stream_info \_58/\_60 AND \_63 —
+  all three defaults sit behind the `if info.get("first-entry")` guard so
+  the read never sees them; trim except `new_length` \_45/\_46 — removed==0
+  pins that branch's log off; `delivery_count=1` REMOVALS \_26/\_30 —
+  default IS 1). Batch-19d's docstring CORRECTS 19c's REASONING on four
+  rows (XXXX-default → ValueError into the same except, not "falsy";
+  XX[]XX → json.loads raise into the same except; XXZXX never matches AND
+  3.14 accepts raw Z; 19c's "19b delivery_count pins kill the siblings"
+  was over-broad — rs19b proved 21/23/27 survive, they're gaps killed in
+  19d). Verdicts unchanged; reasoning held to measurement standard.
+  rs19d (26 keys vs 19b+19c+19d, DRY 26/26 rc=0, live 06:48:33Z) decides
+  the split; redis lineage closes at its landing.
