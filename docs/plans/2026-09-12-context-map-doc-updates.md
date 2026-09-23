@@ -10743,3 +10743,66 @@ across the full survivor chain; batteries 18/19b/19c/19d shipped
 lane md5-synced. No blanket skips anywhere; every equivalence above cites
 its measurement. (Fleet: ns16b auth1 still grinding — 533 keys — with the
 two survivor rechecks queued; batch-17 cache-gen auth2.)
+
+### Row — ns16b lands 258/275 (rc=0; 16b battery killed 28 that 16 missed, 25 its own pins miss); disclosures: my ns16_chain's recheck step had a generator-arg bug and NEVER ran, legacy ns16b_seq advanced into its ns16c full re-run (killed at that point), re-measure gate re-armed correctly behind ns16c
+
+**ns16b MEASURED this session** (`/tmp/redcheck-ns16b.log`, rc=0 07:07:58Z
+"source clean"; auth1 lane, 533-key nemotron_streaming feed vs the
+batch-16b battery): **258 KILLED / 275 SURVIVED**. Cross-read vs run 1
+(ns16, batch-16 battery, 230/303): 16b killed 28 keys 16 missed (its
+error-path full-shape pins — exact four-key error dumps) and 25 of its
+own class missed 16's kills (expected: different pin sets, neither a
+superset). Neither battery pins logger calls at all (grep: zero
+caplog/logger asserts in both files) while the source carries log sites
+with `extra={"batch_id", "error"}` dicts — the predicted dominant
+batch-16c gap class.
+
+**Disclosures (this session):**
+
+1. **ns16_chain recheck-step bug**: the chain invoked
+   `make_recheck.py <feed> /tmp/lane_ns16_recheck.py …` — passing the
+   _intended output_ as the base-harness arg; the file didn't exist,
+   generator died FileNotFoundError, the chain logged "skipped (no
+   survivors or crashed run)" (its rc!=0 branch mislabels a generator
+   crash as a clean NO-SURVIVORS) and exited "done" 05:52:28Z. Net effect:
+   the re-measure gate never ran from the chain. The SURVIVORS FEED the
+   chain generated before dying (303 keys, 0 missing) matches the log and
+   stands as evidence of the step's inputs.
+2. **Legacy ns16b_seq was alive and ADVANCED**: as rowed in 70d85d81 it
+   was left running with its slots expected to safe-abort; instead it
+   completed its ns16b stage (the 07:07:58Z rc=0 landing — its cp-then-run
+   shipped the ruff-final battery copy the chain's run had not) and moved
+   into its ns16c stage: a FULL 533-key re-run of ns16 against the shipped
+   battery copy (live now, started ~1 min after ns16b exit, stdout
+   `/tmp/ns16c-stdout.log`). That re-run is USEFUL, not poison: run 1's
+   battery copy was mid-edit (pre-ruff) and my contamination incident sits
+   on it, so ns16c is the clean-source, final-battery re-measure of every
+   ns16 key — the strongest repair possible. I killed the seq PARENT at
+   07:09Z (preventing a repeat ns16c it would have re-run after) leaving
+   the ns16c python orphaned-but-live; single-writer holds (it owns auth1
+   exclusively).
+3. **Gate re-armed correctly**: `/tmp/ns16_recheck_chain.sh` (PID armed
+   this session) gates on `[l]ane_ns16\.py` (regex-verified to exclude its
+   own `lane_ns16_recheck.py` targets and the script-file launcher
+   cmdline — self-match class, 4 instances logged), then runs the two
+   survivors rechecks with the CORRECT base harnesses (ns16-recheck: 303
+   keys from run-1 log, batch-16 battery; ns16b-recheck: 275 keys from the
+   ns16b log, batch-16b battery — both generated, both DRY rc=2 right now
+   because ns16c holds the source mutated: the guard working as designed).
+   Run-1 log snapshotted to `/tmp/redcheck-ns16-run1-contaminated.log`
+   before anything could overwrite it.
+
+**Triage census (read-only, this session)**: run-1 survivors = 284
+`x_analyze_batch_streaming` + 19 `x_call_llm_streaming`, 258 distinct
+shapes — error-payload kwargs families dominate (`recoverable=False`→
+None/True/removal ×16, `enriched_context`/`enrichment_result`→None,
+`error_code`→None/removal, log-extra {"batch_id","error"} renames
+×~20, `error_message` text wraps/case, idempotency `is not None`
+boundary). Pre-measured dispositions: Pydantic `recoverable: bool =
+Field(default=True)` makes `recoverable=True`→kwarg-REMOVAL default-
+identity EQUIVALENT (measured model_dump equality); `=None` violates bool
+→ ValidationError → KILLABLE; `error_code` removal = required-field miss
+→ ValidationError → KILLABLE. batch-16c will be scoped to the
+recheck-confirmed intersection, with the sanitizer-expansion shield probe
+([[dossier-schema-shield-sanitizer-expansion]]) mandatory before any
+cap/schema EQUIVALENT claim.
