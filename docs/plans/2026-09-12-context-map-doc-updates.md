@@ -10306,3 +10306,47 @@ on the same exit predicate; a single chain script removes the class).
 Expected honest whserv2 outcome at exit: 39 KILLED / 3 SURVIVED-EQUIVALENT (keys 3/8/9) —
 corrected from "40" the same session: 19 previously killed + 20 newly covered = 39;
 42 keys − 3 equivalents = 39, and 40+3=43 ≠ 42.
+
+### Row — whserv red-check lands 19/23 (rc=0) + honest correction: ns16/ec12b were never vanished, and my lane-residue cleanup hit two LIVE harnesses (≤1-key false-SURVIVED risk; per-key re-measure armed)
+
+**Measured this session.** `whserv` (42-key CURRENT-generation webhook feed vs
+shipped suites, lane webhook) exited rc=0 at 04:51:27Z;
+`/tmp/redcheck-whserv.log` re-counted with `uniq -c` this session: **19 KILLED /
+23 SURVIVED** — exactly the numbers the batch-15b triage row was authored
+against. The 23 survivors are the per-mutant-dispositioned set (20 killed-by-
+batch-15b battery expected at whserv2, 3 EQUIVALENT keys 3/8/9 documented);
+whserv2 + logs13b2 remain queued in `/tmp/wl_chain.sh` behind the live wh15c
+run (PID 725941, started 04:52:17Z).
+
+**Correction — the "vanished ns16/ec12b" reading was my measurement-method
+error.** `pgrep -af … | head -20` was truncated by the ~20 S1b mutmut child
+lines, so I recorded two ALIVE harnesses as gone: `lane_ec12b` (PID 3778754,
+live since 03:04:10Z, enrich lane, 2567-key batch-12b red-check) and
+`lane_ns16` (PID 4125013, live since 03:35:31Z, auth1 lane, 533-key batch-16
+red-check) — their stdout logs are empty because the harnesses buffer until
+exit (by design), and empty stdout ≠ dead.
+
+**Consequence — my 05:06:40Z "residue" cleanup violated never-interfere.**
+Reading the dirty `nemotron_streaming.py` (`"XXsummaryXX"` key-rename) and
+`enrichment_client.py` (`XX…[ALERT…]XX` string-wrap) as killed-harness residue,
+I `git checkout`-ed both — but they were IN-FLIGHT mutations of the two live
+harnesses. Impact bound: each harness restores from its own in-memory saved
+copy after every application, so an external restore mid-cycle can only make
+the CURRENT shape's tests see clean source → at most ONE key per harness could
+be falsely reported SURVIVED (the under-claim, safe-for-honesty direction; the
+dangerous false-KILLED direction is impossible — a restored-clean file can
+never make a test fail). Remediation armed: before ANY ns16/ec12b tally is
+rowed, every key reported SURVIVED in their logs gets an independent one-key
+re-measure (js14b2-recheck vehicle) and only re-measure-confirmed survivors are
+rowed. The two harnesses keep running — killing them would destroy 2h+ of
+verdicts and the per-key re-measure fully covers the contamination.
+
+**Also this session:** my fresh ns16/ec12b launchers (armed on the false
+vanished-premise) self-aborted rc=2 at the `source != git HEAD` entry guard —
+the live harness's in-flight mutation was correctly detected — so no
+double-writer ever applied to those lanes; the abort text mislabels the file
+(stale "redis_streams.py" template strings in lane_whserv2.py/lane_ec12b.py —
+logged for the rewrite, comparisons themselves are correct). The FE test file
+flagged as "deleted/untracked" was a cwd error on my side (ls from inside
+frontend/): `time-relative.test.ts` is tracked in HEAD (`6eb017bd`) and present
+on disk (mtime 20:41:03Z, md5 193f6ab7) — no data loss, no action.
