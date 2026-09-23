@@ -92,6 +92,21 @@ updates:
       # landable is suppressed. devDependency only: no security exposure.
       - dependency-name: 'msw'
         versions: ['>=2.13']
+      # Floors for the majors deferred 2026-09-23 with measured reasons — each
+      # comment on the closed PR (#6653 knip · #6654 pako · #6657 vite ·
+      # #6658 tailwindcss · #6659 react-joyride) carries the measurement. The
+      # migration PRs for these are planned; drop each floor in the same PR
+      # that lands its migration so the next weekly pass can offer it.
+      - dependency-name: 'tailwindcss'
+        versions: ['>=4.0.0']
+      - dependency-name: 'vite'
+        versions: ['>=8.0.0']
+      - dependency-name: 'react-joyride'
+        versions: ['>=3.0.0']
+      - dependency-name: 'pako'
+        versions: ['>=3.0.0']
+      - dependency-name: 'knip'
+        versions: ['>=6.0.0']
     # Group minor and patch updates to reduce PR noise
     groups:
       npm-minor-patch:
