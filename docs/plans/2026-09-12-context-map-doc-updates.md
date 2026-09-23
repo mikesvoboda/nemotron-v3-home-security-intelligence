@@ -10179,3 +10179,32 @@ webhook_service.py.meta` holds 42 mutant keys across exactly 4 functions
   whserv first tells which of the 42 are already killed by the shipped
   suites; only measured survivors become tests, aligned to the SHIPPED
   contract.
+
+### Row — S1 probe CORRECTED: first dispatch targeted a non-existent module; re-armed on a real one
+
+- **Error disclosed**: the S1 probe launched 03:43:32Z ran
+  `mutmut run "backend.services.dispatcher*"` — `backend/services/
+dispatcher.py` does NOT exist in git, the working tree, or the 267-module
+  WP4.3 target list (verified this session: `git ls-files`,
+  `find backend -name '*dispatch*'`, `mutation-score.py --targets`). The run
+  spent 45+ min in mutmut's whole-tree "Listing all tests" incremental
+  pre-step and would have executed ZERO mutants (fnmatch matches nothing)
+  with its assert failing at exit. Killed at ~04:52Z; zero mutants executed;
+  source untouched.
+- **S1's banking proof predates this session and stays valid**: Run 7
+  (prompt_sanitizer, `./scripts/mutation-run.sh prompt_sanitizer`, rc=0,
+  ledger row at commit `a072dc1e`) banked **18/18 verdicts**
+  (15×exit-code-1 killed + 3×0 survived → module score 83.33%). THIS session
+  re-read that meta: still 18/18 banked (mtime 03:53Z — today's whole-tree
+  regen PRESERVED the verdicts via mutmut's per-function hash gate, which is
+  itself banking-contract evidence), and 267 metas / exactly 1 banked meta
+  across `mutants/backend/**` matches the run-7 row's "267 metas … 18
+  non-null" cache-wide scan verbatim.
+- **S1b re-armed** on a REAL widened-set module: `mutmut run "backend.
+services.credential_service*"` (backend/services/credential_service.py,
+  cache meta holds 14 keys, `test_credential_service.py` shipped; smallest
+  real candidates household_matcher/service_registry carry 0 keys —
+  mutation-run.sh-style zero-mutant modules). Detached `/tmp/s1_run2.sh`,
+  auto-asserts non-empty banked verdicts at exit → `/tmp/s1-run2.log`.
+  A second module banking at THIS session's commit is belt-and-braces
+  evidence; the goal clause stays PROVEN by run 7 regardless.
