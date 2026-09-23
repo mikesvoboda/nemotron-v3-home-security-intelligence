@@ -10905,3 +10905,31 @@ pin: `started_at=start_time`→None/removal (LLMInteraction fields),
 `_get_recent_scene_changes(camera_id, session)` positional→None/removal,
 `.model_dump()` `recoverable=True` removal. DECIDE: these are batch-21's
 kill-list — same measured-drive method (probe shipped shapes, pin exact).
+
+### Row — cdfull FULL-module close-out MEASURED 844 KILLED / 39 SURVIVED of 883 — all four prior-run anomalies are KILLED (contamination artifacts), all 27 cd52 survivors reproduce, 12 new survivors = one function's observability family
+
+**Measured this session**: cdfull (redis lane, FULL 883-key
+container_discovery feed vs the committed suite) `/tmp/redcheck-cdfull.log`
+rc=0 09:22:25Z "source clean": **844 KILLED / 39 SURVIVED**.
+**Anomaly adjudication settled**: the 09-22 run's four anomalous survivors
+`build_service_configs__359/467` (grace=30 removals) + `__488`
+(restart_backoff_base=None) + `compose__9` (success-info message->'') are
+ALL **KILLED** in this clean run — they were mid-run contamination/restore
+false-SURVIVEDs (the golden-table test asserts grace and backoff_base for
+every service, so killability was expected; now measured).
+**Reproduction**: survivor-set join vs cd52's 27 (`comm`): all 27 present
+byte-identically in cdfull's 39 (19 equivalents + 8 since-killed by
+batch-20 — cd20 measured 8/8). **The 12 extras** are ALL
+`x_build_configs_from_compose`: keys 7, 10–15 = the parse-success INFO
+message/extra family batch-20 now pins EXACT (expect KILLED when re-run);
+keys 16/21 = fallback/parse-error warning message->None, keys 22/23/25 =
+the generic-Exception fallback-return arg swallows
+(`settings`->None / `include_monitoring`->None/removal) = 5 NEW true gaps
+-> batch-22 kill-list (probe drives: parse_file raises -> warning text
+exact + fallback-return ports/flag legs discriminated).
+**Verification run dispatched**: cd39 (redis lane, free after cdfull,
+`/tmp/redcheck-cd39.log`) — 39 survivor keys vs committed suite + batch-20
+(63-passed baseline measured pre-dispatch); PREDICTION from the split
+above: 24 KILLED / 15 SURVIVED (8 batch-20 + 7 info-family kills; 19
+equivalents + 5 batch-22 gaps survive). Actuals will be rowed as measured,
+prediction or not.
