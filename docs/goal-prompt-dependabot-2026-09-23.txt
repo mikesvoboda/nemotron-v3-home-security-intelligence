@@ -1,0 +1,60 @@
+# GOAL: Dependabot consolidation + runner relief
+
+## Facts
+- Remote `gh` = mikesvoboda/nemotron-v3-home-security-intelligence ($R); `origin` is dead —
+  never fetch it. main == gh/main == 151ccc05.
+- Before `git push`: start dev postgres:16-alpine on 5432 or the pre-push tier kills it.
+  Commit trailer: Co-Authored-By: Claude Code <noreply@anthropic.com>
+- 15 dependabot PRs #6651-#6665 are starving runners. Heads are 1 commit on 151ccc05;
+  gh/dependabot/* are fetched — closing loses nothing. SHAs: 6652 f9774df3 · 6655 575c467a ·
+  6656 3269e1a6 · 6660 f62cdf72 · 6662 a0c10550 · 6663 65c520ec · 6664 e60ff0a2.
+- 6662→6660→6663→6664 and 6655→6656 chain clean; beyond that npm locks CONFLICT — add npm
+  bumps via ONE npm-install regen, never stacked lock diffs.
+- Workflow-line edits shift suppression-registry pins: renumber entries same-commit if
+  Collection Sanity/Dead Code reddens on drift. That gate also flakes (race in
+  test_check_coverage_diff.py) — re-run once before trusting red.
+- `gh pr edit` broken; use `gh api -X PATCH .../issues/<n>`.
+
+## Phase 1 — free runners (before any close)
+Cancel queued+in_progress runs on the 15 heads (closing doesn't deschedule):
+gh run list --repo $R --branch <head> --status queued,in_progress --json databaseId \
+--jq '.[].databaseId' | xargs -r -I{} gh run cancel {} --repo $R
+
+## Phase 2 — 4 branches from gh/main
+1. deps/config-ceilings: dependabot.yml npm ignore += msw ['>=2.13'] — measured refusal,
+   docs/plans/2026-09-21-dependabot-triage.md; missing floor re-filed it inside #6651.
+2. deps/combined-actions-2: cherry-pick a0c10550 f62cdf72 65c520ec e60ff0a2. Same-commit
+   fixups ("truthful pins", precedent 57a7da5c): checkout@3d3c42e5… comment→'# v7.0.1';
+   download-artifact@3e5f45b2…→'# v8.0.1'; sweep upload-artifact@b7c566a7 stale '# v4'→'# v6'
+   (10 sites). Expect 39 files ±132.
+3. deps/combined-npm-2: cherry-pick 575c467a 3269e1a6; ONE regen adds lru-cache ^11.5.3 +
+   typedoc-plugin-markdown 4.13.1 (#6651 minus msw). jsdom 30 needs CI node ≥24.15.
+4. deps/cuda-13.4.1: cherry-pick f9774df3 + same-commit 13.3.1→13.4.1 doc pins:
+   ai/nemotron/AGENTS.md:12,156,162,396; docs/reference/nvidia-technology-inventory.md:
+   63,64,71,83,191,192; docs/operator/ai-ghcr-deployment.md:145. OPEN, DO NOT MERGE —
+   owner R-3 pending; merge = first 13.4.1 ai-llm build.
+
+## Phase 3 — land, then close (cite merge SHA in comments)
+- Admin-squash branches 1-3 on green CI Gate. After actions: watch one coverage-merge +
+  deploy run — download-artifact v8 makes digest mismatch hard-red.
+- Supersede-close 6662 6660 6663 6664 · 6655 6656 · 6651 (carried refused msw 2.15; floor
+  in, survivors re-landed).
+- Defer-close with reason: 6653 (rules.classMembers invalid in knip 6) · 6654 (pako 3 has no
+  default export — `import pako from 'pako'` undefined at runtime, 11 sites; green CI hides
+  broken WS decompression; drop @types/pako stub) · 6657 (esbuild peer vanishes →
+  vite.config.ts:268 minify:'esbuild' ERR_MODULE_NOT_FOUND; lightningcss rejects
+  print.css:492,493,512,518) · 6658 (needs @tailwindcss/postcss + 295-line config + ~135
+  @apply rewrite) · 6659 (no default export; callback→onEvent; disableBeacon gone, 7 sites).
+- 6661: half a pair (restore :174 stays v4.2.3); `overwrite: true` :266 isn't an input
+  either version declares. Close; request paired re-file.
+- 6665: uv group re-rolls Mon 06:00 CT; PyPI already 8.4.160.
+- Close 4 stale deps/combined-* branches/PRs as measured no-ops (merge-tree == main's tree
+  ff351ce6; combined-npm: 20 ledger lines).
+
+## Phase 4 — record
+Closeout row in that triage ledger: landed/closed/deferred + OPEN: R-3 cuda 13.4.1 · floors
+tailwindcss>=4 vite>=8 react-joyride>=3 pako>=3 knip>=6 (Monday re-files) · #6661 pair fix ·
+salvage combined-npm ledger lines · Collection-Sanity flake PR.
+
+## Stop/escalate — no improvising
+Unexplained red gate · push fails despite postgres · force-push, push to main, prod deploys.
