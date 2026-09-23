@@ -3,7 +3,8 @@
 **Status:** approved design (§1-§8 approved section by section by the owner, 2026-09-23), ready for implementation planning
 **Date:** 2026-09-23
 **Branch:** `feat/vss-gaming-gpu-profile`
-**Revision:** rev 3 (2026-09-23): three test environments (D2, D10, D12, §8), an engine-agnostic
+**Revision:** rev 4 (2026-09-23): the GB300's Cosmos container is stopped, leaving ~47.9 GiB for our
+models (D12, Phase G0, checklist). Rev 3 (2026-09-23): three test environments (D2, D10, D12, §8), an engine-agnostic
 OpenAI-compatible VLM provider (§3), and a Brev hardware matrix (step 2.3). Rev 2 (2026-09-23). Amended after a Codex adversarial review, owner-approved:
 null-safe failure delivery (D11, §4, §6, step 0.25) and self-contained eval items replacing the
 event-FK replay (D7, §4, §5, §7).
@@ -49,7 +50,7 @@ consumer tier.
 | D9  | **Out of scope:** everything in [`12`](../../vss-integration/12-postponed-roadmap.md).                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | **Real-camera data stays out of git.** It may live on the owner's machines (A5500, GB300) and on Brev VMs used for evaluation. Transfer it over SSH, and wipe the eval store from a Brev VM at teardown. Only synthetic items and aggregate metrics enter git.                                                                                                                                                                                                                |
 | D11 | **Failure delivery is null-safe end to end.** A `verification_failed` event has a NULL score and level, and it still reaches the dashboard and the detector-only notification. It does **not** require acknowledgment; acknowledgment stays reserved for scored risk ≥ 80.                                                                                                                                                                                                    |
-| D12 | **Development VLM endpoints on the GB300.** The co-resident `cosmos-reason2-8b` (vLLM, `127.0.0.1:8001`) serves development at no extra VRAM. Use it lightly, because that stack shares the GPU. Our own llama.cpp `ai-vlm` with Qwen3-VL-4B runs in the free VRAM (~9 GiB on 2026-09-23) and exercises the production engine path. Cosmos-Reason2-8B joins the bake-off.                                                                                                     |
+| D12 | **Development runs on the GB300 with our own engines.** The owner stopped the co-resident Cosmos vLLM container on 2026-09-23. Beside the flagship vLLM engine (~202 GiB), which **must stay resident**, that leaves **~47.9 GiB** for our models: every VLM candidate, the Triton detector and specialists, and RT-VLM for functional tests. Our llama.cpp `ai-vlm` is the development VLM. Cosmos-Reason2-8B stays a bake-off candidate, served on demand by our own vLLM.  |
 
 ## Success criteria
 
@@ -120,12 +121,12 @@ parser expects are maintained separately.
 
 **Slots:**
 
-- Add `ProviderId.OPENAI_VLM` and `ProviderId.RTVI_VLM`. `OPENAI_VLM` is engine-agnostic. It speaks
-  standard OpenAI chat completions with `response_format: json_schema`, which both llama.cpp
-  (production) and vLLM (the GB300's co-resident Cosmos endpoint) accept, and its provenance records
-  the actual engine. RT-VLM gets its own slot because its adapter differs (Engine 2).
-  (`backend/ai_contract/provider.py:22-35`). Each registers with `required={"vlm_assess"}`, the
-  subset pattern `llamacpp-serve` uses.
+- Add `ProviderId.OPENAI_VLM` and `ProviderId.RTVI_VLM` (`backend/ai_contract/provider.py:22-35`).
+  Each registers with `required={"vlm_assess"}`, the subset pattern `llamacpp-serve` uses.
+- **`OPENAI_VLM` is engine-agnostic.** It speaks standard OpenAI chat completions with
+  `response_format: json_schema`, which llama.cpp (production) and vLLM (for example an on-demand
+  Cosmos-Reason2-8B) both accept, and its provenance records the actual engine. RT-VLM gets its
+  own slot because its adapter differs (Engine 2).
 - The FakeProvider returns a deterministic verdict keyed on an image hash.
 - The parity checker gets a `DECLARED` entry, as the `llm_*` ops have.
 
@@ -135,8 +136,8 @@ parser expects are maintained separately.
   response format.
 - **Enforcement probe:** it proves enforcement by requesting a schema with a required constant field
   and checking the output. **A 2xx alone proves nothing.** It runs once per endpoint.
-- **The same client reaches other OpenAI-compatible servers.** On the GB300 it also targets the
-  co-resident vLLM `cosmos-reason2-8b` (D12).
+- **The same client reaches any OpenAI-compatible vLLM server,** such as an on-demand
+  Cosmos-Reason2-8B (D12).
 - **llama.cpp pin:** `b7972` (`ai/nemotron/Dockerfile`) runs Qwen3-VL. Nemotron-12B-VL needs a newer
   pin with its multimodal support, merged 2026-02-14 or later, so the bake-off includes that bump.
 
@@ -255,8 +256,7 @@ points, which is too coarse for S2.
 - `uncertain` items count at their scored level.
 
 **Bake-off.** Run the same replay per candidate: Qwen3-VL-4B, Qwen3-VL-8B, Nemotron-12B-VL (after
-the llama.cpp bump), and Cosmos-Reason2-8B. Cosmos-Reason2-8B is the GB300's co-resident vLLM build
-(BF16), a quality reference only; a consumer tier would need a quantized build. Cosmos3-Edge-4B
+the llama.cpp bump), and Cosmos-Reason2-8B. Cosmos-Reason2-8B runs on demand in our own vLLM (BF16), as a quality reference only; a consumer tier would need a quantized build. Cosmos3-Edge-4B
 follows in Phase 4 through RT-VLM.
 
 Salience depends on the model build (weights, quantization, engine), not on the GPU. So run each
@@ -354,12 +354,14 @@ floors, the conformance tier's no-xfail/skip rule, the contract drift gate (`gen
 **Phase G0: GB300 development environment** (can start immediately; see the checklist below)
 
 - G0.1 **Backend dev environment:** the uv venv (arm64; the unit tier already collects on 64 KiB
-  pages), test Postgres and Redis on rootless podman, and a free API port. The co-resident vLLM holds
-  `127.0.0.1:8000`.
-- G0.2 **Point the `OPENAI_VLM` client at the co-resident `cosmos-reason2-8b`** (`127.0.0.1:8001`),
-  and run the enforcement probe against it.
-- G0.3 **Build llama.cpp for aarch64 and sm_103** (`CUDA_ARCHITECTURES=103`, per
-  `env-templates/gb300.env.template`). Serve Qwen3-VL-4B within the free VRAM.
+  pages), test Postgres and Redis on rootless podman, and a free API port. The flagship vLLM holds `127.0.0.1:8000`.
+- G0.2 **Build llama.cpp for aarch64 and sm_103** (`CUDA_ARCHITECTURES=103`, per
+  `env-templates/gb300.env.template`). Serve the development VLM from `ai-vlm`: Qwen3-VL-4B or 8B now,
+  and Nemotron-12B-VL after the pin bump. Run the enforcement probe against it.
+- G0.3 **Optional: the vlm-mode GPU stack locally.** Run the Triton gateway (arm64 `sbsa` image) with
+  YOLO26 and the specialists in explicit load mode, beside `ai-vlm`. Summing our processes' memory in
+  `nvidia-smi` gives an **S1 estimate** before any 24 GB hardware is involved. The S1 gate itself
+  stays on the A5500 or a Brev A10G/L4.
 - G0.4 **Synthetic eval items** from `scripts/synthetic`, so replay works before any real item is
   frozen.
 
@@ -443,10 +445,15 @@ tier is green.
 ### GB300 development checklist (Phase G0)
 
 - [ ] **Two container daemons.** Our stack runs on rootless podman. The co-resident `dgx-inference`
-      stack runs on rootful docker and holds ports (vLLM on `127.0.0.1:8000` and `:8001`, LiteLLM on
-      `:4000`). Debug ours with `podman`.
-- [ ] **GPU headroom.** The co-resident stack held ~246 of 256 GiB on 2026-09-23. Check free memory
-      with `nvidia-smi` before loading any model.
+      stack runs on rootful docker and holds ports (the flagship vLLM on `127.0.0.1:8000`, LiteLLM on `:4000`). Debug ours with `podman`.
+- [ ] **GPU headroom and the flagship.** Since the Cosmos container was stopped (2026-09-23), the
+      flagship vLLM holds ~202 GiB and **~47.9 GiB is free** for our models. The flagship **must stay
+      resident**: - Keep our total a few GiB under the free memory. vLLM needs its full reservation free when it
+      restarts [A], so leave that margin, or stop our GPU services before restarting the flagship. - Check `nvidia-smi` before loading any model.
+- [ ] **Cosmos may come back.** The stopped container has `restart=no`, but `docker compose up` on the
+      `dgx-inference` stack (`~/gitlab/dgx-station-inference-stack/stack/`) restarts it and takes
+      ~39 GiB back. Making the stop permanent (a compose profile, plus removing its LiteLLM route) is
+      a change in that repository and is the owner's call.
 - [ ] **Architecture.** aarch64 with 64 KiB pages. There is no host CUDA toolkit, so build CUDA code
       in containers. llama.cpp uses `CUDA_ARCHITECTURES=103`.
 - [ ] **Env template.** Start from `env-templates/gb300.env.template`.
@@ -524,7 +531,7 @@ VSS moves fast, so re-verify any line before relying on it.
 | ------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Qwen3-VL-4B / 8B-Instruct | Apache-2.0                   | Tool-calling template; runs on llama.cpp `b7972`                                                                                                                      |
 | Nemotron-Nano-12B-v2-VL   | NVIDIA Open Model License    | Community GGUF Q4_K_M ≈ 7.5 GB + mmproj 1.69 GB [E]; tool calling plus a thinking toggle; needs the llama.cpp bump. The NVFP4-QAD checkpoint serves the RT-VLM phase. |
-| Cosmos-Reason2-8B         | Check license and gating [?] | Served now on the GB300 by the co-resident vLLM (BF16, `127.0.0.1:8001`). A quality reference; a consumer build would need quantization.                              |
+| Cosmos-Reason2-8B         | Check license and gating [?] | Served on demand by our own vLLM on the GB300 (BF16). A quality reference; a consumer build would need quantization.                                                  |
 | Cosmos3-Edge-4B           | —                            | RT-VLM phase only                                                                                                                                                     |
 
 ## Risks and open questions
@@ -536,6 +543,7 @@ VSS moves fast, so re-verify any line before relying on it.
 | Four images per batch on sm_86: does S4 hold, and how many image tokens do tiling VLMs spend?                                               | The bake-off                                                                                                                    |
 | RT-VLM on sm_86: VSS treats FP8 as unsupported on Ampere [A]; the NVFP4 weight-only path is unknown; the BF16 12B blob (26 GB) does not fit | Phase 4 records the outcome, whichever it is                                                                                    |
 | Labels arrive after retention deleted the event                                                                                             | Label within the 30-day window (step 0.5); labeled post-switch events and synthetic items add items with an offline 30B control |
+| `docker compose up` on the `dgx-inference` stack restarts Cosmos (~39 GiB) while our models are loaded                                      | Check `nvidia-smi` before loading; make the stop permanent in the stack repo (owner's call)                                     |
 | The GB300's shared GPU (100% busy) skews timing and has no 24 GB cap                                                                        | Measure S1 and S4 only on 24 GB-class hardware (the A5500, Brev A10G/L4)                                                        |
 | A Brev VM's GPU differs from its label                                                                                                      | Check `nvidia-smi --query-gpu=compute_cap` before each run                                                                      |
 | Real-camera items left on a Brev VM                                                                                                         | Wipe the eval store at teardown (D10)                                                                                           |
