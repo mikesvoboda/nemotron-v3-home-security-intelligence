@@ -10156,3 +10156,26 @@ killable set.
   TARGETS = the three format functions, feed = webhook_arch15.tsv (the 77
   wh15 shapes) against the post-autospec-conversion battery md5
   d4fd2b85 (verified lane == workspace).
+
+### Row — current-generation webhook cache reality + whserv re-check armed
+
+- The mutmut 3.x cache here is DIFF-SCOPED: `mutants/backend/services/
+webhook_service.py.meta` holds 42 mutant keys across exactly 4 functions
+  (`get_webhook_service` 2, `trigger_webhook_background` 9,
+  `WebhookService.__init__` 1, `trigger_webhooks_for_event` 30) — all with
+  `None` verdicts so far (never executed). The WP4.4 dossier's 571 survivors
+  are the WP4.4-era generation; the badge denominator tracks THIS cache, so
+  the highest-leverage webhook battery targets these 42, not the archive.
+- **whserv re-check armed**: `/tmp/lane_whserv.py` (webhook lane, feed = the
+  42 current-gen shapes `/tmp/extracts/webhook_service.tsv`, battery = the
+  UNION `test_webhook_service.py` + `test_webhook_service_batch15.py` — the
+  shipped suites already cover parts of these functions; per-mutant triage
+  only after measured survivors exist, no pre-authored tests). DRY:
+  `feed-targeted: 42 assignable: 42 deferred: 0 unassignable: 0`; lane
+  webhook_service.py md5 e7f631c7 == workspace. Queued via
+  `/tmp/whserv_seq.sh` behind BOTH logs13b and wh15c (all three mutate the
+  same webhook-lane tree; import closure webhook_service→logs.py).
+- Batch-15b (new battery) is deliberately NOT authored yet: TDD order —
+  whserv first tells which of the 42 are already killed by the shipped
+  suites; only measured survivors become tests, aligned to the SHIPPED
+  contract.
