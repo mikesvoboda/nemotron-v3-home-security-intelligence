@@ -10806,3 +10806,34 @@ identity EQUIVALENT (measured model_dump equality); `=None` violates bool
 recheck-confirmed intersection, with the sanitizer-expansion shield probe
 ([[dossier-schema-shield-sanitizer-expansion]]) mandatory before any
 cap/schema EQUIVALENT claim.
+
+### Row — ns16c clean re-run MEASURED 230 KILLED / 303 SURVIVED — survivor set BYTE-IDENTICAL to run 1 (0 flips): the run-1 contamination flipped no verdicts; the 303-key set is confirmed batch-16c feed; ec12b recheck independently re-landed (pose**5 KILLED / clothing**4 SURVIVED = third confirmation of the closed 38f64d10 verdicts)
+
+**Measured this session**: `ns16c` (auth1, FULL 533-key nemotron_streaming
+re-run vs the shipped batch-16 battery, clean source, final ruff'd battery
+copy) landed 08:18:05Z — `/tmp/redcheck-ns16.log` (rc=0, "source clean" in
+`/tmp/ns16c-stdout.log` tail). Tally `awk -F'\t' '{t[$1]++} END{...}'
+/tmp/redcheck-ns16.log`: **230 KILLED / 303 SURVIVED** (533 keys).
+Key-for-key survivor-set diff vs the snapshotted contaminated run-1 log
+(`/tmp/redcheck-ns16-run1-contaminated.log`, same file format, survivors
+sorted, `comm -3`): **0 run1-only / 0 run3-only** — the survivor sets are
+IDENTICAL. DECIDE: run-1's verdicts were NOT poisoned by the mid-run
+restore incident (the ≤1-key exposure windows flipped nothing); the 303
+survivors stand as the batch-16c kill-list, and the chain's generated
+303-key feed remains valid as its input. The now-live `ns16-recheck`
+(303 keys, started 08:19:14Z by `/tmp/ns16_recheck_chain.sh` after ns16c
+released the source) is an idempotence confirmation, not a rescue;
+`ns16b-recheck` (275 keys) follows it.
+
+**Second confirmation (independent re-dispatch)**: `/tmp/run_ec12b_recheck.sh`
+dispatched live this session against the enrich lane (72-passed baseline,
+source==HEAD guard passed) — `/tmp/redcheck-ec12b-recheck.log` rc=0
+08:05:37Z "source clean": pose**5 **KILLED** (the lane-run's SURVIVED was
+the known mid-run-restore false-verdict; repaired as designed) and
+clothing**4 **SURVIVED**. My construction proof agrees: the mutant's
+`if (self.categories) or True` else-branch is DEAD — L432's
+`if not self.categories: return …` guard (enrichment_client.py:432) makes
+L434's condition always-true; shipped==mutant==real-string on the full
+input space (5-case probe incl. `[]`, `[{}]`, multi-category). clothing\_\_4
+per-mutant **EQUIVALENT — dead else-branch**, closes enrichment_client
+current-gen 543/544 killed + 1 justified equivalent.
