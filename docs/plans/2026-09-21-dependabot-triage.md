@@ -695,4 +695,30 @@ jest-dom's `toHaveStyle` falls through to computed style, so exactly two
 assertions broke: `Skeleton.test.tsx` '2rem'→'32px', '1em'→'16px'. Repo-wide
 grep for other em/rem `toHaveStyle` assertions: zero. Aligned to browser
 truth (browsers have always serialized px; jsdom 28 was the outlier) in
-`6abbf9c5` per the align-tests-to-shipped-contract rule.
+`6abbf9c5` per the align-tests-to-shipped-contract rule. A second site
+surfaced on re-run — `VirtualizedList.test.tsx` `'50vh'`→`'384px'` (jsdom
+default viewport 768px; the initial grep had only covered em/rem, not vh) —
+fixed same family in `a6a3efbb`.
+
+### Test Performance Audit red on #6667 — a landmine, not batch fallout (2026-09-23)
+
+#6667's re-roll went hard-red on `Test Performance Audit` → `CI Gate`
+(not the download-artifact v8 digest watch item — all 15 artifact digests
+logged "downloaded … successfully"). The breach was
+`test_enrichment_pipeline_household_matching::test_vehicle_household_matching_via_license_plate`:
+**4.18s ×2** on the #6667 head (identical on a re-run — not a cold-start
+blip) and **4.297s in main's own junit corpus** (run 35870414441), against
+the 4.0s unit threshold; solo the test takes **1.20s** — the breach is
+`-n8` contention inflation, and the same corpus holds a 153.6s outlier on a
+same-named test. WP1.3's baseline rule was _right_ to redden it: main's
+baseline breached too, so the persistence rule fires. Any PR can randomly
+inherit this test's spike — the doctrine-prescribed mitigation is slow-list
+admission, not re-run roulette: PR **#6674** adds the 8th `SLOW_TEST_PATTERNS`
+entry + `tpa_slow_list` registry entry (id-keyed, no line pins) + baseline
+count 7→8. The admission also surfaced a **fourth coordination point** the
+local gates (ratchet-check, suppression-census --expect) do not cover: the
+hardcoded spec table in `scripts/test_suppression_census.py::
+test_real_tree_matches_spec_baselines` — Collection Sanity reddened #6674
+with "census=8 spec=7" until `8621f8c6` synced it. Full same-commit set for
+an admission: script pattern, registry entry, `suppression-baseline.json`,
+AND the census-test spec table.
