@@ -10392,3 +10392,45 @@ addendum; production not bent to any mutant. No kill tallies claimed for
 assignable) and armed in `/tmp/wl_chain2.sh` behind the live logs13b2 run.
 Expected honest outcomes at exit: whserv3 41 KILLED / 1 EQUIVALENT-or-gap,
 wh15d 77/0 — expectations, not claims; actuals row when the logs land.
+
+### Row — logs13b2 lands 51/10 (v3 key-83 fix confirmed, residual set = dossier EXACTLY), ec12b lands 542/2 (both survivors re-measured under clean source — true gaps or contamination artifact, verdict at recheck exit), rs18 lands 156/217 (batch-18 vs 373-key survivor feed; triage pending)
+
+All three MEASURED from authoritative logs this session, all rc=0 "source
+clean":
+
+- **logs13b2** (`/tmp/redcheck-logs13b.log`, v3 battery incl.
+  `test_budget_accumulates_not_resets`, 05:39:18Z): **51 KILLED / 10 SURVIVED**
+  — exactly the documented expectation. Survivor keys
+  {13,14,31,32,75,76,90,92,103,107} = the dossier residual set minus key 83;
+  **83 is now KILLED** by the non-uniform-size pin (the fix row's design:
+  4×4000-byte items → shipped stores k000+k001, reset/accumulate-store-all
+  mutants store 4) — measured, not expected. The 10 standing survivors are
+  the 8 SCHEMA-SHIELDED + 2 dossier-EQUIVALENT (both dispositions documented
+  per-mutant in the 13b battery docstring and the frozen WP4.4 dossier).
+- **ec12b** (2567-key enrichment feed vs batch-12+12b battery,
+  `/tmp/redcheck-ec12b-lane.log`): **542 KILLED / 2 SURVIVED**
+  (`UnifiedClothingResultǁto_context_string__4` = `if self.categories` →
+  `or True` — on empty categories shipped yields `{}`, mutant raises
+  IndexError → KILLABLE GAP; `UnifiedPoseResultǁto_context_string__5` =
+  ALERT-string CAPS-flip — killable if the battery pins the string exact).
+  Both are ALSO the two keys my erroneous mid-run restore could have
+  false-SURVIVED, so both get the one-key re-measure (armed
+  `/tmp/lane_ec12b_recheck.py`, cwd-narrowed guard patch after two
+  self-match rc=3s — the launcher's own `bash -c` cmdline contained the
+  guard's literal; fixed by launching via script-file). Recheck outcome
+  rows separately; if re-measure says SURVIVED, batch-12c authored TDD.
+- **rs18** (373-key `redis_streams_survivors.tsv` feed vs 59-test batch-18
+  battery, `/tmp/redcheck-rs18.log`): **156 KILLED / 217 SURVIVED** —
+  clusters: claim_stale_messages 44, add_detection 24, \_ensure_consumer_group
+  34, trim_stream 23, consume_detections 21, move_to_dlq 16, acknowledge 14,
+  add_batch 14, get_stream_info 7, from_stream_entry 8, + misc. Per-mutant
+  triage (gap → TDD vs equivalent → justification) is the open batch-18
+  work; NO disposition is claimed before it runs. Feed note: this is the
+  WP4.4-era survivor feed; a current-gen cache re-measure of redis_streams
+  may renumber (S1-adjacent, logged not claimed).
+
+Also measured: an **auth2-lane `mutmut run performance_collector`** (PID
+1061606, started 05:24:05Z via `watch_e.sh → timeout 21600 scripts/
+mutation-run.sh performance_collector`) is the batch-17 cache-generation job
+the batch-17 row's "NOT yet done" disclosure armed — feed extraction becomes
+possible when it banks; untouched, not mine to disturb.
