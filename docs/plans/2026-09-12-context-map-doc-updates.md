@@ -10697,3 +10697,49 @@ the five 19c authored to kill.
   19d). Verdicts unchanged; reasoning held to measurement standard.
   rs19d (26 keys vs 19b+19c+19d, DRY 26/26 rc=0, live 06:48:33Z) decides
   the split; redis lineage closes at its landing.
+
+### Row — rs19d lands 11/15 (rc=0): the 15 survivors are EXACTLY the per-mutant EQUIVALENT set, zero surprise keys — redis_streams lineage CLOSED at 217/217 dispositioned (202 killed across 19b/19c/19d + 15 justified equivalents)
+
+**rs19d MEASURED this session** (`/tmp/redcheck-rs19d.log`, rc=0 06:52:17Z
+"source clean"; 26 rs19c-survivor keys vs batch-19b + 19c + 19d; DRY 26/26
+assignable rc=0): **11 KILLED / 15 SURVIVED** — and batch-19d's designed
+11 gaps all died (add_detection FIELDS renames \_65/\_66, add_batch \_39/\_40,
+consume_batches id/dc \_21/\_23/\_27, analysis claim [:3] \_21, detection
+claim parse-fail warning \_77/\_78/\_79).
+
+**The 15 survivors == the equivalence set key-for-key** (predicted before
+landing and confirmed, so this is a match report, not a post-hoc fit):
+
+- `from_stream_entry` default mutants ×6 (Det \_3/\_5/\_8, Ana \_3/\_5/\_8):
+  timestamp default "" → None/no-default/"XXXX" — all falsy or
+  ValueError-raising into the SAME `except`/`else` branch (MEASURED
+  \_parse_timestamp("XXXX") raises ValueError; absent and "" timestamps
+  both bind now-like floats); detection_ids default "[]" → None/no-
+  default/"XX[]XX" — json.loads raises on None AND on "XX[]XX" into the
+  same except, both MEASURED `detection_ids == []`. No input separates any
+  of the six from shipped.
+- Ana `from_stream_entry` \_24 (`replace("XXZXX",…)`): the XX pattern never
+  matches; raw "…Z" reaches `fromisoformat`, which on 3.14 accepts trailing
+  Z directly — MEASURED `.fromisoformat("…Z").timestamp() == 1704164645.0
+==` the shipped replace-then-parse value; non-Z inputs untouched. No
+  separating input.
+- add_detection \_41 (`str(value) … or True`): truthy-`or` is identity for
+  the condition and `str(v) is v` on str values — both branches bind the
+  same object on every input (MEASURED identity probe).
+- get_stream_info \_58/\_60/\_63 (first-entry default ""/["XXXX"]): all three
+  defaults sit behind `if info.get("first-entry")` — the subscript is only
+  evaluated when the guard chose the OTHER side; never observable.
+- trim_stream except-branch `new_length` \_45/\_46: that branch pins
+  `removed = 0` and new_length is read only by the `removed > 0` log —
+  unreachable there.
+- `delivery_count=1` kwarg REMOVALS (consume_batches \_26,
+  consume_detections \_30): the parameter default IS 1 — binding identity.
+
+**Redis_streams lineage CLOSED**: rs18 373-key survivor feed → rs18 killed
+156 → rs19b (217 keys) +186 → rs19c (31 keys) +5 → rs19d (26 keys) +11 =
+**202 killed, 15 EQUIVALENT (per-mutant, measured), 0 undispositioned**
+across the full survivor chain; batteries 18/19b/19c/19d shipped
+(commits `1fad9402`, `6b9d4810` + earlier 18), autospec'd, ruff-clean,
+lane md5-synced. No blanket skips anywhere; every equivalence above cites
+its measurement. (Fleet: ns16b auth1 still grinding — 533 keys — with the
+two survivor rechecks queued; batch-17 cache-gen auth2.)
