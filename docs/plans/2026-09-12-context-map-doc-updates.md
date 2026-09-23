@@ -10434,3 +10434,37 @@ Also measured: an **auth2-lane `mutmut run performance_collector`** (PID
 mutation-run.sh performance_collector`) is the batch-17 cache-generation job
 the batch-17 row's "NOT yet done" disclosure armed — feed extraction becomes
 possible when it banks; untouched, not mine to disturb.
+
+### Row — ec12b survivor re-measure lands 1 KILLED / 1 SURVIVED (rc=0): pose**5 was a FALSE-SURVIVED from my mid-run restore (contamination remediation validated); clothing**4 honestly survives and is EQUIVALENT — correcting the same-session row's "killable-shape" claim
+
+Measured `/tmp/redcheck-ec12b-recheck.log` (05:51:44Z, source clean, rc=0):
+`UnifiedPoseResultǁto_context_string__5` (ALERT caps-flip) → **KILLED** — the
+batch-12 battery DOES pin that string (line 414 asserts the exact ALERT
+line); its appearance as SURVIVED in the main run was precisely the ≤1-key
+false-SURVIVED my erroneous `git checkout` of the live harness's in-flight
+mutation could cause. The armed one-key re-measure caught it — the
+remediation design worked on a real case, not just theory.
+
+`UnifiedClothingResultǁto_context_string__4` (`if self.categories` →
+`or True`) → **SURVIVED again under clean source, and it is EQUIVALENT, not
+"killable-shape" as the previous row claimed (correction)**: shipped is
+`if not self.categories: return "Clothing: No classification available"`
+then `top = self.categories[0] if self.categories else {}` — the `else {}`
+branch is DEAD CODE (only reached when the guard already returned), so the
+mutant can never diverge: falsy `categories` never reach the line; truthy
+`categories` make `c or True` return `c` (identity for truthy operands), so
+`top` is the same object. Verified by exhaustive-reachability argument +
+input battery incl. a custom-`__bool__` truthy container (guard and ternary
+consult the same attribute's truthiness in the same call order — no flip).
+No test admissible (no input distinguishes shipped from mutant); per-mutant
+justification here stands in for a test. Batch-12 coverage of the reachable
+paths already exists (`[]` → "No classification available", `[{}]` →
+"unknown (confidence: 0%)", full-dict → "hoodie (confidence: 90%)", battery
+lines 457–463).
+
+Chain note: whserv3 dispatch stalled 19 min because wl_chain2's launcher
+`bash -c` wrapper carried the script text in its cmdline and matched the
+chain's own `[w]l_chain\.sh` gate — third instance of the self-match class
+(gate regexes must exclude the LAUNCHER cmdline too, not just the checker's;
+fixed by killing the already-dead wrapper; future chains launch via
+script-file like run_ec12b_recheck.sh).
