@@ -39,7 +39,10 @@ blocker on any PR** — do not chase it.
 
 Genuinely ambient red, present on non-dependabot PRs too: `Smoke Test Deployment`,
 `SBOM & Sign (frontend)`, `Rollback to Stable Images`, `Create Linear Issue on Main CI Failure`,
-`Nightly status`, `Backend full gate (validate.sh semantics)`. Judge a PR only on the checks
+`Nightly status`, `Backend full gate (validate.sh semantics)`, `Semantic Release` (main-push
+only — `git push` of its `chore(release)` bump is declined by branch protection while main's
+own `CI Gate` is still pending; fails identically on the 8 most recent main heads back to
+`610882b4`, none of them dependabot-related). Judge a PR only on the checks
 that gate: `CI Gate (Required Checks)`, `Version Consistency`, `Collection Sanity`,
 `Frontend Type Check`, `Frontend Lint`, `Frontend Tests`, `Test Coverage Gate`.
 
