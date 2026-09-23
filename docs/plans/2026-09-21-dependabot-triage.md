@@ -732,3 +732,33 @@ test_real_tree_matches_spec_baselines` — Collection Sanity reddened #6674
 with "census=8 spec=7" until `8621f8c6` synced it. Full same-commit set for
 an admission: script pattern, registry entry, `suppression-baseline.json`,
 AND the census-test spec table.
+
+### Post-merge watch: download-artifact v8 digest-mismatch — CLOSED, never fired (2026-09-23)
+
+The goal armed a hard-red watch on the first coverage-merge + deploy runs after
+#6667's workflow bumps landed (deploy.yml:206/:256 + the three coverage-merge
+jobs now run `download-artifact@3e5f45b2 # v8.0.1` with `digest-mismatch:
+error`). **All six sites verified clean on both post-merge main heads**
+(`cc58cdc7` and `54207141`): coverage-merge download steps ran green (full-log:
+"Download artifact has finished successfully", zero mismatch lines); all six
+deploy manifest jobs (`Create multi-arch manifest ×2`, `Create manifest (ai-*)
+×4`) show step-success on `Download digests`. With `digest-mismatch: error`
+armed, step-success is structurally mismatch-proof — no need to grep log prose.
+
+Two reds in those runs, both **pre-existing ambient**, signature-matched
+against runs on main heads that predate the bumps: `Smoke Test Deployment`
+fails at the `Start services` step identically on `db220839`/`4dbb0353`/
+`cc58cdc7` (first two lack the workflow changes entirely); `SBOM & Sign
+(frontend)` fails at `Sign container image` identically on `4dbb0353`, with
+its five sibling SBOM jobs cancelling downstream. One transient: main CI on
+`cc58cdc7` reddened on a GitHub python-build-standalone CDN **500** during
+`Set up Python` (Ruff + WS-integration shards) — self-healed on the next
+roll; CI on final head `54207141` is fully green, Deploy-to-Staging included.
+
+**Final state:** all wave-3 PRs merged — `db220839` (#6674) · `4dbb0353`
+(#6668 npm) · `cc58cdc7` (#6667 actions) · `54207141` (#6673 ledger); seven
+supersede-evidence comments posted; zero open dependabot PRs. Sole OPEN item:
+**#6669 cuda 13.4.1, R-3 owner gate — merging it is the first 13.4.1 ai-llm
+build.** Monday 2026-09-28 06:00 CT the weekly schedule re-rolls; the ignore
+floors (#6666) plus this ledger's deferred-reason table decide what gets
+landed vs closed without re-litigating.
