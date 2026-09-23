@@ -1,7 +1,6 @@
 """Unit tests for AI enrichment service video analytics metrics (NEM-3722).
 
 Tests cover:
-- Action recognition metrics
 - Pose estimation metrics
 - Re-identification (ReID) metrics
 - Threat detection metrics
@@ -20,11 +19,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from metrics import (
-    ACTION_RECOGNITION_CONFIDENCE,
-    ACTION_RECOGNITION_FRAMES_PROCESSED,
-    ACTION_RECOGNITION_INFERENCE_LATENCY,
-    # Action recognition metrics
-    ACTION_RECOGNITION_INFERENCES_TOTAL,
     DEMOGRAPHICS_INFERENCE_LATENCY,
     # Demographics metrics
     DEMOGRAPHICS_INFERENCES_TOTAL,
@@ -55,9 +49,7 @@ from metrics import (
     # Threat detection metrics
     THREAT_DETECTION_INFERENCES_TOTAL,
     get_metrics,
-    record_action_recognition_frames,
     # Helper functions
-    record_action_recognition_inference,
     record_demographics_inference,
     record_face_quality_assessment,
     record_ocr_error,
@@ -67,29 +59,6 @@ from metrics import (
     record_reid_match,
     record_threat_detection_inference,
 )
-
-
-class TestActionRecognitionMetricsDefinitions:
-    """Test action recognition metric definitions."""
-
-    def test_action_recognition_inferences_counter_exists(self) -> None:
-        """ACTION_RECOGNITION_INFERENCES_TOTAL counter should be defined."""
-        assert ACTION_RECOGNITION_INFERENCES_TOTAL is not None
-        assert "action_type" in ACTION_RECOGNITION_INFERENCES_TOTAL._labelnames
-        assert "is_suspicious" in ACTION_RECOGNITION_INFERENCES_TOTAL._labelnames
-
-    def test_action_recognition_inference_latency_exists(self) -> None:
-        """ACTION_RECOGNITION_INFERENCE_LATENCY histogram should be defined."""
-        assert ACTION_RECOGNITION_INFERENCE_LATENCY is not None
-
-    def test_action_recognition_confidence_exists(self) -> None:
-        """ACTION_RECOGNITION_CONFIDENCE histogram should be defined."""
-        assert ACTION_RECOGNITION_CONFIDENCE is not None
-        assert "action_type" in ACTION_RECOGNITION_CONFIDENCE._labelnames
-
-    def test_action_recognition_frames_counter_exists(self) -> None:
-        """ACTION_RECOGNITION_FRAMES_PROCESSED counter should be defined."""
-        assert ACTION_RECOGNITION_FRAMES_PROCESSED is not None
 
 
 class TestPoseEstimationMetricsDefinitions:
@@ -182,21 +151,6 @@ class TestFaceQualityMetricsDefinitions:
         assert FACE_QUALITY_SCORES is not None
 
 
-class TestActionRecognitionMetricHelpers:
-    """Test action recognition metric helper functions."""
-
-    def test_record_action_recognition_inference(self) -> None:
-        """record_action_recognition_inference should record metrics."""
-        record_action_recognition_inference("walking", 0.95, 0.5)
-        record_action_recognition_inference("loitering", 0.78, 1.2, is_suspicious=True)
-        # No exception means success
-
-    def test_record_action_recognition_frames(self) -> None:
-        """record_action_recognition_frames should increment counter."""
-        record_action_recognition_frames(8)
-        record_action_recognition_frames(16)
-
-
 class TestPoseEstimationMetricHelpers:
     """Test pose estimation metric helper functions."""
 
@@ -276,10 +230,14 @@ class TestMetricsExposure:
         metrics = get_metrics()
         assert isinstance(metrics, bytes)
 
-    def test_get_metrics_contains_action_recognition(self) -> None:
-        """Metrics should contain action recognition metrics."""
+    def test_get_metrics_lacks_action_recognition(self) -> None:
+        """Retired action-recognition metrics must never resurface (NEM-5563).
+
+        The X-CLIP family was deleted with its call sites; action
+        classification runs as Triton stgcn_action on the ai-gateway.
+        """
         metrics = get_metrics().decode("utf-8")
-        assert "enrichment_action_recognition" in metrics
+        assert "enrichment_action_recognition" not in metrics
 
     def test_get_metrics_contains_pose_estimation(self) -> None:
         """Metrics should contain pose estimation metrics."""

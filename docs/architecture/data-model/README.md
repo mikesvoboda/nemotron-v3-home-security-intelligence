@@ -215,9 +215,9 @@ Events support PostgreSQL full-text search via `search_vector` TSVECTOR column:
 
 ### Action Recognition Tables
 
-| Table           | Purpose                           | Primary Key | Source                           |
-| --------------- | --------------------------------- | ----------- | -------------------------------- |
-| `action_events` | X-CLIP action recognition results | `id` (int)  | `backend/models/action_event.py` |
+| Table           | Purpose                                              | Primary Key | Source                           |
+| --------------- | ---------------------------------------------------- | ----------- | -------------------------------- |
+| `action_events` | Action recognition results (skeleton-based ST-GCN++) | `id` (int)  | `backend/models/action_event.py` |
 
 ### Visualization Tables
 

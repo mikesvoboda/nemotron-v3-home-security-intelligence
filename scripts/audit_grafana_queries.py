@@ -59,6 +59,14 @@ BACKEND_HSI_METRICS = {
     "hsi_detections_filtered_low_confidence_total",
     # AI service histograms
     "hsi_ai_request_duration_seconds",
+    "hsi_model_load_duration_seconds",
+    # Gateway-side (ai-gateway /metrics, scrape job ai-gateway-metrics;
+    # observed by GatewayMetricsMiddleware in ai/gateway/main.py — labels
+    # service=<adapter prefix>, endpoint=<route under it>; health and
+    # /metrics requests are deliberately NOT observed, so rate() over these
+    # is EMPTY, not 0, until first inference traffic)
+    "hsi_ai_inference_duration_seconds",
+    "hsi_ai_inference_errors_total",
     "hsi_yolo26_inference_seconds",
     "hsi_nemotron_inference_seconds",
     "hsi_florence_inference_seconds",
@@ -72,10 +80,15 @@ BACKEND_HSI_METRICS = {
     "hsi_llm_context_utilization",
     "hsi_llm_context_utilization_ratio",
     "hsi_prompts_truncated_total",
+    "hsi_prompt_tokens",
+    "hsi_prompt_truncated_total",
     "hsi_prompts_high_utilization_total",
     # Business metrics
     "hsi_florence_task_total",
     "hsi_enrichment_model_calls_total",
+    "hsi_enrichment_pipeline_stage_duration_seconds",
+    "hsi_enrichment_pipeline_timeouts_total",
+    "hsi_enrichment_quality_level",
     "hsi_enrichment_retry_total",
     "hsi_enrichment_success_rate",
     "hsi_enrichment_partial_batches_total",
@@ -131,6 +144,11 @@ BACKEND_HSI_METRICS = {
     "hsi_action_recognition_total",
     "hsi_action_recognition_confidence",
     "hsi_action_recognition_duration_seconds",
+    # FED action metrics — emitter retired 2026-09-23 with the X-CLIP chain
+    # (action_recognition_service.py archived; zero emitters until a ST-GCN++ feeder)
+    "hsi_action_detections_total",
+    "hsi_action_confidence",
+    "hsi_action_corrections_total",
     "hsi_face_detections_total",
     "hsi_face_quality_score",
     "hsi_face_embeddings_generated_total",
@@ -143,6 +161,12 @@ BACKEND_HSI_METRICS = {
     "hsi_reid_match_duration_seconds",
     "hsi_cross_camera_handoffs_total",
     "hsi_active_tracks_count",
+    # Scene OCR metrics (backend/services/scene_ocr_service.py)
+    "hsi_scene_ocr_requests_total",
+    "hsi_scene_ocr_texts_detected_total",
+    "hsi_scene_ocr_service_providers_matched_total",
+    "hsi_scene_ocr_processing_seconds",
+    "hsi_scene_ocr_confidence",
     # Circuit breaker metrics
     "hsi_circuit_breaker_state",
     "hsi_circuit_breaker_trips_total",
@@ -232,10 +256,8 @@ CLIP_METRICS = {
 }
 
 ENRICHMENT_METRICS = {
-    "enrichment_action_recognition_inferences_total",
-    "enrichment_action_recognition_inference_latency_seconds",
-    "enrichment_action_recognition_confidence",
-    "enrichment_action_recognition_frames_processed_total",
+    # action_recognition_* family removed 2026-09-23: retired with the X-CLIP
+    # call sites (NEM-5563); action runs as Triton stgcn_action on ai-gateway
     "enrichment_pose_estimation_inferences_total",
     "enrichment_pose_estimation_inference_latency_seconds",
     "enrichment_pose_keypoints_detected",
@@ -259,6 +281,18 @@ ENRICHMENT_METRICS = {
     "enrichment_depth_model_loaded",
     "enrichment_model_load_time_seconds",
     "enrichment_gpu_memory_used_gb",
+}
+
+# Triton server metrics (scrape job "triton-metrics", ai-gateway:8002/metrics;
+# documented in monitoring/prometheus.yml, alerting in monitoring/ai-pipeline-alerts.yml)
+TRITON_METRICS = {
+    "nv_inference_request_success",
+    "nv_inference_request_failure",
+    "nv_inference_request_duration_us",
+    "nv_inference_queue_duration_us",
+    "nv_inference_compute_infer_duration_us",
+    "nv_gpu_utilization",
+    "nv_gpu_memory_used_bytes",
 }
 
 # Recording rules from prometheus-rules.yml
@@ -365,6 +399,7 @@ EXTERNAL_METRICS = {
 ALL_KNOWN_METRICS = (
     BACKEND_HSI_METRICS
     | JSON_EXPORTER_METRICS
+    | TRITON_METRICS
     | YOLO26_METRICS
     | FLORENCE_METRICS
     | CLIP_METRICS
@@ -411,10 +446,6 @@ NOT_IMPLEMENTED_METRICS = {
     "hsi_redis_pool_connections_active",
     "hsi_redis_pool_wait_seconds",
     "hsi_redis_pool_exhaustion_total",
-    # Action recognition metrics - Different naming
-    "hsi_action_confidence",
-    "hsi_action_corrections_total",
-    "hsi_action_detections_total",
     # Model management - Not implemented
     "hsi_model_cold_start_latency_seconds",
     "hsi_model_restarts_total",
@@ -457,6 +488,11 @@ def normalize_histogram_metric(
 def extract_metric_names_from_promql(expr: str) -> set[str]:
     """Extract base metric names from a PromQL expression."""
     metric_names: set[str] = set()
+
+    # Drop quoted label values / string literals first: they are values, not
+    # metric names (model="florence2" must not flag "florence2" as unknown).
+    expr = re.sub(r'"[^"]*"', '""', expr)
+    expr = re.sub(r"'[^']*'", "''", expr)
 
     # Pattern to match metric names (including recording rules with colons)
     metric_pattern = re.compile(r"([a-zA-Z_:][a-zA-Z0-9_:]*)")
@@ -540,6 +576,12 @@ def extract_metric_names_from_promql(expr: str) -> set[str]:
         # Additional labels found in queries
         "client_id",
         "entity_type",
+        "object_class",
+        "period",
+        "prompt_type",
+        "prompt_version",
+        "section_name",
+        "worker_name",
         "match_status",
         "is_suspicious",
         "detection",
@@ -840,7 +882,7 @@ def main():
                 dashboard_total += 1
                 total_queries += 1
 
-                known, unknown, not_impl = analyze_query(expr)
+                _known, unknown, not_impl = analyze_query(expr)
 
                 if unknown:
                     broken_queries.append((panel_title, ref_id, expr, unknown))

@@ -3,7 +3,7 @@
 This module provides load tests to verify performance of new features:
 - Household matching latency (<50ms p99)
 - Frame buffer memory (<500MB per camera)
-- X-CLIP concurrent inference (handle without blocking)
+- Pipeline throughput (end-to-end enrichment under load)
 
 Tests use realistic test data sizes and concurrent access patterns
 to validate production readiness.
@@ -19,15 +19,13 @@ Usage:
 from __future__ import annotations
 
 import asyncio
-import sys
 import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
-from PIL import Image
 
 # Load/performance tests verify latency, memory, and throughput budgets that
 # are tuned for scheduled jobs, not PR gates: the marker excludes this module
@@ -68,19 +66,6 @@ def generate_frame_data(size_bytes: int = 100_000) -> bytes:
         Bytes representing frame data
     """
     return b"x" * size_bytes
-
-
-def create_mock_pil_image(width: int = 224, height: int = 224) -> Image.Image:
-    """Create a mock PIL Image for X-CLIP testing.
-
-    Args:
-        width: Image width (default 224 for X-CLIP)
-        height: Image height (default 224 for X-CLIP)
-
-    Returns:
-        PIL Image with random RGB values
-    """
-    return Image.new("RGB", (width, height), color="blue")
 
 
 # =============================================================================
@@ -437,202 +422,6 @@ class TestFrameBufferMemory:
         # 50 * 50KB = 2.5MB
         assert estimated_memory == 2_500_000
         assert estimated_memory < 500 * 1024 * 1024  # Well under 500MB
-
-
-# =============================================================================
-# X-CLIP Concurrency Tests
-# =============================================================================
-
-
-class TestXCLIPConcurrency:
-    """Concurrency tests for X-CLIP inference.
-
-    Target: Handle concurrent requests without blocking or errors
-
-    These tests verify that X-CLIP can handle multiple concurrent inference
-    requests gracefully.
-    """
-
-    @pytest.fixture
-    def mock_xclip_model_dict(self) -> dict[str, Any]:
-        """Create a mock X-CLIP model dictionary."""
-        mock_model = MagicMock()
-        mock_processor = MagicMock()
-
-        # Configure model parameters
-        mock_param = MagicMock()
-        mock_param.device = "cpu"
-        mock_param.dtype = MagicMock()
-        # side_effect (not return_value): each .parameters() call needs a
-        # FRESH iterator — a shared iter() exhausts after the first pass and
-        # raises StopIteration inside the next coroutine, which asyncio
-        # converts to RuntimeError (PEP 479). transformers v5's device/dtype
-        # probe walks parameters() more than once per classify_actions call.
-        mock_model.parameters.side_effect = lambda: iter([mock_param, mock_param])
-
-        # Configure processor output with valid tensor shape
-        mock_pixel_values = MagicMock()
-        mock_pixel_values.shape = (1, 8, 3, 224, 224)
-        mock_pixel_values.to.return_value = mock_pixel_values
-        mock_pixel_values.half.return_value = mock_pixel_values
-        mock_inputs = {"pixel_values": mock_pixel_values}
-        mock_processor.return_value = mock_inputs
-
-        # Configure model output
-        mock_outputs = MagicMock()
-        mock_probs = MagicMock()
-        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
-            [0.6, 0.3, 0.1]
-        )
-        mock_outputs.logits_per_video = MagicMock()
-        mock_model.return_value = mock_outputs
-
-        return {"model": mock_model, "processor": mock_processor, "probs": mock_probs}
-
-    def _create_sample_frames(self, count: int = 8) -> list[Image.Image]:
-        """Create sample PIL Image frames for testing."""
-        return [create_mock_pil_image() for _ in range(count)]
-
-    @pytest.mark.asyncio
-    @pytest.mark.slow
-    async def test_concurrent_xclip_requests(self, mock_xclip_model_dict: dict[str, Any]) -> None:
-        """Verify X-CLIP handles concurrent requests without blocking.
-
-        Runs 10 concurrent classification requests and verifies all complete
-        successfully without errors.
-        """
-        from backend.services.xclip_loader import classify_actions
-
-        model_dict = {
-            "model": mock_xclip_model_dict["model"],
-            "processor": mock_xclip_model_dict["processor"],
-        }
-
-        # Mock torch for the classification
-        mock_torch = MagicMock()
-        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
-        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
-        mock_torch.softmax.return_value = mock_xclip_model_dict["probs"]
-        mock_torch.float16 = "float16"
-
-        async def make_request(request_id: int) -> dict[str, Any]:
-            """Make a single classification request."""
-            frames = self._create_sample_frames()
-            prompts = ["loitering", "walking", "standing"]
-
-            with patch.dict(sys.modules, {"torch": mock_torch}):
-                result = await classify_actions(model_dict, frames, prompts=prompts)
-
-            result["request_id"] = request_id
-            return result
-
-        # Run 10 concurrent requests
-        num_concurrent = 10
-        tasks = [make_request(i) for i in range(num_concurrent)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Verify all completed without errors
-        errors = [r for r in results if isinstance(r, Exception)]
-        assert len(errors) == 0, f"Got {len(errors)} errors in concurrent requests: {errors}"
-
-        # Verify all results are valid
-        successful_results = [r for r in results if isinstance(r, dict)]
-        assert len(successful_results) == num_concurrent
-
-        for result in successful_results:
-            assert "detected_action" in result
-            assert "confidence" in result
-
-    @pytest.mark.asyncio
-    async def test_xclip_request_isolation(self, mock_xclip_model_dict: dict[str, Any]) -> None:
-        """Verify concurrent X-CLIP requests don't interfere with each other.
-
-        Each request should return independent results based on its inputs.
-        """
-        from backend.services.xclip_loader import classify_actions
-
-        model_dict = {
-            "model": mock_xclip_model_dict["model"],
-            "processor": mock_xclip_model_dict["processor"],
-        }
-
-        mock_torch = MagicMock()
-        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
-        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
-        mock_torch.softmax.return_value = mock_xclip_model_dict["probs"]
-        mock_torch.float16 = "float16"
-
-        request_frames: dict[int, list[Image.Image]] = {}
-
-        async def make_request(request_id: int) -> dict[str, Any]:
-            """Make a request and track its frames."""
-            frames = self._create_sample_frames()
-            request_frames[request_id] = frames
-
-            with patch.dict(sys.modules, {"torch": mock_torch}):
-                result = await classify_actions(
-                    model_dict, frames, prompts=["action_a", "action_b", "action_c"]
-                )
-
-            return result
-
-        # Run concurrent requests
-        tasks = [make_request(i) for i in range(5)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # All should succeed
-        errors = [r for r in results if isinstance(r, Exception)]
-        assert len(errors) == 0
-
-        # Verify each request's frames were distinct
-        assert len(request_frames) == 5
-
-    @pytest.mark.asyncio
-    async def test_xclip_throughput(self, mock_xclip_model_dict: dict[str, Any]) -> None:
-        """Measure X-CLIP throughput under concurrent load.
-
-        Verifies the system can handle a burst of requests within
-        acceptable time bounds.
-        """
-        from backend.services.xclip_loader import classify_actions
-
-        model_dict = {
-            "model": mock_xclip_model_dict["model"],
-            "processor": mock_xclip_model_dict["processor"],
-        }
-
-        mock_torch = MagicMock()
-        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
-        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
-        mock_torch.softmax.return_value = mock_xclip_model_dict["probs"]
-        mock_torch.float16 = "float16"
-
-        async def make_request() -> float:
-            """Make a request and return latency."""
-            frames = self._create_sample_frames()
-            start = time.perf_counter()
-
-            with patch.dict(sys.modules, {"torch": mock_torch}):
-                await classify_actions(
-                    model_dict, frames, prompts=["action_1", "action_2", "action_3"]
-                )
-
-            return (time.perf_counter() - start) * 1000
-
-        # Measure throughput for 20 concurrent requests
-        num_requests = 20
-        start_time = time.perf_counter()
-        tasks = [make_request() for _ in range(num_requests)]
-        latencies = await asyncio.gather(*tasks)
-        total_time = (time.perf_counter() - start_time) * 1000
-
-        # Calculate metrics
-        avg_latency = sum(latencies) / len(latencies)
-        throughput = num_requests / (total_time / 1000)  # requests per second
-
-        # Verify reasonable performance (these are mocked so should be fast)
-        assert avg_latency < 100, f"Average latency {avg_latency:.2f}ms too high"
-        assert throughput > 10, f"Throughput {throughput:.2f} req/s too low"
 
 
 # =============================================================================

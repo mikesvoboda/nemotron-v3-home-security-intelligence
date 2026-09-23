@@ -44,7 +44,6 @@ Load tests for new feature performance validation:
 | ---------------------------------- | ------------- | --------------------------------- |
 | `TestHouseholdMatchingPerformance` | <50ms p99     | Household matching latency tests  |
 | `TestFrameBufferMemory`            | <500MB/camera | Frame buffer memory limit tests   |
-| `TestXCLIPConcurrency`             | No blocking   | X-CLIP concurrent inference tests |
 | `TestPipelineThroughput`           | 30fps         | Overall pipeline throughput tests |
 | `TestMemoryStress`                 | No OOM        | Memory stress and leak tests      |
 
@@ -67,14 +66,6 @@ Load tests for new feature performance validation:
 | Multi-camera (4x900 frames) | <500MB/camera | `test_frame_buffer_memory_multiple_cameras` |
 | Frame add latency           | <10ms avg     | `test_frame_buffer_add_throughput`          |
 
-### X-CLIP Concurrency
-
-| Metric                 | Target      | Test Coverage                    |
-| ---------------------- | ----------- | -------------------------------- |
-| 10 concurrent requests | 0 errors    | `test_concurrent_xclip_requests` |
-| Request isolation      | Independent | `test_xclip_request_isolation`   |
-| Throughput             | >10 req/s   | `test_xclip_throughput`          |
-
 ## Test Markers
 
 | Marker                 | Description                                |
@@ -86,20 +77,18 @@ Load tests for new feature performance validation:
 
 ### Test Data Generators
 
-| Function                               | Purpose                             |
-| -------------------------------------- | ----------------------------------- |
-| `generate_test_embedding(dim, seed)`   | Create normalized embedding vectors |
-| `generate_frame_data(size_bytes)`      | Create frame data of specified size |
-| `create_mock_pil_image(width, height)` | Create mock PIL Image for X-CLIP    |
+| Function                             | Purpose                             |
+| ------------------------------------ | ----------------------------------- |
+| `generate_test_embedding(dim, seed)` | Create normalized embedding vectors |
+| `generate_frame_data(size_bytes)`    | Create frame data of specified size |
 
 ### Service Fixtures
 
-| Fixture                 | Scope    | Description                          |
-| ----------------------- | -------- | ------------------------------------ |
-| `household_matcher`     | function | HouseholdMatcher instance            |
-| `mock_session`          | function | Mock AsyncSession for DB operations  |
-| `frame_buffer`          | function | FrameBuffer with 1800 frame capacity |
-| `mock_xclip_model_dict` | function | Mocked X-CLIP model and processor    |
+| Fixture             | Scope    | Description                          |
+| ------------------- | -------- | ------------------------------------ |
+| `household_matcher` | function | HouseholdMatcher instance            |
+| `mock_session`      | function | Mock AsyncSession for DB operations  |
+| `frame_buffer`      | function | FrameBuffer with 1800 frame capacity |
 
 ## Test Patterns
 
@@ -240,4 +229,3 @@ pytest backend/tests/load/ -v -m "not slow"
 - `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
 - `/backend/services/household_matcher.py` - Household matching service
 - `/backend/services/frame_buffer.py` - Frame buffer service
-- `/backend/services/xclip_loader.py` - X-CLIP model loader

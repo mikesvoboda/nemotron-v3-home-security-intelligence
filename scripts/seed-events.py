@@ -195,13 +195,12 @@ def _load_env_and_fix_database_url() -> None:
 
 # Service container-to-localhost port mappings
 # Format: container_hostname -> (container_port, localhost_port)
+# The standalone ai-yolo26/ai-florence/ai-clip/ai-enrichment(-light) hostnames are
+# retired (bc7d6101): ai-gateway serves those models under /yolo26, /florence,
+# /clip, /enrichment, /enrich-lt route prefixes on AI_GATEWAY_PORT (8090).
 _SERVICE_PORT_MAPPINGS = {
-    "ai-clip": (8093, int(os.environ.get("CLIP_PORT", "8093"))),
-    "ai-yolo26": (8095, int(os.environ.get("YOLO26_PORT", "8095"))),
-    "ai-florence": (8092, int(os.environ.get("FLORENCE_PORT", "8092"))),
+    "ai-gateway": (8090, int(os.environ.get("AI_GATEWAY_PORT", "8090"))),
     "ai-llm": (8091, int(os.environ.get("LLM_PORT", "8091"))),
-    "ai-enrichment": (8094, int(os.environ.get("ENRICHMENT_PORT", "8094"))),
-    "ai-enrichment-light": (8096, int(os.environ.get("ENRICHMENT_LIGHT_PORT", "8096"))),
     "backend": (8000, int(os.environ.get("API_PORT", "8000"))),
 }
 
@@ -2581,7 +2580,7 @@ async def seed_entities_from_detections(max_entities: int = 30) -> int:
             by_type[obj_type] = []
         by_type[obj_type].append(det)
 
-    clip_url = _fix_service_url("CLIP_URL", "http://localhost:8093")
+    clip_url = _fix_service_url("CLIP_URL", "http://localhost:8090/clip")
     entities_created = 0
 
     async with get_session() as session:
@@ -5779,7 +5778,7 @@ async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
         },
     ]
 
-    instances = ["ai-yolo26:8095", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
+    instances = ["ai-gateway:8090", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
     services = ["yolo26", "nemotron", "florence", "clip", "backend"]
     cameras = ["front_door", "backyard", "garage", "driveway"]
 

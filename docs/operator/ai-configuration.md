@@ -98,30 +98,24 @@ When using PyTorch models (not TensorRT engines), torch.compile provides 15-30% 
 
 #### Exporting TensorRT Engines
 
-Use the export script to generate TensorRT engines for your GPU:
+The standalone yolo26 GPU image was retired 2026-09-23; host-side engine
+building now runs through the prebuild script (or the gateway's Triton export
+pipeline `ai/gateway/export/export_all.sh` for the ONNX path Triton serves):
 
 ```bash
-# Export FP16 engine (default, higher accuracy)
-python ai/yolo26/export_tensorrt.py --model yolo26m.pt --output exports/
-
-# Export INT8 engine (2x throughput, requires calibration)
-python ai/yolo26/export_tensorrt.py \
-    --model yolo26m.pt \
-    --int8 \
-    --data config/yolo26_calibration.yaml \
-    --output exports/
-
-# Benchmark exported engine
-python ai/yolo26/export_tensorrt.py --benchmark exports/yolo26m_fp16.engine
+# Build the FP16 engine for the local GPU (ultralytics .pt -> TensorRT .engine)
+./scripts/prebuild-tensorrt-engines.sh yolo26
 ```
 
-**INT8 calibration requirements:**
+**INT8 calibration requirements** (for the archived INT8 export CLI, kept at
+`archive/ai-yolo26-image/export_tensorrt.py`):
 
 - 100-500 representative images from your deployment environment
 - Cover various lighting conditions and camera angles
 - Include all security-relevant object classes
 
-For detailed export options, see `ai/yolo26/README.md`.
+For detailed (retired-era) export options, see
+`archive/ai-yolo26-image/README.md`.
 
 ### NVIDIA Nemotron LLM Server
 

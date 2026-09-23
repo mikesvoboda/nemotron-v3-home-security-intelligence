@@ -54,7 +54,9 @@ ai/
 │   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
 │   └── tests/             # Unit tests
 │       └── __init__.py    # Package init
-├── yolo26/                # YOLO26 detection server - port 8095 (see yolo26/AGENTS.md)
+├── yolo26/                # Pure-leaf contract for backend prompts + host-run dev server
+│                          #   (GPU image retired 2026-09-23; prod: Triton /yolo26 via ai-gateway
+│                          #    - see yolo26/AGENTS.md)
 ├── nemotron/              # Nemotron LLM container build (compose service ai-llm)
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── Dockerfile         # Multi-stage build for llama.cpp
@@ -93,7 +95,7 @@ ai/
 ├── triton/                # Triton client + model repository (NEM-3769)
 ├── tests/                 # AI-level optimization tests (cuda streams, etc.)
 ├── download_models.sh     # Download AI models
-├── start_detector.sh      # Start YOLO26 standalone (YOLO26_PORT, default 8090; the model server itself defaults PORT=8095)
+├── start_detector.sh      # HOST-RUN YOLO26 dev stand-in (YOLO26_PORT, default 8090; the GPU image was retired 2026-09-23 — prod serves via ai-gateway)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
 └── start_nemotron.sh      # Start Nemotron 30B with auto-recovery
 ```
@@ -106,20 +108,24 @@ VRAM-efficient multi-model inference. Instead of loading all models at
 startup, models are loaded when needed and evicted via LRU when the VRAM
 budget is exceeded. Figures below are from `enrichment/model_registry.py`.
 
-### Available Models (10 registry entries)
+### Available Models (9 registry entries)
 
-| Registry key         | VRAM (default)        | Priority | Purpose                          | Trigger                           |
-| -------------------- | --------------------- | -------- | -------------------------------- | --------------------------------- |
-| `threat_detector`    | 400 MB                | CRITICAL | Weapon detection (gun, knife)    | Always checked for security       |
-| `pose_estimator`     | 300 MB                | HIGH     | Body posture (17 COCO keypoints) | Person detected                   |
-| `demographics`       | 500 MB (150 MB INT8)  | HIGH     | Age/gender estimation            | Person with face detected         |
-| `fashion_clip`       | 800 MB                | MEDIUM   | Clothing attributes              | Person detected                   |
-| `vehicle_classifier` | 1500 MB (400 MB INT8) | MEDIUM   | Vehicle type                     | Vehicle detected                  |
-| `pet_classifier`     | 200 MB (0 if CPU)     | MEDIUM   | Cat/dog classification           | Cat/dog detected                  |
-| `person_reid`        | 100 MB (0 if CPU)     | MEDIUM   | OSNet re-ID embeddings           | Person detected for tracking      |
-| `depth_estimator`    | 100 MB                | LOW      | Monocular depth estimation       | Any detection                     |
-| `action_recognizer`  | 2000 MB               | LOW      | X-CLIP video action recognition  | Suspicious pose + multiple frames |
-| `yolo26_detector`    | 100 MB (0 if CPU)     | LOW      | Optional secondary detector      | Enrichment-side detection         |
+| Registry key         | VRAM (default)        | Priority | Purpose                          | Trigger                      |
+| -------------------- | --------------------- | -------- | -------------------------------- | ---------------------------- |
+| `threat_detector`    | 400 MB                | CRITICAL | Weapon detection (gun, knife)    | Always checked for security  |
+| `pose_estimator`     | 300 MB                | HIGH     | Body posture (17 COCO keypoints) | Person detected              |
+| `demographics`       | 500 MB (150 MB INT8)  | HIGH     | Age/gender estimation            | Person with face detected    |
+| `fashion_clip`       | 800 MB                | MEDIUM   | Clothing attributes              | Person detected              |
+| `vehicle_classifier` | 1500 MB (400 MB INT8) | MEDIUM   | Vehicle type                     | Vehicle detected             |
+| `pet_classifier`     | 200 MB (0 if CPU)     | MEDIUM   | Cat/dog classification           | Cat/dog detected             |
+| `person_reid`        | 100 MB (0 if CPU)     | MEDIUM   | OSNet re-ID embeddings           | Person detected for tracking |
+| `depth_estimator`    | 100 MB                | LOW      | Monocular depth estimation       | Any detection                |
+| `yolo26_detector`    | 100 MB (0 if CPU)     | LOW      | Optional secondary detector      | Enrichment-side detection    |
+
+The X-CLIP `action_recognizer` slot (2000 MB, LOW) was retired with the
+NEM-5563 migration to Triton `stgcn_action` (the code moved to
+`archive/ai-enrichment/`; action recognition now runs through the
+ai-gateway's `/action-classify` adapter).
 
 INT8 sizes apply when `VEHICLE_QUANTIZED` / `DEMOGRAPHICS_QUANTIZED` are
 `true` (NEM-5533; see the ai-gateway env in `docker-compose.prod.yml`).
@@ -131,7 +137,7 @@ Models are evicted in priority order when the VRAM budget is exceeded:
 - **CRITICAL** (evicted last): Threat detection - never evict if possible
 - **HIGH**: Pose, demographics, clothing - important for security context
 - **MEDIUM**: Vehicle, pet, re-ID - useful classification
-- **LOW** (evicted first): Depth, action, secondary detection
+- **LOW** (evicted first): Depth, secondary detection
 
 ### VRAM Budget
 
@@ -271,20 +277,20 @@ Full env table in `ai/gateway/AGENTS.md`.
 
 Read in `ai/enrichment/model_registry.py` / `model.py`:
 
-| Variable                          | Default                                                                    | Description                      |
-| --------------------------------- | -------------------------------------------------------------------------- | -------------------------------- |
-| `VRAM_BUDGET_GB`                  | `6.8`                                                                      | VRAM budget for on-demand models |
-| `VEHICLE_MODEL_PATH`              | `/models/vehicle-segment-classification`                                   | Vehicle classifier path          |
-| `PET_MODEL_PATH` / `PET_DEVICE`   | `/models/pet-classifier` / cuda:0 (cpu fallback)                           | Pet classifier path/device       |
-| `CLOTHING_MODEL_PATH`             | `/models/fashion-clip`                                                     | FashionCLIP model path           |
-| `DEPTH_MODEL_PATH`                | `/models/depth-anything-v2-tiny`                                           | Depth estimator path             |
-| `POSE_MODEL_PATH`                 | `/models/yolov8n-pose/yolov8n-pose.pt`                                     | YOLOv8n-pose model path          |
-| `THREAT_MODEL_PATH`               | `/models/threat-detection-yolov8n/weights/best.pt`                         | Threat detection model path      |
-| `AGE_MODEL_PATH`                  | `/models/vit-age-classifier`                                               | Age classifier path              |
-| `GENDER_MODEL_PATH`               | (unset - derived)                                                          | Gender classifier path           |
-| `REID_MODEL_PATH` / `REID_DEVICE` | `/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth` / cuda:0 (cpu fallback) | OSNet ReID path/device           |
-| `ACTION_MODEL_PATH`               | `/models/xclip-base-patch16-16-frames`                                     | X-CLIP model path                |
-| `YOLO26_ENRICHMENT_MODEL_PATH`    | `/models/yolo26m.pt`                                                       | Secondary detector path          |
+| Variable                          | Default                                                                    | Description                        |
+| --------------------------------- | -------------------------------------------------------------------------- | ---------------------------------- |
+| `VRAM_BUDGET_GB`                  | `6.8`                                                                      | VRAM budget for on-demand models   |
+| `VEHICLE_MODEL_PATH`              | `/models/vehicle-segment-classification`                                   | Vehicle classifier path            |
+| `PET_MODEL_PATH` / `PET_DEVICE`   | `/models/pet-classifier` / cuda:0 (cpu fallback)                           | Pet classifier path/device         |
+| `CLOTHING_MODEL_PATH`             | `/models/fashion-clip`                                                     | FashionCLIP model path             |
+| `DEPTH_MODEL_PATH`                | `/models/depth-anything-v2-tiny`                                           | Depth estimator path               |
+| `POSE_MODEL_PATH`                 | `/models/yolov8n-pose/yolov8n-pose.pt`                                     | YOLOv8n-pose model path            |
+| `THREAT_MODEL_PATH`               | `/models/threat-detection-yolov8n/weights/best.pt`                         | Threat detection model path        |
+| `AGE_MODEL_PATH`                  | `/models/vit-age-classifier`                                               | Age classifier path                |
+| `GENDER_MODEL_PATH`               | (unset - derived)                                                          | Gender classifier path             |
+| `REID_MODEL_PATH` / `REID_DEVICE` | `/models/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth` / cuda:0 (cpu fallback) | OSNet ReID path/device             |
+| `ACTION_MODEL_PATH`               | (retired — no reader)                                                      | X-CLIP path; unread since NEM-5563 |
+| `YOLO26_ENRICHMENT_MODEL_PATH`    | `/models/yolo26m.pt`                                                       | Secondary detector path            |
 
 ## Security-Relevant Classes
 
@@ -400,18 +406,24 @@ podman-compose -f docker-compose.prod.yml \
 Downloads the **models.yml download set** — the 25 entries (32.79 GiB ≈
 ~32.8GB by `size_mb`) that `setup_lib`'s rule selects:
 `download_method != skip AND (hf_repo OR download_method)`
-(`setup_lib/models_config.py::get_downloadable_models`). Repo-root
-`models.yml` is the source of truth; the 5 `download_method: skip` entries
-(brisque-quality, fast-alpr, paddleocr, yolo26-general, zero-dce-plus-plus)
-are fetched by their libraries at runtime.
+(`setup_lib/models_config.py::get_downloadable_models`) — minus the
+rule-selected `xclip-base` row, which the script stopped fetching on
+2026-09-23 under the owner's full X-CLIP removal ruling (24 entries,
+32.21 GiB fetched). Repo-root `models.yml` is the source of truth; the 5
+`download_method: skip` entries (brisque-quality, fast-alpr, paddleocr,
+yolo26-general, zero-dce-plus-plus) are fetched by their libraries at runtime.
 
 `enabled` in models.yml governs backend model_zoo VRAM slots, NOT disk
-provisioning, so three `enabled: false` entries are still downloaded: `yolo26`
-(n/s/m `.pt` from ultralytics/assets release v8.4.0 — `ai/gateway/export/`
-`export_yolo26.py` + `scripts/prebuild-tensorrt-engines.sh` need
-`model-zoo/yolo26/yolo26m.pt` on disk), `xclip-base`
-(`backend/services/xclip_loader.py`), and `florence-2-large`
-(`backend/services/florence_extractor.py` via the model_zoo loader map).
+provisioning, so two `enabled: false` entries are still downloaded because
+live code reads them off disk: `yolo26` (n/s/m `.pt` from ultralytics/assets
+release v8.4.0 — `ai/gateway/export/` `export_yolo26.py` +
+`scripts/prebuild-tensorrt-engines.sh` need `model-zoo/yolo26/yolo26m.pt` on
+disk) and `florence-2-large` (`backend/services/florence_extractor.py` via
+the model_zoo loader map). `xclip-base` is no longer fetched — every code
+reader is retired (`archive/ai-enrichment/`, `archive/xclip-backend-chain/`);
+the owner-owned models.yml keeps the entry as provenance, and the removed
+download row is the script's one deliberate deviation from the rule — sweep
+both together when that entry is ruled.
 
 Largest single pull: Nemotron-3-Nano-30B Q4_K_M (~14.7GB,
 `unsloth/Nemotron-3-Nano-30B-A3B-GGUF`).

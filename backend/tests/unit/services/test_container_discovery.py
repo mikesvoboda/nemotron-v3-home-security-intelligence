@@ -141,12 +141,9 @@ class TestPreConfiguredServices:
         """Test that AI_CONFIGS contains all expected AI services."""
         # Ports from .env.example (source of truth)
         expected_services = {
-            "ai-yolo26": ("YOLO26", 8095, 60),
+            "ai-gateway": ("AI Gateway", 8090, 120),
             "ai-llm": ("Nemotron", 8091, 120),
-            "ai-florence": ("Florence-2", 8092, 60),
-            "ai-clip": ("CLIP", 8093, 60),
-            "ai-enrichment": ("Enrichment", 8094, 180),
-            "ai-enrichment-light": ("Enrichment Light", 8096, 120),
+            "ai-llm-vllm": ("LLM vLLM", 8097, 120),
         }
 
         for name, (display_name, port, grace_period) in expected_services.items():
@@ -290,25 +287,25 @@ class TestContainerDiscoveryService:
         assert discovered[0].category == ServiceCategory.INFRASTRUCTURE
 
     @pytest.mark.asyncio
-    async def test_discover_all_finds_ai_detector_container(
+    async def test_discover_all_finds_ai_gateway_container(
         self, mock_docker_client: MagicMock
     ) -> None:
-        """Test discovery finds AI detector container matching pattern."""
-        mock_detector = create_mock_container(
-            name="security-ai-yolo26-1",
-            container_id="det123",
-            image_tags=["ghcr.io/test/yolo26:latest"],
+        """Test discovery finds the AI gateway container matching pattern."""
+        mock_gateway = create_mock_container(
+            name="security-ai-gateway-1",
+            container_id="gw123",
+            image_tags=["ghcr.io/test/ai-gateway:latest"],
         )
-        mock_docker_client.list_containers = AsyncMock(return_value=[mock_detector])
+        mock_docker_client.list_containers = AsyncMock(return_value=[mock_gateway])
 
         service = ContainerDiscoveryService(mock_docker_client)
         discovered = await service.discover_all()
 
         assert len(discovered) == 1
-        assert discovered[0].name == "ai-yolo26"
-        assert discovered[0].display_name == "YOLO26"
-        assert discovered[0].container_id == "det123"
-        assert discovered[0].port == 8095  # Port from .env.example
+        assert discovered[0].name == "ai-gateway"
+        assert discovered[0].display_name == "AI Gateway"
+        assert discovered[0].container_id == "gw123"
+        assert discovered[0].port == 8090  # Port from .env.example
         assert discovered[0].health_endpoint == "/health"
         assert discovered[0].category == ServiceCategory.AI
 
@@ -320,7 +317,7 @@ class TestContainerDiscoveryService:
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
             create_mock_container("security-redis-1", "redis123"),
-            create_mock_container("security-ai-yolo26-1", "det123"),
+            create_mock_container("security-ai-gateway-1", "gw123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -330,7 +327,7 @@ class TestContainerDiscoveryService:
 
         assert len(discovered) == 4
         names = {s.name for s in discovered}
-        assert names == {"postgres", "redis", "ai-yolo26", "prometheus"}
+        assert names == {"postgres", "redis", "ai-gateway", "prometheus"}
 
     @pytest.mark.asyncio
     async def test_discover_all_ignores_unrecognized_containers(
@@ -368,7 +365,7 @@ class TestContainerDiscoveryService:
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
             create_mock_container("security-redis-1", "redis123"),
-            create_mock_container("security-ai-yolo26-1", "det123"),
+            create_mock_container("security-ai-gateway-1", "gw123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -387,9 +384,9 @@ class TestContainerDiscoveryService:
         """Test discovery filtering by AI category."""
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
-            create_mock_container("security-ai-yolo26-1", "det123"),
+            create_mock_container("security-ai-gateway-1", "gw123"),
             create_mock_container("security-ai-llm-1", "llm123"),
-            create_mock_container("security-ai-florence-1", "flor123"),
+            create_mock_container("security-ai-llm-vllm-1", "vllm123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
@@ -398,7 +395,7 @@ class TestContainerDiscoveryService:
 
         assert len(discovered) == 3
         names = {s.name for s in discovered}
-        assert names == {"ai-yolo26", "ai-llm", "ai-florence"}
+        assert names == {"ai-gateway", "ai-llm", "ai-llm-vllm"}
         for s in discovered:
             assert s.category == ServiceCategory.AI
 
@@ -409,7 +406,7 @@ class TestContainerDiscoveryService:
             create_mock_container("security-prometheus-1", "prom123"),
             create_mock_container("security-grafana-1", "graf123"),
             create_mock_container("security-redis-exporter-1", "rexp123"),
-            create_mock_container("security-ai-yolo26-1", "det123"),
+            create_mock_container("security-ai-gateway-1", "gw123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
 
@@ -433,10 +430,10 @@ class TestContainerDiscoveryService:
         assert config.display_name == "PostgreSQL"
         assert config.port == 5432
 
-        config = service.get_config("ai-yolo26")
+        config = service.get_config("ai-gateway")
         assert config is not None
-        assert config.display_name == "YOLO26"
-        assert config.port == 8095  # Port from .env.example
+        assert config.display_name == "AI Gateway"
+        assert config.port == 8090  # Port from .env.example
 
     def test_get_config_returns_none_for_unknown_service(
         self, mock_docker_client: MagicMock
@@ -456,11 +453,11 @@ class TestContainerDiscoveryService:
 
         # Exact match
         assert service.match_container_name("postgres") == "postgres"
-        assert service.match_container_name("ai-yolo26") == "ai-yolo26"
+        assert service.match_container_name("ai-gateway") == "ai-gateway"
 
         # Prefix match
         assert service.match_container_name("security-postgres-1") == "postgres"
-        assert service.match_container_name("myapp-ai-yolo26-prod") == "ai-yolo26"
+        assert service.match_container_name("myapp-ai-gateway-prod") == "ai-gateway"
 
         # Contains match
         assert service.match_container_name("my-redis-cache") == "redis"
@@ -645,7 +642,7 @@ class TestCategoryPriorityOrdering:
     def test_infrastructure_backoff_less_than_ai(self) -> None:
         """Test that infrastructure backoff is less than AI (more aggressive)."""
         infra_config = INFRASTRUCTURE_CONFIGS["postgres"]
-        ai_config = AI_CONFIGS["ai-yolo26"]
+        ai_config = AI_CONFIGS["ai-gateway"]
 
         assert infra_config.restart_backoff_base < ai_config.restart_backoff_base
         assert infra_config.restart_backoff_max < ai_config.restart_backoff_max
@@ -657,7 +654,7 @@ class TestCategoryPriorityOrdering:
         explicit max (120.0). This is intentional - AI services have aggressive
         base backoff but larger max to avoid overwhelming GPU resources.
         """
-        ai_config = AI_CONFIGS["ai-yolo26"]
+        ai_config = AI_CONFIGS["ai-gateway"]
         mon_config = MONITORING_CONFIGS["prometheus"]
 
         # Base backoff: AI(5.0) < monitoring(10.0) - AI restarts faster initially
@@ -685,7 +682,7 @@ class TestCategoryPriorityOrdering:
         """Test complete backoff hierarchy: infrastructure < ai < monitoring (base) and infra < mon < ai (max)."""
         # Get one representative from each category
         infra_base = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_base
-        ai_base = AI_CONFIGS["ai-yolo26"].restart_backoff_base
+        ai_base = AI_CONFIGS["ai-gateway"].restart_backoff_base
         mon_base = MONITORING_CONFIGS["prometheus"].restart_backoff_base
 
         # Base backoff: infra(2) < ai(5) < mon(10) - more aggressive for infrastructure
@@ -694,7 +691,7 @@ class TestCategoryPriorityOrdering:
         )
 
         infra_max = INFRASTRUCTURE_CONFIGS["postgres"].restart_backoff_max
-        ai_max = AI_CONFIGS["ai-yolo26"].restart_backoff_max
+        ai_max = AI_CONFIGS["ai-gateway"].restart_backoff_max
         mon_max = MONITORING_CONFIGS["prometheus"].restart_backoff_max
 
         # Max backoff: infra(60) < mon(120) < ai(300) - AI uses default 300.0
@@ -709,7 +706,7 @@ class TestCategoryPriorityOrdering:
         """Test that discovered services preserve their category-specific settings."""
         containers = [
             create_mock_container("security-postgres-1", "pg123"),
-            create_mock_container("security-ai-yolo26-1", "det123"),
+            create_mock_container("security-ai-gateway-1", "gw123"),
             create_mock_container("security-prometheus-1", "prom123"),
         ]
         mock_docker_client.list_containers = AsyncMock(return_value=containers)
@@ -719,7 +716,7 @@ class TestCategoryPriorityOrdering:
 
         # Find each service
         postgres = next(s for s in discovered if s.name == "postgres")
-        detector = next(s for s in discovered if s.name == "ai-yolo26")
+        detector = next(s for s in discovered if s.name == "ai-gateway")
         prometheus = next(s for s in discovered if s.name == "prometheus")
 
         # Verify category-specific settings preserved
@@ -744,7 +741,7 @@ class TestCategoryPriorityOrdering:
 # Golden table for build_service_configs(settings=None): the .env.example default
 # ports plus the hardcoded probe/grace/backoff policy. Values verified against
 # shipped source on 2026-09-18 (wave-57 dossier's independently derived table
-# agrees, 25/25 services).
+# agrees, 21/21 services on the post-tempo/live-set rebuild).
 # (display_name, category, port, health_endpoint, health_cmd,
 #  startup_grace_period, max_failures, restart_backoff_base, restart_backoff_max)
 EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
@@ -773,30 +770,16 @@ EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
     ),
     "go2rtc": ("go2rtc", "INFRASTRUCTURE", 1984, "/api", None, 15, 10, 2.0, 60.0),
     "frontend": ("Frontend", "INFRASTRUCTURE", 8080, "/health", None, 30, 10, 2.0, 60.0),
-    "ai-yolo26": ("YOLO26", "AI", 8095, "/health", None, 60, 5, 5.0, 300.0),
+    "ai-gateway": ("AI Gateway", "AI", 8090, "/health", None, 120, 5, 5.0, 300.0),
     "ai-llm": ("Nemotron", "AI", 8091, "/health", None, 120, 5, 5.0, 300.0),
-    "ai-florence": ("Florence-2", "AI", 8092, "/health", None, 60, 5, 5.0, 300.0),
-    "ai-clip": ("CLIP", "AI", 8093, "/health", None, 60, 5, 5.0, 300.0),
-    "ai-enrichment": ("Enrichment", "AI", 8094, "/health", None, 180, 5, 5.0, 300.0),
-    "ai-enrichment-light": ("Enrichment Light", "AI", 8096, "/health", None, 120, 5, 5.0, 300.0),
+    "ai-llm-vllm": ("LLM vLLM", "AI", 8097, "/health", None, 120, 5, 5.0, 300.0),
     "prometheus": ("Prometheus", "MONITORING", 9090, "/-/healthy", None, 30, 5, 10.0, 120.0),
     "grafana": ("Grafana", "MONITORING", 3002, "/api/health", None, 30, 5, 10.0, 120.0),
     "alertmanager": ("Alertmanager", "MONITORING", 9093, "/-/healthy", None, 15, 5, 10.0, 120.0),
     "loki": ("Loki", "MONITORING", 3100, "/ready", None, 30, 5, 10.0, 120.0),
     "pyroscope": ("Pyroscope", "MONITORING", 4040, "/ready", None, 30, 5, 10.0, 120.0),
     "alloy": ("Grafana Alloy", "MONITORING", 12345, "/-/ready", None, 30, 5, 10.0, 120.0),
-    "elasticsearch": (
-        "Elasticsearch",
-        "MONITORING",
-        9200,
-        "/_cluster/health",
-        None,
-        60,
-        5,
-        10.0,
-        120.0,
-    ),
-    "jaeger": ("Jaeger", "MONITORING", 16686, "/", None, 15, 5, 10.0, 120.0),
+    "tempo": ("Tempo", "MONITORING", 3200, "/ready", None, 15, 5, 10.0, 120.0),
     "redis-exporter": ("Redis Exporter", "MONITORING", 9121, "/metrics", None, 15, 5, 10.0, 120.0),
     "json-exporter": ("JSON Exporter", "MONITORING", 7979, "/metrics", None, 15, 5, 10.0, 120.0),
     "blackbox-exporter": (
@@ -822,26 +805,22 @@ ALL_PORTS = {
     "redis_port": 16379,
     "backend_port": 18000,
     "go2rtc_port": 19841,
-    "yolo26_port": 18095,
+    "ai_gateway_port": 18090,
     "nemotron_port": 18091,
-    "florence_port": 18092,
-    "clip_port": 18093,
-    "enrichment_port": 18094,
-    "enrichment_light_port": 18096,
+    "vllm_port": 18097,
     "prometheus_port": 19090,
     "grafana_port": 13002,
     "redis_exporter_port": 19121,
     "json_exporter_port": 17979,
     "alertmanager_port": 19093,
     "blackbox_exporter_port": 19115,
-    "jaeger_port": 16687,
+    "tempo_port": 13200,
     "loki_port": 13100,
     "pyroscope_port": 14040,
     "alloy_port": 12346,
     "node_exporter_port": 19100,
     "cadvisor_port": 18082,
     "dcgm_exporter_port": 19400,
-    "elasticsearch_port": 19200,
     "frontend_port": 18080,
 }
 _KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
@@ -850,20 +829,16 @@ _KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
     "backend": "backend_port",
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
-    "ai-yolo26": "yolo26_port",
+    "ai-gateway": "ai_gateway_port",
     "ai-llm": "nemotron_port",
-    "ai-florence": "florence_port",
-    "ai-clip": "clip_port",
-    "ai-enrichment": "enrichment_port",
-    "ai-enrichment-light": "enrichment_light_port",
+    "ai-llm-vllm": "vllm_port",
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",
     "alertmanager": "alertmanager_port",
     "loki": "loki_port",
     "pyroscope": "pyroscope_port",
     "alloy": "alloy_port",
-    "elasticsearch": "elasticsearch_port",
-    "jaeger": "jaeger_port",
+    "tempo": "tempo_port",
     "redis-exporter": "redis_exporter_port",
     "json-exporter": "json_exporter_port",
     "blackbox-exporter": "blackbox_exporter_port",

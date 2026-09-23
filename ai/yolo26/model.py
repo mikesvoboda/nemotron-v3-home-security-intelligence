@@ -612,14 +612,15 @@ class BoundingBox(BaseModel):
 #
 # A7.3 (WP6-A): the 316 inline lines this block carried are GONE. The
 # container image never shipped ai/yolo26/contract.py, which is why model.py
-# kept its own copies; the Dockerfile now COPYs it flat next to model.py
-# (flat /app layout), so the pure-leaf resolves here and in the repo alike
-# (the _here_dir sys.path shim above). This import binds the seven names
+# kept its own copies; the (since-retired 2026-09-23, archive/ai-yolo26-image/)
+# Dockerfile COPYed it flat next to model.py (flat /app layout), so the
+# pure-leaf resolves here and in the repo alike (the _here_dir sys.path shim
+# above). This import binds the seven names
 # below into this module's namespace, so `from model import ConfidenceQuality`
 # (ai/yolo26/tests/test_model.py) and every call site in this file get the
 # SAME objects backend/services/prompts.py uses. Guarded repo-side by
-# TestContractSeam (ai/yolo26/tests/test_model.py) and container-side by the
-# ai-yolo26-image-smoke CI job (build the image, `import model` inside it).
+# TestContractSeam (ai/yolo26/tests/test_model.py); the container-side proof
+# ran in the retired ai-yolo26-image-smoke CI job.
 
 from contract import (
     ConfidenceQuality,

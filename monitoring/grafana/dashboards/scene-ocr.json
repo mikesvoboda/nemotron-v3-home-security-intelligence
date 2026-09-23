@@ -102,7 +102,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(scene_ocr_requests_total[5m]))",
+          "expr": "sum(rate(hsi_scene_ocr_requests_total[5m]))",
           "legendFormat": "Requests/s",
           "refId": "A"
         }
@@ -161,7 +161,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_texts_detected_total[1h]))",
+          "expr": "sum(increase(hsi_scene_ocr_texts_detected_total[1h]))",
           "legendFormat": "Texts Detected",
           "refId": "A"
         }
@@ -220,7 +220,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_service_providers_matched_total[1h]))",
+          "expr": "sum(increase(hsi_scene_ocr_service_providers_matched_total[1h]))",
           "legendFormat": "Service Matches",
           "refId": "A"
         }
@@ -286,7 +286,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scene_ocr_processing_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_scene_ocr_processing_seconds_bucket[5m])) by (le))",
           "legendFormat": "P95 Latency",
           "refId": "A"
         }
@@ -419,7 +419,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(scene_ocr_requests_total[5m])) by (source)",
+          "expr": "sum(rate(hsi_scene_ocr_requests_total[5m])) by (source)",
           "legendFormat": "{{source}}",
           "refId": "A"
         }
@@ -509,7 +509,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_texts_detected_total[5m]))",
+          "expr": "sum(increase(hsi_scene_ocr_texts_detected_total[5m]))",
           "legendFormat": "Texts Detected",
           "refId": "A"
         }
@@ -598,7 +598,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_service_providers_matched_total[5m])) by (category)",
+          "expr": "sum(increase(hsi_scene_ocr_service_providers_matched_total[5m])) by (category)",
           "legendFormat": "{{category}}",
           "refId": "A"
         }
@@ -754,7 +754,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.50, sum(rate(scene_ocr_processing_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.50, sum(rate(hsi_scene_ocr_processing_seconds_bucket[5m])) by (le))",
           "legendFormat": "P50",
           "refId": "A"
         },
@@ -763,7 +763,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scene_ocr_processing_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_scene_ocr_processing_seconds_bucket[5m])) by (le))",
           "legendFormat": "P95",
           "refId": "B"
         },
@@ -772,7 +772,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum(rate(scene_ocr_processing_seconds_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.99, sum(rate(hsi_scene_ocr_processing_seconds_bucket[5m])) by (le))",
           "legendFormat": "P99",
           "refId": "C"
         }
@@ -892,7 +892,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scene_ocr_processing_seconds_bucket{source=\"full_frame\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_scene_ocr_processing_seconds_bucket{source=\"full_frame\"}[5m])) by (le))",
           "legendFormat": "full_frame",
           "refId": "A"
         },
@@ -901,7 +901,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum(rate(scene_ocr_processing_seconds_bucket{source=\"crop\"}[5m])) by (le))",
+          "expr": "histogram_quantile(0.95, sum(rate(hsi_scene_ocr_processing_seconds_bucket{source=\"crop\"}[5m])) by (le))",
           "legendFormat": "crop",
           "refId": "B"
         }
@@ -1003,7 +1003,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_confidence_distribution_bucket[1h])) by (le)",
+          "expr": "sum(increase(hsi_scene_ocr_confidence_bucket[1h])) by (le)",
           "legendFormat": "<= {{le}}",
           "refId": "A"
         }
@@ -1071,7 +1071,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(increase(scene_ocr_service_providers_matched_total[1h])) / sum(increase(scene_ocr_texts_detected_total[1h]))) * 100",
+          "expr": "(sum(increase(hsi_scene_ocr_service_providers_matched_total[1h])) / sum(increase(hsi_scene_ocr_texts_detected_total[1h]))) * 100",
           "legendFormat": "Match Rate",
           "refId": "A"
         }
@@ -1208,252 +1208,13 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(scene_ocr_service_providers_matched_total[24h])) by (category)",
+          "expr": "sum(increase(hsi_scene_ocr_service_providers_matched_total[24h])) by (category)",
           "legendFormat": "{{category}}",
           "refId": "A"
         }
       ],
       "title": "Detection by Category (24h)",
       "type": "piechart"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 43
-      },
-      "id": 40,
-      "panels": [],
-      "title": "Error Tracking",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "OCR error rate as percentage of total requests",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#73BF69",
-                "value": null
-              },
-              {
-                "color": "#FADE2A",
-                "value": 1
-              },
-              {
-                "color": "#F2495C",
-                "value": 5
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 0,
-        "y": 44
-      },
-      "id": 41,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "(sum(rate(scene_ocr_errors_total[5m])) / sum(rate(scene_ocr_requests_total[5m]))) * 100 or vector(0)",
-          "legendFormat": "Error Rate",
-          "refId": "A"
-        }
-      ],
-      "title": "OCR Error Rate",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Total OCR errors in the last hour",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#73BF69",
-                "value": null
-              },
-              {
-                "color": "#FADE2A",
-                "value": 5
-              },
-              {
-                "color": "#F2495C",
-                "value": 20
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 6,
-        "x": 6,
-        "y": 44
-      },
-      "id": 42,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": ["lastNotNull"],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(increase(scene_ocr_errors_total[1h]))",
-          "legendFormat": "Errors",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Errors (1h)",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "description": "Error rate over time by error type",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "Errors/s",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "opacity",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 44
-      },
-      "id": 43,
-      "options": {
-        "legend": {
-          "calcs": ["sum"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "10.2.3",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rate(scene_ocr_errors_total[5m])) by (error_type)",
-          "legendFormat": "{{error_type}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Error Rate by Type",
-      "type": "timeseries"
     }
   ],
   "refresh": "30s",

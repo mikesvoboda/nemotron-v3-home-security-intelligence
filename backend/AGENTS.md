@@ -574,27 +574,27 @@ See `services/AGENTS.md` for detailed documentation. The service layer contains 
 
 ### AI Model Loaders (Lazy Loading)
 
-| Service                        | Model                         |
-| ------------------------------ | ----------------------------- |
-| `clip_loader.py`               | CLIP embeddings               |
-| `clip_client.py`               | CLIP client interface         |
-| `florence_loader.py`           | Florence-2 vision-language    |
-| `florence_client.py`           | Florence client interface     |
-| `florence_extractor.py`        | Florence feature extraction   |
-| `depth_anything_loader.py`     | Depth estimation              |
-| `segformer_loader.py`          | Semantic segmentation         |
-| `vitpose_loader.py`            | Pose estimation               |
-| `yolo_world_loader.py`         | YOLO-World detection          |
-| `xclip_loader.py`              | X-CLIP video understanding    |
-| `fashion_clip_loader.py`       | Fashion-specific CLIP         |
-| `pet_classifier_loader.py`     | Pet/animal classification     |
-| `vehicle_classifier_loader.py` | Vehicle classification        |
-| `vehicle_damage_loader.py`     | Vehicle damage detection      |
-| `violence_loader.py`           | Violence detection            |
-| `weather_loader.py`            | Weather classification        |
-| `image_quality_loader.py`      | Image quality assessment      |
-| `model_loader_base.py`         | Base class for model loaders  |
-| `model_zoo.py`                 | Model registry and management |
+| Service                        | Model                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clip_loader.py`               | CLIP embeddings                                                                                                                                                                                                                                                                                                                      |
+| `clip_client.py`               | CLIP client interface                                                                                                                                                                                                                                                                                                                |
+| `florence_loader.py`           | Florence-2 vision-language                                                                                                                                                                                                                                                                                                           |
+| `florence_client.py`           | Florence client interface                                                                                                                                                                                                                                                                                                            |
+| `florence_extractor.py`        | Florence feature extraction                                                                                                                                                                                                                                                                                                          |
+| `depth_anything_loader.py`     | Depth estimation                                                                                                                                                                                                                                                                                                                     |
+| `segformer_loader.py`          | Semantic segmentation                                                                                                                                                                                                                                                                                                                |
+| `vitpose_loader.py`            | Pose estimation                                                                                                                                                                                                                                                                                                                      |
+| `yolo_world_loader.py`         | YOLO-World detection                                                                                                                                                                                                                                                                                                                 |
+| `stgcn_loader.py`              | ST-GCN++ skeleton action recognition (NEM-5563 successor to X-CLIP; the old `xclip_loader.py`/`action_recognition_service.py` chain — including the `/api/action-events` analyze route it backed — was archived 2026-09-23 to `archive/xclip-backend-chain/`; models.yml keeps `xclip-base` as an `enabled: false` provenance entry) |
+| `fashion_clip_loader.py`       | Fashion-specific CLIP                                                                                                                                                                                                                                                                                                                |
+| `pet_classifier_loader.py`     | Pet/animal classification                                                                                                                                                                                                                                                                                                            |
+| `vehicle_classifier_loader.py` | Vehicle classification                                                                                                                                                                                                                                                                                                               |
+| `vehicle_damage_loader.py`     | Vehicle damage detection                                                                                                                                                                                                                                                                                                             |
+| `violence_loader.py`           | Violence detection                                                                                                                                                                                                                                                                                                                   |
+| `weather_loader.py`            | Weather classification                                                                                                                                                                                                                                                                                                               |
+| `image_quality_loader.py`      | Image quality assessment                                                                                                                                                                                                                                                                                                             |
+| `model_loader_base.py`         | Base class for model loaders                                                                                                                                                                                                                                                                                                         |
+| `model_zoo.py`                 | Model registry and management                                                                                                                                                                                                                                                                                                        |
 
 ### Detection Enrichment Pipeline
 

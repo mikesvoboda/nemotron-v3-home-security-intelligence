@@ -40,7 +40,7 @@ VEHICLE_TYPES = {
     "motorcycle",
 }
 
-# X-CLIP Action Recognition - security-relevant actions
+# ST-GCN++ Action Recognition - security-relevant actions
 ACTION_TYPES = {
     # Normal actions
     "walking",
@@ -338,9 +338,9 @@ def print_coverage_report(coverage: dict) -> None:
         marker = "✅" if cls in YOLO_CLASSES else "  "
         print(f"   {marker} {cls}: {count}")
 
-    # X-CLIP Action Recognition
+    # ST-GCN++ Action Recognition
     print("\n" + "=" * 70)
-    print("🎬 X-CLIP ACTION RECOGNITION COVERAGE")
+    print("🎬 ST-GCN++ ACTION RECOGNITION COVERAGE")
     print("=" * 70)
     covered = len(coverage["actions_covered"])
     total = len(ACTION_TYPES)

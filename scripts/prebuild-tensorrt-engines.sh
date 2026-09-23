@@ -21,7 +21,9 @@
 #   ./scripts/prebuild-tensorrt-engines.sh clip          # Build CLIP only
 #   ./scripts/prebuild-tensorrt-engines.sh enrichment    # Build enrichment models only
 #
-# Or via podman exec (for containerized builds):
+# Or via podman exec (retired ai-yolo26 container path, pre-2026-09-23 — the
+# container no longer exists; this script's host-side build via
+# ai/yolo26/build_engine.py is the live path):
 #   podman exec -it ai-yolo26 python build_engine.py \
 #       --model /models/yolo26/yolo26m.pt \
 #       --output /models/yolo26/exports/yolo26m_fp16.engine

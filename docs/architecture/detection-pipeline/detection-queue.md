@@ -85,17 +85,17 @@ class DetectionQueueWorker:  # Line 208
 
 ### Constructor Parameters (Lines 220-278)
 
-| Parameter          | Type              | Default           | Description                            |
-| ------------------ | ----------------- | ----------------- | -------------------------------------- |
-| `redis_client`     | `RedisClient`     | Required          | Redis client for queue operations      |
-| `detector_client`  | `DetectorClient`  | Auto-created      | Client for YOLO26                      |
-| `batch_aggregator` | `BatchAggregator` | Auto-created      | For grouping detections                |
-| `video_processor`  | `VideoProcessor`  | Auto-created      | For video frame extraction             |
-| `retry_handler`    | `RetryHandler`    | Auto-created      | For transient failure handling         |
-| `frame_buffer`     | `FrameBuffer`     | Global singleton  | For X-CLIP temporal action recognition |
-| `queue_name`       | `str`             | `DETECTION_QUEUE` | Queue to consume from                  |
-| `poll_timeout`     | `int`             | 5                 | BLPOP timeout in seconds               |
-| `stop_timeout`     | `float`           | 10.0              | Graceful stop timeout                  |
+| Parameter          | Type              | Default           | Description                                                                 |
+| ------------------ | ----------------- | ----------------- | --------------------------------------------------------------------------- |
+| `redis_client`     | `RedisClient`     | Required          | Redis client for queue operations                                           |
+| `detector_client`  | `DetectorClient`  | Auto-created      | Client for YOLO26                                                           |
+| `batch_aggregator` | `BatchAggregator` | Auto-created      | For grouping detections                                                     |
+| `video_processor`  | `VideoProcessor`  | Auto-created      | For video frame extraction                                                  |
+| `retry_handler`    | `RetryHandler`    | Auto-created      | For transient failure handling                                              |
+| `frame_buffer`     | `FrameBuffer`     | Global singleton  | For temporal frame buffering feeding Triton stgcn_action action recognition |
+| `queue_name`       | `str`             | `DETECTION_QUEUE` | Queue to consume from                                                       |
+| `poll_timeout`     | `int`             | 5                 | BLPOP timeout in seconds                                                    |
+| `stop_timeout`     | `float`           | 10.0              | Graceful stop timeout                                                       |
 
 ### Retry Configuration (Lines 261-270)
 
@@ -242,6 +242,7 @@ async def _process_video_detection(
 @dataclass(slots=True)
 class WorkerStats:
     """Statistics for a worker process."""
+
     items_processed: int = 0
     errors: int = 0
     last_processed_at: float | None = None

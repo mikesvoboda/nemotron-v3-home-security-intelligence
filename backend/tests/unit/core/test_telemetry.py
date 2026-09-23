@@ -297,7 +297,7 @@ class TestConfigSettings:
                 "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test",
                 "OTEL_ENABLED": "true",
                 "OTEL_SERVICE_NAME": "my-service",
-                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://jaeger:4317",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://tempo:4317",
                 "OTEL_EXPORTER_OTLP_INSECURE": "false",
                 "OTEL_TRACE_SAMPLE_RATE": "0.5",
             },
@@ -306,7 +306,7 @@ class TestConfigSettings:
 
         assert settings.otel_enabled is True
         assert settings.otel_service_name == "my-service"
-        assert settings.otel_exporter_otlp_endpoint == "http://jaeger:4317"
+        assert settings.otel_exporter_otlp_endpoint == "http://tempo:4317"
         assert settings.otel_exporter_otlp_insecure is False
         assert settings.otel_trace_sample_rate == 0.5
 

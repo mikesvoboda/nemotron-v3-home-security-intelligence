@@ -612,7 +612,7 @@ sequenceDiagram
 
 **Phase 2: AI Services (up to 5 min)**
 
-- ai-gateway — `start_period: 180s` (Triton loads 14 models — the compose comment still says 13, stale since NEM-5563 retired `xclip_action`)
+- ai-gateway — `start_period: 180s` (Triton loads 14 models — the compose comment said 13 until the gateway-consolidation follow-up corrected it; the 13 dated from before NEM-5563 retired `xclip_action`)
 - ai-llm — `start_period: 300s` (31B parameter model loads tensors to GPU)
 
 **Phase 3: Application (30-60s)**

@@ -10,11 +10,14 @@ Two inference runtimes exist in this repo, and only one runs in production:
    container (port 8090) fronts NVIDIA Triton with a FastAPI translation layer
    and serves YOLO26, Florence-2, CLIP and both enrichment tiers under router
    prefixes. See [ai/gateway/AGENTS.md](../../ai/gateway/AGENTS.md).
-2. **Legacy per-model containers** — `ai-yolo26`, `ai-florence`, `ai-clip`,
-   `ai-enrichment` and `ai-enrichment-light`. Each loads its models on demand
-   under a VRAM budget with LRU eviction. Their images are still built by
-   `.github/workflows/deploy.yml`, but they are not services in
-   `docker-compose.prod.yml`.
+2. **Legacy per-model containers** — `ai-florence`, `ai-clip`, `ai-enrichment`
+   and `ai-enrichment-light`. Each loads its models on demand under a VRAM
+   budget with LRU eviction. The `ai-florence`, `ai-clip` and `ai-enrichment`
+   images are still built by `.github/workflows/deploy.yml` (only
+   `ai-enrichment-light` survives as a source directory, with no deploy.yml
+   matrix entry), but none of these are services in
+   `docker-compose.prod.yml`. `ai-yolo26` was in this list until its image was
+   retired fully on 2026-09-23 — recipe at `archive/ai-yolo26-image/Dockerfile`.
 
 The sections below give the production router path for each model first, and
 note the legacy container's port and response shape where the two differ. The
@@ -192,10 +195,7 @@ container answered on port 8095.
 **Security Classes (Filtered)**:
 
 ```python
-SECURITY_CLASSES = {
-    "person", "car", "truck", "dog", "cat",
-    "bird", "bicycle", "motorcycle", "bus"
-}
+SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
 ```
 
 **API Endpoints** (under the `/yolo26` router):
@@ -359,10 +359,23 @@ The legacy container returned a different shape (`detected`, `threat_type`,
 
 ```python
 COCO_KEYPOINT_NAMES = [
-    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
-    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist", "left_hip", "right_hip",
-    "left_knee", "right_knee", "left_ankle", "right_ankle"
+    "nose",
+    "left_eye",
+    "right_eye",
+    "left_ear",
+    "right_ear",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_hip",
+    "right_hip",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
 ]
 ```
 
@@ -421,9 +434,14 @@ SECURITY_CLOTHING_PROMPTS = [
     "person wearing dark hoodie",
     "person wearing face mask",
     "person wearing ski mask or balaclava",
-    "delivery uniform", "Amazon delivery vest",
-    "FedEx uniform", "UPS uniform", "USPS postal worker uniform",
-    "casual clothing", "business attire or suit", ...
+    "delivery uniform",
+    "Amazon delivery vest",
+    "FedEx uniform",
+    "UPS uniform",
+    "USPS postal worker uniform",
+    "casual clothing",
+    "business attire or suit",
+    ...,
 ]
 ```
 
@@ -453,9 +471,17 @@ SECURITY_CLOTHING_PROMPTS = [
 
 ```python
 VEHICLE_SEGMENT_CLASSES = [
-    "articulated_truck", "background", "bicycle", "bus", "car",
-    "motorcycle", "non_motorized_vehicle", "pedestrian",
-    "pickup_truck", "single_unit_truck", "work_van"
+    "articulated_truck",
+    "background",
+    "bicycle",
+    "bus",
+    "car",
+    "motorcycle",
+    "non_motorized_vehicle",
+    "pedestrian",
+    "pickup_truck",
+    "single_unit_truck",
+    "work_van",
 ]
 ```
 
@@ -523,12 +549,12 @@ VEHICLE_SEGMENT_CLASSES = [
 
 ```python
 DAMAGE_CLASSES = [
-    "crack",         # Surface cracks in paint/body
-    "dent",          # Impact dents on body panels
-    "glass_shatter", # Broken/shattered glass (HIGH SECURITY)
-    "lamp_broken",   # Damaged headlights/taillights (HIGH SECURITY)
-    "scratch",       # Surface scratches on paint
-    "tire_flat",     # Flat or damaged tires
+    "crack",  # Surface cracks in paint/body
+    "dent",  # Impact dents on body panels
+    "glass_shatter",  # Broken/shattered glass (HIGH SECURITY)
+    "lamp_broken",  # Damaged headlights/taillights (HIGH SECURITY)
+    "scratch",  # Surface scratches on paint
+    "tire_flat",  # Flat or damaged tires
 ]
 ```
 
@@ -670,10 +696,16 @@ classes — falling plus the violence/pickpocketing indices):
 `ai/triton/model_repository/` — its `config.pbtxt` and model directory now live
 at `archive/triton-model-repository/xclip_action/` pending a provenance ruling.
 It is absent from `ALL_MODELS` and from the gateway adapters, so the gateway's
-serving path is fully on `stgcn_action`. X-CLIP code survives only off the
-gateway path: the legacy `ai/enrichment` container (registry row
-`action_recognizer`, below) and the backend-side loaders `xclip_loader.py` /
-`action_recognition_service.py`, the latter kept as a deprecated fallback.
+serving path is fully on `stgcn_action`. No live X-CLIP code remains anywhere
+else either: the enrichment container's `action_recognizer` was retired to
+`archive/ai-enrichment/` (NEM-5563) and the backend-side
+`xclip_loader.py` / `action_recognition_service.py` chain — including its
+deprecated pipeline fallback and the `/api/action-events` analyze endpoint —
+was archived to `archive/xclip-backend-chain/` on 2026-09-23. What's left is
+configuration provenance only: the `xclip-base` entry in `models.yml`
+(`enabled: false`, owner-owned) and the independent X-CLIP _prompt_ subsystem
+(`prompt_management`/`prompt_storage` still serve stored X-CLIP class lists,
+which is a prompt-config surface, not an inference path).
 
 ## VRAM Management
 
@@ -1103,7 +1135,6 @@ startup).
 | `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier        |
 | `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionSigLIP         |
 | `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-tiny`         | Depth estimator       |
-| `ACTION_MODEL_PATH`   | `/models/xclip-base-patch16-16-frames`   | X-CLIP                |
 | `VRAM_BUDGET_GB`      | `6.8`                                    | On-demand VRAM budget |
 | `PORT`                | `8094`                                   | Server port           |
 
@@ -1129,6 +1160,7 @@ from typing import Any
 import torch
 from PIL import Image
 
+
 class NewModelClassifier:
     def __init__(self, model_path: str, device: str = "cuda:0"):
         self.model_path = model_path
@@ -1139,6 +1171,7 @@ class NewModelClassifier:
     def load_model(self) -> None:
         """Load model and processor."""
         from transformers import AutoModelForXxx, AutoProcessor
+
         self.processor = AutoProcessor.from_pretrained(self.model_path)
         self.model = AutoModelForXxx.from_pretrained(self.model_path)
         if "cuda" in self.device and torch.cuda.is_available():
@@ -1175,9 +1208,7 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         name="new_model",
         vram_mb=1000,  # Estimated VRAM usage
         priority=ModelPriority.MEDIUM,  # Choose appropriate priority
-        loader_fn=lambda: _create_and_load_model(
-            NewModelClassifier, new_model_path, device
-        ),
+        loader_fn=lambda: _create_and_load_model(NewModelClassifier, new_model_path, device),
         unloader_fn=_unload_model,
     )
 

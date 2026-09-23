@@ -661,8 +661,10 @@ def main() -> int:
     )
     validate_parser.add_argument(
         "--florence-url",
-        help="Florence service URL for caption generation (default: http://localhost:8092)",
-        default="http://localhost:8092",
+        help="Florence service URL for caption generation (default: "
+        "http://localhost:8090/florence — the ai-gateway route; the standalone "
+        "ai-florence container on :8092 is retired)",
+        default="http://localhost:8090/florence",
     )
 
     # Report command

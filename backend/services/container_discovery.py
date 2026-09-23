@@ -11,10 +11,18 @@ Key Components:
 - ContainerDiscoveryService: Main service for container discovery
 
 Pre-configured Service Categories:
-- INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis (critical, aggressive restart)
-- AI_CONFIGS: YOLO26, Nemotron, Florence, CLIP, Enrichment (standard backoff)
-- MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Redis Exporter, JSON Exporter,
-                      Blackbox Exporter (lenient, per CATEGORY_DEFAULTS)
+- INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis, Backend, go2rtc, Frontend (aggressive restart)
+- AI_CONFIGS: ai-gateway, ai-llm, ai-llm-vllm (standard backoff). Since bc7d6101 the
+  standalone YOLO26/Florence/CLIP/Enrichment containers are retired — those models
+  are served by ai-gateway. ai-llm-vllm is behind the optional "vllm" compose profile.
+- MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Loki, Pyroscope, Alloy, Tempo,
+  Redis/JSON/Blackbox/Node/DCGM Exporters, cAdvisor (lenient, per CATEGORY_DEFAULTS).
+  Jaeger/Elasticsearch were retired in favour of Tempo (NEM-5545) and their
+  settings fields deleted. cAdvisor and dcgm-exporter are live in
+  docker-compose.ghcr.yml (dcgm also as a rootful systemd service), so their
+  cadvisor_port/dcgm_exporter_port settings fields remain live-read. The retired
+  YOLO26/Florence/CLIP/Enrichment settings fields were deleted with the
+  discovery rows — the ai-gateway port (AI_GATEWAY_PORT) covers those models.
 
 Usage:
     async with DockerClient() as docker:
@@ -108,26 +116,22 @@ def build_service_configs(
     redis_port = settings.redis_port if settings else 6379
     backend_port = settings.backend_port if settings else 8000
     go2rtc_port = settings.go2rtc_port if settings else 1984
-    yolo26_port = settings.yolo26_port if settings else 8095
+    ai_gateway_port = settings.ai_gateway_port if settings else 8090
+    vllm_port = settings.vllm_port if settings else 8097
     nemotron_port = settings.nemotron_port if settings else 8091
-    florence_port = settings.florence_port if settings else 8092
-    clip_port = settings.clip_port if settings else 8093
-    enrichment_port = settings.enrichment_port if settings else 8094
-    enrichment_light_port = settings.enrichment_light_port if settings else 8096
     prometheus_port = settings.prometheus_port if settings else 9090
     grafana_port = settings.grafana_port if settings else 3002
     redis_exporter_port = settings.redis_exporter_port if settings else 9121
     json_exporter_port = settings.json_exporter_port if settings else 7979
     alertmanager_port = settings.alertmanager_port if settings else 9093
     blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115
-    jaeger_port = settings.jaeger_port if settings else 16686
+    tempo_port = settings.tempo_port if settings else 3200
     loki_port = settings.loki_port if settings else 3100
     pyroscope_port = settings.pyroscope_port if settings else 4040
     alloy_port = settings.alloy_port if settings else 12345
     node_exporter_port = settings.node_exporter_port if settings else 9100
     cadvisor_port = settings.cadvisor_port if settings else 8082
     dcgm_exporter_port = settings.dcgm_exporter_port if settings else 9400
-    elasticsearch_port = settings.elasticsearch_port if settings else 9200
     frontend_port = settings.frontend_port if settings else 8080
 
     infrastructure_configs: dict[str, ServiceConfig] = {
@@ -183,13 +187,16 @@ def build_service_configs(
         ),
     }
 
+    # Live AI set per docker-compose.prod.yml: ai-gateway, ai-llm, ai-llm-vllm
+    # (vllm is behind the optional "vllm" compose profile — the orchestrator
+    # only matches containers that exist, so an inactive one never surfaces).
     ai_configs: dict[str, ServiceConfig] = {
-        "ai-yolo26": ServiceConfig(
-            display_name="YOLO26",
+        "ai-gateway": ServiceConfig(
+            display_name="AI Gateway",
             category=ServiceCategory.AI,
-            port=yolo26_port,
+            port=ai_gateway_port,
             health_endpoint="/health",
-            startup_grace_period=60,
+            startup_grace_period=120,
         ),
         "ai-llm": ServiceConfig(
             display_name="Nemotron",
@@ -198,31 +205,10 @@ def build_service_configs(
             health_endpoint="/health",
             startup_grace_period=120,
         ),
-        "ai-florence": ServiceConfig(
-            display_name="Florence-2",
+        "ai-llm-vllm": ServiceConfig(
+            display_name="LLM vLLM",
             category=ServiceCategory.AI,
-            port=florence_port,
-            health_endpoint="/health",
-            startup_grace_period=60,
-        ),
-        "ai-clip": ServiceConfig(
-            display_name="CLIP",
-            category=ServiceCategory.AI,
-            port=clip_port,
-            health_endpoint="/health",
-            startup_grace_period=60,
-        ),
-        "ai-enrichment": ServiceConfig(
-            display_name="Enrichment",
-            category=ServiceCategory.AI,
-            port=enrichment_port,
-            health_endpoint="/health",
-            startup_grace_period=180,
-        ),
-        "ai-enrichment-light": ServiceConfig(
-            display_name="Enrichment Light",
-            category=ServiceCategory.AI,
-            port=enrichment_light_port,
+            port=vllm_port,
             health_endpoint="/health",
             startup_grace_period=120,
         ),
@@ -291,21 +277,11 @@ def build_service_configs(
             restart_backoff_base=10.0,
             restart_backoff_max=120.0,
         ),
-        "elasticsearch": ServiceConfig(
-            display_name="Elasticsearch",
+        "tempo": ServiceConfig(
+            display_name="Tempo",
             category=ServiceCategory.MONITORING,
-            port=elasticsearch_port,
-            health_endpoint="/_cluster/health",
-            startup_grace_period=60,
-            max_failures=5,
-            restart_backoff_base=10.0,
-            restart_backoff_max=120.0,
-        ),
-        "jaeger": ServiceConfig(
-            display_name="Jaeger",
-            category=ServiceCategory.MONITORING,
-            port=jaeger_port,
-            health_endpoint="/",
+            port=tempo_port,
+            health_endpoint="/ready",
             startup_grace_period=15,
             max_failures=5,
             restart_backoff_base=10.0,
@@ -440,12 +416,15 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
 }
 
 AI_CONFIGS: dict[str, ServiceConfig] = {
-    "ai-yolo26": ServiceConfig(
-        display_name="YOLO26",
+    # Live AI set per docker-compose.prod.yml (ai-llm-vllm is behind the optional
+    # "vllm" compose profile). The standalone YOLO26/Florence-2/CLIP/Enrichment
+    # containers are retired — ai-gateway serves those models.
+    "ai-gateway": ServiceConfig(
+        display_name="AI Gateway",
         category=ServiceCategory.AI,
-        port=8095,
+        port=8090,
         health_endpoint="/health",
-        startup_grace_period=60,
+        startup_grace_period=120,
     ),
     "ai-llm": ServiceConfig(
         display_name="Nemotron",
@@ -454,31 +433,10 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
         health_endpoint="/health",
         startup_grace_period=120,
     ),
-    "ai-florence": ServiceConfig(
-        display_name="Florence-2",
+    "ai-llm-vllm": ServiceConfig(
+        display_name="LLM vLLM",
         category=ServiceCategory.AI,
-        port=8092,
-        health_endpoint="/health",
-        startup_grace_period=60,
-    ),
-    "ai-clip": ServiceConfig(
-        display_name="CLIP",
-        category=ServiceCategory.AI,
-        port=8093,
-        health_endpoint="/health",
-        startup_grace_period=60,
-    ),
-    "ai-enrichment": ServiceConfig(
-        display_name="Enrichment",
-        category=ServiceCategory.AI,
-        port=8094,
-        health_endpoint="/health",
-        startup_grace_period=180,
-    ),
-    "ai-enrichment-light": ServiceConfig(
-        display_name="Enrichment Light",
-        category=ServiceCategory.AI,
-        port=8096,
+        port=8097,
         health_endpoint="/health",
         startup_grace_period=120,
     ),
@@ -547,21 +505,11 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         restart_backoff_base=10.0,
         restart_backoff_max=120.0,
     ),
-    "elasticsearch": ServiceConfig(
-        display_name="Elasticsearch",
+    "tempo": ServiceConfig(
+        display_name="Tempo",
         category=ServiceCategory.MONITORING,
-        port=9200,
-        health_endpoint="/_cluster/health",
-        startup_grace_period=60,
-        max_failures=5,
-        restart_backoff_base=10.0,
-        restart_backoff_max=120.0,
-    ),
-    "jaeger": ServiceConfig(
-        display_name="Jaeger",
-        category=ServiceCategory.MONITORING,
-        port=16686,
-        health_endpoint="/",
+        port=3200,
+        health_endpoint="/ready",
         startup_grace_period=15,
         max_failures=5,
         restart_backoff_base=10.0,

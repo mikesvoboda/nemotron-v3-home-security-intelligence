@@ -12,9 +12,9 @@
 This document maps backend API endpoints to their frontend consumers and lists the
 endpoints that intentionally (or not yet) have none.
 
-**Surface:** 387 paths / 469 operations in `docs/openapi.json`.
+**Surface:** 386 paths / 468 operations in `docs/openapi.json`.
 **Consumed:** 385 operations have at least one verified frontend
-source consumer; 84 do not and are listed in
+source consumer; 83 do not and are listed in
 [Backend-only endpoints](#backend-only-endpoints).
 
 ## Generation & Validation
@@ -165,11 +165,12 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | --------------------------------------- | ------ | -------------------- | ------------------------ |
 | `/api/action-events`                    | GET    | `actionEventsApi.ts` | List Action Events       |
 | `/api/action-events`                    | POST   | `actionEventsApi.ts` | Create Action Event      |
-| `/api/action-events/analyze`            | POST   | —                    | Analyze Action           |
 | `/api/action-events/camera/{camera_id}` | GET    | `actionEventsApi.ts` | Get Camera Action Events |
 | `/api/action-events/suspicious`         | GET    | `actionEventsApi.ts` | List Suspicious Actions  |
 | `/api/action-events/{event_id}`         | DELETE | `actionEventsApi.ts` | Delete Action Event      |
 | `/api/action-events/{event_id}`         | GET    | `actionEventsApi.ts` | Get Action Event         |
+
+<!-- POST /api/action-events/analyze removed 2026-09-23 (X-CLIP full removal); openapi regen confirmed clean -->
 
 ### Admin
 
@@ -796,7 +797,7 @@ See [WebSocket Contracts](websocket-contracts.md) for message format specificati
 
 ## Backend-only endpoints
 
-84 operations have no consumer under `frontend/src`. The CI
+83 operations have no consumer under `frontend/src`. The CI
 coverage gate is green because it keys on decorator paths and string
 fragments, not on these full path/method rows — treat this as the real
 backend-only surface:
@@ -804,7 +805,6 @@ backend-only surface:
 | Endpoint                                                       | Methods             | Reason                                                                                                                                                                       |
 | -------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/`                                                            | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
-| `/api/action-events/analyze`                                   | POST                | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |
 | `/api/admin/users`                                             | GET, POST           | Admin user/seed tooling consumed by CLI and fixtures                                                                                                                         |
 | `/api/admin/users/{user_id}`                                   | DELETE              | Admin user/seed tooling consumed by CLI and fixtures                                                                                                                         |
 | `/api/ai-audit/batch/{job_id}`                                 | GET                 | No UI consumer yet — candidate for future work or intentionally internal                                                                                                     |

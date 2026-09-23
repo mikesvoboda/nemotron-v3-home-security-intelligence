@@ -23,78 +23,130 @@ dashboards/
 
 ### ai-services.json
 
-**Purpose:** YOLO26 object detection and AI services monitoring dashboard with inference workload metrics.
+**Purpose:** AI services monitoring dashboard. AI serving is consolidated in
+ai-gateway (Triton Inference Server): the standalone containers (ai-yolo26,
+ai-florence, ai-clip, ai-enrichment, ai-enrichment-light) are retired, so per-service
+`yolo26_*` / `clip_*` / `florence_inference_*` / `enrichment_*` series are dead. Triton
+native `nv_*` metrics come from the `triton-metrics` scrape job (ai-gateway:8002);
+model health comes from blackbox probes of the gateway routers; percentiles come from
+the backend's client-side `hsi_ai_request_duration_seconds` histogram.
 
 **Dashboard UID:** `ai-services`
 
 **Panels by Section:**
 
-| Row                       | Panel                         | Type       | Data Source | Metric                                     |
-| ------------------------- | ----------------------------- | ---------- | ----------- | ------------------------------------------ |
-| YOLO26 Overview           | Documentation                 | text       | -           | Performance baselines and thresholds       |
-| YOLO26 Overview           | Model Status                  | stat       | Prometheus  | yolo26_model_loaded                        |
-| YOLO26 Overview           | Inference Latency (p95)       | stat       | Prometheus  | yolo26_inference_duration_seconds_bucket   |
-| YOLO26 Overview           | Request Rate                  | stat       | Prometheus  | yolo26_requests_total                      |
-| YOLO26 Overview           | VRAM Usage                    | stat       | Prometheus  | yolo26_vram_bytes                          |
-| YOLO26 Overview           | Errors (5m)                   | stat       | Prometheus  | yolo26_errors_total                        |
-| YOLO26 Overview           | GPU Utilization               | stat       | Prometheus  | yolo26_gpu_utilization_percent             |
-| YOLO26 Inference Workload | Inference Throughput          | stat       | Prometheus  | yolo26_inference_latency_seconds_count     |
-| YOLO26 Inference Workload | Avg Inference Time            | stat       | Prometheus  | yolo26_inference_latency_seconds           |
-| YOLO26 Inference Workload | Inference Health              | stat       | Prometheus  | yolo26_model_inference_healthy             |
-| YOLO26 Inference Workload | Batch Throughput              | stat       | Prometheus  | yolo26_batch_size_count                    |
-| YOLO26 Inference Workload | Avg Batch Size                | stat       | Prometheus  | yolo26_batch_size                          |
-| YOLO26 Inference Workload | Detection Rate                | stat       | Prometheus  | yolo26_detections_total                    |
-| Inference Performance     | Inference Latency Percentiles | timeseries | Prometheus  | yolo26_inference_duration_seconds_bucket   |
-| Inference Performance     | Request Rate by Endpoint      | timeseries | Prometheus  | yolo26_requests_total                      |
-| Detection Metrics         | Detections by Class           | timeseries | Prometheus  | yolo26_detections_total                    |
-| Detection Metrics         | Detections Per Image Dist.    | timeseries | Prometheus  | yolo26_detections_per_image_bucket         |
-| Errors & Batch Processing | Errors by Type                | timeseries | Prometheus  | yolo26_errors_total                        |
-| Errors & Batch Processing | Batch Size Distribution       | timeseries | Prometheus  | yolo26_batch_size_bucket                   |
-| GPU Resources             | VRAM Usage Over Time          | timeseries | Prometheus  | yolo26_vram_bytes                          |
-| GPU Resources             | GPU Metrics                   | timeseries | Prometheus  | yolo26_gpu_utilization/temperature/power   |
-| Face Recognition          | Face Detection Rate           | timeseries | Prometheus  | hsi_face_embeddings_generated_total        |
-| Face Recognition          | Face Quality Score Dist.      | timeseries | Prometheus  | hsi_face_quality_score_bucket              |
-| Face Recognition          | Face Embedding Time (p95)     | stat       | Prometheus  | hsi_face_embedding_duration_seconds_bucket |
-| Face Recognition          | Known vs Unknown Faces        | piechart   | Prometheus  | hsi_face_embeddings_generated_total        |
-| Face Recognition          | Detection Count by Camera     | timeseries | Prometheus  | hsi_face_embeddings_generated_total        |
-| Face Recognition          | Recognition Confidence Dist.  | timeseries | Prometheus  | hsi_face_recognition_confidence_bucket     |
-| Face Recognition          | Known Faces Database Size     | stat       | Prometheus  | hsi_known_faces_database_size              |
-| Enrichment Models         | CLIP Inference Latency        | timeseries | Prometheus  | clip_inference_latency_seconds_bucket      |
-| Enrichment Models         | Florence-2 Latency            | timeseries | Prometheus  | florence_inference_latency_seconds_bucket  |
-| Enrichment Models         | Enrichment Throughput         | timeseries | Prometheus  | enrichment_inference_latency_seconds_count |
-| Enrichment Models         | Enrichment Queue              | stat       | Prometheus  | hsi_analysis_queue_depth                   |
-| Action Recognition        | Actions Detected by Type      | timeseries | Prometheus  | hsi_enrichment_model_calls_total           |
-| Action Recognition        | Action Confidence Dist.       | timeseries | Prometheus  | hsi_action_confidence_bucket               |
-| Action Recognition        | Action False Positive Rate    | stat       | Prometheus  | hsi_action_corrections/detections_total    |
-| Loitering Detection       | Loitering Events by Zone      | timeseries | Prometheus  | hsi_loitering_events_total                 |
-| Loitering Detection       | Dwell Time Distribution       | timeseries | Prometheus  | hsi_loitering_dwell_time_seconds_bucket    |
-| Loitering Detection       | Loitering Alerts Rate         | timeseries | Prometheus  | hsi_loitering_alerts_total                 |
-| Model Warmup              | Model Load Time               | timeseries | Prometheus  | enrichment_model_load_time_seconds         |
-| Model Warmup              | Cold Start Latency            | timeseries | Prometheus  | hsi_model_cold_start_latency_seconds       |
-| Model Warmup              | Model Restarts (24h)          | stat       | Prometheus  | hsi_pipeline_worker_restarts_total         |
+| Row                              | Panel                                                | Type       | Data Source | Metric                                                               |
+| -------------------------------- | ---------------------------------------------------- | ---------- | ----------- | -------------------------------------------------------------------- |
+| YOLO26 Overview                  | Documentation                                        | text       | -           | Gateway-topology notes, baselines and thresholds                     |
+| YOLO26 Overview                  | Model Status (gateway health probe)                  | stat       | Prometheus  | probe_success{job="blackbox-http-2xx", model="yolo26"}               |
+| YOLO26 Overview                  | Inference Latency (mean)                             | stat       | Prometheus  | nv_inference_request_duration_us / nv_inference_request_success      |
+| YOLO26 Overview                  | Request Rate                                         | stat       | Prometheus  | nv_inference_request_success{model="yolo26"}                         |
+| YOLO26 Overview                  | VRAM Usage                                           | stat       | Prometheus  | nv_gpu_memory_used_bytes                                             |
+| YOLO26 Overview                  | Errors (5m)                                          | stat       | Prometheus  | nv_inference_request_failure{model="yolo26"}                         |
+| YOLO26 Overview                  | GPU Utilization                                      | stat       | Prometheus  | nv_gpu_utilization                                                   |
+| YOLO26 Inference Workload        | Inference Throughput                                 | stat       | Prometheus  | nv_inference_request_success{model="yolo26"}                         |
+| YOLO26 Inference Workload        | Mean Inference Time                                  | stat       | Prometheus  | nv_inference_request_duration_us / nv_inference_request_success      |
+| YOLO26 Inference Workload        | Inference Health (gateway probe)                     | stat       | Prometheus  | probe_success{job="blackbox-http-2xx", model="yolo26"}               |
+| YOLO26 Inference Workload        | Detector Call Rate (p95 gate)                        | stat       | Prometheus  | hsi_ai_request_duration_seconds_bucket{service="yolo26"}             |
+| YOLO26 Inference Workload        | Detection Rate                                       | stat       | Prometheus  | hsi_detections_processed_total                                       |
+| Inference Performance            | Inference Latency Percentiles (backend client)       | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket                               |
+| Inference Performance            | Request Rate by Endpoint                             | timeseries | Prometheus  | nv_inference_request_success/failure (by model)                      |
+| Detection Metrics                | Detections by Class                                  | timeseries | Prometheus  | hsi_detections_by_class_total (by object_class)                      |
+| Detection Metrics                | Detection Confidence (median)                        | timeseries | Prometheus  | hsi_detection_confidence_bucket                                      |
+| Error Tracking                   | Errors by Type                                       | timeseries | Prometheus  | hsi_pipeline_errors_total (by error_type)                            |
+| GPU Resources                    | VRAM Usage Over Time                                 | timeseries | Prometheus  | nv_gpu_memory_used_bytes (by model)                                  |
+| GPU Resources                    | GPU Metrics                                          | timeseries | Prometheus  | nv_gpu_utilization, hsi_gpu_temperature, DCGM_FI_DEV_POWER_USAGE     |
+| Face Recognition                 | Face Detection Rate                                  | timeseries | Prometheus  | hsi_face_embeddings_generated_total                                  |
+| Face Recognition                 | Face Quality Score Distribution                      | timeseries | Prometheus  | hsi_face_quality_score_bucket                                        |
+| Face Recognition                 | Face Embedding Time (p95)                            | stat       | Prometheus  | hsi_face_embedding_duration_seconds_bucket                           |
+| Face Recognition                 | Known vs Unknown Faces                               | piechart   | Prometheus  | hsi_face_embeddings_generated_total (by match_status)                |
+| Face Recognition                 | Detection Count by Camera                            | timeseries | Prometheus  | hsi_face_embeddings_generated_total                                  |
+| Face Recognition                 | Recognition Confidence Distribution                  | timeseries | Prometheus  | hsi_face_recognition_confidence_bucket                               |
+| Face Recognition                 | Known Faces Database Size                            | stat       | Prometheus  | hsi_known_faces_database_size                                        |
+| Enrichment Models                | CLIP Inference Latency (Triton mean + backend pctl)  | timeseries | Prometheus  | nv*inference_request_duration_us/success, hsi_ai_request*...\_bucket |
+| Enrichment Models                | Florence-2 Latency (Triton mean + backend pctl)      | timeseries | Prometheus  | nv*inference_request_duration_us/success, hsi_ai_request*...\_bucket |
+| Enrichment Models                | Enrichment Throughput                                | timeseries | Prometheus  | nv_inference_request_success (model!~ set-difference)                |
+| Enrichment Models                | Enrichment Queue                                     | stat       | Prometheus  | hsi_analysis_queue_depth                                             |
+| Action Recognition               | Actions Detected by Type                             | timeseries | Prometheus  | hsi_action_detections_total (by action_type)                         |
+| Action Recognition               | Action Confidence Distribution                       | timeseries | Prometheus  | hsi_action_confidence_bucket                                         |
+| Action Recognition               | Action Model Error Rate                              | stat       | Prometheus  | hsi_enrichment_model_errors_total / \_calls_total                    |
+| Loitering Detection              | Loitering Events by Zone                             | timeseries | Prometheus  | hsi_loitering_events_total                                           |
+| Loitering Detection              | Dwell Time Distribution                              | timeseries | Prometheus  | hsi_loitering_dwell_time_seconds_bucket                              |
+| Loitering Detection              | Loitering Alerts Rate                                | timeseries | Prometheus  | hsi_loitering_alerts_total                                           |
+| Model Warmup                     | Model Load Time                                      | timeseries | Prometheus  | hsi_model_load_duration_seconds (by model)                           |
+| Model Warmup                     | Cold Start Latency                                   | timeseries | Prometheus  | hsi_model_cold_start_latency_seconds                                 |
+| Model Warmup                     | Model Restarts (24h)                                 | stat       | Prometheus  | hsi_pipeline_worker_restarts_total                                   |
+| Florence-2 Vision-Language Model | Florence Model Status (gateway health probe)         | stat       | Prometheus  | probe_success{job="blackbox-http-2xx", model="florence2"}            |
+| Florence-2 Vision-Language Model | Florence Latency (P95, backend client-side)          | stat       | Prometheus  | hsi_ai_request_duration_seconds_bucket{service="florence"}           |
+| Florence-2 Vision-Language Model | Florence Request Rate                                | stat       | Prometheus  | nv_inference_request_success{model="florence2"}                      |
+| Florence-2 Vision-Language Model | Florence GPU Memory                                  | stat       | Prometheus  | nv_gpu_memory_used_bytes{model="florence2"}                          |
+| Florence-2 Vision-Language Model | Florence Errors (5m)                                 | stat       | Prometheus  | nv_inference_request_failure{model="florence2"}                      |
+| Florence-2 Vision-Language Model | Florence Success Rate                                | stat       | Prometheus  | nv_inference_request_success/failure{model="florence2"}              |
+| Florence-2 Vision-Language Model | Florence Inference Latency Percentiles               | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
+| Florence-2 Vision-Language Model | Florence Request Rate by Endpoint                    | timeseries | Prometheus  | nv_inference_request_success/failure{model="florence2"}              |
+| Florence-2 Vision-Language Model | Florence Latency P95 (backend-side only)             | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
+| Florence-2 Vision-Language Model | Florence Task Distribution                           | piechart   | Prometheus  | hsi_florence_task_total                                              |
+| Florence-2 Vision-Language Model | Florence GPU Memory Over Time                        | timeseries | Prometheus  | nv_gpu_memory_used_bytes{model="florence2"}                          |
+| Florence-2 Vision-Language Model | Florence Backend Inference Duration                  | timeseries | Prometheus  | hsi_ai_request_duration_seconds_bucket{service=~"florence.\*"}       |
+| Florence-2 Vision-Language Model | Florence Task Rate by Type                           | timeseries | Prometheus  | hsi_florence_task_total                                              |
+| Gateway Inference Traffic        | Gateway Inference Latency Percentiles (all services) | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_bucket                             |
+| Gateway Inference Traffic        | Gateway Request Rate by Service/Endpoint             | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_count                              |
+| Gateway Inference Traffic        | Gateway Inference Errors by Service/Endpoint         | timeseries | Prometheus  | hsi_ai_inference_errors_total                                        |
 
 **Dashboard Settings:**
 
 - Auto-refresh: 30 seconds
 - Default time range: Last 1 hour
 - Timezone: Browser
-- Tags: ai, yolo26, inference, gpu, workload, face-recognition, enrichment, action-recognition, loitering
+- Tags: ai, yolo26, inference, gpu, workload, face-recognition, enrichment, action-recognition, loitering, triton, gateway
 
-**Key YOLO26 Metrics:**
+**Key metrics (post gateway-consolidation):**
 
-- `yolo26_inference_duration_seconds` - Histogram of inference duration
-- `yolo26_inference_latency_seconds` - Legacy histogram (for backwards compatibility)
-- `yolo26_requests_total` - Counter of requests by endpoint and status
-- `yolo26_detections_total` - Counter of detections by class_name
-- `yolo26_detections_per_image` - Histogram of detections per image
-- `yolo26_batch_size` - Histogram of batch sizes
-- `yolo26_errors_total` - Counter of errors by error_type
-- `yolo26_vram_bytes` - Gauge of VRAM usage in bytes
-- `yolo26_model_loaded` - Gauge indicating model load status (1=loaded)
-- `yolo26_model_inference_healthy` - Gauge indicating inference health (1=healthy)
-- `yolo26_gpu_utilization_percent` - Gauge of GPU utilization
-- `yolo26_gpu_temperature_celsius` - Gauge of GPU temperature
-- `yolo26_gpu_power_watts` - Gauge of GPU power consumption
+Triton native (scrape job `triton-metrics`, ai-gateway:8002/metrics; `model` label):
+
+- `nv_inference_request_success` / `nv_inference_request_failure` - Cumulative request counters per model
+- `nv_inference_request_duration_us` - Cumulative inference time (µs). NOT a histogram:
+  Triton summary stats are disabled, so only a counter-ratio MEAN exists server-side
+  (`rate(duration_us) / (rate(success) + 0.001) / 1e6`). Latency panels must say "mean".
+- `nv_inference_queue_duration_us` - Cumulative queue time (µs), same mean-only caveat
+- `nv_gpu_utilization`, `nv_gpu_memory_used_bytes` - Server-level GPU metrics
+
+Backend client-side (backend/core/metrics.py, /api/metrics):
+
+- `hsi_ai_request_duration_seconds` - Histogram of AI call duration, label `service`
+  (client-side percentiles; no `endpoint` label)
+- `hsi_ai_inference_duration_seconds{service,endpoint}` / `hsi_ai_inference_errors_total{service,endpoint}` -
+  GATEWAY-side (not client-side) histogram + counter observed by the gateway's
+  GatewayMetricsMiddleware (ai/gateway/main.py), scraped from `ai-gateway:8090/metrics`
+  via the `ai-gateway-metrics` job. `service` = adapter prefix the route matched
+  (`yolo26|clip|florence|enrichment|enrich-lt`; unmatched paths -> `other`), `endpoint` =
+  route under it. Health (`/health`, `/…/health`) and `/metrics` requests are NOT observed,
+  so `rate()` over these families is EMPTY — not 0 — until first inference traffic:
+  dashboard queries must carry `or vector(0)` (or absent-metric tolerance). The counter
+  keeps its `_total` suffix in queries. Server-side percentiles exist ONLY here — Triton
+  exports mean-only `nv_*` counters and the backend histogram has no `endpoint` label.
+- `hsi_detections_processed_total`, `hsi_detections_by_class_total{object_class}` - detection throughput
+- `hsi_detection_confidence` - Histogram of detector confidence scores
+- `hsi_pipeline_errors_total{error_type}` - Pipeline errors
+- `hsi_florence_task_total` - backend-side Florence task counter. `hsi_florence_inference_seconds`
+  is DEFINED but never observed (its helpers have no non-test callers), so it exports only
+  static zero buckets — never use it for percentiles; use `hsi_ai_request_duration_seconds{service=~"florence.*"}`
+- `hsi_action_detections_total` / `hsi_action_confidence` / `hsi_action_corrections_total` - the FED
+  action metrics; their only emitter lived in `action_recognition_service.py`, archived with the 2026-09-23
+  X-CLIP full removal, so they now export ZERO until a ST-GCN++-era feeder is wired — panels reading them
+  carry `or vector(0)` and the feed gap is annotated in the panel descriptions. `hsi_action_recognition_total`,
+  `hsi_action_recognition_confidence` and `hsi_action_recognition_duration_seconds` (metrics.py video-analytics
+  family) are DEFINED but never `.labels()`'d outside tests, so they are never exported
+- `hsi_model_load_duration_seconds{model}`, `hsi_model_cold_start_latency_seconds`,
+  `hsi_pipeline_worker_restarts_total` - warmup/restart tracking
+- `hsi_gpu_temperature` (json-exporter from /api/system/gpu), `DCGM_FI_DEV_POWER_USAGE` (dcgm-exporter)
+
+Health: `probe_success{job="blackbox-http-2xx", model="..."}` probes the gateway
+routers (`ai-gateway:8090/<model>/health`) and the llama.cpp sidecar.
+
+**Deleted panels (no live equivalent, gateway consolidation):** Avg Batch Size,
+Batch Size Distribution (no batch-size histogram is exported anywhere now),
+`yolo26_model_loaded` / `yolo26_model_inference_healthy` stats (replaced by probes).
 
 ### api-health.json
 
@@ -143,34 +195,47 @@ dashboards/
 
 **Panels by Section:**
 
-| Row                | Panel            | Type       | Data Source | Endpoint                        |
-| ------------------ | ---------------- | ---------- | ----------- | ------------------------------- |
-| System Overview    | System Health    | stat       | Backend-API | /api/system/health              |
-| System Overview    | Total Cameras    | stat       | Backend-API | /api/system/stats               |
-| System Overview    | Total Events     | stat       | Backend-API | /api/system/stats               |
-| System Overview    | Total Detections | stat       | Backend-API | /api/system/stats               |
-| System Overview    | Uptime           | stat       | Backend-API | /api/system/stats               |
-| Queue Depths       | Detection Queue  | stat       | Backend-API | /api/system/telemetry           |
-| Queue Depths       | Analysis Queue   | stat       | Backend-API | /api/system/telemetry           |
-| Queue Depths       | Over Time        | timeseries | Backend-API | /api/system/telemetry           |
-| Pipeline Latencies | Watch P95        | stat       | Backend-API | /api/system/telemetry           |
-| Pipeline Latencies | Detect P95       | stat       | Backend-API | /api/system/telemetry           |
-| Pipeline Latencies | Batch P95        | stat       | Backend-API | /api/system/telemetry           |
-| Pipeline Latencies | Analysis P95     | stat       | Backend-API | /api/system/telemetry           |
-| Pipeline Latencies | Histogram        | barchart   | Backend-API | /api/system/telemetry           |
-| GPU Statistics     | GPU Utilization  | gauge      | Backend-API | /api/system/gpu                 |
-| GPU Statistics     | GPU Temperature  | stat       | Backend-API | /api/system/gpu                 |
-| GPU Statistics     | Memory Used      | stat       | Backend-API | /api/system/gpu                 |
-| GPU Statistics     | Inference FPS    | stat       | AI-Detector | yolo26_inference_requests_total |
-| Service Health     | Database         | stat       | Backend-API | /api/system/health              |
-| Service Health     | Redis            | stat       | Backend-API | /api/system/health              |
-| Service Health     | AI Services      | stat       | Backend-API | /api/system/health              |
-| Service Health     | Readiness        | stat       | Backend-API | /api/system/health/ready        |
+| Row                       | Panel                                                | Type       | Data Source | Endpoint                                          |
+| ------------------------- | ---------------------------------------------------- | ---------- | ----------- | ------------------------------------------------- |
+| System Overview           | System Health                                        | stat       | Backend-API | /api/system/health                                |
+| System Overview           | Total Cameras                                        | stat       | Backend-API | /api/system/stats                                 |
+| System Overview           | Total Events                                         | stat       | Backend-API | /api/system/stats                                 |
+| System Overview           | Total Detections                                     | stat       | Backend-API | /api/system/stats                                 |
+| System Overview           | Uptime                                               | stat       | Backend-API | /api/system/stats                                 |
+| Queue Depths              | Detection Queue                                      | stat       | Backend-API | /api/system/telemetry                             |
+| Queue Depths              | Analysis Queue                                       | stat       | Backend-API | /api/system/telemetry                             |
+| Queue Depths              | Over Time                                            | timeseries | Backend-API | /api/system/telemetry                             |
+| Pipeline Latencies        | Watch P95                                            | stat       | Backend-API | /api/system/telemetry                             |
+| Pipeline Latencies        | Detect P95                                           | stat       | Backend-API | /api/system/telemetry                             |
+| Pipeline Latencies        | Batch P95                                            | stat       | Backend-API | /api/system/telemetry                             |
+| Pipeline Latencies        | Analysis P95                                         | stat       | Backend-API | /api/system/telemetry                             |
+| Pipeline Latencies        | Histogram                                            | barchart   | Backend-API | /api/system/telemetry                             |
+| GPU Statistics            | GPU Utilization                                      | gauge      | Backend-API | /api/system/gpu                                   |
+| GPU Statistics            | GPU Temperature                                      | stat       | Backend-API | /api/system/gpu                                   |
+| GPU Statistics            | Memory Used                                          | stat       | Backend-API | /api/system/gpu                                   |
+| GPU Statistics            | Inference FPS                                        | stat       | Prometheus  | hsi_inference_fps (json-exporter /api/system/gpu) |
+| Service Health            | Database                                             | stat       | Backend-API | /api/system/health                                |
+| Service Health            | Redis                                                | stat       | Backend-API | /api/system/health                                |
+| Service Health            | AI Services                                          | stat       | Backend-API | /api/system/health                                |
+| Service Health            | Readiness                                            | stat       | Backend-API | /api/system/health/ready                          |
+| Gateway Inference Traffic | Gateway Inference Latency Percentiles (all services) | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_bucket          |
+| Gateway Inference Traffic | Gateway Request Rate by Service/Endpoint             | timeseries | Prometheus  | hsi_ai_inference_duration_seconds_count           |
+| Gateway Inference Traffic | Gateway Inference Errors by Service/Endpoint         | timeseries | Prometheus  | hsi_ai_inference_errors_total                     |
+
+The **Gateway Inference Traffic** row mirrors ai-services.json's same-named row
+(the Ops view previously had zero gateway-traffic panels while ai-services.json
+was the sole consumer of the gateway's `hsi_ai_inference_*` families). Keep the
+two copies' queries identical — including the `or vector(0)` suffix: health and
+`/metrics` requests are deliberately NOT observed by the gateway's
+GatewayMetricsMiddleware (ai/gateway/main.py), so `rate()` over these families
+is EMPTY — not 0 — until the first inference request, and the panels must show
+0 rather than No-data. The "Panels by Section" tables in this file list the
+headline panels per row, not an exhaustive panel inventory.
 
 **Dashboard Settings:**
 
-- Auto-refresh: 10 seconds
-- Default time range: Last 1 hour
+- Auto-refresh: 5 seconds
+- Default time range: Last 15 minutes
 - Timezone: Browser
 
 ### analytics.json
@@ -262,24 +327,25 @@ dashboards/
 
 **Panels by Section:**
 
-| Row                   | Panel                                | Type       | Data Source | Metric                                            |
-| --------------------- | ------------------------------------ | ---------- | ----------- | ------------------------------------------------- |
-| Scene OCR Overview    | Documentation                        | text       | -           | Feature overview and service categories           |
-| Scene OCR Overview    | OCR Request Rate                     | stat       | Prometheus  | scene_ocr_requests_total                          |
-| Scene OCR Overview    | Texts Detected (1h)                  | stat       | Prometheus  | scene_ocr_texts_detected_total                    |
-| Scene OCR Overview    | Service Provider Matches (1h)        | stat       | Prometheus  | scene_ocr_service_providers_matched_total         |
-| Scene OCR Overview    | Processing Latency (P95)             | stat       | Prometheus  | scene_ocr_processing_seconds_bucket               |
-| Request Rate & Volume | OCR Requests by Source               | timeseries | Prometheus  | scene_ocr_requests_total (by source)              |
-| Request Rate & Volume | Texts Detected Over Time             | timeseries | Prometheus  | scene_ocr_texts_detected_total                    |
-| Request Rate & Volume | Service Provider Matches by Category | timeseries | Prometheus  | scene_ocr_service_providers_matched_total         |
-| Performance           | OCR Processing Latency Percentiles   | timeseries | Prometheus  | scene_ocr_processing_seconds_bucket               |
-| Performance           | Processing Time by Source (P95)      | timeseries | Prometheus  | scene_ocr_processing_seconds_bucket               |
-| Quality Metrics       | Confidence Score Distribution        | timeseries | Prometheus  | scene_ocr_confidence_distribution_bucket          |
-| Quality Metrics       | Provider Match Rate                  | gauge      | Prometheus  | scene_ocr_service_providers_matched_total         |
-| Quality Metrics       | Detection by Category (24h)          | piechart   | Prometheus  | scene_ocr_service_providers_matched_total         |
-| Error Tracking        | OCR Error Rate                       | stat       | Prometheus  | scene_ocr_errors_total / scene_ocr_requests_total |
-| Error Tracking        | Total Errors (1h)                    | stat       | Prometheus  | scene_ocr_errors_total                            |
-| Error Tracking        | Error Rate by Type                   | timeseries | Prometheus  | scene_ocr_errors_total                            |
+All scene-OCR metrics carry the `hsi_` prefix in the live tree
+(backend/core/metrics.py); the unprefixed `scene_ocr_*` names the dashboard
+previously queried never existed in /api/metrics output.
+
+| Row                   | Panel                                | Type       | Data Source | Metric                                        |
+| --------------------- | ------------------------------------ | ---------- | ----------- | --------------------------------------------- |
+| Scene OCR Overview    | Documentation                        | text       | -           | Feature overview and service categories       |
+| Scene OCR Overview    | OCR Request Rate                     | stat       | Prometheus  | hsi_scene_ocr_requests_total                  |
+| Scene OCR Overview    | Texts Detected (1h)                  | stat       | Prometheus  | hsi_scene_ocr_texts_detected_total            |
+| Scene OCR Overview    | Service Provider Matches (1h)        | stat       | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
+| Scene OCR Overview    | Processing Latency (P95)             | stat       | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
+| Request Rate & Volume | OCR Requests by Source               | timeseries | Prometheus  | hsi_scene_ocr_requests_total (by source)      |
+| Request Rate & Volume | Texts Detected Over Time             | timeseries | Prometheus  | hsi_scene_ocr_texts_detected_total            |
+| Request Rate & Volume | Service Provider Matches by Category | timeseries | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
+| Performance           | OCR Processing Latency Percentiles   | timeseries | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
+| Performance           | Processing Time by Source (P95)      | timeseries | Prometheus  | hsi_scene_ocr_processing_seconds_bucket       |
+| Quality Metrics       | Confidence Score Distribution        | timeseries | Prometheus  | hsi_scene_ocr_confidence_bucket               |
+| Quality Metrics       | Provider Match Rate                  | gauge      | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
+| Quality Metrics       | Detection by Category (24h)          | piechart   | Prometheus  | hsi_scene_ocr_service_providers_matched_total |
 
 **Dashboard Settings:**
 
@@ -290,12 +356,15 @@ dashboards/
 
 **Key Scene OCR Metrics:**
 
-- `scene_ocr_requests_total` - Counter of OCR requests by source (full_frame, crop)
-- `scene_ocr_texts_detected_total` - Counter of texts detected
-- `scene_ocr_service_providers_matched_total` - Counter of service provider matches by category
-- `scene_ocr_processing_seconds` - Histogram of OCR processing duration by source
-- `scene_ocr_confidence_distribution` - Histogram of OCR confidence scores
-- `scene_ocr_errors_total` - Counter of OCR errors by error_type
+- `hsi_scene_ocr_requests_total` - Counter of OCR requests by source (full_frame, crop)
+- `hsi_scene_ocr_texts_detected_total` - Counter of texts detected
+- `hsi_scene_ocr_service_providers_matched_total` - Counter of service provider matches by category
+- `hsi_scene_ocr_processing_seconds` - Histogram of OCR processing duration by source
+- `hsi_scene_ocr_confidence` - Histogram of OCR confidence scores
+
+**Deleted panels:** the whole "Error Tracking" row (OCR Error Rate, Total Errors,
+Error Rate by Type) — `scene_ocr_errors_total` is not exported by the scene-OCR
+service, so there is no live error counter to chart.
 
 **Service Provider Categories:**
 
@@ -308,7 +377,12 @@ dashboards/
 
 ### tracing.json
 
-**Purpose:** Distributed tracing dashboard.
+**Purpose:** Distributed tracing dashboard (Tempo, TraceQL panels + backend AI
+service metrics via Triton `nv_*` series). The `$service` template variable is
+`nemotron-backend` only: the backend is the sole OTLP span emitter in the
+gateway topology (ai-gateway/Triton do not export traces). AI panel rows use
+Triton per-model counters; durations are MEAN only (µs counter ratio — Triton
+percentiles require summary stats, which are disabled).
 
 **Dashboard UID:** `hsi-tracing`
 

@@ -35,6 +35,8 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
+from starlette.routing import Match
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # Configure logging
 logging.basicConfig(
@@ -94,6 +96,88 @@ try:
 except ImportError:
     _prometheus_available = False
     logger.warning("prometheus_client not installed, metrics endpoint will be limited")
+    # The middleware checks for None and self-disables when the client is
+    # missing, mirroring the limited /metrics behaviour above.
+    GATEWAY_REQUEST_DURATION = None  # type: ignore[assignment]
+    GATEWAY_REQUEST_ERRORS = None  # type: ignore[assignment]
+
+
+# Paths that are NOT inference traffic and must stay out of the inference
+# histograms so health-probe/scrape chatter does not skew latency panels:
+# the gateway root and per-adapter health checks, plus Prometheus' own scrape
+# target. Inference endpoints (/yolo26/detect, /clip/embed, ...) are observed.
+_METRICS_EXCLUDED_PREFIXES = ("/metrics",)
+
+
+def _is_health_path(path: str) -> bool:
+    """True for the aggregated /health and any adapter /…/health route."""
+    return path == "/health" or path.endswith("/health")
+
+
+def _gateway_labels(scope: Scope) -> tuple[str, str]:
+    """Derive (service, endpoint) Prometheus labels for a request.
+
+    Labels come from the matched route pattern, not the raw URL: service is
+    the adapter prefix the router is mounted under (/yolo26 -> "yolo26",
+    /enrich-lt -> "enrich-lt", ...), endpoint is the route path under that
+    prefix with the slash stripped (/clip/embed -> "embed"; a root path
+    like /docs -> "root"). Paths that match no route (404s) get
+    ("other", "other") so label cardinality stays bounded by the fixed
+    route table even under attacker-crafted URLs.
+    """
+    path: str = scope.get("path", "")
+    for route in app.routes:
+        match, _child = route.matches(scope)
+        if match == Match.FULL:
+            route_path: str = getattr(route, "path", path)
+            stripped = route_path.lstrip("/")
+            service, _, tail = stripped.partition("/")
+            return (service or "root", tail.lstrip("/") or "root")
+    return ("other", "other")
+
+
+class GatewayMetricsMiddleware:
+    """Observe GATEWAY_REQUEST_DURATION / GATEWAY_REQUEST_ERRORS.
+
+    Pure ASGI middleware: times every request that is not a health check or
+    a metrics scrape, labels it by adapter service + endpoint, and counts an
+    error when the response is 5xx or the wrapped app raises. Duration is
+    measured up to the last message sent to the client (the response body
+    fully flushed), so inference latency includes serialize+upload time.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        duration_metric = GATEWAY_REQUEST_DURATION
+        errors_metric = GATEWAY_REQUEST_ERRORS
+        if scope["type"] != "http" or duration_metric is None:
+            await self.app(scope, receive, send)
+            return
+
+        path: str = scope.get("path", "")
+        if path.startswith(_METRICS_EXCLUDED_PREFIXES) or _is_health_path(path):
+            await self.app(scope, receive, send)
+            return
+
+        start = time.perf_counter()
+        status: int = 500  # assume failure; an exception that escapes means 500
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal status
+            if message["type"] == "http.response.start":
+                status = int(message["status"])
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            duration = time.perf_counter() - start
+            service, endpoint = _gateway_labels(scope)
+            duration_metric.labels(service=service, endpoint=endpoint).observe(duration)
+            if status >= 500 and errors_metric is not None:
+                errors_metric.labels(service=service, endpoint=endpoint).inc()
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +250,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Gateway request observability: observes hsi_ai_inference_duration_seconds /
+# hsi_ai_inference_errors_total on every non-health, non-scrape request
+# (labels: service = adapter prefix, endpoint = route under it).
+app.add_middleware(GatewayMetricsMiddleware)
 
 
 # ---------------------------------------------------------------------------

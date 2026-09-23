@@ -1024,7 +1024,7 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Action Recognition Events (X-CLIP) - NEM-5024 Phase 7 */}
+                      {/* Action Recognition Events (ST-GCN++) - NEM-5024 Phase 7 */}
                       {!isNaN(eventIdNumber) && event.camera_id && (
                         <div className="mb-6" data-testid="action-events-section">
                           <ActionEventsPanel

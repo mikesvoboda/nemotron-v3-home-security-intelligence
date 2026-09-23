@@ -4890,7 +4890,7 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
     "Depth": ["depth-anything-v2-tiny"],
     "Embedding": ["siglip2-base-patch16-224", "osnet-ain-x1-0"],
     "OCR": ["paddleocr"],
-    "Action Recognition": ["xclip-base"],
+    "Action Recognition": ["stgcn-plus-plus"],
 }
 
 # Disabled models that should appear at the bottom of the dropdown

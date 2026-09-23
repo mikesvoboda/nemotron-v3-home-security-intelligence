@@ -36,6 +36,46 @@ confirmed dead-on-the-owner's-desk.
 | `scripts/download_models.py` | Superseded Python downloader; live twin `ai/download_models.sh` re-derived from the setup_lib rule | delete? |
 | `scripts/setup_docker_override.py` | `generate_docker_override_content()` extracted from setup.py: setup.py no longer writes docker-compose.override.yml (.env is sole config truth) and the table targeted pre-consolidation containers/ports. NOTE: `test_setup.py` (this tree) imports it and stays ImportError-stale either way | delete with `test_setup*.py`? |
 
+### PR-C additions (2026-09-23) — monitoring round-2 + X-CLIP retirement
+
+| Item | What it is | Pending ruling |
+| --- | --- | --- |
+| `ai-enrichment/` (`action_recognizer.py` + `test_action_recognizer.py`) | The X-CLIP `ActionRecognizer` (537 lines) and its test suite (8 classes / 29 tests), retired by the NEM-5563 migration to skeleton-based Triton `stgcn_action`, which the gateway's `/action-classify` adapter serves today. Both files are byte-identical to the removed `ai/enrichment/` originals, so Git rename-detects them at commit and history survives the move. Nothing collects them: pytest `testpaths` is `backend/tests`, `ai/*/tests`, `ai/*/test_*.py`, `setup_lib/tests` — `archive/` matches none. Live references swept 2026-09-23 (docs-and-critic-misses repair pass): the `action_recognizer` entries in `backend/core/security.py` `ALLOWED_PRELOAD_MODELS` and `backend/evaluation/combined_dataset.py` removed with archive-pointer comments, and `ai/enrichment/tests/AGENTS.md` annotates the moved suite. `models.yml` keeps the `xclip-base` entry (`enabled: false`, `triton_name: xclip_action`) — owner-owned, untouched | delete with the `xclip-base` provenance entry? |
+| `prometheus_rules.yml.template` | Rules-template clone with zero consumers (grep: nothing reads, mounts, or envsubsts it; compose bind-mounts the live `monitoring/prometheus_rules.yml` directly). Its own header lied: "processed by envsubst at container startup, do not edit the live file" — no launcher ever did. Content is a byte-identical clone of the live `monitoring/prometheus_rules.yml` except one stale `${GRAFANA_PORT}` placeholder, so it invites silent drift; retire, don't repair. Both files carry 20 literal `- alert:` lines but 18 active alerts (`promtool check rules` on each: SUCCESS, 18 rules — `AINemotronTimeout`/`AIDetectorSlow` are commented out in both) | delete? |
+
+### Backend X-CLIP chain retirement (owner ruling 2026-09-23, full removal)
+
+| Path | Original location | Why archived | Date |
+| --- | --- | --- | --- |
+| `xclip-backend-chain/xclip_loader.py` | `backend/services/xclip_loader.py` | Backend X-CLIP model loader (HF load + process batch) — the NEM-5563 ST-GCN++ skeleton path (gateway `/action-classify` adapter) replaced inference; its two label heuristics (`is_suspicious_action`, `get_action_risk_weight`) were relocated verbatim into `backend/services/enrichment_pipeline.py` because they score ST-GCN++ and remote-service labels too | 2026-09-23 |
+| `xclip-backend-chain/action_recognition_service.py` | `backend/services/action_recognition_service.py` | X-CLIP recognition service + the CRUD helpers its `analyze_frames` entrypoint wrapped; route CRUD was inlined into `backend/api/routes/action_events.py` as plain DB queries. Side effect a monitoring pass should note: it defined and emitted the `hsi_action_detections_total`/`hsi_action_confidence`/`hsi_action_corrections_total` FED family, and its retirement leaves those with zero emitters (dashboard feed gaps already annotated in PR-B) | 2026-09-23 |
+| `xclip-backend-chain/test_action_recognition_service.py` | `backend/tests/unit/services/test_action_recognition_service.py` | Unit suite for the archived service; route behavior is covered in place by `backend/tests/integration/test_action_events.py` (which now pins the removed analyze endpoint at 405), model behavior by the surviving `backend/tests/integration/test_action_event_model.py` | 2026-09-23 |
+| `xclip-backend-chain/test_xclip_loader.py` | `backend/tests/unit/services/test_xclip_loader.py` | Loader/keyword-heuristic unit tests; the heuristics' contracts are exercised transitively through the pipeline tests they moved with | 2026-09-23 |
+
+The consumer half of this chain went the same day: the
+`POST /api/action-events/analyze` endpoint (owner ruling: "Full removal, API
+change included" — an approved breaking change, label the PR
+`breaking-change-approved` for `api-compatibility.yml`), the `ActionAnalyze*`
+schemas, the `model_zoo.py` `xclip-base` loader entry, the `xclip-base`
+`HEAVY_MODELS` lane and model-category row, and the deprecated pipeline
+fallback (`_recognize_actions`/`_safe_recognize_actions`). `models.yml` keeps
+the `xclip-base` provenance entry (`enabled: false`) — owner-owned, untouched.
+
+### Standalone yolo26 GPU image retirement (owner ruling 2026-09-23)
+
+| Path | Original location | Why archived | Date |
+| --- | --- | --- | --- |
+| `ai-yolo26-image/Dockerfile` | `ai/yolo26/Dockerfile` | Owner ruling "Retire image fully": Triton on ai-gateway serves yolo26 (one of the 14 models) and the compose stack has no yolo26 service; deploy.yml build/merge/sbom/provenance matrices and the dependabot docker entry removed the same day. Recipe kept for reference (header annotated with the retirement) | 2026-09-23 |
+| `ai-yolo26-image/requirements.txt` | `ai/yolo26/requirements.txt` | Image-only dependency manifest — the sole consumer was the Dockerfile's `uv pip install -r`; the kept repo-side modules resolve through the root project env, not this file | 2026-09-23 |
+| `ai-yolo26-image/export_tensorrt.py` | `ai/yolo26/export_tensorrt.py` | INT8/FP16 engine-export CLI for the image era; nothing imports it (its only invocations were prose in the also-archived `ai/yolo26/README.md`). The live export path is `ai/gateway/export/export_yolo26.py` + `export_all.sh` (gateway-era, models.yml-driven) and `ai/yolo26/build_engine.py` stays for `scripts/prebuild-tensorrt-engines.sh` | 2026-09-23 |
+| `ai-yolo26-image/README.md` | `ai/yolo26/README.md` | Build/run/API documentation for the retired server (pip-install the image reqs, build the image, port 8095); production request shapes are owned by the gateway adapter contract. Kept as the historical runbook — `ai/yolo26/AGENTS.md` now points here | 2026-09-23 |
+
+NOTE: `ai/yolo26/` itself is NOT archived. `contract.py` is the live pure leaf
+`backend/services/prompts.py` imports at runtime, and `model.py` +
+`pose_estimation.py` are AST-read by the AI-contract conformance tests in
+`backend/tests/contracts/ai_providers/` (SECURITY_CLASSES, class thresholds,
+KEYPOINT_NAMES, classify_pose, /track deletion markers) — they stay in place.
+
 ### Treatment of this tree (pass 2 ruling, 2026-09-22)
 
 Archived artifacts are frozen content, not active source: the mutation-triage

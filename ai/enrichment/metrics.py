@@ -1,8 +1,8 @@
 """Prometheus metrics for AI enrichment service video analytics features (NEM-3722).
 
 This module defines Prometheus metrics specific to the enrichment service's
-video analytics capabilities including action recognition, pose estimation,
-threat detection, demographics, re-identification, and OCR operations.
+video analytics capabilities including pose estimation, threat detection,
+demographics, re-identification, and OCR operations.
 
 These metrics complement the existing metrics in model_manager.py (VRAM metrics)
 and model.py (inference latency metrics) by providing video analytics-specific
@@ -11,16 +11,16 @@ tracking metrics.
 Note: VRAM metrics (usage, budget, evictions) are already defined in model_manager.py
 and should be imported from there, not redefined here.
 
+Action recognition is NOT instrumented here: the X-CLIP path that recorded
+these metrics was retired (NEM-5563) and action classification now runs as
+Triton stgcn_action on the ai-gateway.
+
 Usage:
     from metrics import (
-        record_action_recognition_inference,
         record_pose_estimation_inference,
         record_reid_embedding_generated,
         record_ocr_inference,
     )
-
-    # Record action recognition inference
-    record_action_recognition_inference("loitering", 0.85, 0.5)
 
     # Record pose estimation
     record_pose_estimation_inference("standing", True, 0.025)
@@ -33,34 +33,6 @@ Usage:
 """
 
 from prometheus_client import Counter, Histogram, generate_latest
-
-# =============================================================================
-# Action Recognition Metrics
-# =============================================================================
-
-ACTION_RECOGNITION_INFERENCES_TOTAL = Counter(
-    "enrichment_action_recognition_inferences_total",
-    "Total number of action recognition inferences",
-    ["action_type", "is_suspicious"],
-)
-
-ACTION_RECOGNITION_INFERENCE_LATENCY = Histogram(
-    "enrichment_action_recognition_inference_latency_seconds",
-    "Action recognition inference latency in seconds",
-    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0],
-)
-
-ACTION_RECOGNITION_CONFIDENCE = Histogram(
-    "enrichment_action_recognition_confidence",
-    "Confidence scores for action recognition",
-    ["action_type"],
-    buckets=[0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99],
-)
-
-ACTION_RECOGNITION_FRAMES_PROCESSED = Counter(
-    "enrichment_action_recognition_frames_processed_total",
-    "Total number of frames processed for action recognition",
-)
 
 # =============================================================================
 # Pose Estimation Metrics
@@ -226,33 +198,6 @@ OCR_BLURRY_IMAGES_TOTAL = Counter(
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-
-def record_action_recognition_inference(
-    action_type: str, confidence: float, duration_seconds: float, is_suspicious: bool = False
-) -> None:
-    """Record an action recognition inference.
-
-    Args:
-        action_type: Type of action detected (walking, loitering, fighting, etc.).
-        confidence: Confidence score (0.0 to 1.0).
-        duration_seconds: Inference duration in seconds.
-        is_suspicious: Whether the action is flagged as suspicious.
-    """
-    ACTION_RECOGNITION_INFERENCES_TOTAL.labels(
-        action_type=action_type, is_suspicious=str(is_suspicious).lower()
-    ).inc()
-    ACTION_RECOGNITION_INFERENCE_LATENCY.observe(duration_seconds)
-    ACTION_RECOGNITION_CONFIDENCE.labels(action_type=action_type).observe(confidence)
-
-
-def record_action_recognition_frames(frame_count: int) -> None:
-    """Record number of frames processed for action recognition.
-
-    Args:
-        frame_count: Number of frames processed.
-    """
-    ACTION_RECOGNITION_FRAMES_PROCESSED.inc(frame_count)
 
 
 def record_pose_estimation_inference(

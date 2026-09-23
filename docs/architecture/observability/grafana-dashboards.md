@@ -102,7 +102,7 @@ Distributed tracing (NEM-5545, replaced the Jaeger datasource;
         - name: 'Detection Queue Depth'
           query: 'hsi_detection_queue_depth'
         - name: 'YOLO26 Latency (p95)'
-          query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
+          query: 'histogram_quantile(0.95, sum(rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m])) by (le))'
         # ... Nemotron tokens/sec, batch latency percentiles, worker pool
     nodeGraph:
       enabled: true
@@ -156,29 +156,29 @@ Overview, AI Container Health, and Synthetic Monitoring.
 
 ### Executive Summary Row
 
-| Panel                | Expression                                                         | Thresholds (green / yellow / red) |
-| -------------------- | ------------------------------------------------------------------ | --------------------------------- |
-| GPU Utilization      | `hsi_gpu_utilization`                                              | <70% / 70-90% / >90%              |
-| Inference FPS        | `sum(rate(yolo26_inference_requests_total{status="success"}[1m]))` | -                                 |
-| Detection Queue      | `hsi_detection_queue_depth`                                        | <10 / 10-50 / >50                 |
-| Pipeline P95 Latency | `hsi_detect_latency_p95_ms / 1000`                                 | <30s / 30-60s / >60s              |
-| GPU Temp             | `hsi_gpu_temperature`                                              | <70C / 70-85C / >85C              |
-| VRAM Usage           | `(hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100`         | <80% / 80-95% / >95%              |
+| Panel                | Expression                                                 | Thresholds (green / yellow / red) |
+| -------------------- | ---------------------------------------------------------- | --------------------------------- |
+| GPU Utilization      | `hsi_gpu_utilization`                                      | <70% / 70-90% / >90%              |
+| Inference FPS        | `hsi_inference_fps`                                        | -                                 |
+| Detection Queue      | `hsi_detection_queue_depth`                                | <10 / 10-50 / >50                 |
+| Pipeline P95 Latency | `hsi_detect_latency_p95_ms / 1000`                         | <30s / 30-60s / >60s              |
+| GPU Temp             | `hsi_gpu_temperature`                                      | <70C / 70-85C / >85C              |
+| VRAM Usage           | `(hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100` | <80% / 80-95% / >95%              |
 
 ### Other Representative Panels
 
-| Area          | Panel                | Expression                                                                                                                           |
-| ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Pipeline      | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                     |
-| Risk          | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                           |
-| Risk          | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                          |
-| Cache         | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                |
-| Workers       | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                             |
-| AI Inference  | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` (also `nemotron`, `florence`, `clip`) |
-| AI Containers | Model loaded gauges  | `yolo26_model_loaded`, `florence_model_loaded`, `clip_model_loaded`, enrichment model gauges                                         |
-| LLM           | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing`, `hsi_llm_context_utilization_ratio`                             |
-| SLO           | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100` |
-| Synthetic     | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                            |
+| Area              | Panel                | Expression                                                                                                                                                          |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pipeline          | Throughput           | `rate(hsi_detections_processed_total[5m])`, `rate(hsi_events_created_total[5m])`                                                                                    |
+| Risk              | Events by Risk Level | `rate(hsi_events_by_risk_level_total[5m])`                                                                                                                          |
+| Risk              | Risk Score Average   | `hsi_risk_score_sum / hsi_risk_score_count`                                                                                                                         |
+| Cache             | Cache Hit Rate       | `sum(rate(hsi_cache_hits_total[5m])) / (sum(rate(hsi_cache_hits_total[5m])) + sum(rate(hsi_cache_misses_total[5m])))`                                               |
+| Workers           | Worker Pool          | `hsi_worker_active_count`, `hsi_worker_busy_count`, `hsi_worker_idle_count`, `hsi_pipeline_worker_state`                                                            |
+| AI Inference      | Per-service latency  | `histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="yolo26"}[5m]))` (also `nemotron`, `florence`, `clip`)                                |
+| AI Serving Health | Model health probes  | `probe_success{job="blackbox-http-2xx"}` per gateway adapter (`model="yolo26"` etc.) — per-container `*_model_loaded` gauges retired with the standalone containers |
+| LLM               | llama.cpp metrics    | `llamacpp:predicted_tokens_seconds`, `llamacpp:requests_processing`, `hsi_llm_context_utilization_ratio`                                                            |
+| SLO               | Availability / burn  | `hsi:api_availability:ratio_rate30d * 100`, `hsi:burn_rate:api_availability_1h`, `hsi:error_budget:api_availability_remaining * 100`                                |
+| Synthetic         | Blackbox probes      | `probe_success`, `probe_duration_seconds`, `probe_http_duration_seconds{phase="connect"}`                                                                           |
 
 ## Tracing Dashboard
 

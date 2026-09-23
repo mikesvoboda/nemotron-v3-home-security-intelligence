@@ -926,7 +926,7 @@ def generate_gpu_benchmark_report(
                     "TensorRT provides the best inference speed on NVIDIA GPUs. Use FP16 for optimal performance.",
                     "",
                     "```yaml",
-                    "# docker-compose configuration",
+                    "# docker-compose configuration (retired ai-yolo26 container era)",
                     "ai-yolo26:",
                     "  environment:",
                     f"    DETECTOR_MODEL: /models/yolo26/exports/{trt_fastest.model_name}.engine",
