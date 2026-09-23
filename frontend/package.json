@@ -106,7 +106,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.3.0",
     "jsdom": "^28.1.0",
-    "knip": "^5.83.1",
+    "knip": "^6.37.0",
     "msw": "2.12.10",
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.4.33",
