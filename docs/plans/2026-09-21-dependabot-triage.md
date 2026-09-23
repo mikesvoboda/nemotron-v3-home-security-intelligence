@@ -9,7 +9,7 @@ PR titles. Reproduction commands are inline so each claim can be re-checked.
 ## Headline
 
 **Zero of the 29 PRs is mergeable as-is**, and not for the usual reason. The pip group is not
-"waiting on CI" — it is *structurally invalid*: dependabot is misconfigured for this repo's
+"waiting on CI" — it is _structurally invalid_: dependabot is misconfigured for this repo's
 Python lockfile, so it edits a generated file and proposes versions its own resolver rejects.
 The npm and Docker groups are genuine upgrades blocked by couplings dependabot cannot see
 (companion bumps, an SSOT gate, an upstream support ceiling).
@@ -20,14 +20,14 @@ regenerates the same 29 next Monday.
 
 ## Why every ecosystem is exactly at its PR limit
 
-| Ecosystem | Open PRs | `open-pull-requests-limit` |
-| --- | --- | --- |
-| `pip` (`/`) | 10 | 10 |
-| `npm` (`/frontend`) | 10 | 10 |
-| `github-actions` (`/`) | 5 | 5 |
-| `docker` (4 dirs) | 1 of 3 each | 3 |
+| Ecosystem              | Open PRs    | `open-pull-requests-limit` |
+| ---------------------- | ----------- | -------------------------- |
+| `pip` (`/`)            | 10          | 10                         |
+| `npm` (`/frontend`)    | 10          | 10                         |
+| `github-actions` (`/`) | 5           | 5                          |
+| `docker` (4 dirs)      | 1 of 3 each | 3                          |
 
-All four are saturated. Dependabot will not open the *correct* PRs (e.g. vite 7 → 8, needed by
+All four are saturated. Dependabot will not open the _correct_ PRs (e.g. vite 7 → 8, needed by
 `@vitejs/plugin-react` 6) until the queue drains. Closing/stale-ing is therefore load-bearing
 work, not tidiness.
 
@@ -39,7 +39,10 @@ blocker on any PR** — do not chase it.
 
 Genuinely ambient red, present on non-dependabot PRs too: `Smoke Test Deployment`,
 `SBOM & Sign (frontend)`, `Rollback to Stable Images`, `Create Linear Issue on Main CI Failure`,
-`Nightly status`, `Backend full gate (validate.sh semantics)`. Judge a PR only on the checks
+`Nightly status`, `Backend full gate (validate.sh semantics)`, `Semantic Release` (main-push
+only — `git push` of its `chore(release)` bump is declined by branch protection while main's
+own `CI Gate` is still pending; fails identically on the 8 most recent main heads back to
+`610882b4`, none of them dependabot-related). Judge a PR only on the checks
 that gate: `CI Gate (Required Checks)`, `Version Consistency`, `Collection Sanity`,
 `Frontend Type Check`, `Frontend Lint`, `Frontend Tests`, `Test Coverage Gate`.
 
@@ -79,18 +82,18 @@ which is why it targeted the exported artifact instead of the lock. Dependabot h
 
 Measured directly. Forcing each target against the real dependency graph:
 
-| PR | Package | Target | `uv` verdict |
-| --- | --- | --- | --- |
-| #6619 | rich | 15.0.0 | **unsatisfiable** — `data-designer==0.9.2` requires `rich>=13.7.1,<15` |
-| #6620 | filelock | 4.0.0 | takes it (resolves to **4.0.1**, newer) |
-| #6621 | plotly | 7.1.0 | **unsatisfiable** — `wily==1.25.0` requires `plotly>=4,<6` |
-| #6622 | python-json-logger | 4.2.0 | **unsatisfiable** — `data-designer-config==0.9.2` requires `>=3,<4` |
-| #6623 | radon | 6.0.1 | **unsatisfiable** — `wily==1.25.0` requires `radon>=5.1,<5.2` |
-| #6624 | colorlog | 6.12.0 | **unsatisfiable** — `wily==1.25.0` requires `colorlog>=4,<5` |
-| #6625 | faker | 40.39.0 | **unsatisfiable** — `data-designer-engine==0.9.2` requires `faker>=20.1,<21` |
-| #6626 | gdown | 6.4.0 | takes it (6.4.0 exactly) |
-| #6627 | fsspec | 2026.7.0 | **unsatisfiable** — `data-designer-engine` requires `fsspec>=2025.3,<2026` |
-| #6618 | group (40) | — | uv takes **16**, goes newer on **3**, refuses **21** |
+| PR    | Package            | Target   | `uv` verdict                                                                 |
+| ----- | ------------------ | -------- | ---------------------------------------------------------------------------- |
+| #6619 | rich               | 15.0.0   | **unsatisfiable** — `data-designer==0.9.2` requires `rich>=13.7.1,<15`       |
+| #6620 | filelock           | 4.0.0    | takes it (resolves to **4.0.1**, newer)                                      |
+| #6621 | plotly             | 7.1.0    | **unsatisfiable** — `wily==1.25.0` requires `plotly>=4,<6`                   |
+| #6622 | python-json-logger | 4.2.0    | **unsatisfiable** — `data-designer-config==0.9.2` requires `>=3,<4`          |
+| #6623 | radon              | 6.0.1    | **unsatisfiable** — `wily==1.25.0` requires `radon>=5.1,<5.2`                |
+| #6624 | colorlog           | 6.12.0   | **unsatisfiable** — `wily==1.25.0` requires `colorlog>=4,<5`                 |
+| #6625 | faker              | 40.39.0  | **unsatisfiable** — `data-designer-engine==0.9.2` requires `faker>=20.1,<21` |
+| #6626 | gdown              | 6.4.0    | takes it (6.4.0 exactly)                                                     |
+| #6627 | fsspec             | 2026.7.0 | **unsatisfiable** — `data-designer-engine` requires `fsspec>=2025.3,<2026`   |
+| #6618 | group (40)         | —        | uv takes **16**, goes newer on **3**, refuses **21**                         |
 
 Reproduce:
 
@@ -103,7 +106,7 @@ uv lock --upgrade  --dry-run                       # 24 packages move
 Two blockers own the whole Python graph: **`data-designer` 0.9.2** (the `nemo` extra) and
 **`wily` 1.25.0** (the `dev`/`quality` groups). Every refused package traces to one of them.
 
-None of these are *unstable versions*. Every target is a stable, generally-available release
+None of these are _unstable versions_. Every target is a stable, generally-available release
 (verified against PyPI: `Development Status :: 5 - Production/Stable`, no pre-release
 qualifiers). The honest reason is **upstream version caps**, which is a different judgement
 call than the user's stated "wont-upgrade because unstable" — see Rulings.
@@ -141,19 +144,19 @@ git show gh/dependabot/<ref>:frontend/package.json > /tmp/wt/frontend/package.js
 cd /tmp/wt/frontend && npm ci --ignore-scripts && ./node_modules/.bin/tsc --noEmit
 ```
 
-| PR | Packages | Verdict | Measured reason |
-| --- | --- | --- | --- |
-| #6607 | typescript 5.9.3→7.0.2 | **defer** | see below |
-| #6605 | eslint 9→10.10, `@eslint/js`→10, plugin-security→4 | **defer** | see below |
-| #6604 | vitest+coverage-v8 4→5, jest-dom 6→7 | fixable | 1 type error |
-| #6608 | @vitejs/plugin-react 5→6.1.1 | **needs vite 8** | `ERR_PACKAGE_PATH_NOT_EXPORTED` |
-| #6602 | node 24.21→26.9 base image | **defer** | SSOT gate + Node 26 not LTS |
-| #6603 | group: 10 minor/patch | likely safe | tsc clean; probe inconclusive |
-| #6612 | @types/node 25→26.6.1 | likely safe | tsc clean (npm 9 false ERESOLVE) |
-| #6609 | @stryker-mutator/vitest-runner →10 | incomplete PR | strands siblings at 9.6.1 |
-| #6610 | @stryker-mutator/api →10 | incomplete PR | same |
-| #6606 | web-vitals 5→6.2.2 | **safe** | dynamic import only |
-| #6611 | framer-motion 12→13.4 | probably safe | runtime-only, needs full test run |
+| PR    | Packages                                           | Verdict          | Measured reason                   |
+| ----- | -------------------------------------------------- | ---------------- | --------------------------------- |
+| #6607 | typescript 5.9.3→7.0.2                             | **defer**        | see below                         |
+| #6605 | eslint 9→10.10, `@eslint/js`→10, plugin-security→4 | **defer**        | see below                         |
+| #6604 | vitest+coverage-v8 4→5, jest-dom 6→7               | fixable          | 1 type error                      |
+| #6608 | @vitejs/plugin-react 5→6.1.1                       | **needs vite 8** | `ERR_PACKAGE_PATH_NOT_EXPORTED`   |
+| #6602 | node 24.21→26.9 base image                         | **defer**        | SSOT gate + Node 26 not LTS       |
+| #6603 | group: 10 minor/patch                              | likely safe      | tsc clean; probe inconclusive     |
+| #6612 | @types/node 25→26.6.1                              | likely safe      | tsc clean (npm 9 false ERESOLVE)  |
+| #6609 | @stryker-mutator/vitest-runner →10                 | incomplete PR    | strands siblings at 9.6.1         |
+| #6610 | @stryker-mutator/api →10                           | incomplete PR    | same                              |
+| #6606 | web-vitals 5→6.2.2                                 | **safe**         | dynamic import only               |
+| #6611 | framer-motion 12→13.4                              | probably safe    | runtime-only, needs full test run |
 
 ### #6607 TypeScript 7 — the hard ceiling
 
@@ -272,12 +275,12 @@ against the v6 changelog. `tsc --noEmit` passes.
 
 ## Group C — Docker base images: 4 PRs, all valid, all incomplete
 
-| PR | File(s) | Change | Tag exists? |
-| --- | --- | --- | --- |
-| #6599 | `ai/clip/Dockerfile:12` | tensorrt `26.04-py3`→`26.08-py3` | ✓ |
-| #6600 | `ai/yolo26/Dockerfile:16` | tensorrt `26.04-py3`→`26.08-py3` | ✓ |
-| #6601 | `ai/nemotron/Dockerfile{,.hf}` | cuda `13.2.1`→`13.3.1` (devel + runtime) | ✓ |
-| #6602 | `frontend/Dockerfile:22` | node `24.21.0`→`26.9.0-alpine3.23` | ✓ (see Group B) |
+| PR    | File(s)                        | Change                                   | Tag exists?     |
+| ----- | ------------------------------ | ---------------------------------------- | --------------- |
+| #6599 | `ai/clip/Dockerfile:12`        | tensorrt `26.04-py3`→`26.08-py3`         | ✓               |
+| #6600 | `ai/yolo26/Dockerfile:16`      | tensorrt `26.04-py3`→`26.08-py3`         | ✓               |
+| #6601 | `ai/nemotron/Dockerfile{,.hf}` | cuda `13.2.1`→`13.3.1` (devel + runtime) | ✓               |
+| #6602 | `frontend/Dockerfile:22`       | node `24.21.0`→`26.9.0-alpine3.23`       | ✓ (see Group B) |
 
 Tags verified against the registries:
 `docker manifest inspect nvcr.io/nvidia/tensorrt:26.08-py3` ✓,
@@ -313,13 +316,13 @@ driver version.
 
 ## Group D — GitHub Actions: 5 PRs, all low-risk, two caveats
 
-| PR | Change | Notes |
-| --- | --- | --- |
-| #6613 | group: cosign-installer, anchore/sbom-action v0.24.0→.2, tj-actions/changed-files ×3 | all within declared major |
-| #6614 | gitleaks-action `2.3.9`→`3.0.0` | **licence question, see below** |
-| #6615 | configure-pages `v5`→`v6` | clean; no inputs used |
-| #6616 | codecov-action `5.5.2`→`7.1.1`, 3 call sites | inputs all still valid in v7 |
-| #6617 | attest-build-provenance `3.2.0`→`4.2.2` | **PR leaves comment at `# v2`** |
+| PR    | Change                                                                               | Notes                           |
+| ----- | ------------------------------------------------------------------------------------ | ------------------------------- |
+| #6613 | group: cosign-installer, anchore/sbom-action v0.24.0→.2, tj-actions/changed-files ×3 | all within declared major       |
+| #6614 | gitleaks-action `2.3.9`→`3.0.0`                                                      | **licence question, see below** |
+| #6615 | configure-pages `v5`→`v6`                                                            | clean; no inputs used           |
+| #6616 | codecov-action `5.5.2`→`7.1.1`, 3 call sites                                         | inputs all still valid in v7    |
+| #6617 | attest-build-provenance `3.2.0`→`4.2.2`                                              | **PR leaves comment at `# v2`** |
 
 Checked: codecov v7's `action.yml` still defines `files`, `directory`, `flags`,
 `fail_ci_if_error` — the three repo call sites use only those, so #6616 is input-compatible
@@ -339,8 +342,8 @@ merged PR here needs its trailing comment corrected — a one-line edit per site
 lie `check-version-consistency.sh` was written to prevent.
 
 **Caveat 2 — gitleaks v3 and licensing (Ruling R-2).** `gitleaks/gitleaks-action` is under a
-commercial EULA at **both** v2.3.9 and v3.0.0 (identical header: *"You may use this code under
-the terms of the GITLEAKS-ACTION END-USER LICENSE AGREEMENT"*, pointing at
+commercial EULA at **both** v2.3.9 and v3.0.0 (identical header: _"You may use this code under
+the terms of the GITLEAKS-ACTION END-USER LICENSE AGREEMENT"_, pointing at
 `gitleaks.io/COMMERCIAL-LICENSE.txt`). `GITLEAKS_LICENSE` is **not configured anywhere** in this
 repo — the step supplies only `GITHUB_TOKEN` and `GITLEAKS_CONFIG`. So v2 already runs on the
 free tier for public repos; the question is whether v3 tightens that. This is a licensing/
@@ -375,12 +378,12 @@ at 11:00Z. These are the fixes, in value order:
    `pyproject.toml`'s actual constraint graph. The dedicated `uv` ecosystem exists for this
    and it would resolve through the real graph — which means it would stop proposing
    the eight versions uv itself refuses. Config predates the uv migration (added `c57db1fc`,
-   PR #394). *String CONFIRMED 2026-09-21 (measured, no longer a guess):
+   PR #394). _String CONFIRMED 2026-09-21 (measured, no longer a guess):
    `package-ecosystem: 'uv'` — github/docs raw source
    `content/code-security/reference/supply-chain-security/dependabot-options-reference.md`
    ecosystem table: "| uv | `uv` | v0.11 |" (pip/pip-compile/pipenv/poetry all map to `pip`);
    dependabot-core ships a dedicated `uv/` package whose file_fetcher requires `uv.lock` +
-   `pyproject.toml` (file_fetcher.rb:19,24,37), so `directory: '/'` stays as-is.*
+   `pyproject.toml` (file_fetcher.rb:19,24,37), so `directory: '/'` stays as-is._
 
    **KNOWN SCOPE — the switch is not a pure cleanup (measured).** PR #6544 (merge commit
    `d1546bee`, 2026-09-15, authored by dependabot[bot], grouped under "the uv group") edited
@@ -420,17 +423,17 @@ and `ignore` conditions would let dependabot stop filing the known-blocked major
 
 Each PR appears exactly once; the partitions sum to 29.
 
-| Disposition | Count | PRs |
-| --- | --- | --- |
-| **Incorporate now** (merge + fix the stale `# vX` comment) | 5 | #6606 #6613 #6615 #6616 #6617 |
-| **Incorporate with a code fix in-PR** | 3 | #6604 (matchers.ts:127) · #6609 + #6610 (fold into one 4-package Stryker PR) |
-| **Incorporate pending ruling R-3**, and complete the stale OCI LABELs on #6600 | 3 | #6599 #6600 #6601 |
-| **Defer — companion bump not in the queue** | 1 | #6608 (needs vite 8) |
-| **Defer — upstream support ceiling** | 2 | #6605 (ESLint 10 plugins) · #6607 (TS 7 ← typescript-eslint) |
-| **Defer — wait for Node 26 LTS on 2026-10-28** | 1 | #6602 |
-| **Close — invalid as authored** (edits a generated file) | 10 | #6618–#6627 |
-| **Needs ruling R-2** (licence) | 1 | #6614 |
-| **Probably safe, needs a full suite run before merge** | 3 | #6603 #6611 #6612 |
+| Disposition                                                                    | Count | PRs                                                                          |
+| ------------------------------------------------------------------------------ | ----- | ---------------------------------------------------------------------------- |
+| **Incorporate now** (merge + fix the stale `# vX` comment)                     | 5     | #6606 #6613 #6615 #6616 #6617                                                |
+| **Incorporate with a code fix in-PR**                                          | 3     | #6604 (matchers.ts:127) · #6609 + #6610 (fold into one 4-package Stryker PR) |
+| **Incorporate pending ruling R-3**, and complete the stale OCI LABELs on #6600 | 3     | #6599 #6600 #6601                                                            |
+| **Defer — companion bump not in the queue**                                    | 1     | #6608 (needs vite 8)                                                         |
+| **Defer — upstream support ceiling**                                           | 2     | #6605 (ESLint 10 plugins) · #6607 (TS 7 ← typescript-eslint)                 |
+| **Defer — wait for Node 26 LTS on 2026-10-28**                                 | 1     | #6602                                                                        |
+| **Close — invalid as authored** (edits a generated file)                       | 10    | #6618–#6627                                                                  |
+| **Needs ruling R-2** (licence)                                                 | 1     | #6614                                                                        |
+| **Probably safe, needs a full suite run before merge**                         | 3     | #6603 #6611 #6612                                                            |
 
 And the two fixes that stop this recurring: the `pip` → `uv` ecosystem switch, and the
 `requirements-audit.txt` untrack — without them, next Monday regenerates the same ten no-op PRs.
@@ -445,6 +448,7 @@ Supersede PRs landed: **#6629** (actions → #6613 #6615 #6616 #6617), **#6630**
 **#6628** (merged). Three findings the pre-execution triage could not have known:
 
 ### 1. msw ≥ 2.13 is a test-visible regression — #6603's msw line DEFERRED
+
 Single-variable isolation on a **main-tip worktree with main's vitest 4 and main's every-
 other-package**: tanstack 5.103.1 alone → 25/25 pass; **msw 2.15.0 alone → both failures
 reproduce**; msw 2.13.6 (earliest ≥2.13) → same; revert to main's 2.12.10 → 25/25 pass. The
@@ -459,6 +463,7 @@ and holds msw at 2.12.10; the msw bump must re-file standalone with test adaptat
 inverts the triage's "#6603 likely safe" line: safe except for exactly one member.
 
 ### 2. vitest 5.0.1's shipped declarations self-conflict on `Assertion`
+
 The triage predicted "a one-line signature alignment" for matchers.ts:127. Execution found
 no such line exists that TS accepts: vitest 5.0.1 itself ships **two disagreeing**
 declarations of `Assertion` inside `declare module "vitest"` —
@@ -472,12 +477,13 @@ merges `CustomMatchers<R>` there. Upstream-reportable on both counts (vitest sel
 jest-dom 7.0.1 lagging the new shape).
 
 ### 3. vitest 5 + stryker 10 = a 108-error TS2883 declaration wall
+
 vitest 5 moved `Procedure` (vi.fn's inferred-generic bound) into a chunk file, so any export
 whose inferred type mentions it is unnameable from a `.d.ts`. Harmless to `tsc --noEmit` —
 **fatal** to stryker's typescript-checker, which compiles with declaration emit
 (`@stryker-mutator/typescript-checker/dist/src/tsconfig-helpers.js`
 `LOW_EMIT_OPTIONS_FOR_PROJECT_REFERENCES`; build mode switches on whenever the tsconfig keeps
-a `references` key — which `tsconfig.stryker.json` keeps *specifically* to block following
+a `references` key — which `tsconfig.stryker.json` keeps _specifically_ to block following
 into tsconfig.node.json, per its WP3.3 header). `stryker run` died at checker init with 108
 TS2883 across the four mock modules (`services/__mocks__/api.ts` ×99,
 `hooks/__mocks__/webSocketManager.ts` ×4, `test/common-mocks.ts` ×3, `test/mocks/index.ts`
@@ -495,6 +501,7 @@ rc=0, zero ERESOLVE, vitest-runner@10 peers `vitest >=2.0.0`, one deduped `vites
 the tree — so #6609/#6610 folded into #6632 without a PR-C2.
 
 ### Finding 4 (CI infra, measured 2026-09-21): TPA baseline harvest can select an
+
 expired run → 410 → fail-closed red, despite a fresh baseline existing
 
 On #6629's rerun (run 35627489212 attempt 2, job 106443771260, 17:40:05Z):
@@ -512,7 +519,7 @@ designed (broken fetch = red, never silently widened).
 
 **Fix shipped in-batch (#6629 commit `11d37187`, rebased `b755c35d`, TDD):**
 attempt 3 proved the
-stale page is not one-off — it picked a *Sept-19* run (usable but two days old:
+stale page is not one-off — it picked a _Sept-19_ run (usable but two days old:
 22,627 tests, so `test_attempt_number_roundtrip` counted as "new" and its mild
 1.38x spike stayed RED instead of warning). `select_run` now drops `expired: true`
 artifacts from candidacy (an expired zip is never harvestable — GitHub 410s it,
@@ -551,6 +558,7 @@ request, stale page, rc=1. Post-fix the canned server serves stale-then-fresh
 and the harvest selects the fresh run; 7/7 green.
 
 ### Finding 5 (mutation harness, measured 2026-09-21): stryker 10 + vitest 5 runs
+
 every mutant but kills NONE — 0.00 score is a harness defect, not test quality
 
 Authoritative CI measurement (dispatched run 35634327238, frontend-only, head of
@@ -580,13 +588,13 @@ fails loudly-at-the-right-layer instead of at init.
 
 **Isolation experiments (both completed, 2026-09-21):**
 
-| experiment | config delta | result |
-|---|---|---|
-| 1 (`stryker.experiment.mjs`) | `checkers: []`, risk.ts only | 0/80 killed, "0.00 tests per mutant" |
+| experiment                    | config delta                                    | result                                                                        |
+| ----------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| 1 (`stryker.experiment.mjs`)  | `checkers: []`, risk.ts only                    | 0/80 killed, "0.00 tests per mutant"                                          |
 | 2 (`stryker.experiment2.mjs`) | + `coverageAnalysis: 'all'`, `timeoutMS: 60000` | 0/80 killed (80 survived), "0.00 tests per mutant", 9m20s run 14:33→14:42 UTC |
 
 Experiment 1 exonerates the TypeScript checker. Experiment 2 was the discriminator
-between the two remaining hypotheses and it refutes BOTH: if coverage *mapping*
+between the two remaining hypotheses and it refutes BOTH: if coverage _mapping_
 were the defect, `'all'` mode (skip the per-test map, run the whole suite against
 every mutant) would produce kills — it produced none. And the mutants are not
 merely untested: each one was executed for real (~4–5 min of mutant wall-time
@@ -618,3 +626,109 @@ cherry-pick of dependabot's commit `af3f3120` onto `chore/artifact-cleanup-pass2
 truthful `# v3.0.0` comment kept as-authored. The licence posture (commercial
 EULA, free-tier) remains the owner's call and was implicitly exercised by this
 instruction; #6614 closes as superseded by #6638's merge, citing this commit.
+
+---
+
+## Wave-3 closeout (executed 2026-09-23, dependabot PRs #6651–#6665)
+
+Fifteen PRs re-filed after wave 2 — all legitimate (the uv switch held: zero
+`requirements*.txt` hunks; #6665 touches `uv.lock`). Root cause of the refill:
+clearing wave 2 drained the saturated queues, so Monday's groups opened the
+tier the old queue was suppressing (vite 8, tailwindcss 4, react-joyride 3,
+pako 3, knip 6, jsdom 30, lucide 1.47), and msw 2.15 re-filed **inside** the
+npm-minor-patch group because its ignore floor was missing.
+
+Runner relief (measured): GitHub has no PR-level Actions pause — `gh pr close`
+does NOT deschedule queued runs, and 12+ runs re-spawned between sweeps while
+PRs stayed open. The levers: cancel (`gh run cancel`, immediate), close (stops
+re-queues), and merge (superseders). ~35 runs cancelled across four sweeps.
+
+| PR                                                              | Content  | Disposition          | Landed as                                                                                                                                                             |
+| --------------------------------------------------------------- | -------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #6662 checkout 4→7                                              | a0c10550 | supersede-close      | `cc58cdc7` (truthful # v7.0.1 ×96)                                                                                                                                    |
+| #6660 download-artifact 4→8                                     | f62cdf72 | supersede-close      | `cc58cdc7` (truthful # v8.0.1 ×5)                                                                                                                                     |
+| #6663 upload-pages-artifact 4→5                                 | 65c520ec | supersede-close      | `cc58cdc7`                                                                                                                                                            |
+| #6664 deploy-pages 4→5                                          | e60ff0a2 | supersede-close      | `cc58cdc7`                                                                                                                                                            |
+| #6655 lucide-react ^1.47.0                                      | 575c467a | supersede-close      | `4dbb0353`                                                                                                                                                            |
+| #6656 jsdom ^30.1.0                                             | 3269e1a6 | supersede-close      | `4dbb0353` + in-PR test fix `6abbf9c5` (CI node 24.21 ≥ 24.15 engine ✓)                                                                                               |
+| #6651 npm group (lru-cache, t-p-m, msw)                         | c52c21e8 | supersede-close      | `4dbb0353` + msw floor `0d9ae3f7` (merged #6666)                                                                                                                      |
+| #6652 cuda 13.4.1                                               | f9774df3 | CLOSED (holder open) | content lives in #6669 — OPEN, HOLD (R-3: first 13.4.1 ai-llm build)                                                                                                  |
+| #6653 knip 6                                                    | —        | CLOSED deferred      | rules.classMembers removed; knip.json:37                                                                                                                              |
+| #6654 pako 3                                                    | —        | CLOSED deferred      | no default export; websocketCompression.ts:15                                                                                                                         |
+| #6657 vite 8                                                    | —        | CLOSED deferred      | esbuild peer + lightningcss print.css:492,493,512,518                                                                                                                 |
+| #6658 tailwindcss 4                                             | —        | CLOSED deferred      | @tailwindcss/postcss + @theme + ~135 @apply                                                                                                                           |
+| #6659 react-joyride 3                                           | —        | CLOSED deferred      | no default export; callback→onEvent; ×7 sites                                                                                                                         |
+| #6661 cache/save 6.1.0                                          | —        | CLOSED + re-file ask | half-pair; phantom `overwrite: true` :266                                                                                                                             |
+| #6665 uv group (ultralytics)                                    | —        | CLOSED               | born-obsolete (PyPI 8.4.160); Monday re-roll                                                                                                                          |
+| #6670 npm group ×3 (dompurify, framer-motion, immer, lru-cache) | 7ebbb173 | CLOSED deferred      | includes `lru-cache ^11.5.3` — #6668 already lands it; second lock regen would stack on an unmerged lockfile (wave-2 conflict pattern); re-file Mon after #6668 lands |
+| #6671 uv group (ultralytics 8.4.155→157)                        | 1118b42b | CLOSED               | born-obsolete again — PyPI 8.4.160 at open (same as #6665); Mon re-roll                                                                                               |
+| #6672 docker/build-push-action 6→7                              | b5820a91 | CLOSED deferred      | unmeasured major + dependabot's own diff rewrites a `# v5`-pinned SHA with a `# v6` comment (KNOWN SCOPE hand-review case)                                            |
+
+Config floors landed on `deps/config-ceilings` (#6666): msw `>=2.13`,
+tailwindcss `>=4`, vite `>=8`, react-joyride `>=3`, pako `>=3`, knip `>=6` —
+drop each in the PR that lands its migration. Housekeeping: stale
+`deps/combined-{actions,docker,npm,python}` branches deleted (all merged as
+#6629–#6632; the "close 4 PRs" line of the plan was stale — nothing open to
+close).
+
+**Batch merges (2026-09-23):** #6667 (actions batch, head `e65dab67`) admin-squashed as
+`cc58cdc7`; #6668 (npm batch, head `4d1d6c5f`) admin-squashed as `4dbb0353`; the TPA
+slow-list unblocker #6674 as `db220839`. #6667's first green gate went BEHIND on #6668's
+merge — strict protection refuses admin-merge on BEHIND heads — so main was merged into
+the branch (`e65dab67`) and the head re-rolled once, green, before the squash. Supersede
+evidence comments (merge SHA each) posted on all seven superseded originals.
+
+**OPEN after this wave:** R-3 cuda 13.4.1 (#6669 merge gate, owner) · five
+migration PRs behind the floors above · #6661 paired cache re-file ·
+Collection-Sanity flake (test_check_coverage_diff.py race under -n8, re-run
+once before trusting red) · Monday 2026-09-28 re-files: uv group lands fresh
+at 8.4.160+; npm minors re-offer against the new floors.
+
+Timing deviation (2026-09-23 14:2xZ): the plan deferred the supersede-closes
+until the batches merged, to keep merge SHAs citable. A fresh dependabot wave
+(#6670–#6672, 14:01–14:13Z) re-saturated the runners, so #6660 #6662 #6663
+#6664 #6655 #6656 #6652 were closed same-day citing their batch PRs (#6667,
+#6668, #6669) instead; every head was fetched into local refs first, so no
+content was lost; post-merge, the supersede evidence landed as comments on those
+PRs (see Batch merges below). A second wave of closes
+(#6670–#6672, deferred/obsolete reasons in-table) brought open dependabot PRs
+to **zero** — no re-spawn source until the Mon 06:00 CT schedule.
+`repos/$R/dependabot/auto-updates/pause` and `…/dependabot` both 404 for this
+repo/token — the REST pause levers are not available here; close+cancel is it.
+
+### jsdom 30 computed-style serialization (measured 2026-09-23, this wave)
+
+jsdom 30 resolves **computed** lengths to px — `getComputedStyle(el).height`
+returns `'32px'` for `height:'2rem'` where jsdom 28 echoed `'2rem'` (probe:
+`el.style.height` still reads `'2rem'`, the style attribute is untouched).
+jest-dom's `toHaveStyle` falls through to computed style, so exactly two
+assertions broke: `Skeleton.test.tsx` '2rem'→'32px', '1em'→'16px'. Repo-wide
+grep for other em/rem `toHaveStyle` assertions: zero. Aligned to browser
+truth (browsers have always serialized px; jsdom 28 was the outlier) in
+`6abbf9c5` per the align-tests-to-shipped-contract rule. A second site
+surfaced on re-run — `VirtualizedList.test.tsx` `'50vh'`→`'384px'` (jsdom
+default viewport 768px; the initial grep had only covered em/rem, not vh) —
+fixed same family in `a6a3efbb`.
+
+### Test Performance Audit red on #6667 — a landmine, not batch fallout (2026-09-23)
+
+#6667's re-roll went hard-red on `Test Performance Audit` → `CI Gate`
+(not the download-artifact v8 digest watch item — all 15 artifact digests
+logged "downloaded … successfully"). The breach was
+`test_enrichment_pipeline_household_matching::test_vehicle_household_matching_via_license_plate`:
+**4.18s ×2** on the #6667 head (identical on a re-run — not a cold-start
+blip) and **4.297s in main's own junit corpus** (run 35870414441), against
+the 4.0s unit threshold; solo the test takes **1.20s** — the breach is
+`-n8` contention inflation, and the same corpus holds a 153.6s outlier on a
+same-named test. WP1.3's baseline rule was _right_ to redden it: main's
+baseline breached too, so the persistence rule fires. Any PR can randomly
+inherit this test's spike — the doctrine-prescribed mitigation is slow-list
+admission, not re-run roulette: PR **#6674** adds the 8th `SLOW_TEST_PATTERNS`
+entry + `tpa_slow_list` registry entry (id-keyed, no line pins) + baseline
+count 7→8. The admission also surfaced a **fourth coordination point** the
+local gates (ratchet-check, suppression-census --expect) do not cover: the
+hardcoded spec table in `scripts/test_suppression_census.py::
+test_real_tree_matches_spec_baselines` — Collection Sanity reddened #6674
+with "census=8 spec=7" until `8621f8c6` synced it. Full same-commit set for
+an admission: script pattern, registry entry, `suppression-baseline.json`,
+AND the census-test spec table.
