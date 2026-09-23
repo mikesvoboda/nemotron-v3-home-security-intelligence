@@ -10350,3 +10350,45 @@ logged for the rewrite, comparisons themselves are correct). The FE test file
 flagged as "deleted/untracked" was a cwd error on my side (ls from inside
 frontend/): `time-relative.test.ts` is tracked in HEAD (`6eb017bd`) and present
 on disk (mtime 20:41:03Z, md5 193f6ab7) — no data loss, no action.
+
+### Row — wh15c2 lands 76/1 (rc=0) and whserv2 lands 37/5 (rc=0): my 39/3 expectation was wrong on four counts — batch-15c authored against the five true gaps (duck-.value binding, SELECT-head pin, discord default title)
+
+**Both tallies MEASURED from the authoritative logs this session**
+(`uniq -c` re-count; both runs rc=0 "source clean"):
+
+- **wh15c2** (77-key batch-15-era feed vs batch-15 battery, `/tmp/redcheck-wh15c.log`,
+  05:12:50Z): **76 KILLED / 1 SURVIVED**. Lone survivor
+  `_format_discord_payload__mutmut_9` (`payload.get("event_type", "event")` →
+  `"EVENT"`): the default only surfaces in the embed title
+  (`"event".title() == "Event"`) — a genuine battery gap, not equivalent.
+- **whserv2** (42 CURRENT-cache keys vs shipped ∪ 15 ∪ 15b,
+  `/tmp/redcheck-whserv2.log`, 05:24:25Z): **37 KILLED / 5 SURVIVED** —
+  documented expectation was 39/3; both the expectation AND parts of the
+  15b per-mutant triage were wrong, corrected against the full feed shapes
+  re-dumped from `/tmp/extracts/webhook_service.tsv`:
+  - key 2 is `and False` and key 4 is `hasattr(None, "value")` — NOT the
+    `= None`/TypeError shapes the 15b docstring claimed. Both always take
+    `str(event_type)`: equivalent for str-subclass enums and plain strings
+    (correctly measured) but DIVERGENT on a non-str input carrying `.value`
+    with `str(obj) != obj.value` — shipped binds `'custom_duck'`, mutants
+    bind `'DUCK'` (MEASURED duck probe `/tmp/b15c-duck.py`).
+  - keys 8/9 (attr spellings) diverge on the same duck input via the same
+    mechanism — killable, not blanket-equivalent.
+  - key 3 (`or True`) is NOT equivalent: forced `.value` raises AttributeError
+    on plain-str input (measured) — and it died accordingly in whserv2,
+    which is what exposed my wrong claim.
+  - key 14 `select(None)` → `SELECT NULL AS anon_1` leaves the WHERE clause
+    intact — the 15b test's `sql.split("WHERE")[1]` assert is structurally
+    blind to it (assert-placement gap, feed shape verified).
+
+**batch-15c authored TDD against exactly these gaps**: 4 tests,
+**4 passed, 11.53s measured** (plus 15b re-run green: 9/9 combined, 20.35s;
+every pin copy-pasted from `/tmp/b15c-probes.json` + duck probe — shipped
+duck WHERE `'custom_duck' = ANY`, MEASURED 18-column SELECT head, discord
+titles "Event"/"Alert Fired" verbatim). 15b docstring carries the superseding
+addendum; production not bent to any mutant. No kill tallies claimed for
+15c — verification runs **whserv3** (42 keys vs shipped+15+15b+15c) and
+**wh15d** (77 keys vs batch-15+15c) are DRY-verified (42/42, 77/77
+assignable) and armed in `/tmp/wl_chain2.sh` behind the live logs13b2 run.
+Expected honest outcomes at exit: whserv3 41 KILLED / 1 EQUIVALENT-or-gap,
+wh15d 77/0 — expectations, not claims; actuals row when the logs land.

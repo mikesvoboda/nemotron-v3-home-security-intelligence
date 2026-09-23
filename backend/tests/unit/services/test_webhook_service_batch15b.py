@@ -28,6 +28,17 @@ shipped behavior — /tmp/b15b-harness.py → /tmp/b15b-probes.json):
 Every expected value MEASURED against shipped production this session;
 production NOT bent to any mutant. No kill tallies claimed here — those come
 only from the 15b lane red-check.
+
+ADDENDUM (superseded by whserv2, measured this session): the ternary
+disposition above was wrong on four counts — feed shapes re-dumped from
+/tmp/extracts/webhook_service.tsv show key 2 is ``and False`` and key 4 is
+``hasattr(None, "value")`` (both fall to ``str(obj)``, NOT TypeError/None-
+bind), key 3 (``or True``) is NOT equivalent (forced ``.value`` raises
+AttributeError on plain-str input), and keys 2/4/8/9 all DIVERGE on a non-str
+input carrying ``.value`` where ``str(obj) != obj.value``. All four true gaps
+plus key 14 (WHERE-only asserts blind to ``select(None)``'s SELECT head) are
+killed in ``test_webhook_service_batch15c.py``; key 3 was killed by the
+plain-str shape test above.
 """
 
 from __future__ import annotations
