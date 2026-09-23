@@ -33,10 +33,15 @@ NOT bent):
   [DONE] stops it (kills break->continue via a poisoned post-DONE line),
   content-less JSON yields nothing.
 
-NOT covered — 5 of the 57 are per-mutant MEASURED EQUIVALENTs (ledger):
-recoverable=True removal x3 (MEASURED StreamingErrorEvent field default IS
-True via inspect.signature) and content default ""->None x2 (falsiness
-identity in `if content:`).
+Post-run correction (MEASURED, batch-23 probe session): this battery
+killed 38 of the 57; of the 19 that survived, 10 are per-mutant MEASURED
+EQUIVALENTs — recoverable=True removal x3 (field default MEASURED True
+via inspect.signature), content ""->None x2 (falsiness identity), risk-
+fallback dict-LITERAL renames x4 (key rename + read-back with the SAME
+.get default is value-identity), break->return at loop end (MEASURED
+tail after the SSE loop is EMPTY) — and the remaining 9 are true gaps
+targeted by batch-23. The pre-run "5 equivalents" estimate here was
+wrong; measurement adjudicated the split 10/9.
 """
 
 from __future__ import annotations
