@@ -9949,3 +9949,31 @@ contract, sort-fallback column. 17 passed this session. In-file
 equivalence disclosures kept (order-default SQL-blindness MEASURED
 identical SQL; microsecond-cutoff carrier) — signature pin, not a faked
 SQL. WP4.2 fast-path rc=0 on both files.
+
+### Row — batch-16b: nemotron_streaming ERROR-PATH battery (commit `07cf5805`)
+
+MEASURED this session: `test_nemotron_streaming_batch16b.py` — **20 tests, 20
+passed** (`uv run pytest … -q` → "20 passed in 14.56s", re-confirmed on the
+committed copy). Clusters pinned (all literals from my own `/tmp/b16-harness.py`
+probe runs consolidated in `/tmp/b16-probes.json` + `b16-probe-last2.json` +
+`b16-probe-wire.json`): C6 ERRMSG full-shape 4-key error dumps for every guard
+(INTERNAL_ERROR "Redis client not initialized" / BATCH_NOT_FOUND / both
+NO_DETECTIONS variants / int-cast ValueError message verbatim) and the three
+LLM-side error dumps; C7/C8 IDEMPOTENCY hit short-circuit (exact 6-key complete
+dict, ZERO writes, fetch never called) + the blank-fields OR-defaults which are
+**distinct literals** from the tail-path defaults ("No summary available" vs "No
+summary" — two mutant classes); C13-adjacent Redis-sourced id routing (enrich
+carries the REDIS camera_id, LLM carries the row's camera_name); C16/C17 parse
+fallbacks (empty-dict get-defaults vs ValueError fallback dict) + Event field
+defaults incl. `reviewed=False`; C15 tracking `has_data` gate (None vs identity
+`is er`); C20 BROADCAST survival (broadcast raises → stream still completes,
+Event arg asserted) + metrics args + `_set_idempotency("test_batch", 456)`.
+Full-shape asserts (exact dicts, exact key sets) where the shipped suite used
+substring/membership — key-mangling mutants on these dumps were previously
+un-pinned. Production NOT bent to any mutant; no kill tallies claimed here.
+**Red-check armed**: `/tmp/lane_ns16b.py` (derived from `lane_ns16.py`, same
+auth1 lane, same 533-key nemotron feed — battery md5-verified byte-identical in
+`/home/agent/lanes/auth1`), queued behind running ns16 via `/tmp/ns16b_seq.sh`
+which also re-runs ns16 on the post-ruff battery copy (ns16c). Tallies land in
+`/tmp/ns16b-stdout.log` / `/tmp/redcheck-ns16b.log` at exit. WP4.2 fast-path
+rc=0 on the file; ruff/format clean pre-commit.
