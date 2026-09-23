@@ -768,7 +768,13 @@ radon, and wily existed in the project env solely to leak its transitive
 un-caps the graph dependabot kept refusing — plotly (was `>=4,<6`), colorlog
 (`>=4,<5`), radon (was `>=5.1,<5.2`), mando. The `data-designer` 0.9.2 caps
 (rich/python-json-logger/faker/fsspec) are untouched by this change and
-remain subject to R-4 below.
+remain subject to R-4 below. First red on #6676 vindicated the ruling's thesis:
+`Contract Tests (API Schema)` died with `ModuleNotFoundError: jsonschema` —
+`backend/tests/contracts/ai_providers/*` imported it undeclared and the dev env
+got it via the wily→nbformat→jsonschema chain (it survives the lock only for
+the `data-designer`/`mcp` extras, which the job's `uv sync --extra dev` never
+materializes). Fixed same-PR by declaring `jsonschema>=4.0.0` in the `test`
+group; collection verified locally (612 tests, zero import errors).
 
 **R-4 — upstream version caps ARE an acceptable wontfix: YES, recorded.** The
 10 refused Python upgrades from wave-1's Group A trace to two upstream owners

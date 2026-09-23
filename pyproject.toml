@@ -243,6 +243,12 @@ test = [
     "factory-boy>=3.3.0",  # Test fixture factories
     "freezegun>=1.5.0",  # Time mocking for tests
     "syrupy>=4.8.0",  # Snapshot testing for API response schemas (NEM-3748)
+    # R-1 fallout (2026-09-23): contract tests' `import jsonschema` was satisfied
+    # transitively via wily -> nbformat -> jsonschema. Dropping wily (dev extra)
+    # reddened Contract Tests (API Schema) with ModuleNotFoundError — the exact
+    # leak class R-1 exists to surface. Declared directly now; consumers are
+    # backend/tests/contracts/ai_providers/* and backend/ai_contract/fake/.
+    "jsonschema>=4.0.0",
     # Video processing (needed for video service tests)
     "ffmpeg-python>=0.2.0",
     # XML parsing (secure - needed for test fixtures)
