@@ -60,15 +60,15 @@
 
 | Container                      | Base Image                                                                 | CUDA             | cuDNN | PyTorch      |
 | ------------------------------ | -------------------------------------------------------------------------- | ---------------- | ----- | ------------ |
-| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04` (builder)                 | **13.3.1**       | --    | --           |
-| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04` (runtime)               | **13.3.1**       | --    | --           |
+| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.4.1-devel-ubuntu22.04` (builder)                 | **13.4.1**       | --    | --           |
+| ai-llm (Nemotron)              | `docker.io/nvidia/cuda:13.4.1-runtime-ubuntu22.04` (runtime)               | **13.4.1**       | --    | --           |
 | ai-gateway (Triton)            | `nvcr.io/nvidia/tritonserver:26.01-py3`                                    | 12.8.0 (bundled) | --    | --           |
 | ai-yolo26 (retired 2026-09-23) | `nvcr.io/nvidia/tensorrt:26.08-py3` (recipe in `archive/ai-yolo26-image/`) | bundled          | --    | --           |
 | ai-clip (dev)                  | `nvcr.io/nvidia/tensorrt:26.08-py3`                                        | bundled          | --    | --           |
 | ai-florence (dev)              | `docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.6.0**    |
 | ai-enrichment (dev)            | `docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.4.0**    |
 | ai-enrichment-light (dev)      | `docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`                  | **12.4**         | **9** | **2.4.0**    |
-| ai-llm (HF variant)            | `docker.io/nvidia/cuda:13.3.1-runtime-ubuntu22.04`                         | **13.3.1**       | --    | cu121 wheels |
+| ai-llm (HF variant)            | `docker.io/nvidia/cuda:13.4.1-runtime-ubuntu22.04`                         | **13.4.1**       | --    | cu121 wheels |
 | vLLM (optional)                | `docker.io/vllm/vllm-openai:cu130-nightly`                                 | **13.0**         | --    | --           |
 | DCGM Exporter                  | `nvcr.io/nvidia/k8s/dcgm-exporter:3.3.5-3.4.0-ubuntu22.04`                 | --               | --    | --           |
 
@@ -80,7 +80,7 @@
 | -------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
 | NVIDIA Triton Inference Server         | **26.01** (v2.54.0)                               | `ai/gateway/Dockerfile` line 1                                             |
 | NVIDIA TensorRT                        | **10.14.x** (bundled in the 26.0x NGC containers) | `archive/ai-yolo26-image/Dockerfile` (retired image), `ai/clip/Dockerfile` |
-| NVIDIA CUDA Toolkit (LLM)              | **13.3.1**                                        | `ai/nemotron/Dockerfile` lines 8, 72                                       |
+| NVIDIA CUDA Toolkit (LLM)              | **13.4.1**                                        | `ai/nemotron/Dockerfile` lines 8, 72                                       |
 | NVIDIA CUDA Toolkit (PyTorch services) | **12.4**                                          | `ai/florence/Dockerfile`, `ai/enrichment/Dockerfile`                       |
 | NVIDIA cuDNN                           | **9** (images) / **9.19.0.56** (pip, historical)  | Dockerfiles; CUDA torch wheel — see CUDA table note                        |
 | NVIDIA DCGM                            | **3.3.5** (exporter **3.4.0**)                    | `docker-compose.prod.yml` line 1246                                        |
@@ -188,8 +188,8 @@ All packages are PyTorch transitive dependencies from the CUDA torch wheel. Plat
 | ------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
 | Git tag                               | **b7972**                                | `ai/nemotron/Dockerfile` line 24                    |
 | Previous tag (superseded)             | 9496bbb80                                | evaluation docs                                     |
-| CUDA base image (builder)             | `nvidia/cuda:13.3.1-devel-ubuntu22.04`   | `ai/nemotron/Dockerfile` line 8                     |
-| CUDA base image (runtime)             | `nvidia/cuda:13.3.1-runtime-ubuntu22.04` | `ai/nemotron/Dockerfile` line 72                    |
+| CUDA base image (builder)             | `nvidia/cuda:13.4.1-devel-ubuntu22.04`   | `ai/nemotron/Dockerfile` line 8                     |
+| CUDA base image (runtime)             | `nvidia/cuda:13.4.1-runtime-ubuntu22.04` | `ai/nemotron/Dockerfile` line 72                    |
 | CMake flag                            | `-DGGML_CUDA=ON`                         | `ai/nemotron/Dockerfile` line 60                    |
 | CMake flag                            | `-DGGML_CUDA_FA_ALL_QUANTS=ON`           | `ai/nemotron/Dockerfile` line 61                    |
 | CMake flag                            | `-DGGML_NATIVE=ON`                       | `ai/nemotron/Dockerfile` line 62 (added 2026-02-19) |
