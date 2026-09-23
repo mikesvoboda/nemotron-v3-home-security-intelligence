@@ -10468,3 +10468,37 @@ chain's own `[w]l_chain\.sh` gate — third instance of the self-match class
 (gate regexes must exclude the LAUNCHER cmdline too, not just the checker's;
 fixed by killing the already-dead wrapper; future chains launch via
 script-file like run_ec12b_recheck.sh).
+
+### Row — S1 PROVEN end-to-end on credential_service (S1b: 14/14 verdicts banked to the meta, rc=0) + ns16 lands 230/303 (rc=0; re-measure gate armed) + auth1 rc=4 was another double-launch race
+
+**S1b MEASURED this session** (`/tmp/s1-run2.log`, mutmut run rc=0
+04:43:29Z→05:48:48Z, `backend.services.credential_service*`):
+`mutants/backend/services/credential_service.py.meta` now carries
+**14 keys / 14 non-None verdicts** — re-read from disk this session:
+`{exit 1: 12, exit 0: 2}` (12 killed, 2 survived-to-be-triaged), with the
+wrapper's own `[s1b] S1 PROVEN: verdicts banked to the meta` assert line.
+Combined with the run-7 prompt_sanitizer 18/18 (survived whole-tree regen
+via the per-function hash gate), S1's "one small module end-to-end proving
+verdicts bank to mutants/\*.py.meta" is now satisfied TWICE, on two modules,
+both measured by me this session. mutmut 3.8 cache health: CONFIRMED honest.
+
+**ns16** (533-key batch-16 nemotron feed vs batch-16 battery,
+`/tmp/redcheck-ns16.log`, 05:51:13Z rc=0 "source clean"): **230 KILLED /
+303 SURVIVED**. Re-measure gate armed (my erroneous mid-run restore could
+have false-SURVIVED ≤1 key): `/tmp/ns16_chain.sh` → ns16b (running, real
+battery green: 20 passed measured in workspace) → ns16 + ns16b survivor
+rechecks. No survivor disposition is rowable until the rechecks re-measure
+each SURVIVED key one-by-one; triage of the 303 (gap→TDD vs equivalent)
+is the open batch-16c work after that.
+
+**Race disclosure**: the FIRST ns16b attempt aborted rc=4 "baseline battery
+not green" because legacy `ns16b_seq.sh` and my `/tmp/ns16_chain.sh` both
+dispatched ns16b within the same window — writer #2's baseline pytest read
+writer #1's in-flight mutation (20 failed). Writer #1 was then killed in the
+crossfire; the chain's second dispatch is LIVE now (lane source dirty = its
+own in-flight apply, md5 7239371 ≠ HEAD 1fc852e; battery verified green in
+workspace first). Same class as the wh15c rc=4 earlier — one sequencer per
+lane, and legacy seq scripts must be killed when a chain replaces them
+(`ns16b_seq.sh` still alive as of this row; its dispatch slots will safe-
+abort at the source!=HEAD guard while the chain's writer is mid-apply, so it
+cannot poison verdicts — only burn a slot).
