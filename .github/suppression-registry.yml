@@ -1717,6 +1717,12 @@ tpa_slow_list:
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: persistent x7/17, 18.2s peak (WP1.3)
+  - id: test_enrichment_pipeline_household_matching.*test_vehicle_household_matching_via_license_plate
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: 4.18s x2 + 4.297s main corpus, 1.20s alone — -n8 contention (2026-09-23)
   - id: test_error_handler.*test_timestamp_auto_generated
     kind: todo
     owner: mikesvoboda
