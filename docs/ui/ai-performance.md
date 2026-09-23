@@ -255,18 +255,18 @@ VRAM figures are the `vram_mb` estimates from `models.yml`.
 
 #### Other Specialized Models
 
-| Model                  | VRAM    | Category           | Purpose                     |
-| ---------------------- | ------- | ------------------ | --------------------------- |
-| SegFormer Clothes      | 1500 MB | Segmentation       | Clothing segmentation       |
-| ViTPose Small          | 1500 MB | Pose               | Human pose estimation       |
-| YOLOv8n Pose           | 200 MB  | Pose               | Lightweight pose            |
-| Depth Anything V2 Tiny | 100 MB  | Depth              | Distance estimation         |
-| SigLIP2 base           | 200 MB  | Embedding          | CLIP visual/text embeddings |
-| OSNet (ReID)           | 100 MB  | Embedding          | Person re-identification    |
-| ST-GCN++               | 20 MB   | Action Recognition | Skeleton action classes     |
-| PaddleOCR              | 100 MB  | OCR                | Read text from plates       |
-| Fast-ALPR              | 28 MB   | ALPR               | Plate character reading     |
-| X-CLIP Base            | —       | Action Recognition | Disabled in `models.yml`    |
+| Model                  | VRAM    | Category           | Purpose                                                                                           |
+| ---------------------- | ------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| SegFormer Clothes      | 1500 MB | Segmentation       | Clothing segmentation                                                                             |
+| ViTPose Small          | 1500 MB | Pose               | Human pose estimation                                                                             |
+| YOLOv8n Pose           | 200 MB  | Pose               | Lightweight pose                                                                                  |
+| Depth Anything V2 Tiny | 100 MB  | Depth              | Distance estimation                                                                               |
+| SigLIP2 base           | 200 MB  | Embedding          | CLIP visual/text embeddings                                                                       |
+| OSNet (ReID)           | 100 MB  | Embedding          | Person re-identification                                                                          |
+| ST-GCN++               | 20 MB   | Action Recognition | Skeleton action classes                                                                           |
+| PaddleOCR              | 100 MB  | OCR                | Read text from plates                                                                             |
+| Fast-ALPR              | 28 MB   | ALPR               | Plate character reading                                                                           |
+| X-CLIP Base            | —       | Action Recognition | Removed from fetch 2026-09-23 (full X-CLIP removal); `models.yml` entry is owner-owned provenance |
 
 ### Understanding Model Memory (VRAM)
 

@@ -54,37 +54,6 @@ These metrics are scraped from backend API endpoints:
 | `hsi_gpu_memory_used_mb`     | /api/gpu        | GPU memory used            |
 | `hsi_gpu_temperature`        | /api/gpu        | GPU temperature            |
 
-### AI Service Metrics
-
-**YOLO26 (ai/yolo26/metrics.py):**
-
-- `yolo26_inference_duration_seconds` - Inference duration histogram
-- `yolo26_requests_total` - Request counter with status label
-- `yolo26_detections_total` - Detection counter by class
-- `yolo26_vram_bytes` - VRAM usage gauge
-- `yolo26_model_loaded` - Model loaded status
-- `yolo26_model_inference_healthy` - Model health status
-
-**Florence (ai/florence/model.py):**
-
-- `florence_inference_latency_seconds` - Inference latency histogram
-- `florence_inference_requests_total` - Request counter
-- `florence_model_loaded` - Model loaded status
-
-**CLIP (ai/clip/model.py):**
-
-- `clip_inference_latency_seconds` - Inference latency histogram
-- `clip_inference_requests_total` - Request counter
-- `clip_model_loaded` - Model loaded status
-
-**Enrichment (ai/enrichment/metrics.py):**
-
-- `enrichment_action_recognition_inferences_total` - Action recognition inferences
-- `enrichment_action_recognition_confidence` - Action recognition confidence histogram
-- `enrichment_pose_estimation_inferences_total` - Pose estimation inferences
-- `enrichment_reid_embeddings_generated_total` - Re-ID embeddings generated
-- `enrichment_threat_detection_inferences_total` - Threat detection inferences
-
 ### Recording Rules (monitoring/prometheus-rules.yml)
 
 These pre-compute SLI/SLO metrics:
@@ -96,6 +65,91 @@ These pre-compute SLI/SLO metrics:
 - `hsi:burn_rate:api_availability_1h` - 1-hour burn rate
 - `job:service_cpu_regression_ratio:5m_vs_24h` - CPU regression detection
 - `job:service_memory_regression_ratio:current_vs_6h` - Memory regression detection
+
+## Retired AI Service Metrics (gateway topology — standalone exporters retired)
+
+The standalone AI containers (`ai-yolo26`, `ai-florence`, `ai-clip`,
+`ai-enrichment`, `ai-enrichment-light`) were retired by the gateway
+consolidation: no compose stack runs them, so the `prometheus_client` exporters
+defined in `ai/yolo26/metrics.py`, `ai/florence/model.py`, `ai/clip/model.py`
+and `ai/enrichment/metrics.py` never start — none of the `yolo26_*` /
+`florence_*` / `clip_*` / `enrichment_*` series below is exported anymore (the
+module residue is dead code in the live topology — the gateway export scripts
+(`ai/gateway/export/`) and adapter routers never import these modules; the only
+remaining importers are the native-CLIP reference in
+`backend/tests/contracts/ai_providers/test_client_conformance.py` and a lazy
+`ai.enrichment.metrics` import in the deprecated-PaddleOCR branch of
+`ai/enrichment/models/plate_ocr.py`, plus the `ai/*/tests` suites themselves
+(flat-import stubs in `ai/conftest.py`). The same series were removed from
+`monitoring/alerting-rules.yml` / `monitoring/ai-pipeline-alerts.yml` in the
+same sweep (see the retirement comments there, e.g. "nothing to retarget" at
+`monitoring/alerting-rules.yml:953-961`), and the dashboards were retargeted —
+see `monitoring/grafana/dashboards/AGENTS.md`. Live coverage for the signals
+these lists used to provide:
+
+| Signal                                  | Live series                                                                                                            | Source                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Per-model inference rate / mean latency | `nv_inference_request_success` / `nv_inference_request_failure` / `nv_inference_request_duration_us` (by `model`)      | Triton inside ai-gateway — scrape job `triton-metrics` (ai-gateway:8002)      |
+| Client-side latency percentiles         | `hsi_ai_request_duration_seconds` (by `service`: `yolo26`, `clip`, `florence`, `enrichment_pose`, ...)                 | backend AI clients (detector/clip/florence/enrichment `_client.py`)           |
+| Gateway request duration / errors       | `hsi_ai_inference_duration_seconds` / `hsi_ai_inference_errors_total` (by `service`, `endpoint`)                       | `GatewayMetricsMiddleware` in `ai/gateway/main.py` — job `ai-gateway-metrics` |
+| Model loaded / serving health           | `probe_success{job="blackbox-http-2xx", model=~"yolo26\|clip\|florence2\|enrichment\|enrichment-light\|llm\|gateway"}` | blackbox probes of the gateway adapter routers                                |
+| GPU utilization / VRAM                  | `nv_gpu_utilization`, `nv_gpu_memory_used_bytes`, `DCGM_*`                                                             | `triton-metrics` / `dcgm-exporter` jobs                                       |
+| Detection throughput                    | `hsi_detections_processed_total`, `hsi_detections_by_class_total`                                                      | backend/core/metrics.py                                                       |
+| Enrichment model calls / latency        | `hsi_enrichment_model_calls_total`, `hsi_enrichment_model_duration_seconds` (by `model`)                               | backend enrichment pipeline / vision_extractor                                |
+
+The per-service exporter lists below are kept for grepping historical
+dashboards/queries only. **None of these series is live.**
+
+**YOLO26 (ai/yolo26/metrics.py — exporter dead):**
+
+- `yolo26_inference_duration_seconds` - Inference duration histogram
+- `yolo26_requests_total` - Request counter with status label
+- `yolo26_detections_total` - Detection counter by class
+- `yolo26_vram_bytes` - VRAM usage gauge
+- `yolo26_model_loaded` - Model loaded status
+- `yolo26_model_inference_healthy` - Model health status
+
+**Florence (ai/florence/model.py — exporter dead):**
+
+- `florence_inference_latency_seconds` - Inference latency histogram
+- `florence_inference_requests_total` - Request counter
+- `florence_model_loaded` - Model loaded status
+
+**CLIP (ai/clip/model.py — exporter dead):**
+
+- `clip_inference_latency_seconds` - Inference latency histogram
+- `clip_inference_requests_total` - Request counter
+- `clip_model_loaded` - Model loaded status
+
+**Enrichment (ai/enrichment/metrics.py — exporter dead; pose/threat/reid now
+run as Triton models behind the gateway's `/enrich-lt` adapter by default —
+`enrichment_{pose,threat,reid}_service` settings pick light vs heavy — with
+client-side volume/latency covered live by
+`hsi_enrichment_model_calls_total` / `hsi_enrichment_model_duration_seconds`
+and errors by `hsi_pipeline_errors_total{error_type="enrichment_*"}`):**
+
+- `enrichment_pose_estimation_inferences_total` - Pose estimation inferences
+- `enrichment_reid_embeddings_generated_total` - Re-ID embeddings generated
+- `enrichment_threat_detection_inferences_total` - Threat detection inferences
+
+> **Retired with the xclip cleanup (NEM-5563):** the `enrichment_action_recognition_*`
+> families (`_inferences_total`, `_inference_latency_seconds`, `_confidence`,
+> `_frames_processed_total`) no longer exist in `ai/enrichment/metrics.py` — their last
+> observer went when the X-CLIP `ActionRecognizer` retired. Action recognition now runs
+> skeleton-based as Triton `stgcn_action` via the ai-gateway `/action-classify` adapter.
+> The FED family `hsi_action_detections_total` / `hsi_action_confidence` /
+> `hsi_action_corrections_total` was **defined inside** `backend/services/action_recognition_service.py` — not `backend/core/metrics.py` —
+> so when that service was archived 2026-09-23 (full X-CLIP removal, with the
+> `POST /api/action-events/analyze` endpoint) the definitions left the runtime
+> entirely: the series no longer exist, and a ST-GCN++-era feeder would define them
+> fresh if wired. Action-inference latency rides
+> `hsi_enrichment_model_duration_seconds{model="stgcn"}` in the meantime. The
+> `hsi_action_recognition_*` trio in `backend/core/metrics.py` is still defined but
+> never observed outside tests — so the two labelled members
+> (`_total{action_type,camera_id}`, `_confidence{action_type}`) export nothing, while
+> the unlabelled `_duration_seconds` histogram does scrape as zero-valued buckets
+> (`prometheus_client` emits unlabelled histograms unconditionally). The dashboards
+> say the same (see `monitoring/grafana/dashboards/AGENTS.md`).
 
 ## Pending Implementation
 

@@ -206,28 +206,6 @@ updates:
         patterns:
           - '*'
 
-  # AI services - YOLO26
-  - package-ecosystem: 'docker'
-    directory: '/ai/yolo26'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '06:00'
-      timezone: 'America/Chicago'
-    target-branch: 'main'
-    open-pull-requests-limit: 3
-    labels:
-      - 'dependencies'
-      - 'docker'
-      - 'ai'
-    commit-message:
-      prefix: 'chore(deps)'
-    groups:
-      docker-security:
-        applies-to: security-updates
-        patterns:
-          - '*'
-
   # AI services - Nemotron
   - package-ecosystem: 'docker'
     directory: '/ai/nemotron'

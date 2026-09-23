@@ -285,7 +285,8 @@ def get_samples_for_model(
         "yolo": {"detection_types": ["person", "vehicle", "animal"]},
         "face_detector": {"detection_types": ["person"]},
         "plate_detector": {"detection_types": ["license_plate", "vehicle"]},
-        "action_recognizer": {"has_actions": True},
+        # action_recognizer (X-CLIP) removed 2026-09-23, full X-CLIP removal
+        # owner ruling — see archive/ai-enrichment/
         "pose_estimator": {"detection_types": ["person"]},
         "threat_detector": {"risk_min": 40},
         "vehicle_classifier": {"detection_types": ["vehicle"]},

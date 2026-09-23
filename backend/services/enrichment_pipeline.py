@@ -187,11 +187,6 @@ from backend.services.weather_loader import (
     WeatherResult,
     classify_weather,
 )
-from backend.services.xclip_loader import (
-    classify_actions,
-    get_action_risk_weight,
-    is_suspicious_action,
-)
 from backend.services.yolo_world_loader import (
     detect_with_prompts,
     get_object_priority,
@@ -247,6 +242,76 @@ CLIP_THREAT_DESCRIPTIONS: list[str] = [
     "a person attempting to break into a vehicle",
     "a person stealing a package from a porch",
 ]
+
+
+# =============================================================================
+# Action Label Classification (survives the X-CLIP retirement)
+# =============================================================================
+# These keyword classifiers map an action label to security semantics. They
+# outlived the X-CLIP model they were born with (archived with the loader to
+# archive/xclip-backend-chain/xclip_loader.py, NEM-5563) and are label
+# heuristics: they score both ST-GCN++ NTU-60 labels and remote-service
+# action labels, so they stay.
+
+_ACTION_SUSPICIOUS_KEYWORDS: tuple[str, ...] = (
+    "loitering",
+    "suspiciously",
+    "running away",
+    "trying",
+    "hiding",
+    "vandalizing",
+    "breaking",
+    "checking windows",
+    "taking photos",
+)
+
+
+def is_suspicious_action(action: str) -> bool:
+    """Check if a detected action is considered suspicious.
+
+    Args:
+        action: Detected action string
+
+    Returns:
+        True if the action is suspicious/concerning
+    """
+    action_lower = action.lower()
+    return any(keyword in action_lower for keyword in _ACTION_SUSPICIOUS_KEYWORDS)
+
+
+def get_action_risk_weight(action: str) -> float:
+    """Get a risk weight for an action to influence overall risk scoring.
+
+    Args:
+        action: Detected action string
+
+    Returns:
+        Risk weight from 0.0 (no risk) to 1.0 (high risk)
+    """
+    action_lower = action.lower()
+
+    # High risk actions
+    if any(
+        kw in action_lower for kw in ["breaking in", "vandalizing", "trying door handle", "hiding"]
+    ):
+        return 1.0
+
+    # Medium risk actions
+    if any(
+        kw in action_lower
+        for kw in ["loitering", "suspiciously", "running away", "taking photos", "checking"]
+    ):
+        return 0.7
+
+    # Low risk / normal actions
+    if any(
+        kw in action_lower
+        for kw in ["delivering", "knocking", "ringing", "leaving package", "walking normally"]
+    ):
+        return 0.2
+
+    # Neutral
+    return 0.5
 
 
 class EnrichmentStatus(str, Enum):
@@ -1206,7 +1271,7 @@ class EnrichmentResult:
                     risk_note = " [SUSPICIOUS]"
                 lines.append(f"  Person {det_id}: {pose_class} ({confidence:.0%}){risk_note}")
 
-        # Action Recognition Results (X-CLIP)
+        # Action Recognition Results (ST-GCN++ skeleton, NEM-5563)
         if self.action_results:
             lines.append("## Action Recognition")
             detected_action = self.action_results.get("detected_action", "unknown")
@@ -1573,7 +1638,7 @@ class EnrichmentResult:
                 if self.pose_results
                 else None
             ),
-            # Action recognition (X-CLIP)
+            # Action recognition (ST-GCN++ skeleton, NEM-5563)
             "action_recognition": format_action_recognition_context(
                 {"0": self.action_results} if self.action_results else None
             ),
@@ -2058,13 +2123,15 @@ class EnrichmentPipeline:
             pet_classification_enabled: Enable pet classification for false positive reduction
             depth_estimation_enabled: Enable Depth Anything V2 depth estimation for spatial context
             pose_estimation_enabled: Enable ViTPose pose estimation for person detections
-            action_recognition_enabled: Enable X-CLIP action recognition from frame sequences
+            action_recognition_enabled: Enable action recognition — ST-GCN++ on pose
+                                        keypoints (local) or the gateway /action-classify
+                                        adapter (use_enrichment_service)
             scene_ocr_enabled: Enable scene OCR for text extraction (uniforms, vehicles, signs)
             household_matching_enabled: Enable matching persons/vehicles against household database (NEM-3314).
                                        Disabled by default for backward compatibility.
-            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action recognition.
-                         If provided, frames are buffered per camera and X-CLIP runs on frame sequences
-                         (8 frames) for better action recognition. If None, falls back to single-frame.
+            frame_buffer: FrameBuffer for accumulating frames per camera. Used by the
+                         remote-service path to send frame sequences with person crops
+                         to the gateway's unified /enrich endpoint. If None, single-frame.
             redis_client: Redis client for re-id storage (optional)
             use_enrichment_service: Use HTTP service at ai-enrichment:8094 / ai-enrichment-light:8096
                                     instead of local models for vehicle, pet, clothing classification,
@@ -2114,7 +2181,7 @@ class EnrichmentPipeline:
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
-        # Frame buffer for X-CLIP temporal action recognition (legacy, kept for fallback)
+        # Frame buffer for temporal frame sequences on the remote-service path
         self._frame_buffer = frame_buffer
 
         # ST-GCN++ skeleton action service (NEM-5563: replaces X-CLIP)
@@ -3092,21 +3159,6 @@ class EnrichmentPipeline:
     ) -> DepthAnalysisResult | None:
         """Safe wrapper for depth analysis."""
         return await self._analyze_depth(detections, image)
-
-    async def _safe_recognize_actions(
-        self,
-        image: Image.Image,
-        camera_id: str | None,
-    ) -> dict[str, Any] | None:
-        """Safe wrapper for X-CLIP action recognition (DEPRECATED).
-
-        Deprecated in favor of _recognize_actions_from_skeleton() (NEM-5563).
-        Kept as fallback if ST-GCN++ is unavailable.
-        """
-        frames = await self._get_action_frames(camera_id, image)
-        if frames:
-            return await self._recognize_actions(frames)
-        return None
 
     async def _safe_classify_vehicle_types(
         self,
@@ -4552,20 +4604,18 @@ class EnrichmentPipeline:
         current_frame: Image.Image,
         num_frames: int = 16,
     ) -> list[Image.Image]:
-        """Get frames for X-CLIP action recognition.
+        """Get a frame sequence for remote-service action recognition.
 
-        Retrieves a sequence of frames for temporal action recognition. If a
-        FrameBuffer is configured and has enough frames for the camera, returns
-        evenly sampled frames from the buffer converted to PIL Images.
-        Otherwise, falls back to using just the current frame.
-
-        X-CLIP xclip-base-patch16-16-frames model works best with 16 frames
-        spanning the action sequence (NEM-3908 upgrade for +4% accuracy).
+        Retrieves a sequence of frames for temporal action recognition on the
+        unified /enrich service path (the gateway runs ST-GCN++ on the sent
+        frames). If a FrameBuffer is configured and has enough frames for the
+        camera, returns evenly sampled frames from the buffer converted to PIL
+        Images. Otherwise, falls back to using just the current frame.
 
         Args:
             camera_id: Camera identifier for looking up buffered frames
             current_frame: The current PIL Image (fallback if no buffer)
-            num_frames: Number of frames to retrieve (default 16 for patch16 model)
+            num_frames: Number of frames to retrieve (default 16)
 
         Returns:
             List of PIL Images for action recognition (may be single-frame fallback)
@@ -4581,7 +4631,7 @@ class EnrichmentPipeline:
                 for frame_bytes in frame_bytes_list:
                     try:
                         raw_img = Image.open(io.BytesIO(frame_bytes))
-                        # Convert to RGB if needed (X-CLIP expects RGB)
+                        # Convert to RGB if needed (service processors expect RGB)
                         # Always convert to ensure consistent Image type (not ImageFile)
                         img: Image.Image = raw_img.convert("RGB")
                         pil_frames.append(img)
@@ -4591,60 +4641,17 @@ class EnrichmentPipeline:
 
                 if len(pil_frames) >= num_frames:
                     logger.debug(
-                        f"Using {len(pil_frames)} buffered frames for X-CLIP (camera: {camera_id})"
+                        f"Using {len(pil_frames)} buffered frames for action recognition "
+                        f"(camera: {camera_id})"
                     )
                     return pil_frames
 
         # Fallback to single current frame
         logger.debug(
-            "Using single-frame fallback for X-CLIP "
+            "Using single-frame fallback for action recognition "
             f"(camera: {camera_id}, buffer: {self._frame_buffer is not None})"
         )
         return [current_frame]
-
-    async def _recognize_actions(
-        self,
-        frames: list[Image.Image],
-    ) -> dict[str, Any] | None:
-        """Recognize actions from frame sequence using X-CLIP.
-
-        Runs action recognition on a sequence of frames to classify the
-        activity being performed (walking, running, loitering, breaking in, etc.).
-        This provides behavioral context for security analysis.
-
-        Args:
-            frames: List of PIL Images representing a temporal sequence
-                   (ideally 8 frames for best results)
-
-        Returns:
-            Dictionary with detected_action, confidence, top_actions, all_scores
-            or None if recognition fails
-        """
-        if not frames:
-            return None
-
-        start_time = time.perf_counter()
-        try:
-            async with self.model_manager.load("xclip-base") as model_dict:
-                record_enrichment_model_call("action")
-                result = await classify_actions(model_dict, frames)
-
-                duration = time.perf_counter() - start_time
-                observe_enrichment_model_duration("xclip", duration)
-                logger.debug(
-                    f"Action recognition complete: {result.get('detected_action')} "
-                    f"({result.get('confidence', 0):.0%})"
-                )
-                return result
-        except Exception as e:
-            duration = time.perf_counter() - start_time
-            observe_enrichment_model_duration("xclip", duration)
-            record_enrichment_model_error("xclip")
-            logger.error(
-                f"Action recognition failed: {sanitize_error(e)}",
-                exc_info=True,
-            )
-            raise
 
     async def _recognize_actions_from_skeleton(
         self,
@@ -5058,8 +5065,9 @@ class EnrichmentPipeline:
             observe_enrichment_model_duration("action-via-service", duration)
 
             if remote_result:
-                # Convert remote ActionClassificationResult to local dict format
-                # that matches the output of xclip_loader.classify_actions()
+                # Convert remote ActionClassificationResult to the pipeline's
+                # local action dict format (same shape as the retired X-CLIP
+                # classifier — archive/xclip-backend-chain/xclip_loader.py)
                 result: dict[str, Any] = {
                     "detected_action": remote_result.action,
                     "confidence": remote_result.confidence,

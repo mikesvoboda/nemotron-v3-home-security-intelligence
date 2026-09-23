@@ -1,5 +1,5 @@
 /**
- * useActionEventsQuery - TanStack Query hook for X-CLIP action events
+ * useActionEventsQuery - TanStack Query hook for action events (ST-GCN++ path)
  *
  * This hook provides a TanStack Query wrapper around the action events API
  * with support for filtering by camera, action type, and time range.

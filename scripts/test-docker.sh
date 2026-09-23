@@ -23,11 +23,13 @@ TIMEOUT=120  # Maximum wait time for services to become healthy (seconds)
 CHECK_INTERVAL=5  # How often to check service health (seconds)
 
 # Port configuration
-# Dev mode (docker-compose.yml): frontend on 5173, backend on 8000
-# Prod mode (docker-compose.prod.yml): frontend on 80, backend on 8000
-FRONTEND_PORT=5173
+# CI mode (docker-compose.ci.yml): frontend on 3000, backend on 8000
+# Prod mode (docker-compose.prod.yml): frontend HTTP on 8080 / HTTPS on 8444, backend on 8000
+# (The dev-mode docker-compose.yml was removed; the CI stack is the minimal
+# postgres/redis/backend/frontend stack this script's checks were written for.)
+FRONTEND_PORT=3000
 BACKEND_PORT=8000
-COMPOSE_FILE="docker-compose.yml"
+COMPOSE_FILE="docker-compose.ci.yml"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}Docker Compose Deployment Test${NC}"
@@ -89,7 +91,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --prod)
             PROD_MODE=true
-            FRONTEND_PORT=80
+            FRONTEND_PORT=8080
             COMPOSE_FILE="docker-compose.prod.yml"
             shift
             ;;
@@ -99,7 +101,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --no-cleanup   Leave containers running after test"
             echo "  --skip-build   Skip docker compose build step"
-            echo "  --prod         Test production compose (docker-compose.prod.yml, port 80)"
+            echo "  --prod         Test production compose (docker-compose.prod.yml, frontend :8080/:8444)"
             echo "  --help         Show this help message"
             exit 0
             ;;
@@ -257,7 +259,7 @@ else
 fi
 
 # Test Frontend
-# Dev mode: port 5173, Prod mode: port 80
+# CI mode: port 3000, Prod mode: 8080 (HTTP) / 8444 (HTTPS)
 print_status "info" "Testing Frontend endpoint (http://localhost:${FRONTEND_PORT})..."
 if curl -f -s "http://localhost:${FRONTEND_PORT}" > /dev/null; then
     print_status "success" "Frontend is responding"
@@ -293,7 +295,7 @@ echo ""
 if [ "$PROD_MODE" = "true" ]; then
     echo "Mode: PRODUCTION (${COMPOSE_FILE})"
 else
-    echo "Mode: DEVELOPMENT (${COMPOSE_FILE})"
+    echo "Mode: CI (${COMPOSE_FILE})"
 fi
 echo ""
 echo "All services are running and healthy:"

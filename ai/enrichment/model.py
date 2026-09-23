@@ -1755,11 +1755,15 @@ class EnrichmentRequest(BaseModel):
     bbox: BoundingBox = Field(..., description="Bounding box of the detection")
     frames: list[str] | None = Field(
         default=None,
-        description="Optional list of base64 encoded frames for action recognition",
+        description=(
+            "Accepted for wire compatibility but ignored since NEM-5563 — "
+            "action recognition retired from this service (stgcn_action "
+            "serves it via the ai-gateway)"
+        ),
     )
     options: dict[str, bool] = Field(
         default_factory=dict,
-        description="Additional options: action_recognition, include_depth, include_pose",
+        description="Additional options: include_depth, include_pose (action_recognition is retired)",
     )
 
 
@@ -1855,7 +1859,14 @@ class EnrichmentResponse(BaseModel):
     reid_embedding: list[float] | None = Field(
         default=None, description="Re-identification embedding vector"
     )
-    action: dict | None = Field(default=None, description="Action recognition results")
+    action: dict | None = Field(
+        default=None,
+        description=(
+            "Retired — always None. The X-CLIP action recognizer was removed "
+            "(NEM-5563); action recognition runs via Triton stgcn_action on "
+            "the ai-gateway's /action-classify."
+        ),
+    )
     depth: DepthResult | None = Field(default=None, description="Depth estimation results")
     models_used: list[str] = Field(
         default_factory=list, description="List of models that were executed"
@@ -2155,31 +2166,9 @@ async def lifespan(_app: FastAPI):
         )
     )
 
-    # Action Recognizer (~2GB) - X-CLIP temporal action recognition
-    action_model_path = os.environ.get("ACTION_MODEL_PATH", "/models/xclip-base-patch16-16-frames")
-
-    def _create_action_recognizer(action_path: str, dev: str) -> Any:
-        from models.action_recognizer import ActionRecognizer
-
-        recognizer = ActionRecognizer(model_path=action_path, device=dev)
-        recognizer.load_model()
-        return recognizer
-
-    def _unload_action_recognizer(model: Any) -> None:
-        if hasattr(model, "unload_model"):
-            model.unload_model()
-
-    model_manager.register_model(
-        ModelConfig(
-            name="action_recognizer",
-            vram_mb=2000,
-            priority=ModelPriority.LOW,
-            loader_fn=lambda path=action_model_path, dev=device: _create_action_recognizer(
-                path, dev
-            ),
-            unloader_fn=_unload_action_recognizer,
-        )
-    )
+    # Action recognition retired (NEM-5563): the X-CLIP action_recognizer
+    # registration was removed with the xclip cleanup. /action-classify is
+    # served by Triton stgcn_action through the ai-gateway adapter.
 
     # Threat Detector (~400MB) - YOLOv8 weapon/dangerous object detection
     threat_model_path = os.environ.get("THREAT_MODEL_PATH", "/models/threat-detection-yolov8n")
@@ -2831,118 +2820,13 @@ async def analyze_demographics(request: DemographicsRequest) -> DemographicsResp
 
 
 # =============================================================================
-# Action Classification Endpoint
+# Action Classification — RETIRED (NEM-5563)
 # =============================================================================
-
-
-class ActionClassifyRequest(BaseModel):
-    """Request format for action classification endpoint."""
-
-    frames: list[str] = Field(..., description="List of base64 encoded video frames")
-    labels: list[str] | None = Field(
-        default=None,
-        description="Optional custom action labels for zero-shot classification",
-    )
-
-
-class ActionClassifyResponse(BaseModel):
-    """Response format for action classification endpoint."""
-
-    action: str = Field(..., description="Recognized action")
-    confidence: float = Field(..., description="Classification confidence (0-1)")
-    is_suspicious: bool = Field(..., description="Whether action is considered suspicious")
-    risk_weight: float = Field(..., description="Risk weight for security assessment (0-1)")
-    all_scores: dict[str, float] = Field(default_factory=dict, description="All action scores")
-    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
-
-
-# Risk weights for suspicious actions (used in security assessment)
-_ACTION_RISK_WEIGHTS: dict[str, float] = {
-    "fighting": 0.95,
-    "breaking window": 0.95,
-    "picking lock": 0.90,
-    "climbing": 0.80,
-    "hiding": 0.75,
-    "loitering": 0.60,
-    "looking around suspiciously": 0.65,
-    "falling down": 0.50,
-    "carrying large object": 0.40,
-    "running": 0.30,
-}
-
-
-@app.post("/action-classify", response_model=ActionClassifyResponse)
-async def classify_action(request: ActionClassifyRequest) -> ActionClassifyResponse:
-    """Classify action from a sequence of video frames using X-CLIP.
-
-    Input: List of base64 encoded frames (8-32 frames optimal)
-    Output: Recognized action, confidence, suspicious flag, risk weight
-
-    Model is loaded on-demand if not already in memory.
-    """
-    if model_manager is None:
-        raise HTTPException(status_code=503, detail="Model manager not initialized")
-
-    start_time = time.perf_counter()
-
-    try:
-        # Decode all frames
-        decoded_frames = []
-        for frame_b64 in request.frames:
-            frame_image = decode_and_crop_image(frame_b64)
-            decoded_frames.append(frame_image)
-
-        if not decoded_frames:
-            raise HTTPException(status_code=400, detail="No valid frames provided")
-
-        # Get the action recognizer model
-        recognizer = await model_manager.get_model("action_recognizer")
-
-        # Run action recognition
-        result = await asyncio.to_thread(
-            recognizer.recognize_action,
-            decoded_frames,
-            request.labels,
-        )
-
-        inference_time_ms = (time.perf_counter() - start_time) * 1000
-
-        INFERENCE_LATENCY_SECONDS.labels(endpoint="action-classify").observe(
-            inference_time_ms / 1000
-        )
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="action-classify", status="success").inc()
-
-        # Calculate risk weight
-        default_weight = 0.5 if result.is_suspicious else 0.1
-        risk_weight = _ACTION_RISK_WEIGHTS.get(result.action, default_weight)
-
-        return ActionClassifyResponse(
-            action=result.action,
-            confidence=result.confidence,
-            is_suspicious=result.is_suspicious,
-            risk_weight=risk_weight,
-            all_scores=result.all_scores,
-            inference_time_ms=round(inference_time_ms, 2),
-        )
-
-    except ValueError as e:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="action-classify", status="error").inc()
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    except HTTPException:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="action-classify", status="error").inc()
-        raise
-    except torch.cuda.OutOfMemoryError as e:
-        _oom_handler.handle_oom_with_eviction("action-classify", model_manager)
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="action-classify", status="error").inc()
-        raise HTTPException(
-            status_code=503,
-            detail="GPU out of memory during action classification. Please retry.",
-            headers={"Retry-After": "10"},
-        ) from e
-    except Exception as e:
-        INFERENCE_REQUESTS_TOTAL.labels(endpoint="action-classify", status="error").inc()
-        logger.error(f"Action classification failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Action classification failed: {e!s}") from e
+# The X-CLIP /action-classify route lived here; it was removed with the xclip
+# cleanup. Action recognition now runs as Triton stgcn_action behind the
+# ai-gateway adapter (ai/gateway/adapters/enrichment.py /action-classify),
+# so this server hosts no action route. Requesting POST /action-classify
+# here 404s by design — callers must use the gateway's /enrichment router.
 
 
 # =============================================================================
@@ -3203,63 +3087,6 @@ async def _run_reid_embedding(
         return None
 
 
-async def _run_action_recognition(
-    frames: list[str],
-    labels: list[str] | None = None,
-) -> dict | None:
-    """Run action recognition on a sequence of video frames.
-
-    Uses on-demand model loading via the model manager.
-
-    Args:
-        frames: List of base64 encoded video frames.
-        labels: Optional custom action labels for zero-shot classification.
-
-    Returns:
-        Dictionary with action, confidence, is_suspicious, risk_weight, and all_scores.
-    """
-    if model_manager is None:
-        return None
-
-    if not frames:
-        return None
-
-    try:
-        # Decode all frames
-        decoded_frames = []
-        for frame_b64 in frames:
-            frame_image = decode_and_crop_image(frame_b64)
-            decoded_frames.append(frame_image)
-
-        if not decoded_frames:
-            return None
-
-        recognizer = await model_manager.get_model("action_recognizer")
-        result = await asyncio.to_thread(
-            recognizer.recognize_action,
-            decoded_frames,
-            labels,
-        )
-
-        # Calculate risk weight using same logic as /action-classify endpoint
-        default_weight = 0.5 if result.is_suspicious else 0.1
-        risk_weight = _ACTION_RISK_WEIGHTS.get(result.action, default_weight)
-
-        return {
-            "action": result.action,
-            "confidence": result.confidence,
-            "is_suspicious": result.is_suspicious,
-            "risk_weight": risk_weight,
-            "all_scores": result.all_scores,
-        }
-    except ValueError:
-        # Model not registered (e.g., ActionRecognizer not available)
-        return None
-    except Exception as e:
-        logger.warning(f"Action recognition failed: {e}")
-        return None
-
-
 @app.post("/enrich", response_model=EnrichmentResponse)
 async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     """Unified endpoint that runs appropriate models based on detection type.
@@ -3268,8 +3095,8 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     by automatically selecting appropriate models based on detection type.
 
     Detection types and their models:
-    - person: pose, clothing, demographics, threat, re-id, depth,
-              action (if frames provided)
+    - person: pose, clothing, demographics, threat, re-id, depth
+              (action recognition retired here — NEM-5563, stgcn_action)
     - vehicle: vehicle classification, depth
     - animal: pet classification, depth
     - object: depth only
@@ -3280,7 +3107,9 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     - include_demographics: Run demographics estimation for person (default: True)
     - include_threat: Run threat/weapon detection for person (default: True)
     - include_reid: Run re-identification embedding for person (default: True)
-    - action_recognition: Run action recognition if frames provided (default: True)
+    - action_recognition: RETIRED — accepted for wire compatibility, ignored.
+      Action recognition runs via Triton stgcn_action on the ai-gateway
+      (NEM-5563).
     """
     start_time = time.perf_counter()
 
@@ -3324,9 +3153,9 @@ async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
             if request.options.get("include_reid", True):
                 tasks.append(("reid_embedding", _run_reid_embedding(cropped_image)))
 
-            # Action recognition (if frames provided and enabled)
-            if request.frames and request.options.get("action_recognition", True):
-                tasks.append(("action", _run_action_recognition(request.frames)))
+            # Action recognition retired here (NEM-5563): `request.frames`
+            # and the `action_recognition` option are accepted but ignored —
+            # action runs via Triton stgcn_action on the ai-gateway.
 
             # Depth estimation (optional for person)
             if request.options.get("include_depth", False):

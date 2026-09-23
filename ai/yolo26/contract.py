@@ -11,12 +11,14 @@ only asserted its signature.
 HISTORY (A7.3 / WP6-A): model.py used to carry inline copies of these
 symbols because ai/yolo26/Dockerfile's explicit per-file COPY list left
 contract.py out of the image — importing it there would have broken
-startup. The Dockerfile now COPYs this file flat next to model.py and
-model.py does `from contract import ...`, so backend and container share
+startup. The Dockerfile later COPYed this file flat next to model.py and
+model.py does `from contract import ...`, so backend and container shared
 ONE definition. The duplicate is deleted (ratcheted absent by
-ai/yolo26/tests/test_model.py::TestContractSeam, repo-side; the
-ai-yolo26-image-smoke CI job proves `import model` inside the built
-image).
+ai/yolo26/tests/test_model.py::TestContractSeam, repo-side; the retired
+ai-yolo26-image-smoke CI job proved `import model` inside the built
+image). The standalone GPU image was retired 2026-09-23 (build recipe at
+archive/ai-yolo26-image/Dockerfile) — this module now serves backend and
+the kept-locally model modules only.
 """
 
 from __future__ import annotations

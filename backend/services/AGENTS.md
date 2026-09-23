@@ -108,7 +108,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `violence_loader.py`           | Load violence detection model                    | No (import directly)       |
 | `weather_loader.py`            | Load weather classification model                | No (import directly)       |
 | `segformer_loader.py`          | Load SegFormer for clothing segmentation         | No (import directly)       |
-| `xclip_loader.py`              | Load X-CLIP for action recognition               | No (import directly)       |
+| `stgcn_loader.py`              | Load ST-GCN++ for skeleton action recognition    | No (import directly)       |
 | `fashion_clip_loader.py`       | Load Fashion-CLIP for clothing classification    | No (import directly)       |
 | `image_quality_loader.py`      | Load BRISQUE for image quality assessment        | No (import directly)       |
 | `vehicle_classifier_loader.py` | Load vehicle segment classifier                  | No (import directly)       |
@@ -536,7 +536,7 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 | violence-detection             | classification     | 500       | Violence detection (98.8% acc)                    |
 | weather-classification         | classification     | 200       | Weather condition (5 classes)                     |
 | segformer-b2-clothes           | segmentation       | 1500      | Clothing segmentation (18 categories)             |
-| xclip-base                     | action-recognition | 2000      | Temporal action recognition                       |
+| stgcn-plus-plus                | action-recognition | 20        | Skeleton action recognition (60 NTU classes)      |
 | fashion-clip                   | classification     | 500       | Zero-shot clothing classification                 |
 | brisque-quality                | quality-assessment | 0         | Image quality (CPU-based, disabled)               |
 | vehicle-segment-classification | classification     | 1500      | Detailed vehicle type (11 classes)                |
@@ -2683,9 +2683,13 @@ if not healthy:
     success = await docker_manager.restart(config)
 
 # Validate commands (allowlist: ai/start_detector.sh, ai/start_llm.sh, "docker restart <name>")
-is_valid = validate_restart_command("ai/start_detector.sh")
-is_valid = validate_restart_command("docker restart ai-yolo26-1")
-is_valid = validate_container_name("ai-yolo26-1")
+is_valid = validate_restart_command(
+    "ai/start_detector.sh"
+)  # host-run dev stand-in (GPU image retired 2026-09-23)
+is_valid = validate_restart_command(
+    "docker restart ai-gateway-1"
+)  # prod detection host (ai-yolo26 container retired)
+is_valid = validate_container_name("ai-gateway-1")
 ```
 
 ### notification_filter.py

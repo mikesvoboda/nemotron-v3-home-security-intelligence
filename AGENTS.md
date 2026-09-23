@@ -452,7 +452,7 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 | Nemotron (llama.cpp) | 8091      | LLM risk analysis container (GPU)                                                                   |
 | vLLM (optional)      | 8097      | Alternative LLM engine — compose profile `vllm`, off by default                                     |
 
-Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only, as are the `JAEGER_*` port vars — tracing is Grafana Tempo (NEM-5545), Jaeger UI port 16686 is dead.
+Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only. The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 
 ### Monitoring Stack
 

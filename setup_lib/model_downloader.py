@@ -230,15 +230,9 @@ PHASE2_MODELS: list[ModelSpec] = [
         description="ST-GCN++ skeleton-based action recognition (ai-gateway)",
         required=False,
     ),
-    # X-CLIP action recognition (ai-gateway: xclip_action)
-    ModelSpec(
-        name="xclip-base-patch32",
-        hf_repo="microsoft/xclip-base-patch32",
-        phase=2,
-        size_mb=600,
-        description="X-CLIP zero-shot video action recognition (ai-gateway)",
-        required=False,
-    ),
+    # xclip-base-patch32 removed 2026-09-23 (full X-CLIP removal, owner
+    # ruling): the xclip_action Triton model was replaced by stgcn_action
+    # above (NEM-5563), so no gateway endpoint serves this row anymore.
 ]
 
 # Phase 3 - Optional specialized models (not used by ai-gateway default)

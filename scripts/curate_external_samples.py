@@ -44,7 +44,7 @@ COVERAGE_REQUIREMENTS = {
         "bicycle",
         "motorcycle",
     ],
-    # Action recognition (X-CLIP) - security relevant
+    # Action recognition (ST-GCN++) - security relevant
     "actions": {
         "normal": ["walking", "running", "delivering", "waving", "ringing doorbell"],
         "suspicious": ["fighting", "climbing", "hiding", "loitering", "looking around"],

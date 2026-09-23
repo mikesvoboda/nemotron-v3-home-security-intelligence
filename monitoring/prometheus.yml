@@ -125,11 +125,14 @@ scrape_configs:
   # because the 'triton-metrics' job above already scrapes them from
   # :8002/metrics — scraping both would double-count every Triton series.
   # What remains is the gateway's own prometheus_client output: the process_*
-  # runtime metrics (CPU, RSS). The hsi_ai_inference_duration_seconds /
-  # hsi_ai_inference_errors_total families declared in ai/gateway/main.py
-  # (GATEWAY_REQUEST_DURATION / GATEWAY_REQUEST_ERRORS) currently contribute
-  # only their HELP/TYPE lines — no request path observes them yet — so no
-  # alert should key on those series until they are wired in.
+  # runtime metrics (CPU, RSS) plus the hsi_ai_inference_duration_seconds /
+  # hsi_ai_inference_errors_total families (GATEWAY_REQUEST_DURATION /
+  # GATEWAY_REQUEST_ERRORS in ai/gateway/main.py). These ARE observed: the
+  # gateway's GatewayMetricsMiddleware times every non-health, non-scrape
+  # request and labels it service=<adapter prefix> endpoint=<route under it>
+  # (unmatched paths land in service="other",endpoint="other"), counting an
+  # error on 5xx or handler crash — so dashboards and alerts may key on
+  # those series.
   - job_name: 'ai-gateway-metrics'
     metrics_path: /metrics
     scrape_interval: 15s

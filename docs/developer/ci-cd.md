@@ -180,11 +180,14 @@ Triggered on push to main branch. Builds and publishes container images.
 
 Builds images for multiple architectures:
 
-| Image     | Dockerfile               | Target |
-| --------- | ------------------------ | ------ |
-| backend   | `./backend/Dockerfile`   | prod   |
-| frontend  | `./frontend/Dockerfile`  | prod   |
-| ai-yolo26 | `./ai/yolo26/Dockerfile` | -      |
+| Image    | Dockerfile              | Target |
+| -------- | ----------------------- | ------ |
+| backend  | `./backend/Dockerfile`  | prod   |
+| frontend | `./frontend/Dockerfile` | prod   |
+
+> `ai-yolo26` (`./ai/yolo26/Dockerfile`) was in this matrix until 2026-09-23, when
+> the standalone GPU image was retired fully (owner ruling — Triton on ai-gateway
+> serves yolo26 among the 14 models); the recipe lives in `archive/ai-yolo26-image/`.
 
 **Platforms:**
 

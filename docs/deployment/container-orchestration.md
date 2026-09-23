@@ -179,7 +179,7 @@ AI services start in parallel after infrastructure is healthy:
 | ai-gateway        | 60-180s      | GET `http://localhost:8090/health` | 180s                        | Single entrypoint: Triton + FastAPI routers `/yolo26` `/florence` `/clip` `/enrichment` `/enrich-lt`; models load on demand |
 | ai-llm (Nemotron) | 90-300s      | GET `http://localhost:8091/health` | 300s                        | llama.cpp, VRAM allocation for the 30B GGUF                                                                                 |
 
-(The standalone `ai-florence`/`ai-clip`/`ai-enrichment` containers were consolidated into `ai-gateway`; their old 8092-8096 ports survive only as config defaults for local dev scripts.)
+(The standalone `ai-florence`/`ai-clip`/`ai-enrichment` containers were consolidated into `ai-gateway`; their old 8092-8096 ports survive only as the standalone `ai/*/model.py` dev servers' `PORT` fallbacks and the matching reference values in `.env.example` — they are no longer `OrchestratorSettings` fields and the orchestrator never health-checks them.)
 
 ### Phase 3: Application (30-60 seconds)
 
@@ -382,7 +382,7 @@ The orchestrator uses exponential backoff for restart attempts:
 ```python
 def calculate_backoff(failure_count: int, base: float, max_backoff: float) -> float:
     """Calculate backoff: base * 2^failure_count, capped at max_backoff."""
-    return min(base * (2 ** failure_count), max_backoff)
+    return min(base * (2**failure_count), max_backoff)
 ```
 
 **Example progression (base=5.0, max=300.0):**
@@ -480,7 +480,7 @@ Observability and alerting stack:
 | redis-exporter    | Redis Exporter    | 9121  | 30s          |
 | json-exporter     | JSON Exporter     | 7979  | 30s          |
 
-Distributed tracing is served by **Tempo** — there is no Jaeger container (the `jaeger` prefix still exists in the category-inference table and `ORCHESTRATOR` port defaults for backward compatibility; `.env.example` still carries JAEGER\_\* variables for legacy local dev).
+Distributed tracing is served by **Tempo** — there is no Jaeger container, and no Jaeger residue remains: the category-inference table maps the `tempo` prefix (`compose_parser.CATEGORY_PREFIXES`), the port default is `tempo_port` (`TEMPO_PORT`, which replaced `jaeger_port`), and `.env.example` carries only a retirement comment where the JAEGER\_\* block used to be.
 
 ---
 
@@ -534,7 +534,7 @@ class OrchestratorSettings(BaseSettings):
     # ... etc
 ```
 
-> **Note:** `yolo26_port` (8095), `florence_port` (8092), `clip_port` (8093), `enrichment_port` (8094) and `enrichment_light_port` (8096) fields still exist for the retired standalone containers and local dev scripts. In the gateway deployment those services do not exist, so the values are unused.
+> **Note:** The `yolo26_port`/`florence_port`/`clip_port`/`enrichment_port`/`enrichment_light_port` fields were removed from `OrchestratorSettings` with the standalone-container retirement (NEM gateway consolidation) — the orchestrator never health-checked them directly. The `YOLO26_PORT=8095`/`FLORENCE_PORT=8092`/`CLIP_PORT=8093`/`ENRICHMENT_PORT=8094`/`ENRICHMENT_LIGHT_PORT=8096` values in `.env.example` are reference-only: nothing in the compose stack consumes them, and only `ai/start_detector.sh` reads one (`YOLO26_PORT`, falling back to 8090).
 
 ---
 

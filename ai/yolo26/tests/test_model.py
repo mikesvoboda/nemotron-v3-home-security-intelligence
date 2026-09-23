@@ -2150,10 +2150,11 @@ class TestEnhanceDetections:
 class TestContractSeam:
     """A7.3 (WP6-A): model.py's quality-indicator symbols ARE contract.py's.
 
-    The container image COPYs contract.py flat next to model.py (the
-    Dockerfile line this class guards from the repo side), so the inline
-    copies model.py carried for 316 lines - kept only because the image
-    never shipped contract.py - are gone: model.py imports the shared leaf.
+    The (2026-09-23-retired, archive/ai-yolo26-image/) container image COPYed
+    contract.py flat next to model.py — the Dockerfile line this class used to
+    guard from the repo side — so the inline copies model.py carried for 316
+    lines - kept only because the image never shipped contract.py - are gone:
+    model.py imports the shared leaf.
 
     RED until the swap lands: the inline classes report __module__ of
     "ai.yolo26.model" (conftest canonicalizes the flat name to the package
@@ -2162,8 +2163,8 @@ class TestContractSeam:
     reddens here by name (__module__ would flip back).
 
     Container-side identity (the FULL proof: image build + `import model`
-    inside it) runs in CI as the ai-yolo26-image-smoke job - podman cannot
-    build in this sandbox, so this class is the repo-side half: same-file
+    inside it) ran in CI as the ai-yolo26-image-smoke job, retired with the
+    standalone image; this class remains the repo-side proof: same-file
     identity via the bare `contract` sys.modules entry that model.py's own
     `from contract import` creates.
     """

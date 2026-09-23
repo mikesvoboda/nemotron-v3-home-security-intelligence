@@ -1,26 +1,34 @@
 """API routes for action event management.
 
-This module provides endpoints for X-CLIP action recognition results,
-including listing, filtering, and triggering action analysis on video frames.
+This module provides endpoints for action recognition results stored in the
+action_events table, including listing, filtering, manual creation and
+deletion. These endpoints are plain CRUD on those rows; the POST route is
+the only writer today (the pipeline's ST-GCN++ results, NEM-5563, ride the
+enrichment payload rather than this table).
+
+The X-CLIP analyze endpoint (POST /api/action-events/analyze) was removed
+with the full X-CLIP retirement (owner ruling 2026-09-23): frame classification
+now runs as Triton stgcn_action via the ai-gateway, so there is no
+on-demand frame analysis left to expose here.
 
 Endpoints:
     GET    /api/action-events                      - List all action events
     GET    /api/action-events/suspicious           - List suspicious actions only
     GET    /api/action-events/{event_id}           - Get single action event
     GET    /api/action-events/camera/{camera_id}   - Get events for a camera
-    POST   /api/action-events/analyze              - Trigger action analysis on frames
+    POST   /api/action-events                      - Create an action event manually
+    DELETE /api/action-events/{event_id}           - Delete an action event
 
 Linear issue: NEM-3714
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.action_event import (
-    ActionAnalyzeRequest,
-    ActionAnalyzeResponse,
     ActionEventCreate,
     ActionEventListResponse,
     ActionEventResponse,
@@ -30,7 +38,6 @@ from backend.api.schemas.pagination import PaginationMeta
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.models.action_event import ActionEvent
-from backend.services.action_recognition_service import ActionRecognitionService
 
 logger = get_logger(__name__)
 
@@ -51,6 +58,50 @@ def _action_event_to_response(event: ActionEvent) -> ActionEventResponse:
         all_scores=event.all_scores,
         created_at=event.created_at,
     )
+
+
+def _filtered_queries(
+    camera_id: str | None,
+    track_id: int | None,
+    action: str | None,
+    is_suspicious: bool | None,
+    start_time: datetime | None,
+    end_time: datetime | None,
+    min_confidence: float | None,
+) -> tuple:
+    """Build (query, count_query) for action events with the given filters applied."""
+    query = select(ActionEvent)
+    count_query = select(func.count(ActionEvent.id))
+
+    if camera_id is not None:
+        query = query.where(ActionEvent.camera_id == camera_id)
+        count_query = count_query.where(ActionEvent.camera_id == camera_id)
+
+    if track_id is not None:
+        query = query.where(ActionEvent.track_id == track_id)
+        count_query = count_query.where(ActionEvent.track_id == track_id)
+
+    if action is not None:
+        query = query.where(ActionEvent.action == action)
+        count_query = count_query.where(ActionEvent.action == action)
+
+    if is_suspicious is not None:
+        query = query.where(ActionEvent.is_suspicious == is_suspicious)
+        count_query = count_query.where(ActionEvent.is_suspicious == is_suspicious)
+
+    if start_time is not None:
+        query = query.where(ActionEvent.timestamp >= start_time)
+        count_query = count_query.where(ActionEvent.timestamp >= start_time)
+
+    if end_time is not None:
+        query = query.where(ActionEvent.timestamp <= end_time)
+        count_query = count_query.where(ActionEvent.timestamp <= end_time)
+
+    if min_confidence is not None:
+        query = query.where(ActionEvent.confidence >= min_confidence)
+        count_query = count_query.where(ActionEvent.confidence >= min_confidence)
+
+    return query, count_query
 
 
 @router.get(
@@ -92,19 +143,16 @@ async def list_action_events(
     Returns:
         ActionEventListResponse with events and pagination info
     """
-    service = ActionRecognitionService(session=db)
-
-    events, total = await service.get_action_events(
-        camera_id=camera_id,
-        track_id=track_id,
-        action=action,
-        is_suspicious=is_suspicious,
-        min_confidence=min_confidence,
-        start_time=start_time,
-        end_time=end_time,
-        limit=limit,
-        offset=offset,
+    query, count_query = _filtered_queries(
+        camera_id, track_id, action, is_suspicious, start_time, end_time, min_confidence
     )
+
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
+    result = await db.execute(query)
+    events = list(result.scalars().all())
 
     return ActionEventListResponse(
         items=[_action_event_to_response(e) for e in events],
@@ -153,16 +201,21 @@ async def list_suspicious_actions(
     Returns:
         SuspiciousActionsResponse with suspicious events and counts
     """
-    service = ActionRecognitionService(session=db)
-
-    events, suspicious_count, total_count = await service.get_suspicious_actions(
-        camera_id=camera_id,
-        min_confidence=min_confidence,
-        start_time=start_time,
-        end_time=end_time,
-        limit=limit,
-        offset=offset,
+    query, count_query = _filtered_queries(
+        camera_id, None, None, True, start_time, end_time, min_confidence
     )
+    suspicious_result = await db.execute(count_query)
+    suspicious_count = suspicious_result.scalar() or 0
+
+    _, total_count_query = _filtered_queries(
+        camera_id, None, None, None, start_time, end_time, min_confidence
+    )
+    total_result = await db.execute(total_count_query)
+    total_count = total_result.scalar() or 0
+
+    query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
+    result = await db.execute(query)
+    events = list(result.scalars().all())
 
     return SuspiciousActionsResponse(
         items=[_action_event_to_response(e) for e in events],
@@ -202,9 +255,7 @@ async def get_action_event(
     Raises:
         HTTPException: 404 if event not found
     """
-    service = ActionRecognitionService(session=db)
-
-    event = await service.get_action_event(event_id)
+    event = await db.get(ActionEvent, event_id)
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -236,8 +287,8 @@ async def get_camera_action_events(
 
     Args:
         camera_id: Camera ID to filter by
-        start_time: Filter by timestamp >= start_time
-        end_time: Filter by timestamp <= end_time
+        start_time: Filter by timestamp >= start time
+        end_time: Filter by timestamp <= end time
         limit: Maximum number of results to return
         offset: Number of results to skip for pagination
         db: Database session
@@ -245,15 +296,14 @@ async def get_camera_action_events(
     Returns:
         ActionEventListResponse with events and pagination info
     """
-    service = ActionRecognitionService(session=db)
+    query, count_query = _filtered_queries(camera_id, None, None, None, start_time, end_time, None)
 
-    events, total = await service.get_action_events_for_camera(
-        camera_id=camera_id,
-        start_time=start_time,
-        end_time=end_time,
-        limit=limit,
-        offset=offset,
-    )
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
+    result = await db.execute(query)
+    events = list(result.scalars().all())
 
     return ActionEventListResponse(
         items=[_action_event_to_response(e) for e in events],
@@ -264,80 +314,6 @@ async def get_camera_action_events(
             has_more=total > offset + limit,
         ),
     )
-
-
-@router.post(
-    "/analyze",
-    response_model=ActionAnalyzeResponse,
-    status_code=status.HTTP_200_OK,
-    responses={
-        400: {"description": "Invalid request (no valid frames)"},
-        422: {"description": "Validation error"},
-        500: {"description": "Internal server error"},
-        503: {"description": "X-CLIP model unavailable"},
-    },
-)
-async def analyze_action(
-    request: ActionAnalyzeRequest,
-    db: AsyncSession = Depends(get_db),
-) -> ActionAnalyzeResponse:
-    """Trigger action analysis on a set of video frames.
-
-    This endpoint loads frames from disk, runs X-CLIP classification,
-    and optionally saves the result to the database.
-
-    The X-CLIP model analyzes frame sequences to detect security-relevant
-    actions like walking, running, climbing, loitering, etc.
-
-    Args:
-        request: Analysis request with frame paths and options
-        db: Database session
-
-    Returns:
-        ActionAnalyzeResponse with detected action and scores
-
-    Raises:
-        HTTPException: 400 if no valid frames, 503 if model unavailable
-    """
-    service = ActionRecognitionService(session=db)
-
-    try:
-        result = await service.analyze_frames(
-            camera_id=request.camera_id,
-            frame_paths=request.frame_paths,
-            track_id=request.track_id,
-            confidence_threshold=request.confidence_threshold,
-            save_event=request.save_event,
-        )
-
-        # Commit if we saved an event
-        if result.get("saved"):
-            await db.commit()
-
-        return ActionAnalyzeResponse(
-            action=result["action"],
-            confidence=result["confidence"],
-            is_suspicious=result["is_suspicious"],
-            all_scores=result["all_scores"],
-            frame_count=result["frame_count"],
-            event_id=result.get("event_id"),
-            saved=result.get("saved", False),
-        )
-
-    except ValueError as e:
-        # Invalid frames or empty input
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
-
-    except RuntimeError as e:
-        # Model loading or classification failure
-        logger.error(f"Action analysis failed: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"X-CLIP model unavailable: {e}",
-        ) from e
 
 
 @router.post(
@@ -365,21 +341,27 @@ async def create_action_event(
     Returns:
         Created ActionEventResponse
     """
-    service = ActionRecognitionService(session=db)
+    timestamp = event_data.timestamp or datetime.now(UTC)
 
-    event = await service.create_action_event(
+    event = ActionEvent(
         camera_id=event_data.camera_id,
         track_id=event_data.track_id,
         action=event_data.action,
         confidence=event_data.confidence,
         is_suspicious=event_data.is_suspicious,
-        timestamp=event_data.timestamp,
+        timestamp=timestamp,
         frame_count=event_data.frame_count,
         all_scores=event_data.all_scores,
     )
 
+    db.add(event)
     await db.commit()
     await db.refresh(event)
+
+    logger.info(
+        f"Created action event: {event.id} - {event.action} "
+        f"(confidence: {event.confidence:.2%}, suspicious: {event.is_suspicious})"
+    )
 
     return _action_event_to_response(event)
 
@@ -400,18 +382,18 @@ async def delete_action_event(
 
     Args:
         event_id: Action event ID to delete
-        db: Database session
 
     Raises:
         HTTPException: 404 if event not found
     """
-    service = ActionRecognitionService(session=db)
-
-    deleted = await service.delete_action_event(event_id)
-    if not deleted:
+    event = await db.get(ActionEvent, event_id)
+    if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Action event {event_id} not found",
         )
 
+    await db.delete(event)
     await db.commit()
+
+    logger.info(f"Deleted action event: {event_id}")

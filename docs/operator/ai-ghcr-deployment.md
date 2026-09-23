@@ -16,19 +16,22 @@ publishes `backend` and `frontend` (linux/amd64 + linux/arm64) and `ai-llm`
 The vision models no longer ship as separate images: YOLO26, Florence-2, CLIP and the
 enrichment tiers were consolidated into a single **`ai-gateway`** Triton container that
 `docker-compose.prod.yml` builds locally from `ai/gateway/Dockerfile`. The Deploy
-workflow still pushes the legacy per-model image names (`ai-yolo26`, `ai-florence`,
+workflow still pushes the legacy per-model image names (`ai-florence`,
 `ai-clip`, `ai-enrichment` — their `ai/*/Dockerfile`s remain in the tree), but no
-compose file references them anymore.
+compose file references them anymore. `ai-yolo26` was removed from the Deploy
+matrices entirely on 2026-09-23 (owner ruling: image retired fully; its build
+recipe is at `archive/ai-yolo26-image/Dockerfile`).
 
 ### Image Availability
 
-| Service                                               | Source                                                                  | Notes                                                     |
-| ----------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- |
-| **backend**                                           | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend`    | Published on every merge to main (multi-arch)             |
-| **frontend**                                          | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend`   | Published on every merge to main (multi-arch)             |
-| **ai-llm**                                            | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/ai-llm`     | Published (amd64 only); used by `docker-compose.ghcr.yml` |
-| **ai-gateway**                                        | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/ai-gateway` | Referenced by `ghcr.yml`; CI never builds — build locally |
-| ~~ai-yolo26 / ai-florence / ai-clip / ai-enrichment~~ | Legacy image names still pushed by CI                                   | No compose service uses them; merged into `ai-gateway`    |
+| Service                                   | Source                                                                  | Notes                                                     |
+| ----------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- |
+| **backend**                               | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend`    | Published on every merge to main (multi-arch)             |
+| **frontend**                              | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend`   | Published on every merge to main (multi-arch)             |
+| **ai-llm**                                | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/ai-llm`     | Published (amd64 only); used by `docker-compose.ghcr.yml` |
+| **ai-gateway**                            | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/ai-gateway` | Referenced by `ghcr.yml`; CI never builds — build locally |
+| ~~ai-florence / ai-clip / ai-enrichment~~ | Legacy image names still pushed by CI                                   | No compose service uses them; merged into `ai-gateway`    |
+| ~~ai-yolo26~~                             | Retired 2026-09-23 — removed from the Deploy matrices                   | Build recipe at `archive/ai-yolo26-image/Dockerfile`      |
 
 ### Why ai-gateway Is Built Locally
 
@@ -36,7 +39,9 @@ The Triton gateway container is intentionally not published to GHCR because:
 
 1. **Model files**: The models come from the `models.yml` manifest — the
    `setup_lib` download rule selects 25 of the 30 entries, 33,579 MB
-   (~32.8GB; the full 30-entry manifest sums to 34,112 MB) — and are
+   (~32.8GB; the full 30-entry manifest sums to 34,112 MB), of which
+   `./ai/download_models.sh` fetches 24 (~32.2GB — the `xclip-base` row was
+   removed 2026-09-23, full X-CLIP removal owner ruling) — and are
    mounted at runtime
 2. **GPU drivers**: CUDA version must match the host's nvidia-container-toolkit
 3. **Build customization**: Operators may need different quantization levels or model versions
@@ -98,14 +103,14 @@ Single container serving detection and all enrichment models behind one router p
 model family: `/yolo26`, `/florence`, `/clip`, `/enrichment` (heavy), `/enrich-lt`
 (light).
 
-| Property         | Value                                                                                                                                  |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ports**        | `${AI_GATEWAY_PORT:-8090}` (API), `${AI_GATEWAY_METRICS_PORT:-8002}` (Triton metrics)                                                  |
-| **Base Image**   | `nvcr.io/nvidia/tritonserver:26.01-py3`                                                                                                |
-| **VRAM**         | ~4GB base resident, ~6GB peak (GPU `GPU_AI_SERVICES`, default 1)                                                                       |
-| **Models**       | `models.yml` manifest via `./ai/download_models.sh` (25 of 30 entries download, ~32.8GB — see the `ai/download_models.sh` header rule) |
-| **Health Check** | `GET /health` — `healthy` only when Triton and all models are ready (`start_period` 180s)                                              |
-| **Limits**       | 20G memory, 8 CPUs                                                                                                                     |
+| Property         | Value                                                                                                                                                                                                |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ports**        | `${AI_GATEWAY_PORT:-8090}` (API), `${AI_GATEWAY_METRICS_PORT:-8002}` (Triton metrics)                                                                                                                |
+| **Base Image**   | `nvcr.io/nvidia/tritonserver:26.01-py3`                                                                                                                                                              |
+| **VRAM**         | ~4GB base resident, ~6GB peak (GPU `GPU_AI_SERVICES`, default 1)                                                                                                                                     |
+| **Models**       | `models.yml` manifest via `./ai/download_models.sh` (rule selects 25 of 30 entries, ~32.8GB; script fetches 24, ~32.2GB — xclip row removed 2026-09-23; see the `ai/download_models.sh` header rule) |
+| **Health Check** | `GET /health` — `healthy` only when Triton and all models are ready (`start_period` 180s)                                                                                                            |
+| **Limits**       | 20G memory, 8 CPUs                                                                                                                                                                                   |
 
 **Build:**
 

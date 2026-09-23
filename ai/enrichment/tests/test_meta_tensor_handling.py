@@ -4,7 +4,8 @@ Tests cover:
 - _has_meta_tensors helper function
 - _materialize_meta_tensors helper function
 - ClothingClassifier meta tensor handling
-- ActionRecognizer meta tensor handling
+(The ActionRecognizer X-CLIP meta tensor tests retired with the xclip
+cleanup, NEM-5563 — the class now lives in archive/ai-enrichment/.)
 
 These tests verify that models with meta tensors (lazy-loaded weights)
 are properly detected and materialized to avoid "Cannot copy out of meta tensor" errors.
@@ -130,9 +131,9 @@ class TestClothingClassifierMetaTensors:
 
         with patch("model.validate_model_path") as mock_validate:
             mock_validate.return_value = "/models/fashion-siglip"
-            with patch("model.create_model_from_pretrained") as mock_create:
+            with patch("open_clip.create_model_from_pretrained") as mock_create:
                 mock_create.return_value = (mock_model, mock_preprocess)
-                with patch("model.get_tokenizer") as mock_get_tokenizer:
+                with patch("open_clip.get_tokenizer") as mock_get_tokenizer:
                     mock_get_tokenizer.return_value = mock_tokenizer
                     with (
                         patch("torch.cuda.is_available", return_value=False),
@@ -166,9 +167,9 @@ class TestClothingClassifierMetaTensors:
 
         with patch("model.validate_model_path") as mock_validate:
             mock_validate.return_value = "/models/fashion-siglip"
-            with patch("model.create_model_from_pretrained") as mock_create:
+            with patch("open_clip.create_model_from_pretrained") as mock_create:
                 mock_create.return_value = (mock_model, mock_preprocess)
-                with patch("model.get_tokenizer") as mock_get_tokenizer:
+                with patch("open_clip.get_tokenizer") as mock_get_tokenizer:
                     mock_get_tokenizer.return_value = mock_tokenizer
                     with patch("torch.cuda.is_available", return_value=False):
                         classifier = ClothingClassifier("/models/fashion-siglip", device="cpu")
@@ -200,9 +201,9 @@ class TestClothingClassifierMetaTensors:
 
         with patch("model.validate_model_path") as mock_validate:
             mock_validate.return_value = "/models/fashion-siglip"
-            with patch("model.create_model_from_pretrained") as mock_create:
+            with patch("open_clip.create_model_from_pretrained") as mock_create:
                 mock_create.return_value = (mock_model, mock_preprocess)
-                with patch("model.get_tokenizer") as mock_get_tokenizer:
+                with patch("open_clip.get_tokenizer") as mock_get_tokenizer:
                     mock_get_tokenizer.return_value = mock_tokenizer
                     with patch("torch.cuda.is_available", return_value=False):
                         classifier = ClothingClassifier("/models/fashion-siglip", device="cpu")
@@ -212,153 +213,3 @@ class TestClothingClassifierMetaTensors:
                             classifier.load_model()
 
                         assert "Failed to materialize meta tensors" in str(exc_info.value)
-
-
-class TestActionRecognizerMetaTensors:
-    """Tests for ActionRecognizer meta tensor handling."""
-
-    def test_load_model_detects_meta_tensors(self) -> None:
-        """Test that ActionRecognizer detects models with meta tensors."""
-        from models.action_recognizer import ActionRecognizer
-
-        # Create mock parameter on meta device
-        mock_meta_param = MagicMock()
-        mock_meta_device = MagicMock()
-        mock_meta_device.type = "meta"
-        mock_meta_param.device = mock_meta_device
-
-        # Create mock model with meta tensors
-        mock_model = MagicMock()
-        mock_model.parameters.return_value = iter([mock_meta_param])
-        mock_model.state_dict.return_value = {"weight": MagicMock()}
-        mock_model.to_empty.return_value = mock_model
-        mock_model.eval.return_value = None
-
-        mock_processor = MagicMock()
-
-        with patch(
-            "models.action_recognizer.XCLIPProcessor.from_pretrained"
-        ) as mock_processor_load:
-            mock_processor_load.return_value = mock_processor
-            with patch("models.action_recognizer.XCLIPModel.from_pretrained") as mock_model_load:
-                mock_model_load.return_value = mock_model
-                with (
-                    patch("torch.cuda.is_available", return_value=False),
-                    patch("torch.device") as mock_torch_device,
-                ):
-                    mock_torch_device.return_value = "cpu"
-
-                    recognizer = ActionRecognizer("/models/xclip", device="cpu")
-                    recognizer.load_model()
-
-                    # Verify meta tensor handling was triggered
-                    mock_model.to_empty.assert_called_once()
-                    mock_model.load_state_dict.assert_called_once()
-
-    def test_load_model_no_meta_tensors(self) -> None:
-        """Test that ActionRecognizer handles models without meta tensors."""
-        from models.action_recognizer import ActionRecognizer
-
-        # Create mock parameter on CPU device (no meta tensors)
-        mock_cpu_param = MagicMock()
-        mock_cpu_device = MagicMock()
-        mock_cpu_device.type = "cpu"
-        mock_cpu_param.device = mock_cpu_device
-
-        mock_model = MagicMock()
-        mock_model.parameters.return_value = iter([mock_cpu_param])
-        mock_model.to.return_value = mock_model
-        mock_model.eval.return_value = None
-
-        mock_processor = MagicMock()
-
-        with patch(
-            "models.action_recognizer.XCLIPProcessor.from_pretrained"
-        ) as mock_processor_load:
-            mock_processor_load.return_value = mock_processor
-            with patch("models.action_recognizer.XCLIPModel.from_pretrained") as mock_model_load:
-                mock_model_load.return_value = mock_model
-                with patch("torch.cuda.is_available", return_value=False):
-                    recognizer = ActionRecognizer("/models/xclip", device="cpu")
-                    recognizer.load_model()
-
-                    # Verify model was loaded but no meta tensor handling
-                    assert recognizer.model is not None
-                    # to_empty should not have been called
-                    assert not mock_model.to_empty.called
-
-    def test_load_model_handles_materialization_error(self) -> None:
-        """Test that ActionRecognizer handles materialization errors gracefully."""
-        from models.action_recognizer import ActionRecognizer
-
-        # Create mock parameter on meta device
-        mock_meta_param = MagicMock()
-        mock_meta_device = MagicMock()
-        mock_meta_device.type = "meta"
-        mock_meta_param.device = mock_meta_device
-
-        # Create mock model that fails on materialization
-        mock_model = MagicMock()
-        mock_model.parameters.return_value = iter([mock_meta_param])
-        mock_model.state_dict.return_value = {"weight": MagicMock()}
-        mock_model.to_empty.side_effect = RuntimeError("Materialization failed")
-
-        mock_processor = MagicMock()
-
-        with patch(
-            "models.action_recognizer.XCLIPProcessor.from_pretrained"
-        ) as mock_processor_load:
-            mock_processor_load.return_value = mock_processor
-            with patch("models.action_recognizer.XCLIPModel.from_pretrained") as mock_model_load:
-                mock_model_load.return_value = mock_model
-                with patch("torch.cuda.is_available", return_value=False):
-                    recognizer = ActionRecognizer("/models/xclip", device="cpu")
-
-                    # Should raise RuntimeError on materialization failure
-                    with pytest.raises(RuntimeError) as exc_info:
-                        recognizer.load_model()
-
-                    assert "Failed to materialize meta tensors" in str(exc_info.value)
-
-    def test_load_model_with_sdpa_and_meta_tensors(self) -> None:
-        """Test that SDPA loading works with meta tensor handling."""
-        from models.action_recognizer import ActionRecognizer
-
-        # Create mock parameter on meta device
-        mock_meta_param = MagicMock()
-        mock_meta_device = MagicMock()
-        mock_meta_device.type = "meta"
-        mock_meta_param.device = mock_meta_device
-
-        mock_model = MagicMock()
-        mock_model.parameters.return_value = iter([mock_meta_param])
-        mock_model.state_dict.return_value = {"weight": MagicMock()}
-        mock_model.to_empty.return_value = mock_model
-        mock_model.eval.return_value = None
-
-        mock_processor = MagicMock()
-
-        with patch(
-            "models.action_recognizer.XCLIPProcessor.from_pretrained"
-        ) as mock_processor_load:
-            mock_processor_load.return_value = mock_processor
-            with patch("models.action_recognizer.XCLIPModel.from_pretrained") as mock_model_load:
-                # SDPA loading should succeed
-                mock_model_load.return_value = mock_model
-                with (
-                    patch("torch.cuda.is_available", return_value=False),
-                    patch("torch.device") as mock_torch_device,
-                ):
-                    mock_torch_device.return_value = "cpu"
-
-                    recognizer = ActionRecognizer("/models/xclip", device="cpu")
-                    recognizer.load_model()
-
-                    # Verify SDPA was attempted
-                    assert mock_model_load.call_count == 1
-                    call_kwargs = mock_model_load.call_args[1]
-                    assert "attn_implementation" in call_kwargs
-                    assert call_kwargs["attn_implementation"] == "sdpa"
-
-                    # Verify meta tensor handling was triggered
-                    mock_model.to_empty.assert_called_once()

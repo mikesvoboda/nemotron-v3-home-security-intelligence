@@ -1,6 +1,12 @@
 # YOLO26 Export Format Evaluation
 
 > **Phase 1.4:** Evaluate export formats for YOLO26 deployment and recommend the best option.
+>
+> NOTE (2026-09-23): point-in-time evaluation kept as the measured record. Its
+> `ai-yolo26:` compose excerpts describe the standalone server, which was
+> retired fully that day (owner ruling — Triton on ai-gateway serves yolo26;
+> recipe in `archive/ai-yolo26-image/`). Export guidance itself still applies
+> via `ai/gateway/export/export_yolo26.py` and `ai/yolo26/build_engine.py`.
 
 **Date:** 2026-01-26
 **Model Evaluated:** yolo26n.pt (Nano variant)
@@ -54,13 +60,8 @@ This document evaluates export formats for YOLO26 deployment in the home securit
 ```python
 from ultralytics import YOLO
 
-model = YOLO('/export/ai_models/model-zoo/yolo26/yolo26n.pt')
-model.export(
-    format='onnx',
-    imgsz=640,
-    simplify=True,
-    opset=17
-)
+model = YOLO("/export/ai_models/model-zoo/yolo26/yolo26n.pt")
+model.export(format="onnx", imgsz=640, simplify=True, opset=17)
 ```
 
 **Export Metrics:**
@@ -85,8 +86,8 @@ TensorRT export was not performed due to CPU-only PyTorch in the development env
 # Requires CUDA-enabled PyTorch
 from ultralytics import YOLO
 
-model = YOLO('/export/ai_models/model-zoo/yolo26/yolo26n.pt')
-model.export(format='engine', imgsz=640, half=True)  # FP16 for speed
+model = YOLO("/export/ai_models/model-zoo/yolo26/yolo26n.pt")
+model.export(format="engine", imgsz=640, half=True)  # FP16 for speed
 ```
 
 **TensorRT Requirements:**

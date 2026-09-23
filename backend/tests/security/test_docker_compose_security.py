@@ -172,8 +172,7 @@ class TestExistingSecurityHardening:
         "json-exporter",
         "loki",
         "pyroscope",
-        "jaeger",
-        "elasticsearch",
+        "tempo",
         "node-exporter",
         "cadvisor",
     ]

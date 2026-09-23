@@ -248,7 +248,8 @@ ALLOWED_PRELOAD_MODELS: frozenset[str] = frozenset(
         "vehicle_classifier",
         "fashion_clip",
         "demographics",
-        "action_recognizer",
+        # action_recognizer (X-CLIP) removed 2026-09-23, full X-CLIP removal
+        # owner ruling — see archive/ai-enrichment/
         # Light service models (ai-enrichment-light)
         "pose_estimator",
         "threat_detector",

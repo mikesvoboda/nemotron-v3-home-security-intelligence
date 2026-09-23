@@ -653,22 +653,22 @@ class TestV3ThreeNames:
     def test_V3_enrichment_threat_precedence_split_is_pinned(self) -> None:
         """V3 enrichment side: the SAME file reads the one concept with
         OPPOSITE precedence twice —
-          backend/services/enrichment_pipeline.py:3890  type -> class_name
-          backend/services/enrichment_pipeline.py:5188  class_name -> type
+          backend/services/enrichment_pipeline.py:3942  type -> class_name
+          backend/services/enrichment_pipeline.py:5196  class_name -> type
         A threat dict carrying both keys resolves to DIFFERENT values on
         the two paths. Characterization (the split is a documented hazard
         with a parked RULING, plan §3.4) — pinned by regex so the line
         drifts redden here.
-        Sources: dossier V3 (:3890 EXACT, :5188 bonus find), re-verified.
+        Sources: dossier V3 (:3942 EXACT, :5196 bonus find), re-verified.
         Predicted GREEN (source regex). UNVERIFIED."""
         src = (REPO_ROOT / "backend/services/enrichment_pipeline.py").read_text(encoding="utf-8")
         lines = src.splitlines()
         assert re.search(
-            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3889]
-        ), f":3890 drifted: {lines[3889]!r}"
+            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3941]
+        ), f":3942 drifted: {lines[3941]!r}"
         assert re.search(
-            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5187]
-        ), f":5188 drifted: {lines[5187]!r}"
+            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5195]
+        ), f":5196 drifted: {lines[5195]!r}"
 
     async def test_V3_threat_rows_carry_no_canonical_name_at_all(self, fake_client) -> None:
         """V3 consequence, drivable: the fake's threat rows

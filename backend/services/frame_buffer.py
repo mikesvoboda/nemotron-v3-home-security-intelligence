@@ -1,8 +1,9 @@
-"""Frame buffer service for X-CLIP temporal action recognition.
+"""Frame buffer service for temporal action recognition.
 
 This module provides the FrameBuffer service that stores recent frames per camera
-for temporal action recognition with X-CLIP. X-CLIP needs sequences of frames
-(typically 8 frames) to recognize actions like:
+for temporal action recognition. The action recognizer is the ST-GCN++ skeleton
+path (NEM-5563; the X-CLIP chain it replaced was archived 2026-09-23), and the
+service-side ``/action-classify`` adapter consumes an 8-frame window like:
 - loitering, approaching_door, running_away
 - checking_car_doors, suspicious_behavior
 - breaking_in, vandalism
@@ -48,10 +49,10 @@ class FrameBuffer:
     """Buffer for storing recent frames per camera for temporal analysis.
 
     This service maintains per-camera circular buffers of recent frames,
-    enabling temporal action recognition with X-CLIP. The buffer handles:
+    feeding temporal action recognition. The buffer handles:
     - Per-camera frame storage with configurable capacity
     - Automatic eviction of frames older than max_age_seconds
-    - Even sampling of frames for X-CLIP (which expects 8 frames)
+    - Even sampling of frames (the action path consumes 8-frame windows)
     - Thread-safe concurrent access
 
     Attributes:
@@ -63,7 +64,7 @@ class FrameBuffer:
         >>> await buffer.add_frame("camera_1", frame_bytes, datetime.now(UTC))
         >>> frames = buffer.get_sequence("camera_1", num_frames=8)
         >>> if frames:
-        ...     action_result = await classify_actions(model, frames)
+        ...     action_result = await action_client.classify_action(frames)
     """
 
     def __init__(self, buffer_size: int = 16, max_age_seconds: float = 30.0) -> None:
@@ -175,13 +176,13 @@ class FrameBuffer:
             buffer.append(FrameData(frame=frame, timestamp=timestamp))
 
     def get_sequence(self, camera_id: str, num_frames: int = 8) -> list[bytes] | None:
-        """Get a sequence of frames for X-CLIP analysis.
+        """Get a sequence of frames for action recognition.
 
         Samples frames evenly across the buffer to get the requested number
         of frames. If the buffer has fewer frames than requested, returns None.
 
-        X-CLIP works best with 8 frames spanning the action. This method
-        samples uniformly to capture the temporal progression.
+        The action path works best with 8 frames spanning the action. This
+        method samples uniformly to capture the temporal progression.
 
         Args:
             camera_id: Camera identifier

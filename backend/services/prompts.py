@@ -4381,9 +4381,12 @@ def format_detections_with_quality(
     # contract, NOT ai.yolo26.model — the model module is a GPU service
     # (module-level torch/fastapi/metrics) that cannot import inside the
     # backend process; the old import raised ModuleNotFoundError on every
-    # call. contract.py duplicates model.py's inline copies because the
-    # yolo26 Dockerfile's per-file COPY list does not ship it (parity is
-    # guarded by test_prompts.py; Dockerfile wiring is a parked RULING).
+    # call. contract.py once duplicated model.py's inline copies because
+    # the yolo26 Dockerfile's per-file COPY list did not ship it; A7.3/
+    # WP6-A unified the definitions, and the standalone yolo26 image was
+    # retired 2026-09-23 (ai/yolo26 is now this leaf plus the model modules
+    # the AI-contract conformance tests AST-read; parity stays guarded by
+    # test_prompts.py).
     from ai.yolo26.contract import (
         ConfidenceQuality,
         EnhancedDetection,
