@@ -645,13 +645,13 @@ re-queues), and merge (superseders). ~35 runs cancelled across four sweeps.
 
 | PR                                                              | Content  | Disposition          | Landed as                                                                                                                                                             |
 | --------------------------------------------------------------- | -------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #6662 checkout 4→7                                              | a0c10550 | supersede-close      | `TBD-6667` (truthful # v7.0.1 ×96)                                                                                                                                    |
-| #6660 download-artifact 4→8                                     | f62cdf72 | supersede-close      | `TBD-6667` (truthful # v8.0.1 ×5)                                                                                                                                     |
-| #6663 upload-pages-artifact 4→5                                 | 65c520ec | supersede-close      | `TBD-6667`                                                                                                                                                            |
-| #6664 deploy-pages 4→5                                          | e60ff0a2 | supersede-close      | `TBD-6667`                                                                                                                                                            |
-| #6655 lucide-react ^1.47.0                                      | 575c467a | supersede-close      | `TBD-6668`                                                                                                                                                            |
-| #6656 jsdom ^30.1.0                                             | 3269e1a6 | supersede-close      | `TBD-6668` + in-PR test fix `6abbf9c5` (CI node 24.21 ≥ 24.15 engine ✓)                                                                                               |
-| #6651 npm group (lru-cache, t-p-m, msw)                         | c52c21e8 | supersede-close      | `TBD-6668` + msw floor `0d9ae3f7` (merged #6666)                                                                                                                      |
+| #6662 checkout 4→7                                              | a0c10550 | supersede-close      | `cc58cdc7` (truthful # v7.0.1 ×96)                                                                                                                                    |
+| #6660 download-artifact 4→8                                     | f62cdf72 | supersede-close      | `cc58cdc7` (truthful # v8.0.1 ×5)                                                                                                                                     |
+| #6663 upload-pages-artifact 4→5                                 | 65c520ec | supersede-close      | `cc58cdc7`                                                                                                                                                            |
+| #6664 deploy-pages 4→5                                          | e60ff0a2 | supersede-close      | `cc58cdc7`                                                                                                                                                            |
+| #6655 lucide-react ^1.47.0                                      | 575c467a | supersede-close      | `4dbb0353`                                                                                                                                                            |
+| #6656 jsdom ^30.1.0                                             | 3269e1a6 | supersede-close      | `4dbb0353` + in-PR test fix `6abbf9c5` (CI node 24.21 ≥ 24.15 engine ✓)                                                                                               |
+| #6651 npm group (lru-cache, t-p-m, msw)                         | c52c21e8 | supersede-close      | `4dbb0353` + msw floor `0d9ae3f7` (merged #6666)                                                                                                                      |
 | #6652 cuda 13.4.1                                               | f9774df3 | CLOSED (holder open) | content lives in #6669 — OPEN, HOLD (R-3: first 13.4.1 ai-llm build)                                                                                                  |
 | #6653 knip 6                                                    | —        | CLOSED deferred      | rules.classMembers removed; knip.json:37                                                                                                                              |
 | #6654 pako 3                                                    | —        | CLOSED deferred      | no default export; websocketCompression.ts:15                                                                                                                         |
@@ -671,6 +671,13 @@ drop each in the PR that lands its migration. Housekeeping: stale
 #6629–#6632; the "close 4 PRs" line of the plan was stale — nothing open to
 close).
 
+**Batch merges (2026-09-23):** #6667 (actions batch, head `e65dab67`) admin-squashed as
+`cc58cdc7`; #6668 (npm batch, head `4d1d6c5f`) admin-squashed as `4dbb0353`; the TPA
+slow-list unblocker #6674 as `db220839`. #6667's first green gate went BEHIND on #6668's
+merge — strict protection refuses admin-merge on BEHIND heads — so main was merged into
+the branch (`e65dab67`) and the head re-rolled once, green, before the squash. Supersede
+evidence comments (merge SHA each) posted on all seven superseded originals.
+
 **OPEN after this wave:** R-3 cuda 13.4.1 (#6669 merge gate, owner) · five
 migration PRs behind the floors above · #6661 paired cache re-file ·
 Collection-Sanity flake (test_check_coverage_diff.py race under -n8, re-run
@@ -682,8 +689,8 @@ until the batches merged, to keep merge SHAs citable. A fresh dependabot wave
 (#6670–#6672, 14:01–14:13Z) re-saturated the runners, so #6660 #6662 #6663
 #6664 #6655 #6656 #6652 were closed same-day citing their batch PRs (#6667,
 #6668, #6669) instead; every head was fetched into local refs first, so no
-content was lost. Post-merge, the supersede evidence (merge SHA per original
-PR) gets appended as closing comments on those PRs. A second wave of closes
+content was lost; post-merge, the supersede evidence landed as comments on those
+PRs (see Batch merges below). A second wave of closes
 (#6670–#6672, deferred/obsolete reasons in-table) brought open dependabot PRs
 to **zero** — no re-spawn source until the Mon 06:00 CT schedule.
 `repos/$R/dependabot/auto-updates/pause` and `…/dependabot` both 404 for this
