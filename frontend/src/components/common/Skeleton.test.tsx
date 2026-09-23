@@ -54,7 +54,11 @@ describe('Skeleton', () => {
     it('applies string height value', () => {
       render(<Skeleton height="2rem" data-testid="skeleton" />);
       const skeleton = screen.getByTestId('skeleton');
-      expect(skeleton).toHaveStyle({ height: '2rem' });
+      // jsdom 30 serializes computed lengths in px (browser truth — real
+      // browsers have always done this; jsdom 28 echoed the specified
+      // '2rem'). el.style.height still reads '2rem'; toHaveStyle resolves
+      // via computed style, which is 32px at the default 16px root.
+      expect(skeleton).toHaveStyle({ height: '32px' });
     });
   });
 
@@ -149,7 +153,9 @@ describe('Skeleton', () => {
     it('text variant has default height of 1em', () => {
       render(<Skeleton variant="text" data-testid="skeleton" />);
       const skeleton = screen.getByTestId('skeleton');
-      expect(skeleton).toHaveStyle({ height: '1em' });
+      // jsdom 30 computed-style serialization: '1em' resolves to '16px'
+      // at the default font-size (see 'applies string height value').
+      expect(skeleton).toHaveStyle({ height: '16px' });
     });
 
     it('text variant has default width of 100%', () => {
