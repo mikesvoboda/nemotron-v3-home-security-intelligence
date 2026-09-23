@@ -10039,3 +10039,43 @@ MEASURED from the lane logs this session (`grep -c` on the log files cited):
   Killed 203 / Survived 58 / NoCoverage 61 / CompileError 62 = (203+0)/384
   killed+timeout over total ≈ **52.9%** by the badge formula — NOT yet a claim;
   the fresh run must land first.
+
+### Row — batch-13b: logs `_log_frontend_entry` full-extra-dict battery
+
+- **Battery SHIPPED this row**: `backend/tests/unit/api/routes/test_logs_batch13b.py`
+  — **13 tests, 13 passed** — measured twice this session on consecutive
+  revisions (`23.29s` pre-format, `25.84s` on the committed ruff-format copy,
+  `-p no:randomly -p no:cacheprovider`). Targets the frozen WP4.4 dossier
+  `archive/wp25-feed/wp44-triage/logs.md` (61 survivor keys,
+  `logs_surv_keys.txt`; feed FROZEN per #6566 — no unfreezing, the dossier is
+  read as-is). Dossier disposition carried: 57 TEST-GAP killed here, 2
+  EQUIVALENT (C14 level-map default unreachable; C12 None-value admission
+  needs a >50-char key the loop filter already drops), 3 LOW-VALUE stay
+  (66/60/115 — 115's warning text pinned anyway), 8 SCHEMA-SHIELDED
+  (component/entry-UA/ctx-key/label caps equal their schema `max_length`, so
+  the sanitize cap is unreachable-via-API for those keys).
+- **What it pins** (every value MEASURED via `/tmp/b13b-harness.py` →
+  `/tmp/b13b-probes.json`, 16 sections; truncation suffix confirmed by a direct
+  `sanitize_log_value` probe — cap applied BEFORE the `...[truncated]` suffix):
+  the EXACT full `extra` dict (kills every key rename/case-rename and the
+  value→None swaps the substring-asserting shipped tests let through);
+  five-level map 10/20/30/40/50 verbatim; `unknown` component + `[frontend]`
+  label fallbacks; `datetime.now(UTC)` aware-ISO fallback pinned with
+  `assert_called_once_with(UTC)` (kills naive `now(None)`); url/header-UA 500
+  cap shapes (header path bypasses the 500 schema max — the only path where
+  the UA cap bites); entry-UA precedence over header (elif); ctx-value 1000
+  cap (1000 intact + suffix = 1014); 20-item cap k00..k19; key-length boundary
+  50-admits/51-drops; 10 KB budget equality (sum==10000 admits both, 10001
+  stores one) and break-not-continue (5x5003 stores 1); exception path returns
+  False with warning text `Failed to process frontend log entry: boom`.
+  Production NOT bent to any mutant.
+- **13b red-check DISPATCHED**: `/tmp/lane_logs13b.py` (derived from
+  `lane_rs18.py`; webhook lane, SRC=logs.py, TARGETS={x\_\_log_frontend_entry})
+  — feed = the FULL frozen dossier set converted from `logs_diffs_raw.txt`
+  (record format `KEY: <key>: survived`, single hunk, `@@@@@`-separated) →
+  `/tmp/extracts/logs.tsv` **61 keys, 61 converted**. DRY: `feed-targeted: 61
+assignable: 61 deferred: 0 unassignable: 0`. Battery md5 ec83f1bd verified
+  byte-identical in the lane; lane logs.py md5 739e05ba matches workspace.
+  Full run launched detached this session; log `/tmp/redcheck-logs13b.log`.
+  **No kill tally claimed for 13b** — that number comes only from the lane log
+  once the run exits "source clean".
