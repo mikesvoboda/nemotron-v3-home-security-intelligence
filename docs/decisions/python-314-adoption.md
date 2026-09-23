@@ -176,7 +176,7 @@ We can adopt incrementally:
 ### Phase 1: Foundation (Week 1)
 
 - [x] Create benchmark suite (`scripts/benchmark_py314.py`)
-- [x] Document features (`docs/development/python-3.14-features.md`)
+- [x] Document features (`docs/developer/python-3.14-features.md`)
 - [x] Create this ADR
 - [x] Update `pyproject.toml` for Python 3.14 compatibility
 
@@ -284,7 +284,7 @@ If issues arise with Python 3.14t:
 
 ## Related Documentation
 
-- [Python 3.14 Features Guide](../development/python-3.14-features.md)
+- [Python 3.14 Features Guide](../developer/python-3.14-features.md)
 - [Benchmark Script](../../scripts/benchmark_py314.py)
 - [PEP 703 - Making the Global Interpreter Lock Optional](https://peps.python.org/pep-0703/)
 - [PEP 778 - Add UUID version 7](https://peps.python.org/pep-0778/)

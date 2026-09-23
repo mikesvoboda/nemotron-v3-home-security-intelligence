@@ -10,7 +10,7 @@ Usage:
 
 NEM-4153: Audit and fix broken Grafana PromQL queries.
 
-See also: docs/development/metrics-implementation-status.md for the full
+See also: docs/developer/metrics-implementation-status.md for the full
 implementation status of all metrics referenced in dashboards.
 """
 

@@ -10,7 +10,7 @@
  * - Error handling
  *
  * @see frontend/src/pages/TrashPage.tsx
- * @see docs/development/testing-workflow.md
+ * @see docs/developer/testing-workflow.md
  */
 
 import { test, expect } from '@playwright/test';
@@ -18,12 +18,7 @@ import { test, expect } from '@playwright/test';
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
 import { TrashPage } from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  emptyMockConfig,
-  type ApiMockConfig,
-} from '../fixtures';
+import { setupApiMocks, defaultMockConfig, emptyMockConfig, type ApiMockConfig } from '../fixtures';
 
 test.describe('Trash Page Load & Display', () => {
   let trashPage: TrashPage;

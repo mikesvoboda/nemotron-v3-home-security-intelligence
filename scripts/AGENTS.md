@@ -1025,7 +1025,7 @@ absolute backend floor remains validate.sh's 80% combined.
 
 1. Review generated test stub
 2. Replace TODO comments with actual test cases
-3. Follow patterns from `docs/development/testing.md`
+3. Follow patterns from `docs/developer/testing.md`
 4. Run `./scripts/validate.sh` to verify tests work
 
 #### check-integration-tests.py

@@ -262,7 +262,7 @@ llama-server \
 | -------------------- | -------- | ---------- | ----------------------------- |
 | `tritonclient[grpc]` | >=2.42.0 | Async gRPC | `ai/gateway/triton_client.py` |
 
-### Model Repository (15 models)
+### Model Repository (14 models)
 
 The effective device for each model is set at container startup: `ai/gateway/entrypoint.sh` runs
 `ai/gateway/patch_triton_configs.py`, which rewrites each `config.pbtxt` `instance_group` from the
@@ -285,13 +285,13 @@ the table below shows the resulting deployed kinds). The shipped `config.pbtxt` 
 | demographics_age (ViT)         | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
 | demographics_gender (ViT)      | onnxruntime      | KIND_GPU      | [0] | 8            | Yes (1,4,8 / 100ms) | 3        |
 | clip_text (SigLIP 2 text)      | onnxruntime      | KIND_CPU (x2) | CPU | 8            | Yes (1,4,8 / 50ms)  | 3        |
-| xclip_action                   | python           | KIND_CPU      | CPU | 0            | No                  | --       |
-| stgcn_action (ST-GCN++)        | onnxruntime_onnx | KIND_CPU      | CPU | 0            | No                  | --       |
+| stgcn_action (ST-GCN++)        | onnxruntime_onnx | KIND_CPU      | CPU | 1            | No                  | --       |
 
-**Summary:** 12 GPU instances, 3 CPU models. 12 use ONNX Runtime, 2 use Python backend, 1 uses the `onnxruntime_onnx` platform. **No models use TensorRT backend in Triton.** `clip_text` stays on CPU because its INT8 export contains `MatMulInteger` ops the CUDA EP cannot run; `stgcn_action` is an intentionally-CPU skeleton model. `xclip_action`'s models.yml entry is `enabled: false` (X-CLIP deprecated in favour of ST-GCN++) even though the repo directory ships.
+**Summary:** 12 GPU models, 2 CPU models, one instance group each. 12 use ONNX Runtime, 1 uses the `onnxruntime_onnx` platform (`stgcn_action`), 1 uses the Python backend (`florence2`). **No models use TensorRT backend in Triton.** `clip_text` stays on CPU because its INT8 export contains `MatMulInteger` ops the CUDA EP cannot run; `stgcn_action` is an intentionally-CPU skeleton model. `xclip_action` (the second former Python-backend model) was retired from `ai/triton/model_repository/` with NEM-5563 — X-CLIP is deprecated in favour of ST-GCN++ per `models.yml` (`enabled: false`) — and its config/model.py now ship under `archive/triton-model-repository/`.
 
-> The compose health comment (`docker-compose.prod.yml` line 337, "Triton loads 13 models") predates
-> the fashion/demographics GPU promotion -- 15 repository directories are loaded.
+> The compose health comment (`docker-compose.prod.yml` line 337, "Triton loads 13 models") is
+> stale: the repository now ships 14 model directories, and `xclip_action`'s retirement
+> (NEM-5563) is why the count never went 15 -> 14 the way the comment's math once implied.
 
 ---
 
@@ -577,12 +577,12 @@ Scraped from `ai-gateway:8002/metrics`:
 
 ### AI Service GPU Metrics
 
-| Metric                                | Source          | Type    |
-| ------------------------------------- | --------------- | ------- |
-| `ai_gpu_oom_total`                    | All AI services | counter |
-| `enrichment_vram_usage_bytes`         | Enrichment code | gauge   |
-| `enrichment_vram_budget_bytes`        | Enrichment code | gauge   |
-| `enrichment_vram_utilization_percent` | Enrichment code | gauge   |
+| Metric                                | Source                                              | Type    |
+| ------------------------------------- | --------------------------------------------------- | ------- |
+| `ai_gpu_oom_total`                    | Retired standalone services (defined, not exported) | counter |
+| `enrichment_vram_usage_bytes`         | Enrichment code                                     | gauge   |
+| `enrichment_vram_budget_bytes`        | Enrichment code                                     | gauge   |
+| `enrichment_vram_utilization_percent` | Enrichment code                                     | gauge   |
 
 > The `yolo26_*` gauges (`ai/yolo26/metrics.py`) and `enrichment_vram_*` gauges
 > (`ai/enrichment/model_manager.py`) are still defined in code, but the standalone
@@ -617,11 +617,16 @@ Scraped from `ai-gateway:8002/metrics`:
 
 ### AI Pipeline GPU Alerts (`monitoring/ai-pipeline-alerts.yml`)
 
-| Alert               | Expression                              | Duration | Severity |
-| ------------------- | --------------------------------------- | -------- | -------- |
-| `GPUOOMCritical`    | `rate(ai_gpu_oom_total[5m]) > 0`        | 5m       | critical |
-| `GPUMemoryHigh`     | `hsi_gpu_memory_used_mb / total > 0.9`  | 5m       | warning  |
-| `GPUMemoryCritical` | `hsi_gpu_memory_used_mb / total > 0.95` | 2m       | critical |
+| Alert                  | Expression                                                                                                  | Duration | Severity |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- | -------- | -------- |
+| `GPUInferenceFailures` | `sum(rate(nv_inference_request_failure[5m])) / (sum(rate(nv_inference_request_success[5m])) + 0.001) > 0.1` | 5m       | critical |
+| `GPUMemoryHigh`        | `hsi_gpu_memory_used_mb / total > 0.9`                                                                      | 5m       | warning  |
+| `GPUMemoryCritical`    | `hsi_gpu_memory_used_mb / total > 0.95`                                                                     | 2m       | critical |
+
+> `GPUOOMCritical` (keyed on `rate(ai_gpu_oom_total[5m]) > 0`) was deleted -- post-consolidation
+> nothing in the gateway topology exports `ai_gpu_oom_total`, so the alert could never fire (see
+> the deletion comment at `monitoring/ai-pipeline-alerts.yml:33`). `GPUInferenceFailures` above is
+> the Triton-backed replacement, scraped from `ai-gateway:8002/metrics`.
 
 ### Backend Performance Thresholds (`backend/services/performance_collector.py`)
 
@@ -712,7 +717,7 @@ Pose and threat models exported via Ultralytics as `.engine` files have a metada
 
 Florence-2's autoregressive decoder and X-CLIP's custom cross-frame attention prevent static graph export. Both require the Python backend.
 
-> Source: `ai/triton/model_repository/florence2/config.pbtxt` line 3, `xclip_action/config.pbtxt` line 3.
+> Source: `ai/triton/model_repository/florence2/config.pbtxt` line 3, `archive/triton-model-repository/xclip_action/config.pbtxt` line 3 (`xclip_action` retired from the live repo with NEM-5563).
 
 ### Performance Comparison
 

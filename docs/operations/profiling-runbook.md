@@ -257,12 +257,12 @@ curl -s "http://localhost:9090/api/v1/query?query=job:backend_cpu_seconds:rate5m
 
 **Alert Condition:** YOLO26 inference P95 latency increased >50% compared to 1-hour average.
 
-> **Status (2026-09-22):** the recording rule `job:yolo26_inference_latency:p95_5m` is built on `yolo26_inference_latency_seconds_bucket`, which only the retired standalone detector exported — the gateway's Triton exposes no such metric, so this rule has no data in the current topology. Until `monitoring/profiling-recording-rules.yml` is retargeted at Triton's `nv_inference_request_duration_seconds{model="yolo26"}` histogram, work the equivalent signal directly:
+> **Status (2026-09-22):** the recording rule `job:yolo26_inference_latency:p95_5m` is built on `yolo26_inference_latency_seconds_bucket`, which only the retired standalone detector exported — the gateway's Triton exposes no such metric, so this rule has no data in the current topology. Triton's own latency signal is `nv_inference_request_duration_us`, a **cumulative counter** (µs), not a histogram: with the server's default metrics config (`summary_latencies` is NOT enabled) no P95 exists server-side, so the retarget lands on the per-model **mean** until the config changes. Work the equivalent signal directly:
 >
 > ```bash
-> # Triton-side P95 for the yolo26 model (scraped via triton-metrics at ai-gateway:8002)
+> # Triton-side mean latency for the yolo26 model (scraped via triton-metrics at ai-gateway:8002)
 > curl -s "http://localhost:9090/api/v1/query" --data-urlencode \
->   'query=histogram_quantile(0.95, sum(rate(nv_inference_request_duration_seconds_sum{model="yolo26"}[5m])) by (le))' | jq
+>   'query=sum(rate(nv_inference_request_duration_us{model="yolo26"}[5m])) / (sum(rate(nv_inference_request_success[5m])) + 0.001)' | jq
 > ```
 
 **Symptoms:**

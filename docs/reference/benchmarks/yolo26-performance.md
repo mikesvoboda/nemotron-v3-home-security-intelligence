@@ -287,7 +287,7 @@ uv run python scripts/benchmark_yolo26_container.py
 - [Auto-generated Benchmarks](../../benchmarks/yolo26-benchmarks.md)
 - [YOLO26 Export Formats](../../benchmarks/yolo26-export-formats.md)
 - [AI Models Reference](../models.md)
-- [Multi-GPU Configuration](../../development/multi-gpu.md)
+- [Multi-GPU Configuration](../../developer/multi-gpu.md)
 - [GPU Troubleshooting](../troubleshooting/gpu-issues.md)
 
 ---

@@ -85,13 +85,13 @@ RETENTION_DAYS=30
 
 ### Application Settings
 
-| Variable        | Default                      | Description                 |
-| --------------- | ---------------------------- | --------------------------- |
-| `APP_NAME`      | `Home Security Intelligence` | Application display name    |
-| `APP_VERSION`   | `0.1.0`                      | Version string              |
-| `DEBUG`         | `false`                      | Enable debug mode           |
-| `ADMIN_ENABLED` | `false`                      | Enable admin endpoints      |
-| `ADMIN_API_KEY` | _none_                       | API key for admin endpoints |
+| Variable        | Default                      | Description                                                    |
+| --------------- | ---------------------------- | -------------------------------------------------------------- |
+| `APP_NAME`      | `Home Security Intelligence` | Application display name                                       |
+| `APP_VERSION`   | `0.1.0`                      | Version string                                                 |
+| `DEBUG`         | `false`                      | Enable debug mode                                              |
+| `ADMIN_ENABLED` | `true`                       | Enable admin endpoints — the only gate; DEBUG is not consulted |
+| `ADMIN_API_KEY` | _none_                       | Reserved, not enforced — no code path reads it                 |
 
 ### Detection Settings
 
@@ -235,14 +235,14 @@ podman compose -f docker-compose.prod.yml restart backend
 
 ### Default Security Posture
 
-| Feature         | Default                                                                                                                                                                                      | Production Recommendation                                                                         |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Authentication  | Single-user model: `SetupGuardMiddleware` returns 503 until the first admin registers, then API endpoints are open (per-route guards like `verify_api_key` protect admin/destructive routes) | Keep network binding to `127.0.0.1` as the primary boundary; enable API keys for anything exposed |
-| HTTPS/TLS       | Disabled                                                                                                                                                                                     | Enable                                                                                            |
-| Rate Limiting   | Enabled                                                                                                                                                                                      | Keep enabled                                                                                      |
-| Admin Endpoints | Disabled                                                                                                                                                                                     | Keep disabled unless needed                                                                       |
-| Debug Mode      | Disabled                                                                                                                                                                                     | Keep disabled                                                                                     |
-| CORS            | Localhost origins (incl. `https://localhost:8444`)                                                                                                                                           | Restrict to your domains                                                                          |
+| Feature         | Default                                                                                                                                                                                                                                                              | Production Recommendation                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Authentication  | Single-user model: `SetupGuardMiddleware` returns 503 until the first admin registers, then API endpoints are open (`verify_api_key` guards the DLQ/inbound-webhook routes, not admin; `/api/admin/*` is guarded by `require_admin_access` on `ADMIN_ENABLED` alone) | Keep network binding to `127.0.0.1` as the primary boundary; enable API keys for anything exposed |
+| HTTPS/TLS       | Disabled                                                                                                                                                                                                                                                             | Enable                                                                                            |
+| Rate Limiting   | Enabled                                                                                                                                                                                                                                                              | Keep enabled                                                                                      |
+| Admin Endpoints | Enabled — `ADMIN_ENABLED=true` by default; `DEBUG` is not consulted, `ADMIN_API_KEY` enforces nothing                                                                                                                                                                | Keep off non-loopback interfaces, or set `ADMIN_ENABLED=false`                                    |
+| Debug Mode      | Disabled                                                                                                                                                                                                                                                             | Keep disabled                                                                                     |
+| CORS            | Localhost origins (incl. `https://localhost:8444`)                                                                                                                                                                                                                   | Restrict to your domains                                                                          |
 
 ### API Key Authentication
 
@@ -269,17 +269,20 @@ openssl rand -base64 32
 
 ### Admin Endpoint Security
 
-Admin endpoints require **both** conditions:
+Admin endpoints are gated by **one** condition:
 
-- `DEBUG=true`
-- `ADMIN_ENABLED=true`
+- `ADMIN_ENABLED=true` (the default — `DEBUG` is not consulted)
 
 ```bash
-# Enable admin endpoints (development only)
-DEBUG=true
+# Admin endpoints are enabled by default; this is the only switch
 ADMIN_ENABLED=true
-ADMIN_API_KEY=your-admin-api-key
+# Reserved — NOT enforced: no code path reads ADMIN_API_KEY and no
+# X-Admin-API-Key header is validated. Setting it changes nothing.
+# ADMIN_API_KEY=your-admin-api-key
 ```
+
+Admin exposure is therefore controlled by the network bind (`127.0.0.1` / a trusted
+network) or by setting `ADMIN_ENABLED=false`.
 
 ### CORS Configuration
 
@@ -561,7 +564,7 @@ Cleanup runs daily at 03:00.
 
 ```bash
 # Preview cleanup (dry run) — the endpoint is guarded by verify_api_key, so send
-# X-API-Key when API_KEY_ENABLED=true (or your configured admin key)
+# X-API-Key (validated against API_KEYS) when API_KEY_ENABLED=true
 curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 
 # Execute cleanup

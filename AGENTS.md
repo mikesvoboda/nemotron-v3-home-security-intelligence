@@ -20,13 +20,13 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Issue tracking        | [Linear](https://linear.app/nemotron-v3-home-security/team/NEM/active) (Team NEM, ID `998946a2-aa75-491b-a39d-189660131392`) |
 | Linear operations     | **`/linear-python` skill only** — never call Linear MCP tools directly                                                       |
-| Testing guide         | `docs/development/testing.md`                                                                                                |
-| Git workflow guide    | `docs/development/git-workflow.md`                                                                                           |
+| Testing guide         | `docs/developer/testing.md`                                                                                                  |
+| Git workflow guide    | `docs/developer/git-workflow.md`                                                                                             |
 | Ports / env reference | `.env.example` + `docs/reference/config/env-reference.md` (authoritative runtime reference)                                  |
 | Health verification   | `/platform-healthcheck` skill                                                                                                |
 | Post-MVP roadmap      | `docs/ROADMAP.md` (pursue **after Phases 1-8 are operational**)                                                              |
 
-Feature documentation: [Multi-GPU](docs/development/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+Feature documentation: [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
 
 ## Setup
 
@@ -104,7 +104,7 @@ Use the `/platform-healthcheck` skill for standardized health verification.
 
 ## Testing & Coverage Gates
 
-This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Full documentation: [docs/development/testing.md](docs/development/testing.md).
+This project follows **Test-Driven Development (TDD)** (tasks labeled `tdd`). Full documentation: [docs/developer/testing.md](docs/developer/testing.md).
 
 | Test Type           | Gate                                                   | Command                                        |
 | ------------------- | ------------------------------------------------------ | ---------------------------------------------- |
@@ -131,7 +131,7 @@ Gate semantics (re-verified against the tree 2026-09-22):
 pre-commit install && pre-commit install --hook-type pre-push
 ```
 
-Details: [docs/development/git-workflow.md](docs/development/git-workflow.md).
+Details: [docs/developer/git-workflow.md](docs/developer/git-workflow.md).
 
 ## ⚠️ Network Ports — `.env` Is the Single Source of Truth
 
@@ -247,8 +247,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── components/       # UI component documentation
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   ├── deployment/       # Container-orchestration docs (startup, health checks)
-│   ├── developer/        # Developer-focused documentation
-│   ├── development/      # Development workflow documentation (testing, git, quality)
+│   ├── developer/        # Developer-focused documentation (testing, git, quality)
 │   ├── discoveries/      # NEM-tagged discovery notes
 │   ├── getting-started/  # Installation and first-run guides
 │   ├── guides/           # Feature guides (video analytics, zones, faces)
@@ -259,7 +258,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 │   ├── plans/            # Design and implementation plans
 │   ├── reference/        # Reference docs (api, config, troubleshooting)
 │   ├── research/         # Numbered research studies
-│   ├── testing/          # Pointer stub — living testing docs are in development/
+│   ├── testing/          # Pointer stub — living testing docs are in developer/
 │   ├── ui/               # Page-by-page UI documentation
 │   └── user/             # End-user documentation
 ├── frontend/             # React dashboard (TypeScript)
@@ -496,4 +495,4 @@ Infrastructure work additionally requires the **Infrastructure Verification** ch
 - **Documentation:** `docs/` directory (index: `docs/AGENTS.md`)
 - **Runtime Config:** `docs/reference/config/env-reference.md` (authoritative port/env reference)
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
-- **Feature Guides:** [Multi-GPU](docs/development/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)
+- **Feature Guides:** [Multi-GPU](docs/developer/multi-gpu.md) · [Video Analytics](docs/guides/video-analytics.md) · [Zone Configuration](docs/guides/zone-configuration.md) · [Face Recognition](docs/guides/face-recognition.md)

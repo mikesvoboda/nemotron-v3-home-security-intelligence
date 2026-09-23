@@ -12,9 +12,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
   API until the first user is created. After registration the API is open (no per-request
   login) — the `127.0.0.1` service bindings are the primary security boundary. The global
   `AuthMiddleware` class exists for future multi-user support but is not active.
-- **Per-route guards for sensitive operations** - destructive/admin routes sit behind
-  `verify_api_key` (`API_KEY_ENABLED`) and/or `require_admin_access` (`DEBUG` +
-  `ADMIN_ENABLED`, optionally `ADMIN_API_KEY` via `X-Admin-API-Key`).
+- **Per-route guards for sensitive operations** - the `/api/admin/*` seeding, cache-clearing
+  and cleanup routes sit behind `require_admin_access`, which gates on `ADMIN_ENABLED` alone
+  (default `true`). `DEBUG` is not consulted, and `ADMIN_API_KEY` is reserved and not
+  enforced — no code path reads it and no `X-Admin-API-Key` header is validated — so the
+  `127.0.0.1` bind is what actually protects them. The `verify_api_key` guard
+  (`API_KEY_ENABLED`) protects the DLQ and inbound-webhook routes, not the admin ones. The
+  `/api/admin/users` CRUD endpoints are a separate case: they require an authenticated admin
+  session (`get_current_admin_user`).
 - **No cloud connectivity** - All processing is local
 - **No internet exposure** - Designed for LAN access only
 
@@ -22,14 +27,14 @@ Home Security Intelligence is designed as a **single-user, local deployment**:
 
 ## Default Security Posture
 
-| Feature         | Default                                                               | Production Recommendation  |
-| --------------- | --------------------------------------------------------------------- | -------------------------- |
-| API auth        | Open after first admin registers; `API_KEY_ENABLED=false`             | Enable API keys if exposed |
-| HTTPS/TLS       | Disabled (`TLS_MODE=disabled`)                                        | Enable for production      |
-| Rate Limiting   | Enabled                                                               | Keep enabled               |
-| Admin Endpoints | `ADMIN_ENABLED=true` **but gated by `DEBUG=false`** → closed          | Keep DEBUG off             |
-| Debug Mode      | Disabled                                                              | Keep disabled              |
-| CORS            | `https://{localhost,127.0.0.1,0.0.0.0}:8444` + `http://frontend:8080` | Restrict to your domains   |
+| Feature         | Default                                                               | Production Recommendation                                  |
+| --------------- | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| API auth        | Open after first admin registers; `API_KEY_ENABLED=false`             | Enable API keys if exposed                                 |
+| HTTPS/TLS       | Disabled (`TLS_MODE=disabled`)                                        | Enable for production                                      |
+| Rate Limiting   | Enabled                                                               | Keep enabled                                               |
+| Admin Endpoints | `ADMIN_ENABLED=true` alone (default true); DEBUG irrelevant           | Keep off non-loopback interfaces, or `ADMIN_ENABLED=false` |
+| Debug Mode      | Disabled                                                              | Keep disabled                                              |
+| CORS            | `https://{localhost,127.0.0.1,0.0.0.0}:8444` + `http://frontend:8080` | Restrict to your domains                                   |
 
 ---
 
@@ -173,21 +178,22 @@ openssl rand -base64 32
 
 ### Admin Endpoint Security
 
-Admin endpoints require **both** conditions:
+Admin endpoints are gated by **one** condition:
 
-1. `DEBUG=true`
-2. `ADMIN_ENABLED=true`
+1. `ADMIN_ENABLED=true` (the default — `DEBUG` is not consulted)
 
 ```bash
-# Enable admin endpoints (development only)
-DEBUG=true
+# Admin endpoints are enabled by default; this is the only switch
 ADMIN_ENABLED=true
 
-# Optional: Require API key for admin endpoints (X-Admin-API-Key header)
-ADMIN_API_KEY=your-admin-api-key
+# Reserved — NOT enforced: no code path reads ADMIN_API_KEY and no
+# X-Admin-API-Key header is validated. Setting it changes nothing.
+# ADMIN_API_KEY=your-admin-api-key
 ```
 
-**Warning:** Never enable admin endpoints in production without the `ADMIN_API_KEY` protection.
+**Warning:** `ADMIN_API_KEY` enforces nothing, so there is no key-based protection to fall
+back on. Admin exposure is controlled by setting `ADMIN_ENABLED=false` or by keeping the
+service bound to `127.0.0.1` / a trusted network.
 
 ---
 
@@ -501,13 +507,13 @@ The backend validates all file paths are within expected directories.
 
 ### Sensitive Variables
 
-| Variable            | Contains          | Storage Recommendation                 |
-| ------------------- | ----------------- | -------------------------------------- |
-| `POSTGRES_PASSWORD` | DB password       | .env file or Docker secrets (REQUIRED) |
-| `DATABASE_URL`      | DB connection     | .env file (includes password)          |
-| `API_KEYS`          | API credentials   | .env file or secrets manager           |
-| `ADMIN_API_KEY`     | Admin credential  | .env file or secrets manager           |
-| `SMTP_PASSWORD`     | Email credentials | .env file or secrets manager           |
+| Variable            | Contains               | Storage Recommendation                 |
+| ------------------- | ---------------------- | -------------------------------------- |
+| `POSTGRES_PASSWORD` | DB password            | .env file or Docker secrets (REQUIRED) |
+| `DATABASE_URL`      | DB connection          | .env file (includes password)          |
+| `API_KEYS`          | API credentials        | .env file or secrets manager           |
+| `ADMIN_API_KEY`     | Reserved, not enforced | .env file or secrets manager           |
+| `SMTP_PASSWORD`     | Email credentials      | .env file or secrets manager           |
 
 ### Docker Secrets (Recommended for Production)
 

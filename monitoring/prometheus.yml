@@ -16,7 +16,7 @@
 # cAdvisor (monitoring/cadvisor/cadvisor.service) and 9400 for DCGM
 # (monitoring/dcgm/dcgm-exporter.service).
 #
-# See docs/development/PORT_STANDARDIZATION.md for details.
+# See docs/developer/PORT_STANDARDIZATION.md for details.
 
 global:
   scrape_interval: 15s

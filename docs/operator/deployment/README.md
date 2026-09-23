@@ -590,7 +590,7 @@ sequenceDiagram
     Note over DC,FE: Phase 2: AI Services (up to 5 min)
     DC->>GW: Start ai-gateway
     DC->>NM: Start ai-llm
-    GW-->>DC: Healthy (start_period 180s — Triton loads 13 models)
+    GW-->>DC: Healthy (start_period 180s — Triton loads 14 models)
     NM-->>DC: Healthy (start_period 300s — 31B tensors to GPU)
 
     Note over DC,FE: Phase 3: Application (30-60s)
@@ -612,7 +612,7 @@ sequenceDiagram
 
 **Phase 2: AI Services (up to 5 min)**
 
-- ai-gateway — `start_period: 180s` (Triton loads 13 models)
+- ai-gateway — `start_period: 180s` (Triton loads 14 models — the compose comment still says 13, stale since NEM-5563 retired `xclip_action`)
 - ai-llm — `start_period: 300s` (31B parameter model loads tensors to GPU)
 
 **Phase 3: Application (30-60s)**

@@ -375,7 +375,7 @@ jobs:
 
             body += `### Resources\n\n`;
             body += `- [View full report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
-            body += `- [Flaky test documentation](docs/development/testing.md#flaky-tests)\n`;
+            body += `- [Flaky test documentation](docs/developer/testing.md#troubleshooting)\n`;
             body += `- [Testing patterns](docs/developer/patterns/AGENTS.md#testing-patterns)\n`;
 
             // Check if issue already exists

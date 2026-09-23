@@ -270,4 +270,4 @@ python scripts/export_yolo26.py \
 - [YOLO26 Export Formats](../benchmarks/yolo26-export-formats.md)
 - [YOLO26 Benchmarks](../benchmarks/yolo26-benchmarks.md)
 - [Container Orchestration](./container-orchestration.md)
-- [Multi-GPU Support](../development/multi-gpu.md)
+- [Multi-GPU Support](../developer/multi-gpu.md)

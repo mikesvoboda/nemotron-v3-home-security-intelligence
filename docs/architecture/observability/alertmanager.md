@@ -191,7 +191,7 @@ Latency burn-rate alerts are commented out pending the same missing histogram me
 ### AI Pipeline and Worker Alerts
 
 `monitoring/ai-pipeline-alerts.yml` covers the enrichment pipeline, LLM behaviour, and scoring:
-`GPUOOMCritical`, `GPUMemoryHigh`, `GPUMemoryCritical`, `EnrichmentPipelineTimeout`,
+`GPUInferenceFailures`, `GPUMemoryHigh`, `GPUMemoryCritical`, `EnrichmentPipelineTimeout`,
 `EnrichmentPipelineTimeoutCritical`, `EnrichmentModelErrorRate`, `EnrichmentModelErrorCritical`,
 `EnrichmentQualityDegraded`, `PromptTruncationHigh`, `PromptContextUtilizationHigh`,
 `LLMInferenceLatencyHigh`, `LLMInferenceLatencyCritical`, `CoalescingMergeRateLow`,

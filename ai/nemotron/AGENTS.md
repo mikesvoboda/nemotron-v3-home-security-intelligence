@@ -584,7 +584,7 @@ results = analyze_experiment(control_scores, variant_scores)
 - [AI Pipeline Architecture](../../docs/architecture/ai-pipeline.md)
 - [Risk Analysis Developer Guide](../../docs/developer/risk-analysis.md)
 - [AI Configuration](../../docs/operator/ai-configuration.md)
-- [Nemotron Prompting Best Practices](../../docs/development/nemotron-prompting.md)
+- [Nemotron Prompting Best Practices](../../docs/developer/nemotron-prompting.md)
 
 ## External Resources
 

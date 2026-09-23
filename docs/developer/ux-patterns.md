@@ -646,6 +646,6 @@ function Page() {
 ## Related Documentation
 
 - [Frontend Hooks](../architecture/frontend-hooks.md) - Custom React hooks
-- [Development Patterns](../development/patterns.md) - Code patterns
+- [Development Patterns](../developer/patterns-and-conventions.md) - Code patterns
 - [Codebase Tour](codebase-tour.md) - Directory structure overview
 - [Interface Guide](../ui/interface-guide.md) - End-user visual feedback guide

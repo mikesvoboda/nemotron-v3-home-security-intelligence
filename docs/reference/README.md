@@ -38,7 +38,7 @@
 >
 > - **Production containers:** nginx serves the built React app on container ports 8080 (HTTP) and 8443 (HTTPS), mapped to host ports `FRONTEND_HTTP_PORT` (default 8080) and `FRONTEND_HTTPS_PORT` (default 8444) in `docker-compose.prod.yml`
 > - **Local development:** `npm run dev` in `frontend/` runs the Vite dev server on **https://localhost:8444** (set in `frontend/vite.config.ts`); `FRONTEND_PORT=5173` is left over from the Vite dev default and is not referenced by `docker-compose.prod.yml`
-> - **SSL:** Enabled by default in production with auto-generated self-signed certificates. See [SSL/HTTPS Configuration](../development/ssl-https.md)
+> - **SSL:** Enabled by default in production with auto-generated self-signed certificates. See [SSL/HTTPS Configuration](../developer/ssl-https.md)
 > - Compose maps AI, database and monitoring ports to `127.0.0.1` only — they are reachable from the host, not from your LAN.
 
 ---

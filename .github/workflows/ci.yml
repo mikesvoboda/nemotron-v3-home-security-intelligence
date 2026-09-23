@@ -582,7 +582,7 @@ jobs:
             # place coverage emits the split; --fail-under=0 for the same
             # extraction-not-floor reason as the report call above. Repo config
             # is honored (pyproject omit/exclude_lines = the ONE shared
-            # denominator, 78,916 stmts — see docs/development/testing.md).
+            # denominator, 78,916 stmts — see docs/developer/testing.md).
             uv run coverage json --data-file=.coverage \
               -o coverage-unit-totals.json --fail-under=0
             line="$(jq -r '.totals.percent_statements_covered_display' coverage-unit-totals.json)"

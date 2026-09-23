@@ -5,7 +5,7 @@ source_refs:
   - docker-compose.prod.yml:120-204
   - docker-compose.prod.yml:288-353
   - docker-compose.prod.yml:367-536
-  - docs/development/multi-gpu.md:40-58
+  - docs/developer/multi-gpu.md:40-58
   - setup_lib/linux_optimizer.py:185
 ---
 
@@ -96,7 +96,7 @@ From `docker-compose.prod.yml` (host RAM/CPU caps + GPU assignment):
 | `backend`                      | 2         | 10G (raised from 6G for NEM-3890) | GPU reservation, no device_ids (any GPU)               |
 | `ai-llm-vllm` (profile `vllm`) | 4         | 24G / 16G                         | all GPUs visible; selection via `CUDA_VISIBLE_DEVICES` |
 
-VRAM demand per model lives in the gateway/backend model registry, not in compose. Estimates per service: [Multi-GPU guide, VRAM Requirements by Service](../development/multi-gpu.md#vram-requirements-by-service) — roughly ~14-18GB for the 30B LLM and ~10GB summed across the gateway's models. With the full stack on one 24GB card the measured steady state is ~23GB used.
+VRAM demand per model lives in the gateway/backend model registry, not in compose. Estimates per service: [Multi-GPU guide, VRAM Requirements by Service](../developer/multi-gpu.md#vram-requirements-by-service) — roughly ~14-18GB for the 30B LLM and ~10GB summed across the gateway's models. With the full stack on one 24GB card the measured steady state is ~23GB used.
 
 ---
 
@@ -129,5 +129,5 @@ curl -s http://localhost:8000/api/system/models/vram-summary
 
 ## Related Documentation
 
-- **[Multi-GPU Support](../development/multi-gpu.md)** - User-facing GPU configuration guide
+- **[Multi-GPU Support](../developer/multi-gpu.md)** - User-facing GPU configuration guide
 - **[Container Orchestration](./container-orchestration.md)** - Container management and health checks

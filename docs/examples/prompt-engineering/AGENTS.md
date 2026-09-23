@@ -24,7 +24,7 @@ This directory contains practical examples for prompt engineering with NVIDIA Ne
 
 ## Related Documentation
 
-- [Nemotron Prompting Guide](../../development/nemotron-prompting.md) - Comprehensive documentation
+- [Nemotron Prompting Guide](../../developer/nemotron-prompting.md) - Comprehensive documentation
 - [AI Nemotron AGENTS.md](../../../ai/nemotron/AGENTS.md) - Model configuration
 
 ## Implementation Files

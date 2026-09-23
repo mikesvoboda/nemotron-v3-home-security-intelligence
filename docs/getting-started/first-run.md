@@ -124,7 +124,7 @@ curl -X POST http://localhost:8000/api/auth/register \
 
 Open **[http://localhost:8080](http://localhost:8080)** (HTTP), or **[https://localhost:8444](https://localhost:8444)** (HTTPS, if `SSL_ENABLED=true`).
 
-> **HTTPS Note:** SSL is **off by default** (`SSL_ENABLED=false` in the compose file). Enable it in `.env` and recreate the frontend container to get HTTPS with auto-generated self-signed certificates. Your browser will show a certificate warning because the certificate is self-signed — accept it to proceed. For trusted certificates, see the [SSL/HTTPS Configuration Guide](../development/ssl-https.md).
+> **HTTPS Note:** SSL is **off by default** (`SSL_ENABLED=false` in the compose file). Enable it in `.env` and recreate the frontend container to get HTTPS with auto-generated self-signed certificates. Your browser will show a certificate warning because the certificate is self-signed — accept it to proceed. For trusted certificates, see the [SSL/HTTPS Configuration Guide](../developer/ssl-https.md).
 
 ---
 

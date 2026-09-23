@@ -208,6 +208,6 @@ finally:
 
 ## Related Documentation
 
-- Multi-GPU configuration: `docs/development/multi-gpu.md`
+- Multi-GPU configuration: `docs/developer/multi-gpu.md`
 - Model Zoo: `backend/services/model_zoo.py`
 - Video Analytics Guide: `docs/guides/video-analytics.md`

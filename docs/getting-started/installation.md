@@ -104,7 +104,7 @@ FOSCAM_BASE_PATH=/export/foscam
 # AI models root — must match what you used in Step 3
 AI_MODELS_PATH=/export/ai_models
 
-# GPU assignment (see docs/development/multi-gpu.md)
+# GPU assignment (see docs/developer/multi-gpu.md)
 GPU_LLM=0            # GPU running Nemotron
 GPU_AI_SERVICES=1    # GPU running the ai-gateway models
 ```

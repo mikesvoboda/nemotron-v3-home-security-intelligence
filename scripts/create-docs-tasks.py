@@ -19,7 +19,7 @@ Exit codes:
 
 Related:
     - docs/plans/2026-01-18-docs-drift-detection-design.md
-    - docs/development/linear-integration.md
+    - docs/developer/linear-integration.md
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ import httpx
 # =============================================================================
 # Linear Configuration
 # =============================================================================
-# From docs/development/linear-integration.md
+# From docs/developer/linear-integration.md
 
 TEAM_ID = "998946a2-aa75-491b-a39d-189660131392"
 BACKLOG_STATE_ID = "88b50a4e-75a1-4f34-a3b0-598bfd118aac"

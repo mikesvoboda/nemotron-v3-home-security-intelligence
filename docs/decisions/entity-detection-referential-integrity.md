@@ -1,7 +1,7 @@
 # Decision: Entity-Detection Referential Integrity
 
 **Date:** 2026-01-28
-**Status:** Decided
+**Status:** Decided — implementation partial (verified 2026-09-22): the chosen design landed (no FK constraint; validation via `validate_primary_detection_async`, `backend/models/entity.py`), but two Mitigations below are NOT implemented — the periodic orphan-nullifying cleanup job (`backend/services/cleanup_service.py` handles orphaned files only, not entity references) and the orphaned-reference-count alert (nothing in `monitoring/`). Body held immutable per ADR convention; this header note is the annotation.
 **Related Issues:** NEM-1880, NEM-2210, NEM-2431, NEM-2670
 
 ---
