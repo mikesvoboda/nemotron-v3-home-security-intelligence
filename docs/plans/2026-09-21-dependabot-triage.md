@@ -798,3 +798,19 @@ supersede-evidence comments posted; zero open dependabot PRs. Sole OPEN item:
 build.** Monday 2026-09-28 06:00 CT the weekly schedule re-rolls; the ignore
 floors (#6666) plus this ledger's deferred-reason table decide what gets
 landed vs closed without re-litigating.
+
+**Wave-4 addendum (R-1 merge, 2026-09-23):** #6676 admin-squashed as
+`3b48aaf9` after the jsonschema fix (above) turned its gate fully green —
+75/75 checks, zero failures, CI Gate SUCCESS. Post-merge main runs match the
+documented ambient signatures exactly: Deploy `35925126669` failed only at
+`Smoke Test Deployment` ("Start services") and `SBOM & Sign (frontend)`
+("Sign container image") with every build/manifest/provenance job and
+**Deploy to Staging green** (staging ran the wily-free images); main CI
+`35925126878` failed only `Test Performance Audit`, whose single breach —
+`test_zero_dce_loader::test_grayscale_input_is_converted_to_rgb`, 5.49s vs
+4.0s — is the _same test that breached at 4.34s on `45311508`_ (a docs-only
+merge), i.e. runner-variance drift straddling the threshold, ambient and
+pre-dating this change; the honest fix is a threshold raise or test
+optimization, tracked as a follow-up, not a revert. **New ambient signature
+for the ledger: `Test Performance Audit` on `test_zero_dce_loader` grayscale
+case** — signature-match against either head before believing it.
