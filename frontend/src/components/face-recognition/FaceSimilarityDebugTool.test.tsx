@@ -47,6 +47,18 @@ function createMockFile(name: string, type: string = 'image/jpeg'): File {
   return new File([blob], name, { type });
 }
 
+// Mock URL.createObjectURL / revokeObjectURL (same pattern as
+// BulkEnrollmentModal.test.tsx). jsdom 30 ships a native createObjectURL
+// that THROWS `TypeError: Cannot read properties of undefined (reading
+// '_buffer')` on Blob-backed File objects (measured via probe); the
+// component's onChange would die before setState, leaving the compare
+// button permanently disabled. Browsers provide the real API, so this is
+// a test-environment gap, not a production defect.
+const mockCreateObjectURL = vi.fn(() => 'mock-url');
+const mockRevokeObjectURL = vi.fn();
+global.URL.createObjectURL = mockCreateObjectURL;
+global.URL.revokeObjectURL = mockRevokeObjectURL;
+
 describe('FaceSimilarityDebugTool', () => {
   beforeEach(() => {
     vi.clearAllMocks();

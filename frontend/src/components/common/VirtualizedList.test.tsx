@@ -359,7 +359,13 @@ describe('VirtualizedList', () => {
       );
 
       const list = screen.getByTestId('list');
-      expect(list).toHaveStyle({ height: '50vh' });
+      // jsdom 30 serializes computed lengths in px (browser truth — real
+      // browsers never echo '50vh' from getComputedStyle; they report the
+      // used value). jsdom's default viewport is 768px tall, so 50vh
+      // resolves to 384px. el.style.height still reads '50vh'; toHaveStyle
+      // resolves via computed style. Same family as Skeleton.test.tsx
+      // '2rem'→'32px' (6abbf9c5).
+      expect(list).toHaveStyle({ height: '384px' });
     });
   });
 });
