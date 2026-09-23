@@ -640,23 +640,26 @@ does NOT deschedule queued runs, and 12+ runs re-spawned between sweeps while
 PRs stayed open. The levers: cancel (`gh run cancel`, immediate), close (stops
 re-queues), and merge (superseders). ~35 runs cancelled across four sweeps.
 
-| PR                                      | Content  | Disposition          | Landed as                                                               |
-| --------------------------------------- | -------- | -------------------- | ----------------------------------------------------------------------- |
-| #6662 checkout 4→7                      | a0c10550 | supersede-close      | `TBD-6667` (truthful # v7.0.1 ×96)                                      |
-| #6660 download-artifact 4→8             | f62cdf72 | supersede-close      | `TBD-6667` (truthful # v8.0.1 ×5)                                       |
-| #6663 upload-pages-artifact 4→5         | 65c520ec | supersede-close      | `TBD-6667`                                                              |
-| #6664 deploy-pages 4→5                  | e60ff0a2 | supersede-close      | `TBD-6667`                                                              |
-| #6655 lucide-react ^1.47.0              | 575c467a | supersede-close      | `TBD-6668`                                                              |
-| #6656 jsdom ^30.1.0                     | 3269e1a6 | supersede-close      | `TBD-6668` + in-PR test fix `6abbf9c5` (CI node 24.21 ≥ 24.15 engine ✓) |
-| #6651 npm group (lru-cache, t-p-m, msw) | c52c21e8 | supersede-close      | `TBD-6668` + msw floor `0d9ae3f7` (merged #6666)                        |
-| #6652 cuda 13.4.1                       | f9774df3 | PR OPEN, HOLD        | #6669 (R-3: first 13.4.1 ai-llm build)                                  |
-| #6653 knip 6                            | —        | CLOSED deferred      | rules.classMembers removed; knip.json:37                                |
-| #6654 pako 3                            | —        | CLOSED deferred      | no default export; websocketCompression.ts:15                           |
-| #6657 vite 8                            | —        | CLOSED deferred      | esbuild peer + lightningcss print.css:492,493,512,518                   |
-| #6658 tailwindcss 4                     | —        | CLOSED deferred      | @tailwindcss/postcss + @theme + ~135 @apply                             |
-| #6659 react-joyride 3                   | —        | CLOSED deferred      | no default export; callback→onEvent; ×7 sites                           |
-| #6661 cache/save 6.1.0                  | —        | CLOSED + re-file ask | half-pair; phantom `overwrite: true` :266                               |
-| #6665 uv group (ultralytics)            | —        | CLOSED               | born-obsolete (PyPI 8.4.160); Monday re-roll                            |
+| PR                                                              | Content  | Disposition          | Landed as                                                                                                                                                             |
+| --------------------------------------------------------------- | -------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #6662 checkout 4→7                                              | a0c10550 | supersede-close      | `TBD-6667` (truthful # v7.0.1 ×96)                                                                                                                                    |
+| #6660 download-artifact 4→8                                     | f62cdf72 | supersede-close      | `TBD-6667` (truthful # v8.0.1 ×5)                                                                                                                                     |
+| #6663 upload-pages-artifact 4→5                                 | 65c520ec | supersede-close      | `TBD-6667`                                                                                                                                                            |
+| #6664 deploy-pages 4→5                                          | e60ff0a2 | supersede-close      | `TBD-6667`                                                                                                                                                            |
+| #6655 lucide-react ^1.47.0                                      | 575c467a | supersede-close      | `TBD-6668`                                                                                                                                                            |
+| #6656 jsdom ^30.1.0                                             | 3269e1a6 | supersede-close      | `TBD-6668` + in-PR test fix `6abbf9c5` (CI node 24.21 ≥ 24.15 engine ✓)                                                                                               |
+| #6651 npm group (lru-cache, t-p-m, msw)                         | c52c21e8 | supersede-close      | `TBD-6668` + msw floor `0d9ae3f7` (merged #6666)                                                                                                                      |
+| #6652 cuda 13.4.1                                               | f9774df3 | CLOSED (holder open) | content lives in #6669 — OPEN, HOLD (R-3: first 13.4.1 ai-llm build)                                                                                                  |
+| #6653 knip 6                                                    | —        | CLOSED deferred      | rules.classMembers removed; knip.json:37                                                                                                                              |
+| #6654 pako 3                                                    | —        | CLOSED deferred      | no default export; websocketCompression.ts:15                                                                                                                         |
+| #6657 vite 8                                                    | —        | CLOSED deferred      | esbuild peer + lightningcss print.css:492,493,512,518                                                                                                                 |
+| #6658 tailwindcss 4                                             | —        | CLOSED deferred      | @tailwindcss/postcss + @theme + ~135 @apply                                                                                                                           |
+| #6659 react-joyride 3                                           | —        | CLOSED deferred      | no default export; callback→onEvent; ×7 sites                                                                                                                         |
+| #6661 cache/save 6.1.0                                          | —        | CLOSED + re-file ask | half-pair; phantom `overwrite: true` :266                                                                                                                             |
+| #6665 uv group (ultralytics)                                    | —        | CLOSED               | born-obsolete (PyPI 8.4.160); Monday re-roll                                                                                                                          |
+| #6670 npm group ×3 (dompurify, framer-motion, immer, lru-cache) | 7ebbb173 | CLOSED deferred      | includes `lru-cache ^11.5.3` — #6668 already lands it; second lock regen would stack on an unmerged lockfile (wave-2 conflict pattern); re-file Mon after #6668 lands |
+| #6671 uv group (ultralytics 8.4.155→157)                        | 1118b42b | CLOSED               | born-obsolete again — PyPI 8.4.160 at open (same as #6665); Mon re-roll                                                                                               |
+| #6672 docker/build-push-action 6→7                              | b5820a91 | CLOSED deferred      | unmeasured major + dependabot's own diff rewrites a `# v5`-pinned SHA with a `# v6` comment (KNOWN SCOPE hand-review case)                                            |
 
 Config floors landed on `deps/config-ceilings` (#6666): msw `>=2.13`,
 tailwindcss `>=4`, vite `>=8`, react-joyride `>=3`, pako `>=3`, knip `>=6` —
@@ -670,6 +673,18 @@ migration PRs behind the floors above · #6661 paired cache re-file ·
 Collection-Sanity flake (test_check_coverage_diff.py race under -n8, re-run
 once before trusting red) · Monday 2026-09-28 re-files: uv group lands fresh
 at 8.4.160+; npm minors re-offer against the new floors.
+
+Timing deviation (2026-09-23 14:2xZ): the plan deferred the supersede-closes
+until the batches merged, to keep merge SHAs citable. A fresh dependabot wave
+(#6670–#6672, 14:01–14:13Z) re-saturated the runners, so #6660 #6662 #6663
+#6664 #6655 #6656 #6652 were closed same-day citing their batch PRs (#6667,
+#6668, #6669) instead; every head was fetched into local refs first, so no
+content was lost. Post-merge, the supersede evidence (merge SHA per original
+PR) gets appended as closing comments on those PRs. A second wave of closes
+(#6670–#6672, deferred/obsolete reasons in-table) brought open dependabot PRs
+to **zero** — no re-spawn source until the Mon 06:00 CT schedule.
+`repos/$R/dependabot/auto-updates/pause` and `…/dependabot` both 404 for this
+repo/token — the REST pause levers are not available here; close+cancel is it.
 
 ### jsdom 30 computed-style serialization (measured 2026-09-23, this wave)
 
