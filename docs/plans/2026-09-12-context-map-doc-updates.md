@@ -9796,7 +9796,17 @@ session; ruff check+format clean). Red-check `lane_wh15.py` in worktree
 `/home/agent/lanes/webhook` (lane isolation proven necessary: import probe
 shows every backend red-check target pair shares an import closure — same-tree
 parallel runs fake each other's verdicts; marker test confirmed lane imports
-resolve lane-local). Feed = WP4.4-archive survivor diffs (source byte-identical
+resolve lane-local). Landing note (this session, disclosed here not buried):
+the battery file landed in `6eb017bd` under the batch-14 commit message — a
+pre-commit hook test left an intent-to-add on the path and the sequence's
+`git add` swept it in; the content is the exact wh15-measured file plus two
+`autospec=True` insertions made AFTER the red-check (WP4.2 fast-path hook at
+`scripts/check-mock-spec.py` flags convertible added-line sites regardless
+of registry — licensing was the wrong tool; the repo's own
+`autospec-sweep.insert_autospec` did the conversion and the battery
+re-measured green 51 passed). A post-conversion re-check (`wh15c`, same
+harness + lane + feed, converted battery) re-measures the tally against the
+shipped file; until it exits this row's tally stands as pre-conversion. Feed = WP4.4-archive survivor diffs (source byte-identical
 since f1e0ea9e 2026-01-27) restricted to the three format functions the battery
 covers: `TALLY {"KILLED":76,"SURVIVED":1}` — keys 77 applied 77, source clean at
 exit. The one survivor is EQUIVALENT with proof: discord mutmut*9
