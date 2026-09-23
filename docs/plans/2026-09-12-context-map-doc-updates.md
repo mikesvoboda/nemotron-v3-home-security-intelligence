@@ -9686,3 +9686,125 @@ scheduled run (09-27 02:00Z — first CI on a post-#6639 head; run 29's
 09-21 dispatch predates the fix), same run S4 watches for banking.
 Remaining M1 tail is score DEPTH (58 survived + 62 errors to triage),
 not harness honesty.
+
+### S2 batch 12 — enrichment_client pure-cluster battery: 544 shapes, 542 killed, 2 triaged (1 kill-test added, 1 EQUIVALENT) (battery `d20c4207`; batch-12b kill-test landed `6eb017bd`)
+
+Battery `backend/tests/unit/services/test_enrichment_client_batch12.py`
+(71 tests at red-check time; +1 in batch-12b below → 72 measured green
+`uv run pytest ... -q` = "72 passed in 6.74s"). Pure-cluster TARGETS =
+30 non-network functions (parse/dataclasses/backoff/retry); the
+cluster counts were RE-DERIVED this session (2,567 feed keys extracted
+run-7-regenerated copy, 544 in TARGETS) because the #6645 source move +
+run-7 regeneration wiped prior dossier verdicts — counts measured, not
+carried.
+
+MEASURED red-check (`/tmp/redcheck-ec12.log`, harness
+`/tmp/redcheck_ec12.py`, start 22:33:21Z per watch-chain5.out, exit
+assert "source clean"):
+`keys: 544 applied: 544 tally: {'KILLED': 542, 'SURVIVED': 2}`.
+
+The 2 SURVIVED dispositioned per-shape against shipped source:
+
+1. `xǁUnifiedClothingResultǁto_context_string__mutmut_4` —
+   `if self.categories` → `if (self.categories) or True`
+   (enrichment_client.py:433). EQUIVALENT, provable: the shipped method
+   RETURNS at the `if not self.categories:` guard (:431-432, measured
+   output "Clothing: No classification available") BEFORE line :433
+   executes, so categories is always non-empty at the ternary — the
+   condition is constant-true on every reachable input and the `{}`
+   else-branch is unreachable. No input distinguishes the pair; battery
+   already pins both reachable outputs (:431 empty-guard, :435 full
+   line, `partial` unknown/0% defaults).
+
+2. `xǁClothingClassificationResultǁto_context_string__mutmut_6` —
+   service-uniform alert string → `None`
+   (enrichment_client.py:205). TEST GAP, correctly survived the old
+   battery: it pinned that class's `to_dict` only — the
+   `elif is_service_uniform` branch was never entered, so the mutant
+   never executed (appending None makes `"\n".join` raise TypeError —
+   killable, not equivalent). batch-12b fix:
+   `test_clothing_classification_all_branches` pins all four branch
+   outputs at MEASURED shipped values (measured 2026-09-22 by direct
+   constructor calls: service = "Clothing: dark hoodie\n [Service/
+   delivery worker uniform detected]\n Confidence: 83.0%"; both-flags
+   → suspicious only, elif precedence). 72 passed green.
+
+Pending measurement (deliberately NOT claimed here): ec12b
+re-adjudication of the same 544 shapes against the 72-test battery
+(`/tmp/redcheck-ec12b.log`) — expected 543 KILLED + the 1 EQUIVALENT
+above; its numbers will be appended to this row only after the run
+exits. Batch-12b commit hash lands via chain9 (serialized behind the
+live rs11/fe1 red-checks — a pre-commit stash mid-application is the
+proven fake-verdict hazard).
+
+### S2 FE batch 1 — time.ts/risk.ts depth battery: 119 stryker shapes re-adjudicated, 111 killed, 8 live → fe1b measured 7 KILLED + 1 EQUIVALENT (id 169) — measured `/tmp/redcheck-fe1.log` (TALLY 2026-09-23T00:39:31Z) + `/tmp/redcheck-fe1b.log` (2026-09-23T01:10:05Z)
+
+Command: `node /tmp/redcheck_fe1.js` (report = `reports/mutation/mutation.json`,
+stryker-13 baseline). Re-adjudicated the 58 Survived + 61 NoCoverage shapes of
+src/utils/time.ts + risk.ts:57 against the new batteries
+(time-relative.test.ts 16 tests + shipped time.test.ts + risk.test.ts, battery
+green at entry — measured "baseline green; 119 survivors" 23:40:28Z, and every
+application restored to HEAD bytes; exit log written, `git status` clean for
+time.ts/risk.ts after exit). TALLY verbatim:
+`{"Survived->KILLED":57,"NoCoverage->KILLED":54,"NoCoverage->STILL-LIVE":7,"Survived->STILL-LIVE":1}`
+— 111/119 flipped to KILLED, split by original status, never merged into the
+Killed-column of the badge. The 8 STILL-LIVE dispositioned per-shape:
+
+- id 340/344/345/349 (time.ts:206-207 formatSecondsAsHumanReadable days+hours
+  plural combos): TEST-GAP — battery's day-band pins only entered the branch
+  with days===1 or remainingHours===1; fe1b adds measured combos "2 days 1
+  hour"/"2 days 2 hours"/"3 days 1 hour" (probe /tmp/fe1b-probe.json).
+- id 292/313/188 (catch-block returns at time.ts:154/182/44): TEST-GAP — the
+  only input reaching a `catch` around `new Date`/`toLocaleDateString` is an
+  object whose Symbol.toPrimitive throws; fe1b pins shipped outputs
+  'Invalid date' / stale=true / 'unknown' (probe /tmp/fe1c-probe.json,
+  throwType=no-throw so the catch, not a rethrow, is the shipped path).
+- id 169 (time.ts:25 `durationMs < 0` → `<= 0`): **EQUIVALENT** — measured
+  formatDuration(t,t) === '0s' and negative === '0s': the zero-duration case
+  already returns the same string via formatDurationValue(0), so no input
+  distinguishes the pair.
+  fe1b scoped re-adjudication (8 ids, updated 20-test battery — snapshot-verified
+  20 passed on HEAD time.ts) runs behind the backend queue; its tally appends to
+  this row only after the run exits. risk.ts:57 (score 0 → 'low') was among the
+  57 Survived->KILLED (id=111 line of the log).
+
+### S2 batch 11 (redis_streams) — run CONTAMINATED, clean re-run rs11b armed (no tally claimed)
+
+The first rs11 run (started 23:36:18Z, 854 shapes) had at least two shapes
+polluted when its battery pytest children were externally killed mid-apply and
+the source was checkouted while the harness held a mutation (operator error
+during an exit-misdiagnosis — the restored `camera_id=None` diff was a mid-run
+application, not a crash artifact). KILLED-verdict pollution is the dangerous
+direction (survivor undercount), so the original `/tmp/redcheck-rs11.log` (when
+written) rides as contamination record only; rs11b re-runs all 854 shapes clean
+(`/tmp/redcheck-rs11b.log`, chain13-armed). No batch-11 numbers claimed here
+until the clean run exits.
+
+fe1b re-adjudication measured 2026-09-23T01:10:05Z (`node /tmp/redcheck_fe1b.js`,
+scoped to the 8 live ids, 20-test battery green at entry, per-file HEAD-byte
+guards): `{"NoCoverage->KILLED":7,"Survived->STILL-LIVE":1}` — all six battery-gap
+shapes and the three catch-block shapes flipped KILLED; the one survivor is the
+proven EQUIVALENT id=169 (`durationMs < 0`→`<= 0`, both branches return the
+measured-identical '0s'). FE net this batch: 118/119 baseline shapes now killed
+under the battery + 1 documented equivalence, risk.ts:57 included in the killed set.
+
+### S2 batch 15 — webhook_service pure-payload battery: 77 archive shapes, 76 killed, 1 EQUIVALENT (`/tmp/redcheck-wh15.log`)
+
+Battery `backend/tests/unit/services/test_webhook_service_batch15.py` (51 tests;
+`uv run pytest ... -q` green 2026-09-23, measured twice: author agent + this
+session; ruff check+format clean). Red-check `lane_wh15.py` in worktree
+`/home/agent/lanes/webhook` (lane isolation proven necessary: import probe
+shows every backend red-check target pair shares an import closure — same-tree
+parallel runs fake each other's verdicts; marker test confirmed lane imports
+resolve lane-local). Feed = WP4.4-archive survivor diffs (source byte-identical
+since f1e0ea9e 2026-01-27) restricted to the three format functions the battery
+covers: `TALLY {"KILLED":76,"SURVIVED":1}` — keys 77 applied 77, source clean at
+exit. The one survivor is EQUIVALENT with proof: discord mutmut*9
+`payload.get("event_type","event") -> "EVENT"` — inside `_format_discord_payload`
+the default value reaches ONLY `.replace("*"," ").title()`(grep of event_type
+uses: f-string`_{event_type}_`is the teams/slack functions, discord's line
+:1003/:1038 is title-cased), and`"EVENT".title() == "event".title()` → no input
+distinguishes the pair. Cache-gen disclosure (S1-adjacent): current mutmut
+generation for webhook_service holds 42 keys/4 functions — dossier's 571
+survivors are the WP4.4-era generation; C2/C3 SQL-shape clusters follow in
+batch-15b via the batch-14 compiled-SQL vehicle against a re-generated feed.
