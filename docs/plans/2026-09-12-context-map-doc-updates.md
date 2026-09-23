@@ -10837,3 +10837,45 @@ L434's condition always-true; shipped==mutant==real-string on the full
 input space (5-case probe incl. `[]`, `[{}]`, multi-category). clothing\_\_4
 per-mutant **EQUIVALENT — dead else-branch**, closes enrichment_client
 current-gen 543/544 killed + 1 justified equivalent.
+
+### Row — container_discovery dossier-residual CLOSED: cd52 25/27 + batch-20 8/8 KILLED (commits 0359964f + 4fc65a28, pushed) + 19 per-mutant equivalents = 52/52 adjudicated
+
+**Measured this session**: cd52 (enrich lane, 52 dossier-residual keys vs the
+committed suite only) `/tmp/redcheck-cd52.log` rc=0 08:38:31Z "source clean":
+**25 KILLED / 27 SURVIVED**. Of the 27: 20 first-triaged equivalent + 7 gaps.
+Batch-20 battery `test_container_discovery_batch20.py` authored from probes
+(`/tmp/b20-harness.py` → `/tmp/b20-probes.json`, all shapes MEASURED against
+shipped production — production NOT bent): compose-success info message +
+extra EXACT `{compose_file, count}`; init compose-branch settings-forwarding
+leg (fallback port 15432 vs mutant's 5432 .env default); discover_all summary
+info `'Discovered 2 containers'` (shipped grammar pinned AS SHIPPED) + extra
+EXACT `{count: 2}`. **Authoring-time correction (measurement, not review)**:
+`__init____mutmut_5` (ternary else True->False) was first triaged "flag-dead
+equivalent" — WRONG. `ContainerDiscoveryService(cli, compose_file=missing)`
+with settings omitted IS shipped-reachable: MEASURED prometheus PRESENT
+(else-leg True -> fallback includes monitoring); mutant's False excludes it.
+True gap #8; WP44 always passes settings, so the else leg had zero coverage.
+Battery amended (4 tests, all green first pass; 62 passed with existing suite).
+**cd20 red-check** (enrich lane, 8 gap keys vs existing suite + batch-20):
+`/tmp/redcheck-cd20.log` rc=0 08:51:03Z "source clean" — **8 KILLED / 0
+SURVIVED** (an earlier 7-key pass at 08:47:00Z rc=0 predated the init\_\_5
+correction; both logs on disk).
+
+**Per-mutant equivalents (19)** — `x_build_service_configs` keys:
+grace=60-removal **249/284/302/521** — rebuild-minus-kwarg construction
+identical (ServiceConfig field default IS 60; re-building the config without
+`startup_grace_period=60` byte-identical, with a discriminating counterexample:
+postgres grace=10 removal -> not equal, so the construction actually bites);
+max_failures=5-removal **360/387/414/441/468/495/522/549/575/602/629/656/683/710**
+(x14, same construction — field default 5, monitoring services only);
+`_create_managed_service__13` (`tags` getattr default `[]`->`None`) —
+falsiness identity: both feed `tags[0] if tags else f"<untagged:...>"` and
+both are falsy; MEASURED image strings identical.
+
+**Tally**: 25 (cd52) + 8 (batch-20/cd20) = **33 killed**; 19 justified
+equivalent; 33+19 = **52/52 dossier residuals adjudicated**. cdfull (full
+883-key module feed, redis lane, started 07:14:57Z) still running — on landing
+I adjudicate its fresh verdicts incl. the prior-run anomalies
+`build_service_configs__359/467` (grace=30 removals — the golden table DOES
+assert grace, so survival there would be an artifact of the vanished run) and
+`compose__9` (success-info message->''; batch-20 now pins that message too).
