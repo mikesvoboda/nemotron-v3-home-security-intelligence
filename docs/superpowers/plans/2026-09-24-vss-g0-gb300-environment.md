@@ -34,15 +34,15 @@
 
 ## File structure
 
-| File                                                            | Fate                                      | Responsibility                                                                                                    |
-| --------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `ai/vlm/Dockerfile`                                             | new (authored, uncommitted pending gates) | llama.cpp llama-server CUDA image; agent-gpu-legal; `--jinja` + mmproj wiring                                     |
-| `scripts/vlm_probes/s1_nvext.py`                                | new (authored)                            | S-1: nvext vs native json_schema on `/completion`, nonce-const arms A/B1/B2                                       |
-| `scripts/vlm_probes/s2_multimodal_schema.py`                    | new (authored)                            | S-2: nested `response_format.json_schema.schema` on image-bearing `/v1/chat/completions`; malformed-wrapper arm C |
-| `docs/superpowers/plans/2026-09-24-vss-g0-gb300-environment.md` | new                                       | this plan                                                                                                         |
-| `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`                | edit each task                            | rows G0.1–G0.4, S-1…S-5, F-queue                                                                                  |
-| `backend/evaluation/eval_store.py` + unit test                  | new (task 6)                              | SQLite eval-item store (items/runs/results), `data/synthetic` loader                                              |
-| probe reports → `$AGENT_GPU_DIR/out/probes/`                    | off-repo artifacts                        | committed ledger carries aggregate verdicts only                                                                  |
+| File                                                            | Fate                                | Responsibility                                                                                                    |
+| --------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ai/vlm/Dockerfile`                                             | committed c2e8949f                  | llama.cpp llama-server CUDA image; agent-gpu-legal; `--jinja` + mmproj wiring                                     |
+| `scripts/vlm_probes/s1_nvext.py`                                | committed c2e8949f                  | S-1: nvext vs native json_schema on `/completion`, nonce-const arms A/B1/B2                                       |
+| `scripts/vlm_probes/s2_multimodal_schema.py`                    | committed c2e8949f                  | S-2: nested `response_format.json_schema.schema` on image-bearing `/v1/chat/completions`; malformed-wrapper arm C |
+| `docs/superpowers/plans/2026-09-24-vss-g0-gb300-environment.md` | new                                 | this plan                                                                                                         |
+| `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`                | edit each task                      | rows G0.1–G0.4, S-1…S-5, F-queue                                                                                  |
+| `backend/evaluation/{assess_input,eval_store}.py` + unit test   | committed 4d97e04b, loader fca9e426 | SQLite eval-item store (items/runs/results), `data/synthetic` loader                                              |
+| probe reports → `$AGENT_GPU_DIR/out/probes/`                    | off-repo artifacts                  | committed ledger carries aggregate verdicts only                                                                  |
 
 ---
 
@@ -52,32 +52,32 @@
 - [x] Test Postgres+Redis live: `docker compose -f docker-compose.test.yml up -d` → both healthy; ports 5433/6380 reachable **[V]**.
 - [x] cv2 lib closure extracted (no-root apt-get download + dpkg -x); `import cv2` OK 5.0.0 **[V]**.
 - [x] Free API port: 8098 unused repo-wide (grep across .env.example, all compose files, env-reference); legacy flagship owns 8000 **[V]**.
-- [ ] Integration tier RAN: `uv run pytest backend/tests/integration/test_events_api.py -p no:cacheprovider -n0` → **72 passed** **[V 2026-09-24]**. Caveat ledgered: at `-n auto` the same file shows 15 xdist errors + 1 failure vs clean serial — investigate worker-DB suffixing under the test-profile DB before trusting parallel integration runs; do NOT loosen anything to hide it.
-- [ ] Full unit tier green at `-n auto` (run in flight; floor ≥84, ledger the count).
-- [ ] `cd frontend && npm ci && npm run typecheck` (no frontend changes planned — evidence only).
+- [x] Integration tier RAN: `uv run pytest backend/tests/integration/test_events_api.py -p no:cacheprovider -n0` → **72 passed** **[V 2026-09-24]**. Caveat ledgered: at `-n auto` the same file shows 15 xdist errors + 1 failure vs clean serial — investigate worker-DB suffixing under the test-profile DB before trusting parallel integration runs; do NOT loosen anything to hide it.
+- [x] Full unit tier at `-n auto`: **27,942 passed, 122 skipped, 8 xfailed, 1 failed** — the single failure is `test_deploy_phases` wanting `systemctl` (E6 environment class, not a regression) **[V]**.
+- [x] `cd frontend && npm ci && npm run typecheck` → **exit 0** (evidence only) **[V]**.
 
 ### Task 2: G0.2 build — blocked path + working bypass (S-4 evidence)
 
 - [x] Both cuda bases pulled on the runner (`agent-gpu pull …:13.3.1-devel/runtime-ubuntu22.04`, both "succeeded") **[V]**.
 - [x] `ai/vlm/Dockerfile` authored; agent-gpu contract-clean; `--jinja` added (probe precondition) **[V]**.
-- [x] `agent-gpu build … ai-vlm:sm103` attempted twice, deterministic runner panic (ledger F1) **[V]** → G0.2's artifact ships via `agent-gpu run` until the owner repairs the runner.
-- [ ] S-4 job `build7972` (detached, devel base, `--mount out:/out`, `-j72`): cmake `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=103` configures clean (nvcc 13.3.73 accepts 103; CUDA-host gcc 11.4) **[V]**; wait for `BUILD_SUCCESS` + binary at `$AGENT_GPU_DIR/out/build/b7972-bin/llama-server`. Ledger: build wall-time, warnings, `--flash-attn`/FA-kernel warnings for sm_103, exit code. **S-4 = DONE only with a run binary that loads a model (task 3).**
-- [ ] Retry `agent-gpu build` once the owner reports F1 fixed; commit `ai/vlm/Dockerfile` after the pre-commit gates either way.
+- [x] `agent-gpu build … ai-vlm:sm103` attempted twice, deterministic runner panic (ledger E13; owner decision F1) **[V]** → G0.2's artifact ships via `agent-gpu run` until the owner repairs the runner.
+- [x] S-4 job `build7972` (detached, devel base, `--mount out:/out`, `-j72`): cmake configures clean (nvcc 13.3.73 accepts 103; CUDA-host gcc 11.4) and **BUILD_SUCCESS, exit 0 in ~7 min**; binary at `$AGENT_GPU_DIR/out/build/b7972-bin/llama-server` **[V]**. S-4 = DONE: the binary loads and serves a model (task 3) **[V]**. (Runtime base also needed `libgomp.so.1` — mounted from `out/libs/gomp` — ledgered.)
+- [x] `ai/vlm/Dockerfile` committed after the pre-commit gates anyway (c2e8949f). Retry `agent-gpu build` remains open on F1.
 
 ### Task 3: G0.2 serve + S-1/S-2 probes
 
-- [ ] Serve: `agent-gpu run --name vlm-serve --image docker.io/nvidia/cuda:13.3.1-devel-ubuntu22.04 --vram 12 --port 8080 --mount models:/models --mount out:/out --detach --entrypoint sh -- -c 'cd /out/build/b7972-bin && LD_LIBRARY_PATH=. ./llama-server --model /models/vlm/Qwen3VL-4B-Instruct-Q4_K_M.gguf --mmproj /models/vlm/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf --jinja --host 0.0.0.0 --port 8080 --n-gpu-layers 99 --ctx-size 8192 --flash-attn on'` — poll `http://host.docker.internal:<allocated>/health`, record `build_info` from `/props` **[needs: F2 done]**.
-- [ ] S-1: `uv run python scripts/vlm_probes/s1_nvext.py --base-url … --report /out…/probes/s1.json` — record verdict + content snippets in ledger; expected nvext IGNORED (E5), native ENFORCED.
-- [ ] S-2: synthetic probe image generated locally (pillow), then `s2_multimodal_schema.py`; ENFORCED required for the spec §3 assumption; per-checkpoint record (re-run on model/engine swap).
-- [ ] Ledger rows S-1, S-2 with the probe reports' key fields + server `build_info`.
+- [x] Serve: recipe as written (runtime base + `LD_LIBRARY_PATH=.:/out/libs/gomp`), `--port 8080` = container port (the broker maps it to a host port and maps **container→host**, so the server must listen where `--port` points) — `/health` ok in ~10 s, `/props` `build_info b7972-e06088da0`, `modalities.vision: true`, real VRAM 5,442 MiB against a 12 GiB declaration **[V]**.
+- [x] S-1 ran: expected outcome confirmed — **native `json_schema` ENFORCED (arm B2 echoed the const) while `nvext.guided_json` is SILENTLY IGNORED (arm B1 prose, const not echoed) = E5 empirically confirmed**. Report `$AGENT_GPU_DIR/out/probes/s1.json` (`verdict: ENFORCED`).
+- [x] S-2 ran: **ENFORCED** at b7972 with images (nested-const echoed). Trap ledgered: `max_tokens: 96` truncated arm B and faked an IGNORED verdict — grammar can't close past the budget; probe raised to 400. Per-checkpoint guard recorded (re-run on engine/model swap) **[V]**.
+- [x] Ledger rows S-1, S-2 closed with report key fields + server `build_info`.
 - [ ] **Owner question surfaced, not self-resolved (F4):** spec 0.3 applies fail-closed null semantics to the LIVE legacy Nemotron path (score-50→verification_failed with NULL). Needs explicit owner confirmation before any code lands; zero code now.
 
 ### Task 4: S-5 — Nemotron-12B-VL GGUF on a bumped pin
 
-- [ ] Download `Vastined/Nemotron-Nano-12B-v2-VL-GGUF` Q4_K_M (7,501,771,584 B) + mmproj (1,689,151,968 B) into `models/vlm/` (community quant ledgered as fact; NVIDIA ships no official GGUF).
-- [ ] Compile bumped pin (default `LLAMA_CPP_REF=b11090`, same run-job recipe) **only if** b7972 fails to load the Nemotron mmproj; otherwise S-5 closes on b7972 load + S-2 green and the pin bump moves to M2 with the model pick.
-- [ ] `--vram 16` for the 12B server (6.99+1.58 GiB weights + KV + ~1 GiB context overhead).
-- [ ] Ledger: load evidence = /health green, build_info, first multimodal completion; memory used per nvidia-smi-in-container.
+- [x] Downloaded into `models/vlm/` — the repo id corrected to `Vastined/NVIDIA-Nemotron-Nano-12B-v2-VL-BF16-GGUF` (the planned id 404s); Q4_K_M 7,501,771,584 B + mmproj 1,689,151,968 B, anonymous pull **[V]** (community quant ledgered; NVIDIA ships no official GGUF).
+- [x] b7972 **fails to load the mmproj**: `load_hparams: unknown projector type: nemotron_v2_vl` **[V]** → the pin bump was triggered exactly as planned. b11090 compiled with the same run-job recipe, exit 0 **[V]**.
+- [x] Served with `--vram 14` (honest declaration; real use settled at **10,008 MiB** — inside the cap, broker fence respected) **[V]**.
+- [x] Load evidence: `/health` ok, `build_info b11090-b1c2863e2`, `vision: true`, multimodal probe **ENFORCED** (echoed_const true; malformed-wrapper arm non-empty) **[V]**. Broker `agent-gpu rm`'d to 0 containers. **S-5 DONE** — the spec's pin-bump requirement is now empirical, not assumed.
 
 ### Task 5: G0.3 — parked (owner decisions)
 
@@ -85,12 +85,12 @@
 
 ### Task 6: G0.4 synthetic eval items (schema + store now; media owner-gated)
 
-- [ ] TDD: failing test first for `backend/evaluation/eval_store.py` (SQLite, items/runs/results, off-repo path under `$AGENT_GPU_DIR/eval-store` **pending owner path confirmation, F6** — wrong path = D10 privacy problem).
-- [ ] Author `AssessInput` as a Pydantic model FIRST (it is also Phase 1's contract; a wrong shape means re-frozen items) and pin it in the ledger for owner review before freezing any item.
-- [ ] Loader maps the 408 committed label sets in `data/synthetic` (labels + metadata, media 0) into eval items; procedural placeholder frames via pillow are plumbing evidence only, labeled as such — never cite `synthetic_data.py test` as replay evidence.
-- [ ] S-3 salience smoke: ~10 items (2 normal / 2 suspicious / 2 threats / 2 benign look-alikes + 2 variants), through Qwen3-VL-4B with the constrained verdict; record per-item: alert/score + one-line human check "plausible?"; benign-look-alike rejection is the pass bar.
-- [ ] Decision surfaced (F5): real/stock incident imagery needs owner keys (Pexels/Pixabay) — AI generation is unusable for 11 of 13 scenarios; G0.4 closes on schema+store+placeholder-media plumbing with the record that full salience quality waits for keys.
-- [ ] Errata entries queued (spec says 17 scenarios → 13 verified; spec's single-probe cmd lacks `--image`): date them in `docs/vss-integration/11-errata-2026-09-23.md` at commit time.
+- [x] TDD: `test_eval_store.py` written first (red), then `eval_store.py` (items/runs/results, fingerprint-frozen items, D10 write-time media-path guard). Store path remains a **required argument** — production path waits on owner F6 **[V, 4d97e04b]**.
+- [x] `AssessInput` authored FIRST (frozen, extra=forbid) and pinned for owner review in the ledger G0.4 row; **no item frozen** **[V]**.
+- [x] Loader `load_synthetic_items()` maps all 408 committed label sets (134 normal / 132 suspicious / 142 threats) to DRAFT items: media stays empty (labels carry no media; inventing a path = D10 fabrication), `zone_crossing` never claimed, unreadable sets skipped with a warning. 6 loader tests, suite green **[V, fca9e426]**.
+- [x] S-3 smoke ran (10 procedural scenes incl. 2 benign look-alikes): pass bar met — 6/6 benign REJECTED (look-alikes score 0), 10/10 schema-valid, median 7.3 s. Honest limitation ledgered: 0/4 incident scenes detected because the 4B model reads the primitives as "stylized minimalist renderings" — **placeholder media is not valid salience evidence** **[V]**.
+- [x] Decision surfaced (F5, ledger queue item 5): full-quality salience waits on owner stock/staged-media keys (AI generation unusable for 11 of 13 scenarios).
+- [x] Errata dated 2026-09-24 in `docs/vss-integration/11-errata-2026-09-23.md` (N1–N7, incl. 17→13 scenarios and the missing `--image` in the probe command) **[V, 7af48184]**.
 
 ### Task 7: G0 close-out
 
