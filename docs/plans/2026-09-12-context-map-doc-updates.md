@@ -11019,3 +11019,70 @@ memory-worthy): subset kill-feeds MUST carry shape-twin keys even when
 the twin is already killed — occurrence order is part of a key's
 identity; a subset feed without twins silently re-tests a different
 mutation site and manufactures false verdicts in BOTH directions.
+
+## 2026-09-24 — full-set re-bank exit + first honest post-campaign rescore (S3-step1)
+
+**RE-BANK** `/tmp/rebank-full.sh` (`uv run mutmut run`, full widened set, tree
+@ ffe92812 = batch-24 HEAD): launched 2026-09-23 14:1xZ, SIGINT at 09-24
+01:09:3xZ with ~300 keys left (user push directive), graceful exit rc=0 at
+01:09:41Z, `/tmp/rebank-full.log`. Rate: mean 2.3 keys/s, mid-run measured
+4.97/s, tail 0.36/s (heavy-module tail; earlier average-rate ETAs under-called
+it — noted honestly). Verdicts were banked incrementally BEFORE the SIGINT
+(metas are written per-mutant; a kill is durable at write time — pre-compaction
+S1/S2 finding re-confirmed at every census).
+
+**RESCORE** `uv run python scripts/mutation-score.py --repair` (rc=0,
+torn_metas=0) then `uv run python scripts/mutation-score.py` @ 56767356
+(merge of origin/main 45311508, zero backend/ overlap measured):
+totals killed 39060 / timeout 2557 / survived 29470 / no_tests 19584 /
+not_checked 307 / total 90978 -> **score 45.744%**; progress checked 90671 /
+91062, **completed=FALSE** (391 not_checked).
+DECIDE: **NO history append, NO tier claim** — completed=false AND the number
+is BELOW the 09-19 committed baseline (54.05%). Why it dropped, measured: the
+regenerated generation carries **19,584 no_tests keys (21.5% of the
+denominator)** where per-function test-selection maps ZERO tests, vs ~0 in the
+09-19 entry (killed+timeout+survived there = 88,309/88,329). Those keys ride
+the badge denominator at 0 credit. Killed 39,060 vs baseline 45,127: mutant
+regeneration from the mega-PR (xclip removal deleted previously-killed sites)
+
+- previously-killed keys now reclassified no_tests. The S3 ">=58" expectation
+  is DISCONFIRMED by measurement — the campaign's ~4.7k battery kills are
+  visibly inside these totals (killed is 39k on a fresh generation vs the whole
+  old run's 45k), but the honest number is 45.74 until the selection regression
+  is root-caused. OPEN (next, before any tier claims): investigate why the
+  stats-collection maps no tests for ~19.6k keys after the mega-PR regeneration
+  (candidates: import-graph changes vs mutmut's dependency-edge tracing at
+  "Listing all tests", mock-injection conftest interactions). S1 proof metas
+  and the 09-19 history entry are untouched.
+
+## 2026-09-24 — CI-red fixes on #6650: vulture 12->0, TPA spike source, stale-baseline fetch (TDD)
+
+Measured root causes (PR run 35866358876 @ ffe92812, jobs 107212436979
+perf-audit + dead-code): (a) 12 vulture hits, ALL in campaign-added files —
+5 unreachable `yield` after `raise` in async-generator mocks (repo idiom, 7
+files already excluded) + 4 side-effect-fixture params + 3 autospec signature
+params; local `uv run vulture backend/ vulture_whitelist.py --config
+pyproject.toml` reproduced CI's 12 exactly. (b) perf-audit victims cost
+0.02-0.03s intrinsically (junit corpus of 9 main runs + PR run: same ~4s
+spike rotated across >=6 test ids incl. main's 4.30/4.33 warnings);
+MEASURED cold-import cost of the only heavy lazy imports both victims reach:
+`import torchvision` 2.24s + `import piq` 2.20s (image*quality_loader.py:172,
+no module-level pullers anywhere) — billed to whichever test triggers them
+per xdist worker; PR went RED only because the baseline harvest served a
+260-day-stale page (8/8 candidates, 3 identical re-reads) -> fail-closed
+"every breach red"; main ran the same spikes as WARNINGS via WP1.3.
+FIXES @ this commit: pyproject vulture exclude += batch16b/batch21;
+vulture_whitelist += `*.clock` `\_.session_arg`(banked test files untouched);
+backend/tests/unit/conftest.py module-level warm`**import**`of
+torchvision/piq (COLLECTION-time cost, outside per-testcase billing; NOT an
+autouse fixture — fixture setup bills the first test; precedent
+mock_transformers_for_speed/3d30ef71; test_osnet_loader's hide-tests 36/36
+green with it warm); scripts/fetch-ci-artifacts.py runs-list query +=`&created=%3E<bound>`— syntax adjudicated LIVE on the GitHub API @ 01:2xZ:`created=%3E`FILTERS (15 vs 116 control),`created%3E=`and`created%3E%3D=`are SILENTLY IGNORED (116) — first-draft param corrected by measurement;
+test_flake_consumer canned servers route past the new param (7/7).
+TDD: backend/tests/unit/scripts/test_fetch_ci_artifacts_stale_page.py red
+2-fail without the fetcher fix / 3-pass with (stash-verified); vulture rc=0;
+fail-closed audit replay (no baseline, worst case) over both victim files:
+RESULT PASS 319 tests; unit tier 28,191 pass / 11 fail = env artifact ONLY
+(spawns literal`python`, absent in sandbox, 11/11 identical with my diff
+stashed; CI runners have the shim); ruff+mypy clean. Floors untouched;
+SLOW_TEST_PATTERNS untouched; UNIT_TEST_THRESHOLD 4.0 untouched.
