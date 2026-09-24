@@ -121,3 +121,12 @@ _.mock_auth_service
 # Imports used in placeholder classes (try/except ImportError pattern in TDD tests)
 _.LoginRequest
 _.RegisterRequest
+
+# Mutation-battery fixtures requested purely for their side effects and
+# autospec-replacement parameters required by the mocked signature — the same
+# pytest/autospec idioms as the WP0.4 block above (measured 2026-09-23, PR run
+# 35866358876 Dead Code job: clock x4, session_arg x3, all 100%-confidence
+# false positives; renaming the params would rewrite banked test files for
+# zero behavior change).
+_.clock
+_.session_arg

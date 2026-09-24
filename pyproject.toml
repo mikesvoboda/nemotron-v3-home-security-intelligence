@@ -605,6 +605,12 @@ exclude = [
     "backend/tests/unit/core/test_database_pool.py",  # Unreachable code in failing_connect mock
     "backend/tests/integration/test_system_api.py",  # Unreachable yield in error-raising async generator mock
     "backend/tests/unit/routes/test_system_routes.py",  # Unreachable yield in async generator mocks
+    # batch-16b/21 (mutation-kill batteries): the shipped async-generator-mock
+    # idiom 'raise X / yield # pragma: no cover' — the yield makes the mock an
+    # async generator (the analyzed call site consumes one); it is UNREACHABLE
+    # BY DESIGN and identical in kind to the seven files above.
+    "backend/tests/unit/services/test_nemotron_streaming_batch16b.py",
+    "backend/tests/unit/services/test_nemotron_streaming_batch21.py",
 ]
 
 # =============================================================================

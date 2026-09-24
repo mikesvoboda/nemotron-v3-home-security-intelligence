@@ -28,6 +28,26 @@ if TYPE_CHECKING:
 # Test API key for unit tests - used to authenticate test requests
 UNIT_TEST_API_KEY = "test-unit-api-key-12345"  # pragma: allowlist secret
 
+# TP-fix (measured 2026-09-23, PR run 35866358876 Test Performance Audit):
+# `torchvision`/`piq` are imported LAZILY inside image_quality_loader.assess_image_quality
+# (backend/services/image_quality_loader.py:172) and are pulled by NO module-level
+# import anywhere else — so the first BRISQUE-phase test in each fresh xdist
+# worker pays the ~0.5-1.5s cold import INSIDE its measured <testcase time>, and
+# pytest-randomly + --dist=worksteal rotates which victim eats it (measured
+# victims across runs: four different enrichment-pipeline tests at 4.04-4.60s).
+# Warming the modules HERE charges the cost to worker COLLECTION, which junit
+# does not bill to any testcase. Deliberately module-level, NOT an autouse
+# fixture: fixture setup bills the first test and re-points the same lottery.
+# Same class of fix as mock_transformers_for_speed below (shipped in 3d30ef71
+# for the identical gate). Best-effort: import failure here must never break
+# collection — the lazy site still governs behavior.
+for _warm in ("torchvision", "piq"):
+    try:
+        __import__(_warm)
+    except Exception:  # pragma: no cover - absent dep just skips the warm-up
+        pass
+del _warm
+
 
 @pytest.fixture(autouse=True)
 def isolate_redis_module_global() -> Generator[None]:
