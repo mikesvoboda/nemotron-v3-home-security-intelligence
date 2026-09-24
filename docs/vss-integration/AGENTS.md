@@ -11,6 +11,9 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
   and an A5500 bring-up checklist. It is the single source of truth for the plan.
   **Then read [`13-implementation-brief.md`](13-implementation-brief.md)**: how to work, the risk
   spikes to run first, the ledger, the guardrails, and where to stop and ask the owner.
+- **Checking "what has actually run?"** → the execution ledger,
+  [`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md):
+  one row per step and spike, with the command, result and commit behind every status.
 - **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
   (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
 - **Citing any claim from docs 00-07** → check [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)
