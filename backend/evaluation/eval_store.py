@@ -26,7 +26,10 @@ _LOG = logging.getLogger(__name__)
 # Path prefixes that can only ever hold real-camera media (D10). Item media
 # under these roots is refused at write time.
 _REAL_MEDIA_PREFIXES = ("/data/captures", "/var/lib/hsi", "captures/", "data/events")
-_REPO_MARKERS = ("/workspace/", "/agents/")
+# D10's real test is RESIDENCE: media resolving inside the repo checkout is
+# refused wherever the checkout lives. (An earlier "/agents/" substring guess
+# refused the owner-ruled off-repo GPU eval root wholesale - F6 2026-09-24.)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class EvalStore:
@@ -71,10 +74,19 @@ class EvalStore:
     def put_item(self, item: EvalItem) -> None:
         for p in item.media_paths:
             low = str(p).lower()
-            if any(m in low for m in _REAL_MEDIA_PREFIXES) or low.startswith(_REPO_MARKERS):
+            if any(m in low for m in _REAL_MEDIA_PREFIXES):
                 raise ValueError(
-                    f"privacy: media path {p!r} looks like real-camera or in-repo "
+                    f"privacy: media path {p!r} looks like real-camera "
                     "media; eval items must reference synthetic/off-repo copies (D10)"
+                )
+            try:
+                resolved = Path(p).expanduser().resolve()
+            except OSError:
+                resolved = Path(p)
+            if resolved == _REPO_ROOT or _REPO_ROOT in resolved.parents:
+                raise ValueError(
+                    f"privacy: media path {p!r} resolves inside the repo checkout "
+                    f"({_REPO_ROOT}); eval media must live off-repo (D10)"
                 )
         payload = item.model_dump_json()
         digest = _fingerprint(item)

@@ -99,6 +99,24 @@ class TestEvalStore:
             with pytest.raises(ValueError, match="privacy"):
                 s.put_item(item)
 
+    def test_guard_refuses_repo_checkout_paths(self, tmp_path) -> None:
+        """The repo root is refused by RESOLVED location - a stock frame
+        staged inside the checkout is exactly the D10 leak class."""
+        inside = REPO_ROOT / "fixtures" / "staged_frame.jpg"
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            item = _item(5).model_copy(update={"media_paths": [str(inside)]})
+            with pytest.raises(ValueError, match="privacy"):
+                s.put_item(item)
+
+    def test_guard_allows_off_repo_gpu_media(self, tmp_path) -> None:
+        """F6 (owner-ruled): the GPU mount root is the sanctioned off-repo
+        home for stock/eval media; the guard must not refuse it wholesale."""
+        gpu_media = Path("/agents/agent-vss1/gpu/media/stock/front-door.jpg")
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            item = _item(6).model_copy(update={"media_paths": [str(gpu_media)]})
+            s.put_item(item)  # must NOT raise
+            assert s.get_item(item.item_id) is not None
+
 
 class TestSyntheticLoader:
     """The committed label corpus is the item source; the loader turns each
