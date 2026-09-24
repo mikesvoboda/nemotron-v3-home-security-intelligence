@@ -9686,3 +9686,1464 @@ scheduled run (09-27 02:00Z — first CI on a post-#6639 head; run 29's
 09-21 dispatch predates the fix), same run S4 watches for banking.
 Remaining M1 tail is score DEPTH (58 survived + 62 errors to triage),
 not harness honesty.
+
+### S2 batch 12 — enrichment_client pure-cluster battery: 544 shapes, 542 killed, 2 triaged (1 kill-test added, 1 EQUIVALENT) (battery `d20c4207`; batch-12b kill-test landed `6eb017bd`)
+
+Battery `backend/tests/unit/services/test_enrichment_client_batch12.py`
+(71 tests at red-check time; +1 in batch-12b below → 72 measured green
+`uv run pytest ... -q` = "72 passed in 6.74s"). Pure-cluster TARGETS =
+30 non-network functions (parse/dataclasses/backoff/retry); the
+cluster counts were RE-DERIVED this session (2,567 feed keys extracted
+run-7-regenerated copy, 544 in TARGETS) because the #6645 source move +
+run-7 regeneration wiped prior dossier verdicts — counts measured, not
+carried.
+
+MEASURED red-check (`/tmp/redcheck-ec12.log`, harness
+`/tmp/redcheck_ec12.py`, start 22:33:21Z per watch-chain5.out, exit
+assert "source clean"):
+`keys: 544 applied: 544 tally: {'KILLED': 542, 'SURVIVED': 2}`.
+
+The 2 SURVIVED dispositioned per-shape against shipped source:
+
+1. `xǁUnifiedClothingResultǁto_context_string__mutmut_4` —
+   `if self.categories` → `if (self.categories) or True`
+   (enrichment_client.py:433). EQUIVALENT, provable: the shipped method
+   RETURNS at the `if not self.categories:` guard (:431-432, measured
+   output "Clothing: No classification available") BEFORE line :433
+   executes, so categories is always non-empty at the ternary — the
+   condition is constant-true on every reachable input and the `{}`
+   else-branch is unreachable. No input distinguishes the pair; battery
+   already pins both reachable outputs (:431 empty-guard, :435 full
+   line, `partial` unknown/0% defaults).
+
+2. `xǁClothingClassificationResultǁto_context_string__mutmut_6` —
+   service-uniform alert string → `None`
+   (enrichment_client.py:205). TEST GAP, correctly survived the old
+   battery: it pinned that class's `to_dict` only — the
+   `elif is_service_uniform` branch was never entered, so the mutant
+   never executed (appending None makes `"\n".join` raise TypeError —
+   killable, not equivalent). batch-12b fix:
+   `test_clothing_classification_all_branches` pins all four branch
+   outputs at MEASURED shipped values (measured 2026-09-22 by direct
+   constructor calls: service = "Clothing: dark hoodie\n [Service/
+   delivery worker uniform detected]\n Confidence: 83.0%"; both-flags
+   → suspicious only, elif precedence). 72 passed green.
+
+Pending measurement (deliberately NOT claimed here): ec12b
+re-adjudication of the same 544 shapes against the 72-test battery
+(`/tmp/redcheck-ec12b.log`) — expected 543 KILLED + the 1 EQUIVALENT
+above; its numbers will be appended to this row only after the run
+exits. Batch-12b commit hash lands via chain9 (serialized behind the
+live rs11/fe1 red-checks — a pre-commit stash mid-application is the
+proven fake-verdict hazard).
+
+### S2 FE batch 1 — time.ts/risk.ts depth battery: 119 stryker shapes re-adjudicated, 111 killed, 8 live → fe1b measured 7 KILLED + 1 EQUIVALENT (id 169) — measured `/tmp/redcheck-fe1.log` (TALLY 2026-09-23T00:39:31Z) + `/tmp/redcheck-fe1b.log` (2026-09-23T01:10:05Z)
+
+Command: `node /tmp/redcheck_fe1.js` (report = `reports/mutation/mutation.json`,
+stryker-13 baseline). Re-adjudicated the 58 Survived + 61 NoCoverage shapes of
+src/utils/time.ts + risk.ts:57 against the new batteries
+(time-relative.test.ts 16 tests + shipped time.test.ts + risk.test.ts, battery
+green at entry — measured "baseline green; 119 survivors" 23:40:28Z, and every
+application restored to HEAD bytes; exit log written, `git status` clean for
+time.ts/risk.ts after exit). TALLY verbatim:
+`{"Survived->KILLED":57,"NoCoverage->KILLED":54,"NoCoverage->STILL-LIVE":7,"Survived->STILL-LIVE":1}`
+— 111/119 flipped to KILLED, split by original status, never merged into the
+Killed-column of the badge. The 8 STILL-LIVE dispositioned per-shape:
+
+- id 340/344/345/349 (time.ts:206-207 formatSecondsAsHumanReadable days+hours
+  plural combos): TEST-GAP — battery's day-band pins only entered the branch
+  with days===1 or remainingHours===1; fe1b adds measured combos "2 days 1
+  hour"/"2 days 2 hours"/"3 days 1 hour" (probe /tmp/fe1b-probe.json).
+- id 292/313/188 (catch-block returns at time.ts:154/182/44): TEST-GAP — the
+  only input reaching a `catch` around `new Date`/`toLocaleDateString` is an
+  object whose Symbol.toPrimitive throws; fe1b pins shipped outputs
+  'Invalid date' / stale=true / 'unknown' (probe /tmp/fe1c-probe.json,
+  throwType=no-throw so the catch, not a rethrow, is the shipped path).
+- id 169 (time.ts:25 `durationMs < 0` → `<= 0`): **EQUIVALENT** — measured
+  formatDuration(t,t) === '0s' and negative === '0s': the zero-duration case
+  already returns the same string via formatDurationValue(0), so no input
+  distinguishes the pair.
+  fe1b scoped re-adjudication (8 ids, updated 20-test battery — snapshot-verified
+  20 passed on HEAD time.ts) runs behind the backend queue; its tally appends to
+  this row only after the run exits. risk.ts:57 (score 0 → 'low') was among the
+  57 Survived->KILLED (id=111 line of the log).
+
+### S2 batch 11 (redis_streams) — run CONTAMINATED, clean re-run rs11b armed (no tally claimed)
+
+The first rs11 run (started 23:36:18Z, 854 shapes) had at least two shapes
+polluted when its battery pytest children were externally killed mid-apply and
+the source was checkouted while the harness held a mutation (operator error
+during an exit-misdiagnosis — the restored `camera_id=None` diff was a mid-run
+application, not a crash artifact). KILLED-verdict pollution is the dangerous
+direction (survivor undercount), so the original `/tmp/redcheck-rs11.log` (when
+written) rides as contamination record only; rs11b re-runs all 854 shapes clean
+(`/tmp/redcheck-rs11b.log`, chain13-armed). No batch-11 numbers claimed here
+until the clean run exits.
+
+fe1b re-adjudication measured 2026-09-23T01:10:05Z (`node /tmp/redcheck_fe1b.js`,
+scoped to the 8 live ids, 20-test battery green at entry, per-file HEAD-byte
+guards): `{"NoCoverage->KILLED":7,"Survived->STILL-LIVE":1}` — all six battery-gap
+shapes and the three catch-block shapes flipped KILLED; the one survivor is the
+proven EQUIVALENT id=169 (`durationMs < 0`→`<= 0`, both branches return the
+measured-identical '0s'). FE net this batch: 118/119 baseline shapes now killed
+under the battery + 1 documented equivalence, risk.ts:57 included in the killed set.
+
+### S2 batch 15 — webhook_service pure-payload battery: 77 archive shapes, 76 killed, 1 EQUIVALENT (`/tmp/redcheck-wh15.log`)
+
+Battery `backend/tests/unit/services/test_webhook_service_batch15.py` (51 tests;
+`uv run pytest ... -q` green 2026-09-23, measured twice: author agent + this
+session; ruff check+format clean). Red-check `lane_wh15.py` in worktree
+`/home/agent/lanes/webhook` (lane isolation proven necessary: import probe
+shows every backend red-check target pair shares an import closure — same-tree
+parallel runs fake each other's verdicts; marker test confirmed lane imports
+resolve lane-local). Landing note (this session, disclosed here not buried):
+the battery file landed in `6eb017bd` under the batch-14 commit message — a
+pre-commit hook test left an intent-to-add on the path and the sequence's
+`git add` swept it in; the content is the exact wh15-measured file plus two
+`autospec=True` insertions made AFTER the red-check (WP4.2 fast-path hook at
+`scripts/check-mock-spec.py` flags convertible added-line sites regardless
+of registry — licensing was the wrong tool; the repo's own
+`autospec-sweep.insert_autospec` did the conversion and the battery
+re-measured green 51 passed). A post-conversion re-check (`wh15c`, same
+harness + lane + feed, converted battery) re-measures the tally against the
+shipped file; until it exits this row's tally stands as pre-conversion. Feed = WP4.4-archive survivor diffs (source byte-identical
+since f1e0ea9e 2026-01-27) restricted to the three format functions the battery
+covers: `TALLY {"KILLED":76,"SURVIVED":1}` — keys 77 applied 77, source clean at
+exit. The one survivor is EQUIVALENT with proof: discord mutmut*9
+`payload.get("event_type","event") -> "EVENT"` — inside `_format_discord_payload`
+the default value reaches ONLY `.replace("*"," ").title()`(grep of event_type
+uses: f-string`_{event_type}_`is the teams/slack functions, discord's line
+:1003/:1038 is title-cased), and`"EVENT".title() == "event".title()` → no input
+distinguishes the pair. Cache-gen disclosure (S1-adjacent): current mutmut
+generation for webhook_service holds 42 keys/4 functions — dossier's 571
+survivors are the WP4.4-era generation; C2/C3 SQL-shape clusters follow in
+batch-15b via the batch-14 compiled-SQL vehicle against a re-generated feed.
+
+### S2 batch 14 — job_service query-shape battery: 205 shapes, 170 killed, 34 survivors triaged TEST-GAP, 1 unparseable (`/tmp/redcheck-js14.log`, lane run)
+
+Battery `backend/tests/unit/services/test_job_service_batch14.py` (13 tests,
+probe-measured shipped SQL/outputs; battery green re-measured 13 passed
+21:52 after post-red-check `autospec=True` conversion — WP4.2 fast-path hook
+context: `check-mock-spec.py --staged` flags convertible added-line sites
+regardless of registry, so the 3 sites converted with the repo's own
+autospec-sweep; tally below is PRE-conversion; `js14c` re-check armed in lane
+`/home/agent/lanes/job` against the shipped file re-measures it, serial behind
+the rs11b/cg13 convoy per the import-closure rule).
+
+Red-check `lane_js14.py` (worktree `/home/agent/lanes/job`, feed
+`/tmp/extracts/job_service.tsv` restricted to the 5 targeted DatabaseJobService
+methods), exit 21:42 with "source clean": **170 KILLED / 34 SURVIVED /
+1 DEFERRED-unparseable of 205 applied** (verdict lines verbatim in
+`/tmp/redcheck-js14.log`; TALLY line is the log's own last line — read from
+the exit file, not carried).
+
+All 34 survivors dumped against feed shapes and dispositioned: every one is
+TEST-GAP (no EQUIVALENTs found): `cleanup_old_jobs` 13 (cutoff microsecond
+floor m10, tz-aware cutoff m11, `deleted_count > 0` boundary m32/m33, log
+message + `extra={...}` payload renames/case-flips m34–m44 — none observable
+because batch-14 never runs the logger path with a real caplog or the µs≠0
+clock); `get_job_stats` 7 (`type_query` and `oldest_pending_query` compiled
+text never pinned — batch-14 pins the other five SQLs); `list_jobs` 12
+(default args limit=50/offset=0/sort/order never reach the SQL because every
+battery call passes explicit args; `scalar() or 0`→`or 1` total-fallback;
+invalid-sort fallback string; `select(Job)`→`select(None)` main-query text);
+`get_job_by_id` 1 (`select(Job)`→`select(None)` columns half unpinned).
+Kill battery `test_job_service_batch14b.py` in authoring (this session, background author); its red-check `js14b` follows the same lane contract;
+tallies land here only after exit.
+
+### S2 batch 17 — performance_collector collection battery: 105 KILLED / 9 documented-equivalent survivors, dossier-shape in-memory kill matrix (`/tmp/b17-killlog2.txt`)
+
+Battery `backend/tests/unit/services/test_performance_collector_batch17.py`
+(`ec9af869`; 1462 lines, 64 tests; probe-first: every literal measured via
+/tmp/b17-probe-{a..e}.py consolidated to /tmp/b17-probes.json; shipped-wins
+audit in module docstring — the dossier's `check_throttle_status` /
+`THROTTLE_*` / 200/500/1000 severity literals do NOT exist in this module;
+author verified production md5/mtime unchanged and refused to assert
+nonexistent behavior when handed an audit citing them — correct under the
+iron rule, recorded here so the record shows why no throttle pins exist).
+
+KILL MATRIX (honesty class: dossier-shape TEXT mutants exec'd into the live
+module dict — NOT the mutmut cache feed; this measures kill power against
+dossier clusters, not a re-bankable bank run): run 2 (`/tmp/b17-killlog2.txt`)
+**105 KILLED / 9 SURVIVED / 0 errors** of 114 shapes (run 1 had 1
+pattern-not-found error, fixed in run 2; C17 timeout=None-arg killed in run 2
+after the battery pinned the exact `Timeout(5.0)` kwarg). The 9 survivors are
+measured equivalences with evidence lines in the module docstring: C01
+logger-arg swap (nothing observes log records), C05 codec case, C07
+overwritten pre-assign, C08 round 1↔2dp on exact values, C10 debug-log-only
+counter, C15a timestamp default-equal, C17 kwarg-removal (httpx default IS
+Timeout(5.0), measured), C06a guard-normalized filler, C11 pg filler (un-
+applicable pattern in run 2). Cluster→test mapping in docstring; module-global
+`THRESHOLDS` exact-registry equality + autouse save/restore.
+
+NOT yet done (disclosed): standard contract red-check vs a /tmp/extracts/
+performance_collector.tsv feed (feed not extracted; the mutmut-generation
+census for this module not yet measured — S1-adjacent cache-gen question like
+webhook's). Battery is landed green (64 passed, ruff clean, 0 convertible
+patch sites); tally above stands as kill-matrix, not feed red-check, until
+the feed run exits.
+
+### S2 batch 13 — clip_generator battery red-check: 420 shapes, 340 KILLED / 80 SURVIVED (source clean) (`/tmp/redcheck-cg13.log`, lane run)
+
+Battery `backend/tests/unit/services/test_clip_generator_batch13.py`
+(`8f9181e9`; 28 tests; post-commit `autospec=True` conversion at 10 sites —
+WP4.2 fast-path context disclosed in the batch-15 row; battery re-measured
+28 passed after conversion). Red-check `lane_cg13.py` in worktree
+`/home/agent/lanes/clip` (feed `/tmp/extracts/clip_generator.tsv`, exit
+22:13 "source clean"): **340 KILLED / 80 SURVIVED / 0 deferred**.
+PRE-conversion tally; `cg13c` re-check on the shipped autospec-converted
+file armed behind the rs11b→js14c→wh15c→ec12b chain (import-closure rule),
+tally appends here after exit.
+
+Survivor dump against feed shapes — all 80, classified by hand off the
+per-shape dump (exact counts): **61 logger-arg/message shapes**
+(`logger.X(None)`, message case/XX flips, `' '.join`→`'XX XX'.join`,
+`exc_info=True` removal/None/False, and the
+`_validate_roll_seconds(x, None/XX/CASE)` label carriers whose label
+reaches shipped output only through the caught-exception log line) — the
+dossier's reason-1 class: the battery has no caplog observer; one caplog
+harness kills the class. **4 stderr-fallback text shapes**
+(`stderr.decode() if stderr else "Unknown error"` `or True` guard +
+case/XX variants — text surfaces in BOTH log and the returned
+ClipGenerationError, so killable via either observer). **15 structural
+shapes**: `x_get_clip_generator` singleton flip + `= None` (2);
+`str(path).startswith("-")` dashes-guard `str(None)`/`"XX-XX"`
+(images 2 + video 2); `_create_concat_file` `delete=False`→`delete=None`
+
+- quote-escape XX/None (3); `generate_clip_for_event`
+  `generate_clip_from_images(event, image_paths, fps=validated_fps)`
+  arg-clobber family (6). Kill battery batch-13b armed this session: caplog
+  harness for the 61+4 + plain asserts for the 15; its red-check `cg13b`
+  follows the same lane contract; no kill claims before measurement.
+
+### S2 batch 16 + 14b — nemotron_streaming request-shape battery (23) and job_service survivor-kill battery (17) (`561e86f5`)
+
+Battery `test_nemotron_streaming_batch16.py`: pins the dossier's request-build
+clusters — C1/C2 request+payload (exact six-key payload, temperature 0.3 /
+top_p 0.95 hardcoded, max_tokens carrier 1536→1536 / 2048→2048, stop-pair,
+`timeout=analyzer._timeout` identity, single AsyncClient construction),
+SSE-frame parsing (exact `"data: "` prefix only; malformed frames non-fatal;
+`[DONE]` breaks before later chunks; non-string truthy content yields —
+all MEASURED e2/e5 probes), C21/C22 sanitizer-return-into-`_build_prompt`
+chain, C9 camera WHERE (`cameras.id = 'test_camera'` literal_binds, no
+LIMIT), C10/C11 fetch + enrichment-cache call args (identity pins),
+C12 household dict list (four-key bbox guard), C14 detection-dicts
+(confidence-None filtered, object_type-None → "unknown"), C19 junction
+INSERT exact compiled string + params, LLMInteraction wiring (raw_response
+= accumulated text, snapshot/context-sources identity). 23 passed this
+session against pristine source. The agent-authored first draft's docstring
+claimed all 23 dossier clusters killed — FALSE at this size; corrected
+BEFORE commit to the clusters this file actually pins, error-path clusters
+(C6/C7/C8/C15–C18/C20) explicitly armed for batch-16b with their literals
+already measured in `/tmp/b16-probes.json`. No kill tallies claimed here;
+lane red-check pending (js14b2 armed; 16 harness next).
+
+Battery `test_job_service_batch14b.py`: targets the 34 survivors of the
+batch-14 red-check (170/34/1 of 205, row 031f51c2) via survivors-only feed
+`/tmp/extracts/job_service_survivors.tsv` (34 keys derived mechanically from
+`/tmp/lane-js14.out`). Gaps closed: `cleanup_old_jobs` log surface
+(caplog: zero-rowcount not logged, exact message + extra payload, no extra
+attrs), `get_job_stats` type/oldest-pending compiled SQL verbatim,
+`list_jobs` DEFAULT kwargs reaching rendered SQL + documented-signature
+contract, sort-fallback column. 17 passed this session. In-file
+equivalence disclosures kept (order-default SQL-blindness MEASURED
+identical SQL; microsecond-cutoff carrier) — signature pin, not a faked
+SQL. WP4.2 fast-path rc=0 on both files.
+
+### Row — batch-16b: nemotron_streaming ERROR-PATH battery (commit `07cf5805`)
+
+MEASURED this session: `test_nemotron_streaming_batch16b.py` — **20 tests, 20
+passed** (`uv run pytest … -q` → "20 passed in 14.56s", re-confirmed on the
+committed copy). Clusters pinned (all literals from my own `/tmp/b16-harness.py`
+probe runs consolidated in `/tmp/b16-probes.json` + `b16-probe-last2.json` +
+`b16-probe-wire.json`): C6 ERRMSG full-shape 4-key error dumps for every guard
+(INTERNAL_ERROR "Redis client not initialized" / BATCH_NOT_FOUND / both
+NO_DETECTIONS variants / int-cast ValueError message verbatim) and the three
+LLM-side error dumps; C7/C8 IDEMPOTENCY hit short-circuit (exact 6-key complete
+dict, ZERO writes, fetch never called) + the blank-fields OR-defaults which are
+**distinct literals** from the tail-path defaults ("No summary available" vs "No
+summary" — two mutant classes); C13-adjacent Redis-sourced id routing (enrich
+carries the REDIS camera_id, LLM carries the row's camera_name); C16/C17 parse
+fallbacks (empty-dict get-defaults vs ValueError fallback dict) + Event field
+defaults incl. `reviewed=False`; C15 tracking `has_data` gate (None vs identity
+`is er`); C20 BROADCAST survival (broadcast raises → stream still completes,
+Event arg asserted) + metrics args + `_set_idempotency("test_batch", 456)`.
+Full-shape asserts (exact dicts, exact key sets) where the shipped suite used
+substring/membership — key-mangling mutants on these dumps were previously
+un-pinned. Production NOT bent to any mutant; no kill tallies claimed here.
+**Red-check armed**: `/tmp/lane_ns16b.py` (derived from `lane_ns16.py`, same
+auth1 lane, same 533-key nemotron feed — battery md5-verified byte-identical in
+`/home/agent/lanes/auth1`), queued behind running ns16 via `/tmp/ns16b_seq.sh`
+which also re-runs ns16 on the post-ruff battery copy (ns16c). Tallies land in
+`/tmp/ns16b-stdout.log` / `/tmp/redcheck-ns16b.log` at exit. WP4.2 fast-path
+rc=0 on the file; ruff/format clean pre-commit.
+
+### Row — rs11b + js14c red-check tallies (measured from lane logs) + batch-18 battery
+
+MEASURED from the lane logs this session (`grep -c` on the log files cited):
+
+- **rs11b (batch-11 battery vs the full 854-mutant redis_streams feed)**:
+  `/tmp/redcheck-rs11b.log` — **481 KILLED / 373 SURVIVED / 854 total**
+  (battery md5 0206ca36-… verified byte-identical in the lane; "source clean"
+  recorded). Kill rate 56.3% of the widened-set redis_streams mutants.
+- **js14c (batch-14 battery vs job_service)**: `/tmp/redcheck-js14c.log` —
+  **170 KILLED / 34 SURVIVED / 204 total** ("source clean"). The 34 survivors
+  fed batch-14b (`test_job_service_batch14b.py`, shipped `561e86f5`, 17 tests
+  measured green); its re-check **js14b2** launched on the job lane this
+  session (feed = the 34 derived keys; battery md5 52b9bb66 verified in lane).
+- **batch-18 battery SHIPPED `3f3d175f`**:
+  `test_redis_streams_batch18.py` — **59 tests, 59 passed** — measured three
+  times this session (`uv run pytest -q -p no:randomly`: 17.80s / 17.18s /
+  18.01s). Targets the rs11b battery-only survivor set: mechanical literal
+  analysis of the 373 survivors against the shipped suites + batch-11
+  (`/tmp/rs18-gaps.tsv`) → 76 literal-bearing gaps = 73 batch-7-precedent
+  log-text/extra-key cluster (NOT asserted — disposition stays in the frozen
+  WP4.4 dossier) + **3 `record_pipeline_error` METRIC LABELS asserted**
+  (`stream_dlq_move`, `analysis_stream_dlq_move`, `analysis_stream_parse_error`
+  — alerting keys, not observability) + 59 literal-less call-arg/state/default
+  mutants (init stored state incl. `_group_created is False`;
+  `_ensure_consumer_group` xgroup_create shape/flag/BUSYGROUP/non-BUSYGROUP;
+  `should_move_to_dlq` boundary 2/3/4; add_detection EXACT fields dict with
+  patched clock; move_to_dlq DLQ dict + kwargs + ack args (both services);
+  trim_stream 6 default/arithmetic shapes; the three getters' mapping defaults
+  - no-such-key fallback incl. `.lower()` case-fold; claim_stale both sides
+    (custom claim_min_idle_ms forwarded positionally, pending dict/positional row
+    fallbacks, None-deleted skip, short/empty replies, error propagation);
+    acknowledge rc=0/1/2 truthiness + ANALYSIS xack args; add_batch fields;
+    both `from_stream_entry` families (float/ISO/garbage ts, Z→+00:00, raw_data
+    identity); consume parse-skip metric). Every literal MEASURED via
+    `/tmp/b18-harness.py` → `/tmp/b18-probes.json` (59 sections) +
+    `/tmp/b18-extra.py`. Production NOT bent to any mutant. **No kill tallies
+    claimed for batch-18** — those come only from the rs18 lane red-check
+    (`/tmp/lane_rs18.py`, idle redis lane, feed = the 373 rs11b survivors, log
+    `/tmp/redcheck-rs18.log`; source integrity restored first: both the job and
+    redis lanes carried leftover mutant text from the contaminated rs11/js14 runs
+    — `data.get("[]")` in redis_streams, `order="DESC"` in job_service — caught
+    by the source==HEAD guards and `git checkout`-restored, md5-verified).
+- **Lane-guard fix** (in `lane_rs18`/`lane_js14b2`/`lane_ns16b`): a `mutmut run`
+  now only conflicts when its `/proc/<pid>/cwd` lies INSIDE the lane tree. The
+  over-broad pgrep false-aborted js14b2 (rc=3) against the workspace S1
+  dispatcher run, which writes a DIFFERENT cache.
+
+### Row — S1 (M3 harness honesty) + S0 (frontend M1) probes LAUNCHED
+
+- **S1**: `mutmut run "backend.services.dispatcher*"` launched detached at
+  03:43:32Z (`/tmp/s1_run.sh`, workspace cache; whole-tree generation is the
+  one-time global cost — NOT killed this time). Script auto-asserts at exit:
+  non-empty `exit_code_by_key` in `mutants/backend/services/dispatcher.py.meta`
+  (result line appended to `/tmp/s1-run.log`). The 267 pre-existing metas all
+  had EMPTY `exit_code_by_key`; until this banks, S1 stays UNPROVEN.
+- **S0**: `npm run test:mutation` (stryker) launched detached 03:43:39Z in
+  `frontend/` (`/tmp/s0-fe.log`) to reproduce run 29. Stale committed
+  `frontend/reports/mutation/mutation.json` read at session start: 384 mutants,
+  Killed 203 / Survived 58 / NoCoverage 61 / CompileError 62 = (203+0)/384
+  killed+timeout over total ≈ **52.9%** by the badge formula — NOT yet a claim;
+  the fresh run must land first.
+
+### Row — batch-13b: logs `_log_frontend_entry` full-extra-dict battery
+
+- **Battery SHIPPED this row**: `backend/tests/unit/api/routes/test_logs_batch13b.py`
+  — **13 tests, 13 passed** — measured twice this session on consecutive
+  revisions (`23.29s` pre-format, `25.84s` on the committed ruff-format copy,
+  `-p no:randomly -p no:cacheprovider`). Targets the frozen WP4.4 dossier
+  `archive/wp25-feed/wp44-triage/logs.md` (61 survivor keys,
+  `logs_surv_keys.txt`; feed FROZEN per #6566 — no unfreezing, the dossier is
+  read as-is). Dossier disposition carried: 57 TEST-GAP killed here, 2
+  EQUIVALENT (C14 level-map default unreachable; C12 None-value admission
+  needs a >50-char key the loop filter already drops), 3 LOW-VALUE stay
+  (66/60/115 — 115's warning text pinned anyway), 8 SCHEMA-SHIELDED
+  (component/entry-UA/ctx-key/label caps equal their schema `max_length`, so
+  the sanitize cap is unreachable-via-API for those keys).
+- **What it pins** (every value MEASURED via `/tmp/b13b-harness.py` →
+  `/tmp/b13b-probes.json`, 16 sections; truncation suffix confirmed by a direct
+  `sanitize_log_value` probe — cap applied BEFORE the `...[truncated]` suffix):
+  the EXACT full `extra` dict (kills every key rename/case-rename and the
+  value→None swaps the substring-asserting shipped tests let through);
+  five-level map 10/20/30/40/50 verbatim; `unknown` component + `[frontend]`
+  label fallbacks; `datetime.now(UTC)` aware-ISO fallback pinned with
+  `assert_called_once_with(UTC)` (kills naive `now(None)`); url/header-UA 500
+  cap shapes (header path bypasses the 500 schema max — the only path where
+  the UA cap bites); entry-UA precedence over header (elif); ctx-value 1000
+  cap (1000 intact + suffix = 1014); 20-item cap k00..k19; key-length boundary
+  50-admits/51-drops; 10 KB budget equality (sum==10000 admits both, 10001
+  stores one) and break-not-continue (5x5003 stores 1); exception path returns
+  False with warning text `Failed to process frontend log entry: boom`.
+  Production NOT bent to any mutant.
+- **13b red-check DISPATCHED**: `/tmp/lane_logs13b.py` (derived from
+  `lane_rs18.py`; webhook lane, SRC=logs.py, TARGETS={x\_\_log_frontend_entry})
+  — feed = the FULL frozen dossier set converted from `logs_diffs_raw.txt`
+  (record format `KEY: <key>: survived`, single hunk, `@@@@@`-separated) →
+  `/tmp/extracts/logs.tsv` **61 keys, 61 converted**. DRY: `feed-targeted: 61
+assignable: 61 deferred: 0 unassignable: 0`. Battery md5 ec83f1bd verified
+  byte-identical in the lane; lane logs.py md5 739e05ba matches workspace.
+  Full run launched detached this session; log `/tmp/redcheck-logs13b.log`.
+  **No kill tally claimed for 13b** — that number comes only from the lane log
+  once the run exits "source clean".
+
+### Row — js14b2 red-check tally: batch-14b battery kills all 34 list/query survivors
+
+MEASURED from lane logs this session (`/tmp/redcheck-js14b2.log`,
+`/tmp/js14b2-stdout.log`, exit line `[js14b2] rc=0 2026-09-23T04:15:31Z`,
+"source clean"):
+
+- Feed = the 34 keys `js14c` left SURVIVING against the batch-14 battery
+  (`/tmp/extracts/job_service_survivors.tsv`, 34 lines), battery
+  `test_job_service_batch14b.py` (md5 52b9bb66 verified in the job lane).
+- Main run: **33 KILLED / 1 LOC-AMBIG(0<1)** — no SURVIVED verdicts. The one
+  LOC-AMBIG (`xǁDatabaseJobServiceǁlist_jobs__mutmut_8`,
+  `query = select(Job)` → `select(None)`) was an ASSIGNMENT miss (harness
+  located 0 occurrences of the shape inside the resolved scope at run time),
+  NOT a measured survival — no mutant was ever applied for that key, so it is
+  neither killed nor survived by the main run.
+- Dedicated clean re-measure of just that key this session
+  (`/tmp/lane_js14b2_recheck.py`, one-line feed, same lane/guards):
+  `keys: 1 applied: 1 tally: {'KILLED': 1}` — "source clean",
+  `/tmp/redcheck-js14b2-recheck.log`. Honest combined verdict: **34/34 of the
+  js14c survivor set killed by the batch-14b battery**, one key via a second
+  dedicated run. The assignment-miss mechanism was not reproducible on the
+  restored source (immediate DRY re-check: `assignable: 34 unassignable: 0`).
+
+### Row — S0/M1: FRESH frontend stryker run measured green this session
+
+`npm run test:mutation` (stryker, run launched 03:43:39Z, finished
+`[s0] rc=0 end 2026-09-23T04:23:30Z`, 39m41s — full fresh run, NOT the stale
+disk report). Measured from the fresh `frontend/reports/mutation/mutation.json`
+(untracked build artifact) via this session's parser:
+
+- 384 mutants total: **Killed 321 / Timeout 0 / Survived 1 / NoCoverage 0 /
+  CompileError 62**.
+- Stryker's own table agrees: All files covered score **99.69%**; per file
+  confidence.ts 53/53, risk.ts 62/62, time.ts 206/207 — 100/100/99.52%.
+- Badge formula reading (killed+timeout)/total = **321/384 = 83.59%**.
+- The session-start stale read (203/384 ≈ 52.9%) is SUPERSEDED: the M1
+  "frontend silently red" baseline is replaced by a fresh, green,
+  kill-verifying run — **killed=321 > 0, rc=0**, floor 63.04% cleared under
+  BOTH readings (covered 99.69%, badge-shape 83.59%).
+- The lone survivor is pinned: `src/utils/time.ts` line 25 (col 9–23),
+  EqualityOperator mutant on `if (durationMs < 0) return '0s'` — a real
+  behavior gap (negative-duration input), armed as the next FE kill target,
+  not hand-waved.
+- CompileError 62 unchanged from the stale report: those mutants fail to
+  compile (stryker excludes them from covered score); they stay visible in
+  the total-denominator reading above rather than being hidden.
+
+### Row — FE survivor id 169 disposition: EQUIVALENT (per-mutant justification)
+
+`src/utils/time.ts:25` EqualityOperator `durationMs < 0` → `durationMs <= 0`.
+The two predicates differ ONLY at `durationMs === 0`. Shipped at zero: falls
+through to `formatDurationValue(0)` → `seconds=0`, all magnitude branches
+zero → returns `` `0s` ``. Mutant at zero: early-returns `'0s'`. Identical
+observable output at the only distinguishing input, on every input; no test
+can kill it without asserting a difference that does not exist. Disposition:
+EQUIVALENT — justified, not skipped; the fresh 99.69% covered score already
+excludes it from the killable universe (covered 321/322 with this one
+surviving as the sole non-killed covered mutant). No test authored; no
+production change. FE batch-1 therefore has NOTHING left to kill in the
+killable set.
+
+### Row — wh15c re-arm: guard false-abort fixed + serialized behind logs13b
+
+- The prior wh15c attempt logged `ABORT: a mutmut run is active` — the SAME
+  over-broad pgrep guard already fixed for rs18/js14b2/ns16b: it matched the
+  workspace S1 dispatcher run, a DIFFERENT cache. `lane_wh15c.py` now carries
+  the cwd-inside-ROOT check (syntax-verified).
+- Serialization: wh15c and the live logs13b run BOTH mutate the webhook-lane
+  tree (`/home/agent/lanes/webhook`) and `webhook_service` imports `logs.py`
+  (route module) — a held logs.py mutation would poison wh15c verdicts (the
+  dangerous false-KILLED direction). Per the import-chain rule, wh15c is now
+  QUEUED behind logs13b via `/tmp/wh15c_seq.sh` (pgrep-gated on the
+  lane_logs13b literal with bracket self-exclusion, then 15s settle). Its
+  TARGETS = the three format functions, feed = webhook_arch15.tsv (the 77
+  wh15 shapes) against the post-autospec-conversion battery md5
+  d4fd2b85 (verified lane == workspace).
+
+### Row — current-generation webhook cache reality + whserv re-check armed
+
+- The mutmut 3.x cache here is DIFF-SCOPED: `mutants/backend/services/
+webhook_service.py.meta` holds 42 mutant keys across exactly 4 functions
+  (`get_webhook_service` 2, `trigger_webhook_background` 9,
+  `WebhookService.__init__` 1, `trigger_webhooks_for_event` 30) — all with
+  `None` verdicts so far (never executed). The WP4.4 dossier's 571 survivors
+  are the WP4.4-era generation; the badge denominator tracks THIS cache, so
+  the highest-leverage webhook battery targets these 42, not the archive.
+- **whserv re-check armed**: `/tmp/lane_whserv.py` (webhook lane, feed = the
+  42 current-gen shapes `/tmp/extracts/webhook_service.tsv`, battery = the
+  UNION `test_webhook_service.py` + `test_webhook_service_batch15.py` — the
+  shipped suites already cover parts of these functions; per-mutant triage
+  only after measured survivors exist, no pre-authored tests). DRY:
+  `feed-targeted: 42 assignable: 42 deferred: 0 unassignable: 0`; lane
+  webhook_service.py md5 e7f631c7 == workspace. Queued via
+  `/tmp/whserv_seq.sh` behind BOTH logs13b and wh15c (all three mutate the
+  same webhook-lane tree; import closure webhook_service→logs.py).
+- Batch-15b (new battery) is deliberately NOT authored yet: TDD order —
+  whserv first tells which of the 42 are already killed by the shipped
+  suites; only measured survivors become tests, aligned to the SHIPPED
+  contract.
+
+### Row — S1 probe CORRECTED: first dispatch targeted a non-existent module; re-armed on a real one
+
+- **Error disclosed**: the S1 probe launched 03:43:32Z ran
+  `mutmut run "backend.services.dispatcher*"` — `backend/services/
+dispatcher.py` does NOT exist in git, the working tree, or the 267-module
+  WP4.3 target list (verified this session: `git ls-files`,
+  `find backend -name '*dispatch*'`, `mutation-score.py --targets`). The run
+  spent 45+ min in mutmut's whole-tree "Listing all tests" incremental
+  pre-step and would have executed ZERO mutants (fnmatch matches nothing)
+  with its assert failing at exit. Killed at ~04:52Z; zero mutants executed;
+  source untouched.
+- **S1's banking proof predates this session and stays valid**: Run 7
+  (prompt_sanitizer, `./scripts/mutation-run.sh prompt_sanitizer`, rc=0,
+  ledger row at commit `a072dc1e`) banked **18/18 verdicts**
+  (15×exit-code-1 killed + 3×0 survived → module score 83.33%). THIS session
+  re-read that meta: still 18/18 banked (mtime 03:53Z — today's whole-tree
+  regen PRESERVED the verdicts via mutmut's per-function hash gate, which is
+  itself banking-contract evidence), and 267 metas / exactly 1 banked meta
+  across `mutants/backend/**` matches the run-7 row's "267 metas … 18
+  non-null" cache-wide scan verbatim.
+- **S1b re-armed** on a REAL widened-set module: `mutmut run "backend.
+services.credential_service*"` (backend/services/credential_service.py,
+  cache meta holds 14 keys, `test_credential_service.py` shipped; smallest
+  real candidates household_matcher/service_registry carry 0 keys —
+  mutation-run.sh-style zero-mutant modules). Detached `/tmp/s1_run2.sh`,
+  auto-asserts non-empty banked verdicts at exit → `/tmp/s1-run2.log`.
+  A second module banking at THIS session's commit is belt-and-braces
+  evidence; the goal clause stays PROVEN by run 7 regardless.
+
+### Row — 13b red-check RECONCILES with the frozen dossier; key 83 was MY gap, now killed
+
+- First 13b lane run finished `[logs13b] rc=0 2026-09-23T04:37:41Z`,
+  "source clean": `/tmp/redcheck-logs13b.log` = **50 KILLED / 11 SURVIVED**
+  of 61. Survivor keys: 13, 14, 31, 32, 75, 76, 83, 90, 92, 103, 107.
+  **10 of the 11 are EXACTLY the dossier's non-TEST-GAP residual set** — the
+  8 SCHEMA-SHIELDED (13/14 component cap vs schema ≤100; 31/32 entry-UA vs
+  schema ≤500; 75/76 ctx-key cap vs the >50 loop filter; 103/107 label cap vs
+  component ≤100) + the 2 EQUIVALENT (90, 92: `_LOG_LEVEL_MAP` default
+  unreachable for enum values). Independent lane measurement CONFIRMS the
+  frozen dossier's classification to the key.
+- Key **83 (`context_size = item_size`, accumulator→reset) was a real gap in
+  MY battery, not a dossier error**: with uniform-size items the FIRST
+  comparison is identical under add-accumulate and reset (0+item == item), so
+  the old uniform-5003 test could never diverge — simulation: shipped stores
+  1, reset stores 1, `-= ` stores 5. Kill requires NON-uniform items:
+  measured shipped on 4×4000-byte items stores EXACTLY [k000, k001]
+  (4000→8000→12000>10000 breaks at the third), while reset and `-= item`
+  would store all 4. New `test_budget_accumulates_not_resets` pins that
+  measured shape (`ctx_k000, ctx_k001`); battery re-measured **14 passed,
+  20.21s**, ruff clean; v2 battery md5 33664f41 synced byte-identical to the
+  lane.
+- **logs13b2 re-check queued** (`/tmp/logs13b_seq.sh`) — full 61-key feed vs
+  the v2 battery, serialized on the webhook lane behind whserv AND wh15c2.
+  Expected honest outcome when it exits: 51 KILLED / 10 survivors all
+  per-dossier (8 schema-shielded + 2 equivalent).
+
+### Row — wh15c rc=4 = baseline-guard HONEST abort under sequencer race; wh15c2 re-armed
+
+- wh15c woke from the 15s settle at the SAME moment as whserv (both seq
+  scripts keyed on logs13b's exit). whserv applied a `get_webhook_service`
+  shape; wh15c's baseline pytest imported webhook_service.py mid-mutation and
+  correctly saw 2 failures (`test_get_webhook_service_singleton_roundtrip`,
+  `…_reuses_preexisting_holder_instance` — exactly the tests covering the
+  mutated function). Baseline guard ABORTED rc=4 before touching the log:
+  ZERO verdicts written, direction safe (an abort, not a false KILLED — the
+  race could not fake a kill because the failing-baseline path exits before
+  any apply). The entry-time source==HEAD guard cannot catch this class: it
+  is a point-in-time check and the concurrent writer flits the file.
+- Fix = strict queue: `/tmp/wh15c_seq2.sh` gates on the ENTIRE whserv chain
+  (lane process + wrapper, bracketed self-excluding patterns), then settle,
+  then run (log `/tmp/wh15c2-stdout.log`). whserv itself DRY-verified 42/42
+  assignable before its queue fired.
+
+### Row — cg13c CONFIRMATION: post-autospec battery re-measures the SAME 340/80
+
+`/tmp/redcheck-cg13c.log` (exit "source clean", clip lane): **340 KILLED /
+80 SURVIVED / 420 total** — bit-for-bit the pre-conversion `cg13` tally from
+the batch-13 row. The autospec=True conversion changed no verdict, exactly
+as a conversion-only edit must not. The 80 survivors keep their existing
+per-shape dossier-classified disposition (61 logger-arg/message shapes + the
+rest, itemized in the batch-13 row); cg13b's battery covers the killable
+subset and its re-check stays armed.
+
+### Row — whserv first pass: 19/42 current-gen webhook keys already killed by shipped+batch15; 23 feed batch-15b
+
+`/tmp/redcheck-whserv.log` (`[whserv] rc=0 2026-09-23T04:51:27Z`, "source
+clean", webhook lane): **19 KILLED / 23 SURVIVED** of the 42 CURRENT-cache
+keys. Survivors: `__init___1` + 22 `trigger_webhooks_for_event` keys (2,3,4,
+8–21,25,26,28–30). Triaged against MEASURED shipped behavior
+(`/tmp/b15b-harness.py` → `/tmp/b15b-probes.json`, `/tmp/b15b-sql.json`):
+
+- **SQL-shape family (12–21, 11 keys): TEST-GAP** — shipped suites never
+  COMPILE the trigger query, so text-level mutants inside it were invisible.
+  Every shape MEASURED: `select(None)` builds `SELECT NULL AS anon_1`;
+  `and_(None, any)` → `NULL AND 'alert_fired' = ANY (…)`; dropped clauses lose
+  their conjunct; `is_(None)/is_(False)` → `IS NULL`/`IS false`;
+  `any(None)` → `NULL = ANY (…)`; all fail the full-shape text pin
+  (`enabled IS true` AND `'alert_fired' = ANY (…)`, batch-14's compiled-SQL
+  vehicle).
+- **ternary family 2/4/10: TEST-GAP, killed by enum+plain-str pins** —
+  `WebhookEventType` is a `StrEnum` (MEASURED mro
+  `WebhookEventType→StrEnum→str→ReprEnum`; `str(e) == e.value` True), so the
+  ternary only diverges for plain-str inputs: shipped emits `'motion' = ANY`
+  for "motion"; key 2 (`value = None`) and key 4 (`hasattr(event_type, None)`
+  → TypeError) and key 10 (`else str(None)` → "None") all fail the pinned
+  text.
+- **ternary family 3/8/9: EQUIVALENT per-mutant** — `hasattr(None,"value")`
+  and the "XXvalueXX"/"VALUE" spellings all fall through to
+  `str(event_type)`, which MEASURED equals `event_type.value` on every enum
+  input and IS the shipped branch for str inputs. No distinguishing input
+  exists; documented, no test admissible.
+- **debug-log family 25/26/28/29/30: TEST-GAP** — exact message strings and
+  the `extra` KEY (`event_type`, `webhook_count`) pinned.
+- **`__init___1`: TEST-GAP** — stored-client identity.
+
+Kill battery authored this session: `test_webhook_service_batch15b.py` —
+**5 tests, 5 passed, 13.86s measured** (ruff clean; every expected string
+copy-pasted from the probes, production not bent). Its red-check `whserv2`
+(42 keys vs shipped ∪ batch15 ∪ batch15b, lane webhook, md5 da259d95 synced)
+is QUEUED in the single serialized webhook-lane chain `/tmp/wl_chain.sh`
+behind the live wh15c run, followed by logs13b2 — one writer at a time,
+which is the fix for the wh15c rc=4 race (two independent seq scripts keyed
+on the same exit predicate; a single chain script removes the class).
+Expected honest whserv2 outcome at exit: 39 KILLED / 3 SURVIVED-EQUIVALENT (keys 3/8/9) —
+corrected from "40" the same session: 19 previously killed + 20 newly covered = 39;
+42 keys − 3 equivalents = 39, and 40+3=43 ≠ 42.
+
+### Row — whserv red-check lands 19/23 (rc=0) + honest correction: ns16/ec12b were never vanished, and my lane-residue cleanup hit two LIVE harnesses (≤1-key false-SURVIVED risk; per-key re-measure armed)
+
+**Measured this session.** `whserv` (42-key CURRENT-generation webhook feed vs
+shipped suites, lane webhook) exited rc=0 at 04:51:27Z;
+`/tmp/redcheck-whserv.log` re-counted with `uniq -c` this session: **19 KILLED /
+23 SURVIVED** — exactly the numbers the batch-15b triage row was authored
+against. The 23 survivors are the per-mutant-dispositioned set (20 killed-by-
+batch-15b battery expected at whserv2, 3 EQUIVALENT keys 3/8/9 documented);
+whserv2 + logs13b2 remain queued in `/tmp/wl_chain.sh` behind the live wh15c
+run (PID 725941, started 04:52:17Z).
+
+**Correction — the "vanished ns16/ec12b" reading was my measurement-method
+error.** `pgrep -af … | head -20` was truncated by the ~20 S1b mutmut child
+lines, so I recorded two ALIVE harnesses as gone: `lane_ec12b` (PID 3778754,
+live since 03:04:10Z, enrich lane, 2567-key batch-12b red-check) and
+`lane_ns16` (PID 4125013, live since 03:35:31Z, auth1 lane, 533-key batch-16
+red-check) — their stdout logs are empty because the harnesses buffer until
+exit (by design), and empty stdout ≠ dead.
+
+**Consequence — my 05:06:40Z "residue" cleanup violated never-interfere.**
+Reading the dirty `nemotron_streaming.py` (`"XXsummaryXX"` key-rename) and
+`enrichment_client.py` (`XX…[ALERT…]XX` string-wrap) as killed-harness residue,
+I `git checkout`-ed both — but they were IN-FLIGHT mutations of the two live
+harnesses. Impact bound: each harness restores from its own in-memory saved
+copy after every application, so an external restore mid-cycle can only make
+the CURRENT shape's tests see clean source → at most ONE key per harness could
+be falsely reported SURVIVED (the under-claim, safe-for-honesty direction; the
+dangerous false-KILLED direction is impossible — a restored-clean file can
+never make a test fail). Remediation armed: before ANY ns16/ec12b tally is
+rowed, every key reported SURVIVED in their logs gets an independent one-key
+re-measure (js14b2-recheck vehicle) and only re-measure-confirmed survivors are
+rowed. The two harnesses keep running — killing them would destroy 2h+ of
+verdicts and the per-key re-measure fully covers the contamination.
+
+**Also this session:** my fresh ns16/ec12b launchers (armed on the false
+vanished-premise) self-aborted rc=2 at the `source != git HEAD` entry guard —
+the live harness's in-flight mutation was correctly detected — so no
+double-writer ever applied to those lanes; the abort text mislabels the file
+(stale "redis_streams.py" template strings in lane_whserv2.py/lane_ec12b.py —
+logged for the rewrite, comparisons themselves are correct). The FE test file
+flagged as "deleted/untracked" was a cwd error on my side (ls from inside
+frontend/): `time-relative.test.ts` is tracked in HEAD (`6eb017bd`) and present
+on disk (mtime 20:41:03Z, md5 193f6ab7) — no data loss, no action.
+
+### Row — wh15c2 lands 76/1 (rc=0) and whserv2 lands 37/5 (rc=0): my 39/3 expectation was wrong on four counts — batch-15c authored against the five true gaps (duck-.value binding, SELECT-head pin, discord default title)
+
+**Both tallies MEASURED from the authoritative logs this session**
+(`uniq -c` re-count; both runs rc=0 "source clean"):
+
+- **wh15c2** (77-key batch-15-era feed vs batch-15 battery, `/tmp/redcheck-wh15c.log`,
+  05:12:50Z): **76 KILLED / 1 SURVIVED**. Lone survivor
+  `_format_discord_payload__mutmut_9` (`payload.get("event_type", "event")` →
+  `"EVENT"`): the default only surfaces in the embed title
+  (`"event".title() == "Event"`) — a genuine battery gap, not equivalent.
+- **whserv2** (42 CURRENT-cache keys vs shipped ∪ 15 ∪ 15b,
+  `/tmp/redcheck-whserv2.log`, 05:24:25Z): **37 KILLED / 5 SURVIVED** —
+  documented expectation was 39/3; both the expectation AND parts of the
+  15b per-mutant triage were wrong, corrected against the full feed shapes
+  re-dumped from `/tmp/extracts/webhook_service.tsv`:
+  - key 2 is `and False` and key 4 is `hasattr(None, "value")` — NOT the
+    `= None`/TypeError shapes the 15b docstring claimed. Both always take
+    `str(event_type)`: equivalent for str-subclass enums and plain strings
+    (correctly measured) but DIVERGENT on a non-str input carrying `.value`
+    with `str(obj) != obj.value` — shipped binds `'custom_duck'`, mutants
+    bind `'DUCK'` (MEASURED duck probe `/tmp/b15c-duck.py`).
+  - keys 8/9 (attr spellings) diverge on the same duck input via the same
+    mechanism — killable, not blanket-equivalent.
+  - key 3 (`or True`) is NOT equivalent: forced `.value` raises AttributeError
+    on plain-str input (measured) — and it died accordingly in whserv2,
+    which is what exposed my wrong claim.
+  - key 14 `select(None)` → `SELECT NULL AS anon_1` leaves the WHERE clause
+    intact — the 15b test's `sql.split("WHERE")[1]` assert is structurally
+    blind to it (assert-placement gap, feed shape verified).
+
+**batch-15c authored TDD against exactly these gaps**: 4 tests,
+**4 passed, 11.53s measured** (plus 15b re-run green: 9/9 combined, 20.35s;
+every pin copy-pasted from `/tmp/b15c-probes.json` + duck probe — shipped
+duck WHERE `'custom_duck' = ANY`, MEASURED 18-column SELECT head, discord
+titles "Event"/"Alert Fired" verbatim). 15b docstring carries the superseding
+addendum; production not bent to any mutant. No kill tallies claimed for
+15c — verification runs **whserv3** (42 keys vs shipped+15+15b+15c) and
+**wh15d** (77 keys vs batch-15+15c) are DRY-verified (42/42, 77/77
+assignable) and armed in `/tmp/wl_chain2.sh` behind the live logs13b2 run.
+Expected honest outcomes at exit: whserv3 41 KILLED / 1 EQUIVALENT-or-gap,
+wh15d 77/0 — expectations, not claims; actuals row when the logs land.
+
+### Row — logs13b2 lands 51/10 (v3 key-83 fix confirmed, residual set = dossier EXACTLY), ec12b lands 542/2 (both survivors re-measured under clean source — true gaps or contamination artifact, verdict at recheck exit), rs18 lands 156/217 (batch-18 vs 373-key survivor feed; triage pending)
+
+All three MEASURED from authoritative logs this session, all rc=0 "source
+clean":
+
+- **logs13b2** (`/tmp/redcheck-logs13b.log`, v3 battery incl.
+  `test_budget_accumulates_not_resets`, 05:39:18Z): **51 KILLED / 10 SURVIVED**
+  — exactly the documented expectation. Survivor keys
+  {13,14,31,32,75,76,90,92,103,107} = the dossier residual set minus key 83;
+  **83 is now KILLED** by the non-uniform-size pin (the fix row's design:
+  4×4000-byte items → shipped stores k000+k001, reset/accumulate-store-all
+  mutants store 4) — measured, not expected. The 10 standing survivors are
+  the 8 SCHEMA-SHIELDED + 2 dossier-EQUIVALENT (both dispositions documented
+  per-mutant in the 13b battery docstring and the frozen WP4.4 dossier).
+- **ec12b** (2567-key enrichment feed vs batch-12+12b battery,
+  `/tmp/redcheck-ec12b-lane.log`): **542 KILLED / 2 SURVIVED**
+  (`UnifiedClothingResultǁto_context_string__4` = `if self.categories` →
+  `or True` — on empty categories shipped yields `{}`, mutant raises
+  IndexError → KILLABLE GAP; `UnifiedPoseResultǁto_context_string__5` =
+  ALERT-string CAPS-flip — killable if the battery pins the string exact).
+  Both are ALSO the two keys my erroneous mid-run restore could have
+  false-SURVIVED, so both get the one-key re-measure (armed
+  `/tmp/lane_ec12b_recheck.py`, cwd-narrowed guard patch after two
+  self-match rc=3s — the launcher's own `bash -c` cmdline contained the
+  guard's literal; fixed by launching via script-file). Recheck outcome
+  rows separately; if re-measure says SURVIVED, batch-12c authored TDD.
+- **rs18** (373-key `redis_streams_survivors.tsv` feed vs 59-test batch-18
+  battery, `/tmp/redcheck-rs18.log`): **156 KILLED / 217 SURVIVED** —
+  clusters: claim_stale_messages 44, add_detection 24, \_ensure_consumer_group
+  34, trim_stream 23, consume_detections 21, move_to_dlq 16, acknowledge 14,
+  add_batch 14, get_stream_info 7, from_stream_entry 8, + misc. Per-mutant
+  triage (gap → TDD vs equivalent → justification) is the open batch-18
+  work; NO disposition is claimed before it runs. Feed note: this is the
+  WP4.4-era survivor feed; a current-gen cache re-measure of redis_streams
+  may renumber (S1-adjacent, logged not claimed).
+
+Also measured: an **auth2-lane `mutmut run performance_collector`** (PID
+1061606, started 05:24:05Z via `watch_e.sh → timeout 21600 scripts/
+mutation-run.sh performance_collector`) is the batch-17 cache-generation job
+the batch-17 row's "NOT yet done" disclosure armed — feed extraction becomes
+possible when it banks; untouched, not mine to disturb.
+
+### Row — ec12b survivor re-measure lands 1 KILLED / 1 SURVIVED (rc=0): pose**5 was a FALSE-SURVIVED from my mid-run restore (contamination remediation validated); clothing**4 honestly survives and is EQUIVALENT — correcting the same-session row's "killable-shape" claim
+
+Measured `/tmp/redcheck-ec12b-recheck.log` (05:51:44Z, source clean, rc=0):
+`UnifiedPoseResultǁto_context_string__5` (ALERT caps-flip) → **KILLED** — the
+batch-12 battery DOES pin that string (line 414 asserts the exact ALERT
+line); its appearance as SURVIVED in the main run was precisely the ≤1-key
+false-SURVIVED my erroneous `git checkout` of the live harness's in-flight
+mutation could cause. The armed one-key re-measure caught it — the
+remediation design worked on a real case, not just theory.
+
+`UnifiedClothingResultǁto_context_string__4` (`if self.categories` →
+`or True`) → **SURVIVED again under clean source, and it is EQUIVALENT, not
+"killable-shape" as the previous row claimed (correction)**: shipped is
+`if not self.categories: return "Clothing: No classification available"`
+then `top = self.categories[0] if self.categories else {}` — the `else {}`
+branch is DEAD CODE (only reached when the guard already returned), so the
+mutant can never diverge: falsy `categories` never reach the line; truthy
+`categories` make `c or True` return `c` (identity for truthy operands), so
+`top` is the same object. Verified by exhaustive-reachability argument +
+input battery incl. a custom-`__bool__` truthy container (guard and ternary
+consult the same attribute's truthiness in the same call order — no flip).
+No test admissible (no input distinguishes shipped from mutant); per-mutant
+justification here stands in for a test. Batch-12 coverage of the reachable
+paths already exists (`[]` → "No classification available", `[{}]` →
+"unknown (confidence: 0%)", full-dict → "hoodie (confidence: 90%)", battery
+lines 457–463).
+
+Chain note: whserv3 dispatch stalled 19 min because wl_chain2's launcher
+`bash -c` wrapper carried the script text in its cmdline and matched the
+chain's own `[w]l_chain\.sh` gate — third instance of the self-match class
+(gate regexes must exclude the LAUNCHER cmdline too, not just the checker's;
+fixed by killing the already-dead wrapper; future chains launch via
+script-file like run_ec12b_recheck.sh).
+
+### Row — S1 PROVEN end-to-end on credential_service (S1b: 14/14 verdicts banked to the meta, rc=0) + ns16 lands 230/303 (rc=0; re-measure gate armed) + auth1 rc=4 was another double-launch race
+
+**S1b MEASURED this session** (`/tmp/s1-run2.log`, mutmut run rc=0
+04:43:29Z→05:48:48Z, `backend.services.credential_service*`):
+`mutants/backend/services/credential_service.py.meta` now carries
+**14 keys / 14 non-None verdicts** — re-read from disk this session:
+`{exit 1: 12, exit 0: 2}` (12 killed, 2 survived-to-be-triaged), with the
+wrapper's own `[s1b] S1 PROVEN: verdicts banked to the meta` assert line.
+Combined with the run-7 prompt_sanitizer 18/18 (survived whole-tree regen
+via the per-function hash gate), S1's "one small module end-to-end proving
+verdicts bank to mutants/\*.py.meta" is now satisfied TWICE, on two modules,
+both measured by me this session. mutmut 3.8 cache health: CONFIRMED honest.
+
+**ns16** (533-key batch-16 nemotron feed vs batch-16 battery,
+`/tmp/redcheck-ns16.log`, 05:51:13Z rc=0 "source clean"): **230 KILLED /
+303 SURVIVED**. Re-measure gate armed (my erroneous mid-run restore could
+have false-SURVIVED ≤1 key): `/tmp/ns16_chain.sh` → ns16b (running, real
+battery green: 20 passed measured in workspace) → ns16 + ns16b survivor
+rechecks. No survivor disposition is rowable until the rechecks re-measure
+each SURVIVED key one-by-one; triage of the 303 (gap→TDD vs equivalent)
+is the open batch-16c work after that.
+
+**Race disclosure**: the FIRST ns16b attempt aborted rc=4 "baseline battery
+not green" because legacy `ns16b_seq.sh` and my `/tmp/ns16_chain.sh` both
+dispatched ns16b within the same window — writer #2's baseline pytest read
+writer #1's in-flight mutation (20 failed). Writer #1 was then killed in the
+crossfire; the chain's second dispatch is LIVE now (lane source dirty = its
+own in-flight apply, md5 7239371 ≠ HEAD 1fc852e; battery verified green in
+workspace first). Same class as the wh15c rc=4 earlier — one sequencer per
+lane, and legacy seq scripts must be killed when a chain replaces them
+(`ns16b_seq.sh` still alive as of this row; its dispatch slots will safe-
+abort at the source!=HEAD guard while the chain's writer is mid-apply, so it
+cannot poison verdicts — only burn a slot).
+
+### Row — whserv3 lands 42/0 (rc=0, PERFECT sweep — my "41 KILLED / 1 EQUIVALENT-or-gap" expectation was wrong: zero survivors, so nothing to triage) + batch-19b/19c redis_streams batteries shipped (27 green measured) and rs19b dispatched vs the 217 rs18 survivors
+
+**whserv3 MEASURED this session** (`/tmp/redcheck-whserv3.log`, rc=0
+06:03:15Z "source clean"; stdout: `keys: 42 applied: 42 tally:
+{'KILLED': 42}`): **42 KILLED / 0 SURVIVED** — the 42 CURRENT-cache
+webhook_service keys against shipped + batch-15 + 15b + 15c. The previous
+row's documented expectation was "whserv3 41 KILLED / 1
+EQUIVALENT-or-gap"; the actual is 42/0 — the expectation over-counted by
+one because the five whserv2 survivors {2,4,8,9,14} ALL died to batch-15c
+(duck-`.value` binding pin + full 18-column SELECT-head prefix pin) and no
+key needed an EQUIVALENT disposition at this generation. Expectation vs
+actual, corrected here, not quietly re-stated. webhook_service current-gen:
+fully killed — the whserv lineage closes at whserv3 with nothing left to
+triage. (wh15d — the batch-15-era 77-key feed vs the full battery set — is
+LIVE now via wl_chain2; its documented expectation was 77/0, actual rows
+when the log lands.)
+
+**Batch-19 authored (redis_streams, target = the 217 rs18 survivors).**
+Two batteries, every expected value MEASURED against shipped production
+this session via `/tmp/b19-harness.py` (→ `/tmp/b19-probes.json`);
+production NOT bent to any mutant:
+
+- `test_redis_streams_batch19b.py` — **21 tests, MEASURED green**
+  (combined run 27 passed 9.63s). Raise-message exact-text pins (10
+  detection + 1 move_to_dlq + 6 analysis `Redis client not connected`
+  guard sites, 3 add_detection required-field ValueErrors), log
+  message-arg + `extra`-dict EXACT pins (incl. the analysis BUSYGROUP
+  debug call shipping WITHOUT the `extra` kwarg at all — `sorted(kwargs)
+== []`, measured — and NO-CALL silence pins where shipped stays quiet:
+  ack result==0 and trim removed==0, which kill the `>= 0` boundary
+  mutants), parse-fail WARNING text+extra verbatim, and two claim-loop
+  shapes (None-data-first CONTINUES → `[5-1]` count pin kills a `break`
+  mutant; a 3-tuple entry unpacks under `entry[:2]` — the `[:3]` mutant
+  raises on the same input).
+- `test_redis_streams_batch19c.py` — **6 tests, MEASURED green**. The
+  structural survivors the shape class doesn't reach: `trim_stream`
+  `info.get("length", 0)` default mutants on the current_length line
+  (`[{}, {"length": -5}]` → shipped ret 5, mutant TypeErrors inside
+  `max()` → swallowed → ret 0; the mock-only negative length is the only
+  input class where the 0-default is observable), the except-branch
+  `current_length = 0` mutant (first `xinfo` raises → ret 5), the
+  `removed > 1` mutant (shipped logs at removed==1), and the
+  `replace("Z","+00:00")` vs `replace("z",…)` pin — **MEASURED on 3.14:
+  `fromisoformat` rejects the lowercase `z`**, so shipped yields None for
+  `…03:04:05z` and 1704164645.0 for the `Z` form.
+  Its docstring carries the per-mutant EQUIVALENT dispositions from the
+  census (falsy timestamp/detection_ids defaults binding the same branch,
+  except-branch `new_length` reads that are never observable, the guard-
+  suppressed `first-entry [""]` default, the `delivery_count=1` kwarg
+  REMOVAL which is default-identity, and the `str(value)` cast `or True`
+  identity) — justified per-mutant, not blanket-skipped.
+
+Commit `1fad9402` (pushed); md5-synced into the redis lane tree
+(19b `a9c0f9b5…`, 19c `a88117b4…`). The WP4.2 ratchet initially failed the
+commit on 25 unspecced `patch.object` sites — all now carry
+`autospec=True`, re-measured green (27 passed 9.63s), ratchet Passed.
+
+**rs19b dispatched** (`/tmp/rs19_chain.sh` → `/tmp/lane_rs19b.py`, redis
+lane, PID 1425823 at dispatch): 217 rs18-survivor keys (survivor feed
+`/tmp/rs19-surv-feed.tsv`, generated by `/tmp/make_recheck.py` — 217 keys,
+0 missing from feed) vs the batch-19b battery. DRY MEASURED: 217
+feed-targeted / 217 assignable / 0 deferred / 0 unassignable, rc=0 (its
+baseline-green check also re-confirms 19b green inside the lane). The
+chain then regenerates from the rs19b log and runs rs19c (19b+19c battery)
+against only rs19b's survivors; `NO-SURVIVORS` (rc=7) ends the chain as a
+success. Serialization holds: rs19b/rs19c own the redis lane tree and no
+other source-mutating job touches it (ns16b→auth1, wh15d→webhook,
+batch-17 cache-gen→auth2). No kill tally claimed here — actuals come only
+from `/tmp/redcheck-rs19{b,c}.log` at exit.
+
+### Row — wh15d lands 76/1 (rc=0): the lone survivor is discord-default key 9 AGAIN, and my batch-15c claim it was "killed by the titles pin" was WRONG — MEASURED this session it is EQUIVALENT (default literal consumed only through case-normalizing `.title()`), corrected per-mutant here
+
+**wh15d MEASURED this session** (`/tmp/redcheck-wh15d.log`, rc=0
+06:16:48Z "source clean"; stdout `keys: 77 applied: 77 tally: {'KILLED':
+76, 'SURVIVED': 1}`): the batch-15-era 77-key webhook_service feed vs
+shipped + batch-15 + 15b + 15c. Documented expectation was 77/0; actual
+**76 KILLED / 1 SURVIVED** — corrected here, not restated.
+
+**The survivor, per-mutant (final disposition): EQUIVALENT.**
+`_format_discord_payload__mutmut_9` swaps the default
+`payload.get("event_type", "event")` -> `"EVENT"`. My batch-15c note said
+this was "Killed by pinning the MEASURED shipped titles (absent
+event*type -> title Event)". That is FALSE, discovered by measurement this
+session: the default literal is consumed **only** through
+`event_type.replace("*", " ").title()`— and`"EVENT".replace("_", " ").
+title() == "Event" == "event".replace("_", " ").title()` (probe run:
+present-`"event"`input -> title "Event"; absent-key default path identical
+under both literals;`"event".title() == "EVENT".title()`). For an ABSENT
+key the shipped default yields "Event" and the mutant's default yields
+"Event" — same embed; for a PRESENT key the default is never read at all.
+No input in the function's domain separates them (no underscore to
+re-split, `.title()`erases the only difference, and the raw string is
+never surfaced in the discord output — unlike`\_format_teams_payload`,
+which DOES surface raw `event_type`in`summary` and has no such survivor).
+So wh15c2's 76/1 and wh15d's 76/1 are the same honest truth: the kill was
+never there to make. The 15c titles pin stays in the suite — it pins the
+shipped contract — but the row's earlier claim that it killed key 9 is
+retracted.
+
+**Webhook lineage CLOSED.** Current-generation denominator: whserv3 42/42
+KILLED (previous row). Batch-15-era feed: 76/1 with the one survivor
+EQUIVALENT, per-mutant justified above. webhook_service has no open
+triage. (Fleet after this landing: rs19b in the redis lane, ns16b ->
+survivor-rechecks in auth1, batch-17 cache-gen in auth2.)
+
+### Row — logs13c lands 10/0 (rc=0, PERFECT): the dossier's 8 SCHEMA-SHIELDED claims are dead by measurement — sanitizer EXPANSION makes raw-cap-valid inputs exceed their sanitize caps — logs lineage CLOSED at 61/61 with zero residual
+
+**logs13c MEASURED this session** (`/tmp/redcheck-logs13c.log`, rc=0
+06:23Z "source clean"; stdout `keys: 10 applied: 10 tally: {'KILLED':
+10}`): the 10 logs13b residual keys {13,14,31,32,75,76,90,92,103,107} vs
+shipped + batch-13b + batch-13c. All 10 KILLED — every kill carried by a
+MEASURED pin in batch-13c (commit `3424004f`, 6 tests, 6 passed 11.27s;
+13b+13c combined 20 passed 11.02s; harness DRY 10/10 assignable rc=0).
+
+**Why the shield claim failed (the transferable finding, per-mutant
+corrected, not blanket-reversed)**: `sanitize_log_value` replaces every
+`${…}` with the 20-char `[EXPRESSION_REMOVED]` **before** the
+`max_length` truncation, so sanitized output can be LONGER than the raw
+input. A schema-valid raw input at the raw cap therefore crosses the
+sanitize cap: component `"${a}"*25` (raw 100 == schema max*length=100,
+valid) sanitizes to 500 → shipped truncates at 100 to 5 whole blocks +
+suffix (MEASURED len 114, pinned exact in both the `extra` value and the
+message text); user_agent `"${b}"*125`(raw 500 == schema 500) → shipped
+cap 500 truncation (MEASURED len 515); context key`"${c}"_12`(raw 48,
+passes the len≤50 loop filter) → the truncation lands INSIDE the`ctx_`-prefixed extra KEY NAME (50-cut + suffix, pinned by exact key
+membership). Kwarg-removal mutants (default 10000 → no suffix) and N+1
+mutants (different cut) all change the emitted string — 8 GAP kills where
+the frozen dossier said equivalent. Keys 90/92: the public-route C14
+equivalence (enum-validated level ⇒ default unreachable via the route)
+STANDS; at helper level the `.get(…, logging.INFO)`default is the shipped
+defensive contract and is pinned (duck`.value="TRACE"` → MEASURED log
+level 20; ERROR control 40), helper-only reachability disclosed in the
+battery docstring.
+
+**Logs lineage CLOSED**: frozen feed 61 keys = logs13b 51 KILLED + these
+10 → 61/61, zero residual, every disposition either a kill or a
+per-mutant-justified equivalence. The shield-correction pattern (cap
+comparisons must account for sanitizer expansion) is the one to re-apply
+wherever other dossiers claimed raw-cap == sanitize-cap shielding.
+(Fleet: rs19b redis, ns16b → rechecks auth1, batch-17 cache-gen auth2 —
+all still running.)
+
+### Row — rs19b lands 186/31 (rc=0) and rs19c lands 5/26 (rc=0): batch-19b's log/raise pins carried 186 of the 217 rs18 survivors; 19c's structural pins added the 5 trim/ISO kills exactly as designed; the 26 residue is 11 MEASURED gaps (batch-19d live, `6b9d4810`) + 15 docstring-equivalents
+
+**rs19b MEASURED this session** (`/tmp/redcheck-rs19b.log`, rc=0 06:42:58Z
+"source clean"): the 217 rs18-survivor keys vs the batch-19b battery
+alone — **186 KILLED / 31 SURVIVED** (chain: `/tmp/rs19_chain.sh`, DRY
+217/217 assignable rc=0 at dispatch). Batch-19b (raise-text + log
+message/extra EXACT pins) therefore carried 186 of the 217 — the census
+estimate "~40 raise + ~88 log-shape ≈ 128 killable by text pins"
+UNDER-counted: 186 keys die to exact-text pins because one pin site kills
+its whole mutant family (None/XX/lower/UPPER/case-rename per message).
+
+**rs19c MEASURED** (`/tmp/redcheck-rs19c.log`, rc=0 06:47:40Z "source
+clean"): the 31 rs19b survivors vs batch-19b **+ 19c** — **5 KILLED / 26
+SURVIVED**, and the 5 are EXACTLY the batch-19c design set: trim_stream
+`info.get("length", 0)` default mutants on the current_length line
+(mutmut_12/14, separating input `[{}, {"length": -5}]` → ret 5 vs mutant
+ret 0), the except-branch `current_length = 0` mutant (\_18), the
+`removed > 1` mutant (\_48, removed==1 logs), and the ISO
+`replace("Z",…)` → `replace("z",…)` mutant (Ana fse \_25 — MEASURED 3.14
+`fromisoformat` rejects lowercase z). No expectation miss: those five are
+the five 19c authored to kill.
+
+**The 26 residue, per-mutant dispositioned** (no blanket skip):
+
+- **11 real gaps, MEASURED kill designs shipped as batch-19d** (commit
+  `6b9d4810`, 5 tests, 5 passed 8.70s; 19b+19c+19d combined 32 passed):
+  add_detection XADD FIELDS-dict key renames \_65/\_66 and add_batch \_39/\_40
+  (19b pinned the DEBUG extra but never the `xadd` call args — wire-format
+  dict pinned EXACT via /tmp/b19d-harness.py → /tmp/b19d-probes.json),
+  consume_batches success message_id/dc \_21/\_23/\_27 (MEASURED ids ["7-1"]
+  dc [1]), analysis claim `entry[:3]` \_21 (3-tuple parses under [:2],
+  MEASURED n 1), detection claim parse-fail WARNING \_77/\_78/\_79 (MEASURED
+  distinct text "Failed to parse claimed message" — why 19b's consume
+  parse-fail pin missed it). One expectation was caught WRONG BY
+  MEASUREMENT before running: I expected the claim path to log
+  `claimed_count: 0`; shipped logs NOTHING at zero parsed (only info call
+  "Created consumer group", MEASURED) — test and docstring corrected to
+  the shipped shape, not bent.
+- **15 equivalents per 19c's docstring** (fse default mutants ×6 — the
+  falsy/raise paths rejoin the same branch; Ana fse \_24 XXZXX + 3.14 raw-Z
+  accept; add_detection \_41 identity; get_stream_info \_58/\_60 AND \_63 —
+  all three defaults sit behind the `if info.get("first-entry")` guard so
+  the read never sees them; trim except `new_length` \_45/\_46 — removed==0
+  pins that branch's log off; `delivery_count=1` REMOVALS \_26/\_30 —
+  default IS 1). Batch-19d's docstring CORRECTS 19c's REASONING on four
+  rows (XXXX-default → ValueError into the same except, not "falsy";
+  XX[]XX → json.loads raise into the same except; XXZXX never matches AND
+  3.14 accepts raw Z; 19c's "19b delivery_count pins kill the siblings"
+  was over-broad — rs19b proved 21/23/27 survive, they're gaps killed in
+  19d). Verdicts unchanged; reasoning held to measurement standard.
+  rs19d (26 keys vs 19b+19c+19d, DRY 26/26 rc=0, live 06:48:33Z) decides
+  the split; redis lineage closes at its landing.
+
+### Row — rs19d lands 11/15 (rc=0): the 15 survivors are EXACTLY the per-mutant EQUIVALENT set, zero surprise keys — redis_streams lineage CLOSED at 217/217 dispositioned (202 killed across 19b/19c/19d + 15 justified equivalents)
+
+**rs19d MEASURED this session** (`/tmp/redcheck-rs19d.log`, rc=0 06:52:17Z
+"source clean"; 26 rs19c-survivor keys vs batch-19b + 19c + 19d; DRY 26/26
+assignable rc=0): **11 KILLED / 15 SURVIVED** — and batch-19d's designed
+11 gaps all died (add_detection FIELDS renames \_65/\_66, add_batch \_39/\_40,
+consume_batches id/dc \_21/\_23/\_27, analysis claim [:3] \_21, detection
+claim parse-fail warning \_77/\_78/\_79).
+
+**The 15 survivors == the equivalence set key-for-key** (predicted before
+landing and confirmed, so this is a match report, not a post-hoc fit):
+
+- `from_stream_entry` default mutants ×6 (Det \_3/\_5/\_8, Ana \_3/\_5/\_8):
+  timestamp default "" → None/no-default/"XXXX" — all falsy or
+  ValueError-raising into the SAME `except`/`else` branch (MEASURED
+  \_parse_timestamp("XXXX") raises ValueError; absent and "" timestamps
+  both bind now-like floats); detection_ids default "[]" → None/no-
+  default/"XX[]XX" — json.loads raises on None AND on "XX[]XX" into the
+  same except, both MEASURED `detection_ids == []`. No input separates any
+  of the six from shipped.
+- Ana `from_stream_entry` \_24 (`replace("XXZXX",…)`): the XX pattern never
+  matches; raw "…Z" reaches `fromisoformat`, which on 3.14 accepts trailing
+  Z directly — MEASURED `.fromisoformat("…Z").timestamp() == 1704164645.0
+==` the shipped replace-then-parse value; non-Z inputs untouched. No
+  separating input.
+- add_detection \_41 (`str(value) … or True`): truthy-`or` is identity for
+  the condition and `str(v) is v` on str values — both branches bind the
+  same object on every input (MEASURED identity probe).
+- get_stream_info \_58/\_60/\_63 (first-entry default ""/["XXXX"]): all three
+  defaults sit behind `if info.get("first-entry")` — the subscript is only
+  evaluated when the guard chose the OTHER side; never observable.
+- trim_stream except-branch `new_length` \_45/\_46: that branch pins
+  `removed = 0` and new_length is read only by the `removed > 0` log —
+  unreachable there.
+- `delivery_count=1` kwarg REMOVALS (consume_batches \_26,
+  consume_detections \_30): the parameter default IS 1 — binding identity.
+
+**Redis_streams lineage CLOSED**: rs18 373-key survivor feed → rs18 killed
+156 → rs19b (217 keys) +186 → rs19c (31 keys) +5 → rs19d (26 keys) +11 =
+**202 killed, 15 EQUIVALENT (per-mutant, measured), 0 undispositioned**
+across the full survivor chain; batteries 18/19b/19c/19d shipped
+(commits `1fad9402`, `6b9d4810` + earlier 18), autospec'd, ruff-clean,
+lane md5-synced. No blanket skips anywhere; every equivalence above cites
+its measurement. (Fleet: ns16b auth1 still grinding — 533 keys — with the
+two survivor rechecks queued; batch-17 cache-gen auth2.)
+
+### Row — ns16b lands 258/275 (rc=0; 16b battery killed 28 that 16 missed, 25 its own pins miss); disclosures: my ns16_chain's recheck step had a generator-arg bug and NEVER ran, legacy ns16b_seq advanced into its ns16c full re-run (killed at that point), re-measure gate re-armed correctly behind ns16c
+
+**ns16b MEASURED this session** (`/tmp/redcheck-ns16b.log`, rc=0 07:07:58Z
+"source clean"; auth1 lane, 533-key nemotron_streaming feed vs the
+batch-16b battery): **258 KILLED / 275 SURVIVED**. Cross-read vs run 1
+(ns16, batch-16 battery, 230/303): 16b killed 28 keys 16 missed (its
+error-path full-shape pins — exact four-key error dumps) and 25 of its
+own class missed 16's kills (expected: different pin sets, neither a
+superset). Neither battery pins logger calls at all (grep: zero
+caplog/logger asserts in both files) while the source carries log sites
+with `extra={"batch_id", "error"}` dicts — the predicted dominant
+batch-16c gap class.
+
+**Disclosures (this session):**
+
+1. **ns16_chain recheck-step bug**: the chain invoked
+   `make_recheck.py <feed> /tmp/lane_ns16_recheck.py …` — passing the
+   _intended output_ as the base-harness arg; the file didn't exist,
+   generator died FileNotFoundError, the chain logged "skipped (no
+   survivors or crashed run)" (its rc!=0 branch mislabels a generator
+   crash as a clean NO-SURVIVORS) and exited "done" 05:52:28Z. Net effect:
+   the re-measure gate never ran from the chain. The SURVIVORS FEED the
+   chain generated before dying (303 keys, 0 missing) matches the log and
+   stands as evidence of the step's inputs.
+2. **Legacy ns16b_seq was alive and ADVANCED**: as rowed in 70d85d81 it
+   was left running with its slots expected to safe-abort; instead it
+   completed its ns16b stage (the 07:07:58Z rc=0 landing — its cp-then-run
+   shipped the ruff-final battery copy the chain's run had not) and moved
+   into its ns16c stage: a FULL 533-key re-run of ns16 against the shipped
+   battery copy (live now, started ~1 min after ns16b exit, stdout
+   `/tmp/ns16c-stdout.log`). That re-run is USEFUL, not poison: run 1's
+   battery copy was mid-edit (pre-ruff) and my contamination incident sits
+   on it, so ns16c is the clean-source, final-battery re-measure of every
+   ns16 key — the strongest repair possible. I killed the seq PARENT at
+   07:09Z (preventing a repeat ns16c it would have re-run after) leaving
+   the ns16c python orphaned-but-live; single-writer holds (it owns auth1
+   exclusively).
+3. **Gate re-armed correctly**: `/tmp/ns16_recheck_chain.sh` (PID armed
+   this session) gates on `[l]ane_ns16\.py` (regex-verified to exclude its
+   own `lane_ns16_recheck.py` targets and the script-file launcher
+   cmdline — self-match class, 4 instances logged), then runs the two
+   survivors rechecks with the CORRECT base harnesses (ns16-recheck: 303
+   keys from run-1 log, batch-16 battery; ns16b-recheck: 275 keys from the
+   ns16b log, batch-16b battery — both generated, both DRY rc=2 right now
+   because ns16c holds the source mutated: the guard working as designed).
+   Run-1 log snapshotted to `/tmp/redcheck-ns16-run1-contaminated.log`
+   before anything could overwrite it.
+
+**Triage census (read-only, this session)**: run-1 survivors = 284
+`x_analyze_batch_streaming` + 19 `x_call_llm_streaming`, 258 distinct
+shapes — error-payload kwargs families dominate (`recoverable=False`→
+None/True/removal ×16, `enriched_context`/`enrichment_result`→None,
+`error_code`→None/removal, log-extra {"batch_id","error"} renames
+×~20, `error_message` text wraps/case, idempotency `is not None`
+boundary). Pre-measured dispositions: Pydantic `recoverable: bool =
+Field(default=True)` makes `recoverable=True`→kwarg-REMOVAL default-
+identity EQUIVALENT (measured model_dump equality); `=None` violates bool
+→ ValidationError → KILLABLE; `error_code` removal = required-field miss
+→ ValidationError → KILLABLE. batch-16c will be scoped to the
+recheck-confirmed intersection, with the sanitizer-expansion shield probe
+([[dossier-schema-shield-sanitizer-expansion]]) mandatory before any
+cap/schema EQUIVALENT claim.
+
+### Row — ns16c clean re-run MEASURED 230 KILLED / 303 SURVIVED — survivor set BYTE-IDENTICAL to run 1 (0 flips): the run-1 contamination flipped no verdicts; the 303-key set is confirmed batch-16c feed; ec12b recheck independently re-landed (pose**5 KILLED / clothing**4 SURVIVED = third confirmation of the closed 38f64d10 verdicts)
+
+**Measured this session**: `ns16c` (auth1, FULL 533-key nemotron_streaming
+re-run vs the shipped batch-16 battery, clean source, final ruff'd battery
+copy) landed 08:18:05Z — `/tmp/redcheck-ns16.log` (rc=0, "source clean" in
+`/tmp/ns16c-stdout.log` tail). Tally `awk -F'\t' '{t[$1]++} END{...}'
+/tmp/redcheck-ns16.log`: **230 KILLED / 303 SURVIVED** (533 keys).
+Key-for-key survivor-set diff vs the snapshotted contaminated run-1 log
+(`/tmp/redcheck-ns16-run1-contaminated.log`, same file format, survivors
+sorted, `comm -3`): **0 run1-only / 0 run3-only** — the survivor sets are
+IDENTICAL. DECIDE: run-1's verdicts were NOT poisoned by the mid-run
+restore incident (the ≤1-key exposure windows flipped nothing); the 303
+survivors stand as the batch-16c kill-list, and the chain's generated
+303-key feed remains valid as its input. The now-live `ns16-recheck`
+(303 keys, started 08:19:14Z by `/tmp/ns16_recheck_chain.sh` after ns16c
+released the source) is an idempotence confirmation, not a rescue;
+`ns16b-recheck` (275 keys) follows it.
+
+**Second confirmation (independent re-dispatch)**: `/tmp/run_ec12b_recheck.sh`
+dispatched live this session against the enrich lane (72-passed baseline,
+source==HEAD guard passed) — `/tmp/redcheck-ec12b-recheck.log` rc=0
+08:05:37Z "source clean": pose**5 **KILLED** (the lane-run's SURVIVED was
+the known mid-run-restore false-verdict; repaired as designed) and
+clothing**4 **SURVIVED**. My construction proof agrees: the mutant's
+`if (self.categories) or True` else-branch is DEAD — L432's
+`if not self.categories: return …` guard (enrichment_client.py:432) makes
+L434's condition always-true; shipped==mutant==real-string on the full
+input space (5-case probe incl. `[]`, `[{}]`, multi-category). clothing\_\_4
+per-mutant **EQUIVALENT — dead else-branch**, closes enrichment_client
+current-gen 543/544 killed + 1 justified equivalent.
+
+### Row — container_discovery dossier-residual CLOSED: cd52 25/27 + batch-20 8/8 KILLED (commits 0359964f + 4fc65a28, pushed) + 19 per-mutant equivalents = 52/52 adjudicated
+
+**Measured this session**: cd52 (enrich lane, 52 dossier-residual keys vs the
+committed suite only) `/tmp/redcheck-cd52.log` rc=0 08:38:31Z "source clean":
+**25 KILLED / 27 SURVIVED**. Of the 27: 20 first-triaged equivalent + 7 gaps.
+Batch-20 battery `test_container_discovery_batch20.py` authored from probes
+(`/tmp/b20-harness.py` → `/tmp/b20-probes.json`, all shapes MEASURED against
+shipped production — production NOT bent): compose-success info message +
+extra EXACT `{compose_file, count}`; init compose-branch settings-forwarding
+leg (fallback port 15432 vs mutant's 5432 .env default); discover_all summary
+info `'Discovered 2 containers'` (shipped grammar pinned AS SHIPPED) + extra
+EXACT `{count: 2}`. **Authoring-time correction (measurement, not review)**:
+`__init____mutmut_5` (ternary else True->False) was first triaged "flag-dead
+equivalent" — WRONG. `ContainerDiscoveryService(cli, compose_file=missing)`
+with settings omitted IS shipped-reachable: MEASURED prometheus PRESENT
+(else-leg True -> fallback includes monitoring); mutant's False excludes it.
+True gap #8; WP44 always passes settings, so the else leg had zero coverage.
+Battery amended (4 tests, all green first pass; 62 passed with existing suite).
+**cd20 red-check** (enrich lane, 8 gap keys vs existing suite + batch-20):
+`/tmp/redcheck-cd20.log` rc=0 08:51:03Z "source clean" — **8 KILLED / 0
+SURVIVED** (an earlier 7-key pass at 08:47:00Z rc=0 predated the init\_\_5
+correction; both logs on disk).
+
+**Per-mutant equivalents (19)** — `x_build_service_configs` keys:
+grace=60-removal **249/284/302/521** — rebuild-minus-kwarg construction
+identical (ServiceConfig field default IS 60; re-building the config without
+`startup_grace_period=60` byte-identical, with a discriminating counterexample:
+postgres grace=10 removal -> not equal, so the construction actually bites);
+max_failures=5-removal **360/387/414/441/468/495/522/549/575/602/629/656/683/710**
+(x14, same construction — field default 5, monitoring services only);
+`_create_managed_service__13` (`tags` getattr default `[]`->`None`) —
+falsiness identity: both feed `tags[0] if tags else f"<untagged:...>"` and
+both are falsy; MEASURED image strings identical.
+
+**Tally**: 25 (cd52) + 8 (batch-20/cd20) = **33 killed**; 19 justified
+equivalent; 33+19 = **52/52 dossier residuals adjudicated**. cdfull (full
+883-key module feed, redis lane, started 07:14:57Z) still running — on landing
+I adjudicate its fresh verdicts incl. the prior-run anomalies
+`build_service_configs__359/467` (grace=30 removals — the golden table DOES
+assert grace, so survival there would be an artifact of the vanished run) and
+`compose__9` (success-info message->''; batch-20 now pins that message too).
+
+### Row — batch-16c kill-check MEASURED 64 KILLED / 57 SURVIVED of 121; ns16-recheck landed 2/301 and the 385/386 flips are CONFIRMED kills, independently reproduced
+
+**Measured this session**: batch-16c (commit 703a82ea, 9 tests green
+first-pass) ran its 121-key ns16c∩ns16b survivor feed on the FREE enrich
+tree (`/tmp/redcheck-ns16c16c.log` rc=0 09:16:20Z "source clean"):
+**64 KILLED / 57 SURVIVED**. Cross-check vs the parallel ns16-recheck
+(auth1, 303-key batch-16-only re-run, `/tmp/redcheck-ns16-recheck.log`
+rc=0 09:07:45Z "source clean", **2 KILLED / 301 SURVIVED**): the ONLY two
+keys ns16-recheck flipped from run-3's 303-survivor set are
+`x_analyze_batch_streaming__mutmut_385/386` (`enrichment_result=`/
+`enriched_context=` kwarg removals at the call_llm site), and BOTH were
+killed INDEPENDENTLY in my 16c run (neither is in its 57-survivor set) —
+the batch-16c pins (`kw["enrichment_result"] is er`, sorted-11-keys) hit
+exactly those kwargs. Two batteries, two trees, same verdict: the flips
+are real batch-16 coverage, reproduced across trees, not artifacts.
+
+**Residual triage (57 keys, shapes extracted `/tmp/s57-diffs.tsv`)**:
+40 analyze_batch_streaming + 17 call_llm_streaming; 55 unique diff shapes,
+all DOWNSTREAM-KWARG/ARG SWALLOW families the 9-test battery doesn't yet
+pin: `started_at=start_time`→None/removal (LLMInteraction fields),
+`risk_data.get("risk_score"|"risk_level", d)` key renames (None/XX/UPPER),
+`record_event_by_camera(camera_id, camera_name)` arg→None pair,
+`_get_recent_scene_changes(camera_id, session)` positional→None/removal,
+`.model_dump()` `recoverable=True` removal. DECIDE: these are batch-21's
+kill-list — same measured-drive method (probe shipped shapes, pin exact).
+
+### Row — cdfull FULL-module close-out MEASURED 844 KILLED / 39 SURVIVED of 883 — all four prior-run anomalies are KILLED (contamination artifacts), all 27 cd52 survivors reproduce, 12 new survivors = one function's observability family
+
+**Measured this session**: cdfull (redis lane, FULL 883-key
+container_discovery feed vs the committed suite) `/tmp/redcheck-cdfull.log`
+rc=0 09:22:25Z "source clean": **844 KILLED / 39 SURVIVED**.
+**Anomaly adjudication settled**: the 09-22 run's four anomalous survivors
+`build_service_configs__359/467` (grace=30 removals) + `__488`
+(restart_backoff_base=None) + `compose__9` (success-info message->'') are
+ALL **KILLED** in this clean run — they were mid-run contamination/restore
+false-SURVIVEDs (the golden-table test asserts grace and backoff_base for
+every service, so killability was expected; now measured).
+**Reproduction**: survivor-set join vs cd52's 27 (`comm`): all 27 present
+byte-identically in cdfull's 39 (19 equivalents + 8 since-killed by
+batch-20 — cd20 measured 8/8). **The 12 extras** are ALL
+`x_build_configs_from_compose`: keys 7, 10–15 = the parse-success INFO
+message/extra family batch-20 now pins EXACT (expect KILLED when re-run);
+keys 16/21 = fallback/parse-error warning message->None, keys 22/23/25 =
+the generic-Exception fallback-return arg swallows
+(`settings`->None / `include_monitoring`->None/removal) = 5 NEW true gaps
+-> batch-22 kill-list (probe drives: parse_file raises -> warning text
+exact + fallback-return ports/flag legs discriminated).
+**Verification run dispatched**: cd39 (redis lane, free after cdfull,
+`/tmp/redcheck-cd39.log`) — 39 survivor keys vs committed suite + batch-20
+(63-passed baseline measured pre-dispatch); PREDICTION from the split
+above: 24 KILLED / 15 SURVIVED (8 batch-20 + 7 info-family kills; 19
+equivalents + 5 batch-22 gaps survive). Actuals will be rowed as measured,
+prediction or not.
+
+### Row — cd39 VERIFY RUN MEASURED 18 KILLED / 21 SURVIVED of 39 — my dispatched prediction (24/15) had the two sets swapped and the 3-key residual is the subset-feed occurrence-remap artifact
+
+**Measured**: cd39 (redis lane, 39 cdfull survivors vs suite+batch-20,
+63-passed baseline) `/tmp/redcheck-cd39.log` rc=0 09:41:57Z "source
+clean": **18 KILLED / 21 SURVIVED**. **Prediction correction (honest)**:
+the dispatched row said "24 KILLED / 15 SURVIVED (8 batch-20 + 7
+info-family kills; 19 equivalents + 5 batch-22 gaps survive)" — the
+parenthetical itself computes 15 killed / 24 survived; I printed the two
+sets in swapped order. The real gap to actuals (15 predicted-killed vs
+18 measured) is keys **22/23/25**: they SURVIVED cdfull (assigned to the
+generic-Exception fallback-return L84) but were KILLED in cd39 — in the
+subset feed they remap to occurrence-1 (the FileNotFoundError-leg return
+L81) which the WP44 test drives directly. Same occurrence-mapping
+sensitivity as keys 17/18/19/20 (L81 occurrences, KILLED in cdfull) vs
+22/23/25 (L84, survived) — occurrence mapping decides WHICH leg's return
+a shape-mutant sits on, so cross-run comparisons of same-shape keys must
+carry their twins. **cd39's 21 survivors = exactly 19 cd52-equivalents +
+keys 16/21** (the two exception-leg warning-text->None gaps): the
+designed batch-22 kill-list, zero surprises.
+
+### Row — batch-22 cd22 CONFIRM RUN MEASURED 9 KILLED / 0 SURVIVED — container_discovery module CLOSED at 864 KILLED + 19 MEASURED EQUIVALENTs = 883/883, zero undispositioned
+
+**Measured**: cd22 (redis lane, battery `test_container_discovery_batch22.py`
+commit 38e83ae9, baseline 69 passed) vs 9-key feed 16,17,18,19,20,21,22,
+23,25 — twins RESTORED deliberately so occurrence mapping reproduces the
+cdfull assignment (22/23/25 land on L84, 17–20 on L81): **9/9 KILLED**
+rc=0 09:46:12Z "source clean" `/tmp/redcheck-cd22.log`. Kills the two
+exception-leg warning-text->None gaps (16 FileNotFoundError-leg, 21
+parse-leg) and re-confirms the fallback-return arg-swallow family against
+the both-legs battery. **Module close-out accounting (unique keys,
+883-key full feed)**: 844 cdfull-killed + 18 cd39-killed + 2 cd22-new
+(16/21) = **864 KILLED**, + 19 per-mutant MEASURED EQUIVALENTs (cd52
+adjudication, unchanged — defaults-identity/falsiness/empty-tail families)
+= **883/883 adjudicated, zero undispositioned**. container_discovery is
+CLOSED; no further cd runs armed.
+
+### Row — batch-21 MEASURED 102 KILLED / 19 SURVIVED of 121 + adjudication: 10 per-mutant MEASURED EQUIVALENTs / 9 true gaps — pre-run "5 equivalents" docstring estimate WRONG, corrected by measurement
+
+**Measured**: batch-21 (`test_nemotron_streaming_batch21.py` commit
+90251a1f, 20 tests; battery 16c+21, baseline 29 passed) on the enrich
+lane: `/tmp/redcheck-b21.log` rc=0 09:44:53Z "source clean": **102
+KILLED / 19 SURVIVED** of the 121-key feed — 38 of the 57 s57 survivors
+died. **19-survivor adjudication (probe-driven, production NOT bent)**:
+**10 MEASURED EQUIVALENTs** — recoverable=True removal x3 (field default
+MEASURED True via inspect.signature), content ""->None x2 (falsy in
+`if content:`), risk-fallback DICT-LITERAL renames x4 (A#289/290/292/293
+— renaming the literal key AND reading it back with the SAME .get default
+is value-identity by construction), break->return at loop-end (A#78 —
+MEASURED: nothing follows the SSE loop). **9 true gaps**: A#220
+analyzer-kwarg identity never asserted, A#247 accumulated_text (progress
+events ship the CUMULATIVE string; removal ships field-default ''),
+A#307/308/316 Event batch_id/camera_id, L#42-45 stop-token payload
+strings. The batch-21 docstring's pre-run claim "5 of the 57 are
+equivalents" was wrong — measurement adjudicated 38 killed / 10 equiv /
+9 gaps; docstring carries the post-run correction (in the batch-23
+commit).
+
+### Row — batch-23 KILLS the 9 true gaps; b23b confirm MEASURED 10 KILLED / 0 SURVIVED — occurrence-remap FALSE-SURVIVED caught and adjudicated by probe (batch-22 lesson re-paid within one session)
+
+**Measured**: batch-23 (`test_nemotron_streaming_batch23.py` commit
+ee26d397, 4 tests green; pins analyzer IDENTITY, Event batch_id/
+camera_id, cumulative progress 'X','XY', EXACT payload incl. stop-token
+list) vs 9-key subset feed, batch-23-only battery: **8 KILLED / 1
+SURVIVED** (`/tmp/redcheck-b23.log`). The survivor: A#308
+`camera_id=camera_id,`->None. **Root-cause by shape-group census**: the
+shape occurs TWICE (tuner-call L231 occurrence-1, Event L343
+occurrence-2) with feed keys 150/308; b21's full-feed mapping put
+150->tuner (KILLED) and 308->Event (SURVIVED); my 9-key subset feed
+remapped 308 onto the TUNER occurrence, which batch-23-only does not pin
+— a FALSE-SURVIVED of the mutant-at-that-site, not of key 308's real
+site. **Probes (serialized, enrich tree)**: tuner-occurrence vs b21
+battery (16c+21): KILLED; vs 16c-only: KILLED, failing test NAMED by
+captured stdout — `TestEnrichmentFlowsToEverySite::test_tuner_called_with_camera_id_and_session`
+(`assert kw["camera_id"] == "test_camera"`) — so the tuner site was
+ALREADY covered; batch-23's `test_event_identity_columns` pins Event.
+**Confirm run b23b**: 10-key feed (9 + twin 150 restoring occurrence
+order) vs UNION battery 16c+21+23: **10 KILLED / 0 SURVIVED** rc=0
+12:21:21Z "source clean" `/tmp/redcheck-b23b.log`.
+**nemotron_streaming ns16c-feed lineage CLOSED**: 64 (16c) + 38 (b21) +
+9 (b23 via b23b) = 111 KILLED + 10 per-mutant MEASURED EQUIVALENTs =
+**121/121 adjudicated, zero undispositioned**. LESSON (2nd instance,
+memory-worthy): subset kill-feeds MUST carry shape-twin keys even when
+the twin is already killed — occurrence order is part of a key's
+identity; a subset feed without twins silently re-tests a different
+mutation site and manufactures false verdicts in BOTH directions.
+
+## 2026-09-24 — full-set re-bank exit + first honest post-campaign rescore (S3-step1)
+
+**RE-BANK** `/tmp/rebank-full.sh` (`uv run mutmut run`, full widened set, tree
+@ ffe92812 = batch-24 HEAD): launched 2026-09-23 14:1xZ, SIGINT at 09-24
+01:09:3xZ with ~300 keys left (user push directive), graceful exit rc=0 at
+01:09:41Z, `/tmp/rebank-full.log`. Rate: mean 2.3 keys/s, mid-run measured
+4.97/s, tail 0.36/s (heavy-module tail; earlier average-rate ETAs under-called
+it — noted honestly). Verdicts were banked incrementally BEFORE the SIGINT
+(metas are written per-mutant; a kill is durable at write time — pre-compaction
+S1/S2 finding re-confirmed at every census).
+
+**RESCORE** `uv run python scripts/mutation-score.py --repair` (rc=0,
+torn_metas=0) then `uv run python scripts/mutation-score.py` @ 56767356
+(merge of origin/main 45311508, zero backend/ overlap measured):
+totals killed 39060 / timeout 2557 / survived 29470 / no_tests 19584 /
+not_checked 307 / total 90978 -> **score 45.744%**; progress checked 90671 /
+91062, **completed=FALSE** (391 not_checked).
+DECIDE: **NO history append, NO tier claim** — completed=false AND the number
+is BELOW the 09-19 committed baseline (54.05%). Why it dropped, measured: the
+regenerated generation carries **19,584 no_tests keys (21.5% of the
+denominator)** where per-function test-selection maps ZERO tests, vs ~0 in the
+09-19 entry (killed+timeout+survived there = 88,309/88,329). Those keys ride
+the badge denominator at 0 credit. Killed 39,060 vs baseline 45,127: mutant
+regeneration from the mega-PR (xclip removal deleted previously-killed sites)
+
+- previously-killed keys now reclassified no_tests. The S3 ">=58" expectation
+  is DISCONFIRMED by measurement — the campaign's ~4.7k battery kills are
+  visibly inside these totals (killed is 39k on a fresh generation vs the whole
+  old run's 45k), but the honest number is 45.74 until the selection regression
+  is root-caused. OPEN (next, before any tier claims): investigate why the
+  stats-collection maps no tests for ~19.6k keys after the mega-PR regeneration
+  (candidates: import-graph changes vs mutmut's dependency-edge tracing at
+  "Listing all tests", mock-injection conftest interactions). S1 proof metas
+  and the 09-19 history entry are untouched.
+
+## 2026-09-24 — CI-red fixes on #6650: vulture 12->0, TPA spike source, stale-baseline fetch (TDD)
+
+Measured root causes (PR run 35866358876 @ ffe92812, jobs 107212436979
+perf-audit + dead-code): (a) 12 vulture hits, ALL in campaign-added files —
+5 unreachable `yield` after `raise` in async-generator mocks (repo idiom, 7
+files already excluded) + 4 side-effect-fixture params + 3 autospec signature
+params; local `uv run vulture backend/ vulture_whitelist.py --config
+pyproject.toml` reproduced CI's 12 exactly. (b) perf-audit victims cost
+0.02-0.03s intrinsically (junit corpus of 9 main runs + PR run: same ~4s
+spike rotated across >=6 test ids incl. main's 4.30/4.33 warnings);
+MEASURED cold-import cost of the only heavy lazy imports both victims reach:
+`import torchvision` 2.24s + `import piq` 2.20s (image*quality_loader.py:172,
+no module-level pullers anywhere) — billed to whichever test triggers them
+per xdist worker; PR went RED only because the baseline harvest served a
+260-day-stale page (8/8 candidates, 3 identical re-reads) -> fail-closed
+"every breach red"; main ran the same spikes as WARNINGS via WP1.3.
+FIXES @ this commit: pyproject vulture exclude += batch16b/batch21;
+vulture_whitelist += `*.clock` `\_.session_arg`(banked test files untouched);
+backend/tests/unit/conftest.py module-level warm`**import**`of
+torchvision/piq (COLLECTION-time cost, outside per-testcase billing; NOT an
+autouse fixture — fixture setup bills the first test; precedent
+mock_transformers_for_speed/3d30ef71; test_osnet_loader's hide-tests 36/36
+green with it warm); scripts/fetch-ci-artifacts.py runs-list query +=`&created=%3E<bound>`— syntax adjudicated LIVE on the GitHub API @ 01:2xZ:`created=%3E`FILTERS (15 vs 116 control),`created%3E=`and`created%3E%3D=`are SILENTLY IGNORED (116) — first-draft param corrected by measurement;
+test_flake_consumer canned servers route past the new param (7/7).
+TDD: backend/tests/unit/scripts/test_fetch_ci_artifacts_stale_page.py red
+2-fail without the fetcher fix / 3-pass with (stash-verified); vulture rc=0;
+fail-closed audit replay (no baseline, worst case) over both victim files:
+RESULT PASS 319 tests; unit tier 28,191 pass / 11 fail = env artifact ONLY
+(spawns literal`python`, absent in sandbox, 11/11 identical with my diff
+stashed; CI runners have the shim); ruff+mypy clean. Floors untouched;
+SLOW_TEST_PATTERNS untouched; UNIT_TEST_THRESHOLD 4.0 untouched.
+
+## 2026-09-24 — ROOT-CAUSE CLOSED: the 19,584 no_tests keys are a truncated stats dependency map, not missing tests (repair re-bank launched)
+
+Rescore's OPEN item (`no_tests 19584 = 21.5% of denominator, zero badge
+credit`) is now adjudicated by measurement, every step this session:
+
+1. CENSUS (command: python3 over mutants/\*_/_.py.meta): 19,584 keys with
+   exit 5/33 sit 19,483-deep in 64 modules that are 100% unmapped
+   (performance_collector 1300/1300, partition_manager 733/733,
+   pipeline_quality_audit_service 722/722, worker_supervisor 650/650,
+   vitpose_loader 624/624, …) — whole-module loss, not sparse misses.
+   Only 101 keys are scattered partials (7 modules, enrichment_pipeline
+   43/4831 largest). Test files EXIST and import these modules
+   (performance_collector: 2 files, vitpose_loader: 6; grep measured).
+2. THEY MAPPED BEFORE: .github/mutation-history.json runs[-1] (2026-09-19)
+   rows: performance_collector total 1170 killed 829 no_tests 0;
+   partition_manager 733/469 killed/0; vitpose_loader 624/307/0. The
+   loss entered with the regeneration-era stats rebuild, not with tests.
+3. THE BROKEN ARTIFACT is mutants/mutmut-stats.json (mtime 2026-09-23
+   10:07, git_commit baseline 98375086): tests_by_mangled_function_name
+   = 2,204 keys / 125 modules, while its OWN function_hashes span 173
+   modules and duration_by_test shows 28,557 tests EXECUTED. A recorded
+   full-suite pass attributed less than half the modules it ran. meta
+   keys are per-mutant (…\_\_mutmut_N) and stats keys per-function — the
+   0 "overlap" between them is by design, not a bug.
+4. MECHANISM that converts an unmapped function to a fake verdict:
+   mutmut **main**.py:1026-1029 — `tests = tests_by_mangled_function_name
+.get(mangled…)` … `if not tests: exit_code_by_key[name] = 33` — the
+   mutant is stamped no_tests WITHOUT any test ever running. The
+   incremental re-bank could never fix it: on_dependency_change default
+   "warn" keeps the cached map (**main**.py:606-620) and incremental
+   stats only runs NEW tests (collect_or_load_stats, :658-700), so every
+   retry re-stamped 33 off the same truncated map.
+5. DECISIVE REPAIRABILITY PROOF (in-tree replay): `MUTANT_UNDER_TEST=stats
+.venv/bin/python -m pytest backend/tests/unit/services/
+test_performance_collector.py …` run inside mutants/ with mutmut's own
+   StatsCollector teardown → 92 passed, 79 tests with trampoline hits,
+   ALL 24 performance_collector functions mapped (78 tests on **init**).
+   Attribution machinery + this tree are healthy; only the saved map is
+   wrong. No test clobbers MUTANT_UNDER_TEST (grep: zero hits in
+   backend/; env-clearing patch.dict sites all clear=False). The exact
+   micro-cause of the 10:07 truncation is NOT PROVEN — the run's stdout
+   was not persisted; the implicated boundary is the force_full rebuild
+   path (\_apply_config_change_invalidation clearing duration/map/deps
+   at :638-641). Stated, not papered over.
+6. REPAIR LAUNCHED (this session): backup of the corrupt map at
+   /tmp/mutmut-stats.broken-2026-09-24.json; the 19,584 5/33 stamps reset
+   to null (measured count in the reset script's output) — they were
+   never honestly measured, so null is their true state; stats file
+   deleted (force-full rebuild at run start); full
+   scripts/mutation-run.sh launched PID 168075 → /tmp/rebank-repair.log.
+   Cached killed/survived/timeout verdicts are untouched (**main**.py:
+   1024 `if not mutant_names and result is not None: continue` — a full
+   run lets decided verdicts stand). Success gate BEFORE any rescore:
+   rebuilt map >> 2,204 functions / 125 modules and the 19,584 keys
+   re-measured to real verdicts, not re-stamped 33.
+
+PR #6650 checks SETTLED at 8cd5083f: 0 failed; TPA, Dead Code Detection,
+CI Gate ×5 all pass (gh pr checks, one-time report). Merge awaits owner
+review. Floors untouched; no denominators changed; WP4.4 feed still
+frozen.

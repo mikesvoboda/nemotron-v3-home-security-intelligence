@@ -134,6 +134,10 @@ describe('risk utilities', () => {
     const customThresholds = { low_max: 20, medium_max: 50, high_max: 80 };
 
     it('uses custom thresholds for low risk', () => {
+      // score 0 must NOT throw: the guard is `score < 0`, not `score <= 0`
+      // (measured shipped behavior — kills the stryker EqualityOperator
+      // survivor at risk.ts:57).
+      expect(getRiskLevelWithThresholds(0, customThresholds)).toBe('low');
       expect(getRiskLevelWithThresholds(20, customThresholds)).toBe('low');
       expect(getRiskLevelWithThresholds(21, customThresholds)).toBe('medium');
     });
