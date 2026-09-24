@@ -11086,3 +11086,64 @@ RESULT PASS 319 tests; unit tier 28,191 pass / 11 fail = env artifact ONLY
 (spawns literal`python`, absent in sandbox, 11/11 identical with my diff
 stashed; CI runners have the shim); ruff+mypy clean. Floors untouched;
 SLOW_TEST_PATTERNS untouched; UNIT_TEST_THRESHOLD 4.0 untouched.
+
+## 2026-09-24 — ROOT-CAUSE CLOSED: the 19,584 no_tests keys are a truncated stats dependency map, not missing tests (repair re-bank launched)
+
+Rescore's OPEN item (`no_tests 19584 = 21.5% of denominator, zero badge
+credit`) is now adjudicated by measurement, every step this session:
+
+1. CENSUS (command: python3 over mutants/\*_/_.py.meta): 19,584 keys with
+   exit 5/33 sit 19,483-deep in 64 modules that are 100% unmapped
+   (performance_collector 1300/1300, partition_manager 733/733,
+   pipeline_quality_audit_service 722/722, worker_supervisor 650/650,
+   vitpose_loader 624/624, …) — whole-module loss, not sparse misses.
+   Only 101 keys are scattered partials (7 modules, enrichment_pipeline
+   43/4831 largest). Test files EXIST and import these modules
+   (performance_collector: 2 files, vitpose_loader: 6; grep measured).
+2. THEY MAPPED BEFORE: .github/mutation-history.json runs[-1] (2026-09-19)
+   rows: performance_collector total 1170 killed 829 no_tests 0;
+   partition_manager 733/469 killed/0; vitpose_loader 624/307/0. The
+   loss entered with the regeneration-era stats rebuild, not with tests.
+3. THE BROKEN ARTIFACT is mutants/mutmut-stats.json (mtime 2026-09-23
+   10:07, git_commit baseline 98375086): tests_by_mangled_function_name
+   = 2,204 keys / 125 modules, while its OWN function_hashes span 173
+   modules and duration_by_test shows 28,557 tests EXECUTED. A recorded
+   full-suite pass attributed less than half the modules it ran. meta
+   keys are per-mutant (…\_\_mutmut_N) and stats keys per-function — the
+   0 "overlap" between them is by design, not a bug.
+4. MECHANISM that converts an unmapped function to a fake verdict:
+   mutmut **main**.py:1026-1029 — `tests = tests_by_mangled_function_name
+.get(mangled…)` … `if not tests: exit_code_by_key[name] = 33` — the
+   mutant is stamped no_tests WITHOUT any test ever running. The
+   incremental re-bank could never fix it: on_dependency_change default
+   "warn" keeps the cached map (**main**.py:606-620) and incremental
+   stats only runs NEW tests (collect_or_load_stats, :658-700), so every
+   retry re-stamped 33 off the same truncated map.
+5. DECISIVE REPAIRABILITY PROOF (in-tree replay): `MUTANT_UNDER_TEST=stats
+.venv/bin/python -m pytest backend/tests/unit/services/
+test_performance_collector.py …` run inside mutants/ with mutmut's own
+   StatsCollector teardown → 92 passed, 79 tests with trampoline hits,
+   ALL 24 performance_collector functions mapped (78 tests on **init**).
+   Attribution machinery + this tree are healthy; only the saved map is
+   wrong. No test clobbers MUTANT_UNDER_TEST (grep: zero hits in
+   backend/; env-clearing patch.dict sites all clear=False). The exact
+   micro-cause of the 10:07 truncation is NOT PROVEN — the run's stdout
+   was not persisted; the implicated boundary is the force_full rebuild
+   path (\_apply_config_change_invalidation clearing duration/map/deps
+   at :638-641). Stated, not papered over.
+6. REPAIR LAUNCHED (this session): backup of the corrupt map at
+   /tmp/mutmut-stats.broken-2026-09-24.json; the 19,584 5/33 stamps reset
+   to null (measured count in the reset script's output) — they were
+   never honestly measured, so null is their true state; stats file
+   deleted (force-full rebuild at run start); full
+   scripts/mutation-run.sh launched PID 168075 → /tmp/rebank-repair.log.
+   Cached killed/survived/timeout verdicts are untouched (**main**.py:
+   1024 `if not mutant_names and result is not None: continue` — a full
+   run lets decided verdicts stand). Success gate BEFORE any rescore:
+   rebuilt map >> 2,204 functions / 125 modules and the 19,584 keys
+   re-measured to real verdicts, not re-stamped 33.
+
+PR #6650 checks SETTLED at 8cd5083f: 0 failed; TPA, Dead Code Detection,
+CI Gate ×5 all pass (gh pr checks, one-time report). Merge awaits owner
+review. Floors untouched; no denominators changed; WP4.4 feed still
+frozen.
