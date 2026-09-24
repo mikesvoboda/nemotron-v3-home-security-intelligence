@@ -163,11 +163,27 @@ def _assert_allowed(url: str) -> str:
     return url
 
 
+class _AllowListRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Re-apply the fetch allow-list to EVERY redirect hop. urlopen follows
+    30x by default and _assert_allowed only ever saw the first URL, so a
+    Wikimedia-listed URL answering 302 -> evil.example would have been fetched
+    unchecked. Commons itself redirects (Special:FilePath -> upload.wikimedia),
+    so hops are revalidated, not forbidden."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+        _assert_allowed(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_AllowListRedirectHandler)
+
+
 def _get(url: str, params: dict[str, str] | None = None) -> bytes:
     full = f"{_assert_allowed(url)}?{urllib.parse.urlencode(params)}" if params else _assert_allowed(url)
     req = urllib.request.Request(full, headers={"User-Agent": UA})
-    # nosemgrep: ssrf-requests - url passes _assert_allowed: https + Wikimedia host allow-list (tests pin it)
-    with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - allow-listed above
+    # nosemgrep: ssrf-requests - every hop passes _assert_allowed via _OPENER's
+    # redirect handler (tests pin off-list + plain-http hops and the opener wiring)
+    with _OPENER.open(req, timeout=30) as resp:  # noqa: S310 - allow-listed per hop
         time.sleep(PACE_SECONDS)  # gentle on the keyless API, every request
         return resp.read()
 

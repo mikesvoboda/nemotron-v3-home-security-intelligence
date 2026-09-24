@@ -120,6 +120,41 @@ class TestDownloadSafety:
         assert rec["title"] == "File:A.jpg"
 
 
+class TestRedirectPolicy:
+    """urllib follows 30x by default and _assert_allowed only ever saw the
+    FIRST url. Commons itself redirects (Special:FilePath -> upload...) so
+    redirects can't be simply banned - every HOP must re-pass the allow-list,
+    or the pinned-host guarantee is decorative."""
+
+    def test_off_allowlist_redirect_is_refused(self) -> None:
+        req = urllib.request.Request("https://commons.wikimedia.org/w/api.php?x=1")
+        with pytest.raises(ValueError, match="allow-list"):
+            sm._AllowListRedirectHandler().redirect_request(
+                req, None, 302, "Found", {}, "https://evil.example/keystore"
+            )
+
+    def test_plain_http_redirect_is_refused(self) -> None:
+        req = urllib.request.Request("https://upload.wikimedia.org/a.jpg")
+        with pytest.raises(ValueError, match="allow-list"):
+            sm._AllowListRedirectHandler().redirect_request(
+                req, None, 301, "Moved", {}, "http://upload.wikimedia.org/a.jpg"
+            )
+
+    def test_on_allowlist_redirect_is_followed(self) -> None:
+        """commons -> upload is the NORMAL hop (thumb url lands on the image
+        cdn); it must keep working, which is why we revalidate not forbid."""
+        req = urllib.request.Request("https://commons.wikimedia.org/x")
+        new = sm._AllowListRedirectHandler().redirect_request(
+            req, None, 302, "Found", {}, "https://upload.wikimedia.org/y.jpg"
+        )
+        assert new is not None and "upload.wikimedia.org" in new.full_url
+
+    def test_get_uses_the_revalidating_opener(self) -> None:
+        assert any(
+            isinstance(h, sm._AllowListRedirectHandler) for h in sm._OPENER.handlers
+        ), "_get must fetch through the opener that rechecks every hop"
+
+
 class TestRetry:
     """2026-09-24 fetch run: 7 of 13 scenarios came back with 0 frames and
     the code could not say why - every network hiccup was swallowed by a bare
