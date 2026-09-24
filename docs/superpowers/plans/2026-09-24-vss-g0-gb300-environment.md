@@ -70,7 +70,7 @@
 - [x] S-1 ran: expected outcome confirmed — **native `json_schema` ENFORCED (arm B2 echoed the const) while `nvext.guided_json` is SILENTLY IGNORED (arm B1 prose, const not echoed) = E5 empirically confirmed**. Report `$AGENT_GPU_DIR/out/probes/s1.json` (`verdict: ENFORCED`).
 - [x] S-2 ran: **ENFORCED** at b7972 with images (nested-const echoed). Trap ledgered: `max_tokens: 96` truncated arm B and faked an IGNORED verdict — grammar can't close past the budget; probe raised to 400. Per-checkpoint guard recorded (re-run on engine/model swap) **[V]**.
 - [x] Ledger rows S-1, S-2 closed with report key fields + server `build_info`.
-- [ ] **Owner question surfaced, not self-resolved (F4):** spec 0.3 applies fail-closed null semantics to the LIVE legacy Nemotron path (score-50→verification_failed with NULL). Needs explicit owner confirmation before any code lands; zero code now.
+- [x] **Owner question surfaced, not self-resolved (F4):** spec 0.3 applies fail-closed null semantics to the LIVE legacy Nemotron path (score-50→verification_failed with NULL). RULING 2026-09-24: **APPROVED** — zero code in G0 (correct: 0.3-implementation belongs to Phase 0), approval on record in ledger F4.
 
 ### Task 4: S-5 — Nemotron-12B-VL GGUF on a bumped pin
 
