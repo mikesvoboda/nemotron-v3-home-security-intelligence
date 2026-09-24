@@ -155,6 +155,25 @@ def _fingerprint(item: EvalItem) -> str:
 # owner's F6 path decision and the pinned AssessInput shape.
 _SYNTHETIC_CAMERA_ID = "synthetic-source"
 _CATEGORY_LABELS = {"normal": "benign", "suspicious": "incident", "threats": "incident"}
+# Each of the 13 scenarios exists as a committed label set in exactly one
+# category (e.g. data/synthetic/normal/delivery_driver,
+# data/synthetic/threats/package_theft) - verified 2026-09-24. Stock frames
+# inherit that placement rather than a new judgement.
+_SCENARIO_CATEGORY = {
+    "delivery_driver": "normal",
+    "pet_activity": "normal",
+    "resident_arrival": "normal",
+    "vehicle_parking": "normal",
+    "yard_maintenance": "normal",
+    "casing": "suspicious",
+    "loitering": "suspicious",
+    "prowling": "suspicious",
+    "tailgating": "suspicious",
+    "break_in_attempt": "threats",
+    "package_theft": "threats",
+    "vandalism": "threats",
+    "weapon_visible": "threats",
+}
 
 
 def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
@@ -192,6 +211,66 @@ def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
                     timestamp=_generated_at(path),
                 ),
                 source="synthetic",
+            )
+        )
+    return out
+
+
+def load_stock_items(media_root: str | Path) -> list[EvalItem]:
+    """Stock frames (F5, off-repo) become media-bearing DRAFT items.
+
+    One item per scenario directory: the frame paths are what the VLM
+    verifier will actually see, so this is the corpus S-3 has been waiting
+    on. Nothing here is invented —
+
+    * the benign/incident label comes from `_SCENARIO_CATEGORY`, which mirrors
+      where the COMMITTED corpus places each scenario (`normal/delivery_driver`
+      etc. exist beside `threats/package_theft`), not a guess;
+    * detections/zones are not claimed from a still frame: the snapshot carries
+      zero detections and zone_crossing False, and expected_risk_score is 0
+      (unknown) rather than a fabricated band;
+    * a still frame has no generation timestamp; the honest epoch sentinel
+      stands (never invented). Attribution rides beside each frame as its
+      sidecar JSON, not inside the item.
+
+    A missing root is a hard error; an unreadable manifest skips the scenario
+    loudly. The D10 guard in put_item still decides residence.
+    """
+    root = Path(media_root)
+    if not root.is_dir():
+        raise FileNotFoundError(f"stock media root not found: {root}")
+    out: list[EvalItem] = []
+    for dirpath in sorted(p for p in root.iterdir() if p.is_dir()):
+        scenario = dirpath.name
+        category = _SCENARIO_CATEGORY.get(scenario)
+        if category is None:
+            _LOG.warning("skipping unknown stock scenario %s (no committed label)", scenario)
+            continue
+        manifest = dirpath / "manifest.json"
+        try:
+            frames = json.loads(manifest.read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            _LOG.warning("skipping stock scenario %s: unreadable manifest: %s", scenario, e)
+            continue
+        paths = [str(f["file"]) for f in frames if isinstance(f, dict) and f.get("file")]
+        if not paths:
+            _LOG.warning("skipping stock scenario %s: manifest lists no frames", scenario)
+            continue
+        out.append(
+            EvalItem(
+                item_id=f"stock:{scenario}",
+                media_paths=paths,
+                expected_label=_CATEGORY_LABELS[category],
+                expected_risk_score=0,  # stills carry no risk band; unknown is honest
+                snapshot=AssessInput(
+                    camera_id=_SYNTHETIC_CAMERA_ID,
+                    detections=[],  # never claimed from a still frame
+                    zones=[],
+                    zone_crossing=False,
+                    household={},
+                    timestamp=_generated_at(manifest),
+                ),
+                source="stock",
             )
         )
     return out

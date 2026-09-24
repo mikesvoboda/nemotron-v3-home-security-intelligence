@@ -11,14 +11,20 @@ the corpus carries zero media files, asserted here).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from backend.evaluation.assess_input import AssessInput, EvalItem
-from backend.evaluation.eval_store import EvalStore, load_synthetic_items
+from backend.evaluation.eval_store import EvalStore, load_stock_items, load_synthetic_items
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+# F5 stock frames live on the GPU mount (off-repo by ruling); absent on
+# machines that never staged them - the one test that reads them says why.
+GPU_STOCK = (
+    Path(os.environ.get("AGENT_GPU_DIR", "/agents/agent-vss1/gpu")) / "out" / "media" / "stock"
+)
 
 
 def _item(i: int = 1, label: str = "incident") -> EvalItem:
@@ -196,3 +202,105 @@ class TestSyntheticLoader:
             for i in items:
                 s.put_item(i)
             assert s.get_item(items[0].item_id) == items[0]
+
+
+class TestStockLoader:
+    """F5 imagery is on disk (Wikimedia Commons frames, off-repo), so the
+    media-bearing items the S-3 re-run needs can now exist. Labels come from
+    the committed corpus's OWN placement of each scenario, never a new call."""
+
+    @staticmethod
+    def _corpus(tmp_path, scenario: str = "casing", n: int = 2):
+        d = tmp_path / scenario
+        d.mkdir(parents=True)
+        frames = []
+        for i in range(1, n + 1):
+            f = d / f"{i:03d}.jpg"
+            f.write_bytes(b"\xff\xd8z" * 9000)
+            frames.append({"file": str(f), "license": "CC0", "title": f"File:{i}.jpg"})
+        (d / "manifest.json").write_text(json.dumps(frames))
+        return d
+
+    def test_loads_scenarios_with_real_media(self, tmp_path) -> None:
+        self._corpus(tmp_path, "casing", 2)
+        self._corpus(tmp_path, "delivery_driver", 1)
+        items = load_stock_items(tmp_path)
+        assert {i.item_id for i in items} == {"stock:casing", "stock:delivery_driver"}
+        by_id = {i.item_id: i for i in items}
+        assert by_id["stock:casing"].media_paths == [
+            str(tmp_path / "casing" / "001.jpg"),
+            str(tmp_path / "casing" / "002.jpg"),
+        ]
+        assert by_id["stock:delivery_driver"].source == "stock"
+
+    def test_labels_inherit_the_committed_corpus(self, tmp_path) -> None:
+        for s in ("casing", "loitering", "prowling", "tailgating"):
+            self._corpus(tmp_path, s, 1)
+        for s in ("break_in_attempt", "package_theft", "vandalism", "weapon_visible"):
+            self._corpus(tmp_path, s, 1)
+        for s in ("delivery_driver", "pet_activity", "yard_maintenance"):
+            self._corpus(tmp_path, s, 1)
+        labels = {i.item_id: i.expected_label for i in load_stock_items(tmp_path)}
+        for s in ("casing", "loitering", "prowling", "tailgating", "break_in_attempt"):
+            assert labels[f"stock:{s}"] == "incident"
+        assert labels["stock:delivery_driver"] == "benign"
+
+    def test_nothing_invented_in_the_snapshot(self, tmp_path) -> None:
+        self._corpus(tmp_path, "casing", 1)
+        (it,) = load_stock_items(tmp_path)
+        assert it.expected_risk_score == 0, "a still frame carries no risk band"
+        assert it.snapshot.detections == [], "detections are never claimed from a still"
+        assert it.snapshot.zone_crossing is False
+        assert it.snapshot.camera_id == "synthetic-source"
+        assert it.snapshot.timestamp == "1970-01-01T00:00:00+00:00", "no invented timestamp"
+
+    def test_unknown_scenario_skipped_loudly(self, tmp_path) -> None:
+        self._corpus(tmp_path, "moonlanding", 1)
+        assert load_stock_items(tmp_path) == []
+
+    def test_manifest_without_frames_skipped(self, tmp_path) -> None:
+        d = tmp_path / "casing"
+        d.mkdir()
+        (d / "manifest.json").write_text("[]")
+        assert load_stock_items(tmp_path) == []
+
+    def test_refuses_missing_root(self, tmp_path) -> None:
+        with pytest.raises(FileNotFoundError):
+            load_stock_items(tmp_path / "nowhere")
+
+    def test_real_corpus_items_pass_the_d10_guard(self, tmp_path) -> None:
+        """The frames live on the GPU mount OUTSIDE the checkout, so the D10
+        guard must accept them - and it does only because residence is checked
+        by resolved path. Frames themselves are never read, only pathed."""
+        items = load_stock_items(GPU_STOCK)
+        if not items:
+            pytest.skip("stock corpus not staged on this machine")
+        assert {i.item_id for i in items} >= {"stock:casing", "stock:package_theft"}
+        assert all(i.media_paths for i in items), "media-bearing is the whole point"
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            for i in items:
+                s.put_item(i)
+            assert s.get_item("stock:casing").media_paths
+
+    def test_all_thirteen_scenarios_map(self) -> None:
+        """The mapping must cover exactly the 13 spec-5 scenarios."""
+        from backend.evaluation.eval_store import _SCENARIO_CATEGORY
+
+        assert set(_SCENARIO_CATEGORY) == {
+            "delivery_driver",
+            "pet_activity",
+            "resident_arrival",
+            "vehicle_parking",
+            "yard_maintenance",
+            "casing",
+            "loitering",
+            "prowling",
+            "tailgating",
+            "break_in_attempt",
+            "package_theft",
+            "vandalism",
+            "weapon_visible",
+        }
+        # ... and each agrees with where the committed corpus puts the name
+        for scenario, category in _SCENARIO_CATEGORY.items():
+            assert (REPO_ROOT / "data" / "synthetic" / category).is_dir()
