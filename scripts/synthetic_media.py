@@ -28,10 +28,25 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import logging
 import os
 import re
 import sys
+import time
 from pathlib import Path
+
+_LOG = logging.getLogger("vss-eval-media")
+# Transient upstream failures (throttling, blips) are the norm on a run that
+# makes ~400 requests; each gets this many attempts with backoff. 2026-09-24
+# evidence: one fetch run came back 7/13 scenarios EMPTY, the identical search
+# terms minutes later returned 40+ clean candidates - pure throttling, silently
+# swallowed by a bare `continue`.
+RETRIES = 3
+# 0.5s/request, not 0.15: the re-fetch run on 2026-09-24 caught Commons
+# answering HTTP 429 in bursts (pet_activity lost all three searches to it),
+# and the retry backoff alone doesn't outlast that window. Keyless courtesy
+# costs a few minutes per full corpus run.
+PACE_SECONDS = 0.5
 
 # NOTE transport: stdlib urllib, not httpx. Commons' WAF 403s httpx's TLS
 # fingerprint on identical requests (verified 2026-09-24: curl/urllib/requests
@@ -147,52 +162,99 @@ def _get(url: str, params: dict[str, str] | None = None) -> bytes:
     req = urllib.request.Request(full, headers={"User-Agent": UA})
     # nosemgrep: ssrf-requests - url passes _assert_allowed: https + Wikimedia host allow-list (tests pin it)
     with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - allow-listed above
+        time.sleep(PACE_SECONDS)  # gentle on the keyless API, every request
         return resp.read()
+
+
+def _get_with_retry(url: str, params: dict[str, str] | None = None) -> bytes:
+    """`_get` with bounded retries for transient network/HTTP failures. An
+    allow-list refusal (ValueError) is policy, not a blip - it re-raises
+    immediately rather than hammering a host we must not call."""
+    for attempt in range(1, RETRIES + 1):
+        try:
+            return _get(url, params)
+        except ValueError:
+            raise
+        except (OSError, urllib.error.URLError):
+            if attempt >= RETRIES:
+                raise
+            time.sleep(0.5 * attempt)
+    raise AssertionError("unreachable")  # loop returns or raises
 
 
 def fetch_scenario(scenario: str, per: int, root: Path) -> list[dict]:
     """Up to `per` license-clean frames for one scenario; returns the
-    manifest records actually written. Network blips skip the candidate -
-    a missing frame is honest, a fabricated or unlicensed one is not."""
-    recs: list[dict] = []
+    manifest records actually written. A network blip skips the candidate -
+    a missing frame is honest, a fabricated or unlicensed one is not - but
+    the skip is LOGGED with the title: a 30-frame run that silently produced
+    7 empty scenarios was un-auditable (2026-09-24)."""
     dirpath = root / scenario
     dirpath.mkdir(parents=True, exist_ok=True)
+    # Resume/top-up: frames already on disk count toward `per` and the next
+    # slot is the first free NN.jpg. The old code keyed the slot off
+    # len(recs)+1 - correct only on a from-scratch run - so a directory with
+    # 001.jpg already present skipped every candidate forever and filled
+    # nothing. `written` is what THIS run added (main() totals on it); the
+    # manifest covers every frame in the directory.
+    existing = sorted(dirpath.glob("[0-9][0-9][0-9].jpg"))
+    written: list[dict] = []
+    slot = len(existing)
     for term in SCENARIO_QUERIES[scenario]:
-        if len(recs) >= per:
+        if slot >= per:
             break
         try:
-            body = json.loads(_get(API, search_params(term)))
-        except (OSError, urllib.error.URLError, json.JSONDecodeError):
+            body = json.loads(_get_with_retry(API, search_params(term)))
+        except (OSError, urllib.error.URLError, json.JSONDecodeError) as e:
+            _LOG.warning("%s: search %r failed, moved on: %s", scenario, term, e)
             continue
         pages = (body.get("query") or {}).get("pages") or {}
         ranked = sorted(pages.values(), key=lambda p: p.get("index", 999))
         for page in ranked:
-            if len(recs) >= per:
+            if slot >= per:
                 break
+            title = page.get("title", "?")
             if not license_of(page):
-                continue
+                continue  # license filter: the norm, not a skip worth noise
             info = page["imageinfo"][0]
             url = info.get("thumburl") or info.get("url")
             if not url or not url.startswith("https://"):
+                _LOG.warning("%s: %s has no https thumb url", scenario, title)
                 continue
-            dest = target_path(root, scenario, f"{len(recs) + 1:03d}.jpg")
+            dest = target_path(root, scenario, f"{slot + 1:03d}.jpg")
             if dest.exists():
+                slot += 1  # already filled by an earlier run: move past it
                 continue
             try:
-                frame = _get(url)
-            except (OSError, urllib.error.URLError):
+                frame = _get_with_retry(url)
+            except (OSError, urllib.error.URLError) as e:
+                _LOG.warning("%s: skip %s after %d tries: %s", scenario, title, RETRIES, e)
                 continue
             if not 20_000 <= len(frame) <= 4_000_000:
-                continue  # stub thumbs / absurd originals: plumbing stays bounded
+                # stub thumbs / absurd originals: plumbing stays bounded
+                _LOG.warning("%s: skip %s, out-of-band size %d", scenario, title, len(frame))
+                continue
             dest.write_bytes(frame)
             rec = attribution_record(page, scenario)
             rec["file"] = str(dest)
             rec["bytes"] = len(frame)
             dest.with_suffix(".json").write_text(json.dumps(rec, indent=2))
-            recs.append(rec)
-    if recs:
-        (dirpath / "manifest.json").write_text(json.dumps(recs, indent=2))
-    return recs
+            written.append(rec)
+            slot += 1
+    all_recs = [_manifest_entry(p) for p in sorted(dirpath.glob("[0-9][0-9][0-9].jpg"))]
+    if all_recs:
+        (dirpath / "manifest.json").write_text(json.dumps(all_recs, indent=2))
+    return written
+
+
+def _manifest_entry(jpg: Path) -> dict:
+    """Manifest row for one frame on disk: its attribution JSON when present,
+    a path-only row when not (a frame without a sidecar is still reported,
+    never hidden)."""
+    sidecar = jpg.with_suffix(".json")
+    try:
+        return json.loads(sidecar.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"file": str(jpg), "attribution": "MISSING"}
 
 
 def main() -> int:
@@ -205,6 +267,7 @@ def main() -> int:
     gpu = os.environ.get("AGENT_GPU_DIR", "/agents/agent-vss1/gpu")
     fp.add_argument("--root", default=str(Path(gpu) / "out" / "media" / "stock"))
     args = ap.parse_args()
+    logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
     if args.cmd == "queries":
         print(json.dumps(SCENARIO_QUERIES, indent=2))
