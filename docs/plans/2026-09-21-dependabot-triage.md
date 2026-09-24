@@ -755,6 +755,42 @@ its five sibling SBOM jobs cancelling downstream. One transient: main CI on
 `Set up Python` (Ruff + WS-integration shards) — self-healed on the next
 roll; CI on final head `54207141` is fully green, Deploy-to-Staging included.
 
+### Owner rulings executed (2026-09-23)
+
+**R-1 — DROP `wily`, declare `radon` directly: YES, executed.** `wily>=1.25.0`
+removed from both the deprecated `dev` extra (line ~129) and the `quality`
+group, with `radon>=5.1.0` declared in each site's place — the call sites
+(`ci.yml:331` complexity check — **unguarded**, hard CI-gate dependency;
+`weekly-audit.yml:70,73`; `scripts/audit-summary.sh:70,73`) only ever ran
+radon, and wily existed in the project env solely to leak its transitive
+5.1.x. `nightly.yml` is unaffected (`uv tool run wily` is env-isolated; its
+`fetch-depth: 0` comment is prose, untouched). Side effect: lifting wily
+un-caps the graph dependabot kept refusing — plotly (was `>=4,<6`), colorlog
+(`>=4,<5`), radon (was `>=5.1,<5.2`), mando. The `data-designer` 0.9.2 caps
+(rich/python-json-logger/faker/fsspec) are untouched by this change and
+remain subject to R-4 below. First red on #6676 vindicated the ruling's thesis:
+`Contract Tests (API Schema)` died with `ModuleNotFoundError: jsonschema` —
+`backend/tests/contracts/ai_providers/*` imported it undeclared and the dev env
+got it via the wily→nbformat→jsonschema chain (it survives the lock only for
+the `data-designer`/`mcp` extras, which the job's `uv sync --extra dev` never
+materializes). Fixed same-PR by declaring `jsonschema>=4.0.0` in the `test`
+group; collection verified locally (612 tests, zero import errors).
+
+**R-4 — upstream version caps ARE an acceptable wontfix: YES, recorded.** The
+10 refused Python upgrades from wave-1's Group A trace to two upstream owners
+(`data-designer` 0.9.2 extras + wily — the latter now moot per R-1). Owner
+ruling: these stay refused; **no upstream-issue chasing**. Dependabot
+re-proposals hitting the same caps get closed citing this paragraph plus the
+Group A resolver table. The measured `data-designer-engine==0.9.2` metadata
+contradiction (`fsspec<2026,>=2025.3.0` declared vs an extra pinning
+`fsspec==2026.7.0`) is documented here for the record but is explicitly NOT
+to be filed upstream under this ruling.
+
+**R-3 — UNRESOLVED, still open:** #6669 cuda 13.4.1 remains OPEN on the owner
+gate; decision input is `nvidia-smi` CUDA-version column ≥ 13.4 on the
+rtx-a5500 host (see chat 2026-09-23; not a paper merge — merge = first 13.4.1
+ai-llm build + auto staging deploy).
+
 **Final state:** all wave-3 PRs merged — `db220839` (#6674) · `4dbb0353`
 (#6668 npm) · `cc58cdc7` (#6667 actions) · `54207141` (#6673 ledger); seven
 supersede-evidence comments posted; zero open dependabot PRs. Sole OPEN item:
@@ -762,3 +798,19 @@ supersede-evidence comments posted; zero open dependabot PRs. Sole OPEN item:
 build.** Monday 2026-09-28 06:00 CT the weekly schedule re-rolls; the ignore
 floors (#6666) plus this ledger's deferred-reason table decide what gets
 landed vs closed without re-litigating.
+
+**Wave-4 addendum (R-1 merge, 2026-09-23):** #6676 admin-squashed as
+`3b48aaf9` after the jsonschema fix (above) turned its gate fully green —
+75/75 checks, zero failures, CI Gate SUCCESS. Post-merge main runs match the
+documented ambient signatures exactly: Deploy `35925126669` failed only at
+`Smoke Test Deployment` ("Start services") and `SBOM & Sign (frontend)`
+("Sign container image") with every build/manifest/provenance job and
+**Deploy to Staging green** (staging ran the wily-free images); main CI
+`35925126878` failed only `Test Performance Audit`, whose single breach —
+`test_zero_dce_loader::test_grayscale_input_is_converted_to_rgb`, 5.49s vs
+4.0s — is the _same test that breached at 4.34s on `45311508`_ (a docs-only
+merge), i.e. runner-variance drift straddling the threshold, ambient and
+pre-dating this change; the honest fix is a threshold raise or test
+optimization, tracked as a follow-up, not a revert. **New ambient signature
+for the ledger: `Test Performance Audit` on `test_zero_dce_loader` grayscale
+case** — signature-match against either head before believing it.
