@@ -66,7 +66,7 @@ class ArityResolver:
         if path not in self._tree:
             try:
                 self._tree[path] = ast.parse(path.read_text())
-            except SyntaxError, OSError, UnicodeDecodeError:
+            except (SyntaxError, OSError, UnicodeDecodeError):
                 self._tree[path] = None
         return self._tree[path]
 
@@ -165,7 +165,7 @@ def module_imports_of(path: Path) -> dict[str, str]:
     out: dict[str, str] = {}
     try:
         tree = ast.parse(path.read_text())
-    except SyntaxError, OSError, UnicodeDecodeError:
+    except (SyntaxError, OSError, UnicodeDecodeError):
         return out
     for node in tree.body:
         if isinstance(node, ast.Import):
