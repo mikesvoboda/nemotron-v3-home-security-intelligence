@@ -36,6 +36,9 @@ class EvalStore:
     def __init__(self, db_path: str | Path) -> None:
         self._db = sqlite3.connect(str(db_path))
         self._db.execute("PRAGMA foreign_keys = ON")
+        # A contended write waits instead of aborting (G0 close-out audit #12):
+        # a sharded freeze run shares one store file.
+        self._db.execute("PRAGMA busy_timeout = 30000")
         self._db.executescript(
             """
             CREATE TABLE IF NOT EXISTS items(
@@ -83,7 +86,16 @@ class EvalStore:
                 resolved = Path(p).expanduser().resolve()
             except OSError:
                 resolved = Path(p)
-            if resolved == _REPO_ROOT or _REPO_ROOT in resolved.parents:
+            # casefold as well as compare: on a case-insensitive dev FS (macOS)
+            # /AGENTS/... and the real root are the same file, but a plain
+            # parents check misses it on the case-sensitive box (audit #18).
+            r_low, root_low = str(resolved).casefold(), str(_REPO_ROOT).casefold()
+            if (
+                r_low == root_low
+                or root_low in [str(x) for x in Path(r_low).parents]
+                or resolved == _REPO_ROOT
+                or _REPO_ROOT in resolved.parents
+            ):
                 raise ValueError(
                     f"privacy: media path {p!r} resolves inside the repo checkout "
                     f"({_REPO_ROOT}); eval media must live off-repo (D10)"
@@ -191,9 +203,20 @@ def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
         except (OSError, json.JSONDecodeError) as e:
             _LOG.warning("skipping unreadable label set %s: %s", path, e)
             continue
+        if not isinstance(labels, dict):
+            _LOG.warning(
+                "skipping label set %s: JSON is %s, not an object", path, type(labels).__name__
+            )
+            continue
         category = path.parent.parent.name
         label = _CATEGORY_LABELS.get(labels.get("category", category), category)
-        risk = labels.get("risk") or {}
+        # a malformed risk band is "unknown", never a crash (audit #14)
+        raw_risk = labels.get("risk")
+        risk = raw_risk if isinstance(raw_risk, dict) else {}
+        if raw_risk is not None and not isinstance(raw_risk, dict):
+            _LOG.warning(
+                "label set %s has a non-object risk band %r; scoring unknown", path, raw_risk
+            )
         vid = labels.get("video_id")
         item_id = f"synthetic:{category}:{path.parent.name}" + (f"::{vid}" if vid else "")
         out.append(
@@ -252,7 +275,33 @@ def load_stock_items(media_root: str | Path) -> list[EvalItem]:
         except (OSError, json.JSONDecodeError) as e:
             _LOG.warning("skipping stock scenario %s: unreadable manifest: %s", scenario, e)
             continue
-        paths = [str(f["file"]) for f in frames if isinstance(f, dict) and f.get("file")]
+        if not isinstance(frames, list):
+            _LOG.warning(
+                "skipping stock scenario %s: manifest is %s, not a list",
+                scenario,
+                type(frames).__name__,
+            )
+            continue
+        # Containment (G0 close-out audit #1): D10 answers "is this repo/
+        # capture media?" — an off-repo /etc/shadow passes it. The fetcher's
+        # contract is frames-live-in-their-scenario-dir, so the loader holds
+        # the manifest to that: a named frame must resolve inside dirpath.
+        paths: list[str] = []
+        for entry in frames:
+            raw = entry.get("file") if isinstance(entry, dict) else None
+            if not raw:
+                continue
+            resolved = Path(str(raw)).expanduser()
+            resolved = resolved if resolved.is_absolute() else (dirpath / resolved)
+            resolved = resolved.resolve()
+            if dirpath.resolve() not in resolved.parents:
+                _LOG.warning(
+                    "skipping stock scenario %s: manifest path %r escapes the scenario dir",
+                    scenario,
+                    raw,
+                )
+                continue  # the frame is refused; if that empties the item, the no-frames check below skips the scenario
+            paths.append(str(resolved))
         if not paths:
             _LOG.warning("skipping stock scenario %s: manifest lists no frames", scenario)
             continue

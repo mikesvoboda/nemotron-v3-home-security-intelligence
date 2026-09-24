@@ -72,6 +72,10 @@ HOST_JUSTIFIED: dict[str, str] = {
     # stand or fall on this file/DB content, so they share the verdict.
     "backend/tests/conftest.py:2534": "scenarios.parquet is pipeline-generated data, not a repo file",
     "backend/tests/conftest.py:2555": "same scenarios.parquet chain (fixture None)",
+    # The G0.4 stock-frame corpus is owner-staged off-repo data on the GPU
+    # mount (ledger F6/F5), present only where the fetcher has run - the same
+    # data-chain class as scenarios.parquet, not a repo-file guard.
+    "backend/tests/unit/evaluation/test_eval_store.py:295": "stock media corpus is staged off-repo data (GPU mount), not repo content",
     "backend/tests/integration/test_nemotron_prompts.py:45": "same scenarios.parquet chain",
     "backend/tests/integration/test_nemotron_prompts.py:70": "Nemotron service call failed — service process absent",
     "backend/tests/integration/test_nemotron_prompts.py:100": "same scenarios.parquet chain",

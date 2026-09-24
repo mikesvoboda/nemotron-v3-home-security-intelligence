@@ -114,6 +114,24 @@ class TestEvalStore:
             with pytest.raises(ValueError, match="privacy"):
                 s.put_item(item)
 
+    def test_guard_refuses_case_twisted_repo_path(self, tmp_path) -> None:
+        """G0 close-out audit #18: `/AGENTS/AGENT-VSS1/WORKSPACE/x.jpg` slipped
+        past the resolved-path check (case-sensitive parents on Linux). Dead on
+        Linux, live on any case-insensitive dev FS (the owner's Mac) - the
+        cheap belt is a casefolded compare."""
+        twisted = "/" + "/".join(REPO_ROOT.parts[1:]).upper() + "/staged.jpg"
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            item = _item(7).model_copy(update={"media_paths": [twisted]})
+            with pytest.raises(ValueError, match="privacy"):
+                s.put_item(item)
+
+    def test_store_sets_a_busy_timeout(self, tmp_path) -> None:
+        """Audit #12: a second writer hit 'database is locked' with no patience
+        - a sharded freeze (2.1) would abort on the first contended write."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            ms = s._db.execute("PRAGMA busy_timeout").fetchone()[0]
+            assert ms >= 30_000
+
     def test_guard_allows_off_repo_gpu_media(self, tmp_path) -> None:
         """F6 (owner-ruled): the GPU mount root is the sanctioned off-repo
         home for stock/eval media; the guard must not refuse it wholesale."""
@@ -281,6 +299,52 @@ class TestStockLoader:
             for i in items:
                 s.put_item(i)
             assert s.get_item("stock:casing").media_paths
+
+    # --- G0 close-out audit (wf_6b6035c7-9d3) regression guards ----------
+
+    def test_manifest_paths_must_stay_in_their_scenario_dir(self, tmp_path) -> None:
+        """D10 refuses repo/capture residence, but an off-repo path is NOT
+        automatically scenario media: the audit drove a manifest naming
+        /etc/shadow straight through the guard and into an item whose frames
+        s3 would then base64-upload to the model. Frames live in their
+        scenario directory (the fetcher's own contract) - containment is the
+        loader's, not D10's, because D10 answers a different question."""
+        d = tmp_path / "loitering"
+        d.mkdir()
+        (d / "manifest.json").write_text(
+            json.dumps([{"file": "/etc/shadow", "license": "CC0", "title": "File:x.jpg"}])
+        )
+        assert load_stock_items(tmp_path) == [], "a traversal manifest must yield no item"
+
+    def test_manifest_dotdot_escape_is_refused(self, tmp_path) -> None:
+        d = tmp_path / "casing"
+        d.mkdir()
+        outside = tmp_path / "sneaky.jpg"
+        outside.write_bytes(b"\xff\xd8z" * 9000)
+        (d / "manifest.json").write_text(
+            json.dumps([{"file": str(d / ".." / "sneaky.jpg"), "license": "CC0"}])
+        )
+        assert load_stock_items(tmp_path) == []
+
+    def test_null_manifest_is_skipped_not_crash(self, tmp_path) -> None:
+        """Audit class: valid-JSON/wrong-shape inputs crashed the loader
+        (TypeError/AttributeError) where the contract is skip-loudly."""
+        d = tmp_path / "casing"
+        d.mkdir()
+        (d / "manifest.json").write_text("null")
+        assert load_stock_items(tmp_path) == []
+
+    def test_string_risk_band_is_skipped_not_crash(self, tmp_path) -> None:
+        """The synthetic twin: expected_labels.json with risk:"50" (a string)
+        used to raise inside _midpoint's unpack."""
+        d = tmp_path / "corpus" / "normal" / "set1"
+        d.mkdir(parents=True)
+        (d / "expected_labels.json").write_text(
+            json.dumps({"category": "normal", "risk": "50", "detections": []})
+        )
+        items = load_synthetic_items(tmp_path / "corpus")
+        assert len(items) == 1
+        assert items[0].expected_risk_score == 0, "an unusable band reads as unknown, never a crash"
 
     def test_all_thirteen_scenarios_map(self) -> None:
         """The mapping must cover exactly the 13 spec-5 scenarios."""

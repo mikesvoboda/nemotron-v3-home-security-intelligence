@@ -1342,6 +1342,13 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: null
+  - id: backend/tests/unit/evaluation/test_eval_store.py:295
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: stock media corpus (GPU mount, F6 store) is not staged on every machine
+    host_justification: stock media corpus is staged off-repo data (GPU mount), not repo content
 pytest_skipif:
   - id: backend/tests/benchmarks/test_bigo.py::TestBatchAggregatorComplexity
     kind: environment
