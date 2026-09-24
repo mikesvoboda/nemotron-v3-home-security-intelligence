@@ -62,7 +62,7 @@
 - [x] `ai/vlm/Dockerfile` authored; agent-gpu contract-clean; `--jinja` added (probe precondition) **[V]**.
 - [x] `agent-gpu build … ai-vlm:sm103` attempted twice, deterministic runner panic (ledger E13; owner decision F1) **[V]** → G0.2's artifact ships via `agent-gpu run` until the owner repairs the runner.
 - [x] S-4 job `build7972` (detached, devel base, `--mount out:/out`, `-j72`): cmake configures clean (nvcc 13.3.73 accepts 103; CUDA-host gcc 11.4) and **BUILD_SUCCESS, exit 0 in ~7 min**; binary at `$AGENT_GPU_DIR/out/build/b7972-bin/llama-server` **[V]**. S-4 = DONE: the binary loads and serves a model (task 3) **[V]**. (Runtime base also needed `libgomp.so.1` — mounted from `out/libs/gomp` — ledgered.)
-- [x] `ai/vlm/Dockerfile` committed after the pre-commit gates anyway (c2e8949f). Retry `agent-gpu build` remains open on F1.
+- [x] `ai/vlm/Dockerfile` committed after the pre-commit gates anyway (c2e8949f). F1 CLOSED 2026-09-24: post-repair `agent-gpu build` tagged both `ai-vlm:sm103` and fresh-layer `ai-vlm:sm103-b11090`; `img-serve` from the image hit `/health` 200 + `/props` `b7972-e06088da0` (ledger F1 row).
 
 ### Task 3: G0.2 serve + S-1/S-2 probes
 
