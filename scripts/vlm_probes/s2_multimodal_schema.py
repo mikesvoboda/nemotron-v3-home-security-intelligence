@@ -114,7 +114,10 @@ def main() -> int:
         # A: plain multimodal generation.
         a = c.post(f"{base}/v1/chat/completions", json=chat_body(uri))
         a_content = content_of(a)
-        report["arm_a"] = {"status": a.status_code, "content": a_content[:300]}
+        # content is stored WHOLE (G0 audit #22): reports live off-repo and the
+        # reply is already max_tokens-bounded; the old [:300] slice cut s5.json's
+        # arm mid-string, so a JSON-parse re-audit couldn't revalidate it.
+        report["arm_a"] = {"status": a.status_code, "content": a_content}
         if a.status_code != 200 or not a_content.strip():
             report["verdict"] = "INCONCLUSIVE"
             report["why"] = ("arm A failed (400 about image input => server started "
@@ -131,7 +134,7 @@ def main() -> int:
             echoed = json.loads(b_content).get("probe_const") == nonce
         except Exception:
             pass
-        report["arm_b_enforced"] = {"status": b.status_code, "content": b_content[:300],
+        report["arm_b_enforced"] = {"status": b.status_code, "content": b_content,
                                     "echoed_const": echoed}
 
         # C: malformed wrapper -> grammar is literally "{}"; reply must NOT be "{}".
@@ -139,7 +142,7 @@ def main() -> int:
         cc = c.post(f"{base}/v1/chat/completions", json=chat_body(uri, rf_bad))
         cc_content = content_of(cc)
         empty_object_reply = cc_content.strip().replace(" ", "") == "{}"
-        report["arm_c_malformed"] = {"status": cc.status_code, "content": cc_content[:300],
+        report["arm_c_malformed"] = {"status": cc.status_code, "content": cc_content,
                                      "empty_object_reply": empty_object_reply}
 
     if echoed:

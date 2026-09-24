@@ -83,6 +83,11 @@ def judge(client: httpx.Client, base: str, frame: Path, nonce: str) -> dict:
         v = json.loads(r.json()["choices"][0]["message"]["content"])
     except Exception:
         return {"parse_ok": False, "s": el, "status": r.status_code}
+    # G0 close-out audit #2: `content: "null"` (or a list/scalar) parsed fine
+    # and then raised AttributeError on .get - a data problem became a dead
+    # run with zero rows written. A wrong-shape verdict is a DATA POINT.
+    if not isinstance(v, dict):
+        return {"parse_ok": False, "s": el, "status": r.status_code}
     ok = (
         v.get("probe_const") == nonce
         and v.get("verdict") in ("confirmed", "rejected", "uncertain")
@@ -107,13 +112,31 @@ def main() -> int:
     args = ap.parse_args()
 
     root = args.stock_root
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    rows: list[dict] = []
+
+    def dump(aggregate: dict | None = None) -> None:
+        """Rows land off-repo AS they are produced (audit #2: a crash used to
+        lose every row, which only got written after the whole loop)."""
+        payload: dict = {"rows": rows}
+        if aggregate is not None:
+            payload["aggregate"] = aggregate
+        args.out.write_text(json.dumps(payload, indent=2))
+
     with httpx.Client(timeout=180.0) as client:
         props = client.get(f"{args.base_url.rstrip('/')}/props").json()
         nonce = uuid.uuid4().hex
-        rows: list[dict] = []
         for man in sorted(root.glob("*/manifest.json")):
             scenario = man.parent.name
-            frames = [Path(r["file"]) for r in json.loads(man.read_text())][: args.limit]
+            try:
+                entries = json.loads(man.read_text())
+            except (OSError, json.JSONDecodeError) as e:
+                print(f"skipping {scenario}: unreadable manifest: {e}", file=sys.stderr, flush=True)
+                continue
+            if not isinstance(entries, list):
+                print(f"skipping {scenario}: manifest is not a list", file=sys.stderr, flush=True)
+                continue
+            frames = [Path(r["file"]) for r in entries if isinstance(r, dict) and r.get("file")][: args.limit]
             expected = "rejected" if scenario in _BENIGN else "confirmed"
             for f in frames:
                 row = judge(client, args.base_url.rstrip("/"), f, nonce)
@@ -122,11 +145,11 @@ def main() -> int:
                     row["correct"] = row["verdict"] == expected
                     row["flagged"] = row["verdict"] in ("confirmed", "uncertain")
                 rows.append(row)
-                print(
-                    f"{scenario}/{f.name}: {row.get('verdict', 'PARSE_FAIL')} "
-                    f"score={row.get('risk_score', '-')} {row['s']}s",
-                    flush=True,
-                )
+                dump()  # incremental: a later crash cannot lose these rows
+                # Progress line is progress, NOT a verdict: the docstring's
+                # aggregate-only promise is the privacy contract (audit #15).
+                # Per-frame verdicts/scores live in --out (off-repo) only.
+                print(f"{scenario}/{f.name}: judged in {row['s']}s", flush=True)
 
     parsed = [r for r in rows if r.get("parse_ok")]
     benign = [r for r in parsed if r["expected"] == "rejected"]
@@ -147,8 +170,7 @@ def main() -> int:
             for s in sorted({r["scenario"] for r in rows})
         },
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps({"aggregate": agg, "rows": rows}, indent=2))
+    dump(agg)
     print(json.dumps(agg, indent=2))
     return 0
 

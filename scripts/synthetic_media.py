@@ -42,6 +42,10 @@ _LOG = logging.getLogger("vss-eval-media")
 # terms minutes later returned 40+ clean candidates - pure throttling, silently
 # swallowed by a bare `continue`.
 RETRIES = 3
+# Frames are bounded 20 kB..4 MB (stub thumbs / full-res originals refused);
+# `_get` caps the READ at this value so a runaway response never buffers
+# whole first (audit #20).
+MAX_BYTES = 4_000_000
 # 0.5s/request, not 0.15: the re-fetch run on 2026-09-24 caught Commons
 # answering HTTP 429 in bursts (pet_activity lost all three searches to it),
 # and the retry backoff alone doesn't outlast that window. Keyless courtesy
@@ -57,10 +61,22 @@ import urllib.parse
 import urllib.request
 
 API = "https://commons.wikimedia.org/w/api.php"
-# Case-folded fragments; Commons hosts only free-culture/PD files, so this
-# allow-list is belt-and-braces against a future surprise (a "Fair use" or
-# nonFree tag never carries a CC/PD LicenseShortName).
-PERMISSIVE_MARKS = ("cc", "public domain", "pd", "pdm")
+def _license_ok(low: str) -> bool:
+    """Case-folded license short name -> free-culture enough to ship?
+    (G0 close-out audit #19.) The old substring marks admitted `CC BY-NC 4.0`
+    because 'cc' sits inside 'by-nc'; NC/ND terms forbid the commercial use
+    or derivative edits an eval corpus eventually implies, so an element
+    marker vetoes before any family check. Families: any CC WITHOUT an
+    NC/ND element, and public-domain marks - matched on word boundaries,
+    not substrings ('pdq' is not PD)."""
+    if re.search(r"(-nc\b|-nd\b|-nc-|-nd-|\bnc\b|\bnd\b|noncommercial|non-commercial)", low):
+        return False
+    return bool(
+        re.search(r"\bcc0\b", low)
+        or low.startswith("cc ")
+        or "public domain" in low
+        or re.search(r"\bpd\b|\bpd-|\bpdm\b", low)
+    )
 UA = "vss-eval-media/1.0 (synthetic eval corpus; contact: repo owner)"
 
 # One or more Commons searches per scenario (spec 5's 13). Queries name the
@@ -122,7 +138,7 @@ def license_of(page: dict) -> str | None:
         return None
     lic = _clean(raw)
     low = lic.casefold()
-    if any(mark in low for mark in PERMISSIVE_MARKS):
+    if _license_ok(low):
         return lic
     return None
 
@@ -185,7 +201,13 @@ def _get(url: str, params: dict[str, str] | None = None) -> bytes:
     # redirect handler (tests pin off-list + plain-http hops and the opener wiring)
     with _OPENER.open(req, timeout=30) as resp:  # noqa: S310 - allow-listed per hop
         time.sleep(PACE_SECONDS)  # gentle on the keyless API, every request
-        return resp.read()
+        # Bound the read at MAX_BYTES (G0 close-out audit #20): the 4 MB size
+        # filter ran AFTER resp.read(), so a thumburl-less fallback to a
+        # full-res original buffered the whole thing first. Read at most one
+        # byte over the cap; `fetch_scenario`'s size check then rejects it.
+        # Search bodies are small JSON; the +1 headroom only matters for the
+        # frame path, where the size filter rejects anything over MAX_BYTES.
+        return resp.read(MAX_BYTES + 1)
 
 
 def _get_with_retry(url: str, params: dict[str, str] | None = None) -> bytes:
@@ -256,7 +278,7 @@ def fetch_scenario(scenario: str, per: int, root: Path) -> list[dict]:
             except (OSError, urllib.error.URLError) as e:
                 _LOG.warning("%s: skip %s after %d tries: %s", scenario, title, RETRIES, e)
                 continue
-            if not 20_000 <= len(frame) <= 4_000_000:
+            if not 20_000 <= len(frame) <= MAX_BYTES:
                 # stub thumbs / absurd originals: plumbing stays bounded
                 _LOG.warning("%s: skip %s, out-of-band size %d", scenario, title, len(frame))
                 continue

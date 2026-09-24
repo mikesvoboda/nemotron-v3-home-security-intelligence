@@ -47,6 +47,23 @@ class TestLicenseFilter:
         for lic in ("CC0", "CC BY 4.0", "CC BY-SA 3.0", "Public domain", "PD"):
             assert sm.license_of(_img("t", lic)) == lic
 
+    def test_noncommercial_licenses_are_refused(self) -> None:
+        """G0 close-out audit #19: the bare 'cc' mark admitted 'CC BY-NC 4.0'
+        (substring match). NC/PD?/ND licenses are NOT free-culture for our
+        purposes - redistribution with edits fails their terms. The corpus
+        happened to hold zero NC frames, but tonight's re-fetch runs through
+        this filter, so the hole closes before it can bite. Markers must be
+        word-boundary-ish, not substring."""
+        for lic in ("CC BY-NC 4.0", "CC BY-NC-SA 3.0", "CC BY-ND 2.0", "CC BY-NC-ND"):
+            assert sm.license_of(_img("t", lic)) is None, f"{lic} must not pass"
+
+    def test_pd_like_marks_are_worded(self) -> None:
+        """'pd' as a substring would match random words ('CPIF-D'); PD passes
+        only as a whole word or the PDM mark."""
+        assert sm.license_of(_img("t", "PD-old 1.0")) == "PD-old 1.0"
+        assert sm.license_of(_img("t", "PDM 1.0")) == "PDM 1.0"
+        assert sm.license_of(_img("t", "SOME-PDQ LICENSE")) is None
+
     def test_noncommons_mime_rejected(self) -> None:
         assert sm.license_of(_img("t", "CC0", mime="application/pdf")) is None
 
@@ -55,10 +72,10 @@ class TestLicenseFilter:
         assert sm.license_of(bad) is None
 
     def test_allowlist_covers_the_real_commons_set(self) -> None:
-        # Commons hosts only free-culture/PD; the two families are CC and PD.
-        # Casefold first - license_of() compares casefolded, so must this.
-        assert any(k in "CC BY-SA 2.0 DEED".casefold() for k in sm.PERMISSIVE_MARKS)
-        assert any(k in "Public Domain Mark 1.0".casefold() for k in sm.PERMISSIVE_MARKS)
+        # Commons hosts only free-culture/PD; the two families are CC (no
+        # NC/ND element) and PD. Matcher works casefolded, like license_of.
+        for lic in ("CC BY-SA 2.0 DEED", "Public Domain Mark 1.0", "CC0", "PD-old 1.0"):
+            assert sm._license_ok(lic.casefold()), lic
 
 
 class TestQueryMap:
