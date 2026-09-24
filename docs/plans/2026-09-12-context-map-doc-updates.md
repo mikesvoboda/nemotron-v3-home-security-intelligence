@@ -11147,3 +11147,93 @@ PR #6650 checks SETTLED at 8cd5083f: 0 failed; TPA, Dead Code Detection,
 CI Gate ×5 all pass (gh pr checks, one-time report). Merge awaits owner
 review. Floors untouched; no denominators changed; WP4.4 feed still
 frozen.
+
+## 2026-09-24 — FIRST ADMISSIBLE POST-CAMPAIGN SCORE: 59.182%, completed=TRUE (84 orphan metas root-caused and quarantined; the 84 were never in the denominator)
+
+Measured this session, command + artifact for every number.
+
+1. **The 84 "missing" mutants are cache orphans for deleted source.**
+   `ls backend/services/xclip_loader.py` → No such file; git shows both
+   modules moved out of the mutate-set by the mega-PR
+   `151ccc05 chore(prc): gateway-aftermath mega PR — xclip full removal`
+   (R100 → `archive/xclip-backend-chain/`, so a tracked rename, not an
+   edit). `mutants/backend/services/{xclip_loader,action_recognition_service}.py.meta`
+   survived with **84 keys, ALL `None`** (49 + 35, measured by walking every
+   meta whose source path no longer exists: 2 orphan metas, 84 keys,
+   checked=0). Mechanism: mutmut walks the MUTATE set via
+   `walk_mutatable_files()` (utils/file_utils.py:43 → `source_paths` =
+   backend/services + backend/api/routes per [tool.mutmut]), so deleted
+   sources are never dispatched; a positional filter naming them asserts
+   loudly (`__main__.py:815` — reproduced twice, logs
+   /tmp/recheck-84.log, /tmp/recheck-84b.log). mutmut 3.8's own meta-sweep
+   functions (`_remove_metas_for_removed_source_files`,
+   `_clean_orphaned_mutant_files`) are **defined but have no callers**
+   (grep over the installed package: only def sites + import, zero call
+   sites) — that is why the orphans persisted through two full rebuilds.
+2. **Disposition = cache quarantine, NOT a denominator change.** The
+   denominator (`scripts/mutation-score.py:91 target_modules()` = live
+   rglob over backend/services + backend/api/routes) already excludes both
+   files — they exist only in `archive/`, which is not under source_paths
+   (`should_mutate` measured on the live config). The metas are
+   gitignored (`git check-ignore` → `.gitignore:162 mutants/`), i.e. pure
+   local cache state. Moved (not deleted) to
+   `/tmp/orphan-cache-2026-09-24/` with sha256: xclip meta
+   `b05a57fc…bdcf`, ars meta `e4dfc043…2929be`, xclip mutant copy
+   `906e8887…bf99`, ars mutant copy `eefe6014…12b2`. No tracked file
+   touched; no test touched.
+3. **Honest rescore #2 (cache state as measured): 59.182%, completed=TRUE.**
+   Command: `uv run python scripts/mutation-score.py` (no mutmut run) →
+   killed 51,254 timeout 2,589 survived 37,131 no_tests 4 skipped 0
+   not_checked 0 torn 0 total 90,978 → score **59.182439710699285**;
+   progress.checked == progress.total == 90,978. Artifact
+   /tmp/score-post-orphan.json. History entry appended at --date 2026-09-24
+   (runs=2, last completed=True). This is the FIRST post-campaign score
+   admissible under the done-clause: completed=true AND
+   progress.checked ≈ total.
+4. **Delta vs the 06:45 measurement (90,990 / 59.177): −2 killed,
+   −10 survived, all 12 in `osnet_loader.py`** (per-module diff over the
+   two score JSONs; every other module byte-identical in counts). Cause
+   measured: the FAILED filtered recheck (11:44Z start, assert-exit 12:11Z,
+   /tmp/recheck-84b.log) started before asserting — `copy_also_copy_files`
+   copytree's `backend/` over `mutants/backend/` at run start, bumping
+   osnet's mutant-copy mtime (stat: source 09-21 23:24:18 vs mutant copy
+   09-24 07:44:11 ET = 11:44Z) and defeating the mtime shortcut, so osnet
+   was RE-GENERATED from current covered-line data: new meta holds 362 keys
+   where the re-bank's generation held 374. 12 decided verdicts (2 killed +
+   10 survived) were dropped by re-generation. Effect on score: +0.005pp
+   (denominator shrinks by 12, killed drops by 2). WHY only osnet's
+   re-derivation dropped 12 keys is NOT fully pinned — its source has no
+   git change since 2026-02-08 (3710a98c) and #6649 touched nothing there;
+   WATCH-ITEM: if a future generation pass silently shrinks any module's
+   key set, that is this same re-generation path. The 12 dropped verdicts
+   are unrecoverable without a re-run of those mutants (a mutmut recheck of
+   osnet_loader is queued as the next cache work so the key-set and its
+   verdicts are re-banked together and this line can be re-rowed).
+5. **The last 4 `no_tests` keys are TRUE zero-credit artifacts, verified
+   per mine (d), not map truncation.** Keys (raw meta scan, exit_code 33):
+   `event_service.xǁEventServiceǁget_event__mutmut_1`,
+   `fast_alpr_loader.x_load_fast_alpr__mutmut_1`,
+   `health_monitor_orchestrator.xǁHealthMonitorǁget_recent_events__mutmut_1`,
+   `polygon_zone_service.xǁPolygonZoneServiceǁget_all_zones__mutmut_1`.
+   Cross-check against the REBUILT map (`mutants/mutmut-stats.json`
+   tests_by_mangled_function_name, 2,886 functions): no entry for any of
+   the four mangled names; `load_fast_alpr` appears in NO map entry at all,
+   `get_recent_events`/`get_all_zones` appear ONLY under their same-named
+   twins in health_monitor.py / line_zone_service.py (7 and 2 tests).
+   Grep: `load_fast_alpr` is exercised only by
+   `backend/tests/integration/services/test_fast_alpr_loader.py` + one
+   enrichment test; `get_all_zones` only via integration suites; route
+   tests of `get_event` mock the DB layer and never call the service
+   method. All four mutants are def-line (covered-at-import) mutants —
+   `mutate_only_covered_lines` generates them from the def line's import
+   execution, but attribution has no calling unit test. Consequence:
+   correctly stamped no-test, scored as non-kills: 4 of 90,978 = 0.0044pp
+   ceiling drag. Disposition: keep and count as non-kills; the real fix is
+   unit coverage (WP4.5 territory), NOT relabeling.
+6. **Score is still BELOW the 65 tier gate** (milestone ladder: 65→72→80);
+   59.182 is the campaign floor we now stand ON, admissible and
+   banked. ≥80 needs ~19k net kills from 90,978 — batch work continues.
+
+No floors touched; no denominator change; WP4.4 feed still frozen;
+continue-on-error unchanged. Quarantine is reversible (files + sha256s
+above).
