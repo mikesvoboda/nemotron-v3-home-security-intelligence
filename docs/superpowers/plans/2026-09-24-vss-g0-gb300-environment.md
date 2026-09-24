@@ -79,9 +79,9 @@
 - [x] Served with `--vram 14` (honest declaration; real use settled at **10,008 MiB** — inside the cap, broker fence respected) **[V]**.
 - [x] Load evidence: `/health` ok, `build_info b11090-b1c2863e2`, `vision: true`, multimodal probe **ENFORCED** (echoed_const true; malformed-wrapper arm non-empty) **[V]**. Broker `agent-gpu rm`'d to 0 containers. **S-5 DONE** — the spec's pin-bump requirement is now empirical, not assumed.
 
-### Task 5: G0.3 — parked (owner decisions)
+### Task 5: G0.3 — CLOSED N/A on GB300 (owner ruling 2026-09-24)
 
-- [ ] Nothing executed. Surface F1/F3 to the owner; revisit after rulings. (Triton base `nvcr.io/nvidia/tritonserver:26.01-py3` is amd64-only; spec's "vlm mode stops Florence/enrichment" is Triton explicit-control unloading, not `compose stop`; and the explicit-mode switch edits a public surface `model_management.py` tests assert as 501.)
+- [x] Nothing executed by design — surfaced F1/F3 to the owner; owner ruled **N/A on GB300** (the step serves the 3090's memory fight; here the spec's own ~47.9 GiB figure makes the model-stop dance pointless). Supporting evidence on record: Triton base `nvcr.io/nvidia/tritonserver:26.01-py3` is amd64-only; spec's "vlm mode stops Florence/enrichment" is Triton explicit-control unloading, not `compose stop`; and the explicit-mode switch edits a public surface `model_management.py` tests assert as 501. No code written; R8 retirement untouched. **[ledger G0.3 + F3 rows]**
 
 ### Task 6: G0.4 synthetic eval items (schema + store now; media owner-gated)
 
