@@ -13,12 +13,15 @@ engine+model provenance; replay reads exactly the rows of one run.
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
 
-from backend.evaluation.assess_input import EvalItem
+from backend.evaluation.assess_input import AssessInput, EvalItem
+
+_LOG = logging.getLogger(__name__)
 
 # Path prefixes that can only ever hold real-camera media (D10). Item media
 # under these roots is refused at write time.
@@ -128,3 +131,79 @@ def _fingerprint(item: EvalItem) -> str:
     import hashlib
 
     return hashlib.sha256(item.model_dump_json().encode()).hexdigest()
+
+
+# -------------------------------------------------------- synthetic loader
+
+# Committed label sets (data/synthetic/<category>/<set>/expected_labels.json)
+# carry no media and no camera/zone truth. The loader turns each set into a
+# DRAFT EvalItem: media_paths stays empty (inventing a path would be a D10
+# fabrication), camera_id is a constant synthetic sentinel, zone_crossing is
+# never claimed from labels. Freezing the corpus into the store waits on the
+# owner's F6 path decision and the pinned AssessInput shape.
+_SYNTHETIC_CAMERA_ID = "synthetic-source"
+_CATEGORY_LABELS = {"normal": "benign", "suspicious": "incident", "threats": "incident"}
+
+
+def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
+    """Every `expected_labels.json` under corpus_dir becomes a draft item,
+    sorted by id for a stable, fingerprintable order. Unreadable sets are
+    skipped loudly (never fabricated around); a missing corpus is a hard error.
+    """
+    root = Path(corpus_dir)
+    if not root.is_dir():
+        raise FileNotFoundError(f"synthetic corpus not found: {root}")
+    out: list[EvalItem] = []
+    for path in sorted(root.glob("*/*/expected_labels.json")):
+        try:
+            labels = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as e:
+            _LOG.warning("skipping unreadable label set %s: %s", path, e)
+            continue
+        category = path.parent.parent.name
+        label = _CATEGORY_LABELS.get(labels.get("category", category), category)
+        risk = labels.get("risk") or {}
+        vid = labels.get("video_id")
+        item_id = f"synthetic:{category}:{path.parent.name}" + (f"::{vid}" if vid else "")
+        out.append(
+            EvalItem(
+                item_id=item_id,
+                media_paths=[],
+                expected_label=label,
+                expected_risk_score=_midpoint(risk),
+                snapshot=AssessInput(
+                    camera_id=_SYNTHETIC_CAMERA_ID,
+                    detections=list(labels.get("detections") or []),
+                    zones=[],
+                    zone_crossing=False,
+                    household={},
+                    timestamp=_generated_at(path),
+                ),
+                source="synthetic",
+            )
+        )
+    return out
+
+
+def _midpoint(risk: dict[str, Any]) -> int:
+    """Expected score = the set's declared risk band midpoint (normal 10-30,
+    suspicious 35-60, threats 85-100); unbounded band -> 0 (unknown, honest)."""
+    lo, hi = risk.get("min_score"), risk.get("max_score")
+    if isinstance(lo, (int, float)) and isinstance(hi, (int, float)):
+        return int((lo + hi) // 2)
+    return 0
+
+
+def _generated_at(labels_path: Path) -> str:
+    """Timestamp from the sibling metadata.json when present; epoch 0 as the
+    honest sentinel otherwise (the snapshot must carry a timestamp, but the
+    loader must not invent one)."""
+    meta = labels_path.parent / "metadata.json"
+    try:
+        data = json.loads(meta.read_text())
+        ts = data.get("generated_at")
+        if isinstance(ts, str) and ts:
+            return ts
+    except OSError, json.JSONDecodeError:
+        pass
+    return "1970-01-01T00:00:00+00:00"
