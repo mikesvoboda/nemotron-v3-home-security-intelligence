@@ -104,11 +104,17 @@ def _clean(value: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", value)).strip()
 
 
+# Commons calls .djvu/.tif scans "bitmaps" in its search filter, and their
+# mimes start with `image/` - a magazine scan is not a photograph (a
+# Popular Science volume entered the prowling scenario, 2026-09-24 audit).
+PHOTO_MIMES = ("image/jpeg", "image/png", "image/webp")
+
+
 def license_of(page: dict) -> str | None:
-    """The permissive license string of a Commons page dict, or None (not an
-    image / metadata missing / license outside the allow-list)."""
+    """The permissive license string of a Commons page dict, or None (not a
+    photo-mime / metadata missing / license outside the allow-list)."""
     info = (page.get("imageinfo") or [{}])[0]
-    if not str(info.get("mime", "")).startswith("image/"):
+    if str(info.get("mime", "")) not in PHOTO_MIMES:
         return None
     meta = info.get("extmetadata") or {}
     raw = meta.get("LicenseShortName", {}).get("value")
@@ -197,6 +203,9 @@ def fetch_scenario(scenario: str, per: int, root: Path) -> list[dict]:
     # nothing. `written` is what THIS run added (main() totals on it); the
     # manifest covers every frame in the directory.
     existing = sorted(dirpath.glob("[0-9][0-9][0-9].jpg"))
+    # Two search terms often surface the same Commons file; without dedupe it
+    # fills two slots of one scenario (seen in casing/prowling/loitering).
+    have_titles = {t for t in (_manifest_entry(p).get("title") for p in existing) if t}
     written: list[dict] = []
     slot = len(existing)
     for term in SCENARIO_QUERIES[scenario]:
@@ -215,6 +224,8 @@ def fetch_scenario(scenario: str, per: int, root: Path) -> list[dict]:
             title = page.get("title", "?")
             if not license_of(page):
                 continue  # license filter: the norm, not a skip worth noise
+            if title in have_titles:
+                continue  # same file via another search term: one slot is enough
             info = page["imageinfo"][0]
             url = info.get("thumburl") or info.get("url")
             if not url or not url.startswith("https://"):
@@ -233,7 +244,12 @@ def fetch_scenario(scenario: str, per: int, root: Path) -> list[dict]:
                 # stub thumbs / absurd originals: plumbing stays bounded
                 _LOG.warning("%s: skip %s, out-of-band size %d", scenario, title, len(frame))
                 continue
+            if not frame.startswith(b"\xff\xd8"):
+                # slots are NN.jpg; Commons URL extensions lie sometimes
+                _LOG.warning("%s: skip %s, not a JPEG (magic bytes)", scenario, title)
+                continue
             dest.write_bytes(frame)
+            have_titles.add(title)
             rec = attribution_record(page, scenario)
             rec["file"] = str(dest)
             rec["bytes"] = len(frame)

@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+JPEG = b"\xff\xd8" + b"z" * 25_000  # in-band size, real JPEG magic
+
 _MOD = Path(__file__).resolve().parent / "synthetic_media.py"
 _spec = importlib.util.spec_from_file_location("synthetic_media_uu", _MOD)
 assert _spec and _spec.loader
@@ -226,7 +228,7 @@ class TestLoudSkips:
 
     def test_successful_fetch_writes_frame_and_manifest(self, tmp_path, monkeypatch) -> None:
         monkeypatch.setattr(sm.time, "sleep", lambda s: None)
-        frame = b"z" * 25_000  # inside the 20 kB..4 MB bound
+        frame = JPEG  # inside the 20 kB..4 MB bound, JPEG magic
         monkeypatch.setattr(sm, "_get", self._fake_get(frame, fail_image=False))
         recs = sm.fetch_scenario("casing", 1, tmp_path)
         assert [r["file"] for r in recs] == [str(tmp_path / "casing" / "001.jpg")]
@@ -234,6 +236,70 @@ class TestLoudSkips:
         assert (tmp_path / "casing" / "001.json").exists()
         manifest = json.loads((tmp_path / "casing" / "manifest.json").read_text())
         assert manifest[0]["license"] == "CC BY 4.0"
+
+
+class TestFrameSanity:
+    """2026-09-24 corpus audit: a `Popular Science Monthly Volume 90.djvu`
+    scan passed the filter (mime image/vnd.djvu starts with `image/` and
+    Commons calls .djvu a bitmap) and a .jpg slot could hold non-JPEG bytes.
+    Frames must be photo-mimes with JPEG magic, and the same file must not
+    fill two slots of one scenario (two search terms returned identical
+    titles in casing/prowling/loitering)."""
+
+    @staticmethod
+    def _body(pages: list[dict]) -> bytes:
+        return json.dumps(
+            {"query": {"pages": {str(i + 1): p for i, p in enumerate(pages)}}}
+        ).encode()
+
+    @staticmethod
+    def _page(title: str, index: int, mime: str = "image/jpeg") -> dict:
+        return _img(title, "CC0") | {"index": index, "imageinfo": [{**_img(title, "CC0")["imageinfo"][0], "mime": mime}]}
+
+    def test_document_mimes_rejected(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        monkeypatch.setattr(sm, "_get", lambda u, p=None: self._body([self._page("File:Mag.djvu", 1, "image/vnd.djvu")]))
+        assert sm.fetch_scenario("prowling", 6, tmp_path) == []
+
+    def test_non_jpeg_bytes_skipped_loudly(self, tmp_path, monkeypatch, caplog) -> None:
+        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        png_bytes = b"\x89PNG\r\n\x1a\n" + b"z" * 25_000
+        monkeypatch.setattr(sm, "_get", TestLoudSkips._fake_get(png_bytes, fail_image=False))
+        with caplog.at_level(logging.WARNING, logger="vss-eval-media"):
+            assert sm.fetch_scenario("casing", 1, tmp_path) == []
+        assert "not a JPEG" in caplog.text
+
+    @staticmethod
+    def _search_and_frames(pages: list[dict]):
+        """Stub `_get`: the search call (params present) gets `pages`; every
+        frame download gets a JPEG-magic in-band frame."""
+
+        def fake(url, params=None):
+            return TestFrameSanity._body(pages) if params is not None else JPEG
+
+        return fake
+
+    def test_duplicate_titles_fill_one_slot(self, tmp_path, monkeypatch) -> None:
+        # [Same, Same, New] per=2: dedup drops the 2nd Same so New reaches the
+        # 2nd slot. Without dedup the run would stop at [Same, Same] and never
+        # fetch New - which is the exact casing/prowling/loitering defect.
+        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        dupes = [self._page("File:Same.jpg", 1), self._page("File:Same.jpg", 2), self._page("File:New.jpg", 3)]
+        monkeypatch.setattr(sm, "_get", self._search_and_frames(dupes))
+        recs = sm.fetch_scenario("casing", 2, tmp_path)
+        assert [Path(r["file"]).name for r in recs] == ["001.jpg", "002.jpg"]
+        assert [r["title"] for r in recs] == ["File:Same.jpg", "File:New.jpg"]
+
+    def test_resume_remember_existing_titles(self, tmp_path, monkeypatch) -> None:
+        monkeypatch.setattr(sm.time, "sleep", lambda s: None)
+        d = tmp_path / "casing"
+        d.mkdir()
+        (d / "001.jpg").write_bytes(b"\xff\xd8" + b"z" * 25_000)
+        (d / "001.json").write_text(json.dumps({"title": "File:Same.jpg", "file": str(d / "001.jpg")}))
+        monkeypatch.setattr(sm, "_get", self._search_and_frames([self._page("File:Same.jpg", 1)]))
+        recs = sm.fetch_scenario("casing", 2, tmp_path)
+        assert recs == [], "the already-held file must not be refetched into 002"
+        assert sorted(d.glob("*.jpg")) == [d / "001.jpg"]
 
 
 class TestResume:
@@ -246,10 +312,10 @@ class TestResume:
         monkeypatch.setattr(sm.time, "sleep", lambda s: None)
         d = tmp_path / "casing"
         d.mkdir()
-        (d / "001.jpg").write_bytes(b"old" * 10_000)
+        (d / "001.jpg").write_bytes(JPEG)
         (d / "001.json").write_text(json.dumps({"title": "File:Old.jpg", "file": str(d / "001.jpg")}))
         monkeypatch.setattr(
-            sm, "_get", TestLoudSkips._fake_get(b"z" * 25_000, fail_image=False)
+            sm, "_get", TestLoudSkips._fake_get(JPEG, fail_image=False)
         )
         recs = sm.fetch_scenario("casing", 2, tmp_path)
         assert [r["file"] for r in recs] == [str(d / "002.jpg")], "must fill 002, not re-check 001"
@@ -261,7 +327,7 @@ class TestResume:
         d = tmp_path / "casing"
         d.mkdir()
         for i in (1, 2):
-            (d / f"00{i}.jpg").write_bytes(b"x" * 25_000)
+            (d / f"00{i}.jpg").write_bytes(JPEG)
 
         def no_network(*a, **k):
             raise AssertionError("must not touch the network when already full")
