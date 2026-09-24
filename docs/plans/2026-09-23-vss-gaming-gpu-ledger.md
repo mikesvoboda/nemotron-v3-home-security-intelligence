@@ -1,6 +1,6 @@
 # VSS Gaming-GPU — Execution Ledger
 
-**Spec (source of truth):** [`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md) (rev 4) · **Brief:** [`docs/vss-integration/13-implementation-brief.md`](../vss-integration/13-implementation-brief.md) · **Branch:** `feat/vss-gaming-gpu-profile`
+**Spec (source of truth):** [`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md) (rev 4) · **Brief:** [`docs/vss-integration/13-implementation-brief.md`](../vss-integration/13-implementation-brief.md) · **Branch:** `feat/vss-gaming-gpu-profile` · **Phase plans:** [`G0`](../superpowers/plans/2026-09-24-vss-g0-gb300-environment.md) (CLOSED 2026-09-24) → [`P0`](../superpowers/plans/2026-09-24-vss-p0-foundations.md) (current; one phase at a time)
 
 One row per step (G0.1…4.3) and per spike (S-1…S-5). Statuses: `TODO` · `DOING` · `DONE` · `BLOCKED` (reason) · `NA`. A milestone row closes only with its S# numbers and a commit. Evidence carries the [V]/[C]/[E]/[?]/[O]/[A] markers per [`docs/vss-integration/AGENTS.md`](../vss-integration/AGENTS.md). A step closes on an executed command + result + commit, never on written code.
 
