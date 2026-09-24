@@ -94,9 +94,9 @@
 
 ### Task 7: G0 close-out
 
-- [ ] Ledger: G0.1/G0.2 rows closed with commands+results+commits; S-1…S-5 rows DONE or BLOCKED(reason) — never an unobserved pass.
-- [ ] Built-in code review across the diff (Dockerfile, probes, eval store).
-- [ ] Milestone report to owner: proven (with S#s), failed and why, next (Phase 0 planning — only G0's successor, per one-phase-at-a-time), decisions owed (F1–F6).
+- [x] Ledger: G0.1/G0.2 rows closed with commands+results+commits; S-1…S-5 rows DONE or BLOCKED(reason) — never an unobserved pass.
+- [x] Built-in code review across the diff (Dockerfile, probes, eval store).
+- [x] Milestone report to owner: proven (with S#s), failed and why, next (Phase 0 planning — only G0's successor, per one-phase-at-a-time), decisions owed (F1–F6).
 
 ## Definition of done
 
