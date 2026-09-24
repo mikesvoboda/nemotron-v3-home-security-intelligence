@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v6.3.0
@@ -124,7 +124,7 @@ jobs:
     needs: openapi
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
         uses: actions/setup-node@v6.3.0
@@ -132,7 +132,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Download OpenAPI spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: openapi-spec
           path: docs-output/api/
@@ -163,22 +163,22 @@ jobs:
     needs: [openapi, typedoc, redoc]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download OpenAPI spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: openapi-spec
           path: docs-output/api/
 
       - name: Download TypeDoc output
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: typedoc-output
           path: docs-output/typescript/
 
       - name: Download Redoc HTML
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: redoc-html
           path: docs-output/api-html/
@@ -219,7 +219,7 @@ jobs:
 
       - name: Upload Pages artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs-site/
 
@@ -232,10 +232,10 @@ jobs:
     needs: build-docs
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download docs site
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: docs-site
           path: docs-site/
@@ -308,7 +308,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   # ============================================================================
   # Archive OpenAPI Spec (for versioning)
@@ -320,10 +320,10 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download OpenAPI spec
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: openapi-spec
           path: openapi-archive/

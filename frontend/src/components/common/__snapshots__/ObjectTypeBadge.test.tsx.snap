@@ -286,7 +286,7 @@ exports[`ObjectTypeBadge > snapshots > renders unknown type with icon and stylin
 >
   <svg
     aria-hidden="true"
-    class="lucide lucide-triangle-alert w-3 h-3"
+    class="lucide lucide-triangle-alert lucide-alert-triangle w-3 h-3"
     fill="none"
     height="24"
     stroke="currentColor"
