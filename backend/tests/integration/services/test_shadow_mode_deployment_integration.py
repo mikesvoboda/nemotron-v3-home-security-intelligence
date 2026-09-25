@@ -73,11 +73,13 @@ def mock_settings():
     mock.prompt_shadow_mode_enabled = True
     mock.nemotron_use_guided_json = False
     mock.nemotron_guided_json_fallback = True
-    # P0.3: pin the LEGACY wire - this file tests shadow-mode prompt behavior
-    # on the pre-constrained route (constrained surface is pinned in
-    # unit/services/test_p03_constrained_verdict.py; same pin doctrine as the
-    # contracts settings_factory and the unit-tier analyzer fixtures).
-    mock.nemotron_constrained_decoding_enabled = False
+    # P0.3: the SHIPPED default (owner ruling, PR #6678) - these tests are
+    # about shadow-prompt behavior, not the legacy wire, so they run with
+    # constrained decoding on. The enforcement gate stays live and passes
+    # through the tier's mock-LLM probe fixture (conftest
+    # mock_llm_enforces_grammar); the /props GET tolerating no listener is
+    # itself pinned in unit/services/test_p03_constrained_verdict.py.
+    mock.nemotron_constrained_decoding_enabled = True
     mock.nemotron_constrained_fail_closed = True
     mock.nemotron_constrained_probe_enabled = True
     mock.nemotron_constrained_probe_required_build = None

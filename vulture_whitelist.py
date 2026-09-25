@@ -12,6 +12,9 @@ _.input_data
 _.clean_tracker
 _.real_session_store
 _.mock_run_sudo
+# P0.3 wire split (PR #6678): the LEGACY-wire pin fixture - integration tests
+# request it solely to run the pre-constrained path; the body never names it.
+_.legacy_wire
 
 # Test fixtures that are injected by pytest
 _.isolated_db

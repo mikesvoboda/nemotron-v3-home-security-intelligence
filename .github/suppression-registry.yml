@@ -1324,13 +1324,12 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: fakeredis not installed
-  - id: backend/tests/unit/evaluation/test_eval_store.py:295
-    kind: environment
+  - id: backend/tests/unit/evaluation/test_eval_store.py:300
+    kind: todo
     owner: mikesvoboda
-    tracking: null
-    expires: null
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
     reason: stock corpus not staged on this machine
-    host_justification: stock media corpus is staged off-repo data (GPU mount), not repo content
   - id: backend/tests/unit/routes/test_auth_routes.py:99
     kind: todo
     owner: mikesvoboda

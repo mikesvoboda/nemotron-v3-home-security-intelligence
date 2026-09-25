@@ -1103,30 +1103,75 @@ async def integration_db(
 
 
 @pytest.fixture(scope="session", autouse=True)
-def legacy_wire_pin():
-    """Pin the LEGACY nemotron wire tier-wide (P0.3 doctrine, CI PR #6678).
+def mock_llm_enforces_grammar():
+    """The integration tier's mock LLM ENFORCES the constrained grammar.
 
-    This tier characterizes the pre-constrained analyzer: fallback scoring
-    (50/medium), batch/fallback semantics, shadow prompts. With P0.3's ship
-    default nemotron_constrained_decoding_enabled=True, the real-settings
-    analyzers here would probe NEMOTRON_URL (no listener in this environment)
-    and fail CLOSED to NULL scores - honest behavior, but it tests a wire
-    this tier was never written to assert. The constrained wire is pinned
-    where it belongs: unit/services/test_p03_constrained_verdict.py (39
-    tests) + the live agent-gpu probe (ledger Task 3 box 4) - and the
-    contracts settings_factory carries the same False pin by the same
-    reasoning. F4 keeps the legacy path byte-identical behind the flag;
-    these pins retire when R8 flips the default (ledger R8, not before).
+    Owner ruling (PR #6678 review): the tier exercises the SHIPPED default -
+    constrained wire on, enforcement probe passing - and the legacy wire is
+    pinned only inside tests that are ABOUT legacy (see `legacy_wire`).
 
-    Env-based so real get_settings() callers honor it; cache_clear makes
-    even an earlier import-time cache irrelevant.
+    Why this seam: integration tests patch `httpx.AsyncClient.post`
+    themselves, so an httpx-layer fake would be shadowed inside each test;
+    `_probe_completion` is the analyzer's single probe transport - the same
+    helper scripts/vlm_probes/enforcement.py drives - and patching it leaves
+    the analyzer's whole gate logic live for real: status handling, JSON
+    parse, nonce-const comparison, per-endpoint caching all execute
+    unmodified. Only the wire is stood in for.
+
+    The stand-in is strict by design: it verifies the nonce-const contract
+    rides the schema it was handed and, on any mismatch, answers with PROSE
+    - the analyzer's own IGNORED evidence, which raises. A lenient fake
+    would let probe-shape drift pass silently; that is exactly the
+    assumption P0.3 exists to eliminate. Real enforcement is evidenced by
+    the live agent-gpu probe (ledger Task 3 box 4); probe semantics are
+    pinned in unit/services/test_p03_constrained_verdict.py.
     """
-    os.environ["NEMOTRON_CONSTRAINED_DECODING_ENABLED"] = "false"
+    import json
+
+    from backend.services import nemotron_analyzer as na
+
+    async def enforcing_probe(client, base_url, headers, prompt_text, schema):
+        spec = (schema.get("properties") or {}).get("probe_const") or {}
+        nonce = spec.get("const")
+        if (
+            isinstance(nonce, str)
+            and spec.get("type") == "string"
+            and "probe_const" in (schema.get("required") or [])
+        ):
+            return 200, json.dumps(
+                {
+                    "probe_const": nonce,
+                    "risk_score": 10,
+                    "risk_level": "low",
+                    "summary": "mock endpoint enforces the grammar",
+                    "reasoning": "probe echo",
+                }
+            )
+        # Malformed probe request: BE the IGNORED endpoint (prose back),
+        # never fake a pass the schema didn't earn.
+        return 200, "prose - grammar not enforced on this schema (mock verdict)"
+
+    with patch.object(na, "_probe_completion", enforcing_probe):
+        yield
+
+
+@pytest.fixture
+def legacy_wire(monkeypatch):
+    """Per-test LEGACY pin - for tests that are ABOUT the legacy path
+    (F4-approved: byte-identical behind the flag). Use it when the test
+    asserts pre-P0.3 wire semantics - the 50/medium fallback on LLM
+    failure, the guided_json payload. Everything else runs the shipped
+    default (see mock_llm_enforces_grammar).
+
+    Env-based so real get_settings() consumers pick it up; cache_clear on
+    both sides so the analyzer built inside the test sees the pin and
+    later tests rebuild without it.
+    """
+    monkeypatch.setenv("NEMOTRON_CONSTRAINED_DECODING_ENABLED", "false")
     from backend.core.config import get_settings
 
     get_settings.cache_clear()
     yield
-    os.environ.pop("NEMOTRON_CONSTRAINED_DECODING_ENABLED", None)
     get_settings.cache_clear()
 
 
