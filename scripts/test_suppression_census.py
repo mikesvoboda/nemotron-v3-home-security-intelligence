@@ -484,6 +484,13 @@ def test_real_tree_matches_spec_baselines():
     off-repo data, ledger F6/F5) isn't on the machine. Adjudicated
     environment via HOST_JUSTIFIED + registry the same commit; the ratchet's
     increase path exercised exactly as designed.
+    pytest_skip_imperative 94→96 (2026-09-25): batch-25 battery
+    test_nemotron_analyzer_batch25_dead-10-2.py:1170/1178 — the kill-evidence
+    coverage test skips when the campaign runner's red-check logs
+    (/tmp/wp-batch25/redcheck_dead102{b,c}.log, off-repo artifacts written
+    only at red-check time) are absent. Adjudicated environment via
+    HOST_JUSTIFIED + regenerated registry (commit b80d00b4); same data-chain
+    class as scenarios.parquet.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -495,7 +502,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 94,
+        "pytest_skip_imperative": 96,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
