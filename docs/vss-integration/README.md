@@ -16,7 +16,7 @@ approach to this project on **consumer gaming GPUs**, a market VSS does not serv
 - **Engines.** llama.cpp serves the model first. VSS's own RT-VLM joins behind the same contract in
   a later, gated phase.
 - **Proof.** Development and replay run on the GB300. A Brev hardware matrix measures fit and latency per
-  GPU tier, and a flag-controlled cutover happens on one RTX A5500 (24 GB).
+  GPU tier, and the go-live happens on one RTX A5500 (24 GB).
 
 **What the research found:**
 

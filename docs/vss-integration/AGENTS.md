@@ -25,8 +25,8 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
 
 **The design in one breath:** a detector gates FTP stills, and **one VLM** describes, verifies and
 scores each candidate in a single constrained call. llama.cpp serves it first; VSS's RT-VLM joins
-behind the same `ai_contract` op in a gated phase. It is developed on the GB300, proven by replay, measured across a Brev hardware matrix, and cut over
-behind a flag on a single RTX A5500 (24 GB, sm_86).
+behind the same `ai_contract` op in a gated phase. It is developed on the GB300, proven by replay, measured across a Brev hardware matrix, and goes live
+on a single RTX A5500 (24 GB, sm_86). Since spec rev 5 the legacy text-LLM path is unsupported.
 
 ## Purpose
 

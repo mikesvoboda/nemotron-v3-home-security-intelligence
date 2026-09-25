@@ -58,9 +58,11 @@ ledger is how the owner, and the next agent, know where things stand.
 Bring these to the owner, with the evidence prepared. Don't resolve them yourself:
 
 - **The VLM pick at M2.** You deliver the bake-off table; the owner chooses.
-- **Cutover sign-off** (step 3.1).
+- **Go-live sign-off** (step 3.1; "cutover" before rev 5).
+- **The S2 and S3 bars** (`S2_MAX`, `S3_MIN`), before the bake-off report (step 2.2). Rev 5 made
+  them fixed bars, and the owner sets the numbers.
 - **Any change to a decision (D#) or success criterion (S#).** When reality contradicts the spec,
-  the fix is a spec revision the owner approves, as with rev 2-4. Smaller factual corrections go in
+  the fix is a spec revision the owner approves, as with rev 2-5. Smaller factual corrections go in
   the ledger. Corrections to the VSS research go in a dated errata file in this directory.
 - **The co-resident `dgx-inference` stack:** restarting the flagship vLLM, making the Cosmos stop
   permanent, or changing LiteLLM routes.
@@ -78,8 +80,9 @@ These hold on every run:
   `dgx-inference` containers (rootful docker) to the owner.
 - **Real-camera data lives only in the eval store**, off-repo (D10). Wipe it from a Brev VM at
   teardown.
-- **The legacy path stays byte-identical, except for the approved 0.25 and 0.3 changes.** It
-  produces the control.
+- **The legacy path is unsupported (spec rev 5).** Don't deploy it, measure against it, or extend
+  it. Its code, including the approved 0.25 and 0.3 changes, stays in the repo with its tests
+  passing until R8 deletes it.
 - **Retired code stays until R8.** Build empty states, not deletions.
 - **Commits pass the repo's hooks.** This host has none installed, so run
   `uvx pre-commit run --files <changed files>` and the `commit-msg` stage explicitly before each
@@ -89,8 +92,8 @@ These hold on every run:
 
 ## Environment pointers
 
-- **Where each step runs:** the spec §8 table (GB300 now; the A5500 for real-data and cutover
-  steps; Brev for the hardware matrix).
+- **Where each step runs:** the spec §8 table (GB300 now; the A5500 for the `vlm`-mode bring-up
+  and go-live; Brev for the hardware matrix).
 - **The GB300 checklist:** spec §8, Phase G0.
 - **A local VSS clone** is at `~/github/video-search-and-summarization`, with `develop` at
   `1e94133b4` (fast-forwarded 2026-09-23). Re-verify citations against current upstream.

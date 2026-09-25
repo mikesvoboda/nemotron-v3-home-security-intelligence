@@ -13,14 +13,14 @@ When an item is picked up, move it into its own spec and mark it here with the d
 
 | #   | Item                                                                             | Trigger to reopen                                                                     | Evidence                                                                                     |
 | --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| R1  | Live-stream ingest with our own motion/object detection                          | Cutover (M3) holds 14 days                                                            | §R1, [`10`](10-audit-feature-inventory.md) §2.1, [`09`](09-audit-integration-surfaces.md) §2 |
+| R1  | Live-stream ingest with our own motion/object detection                          | Go-live (M3) holds 14 days                                                            | §R1, [`10`](10-audit-feature-inventory.md) §2.1, [`09`](09-audit-integration-surfaces.md) §2 |
 | R2  | Wire the MQTT / Home Assistant / Frigate chain                                   | R1 picks Frigate, or HA integration is wanted                                         | E26 in [`11`](11-errata-2026-09-23.md)                                                       |
 | R3  | NemoClaw agent running on the VLM                                                | The VLM pick (M2) passes the tool-calling probe                                       | [`10`](10-audit-feature-inventory.md) addendum                                               |
-| R4  | Agent features: NL Q&A/chat, MCP tools, NL search, incident reports              | Cutover holds                                                                         | [`10`](10-audit-feature-inventory.md) §7, [`09`](09-audit-integration-surfaces.md) §4g       |
-| R5  | Per-camera plain-language rules on stills                                        | Cutover holds                                                                         | [`10`](10-audit-feature-inventory.md) §7 item 3, E26                                         |
+| R4  | Agent features: NL Q&A/chat, MCP tools, NL search, incident reports              | Go-live holds                                                                         | [`10`](10-audit-feature-inventory.md) §7, [`09`](09-audit-integration-surfaces.md) §4g       |
+| R5  | Per-camera plain-language rules on stills                                        | Go-live holds                                                                         | [`10`](10-audit-feature-inventory.md) §7 item 3, E26                                         |
 | R6  | Text-prompt detection with YOLO-World                                            | Any time after M1                                                                     | [`10`](10-audit-feature-inventory.md) §7 item 8                                              |
 | R7  | Audio understanding                                                              | An audio-capable model under ~20 GB exists                                            | [`10`](10-audit-feature-inventory.md) §3B                                                    |
-| R8  | Delete retired enrichment code, tables and panels                                | Cutover holds 14 days                                                                 | Design §4, [`06`](06-repo-a-readiness.md) §2, §2a                                            |
+| R8  | Delete retired enrichment code, tables and panels, and the legacy LLM path       | Go-live holds 14 days                                                                 | Design §4, [`06`](06-repo-a-readiness.md) §2, §2a                                            |
 | R9  | Upstream contributions to VSS                                                    | M4 evidence exists and the VSS team has been asked which "not on the roadmap" applies | §R9, [`08`](08-audit-profile-anatomy.md) §1.7, §9                                            |
 | R10 | Final model choices: reasoning LLM and VLM                                       | The owner selects (the VLM at M2)                                                     | §R10                                                                                         |
 | R11 | Product support for tiers beyond 24 GB (halo 32 GB, volume 12-16 GB, entry 8 GB) | The Brev measurements (design step 2.3) are in                                        | [`05`](05-hardware-profiles.md), E1-E3                                                       |
@@ -37,7 +37,7 @@ tracked there.
 **Goal (owner, 2026-09-23):** the platform streams every camera in real time and runs its own
 motion and object detection instead of relying on camera FTP uploads.
 
-**Why it waits:** the design fixes ingest to FTP stills to keep the first cutover bounded. The VLM
+**Why it waits:** the design fixes ingest to FTP stills to keep the first go-live bounded. The VLM
 path is ingest-agnostic (`key_frame_selector` takes image references from any source), so a
 stream front-end plugs in above the detector without changing it.
 
@@ -105,11 +105,14 @@ at the gate, without adopting VSS's detection service.
 Glass break, alarms and raised voices are valuable signals. The smallest VSS audio path (Omni
 30B-A3B) needs ~29 GB and fits no consumer card. First confirm whether Foscam clips carry audio.
 
-## R8. Post-cutover deletion
+## R8. Post-go-live deletion
 
 **What goes:** retire Florence-2, the heavy enrichment models, the in-process loaders the VLM path
 no longer calls, the pose/demographics/clothing child tables, and their frontend panels (the
 design's empty states become deletions).
+
+Since spec rev 5 (2026-09-25) it also removes the unsupported legacy LLM path: `ai-llm`, the
+per-event route in `nemotron_analyzer.py` (including the 0.3 changes), and `PIPELINE_MODE=legacy`.
 
 **What stays:** the face, re-ID and plate specialists.
 
@@ -148,7 +151,8 @@ first move.
 ## R10. Final model choices
 
 **Reasoning LLM (owner).** The owner reports that **Nemotron 3.5 Lightning replaced the Nano line**.
-`NVIDIA-Nemotron-3-Nano-4B` is only the interim placeholder. Facts about Lightning, gathered
+`NVIDIA-Nemotron-3-Nano-4B` was the interim placeholder; spec rev 5 (2026-09-25) removed it. Facts
+about Lightning, gathered
 2026-09-23:
 
 | Property                       | Value                                                                             | Marker                     |

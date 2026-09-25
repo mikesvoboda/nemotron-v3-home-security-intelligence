@@ -3,8 +3,14 @@
 **Status:** approved design (§1-§8 approved section by section by the owner, 2026-09-23), ready for implementation planning
 **Date:** 2026-09-23
 **Branch:** `feat/vss-gaming-gpu-profile`
-**Revision:** rev 4 (2026-09-23): the GB300's Cosmos container is stopped, leaving ~47.9 GiB for our
-models (D12, Phase G0, checklist). Rev 3 (2026-09-23): three test environments (D2, D10, D12, §8), an engine-agnostic
+**Revision:** rev 5 (2026-09-25, owner ruling, ledger F10): **the legacy path is no longer
+supported.** No production system is running (F9), so nothing needs to be kept alive or rolled back
+to. There is no control: S2 and S3 become fixed bars. The Nano-4B placeholder, the control freeze,
+the legacy A5500 bring-up and the offline 30B replay are removed. Phase 3 "Cutover" becomes
+"Go-live", and its fallback is the detector-only rule (§6), not a legacy rollback. The 0.3 code
+already written is kept. The legacy code stays in the repo, unsupported, until R8 deletes it
+(D2, D5, D7, D8, S2, S3, §2, §5, §8). Rev 4 (2026-09-23): the GB300's Cosmos container is stopped,
+leaving ~47.9 GiB for our models (D12, Phase G0, checklist). Rev 3 (2026-09-23): three test environments (D2, D10, D12, §8), an engine-agnostic
 OpenAI-compatible VLM provider (§3), and a Brev hardware matrix (step 2.3). Rev 2 (2026-09-23). Amended after a Codex adversarial review, owner-approved:
 null-safe failure delivery (D11, §4, §6, step 0.25) and self-contained eval items replacing the
 event-FK replay (D7, §4, §5, §7).
@@ -40,13 +46,13 @@ consumer tier.
 | #   | Decision                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | D1  | **Downstream-first.** The work lands in this repo, behind the `backend/ai_contract` seam, shaped so it can go upstream later (R9).                                                                                                                                                                                                                                                                                                                                            |
-| D2  | **Three test environments** (§8). **The GB300** (this repo's development box) is the development loop and runs the salience bake-off. **The amd64 RTX A5500** (24 GB, sm_86, **single GPU**; the A400 is retired) runs the real-data steps and the production cutover. **Brev VMs** supply the per-tier hardware matrix. An agent runs wherever a step's environment is. Ampere has no FP8 or FP4 tensor cores, so the A5500 proves fit and salience, not native NVFP4 speed. |
+| D2  | **Three test environments** (§8). **The GB300** (this repo's development box) is the development loop and runs the salience bake-off. **The amd64 RTX A5500** (24 GB, sm_86, **single GPU**; the A400 is retired) runs the real-data steps and the production go-live. **Brev VMs** supply the per-tier hardware matrix. An agent runs wherever a step's environment is. Ampere has no FP8 or FP4 tensor cores, so the A5500 proves fit and salience, not native NVFP4 speed. |
 | D3  | **Per-event architecture: detector + one VLM.** The detector gates every upload and supplies geometry. One VLM describes, verifies and scores candidates from the evidence stills in **one constrained call**. Florence-2 and most enrichment retire. The face, re-ID and plate specialists stay, loaded on demand.                                                                                                                                                           |
 | D4  | **Engine: contract-first.** llama.cpp (GGUF + mmproj) ships first. RT-VLM, VSS's engine, follows behind the same contract in a **gated** phase; its A5500 fit, or its failure, is recorded as upstream evidence. The VSS Delta build is produced in that phase.                                                                                                                                                                                                               |
-| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M is the **interim placeholder**, used only by the legacy path until cutover.                                                                                                                                                                                                                              |
+| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). **Rev 5:** there is no placeholder LLM, because the legacy path is not deployed.                                                                                                                                                                                                                                                            |
 | D6  | **Ingest is FTP stills only.** Live streaming is R1.                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| D7  | **Evaluation is replay, not live shadow,** over **self-contained eval items** that production retention cannot touch. The legacy and VLM modes do not fit on one card together. The control is the verdict recorded by the dual-GPU 30B pipeline, or an offline 30B replay where none was recorded.                                                                                                                                                                           |
-| D8  | **Success criteria S1-S6** (below) gate the cutover.                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| D7  | **Evaluation is replay, not live shadow,** over **self-contained eval items** that production retention cannot touch. **Rev 5: there is no control.** S2 and S3 are fixed bars on labeled items; nothing is compared against the legacy path.                                                                                                                                                                                                                                 |
+| D8  | **Success criteria S1-S6** (below) gate the go-live.                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | D9  | **Out of scope:** everything in [`12`](../../vss-integration/12-postponed-roadmap.md).                                                                                                                                                                                                                                                                                                                                                                                        |
 | D10 | **Real-camera data stays out of git.** It may live on the owner's machines (A5500, GB300) and on Brev VMs used for evaluation. Transfer it over SSH, and wipe the eval store from a Brev VM at teardown. Only synthetic items and aggregate metrics enter git.                                                                                                                                                                                                                |
 | D11 | **Failure delivery is null-safe end to end.** A `verification_failed` event has a NULL score and level, and it still reaches the dashboard and the detector-only notification. It does **not** require acknowledgment; acknowledgment stays reserved for scored risk ≥ 80.                                                                                                                                                                                                    |
@@ -59,16 +65,17 @@ Measured on the A5500.
 | #   | Criterion       | Bar                                                                                                                                                                                                                    |
 | --- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | S1  | Fit             | Peak VRAM ≤ **20.4 GiB** (0.85 × 24 GB) with the detector, on-demand specialists and the VLM resident; no CPU offload of the VLM. Measured on 24 GB-class hardware (the A5500, or a Brev A10G or L4), not on the GB300 |
-| S2  | False positives | On labeled-benign items, the VLM path's rate at `risk_level ≥ medium` is **≤ 50% of the control's**                                                                                                                    |
-| S3  | No new misses   | Recall on labeled incidents (real + synthetic) **≥ the control's**                                                                                                                                                     |
+| S2  | False positives | On labeled-benign items, the rate at `risk_level ≥ medium` is **≤ `S2_MAX` %**. Rev 5: a fixed bar. The owner sets `S2_MAX` before the bake-off report (step 2.2) [?]                                                  |
+| S3  | Recall          | On labeled incidents, the share at or above their expected minimum level is **≥ `S3_MIN` %**. Rev 5: a fixed bar. The owner sets `S3_MIN` before step 2.2 [?]                                                          |
 | S4  | Latency         | p95 per-batch verdict ≤ **30 s**, including cold starts, measured on 24 GB-class hardware                                                                                                                              |
 | S5  | Robustness      | **0** unparseable verdicts. Every failure surfaces as `verification_failed`, never as a default score, and reaches the dashboard and the notification path.                                                            |
 | S6  | Contract        | The conformance suite is green including `vlm_assess`, and the FakeProvider covers it                                                                                                                                  |
 
 ## §2 Architecture
 
-A backend setting, `PIPELINE_MODE=legacy|vlm`, selects the per-event path. `legacy` stays the
-default until cutover.
+A backend setting, `PIPELINE_MODE=legacy|vlm`, selects the per-event path. **Rev 5:** `vlm` is the
+default and the only supported mode. `legacy` stays selectable only because its code stays in the
+repo until R8 deletes it. It is not deployed, not measured, and not a rollback target.
 
 ```
 FTP still/clip → file_watcher → YOLO26 gate (Triton) ── nothing detected → no event (unchanged)
@@ -77,7 +84,7 @@ FTP still/clip → file_watcher → YOLO26 gate (Triton) ── nothing detected
                                       │ batch closes
           ┌───────────────────────────┴──────────────────────────────┐
   legacy: enrichment + Florence → text → LLM            vlm: key_frame_selector (≤4 stills)
-          (control; Nano-4B placeholder)                     → face / re-ID / plate specialists, on demand
+          (unsupported since rev 5; code kept until R8)      → face / re-ID / plate specialists, on demand
                                                              → vlm_assess(images + text context,
                                                                           json_schema-constrained)
           └───────────────────────────┬──────────────────────────────┘
@@ -86,22 +93,22 @@ FTP still/clip → file_watcher → YOLO26 gate (Triton) ── nothing detected
 
 **Units.** Each has one job.
 
-| Unit                                     | Job                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ai-vlm` compose service (profile `vlm`) | `llama-server` + GGUF + `--mmproj`; `/v1/chat/completions` with `json_schema`; `--jinja --sleep-idle-seconds --alias`; 2 slots; context sized for 4 images + ~6K text + output. Reachable on the internal compose network. Its host port is a new `AI_VLM_PORT` variable (default `8098`, unused today), added to `.env.example` first per the root port rule.                                                                                                                                                                                         |
-| `backend/services/key_frame_selector.py` | Picks 1-4 stills per batch: the best detection per camera/class plus the most recent. A pure function. **Ingest-agnostic:** it takes image references from any source, which is the seam for R1.                                                                                                                                                                                                                                                                                                                                                       |
-| `backend/services/vlm_client.py`         | The contract-registered client for `vlm_assess`, including the enforcement probe (§3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `backend/services/vlm_analyzer.py`       | Builds an **`AssessInput` snapshot** (key-frame candidates, detections, camera, zones, household: today's prompt context minus Florence) and assembles the prompt from it as a **pure function**. Production builds the snapshot from the database; replay loads it from the eval store; both share one code path. Calls `vlm_assess`, applies the invariants (§6), and maps the verdict to an Event. A **sibling** of `nemotron_analyzer.py`, not an edit to it. The legacy path stays byte-identical to the code that produced the control verdicts. |
-| Triton gateway                           | Moves from `--model-control-mode=none` (`ai/gateway/entrypoint.sh:131`) to **explicit**, with per-mode load sets. `vlm` mode loads YOLO26 plus on-demand specialists only. This is the residency control E4 found missing.                                                                                                                                                                                                                                                                                                                             |
+| Unit                                     | Job                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai-vlm` compose service (profile `vlm`) | `llama-server` + GGUF + `--mmproj`; `/v1/chat/completions` with `json_schema`; `--jinja --sleep-idle-seconds --alias`; 2 slots; context sized for 4 images + ~6K text + output. Reachable on the internal compose network. Its host port is a new `AI_VLM_PORT` variable (default `8098`, unused today), added to `.env.example` first per the root port rule.                                                                                                                                                                          |
+| `backend/services/key_frame_selector.py` | Picks 1-4 stills per batch: the best detection per camera/class plus the most recent. A pure function. **Ingest-agnostic:** it takes image references from any source, which is the seam for R1.                                                                                                                                                                                                                                                                                                                                        |
+| `backend/services/vlm_client.py`         | The contract-registered client for `vlm_assess`, including the enforcement probe (§3)                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `backend/services/vlm_analyzer.py`       | Builds an **`AssessInput` snapshot** (key-frame candidates, detections, camera, zones, household: today's prompt context minus Florence) and assembles the prompt from it as a **pure function**. Production builds the snapshot from the database; replay loads it from the eval store; both share one code path. Calls `vlm_assess`, applies the invariants (§6), and maps the verdict to an Event. A **sibling** of `nemotron_analyzer.py`, not an edit to it. The legacy analyzer stays in the repo, unsupported, until R8 (rev 5). |
+| Triton gateway                           | Moves from `--model-control-mode=none` (`ai/gateway/entrypoint.sh:131`) to **explicit**, with the `vlm` load set: YOLO26 plus on-demand specialists only (rev 5: no legacy load set). This is the residency control E4 found missing.                                                                                                                                                                                                                                                                                                   |
 
 **VRAM** [C/A; S1 measures it]:
 
-| Mode     | Resident                                                                                                                            | ≈ GiB  |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `legacy` | Gateway with all models resident (~8-9) + Nano-4B (5.5)                                                                             | ~14    |
-| `vlm`    | YOLO26 + Triton overhead (~1) + on-demand specialists (~1-2) + `ai-vlm` (e.g. 12B-VL Q4 7.5 + mmproj 1.7 + KV and image buffers ~2) | ~13-14 |
+| Mode  | Resident                                                                                                                            | ≈ GiB  |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `vlm` | YOLO26 + Triton overhead (~1) + on-demand specialists (~1-2) + `ai-vlm` (e.g. 12B-VL Q4 7.5 + mmproj 1.7 + KV and image buffers ~2) | ~13-14 |
 
-The two modes never co-reside, which is why evaluation is replay (D7).
+Evaluation is replay (D7) because eval items must outlive production retention and re-run on every
+model or prompt change. (Rev 5 removed the `legacy` row: that mode is not deployed.)
 
 ## §3 Contract and engines
 
@@ -141,7 +148,7 @@ parser expects are maintained separately.
 - **llama.cpp pin:** `b7972` (`ai/nemotron/Dockerfile`) runs Qwen3-VL. Nemotron-12B-VL needs a newer
   pin with its multimodal support, merged 2026-02-14 or later, so the bake-off includes that bump.
 
-**Engine 2: RT-VLM (gated Phase 4; not required for cutover).**
+**Engine 2: RT-VLM (gated Phase 4; not required for go-live).**
 
 - **Image and mode:** the anonymous ghcr image (amd64), in integrated `vllm-compatible` mode, with an
   empty message bus.
@@ -204,7 +211,7 @@ nothing the evaluation needs may depend on production rows.
 **Deferred:** deleting retired tables and panels (R8), and adding `scene_description` to the search
 trigger (R4).
 
-## §5 Evaluation and cutover
+## §5 Evaluation and go-live
 
 **Eval items.** Every evaluation input is a self-contained **eval item** with its own id, stored in
 the eval store. Nothing in it depends on production rows, which retention deletes. An item holds:
@@ -212,17 +219,16 @@ the eval store. Nothing in it depends on production rows, which retention delete
 - the key-frame candidate images, **copied** into the eval store;
 - the `AssessInput` snapshot (§2): detections, camera, zones, household context;
 - the label: benign, or incident with an expected minimum severity;
-- the control verdict and where it came from;
 - `source_event_id`, for provenance only (no foreign key).
 
-| Item kind               | Source                                                                         | Label                                                                                                                                          | Control                                                                                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Historical, pre-switch  | Events from before the switch (step 0.1)                                       | The owner's feedback (`EventFeedback`): `false_positive` → benign; `missed_threat`, or `accurate` on high → incident, with `expected_severity` | **Recorded** by the dual-GPU 30B pipeline, copied at freeze time                                                                                                   |
-| Historical, post-switch | Events labeled after the switch                                                | Same                                                                                                                                           | The legacy pipeline **replayed offline with the production 30B**. The Nano-4B placeholder produced these events, so their recorded verdict is not a valid control. |
-| Synthetic incidents     | `scripts/synthetic` (17 scenarios: normal, suspicious, threats, environmental) | The scenario spec                                                                                                                              | Offline 30B replay, as above                                                                                                                                       |
+Rev 5 removed the control verdict: S2 and S3 are fixed bars, so an item needs only its label.
 
-Offline 30B replay tolerates partial CPU offload, so the baseline stays production quality. Keep
-the 30B GGUF on disk after step 0.2.
+| Item kind                 | Source                                                                                                      | Label                                                                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Synthetic scenarios       | `scripts/synthetic` (17 scenarios: normal, suspicious, threats, environmental)                              | The scenario spec                                                                                                                              |
+| Owner-generated media     | Synthetic video from the owner (F9 ruling 2); frames are sampled into stills, because ingest is stills (D6) | Born labeled: the generator knows each clip's label                                                                                            |
+| Stock imagery             | License-clean frames (`scripts/synthetic_media.py`)                                                         | The scenario it was fetched for                                                                                                                |
+| Real events, post-go-live | Events labeled after go-live (Phase 3)                                                                      | The owner's feedback (`EventFeedback`): `false_positive` → benign; `missed_threat`, or `accurate` on high → incident, with `expected_severity` |
 
 **Size:** at least **100 benign and 20 incidents**. At 50 benign, one frame moves the rate by 2
 points, which is too coarse for S2.
@@ -232,8 +238,9 @@ points, which is too coarse for S2.
 
 - It is independent of production retention.
 - It is **portable**: copying the directory lets the same set validate other hardware later (R11).
-- **Labeling window.** Labels come from `EventFeedback` on live events, so the owner must label an
-  event before retention deletes it, within 30 days. Step 0.5 imports labels into eval items by
+- **Labeling window.** Synthetic and stock items are labeled when they are made. After go-live,
+  labels also come from `EventFeedback` on live events, so the owner must label an event before
+  retention deletes it, within 30 days. Step 0.5's import turns those labels into eval items by
   `source_event_id`. Unlabeled items are excluded from S2 and S3.
 - The cleanup service keeps original images by default (`delete_images=False`,
   `backend/services/cleanup_service.py:124`), but freezing copies them anyway.
@@ -246,14 +253,16 @@ points, which is too coarse for S2.
 1. loads the item's `AssessInput` snapshot and runs `key_frame_selector` → `vlm_assess` against a
    live `ai-vlm`, reading nothing from the production database;
 2. writes `eval_results(item_id, run_id, …)` to the eval store;
-3. computes S1-S5 against the labels and the control;
+3. computes S1-S5 against the labels and the fixed bars;
 4. reports **per-item disagreements**, which are the tuning signal.
 
 **Metric definitions:**
 
 - **S2:** benign items at `risk_level ≥ medium`, divided by all benign items.
 - **S3:** incidents at or above their expected minimum level, divided by all incidents.
-- `uncertain` items count at their scored level.
+- `uncertain` items count at their scored level. A model that answers `uncertain` with a low score
+  on everything passes S2 and fails S3; the G0 salience smoke test (S-3) saw exactly that pattern,
+  so report the verdict mix beside the bars.
 
 **Bake-off.** Run the same replay per candidate: Qwen3-VL-4B, Qwen3-VL-8B, Nemotron-12B-VL (after
 the llama.cpp bump), and Cosmos-Reason2-8B. Cosmos-Reason2-8B runs on demand in our own vLLM (BF16), as a quality reference only; a consumer tier would need a quantized build. Cosmos3-Edge-4B
@@ -270,15 +279,18 @@ come from the hardware matrix (step 2.3). Report per candidate:
 
 **The owner picks.**
 
-**Cutover:**
+**Go-live** (rev 5; there is no legacy system to cut over from):
 
 1. **Gate:** the owner's pick passes S1-S6 on replay, and the owner signs off.
-2. **Flip:** set `PIPELINE_MODE=vlm` and enable the compose profile `vlm`. `ai-llm`, Florence and the
-   heavy enrichment stop; `ai-vlm` starts.
-3. **Observe for 14 days**, with the owner giving feedback in the normal UI. **Rollback triggers:**
-   - any `missed_threat` that a legacy replay of the same event would have caught;
+2. **Deploy:** run with `PIPELINE_MODE=vlm` and the compose profile `vlm` on the A5500. `ai-llm`,
+   Florence and the heavy enrichment are not deployed.
+3. **Observe for 14 days**, with the owner giving feedback in the normal UI. **Stop triggers:**
+   - any `missed_threat` feedback on an event the VLM rejected or scored below its expected level;
    - a false-positive feedback rate clearly above the replay estimate.
-4. **Roll back** by flipping the flag. Legacy services stay deployable until R8.
+4. **On a trigger,** roll back to the last model or prompt build that passed the gate, if one
+   exists. Otherwise take `ai-vlm` offline: every batch then takes §6 step 3, so the detector-only
+   rule keeps notifying and the owner is never blind. The triggering events become eval items, and
+   the gate re-runs before the next deploy.
 5. **Regression:** the labeled replay re-runs on every model or prompt change, months later if need
    be, because eval items outlive production retention.
 
@@ -345,11 +357,11 @@ floors, the conformance tier's no-xfail/skip rule, the contract drift gate (`gen
 
 **Where each step runs** (D2):
 
-| Environment         | Steps                                                                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| GB300 (development) | Phase G0; the code for 0.25, 0.3 and 0.4; all of Phase 1; Phase 2 replay and bake-off runs, on synthetic and copied real items |
-| A5500 (production)  | 0.1, 0.2 and 0.5; deploying 0.25, 0.3 and 0.4; S1 and S4 on its 24 GB; Phase 3 cutover                                         |
-| Brev VMs            | The hardware matrix (step 2.3); RT-VLM fit per architecture (step 4.2)                                                         |
+| Environment         | Steps                                                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| GB300 (development) | Phase G0; all of Phase 0; all of Phase 1 except 1.7; Phase 2 replay and bake-off runs, on synthetic and copied real items |
+| A5500 (production)  | The `vlm`-mode bring-up (1.7); S1 and S4 on its 24 GB; Phase 3 go-live                                                    |
+| Brev VMs            | The hardware matrix (step 2.3); RT-VLM fit per architecture (step 4.2)                                                    |
 
 **Phase G0: GB300 development environment** (can start immediately; see the checklist below)
 
@@ -371,12 +383,12 @@ on this design's critical path.
 
 **Phase 0: Foundations** (independent of VSS)
 
-- **0.1 Freeze the control first.** Record the switch timestamp, then build eval items (§5) from
-  pre-switch events: copied images, `AssessInput` snapshots and the recorded 30B verdicts. After
-  0.2, new events come from the Nano-4B, so their recorded verdicts no longer count as control.
-- **0.2 Single-GPU bring-up.** See the checklist below.
-- **0.25 Null-safety audit.** Step 0.3 is the first time production events can have a NULL score,
-  so before it lands, make every live-path consumer null-safe:
+- **0.1 Freeze the control: removed in rev 5.** There is no control and no pre-switch traffic
+  (F9, F10). The freeze tool already written stays in the repo, unused.
+- **0.2 Legacy single-GPU bring-up: removed in rev 5.** The A5500's first bring-up is in `vlm` mode
+  (step 1.7).
+- **0.25 Null-safety audit.** The VLM path's `verification_failed` events carry a NULL score (D11),
+  and so do 0.3's. Before either can reach production, make every live-path consumer null-safe:
 
   - `WebSocketEventData` (`backend/api/schemas/websocket.py:252-253`);
   - `requires_ack` (`backend/services/event_broadcaster.py:327`);
@@ -388,13 +400,16 @@ on this design's critical path.
   NULL-score test.
 
 - **0.3 Constrained verdict on the legacy path.** Send llama.cpp `json_schema` instead of `nvext`,
-  add the enforcement probe, and apply the §6 semantics: never a default score.
+  add the enforcement probe, and apply the §6 semantics: never a default score. **Rev 5:** the code
+  is written and kept, because it removes E5's fail-open from code that stays in the repo until R8.
+  No further legacy work follows from it: no home-endpoint probe, and no legacy S5 gate.
 - **0.4 `event_verifications`** plus the `verification` API/WebSocket field.
-- **0.5 Labels.** The owner labels to ≥100 benign / ≥20 incidents through the feedback UI, within
-  each event's 30-day retention window. Import the labels into eval items; labeled post-switch
-  events become items with an offline 30B control. Generate the synthetic incidents.
+- **0.5 Labels.** The eval store reaches ≥100 benign / ≥20 incidents from born-labeled items
+  (synthetic scenarios, owner-generated media, stock imagery; §5). The `EventFeedback` import
+  path ships now and is used after go-live.
 
-**M0:** the A5500 is healthy on one GPU, the eval store is frozen, and S5 holds on the legacy path.
+**M0 (rev 5):** Phase 0's code is merged with every CI tier green, and the eval store meets the
+size bar.
 
 **Phase 1: The VLM path** (llama.cpp)
 
@@ -402,18 +417,20 @@ on this design's critical path.
 - 1.2 The `ai-vlm` service and the `vlm` compose profile.
 - 1.3 `key_frame_selector`, `vlm_client` with the probe, `vlm_analyzer`, invariants, failure ladder,
   degradation wiring, wake-on-open.
-- 1.4 Residency control: Triton explicit mode with per-mode load sets, plus llama.cpp idle sleep.
-- 1.5 The `PIPELINE_MODE` flag.
+- 1.4 Residency control: Triton explicit mode with the `vlm` load set, plus llama.cpp idle sleep.
+- 1.5 The `PIPELINE_MODE` flag, defaulting to `vlm` (§2).
 - 1.6 The frontend changes.
+- 1.7 **The A5500 bring-up in `vlm` mode** (checklist below). It replaces the removed step 0.2.
 
 **M1:** `vlm` mode runs end to end on the A5500 with Qwen3-VL-4B as the smoke model, and every CI
 tier is green.
 
 **Phase 2: Evaluation and bake-off**
 
-- 2.1 The replay harness, plus the offline 30B control replay for synthetic items.
-- 2.2 The bake-off runs and report.
-- 2.3 **Hardware matrix on Brev.** This is evidence, not a cutover gate.
+- 2.1 The replay harness. (Rev 5 dropped the offline 30B control replay.)
+- 2.2 The bake-off runs and report. The owner sets the S2 and S3 bars (`S2_MAX`, `S3_MIN`)
+  before the report.
+- 2.3 **Hardware matrix on Brev.** This is evidence, not a go-live gate.
   - Run the leading candidates on A10G (24 GB, sm_86), L4 (24 GB, sm_89), RTX PRO 4500 (32 GB,
     sm_120 [A]) and T4 (16 GB), and record S1 and S4 for each tier.
   - On the RTX PRO 4500, run the NVFP4-QAD checkpoint in vLLM and read the resolved quantization
@@ -424,12 +441,13 @@ tier is green.
 
 **M2:** the owner picks the VLM.
 
-**Phase 3: Cutover**
+**Phase 3: Go-live** (rev 5; formerly "Cutover")
 
-- 3.1 The S1-S6 gate on the pick → sign-off → flip → 14-day observation.
+- 3.1 The S1-S6 gate on the pick → sign-off → deploy → 14-day observation (§5).
 - 3.2 Regression replay on every model or prompt change.
 
-**M3:** the cutover holds for 14 days, or it is rolled back with the findings recorded.
+**M3:** the go-live holds for 14 days, or the stop triggers fire and the findings are recorded
+(§5 step 4).
 
 **Phase 4: The RT-VLM provider** (gated: starts after M2, not required for M3)
 
@@ -461,16 +479,19 @@ tier is green.
       `bwrap-userns-restrict` AppArmor profile for that (added 2026-09-23). If a Codex review comes
       back empty, run `codex sandbox -- true` first.
 
-### A5500 bring-up checklist (step 0.2)
+### A5500 bring-up checklist (step 1.7, `vlm` mode)
+
+Rev 5 moved this from step 0.2. The A5500 comes up directly in `vlm` mode, with no legacy LLM.
 
 - [ ] **GPU assignment.** Set every `GPU_*` variable to `0` (`.env.example` documents "SINGLE-GPU:
       Set all to 0"). Remove the A400 from device passthrough.
 - [ ] **CUDA architecture.** `CUDA_ARCHITECTURES=86`. `.env.example` ships `89`, and `setup.py`
-      auto-detect normally overwrites it. Check it before building `ai-llm`.
-- [ ] **Placeholder LLM.** Point `LLM_MODEL_PATH` at `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M (official
-      GGUF, 2.64 GiB; architecture `nemotron_h`, which llama.cpp `b7972` registers). The `ai-llm`
-      volume mount targets the 30B directory, so adjust it too. Budget ~5.5 GiB including the
-      262K-token KV.
+      auto-detect normally overwrites it. Check it before building `ai-vlm`.
+- [ ] **No legacy LLM.** `ai-llm`, Florence and the heavy enrichment are not deployed. The
+      `scripts/a5500_precheck.py` checks for the placeholder LLM (`llm_model`, `ai_llm_mount`) are
+      obsolete; replace them with an `ai-vlm` model/mount check.
+- [ ] **VLM.** `ai-vlm` serves the smoke model (Qwen3-VL-4B) with `CUDA_ARCHITECTURES=86`. Run the
+      enforcement probe against it before any event reaches it.
 - [ ] **Test-environment traps:**
   - A `TMPDIR` in `.env` that differs from pytest's `tmp_path` false-reddens four
     `write_runtime_env` tests; CI sets no `TMPDIR`.
@@ -536,16 +557,17 @@ VSS moves fast, so re-verify any line before relying on it.
 
 ## Risks and open questions
 
-| Risk / question                                                                                                                             | Settled by                                                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Does `b7972` silently ignore `nvext` (E5)?                                                                                                  | The first request of step 0.3                                                                                                   |
-| Does llama.cpp enforce `json_schema` on _multimodal_ chat requests at the chosen pin?                                                       | The enforcement probe, phase 1.3                                                                                                |
-| Four images per batch on sm_86: does S4 hold, and how many image tokens do tiling VLMs spend?                                               | The bake-off                                                                                                                    |
-| RT-VLM on sm_86: VSS treats FP8 as unsupported on Ampere [A]; the NVFP4 weight-only path is unknown; the BF16 12B blob (26 GB) does not fit | Phase 4 records the outcome, whichever it is                                                                                    |
-| Labels arrive after retention deleted the event                                                                                             | Label within the 30-day window (step 0.5); labeled post-switch events and synthetic items add items with an offline 30B control |
-| `docker compose up` on the `dgx-inference` stack restarts Cosmos (~39 GiB) while our models are loaded                                      | Check `nvidia-smi` before loading; make the stop permanent in the stack repo (owner's call)                                     |
-| The GB300's shared GPU (100% busy) skews timing and has no 24 GB cap                                                                        | Measure S1 and S4 only on 24 GB-class hardware (the A5500, Brev A10G/L4)                                                        |
-| A Brev VM's GPU differs from its label                                                                                                      | Check `nvidia-smi --query-gpu=compute_cap` before each run                                                                      |
-| Real-camera items left on a Brev VM                                                                                                         | Wipe the eval store at teardown (D10)                                                                                           |
-| Too few feedback labels for ≥100/≥20                                                                                                        | Step 0.5 budgets owner labeling time; synthetic incidents cover the incident side                                               |
-| Replay drifts from live behaviour (key-frame choice, batching)                                                                              | The 14-day observation window and the rollback triggers                                                                         |
+| Risk / question                                                                                                                             | Settled by                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Does `b7972` silently ignore `nvext` (E5)?                                                                                                  | The first request of step 0.3                                                                                          |
+| Does llama.cpp enforce `json_schema` on _multimodal_ chat requests at the chosen pin?                                                       | The enforcement probe, phase 1.3                                                                                       |
+| Four images per batch on sm_86: does S4 hold, and how many image tokens do tiling VLMs spend?                                               | The bake-off                                                                                                           |
+| RT-VLM on sm_86: VSS treats FP8 as unsupported on Ampere [A]; the NVFP4 weight-only path is unknown; the BF16 12B blob (26 GB) does not fit | Phase 4 records the outcome, whichever it is                                                                           |
+| Labels arrive after retention deleted the event                                                                                             | Only after go-live: label within the 30-day window. Synthetic and stock items are born labeled (§5)                    |
+| `docker compose up` on the `dgx-inference` stack restarts Cosmos (~39 GiB) while our models are loaded                                      | Check `nvidia-smi` before loading; make the stop permanent in the stack repo (owner's call)                            |
+| The GB300's shared GPU (100% busy) skews timing and has no 24 GB cap                                                                        | Measure S1 and S4 only on 24 GB-class hardware (the A5500, Brev A10G/L4)                                               |
+| A Brev VM's GPU differs from its label                                                                                                      | Check `nvidia-smi --query-gpu=compute_cap` before each run                                                             |
+| Real-camera items left on a Brev VM                                                                                                         | Wipe the eval store at teardown (D10)                                                                                  |
+| Too few labeled items for ≥100/≥20                                                                                                          | Born-labeled synthetic generation covers both sides (step 0.5)                                                         |
+| Fixed bars set without a baseline are too loose or too strict                                                                               | Report the verdict mix and per-item disagreements beside the bars; the owner can reset them before the gate (step 2.2) |
+| Replay drifts from live behaviour (key-frame choice, batching)                                                                              | The 14-day observation window and the stop triggers                                                                    |
