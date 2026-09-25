@@ -179,6 +179,14 @@ def mock_settings():
     exit instead of leaning on a MagicMock AttributeError.
     """
     mock = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     values = {
         "nemotron_url": "http://localhost:8091",
         "nemotron_api_key": None,

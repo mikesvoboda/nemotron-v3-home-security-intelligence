@@ -132,7 +132,20 @@ def _analyzer() -> NemotronAnalyzer:
     self._use_enrichment_pipeline / self._run_enrichment_pipeline / self._redis /
     self._experiment_config, all set explicitly by the tests.
     """
-    return NemotronAnalyzer.__new__(NemotronAnalyzer)
+    a = NemotronAnalyzer.__new__(NemotronAnalyzer)
+    # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+    # Values copied from the repo test_nemotron_analyzer.py mock_settings
+    # fixture: constrained decoding OFF => legacy path byte-identical.
+    a._constrained_enabled = False
+    a._constrained_fail_closed = True
+    a._constrained_probe_enabled = True
+    a._constrained_required_build = None
+    a._constrained_enforced = None
+    a._fail_closed_active = False
+    a._verification_engine = "llama.cpp"
+    a._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+    a._last_call_duration_ms = None
+    return a
 
 
 class _Boom(Exception):
@@ -217,8 +230,10 @@ class TestLogShadowResultScoreLookup:
         """kills _log_shadow_result keys 3, 5, 8 (v1 default) and
         11, 13, 16 (v2 default).
 
-        shipped 1090-1091 default is the literal 0; with BOTH dicts empty the
-        shipped record carries v1_score 0 / v2_score 0 / score_diff 0 (probe5).
+        P0.3 DRIFT RE-PIN (#6678): shipped 1380-1384 now reads .get without
+        the 0 default and applies the honest-incomparable rule; with BOTH
+        dicts empty the shipped record carries v1_score None / v2_score None
+        / score_diff -1.0 (measured).
         key 3 / 11 -> default None  -> score_diff = abs(None - 0) raises TypeError
                                        inside the shipped body (call explodes)
         key 5 / 13 -> `get("risk_score", )` parses as `get("risk_score")`, i.e.
@@ -230,9 +245,9 @@ class TestLogShadowResultScoreLookup:
             asyncio.run(a._log_shadow_result(camera_id="c", v1_result={}, v2_result={}))
         rec = _one(logpipe, logging.INFO)
         _attrs(rec, SHADOW_ATTRS)
-        assert rec.v1_score == 0
-        assert rec.v2_score == 0
-        assert rec.score_diff == 0
+        assert rec.v1_score is None
+        assert rec.v2_score is None
+        assert rec.score_diff == -1.0
 
     def test_score_diff_is_absolute_difference(self, logpipe):
         """kills _log_shadow_result keys 17, 19 (line 1092).

@@ -208,6 +208,14 @@ class LogCapture:
 
 def _make_settings() -> MagicMock:
     settings = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    settings.nemotron_constrained_decoding_enabled = False
+    settings.nemotron_constrained_fail_closed = True
+    settings.nemotron_constrained_probe_enabled = True
+    settings.nemotron_constrained_probe_required_build = None
+    settings.nemotron_verification_engine = "llama.cpp"
+    settings.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     settings.nemotron_url = "http://localhost:8091"
     settings.nemotron_api_key = None
     settings.ai_connect_timeout = 10.0
@@ -647,7 +655,8 @@ def check_T4(f):
 
 
 def check_T5(f, expected_second):
-    """_enqueue_for_evaluation(event.id, event.risk_score or 50) contract."""
+    """_enqueue_for_evaluation(event.id, event.risk_score if not None else
+    P03_UNVERIFIED_PRIORITY) contract (#6678 P0.3 replaced the `or 50`)."""
     assert len(f["eval_calls"]) == 1, f"expected one enqueue call, got {f['eval_calls']}"
     args = f["eval_calls"][0][0]
     assert len(args) >= 2, f"call lost an argument: {args}"
@@ -938,7 +947,11 @@ async def test_audit_row_added_and_debug_line_names_ids(caplog):
 
 @pytest.mark.asyncio
 async def test_audit_enqueues_evaluation_with_event_id_and_risk(caplog):
-    """Pins _enqueue_for_evaluation(event.id, event.risk_score or 50).
+    """Pins _enqueue_for_evaluation(event.id, event.risk_score unless None).
+
+    P0.3 drift re-pin (#6678): the shipped `or 50` became
+    `risk_score if risk_score is not None else P03_UNVERIFIED_PRIORITY`
+    (=0), so a genuine 0 score now passes through as 0, never 50.
 
     kills: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch__mutmut_547
     kills: backend.services.nemotron_analyzer.xǁNemotronAnalyzerǁanalyze_batch__mutmut_548
@@ -965,7 +978,7 @@ async def test_audit_enqueues_evaluation_with_event_id_and_risk(caplog):
         enrich=_sentinel,
         risk=RISK_ZERO,
     )
-    check_T5(f0, 50)
+    check_T5(f0, 0)  # P0.3: 0 passes through; None would take P03 (also 0)
 
 
 @pytest.mark.asyncio

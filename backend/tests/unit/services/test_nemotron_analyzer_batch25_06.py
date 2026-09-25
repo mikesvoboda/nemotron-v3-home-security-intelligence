@@ -67,6 +67,18 @@ def _make_analyzer(max_retries: int = 3) -> NemotronAnalyzer:
     # __new__ skips the heavy __init__; _call_llm touches only the attrs set
     # here plus the patched seams below.
     a = NemotronAnalyzer.__new__(NemotronAnalyzer)
+    # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+    # Values copied from the repo test_nemotron_analyzer.py mock_settings
+    # fixture: constrained decoding OFF => legacy path byte-identical.
+    a._constrained_enabled = False
+    a._constrained_fail_closed = True
+    a._constrained_probe_enabled = True
+    a._constrained_required_build = None
+    a._constrained_enforced = None
+    a._fail_closed_active = False
+    a._verification_engine = "llama.cpp"
+    a._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+    a._last_call_duration_ms = None
     a._max_retries = max_retries
     a._use_guided_json = False
     a._llm_url = "http://llm.test:9/v1"

@@ -151,6 +151,14 @@ class PhaseClock:
 def _mock_settings():
     """Settings mirroring the repo unit fixture (values copied, not invented)."""
     m = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    m.nemotron_constrained_decoding_enabled = False
+    m.nemotron_constrained_fail_closed = True
+    m.nemotron_constrained_probe_enabled = True
+    m.nemotron_constrained_probe_required_build = None
+    m.nemotron_verification_engine = "llama.cpp"
+    m.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     m.nemotron_url = "http://localhost:8091"
     m.nemotron_api_key = None
     m.ai_connect_timeout = 10.0
@@ -486,8 +494,9 @@ async def test_score_diff_uses_risk_score_with_default_zero(analyzer):
       both carry risk_score -> 50  (kills 28 whose key becomes None: 30; the
                                     key renames 32/33 -> 30, 36/40/41 -> 80;
                                     45 whose '-' became '+': 110; 43 -> None)
-      v2 without risk_score -> 80  (kills 42 default 1 -> 79; 37/39 whose None
-                                    default raises TypeError -> arm aborts)
+      v2 without risk_score -> P0.3 DRIFT RE-PIN (#6678): shipped became
+                                    .get("risk_score") with the honest-
+                                    incomparable rule -> None side => -1.0
       v1 without risk_score -> 30  (kills 34 default 1 -> 29; 29/31 -> abort)
       both without          -> 0   (kills 29/31/37/39 via the abort WARNING and
                                     34/42 -> abs(1-1)=0 but 34/42 already died
@@ -498,14 +507,17 @@ async def test_score_diff_uses_risk_score_with_default_zero(analyzer):
     assert d.result["score_diff"] == 50, "kills 28 32 33 36 40 41 43 45"
 
     d_v2 = await drive(analyzer, v2={"risk_level": "low"})
-    assert d_v2.result["score_diff"] == 80, "kills 37 39 42"
+    # P0.3 (#6678): NULL score is INCOMPARABLE -> -1.0, never a laundered 0.
+    # Pre-drift this pinned 80; 37/39/42 claims are historical (nemotron is
+    # out of the mutation denominator -- this battery is regression coverage).
+    assert d_v2.result["score_diff"] == -1.0
     assert d_v2.result["shadow_result"] == {"risk_level": "low"}
 
     d_v1 = await drive(analyzer, v1={"risk_level": "high"})
-    assert d_v1.result["score_diff"] == 30, "kills 29 31 34"
+    assert d_v1.result["score_diff"] == -1.0  # P0.3: None side -> -1.0 (was 30)
 
     d_none = await drive(analyzer, v1={"risk_level": "high"}, v2={"risk_level": "low"})
-    assert d_none.result["score_diff"] == 0, "kills 29 31 37 39"
+    assert d_none.result["score_diff"] == -1.0  # P0.3: both None -> -1.0 (was 0)
     assert d_none.warnings == []
     assert d_none.result["shadow_result"] == {"risk_level": "low"}
 
@@ -625,7 +637,7 @@ async def test_v2_failure_continues_with_v1_defaults(analyzer):
     """
     d = await drive(analyzer, v1={"risk_level": "high"}, v2={"risk_level": "low"})
     assert d.warnings == [], "kills 31 and 39"
-    assert d.result["score_diff"] == 0
+    assert d.result["score_diff"] == -1.0  # P0.3: None -> incomparable sentinel
     assert d.result["shadow_result"] == {"risk_level": "low"}
 
     d2 = await drive(analyzer, v2_fails=True)

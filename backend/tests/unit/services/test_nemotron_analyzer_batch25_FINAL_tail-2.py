@@ -437,6 +437,18 @@ def drive(*, enrichment: bool = False) -> Run:
 
     facade = FakeFacade()
     analyzer = NemotronAnalyzer.__new__(NemotronAnalyzer)
+    # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+    # Values copied from the repo test_nemotron_analyzer.py mock_settings
+    # fixture: constrained decoding OFF => legacy path byte-identical.
+    analyzer._constrained_enabled = False
+    analyzer._constrained_fail_closed = True
+    analyzer._constrained_probe_enabled = True
+    analyzer._constrained_required_build = None
+    analyzer._constrained_enforced = None
+    analyzer._fail_closed_active = False
+    analyzer._verification_engine = "llama.cpp"
+    analyzer._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+    analyzer._last_call_duration_ms = None
     analyzer._llm_url = LLM_URL
     analyzer._api_key = None
     analyzer._use_guided_json = False

@@ -166,6 +166,14 @@ MSG_EXPERIMENT = "Experiment config set: shadow_mode=True, treatment=30.0%, expe
 
 def settings_stub() -> MagicMock:
     s = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    s.nemotron_constrained_decoding_enabled = False
+    s.nemotron_constrained_fail_closed = True
+    s.nemotron_constrained_probe_enabled = True
+    s.nemotron_constrained_probe_required_build = None
+    s.nemotron_verification_engine = "llama.cpp"
+    s.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     s.nemotron_url = LLM_URL
     s.nemotron_api_key = None
     s.ai_connect_timeout = CONNECT_T

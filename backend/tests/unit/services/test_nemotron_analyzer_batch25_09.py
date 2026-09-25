@@ -197,6 +197,18 @@ class _Harness:
         self.detection = detection if detection is not None else _detection()
         self.camera = _camera() if camera == "default" else camera
         self.analyzer = NemotronAnalyzer.__new__(NemotronAnalyzer)
+        # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+        # Values copied from the repo test_nemotron_analyzer.py mock_settings
+        # fixture: constrained decoding OFF => legacy path byte-identical.
+        self.analyzer._constrained_enabled = False
+        self.analyzer._constrained_fail_closed = True
+        self.analyzer._constrained_probe_enabled = True
+        self.analyzer._constrained_required_build = None
+        self.analyzer._constrained_enforced = None
+        self.analyzer._fail_closed_active = False
+        self.analyzer._verification_engine = "llama.cpp"
+        self.analyzer._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+        self.analyzer._last_call_duration_ms = None
         self.analyzer._redis = MagicMock(name="redis")
         self.analyzer._use_enriched_context = True
         self.analyzer._use_enrichment_pipeline = True

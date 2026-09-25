@@ -108,6 +108,14 @@ def mock_settings():
     from backend.core.config import Settings
 
     mock = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     mock.nemotron_url = "http://localhost:8091"
     mock.nemotron_api_key = None
     mock.ai_connect_timeout = 10.0
@@ -339,5 +347,5 @@ async def test_batch_analysis_complete_span_fallbacks_on_falsy_event_fields(anal
         },
     )
     assert set(attrs) == _EXPECTED_COMPLETE_KEYS
-    assert attrs["risk.level"] == "unknown"
-    assert attrs["risk.score"] == 0
+    assert attrs["risk.level"] == "unverified"  # P0.3: falsy level `or`-fallback
+    assert attrs["risk.score"] == 0  # 0 is not None: _span_risk_value passes it

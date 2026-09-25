@@ -543,6 +543,18 @@ class Runner:
     def __enter__(self):
         scen = self.scen
         self.an = NemotronAnalyzer.__new__(NemotronAnalyzer)
+        # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+        # Values copied from the repo test_nemotron_analyzer.py mock_settings
+        # fixture: constrained decoding OFF => legacy path byte-identical.
+        self.an._constrained_enabled = False
+        self.an._constrained_fail_closed = True
+        self.an._constrained_probe_enabled = True
+        self.an._constrained_required_build = None
+        self.an._constrained_enforced = None
+        self.an._fail_closed_active = False
+        self.an._verification_engine = "llama.cpp"
+        self.an._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+        self.an._last_call_duration_ms = None
         self.an._redis = SimpleNamespace()
         camera = scen.get("camera", make_camera())
         detection = scen.get("detection", make_detection())
@@ -715,8 +727,11 @@ class TestShippedBaseline:
         assert r.enqueue.args == [((EVENT_ID, 71), {})]
 
     def test_enqueue_priority_fallback_when_score_none(self):
+        # P0.3 DRIFT RE-PIN (#6678): `or 50` became
+        # `risk_score if risk_score is not None else P03_UNVERIFIED_PRIORITY`
+        # (=0) -> a None score enqueues (555, 0). Measured on shipped code.
         r, ev = run(risk_data=FULL_RISK, score_to_none=True)
-        assert r.enqueue.args == [((EVENT_ID, 50), {})]
+        assert r.enqueue.args == [((EVENT_ID, 0), {})]
 
     def test_audit_and_llminteraction_shapes(self):
         r, ev = run(risk_data=FULL_RISK)
@@ -965,13 +980,17 @@ class TestEnqueueForEvaluation:
         """Kills 343 — the ONLY key of this chunk no existing green battery
         kills (redcheck_dead102b.log NOKILL): the ``or 51`` mutant is
         observable ONLY when event.risk_score is falsy AT CONSTRUCTION. Here
-        the LLM payload carries risk_score None (no fire override applies), so
-        shipped enqueues (555, 50) and 343 must yield 51. Re-proves 339/342
-        from the falsy side. (Battery-10's fallback test mutates ev.risk_score
-        AFTER the run, which is why it cannot see this.)"""
+        the LLM payload carries risk_score None (no fire override applies).
+        P0.3 DRIFT RE-PIN (#6678): shipped replaced `or 50` with
+        `risk_score if risk_score is not None else P03_UNVERIFIED_PRIORITY`
+        (=0), so a None score now enqueues (555, 0) -- measured on shipped
+        code. The `or 51` mutant this test killed no longer exists in the
+        expression; nemotron is out of the mutation denominator, so this
+        battery is regression coverage of the CURRENT shipped behavior and
+        the 343/339/342 kill-claims are historical."""
         r, ev = run(risk_data=FULL_RISK, score_to_none=True)
         assert ev.risk_score is None, ev.risk_score
-        assert r.enqueue.args == [((EVENT_ID, 50), {})], r.enqueue.args
+        assert r.enqueue.args == [((EVENT_ID, 0), {})], r.enqueue.args
 
 
 class TestLlmInteractionBlock:

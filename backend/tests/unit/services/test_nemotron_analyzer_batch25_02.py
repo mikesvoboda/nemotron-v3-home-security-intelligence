@@ -105,6 +105,14 @@ def _settings():
     from backend.core.config import Settings
 
     s = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    s.nemotron_constrained_decoding_enabled = False
+    s.nemotron_constrained_fail_closed = True
+    s.nemotron_constrained_probe_enabled = True
+    s.nemotron_constrained_probe_required_build = None
+    s.nemotron_verification_engine = "llama.cpp"
+    s.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     s.nemotron_url = "http://localhost:8091"
     s.nemotron_api_key = None
     s.ai_connect_timeout = 10.0
@@ -341,7 +349,9 @@ class TestSuccessLegObservability:
         "unknown") DEFAULTS at lines 2805-2806 -> None (337/346), no-default
         (339/348), 1 (342), "XXunknownXX" (351), "UNKNOWN" (352). With
         risk_data={} shipped emits risk.score 0 and risk.level "unknown"
-        (MEASURED); every mutated default differs from that pin.
+        (MEASURED pre-#6678). P0.3 drift re-pin (#6678): a NULL score now
+        reads _span_risk_value(None) == "unverified" and a NULL level
+        `or "unverified"` -- honest-incomparable, never a laundered 0.
         """
         r = await _ab_run(risk_data={})
         hits = r.spans_by("nemotron_analysis.complete")
@@ -353,8 +363,8 @@ class TestSuccessLegObservability:
         _duration(d["analysis.duration_ms"])
         assert {k: v for k, v in d.items() if k != "analysis.duration_ms"} == {
             "batch.id": BATCH_ID,
-            "risk.score": 0,
-            "risk.level": "unknown",
+            "risk.score": "unverified",  # P0.3: NULL score marker, not 0
+            "risk.level": "unverified",  # P0.3: `or`-fallback, not `get` default
         }
 
     async def test_debug_completed_message_and_extra_pop(self):

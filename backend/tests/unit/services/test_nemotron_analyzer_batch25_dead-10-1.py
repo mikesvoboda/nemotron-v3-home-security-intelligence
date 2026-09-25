@@ -379,6 +379,18 @@ def run(
     )
 
     an = NemotronAnalyzer.__new__(NemotronAnalyzer)
+    # P0.3 gate attrs (#6678 added them to __init__; __new__ skips it).
+    # Values copied from the repo test_nemotron_analyzer.py mock_settings
+    # fixture: constrained decoding OFF => legacy path byte-identical.
+    an._constrained_enabled = False
+    an._constrained_fail_closed = True
+    an._constrained_probe_enabled = True
+    an._constrained_required_build = None
+    an._constrained_enforced = None
+    an._fail_closed_active = False
+    an._verification_engine = "llama.cpp"
+    an._verification_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+    an._last_call_duration_ms = None
     an._redis = types.SimpleNamespace()
     s1 = _Session([make_camera(), make_detection()])
     s2 = _Session([])
@@ -852,10 +864,15 @@ class TestFallbackKeyRenameEquivalence:
         transcript diff. If this ever passes with no diff, the four equivalence
         verdicts above are worthless and must be re-derived."""
         shipped = _transcripts()
+        # P0.3 DRIFT RE-PIN (#6678): the shipped single line became a
+        # conditional expression (fail-closed ? bare get : get with default);
+        # the operative default lives on the else arm (the harness runs with
+        # _fail_closed_active False -- the legacy route). Same one-line edit,
+        # new anchor.
         pair = variant(
-            'risk_score=risk_data.get("risk_score", 50),',
-            'risk_score=risk_data.get("risk_score", 51),',
-            'risk_score=risk_data.get("risk_score", 50),',
+            'else risk_data.get("risk_score", 50),',
+            'else risk_data.get("risk_score", 51),',
+            'risk_score=risk_data.get("risk_score")',
         )
         got = _transcripts(pair)
         d = _first_diff(shipped["ok_empty_risk"], got["ok_empty_risk"], "ok_empty_risk")

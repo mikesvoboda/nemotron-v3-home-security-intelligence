@@ -1336,6 +1336,20 @@ pytest_skip_imperative:
     tracking: UNTRACKED:AUTH-ROUTE-IMPLEMENTATION
     expires: '2026-12-31'
     reason: Auth router not implemented yet (expected in TDD RED phase)
+  - id: backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1151
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: red-check kill-evidence log /tmp/wp-batch25/redcheck_dead102b.log lives outside CI (campaign-run artifact, same skip-on-missing-evidence convention as test_prometheus_rules)
+    host_justification: /tmp/wp-batch25/redcheck_dead102b.log is a campaign-runner artifact written by red_dead102b.sh, not a repo file
+  - id: backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1159
+    kind: environment
+    owner: mikesvoboda
+    tracking: null
+    expires: null
+    reason: battery's own red-check evidence /tmp/wp-batch25/redcheck_dead102c.log written only by campaign runner red_dead102c.sh, absent in CI
+    host_justification: /tmp/wp-batch25/redcheck_dead102c.log is written by red_dead102c.sh at campaign time, not a repo file
   - id: backend/tests/unit/setup_lib/test_ssl_certs.py:927
     kind: environment
     owner: mikesvoboda

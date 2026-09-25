@@ -116,6 +116,14 @@ def _extra(record: logging.LogRecord) -> dict:
 def mock_settings():
     """Settings mirroring the repo unit fixture (values copied, not invented)."""
     m = MagicMock(spec=Settings)
+    # P0.3 flags (#6678): pydantic v2 field names are not in
+    # dir(Settings), so a spec'd mock must pin them explicitly.
+    m.nemotron_constrained_decoding_enabled = False
+    m.nemotron_constrained_fail_closed = True
+    m.nemotron_constrained_probe_enabled = True
+    m.nemotron_constrained_probe_required_build = None
+    m.nemotron_verification_engine = "llama.cpp"
+    m.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     m.nemotron_url = LLM_URL
     m.nemotron_api_key = None
     m.ai_connect_timeout = 10.0
