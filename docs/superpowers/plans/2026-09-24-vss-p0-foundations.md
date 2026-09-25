@@ -98,10 +98,10 @@
 
 ### Task 5: P0.5 labels + imports
 
-- [ ] TDD `label_import.py`: `EventFeedback` mapping per §5 (`false_positive`→benign; `missed_threat` or `accurate`-on-high→incident + `expected_severity`), keyed by `source_event_id`; unlabeled stay excluded from S2/S3.
-- [ ] Synthetic incidents: import path for the (post-Task-0) media-bearing scenarios; control = offline-30B-replay placeholder field (the replay harness itself is Phase 2's 2.1 — do NOT build it here).
+- [x] TDD `label_import.py`: `EventFeedback` mapping per §5 (`false_positive`→benign; `missed_threat` or `accurate`-on-high→incident + `expected_severity`), keyed by `source_event_id`; unlabeled stay excluded from S2/S3. <!-- 2026-09-25 [V] code-DONE @5300b455 (import_loaded_event/import_event route through the same map_feedback the freeze pins; unlabeled/accurate-on-low/severity_wrong loud-skip, store row absent = S2/S3 exclusion). Unit test_label_import.py 33 green. Ledger P0 execution notes → P0.5. Ticked by the ledger slice on the P0.5 slice's behalf (that file was outside its allowed set). -->
+- [x] Synthetic incidents: import path for the (post-Task-0) media-bearing scenarios; control = offline-30B-replay placeholder field (the replay harness itself is Phase 2's 2.1 — do NOT build it here). <!-- 2026-09-25 [V] code-DONE @5300b455 (import_generated_items: born-labeled, manifest-frame contained, control placeholder `offline-30b-replay-pending` with control_score None; replay harness NOT built — Phase 2.1). Integration test_p05_label_import.py 5 green. Same tick-authorship note. -->
 - [ ] **Owner-run — AMENDED 2026-09-25 (ledger F9): with nothing running, the feedback UI has no events to label; the ≥100-benign/≥20-incident bar stands, but provenance shifts to BORN-LABELED synthetic generation (the generator knows each clip's label; owner ruling 2). The size-check test and the import path are unchanged — they read labels, whoever minted them.**
-- [ ] Size check lands as a test: import refuses to call a <100-benign or <20-incident set "M0-complete" — bar enforced in code, not vibes.
+- [x] Size check lands as a test: import refuses to call a <100-benign or <20-incident set "M0-complete" — bar enforced in code, not vibes. <!-- 2026-09-25 [V] code-DONE @5300b455 (m0_size_report: M0_MIN_BENIGN/M0_MIN_INCIDENTS, reasons list, m0_complete only when both clear; unlabeled excluded from BOTH sides, unknown labels surfaced). Live read-only observation over the owner-ruled frozen store: benign 139 / incidents 282 / m0_complete True. Same tick-authorship note. -->
 
 ### Task 6: P0.2 A5500 bring-up (owner-run; repo-side prep only)
 
