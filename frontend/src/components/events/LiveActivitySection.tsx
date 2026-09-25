@@ -69,6 +69,9 @@ function LiveActivityStats({ events }: LiveActivityStatsProps) {
   // Count events by risk level
   const riskCounts = events.reduce(
     (acc, event) => {
+      // P0.25: an unverified (null-score) event is neither a level nor a
+      // score - it is counted nowhere rather than counted as 'low'.
+      if (event.risk_score === null || event.risk_score === undefined) return acc;
       const level = getRiskLevel(event.risk_score);
       acc[level] = (acc[level] || 0) + 1;
       return acc;
@@ -190,6 +193,7 @@ export default function LiveActivitySection({
       };
 
       for (const event of newEvents) {
+        if (event.risk_score === null || event.risk_score === undefined) continue; // P0.25: unverified raises nothing
         const level = getRiskLevel(event.risk_score);
         if (!highestRiskLevel || riskPriority[level] > riskPriority[highestRiskLevel]) {
           highestRiskLevel = level;

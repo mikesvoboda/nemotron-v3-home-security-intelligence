@@ -13,6 +13,8 @@ backend/evaluation/
 ├── AGENTS.md              # This file
 ├── __init__.py            # Module exports with lazy imports
 ├── ab_experiment_runner.py # A/B experiment statistical analysis (NEM-3731)
+├── assess_input.py        # G0.4 AssessInput/EvalItem frozen schema (Phase 1 vlm_assess contract)
+├── eval_store.py          # SQLite eval ledger (items/runs/results, D10 guard) + synthetic label-set loader
 ├── harness.py             # PromptEvaluator class and CLI
 ├── metrics.py             # Score calculation functions
 ├── prompt_eval_dataset.py # Synthetic dataset loader

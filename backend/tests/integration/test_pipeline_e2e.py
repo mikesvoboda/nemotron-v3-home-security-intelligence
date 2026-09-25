@@ -880,6 +880,7 @@ async def test_pipeline_low_confidence_filtering(
 
 @pytest.mark.asyncio
 async def test_pipeline_llm_failure_fallback(
+    legacy_wire,
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
@@ -889,6 +890,11 @@ async def test_pipeline_llm_failure_fallback(
     Verifies that:
     1. Event is still created when LLM fails
     2. Fallback risk values are used (score=50, level=medium)
+
+    LEGACY-wire subject (P0.3, F4): an unreachable LLM scores 50/medium only
+    behind the flag; the shipped default fails closed to NULL +
+    verification_failed. legacy_wire first: the analyzer below is built
+    with get_settings() at construction.
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id

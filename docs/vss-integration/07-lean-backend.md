@@ -1,5 +1,7 @@
 # Lean Backend Feasibility: Can We Avoid VSS's Infrastructure?
 
+> **Errata (2026-09-23):** E1, E19, E20, E21, E22, E23, E24 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 **Investigated 2026-09-19**, 8 agents with two adversarial challengers. Verified against VSS
 `cdad5cc0e` and `NVIDIA/context-aware-rag@3.1.0`.
 

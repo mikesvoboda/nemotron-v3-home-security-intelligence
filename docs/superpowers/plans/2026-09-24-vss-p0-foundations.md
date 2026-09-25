@@ -1,0 +1,150 @@
+# Phase P0 — Foundations (VSS gaming-GPU workstream)
+
+> **For agentic workers:** execute task-by-task, checkbox syntax; every step closes on an executed command + result in the ledger, never on written code. Milestone review is the built-in code review. Ledger rows for this phase are P0.x in `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`.
+
+> **AMENDED 2026-09-25: spec rev 5 (owner ruling, ledger F10). The legacy path is no longer supported.** S2/S3 are fixed bars, so there is no control. Effects on this plan:
+>
+> - **Task 1 (0.1)** stays code-DONE; its owner-run execution is **removed**.
+> - **Task 3 (0.3)** is kept. Its home-endpoint probe half is **removed**, so the box closes on the sandbox half already ledgered.
+> - **Task 5 (0.5)** closes on born-labeled items; the offline-30B control field is vestigial.
+> - **Task 6 (0.2)** is **removed**. The A5500 comes up in `vlm` mode as Phase 1 step 1.7.
+> - **Task 7 (M0)** is redefined: Phase 0's code merged with every CI tier green (PR #6678), and the eval store at the size bar.
+>
+> Don't extend the legacy path. Its existing tests keep passing, and its code stays until R8.
+
+**Goal:** land spec §"Phase 0: Foundations" — the control freeze (0.1), the A5500 single-GPU bring-up (0.2, owner-run), NULL-safe consumers before any NULL score exists (0.25), constrained verdict + fail-closed §6 semantics on the LIVE legacy path (0.3, F4-approved), `event_verifications` + the `verification` field (0.4), and the labeling/import loop (0.5) — closing on **M0: A5500 healthy on one GPU, eval store frozen, S5 holds on the legacy path** (spec §8:397). **Rev 5:** 0.1's execution and 0.2 are removed; M0 = Phase 0's code merged, every CI tier green, and the eval store at the size bar.
+
+**Spec/authority:** `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md` (rev 5; this plan was written against rev 4) — §6 (semantics/failure ladder), §4 (data model), §5 (eval items), §8 Phase 0 + A5500 checklist. G0 ledger rows E1–E13, S-1…S-5, F1–F8 are the environment-of-record; the G0 close row is the "done before this" evidence.
+
+**Machine split (E10, measured):** repo code + all test tiers run in this sandbox (16 cores, test Postgres:5433/Redis:6380 via `docker compose -f docker-compose.test.yml up -d` — **bring it up + health-check in the same session or don't claim the tier ran**, E11 rule). GPU serving goes through `agent-gpu`. **The home machine (VSS production, feedback UI, retention, the 30B control) is a different box this sandbox cannot reach** — tasks touching it are owner-run with repo-side code proven here; each such row says which machine produced the evidence. The A5500 is the S1/S4 gate hardware and arrives through 0.2/owner; nothing here claims S1.
+
+**Tech stack:** unchanged from G0 (uv/Python venv, FastAPI/SQLAlchemy `create_all`-only schema, React frontend, llama.cpp serving for probe evidence, `ai-vlm:sm103` + Qwen3-VL-4B for probe re-runs).
+
+## Sequencing (binding)
+
+1. **0.1-before-0.2** (spec:376): the control timestamp must precede the Nano-4B placeholder serving new events, or post-switch verdicts masquerade as control. 0.1's _code_ (freeze tool) can land any time; its _execution_ gates 0.2's execution.
+   **AMENDED 2026-09-25 (owner ruling, ledger F9): no functional production system exists — no pre-switch traffic to timestamp — so this rule is DORMANT, not violated; it re-arms the day the home stack serves live events. Task 6's ordering guard is correspondingly lifted.**
+   **AMENDED again 2026-09-25 (spec rev 5, F10): rule REMOVED. Both 0.1's execution and 0.2 are gone, so it never re-arms.**
+2. **0.25-before-0.3** (spec:378): NULL-safety lands before anything can emit NULL.
+3. 0.3 → 0.4: the `verification` field carries what 0.3 emits.
+4. 0.5 runs any time after 0.1 (labels live inside a 30-day retention window — start early).
+5. **Task 0 is a G0 tail, not P0 scope** — the owner-ruled media replacement (F5, "tonight") — but it re-freezes G0.4 items, so P0's eval-store claims quote its outcome.
+
+## Global constraints
+
+- GPU only through `agent-gpu`; honest `--vram`; `agent-gpu rm` when done. `--wait` before `--`.
+- Real-camera imagery/labels/snapshots never enter git (D10); the eval store stays off-repo and is wiped at teardown. Aggregate metrics only in docs.
+- Legacy path byte-identical EXCEPT the approved 0.25/0.3 diffs (F4 approval is on record — the approval is for the _semantics change_; every line still gets a test). R8: nothing retired, no deletions. **Rev 5:** the legacy path is unsupported. Add no new legacy work; its existing tests keep passing.
+- TDD: failing test first, per site. Gates: `uv run pytest backend/tests/unit/ -n auto`; contracts `-n0 --timeout=30`, never xfail/skip in `contracts/ai_providers`; integration requires the same-session compose-up; `cd frontend && npm ci && npm run typecheck` when frontend changes. `scripts/gen-ai-contract.py --check` if `ai_contract` touched (0.4's Event API field may not touch it — verify, don't assume).
+- Doc-vs-repo conflicts → ledger row or dated errata, never a silent spec edit; keep [V]/[C]/[E]/[?]/[O]/[A] markers; run-count claims are [V] only with a same-session run (G0-close lesson: the test DB is ephemeral).
+- Every commit: manual pre-commit pass + conventional-pre-commit msg check + `Co-Authored-By` trailer. Pushes, PRs and merges only on the owner's go-ahead. (F7 closed: the branch is on GitHub, PR #6678.)
+- STOP AND ASK unchanged, plus: any 0.25 triage call that would change a live behavior beyond NULL-safety, and any surprise in the events schema NULLability (first step of task 2 checks it — if `events.risk_score` turns out NOT NULL, stop: 0.3's core premise breaks).
+
+## Known environment facts carried from G0 (all [V] in ledger)
+
+- `requires_ack` (`event_broadcaster.py:326-333`) reads `data.get("risk_score", 0)` — a present-but-NULL key defeats the default and `None >= 80` raises TypeError. Baseline behavior pinned 2026-09-24 by reading the function.
+- `notification_filter` (`notification_filter.py:55,66`) calls `self._risk_score_to_level(risk_score)` then `risk_score < camera_setting.risk_threshold` — both raise on NULL. §6: the detector-only rule must branch **before** the threshold comparison.
+- Default-score sites in `nemotron_analyzer.py` re-counted at plan time: `:2837, :2853, :2884-2885, :2965, :3350, :3365, :3391, :3459, :4392` (spec's fact table says `:4392`/`:2884-2885` — still those lines, plus the `or 50` enqueue sites 2965/3459 the table omits) **[V 2026-09-24]**. nvext payload at `:593`, probe `:434-483`, settings `:382-385`.
+- Counting surface for the 0.25 audit: **54 live-path comparison sites + 4 arithmetic sites = 58** (ledger counting-erratum, recipe pinned `[*/+-]`); spec's 61 superseded by errata N1 (written, not queued).
+- Enforcement at the serving pin is empirical: native `json_schema` **ENFORCED** (S-1 arm B2, S-2 with images at b7972 and b11090); `nvext` **silently IGNORED** (S-1 arm B1) — this is why 0.3 is a payload switch plus a probe, and why the probe must be runtime, not static.
+- Serve recipe + libgomp mount + models perms: G0 rows G0.2/F1. Test-DB creds persist in the sandbox env (E11).
+
+## File structure
+
+| File                                                           | Fate              | Responsibility                                                                                                                     |
+| -------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/evaluation/control_freeze.py`                         | new (P0.1)        | pre-switch event → eval item: copy images into store, snapshot AssessInput, recorded verdict as control                            |
+| `backend/api/schemas/websocket.py`                             | edit (P0.25)      | `WebSocketEventData.risk_score`/`risk_level` → Optional (schema:252-253 today required)                                            |
+| `backend/services/event_broadcaster.py`                        | edit (P0.25)      | `requires_ack` NULL-safe: None ⇒ no ack (spec §6 step 3)                                                                           |
+| `backend/services/notification_filter.py`                      | edit (P0.25)      | NULL-safe level + detector-only branch BEFORE threshold comparison (spec §6, :185 of §4 table)                                     |
+| `backend/services/nemotron_analyzer.py`                        | edit (P0.3)       | `json_schema` payload replaces nvext; endpoint enforcement probe; every default-50 site → fail-closed NULL + `verification_failed` |
+| `backend/models/event_verification.py` (+ `create_all` wiring) | new (P0.4)        | `event_verifications` table (event_id FK, verdict enum, criteria/key_frame JSONB, engine, model_id, latency_ms)                    |
+| Event REST + WS payload                                        | edit (P0.4)       | `verification` object present on verified events; frontend types regenerate                                                        |
+| frontend score rendering + badges                              | edit (P0.25/P0.4) | NULL-safe score display; "unverified" badge is §4/1.6 — 0.25 only needs no-crash/no-lie                                            |
+| `backend/evaluation/label_import.py`                           | new (P0.5)        | `EventFeedback` → eval items (§5 mapping table), `source_event_id` provenance, expected_severity                                   |
+| `scripts/vlm_probes/enforcement.py`                            | new (P0.3)        | the S-1/S-2 nonce-const probe promoted from research script to runtime check (once per endpoint)                                   |
+| probe reports → `$AGENT_GPU_DIR/out/probes/`                   | off-repo          | aggregate verdicts into ledger rows only                                                                                           |
+
+---
+
+### Task 0: G0 tail — owner media replacement (F5 ruling, owner-gated; **AMENDED 2026-09-25: media will be synthetically GENERATED, unscheduled — "we just need a functional pipeline". Nothing in P0 waits on this; the loader must simply accept whatever structure the generated clips arrive with, [V]-checked then, not assumed now.**)
+
+- [ ] When replacement incident media lands: re-run `load_stock_items` against the new corpus (D10 guard already refuses repo/capture-root paths — its behavior on this is the test), re-freeze the 13 stock items, re-run `s3_salience_stock.py`. Bar: incident-half confirmed-rates stop being 1/48 and the ledger S-3 row gets its dated amendment. Owner-ruling evidence (arrival time, what replaced what) goes in the ledger F5 row as [O].
+- [ ] If media lands structurally different (new scenario names): loader/mapping fix is TDD here; S-3's per-scenario table is the regression check.
+
+### Task 1: P0.1 control freeze — code here, execution owner-run
+
+- [x] Read spec §5 item anatomy; verify against `backend/models/` what a pre-switch event actually carries (`Detection.file_path`/`thumbnail_path`, `LLMInteraction` for recorded verdicts) — [V] each.
+- [x] TDD: `control_freeze.py` — given a production-DB fixture (sqlite or the test PG with rows staged by fixture), freeze = copy images INTO the eval store, snapshot `AssessInput`, recorded verdict as control, `source_event_id` provenance-only. D10 guard applies to writes (store path is a required argument). Test on fabricated rows; no real imagery in repo tests. <!-- 2026-09-25 [V] code-DONE: the plan's OTHER fixture branch was taken — aiosqlite is not in this repo's dependency set, so the freeze core is unit-pinned on fabricated loaded rows (backend/tests/unit/evaluation/test_control_freeze.py, 21 green) and the real ORM read seam on the live test PG (backend/tests/integration/test_p01_control_freeze.py, 3 green). `EvalItem.expected_label` stays `str` (contract frozen for owner review): unlabeled events freeze with the empty label (the frozen analogue of a NULL verdict); S2/S3 skip empties; a NO-control event (NULL score + no recorded response) skips loudly. -->
+- [x] Freeze manifest: one JSON row per item — kind (historical-pre-switch), label source, control source. This is what "frozen" means for M0. <!-- 2026-09-25 [V] `write_manifest` JSONL incl. loud-skip rows with reasons (pinned both ways in the unit file). -->
+- [ ] ~~**Owner-run on the home box:** record the control timestamp FIRST (ledger [O] row), then run the freeze tool over pre-switch events. Row closes only when that execution + item counts land; until then P0.1 = code-DONE/execution-PENDING, and 0.2 must not serve new events from the placeholder.~~ **REMOVED 2026-09-25 (spec rev 5, F10): there is no control to freeze.**
+- [x] **AMENDED 2026-09-25 (ledger F9): execution premise ruled void — the previous system is offline and no new pre-switch events exist. Task 1 = code-DONE/execution-ruled-N/A; the freeze tool ships tested (R8: an empty state, not a deletion) so a returning production system can use it.** <!-- 2026-09-25 [V] code-DONE as ruled: see the two boxes above + ledger P0 execution notes. Owner-run box above stays open — it is the ruled-N/A half. -->
+
+### Task 2: P0.25 null-safety — every live consumer before any NULL exists
+
+- [x] **Premise check first:** `events.risk_score`/`risk_level` column NULLability in `backend/models/event.py` + the REST schema's existing NULL allowance (spec §4 asserts "REST already allows NULL"). If the column is NOT NULL, STOP AND ASK — 0.3's premise breaks.
+- [x] Triage the 58-site ledger surface into live-path / dead / comment (ledger P0.25 row carries the table; only live-path gets tests). Recipe A + `[*/+-]`, tests excluded.
+- [x] TDD per named site, red first, each with a NULL-input test:
+  - `WebSocketEventData` — `risk_score=None, risk_level=None` validates (was: required);
+  - `requires_ack` — `{"risk_score": None}` ⇒ False (today: TypeError via `.get` default defeated by present-None key) and scored ≥ 80 keeps ack;
+  - `notification_filter` — None level-mapping + threshold both survived; detector-only branch placed before the threshold comparison **(executed 2026-09-25: triage found 5 of 7 plan-named consumers already NULL-safe — guards/SQL-NULL/schema — shipped fixes are the 3 genuinely-unsafe ones + frontend; correction + evidence in ledger 'P0.25 — null-safety' section)** (behavior: NULL + security class ≥ `detection_confidence_threshold` (`config.py:1788`) ⇒ notify; NULL + below ⇒ suppress; **never** a crash and never a silent pass).
+  - the 4 arithmetic sites (`analytics.py:418`, `experiment_result.py:117`, `calibration_service.py:407`, `pipeline_quality_audit_service.py:314`) — decide per site: guard (NULL excluded from aggregate/abs-diff) with a test each.
+- [x] Frontend: find score rendering of `risk_score` (grep the WS/Event types), make it NULL-safe; `npm run typecheck` + any touched component tests green.
+- [x] Full gates: unit `-n auto`, contracts tier, integration (same-session compose-up). Legacy byte-identical diff = the approved set + nothing else: `git diff --stat` into the ledger row.
+
+### Task 3: P0.3 constrained verdict on the legacy path (F4-approved semantics)
+
+- [x] `scripts/vlm_probes/enforcement.py`: promote the S-1 probe (nonce-required-const schema, content-only gate, `/props build_info` pin check) to a runtime check that `nemotron_analyzer` runs once per endpoint at startup; a NOT-ENFORCED result must fail closed (no silent prose mode). <!-- 2026-09-25 [V] CLI + runtime gate shipped: build_probe_schema/_probe_completion shared by both surfaces (no drift); NemotronAnalyzer._ensure_constrained_enforcement caches only ENFORCED; main.run_constrained_startup_check reports enforced|not_enforced|inconclusive|disabled inside lifespan before the Redis block. Pinned in test_p03_constrained_verdict.py (TestEnforcementProbe, TestStartupGate, TestEnforcementCliSurface). -->
+- [x] Payload switch: `response_format={"type":"json_schema",...}` derived from the same schema the parser expects (single source, spec §3 drift doctrine) replacing `nvext.guided_json` (`:593`, `:1033-1049`); settings/probe plumbing at `:382-385`/`:434-483` retuned or bypassed (R8: keep code paths, add the new default; a settings flip keeps the old route until R8). <!-- 2026-09-25 [V] route-shape deviation, ledgered: /completion's native top-level `json_schema` param (S-1 arm B2 [V]-proven) not the chat-route response_format form; both payload sites (inference + shadow version route) switch to RISK_ANALYSIS_JSON_SCHEMA itself; legacy guided_json branch byte-identical behind nemotron_constrained_decoding_enabled=False; ship default True per R8 "add the new default". -->
+- [x] Fail-closed: every default-50 site (`:2837, :2853, :2884-2885, :2965, :3350, :3365, :3391, :3459, :4392` — ledger carries the [V] line list) becomes `verification_failed` + `risk_score`/`risk_level` NULL, notification via the 0.25 detector-only path. TDD: unparseable response ⇒ NULL-score event exists, notification rule evaluated, no 50/medium anywhere, S5 language holds (unparseable never surfaces as a score). <!-- 2026-09-25 [V] fail-closed gated on constrained-enabled AND fail-closed (legacy byte-identical either way); lenient-path laundering guard; NULL-score metric safety (no observe(None), no laundered 0); audit priority floor 0 (queued last, never disguised 50); fire override = honest non-LLM 'confirmed' row over a NULL; provenance row (P0.4 Task 4 box 4) written in-event in the same tx; composition pins over the real 0.25 consumers (filter detector-only + requires_ack). TestNotificationComposition notes the filter still has no production caller. -->
+- [ ] Runtime probe evidence [V]: serve with `agent-gpu` (Qwen3-VL-4B on `ai-vlm:sm103`, or the endpoint the legacy path will actually point at on the home box), run the promoted probe, ledger ENFORCED verdict + build_info. `agent-gpu rm` after. **The home-box 30B/NIM endpoint probe is owner-run (0.2 stack); sandbox evidence covers the mechanism, the home row covers the actual endpoint.** <!-- 2026-09-25 [V] SANDBOX MECHANISM HALF DONE: serve p03-probe-serve (ai-vlm:sm103, --vram 12, Qwen3-VL-4B Q4_K_M, /props b7972-e06088da0), enforcement.py --expect-build b7972 → ENFORCED exit 0; the RUNTIME gate (main.run_constrained_startup_check, build pin active) → "enforced", cached, exit 0; agent-gpu rm → broker 0 containers. The live run caught a real defect: probe budget n_predict=64 truncated the reply mid-object and FAKE-IGNORED (S-2's ledgered trap resurfaced) → 400. Home-endpoint half stays owner-run [O]. -->
+      **AMENDED 2026-09-25 (spec rev 5, F10): the home-endpoint half is REMOVED, because the legacy path is not deployed anywhere. This box closes on the sandbox half, already ledgered.**
+- [x] Unit + contracts green; integration re-run with the compose-up in-session. <!-- 2026-09-25 [V] at committed state c8bb0428: unit 28,143 pass / 1 known systemctl env-fail / 122 skip; contracts 612 (settings_factory pinned legacy-flag, see ledger); integration producer 4 green same-session on the live test PG (compose up 9h healthy, no new containers); gen-ai-contract --check current; frontend typecheck re-run at the commit: exit 0. Full integration tier NOT re-run this slice (honest non-claim; P0.7 baseline stands). -->
+
+### Task 4: P0.4 `event_verifications` + `verification` field
+
+- [x] TDD: model + `create_all` creates the table on an existing DB (spec §4: create_all creates new tables, never alters — test on a staged existing schema). Columns: event_id FK, verdict ∈ {confirmed, rejected, uncertain, verification_failed}, scene_description, criteria JSONB, key_frame_detection_ids JSONB, engine, model_id, latency_ms, created_at. <!-- 2026-09-25 [V] backend/models/event_verification.py; unit shape pins 12 green; create-on-existing-DB pinned live (test_p04_event_verifications.py::TestCreateAllDoctrine drops the table under a populated DB, create_all restores it, rows survive). -->
+- [x] Retention path: verify `cleanup_service` cascade behavior for the new table against `:294` hard-delete (an event delete must not orphan-500; decide cascade vs. FK-less provenance row, ledger the call). <!-- 2026-09-25 [V] CASCADE decided + ledgered (P0 execution notes): eval items are self-contained (D7), nothing must survive retention here. FK ondelete=CASCADE + ORM cascade/passive_deletes; Core-delete sweep pinned live (TestRetentionCascade). -->
+- [x] Event REST + WS payload gain `verification` (present when a row exists; legacy events: absent, per spec "Legacy events have no verification row"). Frontend types regenerate; typecheck gate. `gen-ai-contract.py --check` if anything touched `ai_contract` (expect: it does not — this is VSS-internal API, not a provider op; ledger the check either way). <!-- 2026-09-25 [V] exclude_if absent-not-null on both payloads (unit 14 + route seam 7 + REST live 4 green); openapi.json + api.ts regenerated; ws-types generator taught the nested payload (was already red at HEAD — pre-existing, see ledger); typecheck clean; gen-ai-contract --check current (untouched, as expected). -->
+- [x] 0.3's fail-closed path writes the verification row (`verification_failed`, engine/model/latency filled) — wire it and pin with an integration test. <!-- 2026-09-25 [V] producer wired in both analyze paths (row written in the SAME tx as the event it explains; fire-over-NULL writes an honest 'confirmed' row). Pin: backend/tests/integration/test_p03_verification_producer.py 4 green against the live test PG (real CHECK/NOT NULLs/FK+CASCADE; the analyzer's OWN method driven unbound, no production reshaping) + unit construction pins (TestVerificationRowProducer). REST composition (NULL score + present verification object) pinned live. -->
+
+### Task 5: P0.5 labels + imports
+
+- [x] TDD `label_import.py`: `EventFeedback` mapping per §5 (`false_positive`→benign; `missed_threat` or `accurate`-on-high→incident + `expected_severity`), keyed by `source_event_id`; unlabeled stay excluded from S2/S3. <!-- 2026-09-25 [V] code-DONE @5300b455 (import_loaded_event/import_event route through the same map_feedback the freeze pins; unlabeled/accurate-on-low/severity_wrong loud-skip, store row absent = S2/S3 exclusion). Unit test_label_import.py 33 green. Ledger P0 execution notes → P0.5. Ticked by the ledger slice on the P0.5 slice's behalf (that file was outside its allowed set). -->
+- [x] Synthetic incidents: import path for the (post-Task-0) media-bearing scenarios; control = offline-30B-replay placeholder field (the replay harness itself is Phase 2's 2.1 — do NOT build it here). <!-- 2026-09-25 [V] code-DONE @5300b455 (import_generated_items: born-labeled, manifest-frame contained, control placeholder `offline-30b-replay-pending` with control_score None; replay harness NOT built — Phase 2.1). Integration test_p05_label_import.py 5 green. Same tick-authorship note. -->
+- [ ] **Owner-run — AMENDED 2026-09-25 (ledger F9): with nothing running, the feedback UI has no events to label; the ≥100-benign/≥20-incident bar stands, but provenance shifts to BORN-LABELED synthetic generation (the generator knows each clip's label; owner ruling 2). The size-check test and the import path are unchanged — they read labels, whoever minted them.** **AMENDED again (spec rev 5, F10):** no owner labeling is needed before go-live. The box closes on the born-labeled size report (benign 139 / incidents 282). `import_generated_items`' `offline-30b-replay-pending` control field is vestigial: leave it, and don't build on it.
+- [x] Size check lands as a test: import refuses to call a <100-benign or <20-incident set "M0-complete" — bar enforced in code, not vibes. <!-- 2026-09-25 [V] code-DONE @5300b455 (m0_size_report: M0_MIN_BENIGN/M0_MIN_INCIDENTS, reasons list, m0_complete only when both clear; unlabeled excluded from BOTH sides, unknown labels surfaced). Live read-only observation over the owner-ruled frozen store: benign 139 / incidents 282 / m0_complete True. Same tick-authorship note. -->
+
+### Task 6: P0.2 A5500 bring-up (owner-run; repo-side prep only) — **REMOVED 2026-09-25 (spec rev 5, F10)**
+
+> The A5500 comes up directly in `vlm` mode as **Phase 1 step 1.7**, using the spec's rewritten checklist. The precheck already shipped (`a7dc48da`) is reused there. Its GPU and CUDA-arch checks still apply; its `llm_model`/`ai_llm_mount` checks are obsolete and get replaced by an `ai-vlm` check in the Phase 1 plan. The boxes below are kept as history.
+
+- [ ] Repo-side prep review (here): `.env.example` SINGLE-GPU notes vs `GPU_*=0`, `CUDA_ARCHITECTURES=86` check-before-build, `LLM_MODEL_PATH` → Nemotron-3-Nano-4B Q4_K_M + the ai-llm volume-mount line that targets the 30B dir, TMPDIR/pycache traps from the spec checklist — every claim [V] against the current tree (the spec's anchors drift; re-verify each line-number claim first).
+- [ ] Hand the owner a dated, copied checklist (spec §"A5500 bring-up") with the [V] amendments from the prep review. Execution + `/platform-healthcheck` result + root AGENTS.md infra checklist completion = owner ledger rows. 30B GGUF stays on disk (control for replay).
+- [ ] **Ordering guard:** does not execute until Task 1's control timestamp is recorded (sequencing rule 1).
+
+### Task 7: M0 exit + close
+
+- [ ] Ledger P0 rows: each closed with command+result+commit and the machine that produced it; owner-run rows carry [O], sandbox rows [V]. No unobserved passes anywhere.
+- [ ] ~~M0 assertion in three evidence pieces: A5500 healthy (owner row, healthcheck + infra checklist), eval store frozen (Task 1/5 manifest + counts), **S5 holds on the legacy path** (0.3 test suite + first live observation: zero unparseable-as-scored, failures visible as `verification_failed` on dashboard/notification path).~~ **REPLACED 2026-09-25 (spec rev 5, F10).** The M0 assertion now has two pieces:
+  1. Phase 0's code is merged, with every CI tier green on PR #6678.
+  2. The eval store meets the size bar (`m0_size_report`, `m0_complete: True`).
+     S5 is proven on the VLM path in Phase 1, not on the legacy path.
+- [ ] Built-in code review across the diff; milestone report (proven / failed & why / next = Phase 1 planning only / decisions owed).
+
+## Definition of done
+
+**Rev 5 (2026-09-25, F10):**
+
+- 0.25 is green, with the 58-site triage table ledgered and every live-path NULL test committed.
+- 0.3 is shipped, with the sandbox's runtime ENFORCED probe evidence.
+- `event_verifications` and `verification` are shipped, with retention behavior decided and tested.
+- Label import is shipped, with the 100/20 bar in code, and the eval store meets it.
+- PR #6678 is merged with every CI tier green.
+- The legacy diff is the approved 0.25/0.3 set only.
+
+Removed from the original definition: the control-freeze execution, the home-endpoint probe, the owner-run A5500 legacy bring-up, and the three-piece M0.
+
+## Out of scope
+
+The replay harness (2.1; rev 5 dropped the offline-30B control replay); bake-off (2.2); any Brev spend (2.3, stop-and-ask); `VlmVerdict`/`VLM_OPS`/FakeProvider contract (1.1); `ai-vlm` compose wiring (1.2); failure ladder beyond the legacy-path bits 0.3 needs, wake-on-open, degradation wiring (1.3); `PIPELINE_MODE` (1.5); full §4 frontend badges/filters (1.6 — 0.25 only requires no-crash/no-lie on NULL); R8 deletions; RT-VLM (Phase 4).

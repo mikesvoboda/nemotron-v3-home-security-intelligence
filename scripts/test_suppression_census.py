@@ -479,6 +479,11 @@ def test_real_tree_matches_spec_baselines():
     the file. (The file's pytestmark-form skipif was never census-visible —
     the counter reads decorator AST; module-mark suppression is a known blind
     spot, noted not widened.)
+    pytest_skip_imperative 93→94 (2026-09-24): test_eval_store.py:295 — the
+    G0.4 stock-corpus loader test skips when the GPU-mount media (owner-staged
+    off-repo data, ledger F6/F5) isn't on the machine. Adjudicated
+    environment via HOST_JUSTIFIED + registry the same commit; the ratchet's
+    increase path exercised exactly as designed.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -490,7 +495,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 93,
+        "pytest_skip_imperative": 94,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,

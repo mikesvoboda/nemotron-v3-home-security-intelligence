@@ -14,7 +14,9 @@ export interface ActivityEvent {
   id: string;
   timestamp: string;
   camera_name: string;
-  risk_score: number;
+  /** null = unverified (P0.25): never coalesce to a number - the feed
+   * shows an unverified state instead of a risk badge. */
+  risk_score: number | null;
   summary: string;
   thumbnail_url?: string;
 }
@@ -159,7 +161,15 @@ export default function ActivityFeed({
           /* Event Items */
           <div className="space-y-3">
             {displayedEvents.map((event) => {
-              const riskLevel = getRiskLevel(event.risk_score);
+              // P0.25: null is NOT a low score - no level is computed for it
+              // and no badge is drawn (a gray 'Unverified' chip instead). The
+              // 'unverified' badge design is 1.6's; this is no-crash/no-lie.
+              // One nullable object (not a boolean + nullable pair) so the
+              // JSX branch narrows both props without non-null assertions.
+              const verdict =
+                event.risk_score === null || event.risk_score === undefined
+                  ? null
+                  : { level: getRiskLevel(event.risk_score), score: event.risk_score };
 
               return (
                 <div
@@ -177,7 +187,7 @@ export default function ActivityFeed({
                       handleEventClick(event.id);
                     }
                   }}
-                  aria-label={`Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, risk level ${riskLevel}`}
+                  aria-label={`Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, risk level ${verdict?.level ?? 'unverified'}`}
                   data-testid={`detection-card-${event.id}`}
                 >
                   {/* Thumbnail */}
@@ -196,7 +206,21 @@ export default function ActivityFeed({
                         <Camera className="h-3.5 w-3.5 text-text-muted" />
                         <span className="font-medium text-white">{event.camera_name}</span>
                       </div>
-                      <RiskBadge level={riskLevel} score={event.risk_score} showScore size="sm" />
+                      {verdict ? (
+                        <RiskBadge
+                          level={verdict.level}
+                          score={verdict.score}
+                          showScore
+                          size="sm"
+                        />
+                      ) : (
+                        <span
+                          data-testid="unverified-chip"
+                          className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300"
+                        >
+                          Unverified
+                        </span>
+                      )}
                     </div>
 
                     {/* Summary */}

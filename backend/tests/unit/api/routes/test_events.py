@@ -235,6 +235,9 @@ class TestConstantsAndValidation:
             "reviewed",
             "detection_count",
             "thumbnail_url",
+            # P0.4 (spec §4): the verification object is selectable like any
+            # other list field; absent for legacy events regardless (exclude_if).
+            "verification",
         }
         assert frozenset(expected_fields) == VALID_EVENT_LIST_FIELDS
 

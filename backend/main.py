@@ -640,6 +640,38 @@ class _ThreadWatchdog(threading.Thread):
             )
 
 
+async def run_constrained_startup_check(container: Any) -> str:
+    """P0.3 startup gate (spec §3): prove constrained-decoding enforcement
+    once at startup and REPORT the verdict - never crash the lifespan.
+
+    "Fail closed" in spec §3 is about VERDICTS (a not-enforced endpoint must
+    not produce prose-laundered scores), not about the process: the analysis
+    route re-probes per call and blocks unverified verdicts there, so the
+    lifespan surviving an IGNORED probe does not open any hole - while an
+    exception escaping here would kill the whole app for an endpoint that
+    may recover (the R-T7-CRASH class: a swallowed-or-fatal startup check
+    both hide enforcement state).
+
+    Returns one of: "disabled" (flag off - zero new startup traffic, the
+    legacy byte-identical invariant), "enforced", "not_enforced" (the
+    endpoint accepted the grammar param and did not honor it),
+    "inconclusive" (unreachable / unpinnable build - nothing was measured).
+    """
+    from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+
+    try:
+        analyzer = await container.get_async("nemotron_analyzer")
+        if not analyzer._constrained_enabled:
+            return "disabled"
+        await analyzer._ensure_constrained_enforcement()
+    except ConstrainedDecodingNotEnforced as e:
+        return "not_enforced" if getattr(e, "verdict", "ignored") == "ignored" else "inconclusive"
+    except Exception:
+        # Construction failure counts too: nothing was measured.
+        return "inconclusive"
+    return "enforced"
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
@@ -765,6 +797,25 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         container = get_container()
         await wire_services(container)
         lifespan_logger.info("DI container services wired")
+
+        # P0.3 enforcement gate (spec §3): probe constrained-decoding
+        # enforcement once at startup and LOUDLY log the verdict. Safe to
+        # live inside the Redis try-block only because the check itself
+        # never raises - it returns its verdict as a string (an exception
+        # here would be eaten by the Redis except and hide enforcement
+        # state, which is exactly what the gate must not do). Fail-closed
+        # enforcement is per-call in the analyzer; this is visibility.
+        constrained_verdict = await run_constrained_startup_check(container)
+        if constrained_verdict == "enforced":
+            lifespan_logger.info("P0.3 constrained decoding: ENFORCED at startup probe")
+        elif constrained_verdict == "disabled":
+            lifespan_logger.info("P0.3 constrained decoding disabled - legacy route active")
+        else:
+            lifespan_logger.error(
+                f"P0.3 constrained decoding startup probe: {constrained_verdict.upper()}. "
+                "Constrained verdicts fail closed per-call until the endpoint "
+                "proves enforcement (scripts/vlm_probes/enforcement.py)."
+            )
 
         # Initialize and start event broadcaster for WebSocket real-time events
         # Note: get_broadcaster() both creates AND starts the broadcaster

@@ -1,127 +1,119 @@
-# VSS Integration Research - Agent Guide
+# VSS Integration - Agent Guide
+
+## Start here
+
+This directory is the **research record** behind an approved design for running a VSS-style AI tier
+on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
+
+- **Implementing, planning, or asking "what did we decide?"** → the design spec,
+  [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+  It holds the locked decisions (D1-D12), success criteria (S1-S6), phases and milestones (M0-M4),
+  and an A5500 bring-up checklist. It is the single source of truth for the plan.
+  **Then read [`13-implementation-brief.md`](13-implementation-brief.md)**: how to work, the risk
+  spikes to run first, the ledger, the guardrails, and where to stop and ask the owner.
+- **Checking "what has actually run?"** → the execution ledger,
+  [`docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md):
+  one row per step and spike, with the command, result and commit behind every status.
+- **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
+  (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
+- **Citing any claim from docs 00-07** → check [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)
+  first (E1-E28). Each of those docs carries a banner naming the entries that correct it.
+- **Asking "why was it decided this way?"** → the audits of VSS `1e94133b4`:
+  [`08`](08-audit-profile-anatomy.md) (profiles, placement, architecture, CI),
+  [`09`](09-audit-integration-surfaces.md) (component contracts: what we can incorporate),
+  [`10`](10-audit-feature-inventory.md) (features to import, our differentiators, NemoClaw).
+
+**The design in one breath:** a detector gates FTP stills, and **one VLM** describes, verifies and
+scores each candidate in a single constrained call. llama.cpp serves it first; VSS's RT-VLM joins
+behind the same `ai_contract` op in a gated phase. It is developed on the GB300, proven by replay, measured across a Brev hardware matrix, and goes live
+on a single RTX A5500 (24 GB, sm_86). Since spec rev 5 the legacy text-LLM path is unsupported.
 
 ## Purpose
 
-Findings from investigating NVIDIA's Video Search and Summarization (VSS) blueprint as a
-replacement for this project's self-built AI pipeline. The product goal is a **consumer-friendly
-VSS targeting gaming GPUs** — a single-box, single-user, offline-capable deployment profile in a
-market segment the VSS team has not served.
+The effort investigated NVIDIA's Video Search and Summarization (VSS) blueprint for a
+**consumer-friendly VSS on gaming GPUs**: a single-box, single-user, offline-capable deployment tier
+VSS does not serve. It began as an evaluation of replacing this project's AI pipeline (docs 00-07,
+2026-09-18/19). It became a downstream-first design (2026-09-23) that imports VSS's **verification
+pattern** rather than its services.
 
-This directory is **research, not a plan**. Nothing here has been implemented. Read
-[`00-context.md`](00-context.md) first; it explains why this work exists and what decision it
-feeds.
-
-## Directory Structure
+## Directory structure
 
 ```
 docs/vss-integration/
-├── AGENTS.md               # This file - AI navigation
-├── README.md               # Human entry point
-├── 00-context.md           # The goal, the two repos, the decision this feeds
-├── 01-vss-architecture.md  # What VSS is; service map; mapping to our pipeline
-├── 02-model-inventory.md   # Models, slots, sizing math, consumer-GPU budgets
-├── 03-open-questions.md    # Unresolved questions and in-flight investigations
-├── 04-fp4-and-deployment.md # FP4 availability, local paths, verified consumer fit
-├── 05-hardware-profiles.md # Tiering strategy: halo / volume / entry
-├── 06-repo-a-readiness.md  # What must be fixed HERE before any swap
-└── 07-lean-backend.md      # Can we avoid VSS's infrastructure? (yes, with caveats)
+├── AGENTS.md                     # This file - start here
+├── README.md                     # Human entry point
+├── 00-context.md                 # The goal, the two repos, the original decision
+├── 01-vss-architecture.md        # VSS service map and mapping to our pipeline
+├── 02-model-inventory.md         # Models, slots, sizing formula (4-bit column is wrong; see 04)
+├── 03-open-questions.md          # Question register (Q1-Q9)
+├── 04-fp4-and-deployment.md      # FP4 reality, the formula trap, consumer fit arithmetic
+├── 05-hardware-profiles.md       # Halo / volume / entry tiering
+├── 06-repo-a-readiness.md        # This repo's readiness (CI blockers closed 2026-09-21)
+├── 07-lean-backend.md            # Avoiding Milvus/ES/Neo4j/Kafka; overlay recommendation
+├── 08-audit-profile-anatomy.md   # Audit A (2026-09-23): profiles, placement, arch, CI, contribution
+├── 09-audit-integration-surfaces.md  # Audit B: component contracts, what to incorporate
+├── 10-audit-feature-inventory.md # Audit C: features to import, gap matrix, NemoClaw addendum
+├── 11-errata-2026-09-23.md       # Corrections to 00-07 (E1-E28)
+├── 12-postponed-roadmap.md       # Deliberately deferred items (R1-R14)
+└── 13-implementation-brief.md    # How the implementing agent works: spikes, ledger, guardrails, stops
 ```
 
-## Key Files
+The design spec lives outside this directory, with the repo's other specs:
+[`docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
-| File                       | Purpose                                                            |
-| -------------------------- | ------------------------------------------------------------------ |
-| `00-context.md`            | Why this research exists; the three-step product plan              |
-| `01-vss-architecture.md`   | VSS service decomposition and how it maps onto our `ai/` tier      |
-| `02-model-inventory.md`    | Every model VSS can serve, its slot, precision, and VRAM budget    |
-| `03-open-questions.md`     | What is still unknown, and what must be verified before deciding   |
-| `04-fp4-and-deployment.md` | FP4 reality, the formula trap, verified consumer fit math          |
-| `05-hardware-profiles.md`  | Hardware tiering; why the volume tier is the existing architecture |
-| `06-repo-a-readiness.md`   | Verified defects in THIS repo that block a swap                    |
-| `07-lean-backend.md`       | Storage/bus abstraction reality; the overlay recommendation        |
+## Evidence convention
 
-## Evidence Convention
-
-**Every claim in this directory carries a status marker.** Preserve this when editing — the whole
-point is that a future agent can tell a verified fact from an inference.
+**Every claim in this directory carries a status marker.** Preserve this when editing: the point is
+that a future agent can tell a verified fact from an inference.
 
 | Marker  | Meaning                                                                        |
 | ------- | ------------------------------------------------------------------------------ |
-| **[V]** | Verified by reading the VSS repo in-session. Cited with `path:line`.           |
+| **[V]** | Verified by reading the source in-session. Cited with `path:line`.             |
 | **[C]** | Computed from a verified formula. The formula and inputs are shown.            |
 | **[E]** | External knowledge or web source. Needs confirmation against a primary source. |
 | **[?]** | Open question. Not established.                                                |
 | **[O]** | Stated by a human stakeholder. Outranks repo inference.                        |
 | **[A]** | Agent-reported, not independently verified. Check before acting.               |
 
-Do not promote a **[?]** or **[E]** to **[V]** without citing the file and line you read.
+Promote a **[?]** or **[E]** to **[V]** only with the file and line you read.
 
-## The VSS Repository
+## The VSS repository
 
-Findings here were gathered from a local clone:
-
-```
-/home/msvoboda/github/video-search-and-summarization
-```
-
-**This path is machine-local and not guaranteed to exist for you.** It is the
-`NVIDIA-AI-Blueprints/video-search-and-summarization` public repository. VSS is actively
-developed — commits landed during this research — so **re-verify any `path:line` citation before
-relying on it.** A citation that fails to resolve means VSS moved, not that the finding was wrong.
-
-## Entry Points
-
-### Starting fresh on this topic
-
-**File:** [`00-context.md`](00-context.md)
-
-Read in order: `00` → `07`. The numbering is a reading order, not a priority order.
-
-**If you only read two:** [`06-repo-a-readiness.md`](06-repo-a-readiness.md) for what to do next
-in this repo, and [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) for whether the consumer
-thesis holds.
-
-### Answering "will X fit on a consumer GPU?"
-
-**File:** [`04-fp4-and-deployment.md`](04-fp4-and-deployment.md) — **not** `02`.
-
-`02` contains VSS's sizing formula and GPU budgets, but its 4-bit column is **wrong** and labelled
-as such: the formula understates NVFP4 by ~40% because vision towers stay BF16. **Always size from
-HuggingFace blob sizes.**
-
-### Deciding what to work on next
-
-**File:** [`06-repo-a-readiness.md`](06-repo-a-readiness.md)
-
-The four verified CI defects this document originally flagged (including a coverage pipeline that
-had never computed anything) were **closed and re-verified on `main` 2026-09-21** — see the
-retirement note at the top of `06`. What the doc now lists as open: the import-bound seam fixture
-(§1.6), deletion-record cashing (§1.5), and the frontend blast radius (§1.7).
+Upstream: `NVIDIA-AI-Blueprints/video-search-and-summarization` (public). Docs 00-07 cite commit
+`cdad5cc0e`; docs 08-12 and the spec cite `1e94133b4`. VSS moved 78 commits and 701 files in the
+four days between those commits. **Re-verify any `path:line` before relying on it**; a citation
+that fails to resolve means VSS moved, not that the finding was wrong.
 
 ## Patterns
 
-### Separate the three layers before answering any integration question
+- **Name the layer.** VSS bundles three independently adoptable layers:
 
-VSS bundles three independently adoptable layers. Most confusion about "adopting VSS" comes from
-treating them as one thing:
+  1. models: RT-CV, RT-Embed, RT-VLM, LLM;
+  2. storage: Milvus, Elasticsearch, Neo4j, ArangoDB;
+  3. bus: Kafka.
 
-1. **Model tier** — RT-CV, RT-Embed, RT-VLM, LLM. This is the part with the value we lack.
-2. **Storage tier** — Milvus, Elasticsearch, Neo4j, ArangoDB. Scales to warehouses and cities.
-3. **Message bus** — Kafka. Decoupling and/or durability, depending on the path.
+  Say which one a question is about. The design adopts a _pattern_ from layer 1 and none of layers
+  2-3.
 
-Adopting layer 1 does not require layers 2 and 3. Say which layer a question is about.
+- **Separate three model claims:**
 
-### Distinguish three different claims about any model
+  1. a variant _exists_;
+  2. VSS _wires_ it;
+  3. it _runs on a consumer GPU_.
 
-These get conflated constantly and only the third one decides anything:
+  Only the third decides anything.
 
-1. A variant **exists** (someone published a checkpoint).
-2. **VSS wires it** (there is a tested configuration in-tree).
-3. **It runs on a consumer GPU** (kernels exist for that compute capability, and it fits VRAM).
+- **Size from blob sizes, never the VSS formula.** The formula understates NVFP4 by ~40% (see 02's
+  boxed warning and 04). For llama.cpp, sum the weights, mmproj, KV and buffers.
+- **Record corrections as errata.** Add a dated errata file (or entries to 11) and a banner on the
+  corrected doc. The original text stays as the evidence record.
+- **When a roadmap item is picked up,** give it its own spec and mark it in 12 with the date and a
+  link.
 
-## Related Documentation
+## Related documentation
 
-- [`ai/AGENTS.md`](../../ai/AGENTS.md) - The pipeline VSS would replace
-- [`backend/AGENTS.md`](../../backend/AGENTS.md) - Backend services, including the AI clients
-- [`docs/ROADMAP.md`](../ROADMAP.md) - Post-MVP direction
-- [`docs/plans/2026-09-12-context-map-doc-updates.md`](../plans/2026-09-12-context-map-doc-updates.md) - The ledger; test-platform program ground truth
+- [`ai/AGENTS.md`](../../ai/AGENTS.md): the AI tier. Note that E4 corrects its on-demand Triton
+  loading claim for production.
+- [`backend/ai_contract/AGENTS.md`](../../backend/ai_contract/AGENTS.md): the contract seam the
+  design extends with `vlm_assess`.
+- [`docs/ROADMAP.md`](../ROADMAP.md): the project-wide post-MVP roadmap.

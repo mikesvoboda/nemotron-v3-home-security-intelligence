@@ -56,6 +56,7 @@ from backend.api.schemas.event_cluster import (
     EventCluster,
     EventClustersResponse,
 )
+from backend.api.schemas.event_verification import verification_payload
 from backend.api.schemas.events import (
     DeletedEventsListResponse,
     EventListResponse,
@@ -144,6 +145,9 @@ VALID_EVENT_LIST_FIELDS = frozenset(
         "reviewed",
         "detection_count",
         "thumbnail_url",
+        # P0.4 (spec §4): the verification object is selectable like any other
+        # list field; absent for legacy events regardless (exclude_if).
+        "verification",
     }
 )
 
@@ -281,7 +285,7 @@ async def list_events(
         None,
         description="Comma-separated list of fields to include in response (sparse fieldsets). "
         "Valid fields: id, camera_id, started_at, ended_at, risk_score, risk_level, summary, "
-        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url",
+        "reasoning, reviewed, detection_count, detection_ids, thumbnail_url, verification",
     ),
     include_deleted: bool = Query(
         False,
@@ -479,6 +483,9 @@ async def list_events(
             "detection_count": detection_count,
             "detection_ids": parsed_detection_ids,
             "thumbnail_url": thumbnail_url,
+            # P0.4: None for legacy events; dropped from the payload by the
+            # schema's exclude_if (spec §4: legacy carries NO verification key)
+            "verification": verification_payload(event),
         }
         # Apply sparse fieldsets filter if fields parameter was provided (NEM-1434)
         filtered_event = filter_fields(event_dict, validated_fields)
@@ -1411,6 +1418,7 @@ async def list_deleted_events(
                 detection_ids=detection_ids,
                 thumbnail_url=thumbnail_url,
                 enrichment_status=None,
+                verification=verification_payload(event),  # P0.4: None -> key absent
                 deleted_at=event.deleted_at,
             )
         )
@@ -1861,6 +1869,7 @@ async def get_event(
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
+        verification=verification_payload(event),  # P0.4: None -> key absent (legacy)
         links=build_event_links(request, event.id, event.camera_id),
         version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
@@ -2059,6 +2068,7 @@ async def update_event(  # Allow branches for audit logging logic
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
+        verification=verification_payload(event),  # P0.4: None -> key absent (legacy)
         version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
 
@@ -2750,6 +2760,7 @@ async def restore_event(
             detection_ids=detection_ids,
             thumbnail_url=thumbnail_url,
             enrichment_status=None,
+            verification=verification_payload(event),  # P0.4: None -> key absent
             version=event.version,  # Include version for optimistic locking (NEM-3625)
         )
 

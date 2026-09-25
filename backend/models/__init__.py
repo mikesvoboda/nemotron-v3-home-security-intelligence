@@ -33,6 +33,7 @@ from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
+from .event_verification import EventVerification
 from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
 from .face_identity import (
@@ -135,6 +136,7 @@ __all__ = [
     "EventAudit",
     "EventDetection",
     "EventFeedback",
+    "EventVerification",
     "ExperimentResult",
     "ExportJob",
     "ExportJobStatus",

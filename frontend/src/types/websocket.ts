@@ -109,10 +109,12 @@ export interface SecurityEventData {
   camera_id: string;
   /** Human-readable camera name */
   camera_name?: string;
-  /** AI-determined risk score (0-100) */
-  risk_score: number;
-  /** Categorical risk level */
-  risk_level: GeneratedRiskLevel;
+  /** AI-determined risk score (0-100). null = verification_failed /
+   * unverified (spec §6 step 3, P0.25): NOT a low score - renderers must
+   * branch on null and show an unverified state, never coalesce to 0. */
+  risk_score: number | null;
+  /** Categorical risk level; null when the event is unverified */
+  risk_level: GeneratedRiskLevel | null;
   /** AI-generated event summary */
   summary: string;
   /** Event timestamp (ISO format) */

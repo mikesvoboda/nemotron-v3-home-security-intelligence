@@ -694,13 +694,20 @@ class TestErrorHandlingWithEnrichment:
 
     async def test_analyze_batch_fallback_when_llm_fails(
         self,
+        legacy_wire,
         isolated_db,
         sample_camera,
         sample_detections,
         mock_redis_client,
         realistic_enrichment_result,
     ):
-        """Verify fallback behavior when LLM service fails."""
+        """Verify fallback behavior when LLM service fails.
+
+        LEGACY-wire subject (P0.3, F4): 50/medium on an LLM error is the
+        pre-constrained route; the shipped default fails closed to NULL +
+        verification_failed (pinned in unit/services/
+        test_p03_constrained_verdict.py).
+        """
         batch_id = f"batch_{uuid.uuid4()}"
         detection_ids = [d.id for d in sample_detections]
 
@@ -740,13 +747,17 @@ class TestErrorHandlingWithEnrichment:
 
     async def test_fast_path_fallback_when_llm_fails(
         self,
+        legacy_wire,
         isolated_db,
         sample_camera,
         sample_detections,
         mock_redis_client,
         realistic_enrichment_result,
     ):
-        """Verify fast path fallback when LLM service fails."""
+        """Verify fast path fallback when LLM service fails.
+
+        LEGACY-wire subject - see test_analyze_batch_fallback_when_llm_fails.
+        """
         detection = sample_detections[0]
 
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)

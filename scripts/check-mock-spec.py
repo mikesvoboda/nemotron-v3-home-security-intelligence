@@ -144,7 +144,7 @@ def sites_with_lines(path: Path, resolver: ArityResolver | None = None) -> list[
     try:
         src = path.read_text()
         tree = ast.parse(src)
-    except SyntaxError, OSError:
+    except (SyntaxError, OSError):
         return []
     lines = src.splitlines()
     scopes = _scope_stack(tree)
@@ -231,7 +231,7 @@ def _added_lines(root: Path, rel: str) -> set[int]:
             # @@ -old +new @@  -- U0 hunk headers: parse the +start
             try:
                 new_ln = int(line.split("+")[1].split(" ", 1)[0].split(",")[0])
-            except IndexError, ValueError:
+            except (IndexError, ValueError):
                 new_ln = 0
         elif line.startswith("+") and not line.startswith("+++"):
             added.add(new_ln)

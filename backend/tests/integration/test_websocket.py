@@ -1623,6 +1623,9 @@ class TestWebSocketEventMessageContract:
         from backend.api.schemas.websocket import WebSocketEventData
 
         # Expected fields based on documentation in websocket.py docstring
+        # ("verification": P0.4 spec §4 - the EventVerificationPayload,
+        # present on vlm-mode events, absent-not-null for legacy; documented
+        # on WebSocketEventData itself, which is this set's source of truth.)
         expected_fields = {
             "id",
             "event_id",
@@ -1633,6 +1636,7 @@ class TestWebSocketEventMessageContract:
             "summary",
             "reasoning",
             "started_at",
+            "verification",
         }
 
         actual_fields = set(WebSocketEventData.model_fields.keys())
