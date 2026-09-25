@@ -5484,7 +5484,7 @@ class TestEnrichmentResultPoseActionPromptContext:
 
 
 # =============================================================================
-# X-CLIP Action Recognition Integration Tests (NEM-3335)
+# Action Recognition Integration Tests (NEM-3335, NEM-5563)
 # =============================================================================
 
 
@@ -5697,10 +5697,11 @@ class TestEnrichmentPipelineActionRecognition:
             patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
             patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
+            patch.object(
+                EnrichmentPipeline,
+                "_recognize_actions_from_skeleton",
                 new_callable=AsyncMock,
-            ) as mock_classify,
+            ) as mock_skeleton_action,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5728,8 +5729,10 @@ class TestEnrichmentPipelineActionRecognition:
                 camera_id="front_door",
             )
 
-            # X-CLIP should NOT be called
-            mock_classify.assert_not_called()
+            # ST-GCN++ skeleton recognition should NOT be called (NEM-5563
+            # live path; the X-CLIP classify_actions this test once pinned
+            # was archived 2026-09-23)
+            mock_skeleton_action.assert_not_called()
 
             # Result should not have action_results
             assert not result.has_action_results
@@ -5822,10 +5825,11 @@ class TestEnrichmentPipelineActionRecognition:
             patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
             patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
             patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
+            patch.object(
+                EnrichmentPipeline,
+                "_recognize_actions_from_skeleton",
                 new_callable=AsyncMock,
-            ) as mock_classify,
+            ) as mock_skeleton_action,
         ):
             pipeline = EnrichmentPipeline(
                 model_manager=mock_model_manager,
@@ -5853,8 +5857,9 @@ class TestEnrichmentPipelineActionRecognition:
                 camera_id="front_door",
             )
 
-            # X-CLIP should NOT be called for vehicle-only detections
-            mock_classify.assert_not_called()
+            # ST-GCN++ skeleton recognition should NOT be called for
+            # vehicle-only detections (NEM-5563 live path)
+            mock_skeleton_action.assert_not_called()
 
             # Result should not have action_results
             assert not result.has_action_results
@@ -6135,90 +6140,6 @@ class TestEnrichmentPipelineGetActionFrames:
 
             # Buffer should not be queried
             mock_buffer.get_sequence.assert_not_called()
-
-
-@pytest.mark.asyncio
-class TestEnrichmentPipelineRecognizeActions:
-    """Tests for _recognize_actions method."""
-
-    async def test_recognize_actions_calls_xclip(
-        self,
-        test_image: Image.Image,
-        mock_model_manager: MagicMock,
-    ) -> None:
-        """Test _recognize_actions calls X-CLIP classify_actions."""
-        mock_action_result = {
-            "detected_action": "a person loitering",
-            "confidence": 0.88,
-            "top_actions": [("a person loitering", 0.88)],
-            "all_scores": {"a person loitering": 0.88},
-        }
-
-        with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
-        ):
-            mock_classify.return_value = mock_action_result
-
-            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
-
-            # Create list of frames
-            frames = [test_image] * 8
-
-            result = await pipeline._recognize_actions(frames)
-
-            # classify_actions should be called
-            mock_classify.assert_called_once()
-
-            # Result should match mock
-            assert result == mock_action_result
-
-    async def test_recognize_actions_returns_none_for_empty_frames(
-        self,
-        mock_model_manager: MagicMock,
-    ) -> None:
-        """Test _recognize_actions returns None for empty frame list."""
-        with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-        ):
-            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
-
-            result = await pipeline._recognize_actions([])
-
-            # Should return None for empty frames
-            assert result is None
-
-    async def test_recognize_actions_propagates_error(
-        self,
-        test_image: Image.Image,
-        mock_model_manager: MagicMock,
-    ) -> None:
-        """Test _recognize_actions propagates X-CLIP errors."""
-        with (
-            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-            patch(
-                "backend.services.enrichment_pipeline.classify_actions",
-                new_callable=AsyncMock,
-            ) as mock_classify,
-        ):
-            mock_classify.side_effect = RuntimeError("X-CLIP inference failed")
-
-            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
-
-            frames = [test_image] * 8
-
-            # Should propagate the error
-            with pytest.raises(RuntimeError, match="X-CLIP"):
-                await pipeline._recognize_actions(frames)
 
 
 # =============================================================================

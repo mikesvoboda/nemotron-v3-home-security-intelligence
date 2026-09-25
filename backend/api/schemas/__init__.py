@@ -1,8 +1,6 @@
 """API schemas for request/response validation."""
 
 from .action_event import (
-    ActionAnalyzeRequest,
-    ActionAnalyzeResponse,
     ActionEventBase,
     ActionEventCreate,
     ActionEventListResponse,
@@ -386,8 +384,6 @@ __all__ = [  # noqa: RUF022
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
     # Action event schemas (NEM-3714)
-    "ActionAnalyzeRequest",
-    "ActionAnalyzeResponse",
     "ActionEventBase",
     "ActionEventCreate",
     "ActionEventListResponse",

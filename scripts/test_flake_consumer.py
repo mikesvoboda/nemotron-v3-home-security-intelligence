@@ -238,7 +238,10 @@ def test_harvest_selects_and_downloads(tmp_path: Path):
                 self.end_headers()
                 self.wfile.write(f.read_bytes())
                 return
-            r = routes.get(self.path)
+            # Finding-4 #3: the client now pins a server-side created=>
+            # age filter on the runs-list query; the canned page IS the
+            # filtered page, so route on the pre-filter key.
+            r = routes.get(self.path.split("&created=")[0])
             if r is None:
                 self.send_error(404)
                 return
@@ -365,7 +368,10 @@ def test_harvest_skips_expired_and_stale(tmp_path: Path):
                 self.end_headers()
                 self.wfile.write(zip_fresh.read_bytes())
                 return
-            r = routes.get(self.path)
+            # Finding-4 #3: the client now pins a server-side created=>
+            # age filter on the runs-list query; the canned page IS the
+            # filtered page, so route on the pre-filter key.
+            r = routes.get(self.path.split("&created=")[0])
             if r is None:
                 self.send_error(404)
                 return
@@ -470,7 +476,10 @@ def test_harvest_skips_pre_retention_candidates(tmp_path: Path):
                 self.end_headers()
                 self.wfile.write(zip_fresh.read_bytes())
                 return
-            r = routes.get(self.path)
+            # Finding-4 #3: the client now pins a server-side created=>
+            # age filter on the runs-list query; the canned page IS the
+            # filtered page, so route on the pre-filter key.
+            r = routes.get(self.path.split("&created=")[0])
             if r is None:
                 self.send_error(404)
                 return

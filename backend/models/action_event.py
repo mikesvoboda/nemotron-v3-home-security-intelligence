@@ -1,15 +1,15 @@
-"""ActionEvent model for storing X-CLIP action recognition results.
+"""ActionEvent model for storing action recognition results.
 
 This module contains the ActionEvent SQLAlchemy model for storing action
-recognition results from the X-CLIP video action recognition model.
-The model captures detected actions from video frame sequences, including
-confidence scores and security-relevance flags.
+recognition results. The model captures detected actions from frame
+sequences, including confidence scores and security-relevance flags.
 
-X-CLIP analyzes sequences of frames to understand temporal patterns and
-classify human actions in security-relevant scenarios.
+Rows were historically written by the X-CLIP analyze path and are written
+today through the /api/action-events CRUD routes (manual ingestion; the
+live recognizer is the ST-GCN++ skeleton path, NEM-5563). The X-CLIP chain
+that first populated this table was archived 2026-09-23.
 
-Reference: ai/enrichment/models/action_recognizer.py
-Reference: backend/services/xclip_loader.py
+Reference: backend/api/routes/action_events.py
 Linear issue: NEM-3714
 """
 

@@ -501,19 +501,31 @@ Each alert includes a `runbook_url` annotation linking to resolution steps. Crea
 
 ### Example Runbook: AIDetectorUnavailable
 
+> NOTE (2026-09-23): retargeted to the gateway topology. The standalone
+> `ai-yolo26` container in the older steps below was retired fully that day
+> (owner ruling — Triton on `ai-gateway` serves yolo26 among the 14 models;
+> recipe in `archive/ai-yolo26-image/`). The alert itself keys on
+> `hsi_ai_healthy == 0` — the backend's view of the AI stack — so diagnose the
+> gateway and the backend's AI client, not a yolo26 container.
+
 **Symptoms:**
 
-- YOLO26 health check fails
+- YOLO26 health check fails (backend `hsi_ai_healthy` gauge reports 0)
 - No new detections processing
 
 **Diagnosis:**
 
 ```bash
-# Check container status
-docker compose -f docker-compose.prod.yml ps ai-yolo26
+# Check the gateway container that serves yolo26 via Triton
+docker compose -f docker-compose.prod.yml ps ai-gateway
 
-# Check container logs
-docker compose -f docker-compose.prod.yml logs --tail=100 ai-yolo26
+# Check gateway logs for Triton model-load or adapter errors
+docker compose -f docker-compose.prod.yml logs --tail=100 ai-gateway
+
+# Check the model's Triton readiness (Triton native HTTP is 8000 inside the
+# container; the gateway's own 8090 /health aggregates all 14 models)
+docker compose exec ai-gateway curl -s http://localhost:8000/v2/models/yolo26/ready && echo READY
+curl -fsS http://localhost:8090/health | head -c 400
 
 # Check GPU availability
 nvidia-smi
@@ -521,10 +533,10 @@ nvidia-smi
 
 **Resolution:**
 
-1. **Container crashed:** Restart container
+1. **Gateway container crashed:** Restart it
 
    ```bash
-   docker compose -f docker-compose.prod.yml restart ai-yolo26
+   docker compose -f docker-compose.prod.yml restart ai-gateway
    ```
 
 2. **GPU OOM:** Check GPU memory and reduce concurrent inferences
@@ -533,10 +545,10 @@ nvidia-smi
    nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
    ```
 
-3. **Model loading failure:** Check model path and permissions
+3. **Model loading failure:** Check the engine/model path inside the gateway
 
    ```bash
-   docker compose exec ai-yolo26 ls -la /models/
+   docker compose exec ai-gateway ls -la /models/yolo26/
    ```
 
 ---

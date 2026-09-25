@@ -40,7 +40,7 @@ exports[`AlertBadge > snapshots > renders critical only correctly 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert h-3 w-3"
+        class="lucide lucide-octagon-alert lucide-alert-octagon h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -109,7 +109,7 @@ exports[`AlertBadge > snapshots > renders in open state 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert h-3 w-3"
+        class="lucide lucide-octagon-alert lucide-alert-octagon h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -140,7 +140,7 @@ exports[`AlertBadge > snapshots > renders in open state 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert h-3 w-3"
+        class="lucide lucide-triangle-alert lucide-alert-triangle h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -280,7 +280,7 @@ exports[`AlertBadge > snapshots > renders mixed alerts correctly 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert h-3 w-3"
+        class="lucide lucide-octagon-alert lucide-alert-octagon h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -311,7 +311,7 @@ exports[`AlertBadge > snapshots > renders mixed alerts correctly 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert h-3 w-3"
+        class="lucide lucide-triangle-alert lucide-alert-triangle h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -419,7 +419,7 @@ exports[`AlertBadge > snapshots > renders warning only correctly 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-triangle-alert h-3 w-3"
+        class="lucide lucide-triangle-alert lucide-alert-triangle h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"
@@ -488,7 +488,7 @@ exports[`AlertBadge > snapshots > renders with animation 1`] = `
     >
       <svg
         aria-hidden="true"
-        class="lucide lucide-octagon-alert h-3 w-3"
+        class="lucide lucide-octagon-alert lucide-alert-octagon h-3 w-3"
         fill="none"
         height="24"
         stroke="currentColor"

@@ -7,7 +7,6 @@ This directory contains on-demand model implementations for the ai-enrichment se
 ```
 models/
   __init__.py              # Package exports
-  action_recognizer.py     # Action recognition (X-CLIP legacy, ST-GCN++ preferred)
   demographics.py          # Age/gender classification (existing)
   face_recognizer.py       # Face detection and recognition
   person_reid.py           # Person re-identification (existing)
@@ -26,102 +25,50 @@ Models are prioritized for VRAM allocation:
 | CRITICAL | 0     | Threat detection (weapons)   |
 | HIGH     | 1     | Pose, demographics, clothing |
 | MEDIUM   | 2     | Vehicle, pet, re-ID          |
-| LOW      | 3     | Depth, action recognition    |
+| LOW      | 3     | Depth, secondary detection   |
 
-## ActionRecognizer (X-CLIP Legacy / ST-GCN++ Preferred)
+## Action Recognition — RETIRED HERE (NEM-5563)
 
-### Overview
+Action recognition no longer runs in this package. The X-CLIP
+`ActionRecognizer` (`action_recognizer.py`) was retired with the NEM-5563
+migration to skeleton-based ST-GCN++ and now lives in
+`archive/ai-enrichment/action_recognizer.py`. Its registry slot
+(`action_recognizer`, ~2 GB, LOW) was removed from `model_registry.py`, and
+`get_models_for_detection_type()` no longer adds it for suspicious
+multi-frame persons (the `is_suspicious` / `has_multiple_frames` params are
+accepted for API compatibility only).
 
-Video-based action recognition. **ST-GCN++ is the preferred model** for action recognition. X-CLIP is maintained for legacy compatibility but deprecated in favor of ST-GCN++.
+Where action recognition runs instead:
 
-### Specifications
-
-- **Model (Preferred)**: ST-GCN++ (spatial-temporal graph convolutional network)
-- **Model (Legacy)**: `microsoft/xclip-base-patch32` (X-CLIP, deprecated)
-- **VRAM**: ~1.5GB
-- **Priority**: LOW (expensive, use sparingly)
-- **Input**: 8-32 video frames
-- **Output**: Action classification with confidence
-
-### Trigger Conditions
-
-Only run action recognition when:
-
-1. Person detected for >3 seconds
-2. Multiple frames available in buffer
-3. Unusual pose detected (trigger from pose estimator)
-
-### Security Action Classes (15 total)
-
-**Normal Activities:**
-
-- walking normally
-- running
-- delivering package
-- checking mailbox
-- ringing doorbell
-- waving
-- falling down
-- carrying large object
-
-**Suspicious Activities (flagged):**
-
-- fighting
-- climbing
-- breaking window
-- picking lock
-- hiding
-- loitering
-- looking around suspiciously
-
-### Usage Example
-
-```python
-from ai.enrichment.models.action_recognizer import (
-    ActionRecognizer,
-    load_action_recognizer,
-)
-
-# Create and load model
-recognizer = load_action_recognizer(
-    model_path="microsoft/xclip-base-patch32",
-    device="cuda:0",
-)
-
-# Recognize action from video frames
-frames = [...]  # List of PIL Images or numpy arrays
-result = recognizer.recognize_action(frames)
-
-print(f"Action: {result.action}")
-print(f"Confidence: {result.confidence:.2%}")
-print(f"Suspicious: {result.is_suspicious}")
-```
-
-### Integration with Model Registry
-
-The ActionRecognizer is registered in `model_registry.py` and can be loaded on-demand:
-
-```python
-from ai.enrichment.model_registry import get_models_for_detection_type
-
-# Get models for suspicious person detection with multiple frames
-models = get_models_for_detection_type(
-    detection_type="person",
-    is_suspicious=True,
-    has_multiple_frames=True,
-)
-# Returns: ["fashion_clip", "depth_estimator", "action_recognizer"]
-```
+- **Serving path**: the ai-gateway's `/action-classify` adapter
+  (`ai/gateway/adapters/enrichment.py`) runs Triton **`stgcn_action`**
+  (ONNX Runtime) over gateway-computed pose keypoints —
+  `ai/triton/model_repository/stgcn_action/` with weights exported by
+  `ai/gateway/export/export_stgcn.py`.
+- **Backend local path**: `backend/services/enrichment_pipeline.py`
+  `_recognize_actions_from_skeleton()`.
+- No live X-CLIP code remains: the backend chain (xclip_loader +
+  action_recognition_service) was archived under
+  `archive/xclip-backend-chain/` with the 2026-09-23 full-removal
+  ruling; models.yml keeps the `xclip-base` provenance entry (owner-owned).
 
 ## Testing
 
 ```bash
-# Run unit tests
-uv run pytest ai/enrichment/tests/test_action_recognizer.py -v
+# Run unit tests for the models that live here
+uv run pytest ai/enrichment/tests/test_pose_estimator.py \
+              ai/enrichment/tests/test_threat_detector.py \
+              ai/enrichment/tests/test_demographics.py \
+              ai/enrichment/tests/test_person_reid.py \
+              ai/enrichment/tests/test_plate_ocr.py -v
 
-# With coverage
-uv run pytest ai/enrichment/tests/test_action_recognizer.py --cov=ai.enrichment.models.action_recognizer
+# Registry (9 models since the xclip action retirement)
+uv run pytest ai/enrichment/tests/test_model_registry.py -v
 ```
+
+The retired X-CLIP tests moved with the module to
+`archive/ai-enrichment/test_action_recognizer.py` (archive is outside pytest
+`testpaths`).
 
 ## Related Documentation
 

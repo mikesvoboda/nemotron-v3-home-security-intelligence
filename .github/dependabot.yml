@@ -84,6 +84,29 @@ updates:
         versions: ['>=10.0.0']
       - dependency-name: 'eslint-plugin-security'
         versions: ['>=4.0.0']
+      # msw is the exception to the one-major-above rule: the floor sits AT the
+      # refused minor. 2.13.0 shipped the network-source architecture rewrite
+      # (#2650) and 2.15.0 reproduces both frontend test failures measured in
+      # docs/plans/2026-09-21-dependabot-triage.md — every 2.13+ is refused,
+      # only exact 2.12.x is clean. 2.12.10 is the last 2.12 patch, so nothing
+      # landable is suppressed. devDependency only: no security exposure.
+      - dependency-name: 'msw'
+        versions: ['>=2.13']
+      # Floors for the majors deferred 2026-09-23 with measured reasons — each
+      # comment on the closed PR (#6653 knip · #6654 pako · #6657 vite ·
+      # #6658 tailwindcss · #6659 react-joyride) carries the measurement. The
+      # migration PRs for these are planned; drop each floor in the same PR
+      # that lands its migration so the next weekly pass can offer it.
+      - dependency-name: 'tailwindcss'
+        versions: ['>=4.0.0']
+      - dependency-name: 'vite'
+        versions: ['>=8.0.0']
+      - dependency-name: 'react-joyride'
+        versions: ['>=3.0.0']
+      - dependency-name: 'pako'
+        versions: ['>=3.0.0']
+      - dependency-name: 'knip'
+        versions: ['>=6.0.0']
     # Group minor and patch updates to reduce PR noise
     groups:
       npm-minor-patch:
@@ -200,28 +223,6 @@ updates:
     ignore:
       - dependency-name: 'node'
         versions: ['>= 26']
-    groups:
-      docker-security:
-        applies-to: security-updates
-        patterns:
-          - '*'
-
-  # AI services - YOLO26
-  - package-ecosystem: 'docker'
-    directory: '/ai/yolo26'
-    schedule:
-      interval: 'weekly'
-      day: 'monday'
-      time: '06:00'
-      timezone: 'America/Chicago'
-    target-branch: 'main'
-    open-pull-requests-limit: 3
-    labels:
-      - 'dependencies'
-      - 'docker'
-      - 'ai'
-    commit-message:
-      prefix: 'chore(deps)'
     groups:
       docker-security:
         applies-to: security-updates

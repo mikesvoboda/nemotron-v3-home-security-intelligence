@@ -271,7 +271,7 @@ class DetectorClient:
                 If not provided, uses DETECTOR_MAX_RETRIES from settings (default: 3).
             frame_buffer: Optional FrameBuffer instance for buffering frames during
                 detection. If provided, frames are buffered with their camera_id and
-                timestamp for later use by X-CLIP temporal action recognition.
+                timestamp for later use by temporal action recognition (ST-GCN++ path).
         """
         self._frame_buffer = frame_buffer
         settings = get_settings()
@@ -1092,7 +1092,7 @@ class DetectorClient:
                 },
             )
 
-            # Buffer frame for X-CLIP temporal action recognition (NEM-3334)
+            # Buffer frame for temporal action recognition (ST-GCN++ path) (NEM-3334)
             # This enables the enrichment pipeline to access recent frames for
             # action classification (e.g., loitering, approaching_door, running_away)
             if self._frame_buffer is not None:

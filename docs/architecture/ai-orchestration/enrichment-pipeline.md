@@ -45,17 +45,17 @@ flowchart TB
 In the consolidated deployment these are served by ai-gateway under two router prefixes
 (`/enrichment/*` heavy models, `/enrich-lt/*` light models; `ai/gateway/adapters/`).
 
-| Endpoint (relative to the service URL) | Method | Purpose                         |
-| -------------------------------------- | ------ | ------------------------------- |
-| `/health`                              | GET    | Service health check            |
-| `/enrich`                              | POST   | Unified enrichment (all models) |
-| `/vehicle-classify`                    | POST   | Vehicle type classification     |
-| `/pet-classify`                        | POST   | Cat/dog classification          |
-| `/clothing-classify`                   | POST   | FashionCLIP clothing attributes |
-| `/pose-analyze`                        | POST   | ViTPose+ body keypoints         |
-| `/depth-estimate`                      | POST   | Depth Anything V2 depth map     |
-| `/object-distance`                     | POST   | Distance from depth map         |
-| `/action-classify`                     | POST   | X-CLIP temporal action          |
+| Endpoint (relative to the service URL) | Method | Purpose                                     |
+| -------------------------------------- | ------ | ------------------------------------------- |
+| `/health`                              | GET    | Service health check                        |
+| `/enrich`                              | POST   | Unified enrichment (all models)             |
+| `/vehicle-classify`                    | POST   | Vehicle type classification                 |
+| `/pet-classify`                        | POST   | Cat/dog classification                      |
+| `/clothing-classify`                   | POST   | FashionCLIP clothing attributes             |
+| `/pose-analyze`                        | POST   | ViTPose+ body keypoints                     |
+| `/depth-estimate`                      | POST   | Depth Anything V2 depth map                 |
+| `/object-distance`                     | POST   | Distance from depth map                     |
+| `/action-classify`                     | POST   | Skeleton-based action (Triton stgcn_action) |
 
 ## Enrichment Client
 
@@ -68,7 +68,7 @@ class EnrichmentClient:
     - Pet classification (ResNet-18 cat/dog)
     - Clothing classification (FashionCLIP)
     - Pose analysis (ViTPose+ Small)
-    - Action classification (X-CLIP temporal video understanding)
+    - Action classification (skeleton-based ST-GCN++ via Triton stgcn_action)
     """
 ```
 
@@ -115,7 +115,7 @@ flowchart TB
 
     CC --> PR["Person ReID (OSNet)<br/><i>MEDIUM priority</i><br/>512-dim embeddings<br/>Cross-camera tracking"]
 
-    PR -->|"if suspicious + multiple frames"| AR["Action Recognition (X-CLIP)<br/><i>LOW priority</i><br/>Loitering, running, etc."]
+    PR -->|"if suspicious + multiple frames"| AR["Action Recognition (ST-GCN++ Triton stgcn_action)<br/><i>LOW priority</i><br/>Loitering, running, etc."]
 ```
 
 ### Result Types
@@ -126,23 +126,25 @@ The enrichment pipeline uses result types defined in `backend/services/enrichmen
 # backend/services/enrichment_client.py
 @dataclass(slots=True)
 class ClothingClassificationResult:
-    clothing_type: str          # hoodie, vest, uniform, etc.
-    color: str                  # Primary color
-    style: str                  # Overall style classification
-    confidence: float           # 0-1
-    top_category: str           # Top matched category from prompts
-    description: str            # Human-readable description
-    is_suspicious: bool         # Dark hoodie, face mask, etc.
-    is_service_uniform: bool    # Service/delivery uniform detected
+    clothing_type: str  # hoodie, vest, uniform, etc.
+    color: str  # Primary color
+    style: str  # Overall style classification
+    confidence: float  # 0-1
+    top_category: str  # Top matched category from prompts
+    description: str  # Human-readable description
+    is_suspicious: bool  # Dark hoodie, face mask, etc.
+    is_service_uniform: bool  # Service/delivery uniform detected
     inference_time_ms: float
+
 
 # Pose results from backend/services/vitpose_loader.py
 @dataclass(slots=True)
 class PoseResult:
-    keypoints: list[dict]       # [{name, x, y, confidence}, ...]
-    pose_class: str             # standing, crouching, bending_over, etc.
-    confidence: float           # 0-1
-    is_suspicious: bool         # True if crouching, lying_down, etc.
+    keypoints: list[dict]  # [{name, x, y, confidence}, ...]
+    pose_class: str  # standing, crouching, bending_over, etc.
+    confidence: float  # 0-1
+    is_suspicious: bool  # True if crouching, lying_down, etc.
+
 
 # Violence detection from backend/services/violence_loader.py
 @dataclass(slots=True)
@@ -187,10 +189,10 @@ Vehicle classification result from `backend/services/enrichment_client.py`:
 ```python
 @dataclass(slots=True)
 class VehicleClassificationResult:
-    vehicle_type: str       # "pickup_truck", "sedan", etc.
-    display_name: str       # Human-readable name
-    confidence: float       # 0-1
-    is_commercial: bool     # Delivery van, truck, etc.
+    vehicle_type: str  # "pickup_truck", "sedan", etc.
+    display_name: str  # Human-readable name
+    confidence: float  # 0-1
+    is_commercial: bool  # Delivery van, truck, etc.
     all_scores: dict[str, float]  # Top class scores
     inference_time_ms: float
 
@@ -229,9 +231,9 @@ Pet classification result from `backend/services/enrichment_client.py`:
 ```python
 @dataclass(slots=True)
 class PetClassificationResult:
-    pet_type: str           # "cat" or "dog"
-    breed: str              # Breed if identifiable
-    confidence: float       # 0-1
+    pet_type: str  # "cat" or "dog"
+    breed: str  # Breed if identifiable
+    confidence: float  # 0-1
     is_household_pet: bool  # Always True for this classifier
     inference_time_ms: float
 
@@ -268,10 +270,12 @@ The pipeline tracks which models succeeded/failed via `EnrichmentTrackingResult`
 ```python
 class EnrichmentStatus(str, Enum):
     """Status of enrichment pipeline execution."""
-    FULL = "full"       # All enabled models succeeded
-    PARTIAL = "partial" # Some models succeeded, some failed
-    FAILED = "failed"   # All models failed
-    SKIPPED = "skipped" # Enrichment not attempted
+
+    FULL = "full"  # All enabled models succeeded
+    PARTIAL = "partial"  # Some models succeeded, some failed
+    FAILED = "failed"  # All models failed
+    SKIPPED = "skipped"  # Enrichment not attempted
+
 
 @dataclass(slots=True)
 class EnrichmentTrackingResult:
@@ -310,6 +314,7 @@ def to_context_string(self) -> str:
         lines.append("  [ALERT: Suspicious posture detected]")
     return "\n".join(lines)
 
+
 # Clothing context
 def to_context_string(self) -> str:
     lines = [f"Clothing: {self.description}"]
@@ -318,6 +323,7 @@ def to_context_string(self) -> str:
     elif self.is_service_uniform:
         lines.append("  [Service/delivery worker uniform detected]")
     return "\n".join(lines)
+
 
 # Threat context
 def to_context_string(self) -> str:
@@ -338,6 +344,7 @@ def _calculate_backoff_delay(self, attempt: int) -> float:
     jitter = random.uniform(-0.1, 0.1)
     delay = base_delay * (1 + jitter)
     return min(delay, 30.0)  # Cap at 30 seconds
+
 
 def _is_retryable_error(self, error: Exception) -> bool:
     """Check if error should trigger retry."""
@@ -383,7 +390,7 @@ def get_models_for_detection_type(
 
     detection_model_mapping = {
         "person": [
-            "threat_detector",   # CRITICAL: always first
+            "threat_detector",  # CRITICAL: always first
             "fashion_clip",
             "pose_estimator",
             "person_reid",
@@ -416,6 +423,7 @@ class EnrichmentResult:
     Contains all additional context extracted from detections
     for use in the Nemotron LLM prompt.
     """
+
     license_plates: list[LicensePlateResult] = field(default_factory=list)
     faces: list[FaceResult] = field(default_factory=list)
     vision_extraction: BatchExtractionResult | None = None

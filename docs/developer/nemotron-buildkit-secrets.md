@@ -46,6 +46,11 @@ Detailed documentation on BuildKit secrets usage patterns for CI/CD and local de
 
 To fully integrate nemotron-hf builds into the deploy workflow, add the following:
 
+> NOTE (2026-09-23): the excerpt below is the as-written proposal and is kept
+> verbatim; its `ai-yolo26` matrix entry no longer exists in `deploy.yml` — the
+> standalone GPU image was retired fully that day (recipe in
+> `archive/ai-yolo26-image/`). Apply the pattern to the matrix as it stands.
+
 **A. Update matrix to include nemotron-hf:**
 
 ```yaml

@@ -502,7 +502,10 @@ def test_real_tree_matches_spec_baselines():
         # WP1.3: 150 uncounted patterns (P's figure, reproduced exactly) pruned
         # to the 7 MEASURED breaches over 18 main junit datasets; the channel
         # is counted from here on and the ratchet's one-way rule owns it.
-        "tpa_slow_list": 7,
+        # 7→8 (2026-09-23): license-plate household-matching test admitted with
+        # measured corpus breaches (4.18s ×2 #6667 head, 4.297s main junit;
+        # 1.20s solo → -n8 contention), registry entry same commit.
+        "tpa_slow_list": 8,
     }
     stale = {k: (got.get(k), v) for k, v in expected.items() if got.get(k) != v}
     assert not stale, "census vs spec baseline drift: " + ", ".join(

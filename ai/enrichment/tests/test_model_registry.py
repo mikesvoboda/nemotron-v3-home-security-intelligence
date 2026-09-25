@@ -27,7 +27,9 @@ from ai.enrichment.model_registry import (
 # Constants
 # =============================================================================
 
-# Expected models in the registry
+# Expected models in the registry (9 — the X-CLIP action_recognizer slot was
+# retired with the xclip cleanup, NEM-5563; /action-classify runs Triton
+# stgcn_action in the ai-gateway)
 EXPECTED_MODELS = [
     "fashion_clip",
     "vehicle_classifier",
@@ -37,21 +39,30 @@ EXPECTED_MODELS = [
     "threat_detector",
     "demographics",
     "person_reid",
-    "action_recognizer",
     "yolo26_detector",
 ]
 
-# Expected VRAM values for each model
+# Models whose VRAM depends on PET_DEVICE/REID_DEVICE/YOLO26_ENRICHMENT_DEVICE
+# (GPU-by-default entries, NEM-5551/NEM-5562): the fixtures below pin those
+# env vars to cuda:0 so expectations are hardware-independent.
+GPU_PINNED_ENV = {
+    "PET_DEVICE": "cuda:0",
+    "REID_DEVICE": "cuda:0",
+    "YOLO26_ENRICHMENT_DEVICE": "cuda:0",
+    "VEHICLE_QUANTIZED": "false",
+    "DEMOGRAPHICS_QUANTIZED": "false",
+}
+
+# Expected VRAM values for each model (with GPU_PINNED_ENV applied)
 EXPECTED_VRAM = {
     "fashion_clip": 800,
     "vehicle_classifier": 1500,
     "pet_classifier": 200,
-    "depth_estimator": 150,
+    "depth_estimator": 100,
     "pose_estimator": 300,
     "threat_detector": 400,
     "demographics": 500,
     "person_reid": 100,
-    "action_recognizer": 1500,
     "yolo26_detector": 100,
 }
 
@@ -65,7 +76,6 @@ EXPECTED_PRIORITIES = {
     "threat_detector": ModelPriority.CRITICAL,
     "demographics": ModelPriority.HIGH,
     "person_reid": ModelPriority.MEDIUM,
-    "action_recognizer": ModelPriority.LOW,
     "yolo26_detector": ModelPriority.LOW,
 }
 
@@ -97,8 +107,13 @@ def mock_model_imports():
 
 @pytest.fixture
 def registry(mock_model_imports):
-    """Create a model registry with mocked model classes."""
-    return create_model_registry(device="cpu")
+    """Create a model registry with mocked model classes.
+
+    Pins the device-dependent VRAM env vars (GPU_PINNED_ENV) so expected VRAM
+    arithmetic does not depend on whether the test host has a GPU.
+    """
+    with patch.dict(os.environ, GPU_PINNED_ENV):
+        return create_model_registry(device="cpu")
 
 
 # =============================================================================
@@ -110,8 +125,8 @@ class TestCreateModelRegistry:
     """Tests for create_model_registry function."""
 
     def test_registry_contains_all_models(self, registry) -> None:
-        """Registry contains all 10 expected models."""
-        assert len(registry) == 10
+        """Registry contains all 9 expected models (xclip action retired)."""
+        assert len(registry) == 9
         for model_name in EXPECTED_MODELS:
             assert model_name in registry, f"Missing model: {model_name}"
 
@@ -141,7 +156,7 @@ class TestVRAMConfiguration:
     """Tests for model VRAM requirements."""
 
     def test_all_models_have_positive_vram(self, registry) -> None:
-        """All models have positive VRAM values."""
+        """All models have positive VRAM values (devices pinned by fixture)."""
         for name, config in registry.items():
             assert config.vram_mb > 0, f"{name} has invalid VRAM: {config.vram_mb}"
 
@@ -155,8 +170,10 @@ class TestVRAMConfiguration:
     def test_total_vram_within_budget(self, registry) -> None:
         """Total potential VRAM is calculated correctly."""
         total = sum(config.vram_mb for config in registry.values())
-        # 800 + 1500 + 200 + 150 + 300 + 400 + 500 + 100 + 1500 + 100 = 5550 MB
-        expected_total = 5550
+        # 800 + 1500 + 200 + 100 + 300 + 400 + 500 + 100 + 100 = 4000 MB
+        # (xclip action_recognizer's 2000 MB slot retired with NEM-5563; the
+        # device-dependent entries are pinned GPU-side by the registry fixture)
+        expected_total = 4000
         assert total == expected_total, f"Total VRAM mismatch: {total} != {expected_total}"
 
 
@@ -188,7 +205,6 @@ class TestPriorityConfiguration:
 
     def test_expensive_models_are_low_priority(self, registry) -> None:
         """Expensive or optional models have LOW priority."""
-        assert registry["action_recognizer"].priority == ModelPriority.LOW
         assert registry["depth_estimator"].priority == ModelPriority.LOW
         assert registry["yolo26_detector"].priority == ModelPriority.LOW
 
@@ -197,10 +213,10 @@ class TestPriorityConfiguration:
         # Priority order: CRITICAL (0) < HIGH (1) < MEDIUM (2) < LOW (3)
         threat = registry["threat_detector"].priority
         pose = registry["pose_estimator"].priority
-        fashion = registry["fashion_clip"].priority
-        action = registry["action_recognizer"].priority
+        vehicle = registry["vehicle_classifier"].priority
+        depth = registry["depth_estimator"].priority
 
-        assert threat < pose < fashion < action
+        assert threat < pose < vehicle < depth
 
 
 # =============================================================================
@@ -319,16 +335,6 @@ class TestEnvironmentVariableSupport:
             _registry = create_model_registry(device="cpu")
             assert os.environ.get("REID_MODEL_PATH") == test_path
 
-    def test_action_model_path_env(
-        self,
-        mock_model_imports,
-    ) -> None:
-        """ACTION_MODEL_PATH environment variable is used."""
-        test_path = "/custom/path/xclip"
-        with patch.dict(os.environ, {"ACTION_MODEL_PATH": test_path}):
-            _registry = create_model_registry(device="cpu")
-            assert os.environ.get("ACTION_MODEL_PATH") == test_path
-
     def test_yolo26_model_path_env(
         self,
         mock_model_imports,
@@ -381,27 +387,20 @@ class TestGetModelsForDetectionType:
         models = get_models_for_detection_type("bird")
         assert models == ["pet_classifier"]
 
-    def test_suspicious_person_adds_action_recognizer(self) -> None:
-        """Suspicious person with multiple frames adds action_recognizer."""
+    def test_suspicious_person_no_action_recognizer(self) -> None:
+        """Action recognition retired: even suspicious multi-frame persons no
+        longer add the X-CLIP action_recognizer (NEM-5563 — Triton
+        stgcn_action serves /action-classify via the ai-gateway)."""
         models = get_models_for_detection_type(
             "person",
             is_suspicious=True,
             has_multiple_frames=True,
         )
-        assert "action_recognizer" in models
+        assert "action_recognizer" not in models
 
     def test_non_suspicious_person_no_action_recognizer(self) -> None:
         """Non-suspicious person does not include action_recognizer."""
         models = get_models_for_detection_type("person", is_suspicious=False)
-        assert "action_recognizer" not in models
-
-    def test_suspicious_without_frames_no_action(self) -> None:
-        """Suspicious person without multiple frames has no action_recognizer."""
-        models = get_models_for_detection_type(
-            "person",
-            is_suspicious=True,
-            has_multiple_frames=False,
-        )
         assert "action_recognizer" not in models
 
     def test_case_insensitive_lookup(self) -> None:
@@ -481,20 +480,6 @@ class TestLoaderFunctionErrors:
 
             load_demographics("/models/test", None, "cpu")
 
-    def test_load_action_recognizer_import_error(self) -> None:
-        """load_action_recognizer raises ImportError without transformers."""
-        with (
-            patch.dict("sys.modules", {"transformers": None}),
-            patch(
-                "ai.enrichment.model_registry.load_action_recognizer",
-                side_effect=ImportError("transformers not installed"),
-            ),
-            pytest.raises(ImportError),
-        ):
-            from ai.enrichment.model_registry import load_action_recognizer
-
-            load_action_recognizer("/models/test", "cpu")
-
 
 # =============================================================================
 # Device Configuration Tests
@@ -516,7 +501,7 @@ class TestDeviceConfiguration:
     ) -> None:
         """CPU device can be specified."""
         registry = create_model_registry(device="cpu")
-        assert len(registry) == 10
+        assert len(registry) == 9
 
     def test_custom_cuda_device(
         self,
@@ -524,4 +509,4 @@ class TestDeviceConfiguration:
     ) -> None:
         """Custom CUDA device can be specified."""
         registry = create_model_registry(device="cuda:1")
-        assert len(registry) == 10
+        assert len(registry) == 9

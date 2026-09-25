@@ -29,11 +29,10 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       docs-only: ${{ steps.filter.outputs.docs-only }}
       workflow: ${{ steps.filter.outputs.workflow }}
-      ai_yolo26: ${{ steps.filter.outputs.ai_yolo26 }}
       should-run-all: ${{ github.ref == 'refs/heads/main' || steps.filter.outputs.workflow == 'true' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Detect file changes
         uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
@@ -56,16 +55,6 @@ jobs:
               - '!backend/**'
             workflow:
               - '.github/workflows/ci.yml'
-            # A7.3 (WP6-A): the ai-yolo26-image-smoke trigger surface - the
-            # image's whole flat /app COPY set (model.py's sibling imports
-            # resolve flat in-container, so a drift in ANY copied module can
-            # break `import model` inside the image).
-            ai_yolo26:
-              - 'ai/yolo26/**'
-              - 'ai/compile_utils.py'
-              - 'ai/torch_optimizations.py'
-              - 'ai/tensorrt_prebuild.py'
-              - 'ai/gpu_oom_handler.py'
 
       - name: Log detected changes
         run: |
@@ -98,7 +87,7 @@ jobs:
     # (the governance test's real-tree sweep), which imports every module.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
       - name: Check tracked test files collect real tests
         # `ai` added by WP6.5 - the tier was never even census-gated before.
@@ -280,7 +269,7 @@ jobs:
       needs.detect-changes.outputs.backend == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -317,7 +306,7 @@ jobs:
         python-version: ['3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -358,7 +347,7 @@ jobs:
         python-version: ['3.14']
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -422,7 +411,7 @@ jobs:
       COVERAGE_FILE: coverage-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -519,7 +508,7 @@ jobs:
        needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -534,7 +523,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-unit-shard-*
           path: coverage-reports/
@@ -824,7 +813,7 @@ jobs:
       COVERAGE_FILE: coverage-integration-websocket-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -938,7 +927,7 @@ jobs:
       COVERAGE_FILE: coverage-integration-services-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1065,7 +1054,7 @@ jobs:
       COVERAGE_FILE: coverage-integration-models-py${{ matrix.python-version }}.dat
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1152,7 +1141,7 @@ jobs:
        needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # WP5.1: combine needs `coverage` installed — same setup as the unit
       # merge job above (mirrored, kept honest by test_github_workflows'
@@ -1171,7 +1160,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all coverage artifacts
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: coverage-integration-*
           path: coverage-reports/
@@ -1347,7 +1336,7 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1466,7 +1455,7 @@ jobs:
       needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1559,7 +1548,7 @@ jobs:
       DATABASE_URL: postgresql://user:pass@localhost/db # pragma: allowlist secret
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1613,7 +1602,7 @@ jobs:
       NODE_VERSION: '24'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -1645,7 +1634,7 @@ jobs:
       NODE_VERSION: '24'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -1699,7 +1688,7 @@ jobs:
       NODE_OPTIONS: '--max-old-space-size=6144 --expose-gc'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -1839,7 +1828,7 @@ jobs:
       needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -1866,97 +1855,22 @@ jobs:
         # repo addopts exclude -m gpu nodes by default.
         run: uv run pytest ai/gateway -q --color=no
 
-  # A7.3 (WP6-A): model.py's `from contract import ...` is only valid once the
-  # image ships contract.py flat next to it - the ONLY proof of a COPY is
-  # building the image and importing the module (plan: "Without it the only
-  # thing proving the COPY is reading the Dockerfile, and a mistake surfaces
-  # on the GPU host rather than in a PR"). A7.3 licenses the Dockerfile edit
-  # exactly under this job shipping in the same PR. Import is GPU-free: every
-  # torch.cuda / YOLO() call in model.py sits behind a function boundary.
-  ai-yolo26-image-smoke:
-    name: AI YOLO26 Image Smoke (A7.3)
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    needs: [detect-changes]
-    # Runs when the image's flat /app COPY surface changes (any ai/yolo26
-    # file - its sibling imports resolve flat in-container - or the four
-    # ai/*.py modules the Dockerfile copies next to it), and unconditionally
-    # on main.
-    if: |
-      always() &&
-      (needs.detect-changes.outputs.should-run-all == 'true' ||
-       needs.detect-changes.outputs.ai_yolo26 == 'true')
-    steps:
-      - name: Free disk space
-        # AI base image is multi-GB (NVIDIA tensorrt base + torch); same
-        # cleanup the deploy.yml AI-image builders run.
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Build ai/yolo26 image
-        # No registry login: the tensorrt base pulls anonymously (deploy.yml
-        # builds this same Dockerfile without an nvcr login). Retry mirrors
-        # build-backend's stance on transient registry 502s during layer
-        # writes - a deterministic Dockerfile breakage stays red (attempt 2
-        # re-runs the same steps). PREBUILD_TENSORRT defaults off, so no GPU
-        # is needed to build.
-        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
-        with:
-          timeout_minutes: 40
-          max_attempts: 2
-          command: |
-            docker buildx build \
-              --file ./ai/yolo26/Dockerfile \
-              --tag ai-yolo26:smoke \
-              --cache-from type=gha,scope=ai-yolo26 \
-              --cache-to type=gha,mode=max,scope=ai-yolo26 \
-              --load \
-              .
-
-      - name: Import model.py inside the image
-        # The container's own startup path minus GPU work: ai-entrypoint.sh
-        # execs "$@", so this replaces CMD python model.py with an import.
-        # Full-identity assertions (unavailable repo-side, where conftest
-        # keeps a package/bare dual-module pair): inside the image there is
-        # ONE contract module, so model.py's symbols must BE the leaf's.
-        run: |
-          docker run --rm -i ai-yolo26:smoke python - <<'SMOKE'
-          import contract
-          import inspect
-          import model
-
-          for name in (
-              "ConfidenceQuality",
-              "compute_confidence_quality",
-              "get_confidence_explanation",
-              "SpatialContext",
-              "compute_spatial_context",
-              "EnhancedDetection",
-              "enhance_detections",
-          ):
-              assert getattr(model, name) is getattr(contract, name), name
-              assert getattr(model, name).__module__ == "contract", name
-          # The A7.3 duplicate stays dead: model.py must not RE-declare the
-          # seam (same ratchet TestContractSeam runs repo-side, now executed
-          # inside the shipped artifact).
-          src = inspect.getsource(model)
-          assert "class ConfidenceQuality" not in src
-          assert "def enhance_detections" not in src
-          print("SMOKE OK: model.py imports; seam == contract leaf")
-          SMOKE
+  # RETIRED (PR-C, gateway consolidation): the AI YOLO26 image-smoke job that
+  # lived here was the ONLY CI proof of the standalone ai/yolo26 image's flat
+  # /app COPY - contract.py sitting next to model.py inside the BUILT image,
+  # proven by `import model` in a container (the A7.3 invariant). The AI Tier
+  # Tests job above proves the gateway serving path ONLY
+  # (ai/gateway/tests/test_adapters_yolo26.py - the /yolo26 health + Triton
+  # model-ready path against a mocked Triton client). Owner ruling 2026-09-23
+  # retired the image fully: no CI or deploy job builds an ai/yolo26 image any
+  # more (build-ai / merge-ai / sbom-and-sign / slsa-provenance matrices no
+  # longer list it), and the serving Dockerfile + requirements.txt +
+  # export_tensorrt.py moved to archive/ai-yolo26-image/. Triton on ai-gateway
+  # serves yolo26 among the 14 models. The standalone benchmark Dockerfile had
+  # moved earlier as archive/Dockerfile.yolo26-benchmark. ai/yolo26 itself
+  # STAYS: contract.py is backend prompt-building's live pure leaf (prompts.py
+  # imports it) and model.py/pose_estimation.py are AST-read by the AI-contract
+  # conformance tests.
 
   # Merge frontend coverage from all shards and upload to Codecov
   frontend-coverage-merge:
@@ -1970,7 +1884,7 @@ jobs:
        needs.detect-changes.outputs.frontend == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -1979,7 +1893,7 @@ jobs:
 
       - name: Download all coverage artifacts
         # Downloads artifacts from all Node version + shard combinations
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: frontend-coverage-shard-*-node-*
           path: coverage-reports/
@@ -2070,7 +1984,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check API coverage
         run: ./scripts/check-api-coverage.sh
@@ -2100,7 +2014,7 @@ jobs:
       NODE_VERSION: '24'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -2238,7 +2152,7 @@ jobs:
         browser: [firefox, webkit]
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -2406,8 +2320,9 @@ jobs:
     # cannot be measured without running; PR duration lands in L. Inputs for
     # feasibility: main cost 410s (run 35484007823), GHA cache scope is
     # shared across branches so PRs build warm, --load (no push) so no
-    # write-permission question for same-repo PRs, and the A7.3 yolo26 image
-    # smoke already proves docker builds run green on PRs in this repo.
+    # write-permission question for same-repo PRs, and the (since-retired in
+    # PR-C) A7.3 yolo26 image smoke had already proven docker builds run
+    # green on PRs in this repo.
     needs: [detect-changes]
     if: |
       always() &&
@@ -2415,7 +2330,7 @@ jobs:
        needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Free disk space (minimal)
         # Remove only what's needed for Docker builds
@@ -2527,7 +2442,7 @@ jobs:
        needs.detect-changes.outputs.frontend == 'true')
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -2659,7 +2574,7 @@ jobs:
       needs.build-backend-deps.result != 'failure'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -2674,7 +2589,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Download all test results
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: test-results-*
           path: test-results/
@@ -2682,7 +2597,7 @@ jobs:
         continue-on-error: true
 
       - name: Download E2E test results
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: playwright-test-results-*
           path: test-results/
@@ -2824,7 +2739,7 @@ jobs:
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -2923,7 +2838,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -3077,7 +2992,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -3130,7 +3045,7 @@ jobs:
       ENVIRONMENT: development # Avoid production password validation in CI
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up uv
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
@@ -3177,7 +3092,7 @@ jobs:
     timeout-minutes: 2
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check versions against source of truth
         run: ./scripts/check-version-consistency.sh
@@ -3280,9 +3195,8 @@ jobs:
       # WP6.5: the ai/ tier job. Direct need + check_job below - the WP0.6
       # invariant (needs-but-never-inspects is the invisibility class).
       - ai-tests
-      # A7.3 (WP6-A): the image smoke this whole change is gated on. Same
-      # invariant as ai-tests above - direct need + check_job below.
-      - ai-yolo26-image-smoke
+      # (PR-C retired the AI YOLO26 image-smoke job: its need + check_job
+      # line went with it - yolo26 is gated through ai-tests now.)
       # WP1.2: the three security workflows, gating for the first time. Each
       # call job's conclusion aggregates its reusable workflow's jobs; the
       # check_job lines below are what the WP0.6 graph test demands of a need.
@@ -3344,7 +3258,6 @@ jobs:
           check_job "Collection Sanity" "${{ needs.collection-sanity.result }}"
           check_job "Build Backend Dependencies" "${{ needs.build-backend-deps.result }}"
           check_job "AI Tier Tests" "${{ needs.ai-tests.result }}"
-          check_job "AI YOLO26 Image Smoke" "${{ needs.ai-yolo26-image-smoke.result }}"
           # WP1.2: security converges here for the first time.
           check_job "Secret Detection (Gitleaks + TruffleHog)" "${{ needs.security-gitleaks.result }}"
           check_job "SAST (Bandit + Semgrep)" "${{ needs.security-sast.result }}"

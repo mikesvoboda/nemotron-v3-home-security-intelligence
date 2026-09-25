@@ -1064,8 +1064,18 @@ groups:
   # Pyroscope Continuous Profiling Alerts (NEM-3925)
   # =============================================================================
   # Monitor Pyroscope server health and profiling data ingestion.
-  # Pyroscope provides continuous profiling for CPU and memory analysis across
-  # all AI services (YOLO26, Nemotron, Florence, CLIP, Enrichment) and backend.
+  # Live profiling sources since the gateway consolidation: the backend (Python
+  # SDK, backend/core/telemetry.py init_profiling) and the ai-llm/Llama.cpp
+  # container (pyroscope.profile=true label -> Alloy eBPF profiling,
+  # monitoring/alloy/config.alloy). The retired standalone AI containers
+  # (ai-yolo26, ai-florence, ai-clip, ai-enrichment*) used to profile via SDK
+  # (added for all services in cd807160; residue init_profiling calls survive
+  # only in ai/clip/model.py, ai/florence/model.py, ai/enrichment/model.py and
+  # ai/enrichment-light/model.py — ai/yolo26's call site was removed with the
+  # container); ai-gateway/Triton is not a profiling target (no pyroscope label, no
+  # PYROSCOPE_* env in compose). These alerts watch the Pyroscope SERVER
+  # (up{job="pyroscope"}, pyroscope_* self-metrics), so they stay valid — the
+  # NoProfilesReceived alert is the canary if the source list shrinks further.
   - name: profiling_alerts
     rules:
       # Critical: Pyroscope server not available

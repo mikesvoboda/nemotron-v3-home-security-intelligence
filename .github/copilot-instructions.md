@@ -42,8 +42,7 @@ async def get_events(
     db: AsyncSession,
     camera_id: str | None = None,
     limit: int = 50,
-) -> list[Event]:
-    ...
+) -> list[Event]: ...
 ```
 
 ### TypeScript/React
@@ -95,7 +94,7 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 - Camera images: `/export/foscam/{camera_name}/`
 - Backend code: `backend/`
 - Frontend code: `frontend/src/`
-- AI services: `ai/yolo26/`, `ai/nemotron/`
+- AI services: `ai/gateway/` (Triton router /yolo26 et al.), `ai/nemotron/`
 
 ## What NOT to Suggest
 

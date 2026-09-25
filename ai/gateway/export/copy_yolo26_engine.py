@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Copy the pre-built YOLO26 TensorRT engine into the Triton model repository.
 
-The YOLO26 TensorRT engine is already built during the ai-yolo26 container's
-startup sequence (see ai/yolo26/model.py _prebuild_yolo26_engine).  This script
-simply copies (or symlinks) the existing engine to the Triton-expected path.
+The YOLO26 TensorRT engine is already built during host-side engine prep —
+the retired standalone ai-yolo26 container used to build it at startup (see
+ai/yolo26/model.py _prebuild_yolo26_engine, kept for the host-run dev server;
+scripts/prebuild-tensorrt-engines.sh drives it).  This script simply copies
+(or symlinks) the existing engine to the Triton-expected path.
 
 Source: /models/zoo/yolo26/exports/yolo26m_fp16.engine
 Destination: /models/cache/yolo26/1/model.plan
@@ -112,8 +114,10 @@ def find_engine(model_path: str) -> Path:
     raise FileNotFoundError(
         f"No YOLO26 TensorRT engine found at or under: {model_path}\n"
         f"Searched for: {', '.join(ENGINE_CANDIDATES)}\n"
-        "If the engine has not been built yet, start the ai-yolo26 container "
-        "with YOLO26_PREBUILD_ENGINE=true to generate it."
+        "If the engine has not been built yet, generate it host-side "
+        "(scripts/prebuild-tensorrt-engines.sh yolo26, or the retired "
+        "container's YOLO26_PREBUILD_ENGINE startup path — the standalone "
+        "ai-yolo26 image was retired 2026-09-23; Triton serves yolo26)."
     )
 
 

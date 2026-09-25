@@ -415,6 +415,44 @@ class TestToContextStringExact:
             "Pose: crouching (confidence: 90%)\n  [ALERT: Suspicious posture detected]"
         )
 
+    def test_clothing_classification_all_branches(self) -> None:
+        # batch-12b: to_context_string was untested for this class (only
+        # to_dict), so the service-uniform branch never executed and its
+        # string→None mutant survived. Strings below are MEASURED shipped
+        # output; the elif precedence (suspicious wins) is pinned too.
+        def mk(**kw: object) -> ClothingClassificationResult:
+            base: dict[str, object] = {
+                "clothing_type": "hoodie",
+                "color": "black",
+                "style": "casual",
+                "confidence": 0.83,
+                "top_category": "hoodie",
+                "description": "dark hoodie",
+                "is_suspicious": False,
+                "is_service_uniform": False,
+                "inference_time_ms": 12.5,
+            }
+            base.update(kw)
+            return ClothingClassificationResult(**base)  # type: ignore[arg-type]
+
+        assert mk().to_context_string() == "Clothing: dark hoodie\n  Confidence: 83.0%"
+        assert mk(is_service_uniform=True).to_context_string() == (
+            "Clothing: dark hoodie\n"
+            "  [Service/delivery worker uniform detected]\n"
+            "  Confidence: 83.0%"
+        )
+        assert mk(is_suspicious=True).to_context_string() == (
+            "Clothing: dark hoodie\n"
+            "  [ALERT: Potentially suspicious attire detected]\n"
+            "  Confidence: 83.0%"
+        )
+        # both flags -> suspicious branch only (elif precedence)
+        assert mk(is_suspicious=True, is_service_uniform=True).to_context_string() == (
+            "Clothing: dark hoodie\n"
+            "  [ALERT: Potentially suspicious attire detected]\n"
+            "  Confidence: 83.0%"
+        )
+
     def test_clothing_empty_and_top_defaults(self) -> None:
         assert UnifiedClothingResult([], False).to_context_string() == (
             "Clothing: No classification available"

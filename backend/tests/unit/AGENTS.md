@@ -214,7 +214,6 @@ uv run pytest backend/tests/unit/ -v --no-cov
 | `test_violence_loader.py`           | Violence detection loader     |
 | `test_vitpose_loader.py`            | ViTPose pose estimation       |
 | `test_weather_loader.py`            | Weather classification loader |
-| `test_xclip_loader.py`              | X-CLIP video model loader     |
 | `test_yolo_world_loader.py`         | YOLO World loader             |
 
 **Broadcaster Services:**

@@ -115,8 +115,8 @@ class OrchestratorSettings(BaseSettings):
     """Container orchestrator configuration for Docker/Podman container management.
 
     This settings model configures the container orchestrator service that provides
-    health monitoring and self-healing capabilities for AI containers (YOLO26,
-    Nemotron, Florence-2, etc.).
+    health monitoring and self-healing capabilities for the managed containers
+    (ai-gateway, ai-llm (Nemotron), ai-llm-vllm, plus infrastructure and monitoring).
 
     Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
     """
@@ -230,18 +230,15 @@ class OrchestratorSettings(BaseSettings):
         description="go2rtc video streaming API port for health checks.",
     )
 
-    # AI services
-    # Deprecated: the standalone ai-yolo26 / ai-florence / ai-clip /
-    # ai-enrichment / ai-enrichment-light containers are retired — those models
-    # are served by the ai-gateway container (single port, AI_GATEWAY_PORT,
-    # default 8090). These fields are kept so existing .env files keep parsing.
-    yolo26_port: int = Field(
-        8095,
+    # AI services — live set per docker-compose.prod.yml: ai-gateway (serves the
+    # retired standalone YOLO26/Florence/CLIP/Enrichment models), ai-llm and
+    # ai-llm-vllm (behind the optional "vllm" compose profile).
+    ai_gateway_port: int = Field(
+        8090,
         ge=1,
         le=65535,
-        validation_alias="YOLO26_PORT",
-        description="DEPRECATED (ai-yolo26 container retired; served by ai-gateway) — "
-        "legacy YOLO26 container port, kept so .env files keep parsing.",
+        validation_alias="AI_GATEWAY_PORT",
+        description="AI Gateway container service port for health checks.",
     )
     nemotron_port: int = Field(
         8091,
@@ -250,37 +247,14 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="LLM_PORT",
         description="Nemotron (ai-llm) container service port for health checks.",
     )
-    florence_port: int = Field(
-        8092,
+    vllm_port: int = Field(
+        8097,
         ge=1,
         le=65535,
-        validation_alias="FLORENCE_PORT",
-        description="DEPRECATED (ai-florence container retired; served by ai-gateway) — "
-        "legacy Florence-2 container port, kept so .env files keep parsing.",
-    )
-    clip_port: int = Field(
-        8093,
-        ge=1,
-        le=65535,
-        validation_alias="CLIP_PORT",
-        description="DEPRECATED (ai-clip container retired; served by ai-gateway) — "
-        "legacy CLIP container port, kept so .env files keep parsing.",
-    )
-    enrichment_port: int = Field(
-        8094,
-        ge=1,
-        le=65535,
-        validation_alias="ENRICHMENT_PORT",
-        description="DEPRECATED (ai-enrichment container retired; served by ai-gateway) — "
-        "legacy Enrichment container port, kept so .env files keep parsing.",
-    )
-    enrichment_light_port: int = Field(
-        8096,
-        ge=1,
-        le=65535,
-        validation_alias="ENRICHMENT_LIGHT_PORT",
-        description="DEPRECATED (ai-enrichment-light container retired; served by "
-        "ai-gateway) — legacy Enrichment Light container port, kept so .env files keep parsing.",
+        validation_alias="VLLM_PORT",
+        description="ai-llm-vllm host-mapped port for health checks "
+        "(compose maps VLLM_PORT -> container port 8000; table convention is "
+        "the .env host port, matching grafana's 3002-over-3000 precedent).",
     )
 
     # Monitoring services
@@ -326,15 +300,12 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="BLACKBOX_EXPORTER_PORT",
         description="Blackbox Exporter container service port for health checks.",
     )
-    # Deprecated: Jaeger is retired (Tempo serves traces in prod compose).
-    # Kept so .env files that still set JAEGER_UI_PORT keep parsing.
-    jaeger_port: int = Field(
-        16686,
+    tempo_port: int = Field(
+        3200,
         ge=1,
         le=65535,
-        validation_alias="JAEGER_UI_PORT",
-        description="DEPRECATED (Jaeger retired; Tempo serves traces) — "
-        "legacy Jaeger UI port, kept so .env files keep parsing.",
+        validation_alias="TEMPO_PORT",
+        description="Tempo tracing service port for health checks (replaced Jaeger, NEM-5545).",
     )
     loki_port: int = Field(
         3100,
@@ -377,13 +348,6 @@ class OrchestratorSettings(BaseSettings):
         le=65535,
         validation_alias="DCGM_EXPORTER_PORT",
         description="DCGM Exporter GPU metrics port for health checks.",
-    )
-    elasticsearch_port: int = Field(
-        9200,
-        ge=1,
-        le=65535,
-        validation_alias="ELASTICSEARCH_PORT",
-        description="Elasticsearch trace storage port for health checks.",
     )
     frontend_port: int = Field(
         8080,

@@ -1,8 +1,7 @@
 """Pydantic schemas for action events API endpoints.
 
-This module provides schemas for X-CLIP action recognition results,
-including request/response validation for action event CRUD operations
-and action analysis endpoints.
+This module provides request/response validation for the action event CRUD
+endpoints operating on the action_events table.
 
 Linear issue: NEM-3714
 """
@@ -137,86 +136,6 @@ class ActionEventListResponse(BaseModel):
 
     items: list[ActionEventResponse] = Field(..., description="List of action events")
     pagination: PaginationMeta = Field(..., description="Pagination metadata")
-
-
-class ActionAnalyzeRequest(BaseModel):
-    """Schema for action analysis request.
-
-    Used to trigger action recognition on a set of frames.
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "camera_id": "front_door",
-                "frame_paths": [
-                    "/export/foscam/front_door/frame_001.jpg",
-                    "/export/foscam/front_door/frame_002.jpg",
-                    "/export/foscam/front_door/frame_003.jpg",
-                    "/export/foscam/front_door/frame_004.jpg",
-                    "/export/foscam/front_door/frame_005.jpg",
-                    "/export/foscam/front_door/frame_006.jpg",
-                    "/export/foscam/front_door/frame_007.jpg",
-                    "/export/foscam/front_door/frame_008.jpg",
-                ],
-                "track_id": 42,
-                "confidence_threshold": 0.5,
-            }
-        }
-    )
-
-    camera_id: str = Field(..., description="Camera ID for the frames")
-    frame_paths: list[str] = Field(
-        ...,
-        min_length=1,
-        max_length=32,
-        description="List of frame file paths to analyze (1-32 frames)",
-    )
-    track_id: int | None = Field(None, description="Optional track ID to associate with the action")
-    confidence_threshold: float = Field(
-        0.5,
-        ge=0.0,
-        le=1.0,
-        description="Minimum confidence threshold for creating an action event",
-    )
-    save_event: bool = Field(
-        True,
-        description="Whether to save the action event to the database",
-    )
-
-
-class ActionAnalyzeResponse(BaseModel):
-    """Schema for action analysis response.
-
-    Returns the detected action along with all scores and optional saved event.
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "action": "walking normally",
-                "confidence": 0.89,
-                "is_suspicious": False,
-                "all_scores": {
-                    "walking normally": 0.89,
-                    "running": 0.05,
-                    "climbing": 0.02,
-                    "loitering": 0.04,
-                },
-                "frame_count": 8,
-                "event_id": 1,
-                "saved": True,
-            }
-        }
-    )
-
-    action: str = Field(..., description="Detected action label")
-    confidence: float = Field(..., description="Action classification confidence")
-    is_suspicious: bool = Field(..., description="Whether the action is security-relevant")
-    all_scores: dict[str, float] = Field(..., description="All action scores")
-    frame_count: int = Field(..., description="Number of frames analyzed")
-    event_id: int | None = Field(None, description="Saved action event ID (if save_event=True)")
-    saved: bool = Field(..., description="Whether the event was saved to the database")
 
 
 class SuspiciousActionsResponse(BaseModel):

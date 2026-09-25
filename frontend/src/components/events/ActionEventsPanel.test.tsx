@@ -182,7 +182,7 @@ describe('ActionEventsPanel', () => {
     expect(screen.getByText('Track #42')).toBeInTheDocument();
 
     // Check footer
-    expect(screen.getByText(/x-clip video analysis/i)).toBeInTheDocument();
+    expect(screen.getByText(/st-gcn\+\+ skeleton action model/i)).toBeInTheDocument();
   });
 
   it('allows filtering by action type', async () => {

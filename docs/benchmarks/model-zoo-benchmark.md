@@ -81,9 +81,15 @@ The Model Zoo provides on-demand loading of AI models during batch processing to
 
 ### Action Recognition Models
 
-| Model        | VRAM    | Category           | Description                          | Status  |
-| ------------ | ------- | ------------------ | ------------------------------------ | ------- |
-| `xclip-base` | 2000 MB | action-recognition | Temporal action recognition in video | Enabled |
+| Model             | VRAM    | Category           | Description                          | Status                          |
+| ----------------- | ------- | ------------------ | ------------------------------------ | ------------------------------- |
+| `xclip-base`      | 2000 MB | action-recognition | Temporal action recognition in video | Retired 2026-09-23 (see below)  |
+| `stgcn-plus-plus` | 20 MB   | action-recognition | Skeleton-based, 60 NTU classes       | Enabled (Triton `stgcn_action`) |
+
+> Historical benchmark rows for `xclip-base` below are kept as the measured
+> record from when it ran. It was retired with the NEM-5563 migration to
+> skeleton-based ST-GCN++ (full X-CLIP removal, owner ruling, 2026-09-23) —
+> no benchmark of `stgcn-plus-plus` exists in this document yet.
 
 ### OCR Models
 

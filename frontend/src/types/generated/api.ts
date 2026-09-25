@@ -74,42 +74,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/action-events/analyze": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Analyze Action
-         * @description Trigger action analysis on a set of video frames.
-         *
-         *     This endpoint loads frames from disk, runs X-CLIP classification,
-         *     and optionally saves the result to the database.
-         *
-         *     The X-CLIP model analyzes frame sequences to detect security-relevant
-         *     actions like walking, running, climbing, loitering, etc.
-         *
-         *     Args:
-         *         request: Analysis request with frame paths and options
-         *         db: Database session
-         *
-         *     Returns:
-         *         ActionAnalyzeResponse with detected action and scores
-         *
-         *     Raises:
-         *         HTTPException: 400 if no valid frames, 503 if model unavailable
-         */
-        post: operations["action-events_analyze_action"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/action-events/camera/{camera_id}": {
         parameters: {
             query?: never;
@@ -125,8 +89,8 @@ export interface paths {
          *
          *     Args:
          *         camera_id: Camera ID to filter by
-         *         start_time: Filter by timestamp >= start_time
-         *         end_time: Filter by timestamp <= end_time
+         *         start_time: Filter by timestamp >= start time
+         *         end_time: Filter by timestamp <= end time
          *         limit: Maximum number of results to return
          *         offset: Number of results to skip for pagination
          *         db: Database session
@@ -208,7 +172,6 @@ export interface paths {
          *
          *     Args:
          *         event_id: Action event ID to delete
-         *         db: Database session
          *
          *     Raises:
          *         HTTPException: 404 if event not found
@@ -13570,115 +13533,6 @@ export interface components {
              * @description Optional correlation ID for request tracing
              */
             correlation_id?: string | null;
-        };
-        /**
-         * ActionAnalyzeRequest
-         * @description Schema for action analysis request.
-         *
-         *     Used to trigger action recognition on a set of frames.
-         * @example {
-         *       "camera_id": "front_door",
-         *       "confidence_threshold": 0.5,
-         *       "frame_paths": [
-         *         "/export/foscam/front_door/frame_001.jpg",
-         *         "/export/foscam/front_door/frame_002.jpg",
-         *         "/export/foscam/front_door/frame_003.jpg",
-         *         "/export/foscam/front_door/frame_004.jpg",
-         *         "/export/foscam/front_door/frame_005.jpg",
-         *         "/export/foscam/front_door/frame_006.jpg",
-         *         "/export/foscam/front_door/frame_007.jpg",
-         *         "/export/foscam/front_door/frame_008.jpg"
-         *       ],
-         *       "track_id": 42
-         *     }
-         */
-        ActionAnalyzeRequest: {
-            /**
-             * Camera Id
-             * @description Camera ID for the frames
-             */
-            camera_id: string;
-            /**
-             * Confidence Threshold
-             * @description Minimum confidence threshold for creating an action event
-             * @default 0.5
-             */
-            confidence_threshold: number;
-            /**
-             * Frame Paths
-             * @description List of frame file paths to analyze (1-32 frames)
-             */
-            frame_paths: string[];
-            /**
-             * Save Event
-             * @description Whether to save the action event to the database
-             * @default true
-             */
-            save_event: boolean;
-            /**
-             * Track Id
-             * @description Optional track ID to associate with the action
-             */
-            track_id?: number | null;
-        };
-        /**
-         * ActionAnalyzeResponse
-         * @description Schema for action analysis response.
-         *
-         *     Returns the detected action along with all scores and optional saved event.
-         * @example {
-         *       "action": "walking normally",
-         *       "all_scores": {
-         *         "climbing": 0.02,
-         *         "loitering": 0.04,
-         *         "running": 0.05,
-         *         "walking normally": 0.89
-         *       },
-         *       "confidence": 0.89,
-         *       "event_id": 1,
-         *       "frame_count": 8,
-         *       "is_suspicious": false,
-         *       "saved": true
-         *     }
-         */
-        ActionAnalyzeResponse: {
-            /**
-             * Action
-             * @description Detected action label
-             */
-            action: string;
-            /**
-             * All Scores
-             * @description All action scores
-             */
-            all_scores: {
-                [key: string]: number;
-            };
-            /**
-             * Confidence
-             * @description Action classification confidence
-             */
-            confidence: number;
-            /**
-             * Event Id
-             * @description Saved action event ID (if save_event=True)
-             */
-            event_id?: number | null;
-            /**
-             * Frame Count
-             * @description Number of frames analyzed
-             */
-            frame_count: number;
-            /**
-             * Is Suspicious
-             * @description Whether the action is security-relevant
-             */
-            is_suspicious: boolean;
-            /**
-             * Saved
-             * @description Whether the event was saved to the database
-             */
-            saved: boolean;
         };
         /**
          * ActionEnrichment
@@ -44353,58 +44207,6 @@ export interface operations {
             };
             /** @description Internal server error */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    "action-events_analyze_action": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ActionAnalyzeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActionAnalyzeResponse"];
-                };
-            };
-            /** @description Invalid request (no valid frames) */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description X-CLIP model unavailable */
-            503: {
                 headers: {
                     [name: string]: unknown;
                 };

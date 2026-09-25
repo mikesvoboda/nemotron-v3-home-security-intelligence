@@ -198,9 +198,24 @@ def select_run(
     if wf_id is None:
         raise HarvestError(f"no workflow with path {workflow_path!r} in {repo}")
 
+    # Finding-4 hardening #3 (measured 2026-09-23 13:5xZ, PR run 35866358876,
+    # audit job 107212436979): the unfiltered runs-list page was served STALE —
+    # all 8 candidates "created 260d ago", fresh main runs absent. The
+    # client-side MAX_CANDIDATE_AGE_DAYS filter then voided every candidate,
+    # select_run_with_retries re-read the IDENTICAL URL 3x, the TPA baseline
+    # came up empty and the audit fail-closed (every breach red). Ask the
+    # server for the window we can actually harvest: an unfiltered all-stale
+    # page becomes structurally impossible. GitHub documents created>= on this
+    # endpoint; artifacts keep retention-days: 7, so a 6-day window always
+    # contains the previous main run on a busy repo, and retries (which re-run
+    # this line) recompute the bound rather than re-reading one fixed page.
+    created_bound = (
+        datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=MAX_CANDIDATE_AGE_DAYS)
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
     runs_doc = _get_json(
         f"{api_base}/repos/{repo}/actions/workflows/{wf_id}/runs"
-        f"?branch=main&status=success&per_page={max_runs}",
+        f"?branch=main&status=success&per_page={max_runs}"
+        f"&created=%3E{created_bound}",
         token,
     )
     candidates = [r for r in runs_doc.get("workflow_runs", []) if r.get("id") != current_run_id]

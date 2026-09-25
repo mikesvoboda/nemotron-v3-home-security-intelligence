@@ -79,7 +79,7 @@ When Backend service is selected, dashboard shows per-model profiling breakdown 
 - `violence-detection` (500 MB VRAM)
 - `weather-classification` (200 MB VRAM)
 - `segformer-b2-clothes` (1500 MB VRAM)
-- `xclip-base` (2000 MB VRAM)
+- `stgcn-plus-plus` (20 MB VRAM — CPU skeleton model; replaced `xclip-base`, retired 2026-09-23 full X-CLIP removal)
 - `fashion-clip` (500 MB VRAM)
 - `brisque-quality` (0 MB VRAM - CPU only)
 - `vehicle-segment-classification` (1500 MB VRAM)

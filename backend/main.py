@@ -1000,11 +1000,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         gateway_url = settings.ai_gateway_url.rstrip("/") if settings.ai_gateway_url else ""
 
         if use_docker_restart:
-            # Containerized deployment: use docker restart with container names
-            if use_gateway:
-                yolo26_restart_cmd = "docker restart ai-gateway"
-            else:
-                yolo26_restart_cmd = "docker restart ai-yolo26"
+            # Containerized deployment: use docker restart with container names.
+            # The standalone ai-yolo26 container was retired fully on 2026-09-23,
+            # so yolo26 restarts always target ai-gateway — the only container
+            # that can host the detector.
+            yolo26_restart_cmd = "docker restart ai-gateway"
             nemotron_restart_cmd = "docker restart ai-llm"
         elif settings.ai_restart_enabled:
             # Local development: use shell scripts (relative paths from project root)
@@ -1059,7 +1059,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
         # Log restart configuration details
         if use_docker_restart:
-            restart_status = "enabled (Docker containers: ai-yolo26, ai-llm)"
+            restart_status = "enabled (Docker containers: ai-gateway, ai-llm)"
         elif settings.ai_restart_enabled:
             restart_status = "enabled (shell scripts)"
         else:

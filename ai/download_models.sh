@@ -17,17 +17,23 @@
 # (~32.8GB) of models.yml size_mb estimates.  The 5 excluded entries are the
 # download_method: skip ones (brisque-quality, fast-alpr, paddleocr,
 # yolo26-general, zero-dce-plus-plus) — their libraries fetch what they need at
-# runtime.
+# runtime.  The script itself fetches 24 of the 25 (32979 MB = 32.21 GiB ≈
+# ~32.2GB): the rule-selected xclip-base row was removed on 2026-09-23 under
+# the owner's full X-CLIP removal ruling (see the HF_DOWNLOADS table), so this
+# script is one deliberate deviation ahead of the owner-owned models.yml until
+# that keeps its provenance entry dropped too.
 #
 # The `enabled` flag governs backend model_zoo VRAM slots, NOT disk
-# provisioning — so three `enabled: false` entries are still downloaded here
-# because live code reads their files off disk: yolo26 (ai/gateway/export/
-# export_yolo26.py + export_all.sh and scripts/prebuild-tensorrt-engines.sh
-# need model-zoo/yolo26/*.pt), xclip-base (backend/services/
-# action_recognition_service.py -> xclip_loader.py), and florence-2-large
-# (backend/services/florence_extractor.py via the model_zoo loader map).
+# provisioning — so the two `enabled: false` entries still downloaded here are
+# downloaded because live code reads their files off disk (yolo26:
+# ai/gateway/export/export_yolo26.py + export_all.sh and
+# scripts/prebuild-tensorrt-engines.sh need model-zoo/yolo26/*.pt;
+# florence-2-large: backend/services/florence_extractor.py goes through the
+# model_zoo loader map).  xclip-base is no longer fetched: every reader is
+# retired (enrichment action_recognizer → archive/ai-enrichment/; backend
+# chain → archive/xclip-backend-chain/).
 #
-# Models downloaded (25 entries, 32.79 GiB by models.yml size_mb):
+# Models downloaded (24 entries, 32.21 GiB by models.yml size_mb):
 #   PHASE 0 — required (~16.2GB):
 #     - Nemotron-3-Nano-30B (Q4_K_M) - ~14.7GB - Risk reasoning LLM
 #     - Florence-2-Base - ~1GB - Vision-language captions (ai-gateway)
@@ -41,12 +47,17 @@
 #     - OSNet-AIN x1.0 - ~10MB - Person re-identification
 #     - YOLOv8n-pose - ~6MB - Human pose estimation
 #     - Threat-Detection-YOLOv8n - ~25MB - Weapon detection
-#   PHASE 2 — demographics and action recognition (~1.3GB):
+#   PHASE 2 — demographics and action recognition (~740MB):
 #     - ViT-Age / ViT-Gender classifiers - ~358MB each
-#     - ST-GCN++ - ~20MB - Skeleton action recognition
-#     - X-CLIP Base - ~600MB - Video action recognition (enabled: false — the
-#         gateway has migrated to stgcn_action, but xclip_loader is still in
-#         the model_zoo loader map)
+#     - ST-GCN++ - ~20MB - Skeleton action recognition (the only live action
+#         recognizer: Triton stgcn_action behind the gateway /action-classify
+#         adapter).  X-CLIP Base ~600MB REMOVED 2026-09-23 (owner full-removal
+#         ruling) — every reader is retired: enrichment action_recognizer →
+#         archive/ai-enrichment/, backend chain (action_recognition_service.py,
+#         xclip_loader.py, model_zoo map entry, /api/action-events/analyze
+#         route) → archive/xclip-backend-chain/.  The owner-owned models.yml
+#         still keeps the xclip-base provenance entry; drop it there in the
+#         same ruling that deletes archive/xclip-backend-chain/.
 #   PHASE 3 — specialized (~14.8GB):
 #     - Fashion-CLIP (Marqo FashionSigLIP) - ~4.4GB - Clothing classification
 #     - Florence-2-Large - ~3GB - VLM attribute extraction (enabled: false —
@@ -127,7 +138,6 @@ declare -A MODEL_CHECKSUMS=(
 declare -A HF_REPO_COMMITS=(
     ["microsoft/Florence-2-base"]=""
     ["microsoft/Florence-2-large"]=""
-    ["microsoft/xclip-base-patch32"]=""
     ["onnx-community/siglip2-base-patch16-224-ONNX"]=""
     ["AventIQ-AI/ResNet-50-Vehicle-Segment-classification"]=""
     ["microsoft/resnet-18"]=""
@@ -414,8 +424,14 @@ download_file() {
 # Entries with a custom download_method, plus yolov8n-pose (whose hf_repo
 # ultralytics/yolov8n-pose is not a public HF repo — its section below mirrors
 # setup_lib's ultralytics release path instead), are handled in their own
-# sections.  xclip-base and florence-2-large are enabled: false — kept because
-# the rule (disk provisioning) not `enabled` (backend VRAM slots) governs.
+# sections.  florence-2-large is enabled: false — kept because the rule (disk
+# provisioning) not `enabled` (backend VRAM slots) governs.  The rule also
+# selects xclip-base, but its row was REMOVED 2026-09-23 under the owner's
+# full X-CLIP removal ruling: every code reader is retired
+# (archive/ai-enrichment/, archive/xclip-backend-chain/) and no live loader
+# reads model-zoo/xclip-base/ off disk.  The owner-owned models.yml keeps the
+# xclip-base entry as provenance — delete the row here together with that
+# entry when the provenance ruling lands.
 HF_DOWNLOADS=(
     # PHASE 0 — required
     "florence-2-base|microsoft/Florence-2-base|model-zoo/florence-2-base|1024"
@@ -428,7 +444,8 @@ HF_DOWNLOADS=(
     # PHASE 2 — demographics and action recognition
     "vit-age-classifier|nateraw/vit-age-classifier|model-zoo/vit-age-classifier|358"
     "vit-gender-classifier|rizvandwiki/gender-classification|model-zoo/vit-gender-classifier|358"
-    "xclip-base|microsoft/xclip-base-patch32|model-zoo/xclip-base|600"
+    # xclip-base row removed 2026-09-23 (full X-CLIP removal, owner ruling) —
+    # models.yml's enabled:false provenance entry is owner-owned; sweep both.
     # PHASE 3 — specialized
     "weather-classification|prithivMLmods/Weather-Image-Classification|model-zoo/weather-classification|200"
     "violence-detection|jaranohaal/vit-base-violence-detection|model-zoo/violence-detection|350"
@@ -684,7 +701,8 @@ echo "=========================================="
 echo ""
 echo "Models installed to: ${AI_MODELS_PATH}"
 echo ""
-echo "Directory structure (models.yml download set — 25 entries, 32.79 GiB):"
+echo "Directory structure (24 entries fetched, 32.21 GiB — the rule selects 25;"
+echo "the xclip-base row was removed 2026-09-23, full X-CLIP removal ruling):"
 echo "  ${AI_MODELS_PATH}/"
 echo "  ├── nemotron/"
 echo "  │   └── nemotron-3-nano-30b-a3b-q4km/  (Nemotron LLM)"
@@ -701,8 +719,9 @@ echo "  │   ├── yolov8n-pose/                  (Pose)"
 echo "  │   ├── threat-detection-yolov8n/      (Weapons)"
 echo "  │   ├── vit-age-classifier/            (Age)"
 echo "  │   ├── vit-gender-classifier/         (Gender)"
-echo "  │   ├── stgcn-plus-plus/               (Action recognition)"
-echo "  │   ├── xclip-base/                    (Video action — enabled: false)"
+echo "  │   ├── stgcn-plus-plus/               (Action recognition — the only"
+echo "  │   │                                   action model fetched since the"
+echo "  │   │                                   2026-09-23 X-CLIP removal)"
 echo "  │   ├── weather-classification/        (Weather)"
 echo "  │   ├── violence-detection/            (Violence)"
 echo "  │   ├── yolo11-face-detection/         (Faces)"
@@ -725,8 +744,13 @@ echo "  - yolo26-general (weights not released), zero-dce-plus-plus (TF/"
 echo "    PyTorch mismatch — see the models.yml comment)"
 echo ""
 echo "Note: \`enabled\` in models.yml governs backend model_zoo VRAM slots, not"
-echo "disk provisioning — yolo26, xclip-base and florence-2-large are enabled:"
-echo "false yet still downloaded here because live loaders/exporters read them."
+echo "disk provisioning — yolo26 and florence-2-large are enabled: false yet"
+echo "still downloaded here because live loaders/exporters read them off disk."
+echo "xclip-base stopped being downloaded 2026-09-23 (full X-CLIP removal,"
+echo "owner ruling): every code reader (enrichment action_recognizer; backend"
+echo "action_recognition_service.py + xclip_loader.py + model_zoo map) is"
+echo "retired to archive/. The owner-owned models.yml entry stays as"
+echo "provenance — sweep both together when that entry is ruled."
 echo ""
 echo "Security verification:"
 echo "  - Direct downloads: SHA256 checksum verification"

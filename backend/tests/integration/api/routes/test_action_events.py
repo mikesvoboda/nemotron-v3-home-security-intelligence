@@ -60,3 +60,14 @@ class TestActionEventsAPIIntegration:
         """Verify 404 returned when action event doesn't exist for delete."""
         response = await async_client.delete("/api/action-events/999999")
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_analyze_endpoint_removed(self, async_client: AsyncClient):
+        """X-CLIP full-removal ruling (2026-09-23): POST /api/action-events/analyze
+        is gone — the router keeps only CRUD on pipeline-written rows, so the verb
+        on that path answers 405, not 200/503."""
+        response = await async_client.post(
+            "/api/action-events/analyze",
+            json={"camera_id": "front_door", "frame_paths": ["export/frames/f1.jpg"]},
+        )
+        assert response.status_code == 405

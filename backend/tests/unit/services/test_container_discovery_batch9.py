@@ -9,7 +9,7 @@ contract), 19 are EQUIVALENT bit-identical kwarg deletions (BSD-J 4, BSD-M
 14, I1 1 — output-identical per the cdfeefa5 census), and 1 (C1: compose
 fallback ``logger.warning`` message -> None) is killed ONLY by this file's
 verbatim warning-text asserts. This battery is therefore primarily a
-REDUNDANCY LOCK: an independent 25-service x 9-field full-table readback of
+REDUNDANCY LOCK: an independent 21-service x 9-field full-table readback of
 the same contract, so a future regression trips in either file.
 
 The frozen wp44 feed has no per-mutant diff file for this module, so the 746
@@ -20,7 +20,7 @@ in the mutant copy — that is an EXTRACTION-scope limit, not a survivor
 claim: the meta-era class-method survivors are 35, all dispositioned above.
 
 ``build_service_configs`` is a pure data function: ONE full-table readback of
-all 25 services (display_name, category, port, health endpoint/cmd,
+all 21 services (display_name, category, port, health endpoint/cmd,
 grace/max_failures/backoff) kills every kwarg-None / kwarg-deleted / off-by-
 one / XX-wrap / case-flip shape, and the settings-ports readback kills both
 ternary directions (`and False` falls to defaults; `or True` crashes on None).
@@ -88,15 +88,22 @@ EXPECTED_DEFAULTS: dict[str, tuple] = {
         2.0,
         60.0,
     ),
-    "ai-yolo26": ("YOLO26", ServiceCategory.AI, 8095, "/health", None, 60, 5, 5.0, 300.0),
-    "ai-llm": ("Nemotron", ServiceCategory.AI, 8091, "/health", None, 120, 5, 5.0, 300.0),
-    "ai-florence": ("Florence-2", ServiceCategory.AI, 8092, "/health", None, 60, 5, 5.0, 300.0),
-    "ai-clip": ("CLIP", ServiceCategory.AI, 8093, "/health", None, 60, 5, 5.0, 300.0),
-    "ai-enrichment": ("Enrichment", ServiceCategory.AI, 8094, "/health", None, 180, 5, 5.0, 300.0),
-    "ai-enrichment-light": (
-        "Enrichment Light",
+    "ai-gateway": (
+        "AI Gateway",
         ServiceCategory.AI,
-        8096,
+        8090,
+        "/health",
+        None,
+        120,
+        5,
+        5.0,
+        300.0,
+    ),
+    "ai-llm": ("Nemotron", ServiceCategory.AI, 8091, "/health", None, 120, 5, 5.0, 300.0),
+    "ai-llm-vllm": (
+        "LLM vLLM",
+        ServiceCategory.AI,
+        8097,
         "/health",
         None,
         120,
@@ -160,18 +167,7 @@ EXPECTED_DEFAULTS: dict[str, tuple] = {
         10.0,
         120.0,
     ),
-    "elasticsearch": (
-        "Elasticsearch",
-        ServiceCategory.MONITORING,
-        9200,
-        "/_cluster/health",
-        None,
-        60,
-        5,
-        10.0,
-        120.0,
-    ),
-    "jaeger": ("Jaeger", ServiceCategory.MONITORING, 16686, "/", None, 15, 5, 10.0, 120.0),
+    "tempo": ("Tempo", ServiceCategory.MONITORING, 3200, "/ready", None, 15, 5, 10.0, 120.0),
     "redis-exporter": (
         "Redis Exporter",
         ServiceCategory.MONITORING,
@@ -245,26 +241,22 @@ _SETTINGS_PORTS = {
     "redis_port": 16379,
     "backend_port": 18000,
     "go2rtc_port": 11984,
-    "yolo26_port": 18095,
+    "ai_gateway_port": 18090,
     "nemotron_port": 18091,
-    "florence_port": 18092,
-    "clip_port": 18093,
-    "enrichment_port": 18094,
-    "enrichment_light_port": 18096,
+    "vllm_port": 18097,
     "prometheus_port": 19090,
     "grafana_port": 13002,
     "redis_exporter_port": 19121,
     "json_exporter_port": 17979,
     "alertmanager_port": 19093,
     "blackbox_exporter_port": 19115,
-    "jaeger_port": 16687,
+    "tempo_port": 13200,
     "loki_port": 13100,
     "pyroscope_port": 14040,
     "alloy_port": 12346,
     "node_exporter_port": 19100,
     "cadvisor_port": 18082,
     "dcgm_exporter_port": 19400,
-    "elasticsearch_port": 19200,
     "frontend_port": 18080,
 }
 
@@ -275,20 +267,16 @@ _PORT_ATTR = {
     "backend": "backend_port",
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
-    "ai-yolo26": "yolo26_port",
+    "ai-gateway": "ai_gateway_port",
     "ai-llm": "nemotron_port",
-    "ai-florence": "florence_port",
-    "ai-clip": "clip_port",
-    "ai-enrichment": "enrichment_port",
-    "ai-enrichment-light": "enrichment_light_port",
+    "ai-llm-vllm": "vllm_port",
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",
     "alertmanager": "alertmanager_port",
     "loki": "loki_port",
     "pyroscope": "pyroscope_port",
     "alloy": "alloy_port",
-    "elasticsearch": "elasticsearch_port",
-    "jaeger": "jaeger_port",
+    "tempo": "tempo_port",
     "redis-exporter": "redis_exporter_port",
     "json-exporter": "json_exporter_port",
     "blackbox-exporter": "blackbox_exporter_port",
@@ -346,14 +334,14 @@ class TestBuildServiceConfigsFullTable:
     def test_ai_configs_keep_serviceconfig_defaults_for_backoff(self):
         # AI configs pass NO max_failures/backoff — ServiceConfig defaults are
         # contractual: 5 / 5.0 / 300.0 (a default-deleted mutant would TypeError)
-        cfg = build_service_configs()["ai-enrichment"]
+        cfg = build_service_configs()["ai-gateway"]
         assert (
             cfg.startup_grace_period,
             cfg.max_failures,
             cfg.restart_backoff_base,
             cfg.restart_backoff_max,
         ) == (
-            180,
+            120,
             5,
             5.0,
             300.0,

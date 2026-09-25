@@ -125,8 +125,13 @@ dev = [
     "pytest-memray>=1.5.0",
     # CI/CD - Security
     "bandit>=1.7.0",
-    # CI/CD - Complexity
-    "wily>=1.25.0",
+    # CI/CD - Complexity (R-1 2026-09-23: was `wily>=1.25.0`, whose transitive
+    # radon 5.1.x this extra's consumers actually call. nightly.yml runs wily
+    # isolated via `uv tool run`, so the project-env pin existed only to leak
+    # radon — now declared directly, which also lifts wily's plotly/colorlog/
+    # mando caps. ci.yml:331's `uv run radon` is a hard gate: radon ships same
+    # commit as wily leaves.)
+    "radon>=5.1.0",
     # CI/CD - Big-O analysis
     "big-o>=0.11.0",
     # Video processing
@@ -135,7 +140,6 @@ dev = [
     "defusedxml>=0.7.0",
     # Dead code detection
     "vulture>=2.11",
-    # Note: radon is provided by wily dependency (5.1.x)
     # Mutation testing
     "mutmut>=3.2.0",
     # Performance profiling (NEM-1644)
@@ -239,6 +243,12 @@ test = [
     "factory-boy>=3.3.0",  # Test fixture factories
     "freezegun>=1.5.0",  # Time mocking for tests
     "syrupy>=4.8.0",  # Snapshot testing for API response schemas (NEM-3748)
+    # R-1 fallout (2026-09-23): contract tests' `import jsonschema` was satisfied
+    # transitively via wily -> nbformat -> jsonschema. Dropping wily (dev extra)
+    # reddened Contract Tests (API Schema) with ModuleNotFoundError — the exact
+    # leak class R-1 exists to surface. Declared directly now; consumers are
+    # backend/tests/contracts/ai_providers/* and backend/ai_contract/fake/.
+    "jsonschema>=4.0.0",
     # Video processing (needed for video service tests)
     "ffmpeg-python>=0.2.0",
     # XML parsing (secure - needed for test fixtures)
@@ -266,7 +276,9 @@ mutation = [
 
 # Code Quality Analysis (complexity, dead code)
 quality = [
-    "wily>=1.25.0",  # Note: radon is provided by wily dependency (5.1.x)
+    # R-1 2026-09-23: wily dropped (see dev-extra note at its old site);
+    # radon declared directly — it is what ci.yml/weekly-audit actually run.
+    "radon>=5.1.0",
     "vulture>=2.11",
 ]
 
@@ -605,6 +617,12 @@ exclude = [
     "backend/tests/unit/core/test_database_pool.py",  # Unreachable code in failing_connect mock
     "backend/tests/integration/test_system_api.py",  # Unreachable yield in error-raising async generator mock
     "backend/tests/unit/routes/test_system_routes.py",  # Unreachable yield in async generator mocks
+    # batch-16b/21 (mutation-kill batteries): the shipped async-generator-mock
+    # idiom 'raise X / yield # pragma: no cover' — the yield makes the mock an
+    # async generator (the analyzed call site consumes one); it is UNREACHABLE
+    # BY DESIGN and identical in kind to the seven files above.
+    "backend/tests/unit/services/test_nemotron_streaming_batch16b.py",
+    "backend/tests/unit/services/test_nemotron_streaming_batch21.py",
 ]
 
 # =============================================================================

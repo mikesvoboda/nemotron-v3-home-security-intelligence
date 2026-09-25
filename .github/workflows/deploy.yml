@@ -51,7 +51,7 @@ jobs:
           swap-storage: true
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
@@ -92,7 +92,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: digests-${{ matrix.image.name }}-${{ matrix.platform.suffix }}
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -111,9 +111,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - name: ai-yolo26
-            context: .
-            dockerfile: ./ai/yolo26/Dockerfile
+          # ai-yolo26 retired 2026-09-23 (owner ruling): Triton on ai-gateway
+          # serves yolo26 among the 14 models — see archive/ai-yolo26-image/.
           - name: ai-llm
             context: .
             dockerfile: ./ai/nemotron/Dockerfile
@@ -141,7 +140,7 @@ jobs:
           swap-storage: true
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
@@ -182,7 +181,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: digests-${{ matrix.image.name }}-amd64
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -204,7 +203,7 @@ jobs:
 
     steps:
       - name: Download digests
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: digests-${{ matrix.image }}-*
           path: /tmp/digests/${{ matrix.image }}
@@ -250,11 +249,11 @@ jobs:
 
     strategy:
       matrix:
-        image: [ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Download digests
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: digests-${{ matrix.image }}-*
           path: /tmp/digests/${{ matrix.image }}
@@ -302,7 +301,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
@@ -489,7 +488,7 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [backend, frontend, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Log in to Container Registry
@@ -510,7 +509,7 @@ jobs:
           output-file: sbom-${{ matrix.image }}.spdx.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -545,7 +544,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Deploy to staging environment
         run: |
@@ -605,7 +604,7 @@ jobs:
           echo "  FRONTEND_URL=http://staging:5173 npm test -- --project=chromium"
 
       - name: Document staging validation
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: staging-deployment-guide
           path: docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md
@@ -624,7 +623,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Verify deployment readiness
         run: |
@@ -707,7 +706,7 @@ jobs:
           cat canary-readiness.txt
 
       - name: Create deployment documentation artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: deployment-readiness
           path: canary-readiness.txt
@@ -738,11 +737,11 @@ jobs:
 
     strategy:
       matrix:
-        image: [backend, frontend, ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment]
+        image: [backend, frontend, ai-llm, ai-florence, ai-clip, ai-enrichment]
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Log in to Container Registry
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
