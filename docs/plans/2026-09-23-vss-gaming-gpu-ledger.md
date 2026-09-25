@@ -62,6 +62,10 @@ Recipe A + arithmetic = **58** confirmed at G0 close (2026-09-24). The 4 arithme
 
 **Working set for step 0.25: the 54-site recipe** (live comparisons, tests excluded) **+ the 4 arithmetic sites = 58**. The true code surface is smaller still: many of the 54 are docstrings/OpenAPI descriptions, not live code — a per-site triage belongs in the 0.25 plan, which will classify each as live-path / dead / comment. The "61" figure is superseded; the dated errata entry is **already written** — N1–N7 exist in `docs/vss-integration/11-errata-2026-09-23.md` (this row's earlier "not yet written" was stale; corrected at G0 close). Spec text stays untouched per the brief.
 
+## P0 execution notes
+
+- **P0.25 premise check — PASSED 2026-09-25 [V].** `backend/models/event.py:58-60`: `risk_score` and `risk_level` are both `Mapped[int | None]` / `Mapped[str | None]`, `nullable=True` — the plan's STOP-AND-ASK trip (column NOT NULL ⇒ 0.3's premise breaks) does not fire; NULL scores are storable today. The gap is purely the WebSocket schema (`websocket.py:252-253`: `risk_score: int = Field(...)`, `risk_level: RiskLevel` required) — exactly Task 2's edit target.
+
 ## Open issues & owner-decision queue
 
 1. **G0 spec-vs-sandbox deltas** (row 1, E4/E6/E9/E10) — recorded, no spec edit; folded into the G0 plan's step recipes.
