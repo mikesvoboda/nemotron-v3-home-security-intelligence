@@ -22,6 +22,15 @@ Usage:
     context = await enricher.enrich(batch_id, camera_id, detection_ids)
 """
 
+# Stringified annotations (PEP 563): every method here annotates with
+# TYPE_CHECKING-only types (CacheService & friends). Without this, Python
+# 3.14+ compiles a lazy __annotate__ that evaluates those bare names
+# against module globals -- so inspect.signature / mock.create_autospec
+# raise NameError at runtime (PR #6679 CI, py 3.14.2, 16 battery tests
+# red). Backend-wide most modules carry this import already; this one
+# predates the convention.
+from __future__ import annotations
+
 __all__ = [
     "AnalyzerServiceFacade",
     "get_analyzer_facade",
