@@ -465,7 +465,7 @@ OPERATIONS: dict[str, Operation] = {
             "per_model_server": True,
             "fake": True,
         },
-        client_methods=[],
+        client_methods=["VlmClient.assess"],
         evidence="spec §3 (engine wire POST /v1/chat/completions, base64 image_url + json_schema); chat-shape enforcement probe proven ENFORCED at b7972 (scripts/vlm_probes/s2_multimodal_schema.py); schemas generated from backend/services/vlm_verdict.py classes",
     ),
     "yolo26_detect": Operation(
@@ -564,4 +564,8 @@ CLIENT_METHODS: dict[str, str | None] = {
     "EnrichmentClient.enrich_detection": "enrichment_enrich",
     "EnrichmentClient.get_model_status": "model_status",
     "EnrichmentClient.preload_model": "model_preload",
+    "VlmClient.assess": "vlm_assess",
+    "VlmClient.close": None,
+    "VlmClient.wake": None,
+    "VlmClient.prompt_text": None,
 }

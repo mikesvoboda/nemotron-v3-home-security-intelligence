@@ -3365,6 +3365,29 @@ def record_model_cold_start(model: str) -> None:
     MODEL_COLD_START_TOTAL.labels(model=model).inc()
 
 
+# Phase 1.3 (spec §6 step 4): the alert half of "the system reports
+# DegradationMode.DEGRADED ... surfaced through the health endpoint and a
+# Prometheus alert". The degradation singleton is in-process and the repo
+# has no exposition bridge to it, so this gauge is the alertable projection
+# of a breaker-driven UNHEALTHY push (1 = unhealthy).
+AI_SERVICE_DEGRADED = Gauge(
+    "hsi_ai_service_degraded",
+    "AI service marked unhealthy by the §6 ladder (1) or healthy (0)",
+    labelnames=["service"],
+    registry=_registry,
+)
+
+
+def set_ai_service_degraded(service: str, degraded: bool) -> None:
+    """Project a DegradationManager health push onto the alertable gauge.
+
+    Args:
+        service: Service name (e.g., 'ai-vlm')
+        degraded: True when the §6 ladder marked the service unhealthy
+    """
+    AI_SERVICE_DEGRADED.labels(service=service).set(1 if degraded else 0)
+
+
 def set_model_warmth_state(model: str, state: str) -> None:
     """Set the current warmth state gauge for an AI model.
 

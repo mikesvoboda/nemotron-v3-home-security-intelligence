@@ -168,11 +168,11 @@ SENTINELS_PER_MODEL = (SENTINELS_GATEWAY - {"yolo26_segment"}) | {
     "llm_completion",
     "llm_chat_completion",
     "model_unload",
-    # 1.1: vlm_assess joins the column with client_methods==[] (vlm_client is
-    # step 1.3) - per_model_http covers the WHOLE union column, so it
-    # sentinels the VLM op too; the subset VLM providers pin their own
-    # {vlm_assess} sentinel in test_conformance_vlm.py.
-    "vlm_assess",
+    # 1.1 entered vlm_assess here unbound; 1.3's vlm_client binds it
+    # (client_methods=["VlmClient.assess"], CLIENT_OP_MAP) so it LEAVES the
+    # third state in every provider sharing this column - including the
+    # subset VLM providers, whose callable is now the live client method
+    # (pinned in test_conformance_vlm.py).
 }
 SENTINELS_BY_PROVIDER: dict[ProviderId, set[str]] = {
     ProviderId.GATEWAY: SENTINELS_GATEWAY,
@@ -460,9 +460,10 @@ class TestMatrixSpine:
         THE WORKFLOW-PROMPT DIVERGENCE: 'llamacpp_llm: rec.deployed is False'
         is contradicted by live code — we pin True (providers.py) and record
         the prompt's claim as wrong. PREDICTED-GREEN all params.
-        Never CALLS a registered callable (gateway/per_model/llamacpp live ops
-        would do real network; the VLM subset callables are not-wired
-        sentinels, never awaited here). UNVERIFIED."""
+        Never CALLS a registered callable — and since 1.3 that matters MORE
+        for the VLM subset providers too: their vlm_assess is now the live
+        VlmClient.assess (real httpx to settings.ai_vlm_url), not a
+        sentinel. This test is set-equality only. UNVERIFIED."""
         rec_ops = _provider_ops(pid)
         slot = PROVIDER_SLOT[pid]
         column = set(operations_for_slot(slot, OPERATIONS))
@@ -619,7 +620,8 @@ class TestMatrixNotWiredSentinels:
         unbound = {o for o in ops if not OPERATIONS[o].client_methods}
         sentinels = {o for o, fn in ops.items() if "_not_wired" in fn.__qualname__}
         # census note: per_model's count moved 7 -> 8 on 2026-09-25 (1.1
-        # added vlm_assess to the per_model_server column unbound; see the
+        # added vlm_assess to the per_model_server column unbound), then
+        # 8 -> 7 the same day (1.3's vlm_client binds it - see the
         # SENTINELS_PER_MODEL comment).
         assert unbound == SENTINELS_BY_PROVIDER[pid]
         assert sentinels == SENTINELS_BY_PROVIDER[pid]

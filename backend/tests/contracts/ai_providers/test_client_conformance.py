@@ -1717,6 +1717,116 @@ async def test_nemotron_parses_a_contract_shaped_risk_json(monkeypatch, settings
     assert risk["summary"] == "person testing the door handle", risk
 
 
+@_aio
+async def test_vlm_client_assess_round_trips_the_generated_verdict(
+    settings_factory, tmp_path
+) -> None:
+    """1.3's COVERAGE leg for VlmClient.assess - DEDICATED, not a table row,
+    because of the divergence the registry itself records: the fake answers
+    the op at its CONTRACT path /vlm/chat/completions (one route per op.path;
+    /v1/chat/completions is already taken by llm_chat_completion) while the
+    client dials the ENGINE wire /v1/chat/completions (op.evidence). A shared
+    table asserting `sent path == op.path` would RED by design here, so this
+    leg pins the engine path itself, then checks the half the table owns: the
+    client's PARSED fields equal the contract body the fake served.
+
+    The shim below is what a chat server actually does: it forwards the
+    client's bytes to the fake's own vlm_assess handler and puts the
+    verdict JSON in choices[0].message.content. Nothing here hand-writes a
+    verdict - the answer is the generator's, so a contract rename reddens it.
+    Probe off: the §3 gate has its own hermetic tier (test_vlm_client.py);
+    the fake has no grammar to prove."""
+    from backend.ai_contract.fake import create_fake_app
+    from backend.ai_contract.fake import generate as _gen
+    from backend.services.vlm_client import VlmClient
+    from backend.services.vlm_verdict import VlmAssessRequest
+
+    root = tmp_path / "foscam"
+    (root / "front").mkdir(parents=True)
+    (root / "front" / "a.jpg").write_bytes(b"\xff\xd8\xff" + b"\x00" * 32)  # D10 synthetic
+
+    contract_app = create_fake_app()
+
+    async def _engine_asgi(scope: Any, receive: Any, send: Any) -> None:
+        """Raw ASGI (a FastAPI route would need a module-level Request
+        annotation for get_type_hints; this is the same hand-rolled shape as
+        the llm_json_app echo app above). Forward the client's bytes to the
+        fake's vlm_assess handler and wrap its verdict the way a chat server
+        does - the envelope is ours, the PAYLOAD is the generator's."""
+        body = b""
+        while True:
+            event = await receive()
+            body += event.get("body", b"")
+            if not event.get("more_body", False):
+                break
+        assert scope["type"] == "http" and scope["method"] == "POST"
+        async with AsyncClient(
+            transport=ASGITransport(app=contract_app), base_url=FAKE_BASE
+        ) as inner:
+            answer = await inner.post(OPERATIONS["vlm_assess"].path, content=body)
+        assert answer.status_code == 200, answer.text[:200]
+        payload = json.dumps(
+            {"choices": [{"message": {"content": answer.text}}], "usage": {"total_tokens": 7}}
+        ).encode()
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [
+                    (b"content-type", b"application/json"),
+                    (b"content-length", str(len(payload)).encode()),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": payload})
+
+    settings = settings_factory(
+        foscam_base_path=str(root),
+        vlm_enforcement_probe_enabled=False,
+    )
+    # VlmClient takes its transport in __init__ (no pool swap needed - the
+    # house _point_at looks for _http_client, which this client never had).
+    store: list[dict[str, Any]] = []
+    client = VlmClient(
+        base_url=FAKE_BASE,
+        transport=_RecordingTransport(_engine_asgi, store),
+        settings=settings,
+    )
+
+    req = VlmAssessRequest(
+        image_paths=["front/a.jpg"],
+        context={
+            "camera_id": "front",
+            "detections": [{"object_type": "person", "confidence": 0.9}],
+            "zones": ["porch"],
+            "timestamp": "2026-09-25T12:00:00+00:00",
+        },
+    )
+    verdict = await client.assess(req)
+    await client.close()
+
+    assert store, "VlmClient.assess sent no request at all"
+    sent = store[-1]
+    assert sent["method"] == "POST"
+    assert sent["path"] == "/v1/chat/completions", (
+        "the client left the engine wire for the contract handle - the "
+        "registry PATH is a fake mount point, not the llama.cpp spelling"
+    )
+    chat = json.loads(sent["body"])
+    content = chat["messages"][0]["content"]
+    uris = [p["image_url"]["url"] for p in content if p["type"] == "image_url"]
+    assert len(uris) == 1 and uris[0].startswith("data:image/"), "image part lost"
+    assert chat["response_format"]["json_schema"]["schema"]["properties"], (
+        "the nested arm-B wrapper must carry the schema"
+    )
+    # The generator the fake's handler ran on THESE bytes (the chat body has
+    # no image_paths key, so the walk shape answers, seeded op+profile).
+    served = json.loads(json.dumps(_gen("vlm_assess", chat, "gateway")))
+    assert verdict.model_dump() == served, (
+        "client parse diverged from the contract body the fake served"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 8. COVERAGE GUARD: the registry's client_methods column can no longer be a
 #    comment — every declared method is claimed by a test in this file.
@@ -1757,15 +1867,17 @@ _COVERAGE = {
     "EnrichmentClient.estimate_object_distance": "test_object_distance_404s_through_the_client_paths",
     "EnrichmentClient.get_model_status": "TestTierAMissingPaths.test_client_model_status_404s_on_gateway_prefix_and_works_bare",
     "EnrichmentClient.preload_model": "TestTierAMissingPaths.test_client_model_status_404s_on_gateway_prefix_and_works_bare",
+    "VlmClient.assess": "test_vlm_client_assess_round_trips_the_generated_verdict",
 }
 
 
 def test_every_registry_declared_client_method_is_driven() -> None:
     """MEASURE hook (plan :1024): ``client_methods`` is a registry CLAIM that
     the client speaks the op; every claim must be covered here, and this
-    module may not claim methods the registry retired. 28 declared methods
-    map above (29 at WP8.4 draft time; DetectorClient.segment_image left
-    the claim set with its ADDENDUM 2 A7.2 deletion)."""
+    module may not claim methods the registry retired. 29 declared methods
+    map above (28 after DetectorClient.segment_image left the claim set with
+    its ADDENDUM 2 A7.2 deletion; VlmClient.assess joined with 1.3's
+    vlm_client)."""
     declared = {m for op in OPERATIONS.values() for m in op.client_methods}
     missing = sorted(declared - set(_COVERAGE))
     extra = sorted(set(_COVERAGE) - declared)

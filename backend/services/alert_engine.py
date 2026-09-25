@@ -446,6 +446,29 @@ class AlertRuleEngine:
         matched_conditions: list[str] = []
         dwell_time_match: DwellTimeMatch | None = None
 
+        # spec §6 (Phase 1.3): the VLM's rejected verdict never pages, even
+        # where a rule's risk_threshold sits inside the clamped-low band -
+        # the analyzer's clamp is a score bound, not an alert gate, so the
+        # verdict must be checked HERE too. verifications is lazy="selectin"
+        # (eager, spec §4), so a query-loaded event already carries the rows.
+        # The __dict__ probe is the async-safety half: SQLAlchemy keeps loaded
+        # attributes in instance.__dict__ and unloaded ones out of it, so this
+        # gate reads ONLY materialized collections. Touching an unloaded one
+        # (a directly-constructed Event, or an expired instance) would fire
+        # lazy IO on the async engine - MissingGreenlet (proved by
+        # tests/integration/test_alert_engine.py pre-fix). Events whose rows
+        # are not materialized pass through unchanged: no gate without rows.
+        # The isinstance guard is verification_payload's house precedent
+        # (api/schemas/event_verification.py:81-87): a MagicMock attribute is
+        # truthy but not a row collection. (Rows newest-wins, matching that
+        # renderer's rule.)
+        if "verifications" in getattr(event, "__dict__", {}):
+            rows = event.verifications
+            if isinstance(rows, (list, tuple)) and rows:
+                newest = max(rows, key=lambda r: (r.created_at, r.id))
+                if newest.verdict == "rejected":
+                    return False, [], None
+
         # Check risk threshold
         if rule.risk_threshold is not None:
             if event.risk_score is None or event.risk_score < rule.risk_threshold:

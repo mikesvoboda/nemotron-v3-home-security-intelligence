@@ -114,9 +114,10 @@ SIBLING_SENTINELS = {
         "llm_completion",
         "llm_chat_completion",
         "model_unload",
-        # 1.1: vlm_assess enters the union column unbound (vlm_client is
-        # step 1.3) - mirrored from the ops-sibling literal.
-        "vlm_assess",
+        # 1.3: vlm_assess LEAVES this mirror - vlm_client binds it
+        # (client_methods=["VlmClient.assess"]), so it is no longer a
+        # not-wired sentinel in the union column. Mirrors the moved
+        # SENTINELS_PER_MODEL literal in test_conformance_ops.
     },
 }  # source: test_conformance_ops.py:139-158 (real run agreed)
 

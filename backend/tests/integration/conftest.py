@@ -287,6 +287,23 @@ DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
 
+# Sandbox/dev parity with CI for REDIS_URL itself. The CI jobs ship
+# REDIS_URL=redis://localhost:6379 as a service env, so plain
+# RedisClient() consumers that request no fixtures at all (e.g.
+# test_disaster_recovery.TestRedisFailover) find the live server there.
+# A sandbox that declares the test Redis via TEST_REDIS_URL on a
+# non-default port (:6380 here) but leaves REDIS_URL unset gave those
+# fixture-less tests only the settings default :6379 to dial -
+# ConnectionError. Mirror the declared URL, module-import early (before
+# any test body or fixture runs) and clear the settings lru_cache so
+# get_settings() re-reads it. Guarded: an explicitly provided REDIS_URL
+# always wins, and CI (no TEST_REDIS_URL) never takes this branch.
+if os.environ.get("TEST_REDIS_URL") and not os.environ.get("REDIS_URL"):
+    os.environ["REDIS_URL"] = os.environ["TEST_REDIS_URL"]
+    from backend.core.config import get_settings as _get_settings_for_mirror
+
+    _get_settings_for_mirror.cache_clear()
+
 
 def _check_local_postgres() -> bool:
     """Check if local PostgreSQL is running on port 5432.
@@ -424,6 +441,8 @@ def redis_container() -> Generator[RedisContainer | LocalRedisService]:
     for isolation via the worker_redis_url fixture.
     """
     # Check for explicit environment variable override
+    # (the REDIS_URL mirror for this case lives at module top, beside
+    # DEFAULT_DEV_REDIS_URL - see the comment there)
     if os.environ.get("TEST_REDIS_URL"):
         yield LocalRedisService()
         return
@@ -748,7 +767,19 @@ def worker_redis_url(
     redis_db = _get_worker_redis_db(worker_id)
 
     if isinstance(redis_container, LocalRedisService):
-        # For local Redis, use the worker-specific database
+        # Local Redis: honor TEST_REDIS_URL's host/port when set (dev
+        # sandboxes publish the test Redis on a non-default port, e.g.
+        # docker-compose.test.yml's 6380), keeping only the DATABASE
+        # component swapped for worker isolation. The URL wins because
+        # redis_container chose this LocalRedisService branch FROM that
+        # same variable - hardcoding 6379 here contradicted it. Without
+        # the variable (CI service container on the default port) the
+        # historical literal stands.
+        env_url = os.environ.get("TEST_REDIS_URL")
+        if env_url:
+            scheme, _, rest = env_url.partition("://")
+            hostport = rest.split("/", 1)[0]
+            return f"{scheme}://{hostport}/{redis_db}"
         return f"redis://localhost:6379/{redis_db}"
 
     host = redis_container.get_container_host_ip()

@@ -163,18 +163,25 @@ class TestVlmProviderIds:
         assert PROVIDER_SLOT[pid] == "per_model_server"
         rec = registered_providers()[pid.value]
         assert set(rec.operations()) == {"vlm_assess"}
-        # honest deployment state for 1.1: the compose service is 1.2 and
-        # vlm_client is 1.3 - declared, not yet deployed.
+        # deployed=False survives 1.3's wiring ON PURPOSE: these ProviderIds
+        # name ENGINE choices, and the M2 pick ("which VLM is deployed") is
+        # an owner decision - the ai-vlm compose service exists under
+        # profile `vlm` (1.2), but no engine is deployed AS the VLM yet.
+        # The honest deployed flip rides M2, not the client landing.
         assert rec.deployed is False
 
     @pytest.mark.parametrize("pid_name", ["OPENAI_VLM", "RTVI_VLM"])
-    async def test_not_wired_until_vlm_client_names_the_fake(self, pid_name: str):
-        """1.1 registers these providers with the not-wired sentinel (no
-        client bound yet); calling it must raise naming the FakeProvider -
-        same device _bound_or_reject uses for kept-deployed ops. 1.3's
-        vlm_client replaces this path."""
+    def test_vlm_assess_carries_the_live_client_callable(self, pid_name: str):
+        """1.3's flip: the registered callable is the REAL client method
+        (_bound_or_reject resolves client_methods=["VlmClient.assess"] to
+        the unbound function, the same shape every bound op registers), no
+        longer the 1.1 not-wired sentinel. Never CALLED here - assess()
+        dials settings.ai_vlm_url (real httpx); its behavior is pinned
+        hermetically in backend/tests/unit/services/test_vlm_client.py."""
         from backend.ai_contract.provider import ProviderId
 
         rec = registered_providers()[ProviderId[pid_name].value]
-        with pytest.raises(NotImplementedError, match="FakeProvider"):
-            await rec.operations()["vlm_assess"]({})
+        fn = rec.operations()["vlm_assess"]
+        assert "_not_wired" not in fn.__qualname__
+        assert fn.__qualname__ == "VlmClient.assess"
+        assert callable(fn)

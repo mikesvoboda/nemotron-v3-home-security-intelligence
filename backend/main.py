@@ -1068,6 +1068,27 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             f"Service health monitor initialized (YOLO26, Nemotron) - restart: {restart_status}"
         )
 
+    # Phase 1.3 (spec §6 step 4): register ai-vlm on the degradation
+    # singleton so update_service_health() calls have a row to write - an
+    # unregistered name is a warn-and-drop. Deliberately NOT a
+    # ServiceHealthMonitor ServiceConfig: §6's wake rule forbids health
+    # probes from waking a sleeping llama.cpp, and probe-polling would
+    # conflate sleep with failure. ai-vlm health therefore arrives by
+    # BREAKER PUSH - the vlm_client's open/close transitions call
+    # update_service_health (ledger 1.3 records this choice). The
+    # health_check stub exists only because register_service requires the
+    # parameter; nothing polls it (the manager's own poll loop is never
+    # started - degradation_manager.py:1070).
+    from backend.services.degradation_manager import get_degradation_manager
+
+    async def _ai_vlm_health_stub() -> bool:
+        """Never polled - see the comment at the registration site."""
+        return True
+
+    _degradation_mgr = get_degradation_manager(redis_client=redis_client)
+    _degradation_mgr.register_service("ai-vlm", health_check=_ai_vlm_health_stub, critical=False)
+    lifespan_logger.info("ai-vlm registered on the degradation manager (breaker-push health)")
+
     # Initialize container orchestrator (if enabled)
     # This provides health monitoring and self-healing for Docker/Podman containers
     container_orchestrator: ContainerOrchestrator | None = None

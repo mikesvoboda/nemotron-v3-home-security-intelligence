@@ -3091,3 +3091,75 @@ class TestSeverityEscalation:
         for severity in AlertSeverity:
             assert severity in SEVERITY_ESCALATION
             assert severity in SEVERITY_REDUCTION
+
+
+class TestEvaluateRuleVerificationGate:
+    """spec §6 (Phase 1.3): a rejected verdict never pages - the analyzer's
+    low-band clamp is not an alert gate, so the rule engine checks the
+    verdict itself. verification_failed already fails the threshold arm
+    (NULL score, test_risk_threshold_fails_when_none above); this class
+    pins the missing half."""
+
+    @pytest.mark.asyncio
+    async def test_rejected_verdict_never_matches_even_above_threshold(
+        self,
+        mock_session: AsyncMock,
+        sample_rule: AlertRule,
+        sample_event: Event,
+        sample_detections: list[Detection],
+    ) -> None:
+        """The §6 scenario the clamp alone cannot catch: score inside the
+        band a low camera threshold passes. The gate must be verdict-first."""
+        sample_rule.risk_threshold = 10
+        sample_event.risk_score = 20  # clamped-low band, over threshold
+        row = MagicMock()
+        row.verdict = "rejected"
+        sample_event.verifications = [row]
+
+        engine = AlertRuleEngine(mock_session)
+        matches, conditions, _ = await engine._evaluate_rule(
+            sample_rule, sample_event, sample_detections, datetime.now(UTC)
+        )
+        assert matches is False
+        assert conditions == []
+
+    @pytest.mark.asyncio
+    async def test_confirmed_and_uncertain_verdicts_are_not_gated(
+        self,
+        mock_session: AsyncMock,
+        sample_rule: AlertRule,
+        sample_event: Event,
+        sample_detections: list[Detection],
+    ) -> None:
+        """Only rejected constrains (§6: "Only `rejected` constrains";
+        uncertain notifies through the normal threshold)."""
+        sample_rule.risk_threshold = 10
+        sample_event.risk_score = 85
+        for verdict in ("confirmed", "uncertain", "verification_failed"):
+            row = MagicMock()
+            row.verdict = verdict
+            sample_event.verifications = [row]
+            engine = AlertRuleEngine(mock_session)
+            matches, _conditions, _ = await engine._evaluate_rule(
+                sample_rule, sample_event, sample_detections, datetime.now(UTC)
+            )
+            assert matches is True, verdict
+
+    @pytest.mark.asyncio
+    async def test_legacy_event_without_rows_is_unchanged(
+        self,
+        mock_session: AsyncMock,
+        sample_rule: AlertRule,
+        sample_event: Event,
+        sample_detections: list[Detection],
+    ) -> None:
+        """Legacy events carry NO verification row (spec §4) - their rule
+        evaluation stays byte-identical."""
+        sample_rule.risk_threshold = 10
+        sample_event.risk_score = 85
+        sample_event.verifications = []
+        engine = AlertRuleEngine(mock_session)
+        matches, _conditions, _ = await engine._evaluate_rule(
+            sample_rule, sample_event, sample_detections, datetime.now(UTC)
+        )
+        assert matches is True

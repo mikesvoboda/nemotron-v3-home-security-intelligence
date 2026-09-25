@@ -445,6 +445,22 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     "EnrichmentClient.enrich_detection": "enrichment_enrich",
     "EnrichmentClient.get_model_status": "model_status",
     "EnrichmentClient.preload_model": "model_preload",
+    # VlmClient (1.3: vlm_assess leaves the not-wired third state - the
+    # client dials the real wire POST /v1/chat/completions; the registry
+    # path stays the /vlm/ contract handle, see VLM_OPS below)
+    "VlmClient.assess": "vlm_assess",
+    # close() is a pure pool teardown. wake() DOES make an HTTP call - the
+    # §6 cold-start ping (max_tokens:1 on the engine's own chat endpoint) -
+    # but it is not a registry OPERATION: no request/response contract, no
+    # schema, nothing a provider can be conformant about. None records
+    # "no operation here", which is what the key means for both.
+    "VlmClient.close": None,
+    "VlmClient.wake": None,
+    # prompt_text() renders the text half of the assess message. Public
+    # because the analyzer stores it verbatim as Event.llm_prompt (spec §4:
+    # images referenced by path), so a single source renders both the wire
+    # and the audit row - but it makes NO HTTP call, so no operation here.
+    "VlmClient.prompt_text": None,
 }
 
 

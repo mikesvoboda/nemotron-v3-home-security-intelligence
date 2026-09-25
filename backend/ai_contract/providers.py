@@ -51,6 +51,7 @@ _CLIENT_MODULES = {
     "CLIPClient": "backend.services.clip_client",
     "EnrichmentClient": "backend.services.enrichment_client",
     "FlorenceClient": "backend.services.florence_client",
+    "VlmClient": "backend.services.vlm_client",
 }
 
 
@@ -169,14 +170,18 @@ def _register_all() -> None:
     )
     # spec §3 Slots: both VLM engines register required={"vlm_assess"} -
     # the llamacpp subset pattern inside the union per_model_server column.
-    # 1.1 lands them with the not-wired sentinel (no client exists yet -
-    # vlm_client is step 1.3); the call path drives the FakeProvider or a
-    # live serve, and calling the sentinel raises naming it. deployed=False:
-    # the ai-vlm compose service is step 1.2.
+    # 1.3 wires the LIVE callable: the same unbound client method
+    # _bound_or_reject resolves for every bound op (VlmClient.assess, from
+    # the registry's own client_methods), so the registry path and the
+    # analyzer path converge on one implementation. deployed=False stays:
+    # OPENAI_VLM/RTVI_VLM name ENGINE choices, and neither engine is
+    # deployed as "the VLM" yet (the ai-vlm compose service exists under
+    # profile `vlm` since 1.2; the M2 pick is an owner decision). The
+    # honest deployed flip rides M2, not this wiring.
     for vlm_pid in (ProviderId.OPENAI_VLM, ProviderId.RTVI_VLM):
         register_provider(
             vlm_pid,
-            {"vlm_assess": _not_wired("vlm_assess")},
+            {"vlm_assess": _bound_or_reject("vlm_assess")},
             OPERATIONS,
             deployed=False,
             required={"vlm_assess"},
