@@ -11237,3 +11237,62 @@ Measured this session, command + artifact for every number.
 No floors touched; no denominator change; WP4.4 feed still frozen;
 continue-on-error unchanged. Quarantine is reversible (files + sha256s
 above).
+
+## 2026-09-25 — DENOMINATOR RULING EXECUTED: nemotron family OUT of mutation scoring (265→262 modules); the batch-25 milestone is superseded; and the honest bad news — a config-invalidation wipe cost the whole verdict map hours earlier
+
+**Ruling (user, 2026-09-25):** "remove nemotron from the denominator." The
+nemotron model is being deprecated; spending campaign effort closing its
+survivors was interim value at best. Removal means mutation-denominator
+exclusion — the modules (`backend/services/nemotron_analyzer.py`,
+`nemotron_latency_optimizer.py`, `nemotron_streaming.py`) and their unit
+tests STAY in the repo until model retirement.
+
+**Mechanism (measured, not assumed):** `[tool.mutmut] do_not_mutate` globs
+(mutmut 3.8 `configuration.py::_should_ignore_for_mutation`, fnmatch on the
+repo-relative path). Measured with the installed package:
+`should_mutate()` → False for all three nemotron modules, True for
+neighbors (enrichment_pipeline, routes/alerts). `config_fingerprint()`
+deliberately hashes ONLY pytest-exec/test-selection/timeout/type-check
+groups — neither path knob — so the edit cannot invalidate stored verdicts
+(now double-confirmed mid-flight: the re-bank's fingerprints are stable
+across the ruff/vulture config edits that followed).
+
+**Scorer taught the same semantics** (`scripts/mutation-score.py`, TDD:
+RED first, `test_targets_honors_do_not_mutate_exclusion`, 14/14 green):
+`target_modules()` and `_metas()` mirror mutmut's include/ignore, so (a) the
+gap list prints no permanent false "run never covered it" hole, and (b) a
+stale cache meta cannot resurrect an excluded module into the badge.
+**Denominator measured before→after: 265 → 262 modules** (exactly the
+family). Cache artifacts (`mutants/…nemotron*.py{,.meta,.spans}`, 5,046
+generated keys) removed with backups
+(`/tmp/nemotron-denominator-removal-2026-09-25/`); their plain copies
+regenerate via `copy_src_dir` (unfiltered by design — the mutant tree keeps
+them importable for dependency-tracked test selection) but NO metas are
+made — verified live during the relaunched run's generate phase.
+
+**Batch-25 milestone SUPERSEDED:** the closeout (2,542 survivors fully
+dispositioned — killed 2,229 / equivalent 30 / true_gap 283) keeps its
+measurement value as a closed adjudication, but it no longer produces a
+milestone entry: its module left the denominator. The kill batteries (35
+files, 519 tests) are committed as plain regression coverage for the
+still-live module (`ceb5c8d1`, CI-clean: 518 passed + 1 skipped with the
+campaign dir hidden; gate config follows the batch-16b/21 precedent). The
+next milestone is the full re-bank crossing completed=true on the 262-module
+denominator.
+
+**INCIDENT (same 24h, recorded per the honesty contract):** mutmut 3.8
+`mutmut run` applies `apply_config_invalidation=True`; the merged PR #6629
+edited pyproject.toml after the last full run, changing the config
+fingerprint, which **cleared exit_code_by_key in EVERY meta** — the 90,978-
+key map (51,254k/37,131s/2,589t) is gone; only `hash_by_function_name` +
+duration estimates survive. Aggravating discovery fixed en route: orphan
+test copies in the gitignored `mutants/backend/tests/**` cache (files
+deleted in source by mega-PR #6649) made `pytest --collect-only` with cwd
+=mutants and `-x` abort the WHOLE run — six orphans deleted, collect clean
+(28,848 tests). Recovery = full re-bank (`MUTMAX=14 scripts/
+mutation-run.sh`, log `/tmp/wp-batch25/full-rebank-2.log`, ~140 keys/min,
+ETA ~10h; nemotron pre-excluded, its 313 kept survivor stamps moot).
+LESSON (memory-written): back up `mutants/*/*.py.meta` before ANY run.
+**The published 59.182% history entry is NOT retracted** — it stays a true
+measurement of the cache as it stood at b178d8df; the wipe cost future
+re-banking time, not admissibility.
