@@ -765,7 +765,15 @@ process_isolation = "forkserver"
 # .nvmrc/.python-version/.github/workflows/ci.yml/Dockerfiles reads), and
 # test_real_repo_passes running the gate against the mutant tree itself).
 # ai/ is here because alpr_service + prompts lazy-import ai.* -- a missing
-# tree would silently disable those branches while mutated. frontend FILES
+# tree would silently disable those branches while mutated. data/ is here
+# because the evaluation-tier unit tests (#6678, first seen as "Found 238
+# new tests" 2026-09-25) path-read the committed synthetic corpus via
+# REPO_ROOT / "data" / "synthetic" / <category>; absent under the mutant
+# home, test_eval_store::test_all_thirteen_scenarios_map went red and -x
+# aborted stats ("failed to collect stats. runner returned 1"). data/ is
+# 9.4MB git-tracked, node_modules-free, and poison-safe: the runtime.env
+# guard above re-sweeps it every run (the poison was a gitignored WRITER
+# artifact, never a tracked file). frontend FILES
 # are listed individually, not the dir: frontend/node_modules (493MB) would
 # be copytree'd along with them (mutmut's file_utils has no ignore), and its
 # copy2-file branch makes no parent dirs -- scripts/mutation-run.sh
@@ -782,6 +790,12 @@ also_copy = [
     ".nvmrc",
     ".python-version",
     "docker-compose.prod.yml",
+    # #6678-era additions (2026-09-25): the a5500 precheck real-tree tests
+    # read .env.example + docker-compose.ghcr.yml from the mutant home;
+    # missing -> fixture setup errors -> stats/coverage abort under -x.
+    "docker-compose.ghcr.yml",
+    ".env.example",
+    "data/",
     "frontend/nginx.conf",
     "frontend/docker-entrypoint.sh",
     "frontend/package.json",
