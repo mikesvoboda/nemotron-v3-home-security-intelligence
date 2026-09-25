@@ -114,6 +114,9 @@ SIBLING_SENTINELS = {
         "llm_completion",
         "llm_chat_completion",
         "model_unload",
+        # 1.1: vlm_assess enters the union column unbound (vlm_client is
+        # step 1.3) - mirrored from the ops-sibling literal.
+        "vlm_assess",
     },
 }  # source: test_conformance_ops.py:139-158 (real run agreed)
 
@@ -1156,8 +1159,16 @@ class TestSemanticsMatrixGuards:
             return
         rec = registered_providers()[pid.value].operations()
         column = set(operations_for_slot(PROVIDER_SLOT[pid], OPERATIONS))
-        if pid is ProviderId.LLAMACPP_LLM:
-            assert set(rec) == {"llm_completion", "llm_chat_completion"}
+        # mirrors test_conformance_ops.SUBSET_REQUIRED (sibling-pinned by
+        # the sentinel test below): union-slot subset providers - llamacpp's
+        # evidence pair and the 1.1 VLM engines' {vlm_assess}.
+        subset_required = {
+            ProviderId.LLAMACPP_LLM: {"llm_completion", "llm_chat_completion"},
+            ProviderId.OPENAI_VLM: {"vlm_assess"},
+            ProviderId.RTVI_VLM: {"vlm_assess"},
+        }
+        if pid in subset_required:
+            assert set(rec) == subset_required[pid]
         else:
             assert set(rec) == column
             assert rec.keys() >= (set(_SEMANTICS_OPS) & column)
@@ -1168,7 +1179,7 @@ class TestSemanticsMatrixGuards:
             assert set(_SEMANTICS_OPS) <= present
         elif pid is ProviderId.GATEWAY_LIGHT:
             assert present == {"enrich_lt_pose_analyze", "enrich_lt_person_reid"}
-        else:  # LLAMACPP_LLM
+        else:  # subset providers: no semantics row is in their required set
             assert present == set()
 
     @pytest.mark.parametrize("pid", list(ProviderId), ids=lambda p: p.value)
@@ -1180,9 +1191,17 @@ class TestSemanticsMatrixGuards:
         rows. PREDICTED-GREEN; llamacpp_llm has no sentinel surface.
         UNVERIFIED at pytest."""
         if pid not in SIBLING_SENTINELS:
-            # FAKE and LLAMACPP_LLM have no sentinel surface (fake wires all
-            # 37; llamacpp registers its own two payloads, never bound ops)
-            assert pid in (ProviderId.LLAMACPP_LLM, ProviderId.FAKE)
+            # FAKE and the subset providers have no sentinel surface ON THE
+            # SEMANTICS ROWS (fake wires all ops; llamacpp registers its own
+            # two payloads; the 1.1 VLM engines register only vlm_assess,
+            # which is not a semantics row - their {vlm_assess} sentinel is
+            # pinned in test_conformance_vlm.py).
+            assert pid in (
+                ProviderId.LLAMACPP_LLM,
+                ProviderId.FAKE,
+                ProviderId.OPENAI_VLM,
+                ProviderId.RTVI_VLM,
+            )
             return
         rec = set(registered_providers()[pid.value].operations())
         expected = rec & SIBLING_SENTINELS[pid]

@@ -54,6 +54,23 @@ _CLIENT_MODULES = {
 }
 
 
+def _not_wired(op_id: str) -> Any:
+    """The NOT-WIRED sentinel (shared definition, two users: kept-deployed
+    ops with client_methods==[] below, and the VLM engine subsets until
+    vlm_client lands in 1.3). Registration still verifies slot membership
+    and count, but no live path claims the callable; the call path belongs
+    to the FakeProvider (WP8.2) or a live server. Fabricating a bound
+    callable here would be another decorative contract."""
+
+    async def _raise(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover
+        raise NotImplementedError(
+            f"{op_id}: not wired to a client yet; "
+            "drive it through the FakeProvider (WP8.2) or a live server"
+        )
+
+    return _raise
+
+
 def _bound_or_reject(op_id: str) -> Any:
     """Resolve an operation's callable from the registry's own data.
 
@@ -77,14 +94,7 @@ def _bound_or_reject(op_id: str) -> Any:
         module = importlib.import_module(_CLIENT_MODULES[cls_name])
         return getattr(getattr(module, cls_name), meth)
     if len(op.client_methods) == 0:
-
-        async def _not_wired(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover
-            raise NotImplementedError(
-                f"{op_id}: no bound client method (registry client_methods=[]); "
-                "drive it through the FakeProvider (WP8.2) or a live server"
-            )
-
-        return _not_wired
+        return _not_wired(op_id)
     raise ProviderContractError(  # pragma: no cover - census says unreachable
         "registry",
         op_id,
@@ -157,6 +167,20 @@ def _register_all() -> None:
         deployed=True,
         required=llm_ops,
     )
+    # spec §3 Slots: both VLM engines register required={"vlm_assess"} -
+    # the llamacpp subset pattern inside the union per_model_server column.
+    # 1.1 lands them with the not-wired sentinel (no client exists yet -
+    # vlm_client is step 1.3); the call path drives the FakeProvider or a
+    # live serve, and calling the sentinel raises naming it. deployed=False:
+    # the ai-vlm compose service is step 1.2.
+    for vlm_pid in (ProviderId.OPENAI_VLM, ProviderId.RTVI_VLM):
+        register_provider(
+            vlm_pid,
+            {"vlm_assess": _not_wired("vlm_assess")},
+            OPERATIONS,
+            deployed=False,
+            required={"vlm_assess"},
+        )
 
 
 _register_all()

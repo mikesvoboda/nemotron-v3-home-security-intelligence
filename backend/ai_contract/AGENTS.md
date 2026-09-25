@@ -2,7 +2,7 @@
 
 ## Purpose
 
-One importable package declaring every AI-tier operation (37 today) the product surface has, as GENERATED data - the single source of truth for what the backend may ask the AI tier to do. Plan P WP7.1-WP8.
+One importable package declaring every AI-tier operation (38 today) the product surface has, as GENERATED data - the single source of truth for what the backend may ask the AI tier to do. Plan P WP7.1-WP8.
 
 ## The Architecture Rule (do not regress)
 
@@ -10,14 +10,14 @@ One importable package declaring every AI-tier operation (37 today) the product 
 
 ## Key Files
 
-| File              | Purpose                                                                                                                               |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `__init__.py`     | Package exports; importing `providers` here IS the import-time contract check                                                         |
-| `operations.py`   | **GENERATED - DO NOT EDIT.** The 37-operation registry: id, method, path, per-slot availability, backend client methods, evidence     |
-| `provider.py`     | Hand-written support types: `ProviderId` slots, `Operation` dataclass, `AIProvider` protocol, `register_provider`, error/derive helpers |
-| `providers.py`    | Provider registrations executed at import: gateway / gateway_light / llamacpp_llm (fake is a SPEC column, deliberately not registered) |
-| `fake/`           | The deterministic FakeProvider app (see `fake/AGENTS.md`)                                                                              |
-| `schemas/`        | 43 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator  |
+| File            | Purpose                                                                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `__init__.py`   | Package exports; importing `providers` here IS the import-time contract check                                                           |
+| `operations.py` | **GENERATED - DO NOT EDIT.** The 38-operation registry: id, method, path, per-slot availability, backend client methods, evidence       |
+| `provider.py`   | Hand-written support types: `ProviderId` slots, `Operation` dataclass, `AIProvider` protocol, `register_provider`, error/derive helpers |
+| `providers.py`  | Provider registrations executed at import: gateway / gateway_light / llamacpp_llm (fake is a SPEC column, deliberately not registered)  |
+| `fake/`         | The deterministic FakeProvider app (see `fake/AGENTS.md`)                                                                               |
+| `schemas/`      | 45 generated JSON schemas (`<op>.request.json` / `<op>.response.json`) - contract sources for golden snapshots and the fake generator   |
 
 ## Patterns and Gotchas
 
@@ -25,7 +25,7 @@ One importable package declaring every AI-tier operation (37 today) the product 
 - **Import = test:** adding an operation without wiring a provider behind it - or deleting a client method a provider is built from - raises `ProviderContractError` naming the operation at `import backend.ai_contract`.
 - **Three matrix states:** an op can be absent from a slot, NOT-WIRED (registered but no bound client method - calling raises), or wired. NOT-WIRED is a real third state, not a skip.
 - **Provider callables are the bound backend client methods** (the detector/clip/enrichment/florence clients under `backend/services/`), resolved lazily via `_CLIENT_MODULES`; never import those clients at `providers.py` top level (settings/redis singletons would initialize before test fixtures).
-- The `fake` availability column is a conformance SPEC (fake implements all 37), not a claim about deployed code.
+- The `fake` availability column is a conformance SPEC (fake implements all 38), not a claim about deployed code.
 
 ## Related
 

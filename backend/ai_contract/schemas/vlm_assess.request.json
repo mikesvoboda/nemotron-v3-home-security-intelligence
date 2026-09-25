@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "VlmAssessContext": {
+      "additionalProperties": false,
+      "description": "Wire mirror of the frozen `backend.evaluation.assess_input.AssessInput`\n(camera, detections, zones, zone_crossing, household, timestamp) - same\nfield pattern as VlmCriterion/VerificationCriterion: mirror here, pin the\nfield-set compatibility in scripts/test_gen_ai_contract.py, and the\nanalyzer (1.3) converts store/DB snapshots into it, ONE code path for\nproduction and replay (spec \u00a72). Mirrored rather than imported so this\nmodule's import closure stays pydantic-only for the generator. The corpus\nfreeze is unaffected: the store's class and 421 frozen items are\nuntouched.",
+      "properties": {
+        "camera_id": {
+          "title": "Camera Id",
+          "type": "string"
+        },
+        "detections": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Detections",
+          "type": "array"
+        },
+        "household": {
+          "additionalProperties": true,
+          "title": "Household",
+          "type": "object"
+        },
+        "timestamp": {
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "zone_crossing": {
+          "default": false,
+          "title": "Zone Crossing",
+          "type": "boolean"
+        },
+        "zones": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Zones",
+          "type": "array"
+        }
+      },
+      "required": ["camera_id", "timestamp"],
+      "title": "VlmAssessContext",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The `vlm_assess` request side (spec \u00a73): 1-4 image references plus the\nstructured text context.\n\n`image_paths` (1-4, paths under the FTP root; each provider chooses a data\nURI or file://, and D10 keeps bytes out of this object), `context` (the\nAssessInput mirror above), and `specialist_outputs` (faces/plates/re-ID\nfrom the specialists only - the VLM never originates them, spec \u00a76).",
+  "properties": {
+    "context": {
+      "$ref": "#/$defs/VlmAssessContext"
+    },
+    "image_paths": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "title": "Image Paths",
+      "type": "array"
+    },
+    "specialist_outputs": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Specialist Outputs",
+      "type": "object"
+    }
+  },
+  "required": ["image_paths", "context"],
+  "title": "VlmAssessRequest",
+  "type": "object"
+}

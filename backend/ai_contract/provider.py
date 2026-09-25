@@ -33,6 +33,13 @@ class ProviderId(StrEnum):
     PER_MODEL_HTTP = "per_model_http"
     LLAMACPP_LLM = "llamacpp_llm"
     FAKE = "fake"
+    # spec §3 Slots: the VLM seam's two engines, registered as SUBSETS of
+    # the union per_model_server column (like LLAMACPP_LLM). OPENAI_VLM is
+    # engine-agnostic (standard chat + response_format json_schema -
+    # llama.cpp serve today, an OpenAI-compatible vLLM tomorrow; provenance
+    # records the actual engine). RTVI_VLM's adapter differs (Phase 4).
+    OPENAI_VLM = "openai_vlm"
+    RTVI_VLM = "rtvi_vlm"
 
 
 # The four matrix slot keys operations.py emits. WP8.1 maps ProviderId ->
@@ -140,6 +147,9 @@ PROVIDER_SLOT: dict[ProviderId, str] = {
     ProviderId.PER_MODEL_HTTP: "per_model_server",
     ProviderId.LLAMACPP_LLM: "per_model_server",
     ProviderId.FAKE: "fake",
+    # union column again: the VLM engines answer per-model, like llamacpp
+    ProviderId.OPENAI_VLM: "per_model_server",
+    ProviderId.RTVI_VLM: "per_model_server",
 }
 
 _PROVIDERS: dict[str, RegisteredProvider] = {}
