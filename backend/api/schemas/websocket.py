@@ -27,6 +27,8 @@ from pydantic import (
     model_validator,
 )
 
+from backend.api.schemas.event_verification import EventVerificationPayload
+
 
 class RiskLevel(StrEnum):
     """Valid risk levels for security events.
@@ -258,6 +260,15 @@ class WebSocketEventData(BaseModel):
     risk_level: RiskLevel | None = Field(
         ...,
         description='Risk classification ("low", "medium", "high", "critical"); None = unverified',
+    )
+    # P0.4 (spec §4): the verification object, present on vlm-mode events so
+    # consumers branch on the verdict. exclude_if keeps the KEY ABSENT for
+    # legacy events ("Legacy events have no verification row") - their
+    # broadcast payloads stay byte-identical, the null-safe rule extended.
+    verification: EventVerificationPayload | None = Field(
+        None,
+        exclude_if=lambda v: v is None,
+        description="VLM verification object; present only on verified (vlm-mode) events",
     )
     summary: str = Field(..., description="Human-readable description of the event")
     reasoning: str = Field(..., description="LLM reasoning for the risk assessment")

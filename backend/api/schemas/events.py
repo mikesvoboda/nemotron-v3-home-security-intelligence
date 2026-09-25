@@ -6,6 +6,7 @@ from functools import cached_property
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from backend.api.schemas.event_verification import EventVerificationPayload
 from backend.api.schemas.llm_response import (
     ConfidenceFactors,
     RiskEntity,
@@ -239,6 +240,18 @@ class EventResponse(BaseModel):
     confidence_factors: ConfidenceFactors | None = Field(
         None,
         description="Factors affecting confidence in the analysis",
+    )
+    # P0.4 (spec §4): the verification object, present on verified (vlm-mode)
+    # events. exclude_if keeps the KEY ABSENT for legacy events ("Legacy
+    # events have no verification row") - a legacy payload stays
+    # byte-identical, exactly the rule every route's exclude_none dump relies
+    # on. The 0.3 fail-closed path writes a verification_failed row, so
+    # verification_failed events DO carry the object (spec §4: "present on
+    # every vlm-mode event so consumers branch on the verdict").
+    verification: EventVerificationPayload | None = Field(
+        None,
+        exclude_if=lambda v: v is None,
+        description="VLM verification provenance (spec §4); absent on legacy events",
     )
 
     def model_dump_list(self) -> dict:
