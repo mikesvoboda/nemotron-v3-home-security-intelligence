@@ -1,0 +1,148 @@
+# Phase 1 — The VLM path (VSS gaming-GPU workstream)
+
+> **For agentic workers:** execute task-by-task, checkbox syntax; every step closes on an executed command + result in the ledger, never on written code. Milestone review is the built-in code review. Ledger rows for this phase are 1.x in `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`.
+
+**Status: DRAFT — written 2026-09-25 while PR #6678 (M0) is still open. No Phase-1 code lands until M0 closes (PR #6678 merged with every CI tier green, owner's merge call).**
+
+**Goal:** land spec §"Phase 1: The VLM path" — the `vlm_assess` contract (1.1), the `ai-vlm` service + `vlm` compose profile (1.2), `key_frame_selector` + `vlm_client` + `vlm_analyzer` with §6 invariants, failure ladder, degradation wiring and wake-on-open (1.3), residency control (1.4), `PIPELINE_MODE` defaulting to `vlm` (1.5), the frontend (1.6) — closing on **M1: `vlm` mode runs end to end on the A5500 with Qwen3-VL-4B as the smoke model, and every CI tier is green** (spec §8:425). The A5500 bring-up (1.7) is owner-run.
+
+**Spec/authority:** `docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md` **rev 5** — §2 (unit table :96-102), §3 (contract :113-166), §4 (data mapping :168-212), §6 (invariants/failure ladder/cold start :297-340), §7 (test layers :342-354), §8 Phase 1 + machine table (:414-425, :362) + A5500 vlm-mode checklist (:482-500). Owner ruling F10 (ledger :110-124): legacy unsupported, S2/S3 fixed bars, wire doctrine. Ledger E1-E13, G0/P0 rows, F1-F10 are the environment-of-record.
+
+**Machine split (E10, spec §8:362):** all of Phase 1 except 1.7 runs in this sandbox — code, every test tier, and live GPU serving through `agent-gpu` (honest `--vram` ≈14 for a VLM server, `agent-gpu rm` when done). Integration requires the same-session `docker compose -f docker-compose.test.yml up -d` health (E11) or the tier didn't run. **1.7 and the Triton-explicit-mode live evidence (F3: no arm64/sbsa tritonserver base exists here) are A5500/owner-run [O]**; repo-side code for both is proven here against fakes.
+
+**Tech stack:** unchanged from P0, plus: `ai-vlm:sm103` (llama.cpp b7972, sm_103 aarch64) serving Qwen3-VL-4B for probe/serve evidence; contract generator `scripts/gen-ai-contract.py`; FakeProvider conformance via `httpx.ASGITransport`.
+
+## Sequencing (binding)
+
+1. **M0-before-everything:** no Phase-1 code until PR #6678 merges. This plan is drafted in parallel; its decisions are reviewable now.
+2. **1.1-first:** the contract is the spine — every later task consumes `vlm_assess`/`VlmVerdict`/goldens. After 1.1, tasks 1.3 (backend), 1.4 (residency) and 1.6 (frontend) may parallelize (brief :37-39).
+3. **1.2 before 1.3's live evidence:** the chat-shape enforcement probe needs a served `ai-vlm`; 1.3's unit/contract work runs against FakeProvider meanwhile.
+4. **1.3-before-1.5:** the shipped default flips to `vlm` only once the vlm path exists end-to-end (a default with no path behind it is a broken default).
+5. **1.5 carries its own test-wire obligation in the same slice** (ledger item 14): the integration tier runs the SHIPPED default, so flipping it means the tier runs `vlm_analyzer` — vlm-mode fixtures land with the flip, legacy stays pinned only per-subject via `legacy_wire`. A flip that re-widens a wire pin is rejected.
+6. **1.7 gates M1's hardware half [O]:** bring-up, S1/S4, and the empirical wake-check (spec §6:335: health probes may not wake a sleeping llama.cpp — the sandbox proves the request-side at 1.3, the A5500 run proves wake-through-sleep).
+
+## Global constraints
+
+- GPU only through `agent-gpu`; honest `--vram`; `agent-gpu rm` when done; never touch the rootful dgx-inference containers.
+- D10: real-camera imagery/labels/snapshots never enter git; stored rows reference images by path; aggregate metrics only in docs.
+- Legacy is UNSUPPORTED (F10): `vlm_analyzer` is a SIBLING of `nemotron_analyzer`, not an edit; no new legacy work; its tests keep passing; nothing deleted until R8 (build empty states). `PIPELINE_MODE` may accept `legacy` but nothing may wire it as a fallback or rollback target.
+- Wire doctrine (ledger item 14): integration tier runs the shipped default; never re-widen a wire pin.
+- Schema, golden payload and shape snapshot are GENERATED from `VlmVerdict` — never hand-written (spec §3:124-127; E5 is the cautionary precedent). Goldens emit only for object-rooted schemas — both `vlm_assess` sides get an object root.
+- `backend/ai_contract` never imports `ai.*` and never imports the `backend.api.schemas` eager aggregate — `VlmVerdict` lives in a standalone module the generator can exec-import.
+- New service ports go into `.env.example` FIRST (AGENTS.md:150): `AI_VLM_PORT=8098` [V 2026-09-25: absent from `.env.example`; ports block ends at 8097; grep for `AI_VLM_PORT` hits only the spec].
+- Probe discipline: enforcement probe budget `n_predict/max_tokens = 400` (64 truncates and FAKE-IGNORES — S-2/P0.3 trap, "the serve is the gate"); re-run the probe on any engine/model swap; CI CLI and runtime gate share `build_probe_schema`/`_probe_completion` (`scripts/vlm_probes/enforcement.py`) so they cannot probe different grammars.
+- S5 semantics: a failed/unparseable verdict is `verification_failed` + NULL score/level — never a default 50 (the pinned `test_ai_degradation.py:246-254` shape is legacy semantics vlm mode must not reproduce). `rejected` ⇒ score clamped ≤ SeverityService `low_max` AND never notifies.
+- TDD: failing test first, per site. Gates: `uv run pytest backend/tests/unit/ -n auto`; contracts `-n0 --timeout=30`, never xfail/skip in `contracts/ai_providers`; integration same-session compose-up; `cd frontend && npm ci && npm run typecheck` when frontend changes; `scripts/gen-ai-contract.py --check` whenever `ai_contract` is touched (1.1 and 1.4 will touch it).
+- Doc-vs-repo conflicts → ledger row or dated errata, never a silent spec edit; keep [V][C][E][?][O][A]; run-count claims are [V] only with a same-session run.
+- Every commit: `uv tool run pre-commit run --files …` + message check via DIRECT `uv tool run conventional-pre-commit` + `Co-Authored-By` trailer; zero hook churn before committing. Pushes, PRs and merges only on the owner's go-ahead.
+- STOP AND ASK (unchanged): VLM pick at M2; go-live sign-off 3.1; `S2_MAX`/`S3_MIN` (owner sets before 2.2 — this plan encodes no numbers for them); any change to a D# or S#; anything touching dgx-inference; any Brev spend; any `agent-gpu` refusal; reasoning-LLM R10; doc-12 roadmap items; pushes/PRs/merges. **Plus two plan-flagged ones:** any widening of `SECURITY_RELEVANT_CLASSES` (`notification_filter.py:22`, frozen), and any change to the fire/smoke override semantics (below, Task 3) beyond "keep working unchanged".
+
+## Known environment facts carried forward (all [V] in the ledger, re-verified at plan time)
+
+- Greenfield [V 2026-09-25]: `pipeline_mode` — 0 hits in backend/config/compose/.env.example; `ai-vlm`/`vlm` profile — 0 hits in all compose files; `backend/services/vlm_client.py`/`vlm_analyzer.py`/`key_frame_selector.py` — do not exist; `VLM_OPS`/`VlmVerdict` — 0 hits in the generator and `backend/ai_contract`; `ProviderId.OPENAI_VLM`/`RTVI_VLM` — 0 hits.
+- Already shipped (do not rebuild): P0.25 null-safety (`websocket.py:257-262`, `event_broadcaster.py:326-337`, `notification_filter.py:65-69/:113-132`); P0.4 `event_verifications` (`models/event_verification.py`) + `verification` REST/WS field (`schemas/event_verification.py:75` exclude_if absent-not-null; `test_p04_verification_field.py` pin); P0.3 constrained verdict + shared probe seam (`nemotron_analyzer.py:326-370, :751+`). `event_verifications` needs only `create_all` — no migration.
+- Serving: sanctioned images `ai-vlm:sm103` (b7972) + `ai-vlm:sm103-b11090` (F8); recipe `agent-gpu run --image ai-vlm:sm103 --vram 14 --port 8080 --mount models:/models --mount out:/out --env MODEL_PATH=… --env MMPROJ_PATH=…` (G0.2/F1; libgomp from `out/libs/gomp`; `models/` mode 755 for USER llama). Chat-completions multimodal `json_schema` already proven ENFORCED at b7972 with images (`scripts/vlm_probes/s2_multimodal_schema.py`).
+- Wire shape asymmetry: the shipped P0.3 legacy probe is `/completion` with TOP-LEVEL `json_schema`; `vlm_assess` is `POST /v1/chat/completions` with `response_format={"type":"json_schema"}` + up to 4 base64 `image_url` parts (spec §3:141-145). The vlm probe needs its own nonce-const against the chat shape.
+- Batch→event seam [V]: `AnalysisQueueWorker._process_analysis_item` calls `analyzer.analyze_batch` at `pipeline_workers.py:1049`; constructor default `NemotronAnalyzer` at `:799`; manager analyzer param `:1511/:1600-1607`; standalone factory `create_analysis_worker` `:2155` and `api/dependencies.py:962` bypass `container.py:503` — **all three seams need the same 1.5 branch**. Batch opens in `batch_aggregator.add_detection` (`:445`, new-batch branch `:605-629`) — the wake-on-open hook.
+- Contract landmines [V]: `POST /v1/chat/completions` is already `llm_chat_completion`'s path (`operations.py:215-228`) and the fake mounts one route per `op.path` (`fake/app.py:88-89`) — `vlm_assess` must carry a distinct registered path; `MATRIX_SLOTS` is pinned to exactly 4 keys (`test_conformance_ops.py:400-411`) — new ProviderIds reuse a column, they don't mint a fifth; a new ProviderId without a `PROVIDER_SLOT` entry KeyErrors at registration (`provider.py:137-143`); the parity checker yields CLAIM-GW404 (CI red) until `.github/ai-parity-baseline.json` carries the new id.
+- `notification_filter.should_notify` has NO production caller — the live notification decision is `alert_engine.py:451` (already NULL-safe). `DegradationManager` is instantiated nowhere in prod (only read by `system.py:4116-4145`); `ServiceHealthMonitor`'s list is hardcoded [yolo26, nemotron] (`main.py:1024-1038`). 1.3 wires one machinery and ledgeres the call.
+- Eval store at `$AGENT_GPU_DIR/out/eval-store/eval.sqlite`: 421 items (benign 139 / incident 282), runs=0/results=0 [V re-verified read-only 2026-09-25]. `AssessInput` is FROZEN (`backend/evaluation/assess_input.py`, `extra="forbid"`) — Phase 1 honors it or re-freeze is an owner call; the replay harness itself is Phase 2.1.
+- Frontend null-lie sites [V]: `EventCard.tsx:156,232,282,410`, `EventDetailModal.tsx:95,520,600-602,1135`, `EventListView.tsx:21,298,362`, `MobileEventCard.tsx:30,88,180`, `EventTimeline.tsx` `|| 0` sites, `EventFilters.tsx:19-37` (no verdict filter), `EnrichmentPanel.tsx:461,503+`; ActivityFeed's interim chip (`:166-224`, comment "design is 1.6's") is the pattern to generalize.
+
+## File structure
+
+| File                                                                          | Fate           | Responsibility                                                                                                                                                          |
+| ----------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend/services/vlm_verdict.py`                                             | new (1.1)      | `VlmVerdict` pydantic — single source of truth; schema via `model_json_schema()`; standalone module                                                                     |
+| `scripts/gen-ai-contract.py`                                                  | edit (1.1)     | `VLM_OPS` entry (LLM_OPS precedent :81); schema/goldens derived from `VlmVerdict`, not transcribed                                                                      |
+| `backend/ai_contract/` (operations/schemas/goldens)                           | GENERATED      | 37→38 ops, 43→45 schemas/goldens; regenerate, never hand-edit                                                                                                           |
+| `backend/ai_contract/provider.py` + `providers.py`                            | edit (1.1)     | `ProviderId.OPENAI_VLM`/`RTVI_VLM` + `PROVIDER_SLOT`; register with `required={"vlm_assess"}`                                                                           |
+| `backend/ai_contract/fake/app.py` + `generators.py`                           | edit (1.1)     | deterministic `vlm_assess` verdict keyed on image hash; fault injection for the ladder                                                                                  |
+| conformance tests + `.github/ai-parity-baseline.json` + AGENTS.md counts      | edit (1.1)     | `EXPECTED_DEPLOYED`, `SIBLING_SENTINELS`, string-id loop, `test_ai_provider` sets; DECLARED id; 38/45/45                                                                |
+| `.env.example`                                                                | edit (1.2)     | `AI_VLM_PORT=8098` FIRST (root port rule); `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` vars                                                                                      |
+| `docker-compose.prod.yml`                                                     | edit (1.2)     | `ai-vlm` service, `profiles: [vlm]` (precedent :219-221), `${VLM_MODEL_PATH:-…}` style; NO hard backend `depends_on`                                                    |
+| `ai/vlm/Dockerfile`                                                           | edit (1.2/1.4) | add `--sleep-idle-seconds`, `--alias`, 2 slots, ctx math; amd64/sm_86 via `CUDA_ARCHITECTURES` build-arg — one Dockerfile, no fork                                      |
+| `backend/services/key_frame_selector.py`                                      | new (1.3)      | PURE, ingest-agnostic: 1-4 stills per batch (best detection per camera/class + most recent)                                                                             |
+| `backend/services/vlm_client.py`                                              | new (1.3)      | chat-shape client + once-per-endpoint enforcement probe (shared seam), `CircuitBreaker`-wrapped                                                                         |
+| `backend/services/vlm_analyzer.py`                                            | new (1.3)      | SIBLING analyzer: pure AssessInput builder (prod=DB, replay=store), §6 invariants, verdict→Event, broadcast WITH `verification`                                         |
+| `backend/services/batch_aggregator.py`                                        | edit (1.3)     | wake-on-open EXACTLY once on batch open (`:605-629`), fire-and-forget, off the camera lock                                                                              |
+| degradation wiring (`main.py:1024-1038`, `degradation_manager.py`)            | edit (1.3)     | ai-vlm health + breaker → `DegradationMode.DEGRADED` + Prometheus; ledger machinery choice                                                                              |
+| notification gate (`alert_engine.py`, `notification_filter.py`)               | edit (1.3)     | rejected never notifies, landed in the LIVE decision (alert_engine) + §6 rule kept in filter                                                                            |
+| `ai/gateway/entrypoint.sh` + `model_management.py` + contract                 | edit (1.4)     | Triton explicit mode + vlm load set; 501 handlers become real; `gen-ai-contract` regen                                                                                  |
+| `backend/core/config.py`                                                      | edit (1.2/1.5) | ai-vlm settings block; `pipeline_mode: str = "vlm"` + validator (nemotron\_\* block precedent)                                                                          |
+| `backend/services/pipeline_workers.py`, `container.py`, `api/dependencies.py` | edit (1.5)     | PIPELINE_MODE branch at ALL THREE analyzer seams; loud startup log of active mode                                                                                       |
+| frontend events components + generated types                                  | edit (1.6)     | verdict badge, scene description, criteria checklist, reviewed frames, verdict filter, rejected de-emphasis, retired-enrichment empty states, null-safe score rendering |
+| `scripts/a5500_precheck.py`                                                   | edit (1.7)     | replace obsolete `llm_model`/`ai_llm_mount` checks with the `ai-vlm` model/mount check (spec :490-492)                                                                  |
+
+---
+
+### Task 1: 1.1 — the contract (spine; spec §3:113-166)
+
+- [ ] TDD red first: a contract test that `VLM_OPS` yields a `vlm_assess` op whose response JSON Schema equals `VlmVerdict.model_json_schema()` (drift doctrine), and goldens regenerate. Decisions, made here and executed there: **VlmVerdict home = `backend/services/vlm_verdict.py`** (standalone; `backend/api/schemas/__init__.py` is a 700-line eager aggregate banned inside `ai_contract`; `event_verification.VerificationCriterion` is REUSED/aliased, not duplicated). **Registered path = `/vlm/chat/completions`** — the real wire is `/v1/chat/completions` (llama.cpp), but `llm_chat_completion` owns that `op.path` and the fake would double-mount; the evidence column records the real-engine spelling and `vlm_client` speaks it. **Matrix column = `per_model_server`** with `required={"vlm_assess"}` (the 4-key MATRIX_SLOTS pin forbids a fifth; spec's "own slot" is naming, not a key).
+- [ ] ProviderIds: `OPENAI_VLM`, `RTVI_VLM` minted with `PROVIDER_SLOT` entries + `required={"vlm_assess"}`; update every provider-keyed literal the spec doesn't mention (`EXPECTED_DEPLOYED`, `SIBLING_SENTINELS`, `test_conformance_numeric.py:1035` loop, `test_ai_provider.py:64-78` sets). Do NOT add vlm_assess to `CLIENT_OP_MAP`/`CLIENT_GLOBS` (the two-way AST map test would red, and `_bound_or_reject` would install a NOT-WIRED sentinel).
+- [ ] FakeProvider: `vlm_assess` returns a deterministic verdict keyed on an image-ref hash (deliberate payload read — today the handler ignores body except `model_name`); plus the §7 fault-injection knobs the ladder needs (timeout / schema-invalid body / 5xx). Fake-availability column `fake: True` is mandatory or registration fails.
+- [ ] Parity + counts: run `scripts/check-ai-provider-parity.py`; add the new id to `.github/ai-parity-baseline.json` so the ratchet reads DECLARED, not CLAIM-GW404. Bump AGENTS.md counts 37/43/43 → 38/45/45 (path-validated validator).
+- [ ] Gates: regenerate, `scripts/gen-ai-contract.py --check` clean; contracts tier `-n0 --timeout=30` green (no xfail/skip — the whole tier must already know the new op); unit `-n auto`; ledger row 1.1 [V].
+
+### Task 2: 1.2 — the `ai-vlm` service + `vlm` profile (spec §2:98)
+
+- [ ] `.env.example` FIRST: `AI_VLM_PORT=8098` into the AI SERVICE PORTS block (env-first rule AGENTS.md:150); `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` follow prod.yml:158's `${VAR:-default}` style, not ghcr's hardcoded literal.
+- [ ] `docker-compose.prod.yml`: `ai-vlm` with `profiles: [vlm]`; llama-server flags per §2 (`--jinja`, `--sleep-idle-seconds`, `--alias`, 2 slots, ctx for 4 images + ~6K text + output — values chosen and ledgered, mirroring ghcr.yml:277-285's CTX_SIZE/PARALLEL budget comment). **No hard backend `depends_on`** (a profiled service breaks default `up`); graceful degradation via 1.3's wiring — ledger the call. `docker-compose.ghcr.yml` stays OUT of Phase 1 (the A5500 builds from context with `CUDA_ARCHITECTURES=86`, per the spec checklist); ledger that scope call.
+- [ ] `ai/vlm/Dockerfile`: add the §2 flags + 2-slot/ctx values; parameterize arch so sm_103 aarch64 and sm_86 x86 build from ONE Dockerfile via build-arg (no per-host fork).
+- [ ] GB300 dev path: `ai-vlm` served via `agent-gpu` (existing recipe) or the gb300 overlay — never by editing prod compose. Live serve check: container up, `/health` ok, probe `s2_multimodal_schema`-shaped check passes at `--vram 14`; `agent-gpu rm` after. Ledger row 1.2 [V] with serve output.
+
+### Task 3: 1.3 — selector, client, analyzer, §6 ladder (spec §2:99-101, §6:297-340)
+
+- [ ] `key_frame_selector` — Hypothesis property tests first: PURE, ingest-agnostic over image refs; 1-4 stills; best detection per camera/class + most recent; refs are paths under `settings.foscam_base_path` (`Detection.file_path`/`thumbnail_path`), never bytes.
+- [ ] `vlm_client` — chat-shape request (≤4 base64 image parts + structured context); enforcement probe on the chat shape with its own nonce-const, once per endpoint, caching only ENFORCED (reuse `build_probe_schema`/`_probe_completion` — one grammar for CI and runtime); `CircuitBreaker`-wrapped; "accepts-but-ignores schema must read as NOT enforced" regression (E5 class) pinned.
+- [ ] `vlm_analyzer` — SIBLING module; pure AssessInput builder honoring the frozen shape (production from DB, replay from store — ONE code path, what makes 2.1 possible); verdict→Event per §4: score after §6 invariants, level via SeverityService (model never emits a level), `llm_prompt`/interactions store the prompt with images REFERENCED BY PATH; one `event_verifications` row per event; broadcast payload MUST include the `verification` key (P0.4 renderer on the analyzer's own tx, not a re-query); replay never broadcasts.
+- [ ] §6 invariants as table-driven tests: rejected ⇒ clamped ≤ `low_max` AND never notifies even when a camera `risk_threshold` sits inside the low band; uncertain keeps its score + needs-review, notifies normally; VLM never originates an event — runs only on detector-closed batches; the fire/smoke bypass and fire override keep working UNCHANGED (non-VLM evidence paths; any change there = stop-and-ask).
+- [ ] Failure ladder via FakeProvider fault injection: transport error ⇒ retry ONCE at temp 0 within S4 budget; still bad ⇒ `verification_failed` + NULL score/level; notification via the shipped detector-only rule; repeated failures ⇒ breaker opens ⇒ ai-vlm unhealthy ⇒ `DEGRADED` surfaced via health endpoint + Prometheus. **Decide and ledger which degradation machinery hosts this** (spec-named `DegradationManager` vs test-banked `AIFallbackService`; prod instantiates neither today) and land the rejected-gate in `alert_engine` where the live decision actually happens.
+- [ ] Wake-on-open: fire-and-forget from `add_detection`'s new-batch branch, `POST /v1/chat/completions` `max_tokens:1`, EXACTLY once per batch open (pin the count); never under the camera lock; never a health probe. Sandbox [V]: against an agent-gpu-served `ai-vlm`, idle-sleep the server, open a batch-shaped wake, observe wake + exactly one request; the through-sleep proof repeats at M1 [O].
+- [ ] Gates + integration (same-session compose-up): NULL-score events ride the live pipe db→WS→frontend-type→notification without crash or lie; legacy tier untouched (its tests still green — sibling, not edit). Ledger row 1.3 [V].
+
+### Task 4: 1.4 — residency control (spec §2:102, §6:336-341; F3 splits the evidence)
+
+- [ ] Sandbox-provable half: llama.cpp idle-sleep flags land with 1.2's Dockerfile change; the wake-on-open Triton specialist hook gets unit pins against a fake gateway load API.
+- [ ] Triton explicit-mode half (code here, evidence on the A5500 [O]): `entrypoint.sh:131` `--model-control-mode=none` → `explicit` with the vlm load set (YOLO26 + on-demand specialists ONLY — rev 5 deleted the legacy load set); `model_management.py:682-760` 501 handlers become real load/unload (wake-on-open for specialists requires a gateway that actually loads); flip `model_preload`/`model_unload` availability `gateway:False→True`, regenerate the contract, flip the 501-asserting tests to real-behavior tests. F3 stands: no arm64/sbsa tritonserver exists here, so live evidence is 1.7/1.7-adjacent [O]; ledger both halves distinctly.
+
+### Task 5: 1.5 — `PIPELINE_MODE`, default `vlm` (spec §2:76-79)
+
+- [ ] `pipeline_mode: str = "vlm"` + validator (nemotron\_\* block precedent); `legacy` parses (code stays until R8) but is LOUD at startup and wired nowhere as fallback.
+- [ ] Branch the analyzer at ALL THREE seams (constructor :799, `create_analysis_worker` :2155, `api/dependencies.py:962`) — plus `container.py:503` — via one factory, so no path silently runs a stale analyzer.
+- [ ] Test-wire obligation IN THIS SLICE (binding rule 5): integration conftest gains a vlm-mode fake (fake `vlm_assess` endpoint passing the chat-shape probe, mirroring `mock_llm_enforces_grammar`); tests whose subject IS legacy pin `legacy_wire` per-subject; full tier re-run compared to the banked baseline — failure identities, not counts, are the evidence.
+- [ ] Gates; ledger row 1.5 [V] naming the tier identity diff.
+
+### Task 6: 1.6 — the frontend (spec §4:196-201)
+
+- [ ] Typecheck-red first: generated types regenerate from the 1.1/1.3 surface (`openapi/api.ts`, `scripts/generate-ws-types.py`); components typed `risk_score: number` become nullable-aware — every `|| 0` coalescing site in `EventTimeline`/`EventListView` is a null-lie and gets a verdict-aware branch instead.
+- [ ] Shared verdict badge (generalize the ActivityFeed chip + `RiskBadge`): confirmed/rejected/uncertain/verification_failed + unverified; rejected stays listed but de-emphasized; event detail gains scene description, criteria checklist, reviewed frames (key_frame refs → thumbnails); `EventFilters` gains a verdict filter; retired-enrichment panels show "not analyzed in VLM mode" empty states (R8: empty states, not deletions).
+- [ ] vitest for new components + `npm run typecheck`; ledger row 1.6 [V].
+
+### Task 7: 1.7 — A5500 bring-up, `vlm` mode (owner-run [O])
+
+- [ ] Repo-side first: `scripts/a5500_precheck.py` `llm_model`/`ai_llm_mount` checks → `ai-vlm` model/mount check (TDD); dated handout (successor to `2026-09-25-a5500-bringup-checklist.md`) restating spec :482-500: GPU\_\*=0, `CUDA_ARCHITECTURES=86` check-before-build, no legacy LLM deployed, Qwen3-VL-4B smoke serve + enforcement probe BEFORE any event reaches it, TMPDIR/`__pycache__` traps, `/platform-healthcheck` + root AGENTS.md infra checklist.
+- [ ] **Owner-run:** execute; ledger [O] rows (commands + results). M1's wake-through-sleep check happens here (spec §6:335). Minimum end-to-end proof agreed with the owner in the handout: synthetic still → detector-closed batch → vlm verdict → event + verification row → badge → notification decision.
+
+### Task 8: M1 exit + close
+
+- [ ] Ledger 1.x rows each closed with command + result + commit + machine; [O] vs [V] honest; no unobserved passes.
+- [ ] M1 assertion: (1) every CI tier green on the final Phase-1 head; (2) A5500 `vlm`-mode end-to-end [O]; (3) wake-request verified through sleep [O]. S1/S4 measured on the A5500 at/after 1.7 — not claimed here.
+- [ ] Built-in code review across the diff; milestone report (proven with S#s / failed & why / next = Phase 2 planning only / decisions owed).
+
+## Definition of done
+
+- 1.1 shipped: `vlm_assess` + `VlmVerdict`-derived schema/goldens, FakeProvider deterministic-by-image-hash + fault injection, conformance green with the new ProviderIds registered; counts and parity baseline updated.
+- 1.2 shipped: `ai-vlm` profiled service, env-first port, one Dockerfile for both arches; live GB300 serve + probe evidence in the ledger.
+- 1.3 shipped: selector/client/analyzer with §6 invariants, ladder, degradation, wake-on-open — all with executed sandbox evidence; zero default-score sites on the vlm path.
+- 1.4 shipped: idle-sleep proven [V]; Triton explicit-mode code + contract flip landed, live evidence deferred to the A5500 [O] with F3 quoted (no silent N/A).
+- 1.5 shipped: default `vlm`, all three seams branched, integration tier re-based on the new shipped default the same slice it flips.
+- 1.6 shipped: badges/filters/frames/empty states + null-safe rendering, typecheck + vitest green.
+- 1.7 handout dated and repo-side precheck updated; execution is the owner's.
+- Every CI tier green on the M1 head.
+
+**Not done here (honest gaps):** S1-S4 measurements (A5500), S2/S3 against the owner's bars (bars set before 2.2), any claim about the chosen production VLM (M2 is the owner's).
+
+## Out of scope
+
+Replay harness `vlm_replay.py` (2.1); bake-off (2.2) and any Brev spend (2.3); `S2_MAX`/`S3_MIN` numbers; ghcr-compose `ai-vlm` variant (ledgered scope call in 1.2); R8 deletions (legacy code stays); home-box go-live (3.1); RT-VLM (Phase 4); doc-12 postponed-roadmap items.
