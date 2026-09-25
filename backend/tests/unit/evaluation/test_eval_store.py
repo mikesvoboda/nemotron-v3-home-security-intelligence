@@ -290,7 +290,12 @@ class TestStockLoader:
         """The frames live on the GPU mount OUTSIDE the checkout, so the D10
         guard must accept them - and it does only because residence is checked
         by resolved path. Frames themselves are never read, only pathed."""
-        items = load_stock_items(GPU_STOCK)
+        # (CI PR #6678: the absent-root case used to raise inside the loader
+        # before this guard could skip it - machines without the GPU mount got
+        # a FileNotFoundError instead of the declared skip. A missing corpus
+        # IS "not staged", so it feeds the same guard; the production loader
+        # still raises for real callers.)
+        items = load_stock_items(GPU_STOCK) if GPU_STOCK.is_dir() else []
         if not items:
             pytest.skip("stock corpus not staged on this machine")
         assert {i.item_id for i in items} >= {"stock:casing", "stock:package_theft"}

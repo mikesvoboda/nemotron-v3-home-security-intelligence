@@ -73,6 +73,16 @@ def mock_settings():
     mock.prompt_shadow_mode_enabled = True
     mock.nemotron_use_guided_json = False
     mock.nemotron_guided_json_fallback = True
+    # P0.3: pin the LEGACY wire - this file tests shadow-mode prompt behavior
+    # on the pre-constrained route (constrained surface is pinned in
+    # unit/services/test_p03_constrained_verdict.py; same pin doctrine as the
+    # contracts settings_factory and the unit-tier analyzer fixtures).
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     # Phase 5 batch coalescing settings
     mock.batch_coalescing_enabled = False
     mock.batch_coalescing_max_size = 10

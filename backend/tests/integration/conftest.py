@@ -1103,6 +1103,34 @@ async def integration_db(
 
 
 @pytest.fixture(scope="session", autouse=True)
+def legacy_wire_pin():
+    """Pin the LEGACY nemotron wire tier-wide (P0.3 doctrine, CI PR #6678).
+
+    This tier characterizes the pre-constrained analyzer: fallback scoring
+    (50/medium), batch/fallback semantics, shadow prompts. With P0.3's ship
+    default nemotron_constrained_decoding_enabled=True, the real-settings
+    analyzers here would probe NEMOTRON_URL (no listener in this environment)
+    and fail CLOSED to NULL scores - honest behavior, but it tests a wire
+    this tier was never written to assert. The constrained wire is pinned
+    where it belongs: unit/services/test_p03_constrained_verdict.py (39
+    tests) + the live agent-gpu probe (ledger Task 3 box 4) - and the
+    contracts settings_factory carries the same False pin by the same
+    reasoning. F4 keeps the legacy path byte-identical behind the flag;
+    these pins retire when R8 flips the default (ledger R8, not before).
+
+    Env-based so real get_settings() callers honor it; cache_clear makes
+    even an earlier import-time cache irrelevant.
+    """
+    os.environ["NEMOTRON_CONSTRAINED_DECODING_ENABLED"] = "false"
+    from backend.core.config import get_settings
+
+    get_settings.cache_clear()
+    yield
+    os.environ.pop("NEMOTRON_CONSTRAINED_DECODING_ENABLED", None)
+    get_settings.cache_clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
 def cleanup_stale_advisory_locks():
     """Clean up any stale advisory locks at session start and end.
 
