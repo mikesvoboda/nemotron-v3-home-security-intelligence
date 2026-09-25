@@ -527,7 +527,7 @@ class TestFailClosedEvents:
             camera, det = _camera(), _detection()
             read_s, write_s = _read_session(camera, [det]), _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("LLM service unavailable")
 
             broadcast = AsyncMock()
@@ -601,7 +601,7 @@ class TestFailClosedEvents:
             read_s = _read_session(camera, [det], rows_via="scalar")
             write_s = _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ReadTimeout("slow")
 
             with (
@@ -630,7 +630,7 @@ class TestFailClosedEvents:
             camera, det = _camera(), _detection()
             read_s, write_s = _read_session(camera, [det]), _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("LLM service unavailable")
 
             with (
@@ -675,7 +675,7 @@ class TestFailClosedEvents:
             tracking.status = "completed"
             enrichment.to_storage_dict = MagicMock(return_value={})
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("down")
 
             with (
@@ -714,7 +714,7 @@ class TestAuditPriorityForNull:
             read_s, write_s = _read_session(camera, [det]), _write_session()
             enqueue = AsyncMock()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("down")
 
             audit_service = MagicMock()
@@ -943,7 +943,7 @@ class TestVerificationRowProducer:
             camera, det = _camera(), _detection()
             read_s, write_s = _read_session(camera, [det]), _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("LLM service unavailable")
 
             with (
@@ -985,7 +985,7 @@ class TestVerificationRowProducer:
             read_s = _read_session(camera, [det], rows_via="scalar")
             write_s = _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ReadTimeout("slow")
 
             with (
@@ -1078,7 +1078,7 @@ class TestVerificationRowProducer:
             tracking.status = "completed"
             enrichment.to_storage_dict = MagicMock(return_value={})
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("down")
 
             with (
@@ -1168,7 +1168,7 @@ class TestVerificationRowProducer:
             camera, det = _camera(), _detection()
             read_s, write_s = _read_session(camera, [det]), _write_session()
 
-            async def failing_llm(*a2, **k2):
+            async def failing_llm(*args: object, **kwargs: object):
                 raise httpx.ConnectError("LLM service unavailable")
 
             with (
