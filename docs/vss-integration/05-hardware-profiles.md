@@ -1,5 +1,7 @@
 # Hardware Profiles: The Tiering Strategy
 
+> **Errata (2026-09-23):** E1, E3, E4, E6, E9, E10, E17, E18 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 **Proposed 2026-09-19.** This reframes the product thesis from "port VSS to consumer GPUs" to
 "contribute a consumer-GPU profile tier, for which a reference implementation already exists."
 

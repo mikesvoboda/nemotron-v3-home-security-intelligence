@@ -27,6 +27,8 @@ from pydantic import (
     model_validator,
 )
 
+from backend.api.schemas.event_verification import EventVerificationPayload
+
 
 class RiskLevel(StrEnum):
     """Valid risk levels for security events.
@@ -238,8 +240,8 @@ class WebSocketEventData(BaseModel):
         event_id: Legacy alias for id (for backward compatibility)
         batch_id: Detection batch identifier
         camera_id: Normalized camera ID (e.g., "front_door")
-        risk_score: Risk assessment score (0-100)
-        risk_level: Risk classification (validated against RiskLevel enum)
+        risk_score: Risk assessment score (0-100), or None when unverified
+        risk_level: Risk classification (validated against RiskLevel enum), or None
         summary: Human-readable description of the event
         reasoning: LLM reasoning for the risk assessment
         started_at: ISO 8601 timestamp when the event started (nullable)
@@ -249,9 +251,24 @@ class WebSocketEventData(BaseModel):
     event_id: int = Field(..., description="Legacy alias for id (backward compatibility)")
     batch_id: str = Field(..., description="Detection batch identifier")
     camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
-    risk_score: int = Field(..., ge=0, le=100, description="Risk assessment score (0-100)")
-    risk_level: RiskLevel = Field(
-        ..., description='Risk classification ("low", "medium", "high", "critical")'
+    # P0.25 (spec §4): a verification_failed event carries NULL score/level
+    # (spec §6 step 3) - None must validate through this boundary. None is
+    # not a low score; consumers must branch on None, never coalesce it.
+    risk_score: int | None = Field(
+        ..., ge=0, le=100, description="Risk assessment score (0-100); None = unverified"
+    )
+    risk_level: RiskLevel | None = Field(
+        ...,
+        description='Risk classification ("low", "medium", "high", "critical"); None = unverified',
+    )
+    # P0.4 (spec §4): the verification object, present on vlm-mode events so
+    # consumers branch on the verdict. exclude_if keeps the KEY ABSENT for
+    # legacy events ("Legacy events have no verification row") - their
+    # broadcast payloads stay byte-identical, the null-safe rule extended.
+    verification: EventVerificationPayload | None = Field(
+        None,
+        exclude_if=lambda v: v is None,
+        description="VLM verification object; present only on verified (vlm-mode) events",
     )
     summary: str = Field(..., description="Human-readable description of the event")
     reasoning: str = Field(..., description="LLM reasoning for the risk assessment")
@@ -265,6 +282,8 @@ class WebSocketEventData(BaseModel):
         Accepts string values for backward compatibility with existing
         WebSocket clients that send lowercase strings.
         """
+        if v is None:  # P0.25: NULL passes through (unverified event)
+            return None
         if isinstance(v, RiskLevel):
             return v
         if isinstance(v, str):

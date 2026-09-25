@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .event_audit import EventAudit
     from .event_detection import EventDetection
     from .event_feedback import EventFeedback
+    from .event_verification import EventVerification
     from .llm_interaction import LLMInteraction
 
 
@@ -184,6 +185,17 @@ class Event(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
         lazy=get_relationship_lazy_mode(),
+    )
+    # VLM verification provenance (P0.4, spec §4). Legacy events have NO row -
+    # presence of a row is what the REST/WS `verification` field branches on.
+    # The DB-level FK cascades (cleanup hard-delete); the ORM cascade mirrors
+    # it so a session.delete(event) never leaves an orphan.
+    verifications: Mapped[list[EventVerification]] = relationship(
+        "EventVerification",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",  # eager like `detections`: the API reads it with every event
     )
 
     # Indexes for common queries

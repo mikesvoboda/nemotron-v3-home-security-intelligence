@@ -85,9 +85,16 @@ class TestWebSocketMessageSchemas:
         for field in required_fields:
             assert field in properties, f"Missing required field: {field}"
 
-        # Verify risk_score constraints (critical for frontend risk gauge)
-        assert properties["risk_score"]["minimum"] == 0
-        assert properties["risk_score"]["maximum"] == 100
+        # Verify risk_score constraints (critical for frontend risk gauge).
+        # P0.25 (spec §4): Optional renders as anyOf[{integer 0-100}, null] -
+        # scored keeps its bounds; the null branch is the unverified state
+        # (spec §6 step 3), so the gauge must handle it (frontend type:
+        # number | null - same task, frontend step).
+        branches = properties["risk_score"]["anyOf"]
+        scored = next(b for b in branches if b.get("type") == "integer")
+        assert scored["minimum"] == 0
+        assert scored["maximum"] == 100
+        assert {"type": "null"} in branches
 
     def test_service_status_message_schema_contract(self):
         """Test WebSocketServiceStatusMessage matches frontend ServiceStatusMessage."""

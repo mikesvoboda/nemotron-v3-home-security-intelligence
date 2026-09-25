@@ -73,6 +73,18 @@ def mock_settings():
     mock.prompt_shadow_mode_enabled = True
     mock.nemotron_use_guided_json = False
     mock.nemotron_guided_json_fallback = True
+    # P0.3: the SHIPPED default (owner ruling, PR #6678) - these tests are
+    # about shadow-prompt behavior, not the legacy wire, so they run with
+    # constrained decoding on. The enforcement gate stays live and passes
+    # through the tier's mock-LLM probe fixture (conftest
+    # mock_llm_enforces_grammar); the /props GET tolerating no listener is
+    # itself pinned in unit/services/test_p03_constrained_verdict.py.
+    mock.nemotron_constrained_decoding_enabled = True
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     # Phase 5 batch coalescing settings
     mock.batch_coalescing_enabled = False
     mock.batch_coalescing_max_size = 10

@@ -245,6 +245,14 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -398,6 +406,14 @@ class TestNemotronAnalyzerCorrelation(TestCorrelationHeaderPropagation):
         # Guided JSON settings (NEM-3726)
         mock_settings.nemotron_use_guided_json = False
         mock_settings.nemotron_guided_json_fallback = True
+        # P0.3 constrained decoding: legacy values (a plain MagicMock
+        # auto-truthies every attribute - the flags must be pinned False)
+        mock_settings.nemotron_constrained_decoding_enabled = False
+        mock_settings.nemotron_constrained_fail_closed = True
+        mock_settings.nemotron_constrained_probe_enabled = True
+        mock_settings.nemotron_constrained_probe_required_build = None
+        mock_settings.nemotron_verification_engine = "llama.cpp"
+        mock_settings.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         # Phase 5 batch coalescing settings
         mock_settings.batch_coalescing_enabled = False
         mock_settings.batch_coalescing_max_size = 10

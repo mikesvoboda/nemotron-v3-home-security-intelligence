@@ -36,6 +36,10 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://user:password@localh
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 # Import all WebSocket schemas
+from backend.api.schemas.event_verification import (  # noqa: E402
+    EventVerificationPayload,
+    VerificationCriterion,
+)
 from backend.api.schemas.websocket import (  # noqa: E402
     RiskLevel,
     WebSocketAlertAcknowledgedMessage,
@@ -83,6 +87,7 @@ HEADER_COMMENT = """/**
  *
  * Source schemas:
  *   backend/api/schemas/websocket.py
+ *   backend/api/schemas/event_verification.py
  *
  * Generated at: {timestamp}
  *
@@ -201,6 +206,11 @@ def python_type_to_typescript(python_type: Any, field_name: str = "") -> str:
     # Handle Pydantic models
     if isinstance(python_type, type) and issubclass(python_type, BaseModel):
         return python_type.__name__
+
+    # datetime serializes as an ISO 8601 string in every JSON path of this
+    # repo (model_dump(mode="json")), so the TS contract is string.
+    if python_type is datetime:
+        return "string"
 
     # Fallback
     return "unknown"
@@ -683,6 +693,14 @@ def generate_typescript_file() -> str:
     parts.append("// ============================================================================")
     parts.append("// Data Payload Interfaces")
     parts.append("// ============================================================================")
+    parts.append("")
+    # Shared verification object (P0.4, spec §4): REST EventResponse and the
+    # WS event payload render THE SAME shape, so the TS type is generated
+    # once here and referenced by WebSocketEventData.verification. Emitted
+    # BEFORE WebSocketEventData so readers see the interface first.
+    parts.append(generate_interface(VerificationCriterion))
+    parts.append("")
+    parts.append(generate_interface(EventVerificationPayload))
     parts.append("")
     parts.append(generate_interface(WebSocketEventData))
     parts.append("")

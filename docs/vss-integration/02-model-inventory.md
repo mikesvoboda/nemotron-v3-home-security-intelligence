@@ -1,5 +1,7 @@
 # Model Inventory and Consumer-GPU Sizing
 
+> **Errata (2026-09-23):** E2, E8, E9, E10 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 Source for all **[V]** claims: `skills/vss-build-vision-ai/references/sizing.md`,
 `.../references/edge.md`, `.../references/services/rt-vlm.md`, `docs/real-time-vlm.mdx`, and
 `deploy/docker/services/nim/` in the VSS repo, read 2026-09-18.

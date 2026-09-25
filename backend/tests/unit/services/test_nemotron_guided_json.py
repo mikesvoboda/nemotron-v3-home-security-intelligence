@@ -72,6 +72,14 @@ def mock_settings_with_guided_json():
     # Guided JSON settings (NEM-3726)
     mock.nemotron_use_guided_json = True
     mock.nemotron_guided_json_fallback = True
+    # P0.3 constrained decoding stays legacy here (spec'd mocks auto-truthy
+    # defined fields - pin the legacy values explicitly)
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     # Phase 5 batch coalescing settings
     mock.batch_coalescing_enabled = False
     mock.batch_coalescing_max_size = 10

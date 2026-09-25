@@ -175,9 +175,16 @@ async def test_analyze_batch_success(
 
 @pytest.mark.asyncio
 async def test_analyze_batch_llm_failure_uses_fallback(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    legacy_wire, analyzer, mock_redis_client, isolated_db, sample_detections_factory
 ):
-    """Test batch analysis uses fallback risk data when LLM fails."""
+    """Test batch analysis uses fallback risk data when LLM fails.
+
+    LEGACY-wire subject (P0.3, F4): 50/medium on an unreachable LLM is the
+    pre-constrained behavior; the shipped default fails closed to NULL +
+    verification_failed instead (pinned in
+    unit/services/test_p03_constrained_verdict.py). legacy_wire first: the
+    analyzer fixture reads get_settings() at construction.
+    """
     # Use unique IDs for test isolation in parallel execution
     batch_id = unique_id("batch")
     camera_id = unique_id("camera")
@@ -429,9 +436,12 @@ async def test_analyze_detection_fast_path_success(
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_llm_failure(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    legacy_wire, analyzer, mock_redis_client, isolated_db, sample_detections_factory
 ):
-    """Test fast path analysis uses fallback when LLM fails."""
+    """Test fast path analysis uses fallback when LLM fails.
+
+    LEGACY-wire subject - see test_analyze_batch_llm_failure_uses_fallback.
+    """
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
     det_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random

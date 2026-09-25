@@ -31,6 +31,14 @@ class TestNemotronAnalyzerWarmup:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -232,6 +240,14 @@ class TestDetectorClientWarmup:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.yolo26_url = "http://localhost:8090"
         mock.yolo26_api_key = None
         mock.ai_connect_timeout = 10.0

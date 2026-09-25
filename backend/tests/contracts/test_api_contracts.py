@@ -758,9 +758,15 @@ class TestWebSocketMessageContracts:
         for field in required_fields:
             assert field in properties, f"Missing required field: {field}"
 
-        # Verify risk_score constraints
-        assert properties["risk_score"]["minimum"] == 0
-        assert properties["risk_score"]["maximum"] == 100
+        # Verify risk_score constraints. P0.25 (spec §4): Optional + ge/le
+        # renders as anyOf[{integer 0-100}, null] - the scored branch keeps
+        # its bounds, and the null branch must be present (a
+        # verification_failed event carries NULL, spec §6 step 3).
+        branches = properties["risk_score"]["anyOf"]
+        scored = next(b for b in branches if b.get("type") == "integer")
+        assert scored["minimum"] == 0
+        assert scored["maximum"] == 100
+        assert {"type": "null"} in branches
 
     def test_service_status_message_schema_structure(self):
         """Test WebSocketServiceStatusMessage schema matches frontend."""

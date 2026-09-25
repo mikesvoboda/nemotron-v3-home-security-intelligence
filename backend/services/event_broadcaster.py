@@ -323,9 +323,13 @@ def requires_ack(message: dict[str, Any]) -> bool:
     if not data:
         return False
 
-    # Check risk_score >= 80
-    risk_score = data.get("risk_score", 0)
-    if risk_score >= 80:
+    # Check risk_score >= 80. P0.25 (spec §6 step 3): a verification_failed
+    # event carries a PRESENT-None score - `.get(..., 0)`'s default only
+    # applies to an absent key, so None reached `>= 80` as a TypeError that
+    # would kill the subscriber loop. NULL never acks; the critical-level
+    # arm below still can.
+    risk_score = data.get("risk_score")
+    if risk_score is not None and risk_score >= 80:
         return True
 
     # Check risk_level == 'critical'

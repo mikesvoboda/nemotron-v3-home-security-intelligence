@@ -1,5 +1,7 @@
 # Context: Why This Research Exists
 
+> **Errata (2026-09-23):** E2, E3 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
+
 **Status:** Research in progress. Nothing here is a commitment or a plan.
 **Started:** 2026-09-18
 

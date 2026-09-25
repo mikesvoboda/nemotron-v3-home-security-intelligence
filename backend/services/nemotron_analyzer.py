@@ -42,9 +42,10 @@ import dataclasses
 import json
 import re
 import time
+import uuid
 from collections.abc import AsyncGenerator
 from datetime import UTC
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 from pydantic import ValidationError
@@ -92,6 +93,7 @@ from backend.core.telemetry_ai_conventions import (
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_verification import EventVerification
 from backend.models.llm_interaction import LLMInteraction
 
 # Service facade for reduced coupling (NEM-3150)
@@ -276,6 +278,97 @@ NEMOTRON_CONNECT_TIMEOUT = 10.0
 NEMOTRON_READ_TIMEOUT = 120.0
 NEMOTRON_HEALTH_TIMEOUT = 5.0
 
+# P0.3 (spec §3/§6): the audit-queue priority floor for an unverified event.
+# An unverified event is the LEAST trusted artifact in the pipeline, so it
+# evaluates last (priority 0), never at a disguised medium 50.
+P03_UNVERIFIED_PRIORITY = 0
+
+
+def _span_risk_value(score: int | float | None) -> int | float | str:
+    """OTel span attributes must be str/int/float/bool and OTel hard-rejects
+    None; a P0.3 NULL score is a string marker (honestly incomparable),
+    never a laundered 0 that would fake a datapoint on a chart."""
+    return "unverified" if score is None else score
+
+
+class VerificationRowOutcome(NamedTuple):
+    """The provenance producer's input, distilled from a final ``risk_data``
+    dict (the fail-closed signal is its ``verification_failed`` flag)."""
+
+    flagged: bool
+    raw_completion: str
+    latency_ms: int | None
+
+
+class ConstrainedDecodingNotEnforced(RuntimeError):
+    """P0.3 fail-closed (spec §3): the endpoint was asked to enforce a JSON
+    grammar and did not prove it (S-1's IGNORED / INCONCLUSIVE verdicts).
+
+    With ``nemotron_constrained_decoding_enabled`` on this RAISES instead of
+    degrading to prose - the whole 0.3 premise is that enforcement is
+    verified, not assumed (S-2's per-build lesson). Legacy configs
+    (flag off) never reach this class.
+
+    ``verdict`` carries S-1's vocabulary for the STARTUP reporter
+    (backend.main.run_constrained_startup_check): "ignored" (grammar asked,
+    not honored) vs "inconclusive" (couldn't even measure - bad build or
+    unreachable). Both fail closed; the distinction is honest reporting,
+    not a different behavior."""
+
+    def __init__(self, message: str, *, verdict: str = "ignored") -> None:
+        super().__init__(message)
+        self.verdict = verdict
+
+
+PROBE_PROMPT = "Emit the verdict object for the standing scene.\n"
+
+
+async def _probe_completion(
+    client: Any,
+    base_url: str,
+    headers: dict[str, str],
+    prompt_text: str,
+    schema: dict[str, Any],
+) -> tuple[int, str]:
+    """ONE constrained-completion call shape - the enforcement probe's
+    transport. Shared by the analyzer's runtime gate and the promoted CI CLI
+    (scripts/vlm_probes/enforcement.py) so the two surfaces can never drift
+    on how the probe is asked (drift there would make a CI pass prove
+    nothing about runtime). Returns (status_code, completion content)."""
+    resp = await client.post(
+        f"{base_url}/completion",
+        json={
+            "prompt": prompt_text,
+            # S-2's ledgered trap: a budget too small truncates the reply
+            # MID-object, which fakes an IGNORED verdict (the const may
+            # legally sort last and grammar can't close past the budget).
+            # 400 is the S-2 [V]-proven safe budget for this schema.
+            "n_predict": 400,
+            "temperature": 0.0,
+            "json_schema": schema,
+        },
+        headers=headers,
+    )
+    body = resp.json() if resp.status_code == 200 else {}
+    return resp.status_code, (body or {}).get("content") or ""
+
+
+def build_probe_schema(
+    base_schema: dict[str, Any] | None = None, nonce: str | None = None
+) -> tuple[dict[str, Any], str]:
+    """The nonce-const probe contract: the REAL verdict schema extended with
+    a required ``probe_const`` whose value the prompt never mentions - an
+    echo can only come from grammar enforcement, not parrotting. The CI CLI
+    and the runtime gate build the same object from here (single contract,
+    §3's drift doctrine)."""
+    base = dict(base_schema) if base_schema is not None else {"type": "object", "properties": {}}
+    nonce = nonce or str(uuid.uuid4())
+    properties = dict(base.get("properties") or {})  # type: ignore[arg-type]
+    properties["probe_const"] = {"type": "string", "const": nonce}
+    schema = {**base, "properties": properties}
+    schema["required"] = [*(schema.get("required") or []), "probe_const"]
+    return schema, nonce
+
 
 class NemotronAnalyzer:
     """Analyzes detection batches using Nemotron LLM for risk assessment.
@@ -383,6 +476,35 @@ class NemotronAnalyzer:
         self._use_guided_json = settings.nemotron_use_guided_json
         self._guided_json_fallback = settings.nemotron_guided_json_fallback
         self._supports_guided_json: bool | None = None  # Cached capability check
+
+        # P0.3 Constrained verdict (spec §3/§6, F4-approved): the native
+        # json_schema route (S-1/S-2-proven at the pinned build), fail-closed
+        # on unparseable, and the promoted S-1 enforcement probe. Defaults
+        # keep the legacy path byte-identical (R8: the guided_json machinery
+        # above stays reachable until the cutover).
+        self._constrained_enabled = settings.nemotron_constrained_decoding_enabled
+        self._constrained_fail_closed = settings.nemotron_constrained_fail_closed
+        self._constrained_probe_enabled = settings.nemotron_constrained_probe_enabled
+        self._constrained_required_build = settings.nemotron_constrained_probe_required_build
+        # S-2 doctrine: enforcement is a property of model AND build, so it
+        # is checked once per endpoint per process, never assumed (None =
+        # unchecked; True = ENFORCED - only True is ever cached, failures
+        # raise and the next call re-probes, S-1's INCONCLUSIVE lesson).
+        self._constrained_enforced: bool | None = None
+        # The single runtime gate for every P0.3 behavior branch: fail-closed
+        # semantics apply UNDER constrained decoding. With decoding off the
+        # legacy route is byte-identical no matter how this flag is set -
+        # the flip is one setting, not a migration (R8).
+        self._fail_closed_active = bool(self._constrained_enabled and self._constrained_fail_closed)
+        # Provenance labels for the P0.4 event_verifications rows (NOT NULL
+        # columns; shipped defaults live in config next to the 0.3 flags).
+        self._verification_engine = settings.nemotron_verification_engine
+        self._verification_model_id = settings.nemotron_model_id
+        # Honest latency for the provenance row: duration of the LAST
+        # completed HTTP call attempt (set in _call_llm/_call_llm_with_version
+        # right after a response arrives); None means no call ever completed
+        # a request - never a fabricated 0.
+        self._last_call_duration_ms: int | None = None
 
         # Batch coalescing and priority scheduling (NEM-5464 Phase 5)
         # Coalesces similar detections to reduce inference calls
@@ -625,6 +747,141 @@ class NemotronAnalyzer:
         Useful for testing or when the endpoint configuration changes.
         """
         self._supports_guided_json = None
+
+    async def _ensure_constrained_enforcement(self) -> None:
+        """P0.3 startup gate (spec §3): prove grammar enforcement ONCE per
+        endpoint before any constrained call - the S-1 probe promoted from a
+        spike script to a runtime check.
+
+        S-1's three verdicts, as the plan words them - "a NOT-ENFORCED result
+        must fail closed (no silent prose mode)":
+
+          ENFORCED      the /completion reply echoes a fresh uuid4 ``const``
+                        the prompt never mentions -> grammar, not parrotting.
+                        Cached; only this verdict is cached (S-1's
+                        INCONCLUSIVE lesson: a transient failure must not
+                        ossify into either a permanent block or a false
+                        pass - the next call re-probes).
+          IGNORED       prose or const-less JSON back -> the endpoint accepts
+                        the parameter but does not enforce it (E5's finding,
+                        generalized). RAISES.
+          INCONCLUSIVE  plain generation failed, or the pinned build_info
+                        does not match -> wrong server / bad state. RAISES.
+
+        Config with constrained decoding off never reaches this method -
+        the legacy route's byte-identical invariant includes its network
+        silence (zero new startup traffic for flag-off installs).
+        """
+        if not self._constrained_enabled or not self._constrained_probe_enabled:
+            return
+        if self._constrained_enforced is True:
+            return
+
+        build_info = ""
+        try:
+            props_resp = await self._http_client.get(
+                f"{self._llm_url}/props", headers=self._get_auth_headers()
+            )
+            build_info = (props_resp.json() or {}).get("build_info", "")
+        except Exception as e:  # /props may not exist on very old pins
+            logger.debug("P0.3 probe: /props unavailable", extra={"error": str(e)})
+        if self._constrained_required_build and self._constrained_required_build not in build_info:
+            raise ConstrainedDecodingNotEnforced(
+                f"endpoint build_info {build_info!r} lacks the pinned "
+                f"{self._constrained_required_build!r} - enforcement was proven "
+                "against a different build (S-2: it varies per build). Fail closed.",
+                verdict="inconclusive",
+            )
+
+        # Arm A equivalent: a plain constrained call IS the probe - S-1 showed
+        # the status code carries no support information on this server, so
+        # only the echoed const decides. Same helper the CI CLI drives
+        # (scripts/vlm_probes/enforcement.py) - one contract, no drift.
+        try:
+            # The probe schema IS the payload schema + the nonce const (same
+            # shape scripts/vlm_probes/enforcement.py proved ENFORCED live at
+            # b7972) - proving a weaker grammar than the one inference sends
+            # would be exactly the assumption 0.3 exists to eliminate.
+            probe_schema, nonce = build_probe_schema(
+                RISK_ANALYSIS_JSON_SCHEMA, nonce=str(uuid.uuid4())
+            )
+            status, content = await _probe_completion(
+                self._http_client,
+                self._llm_url,
+                self._get_auth_headers(),
+                PROBE_PROMPT,
+                probe_schema,
+            )
+        except Exception as e:
+            raise ConstrainedDecodingNotEnforced(
+                f"enforcement probe could not run ({e}) - INCONCLUSIVE fails closed",
+                verdict="inconclusive",
+            ) from e
+        if status != 200:
+            raise ConstrainedDecodingNotEnforced(
+                f"probe completion returned HTTP {status} - not measurable, "
+                "INCONCLUSIVE fails closed",
+                verdict="inconclusive",
+            )
+
+        enforced = False
+        try:
+            obj = json.loads(content)
+            enforced = isinstance(obj, dict) and obj.get("probe_const") == nonce
+        except Exception as e:
+            # Non-JSON (prose) back is the IGNORED evidence itself, not an
+            # error to hide - record why, then the check below raises.
+            logger.debug("P0.3 probe: reply not JSON-parseable", extra={"error": str(e)})
+        if not enforced:
+            raise ConstrainedDecodingNotEnforced(
+                "endpoint did not echo the probe const - json_schema is IGNORED "
+                "here (S-1's E5 finding on nvext, now on the native param at this "
+                "model/build). Constrained decoding would silently degrade to "
+                "prose; refusing. Fail closed per spec §3."
+            )
+        self._constrained_enforced = True
+        logger.info(
+            "P0.3 enforcement probe: ENFORCED",
+            extra={"llm_url": self._llm_url, "build_info": build_info},
+        )
+
+    def _verification_row(
+        self,
+        event: Event,
+        outcome: VerificationRowOutcome,
+        *,
+        summary: str,
+    ) -> EventVerification:
+        """P0.3 -> P0.4 producer (plan Task 4 box 4): write the provenance
+        row for an event whose verdict did NOT come out of a parseable LLM
+        answer.
+
+        ``outcome.flagged`` selects the verdict: a fail-closed event records
+        ``verification_failed``; an event whose score came from NON-LLM
+        evidence (the fire override) is honestly ``confirmed`` - the row and
+        the UI badge must never contradict each other (spec §4). engine/
+        model_id come from the shipped provenance settings (NOT NULL
+        columns); latency_ms is the duration of the HTTP call that produced
+        the verdict, or honest NULL when the failure happened before any
+        call completed - never a fabricated 0. ``scene_description`` carries
+        the raw completion when there is one (the events table has no
+        raw-response column, and spec §4 keeps the raw verdict out of the
+        Event row itself)."""
+        scene = outcome.raw_completion or ""
+        if not scene and not outcome.flagged:
+            # Non-LLM evidence (fire override): the event summary IS the
+            # honest scene text we have - the badge and the row agree.
+            scene = summary
+        return EventVerification(
+            event_id=event.id,
+            verdict="verification_failed" if outcome.flagged else "confirmed",
+            scene_description=scene or None,
+            criteria=None,  # legacy path has no criteria checklist (that is 0.6's verifier)
+            key_frame_detection_ids=None,  # UI resolves existing thumbnails (spec §4)
+            engine=self._verification_engine,
+            model_id=self._verification_model_id,
+            latency_ms=outcome.latency_ms,
+        )
 
     # =========================================================================
     # Batch Coalescing and Priority Scheduling (NEM-5464 Phase 5)
@@ -975,10 +1232,16 @@ class NemotronAnalyzer:
                 )
                 v2_latency_ms = (time_module.monotonic() - v2_start) * 1000
 
-                # Calculate score difference
-                v1_score = v1_result.get("risk_score", 0)
-                v2_score = v2_result.get("risk_score", 0)
-                score_diff = abs(v1_score - v2_score)
+                # Calculate score difference. P0.3: a fail-closed NULL is
+                # honestly INCOMPARABLE (-1.0 sentinel), never laundered
+                # through a 0 that would fake a delta and pollute the
+                # calibration stats with a fabricated comparison.
+                v1_score = v1_result.get("risk_score")
+                v2_score = v2_result.get("risk_score")
+                if v1_score is None or v2_score is None:
+                    score_diff = -1.0
+                else:
+                    score_diff = abs(v1_score - v2_score)
 
                 # Log shadow result for analysis
                 await self._log_shadow_result(
@@ -1041,6 +1304,14 @@ class NemotronAnalyzer:
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
 
+        # P0.3: the payload switch's second site (plan Task 3) - the shadow/
+        # A/B route must not be a back door around the enforcement gate: the
+        # once-per-endpoint probe first, then the native json_schema param.
+        # Flag off = payload untouched, byte-identical legacy (R8).
+        if self._constrained_enabled:
+            await self._ensure_constrained_enforcement()
+            payload["json_schema"] = RISK_ANALYSIS_JSON_SCHEMA
+
         # Make the HTTP call using persistent connection pool (NEM-5538)
         response = await self._http_client.post(
             f"{self._llm_url}/completion",
@@ -1055,8 +1326,25 @@ class NemotronAnalyzer:
         if not completion_text:
             raise ValueError("Empty completion from LLM")
 
-        # Parse JSON from completion
-        risk_data = self._parse_llm_response(completion_text)
+        # Parse JSON from completion. P0.3: under fail-closed, an
+        # unparsable completion is an honest NULL verdict - the shadow
+        # comparison must SEE it (and record an incomparable -1.0 delta),
+        # not have it vanish as a swallowed "V2 prompt failed" warning.
+        try:
+            risk_data = self._parse_llm_response(completion_text)
+        except ValueError:
+            if self._fail_closed_active:
+                return {
+                    "risk_score": None,
+                    "risk_level": None,
+                    "summary": "Verification unavailable",
+                    "reasoning": (
+                        "The analysis response could not be verified; no score was assigned."
+                    ),
+                    "raw_response": completion_text,
+                    "verification_failed": True,
+                }
+            raise
 
         # Validate and normalize risk data
         risk_data = self._validate_risk_data(risk_data)
@@ -1090,9 +1378,11 @@ class NemotronAnalyzer:
         """
         from backend.core.metrics import record_shadow_comparison
 
-        v1_score = v1_result.get("risk_score", 0)
-        v2_score = v2_result.get("risk_score", 0)
-        score_diff = abs(v1_score - v2_score)
+        v1_score = v1_result.get("risk_score")
+        v2_score = v2_result.get("risk_score")
+        # P0.3: same honest-incomparable rule as run_shadow_analysis - NULL
+        # (a fail-closed verdict) is -1.0, never a laundered 0 delta.
+        score_diff = -1.0 if v1_score is None or v2_score is None else abs(v1_score - v2_score)
 
         # Record metrics for monitoring
         record_shadow_comparison("nemotron")
@@ -2761,6 +3051,15 @@ class NemotronAnalyzer:
             },
         )
 
+        # P0.3 provenance inputs for the P0.4 verification row (spec §4):
+        # which branch produced the final risk_data, the raw text it saw,
+        # and the honest latency of the call that made it (None = no call
+        # completed - the transport-failure arm never saw one).
+        verification_failed = False
+        confirmed_by_fire = False
+        raw_completion = ""
+        call_duration_ms: int | None = None
+
         try:
             # Build detection dicts for confidence quality summary (NEM-5525)
             _det_dicts = [
@@ -2796,14 +3095,21 @@ class NemotronAnalyzer:
             llm_duration_seconds = time.time() - llm_start
             # Record Nemotron AI request duration
             observe_ai_request_duration("nemotron", llm_duration_seconds)
+            if self._fail_closed_active:
+                # A "success" can still be the fail-closed NULL outcome (the
+                # validation-outcome route returns instead of raising): the
+                # provenance row must record THAT, not pretend it scored.
+                verification_failed = bool(risk_data.get("verification_failed"))
+                raw_completion = risk_data.get("raw_response") or ""
+                call_duration_ms = self._last_call_duration_ms
 
             # NEM-3797: Add span event for Nemotron analysis complete
             add_span_event(
                 "nemotron_analysis.complete",
                 {
                     "batch.id": batch_id,
-                    "risk.score": risk_data.get("risk_score", 0),
-                    "risk.level": risk_data.get("risk_level", "unknown"),
+                    "risk.score": _span_risk_value(risk_data.get("risk_score")),
+                    "risk.level": risk_data.get("risk_level") or "unverified",
                     "analysis.duration_ms": llm_duration_ms,
                 },
             )
@@ -2833,13 +3139,32 @@ class NemotronAnalyzer:
                 },
                 exc_info=True,
             )
-            risk_data = {
-                "risk_score": 50,
-                "risk_level": "medium",
-                "summary": "Analysis unavailable - LLM service error",
-                "reasoning": "Failed to analyze detections due to service error",
-                "raw_response": getattr(e, "raw_completion", ""),
-            }
+            if self._fail_closed_active:
+                # P0.3 (D11/S5): a failed verification is NOT medium risk.
+                # NULL score/level + verification_failed flows to the same
+                # event writer; the owner is never told 50/medium was seen.
+                verification_failed = True
+                raw_completion = getattr(e, "raw_completion", "") or ""
+                call_duration_ms = self._last_call_duration_ms
+                risk_data = {
+                    "risk_score": None,
+                    "risk_level": None,
+                    "summary": "Verification unavailable - analysis service error",
+                    "reasoning": (
+                        "Risk analysis failed due to a service error; no score was assigned."
+                    ),
+                    "raw_response": getattr(e, "raw_completion", ""),
+                    "verification_failed": True,
+                }
+            else:
+                # Legacy route (R8): pre-0.3 default, byte-identical.
+                risk_data = {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Analysis unavailable - LLM service error",
+                    "reasoning": "Failed to analyze detections due to service error",
+                    "raw_response": getattr(e, "raw_completion", ""),
+                }
 
         # =========================================================================
         # NEM-5566: Fire risk score override (SAFETY CRITICAL)
@@ -2857,15 +3182,25 @@ class NemotronAnalyzer:
                 risk_data["summary"] = (
                     f"FIRE DETECTED - {risk_data.get('summary', 'Immediate response required')}"
                 )
+            # P0.3: the fire override is NON-LLM evidence (S5's own exception:
+            # it must not be silenced by an unverified LLM score). An
+            # unverified original reads 'unverified', never 'None'.
+            original_label = "unverified" if original_score is None else original_score
             risk_data["reasoning"] = (
                 f"Fire detected by smoke/fire model (confidence: "
                 f"{enrichment_result.smoke_fire_detection.highest_confidence:.0%}). "
-                f"Risk overridden from {original_score} to 100. "
+                f"Risk overridden from {original_label} to 100. "
                 f"{risk_data.get('reasoning', '')}"
             )
+            risk_data.pop("verification_failed", None)  # fire IS verified evidence
+            # A fire override over a verification_failed event still leaves
+            # the provenance row, but honestly CONFIRMED (verified by non-LLM
+            # evidence) - never a verification_failed row contradicting the
+            # 100/critical badge (spec §4).
+            confirmed_by_fire = verification_failed
             logger.warning(
-                "Fire risk override: score=%d->100",
-                original_score,
+                "Fire risk override: score=%s->100",
+                original_label,
                 extra={"batch_id": batch_id, "camera_id": camera_id},
             )
 
@@ -2881,8 +3216,12 @@ class NemotronAnalyzer:
                     camera_id=camera_id,
                     started_at=start_time,
                     ended_at=end_time,
-                    risk_score=risk_data.get("risk_score", 50),
-                    risk_level=risk_data.get("risk_level", "medium"),
+                    risk_score=risk_data.get("risk_score")
+                    if self._fail_closed_active
+                    else risk_data.get("risk_score", 50),
+                    risk_level=risk_data.get("risk_level")
+                    if self._fail_closed_active
+                    else risk_data.get("risk_level", "medium"),
                     summary=risk_data.get("summary", "No summary available"),
                     reasoning=risk_data.get("reasoning", "No reasoning available"),
                     llm_prompt=risk_data.get("llm_prompt"),
@@ -2900,6 +3239,26 @@ class NemotronAnalyzer:
                 # On any error, the context manager automatically rolls back the transaction.
                 session.add(event)
                 await session.flush()  # Persist event and get ID without committing
+
+                if self._fail_closed_active and verification_failed:
+                    # P0.3 -> P0.4 producer: a fail-closed verdict - or the
+                    # fire verdict that replaced one - gets its provenance
+                    # row in the SAME transaction as the event it explains.
+                    # A plain scored success has nothing to record here
+                    # (spec §4: row presence is the branch; verifier rows
+                    # come from 0.6's pipeline).
+                    session.add(
+                        self._verification_row(
+                            event,
+                            VerificationRowOutcome(
+                                flagged=not confirmed_by_fire,
+                                raw_completion=raw_completion,
+                                latency_ms=call_duration_ms,
+                            ),
+                            summary=risk_data.get("summary", ""),
+                        )
+                    )
+                    await session.flush()
 
                 # Populate event_detections junction table (NEM-1592, NEM-1998, NEM-3350)
                 # Uses bulk INSERT with ON CONFLICT DO NOTHING to prevent race conditions
@@ -2962,7 +3321,12 @@ class NemotronAnalyzer:
 
                     # Auto-enqueue for background evaluation (higher risk = higher priority)
                     # This enables full AI audit evaluation when GPU is idle
-                    await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+                    await self._enqueue_for_evaluation(
+                        event.id,
+                        event.risk_score
+                        if event.risk_score is not None
+                        else P03_UNVERIFIED_PRIORITY,
+                    )
 
                 except Exception as e:
                     # NEM-2574: Audit failures should not roll back the Event creation
@@ -3131,8 +3495,8 @@ class NemotronAnalyzer:
                 "batch.id": batch_id,
                 "event.id": event.id,
                 "camera.id": camera_id,
-                "risk.score": event.risk_score or 0,
-                "risk.level": event.risk_level or "unknown",
+                "risk.score": _span_risk_value(event.risk_score),
+                "risk.level": event.risk_level or "unverified",
                 "detection.count": len(int_detection_ids),
                 "total.duration_ms": total_duration_ms,
             },
@@ -3292,6 +3656,13 @@ class NemotronAnalyzer:
                     },
                 )
 
+        # P0.3 provenance inputs for the P0.4 verification row (spec §4) -
+        # same three signals as the batch path records, same honest latency.
+        verification_failed = False
+        confirmed_by_fire = False
+        raw_completion = ""
+        call_duration_ms: int | None = None
+
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
         try:
@@ -3321,6 +3692,10 @@ class NemotronAnalyzer:
             llm_duration_seconds = time.time() - llm_start
             # Record Nemotron AI request duration
             observe_ai_request_duration("nemotron", llm_duration_seconds)
+            if self._fail_closed_active:
+                verification_failed = bool(risk_data.get("verification_failed"))
+                raw_completion = risk_data.get("raw_response") or ""
+                call_duration_ms = self._last_call_duration_ms
             logger.debug(
                 f"Fast path LLM analysis completed for detection {detection_id}",
                 extra={
@@ -3346,13 +3721,28 @@ class NemotronAnalyzer:
                 },
                 exc_info=True,
             )
-            risk_data = {
-                "risk_score": 50,
-                "risk_level": "medium",
-                "summary": "Analysis unavailable - LLM service error",
-                "reasoning": "Failed to analyze detection due to service error",
-                "raw_response": getattr(e, "raw_completion", ""),
-            }
+            if self._fail_closed_active:
+                verification_failed = True
+                raw_completion = getattr(e, "raw_completion", "") or ""
+                call_duration_ms = self._last_call_duration_ms
+                risk_data = {
+                    "risk_score": None,
+                    "risk_level": None,
+                    "summary": "Verification unavailable - analysis service error",
+                    "reasoning": (
+                        "Risk analysis failed due to a service error; no score was assigned."
+                    ),
+                    "raw_response": getattr(e, "raw_completion", ""),
+                    "verification_failed": True,
+                }
+            else:
+                risk_data = {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Analysis unavailable - LLM service error",
+                    "reasoning": "Failed to analyze detection due to service error",
+                    "raw_response": getattr(e, "raw_completion", ""),
+                }
 
         # =========================================================================
         # NEM-5566: Fire risk score override (SAFETY CRITICAL) - fast path
@@ -3369,12 +3759,15 @@ class NemotronAnalyzer:
                 risk_data["summary"] = (
                     f"FIRE DETECTED - {risk_data.get('summary', 'Immediate response required')}"
                 )
+            original_label = "unverified" if original_score is None else original_score
             risk_data["reasoning"] = (
                 f"Fire detected (confidence: "
                 f"{enrichment_result.smoke_fire_detection.highest_confidence:.0%}). "
-                f"Risk overridden from {original_score} to 100. "
+                f"Risk overridden from {original_label} to 100. "
                 f"{risk_data.get('reasoning', '')}"
             )
+            risk_data.pop("verification_failed", None)
+            confirmed_by_fire = verification_failed  # see batch path above
 
         # =========================================================================
         # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
@@ -3388,8 +3781,12 @@ class NemotronAnalyzer:
                     camera_id=camera_id,
                     started_at=detection_time,
                     ended_at=detection_time,
-                    risk_score=risk_data.get("risk_score", 50),
-                    risk_level=risk_data.get("risk_level", "medium"),
+                    risk_score=risk_data.get("risk_score")
+                    if self._fail_closed_active
+                    else risk_data.get("risk_score", 50),
+                    risk_level=risk_data.get("risk_level")
+                    if self._fail_closed_active
+                    else risk_data.get("risk_level", "medium"),
                     summary=risk_data.get("summary", "No summary available"),
                     reasoning=risk_data.get("reasoning", "No reasoning available"),
                     llm_prompt=risk_data.get("llm_prompt"),
@@ -3408,6 +3805,21 @@ class NemotronAnalyzer:
                 # On any error, the context manager automatically rolls back the transaction.
                 session.add(event)
                 await session.flush()  # Persist event and get ID without committing
+
+                if self._fail_closed_active and verification_failed:
+                    # P0.3 -> P0.4 producer, fast path (see batch path above).
+                    session.add(
+                        self._verification_row(
+                            event,
+                            VerificationRowOutcome(
+                                flagged=not confirmed_by_fire,
+                                raw_completion=raw_completion,
+                                latency_ms=call_duration_ms,
+                            ),
+                            summary=risk_data.get("summary", ""),
+                        )
+                    )
+                    await session.flush()
 
                 # Populate event_detections junction table (NEM-1592, NEM-1998)
                 # Fast path has only one detection. Uses ON CONFLICT DO NOTHING
@@ -3456,7 +3868,12 @@ class NemotronAnalyzer:
 
                     # Auto-enqueue for background evaluation (higher risk = higher priority)
                     # This enables full AI audit evaluation when GPU is idle
-                    await self._enqueue_for_evaluation(event.id, event.risk_score or 50)
+                    await self._enqueue_for_evaluation(
+                        event.id,
+                        event.risk_score
+                        if event.risk_score is not None
+                        else P03_UNVERIFIED_PRIORITY,
+                    )
 
                 except Exception as e:
                     # NEM-2574: Audit failures should not roll back the Event creation
@@ -3914,12 +4331,21 @@ class NemotronAnalyzer:
         explicit_timeout = settings.nemotron_read_timeout + settings.ai_connect_timeout
 
         async with inference_semaphore:
-            # Check if guided_json should be used (NEM-3726)
-            # NVIDIA NIM's structured generation ensures valid JSON output
-            # IMPORTANT: This check must be inside the semaphore to prevent
-            # concurrent HTTP requests during capability probing (NEM-1463)
+            # P0.3 (spec §3, single schema source): under constrained decoding
+            # the payload carries THE parser's schema as the native
+            # json_schema param, and enforcement was already PROVEN once by
+            # the probe (a not-enforced endpoint raises before we get here).
+            # This takes precedence over the legacy guided_json route: S-1
+            # showed nvext is silently ignored at the pinned build, and even
+            # a route that honored it must not compete with a proven one.
+            # Inside the semaphore for the same NEM-1463 reason as the
+            # capability probe below (no concurrent probe HTTP).
             use_guided_json_for_request = False
-            if self._use_guided_json:
+            if self._constrained_enabled:
+                await self._ensure_constrained_enforcement()
+                payload["json_schema"] = RISK_ANALYSIS_JSON_SCHEMA
+                add_span_attributes(constrained_decoding_enabled=True)
+            elif self._use_guided_json:
                 # Check if endpoint supports guided_json (result is cached)
                 supports_guided = await self._check_guided_json_support()
                 if supports_guided:
@@ -3969,6 +4395,7 @@ class NemotronAnalyzer:
                     guided_json_enabled=use_guided_json_for_request,
                 )
 
+                self._last_call_duration_ms = None  # honest: no call done yet
                 for attempt in range(self._max_retries):
                     try:
                         llm_call_start = time.monotonic()
@@ -3982,6 +4409,9 @@ class NemotronAnalyzer:
                             response.raise_for_status()
                             llm_result = response.json()
                         llm_call_duration = time.monotonic() - llm_call_start
+                        # P0.3: honest provenance latency - the call that
+                        # answered (parse may still fail-closed on its text).
+                        self._last_call_duration_ms = int(llm_call_duration * 1000)
 
                         # Extract completion text
                         completion_text = llm_result.get("content", "")
@@ -4223,27 +4653,37 @@ class NemotronAnalyzer:
         # Validate and normalize risk data
         risk_data = self._validate_risk_data(risk_data)
 
-        # Record risk analysis metrics (NEM-769)
-        observe_risk_score(risk_data["risk_score"])
+        # Record risk analysis metrics (NEM-769). P0.3: a fail-closed NULL
+        # is NOT a score - observe(None) raises TypeError (histogram +=),
+        # which the retry loop used to swallow as a spurious LLM ERROR while
+        # the event sailed on NULL, silently blinding the metric. Skip the
+        # score observations honestly; the level path is already NULL-safe
+        # (sanitize_risk_level(None) -> "unknown").
+        if risk_data["risk_score"] is None:
+            logger.info(
+                "P0.3 fail-closed verdict: risk-score metrics skipped (no score to observe)"
+            )
+        else:
+            observe_risk_score(risk_data["risk_score"])
+            # Record score distribution for calibration drift monitoring (NEM-5535)
+            observe_risk_score_distribution(risk_data["risk_score"])
         record_event_by_risk_level(risk_data["risk_level"])
         record_prompt_template_used(template_name)
 
-        # Record score distribution for calibration drift monitoring (NEM-5535)
-        observe_risk_score_distribution(risk_data["risk_score"])
-
         # Record score in Redis for rolling window calibration monitoring (NEM-5535)
-        from backend.services.calibration_monitor import get_calibration_monitor
+        if risk_data["risk_score"] is not None:
+            from backend.services.calibration_monitor import get_calibration_monitor
 
-        cal_monitor = get_calibration_monitor()
-        if cal_monitor is not None:
-            try:
-                await cal_monitor.record_score(risk_data["risk_score"])
-            except Exception:
-                # Calibration monitoring is non-critical; don't fail the analysis
-                logger.debug(
-                    "Failed to record calibration score",
-                    exc_info=True,
-                )
+            cal_monitor = get_calibration_monitor()
+            if cal_monitor is not None:
+                try:
+                    await cal_monitor.record_score(risk_data["risk_score"])
+                except Exception:
+                    # Calibration monitoring is non-critical; don't fail the analysis
+                    logger.debug(
+                        "Failed to record calibration score",
+                        exc_info=True,
+                    )
 
         # Include the prompt in the response for debugging/improvement
         risk_data["llm_prompt"] = prompt
@@ -4377,12 +4817,54 @@ class NemotronAnalyzer:
             pass
 
         try:
-            # Parse with lenient schema, then normalize
+            # Parse with lenient schema, then normalize. NOTE: the lenient
+            # path itself launders a missing/garbage score into 50
+            # (LLMRawResponse.to_validated_response), so under fail-closed
+            # the OUTCOME must be checked, not just the exception - a
+            # salvage that never raised must still be caught.
             raw = LLMRawResponse.model_validate(data)
             validated = raw.to_validated_response()
+            if self._fail_closed_active and data.get("risk_score") != validated.risk_score:
+                # The lenient path INVENTED or MOVED the score the response
+                # actually carried (None/garbage -> 50). Under P0.3 that is
+                # exactly the laundering S5 forbids.
+                raise ValidationError.from_exception_data(
+                    "LLMRawResponse",
+                    [
+                        {
+                            "type": "value_error",
+                            "loc": ("risk_score",),
+                            "input": data.get("risk_score"),
+                            # InitErrorDetails has no "msg" key - the text
+                            # rides ctx (the shape pydantic_core defines).
+                            "ctx": {
+                                "error": "P0.3 fail-closed: score was invented by lenient parsing"
+                            },
+                        }
+                    ],
+                )
             return validated.model_dump()
         except ValidationError as e:
-            # If even lenient parsing fails, use defaults with any available data
+            if self._fail_closed_active:
+                # P0.3 (spec §6, S5): the verdict did not parse - it is NOT a
+                # score. NULL + flag flows to the event writer, which makes a
+                # verification_failed event (D11). Partial text survives as
+                # text; nothing is laundered into a middle-risk number.
+                logger.warning(
+                    "Failed to validate LLM response - fail-closed NULL (P0.3)",
+                    extra={"validation_errors": str(e.errors()), "error": str(e)},
+                )
+                return {
+                    "risk_score": None,
+                    "risk_level": None,
+                    "summary": data.get("summary") or "Verification unavailable",
+                    "reasoning": data.get("reasoning")
+                    or "The analysis response could not be verified; no score was assigned.",
+                    "verification_failed": True,
+                }
+
+            # Legacy route (flag off): defaults with any available data -
+            # byte-identical pre-0.3 behavior (R8).
             logger.warning(
                 "Failed to validate LLM response, using defaults",
                 extra={"validation_errors": str(e.errors()), "error": str(e)},
