@@ -71,15 +71,15 @@
 
 ### Task 2: P0.25 null-safety — every live consumer before any NULL exists
 
-- [ ] **Premise check first:** `events.risk_score`/`risk_level` column NULLability in `backend/models/event.py` + the REST schema's existing NULL allowance (spec §4 asserts "REST already allows NULL"). If the column is NOT NULL, STOP AND ASK — 0.3's premise breaks.
-- [ ] Triage the 58-site ledger surface into live-path / dead / comment (ledger P0.25 row carries the table; only live-path gets tests). Recipe A + `[*/+-]`, tests excluded.
-- [ ] TDD per named site, red first, each with a NULL-input test:
+- [x] **Premise check first:** `events.risk_score`/`risk_level` column NULLability in `backend/models/event.py` + the REST schema's existing NULL allowance (spec §4 asserts "REST already allows NULL"). If the column is NOT NULL, STOP AND ASK — 0.3's premise breaks.
+- [x] Triage the 58-site ledger surface into live-path / dead / comment (ledger P0.25 row carries the table; only live-path gets tests). Recipe A + `[*/+-]`, tests excluded.
+- [x] TDD per named site, red first, each with a NULL-input test:
   - `WebSocketEventData` — `risk_score=None, risk_level=None` validates (was: required);
   - `requires_ack` — `{"risk_score": None}` ⇒ False (today: TypeError via `.get` default defeated by present-None key) and scored ≥ 80 keeps ack;
-  - `notification_filter` — None level-mapping + threshold both survived; detector-only branch placed before the threshold comparison (behavior: NULL + security class ≥ `detection_confidence_threshold` (`config.py:1788`) ⇒ notify; NULL + below ⇒ suppress; **never** a crash and never a silent pass).
+  - `notification_filter` — None level-mapping + threshold both survived; detector-only branch placed before the threshold comparison **(executed 2026-09-25: triage found 5 of 7 plan-named consumers already NULL-safe — guards/SQL-NULL/schema — shipped fixes are the 3 genuinely-unsafe ones + frontend; correction + evidence in ledger 'P0.25 — null-safety' section)** (behavior: NULL + security class ≥ `detection_confidence_threshold` (`config.py:1788`) ⇒ notify; NULL + below ⇒ suppress; **never** a crash and never a silent pass).
   - the 4 arithmetic sites (`analytics.py:418`, `experiment_result.py:117`, `calibration_service.py:407`, `pipeline_quality_audit_service.py:314`) — decide per site: guard (NULL excluded from aggregate/abs-diff) with a test each.
-- [ ] Frontend: find score rendering of `risk_score` (grep the WS/Event types), make it NULL-safe; `npm run typecheck` + any touched component tests green.
-- [ ] Full gates: unit `-n auto`, contracts tier, integration (same-session compose-up). Legacy byte-identical diff = the approved set + nothing else: `git diff --stat` into the ledger row.
+- [x] Frontend: find score rendering of `risk_score` (grep the WS/Event types), make it NULL-safe; `npm run typecheck` + any touched component tests green.
+- [x] Full gates: unit `-n auto`, contracts tier, integration (same-session compose-up). Legacy byte-identical diff = the approved set + nothing else: `git diff --stat` into the ledger row.
 
 ### Task 3: P0.3 constrained verdict on the legacy path (F4-approved semantics)
 

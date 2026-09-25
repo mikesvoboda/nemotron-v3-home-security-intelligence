@@ -218,14 +218,18 @@ export default function DashboardPage() {
     return [...deferredWsEvents, ...initialSecurityEvents];
   }, [deferredWsEvents, initialEvents]);
 
-  // Calculate current risk score from latest merged event
-  const currentRiskScore = mergedEvents.length > 0 ? mergedEvents[0].risk_score : 0;
+  // P0.25: an unverified (null-score) event does not zero the gauge - that
+  // would read as "all clear", which is a lie. The gauge shows the latest
+  // event that actually HAS a score; 0 only when nothing is scored at all
+  // (the existing no-events convention).
+  const currentRiskScore = mergedEvents.find((event) => event.risk_score !== null)?.risk_score ?? 0;
 
-  // Calculate risk history from recent merged events (last 10)
+  // Calculate risk history from recent merged events (last 10); unverified
+  // events are dropped rather than plotted as a fake point.
   const riskHistory = mergedEvents
     .slice(0, 10)
     .reverse()
-    .map((event) => event.risk_score);
+    .flatMap((event) => (event.risk_score === null ? [] : [event.risk_score]));
 
   // Calculate active cameras count
   const activeCamerasCount = cameras.filter((camera) => camera.status === 'online').length;
