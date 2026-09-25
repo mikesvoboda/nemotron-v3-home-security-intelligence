@@ -656,6 +656,16 @@ source_paths = [
     "backend/services",
     "backend/api/routes",
 ]
+# Denominator ruling 2026-09-25 (user): the nemotron model is deprecated, so
+# its modules are OUT of the mutation denominator -- generation makes no
+# mutants here (configuration.py _should_ignore_for_mutation, fnmatch on the
+# repo-relative path). The modules and their unit tests STAY in the repo;
+# this excludes them from mutation scoring only. config_fingerprint()
+# deliberately hashes neither knob, so this cannot invalidate stored verdicts.
+do_not_mutate = [
+    "backend/services/nemotron_*",
+    "backend/api/routes/nemotron_*",
+]
 # Test selection = every backend UNIT test: routes tests sit under
 # unit/api/routes (not unit/routes), and a service/route module may be
 # exercised from any unit dir. Selection is per-mutant anyway (dependency

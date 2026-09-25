@@ -134,6 +134,44 @@ def test_targets_mode_lists_plan_targets(tmp_path):
     ]
 
 
+def test_targets_honors_do_not_mutate_exclusion(tmp_path):
+    """Denominator ruling 2026-09-25: the nemotron model is deprecated and the
+    user ruled its modules OUT of the mutation denominator. mutmut 3.8 has no
+    path-exclusion at generation we otherwise share, but it DOES ship
+    [tool.mutmut] do_not_mutate globs (configuration.py
+    _should_ignore_for_mutation) -- generation will not make mutants there.
+    The scorer's target_modules must apply the SAME semantics, or the gap
+    list shows a permanent false 'run never covered it' hole for a module
+    that was deliberately removed (and CI's modules/length-vs-targets line
+    would read a shrinking denominator as a shrinking target set forever).
+    """
+    for rel in (
+        "backend/services/severity.py",
+        "backend/services/nemotron_analyzer.py",
+        "backend/services/nemotron_streaming.py",
+        "backend/api/routes/alerts.py",
+    ):
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("")
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.mutmut]\ndo_not_mutate = ['backend/services/nemotron_*']\n"
+    )
+    r = scorer("--root", str(tmp_path), "--targets")
+    assert r.returncode == 0, r.stderr
+    assert json.loads(r.stdout) == [
+        "backend/api/routes/alerts.py",
+        "backend/services/severity.py",
+    ]
+    # and the full report path applies it too: a stale nemotron meta must not
+    # resurrect the module into the badge
+    meta(tmp_path, "backend/services/nemotron_analyzer.py", {"f1": 1, "f2": 0})
+    meta(tmp_path, "backend/services/severity.py", {"g1": 1})
+    out = json.loads(scorer("--root", str(tmp_path)).stdout)
+    assert [m["module"] for m in out["modules"]] == ["backend/services/severity.py"]
+    assert out["totals"]["total"] == 1
+
+
 def test_no_mutants_dir_is_not_a_silent_zero(tmp_path):
     """A missing mutants/ tree means the run never happened (or the cache was
     dropped) -- fail loudly instead of emitting a 0-module report that a
