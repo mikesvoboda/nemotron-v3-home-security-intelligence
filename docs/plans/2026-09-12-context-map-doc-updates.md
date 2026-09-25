@@ -11296,3 +11296,68 @@ LESSON (memory-written): back up `mutants/*/*.py.meta` before ANY run.
 **The published 59.182% history entry is NOT retracted** — it stays a true
 measurement of the cache as it stood at b178d8df; the wipe cost future
 re-banking time, not admissibility.
+
+## 2026-09-25 — RE-BANK FAILURE FAMILY ROOT-CAUSED (measured reproduction) + CAMPAIGN #2 ADJUDICATION COMPLETE
+
+**ROOT CAUSE (one poison, three incidents).** The re-bank #2 truncated
+stats map (58,592 fake no_tests, badge read 17.07%) and re-bank #3 death
+("failed to collect stats. runner returned 1") share a single mechanism,
+found by faithful reproduction (`MUTANT_UNDER_TEST=stats`, cwd=mutants,
+mutmut's exact `-x -q -p no:randomly -p no:random-order` args):
+
+1. `backend/core/config.py:3286` `get_settings()` loads
+   `_env_file=(".env", HSI_RUNTIME_ENV_PATH or "./data/runtime.env")` —
+   CWD-relative. mutmut runs pytest with cwd=mutants/, and a per-mutant
+   check of the settings-persistence route (a mutant of
+   `_runtime_env_path` ignoring the test's monkeypatch) wrote
+   **`mutants/data/runtime.env`** (gitignored → invisible to host-tree
+   checks; found at 02:30 during re-bank #2, content
+   BATCH_WINDOW_SECONDS=120 + DETECTION_CONFIDENCE_THRESHOLD=0.75 +
+   NEW_KEY=new_value = merged prior runtime.env + endpoint writes).
+2. Under the trampoline the injected 120s window turns exactly **6**
+   shipped-behavior `check_batch_timeouts*` tests red ONLY in the
+   mutants tree (clean tree: green; window default 90,
+   config.py:931-935). Measured full-scope trampoline run: 17 red =
+   those 6 + 11 test_check_api_breaking_changes that need bare `python`
+   on PATH (present under `uv run`; absent in the diagnostic shell —
+   NOT poison).
+3. mutmut runs coverage collection AND stats collection with `-x`
+   (`mutmut/runners/harness.py:139-140`, shared `_pytest_args_regular_run`
+   for `collect_main_test_coverage`/`run_stats`). First red test aborts:
+   aborted coverage → covered-lines gating collapses mutation
+   (re-bank #3 generated enrichment_pipeline with **2** mutated
+   functions, prompts.py **0** — the meta `hash_by_function_name` proves
+   it; durations_by_key still held 4,831 keys, so old estimates survived
+   while new mutants collapsed) → next-run stats collection aborted
+   (re-bank #3 "runner returned 1") → re-bank #2's stats map truncated
+   mid-run → unmapped functions got main.py's exit-33 fake stamps.
+
+**FIX (commit 5d9a6479 + cache surgery).** Guard: `rm -f
+mutants/data/runtime.env` at run start in scripts/mutation-run.sh, plus
+a run-lifetime sweeper loop. Repair: metas restored whole from
+`/tmp/metas-backup-2026-09-25-0734.tgz` with the 58,592 fake 5/33 stamps
+nulled (86,658 keys: 14,130 killed / 651 timeout / 13,201 survived /
+58,676 null); collapsed mutant source copies deleted to force FULL
+re-generation while metas carry verdicts (mutmut merges verdicts by
+function-hash: unchanged fns keep stamps, hashed maps verified intact —
+enrichment_pipeline regenerated to 4,863 variants with its 1,416k/551t/
+2,864s preserved). Re-bank #4 relaunched 12:3xZ (log
+`/tmp/wp-batch25/full-rebank-4.log`, MUTMAX=14, poison-free). Affects
+verdicts only for keys whose deps include the 6 window tests — bounded
+by the healthy stats map post-run; those keys get re-measured before the
+rescore is published.
+
+**CAMPAIGN #2 enrichment_pipeline: 24/24 chunks adjudicated — zero
+undispositioned.** Central validation (keys↔verdicts↔part-file test
+names, measured this pass): 2,867 survivors = **2,811 killable + 56
+equivalent + 0 true_gap**, 0 problems, no cross-chunk duplicate keys.
+Chunk 12 closed the classmethod-descriptor hole (descriptor-safe
+`classmethod(variant)` re-wrap + `__mutmut_orig` GREEN controls). Next:
+lane red-check shards (tag ep0 — bankable kills need named failing tests
+under each exact mutant), integrate_ep.py, battery install,
+enrichment_pipeline re-bank, its own history+L+commit.
+
+**PUSHED:** branch `mutation-testing-s3` is on origin; successor PR
+#6679 opened → main (nemotron denominator ruling + batteries + root-cause
+guard; history append rides the completed=true re-bank, NOT yet — the
+PR body says so).
