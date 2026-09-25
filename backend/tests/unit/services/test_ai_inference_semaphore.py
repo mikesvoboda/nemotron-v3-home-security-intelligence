@@ -312,6 +312,14 @@ class TestNemotronAnalyzerConcurrencyLimits:
         mock.context_utilization_warning_threshold = 0.80
         mock.context_truncation_enabled = True
         mock.llm_tokenizer_encoding = "cl100k_base"
+        # P0.3 constrained decoding: legacy values (a plain MagicMock
+        # auto-truthies every attribute - the flags must be pinned False)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         return mock
 
     @pytest.mark.asyncio

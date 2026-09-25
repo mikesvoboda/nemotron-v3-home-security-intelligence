@@ -1290,6 +1290,57 @@ class Settings(BaseSettings):
         "When disabled and guided_json fails, the request will raise an error.",
     )
 
+    # P0.3 Constrained verdict on the legacy path (spec §3/§6, F4-approved).
+    # The native json_schema response parameter (S-1/S-2-proven ENFORCED at
+    # the pinned llama.cpp build) replaces nvext.guided_json, which S-1
+    # proved is SILENTLY IGNORED there (E5).
+    #
+    # R8 says "keep code paths, ADD THE NEW DEFAULT": the new default is ON.
+    # The legacy route stays reachable and byte-identical - set
+    # NEMOTRON_CONSTRAINED_DECODING_ENABLED=false and the analyzer sends the
+    # pre-0.3 payload, probes nothing, and falls back to 50/medium exactly as
+    # it does today. Nothing is retired here; deletion waits for R8.
+    nemotron_constrained_decoding_enabled: bool = Field(
+        default=True,
+        description="P0.3: send the native json_schema response parameter on the "
+        "legacy /completion route (single schema source shared with the parser), "
+        "gated behind the once-per-endpoint enforcement probe. This is the new "
+        "default; False restores the pre-0.3 prose+regex route byte-identically "
+        "(R8: the old route is kept behind this flip).",
+    )
+    nemotron_constrained_fail_closed: bool = Field(
+        default=True,
+        description="P0.3: under constrained decoding, an unparseable or failed "
+        "verdict becomes a verification_failed event with NULL score/level - "
+        "never a default 50 (S5). Half-measures are off by default once 0.3 is on.",
+    )
+    nemotron_constrained_probe_enabled: bool = Field(
+        default=True,
+        description="P0.3: run the S-1 nonce-const enforcement probe once per "
+        "endpoint before the first constrained call. NOT-ENFORCED fails closed.",
+    )
+    nemotron_constrained_probe_required_build: str | None = Field(
+        default=None,
+        description="P0.3: build_info substring the probe asserts against "
+        "/props (e.g. 'b7972'). None skips the build assertion (the S-2 lesson: "
+        "enforcement is per-model AND per-build - set this in production).",
+    )
+    # Provenance ids written to event_verifications rows (P0.4's engine/
+    # model_id columns are NOT NULL). The repo has no served-model-id setting
+    # - the endpoint's own name is only visible in error text - so the
+    # shipped default is the canonical .env.example model identity and the
+    # deployment can override it when a different GGUF is served.
+    nemotron_verification_engine: str = Field(
+        default="llama.cpp",
+        description="P0.3/P0.4: engine label written to event_verifications.engine.",
+    )
+    nemotron_model_id: str = Field(
+        default="Nemotron-3-Nano-30B-A3B-Q4_K_M",
+        description="P0.3/P0.4: model label written to event_verifications.model_id "
+        "(matches the shipped LLM_MODEL_PATH GGUF identity; override when serving "
+        "a different quant).",
+    )
+
     enrichment_max_retries: int = Field(
         default=3,
         ge=1,

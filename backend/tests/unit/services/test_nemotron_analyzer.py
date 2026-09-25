@@ -58,6 +58,14 @@ def mock_settings():
     from backend.core.config import Settings
 
     mock = MagicMock(spec=Settings)
+    # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+    # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     mock.nemotron_url = "http://localhost:8091"
     mock.nemotron_api_key = None  # Optional API key
     mock.ai_connect_timeout = 10.0
@@ -90,6 +98,14 @@ def mock_settings():
     # Guided JSON settings (NEM-3726)
     mock.nemotron_use_guided_json = False  # Disabled by default for existing tests
     mock.nemotron_guided_json_fallback = True
+    # P0.3 flags explicit (a spec'd Settings mock auto-mocks ANY defined
+    # field truthy - these legacy values must be pinned, not defaulted)
+    mock.nemotron_constrained_decoding_enabled = False
+    mock.nemotron_constrained_fail_closed = True
+    mock.nemotron_constrained_probe_enabled = True
+    mock.nemotron_constrained_probe_required_build = None
+    mock.nemotron_verification_engine = "llama.cpp"
+    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
     # Batch coalescing and priority queue settings (NEM-5464 Phase 5)
     mock.batch_coalescing_enabled = False  # Disabled by default for existing tests
     mock.batch_coalescing_max_size = 10
@@ -2576,6 +2592,14 @@ class TestNemotronAnalyzerImprovedPatterns:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -2777,6 +2801,14 @@ class TestIdempotencyHandling:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -3348,6 +3380,14 @@ class TestLLMTokenMetrics:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -3565,6 +3605,14 @@ class TestTokenCountingIntegration:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
+        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
+        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
+        mock.nemotron_constrained_decoding_enabled = False
+        mock.nemotron_constrained_fail_closed = True
+        mock.nemotron_constrained_probe_enabled = True
+        mock.nemotron_constrained_probe_required_build = None
+        mock.nemotron_verification_engine = "llama.cpp"
+        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
         mock.nemotron_url = "http://localhost:8091"
         mock.nemotron_api_key = None
         mock.ai_connect_timeout = 10.0

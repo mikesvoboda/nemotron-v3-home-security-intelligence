@@ -323,6 +323,13 @@ def settings_factory():
             "enrichment_max_retries": 1,
             "nemotron_max_retries": 1,
             "nemotron_use_guided_json": False,  # skip the NIM guided-JSON probe
+            # P0.3: conformance pins the LEGACY wire contract (the /completion
+            # body keys and content reading). Constrained decoding would
+            # prepend the enforcement probe and add json_schema to the body -
+            # that surface is pinned in the unit tier instead
+            # (test_p03_constrained_verdict.py). The flip is exactly the R8
+            # settings change that keeps this route byte-identical.
+            "nemotron_constrained_decoding_enabled": False,
         }
         base.update(overrides)
         # _env_file=None so the sandbox .env cannot bleed prod values into
