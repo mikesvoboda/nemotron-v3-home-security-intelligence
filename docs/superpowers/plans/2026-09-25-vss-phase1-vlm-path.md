@@ -2,7 +2,7 @@
 
 > **For agentic workers:** execute task-by-task, checkbox syntax; every step closes on an executed command + result in the ledger, never on written code. Milestone review is the built-in code review. Ledger rows for this phase are 1.x in `docs/plans/2026-09-23-vss-gaming-gpu-ledger.md`.
 
-**Status: ACTIVE — M0 closed 2026-09-25 (PR #6678 merged to main as a0105b63, every CI tier green; ledger "P0 — phase close"). Task 1.1 closed 2026-09-25 (ledger Phase 1 table row 1.1); execution continues at 1.2.**
+**Status: ACTIVE — M0 closed 2026-09-25 (PR #6678 merged to main as a0105b63, every CI tier green; ledger "P0 — phase close"). Tasks 1.1-1.2 closed 2026-09-25 (ledger Phase 1 table rows 1.1-1.2); execution continues at 1.3.**
 
 **Goal:** land spec §"Phase 1: The VLM path" — the `vlm_assess` contract (1.1), the `ai-vlm` service + `vlm` compose profile (1.2), `key_frame_selector` + `vlm_client` + `vlm_analyzer` with §6 invariants, failure ladder, degradation wiring and wake-on-open (1.3), residency control (1.4), `PIPELINE_MODE` defaulting to `vlm` (1.5), the frontend (1.6) — closing on **M1: `vlm` mode runs end to end on the A5500 with Qwen3-VL-4B as the smoke model, and every CI tier is green** (spec §8:425). The A5500 bring-up (1.7) is owner-run.
 
@@ -86,10 +86,10 @@
 
 ### Task 2: 1.2 — the `ai-vlm` service + `vlm` profile (spec §2:98)
 
-- [ ] `.env.example` FIRST: `AI_VLM_PORT=8098` into the AI SERVICE PORTS block (env-first rule AGENTS.md:150); `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` follow prod.yml:158's `${VAR:-default}` style, not ghcr's hardcoded literal.
-- [ ] `docker-compose.prod.yml`: `ai-vlm` with `profiles: [vlm]`; llama-server flags per §2 (`--jinja`, `--sleep-idle-seconds`, `--alias`, 2 slots, ctx for 4 images + ~6K text + output — values chosen and ledgered, mirroring ghcr.yml:277-285's CTX_SIZE/PARALLEL budget comment). **No hard backend `depends_on`** (a profiled service breaks default `up`); graceful degradation via 1.3's wiring — ledger the call. `docker-compose.ghcr.yml` stays OUT of Phase 1 (the A5500 builds from context with `CUDA_ARCHITECTURES=86`, per the spec checklist); ledger that scope call.
-- [ ] `ai/vlm/Dockerfile`: add the §2 flags + 2-slot/ctx values; parameterize arch so sm_103 aarch64 and sm_86 x86 build from ONE Dockerfile via build-arg (no per-host fork).
-- [ ] GB300 dev path: `ai-vlm` served via `agent-gpu` (existing recipe) or the gb300 overlay — never by editing prod compose. Live serve check: container up, `/health` ok, probe `s2_multimodal_schema`-shaped check passes at `--vram 14`; `agent-gpu rm` after. Ledger row 1.2 [V] with serve output.
+- [x] `.env.example` FIRST: `AI_VLM_PORT=8098` into the AI SERVICE PORTS block (env-first rule AGENTS.md:150); `VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` follow prod.yml:158's `${VAR:-default}` style, not ghcr's hardcoded literal.
+- [x] `docker-compose.prod.yml`: `ai-vlm` with `profiles: [vlm]`; llama-server flags per §2 (`--jinja`, `--sleep-idle-seconds`, `--alias`, 2 slots, ctx for 4 images + ~6K text + output — values chosen and ledgered, mirroring ghcr.yml:277-285's CTX_SIZE/PARALLEL budget comment). **No hard backend `depends_on`** (a profiled service breaks default `up`); graceful degradation via 1.3's wiring — ledger the call. `docker-compose.ghcr.yml` stays OUT of Phase 1 (the A5500 builds from context with `CUDA_ARCHITECTURES=86`, per the spec checklist); ledger that scope call.
+- [x] `ai/vlm/Dockerfile`: add the §2 flags + 2-slot/ctx values; parameterize arch so sm_103 aarch64 and sm_86 x86 build from ONE Dockerfile via build-arg (no per-host fork).
+- [x] GB300 dev path: `ai-vlm` served via `agent-gpu` (existing recipe) or the gb300 overlay — never by editing prod compose. Live serve check: container up, `/health` ok, probe `s2_multimodal_schema`-shaped check passes at `--vram 14`; `agent-gpu rm` after. Ledger row 1.2 [V] with serve output.
 
 ### Task 3: 1.3 — selector, client, analyzer, §6 ladder (spec §2:99-101, §6:297-340)
 
