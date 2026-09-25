@@ -102,6 +102,13 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/gpu/test_detector_integration.py:450": "nvidia-smi TimeoutExpired — GPU host state",
     # Environment variable itself, read via a local alias the probe can't see.
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
+    # Campaign red-check kill-evidence logs: written to /tmp by the campaign
+    # runners (red_dead102b.sh / red_dead102c.sh) at red-check time. The guard
+    # is FileNotFoundError on an off-repo artifact — the same data-chain class
+    # as scenarios.parquet. Line numbers move when the battery is re-pinned;
+    # the census re-mints the id, this map carries the adjudication forward.
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1170": "red-check evidence log /tmp/wp-batch25/redcheck_dead102b.log is a campaign-runner artifact, not a repo file",
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1178": "red-check evidence log /tmp/wp-batch25/redcheck_dead102c.log is a campaign-runner artifact, not a repo file",
 }
 
 

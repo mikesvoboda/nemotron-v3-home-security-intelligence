@@ -405,6 +405,21 @@ ignore = [
     "RUF059", # unused unpacked vars ok in tests (same rationale as F841 above)
     "PLW0108",# lambda wrappers ok in tests (explicit mock/patch adapters)
 ]
+# batch-25 nemotron mutant batteries (adjudicator-generated): the kill
+# machinery is intrinsic -- S102 exec's compiled mutant variants (that IS the
+# test), PLW0603/SIM115/UP031/C408/RUF012/B905/PLR0911 are generated-code
+# style, E402 is the sys.path-insert campaign idiom (tracked files do it with
+# per-line noqa; 45 of them here), S108 /tmp paths are self-verification
+# artifacts read only behind skip-if-absent lazy loaders (suite is green with
+# /tmp/wp-batch25 hidden -- verified).
+"backend/tests/unit/services/test_nemotron_analyzer_batch25*.py" = [
+    "E402", "UP031", "PLW0603", "SIM115", "S108", "C408",
+    "ARG005", "S102", "RUF012", "B905", "PLR0911",
+]
+"backend/tests/unit/services/_b25_dead052_h.py" = [
+    "E402", "UP031", "PLW0603", "SIM115", "S108", "C408",
+    "ARG005", "S102", "RUF012", "B905", "PLR0911",
+]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
     "T201",   # print() ok in examples for demonstration output
@@ -623,6 +638,12 @@ exclude = [
     # BY DESIGN and identical in kind to the seven files above.
     "backend/tests/unit/services/test_nemotron_streaming_batch16b.py",
     "backend/tests/unit/services/test_nemotron_streaming_batch21.py",
+    # batch-25 nemotron mutant batteries: mock signatures must ACCEPT params
+    # the production call site passes (record_span timestamp_ns, _post url)
+    # while the capture body ignores them — same unreachable-by-design class.
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_01.py",
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_06.py",
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_24.py",
 ]
 
 # =============================================================================
@@ -655,6 +676,16 @@ exclude = [
 source_paths = [
     "backend/services",
     "backend/api/routes",
+]
+# Denominator ruling 2026-09-25 (user): the nemotron model is deprecated, so
+# its modules are OUT of the mutation denominator -- generation makes no
+# mutants here (configuration.py _should_ignore_for_mutation, fnmatch on the
+# repo-relative path). The modules and their unit tests STAY in the repo;
+# this excludes them from mutation scoring only. config_fingerprint()
+# deliberately hashes neither knob, so this cannot invalidate stored verdicts.
+do_not_mutate = [
+    "backend/services/nemotron_*",
+    "backend/api/routes/nemotron_*",
 ]
 # Test selection = every backend UNIT test: routes tests sit under
 # unit/api/routes (not unit/routes), and a service/route module may be

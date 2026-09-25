@@ -19,6 +19,12 @@ Example:
             print(f"Plate at {plate.bbox} with confidence {plate.confidence}")
 """
 
+# PEP 563: annotations are strings, never evaluated against module globals.
+# Required because these modules annotate with TYPE_CHECKING-only types
+# (PILImage); on py3.14 without this, inspect.signature / create_autospec
+# raise NameError (see test_type_checking_annotation_resolvability.py).
+from __future__ import annotations
+
 import asyncio
 from dataclasses import dataclass
 from pathlib import Path
