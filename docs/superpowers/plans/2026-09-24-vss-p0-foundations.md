@@ -13,6 +13,7 @@
 ## Sequencing (binding)
 
 1. **0.1-before-0.2** (spec:376): the control timestamp must precede the Nano-4B placeholder serving new events, or post-switch verdicts masquerade as control. 0.1's _code_ (freeze tool) can land any time; its _execution_ gates 0.2's execution.
+   **AMENDED 2026-09-25 (owner ruling, ledger F9): no functional production system exists — no pre-switch traffic to timestamp — so this rule is DORMANT, not violated; it re-arms the day the home stack serves live events. Task 6's ordering guard is correspondingly lifted.**
 2. **0.25-before-0.3** (spec:378): NULL-safety lands before anything can emit NULL.
 3. 0.3 → 0.4: the `verification` field carries what 0.3 emits.
 4. 0.5 runs any time after 0.1 (labels live inside a 30-day retention window — start early).
@@ -55,7 +56,7 @@
 
 ---
 
-### Task 0: G0 tail — owner media replacement (F5 ruling "tonight", owner-gated)
+### Task 0: G0 tail — owner media replacement (F5 ruling, owner-gated; **AMENDED 2026-09-25: media will be synthetically GENERATED, unscheduled — "we just need a functional pipeline". Nothing in P0 waits on this; the loader must simply accept whatever structure the generated clips arrive with, [V]-checked then, not assumed now.**)
 
 - [ ] When replacement incident media lands: re-run `load_stock_items` against the new corpus (D10 guard already refuses repo/capture-root paths — its behavior on this is the test), re-freeze the 13 stock items, re-run `s3_salience_stock.py`. Bar: incident-half confirmed-rates stop being 1/48 and the ledger S-3 row gets its dated amendment. Owner-ruling evidence (arrival time, what replaced what) goes in the ledger F5 row as [O].
 - [ ] If media lands structurally different (new scenario names): loader/mapping fix is TDD here; S-3's per-scenario table is the regression check.
@@ -66,6 +67,7 @@
 - [ ] TDD: `control_freeze.py` — given a production-DB fixture (sqlite or the test PG with rows staged by fixture), freeze = copy images INTO the eval store, snapshot `AssessInput`, recorded verdict as control, `source_event_id` provenance-only. D10 guard applies to writes (store path is a required argument). Test on fabricated rows; no real imagery in repo tests.
 - [ ] Freeze manifest: one JSON row per item — kind (historical-pre-switch), label source, control source. This is what "frozen" means for M0.
 - [ ] **Owner-run on the home box:** record the control timestamp FIRST (ledger [O] row), then run the freeze tool over pre-switch events. Row closes only when that execution + item counts land; until then P0.1 = code-DONE/execution-PENDING, and 0.2 must not serve new events from the placeholder.
+- [ ] **AMENDED 2026-09-25 (ledger F9): execution premise ruled void — the previous system is offline and no new pre-switch events exist. Task 1 = code-DONE/execution-ruled-N/A; the freeze tool ships tested (R8: an empty state, not a deletion) so a returning production system can use it.**
 
 ### Task 2: P0.25 null-safety — every live consumer before any NULL exists
 
@@ -98,7 +100,7 @@
 
 - [ ] TDD `label_import.py`: `EventFeedback` mapping per §5 (`false_positive`→benign; `missed_threat` or `accurate`-on-high→incident + `expected_severity`), keyed by `source_event_id`; unlabeled stay excluded from S2/S3.
 - [ ] Synthetic incidents: import path for the (post-Task-0) media-bearing scenarios; control = offline-30B-replay placeholder field (the replay harness itself is Phase 2's 2.1 — do NOT build it here).
-- [ ] **Owner-run:** label ≥100 benign / ≥20 incidents through the feedback UI, each within its 30-day window (spec §5:50-item coarseness argument is why 100 is a floor, not a goal). Ledger [O] row with counts; import run closes the repo half.
+- [ ] **Owner-run — AMENDED 2026-09-25 (ledger F9): with nothing running, the feedback UI has no events to label; the ≥100-benign/≥20-incident bar stands, but provenance shifts to BORN-LABELED synthetic generation (the generator knows each clip's label; owner ruling 2). The size-check test and the import path are unchanged — they read labels, whoever minted them.**
 - [ ] Size check lands as a test: import refuses to call a <100-benign or <20-incident set "M0-complete" — bar enforced in code, not vibes.
 
 ### Task 6: P0.2 A5500 bring-up (owner-run; repo-side prep only)
