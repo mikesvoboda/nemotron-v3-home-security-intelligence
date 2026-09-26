@@ -164,10 +164,10 @@
 
 ### Task 5: 1.5 — `PIPELINE_MODE`, default `vlm` (spec §2:76-79)
 
-- [ ] `pipeline_mode: str = "vlm"` + validator (nemotron\_\* block precedent); `legacy` parses (code stays until R8) but is LOUD at startup and wired nowhere as fallback.
-- [ ] Branch the analyzer at ALL THREE seams (constructor :799, `create_analysis_worker` :2155, `api/dependencies.py:962`) — plus `container.py:503` — via one factory, so no path silently runs a stale analyzer.
-- [ ] Test-wire obligation IN THIS SLICE (binding rule 5): integration conftest gains a vlm-mode fake (fake `vlm_assess` endpoint passing the chat-shape probe, mirroring `mock_llm_enforces_grammar`); tests whose subject IS legacy pin `legacy_wire` per-subject; full tier re-run compared to the banked baseline — failure identities, not counts, are the evidence.
-- [ ] Gates; ledger row 1.5 [V] naming the tier identity diff.
+- [x] `pipeline_mode: str = "vlm"` + validator (nemotron\_\* block precedent); `legacy` parses (code stays until R8) but is LOUD at startup and wired nowhere as fallback. (Validator raises on unknown values; the `legacy` WARNING names the unsupported path — `backend/core/config.py`, pinned by `test_pipeline_factory.py`.)
+- [x] Branch the analyzer at ALL THREE seams (constructor :799, `create_analysis_worker` :2155, `api/dependencies.py:962`) — plus `container.py:503` — via one factory, so no path silently runs a stale analyzer. (`backend/services/pipeline_factory.py`; a 5th construction site the plan did not enumerate — `batch_aggregator._process_fast_path`'s lazy builder — is rewired too; source-scan test + `git grep` prove zero direct prod constructions. Ledger row 1.5.)
+- [x] Test-wire obligation IN THIS SLICE (binding rule 5): integration conftest gains a vlm-mode fake (fake `vlm_assess` endpoint passing the chat-shape probe, mirroring `mock_llm_enforces_grammar`); tests whose subject IS legacy pin `legacy_wire` per-subject; full tier re-run compared to the banked baseline — failure identities, not counts, are the evidence. (Session-autouse `mock_vlm_enforces_grammar` patches `VlmClient._probe_enforcement` — the one seam every consumer crosses, since the analyzer owns its client's construction; `legacy_wire` untouched and still per-subject.)
+- [x] Gates; ledger row 1.5 [V] naming the tier identity diff. (Unit identity set identical to the banked baseline's sole env-fail; contracts 646; integration + typecheck + the honest first-run flake/wire-break note in the row.)
 
 ### Task 6: 1.6 — the frontend (spec §4:196-201)
 

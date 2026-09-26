@@ -1033,6 +1033,40 @@ class Settings(BaseSettings):
         description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
     )
 
+    # Pipeline selector (spec §2:81-84, rev 5): "vlm" is the default and
+    # the ONLY supported per-event path. "legacy" parses only because its
+    # code stays in the repo until R8 deletes it — it is not deployed, not
+    # measured, and not a rollback target; the validator logs it LOUDLY so
+    # a boot with the unsupported path can never look like a normal boot.
+    # An unknown value RAISES rather than falling back: a typo must not
+    # silently pick a pipeline, least of all the unsupported one.
+    pipeline_mode: str = Field(
+        default="vlm",
+        description="Per-event analysis pipeline: 'vlm' (default, supported) or 'legacy' (UNSUPPORTED, kept only until R8 deletes it).",
+    )
+
+    @field_validator("pipeline_mode", mode="before")
+    @classmethod
+    def validate_pipeline_mode(cls, v: Any) -> str:
+        """`legacy` parses (its code stays until R8) but is LOUD; anything
+        else than the two spellings raises — the never-silently-fallback
+        rule from spec §2:81-84. The warning is the startup loudness the
+        owner ruling asks for; the 1.5 ledger row carries the rest."""
+        import logging
+
+        if v is None:
+            return "vlm"
+        value = str(v).lower().strip()
+        if value not in ("vlm", "legacy"):
+            raise ValueError(f"Invalid pipeline_mode '{v}'. Must be 'vlm' or 'legacy'.")
+        if value == "legacy":
+            logging.getLogger("backend.core.config").warning(
+                "PIPELINE_MODE=legacy selects the UNSUPPORTED pipeline — "
+                "it is not deployed, not measured, and not a rollback "
+                "target (spec rev 5); its code stays only until R8 deletes it."
+            )
+        return value
+
     # AI service authentication
     # Security: API keys for authenticating with AI services
     yolo26_api_key: SecretStr | None = Field(

@@ -15,13 +15,17 @@ later start selects a wider set. Nothing is deleted, so switching sets is
 idempotent and reversible without an image rebuild, which is exactly what
 the A5500 bring-up (1.7: "no retired model loads") and any rollback need.
 
-The default is ``full`` — today's complete 14-model repository. That is a
-behavior-preserving default on purpose: the shipped default backend (the
-nemotron pipeline, unsupported but not yet deleted, R8) still calls the
-enrichment models through the gateway, and no CI tier boots a real Triton
-container to absorb a surprise shrink. 1.5 flips the backend default to
-``vlm`` mode and 1.7 sets ``GATEWAY_MODEL_SET=vlm`` for the A5500 bring-up;
-only then does the repository narrow.
+The bare-module fallback is ``full`` — today's complete 14-model
+repository — but that only bites a manual ``python -m ai.gateway.residency``
+run that sets no env. A DEPLOYMENT never hits it: 1.5 (owner ruling, ledger
+1.4 review item 2) flipped the shipped default to ``vlm`` in BOTH
+docker-compose.prod.yml and .env.example, and compose always passes
+``${GATEWAY_MODEL_SET:-vlm}``, so a real boot selects ``vlm`` and agrees
+with the backend's ``PIPELINE_MODE=vlm`` (the pair is pinned together in
+backend/tests/unit/core/test_gateway_model_set_compose.py). ``full`` now
+serves only the legacy pipeline (unsupported, code stays until R8) and a
+deliberate dev bring-the-whole-repo-up run; the repository narrows because
+1.5/1.7 select ``vlm``, not because this fallback changed.
 
 This module is import-light on purpose (no yaml, no tritonclient): the
 entrypoint calls it as ``python -m ai.gateway.residency`` and the unit tier

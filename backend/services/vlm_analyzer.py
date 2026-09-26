@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -55,6 +56,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.event_verification import verification_payload
+from backend.api.schemas.streaming import (
+    StreamingCompleteEvent,
+    StreamingErrorEvent,
+    StreamingProgressEvent,
+)
 from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger
@@ -631,6 +637,89 @@ class VlmAnalyzer:
                 "failed to set vlm idempotency key",
                 extra={"batch_id": batch_id, "event_id": event_id, "error": str(exc)},
             )
+
+    # ------------------------------------------------------------------
+    # Seam surface (1.5): the two methods the non-queue consumers call.
+    # The batch gate stays the ONE event-producing path (§6: the VLM never
+    # originates an event), so both route THROUGH analyze_batch — the fast
+    # path with nemotron's own idempotency key, the SSE re-analyze route
+    # with the shared streaming-update vocabulary.
+    # ------------------------------------------------------------------
+
+    async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
+        """The aggregator's high-confidence bypass, vlm-mode.
+
+        Nemotron's fast path analyzed one detection WITHOUT enrichment
+        (config keeps it DISABLED by an impossible threshold: the
+        repo's own comment says that produced inaccurate scores). This
+        side does not recreate that shortcut: it routes the single
+        detection through the SAME batch gate with nemotron's idempotency
+        key (``fast_path_<id>``), so a vlm-mode fast-path trigger gets a
+        full assess of a one-detection batch — same §6 rules, same
+        verification row, no second analysis path to drift.
+        """
+        batch_id = f"fast_path_{int(detection_id)}"
+        return await self.analyze_batch(
+            batch_id, camera_id=camera_id, detection_ids=[int(detection_id)]
+        )
+
+    async def analyze_batch_streaming(
+        self,
+        batch_id: str,
+        camera_id: str | None = None,
+        detection_ids: list[int | str] | None = None,
+    ) -> AsyncGenerator[dict[str, Any]]:
+        """The SSE re-analyze route's generator, vlm-mode.
+
+        Nemotron streams token deltas because its analysis runs long and
+        the console shows partial text; a vlm_assess is ONE constrained
+        call whose response must parse whole to mean anything (a partial
+        verdict is exactly the S5 lie), so the honest stream is: one
+        progress update, then the terminal update the Event's own values
+        justify. A scored event completes with the risk_score/risk_level
+        the analyzer STORED (level came from the severity service — the
+        model never emitted one). A ``verification_failed`` event answers
+        an ERROR update instead: nemotron's streaming path defaults a NULL
+        score to ``risk_score or 50`` + ``"medium"``, and D11/S5 forbid
+        importing that default-score paper-over across the seam.
+        """
+        yield StreamingProgressEvent(
+            content="",
+            accumulated_text="",
+            progress_percent=5.0,
+        ).model_dump()
+        try:
+            event = await self.analyze_batch(
+                batch_id, camera_id=camera_id, detection_ids=detection_ids
+            )
+        except (
+            Exception
+        ) as exc:  # the route wraps its own; keep the contract: a stream, not a raise
+            logger.warning(
+                "vlm streaming analysis failed", extra={"batch_id": batch_id, "error": str(exc)}
+            )
+            yield StreamingErrorEvent(
+                error_code="INTERNAL_ERROR",
+                error_message="Streaming analysis failed",
+                recoverable=True,
+            ).model_dump()
+            return
+        if event.risk_score is None or event.risk_level is None:
+            # verification_failed (§6 step 2): NULL by design. Tell the
+            # truth; let the console show "needs review" off the event row.
+            yield StreamingErrorEvent(
+                error_code="LLM_INVALID_RESPONSE",
+                error_message="VLM verification failed; the event needs review.",
+                recoverable=True,
+            ).model_dump()
+            return
+        yield StreamingCompleteEvent(
+            event_id=event.id,
+            risk_score=event.risk_score,
+            risk_level=event.risk_level,
+            summary=event.summary or "No summary",
+            reasoning=event.reasoning or "No reasoning",
+        ).model_dump()
 
     async def _broadcast(self, event: Event, verification: Any) -> None:
         if self._redis is None:

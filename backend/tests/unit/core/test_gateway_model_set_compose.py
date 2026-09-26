@@ -11,13 +11,13 @@ real deployment:
    undeclared host variables, so without this entry the variable could only
    reach the container by editing the compose file.
 
-The interpolation default is ``full``, same as the module's own default:
-this slice changes nobody's footprint. Owner ruling (ledger 1.4, review
-item 2): Task 5 (1.5) switches the GATEWAY_MODEL_SET default in THIS file
-and in .env.example to ``vlm`` in the SAME slice that makes PIPELINE_MODE
-default to vlm, and adds a test that the two defaults agree — a deployment
-must never boot the vlm analyzer against a full-mode gateway (or vice
-versa). ``full`` is deleted with R8, when the legacy pipeline goes.
+Owner ruling (ledger 1.4, review item 2) executed by Task 5 (1.5): the
+GATEWAY_MODEL_SET default in this file and in .env.example flipped to
+``vlm`` in the SAME slice that made PIPELINE_MODE default to vlm, and
+``test_pipeline_mode_default_agrees_with_the_residency_default`` pins
+that the two defaults AGREE — a deployment must never boot the vlm
+analyzer against a full-mode gateway (or vice versa). ``full`` is
+deleted with R8, when the legacy pipeline goes.
 """
 
 from __future__ import annotations
@@ -55,20 +55,42 @@ class TestEnvExample:
             "before compose interpolation relies on it"
         )
 
-    def test_declared_value_is_full(self) -> None:
-        """The example ships the behavior-preserving default; vlm is an
-        explicit A5500-era selection (1.7 handout)."""
+    def test_declared_value_is_vlm(self) -> None:
+        """1.5's flip (owner ruling, ledger 1.4 review item 2): the shipped
+        default is now `vlm`, because PIPELINE_MODE's shipped default is
+        `vlm` and the vlm path calls nothing else. `full` remains parseable
+        for the legacy pipeline until R8 deletes it."""
         text = (REPO / ".env.example").read_text()
         line = next(ln for ln in text.splitlines() if ln.strip().startswith("GATEWAY_MODEL_SET"))
-        assert line.split("=", 1)[1].strip() == "full"
+        assert line.split("=", 1)[1].strip() == "vlm"
 
 
 class TestComposePassesItThrough:
     def test_gateway_env_interpolates_the_selector(self, gateway_env: dict) -> None:
-        assert gateway_env.get("GATEWAY_MODEL_SET") == "${GATEWAY_MODEL_SET:-full}", (
+        assert gateway_env.get("GATEWAY_MODEL_SET") == "${GATEWAY_MODEL_SET:-vlm}", (
             "compose must pass the selector with an in-file default; an "
             "undeclared host var never reaches the container"
         )
+
+    def test_pipeline_mode_default_agrees_with_the_residency_default(
+        self, compose: dict, gateway_env: dict
+    ) -> None:
+        """THE 1.5 obligation from the owner ruling on 1.4 (ledger review
+        item 2): the two mode defaults must AGREE. A backend built against
+        the vlm analyzer while the gateway pruned to `full` (or the reverse)
+        is a deployment that boots half-switched, so the pair is pinned as
+        one fact, in one test, from the same parse."""
+        backend_env = compose["services"]["backend"]["environment"]
+        assert "PIPELINE_MODE=${PIPELINE_MODE:-vlm}" in backend_env
+        assert gateway_env["GATEWAY_MODEL_SET"].endswith(":-vlm}")
+        # And the example file agrees with both in-file defaults:
+        text = (REPO / ".env.example").read_text()
+        declared = {
+            ln.split("=", 1)[0].strip(): ln.split("=", 1)[1].strip()
+            for ln in text.splitlines()
+            if ln.strip().startswith(("PIPELINE_MODE", "GATEWAY_MODEL_SET"))
+        }
+        assert declared == {"PIPELINE_MODE": "vlm", "GATEWAY_MODEL_SET": "vlm"}
 
     def test_threat_opt_in_passes_too(self, gateway_env: dict) -> None:
         assert gateway_env.get("GATEWAY_ENABLE_THREAT") == "${GATEWAY_ENABLE_THREAT:-false}"

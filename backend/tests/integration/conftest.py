@@ -1205,6 +1205,36 @@ def mock_llm_enforces_grammar():
         yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_vlm_enforces_grammar():
+    """The integration tier's mock ai-vlm ENFORCES the constrained grammar.
+
+    1.5's binding rule 5, mirroring `mock_llm_enforces_grammar` for the
+    VLM path (which since 1.5 IS the shipped default): the tier exercises
+    the mode the product ships. `VlmClient._probe_enforcement` is the
+    client's single probe entry — patching it leaves every consumer's
+    client live (the build-pin check, the caching, the breaker semantics
+    are pinned in unit/services/test_vlm_client.py; here only the wire
+    verdict is stood in for, and it passes).
+
+    Why a transport-less patch instead of an ASGI app: the analyzer owns
+    its client's construction (lazy `VlmClient()`), so the tier cannot
+    inject a transport into every client a test builds; the probe method
+    is the one seam every consumer crosses before trusting a verdict.
+    The REAL wire verdicts in this tier come from the analyzer test
+    suites' scripted fake clients, which is 1.3's existing pattern.
+    """
+    from unittest.mock import patch
+
+    from backend.services import vlm_client as _vc
+
+    async def _enforcing_probe(self, image_parts):
+        self._enforced = True
+
+    with patch.object(_vc.VlmClient, "_probe_enforcement", _enforcing_probe):
+        yield
+
+
 @pytest.fixture
 def legacy_wire(monkeypatch):
     """Per-test LEGACY pin - for tests that are ABOUT the legacy path
@@ -1213,11 +1243,20 @@ def legacy_wire(monkeypatch):
     failure, the guided_json payload. Everything else runs the shipped
     default (see mock_llm_enforces_grammar).
 
+    1.5 broadened the pin from the wire to the MODE: PIPELINE_MODE=legacy
+    makes the pipeline factory itself hand out the legacy analyzer, so a
+    test whose subject reaches a seam (the aggregator's lazy fast-path
+    builder, the container, the API dependency) actually exercises the
+    legacy path instead of a vlm analyzer built against legacy stubs.
+    Tests that construct NemotronAnalyzer directly are unaffected either
+    way - the mode line only decides factory routing.
+
     Env-based so real get_settings() consumers pick it up; cache_clear on
     both sides so the analyzer built inside the test sees the pin and
     later tests rebuild without it.
     """
     monkeypatch.setenv("NEMOTRON_CONSTRAINED_DECODING_ENABLED", "false")
+    monkeypatch.setenv("PIPELINE_MODE", "legacy")
     from backend.core.config import get_settings
 
     get_settings.cache_clear()

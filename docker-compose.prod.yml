@@ -430,9 +430,14 @@ services:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
       # Rev-6 residency selector: which Triton model dirs stay in the repo
-      # (pruned by ai.gateway.residency before Triton starts). `full` is the
-      # behavior-preserving default; the A5500 vlm bring-up sets vlm here.
-      - GATEWAY_MODEL_SET=${GATEWAY_MODEL_SET:-full}
+      # (pruned by ai.gateway.residency before Triton starts). 1.5 flipped
+      # the shipped default to `vlm` in the SAME slice as PIPELINE_MODE=vlm
+      # (owner ruling, ledger 1.4 review item 2) — the two defaults AGREE,
+      # so a deployment never boots the vlm analyzer against a full-mode
+      # gateway (or vice versa). `full` serves only the legacy pipeline and
+      # is deleted with R8. The agreement is pinned:
+      # test_gateway_model_set_compose.py.
+      - GATEWAY_MODEL_SET=${GATEWAY_MODEL_SET:-vlm}
       - GATEWAY_ENABLE_THREAT=${GATEWAY_ENABLE_THREAT:-false}
       # All GPUs are passed via CDI (nvidia.com/gpu=all) so /dev/nvidia0 and
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
@@ -451,7 +456,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-      # Triton loads 14 models — allow 3 minutes for all to initialize
+      # `full` mode loads all 14 models — start_period covers that worst
+      # case; the shipped `vlm` set (yolo26 + reid) initializes far faster
       start_period: 180s
     restart: unless-stopped
     networks:
@@ -517,6 +523,13 @@ services:
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Per-event pipeline (spec §2, rev 5): vlm is the default and the
+      # ONLY supported mode. `legacy` parses (its code stays until R8) but
+      # is UNSUPPORTED — not deployed, not measured, not a rollback target,
+      # and the settings validator logs it loudly at boot. Must AGREE with
+      # GATEWAY_MODEL_SET above (pinned together in
+      # test_gateway_model_set_compose.py).
+      - PIPELINE_MODE=${PIPELINE_MODE:-vlm}
       # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
       # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
       # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.

@@ -976,18 +976,21 @@ async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_i
     # Ensure analyzer is None to trigger lazy initialization
     batch_aggregator._analyzer = None
 
-    # Mock the NemotronAnalyzer class - it's imported inside _process_fast_path
+    # 1.5: _process_fast_path no longer constructs a class directly — it
+    # calls the mode factory, which is imported lazily inside the method.
+    # Patching the factory is the seam the test's subject (lazy creation
+    # with redis_client) actually crosses now, in either mode.
     with patch(
-        "backend.services.nemotron_analyzer.NemotronAnalyzer", autospec=True
-    ) as MockAnalyzer:
+        "backend.services.pipeline_factory.build_pipeline_analyzer", autospec=True
+    ) as MockBuilder:
         mock_analyzer_instance = AsyncMock(spec=NemotronAnalyzer)
         mock_analyzer_instance.analyze_detection_fast_path = AsyncMock()
-        MockAnalyzer.return_value = mock_analyzer_instance
+        MockBuilder.return_value = mock_analyzer_instance
 
         await batch_aggregator._process_fast_path(camera_id, detection_id)
 
         # Should have created the analyzer with redis_client
-        MockAnalyzer.assert_called_once_with(redis_client=mock_redis_instance)
+        MockBuilder.assert_called_once_with(redis_client=mock_redis_instance)
 
         # Should have called the analyze method
         mock_analyzer_instance.analyze_detection_fast_path.assert_called_once_with(

@@ -656,14 +656,29 @@ async def run_constrained_startup_check(container: Any) -> str:
     legacy byte-identical invariant), "enforced", "not_enforced" (the
     endpoint accepted the grammar param and did not honor it),
     "inconclusive" (unreachable / unpinnable build - nothing was measured).
+
+    1.5: the branch is on the analyzer the container builds (the mode
+    decides which one that is), not on a re-read of PIPELINE_MODE —
+    the container singleton IS the mode's decision, materialized; a
+    per-subject pin that swaps the singleton is honored by construction.
+    The VLM mode's gate lives on VlmClient (same shared
+    ConstrainedDecodingNotEnforced verdict vocabulary; the probe is the
+    chat-shape one the analyzer would run before trusting any verdict —
+    running it here just front-loads the visibility).
     """
     from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
 
     try:
         analyzer = await container.get_async("nemotron_analyzer")
-        if not analyzer._constrained_enabled:
-            return "disabled"
-        await analyzer._ensure_constrained_enforcement()
+        if hasattr(analyzer, "_constrained_enabled"):  # the legacy analyzer
+            if not analyzer._constrained_enabled:
+                return "disabled"
+            await analyzer._ensure_constrained_enforcement()
+        else:  # VlmAnalyzer (the shipped default): the gate moved to the client
+            client = analyzer._get_client()
+            if not client._settings.vlm_enforcement_probe_enabled:
+                return "disabled"
+            await client._probe_enforcement([])
     except ConstrainedDecodingNotEnforced as e:
         return "not_enforced" if getattr(e, "verdict", "ignored") == "ignored" else "inconclusive"
     except Exception:

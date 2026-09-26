@@ -1225,10 +1225,12 @@ class BatchAggregator:
             detection_id: Detection identifier (integer)
         """
         if not self._analyzer:
-            # Lazy import to avoid circular dependency
-            from backend.services.nemotron_analyzer import NemotronAnalyzer
+            # Lazy import to avoid circular dependency. 1.5: mode-built —
+            # the fast-path bypass in vlm mode routes the single detection
+            # through VlmAnalyzer's batch gate (no second analysis path).
+            from backend.services.pipeline_factory import build_pipeline_analyzer
 
-            self._analyzer = NemotronAnalyzer(redis_client=self._redis)
+            self._analyzer = build_pipeline_analyzer(redis_client=self._redis)
 
         try:
             # Call analyzer with fast path flag
