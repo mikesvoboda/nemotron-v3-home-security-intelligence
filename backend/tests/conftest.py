@@ -1871,6 +1871,18 @@ def reset_settings_cache() -> Generator[None]:
     # Clear settings cache after test
     get_settings.cache_clear()
 
+    # The SeverityService is built FROM settings and lru_cache'd, so the
+    # settings cache and that singleton are one state - clearing only one
+    # half leaks the other. The real PUT /api/system/severity route
+    # pairs cache_clear with reset_severity_service(); a test that drives
+    # it used to leave the polluted singleton for every later test on the
+    # worker (an analyzer constructed afterwards bands scores with the
+    # test's thresholds). Order-dependent, pre-dates 1.5 - reproduced on
+    # clean HEAD. The route keeps its own reset; this is the safety net.
+    from backend.services.severity import reset_severity_service
+
+    reset_severity_service()
+
 
 @pytest.fixture
 async def test_db() -> AsyncGenerator[None]:
