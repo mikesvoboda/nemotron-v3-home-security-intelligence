@@ -47,6 +47,12 @@ from backend.services.enrichment_pipeline import (
     EnrichmentPipeline,
     EnrichmentResult,
 )
+from backend.tests.unit.services._bg_dispatch import (
+    bg_real,
+    install_bg_dispatcher,
+    recorder_errors,
+    register_recorder,
+)
 
 MODULE = "backend.services.enrichment_pipeline"
 
@@ -80,15 +86,27 @@ M.record_cascade_model_deferred = lambda model, reason: REC["cascade"].append((m
 M.add_span_event = lambda name, attrs=None, **kw: REC["spans"].append((name, attrs))
 M.observe_enrichment_pipeline_stage = lambda *a, **k: None
 
-_REAL_BOUNDED_GATHER = M.bounded_gather
 _REAL_CASCADE = M.record_cascade_model_deferred
 _REAL_SPAN = M.add_span_event
 _REAL_STAGE = M.observe_enrichment_pipeline_stage
 
+# ``bounded_gather`` is NOT privately spied here any more.  The slot is one
+# global name and batch26_02 registers a ``limit``-shape recorder on it at ITS
+# import time: two import-time spies meant "last import wins" and the loser
+# either recorded nothing (``REC["bg"]`` stayed empty) or captured the OTHER
+# file's spy as its own "original".  Grouped CI runs never interleaved the two
+# files, so this only surfaced in mutmut's interleaved 1296-id stats rerun.  The
+# shared dispatcher owns the slot permanently; this file just registers a
+# recorder and activates it for its own tests (see ``_bg_dispatch``).
+install_bg_dispatcher(M)
+_REAL_BOUNDED_GATHER = bg_real(M)  # the PRISTINE callee, via the dispatcher tag
 
-async def _bg_spy(coros, **kw):
-    items = list(coros)
-    names = [getattr(c, "_ep_task", "<coroutine>") for c in items]
+
+def _record_gather(coros: list[Any], kw: dict[str, Any]) -> None:
+    """Gather-time view of the phase partition, recorded at SCHEDULE-to-GATHER
+    time exactly as the old spy did: the ``_ep_task`` name of every awaitable
+    handed to ``bounded_gather`` plus the kwargs the call site passed."""
+    names = [getattr(c, "_ep_task", "<coroutine>") for c in coros]
     REC["bg"].append(
         SimpleNamespace(
             names=names,
@@ -97,10 +115,9 @@ async def _bg_spy(coros, **kw):
             return_exceptions=kw.get("return_exceptions"),
         )
     )
-    return await _REAL_BOUNDED_GATHER(items, **kw)
 
 
-M.bounded_gather = _bg_spy
+_BG_STATE = register_recorder(_record_gather)
 
 # capture handler on the REAL module logger so ``logger.debug(fmt, *args)`` is
 # seen verbatim (record.msg / record.args) and a broken template raises through
@@ -366,15 +383,38 @@ def _restore_module_globals():
     """The spies above must be installed at import time (the ep_plugin snapshot of
     the live module dict happens before each test body, so installing later would
     leave a mutant body pointing at the unscreened originals) — this puts the
-    module back for any file that runs after this one in a combined session."""
+    module back for any file that runs after this one in a combined session.
+
+    ``bounded_gather`` is deliberately NOT restored here: the slot is held by the
+    shared dispatcher, which batch26_02 also depends on, so writing a "real"
+    function back into it would silently disarm the other file (the exact
+    cross-file clobber this refactor removed).  The dispatcher is behaviour-
+    preserving for shipped code and for later files' own patches (a file that
+    patches the slot replaces the dispatcher outright and restores it on exit), so
+    leaving it installed is the safe state — deactivate + reset is all this file
+    owes.
+    """
     try:
         yield
     finally:
         M.record_cascade_model_deferred = _REAL_CASCADE
         M.add_span_event = _REAL_SPAN
         M.observe_enrichment_pipeline_stage = _REAL_STAGE
-        M.bounded_gather = _REAL_BOUNDED_GATHER
+        _BG_STATE["active"] = False
         _reset()
+
+
+@pytest.fixture(autouse=True)
+def _bg_gate():
+    """Record gathers only during THIS file's tests (setup True / teardown
+    False), so ``REC["bg"]`` is as exact per test as it was when this file owned
+    the slot alone."""
+    _BG_STATE["active"] = True
+    try:
+        yield
+    finally:
+        _BG_STATE["active"] = False
+        assert not recorder_errors(_BG_STATE), recorder_errors(_BG_STATE)
 
 
 @pytest.fixture
