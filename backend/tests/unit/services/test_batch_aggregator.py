@@ -4800,7 +4800,7 @@ class TestWakeOnOpen:
     async def test_new_batch_wakes_ai_vlm_exactly_once(self, batch_aggregator, mock_redis_instance):
         """The one open → exactly one wake task."""
         fake_ct, woken = self._wake_recorder()
-        with patch("asyncio.create_task", side_effect=fake_ct):
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
             batch_id = await batch_aggregator.add_detection(
                 camera_id="front_door", detection_id=1, _file_path="/export/foscam/det_1.jpg"
             )
@@ -4814,7 +4814,7 @@ class TestWakeOnOpen:
         pinned in test_vlm_client). The recorder's qualname gate already
         asserts it by counting; this pins the count is not zero."""
         fake_ct, woken = self._wake_recorder()
-        with patch("asyncio.create_task", side_effect=fake_ct):
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
             await batch_aggregator.add_detection(
                 camera_id="front_door", detection_id=1, _file_path="/export/foscam/det_1.jpg"
             )
@@ -4827,7 +4827,7 @@ class TestWakeOnOpen:
         mock_redis_instance.get = AsyncMock(return_value="batch-aaaaaaaa")
         mock_redis_instance._client.llen = AsyncMock(return_value=1)
         fake_ct, woken = self._wake_recorder()
-        with patch("asyncio.create_task", side_effect=fake_ct):
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
             batch_id = await batch_aggregator.add_detection(
                 camera_id="front_door", detection_id=2, _file_path="/export/foscam/det_2.jpg"
             )
@@ -4853,7 +4853,7 @@ class TestWakeOnOpen:
                 new=AsyncMock(side_effect=bypass_only_smoke_fire),
             ),
             patch.object(batch_aggregator, "_process_smoke_fire_fast_path", new_callable=AsyncMock),
-            patch("asyncio.create_task", side_effect=fake_ct),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
         ):
             batch_id = await batch_aggregator.add_detection(
                 camera_id="front_door",
@@ -4871,9 +4871,11 @@ class TestWakeOnOpen:
         """The regular fast path likewise bypasses batching entirely."""
         fake_ct, woken = self._wake_recorder()
         with (
-            patch.object(batch_aggregator, "_should_use_fast_path", return_value=True),
+            patch.object(
+                batch_aggregator, "_should_use_fast_path", return_value=True, autospec=True
+            ),
             patch.object(batch_aggregator, "_process_fast_path", new_callable=AsyncMock),
-            patch("asyncio.create_task", side_effect=fake_ct),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
         ):
             batch_id = await batch_aggregator.add_detection(
                 camera_id="front_door",
@@ -4912,8 +4914,8 @@ class TestWakeOnOpen:
 
         fake_ct, _ = self._wake_recorder(lock_events)
         with (
-            patch.object(batch_aggregator, "_get_camera_lock", side_effect=spy_lock),
-            patch("asyncio.create_task", side_effect=fake_ct),
+            patch.object(batch_aggregator, "_get_camera_lock", side_effect=spy_lock, autospec=True),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
         ):
             await batch_aggregator.add_detection(
                 camera_id="front_door", detection_id=5, _file_path="/export/foscam/det_5.jpg"

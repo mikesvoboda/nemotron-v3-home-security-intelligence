@@ -15,6 +15,10 @@ _.mock_run_sudo
 # P0.3 wire split (PR #6678): the LEGACY-wire pin fixture - integration tests
 # request it solely to run the pre-constrained path; the body never names it.
 _.legacy_wire
+# Phase 1.3b face leg: the weights-ABSENT pin - the test requests it solely
+# so the model manager reports legs=None; the body asserts on the raised
+# error / None tuple, never on the fixture itself.
+_.without_leg
 
 # Test fixtures that are injected by pytest
 _.isolated_db

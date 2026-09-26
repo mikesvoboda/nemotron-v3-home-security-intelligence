@@ -761,26 +761,24 @@ pytest_skip:
     expires: '2026-12-31'
     reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
-  - id: backend/tests/conftest.py:2556
+  - id: backend/tests/conftest.py:2602
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: pandas not installed (required for synthetic scenarios)
-  - id: backend/tests/conftest.py:2560
-    kind: environment
+  - id: backend/tests/conftest.py:2606
+    kind: todo
     owner: mikesvoboda
-    tracking: null
-    expires: null
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
     reason: Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py
-    host_justification: scenarios.parquet is pipeline-generated data, not a repo file
-  - id: backend/tests/conftest.py:2581
-    kind: environment
+  - id: backend/tests/conftest.py:2627
+    kind: todo
     owner: mikesvoboda
-    tracking: null
-    expires: null
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
     reason: Synthetic scenarios not available
-    host_justification: same scenarios.parquet chain (fixture None)
   - id: backend/tests/e2e/test_gpu_pipeline.py:432
     kind: environment
     owner: mikesvoboda
@@ -1131,31 +1129,31 @@ pytest_skip_imperative:
     expires: null
     reason: No confidence scores found in detections
     host_justification: synthetic-scenario DB rows (data chain), not repo content
-  - id: backend/tests/security/test_docker_compose_security.py:189
+  - id: backend/tests/security/test_docker_compose_security.py:192
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:202
+  - id: backend/tests/security/test_docker_compose_security.py:205
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:226
+  - id: backend/tests/security/test_docker_compose_security.py:229
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:237
+  - id: backend/tests/security/test_docker_compose_security.py:240
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:43
+  - id: backend/tests/security/test_docker_compose_security.py:46
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -1174,7 +1172,7 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: Symlinks not supported on this filesystem
-  - id: backend/tests/unit/core/test_ai_service_resource_limits.py:41
+  - id: backend/tests/unit/core/test_ai_service_resource_limits.py:44
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
@@ -1324,7 +1322,7 @@ pytest_skip_imperative:
     tracking: null
     expires: null
     reason: fakeredis not installed
-  - id: backend/tests/unit/evaluation/test_eval_store.py:300
+  - id: backend/tests/unit/evaluation/test_eval_store.py:356
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

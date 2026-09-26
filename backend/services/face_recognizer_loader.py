@@ -217,7 +217,7 @@ def preprocess_face_crop(crop: Image.Image) -> Any:
     import numpy as np
     from PIL import Image as PILImage
 
-    resized = crop.convert("RGB").resize(FACE_INPUT_SIZE, PILImage.BILINEAR)
+    resized = crop.convert("RGB").resize(FACE_INPUT_SIZE, PILImage.Resampling.BILINEAR)
     arr = np.asarray(resized, dtype=np.float32) / 127.5 - 1.0  # [0,255] -> [-1,1]
     arr = arr.transpose(2, 0, 1)[None]  # HWC -> CHW with batch dim
     return np.ascontiguousarray(arr, dtype=np.float32)
@@ -272,7 +272,7 @@ def _scrfd_blob(image: Any, input_size: tuple[int, int]) -> tuple[Any, float]:
     ratio = min(tw / iw, th / ih)
     nw, nh = max(1, int(iw * ratio)), max(1, int(ih * ratio))
     resized = np.asarray(
-        PILImage.fromarray(arr).resize((nw, nh), PILImage.BILINEAR), dtype=np.float32
+        PILImage.fromarray(arr).resize((nw, nh), PILImage.Resampling.BILINEAR), dtype=np.float32
     )
     canvas = np.zeros((th, tw, 3), dtype=np.float32)
     canvas[:nh, :nw, :] = resized
@@ -339,9 +339,9 @@ def detect_faces(
         # Anchor grid exactly as insightface builds it: cell centers in
         # (row, col) order, each cell repeated for its anchors -> flat row
         # index (row * W + col) * anchors_per_cell + anchor.
-        centers = (np.stack(np.mgrid[:h, :w][::-1], axis=-1).astype(np.float32) * stride).reshape(
-            -1, 2
-        )
+        centers = (
+            np.stack(list(np.mgrid[:h, :w][::-1]), axis=-1).astype(np.float32) * stride
+        ).reshape(-1, 2)
         if _SCRFD_ANCHORS_PER_CELL > 1:
             centers = np.stack([centers] * _SCRFD_ANCHORS_PER_CELL, axis=1).reshape(-1, 2)
         centers = centers[: scores.shape[0]]
@@ -437,7 +437,9 @@ def align_face_crop(image: Any, landmarks: Any) -> Image.Image:
     inv = alignment_transform_from_to(tmpl, src)
     coeffs = (inv.a, -inv.b, inv.tx, inv.b, inv.a, inv.ty)
     pil = PILImage.fromarray(np.ascontiguousarray(np.asarray(image, dtype=np.uint8)))
-    return pil.transform(FACE_INPUT_SIZE, PILImage.AFFINE, coeffs, resample=PILImage.BILINEAR)
+    return pil.transform(
+        FACE_INPUT_SIZE, PILImage.Transform.AFFINE, coeffs, resample=PILImage.Resampling.BILINEAR
+    )
 
 
 def alignment_transform_from_to(src: Any, dst: Any) -> _Similarity:

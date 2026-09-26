@@ -208,7 +208,7 @@ class TestSeamsGoThroughTheFactory:
 
         from backend.services import pipeline_workers as pw
 
-        with patch.object(pw, "build_pipeline_analyzer") as factory:
+        with patch.object(pw, "build_pipeline_analyzer", autospec=True) as factory:
             factory.return_value = MagicMock()
             worker = pw.AnalysisQueueWorker(redis_client=MagicMock())
         factory.assert_called_once()
