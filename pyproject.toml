@@ -420,6 +420,20 @@ ignore = [
     "E402", "UP031", "PLW0603", "SIM115", "S108", "C408",
     "ARG005", "S102", "RUF012", "B905", "PLR0911",
 ]
+# campaign-#2 enrichment_pipeline mutant batteries (ep0, adjudicator-
+# generated + lane-red-check-verified 2026-09-26): same batch-25 doctrine --
+# these bytes are kill-verified (2,811 banked named-test kills), so the gate
+# config adapts to the file, never the file to the gate. Codes are the exact
+# MEASURED census of `ruff check` on the 24 files: ARG005/B009 are the
+# getattr-string kill idiom + harness lambdas, I001/F401 keep import-site
+# patch topology byte-stable, RUF100 are inert leftover BLE001 pragmas
+# (rule not enabled), S108 is a shipped-behavior pin (batch26_23: production
+# asserts output_dir startswith "/tmp"), the rest generated-code style.
+"backend/tests/unit/services/test_enrichment_pipeline_batch26*.py" = [
+    "ARG005", "B009", "C408", "C416", "C420", "F401", "I001", "PLR0911",
+    "PLR1711", "PLW0603", "RUF002", "RUF005", "RUF012", "RUF023", "RUF043",
+    "RUF100", "S108", "SIM300", "UP017", "UP037", "UP041",
+]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
     "T201",   # print() ok in examples for demonstration output
@@ -644,6 +658,11 @@ exclude = [
     "backend/tests/unit/services/test_nemotron_analyzer_batch25_01.py",
     "backend/tests/unit/services/test_nemotron_analyzer_batch25_06.py",
     "backend/tests/unit/services/test_nemotron_analyzer_batch25_24.py",
+    # campaign-#2 ep0 battery: same 'raise exc / yield  # pragma: no cover'
+    # async-context-manager mock idiom (batch26_00:166) — unreachable BY
+    # DESIGN, vulture's 100%-confidence 'unreachable after raise' is the
+    # generator-maker yield, not dead logic.
+    "backend/tests/unit/services/test_enrichment_pipeline_batch26_00.py",
 ]
 
 # =============================================================================
