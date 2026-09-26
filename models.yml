@@ -15,10 +15,10 @@
 #   size_mb         Estimated download size in MB.
 #   download_phase  Download priority ordering: 0=required 1=core 2=extended 3=optional
 #   required        True if the system cannot function without this model.
-#   license_status  Optional. Provenance marker, read by no tool today:
-#                     pending-license — catalog row exists, but the weights are a
-#                     licensing decision the owner has not made yet. Keep the row
-#                     enabled: false until the pick lands.
+#   sha256          Optional. Expected SHA-256 of the weights file the loader
+#                   picks up. Enforced by the loader (face-recognizer-*), not by
+#                   the downloader: a mismatch is a wrong/corrupt file, so the
+#                   model reports unavailable rather than running unknown bytes.
 #   download_method Optional. Overrides the default snapshot_download logic:
 #                     nemotron_gguf  — download Nemotron GGUF file
 #                     yolo26         — download via ultralytics GitHub releases
@@ -198,19 +198,51 @@ models:
     triton_name: reid
     triton_kind: KIND_GPU
 
-  - name: face-recognizer
-    description: 'CPU ONNX face embedding: aligned 112x112 face crop in, L2-normalized 512-d vector out (backend/services/face_recognizer_loader.py). Weights PENDING THE LICENSE PICK — no source is hard-wired; the candidate set is restricted to permissively licensed (commercial-use) weights.'
+  # Face leg of the VLM specialist stage (F12 ruling): the two ONNX files from
+  # InsightFace buffalo_l, loaded directly on CPU onnxruntime - never via the
+  # insightface package's FaceAnalysis, which drags in all five pack models.
+  # Both are the exact bytes extracted from buffalo_l.zip (owner-pinned 2026-09-26,
+  # sha256 over the whole file). scrfd gives boxes + 5 landmarks (ArcFace
+  # 5-point alignment); w600k_r50 is the 512-d embedder (IJB-C 97.25).
+  # Deploy: unpack buffalo_l.zip and keep ONLY these two files under
+  # model-zoo/face-recognizer/ (renaming det_10g.onnx -> scrfd_10g_bnkps.onnx),
+  # or place the two files from any mirror and trust the sha256 check below.
+  - name: face-detector-scrfd
+    description: 'SCRFD-10G-KPS face detection, boxes + 5 landmarks (buffalo_l det_10g.onnx, WIDER easy/med/hard 95.16/93.87/83.05)'
     service: backend
     hf_repo: ''
     local_path: model-zoo/face-recognizer
-    size_mb: 0
+    runtime_file: scrfd_10g_bnkps.onnx
+    size_mb: 17
     download_phase: 3
     required: false
     download_method: skip
-    license_status: pending-license
+    sha256: 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
+    category: detection
+    vram_mb: 0
+    enabled: true
+    priority: low
+    preload: false
+    never_evict: false
+
+  - name: face-recognizer
+    description: 'ArcFace w600k_r50 face embedding: aligned 112x112 crop in, L2-normalized 512-d vector out (buffalo_l w600k_r50.onnx, IJB-C TAR@FAR 1e-4 97.25); CPU onnxruntime'
+    service: backend
+    hf_repo: ''
+    local_path: model-zoo/face-recognizer
+    runtime_file: w600k_r50.onnx
+    size_mb: 175
+    download_phase: 3
+    required: false
+    download_method: skip
+    sha256: 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
     category: embedding
     vram_mb: 0
-    enabled: false
+    # enabled like every model row: the pick landed (F12). ABSENT WEIGHTS are
+    # the degradation path, not this flag - the loader raises
+    # FaceRecognizerUnavailable and the specialist stage renders "unavailable"
+    # (same shape the yolo11-face row already relies on with weights absent).
+    enabled: true
     priority: low
     preload: false
     never_evict: false
