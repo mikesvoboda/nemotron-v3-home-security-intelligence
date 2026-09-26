@@ -37,6 +37,7 @@
 5. **1.5 carries its own test-wire obligation in the same slice** (ledger item 14): the integration tier runs the SHIPPED default, so flipping it means the tier runs `vlm_analyzer` — vlm-mode fixtures land with the flip, legacy stays pinned only per-subject via `legacy_wire`. A flip that re-widens a wire pin is rejected.
 6. **1.3b before M1 (rev 6):** M1's end-to-end proof includes specialist context in the prompt.
 7. **1.7 gates M1's hardware half [O]:** bring-up, S1/S4, and the empirical wake-check (spec §6:335: health probes may not wake a sleeping llama.cpp — the sandbox proves the request-side at 1.3, the A5500 run proves wake-through-sleep).
+8. **Phase 2 may run before M1 closes (owner ruling 2026-09-25, ledger F13).** Finish this plan's agent-doable work first: the rest of 1.3b, 1.5, 1.6, 1.7's repo side, and the M1 code review and report draft. Then, rather than idling on an owner gate (the 1.7 A5500 run, the PR that M1's CI needs, or any stop-and-ask), write the **Phase 2 plan** and execute it: the 2.1 replay harness, then 2.2's bake-off **runs** on the GB300. Switching to Phase 2 mid-plan is also allowed while a Phase 1 question waits on the owner. The limits are in F13.
 
 ## Global constraints
 
@@ -183,7 +184,7 @@
 
 - [ ] Ledger 1.x rows each closed with command + result + commit + machine; [O] vs [V] honest; no unobserved passes.
 - [ ] M1 assertion: (1) every CI tier green on the final Phase-1 head; (2) A5500 `vlm`-mode end-to-end [O]; (3) wake-request verified through sleep [O]. S1/S4 measured on the A5500 at/after 1.7 — not claimed here.
-- [ ] Built-in code review across the diff; milestone report (proven with S#s / failed & why / next = Phase 2 planning only / decisions owed).
+- [ ] Built-in code review across the diff; milestone report (proven with S#s / failed & why / next = Phase 2, already under way under F13 / decisions owed).
 
 ## Definition of done
 
@@ -201,4 +202,4 @@
 
 ## Out of scope
 
-Replay harness `vlm_replay.py` (2.1); bake-off (2.2) and any Brev spend (2.3); `S2_MAX`/`S3_MIN` numbers; ghcr-compose `ai-vlm` variant (ledgered scope call in 1.2); R8 deletions (legacy code stays); home-box go-live (3.1); RT-VLM (Phase 4); doc-12 postponed-roadmap items.
+Replay harness `vlm_replay.py` (2.1) and the bake-off (2.2): they belong to the Phase 2 plan, which F13 lets start before M1 (sequencing rule 8). Any Brev spend (2.3); `S2_MAX`/`S3_MIN` numbers; ghcr-compose `ai-vlm` variant (ledgered scope call in 1.2); R8 deletions (legacy code stays); home-box go-live (3.1); RT-VLM (Phase 4); doc-12 postponed-roadmap items.
