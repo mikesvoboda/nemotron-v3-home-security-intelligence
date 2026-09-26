@@ -70,8 +70,8 @@ HOST_JUSTIFIED: dict[str, str] = {
     # absent anywhere the data pipeline hasn't run. The downstream guards
     # (`is None`, `len(...) == 0`, `not results`, `not detections`) all
     # stand or fall on this file/DB content, so they share the verdict.
-    "backend/tests/conftest.py:2534": "scenarios.parquet is pipeline-generated data, not a repo file",
-    "backend/tests/conftest.py:2555": "same scenarios.parquet chain (fixture None)",
+    "backend/tests/conftest.py:2560": "scenarios.parquet is pipeline-generated data, not a repo file",
+    "backend/tests/conftest.py:2581": "same scenarios.parquet chain (fixture None)",
     # The G0.4 stock-frame corpus is owner-staged off-repo data on the GPU
     # mount (ledger F6/F5), present only where the fetcher has run - the same
     # data-chain class as scenarios.parquet, not a repo-file guard.

@@ -70,7 +70,9 @@ class TestLoggingSetup:
             finally:
                 # Restore original state
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_get_logger_with_different_names(self):
         """Test that get_logger returns distinct loggers for different names."""
@@ -672,7 +674,9 @@ class TestSetupLoggingFileHandler:
                     assert len(root.handlers) >= 1
                 finally:
                     root.handlers = original_handlers
-                    root.level = original_level
+                    root.setLevel(
+                        original_level
+                    )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_setup_logging_creates_log_directory(self):
         """Test that setup_logging creates log directory if it doesn't exist."""
@@ -699,7 +703,9 @@ class TestSetupLoggingFileHandler:
                     assert log_path.parent.exists()
                 finally:
                     root.handlers = original_handlers
-                    root.level = original_level
+                    root.setLevel(
+                        original_level
+                    )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
 
 class TestSetupLoggingSQLiteHandler:
@@ -732,7 +738,9 @@ class TestSetupLoggingSQLiteHandler:
                 assert sqlite_handlers[0].min_level == logging.WARNING
             finally:
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_setup_logging_handles_sqlite_handler_exception(self):
         """Test that setup_logging handles DatabaseHandler creation failure."""
@@ -761,7 +769,9 @@ class TestSetupLoggingSQLiteHandler:
                     assert len(root.handlers) >= 1
                 finally:
                     root.handlers = original_handlers
-                    root.level = original_level
+                    root.setLevel(
+                        original_level
+                    )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_setup_logging_skips_sqlite_handler_when_disabled(self):
         """Test that setup_logging skips SQLite handler when log_db_enabled is False."""
@@ -786,7 +796,9 @@ class TestSetupLoggingSQLiteHandler:
                 assert len(sqlite_handlers) == 0
             finally:
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
 
 class TestSetupLoggingIntegration:
@@ -834,7 +846,9 @@ class TestSetupLoggingIntegration:
                     assert len(stream_handlers) >= 1
                 finally:
                     root.handlers = original_handlers
-                    root.level = original_level
+                    root.setLevel(
+                        original_level
+                    )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
                     root.filters = original_filters
 
     def test_setup_logging_reduces_third_party_noise(self):
@@ -861,7 +875,9 @@ class TestSetupLoggingIntegration:
                 assert logging.getLogger("watchdog").level == logging.WARNING
             finally:
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_setup_logging_handles_invalid_log_level(self):
         """Test that setup_logging handles invalid log level gracefully."""
@@ -886,7 +902,9 @@ class TestSetupLoggingIntegration:
                 assert root.level == logging.INFO
             finally:
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
     def test_setup_logging_clears_existing_handlers(self):
         """Test that setup_logging clears existing handlers before adding new ones."""
@@ -914,7 +932,9 @@ class TestSetupLoggingIntegration:
                 assert dummy_handler not in root.handlers
             finally:
                 root.handlers = original_handlers
-                root.level = original_level
+                root.setLevel(
+                    original_level
+                )  # setLevel(): py3.13+ caches isEnabledFor; direct .level= leaves stale caches (see 2026-09-26 c19 CI flake)
 
 
 class TestRedactUrl:

@@ -11361,3 +11361,70 @@ enrichment_pipeline re-bank, its own history+L+commit.
 #6679 opened → main (nemotron denominator ruling + batteries + root-cause
 guard; history append rides the completed=true re-bank, NOT yet — the
 PR body says so).
+
+## 2026-09-25 — RE-BANK #4 PUBLISHES: 60.01709066133931% completed=true on the 262-module denominator (re-measure over a changed denominator, NOT a milestone) — and the third member of the abort-under-`-x` family
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-25`, rc=0):**
+killed 50,226 + timeout 1,747 = 51,973 of **86,597** in-denominator keys
+→ **score 60.01709066133931%**, survived 34,620, no_tests 4, unchecked 0,
+torn 0, `completed=true` (progress gate scripts/mutation-score.py:249),
+222/262 modules with results. History run[2] appended (runs=3). This is a
+RE-MEASUREMENT baseline over the nemotron-changed denominator (262
+modules; prior published entry 59.182439710699285% measured the
+pre-wipe 90,978-key cache) — the 59.1824% entry stays true for what it
+measured; per the ruling, campaign milestones are judged strictly-greater
+against THIS baseline, and 60.02% sits below the first tier gate (65).
+
+**RE-MEASURE EVIDENCE.** Sources edited after re-bank #4's generation
+(analyzer_facade b5fc42a8, face_detector/ocr_service/plate_detector
+6d3bdd39, event_broadcaster/notification_filter/events a0105b63) were
+merged-by-hash re-checked by the repair run: 88 keys reset
+(event_broadcaster 34 / notification_filter 42 / osnet_loader 12; the
+four PEP-563 files changed only module-level `from __future__ import
+annotations` lines, so their function hashes held and verdicts correctly
+carried). Against the pre-repair bank: 4 keys survived→killed, 3
+killed→survived, 2 keys left with functions #6678 deleted. No backend
+source commit lands between the repair generation (22:2xZ) and this
+rescore — measured `git log --since 08:48 --until 22:26 --
+backend/services backend/api/routes` shows only pre-generation commits —
+so the published number is source-true.
+
+**THIRD SHAPE of the abort-under-`-x` family (root-caused + fixed,
+commit c27c64b9).** The 21:45Z step-[5] re-measure printed "Found 238 new
+tests, rerunning stats collection" → "failed to collect stats. runner
+returned 1" on loop, and generation STRIPPED live metas 86,646→9,991
+keys — the 21:44 backup-before-any-run saved every verdict. Cause: #6678
+put unit tests into mutmut's selection that path-read artifacts absent
+from the mutant home — `REPO_ROOT/data/synthetic/<category>`
+(test_eval_store), `.env.example` + `docker-compose.ghcr.yml`
+(test_a5500_precheck). Under cwd=mutants those read-misses go red ONLY
+there; mutmut's coverage AND stats passes run pytest with `-x`
+(runners/harness.py), so both aborted; with mutate_only_covered_lines,
+aborted coverage collapsed generation to covered-lines-only and metas
+were rewritten stripped. The stats map collapsed to 1,424 fns/112 mods —
+forensics: `_cleanup_stale_stats()` deletes map entries whose module has
+no fn-hash, and the save-before-abort persisted the stripline (collapsed
+map module-set == stats.json function_hashes module-set, 112/112 exact).
+Fix: `also_copy += data/, docker-compose.ghcr.yml, .env.example` (NOT in
+config_fingerprint — verdict-safe); metas restored from backup; collapsed
+stats.json retired → forced full baseline-refresh + full-stats rebuild.
+GATE BEFORE RELAUNCH (measured): 238/238 new tests green in the synced
+tree, full unit tier with mutmut's exact args green (28,958 passed /
+123 skipped / 8 xfailed, 9m29s). Repair run (MUTMAX=14
+scripts/mutation-run.sh, log /tmp/wp-batch25/repair-run-5.log):
+generation 262/3/0, map rebuilt HEALTHY 2,810 fns / 222 mods / 0
+zero-test, clean-tests + forced-fail passed, check 86,597/86,597.
+
+**ORPHAN META CLEANUP (pre-rescore, backup
+/tmp/orphan-metas-removed-20260926T000932Z):**
+action_recognition_service + xclip_loader metas held 84 all-None keys for
+modules whose SOURCE #6649 deleted (merged in from main). Generation can
+never produce or verify them; scorer counts all-None metas toward
+`not_checked` (each has checked>0 so the never-checked absorption does not
+apply) → completed=false forever. Same ruling family as the nemotron
+cache removal: cache residue of removed code is not the denominator.
+After removal: not_checked 0, completed=true.
+
+**NEXT:** campaign #2 enrichment_pipeline lane red-check shards (tag
+ep0, load-balanced 6 lanes, GO-EP0 now).

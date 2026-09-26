@@ -326,6 +326,32 @@ hypothesis_settings.register_profile(
 _hypothesis_profile = os.environ.get("HYPOTHESIS_PROFILE", "default")
 hypothesis_settings.load_profile(_hypothesis_profile)
 
+# Mutation-testing stats phase: relax the per-example deadline ONLY there.
+# MEASURED at the enrichment_pipeline re-bank (2026-09-26): mutmut's stats
+# collection runs the WHOLE unit tier serially in ONE process with -x
+# (mutmut runners/harness.py run_stats), so any in-process time patch from an
+# earlier test outlives its module and poisons every later hypothesis example
+# (the batch26_12 session-scoped scripted_clock leak: "Test took 1250.00ms,
+# deadline 1000.00ms" — exactly its +1.25s tick, fixed to module scope
+# 2026-09-26). -x then aborts stats -- "failed to collect stats. runner
+# returned 1", the same abort-under-x family as the runtime.env and pi_heif
+# incidents. The stats phase assigns no mutant verdicts -- it maps tests to
+# functions against unmutated code -- so an example's wall-clock there is
+# harness noise by construction and a per-example deadline buys nothing;
+# CI's own profile already rules 5000ms the right budget for a slow runner.
+# Mutant-EXECUTION runs are untouched (MUTANT_UNDER_TEST is the mutant key,
+# not "stats"), so a mutant that slows a test down still trips the deadline
+# and banks killed. This is defense-in-depth for the serial-stats world, NOT
+# the fix for the leak — the leak fix is the module scope in
+# tests/unit/services/test_enrichment_pipeline_batch26_12.py.
+if os.environ.get("MUTANT_UNDER_TEST") == "stats":
+    hypothesis_settings.register_profile(
+        "mutmut-stats",
+        parent=hypothesis_settings.get_profile(_hypothesis_profile),
+        deadline=5000,
+    )
+    hypothesis_settings.load_profile("mutmut-stats")
+
 
 # =============================================================================
 # Flaky Test Detection and Quarantine System
