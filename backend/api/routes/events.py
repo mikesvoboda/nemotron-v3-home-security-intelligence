@@ -86,6 +86,12 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import EventDetection
+from backend.models.event_verification import (
+    VerdictFilterLiteral as VerdictFilter,
+)
+from backend.models.event_verification import (
+    verdict_filter_condition,
+)
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
@@ -274,6 +280,12 @@ async def list_events(
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
     ),
+    verdict: VerdictFilter | None = Query(
+        None,
+        description="Filter by VLM verification verdict (confirmed, rejected, uncertain, "
+        "verification_failed) or 'none' for events never verified. Anything else is a 422, "
+        "never an empty list - a typo'd verdict must not read as a false all-clear.",
+    ),
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
@@ -308,6 +320,10 @@ async def list_events(
     Args:
         camera_id: Optional camera ID to filter by
         risk_level: Optional risk level to filter by (low, medium, high, critical)
+        verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/
+            verification_failed, or 'none' for never-verified events). An
+            unrecognised value is a 422 from the Literal-typed param - never
+            an empty list, which would read as a false all-clear.
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         reviewed: Optional filter by reviewed status
@@ -336,6 +352,7 @@ async def list_events(
                 "trace_id": trace_id,
                 "camera_id": camera_id,
                 "risk_level": risk_level,
+                "verdict": verdict,
                 "limit": limit,
             },
         )
@@ -392,6 +409,12 @@ async def list_events(
         query = query.where(Event.camera_id == camera_id)
     if risk_level:
         query = query.where(Event.risk_level == risk_level)
+    # 1.6: EXISTS on event_verifications, never an Event column - the verdict
+    # has exactly one home. Applied to the BASE query so the count_query built
+    # from its subquery is filtered too (an unfiltered total above a filtered
+    # list would make the UI's count lie).
+    if verdict:
+        query = query.where(verdict_filter_condition(verdict))
     if start_date:
         query = query.where(Event.started_at >= start_date)
     if normalized_end_date:
@@ -1050,6 +1073,11 @@ async def search_events_endpoint(
         description="Alias for severity - filter by risk levels "
         "(comma-separated: low,medium,high,critical)",
     ),
+    verdict: VerdictFilter | None = Query(
+        None,
+        description="Filter by VLM verification verdict (or 'none' for never-verified). "
+        "Same vocabulary and 422-on-typo rule as GET /api/events?verdict.",
+    ),
     object_type: str | None = Query(
         None, description="Filter by object types (comma-separated: person,vehicle,animal)"
     ),
@@ -1081,6 +1109,8 @@ async def search_events_endpoint(
         risk_level: Alias for severity - accepts same format
         object_type: Optional comma-separated object types (person, vehicle, animal)
         reviewed: Optional filter by reviewed status
+        verdict: Optional VLM verdict filter (or 'none' for never-verified events),
+            same vocabulary and 422-on-typo rule as GET /api/events?verdict
         limit: Maximum number of results to return (1-1000, default 50)
         offset: Number of results to skip for pagination (default 0)
         db: Database session
@@ -1111,6 +1141,7 @@ async def search_events_endpoint(
         severity=severity_levels,
         object_types=object_types,
         reviewed=reviewed,
+        verdict=verdict,
     )
 
     # Execute search

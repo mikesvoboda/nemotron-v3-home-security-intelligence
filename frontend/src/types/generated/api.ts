@@ -5731,6 +5731,10 @@ export interface paths {
          *     Args:
          *         camera_id: Optional camera ID to filter by
          *         risk_level: Optional risk level to filter by (low, medium, high, critical)
+         *         verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/
+         *             verification_failed, or 'none' for never-verified events). An
+         *             unrecognised value is a 422 from the Literal-typed param - never
+         *             an empty list, which would read as a false all-clear.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -6040,6 +6044,8 @@ export interface paths {
          *         risk_level: Alias for severity - accepts same format
          *         object_type: Optional comma-separated object types (person, vehicle, animal)
          *         reviewed: Optional filter by reviewed status
+         *         verdict: Optional VLM verdict filter (or 'none' for never-verified events),
+         *             same vocabulary and 422-on-typo rule as GET /api/events?verdict
          *         limit: Maximum number of results to return (1-1000, default 50)
          *         offset: Number of results to skip for pagination (default 0)
          *         db: Database session
@@ -52007,6 +52013,8 @@ export interface operations {
                 camera_id?: string | null;
                 /** @description Filter by risk level (low, medium, high, critical) */
                 risk_level?: string | null;
+                /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
+                verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
@@ -52389,6 +52397,8 @@ export interface operations {
                 severity?: string | null;
                 /** @description Alias for severity - filter by risk levels (comma-separated: low,medium,high,critical) */
                 risk_level?: string | null;
+                /** @description Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict. */
+                verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
                 /** @description Filter by object types (comma-separated: person,vehicle,animal) */
                 object_type?: string | null;
                 /** @description Filter by reviewed status */
