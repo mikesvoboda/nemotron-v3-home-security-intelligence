@@ -67,6 +67,7 @@ from backend.services.key_frame_selector import FrameRef, select_key_frames
 from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
 from backend.services.severity import SeverityService, get_severity_service
 from backend.services.vlm_client import VlmClient, VlmClientError
+from backend.services.vlm_specialists import collect_specialist_outputs
 from backend.services.vlm_verdict import VlmAssessContext, VlmAssessRequest, VlmVerdict
 from backend.services.zone_service import get_zones_for_detection
 
@@ -167,6 +168,29 @@ def detect_zone_crossing(
     return any(len(names) > 1 for names in memberships.values())
 
 
+def build_frame_refs(detections: list[dict[str, Any]], camera_id: str) -> list[FrameRef]:
+    """Detection dicts -> FrameRefs (paths only, never bytes; spec §6).
+    One helper so the request's key-frame pick and the specialist stage run
+    the SAME selector over the SAME picks — the texts describe exactly the
+    frames the VLM sees, never a different frame set."""
+    frames = []
+    for row in detections:
+        det = row.get("detected_at")
+        epoch = int(det.timestamp()) if isinstance(det, datetime) else 0
+        frames.append(
+            FrameRef(
+                detection_id=row["id"],
+                camera_id=row.get("camera_id") or camera_id,
+                object_type=row.get("object_type") or "unknown",
+                confidence=row.get("confidence"),
+                timestamp=epoch,
+                file_path=row["file_path"],
+                thumbnail_path=row.get("thumbnail_path"),
+            )
+        )
+    return frames
+
+
 def build_assess_request(
     *,
     context: VlmAssessContext,
@@ -176,22 +200,7 @@ def build_assess_request(
     pick over FrameRefs built from the same dicts - paths only, never
     bytes; spec §6 privacy). The specialist texts already live inside the
     context — the request adds only the image selection (rev 6)."""
-    frames = []
-    for row in detections:
-        det = row.get("detected_at")
-        epoch = int(det.timestamp()) if isinstance(det, datetime) else 0
-        frames.append(
-            FrameRef(
-                detection_id=row["id"],
-                camera_id=row.get("camera_id") or context.camera_id,
-                object_type=row.get("object_type") or "unknown",
-                confidence=row.get("confidence"),
-                timestamp=epoch,
-                file_path=row["file_path"],
-                thumbnail_path=row.get("thumbnail_path"),
-            )
-        )
-    picks = select_key_frames(frames)
+    picks = select_key_frames(build_frame_refs(detections, context.camera_id))
     return VlmAssessRequest(image_paths=[f.file_path for f in picks], context=context)
 
 
@@ -311,6 +320,7 @@ class VlmAnalyzer:
         self._severity = severity or get_severity_service()
         self._replay = replay
         settings = get_settings()
+        self._settings = settings
         # Degraded-path provenance: a failed call has no verdict to read
         # the engine's own label from, so the settings labels stand in (the
         # event_verifications columns are NOT NULL). Same source nemotron
@@ -331,12 +341,21 @@ class VlmAnalyzer:
         batch_id: str,
         camera_id: str | None = None,
         detection_ids: list[int | str] | None = None,
+        *,
+        specialist_inputs: dict[str, str] | None = None,
     ) -> Event:
         """Analyze one closed batch. Raises ValueError when the batch has
         no detections, or when NO detector closed it (no camera metadata in
         Redis and no queue-payload camera - the §6 "VLM never originates an
         event" rule). Raises nothing for ENGINE failures: those land as a
-        verification_failed event (§6 step 2)."""
+        verification_failed event (§6 step 2).
+
+        ``specialist_inputs`` is replay's carrier (2.1): the stored texts
+        from the eval store's snapshot, passed through to AssessInput
+        verbatim. Production never passes it - it computes the texts
+        itself. Replay never re-runs the specialists either way (F11
+        ruling 4): the texts a verdict was judged on are the texts that
+        rode the snapshot, or the comparison is a different scene."""
         # Idempotency first (nemotron's batch_event:<id> key, same TTL).
         existing_id = await self._check_idempotency(batch_id)
         if existing_id is not None:
@@ -430,6 +449,38 @@ class VlmAnalyzer:
             zones = sorted({n for names in zone_names_by_det.values() for n in names})
             household = await load_household_context(session, camera_id)
 
+            # ---- Specialist stage (rev 6, F11/F12): ONE short text per
+            # specialist over the selector's key-frame picks, BEFORE the
+            # assess call. Runs inside session 1 because the face leg needs
+            # it for the gallery read; the leg itself never raises (every
+            # failure is the text "unavailable"), so this cannot extend the
+            # read budget or fail the batch. Replay NEVER re-runs the
+            # specialists (F11 ruling 4): replay feeds the texts loaded from
+            # the eval store, so this whole block is prod-only.
+            if self._replay:
+                specialist_outputs: dict[str, str] = dict(specialist_inputs or {})
+            else:
+                try:
+                    specialist_outputs = await collect_specialist_outputs(
+                        key_frame_paths=select_key_frames(build_frame_refs(detections, camera_id)),
+                        settings=self._settings,
+                        detections=detections,
+                        session=session,
+                    )
+                except Exception as exc:
+                    # The stage's own contract is "never raise"; this catch is
+                    # the analyzer's own guarantee (plan 3b: a failing or
+                    # absent specialist never blocks or fails the verdict),
+                    # so even a stage BUG lands as all-unavailable texts on
+                    # the same keys, not a lost event.
+                    logger.warning(
+                        "specialist stage raised (belt catch) - all specialists unavailable",
+                        extra={"batch_id": batch_id, "error": str(exc)},
+                    )
+                    specialist_outputs = dict.fromkeys(
+                        ("faces", "plates", "person_reid"), "unavailable: specialist stage error"
+                    )
+
         start_time = min(
             (d["detected_at"] for d in detections if d.get("detected_at") is not None),
             default=datetime.now(UTC),
@@ -445,6 +496,7 @@ class VlmAnalyzer:
             zones=zones,
             household=household,
             zone_crossing=detect_zone_crossing(detections, zone_names_by_det),
+            specialist_outputs=specialist_outputs,
         )
         request = build_assess_request(context=context, detections=detections)
         key_frame_ids = _key_frame_ids(request, detections)

@@ -244,14 +244,28 @@ class TestNullScoreRidesTheLivePipe:
             assert stored is not None
             assert stored.verdict == "verification_failed"
 
-            # --- WS half: the frame that crossed REAL pub/sub
+            # --- WS half: the frame that crossed REAL pub/sub. The channel
+            # is shared (per-settings name), and Event ids COLLIDE across
+            # tests (fresh schema per test restarts the sequence), so the
+            # frame is found by OUR uuid-unique batch_id - never "the first
+            # one" (first-frame-wins made this race a coin flip under -n auto).
             frame: dict[str, Any] | None = None
+            foreign_frames = 0
             deadline = asyncio.get_running_loop().time() + 5.0
             while frame is None and asyncio.get_running_loop().time() < deadline:
                 msg = await sub.get_message(ignore_subscribe_messages=True, timeout=1.0)
                 if msg is not None and msg.get("type") == "message":
-                    frame = json.loads(msg["data"])
-            assert frame is not None, "no event frame reached the subscriber"
+                    candidate = json.loads(msg["data"])
+                    if candidate.get("type") == "event" and (
+                        (candidate.get("data") or {}).get("batch_id") == batch_id
+                    ):
+                        frame = candidate
+                    else:
+                        foreign_frames += 1
+            assert frame is not None, (
+                f"no frame for batch {batch_id} reached the subscriber "
+                f"({foreign_frames} foreign frames seen instead)"
+            )
             assert frame["type"] == "event"
             # broadcast_event validated it already; re-validate the RECEIVED
             # copy so the schema promise is pinned on the wire bytes too.

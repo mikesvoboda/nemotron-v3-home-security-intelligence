@@ -1849,6 +1849,36 @@ class Settings(BaseSettings):
         "When False (default), faces are added to a review queue for manual approval.",
     )
 
+    # Face-leg quality gate + match threshold (VSS rev 6, F11 ruling 3 / F12).
+    # PROVISIONAL: both get calibrated on the owner's gallery and night footage
+    # in the Phase 2 bake-off (AdaFace is the ledgered small/night challenger,
+    # CR-FIQA the ledgered quality-model upgrade). Until then they are config,
+    # never code constants - the gate's whole job is to keep a tiny/night crop
+    # from reading "unknown", which pushes the VLM toward alarm (S2 driver).
+    face_min_size_px: int = Field(
+        default=40,
+        ge=8,
+        description="Minimum face box size in pixels for the face specialist's "
+        "quality gate. A crop below this is 'not identifiable', never 'unknown'.",
+    )
+    face_scrfd_threshold: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="Minimum SCRFD detection score for the face specialist's "
+        "quality gate (the same value is passed to detection as its threshold). "
+        "A face the detector barely believes is 'not identifiable', never 'unknown'.",
+    )
+    face_match_threshold: float = Field(
+        default=0.68,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity above which a face embedding matches a "
+        "gallery FaceEmbedding. Provisional (F12); mirrors the existing "
+        "face_recognition_service.DEFAULT_MATCH_THRESHOLD so the specialist and "
+        "the gallery API never disagree about what 'match' means.",
+    )
+
     # Detection settings
     detection_confidence_threshold: float = Field(
         default=0.40,

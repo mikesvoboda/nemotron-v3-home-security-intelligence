@@ -650,3 +650,94 @@ class TestAnalyzeBatchRefusals:
         assert client.calls == []
         assert session.added == []
         assert broadcaster.messages == []
+
+
+# ---------------------------------------------------------------------------
+# Specialist stage wiring (rev 6, F11 ruling 4 / F12) — the texts ride the
+# snapshot: production COMPUTES them into context.specialist_outputs before
+# assess; replay NEVER re-runs them and passes the stored texts verbatim.
+# ---------------------------------------------------------------------------
+
+
+class TestSpecialistStageWiring:
+    async def test_production_fills_specialist_outputs_before_assess(self, monkeypatch):
+        texts = {
+            "faces": "known person Dad (91% match)",
+            "plates": "0 license plates detected",
+            "person_reid": "unavailable: re-ID specialist did not run",
+        }
+        collect = AsyncMock(return_value=texts)
+        monkeypatch.setattr(va, "collect_specialist_outputs", collect, raising=False)
+        client = FakeClient([make_verdict()])
+        analyzer, session, _ = make_analyzer(monkeypatch, client=client)
+
+        await analyze(analyzer)
+
+        # called exactly once, over the SAME key-frame picks the request got
+        assert collect.await_count == 1
+        kwargs = collect.await_args.kwargs
+        assert [f.file_path for f in kwargs["key_frame_paths"]] == client.calls[0].image_paths
+        assert kwargs["session"] is session  # the face leg reads the gallery on session 1
+        # and the texts rode the snapshot the VLM call carried
+        assert client.calls[0].context.specialist_outputs == texts
+
+    async def test_replay_never_reruns_and_passes_stored_texts(self, monkeypatch):
+        async def boom(**_kwargs):
+            raise AssertionError("replay must never re-run the specialists")
+
+        monkeypatch.setattr(va, "collect_specialist_outputs", boom, raising=False)
+        stored = {"faces": "1 unknown face(s)", "plates": "OLDPLATE - not a household plate"}
+        client = FakeClient([make_verdict()])
+        analyzer, _session, _ = make_analyzer(monkeypatch, client=client, replay=True)
+
+        await analyzer.analyze_batch(
+            "b1", camera_id="front_door", detection_ids=[11], specialist_inputs=stored
+        )
+
+        assert client.calls[0].context.specialist_outputs == stored
+
+    async def test_replay_without_stored_texts_carries_empty_not_lies(self, monkeypatch):
+        async def boom(**_kwargs):
+            raise AssertionError("replay must never re-run the specialists")
+
+        monkeypatch.setattr(va, "collect_specialist_outputs", boom, raising=False)
+        client = FakeClient([make_verdict()])
+        analyzer, _session, _ = make_analyzer(monkeypatch, client=client, replay=True)
+
+        await analyzer.analyze_batch("b1", camera_id="front_door", detection_ids=[11])
+
+        assert client.calls[0].context.specialist_outputs == {}
+
+    async def test_stage_bug_cannot_fail_the_verdict(self, monkeypatch):
+        """The analyzer's own belt (plan 3b): a stage that RAISES despite its
+        contract still yields all-unavailable texts and the normal event —
+        a specialist bug never costs the batch its verdict."""
+
+        async def explode(**_kwargs):
+            raise RuntimeError("stage bug")
+
+        monkeypatch.setattr(va, "collect_specialist_outputs", explode, raising=False)
+        client = FakeClient([make_verdict()])
+        analyzer, session, broadcaster = make_analyzer(monkeypatch, client=client)
+
+        event = await analyze(analyzer)
+
+        texts = client.calls[0].context.specialist_outputs
+        assert set(texts) == {"faces", "plates", "person_reid"}
+        assert all(t.startswith("unavailable") for t in texts.values())
+        assert event.risk_score is not None  # the verdict still landed
+        assert broadcaster.messages  # and the event still broadcast
+
+    async def test_default_legs_degrade_to_texts_not_crash(self, monkeypatch):
+        """NO specialist fake at all: the real legs run against fake paths
+        (files absent, weights absent, [alpr] absent — the sandbox truth) and
+        STILL produce three non-blank texts on the request. This is the
+        never-blocks-the-verdict rule on the production code, unmocked."""
+        client = FakeClient([make_verdict()])
+        analyzer, _session, _ = make_analyzer(monkeypatch, client=client)
+
+        await analyze(analyzer)
+
+        texts = client.calls[0].context.specialist_outputs
+        assert set(texts) >= {"faces", "plates", "person_reid"}
+        assert all(v.strip() for v in texts.values())
