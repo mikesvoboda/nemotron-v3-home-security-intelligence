@@ -114,6 +114,54 @@ class TritonClient:
             logger.warning(f"Model readiness check failed for {model_name}: {e}")
             return False
 
+    async def load_model(self, model_name: str, timeout: float | None = None) -> None:
+        """Load a model into Triton (explicit model control).
+
+        Under --model-control-mode=explicit (Phase 1.4) on-demand specialists
+        are absent until this RPC runs; loading an already-loaded model is a
+        Triton-side no-op, so callers may treat this as idempotent.
+
+        Args:
+            model_name: Name of the model in the Triton model repository.
+            timeout: Optional per-request timeout override in seconds;
+                loading a big model is slower than an inference, so callers
+                may pass a longer budget than the 30 s default.
+
+        Raises:
+            TritonClientError: If the load fails or times out.
+        """
+        effective_timeout = timeout or self.timeout
+        try:
+            client = await self._get_client()
+            await asyncio.wait_for(
+                client.load_model(model_name=model_name),
+                timeout=effective_timeout,
+            )
+            logger.info(f"Triton model loaded: {model_name}")
+        except TimeoutError:
+            raise TritonClientError(
+                f"Load timed out for model {model_name} after {effective_timeout}s"
+            ) from None
+        except TritonClientError:
+            raise
+        except Exception as e:
+            raise TritonClientError(f"Load failed for model {model_name}: {e}") from e
+
+    async def unload_model(self, model_name: str) -> None:
+        """Unload a model from Triton (explicit model control).
+
+        Raises:
+            TritonClientError: If the unload fails.
+        """
+        try:
+            client = await self._get_client()
+            await client.unload_model(model_name=model_name)
+            logger.info(f"Triton model unloaded: {model_name}")
+        except TritonClientError:
+            raise
+        except Exception as e:
+            raise TritonClientError(f"Unload failed for model {model_name}: {e}") from e
+
     async def get_model_metadata(self, model_name: str) -> dict[str, Any]:
         """Retrieve model metadata from Triton.
 
