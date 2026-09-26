@@ -1064,6 +1064,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score ?? null,
       risk_label: event.risk_level ?? undefined,
       verdict: event.verification?.verdict,
+      // 1.6: the full row rides to the modal's verification section
+      // (scene description, criteria, reviewed frames - spec §4).
+      verification: event.verification,
       summary: event.summary || 'No summary available',
       reasoning: event.reasoning ?? undefined,
       detections: [], // Detections fetched by modal via API

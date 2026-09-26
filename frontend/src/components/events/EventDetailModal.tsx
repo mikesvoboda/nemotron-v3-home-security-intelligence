@@ -24,6 +24,7 @@ import DetectionQualityBadge from './DetectionQualityBadge';
 import { EnrichmentViewer } from '../enrichment';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventEnrichmentSummary from './EventEnrichmentSummary';
+import EventVerificationSection from './EventVerificationSection';
 import EventVideoPlayer from './EventVideoPlayer';
 import LLMReasoningExplorer from './LLMReasoningExplorer';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
@@ -100,6 +101,12 @@ export interface Event {
   risk_label?: string;
   /** VLM verdict from the event's verification row (1.6, spec §4). */
   verdict?: EventVerificationPayload['verdict'] | null;
+  /**
+   * The full verification row (1.6, spec §4 "Event detail"): scene
+   * description, criteria checklist, reviewed frames. Undefined = no row
+   * (legacy events) and the verification section renders nothing.
+   */
+  verification?: EventVerificationPayload | null;
   summary: string;
   reasoning?: string;
   image_url?: string;
@@ -904,6 +911,15 @@ export default function EventDetailModal({
                         />
                       )}
 
+                      {/* VLM verification (1.6, spec §4): verdict, scene
+                          description, criteria checklist, reviewed frames.
+                          Absent (undefined) for legacy/no-row events - the
+                          header badge already reads Unverified. */}
+                      <EventVerificationSection
+                        verification={event.verification}
+                        className="mb-6"
+                      />
+
                       {/* Risk Factors List (NEM-3603) */}
                       {event.risk_factors && event.risk_factors.length > 0 && (
                         <div className="mb-6" data-testid="risk-factors-section">
@@ -1028,7 +1044,7 @@ export default function EventDetailModal({
                       )}
 
                       {/* AI Enrichment Analysis */}
-                      {event.detections.some((d) => d.enrichment_data) && (
+                      {event.detections.some((d) => d.enrichment_data) ? (
                         <div className="mb-6">
                           {event.detections
                             .filter((d) => d.enrichment_data)
@@ -1041,6 +1057,23 @@ export default function EventDetailModal({
                               />
                             ))}
                         </div>
+                      ) : (
+                        /* 1.6 spec §4: in VLM mode the enrichment models
+                           retired (D3), so a vlm-mode event (it carries a
+                           verification row - legacy events carry none) shows
+                           WHY the pose/clothing/demographics panels are empty.
+                           R8: empty states, not deletions - the panel slot
+                           stays and names its silence. */
+                        event.verification !== undefined &&
+                        event.verification !== null && (
+                          <div
+                            className="mb-6 rounded-lg border border-dashed border-gray-700 bg-black/20 p-4 text-sm text-gray-500"
+                            data-testid="enrichment-retired-state"
+                          >
+                            Enrichment analysis (pose skeleton, clothing, demographics) is not
+                            analyzed in VLM mode.
+                          </div>
+                        )
                       )}
 
                       {/* Action Recognition Events (ST-GCN++) - NEM-5024 Phase 7 */}
