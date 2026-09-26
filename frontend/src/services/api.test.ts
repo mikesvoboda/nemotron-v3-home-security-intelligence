@@ -1643,6 +1643,7 @@ describe('Events API', () => {
       const params: EventsQueryParams = {
         camera_id: 'cam-1',
         risk_level: 'high',
+        verdict: 'verification_failed',
         start_date: '2025-01-01',
         end_date: '2025-01-31',
         reviewed: false,
@@ -1660,6 +1661,7 @@ describe('Events API', () => {
       const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
       expect(callUrl).toContain('camera_id=cam-1');
       expect(callUrl).toContain('risk_level=high');
+      expect(callUrl).toContain('verdict=verification_failed');
       expect(callUrl).toContain('start_date=2025-01-01');
       expect(callUrl).toContain('end_date=2025-01-31');
       expect(callUrl).toContain('reviewed=false');

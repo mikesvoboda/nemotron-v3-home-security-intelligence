@@ -38,7 +38,10 @@
 // ============================================================================
 
 // Import types that are used locally in this file
-import type { RiskLevel as GeneratedRiskLevel } from './generated/websocket';
+import type {
+  EventVerificationPayload,
+  RiskLevel as GeneratedRiskLevel,
+} from './generated/websocket';
 
 // Re-export for consumers
 // Core types generated from backend/api/schemas/websocket.py
@@ -115,6 +118,13 @@ export interface SecurityEventData {
   risk_score: number | null;
   /** Categorical risk level; null when the event is unverified */
   risk_level: GeneratedRiskLevel | null;
+  /**
+   * VLM verification object (spec §4), present on vlm-mode events. Mirrors
+   * the generated WebSocketEventData field this hand-written twin shadows —
+   * it was simply never declared here, so 1.6's verdict badge could not
+   * read it off a live event. Absent on legacy events.
+   */
+  verification?: EventVerificationPayload | null;
   /** AI-generated event summary */
   summary: string;
   /** Event timestamp (ISO format) */

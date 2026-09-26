@@ -221,6 +221,31 @@ describe('useEventsInfiniteQuery', () => {
       });
     });
 
+    it('fetches events with verdict filter (1.6)', async () => {
+      // The hook's fetchFn spreads filters into EventsQueryParams - this
+      // pins the spread still carries the new field (a dropped line here
+      // would silently disable the list's verdict filter).
+      const filters: EventFilters = { verdict: 'verification_failed' };
+
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ verdict: 'verification_failed' })
+        );
+      });
+    });
+
+    it('fetches events with the never-verified pseudo-verdict', async () => {
+      const filters: EventFilters = { verdict: 'none' };
+
+      renderHook(() => useEventsInfiniteQuery({ filters }), { wrapper: createQueryWrapper() });
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ verdict: 'none' }));
+      });
+    });
+
     it('fetches events with reviewed filter', async () => {
       const filters: EventFilters = { reviewed: true };
 

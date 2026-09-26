@@ -305,13 +305,19 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   useEffect(() => {
     const cameraParam = searchParams.get('camera');
     const riskLevelParam = searchParams.get('risk_level');
+    const verdictParam = searchParams.get('verdict');
 
     // Only update if we have at least one parameter
-    if (cameraParam || riskLevelParam) {
+    if (cameraParam || riskLevelParam || verdictParam) {
       setEventFilters((prev) => ({
         ...prev,
         ...(cameraParam && { camera_id: cameraParam }),
         ...(riskLevelParam && { risk_level: riskLevelParam }),
+        // Server-side 422s an unknown verdict, so a bad deep link fails loud
+        // in the query instead of silently showing everything.
+        ...(verdictParam && {
+          verdict: verdictParam as NonNullable<EventFilters['verdict']>,
+        }),
       }));
       // Show filters panel when coming with URL parameters
       setShowFilters(true);
@@ -344,6 +350,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
       camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
       risk_score: event.risk_score,
+      // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
+      verdict: event.verification?.verdict,
       summary: event.summary,
     }));
   }, [wsEvents, cameraNameMap]);
@@ -705,6 +713,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const hasActiveFilters =
     eventFilters.camera_id ||
     eventFilters.risk_level ||
+    eventFilters.verdict ||
     eventFilters.start_date ||
     eventFilters.end_date ||
     eventFilters.reviewed !== undefined ||
