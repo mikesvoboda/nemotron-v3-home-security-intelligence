@@ -33,7 +33,9 @@ import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
+import VerdictBadge from '../common/VerdictBadge';
 
+import type { EventVerificationPayload } from '../../types/generated/websocket';
 import type { ThreatData } from '../../types/threat';
 import type { ApproachUrgency } from '../common/ApproachVectorIndicator';
 
@@ -153,8 +155,22 @@ export interface EventCardProps {
   id: string;
   timestamp: string;
   camera_name: string;
-  risk_score: number;
-  risk_label: string;
+  /**
+   * Null means NO VERDICT HAS LANDED (1.6, D11): the event was never
+   * analyzed or verification failed. Producers must pass the raw value -
+   * `event.risk_score || 0` is the lie this prop exists to make visible.
+   */
+  risk_score: number | null;
+  /** Display label; unused by the card body (severity drives styling). Optional. */
+  risk_label?: string;
+  /**
+   * The VLM verdict from the event's verification row (1.6, spec §4), or
+   * undefined/null for no row. The badge row keys on it WHEN there is no
+   * level: a level-bearing event shows the RiskBadge and the verdict gets
+   * its own space in the detail view; a level-less event states the
+   * verdict (or 'Unverified') instead of a fabricated score color.
+   */
+  verdict?: EventVerificationPayload['verdict'] | null;
   summary: string;
   reasoning?: string;
   thumbnail_url?: string;
@@ -192,6 +208,7 @@ const EventCard = memo(function EventCard({
   timestamp,
   camera_name,
   risk_score,
+  verdict,
   summary,
   reasoning,
   thumbnail_url,
@@ -278,8 +295,11 @@ const EventCard = memo(function EventCard({
     }
   };
 
-  // Get risk level from score
-  const riskLevel = getRiskLevel(risk_score);
+  // Risk level, or null when there is no level to show (1.6). null here
+  // swaps the badge row's RiskBadge for the Unverified VerdictBadge - the
+  // getRiskLevel(score || 0) it replaces rendered a NULL-score event as a
+  // confident green "Low".
+  const riskLevel = risk_score === null ? null : getRiskLevel(risk_score);
 
   // Get unique object types from detections
   const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
@@ -407,7 +427,20 @@ const EventCard = memo(function EventCard({
 
           {/* Risk Badge, Threat Indicator, Duration, and Snooze Status Row */}
           <div className={`mb-3 flex items-center gap-3 ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
-            <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
+            {/* 1.6: with no level to show the card states it - the verdict
+                badge ('none' → Unverified until B2's verdict plumbing
+                arrives) replaces RiskBadge; a colored Low badge may never
+                stand in for "not checked". */}
+            {riskLevel !== null ? (
+              <RiskBadge
+                level={riskLevel}
+                score={risk_score ?? undefined}
+                showScore={true}
+                size="md"
+              />
+            ) : (
+              <VerdictBadge verdict={verdict} size="md" />
+            )}
             {/* Threat Indicator (NEM-5019) - shown when threats are detected */}
             <ThreatIndicator threats={threats} compact={true} />
             {(started_at || ended_at !== undefined) && (

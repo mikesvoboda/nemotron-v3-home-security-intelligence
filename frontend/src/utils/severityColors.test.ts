@@ -163,6 +163,29 @@ describe('severityColors', () => {
       });
     });
 
+    it('NULL score gets the neutral unverified treatment, never green "low" (1.6)', () => {
+      // The card-border twin of the Low-badge lie: getSeverityLevel(0)
+      // paints the NVIDIA-green low border on a never-analyzed (NULL
+      // score, D11) event. Unknown is not safe, and it must not look safe.
+      expect(getSeverityConfig(null)).toEqual<SeverityConfig>({
+        level: 'unverified',
+        bgTint: 'transparent',
+        borderColor: '#6B7280',
+        glowShadow: '',
+        shouldPulse: false,
+        bgClass: 'bg-transparent',
+        borderClass: 'border-l-gray-500',
+        glowClass: '',
+        pulseClass: '',
+      });
+      expect(getSeverityConfig(undefined).level).toBe('unverified');
+    });
+
+    it('a real score of 0 is still the low treatment (null and zero stay different)', () => {
+      expect(getSeverityConfig(0).level).toBe('low');
+      expect(getSeverityConfig(0).borderColor).toBe('#76B900');
+    });
+
     it('only enables pulse for critical severity', () => {
       expect(getSeverityConfig(100).shouldPulse).toBe(true);
       expect(getSeverityConfig(80).shouldPulse).toBe(true);

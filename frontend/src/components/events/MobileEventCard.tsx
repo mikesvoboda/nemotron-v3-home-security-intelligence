@@ -14,8 +14,10 @@ import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge from '../common/VerdictBadge';
 
 import type { Detection } from './EventCard';
+import type { EventVerificationPayload } from '../../types/generated/websocket';
 
 export interface MobileEventCardAction {
   label: string;
@@ -27,8 +29,12 @@ export interface MobileEventCardProps {
   id: string;
   timestamp: string;
   camera_name: string;
-  risk_score: number;
-  risk_label: string;
+  /** Null = no verdict/level yet (1.6) - renders Unverified, not a green Low. */
+  risk_score: number | null;
+  /** Display label; unused by the card body. Optional. */
+  risk_label?: string;
+  /** VLM verdict for the no-level badge swap (1.6). */
+  verdict?: EventVerificationPayload['verdict'] | null;
   summary: string;
   thumbnail_url?: string;
   detections: Detection[];
@@ -49,6 +55,7 @@ const MobileEventCard = memo(function MobileEventCard({
   timestamp,
   camera_name,
   risk_score,
+  verdict,
   summary,
   thumbnail_url,
   detections,
@@ -84,8 +91,9 @@ const MobileEventCard = memo(function MobileEventCard({
     }
   };
 
-  // Get risk level
-  const riskLevel = getRiskLevel(risk_score);
+  // Risk level, or null when there is none to show (1.6) - the badge then
+  // states the verdict/Unverified instead of a fabricated color.
+  const riskLevel = risk_score === null ? null : getRiskLevel(risk_score);
 
   // Get unique object types
   const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
@@ -177,7 +185,16 @@ const MobileEventCard = memo(function MobileEventCard({
               )}
             </div>
           </div>
-          <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="sm" />
+          {riskLevel !== null ? (
+            <RiskBadge
+              level={riskLevel}
+              score={risk_score ?? undefined}
+              showScore={true}
+              size="sm"
+            />
+          ) : (
+            <VerdictBadge verdict={verdict} size="sm" />
+          )}
         </div>
 
         {/* Summary */}

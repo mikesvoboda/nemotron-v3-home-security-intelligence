@@ -204,6 +204,118 @@ services:
               capabilities: [gpu]
 
   # =============================================================================
+  # VLM Server (vision-language verification; spec §2, Phase 1.2)
+  # =============================================================================
+  # llama-server + GGUF + mmproj serving the vlm_assess op over
+  # /v1/chat/completions with response_format json_schema (constrained
+  # decoding; the enforcement probe in scripts/vlm_probes/s2_multimodal_schema.py
+  # proves the pin actually enforces). Behind profile `vlm`: the default
+  # `up` never starts it, and the backend NEVER hard-depends_on it (a
+  # profiled service in depends_on breaks the default `up`) - degradation
+  # is the §6 ladder's job in vlm_analyzer (1.3), not a compose edge.
+  # vlm mode REPLACES the legacy LLM on the GPU (spec VRAM table): bring
+  # this up with --profile vlm only when ai-llm is stopped; both interpolate
+  # the same GPU_LLM host var on purpose.
+  #
+  # To enable: docker compose -f docker-compose.prod.yml --profile vlm up -d
+  ai-vlm:
+    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
+    security_opt:
+      - no-new-privileges:true
+      - label=disable
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-vlm'
+    build:
+      context: ./ai/vlm
+      dockerfile: Dockerfile
+      args:
+        # ONE Dockerfile, two hosts (1.2 scope call, no per-host fork):
+        # GB300 dev builds -CUDA_ARCHITECTURES=103 (aarch64), the A5500
+        # bring-up (1.7) builds =86 (x86) from this same context.
+        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
+    profiles:
+      - vlm
+    # Podman CDI device passthrough (rootless GPU access)
+    devices:
+      - nvidia.com/gpu=${GPU_LLM:-0}
+    ports:
+      # NEM-4486 pattern: localhost only - AI services are internal.
+      # Host var declared in .env.example FIRST (AI_VLM_PORT); the
+      # CONTAINER port is fixed at 8098 below (PORT=8098) so the internal
+      # URL http://ai-vlm:8098 never depends on the host-side mapping.
+      - '127.0.0.1:${AI_VLM_PORT:-8098}:8098'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
+      # Persistent CUDA kernel cache (llama.cpp compilation cache) - same
+      # named volumes as ai-llm: same binary, content-addressed caches.
+      - llama-cache:/home/llama/.cache
+      - llama-nv-cache:/home/llama/.nv
+    environment:
+      - SERVICE_NAME=ai-vlm
+      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
+      # Container-side listen port; see the ports block above.
+      - PORT=8098
+      # Weights are host-mounted (never baked); names live in .env.example.
+      # prod.yml ai-llm:158 style - ${VAR:-default}, no hardcoded literals.
+      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}
+      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}
+      - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-4B}
+      # All layers on GPU; auto = llama.cpp --fit decides by free VRAM.
+      - GPU_LAYERS=${VLM_GPU_LAYERS:-auto}
+      # Context budget (spec §2 "sized for 4 images + ~6K text + output",
+      # mirroring ghcr.yml:277-285's comment method): the backend divides
+      # CTX_SIZE by PARALLEL itself (config.py nemotron_context_window
+      # precedent), so per-slot budget = 32768/2 = 16384 tokens >= the
+      # ~12.2K a worst-case vlm_assess needs (4 images x <=1280 tokens +
+      # ~6K prompt + ~1K verdict). PARALLEL=2 per spec §2.
+      - CTX_SIZE=${VLM_CTX_SIZE:-32768}
+      - PARALLEL=${VLM_PARALLEL:-2}
+      - THREADS=${VLM_THREADS:-4}
+      - BATCH_SIZE=${VLM_BATCH_SIZE:-2048}
+      - UBATCH_SIZE=${VLM_UBATCH_SIZE:-512}
+      # KV quantization halves the 32K-pool footprint (Qwen3-VL-4B: ~73KB
+      # per token per slot at q8_0; 2x16K slots ~2.4GB) - same trade the
+      # ai-llm block documents.
+      - CACHE_TYPE_K=${VLM_CACHE_TYPE_K:-q8_0}
+      - CACHE_TYPE_V=${VLM_CACHE_TYPE_V:-q8_0}
+      - FLASH_ATTENTION=${VLM_FLASH_ATTENTION:-true}
+      # Residency (spec §2 --sleep-idle-seconds): llama.cpp sleep mode
+      # releases the weights to CPU RAM after this much idleness; wake is
+      # a RAM->VRAM copy (seconds for a 4B), which the §6 ladder's latency
+      # budget absorbs. 300 s = bursty camera traffic stays warm, an idle
+      # night yields the VRAM. 1.4's residency control consumes, not
+      # replaces, this. Set empty to disable sleeping entirely.
+      - SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8098/health']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      # Qwen3-VL-4B Q4 loads far faster than the 30B ai-llm; 120s matches
+      # the image's own HEALTHCHECK start-period.
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 10G
+        reservations:
+          memory: 4G
+          devices:
+            # Specific GPU assignment for podman-compose compatibility
+            - driver: nvidia
+              device_ids: ['${GPU_LLM:-0}']
+              capabilities: [gpu]
+
+  # =============================================================================
   # vLLM Engine (Optional - for benchmarking against llama.cpp)
   # =============================================================================
   # Alternative LLM inference engine using vLLM with OpenAI-compatible API.
@@ -317,6 +429,16 @@ services:
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
+      # Rev-6 residency selector: which Triton model dirs stay in the repo
+      # (pruned by ai.gateway.residency before Triton starts). 1.5 flipped
+      # the shipped default to `vlm` in the SAME slice as PIPELINE_MODE=vlm
+      # (owner ruling, ledger 1.4 review item 2) — the two defaults AGREE,
+      # so a deployment never boots the vlm analyzer against a full-mode
+      # gateway (or vice versa). `full` serves only the legacy pipeline and
+      # is deleted with R8. The agreement is pinned:
+      # test_gateway_model_set_compose.py.
+      - GATEWAY_MODEL_SET=${GATEWAY_MODEL_SET:-vlm}
+      - GATEWAY_ENABLE_THREAT=${GATEWAY_ENABLE_THREAT:-false}
       # All GPUs are passed via CDI (nvidia.com/gpu=all) so /dev/nvidia0 and
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
       # the AI services GPU (default: GPU 1 = A400).
@@ -334,7 +456,8 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
-      # Triton loads 14 models — allow 3 minutes for all to initialize
+      # `full` mode loads all 14 models — start_period covers that worst
+      # case; the shipped `vlm` set (yolo26 + reid) initializes far faster
       start_period: 180s
     restart: unless-stopped
     networks:
@@ -400,6 +523,13 @@ services:
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Per-event pipeline (spec §2, rev 5): vlm is the default and the
+      # ONLY supported mode. `legacy` parses (its code stays until R8) but
+      # is UNSUPPORTED — not deployed, not measured, not a rollback target,
+      # and the settings validator logs it loudly at boot. Must AGREE with
+      # GATEWAY_MODEL_SET above (pinned together in
+      # test_gateway_model_set_compose.py).
+      - PIPELINE_MODE=${PIPELINE_MODE:-vlm}
       # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
       # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
       # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.

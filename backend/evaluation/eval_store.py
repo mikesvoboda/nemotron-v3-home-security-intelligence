@@ -17,7 +17,13 @@ import logging
 import sqlite3
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # Annotation-only: the face types are imported lazily inside the render
+    # helpers so the eval-store import closure stays light (same reason the
+    # shipped text builders are imported in-function, not at module level).
+    from backend.services.vlm_specialists import FaceOutcome
 
 from backend.evaluation.assess_input import AssessInput, EvalItem
 
@@ -232,6 +238,9 @@ def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
                     zone_crossing=False,
                     household={},
                     timestamp=_generated_at(path),
+                    specialist_outputs=_render_specialist_outputs(
+                        labels, origin=f"{category}/{path.parent.name}"
+                    ),
                 ),
                 source="synthetic",
             )
@@ -332,6 +341,168 @@ def _midpoint(risk: dict[str, Any]) -> int:
     if isinstance(lo, (int, float)) and isinstance(hi, (int, float)):
         return int((lo + hi) // 2)
     return 0
+
+
+def _render_specialist_outputs(labels: dict[str, Any], *, origin: str) -> dict[str, str]:
+    """1.3b: a label set's declared `specialist_context` becomes the snapshot's
+    `specialist_outputs` — rendered through the SHIPPED classifier and text
+    builders (vlm_specialists), never a literal string stored on the label
+    set. That is what makes the F12 clause ("a tiny or night face yields
+    `not identifiable`, never `unknown`") a property of the corpus rather
+    than a restatement: the loader and the live stage run the same gate, off
+    the same config knobs (face_min_size_px / face_scrfd_threshold).
+
+    The block is the scenario's GIVEN (which faces/plates the stage would
+    find), so it carries synthetic px/score values with no gate risk; real
+    pixels are not involved. Every key of SPECIALIST_KEYS lands when the
+    block exists: an undeclared specialist records `unavailable`, per the
+    plan's rule that an absent specialist never stays silent. A key that
+    cannot render degrades to unavailable loudly — the item still loads,
+    like a malformed risk band scoring unknown.
+    """
+    raw = labels.get("specialist_context")
+    if not isinstance(raw, dict) or not raw:
+        return {}
+    if unknown_keys := set(raw) - {"faces", "plates", "person_reid"}:
+        _LOG.warning("label set %s declares unknown specialist keys %s", origin, unknown_keys)
+
+    from backend.core.config import get_settings
+    from backend.services.vlm_specialists import SPECIALIST_KEYS, face_text, plate_text, reid_text
+
+    settings = get_settings()
+
+    def render(key: str) -> str:
+        # The dict's VALUE is the bare census line (the stage's own shape -
+        # the key names the specialist; the prompt renders the pair).
+        spec = raw.get(key)
+        if spec is None:
+            # Declared block, undeclared specialist: honestly unavailable.
+            # The shipped _unavailable_line is deliberately NOT called here:
+            # it increments the live metric, and loading a corpus is not a
+            # specialist failing in the field.
+            return "unavailable: specialist did not run"
+        try:
+            if key == "faces":
+                return face_text(_face_outcomes(spec, settings))
+            if key == "plates":
+                return plate_text(*_plate_args(spec))
+            if key == "person_reid":
+                return reid_text(*_reid_args(spec))
+        except (TypeError, ValueError, KeyError) as exc:
+            _LOG.warning(
+                "label set %s has an unrenderable %s spec %r: %s — recording unavailable",
+                origin,
+                key,
+                spec,
+                exc,
+            )
+        return "unavailable: specialist did not run"
+
+    return {key: render(key) for key in sorted(SPECIALIST_KEYS)}
+
+
+def _face_outcomes(spec: Any, settings: Any) -> list[FaceOutcome]:
+    """Face specs drive the shipped classify_face_outcome (gate first, then
+    the gallery) — same function the live leg and enrollment share."""
+    from backend.services.vlm_specialists import classify_face_outcome
+
+    if not isinstance(spec, dict):
+        raise TypeError(f"faces spec must be an object, got {type(spec).__name__}")
+    outcomes: list[FaceOutcome] = []
+    match = spec.get("known_person")
+    if match:
+        outcomes.append(
+            classify_face_outcome(
+                face_px=float(spec.get("known_face_px", 120)),
+                scrfd_score=float(spec.get("known_scrfd_score", 0.83)),
+                match={
+                    "matched": True,
+                    "person_name": str(match),
+                    "similarity": float(spec.get("similarity", 0.7)),
+                },
+                min_px=settings.face_min_size_px,
+                min_score=settings.face_scrfd_threshold,
+            )
+        )
+    # unknown_count crops carry a size (unknown_face_px) so a config change
+    # moves them through the gate exactly like a live crop would.
+    for _ in range(int(spec.get("unknown_count", 0))):
+        outcomes.append(
+            classify_face_outcome(
+                face_px=float(spec.get("unknown_face_px", max(settings.face_min_size_px, 120))),
+                scrfd_score=float(spec.get("unknown_scrfd_score", 0.83)),
+                match=None,
+                min_px=settings.face_min_size_px,
+                min_score=settings.face_scrfd_threshold,
+            )
+        )
+    # tiny_count is the declared gate-FAILING crop (the owner's night case):
+    # sized below any sane floor on purpose, the classifier must not call it
+    # unknown whatever the gallery says.
+    for _ in range(int(spec.get("tiny_count", 0))):
+        outcomes.append(
+            classify_face_outcome(
+                face_px=float(spec.get("tiny_face_px", 24)),
+                scrfd_score=float(spec.get("tiny_scrfd_score", 0.82)),
+                match=None,
+                min_px=settings.face_min_size_px,
+                min_score=settings.face_scrfd_threshold,
+            )
+        )
+    if not outcomes:
+        raise ValueError("faces spec declares no outcome")
+    return outcomes
+
+
+class _SpecPlate:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _SpecPlateMatch:
+    def __init__(self, text: str, member: str) -> None:
+        self.text = text
+        self.matched = True
+        self.member_name = member
+
+
+def _plate_args(spec: Any) -> tuple[list[_SpecPlate], list[_SpecPlateMatch]]:
+    if not isinstance(spec, dict) or not isinstance(spec.get("plates"), list):
+        raise TypeError("plates spec must be {'plates': [...]}")
+    results: list[_SpecPlate] = []
+    matches: list[_SpecPlateMatch] = []
+    for entry in spec["plates"]:
+        if not isinstance(entry, dict) or "text" not in entry:
+            raise ValueError(f"plate entry needs a text, got {entry!r}")
+        text = str(entry["text"])
+        results.append(_SpecPlate(text))
+        member = entry.get("household_member")
+        if member:
+            matches.append(_SpecPlateMatch(text, str(member)))
+    if not results:
+        raise ValueError("plates spec declares no plate")
+    return results, matches
+
+
+def _reid_args(spec: Any) -> tuple[Any, str | None]:
+    """reid_text(matches, unavailable_reason) — the corpus declares which arm:
+    a match list, no-match, or an explicit unavailable reason."""
+    if not isinstance(spec, dict):
+        raise TypeError("person_reid spec must be an object")
+    if spec.get("unavailable"):
+        return None, str(spec["unavailable"])
+    members = spec.get("known_matches") or []
+    if not isinstance(members, list):
+        raise ValueError("known_matches must be a list")
+    if not members:
+        return [], None  # the leg ran and found nothing
+
+    class _M:
+        def __init__(self, name: str, similarity: float | None) -> None:
+            self.member_name = name
+            self.similarity = similarity
+
+    return [_M(str(m["name"]), m.get("similarity")) for m in members], None
 
 
 def _generated_at(labels_path: Path) -> str:

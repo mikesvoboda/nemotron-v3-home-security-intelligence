@@ -54213,7 +54213,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "events_list_events",
         "parameters": [
           {
@@ -54250,6 +54250,31 @@
               ],
               "description": "Filter by risk level (low, medium, high, critical)",
               "title": "Risk Level"
+            }
+          },
+          {
+            "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
+            "in": "query",
+            "name": "verdict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "confirmed",
+                    "rejected",
+                    "uncertain",
+                    "verification_failed",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
+              "title": "Verdict"
             }
           },
           {
@@ -54945,7 +54970,7 @@
     },
     "/api/events/search": {
       "get": {
-        "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    verdict: Optional VLM verdict filter (or 'none' for never-verified events),\n        same vocabulary and 422-on-typo rule as GET /api/events?verdict\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "events_search_events_endpoint",
         "parameters": [
           {
@@ -55050,6 +55075,31 @@
               ],
               "description": "Alias for severity - filter by risk levels (comma-separated: low,medium,high,critical)",
               "title": "Risk Level"
+            }
+          },
+          {
+            "description": "Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict.",
+            "in": "query",
+            "name": "verdict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "confirmed",
+                    "rejected",
+                    "uncertain",
+                    "verification_failed",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict.",
+              "title": "Verdict"
             }
           },
           {
@@ -59073,7 +59123,8 @@
         ]
       },
       "post": {
-        "description": "Add a face embedding for a known person.\n\nThe embedding should be a 512-dimensional ArcFace embedding vector.\n\nArgs:\n    person_id: ID of the person\n    data: Embedding data with 512-dim vector\n    session: Database session\n\nReturns:\n    Created FaceEmbeddingResponse\n\nRaises:\n    HTTPException: 404 if person not found\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed embedding vector (F11 ruling 2).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space \u2014 the whole one-embedding-space rule rests on every\nstored vector's provenance being knowable, and a posted list of floats\ncarries none. Historical vectors from this path were produced by a\n`numpy.random.rand(512)` placeholder, so a gallery built here was\nnoise wearing real-looking numbers (ledger row 1.3b).\n\nThe sanctioned enrollment paths compute server-side and store the\nmodel id with the vector:\n\n- ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)\n- ``POST /known-persons/bulk-enroll`` (uploaded image)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the image-based endpoints.",
         "operationId": "face-recognition_add_face_embedding",
         "parameters": [
           {
@@ -59106,6 +59157,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Always returned: POSTing a client-computed embedding vector is retired (F11 ruling 2). Enroll via /known-persons/{person_id}/enroll-from-detection or /known-persons/bulk-enroll instead."
           },
           "422": {
             "content": {

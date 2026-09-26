@@ -287,6 +287,23 @@ DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
 
+# Sandbox/dev parity with CI for REDIS_URL itself. The CI jobs ship
+# REDIS_URL=redis://localhost:6379 as a service env, so plain
+# RedisClient() consumers that request no fixtures at all (e.g.
+# test_disaster_recovery.TestRedisFailover) find the live server there.
+# A sandbox that declares the test Redis via TEST_REDIS_URL on a
+# non-default port (:6380 here) but leaves REDIS_URL unset gave those
+# fixture-less tests only the settings default :6379 to dial -
+# ConnectionError. Mirror the declared URL, module-import early (before
+# any test body or fixture runs) and clear the settings lru_cache so
+# get_settings() re-reads it. Guarded: an explicitly provided REDIS_URL
+# always wins, and CI (no TEST_REDIS_URL) never takes this branch.
+if os.environ.get("TEST_REDIS_URL") and not os.environ.get("REDIS_URL"):
+    os.environ["REDIS_URL"] = os.environ["TEST_REDIS_URL"]
+    from backend.core.config import get_settings as _get_settings_for_mirror
+
+    _get_settings_for_mirror.cache_clear()
+
 
 def _check_local_postgres() -> bool:
     """Check if local PostgreSQL is running on port 5432.
@@ -424,6 +441,8 @@ def redis_container() -> Generator[RedisContainer | LocalRedisService]:
     for isolation via the worker_redis_url fixture.
     """
     # Check for explicit environment variable override
+    # (the REDIS_URL mirror for this case lives at module top, beside
+    # DEFAULT_DEV_REDIS_URL - see the comment there)
     if os.environ.get("TEST_REDIS_URL"):
         yield LocalRedisService()
         return
@@ -748,7 +767,19 @@ def worker_redis_url(
     redis_db = _get_worker_redis_db(worker_id)
 
     if isinstance(redis_container, LocalRedisService):
-        # For local Redis, use the worker-specific database
+        # Local Redis: honor TEST_REDIS_URL's host/port when set (dev
+        # sandboxes publish the test Redis on a non-default port, e.g.
+        # docker-compose.test.yml's 6380), keeping only the DATABASE
+        # component swapped for worker isolation. The URL wins because
+        # redis_container chose this LocalRedisService branch FROM that
+        # same variable - hardcoding 6379 here contradicted it. Without
+        # the variable (CI service container on the default port) the
+        # historical literal stands.
+        env_url = os.environ.get("TEST_REDIS_URL")
+        if env_url:
+            scheme, _, rest = env_url.partition("://")
+            hostport = rest.split("/", 1)[0]
+            return f"{scheme}://{hostport}/{redis_db}"
         return f"redis://localhost:6379/{redis_db}"
 
     host = redis_container.get_container_host_ip()
@@ -822,6 +853,25 @@ def _ensure_worker_schema(worker_db_url: str) -> str:
                 conn.execute(sa_text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
                 conn.execute(
                     sa_text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+                )
+                # F11 ruling 2: vector provenance. A worker database that a
+                # prior session left behind has face tables WITHOUT the
+                # column, and create_all never adds columns to existing
+                # tables — same drift repair as the unit conftest's two
+                # schema twins, DEFAULT spelled to match the model and
+                # docs/api/migrations/2026-09-26-face-vector-provenance-model-id.sql
+                # exactly.
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
+                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                    )
+                )
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
+                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                    )
                 )
                 # NEM-1652: soft delete columns
                 conn.execute(
@@ -1155,6 +1205,36 @@ def mock_llm_enforces_grammar():
         yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def mock_vlm_enforces_grammar():
+    """The integration tier's mock ai-vlm ENFORCES the constrained grammar.
+
+    1.5's binding rule 5, mirroring `mock_llm_enforces_grammar` for the
+    VLM path (which since 1.5 IS the shipped default): the tier exercises
+    the mode the product ships. `VlmClient._probe_enforcement` is the
+    client's single probe entry — patching it leaves every consumer's
+    client live (the build-pin check, the caching, the breaker semantics
+    are pinned in unit/services/test_vlm_client.py; here only the wire
+    verdict is stood in for, and it passes).
+
+    Why a transport-less patch instead of an ASGI app: the analyzer owns
+    its client's construction (lazy `VlmClient()`), so the tier cannot
+    inject a transport into every client a test builds; the probe method
+    is the one seam every consumer crosses before trusting a verdict.
+    The REAL wire verdicts in this tier come from the analyzer test
+    suites' scripted fake clients, which is 1.3's existing pattern.
+    """
+    from unittest.mock import patch
+
+    from backend.services import vlm_client as _vc
+
+    async def _enforcing_probe(self, image_parts):
+        self._enforced = True
+
+    with patch.object(_vc.VlmClient, "_probe_enforcement", _enforcing_probe):
+        yield
+
+
 @pytest.fixture
 def legacy_wire(monkeypatch):
     """Per-test LEGACY pin - for tests that are ABOUT the legacy path
@@ -1163,11 +1243,20 @@ def legacy_wire(monkeypatch):
     failure, the guided_json payload. Everything else runs the shipped
     default (see mock_llm_enforces_grammar).
 
+    1.5 broadened the pin from the wire to the MODE: PIPELINE_MODE=legacy
+    makes the pipeline factory itself hand out the legacy analyzer, so a
+    test whose subject reaches a seam (the aggregator's lazy fast-path
+    builder, the container, the API dependency) actually exercises the
+    legacy path instead of a vlm analyzer built against legacy stubs.
+    Tests that construct NemotronAnalyzer directly are unaffected either
+    way - the mode line only decides factory routing.
+
     Env-based so real get_settings() consumers pick it up; cache_clear on
     both sides so the analyzer built inside the test sees the pin and
     later tests rebuild without it.
     """
     monkeypatch.setenv("NEMOTRON_CONSTRAINED_DECODING_ENABLED", "false")
+    monkeypatch.setenv("PIPELINE_MODE", "legacy")
     from backend.core.config import get_settings
 
     get_settings.cache_clear()

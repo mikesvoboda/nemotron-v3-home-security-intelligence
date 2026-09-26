@@ -42,6 +42,7 @@ VRAM Budget:
 from __future__ import annotations
 
 import asyncio
+import functools
 import time
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -56,6 +57,10 @@ from backend.core.metrics import record_model_restart, set_model_load_duration
 from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
+from backend.services.face_recognizer_loader import (
+    load_face_detector,
+    load_face_recognizer,
+)
 from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.fast_alpr_loader import load_fast_alpr
 from backend.services.florence_loader import load_florence_model
@@ -351,8 +356,10 @@ def _get_model_zoo_base_path() -> str:
 # ---------------------------------------------------------------------------
 # Loader map — single place that binds a model name to its load_fn.
 # All loader imports live at the top of this file; this dict just wires names.
+# Values take (model_path) plus any optional row-bound kwargs (the sha256
+# pin, bound via functools.partial in _init_model_zoo).
 # ---------------------------------------------------------------------------
-_LOADER_MAP: dict[str, Callable[[str], Awaitable[Any]]] = {
+_LOADER_MAP: dict[str, Callable[..., Awaitable[Any]]] = {
     # Detection
     "yolo11-face": load_yolo_model,
     "yolo11-license-plate": load_yolo_model,
@@ -375,6 +382,10 @@ _LOADER_MAP: dict[str, Callable[[str], Awaitable[Any]]] = {
     # Embedding / Re-ID
     "siglip2-base-patch16-224": load_clip_model,
     "osnet-ain-x1-0": load_osnet_model,
+    # Face leg (F12): the two buffalo_l ONNX files on CPU onnxruntime,
+    # sha256-pinned in their models.yml rows (bound via functools.partial).
+    "face-detector-scrfd": load_face_detector,
+    "face-recognizer": load_face_recognizer,
     # Pose
     "vitpose-small": load_vitpose_model,
     # Depth
@@ -466,12 +477,20 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             continue
 
         path = _resolve_model_path(m, base_path)
+        # A row that pins sha256 (the face leg's F12 hash pins) binds the
+        # expected hash into its loader, so the ModelManager's load_fn(path)
+        # call carries it. Rows without the key get the loader unchanged —
+        # every other loader's (path) arity is untouched.
+        load_fn = _LOADER_MAP[name]
+        sha256 = m.get("sha256")
+        if sha256:
+            load_fn = functools.partial(load_fn, expected_sha256=str(sha256))
         result[name] = ModelConfig(
             name=name,
             path=path,
             category=m.get("category", "other"),
             vram_mb=int(m.get("vram_mb", 0)),
-            load_fn=_LOADER_MAP[name],
+            load_fn=load_fn,
             enabled=bool(m.get("enabled", True)),
             available=False,
             priority=str(m.get("priority", "medium")),

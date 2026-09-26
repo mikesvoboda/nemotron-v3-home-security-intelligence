@@ -52,12 +52,14 @@ async def camera(db_session):
 
 
 async def _mk_event(db_session, camera, **kw):
+    # dict-merge so a caller can OVERRIDE the defaults (a 1.6 filter test
+    # needs a NULL-scored event, which `**kw` against a literal `risk_score=`
+    # keyword would collide on).
     event = Event(
         batch_id=str(uuid.uuid4()),
         camera_id=camera.id,
         started_at=datetime(2026, 9, 25, 8, 0, tzinfo=UTC),
-        risk_score=75,
-        **kw,
+        **{"risk_score": 75, **kw},
     )
     db_session.add(event)
     await db_session.commit()
@@ -203,3 +205,152 @@ class TestRestVerificationField:
         )
         item = next(i for i in resp.json()["items"] if i["id"] == event.id)
         assert "verification" not in item, "requested-but-absent renders as absent (not null)"
+
+
+# ---------------------------------------------------------------------------
+# 1.6 backend prerequisite: GET /events gains a `verdict` filter.
+#
+# The frontend's verdict filter (plan Task 6) cannot be honest without it.
+# Three rulings shape the pins:
+#   * it filters on the JOIN to event_verifications, not on Event columns -
+#     the verdict lives in exactly one place (F11: one source of truth), so
+#     the filter reads that place;
+#   * `verdict=none` is a first-class value, not an absent param: "which
+#     events have NOT been verified yet" is the question an operator asks
+#     first in a fresh vlm deployment, and it is not expressible as any of
+#     the four verdicts;
+#   * an unknown value RAISES (422) rather than returning an empty list. A
+#     typo that quietly filters everything out reads as "no rejected
+#     events", which is a false all-clear - the same no-silent-fallback rule
+#     1.5 applied to PIPELINE_MODE.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+async def verdict_camera(db_session):
+    """A private camera per test: the filter tests count totals, so they
+    must not share a camera with any other test's events."""
+    suffix = uuid.uuid4().hex[:8]
+    cam = Camera(
+        id=f"verdictcam-{suffix}",
+        name=f"verdict-{suffix}",
+        folder_path=f"/export/foscam/verdict-{suffix}",
+    )
+    db_session.add(cam)
+    await db_session.commit()
+    return cam
+
+
+@pytest.fixture
+async def verdict_fixture(db_session, verdict_camera):
+    """One event per verdict + one unverified event, on one camera."""
+    confirmed = await _mk_event(db_session, verdict_camera, summary="confirmed one")
+    await _mk_verification(db_session, confirmed, verdict="confirmed")
+
+    rejected = await _mk_event(db_session, verdict_camera, summary="rejected one")
+    await _mk_verification(db_session, rejected, verdict="rejected")
+
+    failed = await _mk_event(
+        db_session, verdict_camera, summary="failed one", risk_score=None, risk_level=None
+    )
+    await _mk_verification(
+        db_session, failed, verdict="verification_failed", scene_description=None
+    )
+
+    unverified = await _mk_event(db_session, verdict_camera, summary="never verified")
+
+    return {
+        "confirmed": confirmed,
+        "rejected": rejected,
+        "failed": failed,
+        "unverified": unverified,
+    }
+
+
+class TestVerdictFilter:
+    async def test_filter_returns_only_that_verdict(
+        self, async_client, verdict_camera, verdict_fixture
+    ):
+        resp = await async_client.get(
+            "/api/events", params={"camera_id": verdict_camera.id, "verdict": "rejected"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        ids = {i["id"] for i in data["items"]}
+        assert ids == {verdict_fixture["rejected"].id}
+        # The pagination total is filtered too: a count that ignores the
+        # filter would make the UI show "4 events" above a 1-event list.
+        assert data["pagination"]["total"] == 1
+
+    async def test_none_selects_events_with_no_verification_row(
+        self, async_client, verdict_camera, verdict_fixture
+    ):
+        resp = await async_client.get(
+            "/api/events", params={"camera_id": verdict_camera.id, "verdict": "none"}
+        )
+        assert resp.status_code == 200
+        ids = {i["id"] for i in resp.json()["items"]}
+        assert ids == {verdict_fixture["unverified"].id}
+
+    async def test_verification_failed_verdict_is_filterable(
+        self, async_client, verdict_camera, verdict_fixture
+    ):
+        """The NULL-scored events are exactly the ones an operator must
+        find, so the filter must reach them by verdict - they are not
+        findable by any risk_level filter (both columns are NULL)."""
+        resp = await async_client.get(
+            "/api/events",
+            params={"camera_id": verdict_camera.id, "verdict": "verification_failed"},
+        )
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert [i["id"] for i in items] == [verdict_fixture["failed"].id]
+        assert items[0]["risk_score"] is None
+
+    async def test_confirmed_verdict_needs_no_camera_scope(self, async_client, verdict_fixture):
+        """Unscoped (no camera_id) — and written so it cannot pass
+        vacuously: FastAPI IGNORES an unknown query param, so "my event came
+        back" is true even with no filter at all. The teeth are 'nothing but
+        confirmed came back' and 'my rejected event did not'."""
+        resp = await async_client.get("/api/events", params={"verdict": "confirmed", "limit": 100})
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert verdict_fixture["confirmed"].id in {i["id"] for i in items}
+        assert verdict_fixture["rejected"].id not in {i["id"] for i in items}
+        assert all(i["verification"]["verdict"] == "confirmed" for i in items)
+
+    async def test_unknown_verdict_raises_rather_than_returning_empty(
+        self, async_client, verdict_camera
+    ):
+        resp = await async_client.get(
+            "/api/events", params={"camera_id": verdict_camera.id, "verdict": "deffinitly"}
+        )
+        assert resp.status_code == 422, (
+            "a typo'd verdict must not read as 'no events with that verdict'"
+        )
+
+    async def test_combined_with_risk_level_filter(self, async_client, verdict_camera):
+        """The verdict filter composes with the existing filters - the
+        frontend's chip bar sends several at once."""
+        resp = await async_client.get(
+            "/api/events",
+            params={"camera_id": verdict_camera.id, "verdict": "confirmed", "risk_level": "high"},
+        )
+        assert resp.status_code == 200
+        assert all(i["risk_level"] == "high" for i in resp.json()["items"])
+
+    async def test_search_endpoint_gains_the_same_param(
+        self, async_client, verdict_camera, verdict_fixture
+    ):
+        """`/api/events/search` is what the list view's text box calls, so a
+        verdict filter that only exists on `/api/events` would be lost the
+        moment the user types. Non-vacuous by construction: the text query
+        matches three of the four events ("one"), so the assertion that only
+        the REJECTED one survives is the filter's, not the text search's."""
+        resp = await async_client.get(
+            "/api/events/search",
+            params={"q": "one", "camera_id": verdict_camera.id, "verdict": "rejected"},
+        )
+        assert resp.status_code == 200
+        ids = {i["id"] for i in resp.json()["results"]}
+        assert ids == {verdict_fixture["rejected"].id}

@@ -1,0 +1,24 @@
+{
+  "defs": ["VlmCriterion", "VlmProvenance"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "vlm_assess",
+  "properties": {
+    "criteria": "array<ref(VlmCriterion)>",
+    "description": "string",
+    "provenance": "ref(VlmProvenance)",
+    "reasoning": "string",
+    "risk_score": "integer",
+    "summary": "string",
+    "verdict": "enum"
+  },
+  "required": [
+    "criteria",
+    "description",
+    "provenance",
+    "reasoning",
+    "risk_score",
+    "summary",
+    "verdict"
+  ],
+  "side": "response"
+}

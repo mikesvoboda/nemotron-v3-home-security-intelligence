@@ -19,6 +19,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from backend.core.face_provenance import LEGACY_MODEL_ID
 from backend.core.logging import get_logger
 from backend.models.face_identity import (
     EnrollmentCandidate,
@@ -364,11 +365,15 @@ class AutoEnrollmentService:
         )
         session.add(person)
 
-        # Create the face embedding
+        # Create the face embedding. Provenance rides the copy (F11
+        # ruling 2): the gallery row declares whatever computed the
+        # event's vector — a legacy event's random vector stays flagged
+        # for re-enroll instead of entering the gallery unflagged.
         embedding = FaceEmbedding(
             person=person,
             embedding=face_event.embedding,
             quality_score=face_event.quality_score,
+            model_id=getattr(face_event, "model_id", LEGACY_MODEL_ID),
         )
         session.add(embedding)
 
@@ -515,11 +520,16 @@ class AutoEnrollmentService:
             )
             session.add(person)
 
-        # Create face embedding
+        # Create face embedding. The candidate's vector IS the event's
+        # vector, copied at queue time (EnrollmentCandidate has no
+        # provenance column of its own by design — its row cascades with
+        # the event, so the event is always available as the source of
+        # truth for what computed it). Read provenance from the event.
         embedding = FaceEmbedding(
             person=person,
             embedding=candidate.embedding,
             quality_score=candidate.quality_score,
+            model_id=getattr(face_event, "model_id", LEGACY_MODEL_ID),
         )
         session.add(embedding)
 

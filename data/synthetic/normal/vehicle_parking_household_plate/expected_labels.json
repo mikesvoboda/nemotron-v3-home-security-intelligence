@@ -1,0 +1,31 @@
+{
+  "source": "specialist-context-cases",
+  "category": "normal",
+  "video_id": "SC-BENIGN-HOUSEHOLD-PLATE",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "day"
+  },
+  "risk": {
+    "min_score": 5,
+    "max_score": 25,
+    "level": "low"
+  },
+  "specialist_context": {
+    "plates": {
+      "plates": [
+        {
+          "text": "HOMETEST1",
+          "household_member": "Dad's car"
+        }
+      ]
+    }
+  }
+}

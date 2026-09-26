@@ -288,6 +288,8 @@ export default function DashboardPage() {
       timestamp: timestamp || new Date().toISOString(), // Fallback to current time if both are undefined
       camera_name: cameras.find((c) => c.id === event.camera_id)?.name ?? event.camera_id,
       risk_score: event.risk_score,
+      // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
+      verdict: event.verification?.verdict,
       summary: event.summary,
       thumbnail_url: getCameraSnapshotUrl(event.camera_id),
     };

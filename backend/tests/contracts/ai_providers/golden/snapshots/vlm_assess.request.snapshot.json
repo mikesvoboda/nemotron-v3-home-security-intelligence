@@ -1,0 +1,11 @@
+{
+  "defs": ["VlmAssessContext"],
+  "generated_by": "scripts/gen-ai-contract.py",
+  "op": "vlm_assess",
+  "properties": {
+    "context": "ref(VlmAssessContext)",
+    "image_paths": "array<string>"
+  },
+  "required": ["context", "image_paths"],
+  "side": "request"
+}

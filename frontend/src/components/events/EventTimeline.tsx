@@ -43,7 +43,7 @@ import {
 } from '../../utils/eventClustering';
 import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
-import { getRiskLevel } from '../../utils/risk';
+import { compareRiskSortKey, resolveRiskLevel } from '../../utils/risk';
 import { parseEventId } from '../../utils/validation';
 import {
   EmptyState,
@@ -53,6 +53,7 @@ import {
   SafeErrorMessage,
 } from '../common';
 import RiskBadge from '../common/RiskBadge';
+import { verdictLabel } from '../common/VerdictBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { ExportButton } from '../ExportButton';
 import ExportModal from '../exports/ExportModal';
@@ -305,13 +306,19 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   useEffect(() => {
     const cameraParam = searchParams.get('camera');
     const riskLevelParam = searchParams.get('risk_level');
+    const verdictParam = searchParams.get('verdict');
 
     // Only update if we have at least one parameter
-    if (cameraParam || riskLevelParam) {
+    if (cameraParam || riskLevelParam || verdictParam) {
       setEventFilters((prev) => ({
         ...prev,
         ...(cameraParam && { camera_id: cameraParam }),
         ...(riskLevelParam && { risk_level: riskLevelParam }),
+        // Server-side 422s an unknown verdict, so a bad deep link fails loud
+        // in the query instead of silently showing everything.
+        ...(verdictParam && {
+          verdict: verdictParam as NonNullable<EventFilters['verdict']>,
+        }),
       }));
       // Show filters panel when coming with URL parameters
       setShowFilters(true);
@@ -344,6 +351,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
       camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
       risk_score: event.risk_score,
+      // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
+      verdict: event.verification?.verdict,
       summary: event.summary,
     }));
   }, [wsEvents, cameraNameMap]);
@@ -596,7 +605,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           );
           break;
         case 'risk':
-          comparison = (a.risk_score || 0) - (b.risk_score || 0);
+          // compareRiskSortKey, not subtraction: two unverified events have
+          // key Infinity - Infinity = NaN, which scrambles the whole sort.
+          comparison = compareRiskSortKey(a.risk_score, b.risk_score);
           break;
       }
       return listSortDirection === 'asc' ? comparison : -comparison;
@@ -664,23 +675,39 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
     if (groupBy === 'risk') {
       // Group by risk level
-      const groups: Record<RiskLevel, Event[]> = {
+      const groups: Record<RiskLevel | 'unverified', Event[]> = {
         critical: [],
         high: [],
         medium: [],
         low: [],
+        // 1.6: an event with no level is NOT low. It lands in its own group
+        // so a "grouped by risk" view cannot file a never-analyzed event
+        // under the green Low heading.
+        unverified: [],
       };
       for (const event of filteredEvents) {
-        const level = (event.risk_level || getRiskLevel(event.risk_score || 0)) as RiskLevel;
+        const level = resolveRiskLevel(event.risk_level, event.risk_score) ?? 'unverified';
         groups[level].push(event);
       }
-      // Return in severity order (critical first)
-      const orderedLevels: RiskLevel[] = ['critical', 'high', 'medium', 'low'];
+      // Severity order, critical first; unverified LAST within the scored
+      // tiers but never merged into one of them. Its label is spelled from
+      // VerdictBadge's own table so the group heading matches the badge the
+      // cards in it render.
+      const orderedLevels: (RiskLevel | 'unverified')[] = [
+        'critical',
+        'high',
+        'medium',
+        'low',
+        'unverified',
+      ];
       return orderedLevels
         .filter((level) => groups[level].length > 0)
         .map((level) => ({
           key: level,
-          label: level.charAt(0).toUpperCase() + level.slice(1),
+          label:
+            level === 'unverified'
+              ? verdictLabel('none')
+              : level.charAt(0).toUpperCase() + level.slice(1),
           events: groups[level],
         }));
     }
@@ -689,10 +716,14 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     return [];
   }, [groupBy, filteredEvents, cameraNameMap, viewMode]);
 
-  // Calculate risk level counts for the currently displayed events
+  // Calculate risk level counts for the currently displayed events.
+  // resolveRiskLevel → null (unverified) counts toward NONE of the four
+  // chips (1.6): counting a NULL-score event as 'low' inflated the green
+  // chip and shrank the real ones. Unverified count rides the verdict chip
+  // ('none' → Unverified) that FilterChips already renders.
   const riskCountsPartial = countBy(
     filteredEvents,
-    (event) => (event.risk_level || getRiskLevel(event.risk_score || 0)) as RiskLevel
+    (event) => resolveRiskLevel(event.risk_level, event.risk_score) ?? 'unverified'
   );
   const riskCounts: Record<RiskLevel, number> = {
     critical: riskCountsPartial.critical ?? 0,
@@ -705,6 +736,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const hasActiveFilters =
     eventFilters.camera_id ||
     eventFilters.risk_level ||
+    eventFilters.verdict ||
     eventFilters.start_date ||
     eventFilters.end_date ||
     eventFilters.reviewed !== undefined ||
@@ -738,8 +770,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         id: String(event.id),
         timestamp: event.started_at,
         camera_name,
-        risk_score: event.risk_score || 0,
-        risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+        // ?? null: the wire's absent score and an explicit null are the
+        // same state (nothing was analyzed); the card prop names it null.
+        risk_score: event.risk_score ?? null,
+        risk_label: event.risk_level ?? undefined,
+        verdict: event.verification?.verdict,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
         detections,
@@ -997,8 +1032,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         id: String(event.id),
         timestamp: event.started_at,
         camera_name,
-        risk_score: event.risk_score || 0,
-        risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+        risk_score: event.risk_score ?? null,
+        risk_label: event.risk_level ?? undefined,
+        verdict: event.verification?.verdict,
         summary: event.summary || 'No summary available',
         thumbnail_url: event.thumbnail_url || undefined,
         detections: [], // Detections not available in list view
@@ -1025,8 +1061,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       id: String(event.id),
       timestamp: event.started_at,
       camera_name,
-      risk_score: event.risk_score || 0,
-      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      risk_score: event.risk_score ?? null,
+      risk_label: event.risk_level ?? undefined,
+      verdict: event.verification?.verdict,
+      // 1.6: the full row rides to the modal's verification section
+      // (scene description, criteria, reviewed frames - spec §4).
+      verification: event.verification,
       summary: event.summary || 'No summary available',
       reasoning: event.reasoning ?? undefined,
       detections: [], // Detections fetched by modal via API
@@ -1623,8 +1663,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     camera_name: cameraNameMap.get(event.camera_id) || 'Unknown Camera',
                     started_at: event.started_at,
                     ended_at: event.ended_at,
-                    risk_score: event.risk_score || 0,
-                    risk_level: event.risk_level || getRiskLevel(event.risk_score || 0),
+                    risk_score: event.risk_score ?? null,
+                    // Pass the SERVER level through; '' is resolveRiskLevel's
+                    // "no level" marker. The old fallback computed one from a
+                    // `|| 0` score - the lie this replaces.
+                    risk_level: event.risk_level ?? '',
+                    verdict: event.verification?.verdict,
                     summary: event.summary || null,
                     thumbnail_url: event.thumbnail_url || null,
                     reviewed: event.reviewed || false,

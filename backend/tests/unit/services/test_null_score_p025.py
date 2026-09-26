@@ -298,3 +298,94 @@ class TestArithmeticSitesAreAlreadyNullSafe_PINS:
 
         src = inspect.getsource(pipeline_quality_audit_service)
         assert "audit.consistency_risk_score is not None and event.risk_score is not None" in src
+
+
+def test_should_notify_skips_verdict_rejected_before_any_threshold() -> None:
+    """§6's row "rejected ⇒ never notifies, even where a camera's
+    risk_threshold sits inside the low band": the analyzer clamps the
+    clamp-band score to <= low_max, but a clamp is NOT a skip - a camera
+    with threshold 10 inside the low band would still page the owner for a
+    verdict that says "not a threat". The skip therefore runs BEFORE the
+    scored path's threshold comparisons (mirroring the NULL branch's
+    ordering), keyed on the event's verification verdict."""
+    from datetime import datetime
+
+    from backend.models.notification_preferences import (
+        CameraNotificationSetting,
+        NotificationPreferences,
+    )
+    from backend.services.notification_filter import NotificationFilterService
+
+    service = NotificationFilterService()
+    prefs = NotificationPreferences(
+        enabled=True, risk_filters=["low", "medium", "high", "critical"]
+    )
+    camera = CameraNotificationSetting(enabled=True, risk_threshold=10)
+    ts = datetime(2026, 9, 25, 12, 0)
+
+    # the exact §6 scenario: score in the low band, camera threshold inside it
+    assert (
+        service.should_notify(
+            risk_score=15,
+            camera_id="cam",
+            timestamp=ts,
+            global_prefs=prefs,
+            camera_setting=camera,
+            verification_verdict="rejected",
+        )
+        is False
+    )
+    # the same scored event with a non-rejected verdict still notifies
+    assert (
+        service.should_notify(
+            risk_score=15,
+            camera_id="cam",
+            timestamp=ts,
+            global_prefs=prefs,
+            camera_setting=camera,
+            verification_verdict="confirmed",
+        )
+        is True
+    )
+    # uncertainty notifies through the normal threshold (§6: "uncertain
+    # keeps the model's score ... notifies through the normal threshold")
+    assert (
+        service.should_notify(
+            risk_score=85,
+            camera_id="cam",
+            timestamp=ts,
+            global_prefs=prefs,
+            camera_setting=camera,
+            verification_verdict="uncertain",
+        )
+        is True
+    )
+    # legacy events carry NO verdict - byte-identical behavior (D10 rule).
+    assert (
+        service.should_notify(
+            risk_score=15,
+            camera_id="cam",
+            timestamp=ts,
+            global_prefs=prefs,
+            camera_setting=camera,
+        )
+        is True
+    )
+    # rejected is UNCONDITIONAL and first: the spec's rule is absolute
+    # ("never notifies"), so it outranks even the NULL-score detector-only
+    # rule - person evidence at threshold cannot page for a verdict that
+    # says "not a threat". (In production a rejected event is scored, not
+    # NULL - this pins the precedence should the two ever co-occur.)
+    assert (
+        service.should_notify(
+            risk_score=None,
+            camera_id="cam",
+            timestamp=ts,
+            global_prefs=prefs,
+            camera_setting=camera,
+            detection_class="person",
+            detection_confidence=0.99,
+            verification_verdict="rejected",
+        )
+        is False
+    )

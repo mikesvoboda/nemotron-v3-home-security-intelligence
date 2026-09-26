@@ -26,6 +26,9 @@ class TestAIServiceResourceLimits:
     AI_SERVICES: ClassVar[list[str]] = [
         "ai-gateway",
         "ai-llm",
+        # Phase 1.2: the profile-`vlm` server carries the same hardening/limits
+        # posture as ai-llm (test_security_hardening_consistency sweeps it).
+        "ai-vlm",
     ]
 
     @pytest.fixture

@@ -656,14 +656,29 @@ async def run_constrained_startup_check(container: Any) -> str:
     legacy byte-identical invariant), "enforced", "not_enforced" (the
     endpoint accepted the grammar param and did not honor it),
     "inconclusive" (unreachable / unpinnable build - nothing was measured).
+
+    1.5: the branch is on the analyzer the container builds (the mode
+    decides which one that is), not on a re-read of PIPELINE_MODE —
+    the container singleton IS the mode's decision, materialized; a
+    per-subject pin that swaps the singleton is honored by construction.
+    The VLM mode's gate lives on VlmClient (same shared
+    ConstrainedDecodingNotEnforced verdict vocabulary; the probe is the
+    chat-shape one the analyzer would run before trusting any verdict —
+    running it here just front-loads the visibility).
     """
     from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
 
     try:
         analyzer = await container.get_async("nemotron_analyzer")
-        if not analyzer._constrained_enabled:
-            return "disabled"
-        await analyzer._ensure_constrained_enforcement()
+        if hasattr(analyzer, "_constrained_enabled"):  # the legacy analyzer
+            if not analyzer._constrained_enabled:
+                return "disabled"
+            await analyzer._ensure_constrained_enforcement()
+        else:  # VlmAnalyzer (the shipped default): the gate moved to the client
+            client = analyzer._get_client()
+            if not client._settings.vlm_enforcement_probe_enabled:
+                return "disabled"
+            await client._probe_enforcement([])
     except ConstrainedDecodingNotEnforced as e:
         return "not_enforced" if getattr(e, "verdict", "ignored") == "ignored" else "inconclusive"
     except Exception:
@@ -1067,6 +1082,27 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         lifespan_logger.info(
             f"Service health monitor initialized (YOLO26, Nemotron) - restart: {restart_status}"
         )
+
+    # Phase 1.3 (spec §6 step 4): register ai-vlm on the degradation
+    # singleton so update_service_health() calls have a row to write - an
+    # unregistered name is a warn-and-drop. Deliberately NOT a
+    # ServiceHealthMonitor ServiceConfig: §6's wake rule forbids health
+    # probes from waking a sleeping llama.cpp, and probe-polling would
+    # conflate sleep with failure. ai-vlm health therefore arrives by
+    # BREAKER PUSH - the vlm_client's open/close transitions call
+    # update_service_health (ledger 1.3 records this choice). The
+    # health_check stub exists only because register_service requires the
+    # parameter; nothing polls it (the manager's own poll loop is never
+    # started - degradation_manager.py:1070).
+    from backend.services.degradation_manager import get_degradation_manager
+
+    async def _ai_vlm_health_stub() -> bool:
+        """Never polled - see the comment at the registration site."""
+        return True
+
+    _degradation_mgr = get_degradation_manager(redis_client=redis_client)
+    _degradation_mgr.register_service("ai-vlm", health_check=_ai_vlm_health_stub, critical=False)
+    lifespan_logger.info("ai-vlm registered on the degradation manager (breaker-push health)")
 
     # Initialize container orchestrator (if enabled)
     # This provides health monitoring and self-healing for Docker/Podman containers

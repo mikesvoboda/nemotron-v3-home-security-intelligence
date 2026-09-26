@@ -21,6 +21,12 @@ import pytest
 from backend.models.detection import Detection
 from backend.models.face_identity import FaceDetectionEvent, FaceEmbedding, KnownPerson
 
+#: The server-side extractor returns a provenance third element (F11
+#: ruling 2), so the patched extractor in the enroll-from-detection tests
+#: must hand one back — see test_face_enrollment_provenance.py for the
+#: tests that pin WHAT it is; these tests only pin the route forwards it.
+MODEL_ID = "face-recognizer@w600k_r50@4c06341c33c2"
+
 
 class TestGetPersonAppearances:
     """Tests for GET /api/known-persons/{id}/appearances endpoint."""
@@ -657,7 +663,7 @@ class TestEnrollFromDetection:
             "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
             autospec=True,
         ) as mock_extract:
-            mock_extract.return_value = (mock_embedding, mock_quality_score)
+            mock_extract.return_value = (mock_embedding, mock_quality_score, MODEL_ID)
 
             # Mock the service
             mock_face_embedding = MagicMock(spec=FaceEmbedding)
@@ -722,7 +728,7 @@ class TestEnrollFromDetection:
             "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
             autospec=True,
         ) as mock_extract:
-            mock_extract.return_value = (mock_embedding, mock_quality_score)
+            mock_extract.return_value = (mock_embedding, mock_quality_score, MODEL_ID)
 
             mock_face_embedding = MagicMock(spec=FaceEmbedding)
             mock_face_embedding.id = 2
@@ -788,7 +794,7 @@ class TestEnrollFromDetection:
             "backend.api.routes.face_recognition.extract_face_embedding_from_detection",
             autospec=True,
         ) as mock_extract:
-            mock_extract.return_value = (mock_embedding, mock_quality_score)
+            mock_extract.return_value = (mock_embedding, mock_quality_score, MODEL_ID)
 
             with pytest.raises(HTTPException) as exc_info:
                 await enroll_from_detection(
@@ -898,7 +904,7 @@ class TestEnrollFromDetection:
             autospec=True,
         ) as mock_extract:
             # No face found in detection
-            mock_extract.return_value = (None, None)
+            mock_extract.return_value = (None, None, None)
 
             with pytest.raises(HTTPException) as exc_info:
                 await enroll_from_detection(

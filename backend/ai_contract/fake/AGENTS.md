@@ -2,15 +2,15 @@
 
 ## Purpose
 
-The WP8.2 deterministic FakeProvider: a FastAPI app + seeded generators implementing all 37 registry operations, served over `httpx.ASGITransport`. It is the reference implementation of the declared `AIProvider` interface and the fixture source for downstream service tests. No weights, no GPU, no network, no `ai.*` imports (package rule).
+The WP8.2 deterministic FakeProvider: a FastAPI app + seeded generators implementing all 38 registry operations, served over `httpx.ASGITransport`. It is the reference implementation of the declared `AIProvider` interface and the fixture source for downstream service tests. No weights, no GPU, no network, no `ai.*` imports (package rule).
 
 ## Key Files
 
-| File              | Purpose                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `__init__.py`     | Exports `create_fake_app`, `fake_provider_ops`, generators helpers, class vocabularies                             |
-| `app.py`          | One route per registry operation, mounted FROM `OPERATIONS` (a registry rename moves the fake's surface with it)  |
-| `generators.py`   | Snapshot-walked response generators; `GEN_GAPS` block documents the 7 ops without a committed schema               |
+| File            | Purpose                                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `__init__.py`   | Exports `create_fake_app`, `fake_provider_ops`, generators helpers, class vocabularies                           |
+| `app.py`        | One route per registry operation, mounted FROM `OPERATIONS` (a registry rename moves the fake's surface with it) |
+| `generators.py` | Snapshot-walked response generators; `GEN_GAPS` block documents the 7 ops without a committed schema             |
 
 ## The Determinism Contract
 

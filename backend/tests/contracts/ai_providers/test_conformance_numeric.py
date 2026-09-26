@@ -134,16 +134,29 @@ GATEWAY_PATCH_TARGETS: tuple[str, ...] = tuple(
 )
 
 # provider id -> matrix slot (backend/ai_contract/provider.py PROVIDER_SLOT,
-# dossier Q7; PER_MODEL_HTTP and LLAMACPP_LLM share the union slot
-# 'per_model_server' — the WP8.1 union-slot rule)
+# dossier Q7; the three subset providers and PER_MODEL_HTTP share the union
+# slot 'per_model_server' — the WP8.1 union-slot rule)
 SLOT_OF = {
     "gateway": "gateway",
     "gateway_light": "enrichment_light_adapter",
     "per_model_http": "per_model_server",
     "llamacpp_llm": "per_model_server",
+    # 1.1 spec §3: the VLM engines share the union column too, registering
+    # required={"vlm_assess"} (mirrors test_conformance_ops SUBSET_REQUIRED).
+    "openai_vlm": "per_model_server",
+    "rtvi_vlm": "per_model_server",
     # discovery fix: the loop below reaches the fake too (it joins the
-    # registry in-test); its slot column is the 37 ops it registers against.
+    # registry in-test); its slot column is the ops it registers against.
     "fake": "fake",
+}
+
+# union-slot SUBSET providers -> their required set (the declared map is the
+# subset, NOT the column — llamacpp's evidence pair; the 1.1 VLM engines'
+# single VLM op).
+SUBSET_REQUIRED = {
+    "llamacpp_llm": {"llm_completion", "llm_chat_completion"},
+    "openai_vlm": {"vlm_assess"},
+    "rtvi_vlm": {"vlm_assess"},
 }
 
 # the label set the classify tests REQUEST (the property is "a softmax over
@@ -1031,29 +1044,28 @@ class TestMatrixNumericSurface:
         reg["fake"] = register_provider(
             ProviderId.FAKE, fake_provider_ops(), OPERATIONS, deployed=True
         )
-        for provider_id in ("gateway", "gateway_light", "per_model_http", "llamacpp_llm", "fake"):
+        for provider_id, slot in SLOT_OF.items():
             rec = reg[provider_id]
-            slot = SLOT_OF[provider_id]
             column = set(operations_for_slot(slot, OPERATIONS))
             declared = set(rec.operations())  # READ the map, NEVER call it
-            if provider_id == "llamacpp_llm":
-                # union-slot rule: llamacpp declares its EVIDENCE-DERIVED
-                # SUBSET ({llm_completion, llm_chat_completion}; providers.py
-                # _llamacpp_required). Numeric ops are not its surface at all.
+            if provider_id in SUBSET_REQUIRED:
+                # union-slot rule: a subset provider declares its own
+                # required SUBSET (SUBSET_REQUIRED), not the column. Numeric
+                # ops are not any subset provider's surface at all.
                 assert declared <= column, provider_id
                 assert not declared & set(NUMERIC_OPS), provider_id
-                assert declared == {"llm_completion", "llm_chat_completion"}, provider_id
+                assert declared == SUBSET_REQUIRED[provider_id], provider_id
             else:
                 assert declared == column, (
                     f"{provider_id}: declared {len(declared)} != slot {slot!r} column {len(column)}"
                 )
             for op_id in NUMERIC_OPS:
-                if provider_id == "llamacpp_llm":
-                    # union-slot rule (asserted above): llamacpp declares the
-                    # 2-op evidence subset ⊆ column, so per-op column EQUALITY
-                    # is the wrong guard — it claims NO numeric op. Discovery
-                    # fix: the drafted loop ran equality on this subset slot
-                    # too and failed on clip_embed.
+                if provider_id in SUBSET_REQUIRED:
+                    # union-slot rule (asserted above): a subset provider
+                    # declares only its required subset ⊆ column, so per-op
+                    # column EQUALITY is the wrong guard — it claims NO
+                    # numeric op. Discovery fix: the drafted loop ran
+                    # equality on this subset slot too and failed on clip_embed.
                     assert op_id not in declared, f"{provider_id}/{op_id}"
                 else:
                     assert (op_id in declared) == (op_id in column), (
@@ -1069,8 +1081,14 @@ class TestMatrixNumericSurface:
         assert reg["gateway"].deployed is True
         assert reg["gateway_light"].deployed is True
         assert reg["llamacpp_llm"].deployed is True
+        # 1.1: the VLM engines are declared, not deployed (compose service
+        # is step 1.2, vlm_client step 1.3) - providers.py registers both
+        # deployed=False.
+        assert reg["openai_vlm"].deployed is False
+        assert reg["rtvi_vlm"].deployed is False
 
     # GREEN guard on the light-only app: gateway_light's column holds the 5
+
     # enrich_lt_* ops (person_reid among them) and NONE of the /clip numeric
     # ops; each /clip path answers a REAL 404 (plan procedure: absence must
     # MATCH the matrix — asserted, never skipped). The positive control on the

@@ -191,6 +191,13 @@ docs = [
 alpr = [
     "fast-alpr[onnx]>=0.3.0",  # FastALPR with ONNX CPU backend (MIT license)
 ]
+# Face recognition embeddings (F11 owner ruling 2026-09-26, condition 1)
+# CPU onnxruntime only — the face-recognizer loader stays OUT of the VRAM budget.
+# Weights pending the license pick; the loader's interface is weights-agnostic.
+# Usage: `uv sync --extra face`
+face = [
+    "onnxruntime>=1.16",  # CPUExecutionProvider only (deliberately no GPU provider)
+]
 # Legacy PaddleOCR (deprecated, Python 3.13 or earlier only)
 # OCR functionality is available in the ai/enrichment container which uses Python 3.12
 # ocr = [

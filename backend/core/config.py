@@ -1026,6 +1026,46 @@ class Settings(BaseSettings):
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
     )
+    # Development: http://localhost:8098 (local dev)
+    # Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
+    ai_vlm_url: str = Field(
+        default="http://localhost:8098",
+        description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
+    )
+
+    # Pipeline selector (spec §2:81-84, rev 5): "vlm" is the default and
+    # the ONLY supported per-event path. "legacy" parses only because its
+    # code stays in the repo until R8 deletes it — it is not deployed, not
+    # measured, and not a rollback target; the validator logs it LOUDLY so
+    # a boot with the unsupported path can never look like a normal boot.
+    # An unknown value RAISES rather than falling back: a typo must not
+    # silently pick a pipeline, least of all the unsupported one.
+    pipeline_mode: str = Field(
+        default="vlm",
+        description="Per-event analysis pipeline: 'vlm' (default, supported) or 'legacy' (UNSUPPORTED, kept only until R8 deletes it).",
+    )
+
+    @field_validator("pipeline_mode", mode="before")
+    @classmethod
+    def validate_pipeline_mode(cls, v: Any) -> str:
+        """`legacy` parses (its code stays until R8) but is LOUD; anything
+        else than the two spellings raises — the never-silently-fallback
+        rule from spec §2:81-84. The warning is the startup loudness the
+        owner ruling asks for; the 1.5 ledger row carries the rest."""
+        import logging
+
+        if v is None:
+            return "vlm"
+        value = str(v).lower().strip()
+        if value not in ("vlm", "legacy"):
+            raise ValueError(f"Invalid pipeline_mode '{v}'. Must be 'vlm' or 'legacy'.")
+        if value == "legacy":
+            logging.getLogger("backend.core.config").warning(
+                "PIPELINE_MODE=legacy selects the UNSUPPORTED pipeline — "
+                "it is not deployed, not measured, and not a rollback "
+                "target (spec rev 5); its code stays only until R8 deletes it."
+            )
+        return value
 
     # AI service authentication
     # Security: API keys for authenticating with AI services
@@ -1068,6 +1108,24 @@ class Settings(BaseSettings):
         ge=30.0,
         le=600.0,
         description="Maximum time (seconds) to wait for Nemotron LLM response",
+    )
+    ai_vlm_read_timeout: float = Field(
+        default=25.0,
+        ge=5.0,
+        le=300.0,
+        description="Maximum time (seconds) to wait for one vlm_assess attempt. Sized "
+        "against S4 (p95 <= 30 s INCLUDING cold starts): the §6 ladder retries exactly "
+        "once at temperature 0 inside the same budget, so a per-attempt ceiling at or "
+        "above 30 s would leave no room for the retry.",
+    )
+    ai_vlm_wake_timeout_seconds: float = Field(
+        default=90.0,
+        ge=5.0,
+        le=300.0,
+        description="Read timeout for the wake-on-open ping (one max_tokens=1 request "
+        "that forces llama.cpp to load its weights). Generous on purpose: a sleeping "
+        "server is exactly the case being paid for, and a failed wake is swallowed "
+        "(spec §6) rather than retried.",
     )
     florence_read_timeout: float = Field(
         default=30.0,
@@ -1289,6 +1347,24 @@ class Settings(BaseSettings):
         "/props (e.g. 'b7972'). None skips the build assertion (the S-2 lesson: "
         "enforcement is per-model AND per-build - set this in production).",
     )
+    # The same P0.3 doctrine on the VLM chat shape (spec §3, Phase 1.3):
+    # images and grammar are independent variables whose INTERSECTION the
+    # pin must prove, so vlm_assess runs its own nonce-const probe - once
+    # per endpoint+build - before the first verdict is trusted.
+    vlm_enforcement_probe_enabled: bool = Field(
+        default=True,
+        description="Run the chat-shape nonce-const enforcement probe once per "
+        "ai-vlm endpoint+build before the first vlm_assess verdict (spec §3). "
+        "NOT-ENFORCED fails closed - a verdict from an unenforced endpoint is "
+        "unparseable prose dressed as JSON.",
+    )
+    vlm_required_build: str = Field(
+        default="",
+        description="build_info substring the vlm probe asserts against /props "
+        "(e.g. 'b7972', the G0-proven build). Empty skips the build assertion; "
+        "production should set it (S-2: enforcement is per-build - a stale proof "
+        "must not launder onto an unknown build).",
+    )
     # Provenance ids written to event_verifications rows (P0.4's engine/
     # model_id columns are NOT NULL). The repo has no served-model-id setting
     # - the endpoint's own name is only visible in error text - so the
@@ -1303,6 +1379,14 @@ class Settings(BaseSettings):
         description="P0.3/P0.4: model label written to event_verifications.model_id "
         "(matches the shipped LLM_MODEL_PATH GGUF identity; override when serving "
         "a different quant).",
+    )
+    vlm_model_id: str = Field(
+        default="Qwen3VL-4B-Instruct-Q4_K_M",
+        description="Phase 1.3: degraded-path model label for "
+        "event_verifications.model_id in vlm mode (a failed call has no "
+        "verdict to read the engine's own id from, and the column is NOT "
+        "NULL). Matches the 1.2 shipped VLM_MODEL_PATH GGUF identity; "
+        "override together with it when serving a different quant.",
     )
 
     enrichment_max_retries: int = Field(
@@ -1363,7 +1447,7 @@ class Settings(BaseSettings):
         description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
     )
 
-    @field_validator("yolo26_url", "nemotron_url", mode="before")
+    @field_validator("yolo26_url", "nemotron_url", "ai_vlm_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
         """Validate AI service URLs using Pydantic's AnyHttpUrl validator.
@@ -1797,6 +1881,36 @@ class Settings(BaseSettings):
         description="Enable fully automatic enrollment without queue review. "
         "When True, high-quality faces are immediately enrolled as 'Unknown Person N'. "
         "When False (default), faces are added to a review queue for manual approval.",
+    )
+
+    # Face-leg quality gate + match threshold (VSS rev 6, F11 ruling 3 / F12).
+    # PROVISIONAL: both get calibrated on the owner's gallery and night footage
+    # in the Phase 2 bake-off (AdaFace is the ledgered small/night challenger,
+    # CR-FIQA the ledgered quality-model upgrade). Until then they are config,
+    # never code constants - the gate's whole job is to keep a tiny/night crop
+    # from reading "unknown", which pushes the VLM toward alarm (S2 driver).
+    face_min_size_px: int = Field(
+        default=40,
+        ge=8,
+        description="Minimum face box size in pixels for the face specialist's "
+        "quality gate. A crop below this is 'not identifiable', never 'unknown'.",
+    )
+    face_scrfd_threshold: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="Minimum SCRFD detection score for the face specialist's "
+        "quality gate (the same value is passed to detection as its threshold). "
+        "A face the detector barely believes is 'not identifiable', never 'unknown'.",
+    )
+    face_match_threshold: float = Field(
+        default=0.68,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity above which a face embedding matches a "
+        "gallery FaceEmbedding. Provisional (F12); mirrors the existing "
+        "face_recognition_service.DEFAULT_MATCH_THRESHOLD so the specialist and "
+        "the gallery API never disagree about what 'match' means.",
     )
 
     # Detection settings

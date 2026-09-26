@@ -947,19 +947,16 @@ def get_video_processor_dep() -> VideoProcessor:
 async def get_nemotron_analyzer_dep(
     redis: RedisClient = Depends(get_redis),
 ) -> AsyncGenerator[NemotronAnalyzer]:
-    """FastAPI dependency for NemotronAnalyzer (NEM-2032).
+    """FastAPI dependency for the per-event analyzer (NEM-2032, 1.5).
 
-    Creates a NemotronAnalyzer instance with the injected Redis client.
-
-    Args:
-        redis: Redis client injected via Depends(get_redis)
-
-    Yields:
-        NemotronAnalyzer instance
+    Built through the pipeline factory: the name and type alias stay (the
+    route surface is unchanged) but what arrives depends on PIPELINE_MODE
+    — vlm mode gets the VlmAnalyzer, whose streaming surface answers the
+    same update vocabulary this route serializes.
     """
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
+    from backend.services.pipeline_factory import build_pipeline_analyzer
 
-    yield NemotronAnalyzer(redis_client=redis)
+    yield build_pipeline_analyzer(redis_client=redis)
 
 
 def get_job_tracker_dep(

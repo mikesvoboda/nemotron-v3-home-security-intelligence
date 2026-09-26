@@ -450,6 +450,118 @@ describe('FilterChips', () => {
     });
   });
 
+  describe('Verdict Filtering (1.6, spec §4)', () => {
+    // Literal regexes (a variable pattern trips the lint rule, and the point
+    // of the pin is the exact human-facing word anyway).
+    const VERDICT_CHIP_NAMES = [
+      /confirmed/i,
+      /rejected/i,
+      /uncertain/i,
+      /verification failed/i,
+      /unverified/i,
+    ];
+    // The event list's verdict filter lives on this live chip bar (the
+    // EventFilters.tsx panel is dead code - zero non-self imports - so
+    // putting it there would filter nothing).
+    it('renders the verdict section with one chip per operator-visible state', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByText('Verdict')).toBeInTheDocument();
+      // Labels come from the shared VerdictBadge vocabulary - the same words
+      // the card badges show, so list and card cannot drift.
+      for (const label of VERDICT_CHIP_NAMES) {
+        expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+      }
+    });
+
+    it('calls onFilterChange with the verdict value when a chip is clicked', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /rejected/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('verdict', 'rejected');
+    });
+
+    it('maps the Unverified chip to the API\'s "none" pseudo-verdict', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /unverified/i }));
+
+      // 'none' is the backend's never-verified value (NOT EXISTS) - the word
+      // shown to the human and the wire value are deliberately different.
+      expect(mockOnFilterChange).toHaveBeenCalledWith('verdict', 'none');
+    });
+
+    it('clears the verdict filter when the active chip is clicked again', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{ verdict: 'uncertain' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /uncertain/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('verdict', '');
+    });
+
+    it('marks the active verdict chip pressed', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ verdict: 'verification_failed' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      const chip = screen.getByRole('button', { name: /verification failed/i });
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('a verdict-only filter counts as active so Clear All appears', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ verdict: 'rejected' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument();
+    });
+  });
+
   describe('Clear All', () => {
     it('calls onClearFilters when Clear All is clicked', async () => {
       const user = userEvent.setup();

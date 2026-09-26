@@ -6,13 +6,19 @@
  */
 
 import { createInfiniteQueryHook, type BaseInfiniteQueryOptions } from './useCursorPaginatedQuery';
-import { fetchEvents, type EventsQueryParams } from '../services/api';
+import { fetchEvents, type EventsQueryParams, type EventVerdictFilter } from '../services/api';
 
 import type { EventListResponse } from '../types/generated';
 
 export interface EventFilters {
   camera_id?: string;
   risk_level?: string;
+  /**
+   * VLM verdict filter (1.6, spec §4) - the four verdicts, or 'none' for
+   * never-verified events. Spread straight into EventsQueryParams by the
+   * fetchFn below, so the vocabulary is shared with the generated schema.
+   */
+  verdict?: EventVerdictFilter;
   start_date?: string;
   end_date?: string;
   reviewed?: boolean;

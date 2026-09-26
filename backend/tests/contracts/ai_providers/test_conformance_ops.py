@@ -126,6 +126,11 @@ EXPECTED_DEPLOYED = {
     ProviderId.PER_MODEL_HTTP: False,
     ProviderId.LLAMACPP_LLM: True,
     ProviderId.FAKE: True,
+    # spec §3 slots minted at 1.1, registered deployed=False (providers.py
+    # _register_all tail): the ai-vlm compose service is step 1.2 and
+    # vlm_client is 1.3 - declared, not yet deployed.
+    ProviderId.OPENAI_VLM: False,
+    ProviderId.RTVI_VLM: False,
 }
 
 # Sentinel (NOT-WIRED) literals — dossier O3/F8 + live import. per_model_http
@@ -163,6 +168,11 @@ SENTINELS_PER_MODEL = (SENTINELS_GATEWAY - {"yolo26_segment"}) | {
     "llm_completion",
     "llm_chat_completion",
     "model_unload",
+    # 1.1 entered vlm_assess here unbound; 1.3's vlm_client binds it
+    # (client_methods=["VlmClient.assess"], CLIENT_OP_MAP) so it LEAVES the
+    # third state in every provider sharing this column - including the
+    # subset VLM providers, whose callable is now the live client method
+    # (pinned in test_conformance_vlm.py).
 }
 SENTINELS_BY_PROVIDER: dict[ProviderId, set[str]] = {
     ProviderId.GATEWAY: SENTINELS_GATEWAY,
@@ -183,6 +193,22 @@ LLAMACPP_REQUIRED = {
     if op.availability.get("per_model_server", False) and "ai/nemotron" in op.evidence
 }
 
+# spec §3 Slots (Phase 1 task 1.1): the VLM engines register the SAME
+# subset-inside-the-union-column pattern llamacpp uses - required=
+# {"vlm_assess"} (providers.py _register_all tail), the per_model_server
+# column belonging to every per-model app at once.
+VLM_REQUIRED = {"vlm_assess"}
+
+# Union-slot SUBSET providers -> their required set. Every guard below that
+# once said "llamacpp is the exception, everyone else covers the column"
+# generalizes through this table: a fourth subset provider needs one row,
+# not a new branch in five tests.
+SUBSET_REQUIRED: dict[ProviderId, set[str]] = {
+    ProviderId.LLAMACPP_LLM: LLAMACPP_REQUIRED,
+    ProviderId.OPENAI_VLM: VLM_REQUIRED,
+    ProviderId.RTVI_VLM: VLM_REQUIRED,
+}
+
 # ProviderId -> expected registered size. WP4.2: DERIVED, not hand-pinned.
 # The hand table (30/5/35/2/37, dossier O4/F9) rotted on schedule — every
 # legitimate contract move (38 -> 37 at A7.2) required re-editing it, which
@@ -200,6 +226,8 @@ EXPECTED_SIZES = {
     ProviderId.PER_MODEL_HTTP: len(operations_for_slot("per_model_server", OPERATIONS)),
     ProviderId.LLAMACPP_LLM: len(LLAMACPP_REQUIRED),
     ProviderId.FAKE: len(operations_for_slot("fake", OPERATIONS)),
+    ProviderId.OPENAI_VLM: len(VLM_REQUIRED),
+    ProviderId.RTVI_VLM: len(VLM_REQUIRED),
 }
 
 # OP-28 block + O2 literals.
@@ -423,25 +451,28 @@ class TestMatrixSpine:
     )
     def test_matrix_registered_set_matches_slot_or_required(self, pid: ProviderId) -> None:
         """Spine (a): set(rec.operations()) == slot column for the single-app
-        providers; == the evidence-derived required SUBSET for llamacpp
-        (union-slot rule, provider.py:196-203 + providers.py:94-106); fake's
-        column is the SPEC (every op) and the fake is registered by this suite
-        itself. Sizes and deployed per EXPECTED_* tables above (sources:
-        providers.py:135-157; live import fold). THE WORKFLOW-PROMPT DIVERGENCE:
-        'llamacpp_llm: rec.deployed is False' is contradicted by live code —
-        we pin True (providers.py:155) and record the prompt's claim as wrong.
-        PREDICTED-GREEN all five params (sizes 31/5/36/2/38 observed live).
-        Never CALLS a registered callable (gateway/per_model/llamacpp live ops
-        would do real network). UNVERIFIED."""
+        providers; == the required SUBSET for every union-slot subset
+        provider (SUBSET_REQUIRED: llamacpp's evidence-derived pair, and the
+        1.1 VLM engines' {vlm_assess}; union-slot rule, provider.py:196-203 +
+        providers.py _register_all); fake's column is the SPEC (every op) and
+        the fake is registered by this suite itself. Sizes and deployed per
+        EXPECTED_* tables above (sources: providers.py; live import fold).
+        THE WORKFLOW-PROMPT DIVERGENCE: 'llamacpp_llm: rec.deployed is False'
+        is contradicted by live code — we pin True (providers.py) and record
+        the prompt's claim as wrong. PREDICTED-GREEN all params.
+        Never CALLS a registered callable — and since 1.3 that matters MORE
+        for the VLM subset providers too: their vlm_assess is now the live
+        VlmClient.assess (real httpx to settings.ai_vlm_url), not a
+        sentinel. This test is set-equality only. UNVERIFIED."""
         rec_ops = _provider_ops(pid)
         slot = PROVIDER_SLOT[pid]
         column = set(operations_for_slot(slot, OPERATIONS))
-        if pid is ProviderId.LLAMACPP_LLM:
-            assert set(rec_ops) == LLAMACPP_REQUIRED  # {llm_completion, llm_chat_completion}
+        if pid in SUBSET_REQUIRED:
+            assert set(rec_ops) == SUBSET_REQUIRED[pid]
             assert {"llm_completion", "llm_chat_completion"} == LLAMACPP_REQUIRED
             assert set(rec_ops) < column  # proper subset inside the union column
         else:
-            assert set(rec_ops) == column  # source: providers.py:140-142; fake via
+            assert set(rec_ops) == column  # source: providers.py; fake via
             # fake_provider_ops() == operations_for_slot('fake') (app.py:127). UNVERIFIED.
         assert len(rec_ops) == EXPECTED_SIZES[pid]  # derived table, WP4.2. UNVERIFIED.
         assert registered_providers()[pid.value].deployed is EXPECTED_DEPLOYED[pid]  # UNVERIFIED.
@@ -496,9 +527,10 @@ class TestMatrixAbsenceGuards:
 
     @pytest.mark.parametrize("pid", list(ProviderId), ids=[p.value for p in ProviderId])
     def test_absence_matches_matrix(self, pid: ProviderId) -> None:
-        """Pure-matrix absence for ALL providers (llamacpp's absence is the
-        column minus its derived subset — 34). PREDICTED-GREEN all.
-        UNVERIFIED."""
+        """Pure-matrix absence for ALL providers. Union-slot SUBSET
+        providers (SUBSET_REQUIRED: llamacpp, and the 1.1 VLM engines) have
+        absence = column minus their required set; single-app providers
+        cover the column. PREDICTED-GREEN all. UNVERIFIED."""
         slot = PROVIDER_SLOT[pid]
         column = set(operations_for_slot(slot, OPERATIONS))
         absent = ALL_OPS - column  # matrix-absent for this slot
@@ -506,9 +538,9 @@ class TestMatrixAbsenceGuards:
         # claiming a matrix-absent op is impossible for ANY provider (the
         # registration guard above is the import-time twin of this check):
         assert not (ops & absent), f"{pid.value} claims matrix-absent ops"
-        if pid is ProviderId.LLAMACPP_LLM:
-            assert ops == LLAMACPP_REQUIRED  # exact derived subset
-            # the union-slot remainder is absent FOR THIS PROVIDER (34 ops):
+        if pid in SUBSET_REQUIRED:
+            assert ops == SUBSET_REQUIRED[pid]  # exact required subset
+            # the union-slot remainder is absent FOR THIS PROVIDER:
             assert column - ops  # non-empty by construction. UNVERIFIED.
         else:
             assert ops == column  # single-app providers cover the column
@@ -587,6 +619,10 @@ class TestMatrixNotWiredSentinels:
         ops = _provider_ops(pid)
         unbound = {o for o in ops if not OPERATIONS[o].client_methods}
         sentinels = {o for o, fn in ops.items() if "_not_wired" in fn.__qualname__}
+        # census note: per_model's count moved 7 -> 8 on 2026-09-25 (1.1
+        # added vlm_assess to the per_model_server column unbound), then
+        # 8 -> 7 the same day (1.3's vlm_client binds it - see the
+        # SENTINELS_PER_MODEL comment).
         assert unbound == SENTINELS_BY_PROVIDER[pid]
         assert sentinels == SENTINELS_BY_PROVIDER[pid]
         assert unbound == sentinels  # source: providers.py:70-85 (_bound_or_reject).

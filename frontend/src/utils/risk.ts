@@ -4,6 +4,69 @@
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 /**
+ * The effective risk level of an event, or `null` when there is nothing to
+ * show (1.6, spec §4).
+ *
+ * Why this exists: `getRiskLevel(score)` requires a number, so every call
+ * site that could receive a NULL score (a `verification_failed` event, or
+ * any event not yet analyzed - D11) had to invent one, and the list views
+ * wrote `event.risk_score || 0`. That is a lie with a color on it: a NULL
+ * score is "the VLM could not answer", and `0` renders a confident green
+ * "Low" badge. A reader who trusts that badge is being told an event was
+ * checked and found harmless when it was never checked at all.
+ *
+ * Callers who get `null` render the Unverified state (VerdictBadge) instead
+ * of RiskBadge; the badge decision belongs to the caller because only the
+ * caller knows whether a verification row exists.
+ *
+ * Order matters: a server-computed `risk_level` wins (it already reflects
+ * SeverityService thresholds), the score is the fallback, and NULL/empty
+ * score means no level - never 0.
+ */
+export function resolveRiskLevel(
+  riskLevel: string | null | undefined,
+  riskScore: number | null | undefined
+): RiskLevel | null {
+  if (riskLevel) return riskLevel as RiskLevel;
+  if (riskScore === null || riskScore === undefined) return null;
+  return getRiskLevel(riskScore);
+}
+
+/**
+ * Sort key for risk orderings, where NULL (unverified) is NOT 0.
+ *
+ * `risk_score || 0` made an unverified event sort as the LOWEST risk, so a
+ * "highest risk first" list buried never-analyzed events in the tail, next
+ * to genuinely-harmless ones. Unknown is not safe: with this key, unverified
+ * ranks ABOVE every score when sorting worst-first (it needs eyes on it -
+ * a broken verification is an incident, not a dismissal) and sorts LAST
+ * ascending. A monotonic key cannot do more than that, and doesn't pretend
+ * to: "lowest risk" lists still end with the unknowns.
+ */
+export const RISK_UNVERIFIED_SORT_LAST = Number.POSITIVE_INFINITY;
+
+export function riskSortKey(riskScore: number | null | undefined): number {
+  return riskScore ?? RISK_UNVERIFIED_SORT_LAST;
+}
+
+/**
+ * Comparator for worst-first (or best-first, negated) risk orderings.
+ *
+ * The naive `key(a) - key(b)` breaks exactly where this matters: two
+ * unverified events have key Infinity - Infinity, which is NaN, and a NaN
+ * comparator result scrambles the whole sort. Two unknowns are EQUAL.
+ */
+export function compareRiskSortKey(
+  aScore: number | null | undefined,
+  bScore: number | null | undefined
+): number {
+  const a = riskSortKey(aScore);
+  const b = riskSortKey(bScore);
+  if (a === b) return 0;
+  return a < b ? -1 : 1;
+}
+
+/**
  * Risk score thresholds matching backend SeverityService defaults.
  *
  * These thresholds are configurable on the backend via environment variables:
