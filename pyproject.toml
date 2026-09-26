@@ -434,6 +434,14 @@ ignore = [
     "PLR1711", "PLW0603", "RUF002", "RUF005", "RUF012", "RUF023", "RUF043",
     "RUF100", "S108", "SIM300", "UP017", "UP037", "UP041",
 ]
+# Campaign #3 (enrichment_client) mutation-kill batteries, batch-27. S610 is a
+# false positive: the rule targets Django QuerySet.extra(), but it fires on the
+# tests' own _Records.extra(msg, key) log-record helper — no SQL. RUF005 (prefer
+# unpacking over list concat) is generated-code style in the metric-journal
+# builders. Scoped to these three files only, per the batch26 precedent.
+"backend/tests/unit/services/test_enrichment_client_batch27*.py" = [
+    "S610", "RUF005",
+]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
     "T201",   # print() ok in examples for demonstration output

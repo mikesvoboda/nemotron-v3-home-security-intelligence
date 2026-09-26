@@ -54,9 +54,16 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 from PIL import Image
 
 import backend.services.enrichment_pipeline as M
+from backend.tests.unit.services._bg_dispatch import (
+    bg_real,
+    install_bg_dispatcher,
+    recorder_errors,
+    register_recorder,
+)
 
 MODULE = "backend.services.enrichment_pipeline"
 LOG_NAME = "backend.services.enrichment_pipeline"
@@ -789,30 +796,46 @@ def test_gate_reference_shipped_quality_arithmetic() -> None:
 # The three mutated call sites (L2690 CPU group, L2810 phase 2, L2848 phase 3)
 # pass their limit as a KEYWORD argument, and the shipped default of the callee
 # is 10 — so "kwarg deleted" and "limit=6" are only observable at the call site.
-# A recording proxy is installed over the IMPORT-SITE binding at module import
-# (before the plugin snapshots the module dict, so mutant bodies see it too) and
-# forwards every argument unchanged: shipped behaviour is untouched, but the
+# A recorder is registered on the SHARED dispatcher that occupies the
+# IMPORT-SITE binding at module import (before the plugin snapshots the module
+# dict, so mutant bodies see it too); the dispatcher forwards every argument
+# unchanged to the pristine callee: shipped behaviour is untouched, but the
 # ``limit`` each site actually passes is now measurable.
+#
+# WHY NOT a private spy over the slot (MEASURED 2026-09-26): batch26_05 installs
+# a gather-partition spy on the SAME single global at ITS import time, and pytest
+# imports every module during collection — so the two files raced for the slot
+# and whichever imported last clobbered the other (empty ``REC["bg"]`` in _05,
+# ``KeyError: limit`` from a spy-shaped "original" here).  Grouped CI runs hid
+# that; mutmut's interleaved 1296-id stats rerun exposed it.  See
+# ``_bg_dispatch`` for the design.
 _UNSET = object()
-_ORIGINAL_BOUNDED_GATHER = M.bounded_gather
 GATHER_CALLS: list[Any] = []
 
+install_bg_dispatcher(M)
+_ORIGINAL_BOUNDED_GATHER = bg_real(M)  # the PRISTINE callee, via the dispatcher tag
 
-async def _spy_bounded_gather(
-    coros: Any,
-    *,
-    limit: Any = _UNSET,
-    task_timeout: Any = None,
-    return_exceptions: bool = False,
-) -> Any:
+
+def _record_gather_limit(coros: list[Any], kw: dict[str, Any]) -> None:
+    """One entry per gather made through the slot while this file is active:
+    the ``limit`` the call site passed, or the sentinel when it passed none."""
+    limit = kw.get("limit", _UNSET)
     GATHER_CALLS.append("<no limit kwarg>" if limit is _UNSET else limit)
-    kw: dict[str, Any] = {} if limit is _UNSET else {"limit": limit}
-    return await _ORIGINAL_BOUNDED_GATHER(
-        list(coros), task_timeout=task_timeout, return_exceptions=return_exceptions, **kw
-    )
 
 
-M.bounded_gather = _spy_bounded_gather
+_BG_STATE = register_recorder(_record_gather_limit)
+
+
+@pytest.fixture(autouse=True)
+def _bg_gate():
+    """Record only during THIS file's tests (setup True / teardown False), so
+    recordings stay as exact as when this file owned the slot alone."""
+    _BG_STATE["active"] = True
+    try:
+        yield
+    finally:
+        _BG_STATE["active"] = False
+        assert not recorder_errors(_BG_STATE), recorder_errors(_BG_STATE)
 
 
 async def _peak(n: int, **gather_kw: Any) -> int:
