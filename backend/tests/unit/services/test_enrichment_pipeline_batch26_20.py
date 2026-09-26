@@ -84,8 +84,21 @@ class _LoadCM:
 
 
 def tg(method: str, cls=M.EnrichmentPipeline) -> dict:
-    """Name-resolution dict of the LIVE function object (see module docstring)."""
-    return getattr(cls, method).__globals__
+    """Name-resolution dict of the LIVE function object (see module docstring).
+
+    Pristine: ``M.__dict__``. Ep_plugin swap: the variant's snapshot dict
+    (freshly compiled — no ``__wrapped__``). Mutants-tree re-bank (MEASURED
+    2026-09-26): mutmut 3.8 trampoline-wraps every function and the wrapper's
+    ``__globals__`` is mutmut's OWN module dict — the shipped implementation
+    resolves ``M.__dict__``, reachable via ``__wrapped__``; unwrap only under
+    that identity check, which is false in both other worlds.
+    """
+    f = getattr(cls, method)
+    if f.__globals__ is not M.__dict__:
+        w = getattr(f, "__wrapped__", None)
+        if w is not None and w.__globals__ is M.__dict__:
+            return M.__dict__
+    return f.__globals__
 
 
 def pipeline(load_exc: BaseException | None = None) -> M.EnrichmentPipeline:

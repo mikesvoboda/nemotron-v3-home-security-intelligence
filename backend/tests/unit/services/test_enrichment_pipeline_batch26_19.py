@@ -138,8 +138,21 @@ def pipeline(load_exc: BaseException | None = None) -> EnrichmentPipeline:
 
 
 def fn_globals(method: str) -> dict:
-    """The name-resolution dict of the LIVE function object (mutant-aware)."""
-    return getattr(M.EnrichmentPipeline, method).__globals__
+    """The name-resolution dict of the LIVE function object (mutant-aware).
+
+    Pristine: ``M.__dict__``. Ep_plugin swap: the exec'd variant's snapshot
+    dict (freshly compiled — no ``__wrapped__``). Mutants-tree re-bank:
+    MEASURED 2026-09-26 — mutmut 3.8 trampoline-wraps every function and the
+    wrapper's ``__globals__`` is mutmut's OWN module dict, invisible to the
+    shipped code; ``__wrapped__`` unwraps to the implementation whose globals
+    ARE ``M.__dict__`` — so unwrap only when that identity holds.
+    """
+    f = getattr(M.EnrichmentPipeline, method)
+    if f.__globals__ is not M.__dict__:
+        w = getattr(f, "__wrapped__", None)
+        if w is not None and w.__globals__ is M.__dict__:
+            return M.__dict__
+    return f.__globals__
 
 
 def live(method: str):

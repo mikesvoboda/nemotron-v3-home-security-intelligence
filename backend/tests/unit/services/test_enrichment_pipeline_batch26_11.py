@@ -118,8 +118,21 @@ def target_globals(method: str) -> dict:
     real loader function runs).  Under pristine shipped code
     ``fn.__globals__ is M.__dict__``, so patching through the function's own
     globals is exactly equivalent there and additionally observed by mutants.
+
+    Third world (MEASURED at the mutants/ re-bank gate 2026-09-26): mutmut
+    3.8's trampoline wraps every module function there, so the live object's
+    ``__globals__`` is the TRAMPOLINE module's dict — patching it is invisible
+    to both the trampoline and the shipped implementation.  The trampoline
+    carries ``__wrapped__`` (functools.wraps) onto the implementation whose
+    globals ARE ``M.__dict__``; ep_plugin variants are freshly compiled and
+    carry no ``__wrapped__``, so this branch fires only in the mutants tree.
     """
-    return getattr(M.EnrichmentPipeline, method).__globals__
+    f = getattr(M.EnrichmentPipeline, method)
+    if f.__globals__ is not M.__dict__:
+        w = getattr(f, "__wrapped__", None)
+        if w is not None and w.__globals__ is M.__dict__:
+            return M.__dict__
+    return f.__globals__
 
 
 @contextlib.contextmanager

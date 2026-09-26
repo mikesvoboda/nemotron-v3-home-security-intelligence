@@ -207,8 +207,21 @@ def _globals() -> dict[str, Any]:
     Under a mutant the plugin has exec'd the variant body into its own dict,
     and that dict — not ``M.__dict__`` — is what the running code resolves
     names against; patching it keeps the rig faithful in both worlds.
+
+    Third world (MEASURED in the mutants/ tree at ep0 re-bank gate 2026-09-26):
+    mutmut 3.8's trampoline wraps every module function, so ``f.__globals__``
+    is the TRAMPOLINE MODULE's dict — patching it changes nothing and both
+    the trampoline and the shipped variants resolve ``M.__dict__``. The
+    trampoline carries ``__wrapped__`` (functools.wraps) pointing at the
+    implementation whose globals ARE ``M.__dict__``; the ep_plugin world has
+    no ``__wrapped__``, so this branch fires in exactly that one world.
     """
-    return M.EnrichmentPipeline._run_parallel_enrichment.__globals__
+    f = M.EnrichmentPipeline._run_parallel_enrichment
+    if f.__globals__ is not M.__dict__:
+        w = getattr(f, "__wrapped__", None)
+        if w is not None and w.__globals__ is M.__dict__:
+            return M.__dict__
+    return f.__globals__
 
 
 @contextlib.contextmanager
