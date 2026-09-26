@@ -429,6 +429,11 @@ services:
     environment:
       - SERVICE_NAME=ai-gateway
       - GATEWAY_PORT=8090
+      # Rev-6 residency selector: which Triton model dirs stay in the repo
+      # (pruned by ai.gateway.residency before Triton starts). `full` is the
+      # behavior-preserving default; the A5500 vlm bring-up sets vlm here.
+      - GATEWAY_MODEL_SET=${GATEWAY_MODEL_SET:-full}
+      - GATEWAY_ENABLE_THREAT=${GATEWAY_ENABLE_THREAT:-false}
       # All GPUs are passed via CDI (nvidia.com/gpu=all) so /dev/nvidia0 and
       # /dev/nvidia1 both exist. CUDA_VISIBLE_DEVICES restricts Triton to only
       # the AI services GPU (default: GPU 1 = A400).
