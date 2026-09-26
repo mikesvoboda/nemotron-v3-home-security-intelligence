@@ -854,6 +854,25 @@ def _ensure_worker_schema(worker_db_url: str) -> str:
                 conn.execute(
                     sa_text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
                 )
+                # F11 ruling 2: vector provenance. A worker database that a
+                # prior session left behind has face tables WITHOUT the
+                # column, and create_all never adds columns to existing
+                # tables — same drift repair as the unit conftest's two
+                # schema twins, DEFAULT spelled to match the model and
+                # docs/api/migrations/2026-09-26-face-vector-provenance-model-id.sql
+                # exactly.
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
+                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                    )
+                )
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
+                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                    )
+                )
                 # NEM-1652: soft delete columns
                 conn.execute(
                     sa_text(

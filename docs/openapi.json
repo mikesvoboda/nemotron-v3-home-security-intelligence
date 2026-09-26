@@ -59073,7 +59073,8 @@
         ]
       },
       "post": {
-        "description": "Add a face embedding for a known person.\n\nThe embedding should be a 512-dimensional ArcFace embedding vector.\n\nArgs:\n    person_id: ID of the person\n    data: Embedding data with 512-dim vector\n    session: Database session\n\nReturns:\n    Created FaceEmbeddingResponse\n\nRaises:\n    HTTPException: 404 if person not found\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed embedding vector (F11 ruling 2).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space \u2014 the whole one-embedding-space rule rests on every\nstored vector's provenance being knowable, and a posted list of floats\ncarries none. Historical vectors from this path were produced by a\n`numpy.random.rand(512)` placeholder, so a gallery built here was\nnoise wearing real-looking numbers (ledger row 1.3b).\n\nThe sanctioned enrollment paths compute server-side and store the\nmodel id with the vector:\n\n- ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)\n- ``POST /known-persons/bulk-enroll`` (uploaded image)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the image-based endpoints.",
         "operationId": "face-recognition_add_face_embedding",
         "parameters": [
           {
@@ -59106,6 +59107,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Always returned: POSTing a client-computed embedding vector is retired (F11 ruling 2). Enroll via /known-persons/{person_id}/enroll-from-detection or /known-persons/bulk-enroll instead."
           },
           "422": {
             "content": {

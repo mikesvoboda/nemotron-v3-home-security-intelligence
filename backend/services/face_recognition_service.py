@@ -19,6 +19,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from backend.core.face_provenance import LEGACY_MODEL_ID
 from backend.core.logging import get_logger
 from backend.models.face_identity import (
     FaceDetectionEvent,
@@ -257,8 +258,16 @@ class FaceRecognitionService:
         embedding: list[float] | np.ndarray,
         quality_score: float = 1.0,
         source_image_path: str | None = None,
+        model_id: str = LEGACY_MODEL_ID,
     ) -> FaceEmbedding | None:
         """Add a face embedding for a known person.
+
+        ``model_id`` is the vector's provenance (F11 ruling 2): the id of
+        the weights that computed it. Server-side enrollment passes the
+        loaded face-recognizer's id; the default is the sentinel, which
+        reads as "origin unknown" and makes the face specialist answer
+        "unavailable (re-enroll)" instead of scoring the vector — a caller
+        that names no extractor is untrusted by default.
 
         Args:
             session: Database session
@@ -266,6 +275,7 @@ class FaceRecognitionService:
             embedding: 512-dimensional embedding vector
             quality_score: Face quality score (0-1)
             source_image_path: Path to source image (optional)
+            model_id: Which weights computed the embedding
 
         Returns:
             Created FaceEmbedding instance or None if person not found
@@ -295,6 +305,7 @@ class FaceRecognitionService:
             embedding=embedding_bytes,
             quality_score=quality_score,
             source_image_path=source_image_path,
+            model_id=model_id,
         )
         session.add(face_embedding)
         await session.commit()
@@ -814,12 +825,20 @@ class FaceRecognitionService:
         # Optionally create embedding if quality is high enough
         created_embedding = False
         if event.quality_score >= 0.7:
-            # Create a new FaceEmbedding from the event's embedding
+            # Create a new FaceEmbedding from the event's embedding. The
+            # vector's provenance rides the COPY (F11 ruling 2): a gallery
+            # row built from an event says what computed the event's
+            # vector — an old event's random vector stays flagged, and the
+            # face specialist answers "re-enroll" for it instead of
+            # scoring noise. getattr keeps pre-column rows (test fixtures
+            # built without the column) reading as the sentinel, the same
+            # verdict the DB default would give.
             new_embedding = FaceEmbedding(
                 person_id=known_person_id,
                 embedding=event.embedding,
                 quality_score=event.quality_score,
                 source_image_path=None,  # Source is from face event, not image
+                model_id=getattr(event, "model_id", LEGACY_MODEL_ID),
             )
             session.add(new_embedding)
             created_embedding = True

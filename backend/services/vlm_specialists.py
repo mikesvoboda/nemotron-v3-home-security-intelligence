@@ -107,14 +107,18 @@ class FaceUnavailable:
 
 
 def passes_quality_gate(*, face_px: float, score: float, min_px: int, min_score: float) -> bool:
-    """The F11 gate: minimum face size AND minimum SCRFD score.
+    """The F11 gate: minimum face size AND minimum SCRFD score (both edges
+    inclusive; both knobs come from config by the caller, so this stays
+    pure).
 
-    Both edges are inclusive: a 40-px face at 0.6 passes (``face_min_size_px``
-    default is "borderline identifiable", the point is that config moves it).
-    Both knobs come from config by the caller — this function takes values,
-    never reads Settings, so it stays pure.
+    Re-exported from the face leg, not spelled again: server-side
+    enrollment applies the SAME gate to the vectors it offers for the
+    gallery, and one function is what keeps the probe side and the
+    enrollment side from ever disagreeing about what "identifiable" means.
     """
-    return face_px >= min_px and score >= min_score
+    from backend.services import face_recognizer_loader as frl
+
+    return frl.passes_quality_gate(face_px=face_px, score=score, min_px=min_px, min_score=min_score)
 
 
 def classify_face_outcome(
@@ -251,20 +255,13 @@ def _face_frames(frame_paths: Sequence[Any]) -> list[Any]:
 def _face_handles() -> tuple[dict[str, Any], dict[str, Any]] | None:
     """The two loaded face-leg handles, or None when the leg can't run.
 
-    The private-dict read is the shipped resident-model pattern (what
-    enrichment uses for `stgcn-plus-plus`); the rows are resident
-    (`enabled: true`), so this is a membership read, never a load trigger.
-    A deploy without the two ONNX files has no entries (their load raised
-    at boot and the manager kept going) — F12's degradation path, deploy-
-    side, never a batch failure."""
-    from backend.services.model_zoo import get_model_manager
+    Delegates to the leg's own ``get_face_leg_handles`` so this stage and
+    server-side enrollment resolve the SAME handles — and therefore report
+    the same ``model_id``. Two lookups that can drift is the exact bug
+    class the one-embedding-space rule (F11 ruling 2) exists to prevent."""
+    from backend.services import face_recognizer_loader as frl
 
-    loaded = get_model_manager()._loaded_models
-    det = loaded.get("face-detector-scrfd")
-    rec = loaded.get("face-recognizer")
-    if det is None or rec is None:
-        return None
-    return det, rec
+    return frl.get_face_leg_handles()
 
 
 async def _collect_face_texts(
@@ -380,11 +377,18 @@ async def _collect_face_texts(
 async def _gallery_model_ids(session: AsyncSession | None) -> set[str]:
     """Distinct model ids stored on the gallery's vectors (F11 ruling 2).
 
-    The FaceEmbedding.model_id column ships with the enrollment work (it
-    needs a migration); until it exists this returns an empty set, which
-    reads as "gallery carries no ids" — the conservative direction: the
-    specialist keeps working, and the mismatch rule activates the day the
-    column lands. (Pinned by test so the rule can't silently vanish.)
+    The column exists now (``FaceEmbedding.model_id``, defaulted to the
+    ``legacy-unknown-provenance`` sentinel), so a gallery built before
+    server-side extraction carries a DISTINCT id — the sentinel — and this
+    set differs from the loaded probe weights, which is exactly what
+    trips "unavailable (re-enroll)". A pre-migration database (column
+    added by docs/api/migrations/2026-09-26-face-vector-provenance-model-id.sql
+    or the test fixture's drift repair) is the one case that still reads
+    as an empty set: "gallery carries no ids", the conservative direction
+    where the specialist keeps working and the mismatch rule stays inert.
+    NULL rows are skipped, never silently treated as a match — a NULL
+    would let a mixed gallery pass the guard (the sentinel-over-NULL
+    default exists precisely so that cannot happen).
     """
     if session is None:
         return set()

@@ -7880,21 +7880,27 @@ export interface paths {
         put?: never;
         /**
          * Add Face Embedding
-         * @description Add a face embedding for a known person.
+         * @deprecated
+         * @description Retired: POST a client-computed embedding vector (F11 ruling 2).
          *
-         *     The embedding should be a 512-dimensional ArcFace embedding vector.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space — the whole one-embedding-space rule rests on every
+         *     stored vector's provenance being knowable, and a posted list of floats
+         *     carries none. Historical vectors from this path were produced by a
+         *     `numpy.random.rand(512)` placeholder, so a gallery built here was
+         *     noise wearing real-looking numbers (ledger row 1.3b).
          *
-         *     Args:
-         *         person_id: ID of the person
-         *         data: Embedding data with 512-dim vector
-         *         session: Database session
+         *     The sanctioned enrollment paths compute server-side and store the
+         *     model id with the vector:
+         *
+         *     - ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)
+         *     - ``POST /known-persons/bulk-enroll`` (uploaded image)
          *
          *     Returns:
-         *         Created FaceEmbeddingResponse
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 404 if person not found
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the image-based endpoints.
          */
         post: operations["face-recognition_add_face_embedding"];
         delete?: never;
@@ -55007,6 +55013,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FaceEmbeddingResponse"];
                 };
+            };
+            /** @description Always returned: POSTing a client-computed embedding vector is retired (F11 ruling 2). Enroll via /known-persons/{person_id}/enroll-from-detection or /known-persons/bulk-enroll instead. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

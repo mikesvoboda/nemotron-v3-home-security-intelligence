@@ -1401,6 +1401,24 @@ def _apply_schema_to_database(db_url: str) -> None:
                     "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
                 )
             )
+            # F11 ruling 2: vector provenance. create_all adds the column to
+            # NEW databases, but a test DB whose face tables predate the
+            # column needs the explicit ALTER (same recipe as production's
+            # docs/api/migrations recipe) — and the NOT NULL + sentinel
+            # DEFAULT must match the model exactly, or a row written without
+            # the column would land unflagged instead of flagged.
+            conn.execute(
+                text(
+                    "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                )
+            )
 
             # Create unique indexes for cameras table
             conn.execute(
@@ -1542,6 +1560,22 @@ async def _reset_db_schema() -> None:
             await conn.execute(
                 text(
                     "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
+                )
+            )
+
+            # F11 ruling 2: vector provenance on the face tables — see the
+            # sync twin in _apply_schema_to_database for why the DEFAULT must
+            # match the model's sentinel exactly.
+            await conn.execute(
+                text(
+                    "ALTER TABLE face_embeddings ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
                 )
             )
 

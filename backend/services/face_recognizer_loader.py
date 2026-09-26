@@ -47,6 +47,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# The provenance vocabulary is a dependency-free leaf in backend/core (the
+# ORM needs the same constant and may not import a service; see
+# backend/core/face_provenance.py). Re-exported here because the leg is
+# where honest ids are minted.
+from backend.core.face_provenance import LEGACY_MODEL_ID  # noqa: F401 (re-export)
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -449,3 +454,123 @@ def alignment_transform_from_to(src: Any, dst: Any) -> _Similarity:
     target = dst.reshape(-1)
     (a, b, tx, ty), *_ = np.linalg.lstsq(design, target, rcond=None)
     return _Similarity(a=a, b=b, tx=tx, ty=ty)
+
+
+# ---------------------------------------------------------------------------
+# The leg as one call, for the paths that ENROLL vectors (F11 ruling 2)
+# ---------------------------------------------------------------------------
+
+
+def get_face_leg_handles() -> tuple[dict[str, Any], dict[str, Any]] | None:
+    """The two loaded face-leg handles (detector, recognizer), or None when
+    the leg cannot run.
+
+    The private-dict read is the shipped resident-model pattern (what
+    enrichment uses for `stgcn-plus-plus`); the rows are resident
+    (`enabled: true`), so this is a membership read, never a load trigger.
+    A deploy without the two ONNX files has no entries (their load raised
+    at boot and the manager kept going) — F12's degradation path, deploy-
+    side, never a batch failure.
+
+    The import is lazy because `model_zoo` imports this module: a module-
+    level import would be a cycle. Lives here (not in the specialist stage)
+    because BOTH consumers of the leg — the specialist stage and server-side
+    enrollment — must read the same handles and therefore report the same
+    ``model_id``; two lookups that can drift is exactly the bug class the
+    one-embedding-space rule exists to prevent.
+    """
+    from backend.services.model_zoo import get_model_manager
+
+    loaded = get_model_manager()._loaded_models
+    det = loaded.get(_DETRACTOR_NAME)
+    rec = loaded.get(_RECOGNIZER_NAME)
+    if det is None or rec is None:
+        return None
+    return det, rec
+
+
+_DETRACTOR_NAME = "face-detector-scrfd"
+_RECOGNIZER_NAME = "face-recognizer"
+
+
+def passes_quality_gate(*, face_px: float, score: float, min_px: int, min_score: float) -> bool:
+    """The F11 ruling 3 gate: minimum face size AND minimum SCRFD score,
+    both edges inclusive (a 40-px face at 0.6 passes — the point is that
+    config moves the floor, never that the floor is argued here).
+
+    Pure: takes values, never reads Settings. Lives with the leg because
+    BOTH consumers are the leg's — the specialist stage refuses to call a
+    gate-failing crop "unknown", and server-side enrollment refuses to
+    enroll one (an enrollment below the gate is a gallery row that can
+    never honestly match). One function is what stops the two halves from
+    drifting into two spaces' worth of opinions.
+    """
+    return face_px >= min_px and score >= min_score
+
+
+def enrollment_quality(face_px: float, score: float, *, min_px: int) -> float:
+    """Enrollment quality from the SAME two inputs the specialist's gate
+    uses (crop size + SCRFD score) — replacing the old bbox-area heuristic,
+    which "scored" a face the detector did not even find.
+
+    Deliberately a plain, documented map rather than a face-quality model:
+    CR-FIQA is the ledgered later item (F12), and until it lands the honest
+    statement is "this is size and detector confidence, the gate's own
+    terms". Anchored so the endpoint's bands stay reachable: a crop at
+    4x ``min_px`` with a confident detection saturates at 0.95, a crop at
+    the gate floor with a threshold-score detection lands mid-band.
+    """
+    size_term = min(1.0, face_px / (4.0 * max(min_px, 1)))
+    return min(0.95, 0.5 * size_term + 0.5 * float(score))
+
+
+def extract_enrollment_vector(
+    image: Any,
+    *,
+    det_session: Any,
+    rec_session: Any,
+    model_id: str,
+    threshold: float,
+    min_px: int,
+    min_score: float,
+) -> tuple[list[float], float, str] | None:
+    """Detect -> take the best face -> align -> embed, in one call, for the
+    enrollment paths (an enrollment needs a vector AND its provenance AND a
+    quality score, so the three are computed together from one detection).
+
+    Returns ``(vector, quality, model_id)`` for the best face that clears
+    the score gate, or None when the image holds no such face (a real
+    observation — "enroll a picture with a visible face"). The vector is
+    the same computation the specialist stage runs on a probe, so an
+    enrolled vector and a probed vector share a space by construction
+    (F11 ruling 2's "same loader" clause). ``model_id`` is passed through
+    from the loaded handle rather than looked up again: the caller that
+    resolved the handles owns the provenance claim.
+
+    Runs the leg's own steps on the current thread — callers that care
+    about the event loop (the routes do) wrap it in ``run_in_executor``.
+    """
+    import numpy as np
+
+    faces = detect_faces(det_session, image, threshold=threshold)
+    if not faces:
+        return None
+    # Best = detector confidence first, area second: the enrollment wants
+    # the most trustworthy face in the frame, not merely the largest.
+    best = max(
+        faces, key=lambda f: (float(f.score), (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+    )
+    face_px = min(best.bbox[2] - best.bbox[0], best.bbox[3] - best.bbox[1])
+    if not passes_quality_gate(
+        face_px=face_px, score=float(best.score), min_px=min_px, min_score=min_score
+    ):
+        # Below the gate the crop cannot be trusted to identify anyone, so
+        # it is not offered for enrollment at all — the same rule that
+        # keeps "unknown" off gate-failing probes (F11 ruling 3).
+        return None
+    quality = enrollment_quality(face_px, best.score, min_px=min_px)
+    crop = align_face_crop(image, best.landmarks)
+    vector = extract_face_embedding(rec_session, crop)
+    if float(np.linalg.norm(np.asarray(vector, dtype=np.float32))) == 0.0:
+        return None
+    return vector, quality, model_id
