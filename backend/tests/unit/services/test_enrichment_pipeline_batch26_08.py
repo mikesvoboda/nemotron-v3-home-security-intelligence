@@ -223,6 +223,12 @@ def test_t08_no_detections_cascade_debug_and_empty_result(caplog):
     """ship 5596-5600: record_cascade_skipped + that exact debug line, then an empty result."""
     pip = pipeline()
     span = mock.MagicMock(name="add_span_event")
+    # The ctor emits its own INFO line and caplog's handler captures from the
+    # START of the test (at_level only tunes levels, it does not reset the
+    # buffer) — drop what predates the window. Under CI's seed this ctor INFO
+    # landed inside the assertion window and reddened these three tests
+    # (run 36252719350 shard 1); same defense as batch26_19.
+    caplog.clear()
     with (
         caplog.at_level(logging.DEBUG, logger="backend.services.enrichment_pipeline"),
         patch_global("add_span_event", span),
@@ -242,6 +248,7 @@ def test_t08_no_detections_cascade_debug_and_empty_result(caplog):
 def test_t08_confidence_cascade_debug_record_fields(caplog):
     """ship 5618-5626: lazy %-format pins BOTH the detection count and the threshold."""
     pip = pipeline()
+    caplog.clear()  # ctor INFO precedes the window (see the note above)
     with (
         caplog.at_level(logging.DEBUG, logger="backend.services.enrichment_pipeline"),
         patch_global("add_span_event", mock.MagicMock()),
@@ -884,6 +891,7 @@ def test_t08_tracking_info_log_message_is_pinned(caplog):
     stub = stub_result(errors=["vision_extraction failed: boom"])
     pip = pipeline()  # built before caplog opens: the ctor emits its own INFO line
     eb = mock.AsyncMock(return_value=stub)
+    caplog.clear()  # as above: at_level tunes levels, it does not reset the buffer
     with (
         caplog.at_level(logging.INFO, logger="backend.services.enrichment_pipeline"),
         metrics(),
