@@ -107,6 +107,39 @@ def pipe():
     return M.EnrichmentPipeline.__new__(M.EnrichmentPipeline)
 
 
+@pytest.fixture(autouse=True)
+def _pristine_pil_open():
+    """Undo ultralytics' Image.open monkeypatch for this module's failure pins.
+
+    MEASURED at the enrichment_pipeline re-bank stats phase (2026-09-26):
+    ``import ultralytics`` swaps ``PIL.Image.open`` for
+    ``ultralytics.utils.patches.image_open`` (import-time side effect,
+    utils/patches.py:90), which on the FIRST failing open lazily installs
+    HEIF support — offline that dies with ModuleNotFoundError('pi_heif')
+    where pristine PIL raises FileNotFoundError.  The repo tier runs serial
+    in ONE process there (mutmut's stats runner, -x), so an
+    ultralytics-importing test collected before this file leaves the patch
+    live and the shipped-message pins below see the wrong exception — which
+    aborted stats collection ("failed to collect stats. runner returned 1").
+    In CI/pi-heif-installed environments the wrapper is transparent; the
+    pristine contract is what these pins were probe-measured against, so
+    restoring it IS the shipped-behavior pin, not a bend.  The wrapper holds
+    the untouched callable as ``_image_open`` in its own module globals —
+    recovered from there, so this fixture never imports ultralytics itself.
+    """
+    opener = Image.open
+    if getattr(opener, "__module__", "").startswith("ultralytics"):
+        real = opener.__globals__.get("_image_open")
+        if real is not None:
+            Image.open = real
+            try:
+                yield
+            finally:
+                Image.open = opener
+            return
+    yield
+
+
 def mgr(raises=None, payload="PAY"):
     """model_manager stub (instance attribute -> binding-safe): records load(name)."""
     m = MagicMock(name="model_manager")
