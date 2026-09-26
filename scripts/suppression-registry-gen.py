@@ -70,8 +70,8 @@ HOST_JUSTIFIED: dict[str, str] = {
     # absent anywhere the data pipeline hasn't run. The downstream guards
     # (`is None`, `len(...) == 0`, `not results`, `not detections`) all
     # stand or fall on this file/DB content, so they share the verdict.
-    "backend/tests/conftest.py:2534": "scenarios.parquet is pipeline-generated data, not a repo file",
-    "backend/tests/conftest.py:2555": "same scenarios.parquet chain (fixture None)",
+    "backend/tests/conftest.py:2560": "scenarios.parquet is pipeline-generated data, not a repo file",
+    "backend/tests/conftest.py:2581": "same scenarios.parquet chain (fixture None)",
     # The G0.4 stock-frame corpus is owner-staged off-repo data on the GPU
     # mount (ledger F6/F5), present only where the fetcher has run - the same
     # data-chain class as scenarios.parquet, not a repo-file guard.
@@ -102,6 +102,13 @@ HOST_JUSTIFIED: dict[str, str] = {
     "backend/tests/gpu/test_detector_integration.py:450": "nvidia-smi TimeoutExpired — GPU host state",
     # Environment variable itself, read via a local alias the probe can't see.
     "backend/tests/test_db_isolation.py:66": 'url is os.environ.get("TEST_DATABASE_URL") — env-var guard',
+    # Campaign red-check kill-evidence logs: written to /tmp by the campaign
+    # runners (red_dead102b.sh / red_dead102c.sh) at red-check time. The guard
+    # is FileNotFoundError on an off-repo artifact — the same data-chain class
+    # as scenarios.parquet. Line numbers move when the battery is re-pinned;
+    # the census re-mints the id, this map carries the adjudication forward.
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1170": "red-check evidence log /tmp/wp-batch25/redcheck_dead102b.log is a campaign-runner artifact, not a repo file",
+    "backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1178": "red-check evidence log /tmp/wp-batch25/redcheck_dead102c.log is a campaign-runner artifact, not a repo file",
 }
 
 

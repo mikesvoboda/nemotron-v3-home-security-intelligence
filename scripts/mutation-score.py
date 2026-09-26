@@ -43,8 +43,10 @@ Tests: uv run pytest scripts/test_mutation_score.py -q
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import sys
+import tomllib
 from pathlib import Path
 
 REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
@@ -88,17 +90,44 @@ def classify(exit_code: int | None, status_map: dict[int, str]) -> str:
     return status_map.get(exit_code, "suspicious")
 
 
+def _mutmut_path_knobs(root: Path) -> tuple[list[str], list[str]]:
+    """[tool.mutmut] only_mutate / do_not_mutate from the root pyproject, as
+    mutmut reads them (configuration.py). fnmatch over the repo-relative path
+    string, same as mutmut's walk from cwd -- so the scorer and generation
+    cannot disagree about who is in the denominator."""
+    try:
+        cfg = tomllib.loads((root / "pyproject.toml").read_text())["tool"]["mutmut"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError):
+        return [], []
+    return list(cfg.get("only_mutate", [])), list(cfg.get("do_not_mutate", []))
+
+
+def _mutmut_excluded(rel: str, root: Path) -> bool:
+    """mutmut's should_mutate() mirrored: include (if only_mutate set) and
+    not-ignore. A module excluded here makes NO mutants, so it is not in the
+    denominator at all -- the gap list must not print a false 'run never
+    covered it' hole for a deliberate removal (denominator ruling
+    2026-09-25: deprecated nemotron modules ruled out of mutation)."""
+    only, dont = _mutmut_path_knobs(root)
+    if only and not any(fnmatch.fnmatch(rel, p) for p in only):
+        return True
+    return any(fnmatch.fnmatch(rel, p) for p in dont)
+
+
 def target_modules(root: Path) -> list[str]:
     """The WP4.3 denominator: every module under backend/services/ and
     backend/api/routes/, package __init__ files included -- mutmut mutates
     them (baseline run 2026-09-17: should_mutate() is True for them; 269
     generated files = 266 concrete + 3 init, and services/__init__.py alone
     is 703 lines of re-export logic). Excluding them here would print a gap
-    for a module the run actually covered."""
+    for a module the run actually covered. [tool.mutmut] do_not_mutate
+    modules ARE excluded: they make no mutants, so they are not a gap."""
     out = []
     for base in ("backend/services", "backend/api/routes"):
         for p in sorted((root / base).rglob("*.py")):
-            out.append(p.relative_to(root).as_posix())
+            rel = p.relative_to(root).as_posix()
+            if not _mutmut_excluded(rel, root):
+                out.append(rel)
     return sorted(out)
 
 
@@ -116,6 +145,10 @@ def _metas(root: Path) -> list[Path]:
         p
         for p in mutants.glob("backend/**/*.py.meta")
         if "tests" not in p.relative_to(mutants).parts
+        # a stale meta for a do_not_mutate module must not resurrect it into
+        # the badge (same ruling as target_modules: no mutants => not in the
+        # denominator, cache residue or not)
+        and not _mutmut_excluded(p.relative_to(mutants).as_posix()[: -len(".meta")], root)
     )
 
 
@@ -234,7 +267,7 @@ def append_history(path: Path, entry: dict, cap: int = HISTORY_MAX_RUNS) -> None
     try:
         data = json.loads(path.read_text())
         runs = data["runs"]
-    except OSError, KeyError, ValueError:
+    except (OSError, KeyError, ValueError):
         runs = []
     runs.append(entry)
     path.write_text(json.dumps({"schema_version": 1, "runs": runs[-cap:]}, indent=2) + "\n")

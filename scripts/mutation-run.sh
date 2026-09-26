@@ -65,6 +65,17 @@ fi
 # 493MB and copytree has no ignore.)
 mkdir -p mutants/frontend
 
+# Poison guard (re-bank #2/#3 incident, 2026-09-25): backend.core.config.get_settings
+# reads ./data/runtime.env relative to CWD, and mutmut runs pytest with cwd=mutants/.
+# In-tree test runs that exercise the settings-persistence endpoints can write
+# mutants/data/runtime.env (gitignored, so invisible to host-tree checks); a stale
+# copy injects overrides (e.g. BATCH_WINDOW_SECONDS=120) that turn 6 shipped-behavior
+# tests red under the trampoline. mutmut's coverage AND stats collections both run
+# pytest with -x (runners/harness.py), so the first red test aborts them: aborted
+# coverage collapses mutation to covered-lines-only (2 fns for enrichment_pipeline),
+# aborted stats dies with "runner returned 1". Never let it exist at run start.
+rm -f mutants/data/runtime.env
+
 if [ -n "$MODULE" ]; then
     # Mutant keys are <dotted.module.path>.<mangled-fn>: the pattern below
     # selects one module's mutants, and the trailing-dot match keeps

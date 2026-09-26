@@ -24,6 +24,12 @@ Example:
             print(f"Face at {face.bbox} with confidence {face.confidence}")
 """
 
+# PEP 563: annotations are strings, never evaluated against module globals.
+# Required because these modules annotate with TYPE_CHECKING-only types
+# (PILImage); on py3.14 without this, inspect.signature / create_autospec
+# raise NameError (see test_type_checking_annotation_resolvability.py).
+from __future__ import annotations
+
 import asyncio
 import time
 from dataclasses import dataclass

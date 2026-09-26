@@ -11147,3 +11147,284 @@ PR #6650 checks SETTLED at 8cd5083f: 0 failed; TPA, Dead Code Detection,
 CI Gate ×5 all pass (gh pr checks, one-time report). Merge awaits owner
 review. Floors untouched; no denominators changed; WP4.4 feed still
 frozen.
+
+## 2026-09-24 — FIRST ADMISSIBLE POST-CAMPAIGN SCORE: 59.182%, completed=TRUE (84 orphan metas root-caused and quarantined; the 84 were never in the denominator)
+
+Measured this session, command + artifact for every number.
+
+1. **The 84 "missing" mutants are cache orphans for deleted source.**
+   `ls backend/services/xclip_loader.py` → No such file; git shows both
+   modules moved out of the mutate-set by the mega-PR
+   `151ccc05 chore(prc): gateway-aftermath mega PR — xclip full removal`
+   (R100 → `archive/xclip-backend-chain/`, so a tracked rename, not an
+   edit). `mutants/backend/services/{xclip_loader,action_recognition_service}.py.meta`
+   survived with **84 keys, ALL `None`** (49 + 35, measured by walking every
+   meta whose source path no longer exists: 2 orphan metas, 84 keys,
+   checked=0). Mechanism: mutmut walks the MUTATE set via
+   `walk_mutatable_files()` (utils/file_utils.py:43 → `source_paths` =
+   backend/services + backend/api/routes per [tool.mutmut]), so deleted
+   sources are never dispatched; a positional filter naming them asserts
+   loudly (`__main__.py:815` — reproduced twice, logs
+   /tmp/recheck-84.log, /tmp/recheck-84b.log). mutmut 3.8's own meta-sweep
+   functions (`_remove_metas_for_removed_source_files`,
+   `_clean_orphaned_mutant_files`) are **defined but have no callers**
+   (grep over the installed package: only def sites + import, zero call
+   sites) — that is why the orphans persisted through two full rebuilds.
+2. **Disposition = cache quarantine, NOT a denominator change.** The
+   denominator (`scripts/mutation-score.py:91 target_modules()` = live
+   rglob over backend/services + backend/api/routes) already excludes both
+   files — they exist only in `archive/`, which is not under source_paths
+   (`should_mutate` measured on the live config). The metas are
+   gitignored (`git check-ignore` → `.gitignore:162 mutants/`), i.e. pure
+   local cache state. Moved (not deleted) to
+   `/tmp/orphan-cache-2026-09-24/` with sha256: xclip meta
+   `b05a57fc…bdcf`, ars meta `e4dfc043…2929be`, xclip mutant copy
+   `906e8887…bf99`, ars mutant copy `eefe6014…12b2`. No tracked file
+   touched; no test touched.
+3. **Honest rescore #2 (cache state as measured): 59.182%, completed=TRUE.**
+   Command: `uv run python scripts/mutation-score.py` (no mutmut run) →
+   killed 51,254 timeout 2,589 survived 37,131 no_tests 4 skipped 0
+   not_checked 0 torn 0 total 90,978 → score **59.182439710699285**;
+   progress.checked == progress.total == 90,978. Artifact
+   /tmp/score-post-orphan.json. History entry appended at --date 2026-09-24
+   (runs=2, last completed=True). This is the FIRST post-campaign score
+   admissible under the done-clause: completed=true AND
+   progress.checked ≈ total.
+4. **Delta vs the 06:45 measurement (90,990 / 59.177): −2 killed,
+   −10 survived, all 12 in `osnet_loader.py`** (per-module diff over the
+   two score JSONs; every other module byte-identical in counts). Cause
+   measured: the FAILED filtered recheck (11:44Z start, assert-exit 12:11Z,
+   /tmp/recheck-84b.log) started before asserting — `copy_also_copy_files`
+   copytree's `backend/` over `mutants/backend/` at run start, bumping
+   osnet's mutant-copy mtime (stat: source 09-21 23:24:18 vs mutant copy
+   09-24 07:44:11 ET = 11:44Z) and defeating the mtime shortcut, so osnet
+   was RE-GENERATED from current covered-line data: new meta holds 362 keys
+   where the re-bank's generation held 374. 12 decided verdicts (2 killed +
+   10 survived) were dropped by re-generation. Effect on score: +0.005pp
+   (denominator shrinks by 12, killed drops by 2). WHY only osnet's
+   re-derivation dropped 12 keys is NOT fully pinned — its source has no
+   git change since 2026-02-08 (3710a98c) and #6649 touched nothing there;
+   WATCH-ITEM: if a future generation pass silently shrinks any module's
+   key set, that is this same re-generation path. The 12 dropped verdicts
+   are unrecoverable without a re-run of those mutants (a mutmut recheck of
+   osnet_loader is queued as the next cache work so the key-set and its
+   verdicts are re-banked together and this line can be re-rowed).
+5. **The last 4 `no_tests` keys are TRUE zero-credit artifacts, verified
+   per mine (d), not map truncation.** Keys (raw meta scan, exit_code 33):
+   `event_service.xǁEventServiceǁget_event__mutmut_1`,
+   `fast_alpr_loader.x_load_fast_alpr__mutmut_1`,
+   `health_monitor_orchestrator.xǁHealthMonitorǁget_recent_events__mutmut_1`,
+   `polygon_zone_service.xǁPolygonZoneServiceǁget_all_zones__mutmut_1`.
+   Cross-check against the REBUILT map (`mutants/mutmut-stats.json`
+   tests_by_mangled_function_name, 2,886 functions): no entry for any of
+   the four mangled names; `load_fast_alpr` appears in NO map entry at all,
+   `get_recent_events`/`get_all_zones` appear ONLY under their same-named
+   twins in health_monitor.py / line_zone_service.py (7 and 2 tests).
+   Grep: `load_fast_alpr` is exercised only by
+   `backend/tests/integration/services/test_fast_alpr_loader.py` + one
+   enrichment test; `get_all_zones` only via integration suites; route
+   tests of `get_event` mock the DB layer and never call the service
+   method. All four mutants are def-line (covered-at-import) mutants —
+   `mutate_only_covered_lines` generates them from the def line's import
+   execution, but attribution has no calling unit test. Consequence:
+   correctly stamped no-test, scored as non-kills: 4 of 90,978 = 0.0044pp
+   ceiling drag. Disposition: keep and count as non-kills; the real fix is
+   unit coverage (WP4.5 territory), NOT relabeling.
+6. **Score is still BELOW the 65 tier gate** (milestone ladder: 65→72→80);
+   59.182 is the campaign floor we now stand ON, admissible and
+   banked. ≥80 needs ~19k net kills from 90,978 — batch work continues.
+
+No floors touched; no denominator change; WP4.4 feed still frozen;
+continue-on-error unchanged. Quarantine is reversible (files + sha256s
+above).
+
+## 2026-09-25 — DENOMINATOR RULING EXECUTED: nemotron family OUT of mutation scoring (265→262 modules); the batch-25 milestone is superseded; and the honest bad news — a config-invalidation wipe cost the whole verdict map hours earlier
+
+**Ruling (user, 2026-09-25):** "remove nemotron from the denominator." The
+nemotron model is being deprecated; spending campaign effort closing its
+survivors was interim value at best. Removal means mutation-denominator
+exclusion — the modules (`backend/services/nemotron_analyzer.py`,
+`nemotron_latency_optimizer.py`, `nemotron_streaming.py`) and their unit
+tests STAY in the repo until model retirement.
+
+**Mechanism (measured, not assumed):** `[tool.mutmut] do_not_mutate` globs
+(mutmut 3.8 `configuration.py::_should_ignore_for_mutation`, fnmatch on the
+repo-relative path). Measured with the installed package:
+`should_mutate()` → False for all three nemotron modules, True for
+neighbors (enrichment_pipeline, routes/alerts). `config_fingerprint()`
+deliberately hashes ONLY pytest-exec/test-selection/timeout/type-check
+groups — neither path knob — so the edit cannot invalidate stored verdicts
+(now double-confirmed mid-flight: the re-bank's fingerprints are stable
+across the ruff/vulture config edits that followed).
+
+**Scorer taught the same semantics** (`scripts/mutation-score.py`, TDD:
+RED first, `test_targets_honors_do_not_mutate_exclusion`, 14/14 green):
+`target_modules()` and `_metas()` mirror mutmut's include/ignore, so (a) the
+gap list prints no permanent false "run never covered it" hole, and (b) a
+stale cache meta cannot resurrect an excluded module into the badge.
+**Denominator measured before→after: 265 → 262 modules** (exactly the
+family). Cache artifacts (`mutants/…nemotron*.py{,.meta,.spans}`, 5,046
+generated keys) removed with backups
+(`/tmp/nemotron-denominator-removal-2026-09-25/`); their plain copies
+regenerate via `copy_src_dir` (unfiltered by design — the mutant tree keeps
+them importable for dependency-tracked test selection) but NO metas are
+made — verified live during the relaunched run's generate phase.
+
+**Batch-25 milestone SUPERSEDED:** the closeout (2,542 survivors fully
+dispositioned — killed 2,229 / equivalent 30 / true_gap 283) keeps its
+measurement value as a closed adjudication, but it no longer produces a
+milestone entry: its module left the denominator. The kill batteries (35
+files, 519 tests) are committed as plain regression coverage for the
+still-live module (`ceb5c8d1`, CI-clean: 518 passed + 1 skipped with the
+campaign dir hidden; gate config follows the batch-16b/21 precedent). The
+next milestone is the full re-bank crossing completed=true on the 262-module
+denominator.
+
+**INCIDENT (same 24h, recorded per the honesty contract):** mutmut 3.8
+`mutmut run` applies `apply_config_invalidation=True`; the merged PR #6629
+edited pyproject.toml after the last full run, changing the config
+fingerprint, which **cleared exit_code_by_key in EVERY meta** — the 90,978-
+key map (51,254k/37,131s/2,589t) is gone; only `hash_by_function_name` +
+duration estimates survive. Aggravating discovery fixed en route: orphan
+test copies in the gitignored `mutants/backend/tests/**` cache (files
+deleted in source by mega-PR #6649) made `pytest --collect-only` with cwd
+=mutants and `-x` abort the WHOLE run — six orphans deleted, collect clean
+(28,848 tests). Recovery = full re-bank (`MUTMAX=14 scripts/
+mutation-run.sh`, log `/tmp/wp-batch25/full-rebank-2.log`, ~140 keys/min,
+ETA ~10h; nemotron pre-excluded, its 313 kept survivor stamps moot).
+LESSON (memory-written): back up `mutants/*/*.py.meta` before ANY run.
+**The published 59.182% history entry is NOT retracted** — it stays a true
+measurement of the cache as it stood at b178d8df; the wipe cost future
+re-banking time, not admissibility.
+
+## 2026-09-25 — RE-BANK FAILURE FAMILY ROOT-CAUSED (measured reproduction) + CAMPAIGN #2 ADJUDICATION COMPLETE
+
+**ROOT CAUSE (one poison, three incidents).** The re-bank #2 truncated
+stats map (58,592 fake no_tests, badge read 17.07%) and re-bank #3 death
+("failed to collect stats. runner returned 1") share a single mechanism,
+found by faithful reproduction (`MUTANT_UNDER_TEST=stats`, cwd=mutants,
+mutmut's exact `-x -q -p no:randomly -p no:random-order` args):
+
+1. `backend/core/config.py:3286` `get_settings()` loads
+   `_env_file=(".env", HSI_RUNTIME_ENV_PATH or "./data/runtime.env")` —
+   CWD-relative. mutmut runs pytest with cwd=mutants/, and a per-mutant
+   check of the settings-persistence route (a mutant of
+   `_runtime_env_path` ignoring the test's monkeypatch) wrote
+   **`mutants/data/runtime.env`** (gitignored → invisible to host-tree
+   checks; found at 02:30 during re-bank #2, content
+   BATCH_WINDOW_SECONDS=120 + DETECTION_CONFIDENCE_THRESHOLD=0.75 +
+   NEW_KEY=new_value = merged prior runtime.env + endpoint writes).
+2. Under the trampoline the injected 120s window turns exactly **6**
+   shipped-behavior `check_batch_timeouts*` tests red ONLY in the
+   mutants tree (clean tree: green; window default 90,
+   config.py:931-935). Measured full-scope trampoline run: 17 red =
+   those 6 + 11 test_check_api_breaking_changes that need bare `python`
+   on PATH (present under `uv run`; absent in the diagnostic shell —
+   NOT poison).
+3. mutmut runs coverage collection AND stats collection with `-x`
+   (`mutmut/runners/harness.py:139-140`, shared `_pytest_args_regular_run`
+   for `collect_main_test_coverage`/`run_stats`). First red test aborts:
+   aborted coverage → covered-lines gating collapses mutation
+   (re-bank #3 generated enrichment_pipeline with **2** mutated
+   functions, prompts.py **0** — the meta `hash_by_function_name` proves
+   it; durations_by_key still held 4,831 keys, so old estimates survived
+   while new mutants collapsed) → next-run stats collection aborted
+   (re-bank #3 "runner returned 1") → re-bank #2's stats map truncated
+   mid-run → unmapped functions got main.py's exit-33 fake stamps.
+
+**FIX (commit 5d9a6479 + cache surgery).** Guard: `rm -f
+mutants/data/runtime.env` at run start in scripts/mutation-run.sh, plus
+a run-lifetime sweeper loop. Repair: metas restored whole from
+`/tmp/metas-backup-2026-09-25-0734.tgz` with the 58,592 fake 5/33 stamps
+nulled (86,658 keys: 14,130 killed / 651 timeout / 13,201 survived /
+58,676 null); collapsed mutant source copies deleted to force FULL
+re-generation while metas carry verdicts (mutmut merges verdicts by
+function-hash: unchanged fns keep stamps, hashed maps verified intact —
+enrichment_pipeline regenerated to 4,863 variants with its 1,416k/551t/
+2,864s preserved). Re-bank #4 relaunched 12:3xZ (log
+`/tmp/wp-batch25/full-rebank-4.log`, MUTMAX=14, poison-free). Affects
+verdicts only for keys whose deps include the 6 window tests — bounded
+by the healthy stats map post-run; those keys get re-measured before the
+rescore is published.
+
+**CAMPAIGN #2 enrichment_pipeline: 24/24 chunks adjudicated — zero
+undispositioned.** Central validation (keys↔verdicts↔part-file test
+names, measured this pass): 2,867 survivors = **2,811 killable + 56
+equivalent + 0 true_gap**, 0 problems, no cross-chunk duplicate keys.
+Chunk 12 closed the classmethod-descriptor hole (descriptor-safe
+`classmethod(variant)` re-wrap + `__mutmut_orig` GREEN controls). Next:
+lane red-check shards (tag ep0 — bankable kills need named failing tests
+under each exact mutant), integrate_ep.py, battery install,
+enrichment_pipeline re-bank, its own history+L+commit.
+
+**PUSHED:** branch `mutation-testing-s3` is on origin; successor PR
+#6679 opened → main (nemotron denominator ruling + batteries + root-cause
+guard; history append rides the completed=true re-bank, NOT yet — the
+PR body says so).
+
+## 2026-09-25 — RE-BANK #4 PUBLISHES: 60.01709066133931% completed=true on the 262-module denominator (re-measure over a changed denominator, NOT a milestone) — and the third member of the abort-under-`-x` family
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-25`, rc=0):**
+killed 50,226 + timeout 1,747 = 51,973 of **86,597** in-denominator keys
+→ **score 60.01709066133931%**, survived 34,620, no_tests 4, unchecked 0,
+torn 0, `completed=true` (progress gate scripts/mutation-score.py:249),
+222/262 modules with results. History run[2] appended (runs=3). This is a
+RE-MEASUREMENT baseline over the nemotron-changed denominator (262
+modules; prior published entry 59.182439710699285% measured the
+pre-wipe 90,978-key cache) — the 59.1824% entry stays true for what it
+measured; per the ruling, campaign milestones are judged strictly-greater
+against THIS baseline, and 60.02% sits below the first tier gate (65).
+
+**RE-MEASURE EVIDENCE.** Sources edited after re-bank #4's generation
+(analyzer_facade b5fc42a8, face_detector/ocr_service/plate_detector
+6d3bdd39, event_broadcaster/notification_filter/events a0105b63) were
+merged-by-hash re-checked by the repair run: 88 keys reset
+(event_broadcaster 34 / notification_filter 42 / osnet_loader 12; the
+four PEP-563 files changed only module-level `from __future__ import
+annotations` lines, so their function hashes held and verdicts correctly
+carried). Against the pre-repair bank: 4 keys survived→killed, 3
+killed→survived, 2 keys left with functions #6678 deleted. No backend
+source commit lands between the repair generation (22:2xZ) and this
+rescore — measured `git log --since 08:48 --until 22:26 --
+backend/services backend/api/routes` shows only pre-generation commits —
+so the published number is source-true.
+
+**THIRD SHAPE of the abort-under-`-x` family (root-caused + fixed,
+commit c27c64b9).** The 21:45Z step-[5] re-measure printed "Found 238 new
+tests, rerunning stats collection" → "failed to collect stats. runner
+returned 1" on loop, and generation STRIPPED live metas 86,646→9,991
+keys — the 21:44 backup-before-any-run saved every verdict. Cause: #6678
+put unit tests into mutmut's selection that path-read artifacts absent
+from the mutant home — `REPO_ROOT/data/synthetic/<category>`
+(test_eval_store), `.env.example` + `docker-compose.ghcr.yml`
+(test_a5500_precheck). Under cwd=mutants those read-misses go red ONLY
+there; mutmut's coverage AND stats passes run pytest with `-x`
+(runners/harness.py), so both aborted; with mutate_only_covered_lines,
+aborted coverage collapsed generation to covered-lines-only and metas
+were rewritten stripped. The stats map collapsed to 1,424 fns/112 mods —
+forensics: `_cleanup_stale_stats()` deletes map entries whose module has
+no fn-hash, and the save-before-abort persisted the stripline (collapsed
+map module-set == stats.json function_hashes module-set, 112/112 exact).
+Fix: `also_copy += data/, docker-compose.ghcr.yml, .env.example` (NOT in
+config_fingerprint — verdict-safe); metas restored from backup; collapsed
+stats.json retired → forced full baseline-refresh + full-stats rebuild.
+GATE BEFORE RELAUNCH (measured): 238/238 new tests green in the synced
+tree, full unit tier with mutmut's exact args green (28,958 passed /
+123 skipped / 8 xfailed, 9m29s). Repair run (MUTMAX=14
+scripts/mutation-run.sh, log /tmp/wp-batch25/repair-run-5.log):
+generation 262/3/0, map rebuilt HEALTHY 2,810 fns / 222 mods / 0
+zero-test, clean-tests + forced-fail passed, check 86,597/86,597.
+
+**ORPHAN META CLEANUP (pre-rescore, backup
+/tmp/orphan-metas-removed-20260926T000932Z):**
+action_recognition_service + xclip_loader metas held 84 all-None keys for
+modules whose SOURCE #6649 deleted (merged in from main). Generation can
+never produce or verify them; scorer counts all-None metas toward
+`not_checked` (each has checked>0 so the never-checked absorption does not
+apply) → completed=false forever. Same ruling family as the nemotron
+cache removal: cache residue of removed code is not the denominator.
+After removal: not_checked 0, completed=true.
+
+**NEXT:** campaign #2 enrichment_pipeline lane red-check shards (tag
+ep0, load-balanced 6 lanes, GO-EP0 now).
