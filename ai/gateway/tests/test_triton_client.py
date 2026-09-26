@@ -62,8 +62,6 @@ def _build_mock_grpc_module() -> MagicMock:
     mock_server_client.close = AsyncMock()
     mock_server_client.get_model_metadata = AsyncMock()
     mock_server_client.infer = AsyncMock()
-    mock_server_client.load_model = AsyncMock()
-    mock_server_client.unload_model = AsyncMock()
 
     mock_aio.InferenceServerClient = MagicMock(return_value=mock_server_client)
 
@@ -241,76 +239,6 @@ class TestReadinessChecks:
         underlying.is_model_ready = AsyncMock(side_effect=Exception("boom"))
         with _patch_triton_modules(mock_grpc_module):
             assert await client.is_model_ready("yolo26") is False
-
-
-# ---------------------------------------------------------------------------
-# load_model / unload_model (Phase 1.4 residency control)
-# ---------------------------------------------------------------------------
-
-
-class TestModelLifecycle:
-    """Tests for explicit-model-control load/unload.
-
-    Triton runs --model-control-mode=explicit after Phase 1.4, so on-demand
-    specialists exist only once a load call is made — the gRPC
-    RepositoryModelLoad/Unload RPCs are what the gateway's /models/preload
-    route drives.
-    """
-
-    async def test_load_model_calls_grpc_rpc(
-        self, client: TritonClient, mock_grpc_module: MagicMock
-    ) -> None:
-        """load_model awaits the underlying gRPC load_model with the name."""
-        underlying = mock_grpc_module.InferenceServerClient.return_value
-        with _patch_triton_modules(mock_grpc_module):
-            await client.load_model("pose")
-        underlying.load_model.assert_awaited_once_with(model_name="pose")
-
-    async def test_load_model_raises_on_failure(
-        self, client: TritonClient, mock_grpc_module: MagicMock
-    ) -> None:
-        """A failed load surfaces as TritonClientError (the caller decides)."""
-        underlying = mock_grpc_module.InferenceServerClient.return_value
-        underlying.load_model = AsyncMock(side_effect=Exception("OUT_OF_MEMORY"))
-        with (
-            _patch_triton_modules(mock_grpc_module),
-            pytest.raises(TritonClientError, match="Load failed for model pose"),
-        ):
-            await client.load_model("pose")
-
-    async def test_load_model_raises_on_timeout(self, mock_grpc_module: MagicMock) -> None:
-        """A hung load times out into TritonClientError, never hangs the caller."""
-
-        async def slow_load(*_args: object, **_kwargs: object) -> None:
-            await asyncio.sleep(100)
-
-        underlying = mock_grpc_module.InferenceServerClient.return_value
-        underlying.load_model = slow_load
-        short_client = TritonClient(url="localhost:8001", timeout=0.01)
-        with (
-            _patch_triton_modules(mock_grpc_module),
-            pytest.raises(TritonClientError, match="timed out"),
-        ):
-            await short_client.load_model("reid")
-
-    async def test_unload_model_calls_grpc_rpc(
-        self, client: TritonClient, mock_grpc_module: MagicMock
-    ) -> None:
-        underlying = mock_grpc_module.InferenceServerClient.return_value
-        with _patch_triton_modules(mock_grpc_module):
-            await client.unload_model("pose")
-        underlying.unload_model.assert_awaited_once_with(model_name="pose")
-
-    async def test_unload_model_raises_on_failure(
-        self, client: TritonClient, mock_grpc_module: MagicMock
-    ) -> None:
-        underlying = mock_grpc_module.InferenceServerClient.return_value
-        underlying.unload_model = AsyncMock(side_effect=Exception("still in use"))
-        with (
-            _patch_triton_modules(mock_grpc_module),
-            pytest.raises(TritonClientError, match="Unload failed for model pose"),
-        ):
-            await client.unload_model("pose")
 
 
 # ---------------------------------------------------------------------------
