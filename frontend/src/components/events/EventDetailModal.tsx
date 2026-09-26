@@ -61,6 +61,7 @@ import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import SnoozeButton from '../common/SnoozeButton';
+import VerdictBadge from '../common/VerdictBadge';
 import DetectionImage from '../detection/DetectionImage';
 import EntityDetailModal from '../entities/EntityDetailModal';
 import EnrollFaceModal from '../face-recognition/EnrollFaceModal';
@@ -71,6 +72,7 @@ import type { ThreatData } from './ThreatBoundingBox';
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
+import type { EventVerificationPayload } from '../../types/generated/websocket';
 import type {
   RiskEntity,
   RiskFactor,
@@ -92,8 +94,12 @@ export interface Event {
   timestamp: string;
   camera_id?: string;
   camera_name: string;
-  risk_score: number;
-  risk_label: string;
+  /** Null = no verdict/level yet (1.6, D11) - the modal shows Unverified. */
+  risk_score: number | null;
+  /** Display label; optional. */
+  risk_label?: string;
+  /** VLM verdict from the event's verification row (1.6, spec §4). */
+  verdict?: EventVerificationPayload['verdict'] | null;
   summary: string;
   reasoning?: string;
   image_url?: string;
@@ -516,8 +522,13 @@ export default function EventDetailModal({
   const threatData = convertToThreatData();
   const hasThreats = threatData.length > 0;
 
-  // Get risk level from score
-  const riskLevel = getRiskLevel(event.risk_score);
+  // Risk level, or null when the event has none to show (1.6, D11). The
+  // header then shows the verdict (or Unverified) instead of a RiskBadge,
+  // and the score readout says "Not analyzed" instead of "0 / 100".
+  const riskLevel = event.risk_score === null ? null : getRiskLevel(event.risk_score);
+  // RiskBadge's score prop is `number | undefined` (omits it from the
+  // aria-label when absent) - map the nullable event score once, here.
+  const riskScoreForBadge = event.risk_score ?? undefined;
 
   // Format confidence as percentage
   const formatConfidence = (confidence: number): string => {
@@ -597,12 +608,16 @@ export default function EventDetailModal({
                     {/* Snooze Status Badge (NEM-3640) */}
                     <SnoozeBadge snoozeUntil={event.snooze_until} size="md" showEndTime={true} />
                     <div data-testid="risk-score">
-                      <RiskBadge
-                        level={riskLevel}
-                        score={event.risk_score}
-                        showScore={true}
-                        size="lg"
-                      />
+                      {riskLevel !== null ? (
+                        <RiskBadge
+                          level={riskLevel}
+                          score={riskScoreForBadge}
+                          showScore={true}
+                          size="lg"
+                        />
+                      ) : (
+                        <VerdictBadge verdict={event.verdict ?? 'none'} size="md" />
+                      )}
                     </div>
                     <IconButton
                       icon={<X />}
@@ -873,17 +888,21 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* Risk Factors Breakdown (NEM-3671) */}
-                      <RiskFactorsBreakdown
-                        riskScore={event.risk_score}
-                        reasoning={event.reasoning}
-                        entities={event.entities}
-                        flags={event.flags}
-                        recommendedAction={event.recommended_action}
-                        confidenceFactors={event.confidence_factors}
-                        isReviewed={event.reviewed}
-                        className="mb-6"
-                      />
+                      {/* Risk Factors Breakdown (NEM-3671) - explains a
+                          score that exists; a NULL-score event (1.6) has no
+                          score to explain, so the section is absent, not 0 */}
+                      {event.risk_score !== null && (
+                        <RiskFactorsBreakdown
+                          riskScore={event.risk_score}
+                          reasoning={event.reasoning}
+                          entities={event.entities}
+                          flags={event.flags}
+                          recommendedAction={event.recommended_action}
+                          confidenceFactors={event.confidence_factors}
+                          isReviewed={event.reviewed}
+                          className="mb-6"
+                        />
+                      )}
 
                       {/* Risk Factors List (NEM-3603) */}
                       {event.risk_factors && event.risk_factors.length > 0 && (
@@ -1111,7 +1130,7 @@ export default function EventDetailModal({
                       {!isNaN(eventIdNumber) && (
                         <FeedbackPanel
                           eventId={eventIdNumber}
-                          currentRiskScore={event.risk_score}
+                          currentRiskScore={riskScoreForBadge}
                           className="mb-6"
                         />
                       )}
@@ -1132,7 +1151,11 @@ export default function EventDetailModal({
                           </div>
                           <div className="flex justify-between">
                             <dt className="text-gray-400">Risk Score</dt>
-                            <dd className="text-gray-300">{event.risk_score} / 100</dd>
+                            <dd className="text-gray-300">
+                              {event.risk_score === null
+                                ? 'Not analyzed'
+                                : `${event.risk_score} / 100`}
+                            </dd>
                           </div>
                           {(event.started_at || event.ended_at !== undefined) && (
                             <div className="flex justify-between">
