@@ -186,3 +186,25 @@ Next: Phase 1, tasks 1.1 → 1.7 per the new plan. Decisions owed unchanged: `S2
     6. **Still owner-gated:** `S2_MAX` and `S3_MIN`. The runs and raw metrics may proceed, but the 2.2 **report's** pass/fail verdicts wait for the owner's numbers. Also still owner-gated: 2.3 Brev spend, the M2 VLM pick, PRs and merges, and every other item on the standing stop-and-ask list (item 11).
     7. **Pin every bake-off run to a commit hash.** Phase 1 is still changing the prompt path; for example, 1.3b's prompt-hygiene work changes what `specialist_outputs` puts in front of the VLM. If a later Phase 1 commit changes the prompt, the `vlm_assess` payload or the specialist texts, rerun the affected candidates and say which runs were superseded.
     8. **Phase gates are unchanged.** M1 still closes Phase 1, and Phase 3 (go-live) still needs both M1 and M2.
+
+19. **F14 — the S2 and S3 bars are set: `S2_MAX` = 5%, `S3_MIN` = 90% (owner ruling 2026-09-25) [O].** Owner, verbatim: "use 5% and 90%, record them in the ledger." This answers the spec's `S2_MAX`/`S3_MIN` [?] markers (§1 S2/S3 rows) and the brief's stop-and-ask item "the S2 and S3 bars". Both were set **before any bake-off result exists**: the eval store's `runs` and `results` tables are empty. Written from the owner's host session, in the commit that adds this row.
+
+    Rulings:
+
+    1. **S2: at most 5%** of labeled-benign items at `risk_level` ≥ medium (score ≥ 30 under the default `SEVERITY_LOW_MAX` = 29).
+    2. **S3: at least 90%** of labeled incidents at or above their expected minimum level.
+    3. **Both bars are judged at one operating point.** Report each candidate's S2 and S3 from the same prompt, thresholds and build. Tuning one bar with one setting and the other with another doesn't count.
+    4. **Reporting rule:** give each bar's n, the point estimate, and a 95% Wilson interval. **Pass** means the point estimate meets the bar. Label it **marginal** when the interval straddles the bar. The spec's verdict mix (the `uncertain` rate) stays beside the bars.
+    5. **Not adopted:** the host session's optional "every critical incident ≥ medium" sub-bar. It would be an S# change (a spec revision), and the owner didn't take it up.
+
+    Why these numbers (the host session's reasoning, which the owner accepted):
+
+    - **S2 = 5% is about the tightest bar the eval set can resolve.** There are 139 benign items, so one item is 0.72 percentage points. An observed 2% has a 95% interval of 0.7-5.9%, which can't be told apart from 5%. A stricter bar needs more benign items.
+    - **In daily terms**, 5% means about 1 false medium-or-higher event per day at 20 benign events/day, and 2.5 per day at 50. Actual notifications are fewer: a `rejected` verdict never notifies, and per-camera thresholds and quiet periods filter further.
+    - **S3 = 90% is resolvable:** on 274 incidents, the interval around 90% is 85.9-93.0%. It is deliberately demanding. "At or above expected" counts one band short as a miss, and G0's S-3 test saw Qwen3-VL-4B hedge `uncertain` with low scores. If no candidate reaches 90%, the lever is prompts and specialist context, not the bar.
+
+    Eval-store facts found while setting the bars (read-only query of `$AGENT_GPU_DIR/out/eval-store/eval.sqlite`, 2026-09-25) [V]:
+
+    - **Composition:** 421 items, **139 benign** (134 synthetic + 5 stock) and **282 incidents** (274 synthetic + 8 stock). Every benign item expects `low`. Incident expected minimum levels: 30 critical, 118 high, 126 medium, and **8 low**.
+    - **Only 13 of 421 items have media** (the stock items). The 408 synthetic items are born-labeled but still have **no images**; they wait on the owner's synthetic media generation (F9 ruling 2). **Consequence for F13 term 4:** until that media exists, 2.2's bake-off runs cannot measure S2 or S3. 5 benign and 8 incident items resolve nothing. 2.1 (the replay harness) can still be built and proven on the 13 stock items plus fakes. **Owner action:** generate the synthetic media for the 408 items.
+    - **8 incidents expect `low`,** so any score satisfies them and they inflate S3 for free. That is a label contradiction for an incident. **Owner decision pending:** relabel them or exclude them from S3. Until it's made, the 2.2 report gives S3 both with the 8 (n = 282) and without them (n = 274).
