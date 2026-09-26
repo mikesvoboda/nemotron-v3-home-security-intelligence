@@ -394,6 +394,25 @@ class TestBuildAssessContext:
         )
         assert len(request.image_paths) == 1
 
+    def test_specialist_outputs_flow_from_the_snapshot_not_a_side_door(self):
+        """Rev 6 plan: "the prompt builder takes the outputs FROM the
+        snapshot." The context is the ONE carrier end to end; the builder has
+        no side parameter and the request has no top-level duplicate (one
+        carrier, spec §2/§6)."""
+        rows = [make_detection_row(1)]
+        ctx = va.build_assess_context(
+            camera_id="c",
+            detections=rows,
+            specialist_outputs={"face": "1 unknown adult"},
+        )
+        assert ctx.specialist_outputs == {"face": "1 unknown adult"}
+        request = va.build_assess_request(context=ctx, detections=rows)
+        assert request.context.specialist_outputs == {"face": "1 unknown adult"}
+        assert "specialist_outputs" not in VlmAssessRequest.model_fields
+        # the side parameter is gone: passing one is a TypeError
+        with pytest.raises(TypeError):
+            va.build_assess_request(context=ctx, detections=rows, specialist_outputs={"face": "x"})
+
 
 # ---------------------------------------------------------------------------
 # The §6 invariant table, per row

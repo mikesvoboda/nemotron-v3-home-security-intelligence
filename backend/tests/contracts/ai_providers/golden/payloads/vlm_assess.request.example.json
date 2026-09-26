@@ -9,12 +9,12 @@
     "household": {
       "sample": "sample_value"
     },
+    "specialist_outputs": {
+      "sample": "sample_specialist_outputs_value"
+    },
     "timestamp": "2026-09-19T00:00:00Z",
     "zone_crossing": false,
     "zones": ["sample_zones"]
   },
-  "image_paths": ["ZmFrZS1pbWFnZQ=="],
-  "specialist_outputs": {
-    "sample": "sample_specialist_outputs_value"
-  }
+  "image_paths": ["ZmFrZS1pbWFnZQ=="]
 }

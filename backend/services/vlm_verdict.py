@@ -74,14 +74,17 @@ class VlmVerdict(BaseModel):
 
 class VlmAssessContext(BaseModel):
     """Wire mirror of the frozen `backend.evaluation.assess_input.AssessInput`
-    (camera, detections, zones, zone_crossing, household, timestamp) - same
-    field pattern as VlmCriterion/VerificationCriterion: mirror here, pin the
-    field-set compatibility in scripts/test_gen_ai_contract.py, and the
-    analyzer (1.3) converts store/DB snapshots into it, ONE code path for
-    production and replay (spec §2). Mirrored rather than imported so this
-    module's import closure stays pydantic-only for the generator. The corpus
-    freeze is unaffected: the store's class and 421 frozen items are
-    untouched."""
+    (camera, detections, zones, zone_crossing, household, timestamp,
+    specialist_outputs) - same field pattern as
+    VlmCriterion/VerificationCriterion: mirror here, pin the field-set
+    compatibility in scripts/test_gen_ai_contract.py, and the analyzer (1.3)
+    converts store/DB snapshots into it, ONE code path for production and
+    replay (spec §2). Mirrored rather than imported so this module's import
+    closure stays pydantic-only for the generator. The corpus freeze is
+    unaffected: the store's class and 421 frozen items are untouched (rev 6
+    reopened AssessInput for the one optional `specialist_outputs` field,
+    F11 ruling 4 — the mirror gains it by hand, and the field-set pins catch
+    any future fork)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -91,6 +94,7 @@ class VlmAssessContext(BaseModel):
     zone_crossing: bool = False
     household: dict = Field(default_factory=dict)
     timestamp: str
+    specialist_outputs: dict[str, str] = Field(default_factory=dict)
 
 
 class VlmAssessRequest(BaseModel):
@@ -98,12 +102,13 @@ class VlmAssessRequest(BaseModel):
     structured text context.
 
     `image_paths` (1-4, paths under the FTP root; each provider chooses a data
-    URI or file://, and D10 keeps bytes out of this object), `context` (the
-    AssessInput mirror above), and `specialist_outputs` (faces/plates/re-ID
-    from the specialists only - the VLM never originates them, spec §6)."""
+    URI or file://, and D10 keeps bytes out of this object) and `context` (the
+    AssessInput mirror above). The specialist texts (faces/plates/re-ID) ride
+    INSIDE the context - the snapshot is their one carrier, so production and
+    replay read them from the same place (rev 6, F11 ruling 4; the VLM never
+    originates them, spec §6)."""
 
     model_config = ConfigDict(extra="forbid")
 
     image_paths: list[str] = Field(min_length=1, max_length=4)
     context: VlmAssessContext
-    specialist_outputs: dict[str, str] = Field(default_factory=dict)

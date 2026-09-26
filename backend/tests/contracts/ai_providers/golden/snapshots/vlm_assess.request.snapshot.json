@@ -4,8 +4,7 @@
   "op": "vlm_assess",
   "properties": {
     "context": "ref(VlmAssessContext)",
-    "image_paths": "array<string>",
-    "specialist_outputs": "object"
+    "image_paths": "array<string>"
   },
   "required": ["context", "image_paths"],
   "side": "request"

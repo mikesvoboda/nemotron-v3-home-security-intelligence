@@ -351,7 +351,8 @@ class VlmClient:
         analyzer stores it verbatim as Event.llm_prompt (spec §4 event
         detail: images referenced by path, never embedded)."""
         ctx = request.context
-        specialist = json.dumps(request.specialist_outputs, ensure_ascii=False)
+        # Rev 6: outputs ride the snapshot (context) — the one carrier.
+        specialist = json.dumps(ctx.specialist_outputs, ensure_ascii=False)
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "

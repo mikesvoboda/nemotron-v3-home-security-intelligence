@@ -98,6 +98,7 @@ def build_assess_context(
     zones: list[str] | None = None,
     household: dict[str, Any] | None = None,
     zone_crossing: bool = False,
+    specialist_outputs: dict[str, str] | None = None,
 ) -> VlmAssessContext:
     """Field-for-field AssessInput (spec §5 / G0.4 - the shape pin lives in
     scripts/test_gen_ai_contract.py; this function is that pin's runtime
@@ -139,6 +140,10 @@ def build_assess_context(
         zone_crossing=zone_crossing,
         household=dict(household or {}),
         timestamp=timestamp,
+        # Rev 6 (F11 ruling 4): the snapshot is the ONE carrier of the
+        # specialist texts — production fills them, replay loads them from
+        # the store, and the request copies them out of the context below.
+        specialist_outputs=dict(specialist_outputs or {}),
     )
 
 
@@ -166,11 +171,11 @@ def build_assess_request(
     *,
     context: VlmAssessContext,
     detections: list[dict[str, Any]],
-    specialist_outputs: dict[str, str] | None = None,
 ) -> VlmAssessRequest:
     """The VlmAssessRequest: context plus 1-4 key frames (the selector's
     pick over FrameRefs built from the same dicts - paths only, never
-    bytes; spec §6 privacy)."""
+    bytes; spec §6 privacy). The specialist texts already live inside the
+    context — the request adds only the image selection (rev 6)."""
     frames = []
     for row in detections:
         det = row.get("detected_at")
@@ -187,11 +192,7 @@ def build_assess_request(
             )
         )
     picks = select_key_frames(frames)
-    return VlmAssessRequest(
-        image_paths=[f.file_path for f in picks],
-        context=context,
-        specialist_outputs=dict(specialist_outputs or {}),
-    )
+    return VlmAssessRequest(image_paths=[f.file_path for f in picks], context=context)
 
 
 def _key_frame_ids(request: VlmAssessRequest, detections: list[dict[str, Any]]) -> list[int]:

@@ -134,13 +134,15 @@ class TestVlmAssessRequest:
         req = VlmAssessRequest.model_validate(
             {
                 "image_paths": ["/export/foscam/cam1/000001.jpg"],
-                "context": self._ctx(),
-                "specialist_outputs": {"faces": "0 faces"},
+                "context": {**self._ctx(), "specialist_outputs": {"faces": "0 faces"}},
             }
         )
         assert req.image_paths[0].endswith("000001.jpg")
         assert req.context.camera_id == "front_door"
-        assert req.specialist_outputs == {"faces": "0 faces"}
+        # Rev 6: the context (the AssessInput mirror) is the ONE carrier of
+        # the specialist texts - no top-level request duplicate.
+        assert req.context.specialist_outputs == {"faces": "0 faces"}
+        assert "specialist_outputs" not in VlmAssessRequest.model_fields
 
     @pytest.mark.parametrize("paths", [[], ["a", "b", "c", "d", "e"]])
     def test_image_paths_bounded_1_to_4(self, paths: list[str]) -> None:

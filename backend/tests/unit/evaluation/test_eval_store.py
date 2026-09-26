@@ -68,6 +68,62 @@ class TestAssessInput:
         )
 
 
+class TestSpecialistOutputsField:
+    """Rev 6 (F11 ruling 4): AssessInput reopens for EXACTLY one optional
+    field, specialist_outputs, and the 421 pre-rev-6 items must still load."""
+
+    def test_defaults_empty(self) -> None:
+        a = AssessInput(
+            camera_id="c",
+            detections=[],
+            zones=[],
+            zone_crossing=False,
+            household={},
+            timestamp="2026-09-24T00:00:00+00:00",
+        )
+        assert a.specialist_outputs == {}
+
+    def test_carries_short_texts(self) -> None:
+        a = AssessInput(
+            camera_id="c",
+            detections=[],
+            zones=[],
+            timestamp="t",
+            specialist_outputs={"face": "1 unknown adult", "plate": "ABC123, household"},
+        )
+        assert a.specialist_outputs["face"] == "1 unknown adult"
+
+    def test_pre_rev6_item_still_loads(self) -> None:
+        """The 421 frozen rows lack the key; model_validate_json over that
+        exact stored JSON must succeed with the field defaulted — this is the
+        ruling's load-pin, not a paraphrase of it."""
+        pre_rev6_json = json.dumps(
+            {
+                "camera_id": "cam-front-door",
+                "detections": [{"class": "person", "confidence": 0.9, "bbox": [1, 2, 3, 4]}],
+                "zones": ["front_yard"],
+                "zone_crossing": True,
+                "household": {"known_residents": 2, "has_pets": True},
+                "timestamp": "2026-09-24T12:00:00+00:00",
+            }
+        )
+        a = AssessInput.model_validate_json(pre_rev6_json)
+        assert a.specialist_outputs == {}
+        assert "specialist_outputs" not in json.loads(pre_rev6_json)
+
+    def test_extra_keys_still_forbidden(self) -> None:
+        """The reopen is exactly one field — nothing else crept in."""
+        with pytest.raises(Exception):
+            AssessInput(
+                camera_id="c",
+                detections=[],
+                zones=[],
+                timestamp="t",
+                specialist_outputs={},
+                something_else=1,  # type: ignore[call-arg]
+            )
+
+
 class TestEvalStore:
     def test_roundtrip_item(self, tmp_path) -> None:
         with EvalStore(tmp_path / "eval.sqlite") as s:
