@@ -56,6 +56,7 @@ from backend.core.metrics import record_model_restart, set_model_load_duration
 from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
+from backend.services.face_recognizer_loader import load_face_recognizer
 from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.fast_alpr_loader import load_fast_alpr
 from backend.services.florence_loader import load_florence_model
@@ -375,6 +376,9 @@ _LOADER_MAP: dict[str, Callable[[str], Awaitable[Any]]] = {
     # Embedding / Re-ID
     "siglip2-base-patch16-224": load_clip_model,
     "osnet-ain-x1-0": load_osnet_model,
+    # CPU onnxruntime; weights pending the license pick (models.yml row is
+    # enabled: false, so this binding is exercised only once the pick lands).
+    "face-recognizer": load_face_recognizer,
     # Pose
     "vitpose-small": load_vitpose_model,
     # Depth
