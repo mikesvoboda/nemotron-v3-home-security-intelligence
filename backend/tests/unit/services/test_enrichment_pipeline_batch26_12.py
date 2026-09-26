@@ -58,13 +58,20 @@ _UNEXP_PET = "Pet classification unexpected error for 7: boom [REDACTED]"
 
 
 # ---------------------------------------------------------------- clock ----
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="module")
 def scripted_clock():
-    """time.perf_counter() walks 1000.0, 1001.25, 1002.5 ... for the session.
+    """time.perf_counter() walks 1000.0, 1001.25, 1002.5 ... for this module.
 
-    Module scoped because ep_plugin exec's variants in a snapshot copy of the
-    module dict: a function-scoped monkeypatch could be bypassed by a variant
-    that captured the shipped module globals.
+    MEASURED 2026-09-26: scope="session" was a cross-module poisoner. Any
+    same-process run with a test from THIS module before a hypothesis
+    property test gave every later example exactly one 1.25s tick ->
+    DeadlineExceeded "Test took 1250.00ms, deadline 1000.00ms" (CI shard 4
+    run 36251321470: 94 failures, ALL on gw0, 52%->99%, onset right after
+    this module's last test; same signature killed the mutmut stats phase).
+    Module scope keeps the patch alive across every ep_plugin variant run of
+    this module's tests (variants exec inside these tests, so visibility is
+    the same — the patch is on the shared time module, not the module dict)
+    while restoring the real clock before the next module executes.
     """
     import time
 
