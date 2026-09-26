@@ -187,6 +187,12 @@ def _run_scene(caplog, clip_exc: BaseException | None = None):
     p = pipeline()
     clip = ClipStub(exc=clip_exc)
     getter = MagicMock(return_value=clip)
+    # The ctor logs an INFO line; an ambient-DEBUG-enabled logger (stale
+    # py3.13+ isEnabledFor cache from another file's direct `logger.level=`
+    # restore — see 2026-09-26 c19 CI flake + core/test_logging.py fix) lets
+    # it reach caplog BEFORE this window opens.  Pins below assert the exact
+    # record count of the CALL, so start the window from empty records.
+    caplog.clear()
     with (
         caplog.at_level(logging.DEBUG, logger=MODLOG),
         metrics(SCENE) as m,
@@ -252,6 +258,7 @@ def _run_threat(caplog, clip_exc: BaseException | None = None):
     p = pipeline()
     clip = ClipStub(exc=clip_exc)
     getter = MagicMock(return_value=clip)
+    caplog.clear()  # ctor-INFO vs ambient-DEBUG-cache: see _run_scene note
     with (
         caplog.at_level(logging.DEBUG, logger=MODLOG),
         metrics(THREAT) as m,
@@ -323,6 +330,7 @@ def _run_smoke(caplog, result, *, camera_id="cam-1", counts=None, load_exc=None)
     if counts is not None:
         p._smoke_consecutive_counts = dict(counts)
     detect = AsyncMock(return_value=result)
+    caplog.clear()  # ctor-INFO vs ambient-DEBUG-cache: see _run_scene note
     with caplog.at_level(logging.DEBUG, logger=MODLOG), metrics(SMOKE, mono=True) as m:
         with patch.dict(fn_globals(SMOKE), {"detect_smoke_fire": detect}):
             out = asyncio.run(live(SMOKE)(p, IMAGE, camera_id))
@@ -422,6 +430,7 @@ def _run_threats(caplog, *, exc: BaseException | None = None, remote=None):
     client = MagicMock()
     client.detect_threats = AsyncMock(side_effect=exc) if exc else AsyncMock(return_value=remote)
     p._get_enrichment_client = MagicMock(return_value=client)
+    caplog.clear()  # ctor-INFO vs ambient-DEBUG-cache: see _run_scene note
     with caplog.at_level(logging.DEBUG, logger=MODLOG), metrics(THREATS) as m:
         out = asyncio.run(live(THREATS)(p, IMAGE))
     return out, m, client, p

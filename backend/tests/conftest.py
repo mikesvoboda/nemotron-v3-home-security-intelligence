@@ -326,6 +326,30 @@ hypothesis_settings.register_profile(
 _hypothesis_profile = os.environ.get("HYPOTHESIS_PROFILE", "default")
 hypothesis_settings.load_profile(_hypothesis_profile)
 
+# Mutation-testing stats phase: relax the per-example deadline ONLY there.
+# MEASURED at the enrichment_pipeline re-bank (2026-09-26): mutmut's stats
+# collection runs the WHOLE unit tier serially in ONE process with -x
+# (mutmut runners/harness.py run_stats), with every mutated function
+# trampoline-instrumented for dependency tracking. Property tests that pass
+# standalone in <4s then blow the 1000ms default deadline on the first
+# example (deterministic under that world, DB-pruned repro confirmed;
+# e.g. test_hypothesis_service_properties::
+# test_detection_confidence_always_valid_range, 1250ms vs 1000ms), and -x
+# aborts stats -- "failed to collect stats. runner returned 1", the same
+# abort-under-x family as the runtime.env and pi_heif incidents.  The stats
+# phase assigns no mutant verdicts -- it maps tests to functions -- so a
+# wall-clock deadline there is pure harness noise; CI's own profile already
+# rules 5000ms the right budget for a slow runner. Mutant-EXECUTION runs
+# are untouched (MUTANT_UNDER_TEST is the mutant key, not "stats"), so a
+# mutant that slows a test down still trips the deadline and banks killed.
+if os.environ.get("MUTANT_UNDER_TEST") == "stats":
+    hypothesis_settings.register_profile(
+        "mutmut-stats",
+        parent=hypothesis_settings.get_profile(_hypothesis_profile),
+        deadline=5000,
+    )
+    hypothesis_settings.load_profile("mutmut-stats")
+
 
 # =============================================================================
 # Flaky Test Detection and Quarantine System
