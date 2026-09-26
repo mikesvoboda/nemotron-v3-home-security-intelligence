@@ -205,14 +205,16 @@ class TestSyntheticLoader:
 
     def test_loads_all_committed_label_sets(self) -> None:
         items = load_synthetic_items(REPO_ROOT / "data" / "synthetic")
-        assert len(items) == 408, "corpus moved out from under the loader"
+        # 408 G0 label sets + the 5 1.3b specialist-context cases
+        assert len(items) == 413, "corpus moved out from under the loader"
         assert all(i.source == "synthetic" for i in items)
         # category mapping: normal -> benign, suspicious/threats -> incident
         by_label = {i.expected_label for i in items}
         assert by_label == {"benign", "incident"}
-        # 134 normal + 132 suspicious + 142 threats label sets (some dirs in
-        # the corpus carry no expected_labels.json; the loader skips them)
-        assert sum(1 for i in items if i.expected_label == "benign") == 134
+        # 134+2 normal (the 1.3b benign pair members) + 132+3 suspicious + 142
+        # threats label sets (some dirs in the corpus carry no
+        # expected_labels.json; the loader skips them)
+        assert sum(1 for i in items if i.expected_label == "benign") == 136
 
     def test_label_set_becomes_valid_item(self) -> None:
         items = {i.item_id: i for i in load_synthetic_items(REPO_ROOT / "data" / "synthetic")}
@@ -276,6 +278,253 @@ class TestSyntheticLoader:
             for i in items:
                 s.put_item(i)
             assert s.get_item(items[0].item_id) == items[0]
+
+
+class TestSyntheticSpecialistContext:
+    """1.3b: verdict-changing synthetic cases. A label set may carry a
+    `specialist_context` block - the scenario's declared specialist GIVEN
+    (a known household face, a household plate, a tiny night face) - and the
+    loader renders it into the snapshot's `specialist_outputs` through the
+    SHIPPED classifier and text builders (never a literal string stored on
+    the label set), so the F12 rule the plan pins - a gate-FAILING crop is
+    `not identifiable`, never `unknown` - is proven through the same code the
+    live stage uses, not restated in test copy.
+
+    Texts are exactly what the VLM prompt carries in production
+    (vlm_specialists.face_text/plate_text/reid_text, prompt hygiene ruling
+    2026-09-26: one short model-facing line)."""
+
+    @staticmethod
+    def _write_set(tmp_path, name: str, labels: dict) -> Path:
+        d = tmp_path / "suspicious" / name
+        d.mkdir(parents=True)
+        (d / "expected_labels.json").write_text(json.dumps(labels))
+        return d
+
+    def test_pre_rev6_label_sets_still_load_with_empty_outputs(self) -> None:
+        """The 408 G0 label sets carry no specialist_context; every one of
+        them keeps the empty default (the pre-rev-6 round-trip rule - the
+        ONLY sets carrying specialist_context are the 1.3b cases, asserted
+        separately)."""
+        items = load_synthetic_items(REPO_ROOT / "data" / "synthetic")
+        one_thirdb = {
+            "resident_arrival_known_face",
+            "casing_unknown_face",
+            "night_approach_tiny_face",
+            "vehicle_parking_household_plate",
+            "vehicle_visit_unknown_plate",
+        }
+        pre_rev6 = [i for i in items if i.item_id.split(":")[2] not in one_thirdb]
+        assert len(pre_rev6) == 408
+        assert all(i.snapshot.specialist_outputs == {} for i in pre_rev6)
+        assert len(items) - len(pre_rev6) == 5
+
+    def test_known_face_renders_the_shipped_match_line(self, tmp_path) -> None:
+        self._write_set(
+            tmp_path,
+            "resident_casing_ambiguous",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "person", "min_confidence": 0.7, "count": 1}],
+                "risk": {"min_score": 35, "max_score": 60},
+                "specialist_context": {"faces": {"known_person": "Dad", "similarity": 0.72}},
+            },
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        assert item.snapshot.specialist_outputs["faces"] == "known person Dad (72% match)"
+        # "unknown" must not leak into a known-person scenario's line
+        assert "unknown" not in item.snapshot.specialist_outputs["faces"]
+
+    def test_tiny_night_face_is_not_identifiable_never_unknown(self, tmp_path) -> None:
+        """F12's pinned clause, through the SHIPPED classifier: the case
+        declares one gate-PASSING crop and one gate-FAILING crop; the face
+        line counts the passing one as unknown and names the failing one
+        not-identifiable - the ordering rule the classifier exists for."""
+        self._write_set(
+            tmp_path,
+            "night_casing_tiny_face",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "person", "min_confidence": 0.7, "count": 1}],
+                "scene": {"time_of_day": "night"},
+                "risk": {"min_score": 35, "max_score": 60},
+                "specialist_context": {"faces": {"unknown_count": 1, "tiny_count": 1}},
+            },
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        line = item.snapshot.specialist_outputs["faces"]
+        assert "1 unknown face(s)" in line  # the gate-PASSING crop
+        assert "1 face(s) not identifiable (too small or low quality)" in line
+
+    def test_tiny_face_alone_never_reads_unknown(self, tmp_path) -> None:
+        self._write_set(
+            tmp_path,
+            "night_casing_only_tiny",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "person", "min_confidence": 0.7, "count": 1}],
+                "risk": {"min_score": 35, "max_score": 60},
+                "specialist_context": {"faces": {"tiny_count": 1}},
+            },
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        assert item.snapshot.specialist_outputs["faces"] == (
+            "1 face(s) not identifiable (too small or low quality)"
+        )
+
+    def test_gate_config_moves_the_loader_like_the_stage(self, tmp_path, monkeypatch) -> None:
+        """The loader reads the SAME config knobs the live stage reads
+        (get_settings().face_min_size_px): the same one-crop spec reads
+        `unknown` under the shipped default floor and flips to
+        `not identifiable` under a raised floor - config moves the floor,
+        never the copy. House env+cache_clear idiom (unit/conftest)."""
+        from backend.core.config import get_settings
+
+        self._write_set(
+            tmp_path,
+            "small_face_high_floor",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "person"}],
+                "risk": {"min_score": 35, "max_score": 60},
+                # 120 px passes the shipped default floor (40) but fails 200
+                "specialist_context": {"faces": {"unknown_count": 1, "unknown_face_px": 120}},
+            },
+        )
+        (default_floor,) = load_synthetic_items(tmp_path)
+        assert default_floor.snapshot.specialist_outputs["faces"] == "1 unknown face(s)"
+
+        monkeypatch.setenv("FACE_MIN_SIZE_PX", "200")
+        get_settings.cache_clear()
+        try:
+            (raised_floor,) = load_synthetic_items(tmp_path)
+            assert raised_floor.snapshot.specialist_outputs["faces"] == (
+                "1 face(s) not identifiable (too small or low quality)"
+            )
+        finally:
+            monkeypatch.delenv("FACE_MIN_SIZE_PX", raising=False)
+            get_settings.cache_clear()
+
+    def test_plate_specs_render_the_shipped_grammar(self, tmp_path) -> None:
+        self._write_set(
+            tmp_path,
+            "vehicle_visit",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "vehicle", "min_confidence": 0.7, "count": 2}],
+                "risk": {"min_score": 35, "max_score": 60},
+                "specialist_context": {
+                    "plates": {
+                        "plates": [
+                            {"text": "ABC123", "household_member": "Dad's car"},
+                            {"text": "XYZ789"},
+                        ]
+                    }
+                },
+            },
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        assert item.snapshot.specialist_outputs["plates"] == (
+            "ABC123 - household vehicle (Dad's car); XYZ789 - not a household plate"
+        )
+
+    def test_absent_specialist_is_unavailable_never_silent(self, tmp_path) -> None:
+        """A declared block must cover every specialist: the plan's rule is
+        "a failing or ABSENT specialist records unavailable" - so declaring
+        only faces still lands plates/person_reid lines (the shipped
+        unavailable phrases), never an omitted or empty value that would
+        read to the VLM as "not reported". Absent the whole block, the
+        snapshot stays the pre-rev-6 empty dict."""
+        self._write_set(
+            tmp_path,
+            "faces_only",
+            {
+                "category": "suspicious",
+                "detections": [{"class": "person"}],
+                "risk": {"min_score": 35, "max_score": 60},
+                "specialist_context": {"faces": {"unknown_count": 1}},
+            },
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        outs = item.snapshot.specialist_outputs
+        assert set(outs) == {"faces", "plates", "person_reid"}
+        assert outs["faces"] == "1 unknown face(s)"
+        assert all(outs[k].startswith("unavailable") for k in ("plates", "person_reid"))
+        self._write_set(
+            tmp_path / "x",
+            "no_context",
+            {"category": "suspicious", "detections": [], "risk": {"min_score": 1, "max_score": 9}},
+        )
+        (legacy,) = load_synthetic_items(tmp_path / "x")
+        assert legacy.snapshot.specialist_outputs == {}
+
+    def test_malformed_spec_is_loud_and_unavailable_not_fabricated(self, tmp_path, caplog) -> None:
+        """An unrenderable faces spec degrades that ONE key to the unavailable
+        line and warns - the item still loads, like a malformed risk band
+        scoring unknown rather than crashing the corpus."""
+        self._write_set(
+            tmp_path,
+            "bad_spec",
+            {
+                "category": "suspicious",
+                "detections": [],
+                "risk": {"min_score": 1, "max_score": 9},
+                "specialist_context": {"faces": {"telepathy": True}},
+            },
+        )
+        with caplog.at_level("WARNING"):
+            (item,) = load_synthetic_items(tmp_path)
+        assert item.snapshot.specialist_outputs["faces"].startswith("unavailable")
+        assert "bad_spec" in caplog.text
+
+    def test_committed_verdict_changing_cases(self) -> None:
+        """The 1.3b corpus additions, pinned through the committed corpus
+        (not tmp fixtures): the two SCENES a human reads the same way flip
+        ONLY on the specialist line, so the Phase 2 bake-off can measure
+        whether the VLM uses it - and report whether S-3's `uncertain`
+        hedging changes when the context is present."""
+        items = {
+            i.item_id.split("::")[0]: i
+            for i in load_synthetic_items(REPO_ROOT / "data" / "synthetic")
+        }
+        face_pair = (
+            "synthetic:normal:resident_arrival_known_face",
+            "synthetic:suspicious:casing_unknown_face",
+        )
+        plate_pair = (
+            "synthetic:normal:vehicle_parking_household_plate",
+            "synthetic:suspicious:vehicle_visit_unknown_plate",
+        )
+        by_id = items
+
+        # Benign half of each pair carries the reassuring line; suspicious
+        # half carries the alarming one - through the SHIPPED builders.
+        assert by_id[face_pair[0]].expected_label == "benign"
+        assert by_id[face_pair[0]].snapshot.specialist_outputs["faces"] == (
+            "known person Dad (78% match)"
+        )
+        assert by_id[face_pair[1]].expected_label == "incident"
+        assert by_id[face_pair[1]].snapshot.specialist_outputs["faces"] == "1 unknown face(s)"
+        assert by_id[plate_pair[0]].snapshot.specialist_outputs["plates"] == (
+            "HOMETEST1 - household vehicle (Dad's car)"
+        )
+        assert by_id[plate_pair[1]].snapshot.specialist_outputs["plates"] == (
+            "UNKNOWN9 - not a household plate"
+        )
+
+        # F12's pinned clause, committed: the tiny/night case is
+        # not-identifiable and the word "unknown" never appears in its face line.
+        tiny = by_id["synthetic:suspicious:night_approach_tiny_face"]
+        assert tiny.snapshot.specialist_outputs["faces"] == (
+            "1 face(s) not identifiable (too small or low quality)"
+        )
+
+        # Every case declared a block, so every case covers all three keys -
+        # re-ID is the honest unavailable (its store stays cross-space).
+        for k in face_pair + plate_pair + ("synthetic:suspicious:night_approach_tiny_face",):
+            outs = by_id[k].snapshot.specialist_outputs
+            assert set(outs) == {"faces", "plates", "person_reid"}
+            assert outs["person_reid"].startswith("unavailable")
 
 
 class TestStockLoader:

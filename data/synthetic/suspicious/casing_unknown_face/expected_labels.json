@@ -1,0 +1,27 @@
+{
+  "source": "specialist-context-cases",
+  "category": "suspicious",
+  "video_id": "SC-SUSPICIOUS-UNKNOWN-FACE",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "evening"
+  },
+  "risk": {
+    "min_score": 35,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "specialist_context": {
+    "faces": {
+      "unknown_count": 1,
+      "unknown_face_px": 120
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "source": "specialist-context-cases",
+  "category": "suspicious",
+  "video_id": "SC-SUSPICIOUS-UNKNOWN-PLATE",
+  "detections": [
+    {
+      "class": "vehicle",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "night"
+  },
+  "risk": {
+    "min_score": 35,
+    "max_score": 70,
+    "level": "medium"
+  },
+  "specialist_context": {
+    "plates": {
+      "plates": [
+        {
+          "text": "UNKNOWN9"
+        }
+      ]
+    }
+  }
+}
