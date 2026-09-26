@@ -761,20 +761,20 @@ pytest_skip:
     expires: '2026-12-31'
     reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
-  - id: backend/tests/conftest.py:2530
+  - id: backend/tests/conftest.py:2554
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: pandas not installed (required for synthetic scenarios)
-  - id: backend/tests/conftest.py:2534
+  - id: backend/tests/conftest.py:2558
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py
     host_justification: scenarios.parquet is pipeline-generated data, not a repo file
-  - id: backend/tests/conftest.py:2555
+  - id: backend/tests/conftest.py:2579
     kind: environment
     owner: mikesvoboda
     tracking: null
