@@ -40,6 +40,17 @@ only — never bytes, never paths. Face detection uses the F12 CPU leg
 (SCRFD-10G-KPS + w600k_r50 via face_recognizer_loader), not yolo11-face:
 boxes-only cannot be ArcFace-aligned, so its crops quietly lose embedder
 accuracy. Blocking work runs off the event loop.
+
+Prompt hygiene (owner ruling 2026-09-26): these texts are PROMPT TEXT, not a
+diagnostics channel. A degraded specialist's line is one short model-facing
+phrase — "unavailable: …" with no model/library names, no dims, no paths, no
+exception text, no project vocabulary. The withheld reason is not lost, it
+just does not belong in front of the model: it goes to the log
+(``logger.*`` with exc_info) and to the ``hsi_specialist_unavailable_total``
+counter as a bounded CODE (weights_absent, package_absent, space_mismatch…),
+and the durable finding goes to the ledger. Every line is built through
+:func:`_unavailable_line`, which is where that boundary lives; the pins are in
+TestPromptHygiene.
 """
 
 from __future__ import annotations
@@ -62,6 +73,40 @@ logger = get_logger(__name__)
 #: The literal every degraded specialist line starts with. The VLM prompt and
 #: the tests both key on it; never widen its meaning to "unknown".
 UNAVAILABLE = "unavailable"
+
+#: What each degradation CODE reads like in front of the model. Codes are
+#: internal (and are what the metric label carries); the phrases are the
+#: only two shapes a degraded line ever takes. "re-enroll" is F11 ruling 2's
+#: own vocabulary — it tells the model the gallery is stale, which IS
+#: model-facing; the model ids behind it are not, and never appear.
+_UNAVAILABLE_PHRASES = {
+    "space_mismatch": f"{UNAVAILABLE} (re-enroll)",
+}
+_UNAVAILABLE_DEFAULT_PHRASE = f"{UNAVAILABLE}: specialist did not run"
+
+
+def _unavailable_line(specialist: str, code: str, *, detail: str | None = None) -> str:
+    """One degraded line, built in one place so the boundary is one place.
+
+    Prompt text is not a diagnostics channel (owner ruling 2026-09-26): the
+    line that reaches the VLM is short and model-facing. Nothing here
+    interpolates an exception message, a model id, a file path, a package
+    name or a dimension — those go to the log (callers log with exc_info /
+    the detail on their own path) and to the metric label (this function
+    increments the counter with the bounded ``code``).
+
+    ``detail`` is the human-readable WHY: logged, never rendered.
+    """
+    from backend.core.metrics import record_specialist_unavailable
+
+    record_specialist_unavailable(specialist, code)
+    if detail:
+        logger.warning(
+            "specialist unavailable",
+            extra={"specialist": specialist, "code": code, "detail": detail},
+        )
+    return _UNAVAILABLE_PHRASES.get(code, _UNAVAILABLE_DEFAULT_PHRASE)
+
 
 #: What the re-ID text says when the gallery and the probe live in different
 #: vector spaces. Deliberately not a number — see collect_reid_text.
@@ -95,14 +140,21 @@ class FaceOutcome:
 @dataclass(frozen=True, slots=True)
 class FaceUnavailable:
     """The specialist could not run (weights absent, hash pin missed, model
-    not loaded, inference failed). ``reason`` goes to the LOG; the text line
-    stays privacy-clean ("unavailable: <short reason>" with no paths).
+    not loaded, inference failed).
+
+    ``reason`` is the human-readable WHY and it goes to the LOG and the
+    metric label — never into the prompt line, which carries only the fixed
+    model-facing phrase (owner ruling 2026-09-26; see ``_unavailable_line``).
+    ``code`` is the bounded metric code (weights_absent, inference_failed,
+    gallery_unreadable, space_mismatch, …) so the counter's label cardinality
+    stays finite even though ``reason`` is free text.
 
     ``kind`` completes the four-outcome vocabulary (F11 ruling 3):
     unavailable is A CLASS, never a score — an outcome of this type can't
     carry a similarity at all."""
 
     reason: str
+    code: str = "unavailable"
     kind: Literal["unavailable"] = "unavailable"
 
 
@@ -162,11 +214,13 @@ def face_text(outcomes: Sequence[FaceOutcome | FaceUnavailable]) -> str:
 
     Zero faces is a REAL observation ("0 faces detected"), distinct from
     unavailable. Any unavailable entry degrades the whole line — a partial
-    census (3 of 5 frames) must never read like a complete one.
+    census (3 of 5 frames) must never read like a complete one. The entry's
+    ``reason`` is the log/metric payload; the LINE stays the fixed short
+    phrase (``_unavailable_line``, owner ruling 2026-09-26).
     """
-    if any(isinstance(o, FaceUnavailable) for o in outcomes):
-        reason = next(o.reason for o in outcomes if isinstance(o, FaceUnavailable))  # type: ignore[union-attr]
-        return f"{UNAVAILABLE}: face specialist did not run ({reason})"
+    unavail = next((o for o in outcomes if isinstance(o, FaceUnavailable)), None)
+    if unavail is not None:
+        return _unavailable_line("faces", unavail.code, detail=unavail.reason)
     if not outcomes:
         return "0 faces detected"
 
@@ -189,7 +243,7 @@ def plate_text(results: Sequence[Any], matches: Sequence[Any]) -> str:
     plate``. The plate string itself is privacy-safe (it's already on the
     vehicle) — the household NAME is what the VLM needs to flip a verdict."""
     if any(isinstance(r, str) and r == UNAVAILABLE for r in results):
-        return f"{UNAVAILABLE}: plate specialist did not run"
+        return _unavailable_line("plates", "leg_failed")
     if not results:
         return "0 license plates detected"
     by_text = {getattr(m, "text", None): m for m in matches}
@@ -217,13 +271,22 @@ def reid_text(matches: Sequence[Any] | None, unavailable_reason: str | None) -> 
     `reid` model is OSNet-512. Neither cosine is meaningful; numpy would
     raise ValueError on the dot product before the result mattered. Until
     the ledgered follow-up lands (re-enroll in one space, or swap the
-    incumbent for PersonViT/CLIP-ReID — rev 7 candidate), the line reports
-    the gap instead of a number.
+    incumbent for PersonViT/CLIP-ReID — rev 7 candidate), the line says only
+    that re-ID could not run. The engineering WHY — the sentence in
+    ``CROSS_SPACE_REASON`` — is true and worth keeping, but it is log/ledger
+    material, not prompt material (owner ruling 2026-09-26): a cosine is not
+    being withheld because of a opinion the model can act on, and the model
+    has no handle on "OSNet-512".
     """
     if unavailable_reason:
-        return f"{UNAVAILABLE}: re-ID specialist did not run ({unavailable_reason})"
+        return _unavailable_line("person_reid", "unavailable", detail=unavailable_reason)
     if matches is None:
-        return f"{UNAVAILABLE}: re-ID specialist did not run ({CROSS_SPACE_REASON})"
+        # Its own code, not the face leg's space_mismatch: the ACTION differs
+        # (the face mismatch says "re-enroll this person"; this one says the
+        # store itself must move to one space), and the model line is the
+        # plain default because "re-enroll" would be a hint the model cannot
+        # act on here.
+        return _unavailable_line("person_reid", "space_incomparable", detail=CROSS_SPACE_REASON)
     if not matches:
         return "no known-person re-ID matches"
     parts = []
@@ -287,7 +350,11 @@ async def _collect_face_texts(
                 if not paths
                 else "face weights not loaded (absent files fail the hash "
                 "pin / CPU ONNX extras not installed — deploy-side, not a "
-                "verdict failure)"
+                "verdict failure)",
+                # Distinct codes: "the batch had nothing to look at" and "the
+                # leg is not deployed" read the same in the prompt but want
+                # different operator actions, so the counter keeps them apart.
+                code="no_frames" if not paths else "weights_absent",
             )
         ]
     det_handle, rec_handle = handles
@@ -315,7 +382,7 @@ async def _collect_face_texts(
                 ),
             )
         except frl.FaceRecognizerError as e:
-            outcomes.append(FaceUnavailable(f"face detection failed: {e}"))
+            outcomes.append(FaceUnavailable(f"face detection failed: {e}", code="detection_failed"))
             continue
 
         for face in faces:
@@ -328,7 +395,9 @@ async def _collect_face_texts(
                     None, frl.extract_face_embedding, rec_handle["session"], crop
                 )
             except frl.FaceRecognizerError as e:
-                outcomes.append(FaceUnavailable(f"face embedding failed: {e}"))
+                outcomes.append(
+                    FaceUnavailable(f"face embedding failed: {e}", code="embedding_failed")
+                )
                 continue
             probe_ids.add(str(rec_handle.get("model_id", "")))
 
@@ -340,7 +409,9 @@ async def _collect_face_texts(
                     match = await gallery(session, vector, settings.face_match_threshold)
                 except Exception as e:
                     # the LEG (honest), and never a stale/garbled score
-                    return [FaceUnavailable(f"gallery query failed: {e}")]
+                    return [
+                        FaceUnavailable(f"gallery query failed: {e}", code="gallery_query_failed")
+                    ]
             outcomes.append(
                 classify_face_outcome(
                     face_px=face_px,
@@ -354,7 +425,7 @@ async def _collect_face_texts(
     if not outcomes and not readable:
         # Nothing could be observed at all — that is "the specialist did not
         # run", NOT "0 faces" (which is a real observation the VLM may act on).
-        return [FaceUnavailable("no key frame readable")]
+        return [FaceUnavailable("no key frame readable", code="frames_unreadable")]
 
     if probe_ids:
         # F11 ruling 2's gallery half: probe ids vs stored ids must agree, or
@@ -362,13 +433,16 @@ async def _collect_face_texts(
         try:
             gallery_ids = await _gallery_model_ids(session)
         except Exception as e:
-            return [FaceUnavailable(f"gallery unreadable: {e}")]
+            return [FaceUnavailable(f"gallery unreadable: {e}", code="gallery_unreadable")]
         if gallery_ids and gallery_ids != probe_ids:
             return [
                 FaceUnavailable(
-                    "unavailable (re-enroll): gallery embeddings carry a "
-                    f"different face-model id {sorted(gallery_ids)} than the "
-                    f"loaded weights {sorted(probe_ids)}"
+                    # The ids stay HERE (the reason is the log/metric half) so
+                    # an operator can see WHICH space each side carries; the
+                    # prompt only gets "unavailable (re-enroll)".
+                    "gallery embeddings carry a different face-model id "
+                    f"{sorted(gallery_ids)} than the loaded weights {sorted(probe_ids)}",
+                    code="space_mismatch",
                 )
             ]
     return outcomes
@@ -421,9 +495,9 @@ async def collect_face_text(
             frame_paths, settings=settings, gallery=gallery, session=session
         )
         return face_text(outcomes)
-    except Exception as e:
+    except Exception:
         logger.warning("face specialist failed", exc_info=True)
-        return f"{UNAVAILABLE}: face specialist did not run ({e})"
+        return _unavailable_line("faces", "leg_failed")
 
 
 async def _default_gallery_match(
@@ -472,7 +546,11 @@ async def collect_plate_text(*, frame_paths: Sequence[Any]) -> str:
         return plate_text(results, matches)
     except Exception as e:
         logger.info("plate specialist unavailable", exc_info=True)
-        return f"{UNAVAILABLE}: plate specialist did not run ({e})"
+        # The exception text (often "No module named fast_alpr", i.e. the
+        # [plates] extra is not installed) is exactly the deploy-side detail
+        # an operator needs — and exactly what the model has no handle on, so
+        # it goes to the log and the counter label, not the prompt.
+        return _unavailable_line("plates", "leg_failed", detail=str(e))
 
 
 async def _match_plate_vehicles(plate_texts: Sequence[str]) -> list[Any]:
@@ -611,12 +689,19 @@ async def collect_specialist_outputs(
         return dict(zip(tasks.keys(), results, strict=True))
     except Exception:
         logger.warning("specialist stage failed as a whole", exc_info=True)
-        return dict.fromkeys(tasks, f"{UNAVAILABLE}: specialist stage error")
+        # Every leg gets its own line through the same funnel — so the counter
+        # counts N unavailables (one per leg that the model was told nothing
+        # about), which is the true tally the alert half wants.
+        return {name: _unavailable_line(name, "stage_error") for name in tasks}
 
 
 async def collect_threat_text(*, frame_paths: Sequence[Any]) -> str:  # noqa: ARG001
     """Rev 7 slot, not shipped: no backend consumer exists today (the Triton
     threat model is only reachable from the gateway side, and the F12 call
     is to keep it off). The function exists so the slot and its absence are
-    both explicit and testable — the key is simply not emitted by default."""
-    return f"{UNAVAILABLE}: threat detector not included (F12 call; see ledger)"
+    both explicit and testable — the key is simply not emitted by default.
+
+    When the slot IS wired, the model still only learns that threat scoring
+    didn't run: the provenance of that decision (F12, ledger) is operator
+    context, not a hint the VLM can act on."""
+    return _unavailable_line("threat", "not_included")

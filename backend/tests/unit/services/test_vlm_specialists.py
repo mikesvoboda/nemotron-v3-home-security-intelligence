@@ -408,8 +408,14 @@ class TestThreatExclusion:
         out = await vs.collect_specialist_outputs(
             key_frame_paths=[], settings=Settings(), session=None, run_threat=True
         )
+        # The prompt line says only that the leg did not run. WHY it didn't
+        # (the F12 call, the ledger row behind it) is operator context, not a
+        # hint the VLM can act on — so it must NOT appear here; the
+        # `not_included` counter label is what carries it.
         assert out["threat"].startswith(UNAVAILABLE)
-        assert "not included" in out["threat"]
+        _assert_prompt_line(out["threat"])
+        assert "f12" not in out["threat"].lower()
+        assert "ledger" not in out["threat"].lower()
 
 
 class TestNeverRaises:
@@ -428,3 +434,168 @@ class TestNeverRaises:
         )
         assert set(out) >= {"faces", "plates", "person_reid"}
         assert all(UNAVAILABLE in v.lower() and v.strip() for v in out.values())
+
+
+# ---------------------------------------------------------------------------
+# Prompt hygiene (owner ruling 2026-09-26): specialist_outputs is VLM PROMPT
+# text, not a diagnostics channel. An unavailable line tells the model that a
+# specialist did not run — nothing else. The WHY (which weights, which space,
+# which exception, which path) belongs to logs, metrics and the ledger.
+# ---------------------------------------------------------------------------
+
+#: Strings that must never reach the prompt: model/library names, wire or
+#: file identifiers, and project vocabulary the model cannot act on. The
+#: point of the list is the CLASS of leak, not a specific word — an
+#: exception message interpolated into a line brings paths and package
+#: names, and a "the store is CLIP-768 space, the probe is OSNet-512"
+#: sentence brings engineering context the model cannot act on.
+BANNED_IN_PROMPT = (
+    "clip",
+    "osnet",
+    "triton",
+    "onnx",
+    "scrfd",
+    "w600k",
+    "arcface",
+    "insightface",
+    "model_zoo",
+    "reid_service",
+    "vlm_specialists",
+    "personembedding",
+    "fast_alpr",
+    "fast-alpr",
+    "ledger",
+    "rev 7",
+    "follow-up",
+    "face-recognizer@",
+    "/",
+    "\\",
+    ".py",
+    "768",
+    "512",
+)
+
+#: One short line. The owner's example is "reid: unavailable" — a sentence
+#: with a causal clause is already too long for prompt text.
+MAX_PROMPT_LINE = 48
+
+
+def _assert_prompt_line(text: str) -> None:
+    """One short, model-facing line: no internal names, no paths, no prose."""
+    assert text.strip() == text, "a prompt line must not carry padding/newlines"
+    assert "\n" not in text
+    assert len(text) <= MAX_PROMPT_LINE, f"prompt line too long for the VLM: {text!r}"
+    low = text.lower()
+    leaked = [token for token in BANNED_IN_PROMPT if token in low]
+    assert not leaked, f"internal names leaked into prompt text {text!r}: {leaked}"
+
+
+class TestPromptHygiene:
+    """Every unavailable output is a single short line with no internal
+    names — and the reason it was withheld still reaches the log and a
+    metric, so dropping it from the prompt costs no operator visibility."""
+
+    async def test_face_weights_absent_is_a_clean_line(self, monkeypatch, face_frame) -> None:
+        """A resident-manager read with NOTHING loaded = the F12 deploy
+        without the two ONNX files: the leg cannot run."""
+        _wire_manager(monkeypatch, _FakeManager())  # empty _loaded_models
+        text = await vs.collect_face_text(
+            frame_paths=[face_frame], settings=Settings(), session=None
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+        _assert_prompt_line(text)
+
+    async def test_plate_leg_real_absent_extra_is_a_clean_line(self) -> None:
+        """The sandbox/CI truth, unprefaked: the [alpr] extra is not
+        installed, so the leg dies on the loader's error, whose message
+        names a package and a pip index hint. That message used to be
+        interpolated straight into the prompt line."""
+        text = await vs.collect_plate_text(frame_paths=[])
+        assert text.lower().startswith(UNAVAILABLE)
+        _assert_prompt_line(text)
+
+    async def test_reid_unavailable_is_a_clean_line(self) -> None:
+        text = await vs.collect_reid_text()
+        assert text.lower().startswith(UNAVAILABLE)
+        _assert_prompt_line(text)
+
+    async def test_threat_slot_is_a_clean_line(self) -> None:
+        text = await vs.collect_threat_text(frame_paths=[])
+        assert text.lower().startswith(UNAVAILABLE)
+        _assert_prompt_line(text)
+
+    async def test_stage_belt_line_is_clean(self, monkeypatch) -> None:
+        async def boom(**_kwargs):
+            raise RuntimeError("Traceback (most recent call last): /backend/services/x.py")
+
+        monkeypatch.setattr(vs, "collect_face_text", boom)
+        monkeypatch.setattr(vs, "collect_plate_text", boom)
+        monkeypatch.setattr(vs, "collect_reid_text", boom)
+        out = await vs.collect_specialist_outputs(
+            key_frame_paths=[], settings=Settings(), session=None
+        )
+        for value in out.values():
+            assert value.lower().startswith(UNAVAILABLE)
+            _assert_prompt_line(value)
+
+    async def test_reason_still_reaches_the_log(self, monkeypatch, face_frame) -> None:
+        """What the prompt loses, the operator keeps: the withheld reason is
+        logged, so a degraded specialist is still diagnosable."""
+        logged: list[tuple[str, dict]] = []
+
+        class _SpyLogger:
+            def warning(self, msg, **kw):
+                logged.append((msg, kw))
+
+            def info(self, msg, **kw):
+                logged.append((msg, kw))
+
+            def debug(self, msg, **kw):
+                logged.append((msg, kw))
+
+        monkeypatch.setattr(vs, "logger", _SpyLogger())
+        _wire_manager(monkeypatch, _FakeManager())
+        text = await vs.collect_face_text(
+            frame_paths=[face_frame], settings=Settings(), session=None
+        )
+        _assert_prompt_line(text)
+        assert logged, "the withheld reason must reach the log"
+        blob = " ".join([m for m, _ in logged] + [str(k) for _, k in logged]).lower()
+        assert "onnx" in blob or "weights" in blob or "install" in blob
+
+    async def test_unavailable_increments_a_metric(self, monkeypatch, face_frame) -> None:
+        """The other half of "put the reason in logs/metrics": a labelled
+        counter, so a persistent degradation alerts without log-reading."""
+        from backend.core.metrics import SPECIALIST_UNAVAILABLE_TOTAL
+
+        def value():
+            return SPECIALIST_UNAVAILABLE_TOTAL.labels(
+                specialist="faces", reason="weights_absent"
+            )._value.get()
+
+        before = value()
+        _wire_manager(monkeypatch, _FakeManager())
+        await vs.collect_face_text(frame_paths=[face_frame], settings=Settings(), session=None)
+        assert value() == before + 1
+
+    async def test_space_mismatch_keeps_the_ruling_phrase_without_ids(
+        self, monkeypatch, face_frame
+    ) -> None:
+        """F11 ruling 2's vocabulary ("unavailable (re-enroll)") survives —
+        it is model-facing — but the model IDS behind it do not."""
+        _wire_manager(monkeypatch, _FakeManager(det=_FakeDetector()))
+
+        async def other_ids(session):
+            return {"face-recognizer@w600k_r50@DEADBEEFdead"}
+
+        monkeypatch.setattr(vs, "_gallery_model_ids", other_ids)
+        text = await vs.collect_face_text(
+            frame_paths=[face_frame],
+            settings=Settings(),
+            gallery=await _fake_gallery(None),
+            session=object(),
+        )
+        assert "re-enroll" in text
+        assert "face-recognizer@" not in text
+        assert "DEADBEEF" not in text
+        _assert_prompt_line(text)
