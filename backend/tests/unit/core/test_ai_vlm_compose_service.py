@@ -142,6 +142,70 @@ class TestComposeServiceShape:
         assert any("http://localhost:8098/health" in part for part in test)
 
 
+class TestBackendClientWiring:
+    """M1 review finding (critical): the vlm mode shipped with the SERVER
+    half of the wire in compose and none of the CLIENT half. The backend
+    environment: block sets PIPELINE_MODE=vlm and NEMOTRON_URL but never
+    AI_VLM_URL, and no compose file declares env_file: (verified: zero
+    occurrences), so the backend process keeps Settings' dev default
+    http://localhost:8098 (config.py:1031) - which inside a non-host
+    network container is its OWN loopback, where nothing listens. Every
+    vlm_assess would get connection-refused -> VlmTransportError ->
+    every event verification_failed with a NULL score, while the breaker
+    reports a model outage that is a config gap.
+
+    Compose interpolation DOES read the project-directory .env (the whole
+    file relies on it - PODMAN_SOCKET:? has no default), so threading
+    ${VAR:-default} honors an operator's .env exactly like every other
+    var here, while the shipped default stops being the loopback trap.
+    """
+
+    @pytest.fixture(scope="class")
+    def backend_env(self, compose: dict) -> dict[str, str]:
+        raw = compose["services"]["backend"].get("environment", [])
+        assert isinstance(raw, list), "backend environment should stay list-form"
+        return dict(item.split("=", 1) for item in raw)
+
+    # every vlm-client Settings field the shipped vlm mode consumes at runtime
+    CLIENT_VARS: ClassVar = (
+        "AI_VLM_URL",
+        "AI_VLM_READ_TIMEOUT",
+        "AI_VLM_WAKE_TIMEOUT_SECONDS",
+        "VLM_ENFORCEMENT_PROBE_ENABLED",
+        "VLM_REQUIRED_BUILD",
+        "VLM_MODEL_ID",
+    )
+
+    @pytest.mark.parametrize("var", CLIENT_VARS)
+    def test_client_var_reaches_the_backend_container(self, backend_env: dict, var: str) -> None:
+        assert var in backend_env, (
+            f"{var} is documented in .env.example and read by Settings, but the "
+            "backend environment: block never passes it - inside the container "
+            "it silently keeps the code default (this is how 1.5's per-build "
+            "S-2 assertion silently no-oped, and how AI_VLM_URL kept localhost)"
+        )
+        assert backend_env[var].startswith(f"${{{var}:-"), (
+            f"{var} must be env-interpolated ${{{var}:-...}}, never a literal "
+            "(prod.yml house style), so an operator .env override lands"
+        )
+
+    def test_ai_vlm_url_default_is_the_service_dns_name(self, backend_env: dict) -> None:
+        url = backend_env.get("AI_VLM_URL", "")
+        assert url == "${AI_VLM_URL:-http://ai-vlm:8098}", (
+            "the compose fallback must be the compose-network service name; "
+            "config.py's localhost default is correct for NATIVE dev and wrong "
+            "inside a container that shares no network namespace with ai-vlm"
+        )
+
+    def test_required_build_default_stays_empty(self, backend_env: dict) -> None:
+        # threading is the fix; the DEFAULT is not the fix. Empty = "skip the
+        # build assertion" by design (config.py:1361), and compose cannot know
+        # which llama-server build the operator built locally - .env.example
+        # ships the pinned b7972 for the shipped image. The probe itself still
+        # runs regardless (VLM_ENFORCEMENT_PROBE_ENABLED defaults true).
+        assert backend_env["VLM_REQUIRED_BUILD"] == "${VLM_REQUIRED_BUILD:-}"
+
+
 class TestDockerfileFlagWiring:
     """§2 flags that are llama-server args (--sleep-idle-seconds, --alias)
     must be wired through the runtime CMD as guarded env - the file already

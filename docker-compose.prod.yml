@@ -582,6 +582,32 @@ services:
       # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
       - NEMOTRON_URL=http://ai-llm:8091
+      # ── vlm_assess client wire (Phase 1.5, M1 review fix) ──────────────────
+      # PIPELINE_MODE=vlm (above) makes the backend dial the profiled ai-vlm
+      # service, but the SERVER half of that wire was all compose carried: no
+      # client var reached the container, and no compose file declares
+      # env_file:, so Settings' dev default http://localhost:8098 won inside a
+      # container that shares no network namespace with ai-vlm — every call
+      # connection-refused, every event verification_failed with a NULL score,
+      # breaker reporting a model outage that was a config gap. Interpolated
+      # with the service DNS name as the fallback: an operator .env override
+      # lands (compose interpolation reads the project .env — the whole file
+      # relies on it) and the shipped default is no longer the loopback trap.
+      - AI_VLM_URL=${AI_VLM_URL:-http://ai-vlm:8098}
+      # per-attempt read budget for the §6 ladder, and the wake-on-open ping's
+      - AI_VLM_READ_TIMEOUT=${AI_VLM_READ_TIMEOUT:-25.0}
+      - AI_VLM_WAKE_TIMEOUT_SECONDS=${AI_VLM_WAKE_TIMEOUT_SECONDS:-90.0}
+      # S-2 per-build enforcement: the probe runs by default, and the build
+      # assertion only fires when the operator names the build. Empty default
+      # is deliberate — compose cannot know which llama-server build a local
+      # build produced; .env.example ships the pinned b7972 for the shipped
+      # image. Threading is what makes setting it in .env actually DO something.
+      - VLM_ENFORCEMENT_PROBE_ENABLED=${VLM_ENFORCEMENT_PROBE_ENABLED:-true}
+      - VLM_REQUIRED_BUILD=${VLM_REQUIRED_BUILD:-}
+      # degraded-path event_verifications.model_id label (a failed call has no
+      # verdict to read the engine's own id from); must track VLM_MODEL_PATH's
+      # identity, which the ai-vlm service above reads from the same .env.
+      - VLM_MODEL_ID=${VLM_MODEL_ID:-Qwen3VL-4B-Instruct-Q4_K_M}
       # LLM context budget — must mirror the ai-llm service above so the backend's
       # per-request token budget matches the slot it is actually served from.
       # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count
