@@ -11553,3 +11553,70 @@ gate 65 needs 57,277 k+t against 56,680 banked = **597 kills** — well
 inside the audited 2,701-killable campaign-#4 inventory (pipeline_workers
 959 + gpu_monitor 1,068 + detector_client 740 survivors, manifest-verified
 zero-undispositioned).
+
+## 2026-09-27 — REBASE onto origin/main (user request): `--onto a27b5ba8` surgical replay, zero conflicts; VLM Phase 1 lands — blast radius measured per campaign
+
+**TRIGGER**: user — "can we rebase our branch from origin/main?" main had advanced
+9260b7c5 (PR #6680 squash-merge) + 4bfd6fa4 (PR #6681 VLM Phase 1) past our
+merge-base f5b398f6.
+
+**KEY MEASUREMENT** (made before touching history): `git diff --stat 9260b7c5
+a27b5ba8` = EMPTY — main's squash of our branch is BYTE-IDENTICAL in tree to our
+old head a27b5ba8. A plain `git rebase origin/main` therefore replays 25
+already-squashed commits over their own squashed result (first attempt:
+instant conflicts in mutation-history.json + L; aborted). Correct replay set =
+`a27b5ba8..HEAD` = exactly 2 commits (202dc61d batch-27 batteries, 83632911
+MILESTONE 1). `git rebase --onto origin/main a27b5ba8 mutation-testing-s3` →
+**clean, zero conflicts**. New heads: 05b50f5a, **a5307982**. Backup ref
+`backup/pre-rebase-83632911` (local). Pushed `--force-with-lease` (PR #6680
+merged 2026-09-26T18:44:39Z per `gh pr view`; branch now carries successor work).
+
+**INTEGRITY CHECKS before push** (all measured): `git merge-base --is-ancestor
+origin/main HEAD` = YES; ahead count 2; history file 4 entries (ours last);
+pyproject.toml carries BOTH main's `face` extra (L198) and our batch-27 ruff
+scoping (L449); `git diff --stat origin/main HEAD` = exactly our 10 files.
+Lanes re-synced: lane-b28→05b50f5a, lane-gm→a5307982; untracked batteries
+survived (15/17 files); gpu_monitor.py md5 2f122c85… unchanged → in-flight
+replay proofs stay valid. New worktree /tmp/lane-dc (branch lane-dc @ a5307982)
+for campaign #6; detector_client.py md5 294c938a… matches workspace.
+
+**4bfd6fa4 BLAST RADIUS (measured per campaign module,
+`git diff 83632911 HEAD -- <module>.py | wc -l`)**: enrichment_pipeline.py
+**503 diff-lines (232+/161−)**; enrichment_client.py 0; gpu_monitor.py 0;
+detector_client.py 0; pipeline_workers.py 5 (import + analyzer default flip).
+(1) **pipeline_workers**: survivor bank hit = 1 key of 959
+(`AnalysisQueueWorker__init__ mutmut_8` — L799 `NemotronAnalyzer(...)` → L802
+`build_pipeline_analyzer(...)`, VLM 1.5 mode-built flip). `_14.py` m8 test
+re-pinned to NEW shipped behavior (builder kwargs + `worker._analyzer is
+builder.return_value`), 40/40 green. `_00`/`_00b` failed ONLY on stale log
+line-coordinates (+3 band): re-pinned by two subagents, every `where=` verified
+against the live statement, 103+~50 docstring citations machine-audited
+byte-identical, zero assertion edits — **\_00: 14/14, \_00b: 16/16 green**
+(multi-seed random order, ruff clean). `_02`'s 14 failures reproduce on OLD
+source → recovery-lane defect, NOT rebase damage.
+(2) **enrichment_pipeline**: despite the 393-line rewrite, ALL 1,407 installed
+tests (24 batch-26 batteries + base file) PASS on the new source (15.82s,
+`-p no:randomly -o addopts=`). The ep6 re-bank that completed at ~19:31Z ran
+against the OLD source — its survivor inventory is stale for new code paths;
+ep's 394-survivor disposition pass MUST be re-derived post-rebase (DECIDE:
+re-bank enrichment_pipeline after batch-28 installs, do not reuse the pre-VLM
+survivors.json for disposition).
+(3) **gpu_monitor / detector_client / enrichment_client**: byte-identical
+sources → all manifests, keys files, and splice reports remain valid.
+
+**INCIDENT (self-caught, disclosed)**: during a 99%-disk emergency I deleted
+/tmp/lane-sym-lane09 believing it orphaned; it was LIVE (owner argv
+`lane09_redcheck.py` didn't match my `pgrep -f lane-sym-lane09` guard) — the
+runner logged one FileNotFoundError and was restarted by its lane agent at
+~12:13Z; no verdicts lost (re-run owns the whole window). Janitor armed
+(pid 49495, PID-suffix + fuser double-guard) sweeps only dead-PID shadows.
+Disk 99%→78%: stale wp25-cov (3-day-old coverage shards, unique artifacts
+preserved to /tmp/wp-b28/preserved-batteries/wp25-cov-artifacts) + uv/pre-commit
+caches.
+
+**STATE AFTER**: tier-65 gap unchanged (597 kills). adv00 adversarial replay of
+the g00+g01 battery: **134 KILLED / 0 SURVIVED** (replay_rows.json 134 keys,
+`grep -cE "^g0[01] .*KILLED"` = 134).
+group_11 gpu prove retry: **31/31 killed** (replay_11c.json). Campaign #6
+detector_client fanout LAUNCHED (wf_7f0e33dd, 13 groups / 733 killable + 7 EQ,
+5-file wave structure + coherence audit).
