@@ -83,6 +83,7 @@ CLIENT_GLOBS = (
     "backend/services/clip_client.py",
     "backend/services/florence_client.py",
     "backend/services/enrichment_client.py",
+    "backend/services/vlm_client.py",
 )
 
 # The consumer classes themselves, NOT every class those modules define: the
@@ -93,7 +94,17 @@ CLIENT_GLOBS = (
 # scan. Drift on this set is caught by the map test itself: a renamed client
 # class drops its methods from CLIENT_METHODS... no - it stays in the map and
 # the scan finds nothing, which is why the test asserts BOTH directions.
-CLIENT_CLASSES = frozenset({"DetectorClient", "CLIPClient", "FlorenceClient", "EnrichmentClient"})
+CLIENT_CLASSES = frozenset(
+    {
+        "DetectorClient",
+        "CLIPClient",
+        "FlorenceClient",
+        "EnrichmentClient",
+        # 1.3: the VLM client enters the two-way census with the rest (its
+        # assess/close/wake are mapped generated-side, assess -> vlm_assess).
+        "VlmClient",
+    }
+)
 
 # WP7.3 carry-cost deletions. Each entry: a client method with ZERO non-test
 # call sites (verified by call-site census at deletion time, number in the

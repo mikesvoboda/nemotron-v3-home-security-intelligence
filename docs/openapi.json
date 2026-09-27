@@ -13649,7 +13649,7 @@
             }
           ],
           "query_detection_id": "det_001",
-          "threshold": 0.85,
+          "threshold": 0.7,
           "total_matches": 1
         },
         "properties": {
@@ -18199,7 +18199,7 @@
             "type": "boolean"
           },
           "reid_enabled": {
-            "description": "Enable CLIP re-identification for tracking entities across cameras",
+            "description": "Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
             "title": "Reid Enabled",
             "type": "boolean"
           },
@@ -18276,7 +18276,7 @@
                 "type": "null"
               }
             ],
-            "description": "Enable CLIP re-identification for tracking entities across cameras",
+            "description": "Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
             "title": "Reid Enabled"
           },
           "scene_change_enabled": {
@@ -25406,7 +25406,7 @@
       "MatcherConfigResponse": {
         "description": "Schema for household matcher configuration response.",
         "example": {
-          "similarity_threshold": 0.85,
+          "similarity_threshold": 0.7,
           "total_member_embeddings": 5,
           "total_registered_vehicles": 3
         },
@@ -29633,7 +29633,7 @@
             0.0,
             0.0
           ],
-          "similarity_threshold": 0.85
+          "similarity_threshold": 0.7
         },
         "properties": {
           "embedding": {
@@ -29656,7 +29656,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional custom similarity threshold (default: 0.85)",
+            "description": "Optional custom similarity threshold (default: 0.7)",
             "title": "Similarity Threshold"
           }
         },
@@ -37716,11 +37716,11 @@
           "entity_type": "person",
           "include_historical": true,
           "limit": 10,
-          "threshold": 0.85
+          "threshold": 0.7
         },
         "properties": {
           "embedding": {
-            "description": "Embedding vector to search for (typically 768-dimensional CLIP embedding)",
+            "description": "Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)",
             "items": {
               "type": "number"
             },
@@ -37762,8 +37762,8 @@
             "type": "integer"
           },
           "threshold": {
-            "default": 0.85,
-            "description": "Minimum cosine similarity threshold for matches (default: 0.85)",
+            "default": 0.7,
+            "description": "Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Threshold",
@@ -37797,7 +37797,7 @@
               "timestamp": "2025-12-23T10:00:00Z"
             }
           ],
-          "threshold": 0.85,
+          "threshold": 0.7,
           "total_matches": 1
         },
         "properties": {
@@ -40696,7 +40696,7 @@
         "example": {
           "color": "silver",
           "license_plate": "ABC123",
-          "similarity_threshold": 0.85,
+          "similarity_threshold": 0.7,
           "vehicle_type": "car"
         },
         "properties": {
@@ -40725,7 +40725,7 @@
                 "type": "null"
               }
             ],
-            "description": "Vehicle visual embedding vector (768-dim CLIP) for visual matching",
+            "description": "Vehicle visual embedding vector for visual matching. LEGACY: no shipped producer writes vehicle embedding bytes since the person re-ID full swap (ledger item 20) \u2014 vehicle matching runs on license_plate, and a vehicle re-ID model is a named follow-up.",
             "title": "Embedding"
           },
           "license_plate": {
@@ -40752,7 +40752,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional custom similarity threshold for visual matching (default: 0.85)",
+            "description": "Optional custom similarity threshold for visual matching (default: 0.7)",
             "title": "Similarity Threshold"
           },
           "vehicle_type": {
@@ -53489,7 +53489,7 @@
     },
     "/api/entities/matches/{detection_id}": {
       "get": {
-        "description": "Find entities matching a specific detection's embedding.\n\nSearches for entities similar to the specified detection's embedding\nacross all cameras. Used to show re-ID matches in the EventDetailModal.\n\nNOTE: This endpoint continues to use Redis for real-time similarity matching.\n\nArgs:\n    detection_id: Detection ID to find matches for\n    entity_type: Type of entity to search ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold (default 0.85)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityMatchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 404 if detection embedding not found, 503 if Redis unavailable",
+        "description": "Find entities matching a specific detection's embedding.\n\nSearches for entities similar to the specified detection's embedding\nacross all cameras. Used to show re-ID matches in the EventDetailModal.\n\nNOTE: This endpoint continues to use Redis for real-time similarity matching.\n\nArgs:\n    detection_id: Detection ID to find matches for\n    entity_type: Type of entity to search ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold (default\n        DEFAULT_SIMILARITY_THRESHOLD \u2014 0.7, the OSNet-space value,\n        full swap ledger item 20)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityMatchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 404 if detection embedding not found, 503 if Redis unavailable",
         "operationId": "entities_get_entity_matches",
         "parameters": [
           {
@@ -53518,7 +53518,7 @@
             "name": "threshold",
             "required": false,
             "schema": {
-              "default": 0.85,
+              "default": 0.7,
               "description": "Minimum similarity threshold for matches",
               "maximum": 1.0,
               "minimum": 0.0,
@@ -54213,7 +54213,7 @@
     },
     "/api/events": {
       "get": {
-        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
+        "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/\n        verification_failed, or 'none' for never-verified events). An\n        unrecognised value is a 422 from the Literal-typed param - never\n        an empty list, which would read as a false all-clear.\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
         "operationId": "events_list_events",
         "parameters": [
           {
@@ -54250,6 +54250,31 @@
               ],
               "description": "Filter by risk level (low, medium, high, critical)",
               "title": "Risk Level"
+            }
+          },
+          {
+            "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
+            "in": "query",
+            "name": "verdict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "confirmed",
+                    "rejected",
+                    "uncertain",
+                    "verification_failed",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear.",
+              "title": "Verdict"
             }
           },
           {
@@ -54945,7 +54970,7 @@
     },
     "/api/events/search": {
       "get": {
-        "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    verdict: Optional VLM verdict filter (or 'none' for never-verified events),\n        same vocabulary and 422-on-typo rule as GET /api/events?verdict\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "events_search_events_endpoint",
         "parameters": [
           {
@@ -55050,6 +55075,31 @@
               ],
               "description": "Alias for severity - filter by risk levels (comma-separated: low,medium,high,critical)",
               "title": "Risk Level"
+            }
+          },
+          {
+            "description": "Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict.",
+            "in": "query",
+            "name": "verdict",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "confirmed",
+                    "rejected",
+                    "uncertain",
+                    "verification_failed",
+                    "none"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict.",
+              "title": "Verdict"
             }
           },
           {
@@ -56297,7 +56347,8 @@
     },
     "/api/face-events/match": {
       "post": {
-        "description": "Match a face embedding against known persons.\n\nCompares the provided 512-dimensional embedding against all stored\nembeddings and returns the best match if above the threshold.\n\nArgs:\n    data: Match request with embedding and optional threshold\n    session: Database session\n\nReturns:\n    FaceMatchResponse with match results\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed face embedding vector (F11, M1 review F-F).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space. After the swap every ``face_embeddings`` row names the\nweights that computed it (``model_id``), and a posted list of floats\ncarries no such belt \u2014 scoring one would either cross embedding spaces\nor trust a client-claimed model id, which is no trust anchor. This is\nthe face twin of the retired ``POST /api/household-matcher/match-person``\n(D-1), retired here for the same reason and in the same shape.\n\nBefore the swap this endpoint answered with a real-looking similarity\ncomputed against whichever space the stored rows happened to live in \u2014\nthe exact failure F11 exists to prevent, reachable over the wire.\n\nThe sanctioned paths compute the vector server-side and store its\nprovenance beside it:\n\n- the enrichment pipeline's face leg (matches automatically)\n- ``POST /api/face-recognition/known-persons`` and\n  ``POST /api/face-recognition/known-persons/{id}/embeddings``\n  (enrollment: extraction runs server-side from the detection)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the server-side paths.",
         "operationId": "face-recognition_match_face",
         "requestBody": {
           "content": {
@@ -56319,6 +56370,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Always returned: POSTing a client-computed face embedding vector is retired (F11, face twin of the re-ID swap's D-1). A matching request rides the enrichment pipeline's face leg, which computes the vector server-side and knows its model_id."
           },
           "422": {
             "content": {
@@ -57204,7 +57258,8 @@
     },
     "/api/household-matcher/match-person": {
       "post": {
-        "description": "Match a person embedding against known household members.\n\nCompares the provided embedding against all stored person embeddings\nand returns the best match if it exceeds the similarity threshold.\n\nArgs:\n    request: PersonMatchRequest with embedding and optional threshold\n    db: Database session\n\nReturns:\n    HouseholdMatchResponse with match details if found\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed person embedding vector (D-1, F11).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space: after the full swap every ``person_embeddings`` row\nnames the weights that computed it (``model_id``), and a posted list\nof floats carries no such belt \u2014 comparing it would either score\nacross embedding spaces or force trusting a client-claimed model id,\nwhich is no trust anchor. This is the person twin of the retired\n``POST /face-recognition/known-persons/{id}/embeddings`` (F11 ruling 2).\n\nThe sanctioned paths compute the vector server-side and store the\nmodel id beside it:\n\n- the enrichment pipeline (``person_reid`` leg, matched automatically)\n- ``POST /api/household/members/{member_id}/embeddings`` (member\n  enrollment: extraction runs server-side from the event's detection)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the server-side paths.",
         "operationId": "household-matcher_match_person",
         "requestBody": {
           "content": {
@@ -57227,8 +57282,8 @@
             },
             "description": "Successful Response"
           },
-          "400": {
-            "description": "Invalid embedding format"
+          "410": {
+            "description": "Always returned: POSTing a client-computed person embedding vector is retired (F11, re-ID full swap D-1). A matching request rides the enrichment pipeline, which computes the vector server-side and carries its model_id."
           },
           "422": {
             "content": {
@@ -57239,9 +57294,6 @@
               }
             },
             "description": "Validation Error"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "summary": "Match Person",
@@ -57252,7 +57304,7 @@
     },
     "/api/household-matcher/match-vehicle": {
       "post": {
-        "description": "Match a vehicle against registered vehicles.\n\nMatching priority:\n1. License plate match (exact, case-insensitive) - returns similarity 1.0\n2. Visual embedding match (if plate doesn't match or isn't provided)\n\nArgs:\n    request: VehicleMatchRequest with plate and/or embedding\n    db: Database session\n\nReturns:\n    HouseholdMatchResponse with match details if found\n\nRaises:\n    HTTPException: 400 if neither plate nor embedding is provided",
+        "description": "Match a vehicle against registered vehicles.\n\nMatching priority:\n1. License plate match (exact, case-insensitive) - returns similarity 1.0\n2. Visual embedding match (if plate doesn't match or isn't provided).\n   LEGACY branch: no shipped producer writes vehicle embedding bytes since\n   the person re-ID full swap (ledger item 20, B5a \u2014 OSNet-AIN is a person\n   model), so in the shipped mode vehicle identity rides plate match and\n   this branch finds nothing to compare against. A vehicle re-ID model is\n   a named follow-up.\n\nArgs:\n    request: VehicleMatchRequest with plate and/or embedding\n    db: Database session\n\nReturns:\n    HouseholdMatchResponse with match details if found\n\nRaises:\n    HTTPException: 400 if neither plate nor embedding is provided",
         "operationId": "household-matcher_match_vehicle",
         "requestBody": {
           "content": {
@@ -57494,7 +57546,7 @@
     },
     "/api/household/members/{member_id}/embeddings": {
       "post": {
-        "description": "Add a person embedding from an event to a household member.\n\nThis endpoint extracts a person embedding from the event's detection image\nusing the ReIdentificationService (CLIP ViT-L) and stores it in the\nPersonEmbedding table for future person re-identification.\n\nThe endpoint finds the first person detection in the event, loads the\ndetection image, and generates a 768-dimensional CLIP embedding using\nthe detection's bounding box to focus on the person.\n\nArgs:\n    member_id: ID of the household member\n    request: Request containing event_id and confidence\n    session: Database session\n\nReturns:\n    Created PersonEmbedding object\n\nRaises:\n    HTTPException: 404 if member not found\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no person detection\n    HTTPException: 400 if detection image cannot be loaded\n    HTTPException: 500 if embedding generation fails",
+        "description": "Add a person embedding from an event to a household member.\n\nThis endpoint extracts a person embedding from the event's detection image\nusing the ReIdentificationService (resident OSNet-AIN x1.0 handle, full\nswap ledger item 20) and stores it in the PersonEmbedding table, beside\nthe model_id of the weights that computed it, for future person\nre-identification.\n\nThe endpoint finds the first person detection in the event, loads the\ndetection image, and generates a 512-dimensional OSNet embedding using\nthe detection's bounding box to focus on the person. When the pinned\nweights are not resident it answers 503 naming the cause \u2014 never a\nzero-vector stub.\n\nArgs:\n    member_id: ID of the household member\n    request: Request containing event_id and confidence\n    session: Database session\n\nReturns:\n    Created PersonEmbedding object\n\nRaises:\n    HTTPException: 404 if member not found\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no person detection\n    HTTPException: 400 if detection image cannot be loaded\n    HTTPException: 500 if embedding generation fails",
         "operationId": "household_add_embedding_from_event",
         "parameters": [
           {
@@ -59073,7 +59125,8 @@
         ]
       },
       "post": {
-        "description": "Add a face embedding for a known person.\n\nThe embedding should be a 512-dimensional ArcFace embedding vector.\n\nArgs:\n    person_id: ID of the person\n    data: Embedding data with 512-dim vector\n    session: Database session\n\nReturns:\n    Created FaceEmbeddingResponse\n\nRaises:\n    HTTPException: 404 if person not found\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed embedding vector (F11 ruling 2).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space \u2014 the whole one-embedding-space rule rests on every\nstored vector's provenance being knowable, and a posted list of floats\ncarries none. Historical vectors from this path were produced by a\n`numpy.random.rand(512)` placeholder, so a gallery built here was\nnoise wearing real-looking numbers (ledger row 1.3b).\n\nThe sanctioned enrollment paths compute server-side and store the\nmodel id with the vector:\n\n- ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)\n- ``POST /known-persons/bulk-enroll`` (uploaded image)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the image-based endpoints.",
         "operationId": "face-recognition_add_face_embedding",
         "parameters": [
           {
@@ -59106,6 +59159,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Always returned: POSTing a client-computed embedding vector is retired (F11 ruling 2). Enroll via /known-persons/{person_id}/enroll-from-detection or /known-persons/bulk-enroll instead."
           },
           "422": {
             "content": {
@@ -62274,7 +62330,7 @@
             "name": "threshold",
             "required": false,
             "schema": {
-              "default": 0.85,
+              "default": 0.7,
               "description": "Minimum similarity threshold",
               "maximum": 1.0,
               "minimum": 0.0,

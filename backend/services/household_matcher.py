@@ -18,6 +18,7 @@ Implements NEM-3017: Implement HouseholdMatcher service for person/vehicle recog
 
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -26,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from backend.core.logging import get_logger
+from backend.core.vector_provenance import LEGACY_MODEL_ID
 from backend.models.household import (
     PersonEmbedding,
     RegisteredVehicle,
@@ -107,6 +109,152 @@ def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (norm_a * norm_b))
 
 
+class PersonMatchOutcome(enum.Enum):
+    """What a person-gallery comparison DECIDED, not just a score (F11).
+
+    The two states a bare score gives (match / no match) cannot express the
+    truth of a half-migrated or untrusted gallery, and folding those into
+    "no match" tells the VLM nobody is home when the real answer is "the
+    gallery cannot answer yet" (ledger item 20: the full re-ID swap).
+    """
+
+    MATCH = "match"
+    NO_MATCH = "no_match"
+    #: Nothing in the gallery can be compared — untrusted (sentinel) rows,
+    #: a probe of unknown provenance, or only cross-space rows. The honest
+    #: line is "unavailable (re-enroll)", never a similarity.
+    UNAVAILABLE_REENROLL = "unavailable_reenroll"
+    #: The household has no stored vectors at all (never enrolled).
+    NO_GALLERY = "no_gallery"
+
+
+@dataclass(slots=True)
+class PersonComparisonResult:
+    outcome: PersonMatchOutcome
+    match: HouseholdMatch | None = None
+    #: Rows skipped for provenance/dimension (counted debug; never scored).
+    skipped: int = 0
+
+
+def compare_person_vectors(
+    probe: np.ndarray,
+    probe_model_id: str | None,
+    gallery: list[tuple[int, str, np.ndarray, str]],
+    *,
+    threshold: float,
+) -> PersonComparisonResult:
+    """The F11 person-gallery decision as a PURE function (item 20).
+
+    ``gallery`` rows are ``(member_id, member_name, vector, model_id)`` —
+    both readers (the DB matcher and the VLM re-ID leg) feed the same
+    decision through it, so "cross-space never scores" holds exactly once.
+
+    Rules, in order:
+    * a probe that never named its weights (None or the sentinel) is
+      UNTRUSTED — the answer is re-enroll, whatever the gallery holds;
+    * a row is scored ONLY when its model_id equals the probe's — not the
+      threshold, not the vector bytes: the SAME bytes under another id are
+      still a different space's claim;
+    * an uncomparable row (foreign id, sentinel, mismatched length) is
+      skipped and counted, never a raise — one stale 768-d row must not
+      kill the pass over every comparable row (reid_service's helper
+      raises mid-search; this is the guard replacing that failure);
+    * nothing comparable is "unavailable (re-enroll)", not "no match";
+      an empty gallery is its own state (never enrolled at all).
+    """
+    if not gallery:
+        return PersonComparisonResult(PersonMatchOutcome.NO_GALLERY)
+
+    if probe_model_id is None or probe_model_id == LEGACY_MODEL_ID:
+        # A probe of unknown provenance cannot vouch for ANY comparison.
+        return PersonComparisonResult(PersonMatchOutcome.UNAVAILABLE_REENROLL)
+
+    best_id: int | None = None
+    best_name: str = ""
+    best_similarity = 0.0
+    comparable = 0
+    skipped = 0
+
+    for member_id, member_name, vector, model_id in gallery:
+        if model_id != probe_model_id:
+            # Cross-space or untrusted: never scored, even byte-identical.
+            skipped += 1
+            continue
+        if len(vector) != len(probe):
+            # Same claimed space, different shape: a stale row, not a
+            # score. Skip loudly-counted instead of raising mid-pass.
+            skipped += 1
+            continue
+        comparable += 1
+        similarity = cosine_similarity(probe, vector)
+        if similarity > threshold and similarity > best_similarity:
+            best_id, best_name, best_similarity = member_id, member_name, similarity
+
+    if comparable == 0:
+        return PersonComparisonResult(PersonMatchOutcome.UNAVAILABLE_REENROLL, skipped=skipped)
+
+    if best_id is None:
+        return PersonComparisonResult(PersonMatchOutcome.NO_MATCH, skipped=skipped)
+
+    return PersonComparisonResult(
+        PersonMatchOutcome.MATCH,
+        match=HouseholdMatch(
+            member_id=best_id,
+            member_name=best_name,
+            similarity=best_similarity,
+            match_type="person",
+        ),
+        skipped=skipped,
+    )
+
+
+async def load_person_gallery(
+    session: AsyncSession,
+) -> list[tuple[int, str, np.ndarray, str]]:
+    """The person gallery as ``compare_person_vectors`` rows (module-level).
+
+    Both readers — :meth:`HouseholdMatcher.match_person` and the VLM re-ID
+    leg (vlm_specialists.collect_reid_text) — load through THIS function, so
+    "a row is only scoreable under its own model_id" holds exactly once
+    (F11/item 20). A second query that re-derives the row shape is the drift
+    the one-embedding-space ruling exists to prevent.
+
+    Returns ``(member_id, member_name, vector, model_id)`` quads; rows whose
+    member relationship is gone and rows whose bytes fail to deserialize are
+    skipped with a counted warning (one corrupt row must not kill the pass).
+    """
+    result: list[tuple[int, str, np.ndarray, str]] = []
+
+    # Query PersonEmbedding with eager loading of member relationship
+    stmt = select(PersonEmbedding).options(selectinload(PersonEmbedding.member))
+    query_result = await session.execute(stmt)
+    embeddings = query_result.scalars().all()
+
+    for person_embedding in embeddings:
+        if person_embedding.member is None:
+            continue
+
+        # Deserialize embedding from bytes to numpy array
+        try:
+            embedding_array = np.frombuffer(person_embedding.embedding, dtype=np.float32)
+            result.append(
+                (
+                    person_embedding.member.id,
+                    person_embedding.member.name,
+                    embedding_array,
+                    person_embedding.model_id,
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to deserialize embedding for member %d: %s",
+                person_embedding.member_id,
+                str(e),
+            )
+
+    return result
+
+
 class HouseholdMatcher:
     """Match detections against known household members and vehicles.
 
@@ -138,16 +286,30 @@ class HouseholdMatcher:
             print(f"Matched: {match.vehicle_description}")
     """
 
-    # Default similarity threshold for matching
-    SIMILARITY_THRESHOLD = 0.85
+    # Fallback default: the OSNet-space value D-2 chose, kept as a class
+    # constant so a bare HouseholdMatcher() still lands in the shipped
+    # space. __init__ prefers the CONFIGURED value, so one settings change
+    # moves every reader at once (M1 review F-D: this number was still the
+    # CLIP-era 0.85 here after D-2 moved the space to 0.7, which is the
+    # near-certain-miss setting for OSNet vectors).
+    SIMILARITY_THRESHOLD = 0.7
 
     def __init__(self, similarity_threshold: float | None = None) -> None:
         """Initialize the HouseholdMatcher.
 
         Args:
             similarity_threshold: Minimum cosine similarity for a match.
-                                  Defaults to 0.85 if not provided.
+                Defaults to ``settings.reid_similarity_threshold`` — the
+                configured OSNet-space value — falling back to
+                ``SIMILARITY_THRESHOLD`` if settings cannot be read.
         """
+        if similarity_threshold is None:
+            from backend.core.config import get_settings
+
+            try:
+                similarity_threshold = get_settings().reid_similarity_threshold
+            except Exception:  # pragma: no cover - config unreadable
+                similarity_threshold = self.SIMILARITY_THRESHOLD
         self._similarity_threshold = (
             similarity_threshold if similarity_threshold is not None else self.SIMILARITY_THRESHOLD
         )
@@ -169,55 +331,49 @@ class HouseholdMatcher:
         self,
         embedding: np.ndarray,
         session: AsyncSession,
+        model_id: str | None = None,
     ) -> HouseholdMatch | None:
         """Find matching household member for a person embedding.
 
-        Compares the provided embedding against all stored person embeddings
-        and returns the best match if it exceeds the similarity threshold.
+        The comparison is F11's: a stored vector scores ONLY against a
+        probe from the SAME weights (``model_id``), and a gallery with
+        nothing comparable answers None like a no-match while the outcome
+        says "unavailable (re-enroll)" — see
+        :func:`compare_person_vectors` for the full table.
 
         Args:
             embedding: Person re-identification embedding vector
             session: Database session for queries
+            model_id: Which weights computed ``embedding``. A caller that
+                cannot say (None) is treated as untrusted — the same
+                sentinel posture as a stored row that never named its
+                producer, so callers must thread the producer's id to get
+                a score at all.
 
         Returns:
             HouseholdMatch with member details if a match is found,
-            None if no match exceeds the threshold.
+            None otherwise (no match, untrusted gallery, or empty gallery).
         """
         members = await self._get_all_member_embeddings(session)
+        result = compare_person_vectors(
+            embedding, model_id, members, threshold=self._similarity_threshold
+        )
 
-        if not members:
-            logger.debug("No member embeddings found in database")
-            return None
-
-        best_match: HouseholdMatch | None = None
-        best_similarity = 0.0
-
-        for member_id, member_name, member_embedding in members:
-            similarity = cosine_similarity(embedding, member_embedding)
-
-            if similarity > self._similarity_threshold and similarity > best_similarity:
-                best_match = HouseholdMatch(
-                    member_id=member_id,
-                    member_name=member_name,
-                    similarity=similarity,
-                    match_type="person",
-                )
-                best_similarity = similarity
-
-        if best_match:
+        if result.outcome is PersonMatchOutcome.MATCH and result.match is not None:
             logger.debug(
                 "Person matched to %s (id=%d) with similarity %.3f",
-                best_match.member_name,
-                best_match.member_id,
-                best_match.similarity,
+                result.match.member_name,
+                result.match.member_id,
+                result.match.similarity,
             )
         else:
             logger.debug(
-                "No person match found (best similarity below threshold %.2f)",
-                self._similarity_threshold,
+                "No person match (outcome=%s, %d rows skipped for provenance/dimension)",
+                result.outcome.value,
+                result.skipped,
             )
 
-        return best_match
+        return result.match
 
     async def match_vehicle(
         self,
@@ -270,47 +426,14 @@ class HouseholdMatcher:
 
     async def _get_all_member_embeddings(
         self, session: AsyncSession
-    ) -> list[tuple[int, str, np.ndarray]]:
-        """Get all person embeddings with member info.
+    ) -> list[tuple[int, str, np.ndarray, str]]:
+        """Get all person embeddings with member info AND provenance.
 
-        Queries all PersonEmbedding records joined with their HouseholdMember
-        and returns them as tuples of (member_id, member_name, embedding).
-
-        Args:
-            session: Database session for queries
-
-        Returns:
-            List of tuples (member_id, member_name, embedding_array)
+        Delegates to :func:`load_person_gallery` — the matcher and the VLM
+        re-ID leg read the gallery through the SAME loader, so the
+        provenance rule can live in exactly one comparison function.
         """
-        result = []
-
-        # Query PersonEmbedding with eager loading of member relationship
-        stmt = select(PersonEmbedding).options(selectinload(PersonEmbedding.member))
-        query_result = await session.execute(stmt)
-        embeddings = query_result.scalars().all()
-
-        for person_embedding in embeddings:
-            if person_embedding.member is None:
-                continue
-
-            # Deserialize embedding from bytes to numpy array
-            try:
-                embedding_array = np.frombuffer(person_embedding.embedding, dtype=np.float32)
-                result.append(
-                    (
-                        person_embedding.member.id,
-                        person_embedding.member.name,
-                        embedding_array,
-                    )
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to deserialize embedding for member %d: %s",
-                    person_embedding.member_id,
-                    str(e),
-                )
-
-        return result
+        return await load_person_gallery(session)
 
     async def _find_by_plate(self, plate: str, session: AsyncSession) -> RegisteredVehicle | None:
         """Find vehicle by license plate (case-insensitive).
@@ -484,12 +607,19 @@ class HouseholdMatcher:
             if not enrichment:
                 continue
 
-            # Person matching via cached embedding
+            # Person matching via cached embedding. The payload's belt
+            # rides along (A6, F11): a pre-swap cache entry has none and
+            # compare_person_vectors answers re-enroll for it — never a
+            # cross-space score.
             if detection.object_type == "person":
-                person_embedding = extract_person_embedding(enrichment)
+                person_embedding, probe_model_id = extract_person_embedding_with_provenance(
+                    enrichment
+                )
                 if person_embedding:
                     embedding_array = np.array(person_embedding, dtype=np.float32)
-                    match = await self.match_person(embedding_array, session)
+                    match = await self.match_person(
+                        embedding_array, session, model_id=probe_model_id
+                    )
                     if match and match.similarity >= self._similarity_threshold:
                         person_matches[det_id] = match
 
@@ -574,22 +704,55 @@ def extract_person_embedding(enrichment_data: dict[str, Any] | None) -> list[flo
     return list(person_reid) if isinstance(person_reid, list) else None
 
 
-def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
-    """Extract vehicle_visual embedding from enrichment_data.
+def extract_person_embedding_with_provenance(
+    enrichment_data: dict[str, Any] | None,
+) -> tuple[list[float] | None, str | None]:
+    """Extract (person_reid embedding, model_id) from enrichment_data.
 
-    Reads the cached vehicle visual embedding from the enrichment_data
-    structure, enabling reuse across services without recomputing.
+    The A6 twin of extract_person_embedding: since the full swap the cached
+    payload carries the belt its producer stamped (F11 — every stored or
+    relayed vector names the weights that computed it). A payload written
+    BEFORE the swap has no belt and this reports None honestly; the reader
+    must NOT launder it — compare_person_vectors answers
+    UNAVAILABLE_REENROLL for an unprovenanced probe, which is the drop-and-
+    re-enroll ruling expressed at read time.
+    """
+    if enrichment_data is None:
+        return None, None
+
+    embeddings = enrichment_data.get("embeddings")
+    if embeddings is None:
+        return None, None
+
+    embedding = extract_person_embedding(enrichment_data)
+    raw_model_id = embeddings.get("model_id")
+    return embedding, str(raw_model_id) if raw_model_id else None
+
+
+def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
+    """Extract a RETIRED ``vehicle_visual`` key from enrichment_data.
+
+    The full swap (ledger item 20) retired CLIP-as-embedding-producer, and
+    ``to_storage_dict`` no longer WRITES this key: a payload that still
+    carries it predates the swap and is unprovenanced — there is no belt
+    naming weights that no longer exist. Readers must NOT score these bytes
+    against anything: the vehicle gallery (``RegisteredVehicle.reid_embedding``)
+    has no production writer, so the comparison has nothing to match, and
+    shipping a vehicle re-ID model is a named follow-up (B5a). Kept so old
+    stored events decode; full removal of the CLIP-named payload keys
+    (``vehicle_visual``, ``face_clip``) rides with that follow-up.
 
     Args:
         enrichment_data: The enrichment_data dict from a Detection, or None.
 
     Returns:
-        List of floats representing the 768-dim CLIP embedding, or None if not available.
+        List of floats as stored (legacy 768-dim CLIP bytes), or None if not
+        present — never a scoreable vector in the shipped space.
 
     Example:
         enrichment_data = {
             "embeddings": {
-                "vehicle_visual": [0.3, 0.4, ...],  # 768-dim
+                "vehicle_visual": [0.3, 0.4, ...],  # legacy, do not score
             }
         }
         embedding = extract_vehicle_embedding(enrichment_data)
@@ -614,24 +777,17 @@ def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[fl
 
 
 def extract_face_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
-    """Extract face_clip embedding from enrichment_data.
+    """Extract a RETIRED ``face_clip`` key from enrichment_data.
 
-    Reads the cached face CLIP embedding from the enrichment_data
-    structure, enabling reuse across services without recomputing.
-
-    Args:
-        enrichment_data: The enrichment_data dict from a Detection, or None.
-
-    Returns:
-        List of floats representing the 768-dim CLIP embedding, or None if not available.
-
-    Example:
-        enrichment_data = {
-            "embeddings": {
-                "face_clip": [0.5, 0.6, ...],  # 768-dim
-            }
-        }
-        embedding = extract_face_embedding(enrichment_data)
+    Same posture as :func:`extract_vehicle_embedding`: the swap stopped
+    writing this CLIP-named key, and an entry that still carries it is
+    unprovenanced legacy bytes — face identity runs on the SHA-256-pinned
+    ArcFace/ONNX space (F12), and CLIP bytes have NEVER been comparable to
+    it, so nothing may score these against a face gallery. Kept so old
+    stored events decode; removal rides with the payload-key cleanup named
+    alongside the vehicle re-ID model. (The real face producer is
+    ``face_recognizer_loader.extract_face_embedding`` — a different
+    function with the same name.)
     """
     if enrichment_data is None:
         return None

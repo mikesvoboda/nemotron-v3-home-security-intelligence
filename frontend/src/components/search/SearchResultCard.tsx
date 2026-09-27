@@ -2,10 +2,11 @@ import { Camera, Clock, Eye, Star, Tag } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
 import { cardPropsComparator } from '../../utils/memoization';
+import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge from '../common/VerdictBadge';
 
 import type { SearchResult } from '../../services/api';
-import type { RiskLevel } from '../../utils/risk';
 
 export interface SearchResultCardProps {
   /** Search result data */
@@ -109,6 +110,17 @@ const SearchResultCard = memo(function SearchResultCard({
   // Get thumbnail URL with type safety (NEM-3614)
   const thumbnailUrl = (result as unknown as { thumbnail_url?: string }).thumbnail_url;
 
+  // D11: risk_score/risk_level are nullable on SearchResult, and both badges
+  // below used to read `(risk_level as RiskLevel) || 'low'` — an unscored
+  // result (verification_failed / never analyzed) rendered as a confident
+  // green "Low". The level derives from the score (the server computes it the
+  // same way, and utils/risk is the single source), so no score ⇒ no level:
+  // the verdict badge's "Unverified" renders instead.
+  const riskLevel =
+    result.risk_score === null || result.risk_score === undefined
+      ? null
+      : getRiskLevel(result.risk_score);
+
   return (
     <div
       role="button"
@@ -135,11 +147,11 @@ const SearchResultCard = memo(function SearchResultCard({
           />
           {/* Risk badge overlay on thumbnail */}
           <div className="absolute right-2 top-2">
-            <RiskBadge
-              level={(result.risk_level as RiskLevel) || 'low'}
-              size="sm"
-              animated={false}
-            />
+            {riskLevel !== null ? (
+              <RiskBadge level={riskLevel} size="sm" animated={false} />
+            ) : (
+              <VerdictBadge verdict="none" size="sm" />
+            )}
           </div>
         </div>
       )}
@@ -153,13 +165,12 @@ const SearchResultCard = memo(function SearchResultCard({
               {formatRelevanceScore(result.relevance_score)} match
             </span>
           </div>
-          {!thumbnailUrl && (
-            <RiskBadge
-              level={(result.risk_level as RiskLevel) || 'low'}
-              size="sm"
-              animated={false}
-            />
-          )}
+          {!thumbnailUrl &&
+            (riskLevel !== null ? (
+              <RiskBadge level={riskLevel} size="sm" animated={false} />
+            ) : (
+              <VerdictBadge verdict="none" size="sm" />
+            ))}
         </div>
 
         {/* Summary */}

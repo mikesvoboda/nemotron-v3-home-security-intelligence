@@ -2,8 +2,11 @@ import { ChevronDown, ChevronUp, Eye, Moon } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { useDeferredList } from '../../hooks/useDeferredList';
-import { getRiskLevel, type RiskLevel } from '../../utils/risk';
+import { resolveRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge from '../common/VerdictBadge';
+
+import type { EventVerificationPayload } from '../../types/generated/websocket';
 
 /** Sort field options for the event list */
 export type SortField = 'time' | 'camera' | 'risk';
@@ -18,8 +21,11 @@ export interface EventListItem {
   camera_name: string;
   started_at: string;
   ended_at: string | null | undefined;
-  risk_score: number;
+  /** Null = never analyzed / verification failed (1.6, D11) - renders Unverified. */
+  risk_score: number | null;
   risk_level: string;
+  /** VLM verdict (1.6) - the no-level cell names it; 'none' renders Unverified. */
+  verdict?: EventVerificationPayload['verdict'] | null;
   summary: string | null;
   thumbnail_url: string | null;
   reviewed: boolean;
@@ -295,7 +301,10 @@ const EventListView = memo(function EventListView({
           >
             {deferredEvents.map((event) => {
               const isSelected = selectedIds.has(event.id);
-              const riskLevel = (event.risk_level || getRiskLevel(event.risk_score)) as RiskLevel;
+              // Server level first, score second, and NOTHING when neither
+              // exists (1.6): the `|| getRiskLevel(risk_score)` fallback
+              // turned a NULL score into a green Low badge in this very cell.
+              const riskLevel = resolveRiskLevel(event.risk_level, event.risk_score);
               const eventIsSnoozed = isSnoozed(event.snooze_until);
 
               return (
@@ -357,15 +366,21 @@ const EventListView = memo(function EventListView({
                     {event.summary || 'No summary available'}
                   </td>
 
-                  {/* Risk */}
+                  {/* Risk (1.6: no level = the row states the verdict or
+                      Unverified - never a green Low for a score that
+                      doesn't exist) */}
                   <td className="px-4 py-3">
-                    <RiskBadge
-                      level={riskLevel}
-                      score={event.risk_score}
-                      showScore={true}
-                      size="sm"
-                      animated={false}
-                    />
+                    {riskLevel !== null ? (
+                      <RiskBadge
+                        level={riskLevel}
+                        score={event.risk_score ?? undefined}
+                        showScore={true}
+                        size="sm"
+                        animated={false}
+                      />
+                    ) : (
+                      <VerdictBadge verdict={event.verdict ?? 'none'} size="sm" />
+                    )}
                   </td>
 
                   {/* Actions */}

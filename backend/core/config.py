@@ -1026,6 +1026,46 @@ class Settings(BaseSettings):
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
     )
+    # Development: http://localhost:8098 (local dev)
+    # Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
+    ai_vlm_url: str = Field(
+        default="http://localhost:8098",
+        description="VLM verification service URL (llama.cpp + mmproj, the vlm_assess engine). Development: http://localhost:8098, Docker: http://ai-vlm:8098",
+    )
+
+    # Pipeline selector (spec §2:81-84, rev 5): "vlm" is the default and
+    # the ONLY supported per-event path. "legacy" parses only because its
+    # code stays in the repo until R8 deletes it — it is not deployed, not
+    # measured, and not a rollback target; the validator logs it LOUDLY so
+    # a boot with the unsupported path can never look like a normal boot.
+    # An unknown value RAISES rather than falling back: a typo must not
+    # silently pick a pipeline, least of all the unsupported one.
+    pipeline_mode: str = Field(
+        default="vlm",
+        description="Per-event analysis pipeline: 'vlm' (default, supported) or 'legacy' (UNSUPPORTED, kept only until R8 deletes it).",
+    )
+
+    @field_validator("pipeline_mode", mode="before")
+    @classmethod
+    def validate_pipeline_mode(cls, v: Any) -> str:
+        """`legacy` parses (its code stays until R8) but is LOUD; anything
+        else than the two spellings raises — the never-silently-fallback
+        rule from spec §2:81-84. The warning is the startup loudness the
+        owner ruling asks for; the 1.5 ledger row carries the rest."""
+        import logging
+
+        if v is None:
+            return "vlm"
+        value = str(v).lower().strip()
+        if value not in ("vlm", "legacy"):
+            raise ValueError(f"Invalid pipeline_mode '{v}'. Must be 'vlm' or 'legacy'.")
+        if value == "legacy":
+            logging.getLogger("backend.core.config").warning(
+                "PIPELINE_MODE=legacy selects the UNSUPPORTED pipeline — "
+                "it is not deployed, not measured, and not a rollback "
+                "target (spec rev 5); its code stays only until R8 deletes it."
+            )
+        return value
 
     # AI service authentication
     # Security: API keys for authenticating with AI services
@@ -1068,6 +1108,24 @@ class Settings(BaseSettings):
         ge=30.0,
         le=600.0,
         description="Maximum time (seconds) to wait for Nemotron LLM response",
+    )
+    ai_vlm_read_timeout: float = Field(
+        default=25.0,
+        ge=5.0,
+        le=300.0,
+        description="Maximum time (seconds) to wait for one vlm_assess attempt. Sized "
+        "against S4 (p95 <= 30 s INCLUDING cold starts): the §6 ladder retries exactly "
+        "once at temperature 0 inside the same budget, so a per-attempt ceiling at or "
+        "above 30 s would leave no room for the retry.",
+    )
+    ai_vlm_wake_timeout_seconds: float = Field(
+        default=90.0,
+        ge=5.0,
+        le=300.0,
+        description="Read timeout for the wake-on-open ping (one max_tokens=1 request "
+        "that forces llama.cpp to load its weights). Generous on purpose: a sleeping "
+        "server is exactly the case being paid for, and a failed wake is swallowed "
+        "(spec §6) rather than retried.",
     )
     florence_read_timeout: float = Field(
         default=30.0,
@@ -1289,6 +1347,86 @@ class Settings(BaseSettings):
         "/props (e.g. 'b7972'). None skips the build assertion (the S-2 lesson: "
         "enforcement is per-model AND per-build - set this in production).",
     )
+    # The same P0.3 doctrine on the VLM chat shape (spec §3, Phase 1.3):
+    # images and grammar are independent variables whose INTERSECTION the
+    # pin must prove, so vlm_assess runs its own nonce-const probe - once
+    # per endpoint+build - before the first verdict is trusted.
+    vlm_enforcement_probe_enabled: bool = Field(
+        default=True,
+        description="Run the chat-shape nonce-const enforcement probe once per "
+        "ai-vlm endpoint+build before the first vlm_assess verdict (spec §3). "
+        "NOT-ENFORCED fails closed - a verdict from an unenforced endpoint is "
+        "unparseable prose dressed as JSON.",
+    )
+    vlm_required_build: str = Field(
+        default="",
+        description="build_info substring the vlm probe asserts against /props "
+        "(e.g. 'b7972', the G0-proven build). Empty skips the build assertion; "
+        "production should set it (S-2: enforcement is per-build - a stale proof "
+        "must not launder onto an unknown build).",
+    )
+    # The vlm path's OWN per-request context budget, derived exactly the way
+    # nemotron_context_window derives the LLM's — llama.cpp splits one
+    # --ctx-size pool across --parallel slots and a request only ever
+    # occupies one slot. It is NOT the same number as nemotron_context_window:
+    # the backend container mirrors the LEGACY ai-llm service's CTX_SIZE
+    # (262144) and PARALLEL (8) so the legacy analyzer keeps its budget, while
+    # the vlm slot is VLM_CTX_SIZE (32768) / VLM_PARALLEL (2) = 16384. Counting
+    # a vlm prompt against the LLM's 32768 would pass a prompt that the slot
+    # it actually lands in cannot hold. Separate env aliases, same rule.
+    vlm_slot_count: int = Field(
+        default=2,
+        ge=1,
+        le=64,
+        validation_alias="VLM_PARALLEL",
+        description="llama.cpp --parallel slots on the ai-vlm service "
+        "(VLM_PARALLEL). Default 2 matches the shipped ai-vlm service.",
+    )
+    vlm_context_window: int = Field(
+        # Declared in llama.cpp's UNITS (the total pool) so the default
+        # passes through the same slot division as a real env value — see the
+        # nemotron_context_window field above for why declaring the per-slot
+        # figure here would be divided twice.
+        default=32768,
+        ge=1000,
+        le=262144,
+        validation_alias="VLM_CTX_SIZE",
+        description="Per-request VLM context budget in tokens: VLM_CTX_SIZE "
+        "divided by VLM_PARALLEL, because llama.cpp splits one context pool "
+        "across its slots and one vlm_assess only ever gets one slot. A vlm "
+        "prompt (text + up to 4 images) plus the verdict's output must fit in "
+        "this. NOT nemotron_context_window: that mirrors the legacy ai-llm "
+        "service's CTX_SIZE/PARALLEL, which is a different, larger slot.",
+    )
+
+    @field_validator("vlm_context_window", mode="before")
+    @classmethod
+    def _derive_vlm_slot_context_window(cls, v: Any, info: ValidationInfo) -> int:
+        """Split the ai-vlm VLM_CTX_SIZE pool across VLM_PARALLEL slots.
+
+        Same arithmetic and same clamp shape as
+        _derive_slot_context_window above, one scope over: a vlm request
+        gets one slot of the vlm server's pool.
+        """
+        try:
+            total = int(str(v).strip())
+        except TypeError, ValueError, AttributeError:
+            return 16384
+        slots = info.data.get("vlm_slot_count") or 2
+        return min(262144, max(1000, total // max(1, int(slots))))
+
+    vlm_max_image_bytes: int = Field(
+        default=8 * 1024 * 1024,
+        ge=64 * 1024,
+        le=64 * 1024 * 1024,
+        description="Largest file the vlm client will embed as one key frame. "
+        "base64 grows a payload by ~4/3, and the prompt shares one llama.cpp slot "
+        "with the verdict's output (VLM_CTX_SIZE / VLM_PARALLEL), so an oversized "
+        "capture is a slot overflow that presents as a MODEL outage. 8 MB clears a "
+        "4K MJPEG still (~2-3 MB) several times over while refusing the container-"
+        "sized file - the ordinary consequence of a video batch reaching the frame "
+        "path, which the client now refuses by TYPE before it reaches this.",
+    )
     # Provenance ids written to event_verifications rows (P0.4's engine/
     # model_id columns are NOT NULL). The repo has no served-model-id setting
     # - the endpoint's own name is only visible in error text - so the
@@ -1303,6 +1441,14 @@ class Settings(BaseSettings):
         description="P0.3/P0.4: model label written to event_verifications.model_id "
         "(matches the shipped LLM_MODEL_PATH GGUF identity; override when serving "
         "a different quant).",
+    )
+    vlm_model_id: str = Field(
+        default="Qwen3VL-4B-Instruct-Q4_K_M",
+        description="Phase 1.3: degraded-path model label for "
+        "event_verifications.model_id in vlm mode (a failed call has no "
+        "verdict to read the engine's own id from, and the column is NOT "
+        "NULL). Matches the 1.2 shipped VLM_MODEL_PATH GGUF identity; "
+        "override together with it when serving a different quant.",
     )
 
     enrichment_max_retries: int = Field(
@@ -1363,7 +1509,7 @@ class Settings(BaseSettings):
         description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
     )
 
-    @field_validator("yolo26_url", "nemotron_url", mode="before")
+    @field_validator("yolo26_url", "nemotron_url", "ai_vlm_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
         """Validate AI service URLs using Pydantic's AnyHttpUrl validator.
@@ -1412,7 +1558,7 @@ class Settings(BaseSettings):
     )
     clip_url: str = Field(
         default="http://ai-gateway:8090/clip",
-        description="CLIP embedding service URL for re-identification. Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
+        description="CLIP (SigLIP 2) embedding service URL for scene classification, threat-description matching, and scene-baseline embeddings; person re-ID vectors come from the resident OSNet-AIN x1.0 handle (full swap, ledger item 20). Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
     )
     enrichment_url: str = Field(
         default="http://ai-gateway:8090/enrichment",
@@ -1691,7 +1837,7 @@ class Settings(BaseSettings):
                 f"Example: 'http://localhost:8090/florence'. Error: {e}"
             ) from None
 
-    # Vision extraction settings (Florence-2, CLIP re-id, scene analysis)
+    # Vision extraction settings (Florence-2, OSNet re-id, scene analysis)
     vision_extraction_enabled: bool = Field(
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
@@ -1724,17 +1870,21 @@ class Settings(BaseSettings):
     )
     reid_enabled: bool = Field(
         default=True,
-        description="Enable CLIP re-identification for tracking entities across cameras",
+        description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking "
+        "people across cameras",
     )
     scene_change_enabled: bool = Field(
         default=True,
         description="Enable SSIM-based scene change detection",
     )
     reid_similarity_threshold: float = Field(
-        default=0.85,
+        default=0.7,
         ge=0.5,
         le=1.0,
-        description="Cosine similarity threshold for re-identification matching (0.5-1.0)",
+        description="Cosine similarity threshold for re-identification matching (0.5-1.0). "
+        "Default 0.7 matches the OSNet-AIN x1.0 vector space (the CLIP-era 0.85 would drop "
+        "every legitimate OSNet match). PROVISIONAL - calibrate against real household "
+        "galleries, same as the face thresholds.",
     )
     reid_ttl_hours: int = Field(
         default=24,
@@ -1748,14 +1898,14 @@ class Settings(BaseSettings):
         le=100,
         description="Maximum concurrent re-identification operations (embedding generation, "
         "storage, and matching). Prevents resource exhaustion from too many simultaneous "
-        "CLIP/Redis operations. Recommended: 5-20 depending on hardware.",
+        "OSNet inference/Redis operations. Recommended: 5-20 depending on hardware.",
     )
     reid_embedding_timeout: float = Field(
         default=30.0,
         ge=5.0,
         le=120.0,
         description="Timeout (seconds) for ReID embedding generation operations. "
-        "Prevents hanging when CLIP service is slow or unresponsive. Default: 30.0 seconds.",
+        "Prevents hanging when OSNet inference is slow or unresponsive. Default: 30.0 seconds.",
     )
     reid_max_retries: int = Field(
         default=3,
@@ -1797,6 +1947,36 @@ class Settings(BaseSettings):
         description="Enable fully automatic enrollment without queue review. "
         "When True, high-quality faces are immediately enrolled as 'Unknown Person N'. "
         "When False (default), faces are added to a review queue for manual approval.",
+    )
+
+    # Face-leg quality gate + match threshold (VSS rev 6, F11 ruling 3 / F12).
+    # PROVISIONAL: both get calibrated on the owner's gallery and night footage
+    # in the Phase 2 bake-off (AdaFace is the ledgered small/night challenger,
+    # CR-FIQA the ledgered quality-model upgrade). Until then they are config,
+    # never code constants - the gate's whole job is to keep a tiny/night crop
+    # from reading "unknown", which pushes the VLM toward alarm (S2 driver).
+    face_min_size_px: int = Field(
+        default=40,
+        ge=8,
+        description="Minimum face box size in pixels for the face specialist's "
+        "quality gate. A crop below this is 'not identifiable', never 'unknown'.",
+    )
+    face_scrfd_threshold: float = Field(
+        default=0.6,
+        ge=0.0,
+        le=1.0,
+        description="Minimum SCRFD detection score for the face specialist's "
+        "quality gate (the same value is passed to detection as its threshold). "
+        "A face the detector barely believes is 'not identifiable', never 'unknown'.",
+    )
+    face_match_threshold: float = Field(
+        default=0.68,
+        ge=0.0,
+        le=1.0,
+        description="Cosine similarity above which a face embedding matches a "
+        "gallery FaceEmbedding. Provisional (F12); mirrors the existing "
+        "face_recognition_service.DEFAULT_MATCH_THRESHOLD so the specialist and "
+        "the gallery API never disagree about what 'match' means.",
     )
 
     # Detection settings

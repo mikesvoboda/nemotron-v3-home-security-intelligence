@@ -19,6 +19,7 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from backend.core.face_provenance import LEGACY_MODEL_ID
 from backend.core.logging import get_logger
 from backend.models.face_identity import (
     FaceDetectionEvent,
@@ -257,8 +258,16 @@ class FaceRecognitionService:
         embedding: list[float] | np.ndarray,
         quality_score: float = 1.0,
         source_image_path: str | None = None,
+        model_id: str = LEGACY_MODEL_ID,
     ) -> FaceEmbedding | None:
         """Add a face embedding for a known person.
+
+        ``model_id`` is the vector's provenance (F11 ruling 2): the id of
+        the weights that computed it. Server-side enrollment passes the
+        loaded face-recognizer's id; the default is the sentinel, which
+        reads as "origin unknown" and makes the face specialist answer
+        "unavailable (re-enroll)" instead of scoring the vector — a caller
+        that names no extractor is untrusted by default.
 
         Args:
             session: Database session
@@ -266,6 +275,7 @@ class FaceRecognitionService:
             embedding: 512-dimensional embedding vector
             quality_score: Face quality score (0-1)
             source_image_path: Path to source image (optional)
+            model_id: Which weights computed the embedding
 
         Returns:
             Created FaceEmbedding instance or None if person not found
@@ -295,6 +305,7 @@ class FaceRecognitionService:
             embedding=embedding_bytes,
             quality_score=quality_score,
             source_image_path=source_image_path,
+            model_id=model_id,
         )
         session.add(face_embedding)
         await session.commit()
@@ -364,11 +375,16 @@ class FaceRecognitionService:
     async def _get_all_embeddings(
         self,
         session: AsyncSession,
-    ) -> list[tuple[int, str, bool, np.ndarray]]:
-        """Get all embeddings with person info.
+    ) -> list[tuple[int, str, bool, np.ndarray, str]]:
+        """Get all embeddings with person info AND their provenance.
+
+        The ``model_id`` rides along because F11 makes provenance part of
+        the comparison, not an attribute of the row nobody reads: a reader
+        that drops it here cannot enforce it downstream (M1 review F-E).
 
         Returns:
-            List of (person_id, person_name, is_household, embedding_array)
+            List of (person_id, person_name, is_household, embedding_array,
+            model_id)
         """
         stmt = select(FaceEmbedding).options(selectinload(FaceEmbedding.person))
         result = await session.execute(stmt)
@@ -387,6 +403,7 @@ class FaceRecognitionService:
                         emb.person.name,
                         emb.person.is_household_member,
                         embedding_array,
+                        str(emb.model_id or LEGACY_MODEL_ID),
                     )
                 )
             except Exception as e:
@@ -403,13 +420,26 @@ class FaceRecognitionService:
         session: AsyncSession,
         embedding: list[float] | np.ndarray,
         threshold: float | None = None,
+        model_id: str | None = None,
     ) -> dict:
-        """Match a face embedding against known persons.
+        """Match a face embedding against known persons (F11-guarded).
+
+        A stored vector scores ONLY against a probe from the SAME weights:
+        ``model_id`` names the weights that computed ``embedding``, and a
+        gallery row whose id differs - or that never named one, or names
+        this reader's own sentinel - is skipped, never scored. Nothing
+        comparable is an AVAILABILITY answer (``unavailable=True``,
+        similarity 0.0), not "no match at 0.94": the spaces are not
+        comparable, so any number here would be invented. The same table
+        the re-ID side runs (:func:`household_matcher.compare_person_vectors`).
 
         Args:
             session: Database session
             embedding: 512-dimensional embedding to match
             threshold: Minimum similarity for a match (uses default if None)
+            model_id: Which weights computed ``embedding``. None (or the
+                sentinel) means the caller cannot say, which is an untrusted
+                probe: no comparison is honest, so nothing is scored.
 
         Returns:
             Dict with match results:
@@ -419,6 +449,7 @@ class FaceRecognitionService:
             - similarity: float
             - is_unknown: bool
             - is_household_member: bool | None
+            - unavailable: bool (True when no gallery row was comparable)
         """
         if threshold is None:
             threshold = self._similarity_threshold
@@ -438,6 +469,10 @@ class FaceRecognitionService:
         known_embeddings = await self._get_all_embeddings(session)
 
         if not known_embeddings:
+            # Nobody enrolled at all: that is a real observation ("this face
+            # is unknown"), not an availability gap - so unavailable stays
+            # False here, matching NO_GALLERY's distinct arm in
+            # compare_person_vectors.
             logger.debug("No known embeddings in database")
             return {
                 "matched": False,
@@ -446,12 +481,37 @@ class FaceRecognitionService:
                 "similarity": 0.0,
                 "is_unknown": True,
                 "is_household_member": None,
+                "unavailable": False,
+            }
+
+        untrusted_probe = model_id is None or model_id == LEGACY_MODEL_ID
+        if untrusted_probe:
+            logger.info(
+                "Face match refused: the probe carries no provenance, so no "
+                "comparison against the gallery is honest (F11)"
+            )
+            return {
+                "matched": False,
+                "person_id": None,
+                "person_name": None,
+                "similarity": 0.0,
+                "is_unknown": True,
+                "is_household_member": None,
+                "unavailable": True,
             }
 
         best_match: dict | None = None
         best_similarity = -1.0
+        comparable = 0
+        skipped = 0
 
-        for person_id, person_name, is_household, known_emb in known_embeddings:
+        for person_id, person_name, is_household, known_emb, row_model_id in known_embeddings:
+            if row_model_id != model_id or len(known_emb) != len(query_embedding):
+                # Cross-space, unprovenanced, or a stale shape: skipped and
+                # counted, never scored - not even when the bytes line up.
+                skipped += 1
+                continue
+            comparable += 1
             similarity = cosine_similarity(query_embedding, known_emb)
 
             if similarity > best_similarity:
@@ -461,6 +521,33 @@ class FaceRecognitionService:
                     "person_name": person_name,
                     "is_household_member": is_household,
                 }
+
+        if comparable == 0:
+            # A gallery exists but NOTHING in it shares this probe's space:
+            # "unavailable (re-enroll)", never a similarity number.
+            logger.info(
+                "Face match unavailable: %d gallery row(s) carry no vector in "
+                "space %s (re-enroll needed)",
+                skipped,
+                model_id,
+            )
+            return {
+                "matched": False,
+                "person_id": None,
+                "person_name": None,
+                "similarity": 0.0,
+                "is_unknown": True,
+                "is_household_member": None,
+                "unavailable": True,
+            }
+
+        if skipped:
+            logger.debug(
+                "Face match scored %d comparable row(s), skipped %d "
+                "uncomparable row(s) (different model_id)",
+                comparable,
+                skipped,
+            )
 
         if best_similarity >= threshold and best_match is not None:
             logger.debug(
@@ -476,6 +563,7 @@ class FaceRecognitionService:
                 "similarity": best_similarity,
                 "is_unknown": False,
                 "is_household_member": best_match["is_household_member"],
+                "unavailable": False,
             }
         else:
             logger.debug(
@@ -490,6 +578,7 @@ class FaceRecognitionService:
                 "similarity": best_similarity,
                 "is_unknown": True,
                 "is_household_member": None,
+                "unavailable": False,
             }
 
     # =========================================================================
@@ -507,6 +596,7 @@ class FaceRecognitionService:
         age_estimate: int | None = None,
         gender_estimate: str | None = None,
         auto_match: bool = True,
+        model_id: str | None = None,
     ) -> FaceDetectionEvent:
         """Record a face detection event.
 
@@ -520,6 +610,10 @@ class FaceRecognitionService:
             age_estimate: Estimated age (optional)
             gender_estimate: Estimated gender 'M' or 'F' (optional)
             auto_match: Whether to automatically match against known persons
+            model_id: Which weights computed ``embedding`` (F11). Required
+                for auto-match to score anything: a caller that cannot say
+                gets the event recorded as unknown, which is the honest
+                reading - match_face refuses to guess a space.
 
         Returns:
             Created FaceDetectionEvent instance
@@ -544,7 +638,7 @@ class FaceRecognitionService:
 
         # Auto-match if enabled
         if auto_match:
-            match_result = await self.match_face(session, embedding_array)
+            match_result = await self.match_face(session, embedding_array, model_id=model_id)
             if match_result["matched"]:
                 matched_person_id = match_result["person_id"]
                 match_confidence = match_result["similarity"]
@@ -814,12 +908,20 @@ class FaceRecognitionService:
         # Optionally create embedding if quality is high enough
         created_embedding = False
         if event.quality_score >= 0.7:
-            # Create a new FaceEmbedding from the event's embedding
+            # Create a new FaceEmbedding from the event's embedding. The
+            # vector's provenance rides the COPY (F11 ruling 2): a gallery
+            # row built from an event says what computed the event's
+            # vector — an old event's random vector stays flagged, and the
+            # face specialist answers "re-enroll" for it instead of
+            # scoring noise. getattr keeps pre-column rows (test fixtures
+            # built without the column) reading as the sentinel, the same
+            # verdict the DB default would give.
             new_embedding = FaceEmbedding(
                 person_id=known_person_id,
                 embedding=event.embedding,
                 quality_score=event.quality_score,
                 source_image_path=None,  # Source is from face event, not image
+                model_id=getattr(event, "model_id", LEGACY_MODEL_ID),
             )
             session.add(new_embedding)
             created_embedding = True

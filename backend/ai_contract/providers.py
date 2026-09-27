@@ -51,7 +51,25 @@ _CLIENT_MODULES = {
     "CLIPClient": "backend.services.clip_client",
     "EnrichmentClient": "backend.services.enrichment_client",
     "FlorenceClient": "backend.services.florence_client",
+    "VlmClient": "backend.services.vlm_client",
 }
+
+
+def _not_wired(op_id: str) -> Any:
+    """The NOT-WIRED sentinel (shared definition, two users: kept-deployed
+    ops with client_methods==[] below, and the VLM engine subsets until
+    vlm_client lands in 1.3). Registration still verifies slot membership
+    and count, but no live path claims the callable; the call path belongs
+    to the FakeProvider (WP8.2) or a live server. Fabricating a bound
+    callable here would be another decorative contract."""
+
+    async def _raise(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover
+        raise NotImplementedError(
+            f"{op_id}: not wired to a client yet; "
+            "drive it through the FakeProvider (WP8.2) or a live server"
+        )
+
+    return _raise
 
 
 def _bound_or_reject(op_id: str) -> Any:
@@ -77,14 +95,7 @@ def _bound_or_reject(op_id: str) -> Any:
         module = importlib.import_module(_CLIENT_MODULES[cls_name])
         return getattr(getattr(module, cls_name), meth)
     if len(op.client_methods) == 0:
-
-        async def _not_wired(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover
-            raise NotImplementedError(
-                f"{op_id}: no bound client method (registry client_methods=[]); "
-                "drive it through the FakeProvider (WP8.2) or a live server"
-            )
-
-        return _not_wired
+        return _not_wired(op_id)
     raise ProviderContractError(  # pragma: no cover - census says unreachable
         "registry",
         op_id,
@@ -157,6 +168,24 @@ def _register_all() -> None:
         deployed=True,
         required=llm_ops,
     )
+    # spec §3 Slots: both VLM engines register required={"vlm_assess"} -
+    # the llamacpp subset pattern inside the union per_model_server column.
+    # 1.3 wires the LIVE callable: the same unbound client method
+    # _bound_or_reject resolves for every bound op (VlmClient.assess, from
+    # the registry's own client_methods), so the registry path and the
+    # analyzer path converge on one implementation. deployed=False stays:
+    # OPENAI_VLM/RTVI_VLM name ENGINE choices, and neither engine is
+    # deployed as "the VLM" yet (the ai-vlm compose service exists under
+    # profile `vlm` since 1.2; the M2 pick is an owner decision). The
+    # honest deployed flip rides M2, not this wiring.
+    for vlm_pid in (ProviderId.OPENAI_VLM, ProviderId.RTVI_VLM):
+        register_provider(
+            vlm_pid,
+            {"vlm_assess": _bound_or_reject("vlm_assess")},
+            OPERATIONS,
+            deployed=False,
+            required={"vlm_assess"},
+        )
 
 
 _register_all()

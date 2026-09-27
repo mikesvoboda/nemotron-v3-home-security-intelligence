@@ -1,5 +1,13 @@
 # A5500 bring-up checklist (step 0.2) - dated copy with [V] repo-side amendments from the P0.2 prep review
 
+> **SUPERSEDED 2026-09-27 (plan 1.7).** Execute
+> [`2026-09-27-a5500-vlm-bringup-checklist.md`](2026-09-27-a5500-vlm-bringup-checklist.md)
+> instead. This copy's "Placeholder LLM" section points `LLM_MODEL_PATH` at
+> Nemotron-3-Nano-4B and adjusts the `ai-llm` mount - instructions for the
+> legacy mode that spec rev 5 / F10 left unsupported. `scripts/a5500_precheck.py`
+> now emits serving-VLM checks (`vlm_model`, `ai_vlm_mount`, …) and no longer
+> produces the ids named here; keep this file only as the dated P0.2 record.
+
 Dated 2026-09-25. Source: spec §'A5500 bring-up checklist (step 0.2)' (docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md). Repo-side prep via `scripts/a5500_precheck.py` (F9/F6: execution is owner-run on real media; this document claims no execution).
 
 Ordering guard: lifted 2026-09-25 by ledger F9 (no pre-switch traffic exists); re-arms the day the home stack serves live events.

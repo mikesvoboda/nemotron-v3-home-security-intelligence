@@ -328,6 +328,7 @@ class TestEntityRepositoryGetOrCreateWithAttributes:
             embedding=[0.5, 0.5, 0.0],
             threshold=0.85,
             attributes=attributes,
+            model_id="clip",
         )
 
         assert is_new is True
@@ -351,6 +352,7 @@ class TestEntityRepositoryGetOrCreateWithAttributes:
             detection_id=789,
             entity_type="vehicle",
             embedding=[0.3, 0.3, 0.4],
+            model_id="clip",
         )
 
         assert is_new is True

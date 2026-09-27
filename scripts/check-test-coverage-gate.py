@@ -184,13 +184,23 @@ def find_test_file(source_file: str) -> str | None:
 
     elif source_file.startswith("frontend/src/"):
         # For frontend files, look in same directory with .test.ts/tsx
+        #
+        # BOTH extensions, as this comment has always claimed: the suite's
+        # extension follows what the TEST needs (a JSX provider wrapper forces
+        # .tsx even when the source is a .ts hook), and the repo's hooks/
+        # directory uses both today. Deriving the candidate from the SOURCE's
+        # suffix - the original single-candidate form - resolved
+        # useTopEventsQuery.ts to a nonexistent .test.ts and the required
+        # Test Coverage Gate failed the PR for OBEYING the rule (#6681).
         source_path_obj = Path(source_file)
-        test_path = source_path_obj.with_name(
-            source_path_obj.stem + ".test" + "".join(source_path_obj.suffixes)
-        )
+        candidates = [
+            source_path_obj.with_name(f"{source_path_obj.stem}.test{suffix}")
+            for suffix in ("".join(source_path_obj.suffixes), ".ts", ".tsx")
+        ]
 
-        if (project_root / test_path).exists():
-            return str(test_path)
+        for test_path in dict.fromkeys(candidates):  # dedupe, keep order
+            if (project_root / test_path).exists():
+                return str(test_path)
 
     return None
 

@@ -537,6 +537,18 @@ def generate(op_id: str, payload: Any = None, profile: str = "gateway") -> Any:
             scores, top_label = _softmax_over_labels(labels, op_id)
             value["scores"] = scores
             value["top_label"] = top_label
+    if op_id == "vlm_assess" and isinstance(payload, dict):
+        images = payload.get("image_paths")
+        if isinstance(images, list) and images and all(isinstance(x, str) for x in images):
+            # spec §3 Slots: "The FakeProvider returns a deterministic verdict
+            # keyed on an image hash." The walk seeds op+profile only, so the
+            # verdict fields are re-drawn from the image paths themselves -
+            # same images replay identically (pure function of the parts),
+            # different images can differ (the failure-ladder fixtures need
+            # verdict variety). Keys are paths, never bytes (D10).
+            rng = _rng_for(op_id, "|".join(images), profile, "verdict")
+            value["verdict"] = rng.choice(["confirmed", "rejected", "uncertain"])
+            value["risk_score"] = rng.randint(0, 100)
     validate(op_id, value)
     return value
 

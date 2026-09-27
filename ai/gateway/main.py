@@ -49,23 +49,21 @@ logger = logging.getLogger(__name__)
 TRITON_HTTP_URL = os.getenv("TRITON_HTTP_URL", "http://localhost:8000")
 TRITON_METRICS_URL = os.getenv("TRITON_METRICS_URL", "http://localhost:8002")
 
-# All models that should be loaded in Triton
-ALL_MODELS: list[str] = [
-    "yolo26",
-    "clip",
-    "clip_text",
-    "florence2",
-    "vehicle",
-    "fashion_clip",
-    "demographics_age",
-    "demographics_gender",
-    "pet",
-    "depth",
-    "reid",
-    "pose",
-    "threat",
-    "stgcn_action",
-]
+# The complete Triton model repository (the `full` residency set). Derived
+# from ai.gateway.residency.FULL_MODEL_SET — one source of truth (review
+# 1.4 item 1): the repository this gateway describes and the repository the
+# entrypoint's residency step prunes are the SAME tuple, so they cannot
+# drift. Rev 6: residency is by repository contents; --model-control-mode
+# stays `none`.
+from ai.gateway.residency import FULL_MODEL_SET, resolve_active_set
+
+ALL_MODELS: list[str] = list(FULL_MODEL_SET)
+
+# What THIS gateway instance serves (GATEWAY_MODEL_SET; default `full`).
+# /health and startup reporting use this, so a vlm-mode gateway reports the
+# retired models' absence by NOT listing them — listing them as not_loaded
+# forever would be a false alarm by construction.
+ACTIVE_MODELS: tuple[str, ...] = resolve_active_set()
 
 
 # ---------------------------------------------------------------------------
@@ -211,10 +209,11 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.error("Triton server not ready after all retries")
 
-    # Check which models are loaded
+    # Check which models are loaded (the ACTIVE residency set only — retired
+    # models are absent from the repository by design, rev 6)
     loaded: list[str] = []
     not_loaded: list[str] = []
-    for model_name in ALL_MODELS:
+    for model_name in ACTIVE_MODELS:
         if await triton.is_model_ready(model_name):
             loaded.append(model_name)
         else:
@@ -297,7 +296,7 @@ async def health_check() -> dict[str, Any]:
     server_ready = await triton.is_server_ready()
 
     model_statuses: dict[str, bool] = {}
-    for model_name in ALL_MODELS:
+    for model_name in ACTIVE_MODELS:
         model_statuses[model_name] = await triton.is_model_ready(model_name)
 
     all_models_ready = all(model_statuses.values())
@@ -308,7 +307,7 @@ async def health_check() -> dict[str, Any]:
         "triton_server_ready": server_ready,
         "models": model_statuses,
         "models_loaded": sum(1 for v in model_statuses.values() if v),
-        "models_total": len(ALL_MODELS),
+        "models_total": len(ACTIVE_MODELS),
     }
 
 

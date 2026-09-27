@@ -20,8 +20,8 @@ Service column: **ai-llm** = llama.cpp container (:8091) · **gateway** = Triton
 | Nemotron Mini 4B               | Risk reasoning (development)             | ~3 GB    | ai-llm                 | llama.cpp    | 4,096 tokens                 |
 | YOLO26m                        | Object detection                         | ~0.1 GB  | gateway                | Ultralytics  | -                            |
 | Florence-2-Base                | Dense captioning, OCR                    | ~1.0 GB  | gateway                | HuggingFace  | -                            |
-| SigLIP 2 Base                  | Entity re-ID, embeddings                 | ~0.2 GB  | gateway + backend      | HuggingFace  | 768-dim embedding            |
-| CLIP ViT-L                     | Entity re-ID (legacy standalone)         | ~0.8 GB  | standalone :8093 (dev) | HuggingFace  | 768-dim embedding            |
+| SigLIP 2 Base                  | Scene/fashion embeddings                 | ~0.2 GB  | gateway + backend      | HuggingFace  | 768-dim embedding            |
+| CLIP ViT-L                     | Embeddings (legacy standalone)           | ~0.8 GB  | standalone :8093 (dev) | HuggingFace  | 768-dim embedding            |
 | FashionSigLIP                  | Clothing classification                  | ~0.5 GB  | gateway + backend      | OpenCLIP     | Zero-shot                    |
 | Vehicle Classifier (ResNet-50) | Vehicle type classification              | ~1.5 GB  | gateway + backend      | HuggingFace  | 11 classes                   |
 | Pet Classifier                 | Pet detection (dogs, cats)               | ~0.2 GB  | gateway + backend      | HuggingFace  | 2 classes                    |
@@ -229,7 +229,7 @@ Vision-language model for extracting detailed visual attributes from security ca
 
 > **Status:** Superseded in production. The Triton gateway `clip`/`clip_text` models and the backend embedding service now use **SigLIP 2 Base** (`models.yml`: `siglip2-base-patch16-224`, ONNX from `onnx-community/siglip2-base-patch16-224-ONNX`, same 768-dim embedding output — `backend/services/clip_loader.py`). This ViT-L entry documents the standalone `ai/clip` server, which still loads it when `CLIP_MODEL_PATH` points at a CLIP checkpoint.
 
-Generates 768-dimensional embeddings for entity re-identification and scene anomaly detection.
+Generates 768-dimensional embeddings for scene anomaly detection and zero-shot classification.
 
 | Specification     | Value                                                                                 |
 | ----------------- | ------------------------------------------------------------------------------------- |
@@ -242,9 +242,12 @@ Generates 768-dimensional embeddings for entity re-identification and scene anom
 
 **Use Cases:**
 
-1. **Entity Re-identification**: Track the same person or vehicle across multiple cameras using embedding similarity
-2. **Scene Anomaly Detection**: Compare current frame embedding against baseline to detect unusual changes
-3. **Zero-shot Classification**: Classify images against text labels without retraining
+1. **Scene Anomaly Detection**: Compare current frame embedding against baseline to detect unusual changes
+2. **Zero-shot Classification**: Classify images against text labels without retraining
+
+Person re-identification no longer rides here: it moved to OSNet-AIN x1.0 (below) with the
+full swap (ledger item 20), and the `/clip` router is left to the scene-baseline and fashion
+consumers that still use it.
 
 **Environment Variables:**
 
@@ -774,20 +777,33 @@ DAMAGE_CLASSES = [
 
 Lightweight model for generating person embeddings for cross-camera tracking.
 
-| Specification     | Value                                               |
-| ----------------- | --------------------------------------------------- |
-| **Model**         | OSNet-AIN x1.0 (Omni-Scale Network, MSMT17 weights) |
-| **Architecture**  | Lightweight CNN for re-identification               |
-| **VRAM Required** | ~0.1 GB                                             |
-| **Embedding Dim** | 512 floats (L2-normalized)                          |
-| **Port**          | ai-gateway + backend                                |
-| **Framework**     | torchreid                                           |
+| Specification      | Value                                               |
+| ------------------ | --------------------------------------------------- |
+| **Model**          | OSNet-AIN x1.0 (Omni-Scale Network, MSMT17 weights) |
+| **Architecture**   | Lightweight CNN for re-identification               |
+| **VRAM Required**  | ~0.1 GB                                             |
+| **Embedding Dim**  | 512 floats (L2-normalized)                          |
+| **Port**           | ai-gateway + backend                                |
+| **Framework**      | torchreid                                           |
+| **Weights file**   | `osnet_ain_x1_0_msmt17.pth`                         |
+| **model_id (F11)** | `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894` |
 
 **Purpose in Pipeline:**
 
-- Generate 512-dimensional embeddings for person tracking
+- Generate 512-dimensional embeddings for person tracking — the **one** person re-ID vector
+  space. CLIP/SigLIP no longer produces person vectors (full swap, ledger item 20: "ignore
+  previous architecture. we do not have to support backwards compatability.")
 - Match individuals across multiple cameras
 - Enable temporal tracking of persons throughout property
+
+`backend/services/osnet_loader.py` loads the `osnet-ain-x1-0` row of `models.yml`, verifies the
+weights sha256 before loading, and stamps every vector with the `model_id` above. A stored row
+that predates provenance decodes to the sentinel `legacy-unknown-provenance` and is **never
+scored** — it reads as "unavailable (re-enroll)", so re-enroll rather than backfill. When the
+weights are not resident, `reid_service.generate_embedding()` raises `ReIDUnavailableError`
+(the enrollment route answers 503 naming the cause) — never a zero-vector stub. Vehicle identity
+is separate: no vehicle embedding producer ships in resident mode, so it rides license-plate
+match; vehicle-specific re-ID is a named follow-up.
 
 **Output:**
 
@@ -795,9 +811,14 @@ Lightweight model for generating person embeddings for cross-camera tracking.
 {
   "embedding": [0.123, -0.456, "..."],
   "embedding_dimension": 512,
-  "model": "osnet_ain_x1_0"
+  "model_id": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
 }
 ```
+
+Stored under Redis key `entity_embeddings:{model_id}:{date}` — the model_id partition is the
+guard that keeps two spaces from ever being compared. `reid_similarity_threshold` now defaults
+to **0.7** (OSNet-space value; the CLIP-tuned 0.85 would drop every legitimate match), still
+provisional pending calibration against real household galleries.
 
 ---
 
@@ -1105,7 +1126,7 @@ flowchart TD
 1. **YOLO26** (gateway `/yolo26`): Detects objects in camera images (30-50ms)
 2. **Enrichment** (gateway `/enrichment`, `/enrich-lt` + backend model_zoo): Classifies detections (vehicle type, clothing, pet, depth, pose, threats)
 3. **Florence-2** (gateway `/florence`): Generates scene captions and OCR text (optional)
-4. **SigLIP 2** (gateway `/clip`): Entity re-identification embeddings (optional)
+4. **SigLIP 2** (gateway `/clip`): Scene-baseline and fashion-similarity embeddings (optional) — person re-ID vectors come from **OSNet-AIN x1.0** (`osnet-ain-x1-0`, 512-dim), not from `/clip`
 5. **Nemotron** (`ai-llm` :8091): Analyzes enriched detections and generates risk scores (2-5s)
 
 ---

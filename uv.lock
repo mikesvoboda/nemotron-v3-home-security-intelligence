@@ -1407,6 +1407,9 @@ docs = [
     { name = "tree-sitter-python" },
     { name = "tree-sitter-typescript" },
 ]
+face = [
+    { name = "onnxruntime" },
+]
 nemo = [
     { name = "data-designer" },
     { name = "numpy" },
@@ -1552,6 +1555,7 @@ requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
     { name = "numpy", marker = "extra == 'nemo'", specifier = ">=1.24.0" },
     { name = "nvidia-ml-py", specifier = ">=12.560.30,<14.0.0" },
+    { name = "onnxruntime", marker = "extra == 'face'", specifier = ">=1.16" },
     { name = "onvif-zeep", specifier = ">=0.2.12" },
     { name = "open-clip-torch", specifier = ">=2.29.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },
@@ -1621,7 +1625,7 @@ requires-dist = [
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "wsdiscovery", specifier = ">=2.1.2" },
 ]
-provides-extras = ["dev", "nemo", "quantization", "docs", "alpr"]
+provides-extras = ["dev", "nemo", "quantization", "docs", "alpr", "face"]
 
 [package.metadata.requires-dev]
 benchmark = [

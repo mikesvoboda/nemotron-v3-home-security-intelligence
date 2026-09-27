@@ -179,6 +179,74 @@ describe('EventListView', () => {
       expect(screen.getByText('Medium (55)')).toBeInTheDocument();
     });
 
+    // 1.6, D11: a row with no score and no level used to render a green
+    // "Low (0)" badge - a confident safe verdict for an event nothing ever
+    // checked. It now renders the Unverified verdict state instead.
+    it('NULL-score, NULL-level row renders Unverified, not a green Low', () => {
+      const unverified = {
+        ...mockEvents[0],
+        id: 99,
+        risk_score: null,
+        risk_level: '',
+        verdict: undefined,
+      };
+      render(
+        <EventListView
+          events={[unverified]}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      const badge = screen.getByRole('status', { name: /verification verdict/i });
+      expect(badge).toHaveTextContent('Unverified');
+      expect(screen.queryByText('Low (0)')).not.toBeInTheDocument();
+    });
+
+    it('NULL-score row with a failed verification names the failure', () => {
+      const failed = {
+        ...mockEvents[0],
+        id: 98,
+        risk_score: null,
+        risk_level: '',
+        verdict: 'verification_failed' as const,
+      };
+      render(
+        <EventListView
+          events={[failed]}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('Verification failed')).toBeInTheDocument();
+    });
+
+    it('server risk_level wins over the score for the badge', () => {
+      // A disagreeing pair on purpose: the server level already carries the
+      // SeverityService thresholds, a client recomputation could disagree.
+      const disagreeing = { ...mockEvents[0], id: 97, risk_score: 10, risk_level: 'high' };
+      render(
+        <EventListView
+          events={[disagreeing]}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('High (10)')).toBeInTheDocument();
+      expect(screen.queryByText('Low (10)')).not.toBeInTheDocument();
+    });
+
     it('displays mini thumbnail when available', () => {
       render(
         <EventListView

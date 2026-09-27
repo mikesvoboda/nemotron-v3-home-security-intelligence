@@ -1,13 +1,22 @@
 """Re-identification service for entity matching across cameras.
 
-This module provides functionality for generating embeddings from detected
-entities and matching them across different camera views using CLIP ViT-L.
+This module generates person re-ID embeddings and matches them across
+camera views. After the full swap (owner ruling, ledger item 20) the ONE
+person-vector space is OSNet-AIN x1.0 (512-d, SHA-256-pinned weights from
+the models.yml zoo row): ``generate_embedding`` computes with the resident
+zoo handle and returns ``(vector, model_id)`` — the belt that lets every
+reader know which space the bytes live in (F11).
 
-Re-identification enables tracking the same person or vehicle as they move
-between different cameras, providing valuable context for risk analysis.
+CLIP-as-re-ID-producer is retired (the ai-clip HTTP seam is gone; CLIP
+stays where it is really CLIP's job — scene baseline, threat similarity).
+Vehicles have no embedding producer in the shipped mode (B5a): their
+identity rides plate match, and a vehicle crop through a person re-ID model
+would be noise wearing plausible numbers.
 
-The service now uses the ai-clip HTTP service for embedding generation,
-keeping the CLIP model in a dedicated container for better VRAM management.
+Availability: the producer reads the zoo handle (never triggers a load);
+when the weights are not resident it raises ReIDUnavailableError naming the
+zoo row — callers answer honestly (enrollment: 5xx; trail legs: unavailable)
+instead of storing a stub.
 
 Rate Limiting:
     The service implements concurrency-based rate limiting using asyncio.Semaphore
@@ -15,13 +24,15 @@ Rate Limiting:
     configurable via REID_MAX_CONCURRENT_REQUESTS setting (default: 10).
 
 Redis Storage Pattern:
-    Key: entity_embeddings:{date}
+    Key: entity_embeddings:{model_id}:{date}   (partition = the strong guard)
+    Entry: model_id rides inside each payload (the belt)
     TTL: 24 hours (86400 seconds)
 """
 
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import re
 import time
@@ -40,12 +51,13 @@ from backend.core.metrics import (
     record_reid_attempt,
     record_reid_match,
 )
+from backend.core.vector_provenance import LEGACY_MODEL_ID
+from backend.services import osnet_loader
 from backend.services.bbox_validation import (
     InvalidBoundingBoxError,
     clamp_bbox_to_image,
     is_valid_bbox,
 )
-from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -58,11 +70,16 @@ logger = get_logger(__name__)
 # TTL for entity embeddings (24 hours)
 EMBEDDING_TTL_SECONDS = 86400
 
-# Default similarity threshold for matching
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
+# Default similarity threshold for matching — the OSNet-AIN x1.0 space's
+# value (osnet_loader.match_person_embeddings ships 0.7; the CLIP-era 0.85
+# would silently drop every legitimate OSNet match). PROVISIONAL: calibrate
+# against real household galleries, same note as the face thresholds (D-2).
+DEFAULT_SIMILARITY_THRESHOLD = 0.7
 
-# CLIP ViT-L embedding dimension
-EMBEDDING_DIMENSION = 768
+# Person-vector embedding dimension — OSNet-AIN x1.0 (ledger item 20: the
+# full swap retired CLIP-as-re-ID-producer, so this store's space is the
+# resident re-ID weights' 512-d space, not CLIP's 768).
+EMBEDDING_DIMENSION = 512
 
 # Regex pattern for Florence-2 location tokens like <loc_71>, <loc_86>, etc.
 _LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
@@ -125,17 +142,35 @@ def clean_vqa_output(text: str | None) -> str | None:
     return cleaned
 
 
+class ReIDUnavailableError(RuntimeError):
+    """The re-ID weights are not resident, so no vector can be computed.
+
+    The swap's honesty rule (ledger item 20): a missing producer is an
+    AVAILABILITY state, never a zero vector. A stored ``[0.0] * 512`` reads
+    as a plausible embedding until someone compares it, so the producer
+    refuses loudly and the caller says so — enrollment answers 5xx naming
+    the cause, trail legs report "unavailable".
+    """
+
+
 @dataclass(slots=True)
 class EntityEmbedding:
     """Embedding data for a detected entity.
 
+    Provenance (F11, ledger item 20): every entry names the weights that
+    computed it. The Redis key is partitioned by model_id as the strong
+    guard, but the belt travels INSIDE each payload — a row that never
+    said who computed it decodes to the sentinel and is untrusted, never
+    trusted-with-nothing.
+
     Attributes:
         entity_type: Type of entity ("person" or "vehicle")
-        embedding: 768-dimensional vector from CLIP ViT-L
+        embedding: 512-dimensional OSNet-AIN x1.0 vector
         camera_id: ID of the camera that captured the entity
         timestamp: When the entity was detected
         detection_id: Unique ID of the detection
         attributes: Additional attributes from vision extraction (e.g., clothing, color)
+        model_id: Which weights computed this embedding (or the sentinel)
     """
 
     entity_type: str
@@ -144,6 +179,7 @@ class EntityEmbedding:
     timestamp: datetime
     detection_id: str
     attributes: dict[str, Any] = field(default_factory=dict)
+    model_id: str = LEGACY_MODEL_ID
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
@@ -158,11 +194,18 @@ class EntityEmbedding:
             "timestamp": self.timestamp.isoformat(),
             "detection_id": self.detection_id,
             "attributes": self.attributes,
+            "model_id": self.model_id,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EntityEmbedding:
         """Create from dictionary.
+
+        A payload with no ``model_id`` key predates provenance (or was
+        written by a producer that never named itself): it decodes to the
+        sentinel, which every comparison reads as untrusted. Defaulting a
+        silent gap to the LIVE model would launder old CLIP bytes into the
+        OSNet space — the failure F11 exists to prevent.
 
         Args:
             data: Dictionary with embedding data
@@ -181,6 +224,7 @@ class EntityEmbedding:
             timestamp=timestamp,
             detection_id=data["detection_id"],
             attributes=data.get("attributes", {}),
+            model_id=data.get("model_id") or LEGACY_MODEL_ID,
         )
 
 
@@ -293,15 +337,16 @@ def batch_cosine_similarity(query: list[float], candidates: list[list[float]]) -
 
 
 class ReIdentificationService:
-    """Service for entity re-identification across cameras.
+    """Service for person re-identification across cameras.
 
-    This service generates embeddings from detected entities using the ai-clip
-    HTTP service, stores them in Redis with 24-hour TTL, and provides matching
-    functionality to identify the same entity across different camera views.
-
-    The service uses an HTTP client to communicate with the ai-clip service,
-    which runs the CLIP ViT-L model in a dedicated container for better VRAM
-    management.
+    This service extracts embeddings from person crops using the resident
+    OSNet-AIN x1.0 zoo handle (ledger item 20 — the full swap retired the
+    ai-clip HTTP producer), stores them in Redis with 24-hour TTL — keyed
+    by the producing ``model_id`` so two vector spaces can never be
+    compared — and provides matching functionality to identify the same
+    person across different camera views. When the pinned weights are not
+    resident, ``generate_embedding`` raises ``ReIDUnavailableError``; the
+    store never sees a zero-vector stub.
 
     Rate Limiting:
         All async operations (generate_embedding, store_embedding,
@@ -313,8 +358,10 @@ class ReIdentificationService:
     Usage:
         service = ReIdentificationService()
 
-        # Generate embedding from detected entity (using HTTP client)
-        embedding = await service.generate_embedding(image, bbox=(100, 100, 200, 200))
+        # Extract embedding from a person crop (server-side, provenanced)
+        embedding, model_id = await service.generate_embedding(
+            image, bbox=(100, 100, 200, 200)
+        )
 
         # Store embedding
         entity = EntityEmbedding(
@@ -323,6 +370,7 @@ class ReIdentificationService:
             camera_id="front_door",
             timestamp=datetime.now(timezone.utc),
             detection_id="det_123",
+            model_id=model_id,
             attributes={"clothing": "blue jacket"},
         )
         await service.store_embedding(redis_client, entity)
@@ -335,7 +383,6 @@ class ReIdentificationService:
 
     def __init__(
         self,
-        clip_client: CLIPClient | None = None,
         max_concurrent_requests: int | None = None,
         embedding_timeout: float | None = None,
         max_retries: int | None = None,
@@ -344,8 +391,6 @@ class ReIdentificationService:
         """Initialize the ReIdentificationService.
 
         Args:
-            clip_client: Optional CLIPClient instance. If not provided,
-                        the global client will be used.
             max_concurrent_requests: Maximum concurrent re-identification
                         operations. If not provided, uses the value from
                         settings (REID_MAX_CONCURRENT_REQUESTS, default: 10).
@@ -359,7 +404,6 @@ class ReIdentificationService:
                         persistence. If provided, enables storing and searching
                         entities in both Redis and PostgreSQL (NEM-2499).
         """
-        self._clip_client = clip_client
         self._hybrid_storage = hybrid_storage
 
         # Get settings for defaults
@@ -404,17 +448,6 @@ class ReIdentificationService:
         return self._max_concurrent_requests
 
     @property
-    def clip_client(self) -> CLIPClient:
-        """Get the CLIP client instance.
-
-        Returns:
-            CLIPClient instance (uses global client if not provided in constructor)
-        """
-        if self._clip_client is None:
-            return get_clip_client()
-        return self._clip_client
-
-    @property
     def hybrid_storage(self) -> HybridEntityStorage | None:
         """Get the HybridEntityStorage instance.
 
@@ -431,12 +464,18 @@ class ReIdentificationService:
         self,
         image: Image.Image,
         bbox: tuple[int, int, int, int] | None = None,
-        model: dict[str, Any] | None = None,  # Deprecated, kept for backward compatibility
-    ) -> list[float]:
-        """Generate a 768-dimensional embedding from an image.
+    ) -> tuple[list[float], str]:
+        """Compute a 512-dim OSNet-AIN x1.0 person re-ID embedding.
 
-        Uses the ai-clip HTTP service to generate embeddings, keeping the
-        CLIP model in a dedicated container for better VRAM management.
+        The producer is the resident models.yml zoo handle (F12-pinned
+        weights), read via the osnet_loader module — never a load trigger,
+        never a stale dict (ledger item 20 retired the CLIP-as-re-ID seam;
+        see the module docstring for why).
+
+        Returns ``(vector, model_id)``: the belt travels with the bytes so
+        every store and reader knows which space this vector lives in (F11).
+        The belt is the HANDLE's own string — the file actually loaded —
+        not the catalog's claim, so hand-deployed weights label honestly.
 
         This method is rate-limited to prevent resource exhaustion.
         It also implements timeout and retry logic with exponential backoff (NEM-1085).
@@ -448,27 +487,29 @@ class ReIdentificationService:
 
         Timeout and Retry (NEM-1085):
         - Operations timeout after `embedding_timeout` seconds (default: 30s)
-        - Transient failures (connection errors, timeouts) are retried up to `max_retries` times
+        - Transient failures are retried up to `max_retries` times
         - Uses exponential backoff: 2^attempt seconds between retries
-        - CLIPUnavailableError is NOT retried (permanent service unavailability)
+        - An absent weights handle is NOT retried: availability is not transient
 
         Args:
-            image: PIL Image to generate embedding from
+            image: PIL Image to generate the embedding from
             bbox: Optional bounding box (x1, y1, x2, y2) to crop before embedding
-            model: DEPRECATED - no longer used, kept for backward compatibility
 
         Returns:
-            768-dimensional embedding vector
+            Tuple of (512-dimensional embedding vector, producer model_id)
 
         Raises:
             InvalidBoundingBoxError: If bbox has invalid dimensions or is outside image
-            RuntimeError: If embedding generation fails after all retries or times out
-            CLIPUnavailableError: If the CLIP service is unavailable
+            ReIDUnavailableError: If the re-ID weights are not resident
+            RuntimeError: If extraction fails after all retries or times out
         """
-        if model is not None:
-            logger.warning(
-                "The 'model' parameter is deprecated and ignored. "
-                "ReIdentificationService now uses the ai-clip HTTP service."
+        handle = osnet_loader.get_reid_handle()
+        if handle is None:
+            raise ReIDUnavailableError(
+                f"The re-ID weights ({osnet_loader.OSNET_ZOO_NAME}) are not resident, so no person "
+                "embedding can be computed. Check model zoo preload (BACKEND_MODEL_PRELOAD) "
+                "and the models.yml weights path — a stored vector requires the pinned "
+                "weights, and there is no stub fallback."
             )
 
         async with self._rate_limit_semaphore:
@@ -514,22 +555,45 @@ class ReIdentificationService:
                 x1, y1, x2, y2 = clamped_bbox
                 processed_image = image.crop((x1, y1, x2, y2))
 
-            # Implement retry logic with exponential backoff (NEM-1085)
+            # Implement retry logic with exponential backoff (NEM-1085).
+            # Extraction is CPU inference on the resident handle, so retrying
+            # a transient failure is still meaningful (memory pressure, a
+            # busy worker); an absent handle already refused above.
             last_exception: Exception | None = None
             for attempt in range(self._max_retries):
                 try:
-                    # Apply timeout to the embedding operation (NEM-1085)
+                    # Apply timeout to the extraction operation (NEM-1085)
                     async with asyncio.timeout(self._embedding_timeout):
-                        embedding = await self.clip_client.embed(processed_image)
+                        result = await osnet_loader.extract_person_embedding(
+                            handle, processed_image
+                        )
 
-                    logger.debug(f"Generated embedding with dimension {len(embedding)}")
-                    return embedding
+                    # Native floats, not numpy scalars: store_embedding
+                    # serializes the payload with json.dumps for its atomic
+                    # Lua write, and json cannot encode a numpy float32. The
+                    # retired CLIP producer arrived JSON-decoded from HTTP
+                    # (already native); local OSNet inference returns a
+                    # float32 array, so the conversion lives HERE — pinned
+                    # by TestGenerateEmbedding (the swap's real-bytes driver
+                    # found it, ledger item 20).
+                    embedding = [float(x) for x in result.embedding]
+                    belt = result.model_id
+                    if not belt:
+                        # The handle dict is built by load_osnet_model, which
+                        # always sets model_id; a handle without one is a
+                        # caller-supplied dict that never named itself. F11:
+                        # that is the sentinel state, said as the sentinel —
+                        # never laundered into the live space.
+                        belt = LEGACY_MODEL_ID
+
+                    logger.debug(
+                        f"Generated re-ID embedding with dimension {len(embedding)} "
+                        f"from weights {belt}"
+                    )
+                    return embedding, belt
 
                 except InvalidBoundingBoxError:
                     # Re-raise bbox validation errors as-is (should not happen here)
-                    raise
-                except CLIPUnavailableError:
-                    # Re-raise CLIP unavailable errors as-is - do not retry
                     raise
                 except TimeoutError:
                     last_exception = TimeoutError(
@@ -599,7 +663,12 @@ class ReIdentificationService:
         """
         async with self._rate_limit_semaphore:
             date_key = embedding.timestamp.strftime("%Y-%m-%d")
-            key = f"entity_embeddings:{date_key}"
+            # The key is PARTITIONED by provenance (F11, D-3): a search
+            # over one space physically cannot read another's rows, and a
+            # weights swap just stops writing the old partition (the 24 h
+            # TTL expires it — no flush op). The per-entry model_id stays
+            # the belt: a partition's key never outranks its payload.
+            key = f"entity_embeddings:{embedding.model_id}:{date_key}"
 
             try:
                 # NEM-4474: Use Lua script for atomic read-modify-write operation
@@ -696,6 +765,8 @@ class ReIdentificationService:
                         camera_id=embedding.camera_id,
                         timestamp=embedding.timestamp,
                         attributes=embedding.attributes,
+                        # The belt continues to the JSONB leg (F11).
+                        model_id=embedding.model_id,
                     )
 
                     logger.debug(
@@ -719,6 +790,51 @@ class ReIdentificationService:
 
             return None
 
+    async def _history_partition_keys(
+        self, redis_client: Redis | Any, dates: list[str]
+    ) -> list[str]:
+        """Every ``entity_embeddings:{model_id}:{date}`` partition key.
+
+        SCAN discovery, the repo's established pattern (batch_aggregator,
+        dedupe, cache_service). Handles the RedisClient wrapper (scan_keys)
+        and a raw client (scan_iter); anything else (a test double whose
+        auto-mock returns a coroutine, a client without SCAN, a raised
+        scan) contributes nothing and is simply skipped — SURFACING browse
+        still reads the pre-partition date-only keys, which the caller
+        always includes.
+        """
+        keys: list[str] = []
+
+        def _collect(found: Any) -> None:
+            for k in found:
+                item = k.decode() if isinstance(k, bytes) else k
+                keys.append(str(item))
+
+        try:
+            from backend.core.redis import RedisClient
+
+            if isinstance(redis_client, RedisClient):
+                for date_str in dates:
+                    _collect(await redis_client.scan_keys(f"entity_embeddings:*:{date_str}"))
+            elif hasattr(redis_client, "scan_iter"):
+                for date_str in dates:
+                    found = redis_client.scan_iter(
+                        match=f"entity_embeddings:*:{date_str}", count=100
+                    )
+                    if inspect.isawaitable(found):
+                        # A Mock double's scan_iter auto-mock returns a
+                        # coroutine, not the async iterator redis gives:
+                        # close it (no "never awaited" warning) and move on.
+                        close = getattr(found, "close", None)
+                        if callable(close):
+                            close()
+                        continue
+                    _collect([k async for k in found])
+        except Exception as e:
+            logger.debug("entity_embeddings partition scan failed: %s", e)
+
+        return keys
+
     async def find_matching_entities(
         self,
         redis_client: Redis,
@@ -728,6 +844,7 @@ class ReIdentificationService:
         exclude_detection_id: str | None = None,
         include_historical: bool = False,
         camera_id: str | None = None,
+        model_id: str | None = None,
     ) -> list[EntityMatch]:
         """Find entities matching the given embedding.
 
@@ -745,14 +862,20 @@ class ReIdentificationService:
 
         Args:
             redis_client: Redis client instance
-            embedding: 768-dimensional embedding to match
+            embedding: 512-dimensional OSNet-AIN x1.0 person embedding to match
             entity_type: Type of entity to search ("person" or "vehicle")
-            threshold: Minimum cosine similarity threshold (default 0.85)
+            threshold: Minimum cosine similarity threshold (default
+                DEFAULT_SIMILARITY_THRESHOLD — 0.7, the OSNet-space value)
             exclude_detection_id: Optional detection ID to exclude from results
             include_historical: If True and hybrid_storage is configured, search
                 both Redis and PostgreSQL. Defaults to False. (NEM-2499)
             camera_id: Optional camera ID for metrics recording. If not provided,
                 "unknown" is used. (NEM-4140)
+            model_id: The producer's model id whose Redis partition is read
+                (D-3, ledger item 20) — candidates are only ever drawn from
+                ``entity_embeddings:{model_id}:{date}``. None (or the legacy
+                sentinel) means no partition to read: zero candidates, the
+                honest F11 answer, never a cross-space score.
 
         Returns:
             List of EntityMatch objects sorted by similarity (highest first)
@@ -778,6 +901,7 @@ class ReIdentificationService:
                         threshold=threshold,
                         exclude_detection_id=exclude_detection_id,
                         include_historical=include_historical,
+                        model_id=model_id,
                     )
 
                     # Convert HybridEntityMatch to EntityMatch for backward compatibility
@@ -788,6 +912,7 @@ class ReIdentificationService:
                             camera_id=hybrid_match.camera_id,
                             timestamp=hybrid_match.timestamp,
                             detection_id=hybrid_match.detection_id or str(hybrid_match.entity_id),
+                            model_id=hybrid_match.model_id,
                             attributes=hybrid_match.attributes,
                         )
                         matches.append(
@@ -836,12 +961,20 @@ class ReIdentificationService:
                 # Use a set to avoid duplicates if today and yesterday are the same key
                 dates_to_check = list({today, yesterday})
 
-                # Collect all candidate entities and their embeddings for batch processing
+                # Read ONLY the probe's own partition (F11, D-3): a search
+                # over OSNet bytes physically cannot read another space's
+                # rows. Without a named model_id there is no partition to
+                # read and no honest comparison — the legacy date-only keys
+                # hold pre-swap vectors, which are untrusted by definition,
+                # so scoring them is not an option; zero candidates is.
                 candidate_entities: list[EntityEmbedding] = []
                 candidate_embeddings: list[list[float]] = []
+                skipped_provenance = 0
 
                 for date_str in dates_to_check:
-                    key = f"entity_embeddings:{date_str}"
+                    if not model_id or model_id == LEGACY_MODEL_ID:
+                        continue
+                    key = f"entity_embeddings:{model_id}:{date_str}"
                     data_raw = await redis_client.get(key)
 
                     if not data_raw:
@@ -870,9 +1003,31 @@ class ReIdentificationService:
                         ):
                             continue
 
+                        # The belt inside the payload outranks the key:
+                        # a foreign- or sentinel-provenance row inside a
+                        # well-named partition is still uncomparable, and
+                        # a mis-sized one (a stale 768-d row) would RAISE
+                        # inside batch_cosine_similarity and kill the whole
+                        # pass. Skip it, counted, and keep scoring.
+                        entry_id = stored_data.get("model_id") or LEGACY_MODEL_ID
+                        if entry_id != model_id:
+                            skipped_provenance += 1
+                            continue
+
                         stored = EntityEmbedding.from_dict(stored_data)
+                        if len(stored.embedding) != len(embedding):
+                            skipped_provenance += 1
+                            continue
                         candidate_entities.append(stored)
                         candidate_embeddings.append(stored.embedding)
+
+                if skipped_provenance:
+                    logger.debug(
+                        "Re-ID search skipped %d uncomparable %s row(s) "
+                        "(provenance mismatch or dimension)",
+                        skipped_provenance,
+                        entity_type,
+                    )
 
                 # Compute all similarities at once using batch operation (NEM-1071)
                 if candidate_embeddings:
@@ -945,8 +1100,15 @@ class ReIdentificationService:
                 # Use a set to avoid duplicates if today and yesterday are the same key
                 dates_to_check = list({today, yesterday})
 
-                for date_str in dates_to_check:
-                    key = f"entity_embeddings:{date_str}"
+                # A BROWSE surface lists all spaces side by side (each row
+                # carries its own model_id and the API shows it), so unlike
+                # find_matching_entities it reads the pre-partition
+                # date-only keys AND every model partition SCAN finds.
+                # Surfacing is not scoring — F11's guard lives where a
+                # similarity is produced.
+                keys_to_read = [f"entity_embeddings:{d}" for d in dates_to_check]
+                keys_to_read += await self._history_partition_keys(redis_client, dates_to_check)
+                for key in keys_to_read:
                     data_raw = await redis_client.get(key)
 
                     if not data_raw:

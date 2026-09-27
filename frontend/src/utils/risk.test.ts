@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  compareRiskSortKey,
   getRiskBgClass,
   getRiskColor,
   getRiskLabel,
   getRiskLevel,
   getRiskLevelWithThresholds,
   getRiskTextClass,
+  resolveRiskLevel,
+  riskSortKey,
   RISK_THRESHOLDS,
 } from './risk';
 
@@ -164,6 +167,81 @@ describe('risk utilities', () => {
       expect(() => getRiskLevelWithThresholds(101, customThresholds)).toThrow(
         'Risk score must be between 0 and 100'
       );
+    });
+  });
+
+  describe('resolveRiskLevel (1.6 null-safe rendering)', () => {
+    it('prefers the server-computed risk_level over the score', () => {
+      // The server level already carries SeverityService thresholds; a
+      // client recomputation from the score could disagree with them.
+      expect(resolveRiskLevel('high', 10)).toBe('high');
+    });
+
+    it('falls back to the score when no level is present', () => {
+      expect(resolveRiskLevel(null, 45)).toBe('medium');
+      expect(resolveRiskLevel(undefined, 90)).toBe('critical');
+    });
+
+    it('returns null - NOT "low" - for a NULL score with no level', () => {
+      // The null-lie this replaces: `getRiskLevel(score || 0)` rendered a
+      // verification_failed event (NULL score, D11) as a confident green
+      // "Low" badge. No score means no level; the caller shows Unverified.
+      expect(resolveRiskLevel(null, null)).toBeNull();
+      expect(resolveRiskLevel(undefined, undefined)).toBeNull();
+      expect(resolveRiskLevel('', null)).toBeNull();
+    });
+
+    it('a real score of 0 is still "low" (null and zero are different)', () => {
+      expect(resolveRiskLevel(null, 0)).toBe('low');
+    });
+  });
+
+  describe('riskSortKey (1.6)', () => {
+    it('scores sort among themselves', () => {
+      expect(riskSortKey(10) - riskSortKey(50)).toBe(-40);
+    });
+
+    it('NULL sorts above every score descending (unknown is not safe)', () => {
+      // `risk_score || 0` made an unverified event sort as the LOWEST risk,
+      // burying never-analyzed events at the bottom of a worst-first list.
+      // Unknown must not masquerade as safe.
+      expect(riskSortKey(null) > riskSortKey(100)).toBe(true);
+      expect(riskSortKey(undefined) > riskSortKey(100)).toBe(true);
+    });
+
+    it('a real score of 0 sorts lowest (null and zero stay different)', () => {
+      expect(riskSortKey(0) < riskSortKey(50)).toBe(true);
+    });
+  });
+
+  describe('compareRiskSortKey (1.6)', () => {
+    it('two unverified events compare EQUAL, not NaN', () => {
+      // The list comparator this replaces was `key(a) - key(b)`, and
+      // Infinity - Infinity is NaN - two unknowns side by side poison the
+      // sort result for the whole array.
+      expect(compareRiskSortKey(null, null)).toBe(0);
+      expect(compareRiskSortKey(undefined, null)).toBe(0);
+    });
+
+    it('scores compare among themselves', () => {
+      expect(compareRiskSortKey(10, 50)).toBe(-1);
+      expect(compareRiskSortKey(50, 10)).toBe(1);
+      expect(compareRiskSortKey(50, 50)).toBe(0);
+    });
+
+    it('unverified outranks every score worst-first', () => {
+      expect(compareRiskSortKey(null, 100)).toBe(1);
+      expect(compareRiskSortKey(100, null)).toBe(-1);
+    });
+
+    it('sorts a real mixed list: worst first, unknowns on top, stable among unknowns', () => {
+      const scores: (number | null)[] = [40, null, 90, null, 0];
+      const worstFirst = [...scores].sort(
+        (a, b) => -compareRiskSortKey(a, b) // negated: descending = worst first
+      );
+      // Unknowns first (they need eyes), then 90, 40, 0.
+      expect(worstFirst.slice(0, 2)).toEqual([null, null]);
+      expect(worstFirst.slice(2)).toEqual([90, 40, 0]);
     });
   });
 });

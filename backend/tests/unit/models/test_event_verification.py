@@ -24,7 +24,7 @@ behavior itself is pinned by the integration tier
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import CheckConstraint
+from sqlalchemy import CheckConstraint, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.schema import CreateTable
 
@@ -158,3 +158,77 @@ class TestRowConstruction:
         row = EventVerification(event_id=3, verdict="rejected", engine="llama.cpp", model_id="m")
         assert "event_id=3" in repr(row)
         assert "rejected" in repr(row)
+
+
+# =============================================================================
+# 1.6: the FILTER vocabulary and its SQL condition. Both the list and the
+# search route build `?verdict=` from this one module, so the vocabulary and
+# the EXISTS shape are pinned here rather than in either route's tests.
+# =============================================================================
+
+
+class TestVerdictFilterVocabulary:
+    def test_filter_values_are_the_four_verdicts_plus_none(self) -> None:
+        """`none` is a pseudo-value meaning "no verification row" — the one
+        question a verdict column cannot answer, and the first thing an
+        operator asks in a fresh vlm deployment."""
+        from backend.models.event_verification import (
+            VERDICT_FILTER_VALUES,
+            VERDICT_VALUES,
+        )
+
+        assert VERDICT_VALUES == ("confirmed", "rejected", "uncertain", "verification_failed")
+        assert set(VERDICT_FILTER_VALUES) == set(VERDICT_VALUES) | {"none"}
+
+    def test_the_check_constraint_is_narrower_than_the_filter(self) -> None:
+        """Deliberate asymmetry: 'none' filters on row ABSENCE, so a stored
+        row may never carry it. If these two lists ever become equal, the
+        CHECK has silently widened to accept a non-verdict."""
+        from backend.models.event_verification import VERDICT_FILTER_VALUES
+
+        table = ModelsBase.metadata.tables["event_verifications"]
+        checks = [c.sqltext.text for c in table.constraints if isinstance(c, CheckConstraint)]
+        joined = " ".join(checks)
+        assert "none" not in joined.split()
+        assert "none" in VERDICT_FILTER_VALUES
+
+    def test_condition_compiles_for_postgres(self) -> None:
+        """The real shape is EXISTS on the relationship (the verdict has no
+        column on Event), and 'none' is its negation — both must compile,
+        and each names the verification table exactly once."""
+        from sqlalchemy.dialects import postgresql
+
+        from backend.models.event import Event
+        from backend.models.event_verification import verdict_filter_condition
+
+        real = str(
+            select(Event.id)
+            .where(verdict_filter_condition("rejected"))
+            .compile(dialect=postgresql.dialect())
+        )
+        none = str(
+            select(Event.id)
+            .where(verdict_filter_condition("none"))
+            .compile(dialect=postgresql.dialect())
+        )
+        assert "event_verifications" in real and "event_verifications" in none
+        # SQLAlchemy renders the negation as `NOT (EXISTS ...)`
+        assert "EXISTS" in real and "NOT" not in real
+        assert "NOT (EXISTS" in none
+
+    def test_none_is_the_only_negated_form(self) -> None:
+        """A real verdict filter must NOT be negated - a silent inversion
+        would make ?verdict=rejected return everything BUT rejected."""
+        from sqlalchemy.dialects import postgresql
+
+        from backend.models.event import Event
+        from backend.models.event_verification import VERDICT_VALUES, verdict_filter_condition
+
+        for verdict in VERDICT_VALUES:
+            sql = str(
+                select(Event.id)
+                .where(verdict_filter_condition(verdict))
+                .compile(dialect=postgresql.dialect())
+            )
+            assert "NOT (EXISTS" not in sql
+            assert "verdict =" in sql

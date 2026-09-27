@@ -3365,6 +3365,54 @@ def record_model_cold_start(model: str) -> None:
     MODEL_COLD_START_TOTAL.labels(model=model).inc()
 
 
+# Phase 1.3 (spec §6 step 4): the alert half of "the system reports
+# DegradationMode.DEGRADED ... surfaced through the health endpoint and a
+# Prometheus alert". The degradation singleton is in-process and the repo
+# has no exposition bridge to it, so this gauge is the alertable projection
+# of a breaker-driven UNHEALTHY push (1 = unhealthy).
+AI_SERVICE_DEGRADED = Gauge(
+    "hsi_ai_service_degraded",
+    "AI service marked unhealthy by the §6 ladder (1) or healthy (0)",
+    labelnames=["service"],
+    registry=_registry,
+)
+
+# Owner ruling 2026-09-26 (prompt hygiene): a degraded specialist's WHY is
+# deliberately absent from the VLM prompt text — specialist_outputs is prompt
+# text, not a diagnostics channel. This counter is where the reason goes so
+# the visibility is not lost: `specialist` names the leg, `reason` is a
+# bounded code (weights_absent / package_absent / inference_failed /
+# gallery_unreadable / space_mismatch / stage_error / not_included), never an
+# exception message or a path. Alertable without reading a log line.
+SPECIALIST_UNAVAILABLE_TOTAL = Counter(
+    "hsi_specialist_unavailable_total",
+    "Times a VLM specialist reported unavailable, by leg and reason code",
+    labelnames=["specialist", "reason"],
+    registry=_registry,
+)
+
+
+def set_ai_service_degraded(service: str, degraded: bool) -> None:
+    """Project a DegradationManager health push onto the alertable gauge.
+
+    Args:
+        service: Service name (e.g., 'ai-vlm')
+        degraded: True when the §6 ladder marked the service unhealthy
+    """
+    AI_SERVICE_DEGRADED.labels(service=service).set(1 if degraded else 0)
+
+
+def record_specialist_unavailable(specialist: str, reason: str) -> None:
+    """Count one unavailable specialist line.
+
+    Args:
+        specialist: The leg ("faces", "plates", "person_reid", "threat", "stage")
+        reason: A bounded reason CODE (not a message — codes keep label
+            cardinality finite, the same rule sanitize_error_type serves)
+    """
+    SPECIALIST_UNAVAILABLE_TOTAL.labels(specialist=specialist, reason=reason).inc()
+
+
 def set_model_warmth_state(model: str, state: str) -> None:
     """Set the current warmth state gauge for an AI model.
 

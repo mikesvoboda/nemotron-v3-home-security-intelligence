@@ -20,8 +20,9 @@ import { ChevronLeft, ChevronRight, AlertTriangle, ImageOff } from 'lucide-react
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 
 import { fetchEvents } from '../../services/api';
-import { getRiskLevel } from '../../utils/risk';
+import { compareRiskSortKey, getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge, { verdictLabel } from '../common/VerdictBadge';
 
 import type { Event } from '../../types/generated';
 
@@ -108,8 +109,11 @@ export default function TopEventsCarousel({
   const displayEvents = useMemo(() => {
     if (!data?.items) return [];
 
-    // Sort by risk_score descending
-    const sorted = [...data.items].sort((a, b) => (b.risk_score ?? 0) - (a.risk_score ?? 0));
+    // Sort by risk_score descending, unknown FIRST (see useTopEventsQuery:
+    // `?? 0` here buried never-verified events beside harmless ones, and two
+    // unknowns gave Infinity - Infinity = NaN, which makes Array.prototype
+    // sort's whole ordering implementation-defined).
+    const sorted = [...data.items].sort((a, b) => compareRiskSortKey(b.risk_score, a.risk_score));
 
     // Return count based on expanded state
     const displayCount = isExpanded ? expandedCount : count;
@@ -363,22 +367,32 @@ function EventThumbnail({
 }: EventThumbnailProps) {
   const [imageError, setImageError] = useState(false);
   const eventId = typeof event.id === 'number' ? event.id : parseInt(String(event.id), 10);
-  const riskScore = event.risk_score ?? 0;
-  const riskLevel = getRiskLevel(riskScore);
+  // One nullable object (ActivityFeed's shape) so each renderer branches on
+  // it without a non-null assertion. `?? 0` here rendered a never-verified
+  // event as a confident green "0" thumbnail badge with a border color
+  // derived from a number that was never computed (M1 review, D11).
+  const risk =
+    event.risk_score === null || event.risk_score === undefined
+      ? null
+      : { score: event.risk_score, level: getRiskLevel(event.risk_score) };
   // Use camera_id as display name - the Event type doesn't include camera_name
   const cameraName = event.camera_id ?? 'Unknown Camera';
 
   const hasThumbnail = event.thumbnail_url && !imageError;
 
-  // Determine risk-based border color
+  // Determine risk-based border color. null (no score) is neutral gray, the
+  // same "not checked, not found calm" treatment DeletedEventCard and the
+  // heatmap tile now share — never the green the old `?? 0` produced.
   const borderColorClass =
-    riskLevel === 'critical'
-      ? 'border-red-500'
-      : riskLevel === 'high'
-        ? 'border-orange-500'
-        : riskLevel === 'medium'
-          ? 'border-yellow-500'
-          : 'border-gray-600';
+    risk === null
+      ? 'border-gray-600'
+      : risk.level === 'critical'
+        ? 'border-red-500'
+        : risk.level === 'high'
+          ? 'border-orange-500'
+          : risk.level === 'medium'
+            ? 'border-yellow-500'
+            : 'border-gray-600';
 
   return (
     <motion.div
@@ -388,7 +402,13 @@ function EventThumbnail({
       onKeyDown={(e) => onKeyDown(e, eventId)}
       tabIndex={0}
       role="button"
-      aria-label={`Event from ${cameraName}, risk score ${riskScore}`}
+      aria-label={`Event from ${cameraName}, ${
+        risk !== null
+          ? `risk score ${risk.score}`
+          : // The word the badge actually shows, from the badge's own table
+            // (one source — a second spelling here would drift).
+            verdictLabel(event.verification?.verdict)
+      }`}
       data-testid={`top-event-thumbnail-${eventId}`}
       variants={prefersReducedMotion ? undefined : variants}
       layout={!prefersReducedMotion}
@@ -410,9 +430,15 @@ function EventThumbnail({
         </div>
       )}
 
-      {/* Risk Score Badge */}
+      {/* Risk Score Badge — with no score the tile states the verdict
+          instead of a number (D11: NULL is verification_failed/unverified,
+          never 0). */}
       <div className="absolute bottom-1 right-1">
-        <RiskBadge level={riskLevel} score={riskScore} showScore={true} size="sm" />
+        {risk !== null ? (
+          <RiskBadge level={risk.level} score={risk.score} showScore={true} size="sm" />
+        ) : (
+          <VerdictBadge verdict={event.verification?.verdict} size="sm" />
+        )}
       </div>
 
       {/* Camera Name Overlay */}

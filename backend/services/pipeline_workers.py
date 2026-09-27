@@ -65,6 +65,7 @@ from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.frame_buffer import FrameBuffer, get_frame_buffer
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.pipeline_factory import build_pipeline_analyzer
 from backend.services.redis_streams import (
     AnalysisStreamService,
     DetectionStreamService,
@@ -796,7 +797,9 @@ class AnalysisQueueWorker:
             worker_name: Name used for heartbeat reporting (NEM-4148)
         """
         self._redis = redis_client
-        self._analyzer = analyzer or NemotronAnalyzer(redis_client=redis_client)
+        # 1.5: the analyzer is mode-built (PIPELINE_MODE), never spelled
+        # here — vlm mode must not silently run this legacy analyzer.
+        self._analyzer = analyzer or build_pipeline_analyzer(redis_client=redis_client)
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
         self._stop_timeout = stop_timeout

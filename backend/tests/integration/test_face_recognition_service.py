@@ -35,6 +35,14 @@ def service() -> FaceRecognitionService:
     return get_face_recognition_service()
 
 
+# F11: a stored vector scores only against a probe from the SAME weights, so
+# these tests name one space on both sides - exactly what server-side
+# enrollment does with the loaded recognizer's id. A gallery row that never
+# named one is untrusted by design (the sentinel), which is why enrolling
+# without a model_id and expecting a score is no longer a valid expectation.
+TEST_SPACE = "w600k_r50@buffalo_l@testweights01"
+
+
 def generate_random_embedding(seed: int = 42) -> list[float]:
     """Generate a random 512-dimensional embedding for testing."""
     rng = np.random.default_rng(seed)
@@ -405,11 +413,12 @@ class TestFaceMatching:
             db_session,
             person.id,
             embedding=base_embedding,
+            model_id=TEST_SPACE,
         )
 
         # Match with similar embedding
         query_embedding = generate_similar_embedding(base_embedding, noise_level=0.05)
-        result = await service.match_face(db_session, query_embedding)
+        result = await service.match_face(db_session, query_embedding, model_id=TEST_SPACE)
 
         assert result["matched"] is True
         assert result["person_id"] == person.id
@@ -443,6 +452,37 @@ class TestFaceMatching:
         assert result["is_unknown"] is True
 
     @pytest.mark.asyncio
+    async def test_match_face_never_scores_a_sentinel_row(
+        self,
+        service: FaceRecognitionService,
+        db_session: AsyncSession,
+    ) -> None:
+        """A gallery row that never named its weights is NEVER scored.
+
+        This is the F11 rule against real storage: the enrollment omits
+        ``model_id`` so the column's server_default sentinel lands (the
+        migration's literal, not a mock's), and the probe comes from a named
+        space. Byte-identical vectors must still answer "unavailable", not a
+        similarity - a pre-swap gallery is exactly this shape.
+        """
+        person = await service.create_known_person(
+            db_session, name="Pre-Swap Enrollee", is_household_member=True
+        )
+        base_embedding = generate_random_embedding(seed=500)
+        await service.add_face_embedding(
+            db_session,
+            person.id,
+            embedding=base_embedding,
+            # no model_id: the sentinel default is the point of this test
+        )
+
+        result = await service.match_face(db_session, list(base_embedding), model_id=TEST_SPACE)
+
+        assert result["matched"] is False
+        assert result["unavailable"] is True
+        assert result["similarity"] == 0.0
+
+    @pytest.mark.asyncio
     async def test_match_face_empty_database(
         self,
         service: FaceRecognitionService,
@@ -470,6 +510,7 @@ class TestFaceMatching:
             db_session,
             person.id,
             embedding=base_embedding,
+            model_id=TEST_SPACE,
         )
 
         # Create moderately similar embedding. E[sim] = 1/sqrt(1 + 512*noise^2):
@@ -479,11 +520,15 @@ class TestFaceMatching:
         query_embedding = generate_similar_embedding(base_embedding, noise_level=0.05)
 
         # With high threshold, should not match
-        result_high = await service.match_face(db_session, query_embedding, threshold=0.95)
+        result_high = await service.match_face(
+            db_session, query_embedding, threshold=0.95, model_id=TEST_SPACE
+        )
         assert result_high["matched"] is False
 
         # With low threshold, should match
-        result_low = await service.match_face(db_session, query_embedding, threshold=0.5)
+        result_low = await service.match_face(
+            db_session, query_embedding, threshold=0.5, model_id=TEST_SPACE
+        )
         assert result_low["matched"] is True
 
     @pytest.mark.asyncio
@@ -500,20 +545,27 @@ class TestFaceMatching:
 
         base_embedding = generate_random_embedding(seed=1000)
         await service.add_face_embedding(
-            db_session, person1.id, embedding=generate_random_embedding(seed=1001)
+            db_session,
+            person1.id,
+            embedding=generate_random_embedding(seed=1001),
+            model_id=TEST_SPACE,
         )
         await service.add_face_embedding(
             db_session,
             person2.id,
             embedding=base_embedding,  # This should be the best match
+            model_id=TEST_SPACE,
         )
         await service.add_face_embedding(
-            db_session, person3.id, embedding=generate_random_embedding(seed=1003)
+            db_session,
+            person3.id,
+            embedding=generate_random_embedding(seed=1003),
+            model_id=TEST_SPACE,
         )
 
         # Match with embedding very similar to person2
         query_embedding = generate_similar_embedding(base_embedding, noise_level=0.02)
-        result = await service.match_face(db_session, query_embedding)
+        result = await service.match_face(db_session, query_embedding, model_id=TEST_SPACE)
 
         assert result["matched"] is True
         assert result["person_id"] == person2.id
@@ -578,7 +630,9 @@ class TestFaceDetectionEventRecording:
         # Create known person with embedding
         person = await service.create_known_person(db_session, name="Auto Match Person")
         base_embedding = generate_random_embedding(seed=2100)
-        await service.add_face_embedding(db_session, person.id, embedding=base_embedding)
+        await service.add_face_embedding(
+            db_session, person.id, embedding=base_embedding, model_id=TEST_SPACE
+        )
 
         # Record face detection with similar embedding. noise_level=0.05
         # with seed 2100 lands at sim=0.6754 — just under
@@ -593,6 +647,7 @@ class TestFaceDetectionEventRecording:
             embedding=query_embedding,
             quality_score=0.9,
             auto_match=True,
+            model_id=TEST_SPACE,
         )
 
         assert event.is_unknown is False

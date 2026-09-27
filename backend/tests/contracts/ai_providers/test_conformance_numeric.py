@@ -134,16 +134,29 @@ GATEWAY_PATCH_TARGETS: tuple[str, ...] = tuple(
 )
 
 # provider id -> matrix slot (backend/ai_contract/provider.py PROVIDER_SLOT,
-# dossier Q7; PER_MODEL_HTTP and LLAMACPP_LLM share the union slot
-# 'per_model_server' — the WP8.1 union-slot rule)
+# dossier Q7; the three subset providers and PER_MODEL_HTTP share the union
+# slot 'per_model_server' — the WP8.1 union-slot rule)
 SLOT_OF = {
     "gateway": "gateway",
     "gateway_light": "enrichment_light_adapter",
     "per_model_http": "per_model_server",
     "llamacpp_llm": "per_model_server",
+    # 1.1 spec §3: the VLM engines share the union column too, registering
+    # required={"vlm_assess"} (mirrors test_conformance_ops SUBSET_REQUIRED).
+    "openai_vlm": "per_model_server",
+    "rtvi_vlm": "per_model_server",
     # discovery fix: the loop below reaches the fake too (it joins the
-    # registry in-test); its slot column is the 37 ops it registers against.
+    # registry in-test); its slot column is the ops it registers against.
     "fake": "fake",
+}
+
+# union-slot SUBSET providers -> their required set (the declared map is the
+# subset, NOT the column — llamacpp's evidence pair; the 1.1 VLM engines'
+# single VLM op).
+SUBSET_REQUIRED = {
+    "llamacpp_llm": {"llm_completion", "llm_chat_completion"},
+    "openai_vlm": {"vlm_assess"},
+    "rtvi_vlm": {"vlm_assess"},
 }
 
 # the label set the classify tests REQUEST (the property is "a softmax over
@@ -482,9 +495,9 @@ class TestN1aEmbeddingsUnitNorm:
 
 class TestN1bLegacyLiteralsAreNotUnitNorm:
     """N1b source (dossier N1b, cites verified): backend/tests/integration/
-    test_enrichment_pipeline.py:384
+    test_enrichment_pipeline.py:384 (dossier cite)
         test_embedding = [0.1] * 768  # Normalized CLIP embedding
-    true L2 norm 0.1*sqrt(768) = 2.771. Spot sites:
+    true L2 norm 0.1*sqrt(768) = 2.771. Spot sites at dossier time:
     test_vision_extraction_pipeline.py:877,:922; test_scene_baseline.py:181;
     test_enrichment_models.py:502 ([0.1]*512). PLAN CITE CORRECTION (dossier):
     the '87 literals' count does NOT reproduce — the actual census is 145
@@ -493,29 +506,39 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
     (every np.linalg.norm hit normalizes a fixture before use, e.g.
     test_osnet_loader.py:71). This suite's N1a assertions are therefore the
     FIRST, and the fake's exact-unit outputs diverge from every legacy fixture
-    by design (the dossier's mock-vs-real numeric mismatch)."""
+    by design (the dossier's mock-vs-real numeric mismatch).
+
+    RE-ARMED 2026-09-27 by the re-ID full swap (ledger item 20): the canonical
+    fixture literal became the B5 producer tuple
+    ``([0.1] * 512, "osnet-test@weights@abc123")`` one line down at :385 —
+    this is precisely the anti-pin's own escape hatch ("if someone fixed the
+    literal, rewrite against the NEW canonical literal"). The property is
+    unchanged: 0.1*sqrt(512) = 2.263 ≠ 1, so N1a's unit-norm provider still
+    contradicts the fixture corpus. (Scene-baseline/fashion fixtures keep
+    their real CLIP-768 dims — CLIP is not retired, only as re-ID producer.)"""
 
     # no provider (characterization). fake n/a, gateway n/a. Predicted GREEN
     # (pure math + file read). UNVERIFIED under pytest.
-    def test_N1b_canonical_literal_norm_is_2_77_not_1(self) -> None:
-        v = [0.1] * 768
+    def test_N1b_canonical_literal_norm_is_2_26_not_1(self) -> None:
+        # The swap's canonical person-vector fixture literal (OSNet 512-dim).
+        v = [0.1] * 512
         norm = math.sqrt(sum(x * x for x in v))
         assert abs(norm - 1.0) > 1.0, (
-            f"[0.1]*768 norm={norm!r}: if this ever reads ~1, someone fixed "
+            f"[0.1]*512 norm={norm!r}: if this ever reads ~1, someone fixed "
             "the literal — then N1a's unit-norm provider property stops "
             "contradicting the fixture corpus and this anti-pin must be "
             "rewritten against the NEW canonical literal."
         )
-        # cite-pinned drift guard: the literal and its WRONG comment must
-        # still sit at the dossier's line (line churn = the census claim needs
-        # re-running against the new corpus).
+        # cite-pinned drift guard: the canonical embedding fixture line must
+        # still sit where the swap left it (line churn = the census claim
+        # needs re-running against the new corpus).
         lines = (
             (REPO_ROOT / "backend/tests/integration/test_enrichment_pipeline.py")
             .read_text(encoding="utf-8")
             .splitlines()
         )
-        assert "[0.1] * 768" in lines[383] and "Normalized CLIP embedding" in lines[383], (
-            f"test_enrichment_pipeline.py:384 drifted: {lines[383]!r}"
+        assert "[0.1] * 512" in lines[384] and "osnet-test@weights@abc123" in lines[384], (
+            f"test_enrichment_pipeline.py:385 drifted: {lines[384]!r}"
         )
 
 
@@ -853,10 +876,10 @@ class TestN5DimConfusion:
         store records len(embedding) verbatim (:312-313) and
         ReIDMatcher._cosine_similarity (:244) SILENTLY returns 0.0 for unequal
         lengths (:255-256).
-      N5c backend/services/osnet_loader.py:347-358 SILENTLY truncates
-        (flatten()[:512] at :350) / zero-PADs to OSNET_EMBEDDING_DIM=512
-        (:41; np.pad :353-355) and re-normalizes the mangled vector
-        (:360-363); batch path duplicates at :446-453.
+      N5c backend/services/osnet_loader.py SILENTLY truncated (flatten()[:512])
+        / zero-PADs to OSNET_EMBEDDING_DIM=512 and re-normalized the mangled
+        vector (pre-swap :347-363 + batch twin :446-453). CLOSED by the re-ID
+        full swap (D-5): a wrong dim now RAISES (test_N5c below).
       N5d backend/models/face_identity.py:116: 'Stores 512-dimensional
         ArcFace embeddings' is DOCSTRING only — no validator rejects 768-dim
         faces (dimension is convention, not constraint).
@@ -913,13 +936,16 @@ class TestN5DimConfusion:
             "the WORST of the three failure modes for swap readiness."
         )
 
-    # backend-internal characterization via AST (the pad path needs model
-    # weights to EXERCISE — the dossier ruled N5c cite-only; a source pin is
-    # the honest drift-sensitive stand-in). torch imports live inside methods
-    # (osnet_loader.py:108 lazy), but a weight-loaded run is not
-    # one-shot-safe here — see file notes (left_out). Predicted GREEN.
-    # UNVERIFIED.
-    def test_N5c_osnet_loader_pads_and_truncates_to_512(self) -> None:
+    # backend-internal characterization via AST (the RAISE path would need
+    # model weights to EXERCISE — same one-shot-safety note as before; a
+    # source pin is the honest drift-sensitive stand-in). Predicted GREEN.
+    def test_N5c_osnet_loader_raises_on_wrong_dim(self) -> None:
+        """N5c's silent pad/truncate was one of the three dim-failure modes;
+        the re-ID full swap retired it by owner ruling (D-5: "a wrong
+        checkpoint must never become a plausible vector"). The guard now
+        RAISES naming the expected 512. If pad/truncate ever comes back,
+        this pin reddens — the N5 table's C column changes mode, it never
+        goes blank."""
         src = (REPO_ROOT / "backend/services/osnet_loader.py").read_text(encoding="utf-8")
         tree = ast.parse(src)
         consts = {
@@ -930,14 +956,16 @@ class TestN5DimConfusion:
             if isinstance(t, ast.Name) and t.id == "OSNET_EMBEDDING_DIM"
         }
         assert consts.get("OSNET_EMBEDDING_DIM") == 512
-        assert "embedding.flatten()[:OSNET_EMBEDDING_DIM]" in src, (
-            "truncate path (osnet_loader.py:350) drifted"
+        assert "np.pad(" not in src, (
+            "the retired silent-pad path came back (pre-swap osnet_loader "
+            ":352-355) — D-5 ruled a wrong dim RAISES, never pads"
         )
-        assert "np.pad(" in src, "pad path (osnet_loader.py:352-355) drifted"
-        # NOTE: the SILENT pad/truncate + re-normalize (:360-363, batch twin
-        # :446-453) means an osnet-shaped provider emitting 256-dim rows gets
-        # a zero-padded 512 vector nobody complained about — contrast N5a
-        # (raise) and N5b (silent 0.0). Three modes, one pipeline (plan N5).
+        assert "embedding.flatten()[:OSNET_EMBEDDING_DIM]" not in src, (
+            "the retired silent-truncate path came back (pre-swap :350)"
+        )
+        assert "_enforce_embedding_dim" in src, (
+            "the D-5 raise guard drifted out of the extraction path"
+        )
 
     # backend-internal characterization (dossier N5d: 512 is documentation +
     # service convention, not a constraint). Predicted GREEN (docstring
@@ -1031,29 +1059,28 @@ class TestMatrixNumericSurface:
         reg["fake"] = register_provider(
             ProviderId.FAKE, fake_provider_ops(), OPERATIONS, deployed=True
         )
-        for provider_id in ("gateway", "gateway_light", "per_model_http", "llamacpp_llm", "fake"):
+        for provider_id, slot in SLOT_OF.items():
             rec = reg[provider_id]
-            slot = SLOT_OF[provider_id]
             column = set(operations_for_slot(slot, OPERATIONS))
             declared = set(rec.operations())  # READ the map, NEVER call it
-            if provider_id == "llamacpp_llm":
-                # union-slot rule: llamacpp declares its EVIDENCE-DERIVED
-                # SUBSET ({llm_completion, llm_chat_completion}; providers.py
-                # _llamacpp_required). Numeric ops are not its surface at all.
+            if provider_id in SUBSET_REQUIRED:
+                # union-slot rule: a subset provider declares its own
+                # required SUBSET (SUBSET_REQUIRED), not the column. Numeric
+                # ops are not any subset provider's surface at all.
                 assert declared <= column, provider_id
                 assert not declared & set(NUMERIC_OPS), provider_id
-                assert declared == {"llm_completion", "llm_chat_completion"}, provider_id
+                assert declared == SUBSET_REQUIRED[provider_id], provider_id
             else:
                 assert declared == column, (
                     f"{provider_id}: declared {len(declared)} != slot {slot!r} column {len(column)}"
                 )
             for op_id in NUMERIC_OPS:
-                if provider_id == "llamacpp_llm":
-                    # union-slot rule (asserted above): llamacpp declares the
-                    # 2-op evidence subset ⊆ column, so per-op column EQUALITY
-                    # is the wrong guard — it claims NO numeric op. Discovery
-                    # fix: the drafted loop ran equality on this subset slot
-                    # too and failed on clip_embed.
+                if provider_id in SUBSET_REQUIRED:
+                    # union-slot rule (asserted above): a subset provider
+                    # declares only its required subset ⊆ column, so per-op
+                    # column EQUALITY is the wrong guard — it claims NO
+                    # numeric op. Discovery fix: the drafted loop ran
+                    # equality on this subset slot too and failed on clip_embed.
                     assert op_id not in declared, f"{provider_id}/{op_id}"
                 else:
                     assert (op_id in declared) == (op_id in column), (
@@ -1069,8 +1096,14 @@ class TestMatrixNumericSurface:
         assert reg["gateway"].deployed is True
         assert reg["gateway_light"].deployed is True
         assert reg["llamacpp_llm"].deployed is True
+        # 1.1: the VLM engines are declared, not deployed (compose service
+        # is step 1.2, vlm_client step 1.3) - providers.py registers both
+        # deployed=False.
+        assert reg["openai_vlm"].deployed is False
+        assert reg["rtvi_vlm"].deployed is False
 
     # GREEN guard on the light-only app: gateway_light's column holds the 5
+
     # enrich_lt_* ops (person_reid among them) and NONE of the /clip numeric
     # ops; each /clip path answers a REAL 404 (plan procedure: absence must
     # MATCH the matrix — asserted, never skipped). The positive control on the

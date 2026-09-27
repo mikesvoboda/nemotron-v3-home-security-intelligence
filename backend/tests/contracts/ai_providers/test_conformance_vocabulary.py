@@ -663,12 +663,18 @@ class TestV3ThreeNames:
         Predicted GREEN (source regex). UNVERIFIED."""
         src = (REPO_ROOT / "backend/services/enrichment_pipeline.py").read_text(encoding="utf-8")
         lines = src.splitlines()
+        # Re-keyed 2026-09-26 by the re-ID full swap's enrichment_pipeline
+        # edits (:3942 -> :3955, :5196 -> :5214), re-keyed again the same day
+        # by the swap's Slice B/C producer+leg edits (:3955 -> :3961,
+        # :5214 -> :5220) — the split itself is unchanged. Same precedent as
+        # the eval_store 295 -> 300 re-key (ledger item 14): a canary that
+        # fired on drift re-arms at its new line, it does not relax.
         assert re.search(
-            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3941]
-        ), f":3942 drifted: {lines[3941]!r}"
+            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3960]
+        ), f":3961 drifted: {lines[3960]!r}"
         assert re.search(
-            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5195]
-        ), f":5196 drifted: {lines[5195]!r}"
+            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5219]
+        ), f":5220 drifted: {lines[5219]!r}"
 
     async def test_V3_threat_rows_carry_no_canonical_name_at_all(self, fake_client) -> None:
         """V3 consequence, drivable: the fake's threat rows
@@ -954,22 +960,33 @@ class TestV5DbWriteVocabulary:
 
 class TestVocabularyProviderColumn:
     @pytest.mark.parametrize(
-        "provider_id", ["gateway", "gateway_light", "per_model_http", "llamacpp_llm", "fake"]
+        "provider_id",
+        [
+            "gateway",
+            "gateway_light",
+            "per_model_http",
+            "llamacpp_llm",
+            "openai_vlm",
+            "rtvi_vlm",
+            "fake",
+        ],
     )
     async def test_V1_V4_vocabulary_ops_match_the_availability_column(
         self, provider_id: str, fake_registered, fake_client
     ) -> None:
         """For every vocabulary (detections-bearing) op and every
         provider: claimed in provider.operations() <=> the matrix column
-        says available — with llamacpp_llm the documented UNION-slot
-        exception (declares ONLY its evidence subset, so it claims NO
-        vocabulary op); per_model_http additionally pinned UNDEPLOYED.
+        says available — with the UNION-slot subset providers
+        (llamacpp_llm, and the 1.1 VLM engines openai_vlm/rtvi_vlm —
+        SUBSET_REQUIRED mirrored from test_conformance_ops) the documented
+        exception: each declares ONLY its required subset, so it claims NO
+        vocabulary op; per_model_http additionally pinned UNDEPLOYED.
         The fake's available ops are proven drivable in-app (200 + list),
         never by calling registered callables.
         Sources: backend/ai_contract/provider.py (PROVIDER_SLOT :137),
-        operations.py availability matrix; providers.py:136-153
-        (per_model_http deployed=False, llamacpp required=subset).
-        Predicted GREEN for all five legs (this is availability shape,
+        operations.py availability matrix; providers.py _register_all
+        (per_model_http deployed=False, subset providers required=subset).
+        Predicted GREEN for all seven legs (this is availability shape,
         not behavior). UNVERIFIED."""
         from backend.ai_contract.provider import PROVIDER_SLOT, registered_providers
 
@@ -983,11 +1000,17 @@ class TestVocabularyProviderColumn:
         slot = PROVIDER_SLOT[rec.provider_id]
         declared = set(rec.operations())
 
+        if provider_id == "llamacpp_llm":
+            assert declared == {"llm_completion", "llm_chat_completion"}
+        elif provider_id in ("openai_vlm", "rtvi_vlm"):
+            # union-slot exception, 1.1 shape: each VLM engine declares ONLY
+            # required={"vlm_assess"} inside the per_model_server union.
+            assert declared == {"vlm_assess"}
         for op_id in DETECTIONS_KEYED_OPS:
             available = _provider_vocab_column(op_id, slot)
-            if provider_id == "llamacpp_llm":
-                # union-slot exception this test's docstring states: llamacpp
-                # declares ONLY its 2-op evidence subset, so it claims NO
+            if provider_id in ("llamacpp_llm", "openai_vlm", "rtvi_vlm"):
+                # union-slot exception this test's docstring states: a subset
+                # provider declares ONLY its required subset, so it claims NO
                 # vocabulary op even where the per_model_server column (its
                 # slot) is available. Discovery fix: the equality loop failed
                 # on yolo26_detect (declared False vs column True).

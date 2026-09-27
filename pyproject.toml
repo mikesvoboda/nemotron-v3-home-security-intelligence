@@ -191,6 +191,13 @@ docs = [
 alpr = [
     "fast-alpr[onnx]>=0.3.0",  # FastALPR with ONNX CPU backend (MIT license)
 ]
+# Face recognition embeddings (F11 owner ruling 2026-09-26, condition 1)
+# CPU onnxruntime only — the face-recognizer loader stays OUT of the VRAM budget.
+# Weights pending the license pick; the loader's interface is weights-agnostic.
+# Usage: `uv sync --extra face`
+face = [
+    "onnxruntime>=1.16",  # CPUExecutionProvider only (deliberately no GPU provider)
+]
 # Legacy PaddleOCR (deprecated, Python 3.13 or earlier only)
 # OCR functionality is available in the ai/enrichment container which uses Python 3.12
 # ocr = [
@@ -472,6 +479,13 @@ ignore = [
 "backend/evaluation/harness.py" = [
     "T201",   # print() ok for CLI output in evaluation harness
     "S311",   # pseudo-random ok for mock data generation (not security-sensitive)
+]
+"backend/evaluation/vlm_replay.py" = [
+    # print() ok, and only in this module's own main(): the replay is a CLI
+    # run on the GPU host, and its stdout (run_id, candidate, commit) is what
+    # the ledger row copies. Same posture as harness.py above - which the
+    # replay deliberately does NOT inherit from (F10: it stands beside it).
+    "T201",
 ]
 "scripts/**/*.py" = [
     "SIM102",  # nested ifs more readable in utility scripts

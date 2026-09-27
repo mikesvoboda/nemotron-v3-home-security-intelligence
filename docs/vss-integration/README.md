@@ -32,6 +32,7 @@ approach to this project on **consumer gaming GPUs**, a market VSS does not serv
 | **The design spec** (link above)                                              | What we are building, the success criteria, the phases                    |
 | [`13-implementation-brief.md`](13-implementation-brief.md)                    | How the implementing agent works, including a kickoff prompt              |
 | [`12-postponed-roadmap.md`](12-postponed-roadmap.md)                          | What we deliberately left for later, and what reopens each item           |
+| [`14-specialist-model-research.md`](14-specialist-model-research.md)          | Which small models the specialists should use, and the rev 7 shortlist    |
 | [`10-audit-feature-inventory.md`](10-audit-feature-inventory.md)              | Which VSS features are worth importing, and what we have that VSS lacks   |
 | [`09-audit-integration-surfaces.md`](09-audit-integration-surfaces.md)        | Which VSS components fit, with their exact contracts                      |
 | [`08-audit-profile-anatomy.md`](08-audit-profile-anatomy.md)                  | How VSS hardware profiles work; what an upstream consumer tier would take |

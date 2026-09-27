@@ -548,15 +548,46 @@ def test_storage_face_block_sets_detected_count_and_serialised_list():
     assert M.EnrichmentResult(faces=[face(8)]).to_storage_dict(7) is None
 
 
-def test_storage_clip_embedding_keyed_by_detection_context():
-    """CLIP + vehicle re-id matches -> ``vehicle_visual``; unmatched CLIP also -> ``vehicle_visual``."""
+def test_storage_reid_embedding_keyed_by_detection_context():
+    """Post-swap routing (ledger item 20): the OSNet cache stores under
+    ``person_reid`` WITH its belt; the CLIP-named keys (vehicle_visual /
+    face_clip) are retired — no detection context can route bytes into them
+    anymore, because their producer is gone. A cached vector with no belt
+    stores alone (the readers treat a missing belt as untrusted)."""
     r = M.EnrichmentResult(
-        clip_embeddings={"7": [0.25, 0.5]}, vehicle_reid_matches={"7": [MagicMock()]}
+        reid_embeddings={"7": [0.25, 0.5]},
+        reid_embedding_models={"7": "osnet-test@w@abc"},
+        vehicle_reid_matches={"7": [MagicMock()]},
     )
-    assert r.to_storage_dict(7)["embeddings"] == {"vehicle_visual": [0.25, 0.5]}
-    r = M.EnrichmentResult(clip_embeddings={"7": [0.125]})
-    assert r.to_storage_dict(7)["embeddings"] == {"vehicle_visual": [0.125]}
-    assert M.EnrichmentResult(clip_embeddings={"9": [0.5]}).to_storage_dict(7) is None
+    assert r.to_storage_dict(7)["embeddings"] == {
+        "person_reid": [0.25, 0.5],
+        "model_id": "osnet-test@w@abc",
+    }
+    r = M.EnrichmentResult(reid_embeddings={"7": [0.125]})
+    assert r.to_storage_dict(7)["embeddings"] == {"person_reid": [0.125]}
+    assert M.EnrichmentResult(reid_embeddings={"9": [0.5]}).to_storage_dict(7) is None
+
+
+def test_storage_person_embeddings_fallback_carries_its_belt():
+    """The enrichment service's OSNet pass (person_embeddings) feeds the
+    same person_reid key when _run_reid's cache is empty; the _run_reid
+    cache wins when both ran (it's the store-side producer)."""
+    r = M.EnrichmentResult(
+        person_embeddings={"7": {"embedding": [0.5, 0.25], "model_id": "osnet-triton@w@def"}}
+    )
+    assert r.to_storage_dict(7)["embeddings"] == {
+        "person_reid": [0.5, 0.25],
+        "model_id": "osnet-triton@w@def",
+    }
+    both = M.EnrichmentResult(
+        reid_embeddings={"7": [0.1]},
+        reid_embedding_models={"7": "osnet-store@w@aaa"},
+        person_embeddings={"7": {"embedding": [0.5], "model_id": "osnet-triton@w@def"}},
+    )
+    assert both.to_storage_dict(7)["embeddings"] == {
+        "person_reid": [0.1],
+        "model_id": "osnet-store@w@aaa",
+    }
 
 
 def test_storage_dict_shape_with_plate_and_face_together():

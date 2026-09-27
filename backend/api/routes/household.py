@@ -46,7 +46,7 @@ from backend.core.logging import get_logger
 from backend.models.event import Event
 from backend.models.face_identity import KnownPerson
 from backend.models.household import HouseholdMember, PersonEmbedding, RegisteredVehicle
-from backend.services.reid_service import get_reid_service
+from backend.services.reid_service import ReIDUnavailableError, get_reid_service
 
 logger = get_logger(__name__)
 
@@ -470,12 +470,16 @@ async def add_embedding_from_event(
     """Add a person embedding from an event to a household member.
 
     This endpoint extracts a person embedding from the event's detection image
-    using the ReIdentificationService (CLIP ViT-L) and stores it in the
-    PersonEmbedding table for future person re-identification.
+    using the ReIdentificationService (resident OSNet-AIN x1.0 handle, full
+    swap ledger item 20) and stores it in the PersonEmbedding table, beside
+    the model_id of the weights that computed it, for future person
+    re-identification.
 
     The endpoint finds the first person detection in the event, loads the
-    detection image, and generates a 768-dimensional CLIP embedding using
-    the detection's bounding box to focus on the person.
+    detection image, and generates a 512-dimensional OSNet embedding using
+    the detection's bounding box to focus on the person. When the pinned
+    weights are not resident it answers 503 naming the cause — never a
+    zero-vector stub.
 
     Args:
         member_id: ID of the household member
@@ -548,7 +552,23 @@ async def add_embedding_from_event(
             # Generate embedding using ReIdentificationService
             reid_service = get_reid_service()
             try:
-                embedding_list = await reid_service.generate_embedding(image, bbox=bbox)
+                embedding_list, embedding_model_id = await reid_service.generate_embedding(
+                    image, bbox=bbox
+                )
+            except ReIDUnavailableError as e:
+                # Availability, not a bug: the pinned re-ID weights are not
+                # resident, so no vector exists to store. Say so as a 503
+                # naming the cause (the face enrollment precedent) rather
+                # than a 500 that reads as a crash or a silent stub.
+                logger.error(
+                    "Re-ID producer unavailable for enrollment on event %d: %s",
+                    request.event_id,
+                    str(e),
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"Re-ID embedding unavailable: {e}",
+                ) from e
             except Exception as e:
                 logger.error(
                     "Failed to generate embedding for event %d: %s",
@@ -590,6 +610,11 @@ async def add_embedding_from_event(
         embedding=embedding_data,
         source_event_id=request.event_id,
         confidence=request.confidence,
+        # F11 (ledger item 20): the row names the weights that computed the
+        # bytes. There is no default to fall back to here — the producer
+        # returned this belt beside the vector, and an enrollment without a
+        # model_id is exactly the untrusted row every reader must refuse.
+        model_id=embedding_model_id,
     )
 
     session.add(db_embedding)

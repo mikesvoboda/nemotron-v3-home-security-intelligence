@@ -1,5 +1,6 @@
 """Unit tests for batch aggregator service."""
 
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -975,18 +976,21 @@ async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_i
     # Ensure analyzer is None to trigger lazy initialization
     batch_aggregator._analyzer = None
 
-    # Mock the NemotronAnalyzer class - it's imported inside _process_fast_path
+    # 1.5: _process_fast_path no longer constructs a class directly — it
+    # calls the mode factory, which is imported lazily inside the method.
+    # Patching the factory is the seam the test's subject (lazy creation
+    # with redis_client) actually crosses now, in either mode.
     with patch(
-        "backend.services.nemotron_analyzer.NemotronAnalyzer", autospec=True
-    ) as MockAnalyzer:
+        "backend.services.pipeline_factory.build_pipeline_analyzer", autospec=True
+    ) as MockBuilder:
         mock_analyzer_instance = AsyncMock(spec=NemotronAnalyzer)
         mock_analyzer_instance.analyze_detection_fast_path = AsyncMock()
-        MockAnalyzer.return_value = mock_analyzer_instance
+        MockBuilder.return_value = mock_analyzer_instance
 
         await batch_aggregator._process_fast_path(camera_id, detection_id)
 
         # Should have created the analyzer with redis_client
-        MockAnalyzer.assert_called_once_with(redis_client=mock_redis_instance)
+        MockBuilder.assert_called_once_with(redis_client=mock_redis_instance)
 
         # Should have called the analyze method
         mock_analyzer_instance.analyze_detection_fast_path.assert_called_once_with(
@@ -4755,3 +4759,167 @@ class TestSmokeFireBypassConstants:
         )
 
         assert SMOKE_BYPASS_CONFIDENCE_THRESHOLD > FIRE_BYPASS_CONFIDENCE_THRESHOLD
+
+
+# ===========================================================================
+# Phase 1.3 (spec §6 cold start): wake-on-open
+# ===========================================================================
+
+
+class TestWakeOnOpen:
+    """§6: opening a batch schedules ONE wake (a real max_tokens:1 request,
+    never a health probe) so the sleeping engine warms during the batch
+    window. Pins: exactly once per OPEN, zero on reuse, zero on the bypasses
+    - and never fired while the camera lock is held.
+
+    The recorder intercepts asyncio.create_task but counts ONLY wake_ai_vlm
+    coroutines: add_detection legitimately spawns other tasks (the
+    broadcaster's publish) and swallowing those would change behavior under
+    test. Wake coroutines are closed un-run - the unit tier must never open
+    a socket to a real ai-vlm_url."""
+
+    @staticmethod
+    def _wake_recorder(events: list | None = None):
+        """(patch-side-effect, seen list) - seen holds each wake coroutine
+        (closed); `events` additionally logs every wake scheduling."""
+        seen: list = []
+        real_create_task = asyncio.create_task
+
+        def fake_create_task(coro, *a, **kw):
+            if getattr(coro, "__qualname__", "") == "wake_ai_vlm":
+                seen.append(coro)
+                if events is not None:
+                    events.append("create_task")
+                coro.close()
+                return MagicMock()
+            return real_create_task(coro, *a, **kw)
+
+        return fake_create_task, seen
+
+    @pytest.mark.asyncio
+    async def test_new_batch_wakes_ai_vlm_exactly_once(self, batch_aggregator, mock_redis_instance):
+        """The one open → exactly one wake task."""
+        fake_ct, woken = self._wake_recorder()
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
+            batch_id = await batch_aggregator.add_detection(
+                camera_id="front_door", detection_id=1, _file_path="/export/foscam/det_1.jpg"
+            )
+        assert batch_id.startswith("batch-")
+        assert len(woken) == 1, f"exactly one wake per batch OPEN, got {len(woken)}"
+
+    @pytest.mark.asyncio
+    async def test_wake_coroutine_targets_wake_ai_vlm(self, batch_aggregator, mock_redis_instance):
+        """The scheduled coroutine IS the vlm wake - identity of the subject
+        is the pin (spec §6 names the request shape inside wake() itself,
+        pinned in test_vlm_client). The recorder's qualname gate already
+        asserts it by counting; this pins the count is not zero."""
+        fake_ct, woken = self._wake_recorder()
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
+            await batch_aggregator.add_detection(
+                camera_id="front_door", detection_id=1, _file_path="/export/foscam/det_1.jpg"
+            )
+        assert len(woken) == 1, "no wake_ai_vlm coroutine was scheduled"
+
+    @pytest.mark.asyncio
+    async def test_existing_batch_does_not_wake_again(self, batch_aggregator, mock_redis_instance):
+        """Second detection joins the open batch: the engine was woken at
+        OPEN; re-waking per detection would hammer a warming server."""
+        mock_redis_instance.get = AsyncMock(return_value="batch-aaaaaaaa")
+        mock_redis_instance._client.llen = AsyncMock(return_value=1)
+        fake_ct, woken = self._wake_recorder()
+        with patch("asyncio.create_task", side_effect=fake_ct, autospec=True):
+            batch_id = await batch_aggregator.add_detection(
+                camera_id="front_door", detection_id=2, _file_path="/export/foscam/det_2.jpg"
+            )
+        assert batch_id == "batch-aaaaaaaa"
+        assert len(woken) == 0, "batch REUSE must not wake"
+
+    @pytest.mark.asyncio
+    async def test_smoke_fire_bypass_does_not_wake(self, batch_aggregator, mock_redis_instance):
+        """The fire/smoke fast path never reaches an analyzer (NEM-5298
+        bypass, unchanged by 1.3) - no batch opened, so no wake."""
+
+        # add_detection calls should_bypass_batch TWICE - threat check first,
+        # smoke/fire check second; only the smoke/fire call may return True
+        # here, so the bypass lands in _process_smoke_fire_fast_path.
+        async def bypass_only_smoke_fire(**kwargs):
+            return kwargs.get("smoke_fire_type") == "fire"
+
+        fake_ct, woken = self._wake_recorder()
+        with (
+            patch.object(
+                batch_aggregator,
+                "should_bypass_batch",
+                new=AsyncMock(side_effect=bypass_only_smoke_fire),
+            ),
+            patch.object(batch_aggregator, "_process_smoke_fire_fast_path", new_callable=AsyncMock),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
+        ):
+            batch_id = await batch_aggregator.add_detection(
+                camera_id="front_door",
+                detection_id=3,
+                _file_path="/export/foscam/det_3.jpg",
+                object_type="fire",
+                confidence=0.99,
+                smoke_fire_type="fire",
+            )
+        assert batch_id.startswith("smoke_fire_fast_path_")
+        assert len(woken) == 0
+
+    @pytest.mark.asyncio
+    async def test_fast_path_does_not_wake(self, batch_aggregator, mock_redis_instance):
+        """The regular fast path likewise bypasses batching entirely."""
+        fake_ct, woken = self._wake_recorder()
+        with (
+            patch.object(
+                batch_aggregator, "_should_use_fast_path", return_value=True, autospec=True
+            ),
+            patch.object(batch_aggregator, "_process_fast_path", new_callable=AsyncMock),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
+        ):
+            batch_id = await batch_aggregator.add_detection(
+                camera_id="front_door",
+                detection_id=4,
+                _file_path="/export/foscam/det_4.jpg",
+                object_type="person",
+                confidence=0.99,
+            )
+        assert batch_id.startswith("fast_path_")
+        assert len(woken) == 0
+
+    @pytest.mark.asyncio
+    async def test_wake_fires_after_the_camera_lock_released(
+        self, batch_aggregator, mock_redis_instance
+    ):
+        """§6/plan: the wake must NOT be scheduled while the per-camera lock
+        is held - batch-open latency must not carry a (fire-and-forget) task
+        creation on the critical path. Pin: create_task ran only after the
+        lock exited."""
+        lock_events: list[str] = []
+        real_lock = batch_aggregator._get_camera_lock
+
+        async def spy_lock(camera_id: str):
+            lock = await real_lock(camera_id)
+
+            class _LockSpy:
+                async def __aenter__(self):
+                    lock_events.append("enter")
+                    return await lock.__aenter__()
+
+                async def __aexit__(self, *exc_info):
+                    lock_events.append("exit")
+                    return await lock.__aexit__(*exc_info)
+
+            return _LockSpy()
+
+        fake_ct, _ = self._wake_recorder(lock_events)
+        with (
+            patch.object(batch_aggregator, "_get_camera_lock", side_effect=spy_lock, autospec=True),
+            patch("asyncio.create_task", side_effect=fake_ct, autospec=True),
+        ):
+            await batch_aggregator.add_detection(
+                camera_id="front_door", detection_id=5, _file_path="/export/foscam/det_5.jpg"
+            )
+        assert lock_events == ["enter", "exit", "create_task"], (
+            f"wake scheduled under the camera lock: {lock_events}"
+        )

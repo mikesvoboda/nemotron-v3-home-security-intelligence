@@ -28,6 +28,7 @@ from backend.core.database import escape_ilike_pattern
 from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.event import Event
+from backend.models.event_verification import verdict_filter_condition
 
 logger = get_logger(__name__)
 
@@ -44,6 +45,10 @@ class SearchFilters:
     )  # risk_level values: low, medium, high, critical
     object_types: list[str] = field(default_factory=list)
     reviewed: bool | None = None
+    # 1.6: one VLM verdict, or VERDICT_NONE ("never verified"), or None
+    # (don't filter). Route-validated; the condition itself lives with the
+    # verdict's only home so list + search cannot drift apart.
+    verdict: str | None = None
 
 
 @dataclass(slots=True)
@@ -333,6 +338,8 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
             Event.object_types.ilike(f"%{escape_ilike_pattern(t)}%") for t in filters.object_types
         ]
         conditions.append(or_(*obj_conditions))
+    if filters.verdict:
+        conditions.append(verdict_filter_condition(filters.verdict))
 
     return conditions
 

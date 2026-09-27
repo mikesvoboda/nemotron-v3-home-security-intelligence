@@ -16,12 +16,20 @@ The backend acts as an aggregation layer that combines:
     demographics_age/demographics_gender/pet/depth and /enrich-lt reports
     pose/threat/reid/pet/depth; neither reports clip, clip_text or
     stgcn_action, and
-  * the gateway root health (GET {root}/health), which iterates the gateway's
-    full ALL_MODELS registry and therefore covers every Triton name — it is
-    the only surface that reports clip/clip_text (serving
+  * the gateway root health (GET {root}/health), which iterates the ACTIVE
+    residency set (ai.gateway.residency, rev 6) — in `full` mode that is the
+    full ALL_MODELS registry and it covers every Triton name, and it is the
+    only surface that reports clip/clip_text (serving
     siglip2-base-patch16-224) and stgcn_action (serving stgcn-plus-plus)
   A name is readiness-authoritative in whichever payload reports it; a name
   reported nowhere logs a warning rather than silently reporting not-loaded.
+
+  Residency caveat (rev 6): in a `vlm`-mode gateway the root payload lists
+  only yolo26/reid (+threat when opted in), so the 11 retired Triton names
+  are reported nowhere and this aggregation logs one drift warning per entry
+  per poll — expected noise, not catalogue drift. Task 5/6 follow-up: render
+  retired models with the Task 6 "not analyzed in VLM mode" empty states
+  instead of warning (ledger 1.4).
 - In-process load state from the backend ModelManager for models without a
   Triton mapping
 
@@ -407,13 +415,17 @@ def _triton_ready(
     root /health payload. A Triton name is authoritative in whichever payload
     reports it: the serving routers are consulted first (their payloads cover
     the models their routers serve — pet/depth overlap and are satisfied by
-    either router), and the root payload — which iterates the gateway's full
-    ALL_MODELS registry — answers the names no router reports, namely
-    clip/clip_text (serving siglip2-base-patch16-224) and stgcn_action
-    (serving stgcn-plus-plus). When NO payload reports a name at all (the
-    gateway answers but its Triton registry no longer matches models.yml) the
-    gap is logged as a warning instead of hiding behind a silent permanent
-    not-ready, so catalogue drift is visible.
+    either router), and the root payload — which iterates the gateway's
+    ACTIVE residency set (the full ALL_MODELS registry in `full` mode) —
+    answers the names no router reports, namely clip/clip_text (serving
+    siglip2-base-patch16-224) and stgcn_action (serving stgcn-plus-plus).
+    When NO payload reports a name at all (the gateway answers but its Triton
+    registry no longer matches models.yml) the gap is logged as a warning
+    instead of hiding behind a silent permanent not-ready, so catalogue drift
+    is visible. In `vlm` residency mode the 11 retired names are absent from
+    every payload by design, so this warning fires for them on every poll —
+    see the module docstring's residency caveat and the Task 6 empty-state
+    follow-up (ledger 1.4).
 
     Args:
         triton_names: Triton model names for the registry entry

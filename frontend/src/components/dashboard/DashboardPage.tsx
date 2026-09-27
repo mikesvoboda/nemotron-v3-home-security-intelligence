@@ -208,8 +208,15 @@ export default function DashboardPage() {
       .map((event) => ({
         id: event.id,
         camera_id: event.camera_id,
-        risk_score: event.risk_score ?? 0,
-        risk_level: (event.risk_level as SecurityEvent['risk_level']) ?? 'low',
+        // D11: no score is UNKNOWN, not 0. This mapper used `?? 0` /
+        // `?? 'low'`, which did two kinds of damage at once: ActivityFeed
+        // badges off these fields, so a verification_failed event rendered as
+        // a confident green "Low"; and it erased the very nulls that the
+        // P0.25 gauge guard below filters on, making that guard dead code for
+        // every REST event. SecurityEventData declares both fields nullable
+        // and says renderers must branch on null — so pass the null through.
+        risk_score: event.risk_score ?? null,
+        risk_level: (event.risk_level as SecurityEvent['risk_level']) ?? null,
         summary: event.summary ?? '',
         started_at: event.started_at,
       }));
@@ -288,6 +295,8 @@ export default function DashboardPage() {
       timestamp: timestamp || new Date().toISOString(), // Fallback to current time if both are undefined
       camera_name: cameras.find((c) => c.id === event.camera_id)?.name ?? event.camera_id,
       risk_score: event.risk_score,
+      // 1.6: the verdict rides so the feed badges the VERDICT, not the score.
+      verdict: event.verification?.verdict,
       summary: event.summary,
       thumbnail_url: getCameraSnapshotUrl(event.camera_id),
     };

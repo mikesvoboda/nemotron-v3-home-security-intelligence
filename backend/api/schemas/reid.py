@@ -3,12 +3,18 @@
 These schemas define the request and response models for the Re-ID
 similarity search functionality, allowing users to find similar entities
 based on embedding vectors.
+
+Person vectors are the OSNet-AIN x1.0 space (512-dim) since the full swap
+(ledger item 20); the threshold default rides the shared service constant
+so one value rules every surface (D-2).
 """
 
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from backend.services.reid_service import DEFAULT_SIMILARITY_THRESHOLD
 
 
 class SimilaritySearchRequest(BaseModel):
@@ -23,7 +29,7 @@ class SimilaritySearchRequest(BaseModel):
             "example": {
                 "embedding": [0.1, 0.2, 0.3],
                 "entity_type": "person",
-                "threshold": 0.85,
+                "threshold": 0.7,
                 "limit": 10,
                 "include_historical": True,
             }
@@ -33,7 +39,7 @@ class SimilaritySearchRequest(BaseModel):
     embedding: list[float] = Field(
         ...,
         min_length=1,
-        description="Embedding vector to search for (typically 768-dimensional CLIP embedding)",
+        description="Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)",
     )
     entity_type: str = Field(
         default="person",
@@ -41,10 +47,13 @@ class SimilaritySearchRequest(BaseModel):
         description="Type of entity to search for: 'person' or 'vehicle'",
     )
     threshold: float = Field(
-        default=0.85,
+        default=DEFAULT_SIMILARITY_THRESHOLD,
         ge=0.0,
         le=1.0,
-        description="Minimum cosine similarity threshold for matches (default: 0.85)",
+        description=(
+            "Minimum cosine similarity threshold for matches (default: the OSNet-space "
+            "service constant)"
+        ),
     )
     limit: int = Field(
         default=10,
@@ -125,7 +134,7 @@ class SimilaritySearchResponse(BaseModel):
                     }
                 ],
                 "total_matches": 1,
-                "threshold": 0.85,
+                "threshold": 0.7,
                 "entity_type": "person",
                 "include_historical": True,
             }
@@ -156,7 +165,7 @@ class DetectionSimilarityRequest(BaseModel):
             "example": {
                 "detection_id": "123",
                 "entity_type": "person",
-                "threshold": 0.85,
+                "threshold": 0.7,
                 "limit": 10,
                 "include_historical": True,
             }
@@ -170,7 +179,7 @@ class DetectionSimilarityRequest(BaseModel):
         description="Type of entity to search for: 'person' or 'vehicle'",
     )
     threshold: float = Field(
-        default=0.85,
+        default=DEFAULT_SIMILARITY_THRESHOLD,
         ge=0.0,
         le=1.0,
         description="Minimum cosine similarity threshold for matches",

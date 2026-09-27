@@ -51,7 +51,7 @@ class TestSearchSimilarEntities:
             HybridEntityMatch(
                 entity_id="entity_001",
                 entity_type="person",
-                embedding=[0.1] * 768,
+                embedding=[0.1] * 512,
                 camera_id="front_door",
                 timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
                 detection_id="det_001",
@@ -63,7 +63,7 @@ class TestSearchSimilarEntities:
             HybridEntityMatch(
                 entity_id="entity_002",
                 entity_type="person",
-                embedding=[0.2] * 768,
+                embedding=[0.2] * 512,
                 camera_id="backyard",
                 timestamp=datetime(2025, 12, 23, 8, 0, 0, tzinfo=UTC),
                 detection_id="det_002",
@@ -77,7 +77,7 @@ class TestSearchSimilarEntities:
         mock_storage.find_matches = AsyncMock(return_value=matches)
 
         request = SimilaritySearchRequest(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="person",
             threshold=0.85,
             limit=10,
@@ -111,7 +111,7 @@ class TestSearchSimilarEntities:
             HybridEntityMatch(
                 entity_id=f"entity_{i:03d}",
                 entity_type="person",
-                embedding=[0.1] * 768,
+                embedding=[0.1] * 512,
                 camera_id="front_door",
                 timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
                 detection_id=f"det_{i:03d}",
@@ -126,7 +126,7 @@ class TestSearchSimilarEntities:
         mock_storage.find_matches = AsyncMock(return_value=matches)
 
         request = SimilaritySearchRequest(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="person",
             threshold=0.80,
             limit=3,  # Request only 3
@@ -148,7 +148,7 @@ class TestSearchSimilarEntities:
         mock_storage.find_matches = AsyncMock(return_value=[])
 
         request = SimilaritySearchRequest(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="vehicle",
             threshold=0.95,
         )
@@ -169,7 +169,7 @@ class TestSearchSimilarEntities:
         mock_storage.find_matches = AsyncMock(return_value=[])
 
         request = SimilaritySearchRequest(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="person",
             threshold=0.85,
             exclude_detection_id="det_exclude",
@@ -181,7 +181,7 @@ class TestSearchSimilarEntities:
         )
 
         mock_storage.find_matches.assert_called_once_with(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="person",
             threshold=0.85,
             exclude_detection_id="det_exclude",
@@ -195,7 +195,7 @@ class TestSearchSimilarEntities:
         mock_storage.find_matches = AsyncMock(side_effect=Exception("Database error"))
 
         request = SimilaritySearchRequest(
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             entity_type="person",
         )
 
@@ -221,7 +221,7 @@ class TestFindSimilarByDetection:
         # Create test embedding for the detection
         query_embedding = EntityEmbedding(
             entity_type="person",
-            embedding=[0.1] * 768,
+            embedding=[0.1] * 512,
             camera_id="front_door",
             timestamp=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
             detection_id="det_query",
@@ -236,7 +236,7 @@ class TestFindSimilarByDetection:
             HybridEntityMatch(
                 entity_id="entity_001",
                 entity_type="person",
-                embedding=[0.2] * 768,
+                embedding=[0.2] * 512,
                 camera_id="backyard",
                 timestamp=datetime(2025, 12, 23, 8, 0, 0, tzinfo=UTC),
                 detection_id="det_001",
@@ -335,10 +335,12 @@ class TestSimilaritySearchSchemas:
 
     def test_search_request_defaults(self) -> None:
         """Test SimilaritySearchRequest has correct defaults."""
-        request = SimilaritySearchRequest(embedding=[0.1] * 768)
+        request = SimilaritySearchRequest(embedding=[0.1] * 512)
 
         assert request.entity_type == "person"
-        assert request.threshold == 0.85
+        # the shared OSNet-space constant (D-2, ledger 20) — not the retired
+        # CLIP-era 0.85
+        assert request.threshold == 0.7
         assert request.limit == 10
         assert request.include_historical is True
         assert request.exclude_detection_id is None

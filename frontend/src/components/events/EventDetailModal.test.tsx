@@ -438,6 +438,55 @@ describe('EventDetailModal', () => {
     });
   });
 
+  describe('retired-enrichment empty state (1.6, spec §4)', () => {
+    // Spec §4: "Retired-enrichment panels (pose skeleton, clothing,
+    // demographics) show a 'not analyzed in VLM mode' empty state" and
+    // "Legacy events have no verification row" - so the row is the mode
+    // signal the panel reads, no new plumbing needed. R8: empty states,
+    // not deletions.
+    const vlmEvent = {
+      ...mockEvent,
+      verification: {
+        verdict: 'confirmed' as const,
+        engine: 'llama.cpp',
+        model_id: 'qwen3-vl-4b',
+      },
+    };
+
+    it('vlm-mode event with no enrichment data shows the empty state', async () => {
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={vlmEvent} />);
+      await waitFor(() => {
+        expect(screen.getByTestId('enrichment-retired-state')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/not analyzed in VLM mode/i)).toBeInTheDocument();
+    });
+
+    it('legacy event (no verification row) shows no empty state', async () => {
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={mockEvent} />);
+      await waitFor(() => {
+        expect(screen.getByText('Event Details')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('enrichment-retired-state')).not.toBeInTheDocument();
+    });
+
+    it('vlm-mode event with real enrichment data still renders the panels', async () => {
+      const enriched = {
+        ...vlmEvent,
+        detections: [
+          {
+            label: 'person',
+            confidence: 0.9,
+            enrichment_data: { person: { clothing: 'red jacket', confidence: 0.8 } },
+          },
+        ],
+      };
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={enriched} />);
+      await waitFor(() => {
+        expect(screen.queryByTestId('enrichment-retired-state')).not.toBeInTheDocument();
+      });
+    });
+  });
+
   describe('event metadata', () => {
     it('renders event details section', async () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} />);

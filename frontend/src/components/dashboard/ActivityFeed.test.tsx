@@ -596,4 +596,70 @@ describe('ActivityFeed', () => {
       expect(screen.getByText('Side Gate')).toBeInTheDocument();
     });
   });
+
+  // 1.6: the interim "Unverified" chip (keyed on risk_score === null) is
+  // replaced by the shared VerdictBadge, keyed on the VERDICT. The pins
+  // below encode why the score was the wrong key:
+  //   rejected + a real score -> the interim code drew a risk badge and the
+  //     word "Rejected" never appeared;
+  //   verification_failed + NULL score -> visually identical to "never
+  //     analyzed", folding a broken verification into the un-reviewed pile.
+  describe('VLM verdict badge (1.6)', () => {
+    const ev = (over: Partial<ActivityEvent>): ActivityEvent => ({
+      id: '9',
+      timestamp: new Date(BASE_TIME - 60 * 1000).toISOString(),
+      camera_name: 'Front Door',
+      risk_score: 80,
+      summary: 'Person at the door',
+      ...over,
+    });
+
+    it('shows Rejected on a rejected verdict that CARRIES a score', () => {
+      // The interim chip could not do this: score 80 -> it drew the risk
+      // badge, and the dismissed verdict — the thing worth seeing — vanished.
+      render(<ActivityFeed events={[ev({ verdict: 'rejected' })]} />);
+      expect(screen.getByText('Rejected')).toBeInTheDocument();
+    });
+
+    it('shows Verification failed distinctly from Unverified', () => {
+      render(
+        <ActivityFeed
+          events={[
+            ev({ id: 'f', verdict: 'verification_failed', risk_score: null }),
+            ev({ id: 'u', risk_score: null }),
+          ]}
+        />
+      );
+      expect(screen.getByText('Verification failed')).toBeInTheDocument();
+      expect(screen.getByText('Unverified')).toBeInTheDocument();
+    });
+
+    it('keeps the word Unverified for a null-score event with no verdict', () => {
+      // Byte-compat with the interim chip's vocabulary on purpose - nothing
+      // downstream (tests, aria consumers) re-keys on a new word.
+      render(<ActivityFeed events={[ev({ risk_score: null })]} />);
+      expect(screen.getByText('Unverified')).toBeInTheDocument();
+    });
+
+    it('names the verdict in the card aria-label', () => {
+      // An ATTENTION verdict (uncertain) — the chip shows for these.
+      // Query by the verdict word in the aria-label itself: if the card
+      // never carried it, getByLabelText finds nothing.
+      render(<ActivityFeed events={[ev({ verdict: 'uncertain', risk_score: 40 })]} />);
+      expect(screen.getByLabelText(/verdict uncertain/i)).toBeInTheDocument();
+    });
+
+    it('does NOT double a scored confirmed event with both a risk badge and a chip', () => {
+      // The feed is a glance surface: risk 80 already reads "critical, and
+      // the VLM confirmed it" — a green chip on every ordinary card is
+      // noise. Spec §4's badge rule targets NULL-score (and the chip shows
+      // there, per the Unverified test above), plus the states an operator
+      // acts on: rejected / uncertain / verification_failed.
+      render(<ActivityFeed events={[ev({ verdict: 'confirmed', risk_score: 80 })]} />);
+      // The risk badge (RiskBadge's own aria contract, not a guessed label).
+      expect(screen.getByLabelText(/^Risk level:/)).toBeInTheDocument();
+      // ...and no verdict chip beside it.
+      expect(document.querySelector('[data-verdict]')).toBeNull();
+    });
+  });
 });

@@ -207,4 +207,36 @@ describe('SearchResultCard', () => {
     const matchText = screen.getByText(/10% match/i);
     expect(matchText).toHaveClass('text-gray-400');
   });
+
+  // M1 review (frontend null-lie class): SearchResult.risk_score is
+  // `number | null` and risk_level is `string | null`, so an unscored event
+  // reaches this card. Both badges used to read
+  // `(result.risk_level as RiskLevel) || 'low'`, which painted a never-
+  // analyzed / verification_failed result a confident green "Low" — the same
+  // lie 1.6 removed from the event cards, surviving here because the search
+  // surface was not in that slice's file list.
+  describe('a NULL risk_score is not "Low" (D11)', () => {
+    const unscored = { ...mockResult, risk_score: null, risk_level: null };
+
+    it('states "Unverified" instead of a level when there is no thumbnail', () => {
+      render(<SearchResultCard result={unscored} />);
+
+      expect(screen.getByText('Unverified')).toBeInTheDocument();
+      expect(screen.queryByText(/Low/i)).not.toBeInTheDocument();
+    });
+
+    it('states "Unverified" on the thumbnail overlay too', () => {
+      render(<SearchResultCard result={{ ...unscored, thumbnail_url: '/api/media/x.jpg' }} />);
+
+      expect(screen.getByText('Unverified')).toBeInTheDocument();
+      expect(screen.queryByText(/Low/i)).not.toBeInTheDocument();
+    });
+
+    it('keeps the risk badge for a scored result', () => {
+      render(<SearchResultCard result={mockResult} />);
+
+      expect(screen.getByText(/High/i)).toBeInTheDocument();
+      expect(screen.queryByText('Unverified')).not.toBeInTheDocument();
+    });
+  });
 });

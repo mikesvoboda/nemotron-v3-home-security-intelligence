@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import ThumbnailImage from '../common/ThumbnailImage';
+import VerdictBadge, { verdictLabel } from '../common/VerdictBadge';
+
+import type { EventVerificationPayload } from '../../types/generated/websocket';
 
 // ============================================================================
 // Types
@@ -17,6 +20,15 @@ export interface ActivityEvent {
   /** null = unverified (P0.25): never coalesce to a number - the feed
    * shows an unverified state instead of a risk badge. */
   risk_score: number | null;
+  /**
+   * 1.6 (spec §4): the VLM verdict, when the event carries a verification.
+   * This - not the score - decides which badge shows: `rejected` can carry
+   * a real score (a scored dismissal the interim chip never surfaced) and
+   * `verification_failed` carries NULL (D11) (it must NOT look identical to
+   * "never analyzed"). Producers map it from EventResponse/WS
+   * `verification?.verdict`; absent = no verification row.
+   */
+  verdict?: EventVerificationPayload['verdict'] | null;
   summary: string;
   thumbnail_url?: string;
 }
@@ -162,14 +174,31 @@ export default function ActivityFeed({
           <div className="space-y-3">
             {displayedEvents.map((event) => {
               // P0.25: null is NOT a low score - no level is computed for it
-              // and no badge is drawn (a gray 'Unverified' chip instead). The
-              // 'unverified' badge design is 1.6's; this is no-crash/no-lie.
+              // and no risk badge is drawn.
+              // 1.6: which badge shows is decided by the VERDICT, not by the
+              // score. A scored `rejected` event gets Rejected (the interim
+              // chip's score-keying hid exactly that case); a NULL-scored
+              // event gets Verification failed when a failed row exists and
+              // Unverified when there is no row at all - the two look
+              // different because they mean different things (D11).
               // One nullable object (not a boolean + nullable pair) so the
               // JSX branch narrows both props without non-null assertions.
-              const verdict =
+              const risk =
                 event.risk_score === null || event.risk_score === undefined
                   ? null
                   : { level: getRiskLevel(event.risk_score), score: event.risk_score };
+              // The verdict chip speaks when it has something to say:
+              // any NON-confirmed verdict (rejected/uncertain/failed are
+              // the states an operator acts on), or a NULL-score event
+              // (P0.25's unverified case, where the chip replaces the risk
+              // badge). A scored `confirmed` event says nothing new next
+              // to its risk badge - the feed is a glance surface, and a
+              // green chip on every card is noise. Spec §4's rule is the
+              // same shape: the badge renders "wherever a score would",
+              // and rejected is de-emphasized (not doubled up).
+              const hasVerdict = event.verdict !== null && event.verdict !== undefined;
+              const showVerdictBadge =
+                risk === null || (hasVerdict && event.verdict !== 'confirmed');
 
               return (
                 <div
@@ -187,7 +216,11 @@ export default function ActivityFeed({
                       handleEventClick(event.id);
                     }
                   }}
-                  aria-label={`Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, risk level ${verdict?.level ?? 'unverified'}`}
+                  aria-label={
+                    `Event from ${event.camera_name} at ${formatTimestamp(event.timestamp)}, ` +
+                    `risk level ${risk?.level ?? 'unverified'}` +
+                    (showVerdictBadge ? `, verdict ${verdictLabel(event.verdict)}` : '')
+                  }
                   data-testid={`detection-card-${event.id}`}
                 >
                   {/* Thumbnail */}
@@ -200,27 +233,18 @@ export default function ActivityFeed({
 
                   {/* Event Details */}
                   <div className="min-w-0 flex-1">
-                    {/* Top Row: Camera Name + Risk Badge */}
+                    {/* Top Row: Camera Name + Risk Badge (+ verdict chip) */}
                     <div className="mb-1.5 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 text-sm" data-testid="card-camera">
                         <Camera className="h-3.5 w-3.5 text-text-muted" />
                         <span className="font-medium text-white">{event.camera_name}</span>
                       </div>
-                      {verdict ? (
-                        <RiskBadge
-                          level={verdict.level}
-                          score={verdict.score}
-                          showScore
-                          size="sm"
-                        />
-                      ) : (
-                        <span
-                          data-testid="unverified-chip"
-                          className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300"
-                        >
-                          Unverified
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {risk && (
+                          <RiskBadge level={risk.level} score={risk.score} showScore size="sm" />
+                        )}
+                        {showVerdictBadge && <VerdictBadge verdict={event.verdict} size="sm" />}
+                      </div>
                     </div>
 
                     {/* Summary */}

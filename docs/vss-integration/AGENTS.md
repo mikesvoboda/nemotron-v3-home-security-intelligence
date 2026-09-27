@@ -16,6 +16,9 @@ on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
   one row per step and spike, with the command, result and commit behind every status.
 - **Asking "is this deferred, or did we miss it?"** → [`12-postponed-roadmap.md`](12-postponed-roadmap.md)
   (R1-R14: streaming ingest, NemoClaw, agent features, upstream PRs, model choices, and more).
+- **Choosing or changing a specialist model** (face, plate, re-ID, open-vocabulary, pose, novelty)
+  → [`14-specialist-model-research.md`](14-specialist-model-research.md): verified candidates, the
+  Task 3b picks, and the rev 7 shortlist. Owner rulings are in the ledger as F12.
 - **Citing any claim from docs 00-07** → check [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md)
   first (E1-E28). Each of those docs carries a banner naming the entries that correct it.
 - **Asking "why was it decided this way?"** → the audits of VSS `1e94133b4`:
@@ -55,7 +58,8 @@ docs/vss-integration/
 ├── 10-audit-feature-inventory.md # Audit C: features to import, gap matrix, NemoClaw addendum
 ├── 11-errata-2026-09-23.md       # Corrections to 00-07 (E1-E28)
 ├── 12-postponed-roadmap.md       # Deliberately deferred items (R1-R14)
-└── 13-implementation-brief.md    # How the implementing agent works: spikes, ledger, guardrails, stops
+├── 13-implementation-brief.md    # How the implementing agent works: spikes, ledger, guardrails, stops
+└── 14-specialist-model-research.md  # Specialist model candidates (2026-09-25), 3b picks, rev 7 shortlist
 ```
 
 The design spec lives outside this directory, with the repo's other specs:

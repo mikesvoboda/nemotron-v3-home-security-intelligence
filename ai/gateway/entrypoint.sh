@@ -115,6 +115,20 @@ if [ -d "$MODEL_CACHE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 0d. Prune the Triton repository to the active residency set (rev 6)
+# ---------------------------------------------------------------------------
+# Residency control IS the repository: GATEWAY_MODEL_SET (vlm | full,
+# default full) selects the models that stay in ${TRITON_MODEL_REPO}; the
+# rest are MOVED (not deleted) to ${TRITON_MODEL_REPO}.retired so switching
+# sets is idempotent and needs no rebuild. --model-control-mode stays
+# `none` — absent models cannot load. NO '|| true' here: a failed prune
+# would leave retired models in Triton's scan path, which rev 6 forbids,
+# so the container stops instead of serving a wrong footprint.
+
+echo "[entrypoint] Pruning Triton repository to residency set '${GATEWAY_MODEL_SET:-full}'..."
+python3 -m ai.gateway.residency
+
+# ---------------------------------------------------------------------------
 # 1. Start Triton Inference Server in background
 # ---------------------------------------------------------------------------
 echo "[entrypoint] Starting Triton Inference Server..."

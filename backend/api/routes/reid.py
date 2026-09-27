@@ -249,13 +249,17 @@ async def find_similar_by_detection(
                 detail=f"No embedding found for detection '{detection_id}'",
             )
 
-        # Search for similar entities using hybrid storage
+        # Search for similar entities using hybrid storage. The probe's
+        # belt is the stored row's own model_id (F11): a pre-swap (legacy)
+        # row compares against nothing and answers empty — the honest
+        # re-enroll answer, never a cross-space score.
         matches = await hybrid_storage.find_matches(
             embedding=query_embedding.embedding,
             entity_type=entity_type,
             threshold=threshold,
             exclude_detection_id=detection_id,
             include_historical=include_historical,
+            model_id=query_embedding.model_id,
         )
 
         # Apply limit

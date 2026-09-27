@@ -14,8 +14,9 @@ import { CheckSquare, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { memo, useState, useCallback, useMemo } from 'react';
 
 import { cardPropsComparator } from '../../utils/memoization';
-import { getRiskLevel, type RiskLevel } from '../../utils/risk';
+import { resolveRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge from '../common/VerdictBadge';
 
 import type { EventCluster } from '../../utils/eventClustering';
 
@@ -123,22 +124,35 @@ const EventClusterCard = memo(function EventClusterCard({
     eventCount,
     startTime,
     endTime,
-    highestRiskScore,
-    highestRiskLevel,
     thumbnails,
     events,
+    highestRiskScore,
+    highestRiskLevel,
   } = cluster;
 
   const displayCameraName = cameraName || 'Unknown Camera';
+
+  // 1.6: the header badge renders the cluster's OWN summary (eventClustering
+  // computes both from these members), but only when the cluster has risk to
+  // show. The producer defaults an all-unscored pile to (0, 'low') - that
+  // default is exactly the null-lie: a cluster of events nobody ever analyzed
+  // would render as a confident green "Low 0". Gate on the producer's own
+  // scoredness condition (any member carries a score); with none, the header
+  // shows VerdictBadge instead.
+  const headerRisk = useMemo(() => {
+    const anyScored = events.some((e) => e.risk_score !== null && e.risk_score !== undefined);
+    return anyScored ? { level: highestRiskLevel, score: highestRiskScore } : null;
+  }, [events, highestRiskLevel, highestRiskScore]);
 
   // Calculate risk level breakdown from events
   const riskLevelCounts = useMemo<RiskLevelCounts>(() => {
     const counts: RiskLevelCounts = { critical: 0, high: 0, medium: 0, low: 0 };
     for (const event of events) {
-      const level = event.risk_level || getRiskLevel(event.risk_score || 0);
-      if (level in counts) {
-        counts[level as RiskLevel]++;
-      }
+      // 1.6: no level = counted nowhere, not 'low' (the list-row badge row
+      // for such an event already renders Unverified via EventCard).
+      const level = resolveRiskLevel(event.risk_level, event.risk_score);
+      if (level === null) continue;
+      counts[level]++;
     }
     return counts;
   }, [events]);
@@ -178,7 +192,7 @@ const EventClusterCard = memo(function EventClusterCard({
   return (
     <div
       data-testid="event-cluster-card"
-      className={`overflow-hidden rounded-lg border border-gray-800 bg-[#1F1F1F] transition-all hover:border-gray-700 ${getRiskBorderClass(highestRiskLevel)} border-l-4 ${className}`}
+      className={`overflow-hidden rounded-lg border border-gray-800 bg-[#1F1F1F] transition-all hover:border-gray-700 ${headerRisk ? getRiskBorderClass(headerRisk.level) : 'border-l-gray-600'} border-l-4 ${className}`}
     >
       {/* Header Section */}
       <div className={`p-4 ${hasCheckboxOverlay ? 'pt-12' : ''}`}>
@@ -189,8 +203,14 @@ const EventClusterCard = memo(function EventClusterCard({
             <h3 className="font-semibold text-white">{displayCameraName}</h3>
           </div>
           <div className="flex items-center gap-2">
-            <RiskBadge level={highestRiskLevel} size="sm" animated={false} />
-            <span className="text-lg font-bold text-white">{highestRiskScore}</span>
+            {headerRisk ? (
+              <>
+                <RiskBadge level={headerRisk.level} size="sm" animated={false} />
+                <span className="text-lg font-bold text-white">{headerRisk.score}</span>
+              </>
+            ) : (
+              <VerdictBadge verdict="none" size="sm" />
+            )}
           </div>
         </div>
 

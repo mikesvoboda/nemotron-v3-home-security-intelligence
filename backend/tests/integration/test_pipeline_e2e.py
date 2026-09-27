@@ -1068,6 +1068,7 @@ async def test_batch_timeout_closes_batch(
 
 @pytest.mark.asyncio
 async def test_fast_path_high_priority_detection(
+    legacy_wire,
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
@@ -1083,6 +1084,13 @@ async def test_fast_path_high_priority_detection(
     exercised here, honestly: the aggregator's threshold/types are
     explicitly overridden to the legacy 0.90/person values, then the fast
     path must fire.
+
+    LEGACY-wire subject (1.5, rule 5): the stub below is
+    `nemotron_analyzer.httpx.AsyncClient` and the assertion is
+    `is_fast_path=True` — a column only nemotron's fast path writes (the
+    vlm fast path routes the single detection through the batch gate,
+    which marks nothing). legacy_wire first so the aggregator's lazy
+    factory actually hands out the legacy analyzer the stub speaks to.
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id

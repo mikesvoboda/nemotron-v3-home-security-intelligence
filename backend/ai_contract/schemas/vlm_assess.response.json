@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "VlmCriterion": {
+      "additionalProperties": false,
+      "description": "One \u00a73 verification criterion. Field-compatible with the shipped\n`backend/api.schemas.event_verification.VerificationCriterion` (P0.4) - the\nAPI-side model is the wire mirror of this shape; the pin in\nscripts/test_gen_ai_contract.py keeps them from forking.",
+      "properties": {
+        "evidence": {
+          "minLength": 1,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        }
+      },
+      "required": ["name", "passed", "evidence"],
+      "title": "VlmCriterion",
+      "type": "object"
+    },
+    "VlmProvenance": {
+      "additionalProperties": false,
+      "description": "Who actually answered. `engine` is the serving engine's own reported\nid (llama.cpp build string, vLLM engine name) - OPENAI_VLM is\nengine-agnostic, so provenance, not the ProviderId, records the engine\n(spec \u00a73, Slots).",
+      "properties": {
+        "engine": {
+          "minLength": 1,
+          "title": "Engine",
+          "type": "string"
+        },
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        }
+      },
+      "required": ["engine", "model_id"],
+      "title": "VlmProvenance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The constrained response for `vlm_assess` (spec \u00a73).\n\nDeliberately NO extra keys (the wire carries no level; the batch id and\nother pipeline bookkeeping belong to the analyzer, not the model) and NO\ndefaults on any field - under constrained decoding every field is\nrequired and emitted, and a default here would let a partially-echoed\nresponse pass validation while lying about a value.",
+  "properties": {
+    "criteria": {
+      "items": {
+        "$ref": "#/$defs/VlmCriterion"
+      },
+      "minItems": 1,
+      "title": "Criteria",
+      "type": "array"
+    },
+    "description": {
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/VlmProvenance"
+    },
+    "reasoning": {
+      "minLength": 1,
+      "title": "Reasoning",
+      "type": "string"
+    },
+    "risk_score": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Risk Score",
+      "type": "integer"
+    },
+    "summary": {
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "verdict": {
+      "enum": ["confirmed", "rejected", "uncertain"],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "required": [
+    "verdict",
+    "risk_score",
+    "summary",
+    "reasoning",
+    "description",
+    "criteria",
+    "provenance"
+  ],
+  "title": "VlmVerdict",
+  "type": "object"
+}

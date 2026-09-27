@@ -476,13 +476,16 @@ def test_map_reid_gate_requires_person_detection_type():
 
 
 def test_map_reid_populated_for_person():
-    """MEASURED: person_embeddings[det_id] = {embedding, embedding_dim, detection_id}."""
+    """MEASURED: person_embeddings[det_id] = {embedding, embedding_dim,
+    detection_id, model_id} — the unified map stamps the ONE producer string
+    (B5b: the Triton reid leg serves the same models.yml-pinned weights)."""
     r = EnrichmentResult()
     mapper(r, full_person(), "person")
     assert r.person_embeddings["D1"] == {
         "embedding": [0.1, 0.2, 0.3],
         "embedding_dim": 3,
         "detection_id": "D1",
+        "model_id": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
     }
 
 

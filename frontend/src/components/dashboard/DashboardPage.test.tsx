@@ -119,7 +119,7 @@ vi.mock('./ActivityFeed', () => ({
     maxItems,
     onEventClick,
   }: {
-    events: Array<{ id: string; camera_name: string }>;
+    events: Array<{ id: string; camera_name: string; risk_score?: number | null }>;
     maxItems?: number;
     onEventClick?: (eventId: string) => void;
   }) => (
@@ -127,6 +127,10 @@ vi.mock('./ActivityFeed', () => ({
       data-testid="activity-feed"
       data-event-count={events.length}
       data-max-items={maxItems}
+      // D11: the feed decides its badge off this field, so a fabricated 0 in
+      // here renders "Low" for an event that was never scored. Exposed so the
+      // mapping (not just the gauge) is pinned.
+      data-risk-scores={events.map((e) => String(e.risk_score)).join(',')}
       data-has-click-handler={onEventClick ? 'true' : 'false'}
     >
       {events.slice(0, maxItems || 10).map((event) => (
@@ -974,6 +978,101 @@ describe('DashboardPage', () => {
         // Latest WS event has risk_score 75
         expect(statsRow).toHaveAttribute('data-risk-score', '75');
       });
+    });
+  });
+
+  // P0.25 / D11: a null risk_score means verification_failed or never-verified,
+  // NOT a score of 0. The REST→SecurityEvent mapper used to write `?? 0` and
+  // `risk_level ?? 'low'`, which (a) handed ActivityFeed a real-looking 0 it
+  // would badge green and (b) made the gauge's own `!== null` guard at :225
+  // permanently dead — the mapper had already erased every null it guarded.
+  describe('a REST event with no score stays unknown (D11)', () => {
+    it('does not fabricate 0 for a null-scored REST event', async () => {
+      (api.fetchEvents as Mock).mockResolvedValue({
+        items: [
+          {
+            id: 77,
+            camera_id: 'cam2',
+            started_at: '2025-01-01T11:45:00Z',
+            ended_at: '2025-01-01T11:47:00Z',
+            risk_score: null,
+            risk_level: null,
+            summary: 'Never verified',
+            reviewed: false,
+            notes: null,
+            detection_count: 1,
+          },
+        ],
+        pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+      });
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: [],
+        isConnected: true,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-event-count', '1');
+      });
+      // The literal string "null", not "0": ActivityFeed must see the unknown,
+      // because that is what it renders its badge from.
+      expect(screen.getByTestId('activity-feed')).toHaveAttribute('data-risk-scores', 'null');
+    });
+
+    it('keeps the gauge honest when the NEWEST event is unscored', async () => {
+      // The unscored event is the newest thing REST returned, so it leads the
+      // merged list. The mapper's `?? 0` is exactly what this tests: it would
+      // hand the gauge a 0 (all-clear) and it is why the gauge's own
+      // `risk_score !== null` guard could never fire for a REST event.
+      (api.fetchEvents as Mock).mockResolvedValue({
+        items: [
+          {
+            id: 88,
+            camera_id: 'cam1',
+            started_at: '2025-01-01T12:00:00Z',
+            ended_at: '2025-01-01T12:01:00Z',
+            risk_score: null,
+            risk_level: null,
+            summary: 'Verification failed',
+            reviewed: false,
+            notes: null,
+            detection_count: 1,
+          },
+          {
+            id: 3,
+            camera_id: 'cam1',
+            started_at: '2025-01-01T11:50:00Z',
+            ended_at: '2025-01-01T11:52:00Z',
+            risk_score: 40,
+            risk_level: 'medium',
+            summary: 'Vehicle detected in driveway',
+            reviewed: false,
+            notes: null,
+            detection_count: 3,
+          },
+        ],
+        pagination: { total: 2, limit: 50, offset: 0, has_more: false },
+      });
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: [],
+        isConnected: true,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toBeInTheDocument();
+      });
+      // The gauge falls through to the newest event that HAS a score, rather
+      // than reading the unscored newest one as 0 → "all clear".
+      expect(screen.getByTestId('stats-row')).toHaveAttribute('data-risk-score', '40');
+      // ...and the history plots only scored events, never a fabricated point.
+      expect(screen.getByTestId('stats-row')).toHaveAttribute('data-risk-history', '40');
     });
   });
 

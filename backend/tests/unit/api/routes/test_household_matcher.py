@@ -1,116 +1,53 @@
 """Unit tests for Household Matcher API routes.
 
 Tests the API endpoints for Household Matcher service (NEM-4934).
+
+The person endpoint is RETIRED (D-1, F11 re-ID full swap): after the swap
+every stored vector names its model_id and a client-posted list of floats
+carries none, so matching happens only where the server computes the
+vector. Its pins are retirement pins now — the face client-vector
+enrollment pair (test_face_enrollment_provenance.py) is the precedent.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
+from fastapi import HTTPException
 
+from backend.api.routes import household_matcher as hm
 from backend.services.household_matcher import HouseholdMatch
 
 
-class TestMatchPerson:
-    """Tests for POST /api/household-matcher/match-person endpoint."""
+class TestMatchPersonRetired:
+    """POST /api/household-matcher/match-person answers 410 Gone, always."""
 
     @pytest.mark.asyncio
-    async def test_match_person_success(self) -> None:
-        """Test successfully matching a person embedding."""
-        from backend.api.routes.household_matcher import match_person
+    async def test_endpoint_answers_gone(self) -> None:
+        """A posted vector is refused before anything is compared — a
+        client-claimed model_id is no trust anchor, so there is no
+        threshold, no gallery read, no score."""
         from backend.api.schemas.household_matcher import PersonMatchRequest
 
-        mock_db = AsyncMock()
+        with pytest.raises(HTTPException) as exc_info:
+            await hm.match_person(request=PersonMatchRequest(embedding=[0.1] * 512), db=AsyncMock())
 
-        mock_match = HouseholdMatch(
-            member_id=1,
-            member_name="John Doe",
-            similarity=0.92,
-            match_type="person",
-            member_role="resident",
-            schedule_status=True,
+        assert exc_info.value.status_code == 410
+
+    def test_gone_detail_names_the_server_side_paths(self) -> None:
+        """The refusal tells the caller where matching DOES happen."""
+        source = "\n".join(hm.match_person.__doc__.split())
+        assert "person_reid" in source
+        assert "/api/household/members/{member_id}/embeddings" in source
+
+    def test_route_registered_deprecated_with_410(self) -> None:
+        """OpenAPI shows the retirement: deprecated + the 410 response."""
+        route = next(
+            r
+            for r in hm.router.routes
+            if getattr(r, "path", None) == "/api/household-matcher/match-person"
         )
-
-        request = PersonMatchRequest(embedding=[0.1] * 512)
-
-        with patch(
-            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
-        ) as mock_get_matcher:
-            mock_matcher = AsyncMock()
-            mock_matcher.match_person.return_value = mock_match
-            mock_get_matcher.return_value = mock_matcher
-
-            result = await match_person(request=request, db=mock_db)
-
-        assert result.matched is True
-        assert result.member_id == 1
-        assert result.member_name == "John Doe"
-        assert result.similarity == 0.92
-        assert result.match_type == "person"
-
-    @pytest.mark.asyncio
-    async def test_match_person_no_match(self) -> None:
-        """Test no match found for person embedding."""
-        from backend.api.routes.household_matcher import match_person
-        from backend.api.schemas.household_matcher import PersonMatchRequest
-
-        mock_db = AsyncMock()
-        request = PersonMatchRequest(embedding=[0.5] * 512)
-
-        with patch(
-            "backend.api.routes.household_matcher.get_household_matcher", autospec=True
-        ) as mock_get_matcher:
-            mock_matcher = AsyncMock()
-            mock_matcher.match_person.return_value = None
-            mock_get_matcher.return_value = mock_matcher
-
-            result = await match_person(request=request, db=mock_db)
-
-        assert result.matched is False
-        assert result.member_id is None
-
-    @pytest.mark.asyncio
-    async def test_match_person_custom_threshold(self) -> None:
-        """Test matching with custom similarity threshold."""
-        from backend.api.routes.household_matcher import match_person
-        from backend.api.schemas.household_matcher import PersonMatchRequest
-        from backend.services.household_matcher import HouseholdMatcher
-
-        mock_db = AsyncMock()
-        request = PersonMatchRequest(
-            embedding=[0.1] * 512,
-            similarity_threshold=0.95,
-        )
-
-        with patch.object(HouseholdMatcher, "match_person", new_callable=AsyncMock) as mock_match:
-            mock_match.return_value = None
-            result = await match_person(request=request, db=mock_db)
-
-        assert result.matched is False
-
-    @pytest.mark.asyncio
-    async def test_match_person_empty_embedding(self) -> None:
-        """Test that empty embedding returns 400 error."""
-
-        from backend.api.schemas.household_matcher import PersonMatchRequest
-
-        mock_db = AsyncMock()
-
-        # Bypass Pydantic validation with valid request but trigger route validation
-        request = PersonMatchRequest(embedding=[0.1])  # Minimal valid embedding
-
-        # Mock the numpy conversion to simulate empty check
-        with patch("backend.api.routes.household_matcher.np.array", autospec=True) as mock_array:
-            mock_array.return_value = np.array([], dtype=np.float32)
-            # This test actually needs to test the schema validation
-            # The route check is for len(embedding) == 0 after assignment
-
-        # The schema validation handles min_length=1, so direct route call won't hit that
-        # Test the schema validation instead
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError):
-            PersonMatchRequest(embedding=[])
+        assert route.deprecated is True
+        assert 410 in route.responses or "410" in route.responses
 
 
 class TestMatchVehicle:

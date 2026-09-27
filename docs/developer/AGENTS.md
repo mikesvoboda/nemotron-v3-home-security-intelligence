@@ -67,7 +67,7 @@ developer/
   codebase-tour.md                # Directory structure and key file navigation
   data-model.md                   # Database schema for developers
   detection-service.md            # Detection service details
-  entity-tracking.md              # Re-identification, CLIP embeddings, cross-camera matching
+  entity-tracking.md              # Re-identification, OSNet-AIN x1.0 embeddings, cross-camera matching
   keyboard-patterns.md            # Keyboard shortcuts and command palette
   local-setup.md                  # Development environment setup
   pipeline-overview.md            # AI pipeline for developers
@@ -105,7 +105,7 @@ developer/
 | `clip-generation.md`          | Event video clips, FFmpeg integration, API        |
 | `data-model.md`               | Database schema documentation                     |
 | `detection-service.md`        | Detection service implementation                  |
-| `entity-tracking.md`          | Re-ID service, CLIP embeddings, entity APIs       |
+| `entity-tracking.md`          | Re-ID service, OSNet-AIN x1.0 embeddings, APIs    |
 | `pipeline-overview.md`        | AI pipeline overview for developers               |
 | `risk-analysis.md`            | Risk analysis service implementation              |
 | `video.md`                    | Video processing implementation                   |

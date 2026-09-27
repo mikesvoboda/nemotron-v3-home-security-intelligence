@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 
 import { fetchEvents, type EventsQueryParams } from '../services/api';
 import { DEFAULT_STALE_TIME } from '../services/queryClient';
+import { compareRiskSortKey } from '../utils/risk';
 
 import type { Event as GeneratedEvent, EventListResponse } from '../types/generated';
 
@@ -142,11 +143,16 @@ export function useTopEventsQuery(options: UseTopEventsQueryOptions = {}): UseTo
     retry: 1,
   });
 
-  // Sort events by risk_score descending (highest first)
+  // Sort events by risk_score descending (highest first). `?? 0` is not a
+  // harmless default here: a NULL score under D11 is verification_failed /
+  // never-verified, and coalescing it to 0 put those events in the TAIL,
+  // beside genuinely harmless ones, on the surface whose whole job is
+  // "show me the worst". compareRiskSortKey (utils/risk, 1.6) ranks the
+  // unknown ABOVE every score worst-first — it needs eyes on it.
   const events = useMemo(() => {
     if (!query.data?.items) return [];
 
-    return [...query.data.items].sort((a, b) => (b.risk_score ?? 0) - (a.risk_score ?? 0));
+    return [...query.data.items].sort((a, b) => compareRiskSortKey(b.risk_score, a.risk_score));
   }, [query.data?.items]);
 
   // Extract total count from pagination metadata

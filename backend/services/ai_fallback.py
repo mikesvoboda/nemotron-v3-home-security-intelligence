@@ -640,14 +640,16 @@ class AIFallbackService:
         return f"{objects_str.capitalize()} detected"
 
     def get_fallback_embedding(self) -> list[float]:
-        """Get fallback embedding when CLIP is unavailable.
+        """Get fallback embedding when re-ID extraction is unavailable.
 
         Returns a zero vector that will not match any existing embeddings.
 
         Returns:
-            768-dimensional zero vector
+            512-dimensional zero vector — the OSNet-AIN x1.0 person-vector
+            space (the full swap, ledger item 20; a CLIP-era 768 stub could
+            never be compared against anything the store holds anyway).
         """
-        return [0.0] * 768
+        return [0.0] * 512
 
     def should_skip_detection(self) -> bool:
         """Check if detection should be skipped due to YOLO26v2 unavailability.

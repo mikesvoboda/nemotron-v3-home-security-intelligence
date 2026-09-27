@@ -16,11 +16,19 @@ import { getRiskLevel, type RiskLevel } from './risk';
 export type SeverityLevel = RiskLevel;
 
 /**
+ * The card treatment for an event whose risk is UNKNOWN (1.6, D11): no
+ * server level and a NULL score - "the VLM could not answer", not "low".
+ * `unverified` is the neutral tier: no severity color may be painted onto
+ * a not-checked event.
+ */
+export type SeverityTreatment = SeverityLevel | 'unverified';
+
+/**
  * Configuration for severity-based styling
  */
 export interface SeverityConfig {
-  /** Severity level */
-  level: SeverityLevel;
+  /** Severity level ('unverified' = no level derivable, neutral treatment) */
+  level: SeverityTreatment;
   /** Background tint color (rgba format for transparency) */
   bgTint: string;
   /** Left border color (hex format) */
@@ -109,6 +117,25 @@ export function getSeverityLevel(riskScore: number): SeverityLevel {
 }
 
 /**
+ * The unverified card treatment (1.6). Neutral gray matches VerdictBadge's
+ * 'unverified' chip (bg-gray-700 text-gray-300 family) so a card with no
+ * verdict and no score reads "not checked" everywhere at once: gray edge,
+ * no tint, no glow, no pulse. `data-severity="unverified"` gives tests and
+ * CSS one hook to pin it.
+ */
+const UNVERIFIED_CONFIG: SeverityConfig = {
+  level: 'unverified',
+  bgTint: 'transparent',
+  borderColor: '#6B7280', // gray-500
+  glowShadow: '',
+  shouldPulse: false,
+  bgClass: 'bg-transparent',
+  borderClass: 'border-l-gray-500',
+  glowClass: '',
+  pulseClass: '',
+};
+
+/**
  * Get the full severity configuration for a given risk score.
  *
  * Returns all styling information needed for severity-tinted event cards:
@@ -118,11 +145,23 @@ export function getSeverityLevel(riskScore: number): SeverityLevel {
  * - Pulse animation flag (critical only)
  * - Tailwind CSS classes for all effects
  *
- * @param riskScore - Numeric risk score between 0-100
+ * A NULL/undefined score gets the neutral `unverified` treatment rather
+ * than the `low` one: `getSeverityLevel(score || 0)` used to paint a NULL
+ * (never-analyzed, D11) event with the NVIDIA-green low border - the same
+ * lie as the green Low badge, just quieter about it.
+ *
+ * The score path keeps getSeverityLevel's visual thresholds (critical at
+ * 80, per SEVERITY_THRESHOLDS) - deliberately NOT getRiskLevel's backend
+ * 85, so an approaching-critical event warns early. This is the one place
+ * the two threshold tables legitimately differ; do not "unify" them.
+ *
+ * @param riskScore - Numeric risk score 0-100, or null/undefined for unverified
  * @returns Complete severity configuration object
  */
-export function getSeverityConfig(riskScore: number): SeverityConfig {
+export function getSeverityConfig(riskScore: number | null | undefined): SeverityConfig {
+  if (riskScore === null || riskScore === undefined) return UNVERIFIED_CONFIG;
   const level = getSeverityLevel(riskScore);
+
   const colors = SEVERITY_COLORS[level];
 
   return {

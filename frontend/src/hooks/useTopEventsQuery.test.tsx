@@ -153,7 +153,13 @@ describe('useTopEventsQuery', () => {
   });
 
   describe('edge cases', () => {
-    it('handles events with null risk_score', async () => {
+    // Rewritten 2026-09-27 (M1 review, frontend null-lie class). This pin used
+    // to read "Events with null risk_score treated as 0" and assert the order
+    // [80, 50] — i.e. it pinned the lie. Under D11 a NULL is
+    // verification_failed/unverified, not a score of 0, and this hook's whole
+    // surface is "show me the worst": a never-analyzed event goes FIRST
+    // (utils/risk.ts compareRiskSortKey), not tucked in beside the harmless.
+    it('puts a null risk_score FIRST — unknown needs eyes, not the tail', async () => {
       const mockEvents = [
         createMockEvent(1, 50),
         { ...createMockEvent(2, 0), risk_score: null },
@@ -171,10 +177,8 @@ describe('useTopEventsQuery', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      // Events with null risk_score treated as 0
       expect(result.current.events).toHaveLength(3);
-      expect(result.current.events[0].risk_score).toBe(80);
-      expect(result.current.events[1].risk_score).toBe(50);
+      expect(result.current.events.map((e) => e.risk_score)).toEqual([null, 80, 50]);
     });
 
     it('handles empty response', async () => {

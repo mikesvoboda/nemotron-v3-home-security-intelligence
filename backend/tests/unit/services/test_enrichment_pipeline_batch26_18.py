@@ -689,9 +689,14 @@ async def test_household_person_match_pinned(_spies, _cap) -> None:
     ):
         await _pipe()._run_household_matching([_person(3)], result)
 
-    # shipped: (embedding, session) handed to the matcher positionally
+    # shipped: (embedding, session) handed to the matcher positionally, and
+    # the F11 belt ALWAYS named as a keyword. This payload never said what
+    # computed it, so the belt is None - which match_person reads as an
+    # untrusted probe rather than guessing a space (M1 review F-C: this call
+    # site used to omit model_id entirely while the batch reader threaded
+    # it, two readers of one guard with one unguarded).
     matcher.match_person.assert_awaited_once()
-    assert matcher.match_person.await_args.kwargs == {}
+    assert matcher.match_person.await_args.kwargs == {"model_id": None}
     args = matcher.match_person.await_args.args
     assert len(args) == 2
     assert args[0] is emb

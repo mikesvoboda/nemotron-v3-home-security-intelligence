@@ -568,6 +568,7 @@ class BatchAggregator:
         # Acquire per-camera lock to prevent race conditions when multiple
         # detections arrive for the same camera simultaneously
         camera_lock = await self._get_camera_lock(camera_id)
+        opened_batch = False  # §6 wake-on-open: set ONLY in the new-batch branch
         async with camera_lock:
             current_time = time.time()
 
@@ -626,6 +627,7 @@ class BatchAggregator:
                     pipeline_start_time=pipeline_start_time,
                 )
                 # Note: No need to initialize empty list - RPUSH creates it automatically
+                opened_batch = True
 
             # Add detection to batch using atomic RPUSH operation
             # This eliminates the race condition in read-modify-write pattern
@@ -656,7 +658,23 @@ class BatchAggregator:
                 confidence=confidence,
             )
 
-            return batch_id
+        # Phase 1.3 (spec §6 cold start): a batch that just OPENED will be
+        # analyzed when it closes, so warm the sleeping engine NOW - during
+        # the batch window, not inside the event's latency. Fire-and-forget
+        # AFTER the camera-lock block (never on the lock's critical path) and
+        # exactly once per open (batch reuse and both fast-path bypasses
+        # return before this point without ever setting opened_batch). The
+        # wake is one real max_tokens:1 request (vlm_client.wake pins its
+        # shape); health probes may not wake a llama.cpp server, so nothing
+        # here polls /health.
+        if opened_batch:
+            # Lazy import: services.vlm_client pulls the contract/grammar
+            # stack in; the aggregator must not carry it at module scope.
+            from backend.services.vlm_client import wake_ai_vlm
+
+            asyncio.create_task(wake_ai_vlm())
+
+        return batch_id
 
     async def check_batch_timeouts(self) -> list[str]:
         """Check all active batches for timeouts and close expired ones.
@@ -1207,10 +1225,12 @@ class BatchAggregator:
             detection_id: Detection identifier (integer)
         """
         if not self._analyzer:
-            # Lazy import to avoid circular dependency
-            from backend.services.nemotron_analyzer import NemotronAnalyzer
+            # Lazy import to avoid circular dependency. 1.5: mode-built —
+            # the fast-path bypass in vlm mode routes the single detection
+            # through VlmAnalyzer's batch gate (no second analysis path).
+            from backend.services.pipeline_factory import build_pipeline_analyzer
 
-            self._analyzer = NemotronAnalyzer(redis_client=self._redis)
+            self._analyzer = build_pipeline_analyzer(redis_client=self._redis)
 
         try:
             # Call analyzer with fast path flag

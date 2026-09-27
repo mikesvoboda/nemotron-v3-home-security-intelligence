@@ -58,7 +58,7 @@ A fault tolerance pattern that temporarily disables calls to a failing service. 
 
 ### CLIP
 
-Contrastive Language-Image Pre-training — the family of vision-text embedding models. This system ships **SigLIP 2 base** (Triton model `clip` in the ai-gateway) as its embedding model, producing 768-dimensional vectors that enable re-identification of people and objects across different camera frames.
+Contrastive Language-Image Pre-training — the family of vision-text embedding models. This system ships **SigLIP 2 base** (Triton model `clip` in the ai-gateway) producing 768-dimensional vectors for scene-baseline comparison, scene classification, and fashion similarity. Person re-identification no longer uses CLIP vectors — see [Re-identification (Re-ID)](#re-identification-re-id).
 
 ### Confidence Score
 
@@ -252,7 +252,7 @@ Protection against excessive API requests. Requests exceeding the limit are reje
 
 ### Re-identification (Re-ID)
 
-The process of matching detected people or objects across different camera frames or time periods using CLIP embeddings.
+The process of matching detected people across different camera frames or time periods using OSNet-AIN x1.0 person embeddings (512-dim, SHA-256-pinned weights, `model_id` provenance on every stored vector). Vehicles match by license plate; no vehicle embedding producer ships in the resident mode.
 
 ### Readiness Probe
 

@@ -3,6 +3,8 @@ import { subHours, startOfDay, startOfWeek, format } from 'date-fns';
 import { Calendar, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
+import { VERDICT_CHIP_FILTERS } from '../common/VerdictBadge';
+
 import type { EventFilters } from '../../hooks/useEventsQuery';
 import type { RiskLevel } from '../../utils/risk';
 
@@ -161,6 +163,7 @@ export default function FilterChips({
   const hasActiveFilters = useMemo(() => {
     return !!(
       filters.risk_level ||
+      filters.verdict ||
       filters.start_date ||
       filters.end_date ||
       filters.reviewed !== undefined ||
@@ -245,6 +248,20 @@ export default function FilterChips({
     [onFilterChange]
   );
 
+  // Handle verdict chip click (1.6, spec §4). Values come from
+  // VERDICT_CHIP_FILTERS, so 'none' (never verified) is filterable alongside
+  // the four real verdicts; clicking the active chip toggles it off.
+  const handleVerdictClick = useCallback(
+    (value: string) => {
+      if (filters.verdict === value) {
+        onFilterChange('verdict', '');
+      } else {
+        onFilterChange('verdict', value);
+      }
+    },
+    [filters.verdict, onFilterChange]
+  );
+
   // Handle object type chip click (NEM-3586)
   const handleObjectTypeClick = useCallback(
     (objectType: ObjectType) => {
@@ -302,6 +319,30 @@ export default function FilterChips({
               isActive={filters.risk_level === 'medium'}
               onClick={() => handleRiskLevelClick('medium')}
             />
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-gray-700" />
+
+        {/* Verdict Section (1.6, spec §4) - the VLM's answer, filterable
+            across all five states. Rejected events stay listed (an audit
+            surface, not a hidden one), so reaching them is a filter, not a
+            removal; 'none'/Unverified is where never-verified legacy and
+            not-yet-analyzed events live. */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+            Verdict
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {VERDICT_CHIP_FILTERS.map(([value, label]) => (
+              <FilterChip
+                key={value}
+                label={label}
+                isActive={filters.verdict === value}
+                onClick={() => handleVerdictClick(value)}
+              />
+            ))}
           </div>
         </div>
 

@@ -28,6 +28,9 @@ class TestDockerComposeSecurityHardening:
     AI_SERVICES: ClassVar[list[str]] = [
         "ai-llm",
         "ai-gateway",
+        # Phase 1.2: same posture as ai-llm (identical security_opt/cap_drop —
+        # the consistency test below pins that they STAY identical).
+        "ai-vlm",
     ]
 
     @pytest.fixture

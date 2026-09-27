@@ -1,0 +1,34 @@
+{
+  "source": "specialist-context-cases",
+  "category": "suspicious",
+  "video_id": "SC-NIGHT-TINY-FACE",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": false
+  },
+  "scene": {
+    "location": "front_yard",
+    "time_of_day": "night",
+    "weather": "clear"
+  },
+  "risk": {
+    "min_score": 35,
+    "max_score": 60,
+    "level": "medium"
+  },
+  "specialist_context": {
+    "faces": {
+      "tiny_count": 1,
+      "tiny_face_px": 24,
+      "tiny_scrfd_score": 0.82
+    }
+  }
+}

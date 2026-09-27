@@ -32,6 +32,7 @@ Endpoints:
 
 import time
 from datetime import UTC, date, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy import case, func, select
@@ -71,6 +72,7 @@ from backend.api.schemas.face_recognition import (
     UnknownStrangerListResponse,
 )
 from backend.core.database import get_db
+from backend.core.face_provenance import LEGACY_MODEL_ID
 from backend.core.logging import get_logger
 from backend.models.detection import Detection
 from backend.models.face_identity import (
@@ -342,56 +344,53 @@ async def get_person_appearances(
     "/known-persons/{person_id}/embeddings",
     response_model=FaceEmbeddingResponse,
     status_code=status.HTTP_201_CREATED,
+    deprecated=True,
+    responses={
+        status.HTTP_410_GONE: {
+            "description": (
+                "Always returned: POSTing a client-computed embedding vector "
+                "is retired (F11 ruling 2). Enroll via "
+                "/known-persons/{person_id}/enroll-from-detection or "
+                "/known-persons/bulk-enroll instead."
+            )
+        }
+    },
 )
 async def add_face_embedding(
-    person_id: int,
-    data: FaceEmbeddingCreate,
-    session: AsyncSession = Depends(get_db),
+    person_id: int,  # noqa: ARG001 - kept for the OpenAPI path signature
+    data: FaceEmbeddingCreate,  # noqa: ARG001 - never read: the endpoint is retired
+    session: AsyncSession = Depends(get_db),  # noqa: ARG001 - no DB on a retired endpoint
 ) -> FaceEmbeddingResponse:
-    """Add a face embedding for a known person.
+    """Retired: POST a client-computed embedding vector (F11 ruling 2).
 
-    The embedding should be a 512-dimensional ArcFace embedding vector.
+    A vector the server did not compute cannot be trusted to live in the
+    gallery's space — the whole one-embedding-space rule rests on every
+    stored vector's provenance being knowable, and a posted list of floats
+    carries none. Historical vectors from this path were produced by a
+    `numpy.random.rand(512)` placeholder, so a gallery built here was
+    noise wearing real-looking numbers (ledger row 1.3b).
 
-    Args:
-        person_id: ID of the person
-        data: Embedding data with 512-dim vector
-        session: Database session
+    The sanctioned enrollment paths compute server-side and store the
+    model id with the vector:
+
+    - ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)
+    - ``POST /known-persons/bulk-enroll`` (uploaded image)
 
     Returns:
-        Created FaceEmbeddingResponse
+        Never — the endpoint is retired.
 
     Raises:
-        HTTPException: 404 if person not found
-        HTTPException: 400 if embedding is invalid
+        HTTPException: 410 Gone, always, naming the image-based endpoints.
     """
-    # Validate embedding length
-    if len(data.embedding) != 512:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Embedding must be 512-dimensional, got {len(data.embedding)}",
-        )
-
-    service = get_face_recognition_service()
-    embedding = await service.add_face_embedding(
-        session,
-        person_id,
-        embedding=data.embedding,
-        quality_score=data.quality_score,
-        source_image_path=data.source_image_path,
-    )
-
-    if embedding is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Known person with id {person_id} not found",
-        )
-
-    return FaceEmbeddingResponse(
-        id=embedding.id,
-        person_id=embedding.person_id,
-        quality_score=embedding.quality_score,
-        source_image_path=embedding.source_image_path,
-        created_at=embedding.created_at,
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Submitting a precomputed face embedding vector is retired: the "
+            "server must compute every stored vector so its provenance is "
+            "known. Enroll from an image instead — "
+            "POST /api/face-recognition/known-persons/{person_id}/enroll-from-detection "
+            "or POST /api/face-recognition/known-persons/bulk-enroll."
+        ),
     )
 
 
@@ -475,68 +474,169 @@ async def delete_face_embedding(
 
 async def extract_face_embedding_from_detection(
     detection: Detection,
-) -> tuple[list[float] | None, float | None]:
-    """Extract face embedding from a detection image.
+) -> tuple[list[float] | None, float | None, str | None]:
+    """Extract a face embedding from a detection image, SERVER-SIDE (F11
+    ruling 2, F12): SCRFD detect -> ArcFace align -> w600k_r50 embed, the
+    same leg the VLM's face specialist runs, over the detection's own file.
 
-    This function processes the detection's source image to extract a face
-    embedding using InsightFace/ArcFace. It crops the head region from the
-    person detection bbox and extracts the 512-dimensional embedding.
+    The third tuple element is the vector's provenance — the id of the
+    weights that computed it — which is what lets a gallery row say what
+    space it lives in. The two placeholder versions of this function
+    returned a random vector with no provenance at all (ledger row 1.3b);
+    that is the bug class this shape makes impossible.
 
     Args:
         detection: The Detection object containing file_path and bbox info
 
     Returns:
-        Tuple of (embedding, quality_score) or (None, None) if no face found
+        ``(embedding, quality_score, model_id)``, or all-None when the
+        image holds no face worth enrolling (the caller's 400 arm)
 
     Raises:
-        RuntimeError: If face embedding extraction fails
+        RuntimeError: when the leg cannot run at all (weights absent) or
+            the extraction failed. Enrollment fails LOUD: a 5xx naming the
+            cause beats a gallery built from noise.
     """
-    # For MVP implementation, we simulate embedding extraction
-    # In production, this would use InsightFace to extract real embeddings
-    # from the detection's image file
     from pathlib import Path
 
-    import numpy as np
+    from backend.core.config import get_settings
+    from backend.services import face_recognizer_loader as frl
 
     if not detection.file_path:
-        return None, None
+        return None, None, None
 
     # Check if the detection is a person (face extraction requires person detection)
     if detection.object_type and detection.object_type.lower() != "person":
         logger.warning(f"Detection {detection.id} is not a person (type={detection.object_type})")
-        return None, None
+        return None, None, None
 
     # Verify image file exists
     image_path = Path(detection.file_path)
     if not image_path.exists():
         logger.warning(f"Image file not found for detection {detection.id}: {detection.file_path}")
-        return None, None
+        return None, None, None
+
+    handles = frl.get_face_leg_handles()
+    if handles is None:
+        raise RuntimeError(
+            "face extractor unavailable: the pinned face weights are not "
+            "loaded (absent files fail the models.yml sha256 pin, or the "
+            "CPU ONNX extras are not installed)"
+        )
+    det_handle, rec_handle = handles
 
     try:
-        # TODO: In production, use InsightFace to extract real embeddings
-        # For now, generate a placeholder embedding with simulated quality
-        # MVP placeholder: Generate normalized random embedding
-        # TODO: Replace with actual face embedding extraction service
-        embedding = np.random.rand(512).astype(np.float32)
-        embedding = embedding / np.linalg.norm(embedding)
+        from PIL import Image
 
-        # Simulate quality score based on bbox size (larger = better quality)
-        if detection.bbox_width and detection.bbox_height:
-            # Quality increases with bbox size, capped at 0.95
-            bbox_area = detection.bbox_width * detection.bbox_height
-            quality_score = min(0.95, 0.5 + (bbox_area / 100000))
-        else:
-            quality_score = 0.75  # Default quality
-
-        logger.info(
-            f"Extracted face embedding from detection {detection.id} (quality={quality_score:.2f})"
+        settings = get_settings()
+        image = await _run_face_leg_step(Image.open, str(image_path))
+        image = await _run_face_leg_step(_to_rgb, image)
+        # Enroll the DETECTION's person, not the frame's most confident
+        # face (M1 review F-B): the docstring always named bbox_* as the
+        # input, but the leg was handed the whole image and picked the best
+        # face anywhere in it — so a bystander's face became this
+        # detection's enrolled identity, and the quality gate measured the
+        # wrong person. Cropping first makes picking wrong someone else
+        # impossible: the leg can only see the person this box contains.
+        image = await _run_face_leg_step(_crop_to_detection_bbox, image, detection)
+        picked = await _run_face_leg_step(
+            frl.extract_enrollment_vector,
+            image,
+            det_session=det_handle["session"],
+            rec_session=rec_handle["session"],
+            model_id=str(rec_handle.get("model_id", frl.LEGACY_MODEL_ID)),
+            threshold=settings.face_scrfd_threshold,
+            min_px=settings.face_min_size_px,
+            min_score=settings.face_scrfd_threshold,
         )
-
-        return embedding.tolist(), quality_score
-
+    except RuntimeError:
+        raise
     except Exception as e:
         logger.error(f"Failed to extract face embedding from detection {detection.id}: {e}")
         raise RuntimeError(f"Face embedding extraction failed: {e}") from e
+
+    if picked is None:
+        logger.info(f"No enrollable face found in detection {detection.id}")
+        return None, None, None
+
+    embedding, quality_score, model_id = picked
+    logger.info(
+        f"Extracted face embedding from detection {detection.id} "
+        f"(quality={quality_score:.2f}, model_id={model_id})"
+    )
+    return embedding, quality_score, model_id
+
+
+def _crop_to_detection_bbox(image: Any, detection: Detection) -> Any:
+    """Crop to the detection's own box, clamped to the frame.
+
+    Tracker boxes routinely hang off the frame edge, so the box is clamped
+    rather than trusted (the same order the pipeline's ``_crop_to_bbox``
+    uses: fix inverted coordinates, then clamp, then require a positive
+    area).
+
+    Two honest arms, because ``bbox_*`` is nullable
+    (``models/detection.py:56-59``):
+
+    - **no box at all** (every field None): the frame is genuinely all we
+      were given. That is a weaker enrollment — the leg falls back to
+      picking the most confident face in view — so it is logged as
+      unpositioned rather than passed off as the box-scoped path.
+    - **a box with no usable area**: corrupt input. Refused loudly; a
+      silent whole-frame fallback here is exactly the
+      "enroll whatever face the frame happens to hold" behavior this crop
+      exists to remove.
+    """
+    width, height = image.size
+    if all(
+        getattr(detection, name, None) is None
+        for name in ("bbox_x", "bbox_y", "bbox_width", "bbox_height")
+    ):
+        logger.info(
+            f"detection {detection.id} carries no bbox: enrollment proceeds "
+            "unpositioned (whole frame) - a bystander's face cannot be ruled "
+            "out, so this is the weaker path, not the shipped one"
+        )
+        return image
+
+    x1 = int(detection.bbox_x or 0)
+    y1 = int(detection.bbox_y or 0)
+    x2 = x1 + int(detection.bbox_width or 0)
+    y2 = y1 + int(detection.bbox_height or 0)
+
+    if x2 < x1:
+        x1, x2 = x2, x1
+    if y2 < y1:
+        y1, y2 = y2, y1
+
+    x1 = max(0, x1)
+    y1 = max(0, y1)
+    x2 = min(width, x2)
+    y2 = min(height, y2)
+
+    if x2 <= x1 or y2 <= y1:
+        raise RuntimeError(
+            f"detection {detection.id} has no usable bbox "
+            f"({x1}, {y1}, {x2}, {y2}) in a {width}x{height} frame: "
+            "enrollment needs the person's own box"
+        )
+    return image.crop((x1, y1, x2, y2))
+
+
+def _to_rgb(image: Any) -> Any:
+    """RGB-normalise a PIL image (the leg's blob is built from RGB)."""
+    return image.convert("RGB") if image.mode != "RGB" else image
+
+
+async def _run_face_leg_step(fn: Any, /, *args: Any, **kwargs: Any) -> Any:
+    """Run one CPU leg step off the event loop (CPU onnxruntime inference,
+    tens of ms per face — the same executor discipline the VLM specialist
+    stage uses, so a bulk enrollment never blocks the loop)."""
+    import asyncio
+    import functools
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
 
 
 @router.post(
@@ -613,9 +713,11 @@ async def enroll_from_detection(
             detail=f"Detection with id {detection_id} not found",
         )
 
-    # Step 3: Extract face embedding from detection
+    # Step 3: Extract face embedding from detection (server-side, with the
+    # id of the weights that computed it — that id is stored with the
+    # vector, see F11 ruling 2)
     try:
-        embedding, quality_score = await extract_face_embedding_from_detection(detection)
+        embedding, quality_score, model_id = await extract_face_embedding_from_detection(detection)
     except RuntimeError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -638,7 +740,11 @@ async def enroll_from_detection(
             f"of {MIN_QUALITY_THRESHOLD}. Please select a detection with better face visibility.",
         )
 
-    # Step 5: Store the embedding
+    # Step 5: Store the embedding. The sentinel arm is unreachable in practice
+    # (the extractor returns all-None or a real id), but the tuple is
+    # Optional-by-type and a vector whose id we somehow do not know must be
+    # flagged untrusted rather than trusted with a guessed one — same
+    # belt-and-sentinel as the bulk-enroll path below.
     service = get_face_recognition_service()
     face_embedding = await service.add_face_embedding(
         session,
@@ -646,6 +752,7 @@ async def enroll_from_detection(
         embedding=embedding,
         quality_score=quality_score,
         source_image_path=detection.file_path,
+        model_id=model_id or LEGACY_MODEL_ID,
     )
 
     if face_embedding is None:
@@ -683,26 +790,29 @@ async def enroll_from_detection(
 async def extract_face_embedding_from_image(
     image_bytes: bytes,
     filename: str,
-) -> tuple[list[float] | None, float | None, str | None]:
-    """Extract face embedding from an uploaded image.
-
-    This function processes the uploaded image to extract a face
-    embedding using InsightFace/ArcFace. It detects faces in the image
-    and extracts the 512-dimensional embedding from the best face.
+) -> tuple[list[float] | None, float | None, str | None, str | None]:
+    """Extract a face embedding from an uploaded image, SERVER-SIDE, with
+    provenance (F11 ruling 2, F12) — the same SCRFD + w600k_r50 leg the
+    detection path and the VLM's face specialist run, so an enrollment
+    photo and a live probe land in ONE embedding space.
 
     Args:
         image_bytes: Raw bytes of the uploaded image
         filename: Original filename for logging
 
     Returns:
-        Tuple of (embedding, quality_score, error_message)
-        If successful: (embedding, quality_score, None)
-        If failed: (None, None, error_message)
+        ``(embedding, quality_score, error_message, model_id)``.
+        ``error_message`` is non-None exactly when there is no vector, and
+        the reason is in the string — including "unavailable", which names
+        weights that are not on disk. A random stand-in for a real vector
+        is what made a gallery untrustworthy; that arm is gone.
     """
     from io import BytesIO
 
-    import numpy as np
     from PIL import Image
+
+    from backend.core.config import get_settings
+    from backend.services import face_recognizer_loader as frl
 
     try:
         # Validate image can be opened
@@ -710,35 +820,50 @@ async def extract_face_embedding_from_image(
             opened_image = Image.open(BytesIO(image_bytes))
             pil_image = opened_image.convert("RGB")
         except Exception as e:
-            return None, None, f"Invalid image format: {e}"
+            return None, None, f"Invalid image format: {e}", None
 
         # Get image dimensions for quality estimation
         width, height = pil_image.size
         min_dimension = min(width, height)
 
-        # TODO: In production, use InsightFace to extract real embeddings
-        # For now, generate a placeholder embedding with simulated quality
-
         # Check minimum image size for face detection
         if min_dimension < 64:
-            return None, None, "Image too small for face detection (minimum 64x64)"
+            return None, None, "Image too small for face detection (minimum 64x64)", None
 
-        # MVP placeholder: Generate normalized random embedding
-        # TODO: Replace with actual face embedding extraction service
-        embedding = np.random.rand(512).astype(np.float32)
-        embedding = embedding / np.linalg.norm(embedding)
+        handles = frl.get_face_leg_handles()
+        if handles is None:
+            return (
+                None,
+                None,
+                "Face extractor unavailable: pinned face weights not loaded",
+                None,
+            )
+        det_handle, rec_handle = handles
 
-        # Simulate quality score based on image size
-        # Larger images typically yield better face quality
-        quality_score = min(0.95, 0.6 + (min_dimension / 1000) * 0.3)
-
-        logger.info(f"Extracted face embedding from {filename} (quality={quality_score:.2f})")
-
-        return embedding.tolist(), quality_score, None
-
+        settings = get_settings()
+        picked = await _run_face_leg_step(
+            frl.extract_enrollment_vector,
+            pil_image,
+            det_session=det_handle["session"],
+            rec_session=rec_handle["session"],
+            model_id=str(rec_handle.get("model_id", frl.LEGACY_MODEL_ID)),
+            threshold=settings.face_scrfd_threshold,
+            min_px=settings.face_min_size_px,
+            min_score=settings.face_scrfd_threshold,
+        )
     except Exception as e:
         logger.error(f"Failed to extract face embedding from {filename}: {e}")
-        return None, None, f"Embedding extraction failed: {e}"
+        return None, None, f"Embedding extraction failed: {e}", None
+
+    if picked is None:
+        return None, None, "No face detected in image", None
+
+    embedding, quality_score, model_id = picked
+    logger.info(
+        f"Extracted face embedding from {filename} "
+        f"(quality={quality_score:.2f}, model_id={model_id})"
+    )
+    return embedding, quality_score, None, model_id
 
 
 @router.post(
@@ -918,8 +1043,8 @@ async def bulk_enroll_faces(
             failed_count += 1
             continue
 
-        # Extract face embedding
-        embedding, quality_score, error = await extract_face_embedding_from_image(
+        # Extract face embedding (server-side; model_id rides to storage)
+        embedding, quality_score, error, model_id = await extract_face_embedding_from_image(
             image_bytes, filename
         )
 
@@ -957,6 +1082,7 @@ async def bulk_enroll_faces(
             embedding=embedding,
             quality_score=quality_score,
             source_image_path=None,  # Uploaded images don't have file paths
+            model_id=model_id or LEGACY_MODEL_ID,
         )
 
         if face_embedding is None:
@@ -1191,47 +1317,63 @@ async def get_unknown_strangers(
     return UnknownStrangerListResponse(items=items, total=len(items))
 
 
-@router.post("/face-events/match", response_model=FaceMatchResponse)
+@router.post(
+    "/face-events/match",
+    response_model=FaceMatchResponse,
+    deprecated=True,
+    responses={
+        status.HTTP_410_GONE: {
+            "description": (
+                "Always returned: POSTing a client-computed face embedding "
+                "vector is retired (F11, face twin of the re-ID swap's D-1). "
+                "A matching request rides the enrichment pipeline's face leg, "
+                "which computes the vector server-side and knows its model_id."
+            )
+        }
+    },
+)
 async def match_face(
-    data: FaceMatchRequest,
-    session: AsyncSession = Depends(get_db),
+    data: FaceMatchRequest,  # noqa: ARG001 - never read: endpoint retired
+    session: AsyncSession = Depends(get_db),  # noqa: ARG001 - no DB on a retired endpoint
 ) -> FaceMatchResponse:
-    """Match a face embedding against known persons.
+    """Retired: POST a client-computed face embedding vector (F11, M1 review F-F).
 
-    Compares the provided 512-dimensional embedding against all stored
-    embeddings and returns the best match if above the threshold.
+    A vector the server did not compute cannot be trusted to live in the
+    gallery's space. After the swap every ``face_embeddings`` row names the
+    weights that computed it (``model_id``), and a posted list of floats
+    carries no such belt — scoring one would either cross embedding spaces
+    or trust a client-claimed model id, which is no trust anchor. This is
+    the face twin of the retired ``POST /api/household-matcher/match-person``
+    (D-1), retired here for the same reason and in the same shape.
 
-    Args:
-        data: Match request with embedding and optional threshold
-        session: Database session
+    Before the swap this endpoint answered with a real-looking similarity
+    computed against whichever space the stored rows happened to live in —
+    the exact failure F11 exists to prevent, reachable over the wire.
+
+    The sanctioned paths compute the vector server-side and store its
+    provenance beside it:
+
+    - the enrichment pipeline's face leg (matches automatically)
+    - ``POST /api/face-recognition/known-persons`` and
+      ``POST /api/face-recognition/known-persons/{id}/embeddings``
+      (enrollment: extraction runs server-side from the detection)
 
     Returns:
-        FaceMatchResponse with match results
+        Never — the endpoint is retired.
 
     Raises:
-        HTTPException: 400 if embedding is invalid
+        HTTPException: 410 Gone, always, naming the server-side paths.
     """
-    # Validate embedding length
-    if len(data.embedding) != 512:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Embedding must be 512-dimensional, got {len(data.embedding)}",
-        )
-
-    service = get_face_recognition_service()
-    result = await service.match_face(
-        session,
-        embedding=data.embedding,
-        threshold=data.threshold,
-    )
-
-    return FaceMatchResponse(
-        matched=result["matched"],
-        person_id=result["person_id"],
-        person_name=result["person_name"],
-        similarity=result["similarity"],
-        is_unknown=result["is_unknown"],
-        is_household_member=result["is_household_member"],
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Submitting a precomputed face embedding vector is retired: the "
+            "server must compute every matched vector so its provenance "
+            "(model_id) is known, and a client-claimed model id is no trust "
+            "anchor. Face matching happens via the enrichment pipeline's face "
+            "leg, or enrollment via "
+            "POST /api/face-recognition/known-persons/{id}/embeddings."
+        ),
     )
 
 

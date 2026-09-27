@@ -204,14 +204,14 @@ Set `CORS_ORIGINS` to your own hostnames for LAN access.
 
 ### Feature Toggles
 
-| Variable                              | Default | Description                   |
-| ------------------------------------- | ------- | ----------------------------- |
-| `VISION_EXTRACTION_ENABLED`           | true    | Enable Florence-2 extraction  |
-| `REID_ENABLED`                        | true    | Enable CLIP re-identification |
-| `IMAGE_QUALITY_ENABLED`               | true    | Enable BRISQUE quality scores |
-| `FLORENCE_SCENE_CAPTIONS_ENABLED`     | true    | Scene captions                |
-| `FLORENCE_DETECTION_CAPTIONS_ENABLED` | true    | Detection captions            |
-| `FLORENCE_VQA_ENABLED`                | true    | Visual QA extraction          |
+| Variable                              | Default | Description                          |
+| ------------------------------------- | ------- | ------------------------------------ |
+| `VISION_EXTRACTION_ENABLED`           | true    | Enable Florence-2 extraction         |
+| `REID_ENABLED`                        | true    | Enable person re-ID (OSNet-AIN x1.0) |
+| `IMAGE_QUALITY_ENABLED`               | true    | Enable BRISQUE quality scores        |
+| `FLORENCE_SCENE_CAPTIONS_ENABLED`     | true    | Scene captions                       |
+| `FLORENCE_DETECTION_CAPTIONS_ENABLED` | true    | Detection captions                   |
+| `FLORENCE_VQA_ENABLED`                | true    | Visual QA extraction                 |
 
 **Source:** `backend/core/config.py:1573-1593`
 

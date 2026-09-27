@@ -29,7 +29,12 @@ import backend.services.enrichment_pipeline as M
 from backend.core.exceptions import EnrichmentUnavailableError
 from backend.services.enrichment_client import EnrichmentClient, KeypointData, PoseAnalysisResult
 from backend.services.image_quality_loader import ImageQualityResult
-from backend.services.reid_service import EntityEmbedding, EntityMatch, ReIdentificationService
+from backend.services.reid_service import (
+    EntityEmbedding,
+    EntityMatch,
+    ReIDUnavailableError,
+    ReIdentificationService,
+)
 from backend.services.vision_extractor import BatchExtractionResult, PersonAttributes
 
 pytestmark = pytest.mark.asyncio
@@ -146,9 +151,14 @@ def _quality(
     )
 
 
+REID_BELT = "osnet-test@w@abc"
+
+
 def _reid_service() -> AsyncMock:
     svc = create_autospec(ReIdentificationService, instance=True)
-    svc.generate_embedding.return_value = list(EMBEDDING)
+    # Post-swap producer contract (B5): (vector, belt) — create_autospec
+    # keeps the call signature honest against the REAL service.
+    svc.generate_embedding.return_value = (list(EMBEDDING), REID_BELT)
     svc.find_matching_entities.return_value = []
     svc.store_embedding.return_value = None
     return svc
@@ -255,60 +265,60 @@ def _entity(svc) -> EntityEmbedding:
 # ===========================================================================
 # _run_reid — happy path, entity typing, stored payload
 # ===========================================================================
-async def test_reid_vehicle_detection_full_contract(g, caplog):
-    """Vehicle detection: embedding args, cache, match routing, stored entity.
+async def test_reid_vehicle_detection_stores_nothing(g, caplog):
+    """B5a post-swap contract: a vehicle detection gets NO embedding.
 
-    Pins shipped lines 5795-5841 of _run_reid (generate_embedding call shape,
-    clip_embeddings cache, find_matching_entities kwargs, match routing and the
-    EntityEmbedding payload).
+    The old full contract (generate → cache → vehicle match routing → store)
+    was CLIP's; OSNet-AIN is a person model and /clip is retired from vlm
+    residency, so the honest shipped behavior is to store nothing and let
+    vehicle identity ride plate match (match_vehicle tries plate first).
     """
     caplog.set_level(logging.DEBUG, logger=MOD_LOGGER)
-    pipeline, svc, redis = _reid_pipeline()
-    match = [EntityMatch(entity=MagicMock(), similarity=0.91, time_gap_seconds=12.0)]
-    svc.find_matching_entities.return_value = match
+    pipeline, svc, redis = _reid_pipeline()  # noqa: ARG001
     result = M.EnrichmentResult()
     image = _img()
 
     await pipeline._run_reid([_det("car", det_id=7)], image, "front_door", result)
 
-    gen = svc.generate_embedding.await_args
-    assert gen is not None
-    assert gen.args == (image,)
-    assert gen.kwargs == {"bbox": BBOX_INTS}
-    assert result.clip_embeddings == {"7": list(EMBEDDING)}
-
-    fme = svc.find_matching_entities.await_args
-    assert fme is not None
-    assert fme.args == (redis, list(EMBEDDING))
-    assert fme.kwargs == {"entity_type": "vehicle", "exclude_detection_id": "7"}
-    assert result.vehicle_reid_matches == {"7": match}
+    assert svc.generate_embedding.await_count == 0
+    assert svc.find_matching_entities.await_count == 0
+    assert svc.store_embedding.await_count == 0
+    assert result.reid_embeddings == {}
+    assert result.reid_embedding_models == {}
+    assert result.vehicle_reid_matches == {}
     assert result.person_reid_matches == {}
-
-    store = svc.store_embedding.await_args
-    assert store is not None
-    assert svc.store_embedding.await_count == 1
-    assert store.args[0] is redis
+    # the skip is counted and named, not silent
+    recs = _records(caplog, "no embedding producer", level="DEBUG")
+    assert len(recs) == 1
+    assert recs[0].operation == "reid_vehicle_no_producer"
+    assert recs[0].detection_id == "7"
+    assert recs[0].entity_type == "vehicle"
 
 
 async def test_reid_entity_type_is_forwarded_verbatim():
-    """entity_type reaches find_matching_entities and EntityEmbedding verbatim."""
+    """entity_type and the probe's belt reach find_matching_entities and
+    EntityEmbedding verbatim (D-3: the belt names the partition searched)."""
     pipeline, svc, _redis = _reid_pipeline()
     result = M.EnrichmentResult()
 
     await pipeline._run_reid([_det("person", det_id=7)], _img(), "cam", result)
 
     assert svc.find_matching_entities.await_args.kwargs["entity_type"] == "person"
+    assert svc.find_matching_entities.await_args.kwargs["model_id"] == REID_BELT
     assert _entity(svc).entity_type == "person"
+    assert _entity(svc).model_id == REID_BELT
 
 
-async def test_reid_clip_embedding_cached():
-    """result.clip_embeddings[det_id] holds the generated embedding."""
+async def test_reid_embedding_and_belt_cached():
+    """result.reid_embeddings[det_id] holds the OSNet vector and the belt
+    rides beside it (F11 — the cached belt is never re-guessed downstream)."""
     pipeline, svc, _redis = _reid_pipeline()
     result = M.EnrichmentResult()
 
     await pipeline._run_reid([_det("person", det_id=7)], _img(), "cam", result)
 
-    assert result.clip_embeddings == {"7": list(EMBEDDING)}
+    assert result.reid_embeddings == {"7": list(EMBEDDING)}
+    assert result.reid_embedding_models == {"7": REID_BELT}
 
 
 async def test_reid_embedding_receives_frame_and_bbox():
@@ -354,10 +364,11 @@ async def test_reid_bbox_unscaled_when_video_dims_absent():
 
 
 async def test_reid_entity_embedding_payload():
-    """EntityEmbedding fields are exactly what shipped stores."""
+    """EntityEmbedding fields are exactly what shipped stores. (Person:
+    post-swap, vehicles never reach the producer — see the B5a test.)"""
     pipeline, svc, redis = _reid_pipeline()
 
-    await pipeline._run_reid([_det("car", det_id=7)], _img(), "front_door", M.EnrichmentResult())
+    await pipeline._run_reid([_det("person", det_id=7)], _img(), "front_door", M.EnrichmentResult())
 
     store = svc.store_embedding.await_args
     assert store is not None
@@ -366,6 +377,7 @@ async def test_reid_entity_embedding_payload():
     ent = store.args[1]
     assert ent.embedding == list(EMBEDDING)
     assert ent.detection_id == "7"
+    assert ent.model_id == REID_BELT  # F11: the row names its weights
 
 
 async def test_reid_camera_id_falls_back_to_lowercase_unknown():
@@ -438,7 +450,9 @@ async def test_reid_unexpected_error_log_payload(caplog):
     svc.generate_embedding.side_effect = boom
     pipeline, _svc, _redis = _reid_pipeline(svc=svc)
 
-    await pipeline._run_reid([_det("car", det_id=7)], _img(), "cam", M.EnrichmentResult())
+    # Person detection: vehicles never reach the producer post-swap (B5a),
+    # so the error handler's subject must be a person.
+    await pipeline._run_reid([_det("person", det_id=7)], _img(), "cam", M.EnrichmentResult())
 
     recs = _records(caplog, "Re-id failed")
     assert len(recs) == 1
@@ -450,7 +464,29 @@ async def test_reid_unexpected_error_log_payload(caplog):
     assert _extras(rec) >= {"detection_id", "error_type", "entity_type"}
     assert rec.detection_id == "7"
     assert rec.error_type == "RuntimeError"
-    assert rec.entity_type == "vehicle"
+    assert rec.entity_type == "person"
+
+
+async def test_reid_unavailable_error_log_payload(caplog):
+    """ReIDUnavailableError (weights not resident) -> WARNING, availability
+    not a bug: no traceback, operation names the leg, nothing is stored."""
+    caplog.set_level(logging.DEBUG, logger=MOD_LOGGER)
+    svc = _reid_service()
+    svc.generate_embedding.side_effect = ReIDUnavailableError("osnet-ain-x1-0 not resident")
+    pipeline, _svc, _redis = _reid_pipeline(svc=svc)
+
+    await pipeline._run_reid([_det("person", det_id=7)], _img(), "cam", M.EnrichmentResult())
+
+    recs = _records(caplog, "Re-id unavailable")
+    assert len(recs) == 1
+    assert recs[0].levelname == "WARNING"
+    assert recs[0].operation == "reid_unavailable"
+    assert recs[0].error_type == "ReIDUnavailableError"
+    assert recs[0].detection_id == "7"
+    assert recs[0].entity_type == "person"
+    # no half-state: nothing cached, nothing searched, nothing stored
+    assert _svc.store_embedding.await_count == 0
+    assert _svc.find_matching_entities.await_count == 0
 
 
 async def test_reid_transient_error_log_payload(caplog):

@@ -667,7 +667,9 @@ async def get_entity_matches(
     Args:
         detection_id: Detection ID to find matches for
         entity_type: Type of entity to search ('person' or 'vehicle')
-        threshold: Minimum cosine similarity threshold (default 0.85)
+        threshold: Minimum cosine similarity threshold (default
+            DEFAULT_SIMILARITY_THRESHOLD — 0.7, the OSNet-space value,
+            full swap ledger item 20)
         reid_service: Re-identification service dependency
 
     Returns:
@@ -703,13 +705,18 @@ async def get_entity_matches(
             detail=f"No embedding found for detection '{detection_id}'",
         )
 
-    # Find matching entities
+    # Find matching entities IN THE QUERY VECTOR'S OWN SPACE (F11). The
+    # stored query already names the weights that computed it, so omitting
+    # the belt here was not a graceful degrade: find_matching_entities
+    # answers "zero candidates" for an unnamed probe, which is a
+    # permanently empty match list behind a 200 OK (M1 review F-A).
     matches = await reid_service.find_matching_entities(
         redis_client=redis,
         embedding=query_embedding.embedding,
         entity_type=entity_type.value,
         threshold=threshold,
         exclude_detection_id=detection_id,
+        model_id=query_embedding.model_id,
     )
 
     # Convert matches to response format

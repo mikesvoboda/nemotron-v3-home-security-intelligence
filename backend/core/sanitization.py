@@ -327,6 +327,15 @@ KNOWN_ERROR_TYPES = frozenset(
         "nemotron_timeout",
         "nemotron_server_error",
         "nemotron_client_error",
+        # Phase 1.3: the VLM path's ladder labels (emitted by vlm_client
+        # per-failure and vlm_analyzer at the §6 step-2 mapping) - without
+        # these entries every VLM failure collapses to "other" and the
+        # S4/S5 dashboards go blind exactly when they are needed.
+        "vlm_transport_error",
+        "vlm_http_error",
+        "vlm_schema_invalid",
+        "vlm_circuit_open",
+        "vlm_verification_failed",
         "file_not_found",
         "invalid_image",
         "malformed_response",

@@ -258,9 +258,11 @@ MatMulInteger ops block the CUDA execution provider (comment in `models.yml`).
 
 **Use Cases**:
 
-- Entity re-identification across cameras
 - Scene anomaly detection via baseline comparison
 - Zero-shot classification
+
+Person re-identification moved off this router with the full swap (ledger item 20): the
+person-vector space is OSNet-AIN x1.0 (`osnet-ain-x1-0`, 512-dim) in the backend.
 
 **API Endpoints** (under the `/clip` router, `ai/gateway/adapters/clip.py`):
 

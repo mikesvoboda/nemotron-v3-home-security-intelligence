@@ -42,6 +42,7 @@ class NotificationFilterService:
         quiet_periods: list[QuietHoursPeriod] | None = None,
         detection_class: str | None = None,
         detection_confidence: float | None = None,
+        verification_verdict: str | None = None,
     ) -> bool:
         """Determine if a notification should be sent.
 
@@ -56,10 +57,24 @@ class NotificationFilterService:
             detection_class: Detected object class for the NULL-score
                 detector-only rule (None when no detector evidence available)
             detection_confidence: Detector confidence for that class (0.0-1.0)
+            verification_verdict: The event's EventVerification.verdict (spec
+                §4), None for a legacy/unscored event with no verification
+                row. "rejected" is an absolute skip (spec §6: "rejected ⇒
+                never notifies, even where a camera's risk_threshold sits
+                inside the low band").
 
         Returns:
             True if notification should be sent, False otherwise
         """
+        # spec §6, "rejected ⇒ never notifies": checked FIRST and
+        # unconditionally - the analyzer's low-band clamp is NOT a skip, so
+        # a camera whose risk_threshold sits inside the low band would still
+        # page for a verdict that says "not a threat". The verdict is absent
+        # on legacy events (no verification row), so they fall through
+        # byte-identically (D10/legacy rule).
+        if verification_verdict == "rejected":
+            return False
+
         # P0.25 / spec §6 step 3: the detector-only rule for NULL scores runs
         # BEFORE any level mapping or threshold comparison (spec wording) - a
         # NULL is not a low score, so it must never flow through the scored

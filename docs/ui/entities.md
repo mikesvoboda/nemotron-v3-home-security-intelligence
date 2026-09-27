@@ -2,7 +2,7 @@
 
 ![Entities Screenshot](../images/screenshots/entities.png)
 
-The Entities page provides comprehensive tracking and re-identification of people and vehicles detected across your security camera network. Using AI-powered visual embeddings, the system automatically recognizes when the same person or vehicle appears on different cameras.
+The Entities page provides comprehensive tracking and re-identification of people and vehicles detected across your security camera network. Using AI-powered visual embeddings (for people) and license-plate matching (for vehicles), the system automatically recognizes when the same person or vehicle appears on different cameras.
 
 ## What You're Looking At
 
@@ -13,7 +13,7 @@ The Entities page is your central hub for entity tracking and management. It pro
 - **Filtering Controls** - Filter by type, time range, camera, data source, and trust status
 - **Detail Modal** - Full entity history with detection images and appearance timeline
 
-When a person or vehicle is detected, the system generates a 768-dimensional CLIP embedding (visual fingerprint) that allows matching across different camera views with high accuracy.
+When a person is detected, the system generates a 512-dimensional OSNet-AIN x1.0 embedding (visual fingerprint) that allows matching that person across different camera views with high accuracy; a vehicle's identity rides its license-plate match.
 
 ## Key Components
 
@@ -43,25 +43,26 @@ The collapsible statistics panel at the top shows:
 
 Toggle the "Stats" button to show/hide this panel. Data refreshes automatically every 60 seconds.
 
-### Re-Identification (CLIP Embeddings)
+### Re-Identification (OSNet-AIN x1.0 Embeddings)
 
-The system uses the CLIP-family embedding model served by the ai-gateway's `clip` router
-(models.yml: `siglip2-base-patch16-224`) to generate visual embeddings for person and vehicle
-re-identification across cameras.
+Person re-identification uses OSNet-AIN x1.0 — the one person-vector space since the
+full swap (models.yml zoo row `osnet-ain-x1-0`, weights file `osnet_ain_x1_0_msmt17.pth`,
+loaded by `backend/services/osnet_loader.py`). Vehicles have no embedding producer: their
+identity rides license-plate matching (exact plate match scores 1.0).
 
 **How It Works:**
 
 1. **Detection** - YOLO26 detects a person or vehicle in a camera frame
-2. **Embedding Generation** - The detected region is cropped and processed through the CLIP model
-3. **768-Dimensional Vector** - The model outputs a compact visual fingerprint (embedding)
-4. **Cosine Similarity Matching** - New embeddings are compared against existing entity embeddings using cosine similarity
-5. **Entity Assignment** - If similarity >= 85% (configurable `DEFAULT_SIMILARITY_THRESHOLD = 0.85`), the detection is linked to an existing entity; otherwise, a new entity is created
+2. **Embedding Generation** - A detected person crop is processed through OSNet-AIN x1.0; vehicle identity is matched by license plate instead
+3. **512-Dimensional Vector** - The model outputs a compact visual fingerprint (embedding), returned together with its `model_id` provenance
+4. **Cosine Similarity Matching** - New embeddings are compared only against entity embeddings stored under the same `model_id`. A row stored before the swap carries no provenance and decodes to the `legacy-unknown-provenance` sentinel; a row whose `model_id` names different weights is a space mismatch. Neither is ever scored — both read `unavailable (re-enroll)` and are dropped and re-enrolled (no backfill)
+5. **Entity Assignment** - If similarity >= 70% (configurable `DEFAULT_SIMILARITY_THRESHOLD = 0.7` — provisional, pending calibration in the OSNet space), the detection is linked to an existing entity; otherwise, a new entity is created
 
-**What CLIP Can Match:**
+**What Matching Can Do:**
 
 - Same person at different angles or poses
 - Same person across different cameras with varying lighting
-- Same vehicle from different viewpoints
+- Same vehicle from different viewpoints (via license-plate match, not embeddings)
 - Same person/vehicle over multiple days (within 30-day retention)
 
 **Limitations:**
@@ -69,13 +70,15 @@ re-identification across cameras.
 - Very different clothing may reduce person similarity scores
 - Extreme lighting differences or occlusion can affect accuracy
 - Very similar-looking individuals may be incorrectly merged (rare)
-- Vehicles of the same make/model/color may match incorrectly
+- Vehicles without a readable plate are not re-identified across cameras (vehicle-specific re-ID is a named follow-up)
 
 **Technical Details:**
 
-- **Model**: SigLIP2-base-patch16-224 (the `clip` router in Triton, per `models.yml`)
-- **Embedding Dimension**: 768 floats (`EMBEDDING_DIMENSION` in `backend/services/reid_service.py`)
-- **Memory Usage**: ~200MB VRAM on GPU (models.yml `vram_mb`)
+- **Model**: OSNet-AIN x1.0 (models.yml zoo row `osnet-ain-x1-0`, weights file `osnet_ain_x1_0_msmt17.pth`)
+- **Embedding Dimension**: 512 floats (`EMBEDDING_DIMENSION` in `backend/services/reid_service.py`)
+- **Memory Usage**: ~100MB VRAM on GPU (models.yml `vram_mb`)
+- **Provenance**: every stored vector carries its `model_id` (e.g. `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`); unprovenanced pre-swap rows decode to a sentinel and are dropped and re-enrolled, never scored
+- **Availability**: `generate_embedding` raises `ReIDUnavailableError` when the weights are not resident (the enrollment route answers 503 naming the cause) — never a zero-vector stub
 - **Fallback**: CPU processing available if GPU is unavailable
 - **TTL**: Embeddings cached in Redis for 24 hours (86400 seconds)
 
@@ -284,7 +287,7 @@ If the same person/vehicle creates multiple entity records:
 
 1. **Lighting conditions** - Extreme lighting differences can affect embedding accuracy
 2. **Angle variations** - Very different viewing angles may reduce similarity
-3. **Threshold too high** - Consider if the 85% similarity threshold is appropriate
+3. **Threshold too high** - Consider if the 70% similarity threshold is appropriate
 
 The system logs similarity scores - check backend logs for matching attempts.
 
@@ -330,7 +333,7 @@ For developers wanting to understand the underlying systems.
 
 **Backend Services:**
 
-- `ReIdentificationService` - CLIP embedding generation and matching
+- `ReIdentificationService` - OSNet-AIN x1.0 person embedding generation and matching
 - `EntityClusteringService` - Deduplication and entity assignment
 - `HybridEntityStorage` - Redis/PostgreSQL coordination
 
@@ -364,7 +367,7 @@ For developers wanting to understand the underlying systems.
 **Backend:**
 
 - Re-ID Service: `backend/services/reid_service.py`
-- CLIP Loader: `backend/services/clip_loader.py`
+- OSNet Loader: `backend/services/osnet_loader.py`
 - Clustering Service: `backend/services/entity_clustering_service.py`
 - Hybrid Storage: `backend/services/hybrid_entity_storage.py`
 - API Routes: `backend/api/routes/entities.py`
@@ -379,22 +382,25 @@ For developers wanting to understand the underlying systems.
 | `/api/entities/{id}/trust`   | PUT    | Update entity trust status                |
 | `/api/entities/stats`        | GET    | Get aggregated entity statistics          |
 
-### CLIP Embedding Details
+### Person Re-ID Embedding Details
 
-The embedding model (SigLIP2-base, served as Triton's `clip` model) provides:
+Person re-identification embeddings come from **OSNet-AIN x1.0** (models.yml zoo row
+`osnet-ain-x1-0`, weights file `osnet_ain_x1_0_msmt17.pth`), which provides:
 
-- **768-dimensional embeddings** for robust visual representation
-- **~200MB VRAM usage** on GPU
-- **CPU fallback** available if GPU is unavailable
-- **Cosine similarity matching** with 0.85 default threshold (`DEFAULT_SIMILARITY_THRESHOLD`)
-- **Embedding TTL**: 24 hours (86400 seconds) in Redis cache
+- **512-dimensional person embeddings** for robust visual representation
+- **~100MB VRAM usage** on GPU (models.yml `vram_mb`)
+- **`model_id` provenance** on every vector (`osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894`);
+  pre-swap rows with no provenance decode to the `legacy-unknown-provenance` sentinel and rows
+  naming other weights are a space mismatch — neither is scored, both read
+  `unavailable (re-enroll)` and are dropped and re-enrolled
+- **Cosine similarity matching** with a 0.7 default threshold (`DEFAULT_SIMILARITY_THRESHOLD`,
+  provisional pending calibration in the OSNet space)
+- **Embedding TTL**: 24 hours (86400 seconds) in Redis, partitioned by
+  `entity_embeddings:{model_id}:{date}`
 
-In the compose stack the backend calls the CLIP router on the shared **ai-gateway** container
-(`USE_AI_GATEWAY=true` → `http://ai-gateway:8090/clip`); the standalone `clip_url`
-(`http://localhost:8093`, dev fallback) still exists for host-run setups. The router is
-served by Triton from `models.yml` — the `clip` slot is currently backed by
-**SigLIP2-base-patch16-224** (768-d embeddings). A dedicated `ai-clip` container no longer
-exists.
+CLIP-as-person-re-ID is retired: the ai-gateway `/clip` router (768-d) remains for its other
+consumers — scene baseline and fashion similarity — and no longer computes person re-ID vectors.
+A dedicated `ai-clip` container no longer exists.
 
 ### Empty State
 

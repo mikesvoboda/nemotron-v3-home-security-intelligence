@@ -249,47 +249,77 @@ class TestReIdentificationServiceBboxValidation:
     """Tests for bounding box validation in ReIdentificationService.
 
     NEM-1073: Add bounding box validation in ReIdentificationService
+
+    The full swap (ledger item 20) moved the producer from an injected CLIP
+    client to the resident OSNet handle read off ``osnet_loader`` at call
+    time, so these pins drive that seam and assert on the image the
+    extractor was handed — the crop contract under test is unchanged.
     """
 
+    @staticmethod
+    def _install_extract_seam(monkeypatch):
+        """A resident handle plus an extractor double recording images."""
+        import numpy as np
+
+        import backend.services.osnet_loader as ol
+        from backend.services.osnet_loader import PersonEmbeddingResult
+
+        calls: list = []
+
+        async def _extract(model_dict, image, detection_id=None):
+            calls.append(image)
+            return PersonEmbeddingResult(
+                embedding=np.ones(512, dtype=np.float32),
+                detection_id=detection_id,
+                model_id="osnet-test@weights@abc123",
+            )
+
+        monkeypatch.setattr(
+            ol, "get_reid_handle", lambda: {"model": MagicMock(), "transform": MagicMock()}
+        )
+        monkeypatch.setattr(ol, "extract_person_embedding", _extract)
+        return calls
+
     @pytest.mark.asyncio
-    async def test_valid_bbox_crops_image(self) -> None:
+    async def test_valid_bbox_crops_image(self, monkeypatch) -> None:
         """Test that valid bounding boxes properly crop the image."""
         from backend.services.reid_service import EMBEDDING_DIMENSION, ReIdentificationService
 
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+        calls = self._install_extract_seam(monkeypatch)
 
-        service = ReIdentificationService(clip_client=mock_client)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="blue")
 
         # Valid bbox
-        embedding = await service.generate_embedding(image, bbox=(100, 100, 300, 300))
+        embedding, _belt = await service.generate_embedding(image, bbox=(100, 100, 300, 300))
 
         assert len(embedding) == EMBEDDING_DIMENSION
-        # Verify that a cropped image was passed to embed
-        called_image = mock_client.embed.call_args[0][0]
-        assert called_image.size == (200, 200)  # 300-100 x 300-100
+        # Verify that a cropped image was passed to the extractor
+        assert len(calls) == 1
+        assert calls[0].size == (200, 200)  # 300-100 x 300-100
 
     @pytest.mark.asyncio
-    async def test_invalid_bbox_raises_error(self) -> None:
+    async def test_invalid_bbox_raises_error(self, monkeypatch) -> None:
         """Test that invalid bounding boxes raise InvalidBoundingBoxError (NEM-1073)."""
         from backend.services.reid_service import ReIdentificationService
 
-        mock_client = AsyncMock()
-        service = ReIdentificationService(clip_client=mock_client)
+        calls = self._install_extract_seam(monkeypatch)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="green")
 
         # Zero-width bbox
         with pytest.raises(InvalidBoundingBoxError):
             await service.generate_embedding(image, bbox=(100, 100, 100, 200))
+        # validation happens before extraction — nothing was computed
+        assert calls == []
 
     @pytest.mark.asyncio
-    async def test_inverted_bbox_raises_error(self) -> None:
+    async def test_inverted_bbox_raises_error(self, monkeypatch) -> None:
         """Test that inverted bounding boxes raise InvalidBoundingBoxError (NEM-1073)."""
         from backend.services.reid_service import ReIdentificationService
 
-        mock_client = AsyncMock()
-        service = ReIdentificationService(clip_client=mock_client)
+        self._install_extract_seam(monkeypatch)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="yellow")
 
         # Inverted bbox (x2 < x1)
@@ -297,12 +327,12 @@ class TestReIdentificationServiceBboxValidation:
             await service.generate_embedding(image, bbox=(200, 100, 100, 200))
 
     @pytest.mark.asyncio
-    async def test_nan_bbox_raises_error(self) -> None:
+    async def test_nan_bbox_raises_error(self, monkeypatch) -> None:
         """Test that NaN bounding boxes raise InvalidBoundingBoxError (NEM-1073)."""
         from backend.services.reid_service import ReIdentificationService
 
-        mock_client = AsyncMock()
-        service = ReIdentificationService(clip_client=mock_client)
+        self._install_extract_seam(monkeypatch)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="purple")
 
         # NaN in bbox
@@ -310,55 +340,52 @@ class TestReIdentificationServiceBboxValidation:
             await service.generate_embedding(image, bbox=(float("nan"), 100, 200, 200))
 
     @pytest.mark.asyncio
-    async def test_bbox_exceeding_image_is_clamped(self) -> None:
+    async def test_bbox_exceeding_image_is_clamped(self, monkeypatch) -> None:
         """Test that bboxes exceeding image bounds are clamped (NEM-1073)."""
         from backend.services.reid_service import EMBEDDING_DIMENSION, ReIdentificationService
 
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.5] * EMBEDDING_DIMENSION
+        calls = self._install_extract_seam(monkeypatch)
 
-        service = ReIdentificationService(clip_client=mock_client)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="orange")
 
         # Bbox exceeds image bounds
-        embedding = await service.generate_embedding(image, bbox=(500, 400, 700, 500))
+        embedding, _belt = await service.generate_embedding(image, bbox=(500, 400, 700, 500))
 
         assert len(embedding) == EMBEDDING_DIMENSION
         # Cropped image should be clamped to (500, 400, 640, 480) = 140x80
-        called_image = mock_client.embed.call_args[0][0]
-        assert called_image.size == (140, 80)
+        assert calls[0].size == (140, 80)
 
     @pytest.mark.asyncio
-    async def test_completely_outside_bbox_raises_error(self) -> None:
+    async def test_completely_outside_bbox_raises_error(self, monkeypatch) -> None:
         """Test that bboxes completely outside image raise error (NEM-1073)."""
         from backend.services.reid_service import ReIdentificationService
 
-        mock_client = AsyncMock()
-        service = ReIdentificationService(clip_client=mock_client)
+        calls = self._install_extract_seam(monkeypatch)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="pink")
 
         # Completely outside image bounds
         with pytest.raises(InvalidBoundingBoxError):
             await service.generate_embedding(image, bbox=(700, 500, 800, 600))
+        assert calls == []
 
     @pytest.mark.asyncio
-    async def test_negative_bbox_is_clamped(self) -> None:
+    async def test_negative_bbox_is_clamped(self, monkeypatch) -> None:
         """Test that negative bbox coordinates are clamped (NEM-1073)."""
         from backend.services.reid_service import EMBEDDING_DIMENSION, ReIdentificationService
 
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.3] * EMBEDDING_DIMENSION
+        calls = self._install_extract_seam(monkeypatch)
 
-        service = ReIdentificationService(clip_client=mock_client)
+        service = ReIdentificationService()
         image = Image.new("RGB", (640, 480), color="cyan")
 
         # Negative coordinates
-        embedding = await service.generate_embedding(image, bbox=(-50, -50, 200, 200))
+        embedding, _belt = await service.generate_embedding(image, bbox=(-50, -50, 200, 200))
 
         assert len(embedding) == EMBEDDING_DIMENSION
         # Cropped image should be clamped to (0, 0, 200, 200)
-        called_image = mock_client.embed.call_args[0][0]
-        assert called_image.size == (200, 200)
+        assert calls[0].size == (200, 200)
 
 
 # =============================================================================

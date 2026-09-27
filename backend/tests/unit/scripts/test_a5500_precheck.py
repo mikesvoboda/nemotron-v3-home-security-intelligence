@@ -4,8 +4,17 @@ ABOUTME: The bring-up checklist's claims are machine-checked, not vibes: the
 precheck reads an env file + compose files + the repo tree and returns one
 verdict per checklist item. Tests build ONLY synthetic fixture files (D10 -
 nothing real, nothing off-box) and pin: green synthetic input exits clean;
-the shipped .env.example reads with the three known not-ready-for-A5500
-FAILs (that IS the [V] prep-review verdict, pinned against the real tree).
+the shipped .env.example reads with the known not-ready-for-A5500 FAILs
+(that IS the [V] prep-review verdict, pinned against the real tree).
+
+AMENDED 2026-09-27 (1.7, spec rev 5): the A5500 brings up the SHIPPED vlm
+mode, not the legacy LLM path - PIPELINE_MODE=vlm ships as the default
+(.env.example:211) and the vlm path calls nothing else, so the two
+legacy-LLM model/mount checks became ai-vlm checks (VLM_MODEL_PATH +
+VLM_MMPROJ_PATH, the /vlm volume mount, the VLM ctx budget), plus a
+legacy_llm check that answers the checklist's "no legacy LLM deployed" item
+and a vlm_image check that says plainly whether the ghcr image path can run
+the shipped mode at all.
 """
 
 from __future__ import annotations
@@ -33,11 +42,14 @@ from scripts.a5500_precheck import (  # noqa: E402
 )
 
 # ---------------------------------------------------------------------------
-# Synthetic fixtures - single-GPU-ready config (the acceptance input)
+# Synthetic fixtures - single-GPU-ready config (the acceptance input), in the
+# SHIPPED vlm mode: PIPELINE_MODE=vlm, Qwen3-VL-4B pair, /vlm mount.
 # ---------------------------------------------------------------------------
 
 GREEN_ENV = """\
-# synthetic single-GPU A5500 .env (no TMPDIR trap)
+# synthetic single-GPU A5500 .env (no TMPDIR trap), shipped vlm mode
+PIPELINE_MODE=vlm
+GATEWAY_MODEL_SET=vlm
 CUDA_ARCHITECTURES=86
 GPU_LLM=0
 GPU_FLORENCE=0
@@ -46,25 +58,46 @@ GPU_CLIP=0
 GPU_ENRICHMENT=0
 GPU_ENRICHMENT_LIGHT=0
 GPU_AI_SERVICES=0
-LLM_MODEL_PATH=/models/NVIDIA-Nemotron-3-Nano-4B-Instruct-Q4_K_M.gguf
-CTX_SIZE=262144
-PARALLEL=8
-GPU_LAYERS=auto
+VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf
+VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf
+VLM_CTX_SIZE=32768
+VLM_PARALLEL=2
+VLM_GPU_LAYERS=auto
 """
 
 GREEN_COMPOSE = """\
 services:
-  ai-llm:
+  ai-vlm:
     build:
       args:
         CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
+    profiles:
+      - vlm
     devices:
       - nvidia.com/gpu=${GPU_LLM:-0}
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-4b-q4km:/models:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
     environment:
-      - MODEL_PATH=${LLM_MODEL_PATH:-/models/NVIDIA-Nemotron-3-Nano-4B-Instruct-Q4_K_M.gguf}
+      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}
+      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}
+      - CTX_SIZE=${VLM_CTX_SIZE:-32768}
+      - PARALLEL=${VLM_PARALLEL:-2}
 """
+
+# A compose that also carries the legacy serving service (prod.yml's shape:
+# ai-llm with NO profile, so it starts whether or not the vlm profile is on).
+LEGACY_COMPOSE = (
+    GREEN_COMPOSE
+    + """\
+  ai-llm:
+    devices:
+      - nvidia.com/gpu=${GPU_LLM:-0}
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+    environment:
+      - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
+"""
+)
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -103,15 +136,15 @@ class TestGpuAssignment:
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        assert _by_id(checks)["gpu_assignment"].verdict == PASS
+        c = _by_id(checks)["gpu_assignment"]
+        assert c.verdict == PASS
+        assert "GPU_" in c.detail
 
     def test_nonzero_vars_named_in_detail(self, tmp_path: Path) -> None:
         env = _write(
             tmp_path,
             "dual.env",
-            GREEN_ENV.replace("GPU_YOLO26=0", "GPU_YOLO26=1").replace(
-                "GPU_AI_SERVICES=0", "GPU_AI_SERVICES=1"
-            ),
+            GREEN_ENV.replace("GPU_YOLO26=0", "GPU_YOLO26=1").replace("GPU_CLIP=0", "GPU_CLIP=2"),
         )
         checks = run_precheck(
             env_path=env,
@@ -120,7 +153,8 @@ class TestGpuAssignment:
         )
         c = _by_id(checks)["gpu_assignment"]
         assert c.verdict == FAIL
-        assert "GPU_YOLO26" in c.detail and "GPU_AI_SERVICES" in c.detail
+        assert "GPU_YOLO26=1" in c.detail
+        assert "GPU_CLIP=2" in c.detail
 
     def test_missing_required_var_named(self, tmp_path: Path) -> None:
         env = _write(tmp_path, "thin.env", "CUDA_ARCHITECTURES=86\nGPU_LLM=0\n")
@@ -131,52 +165,41 @@ class TestGpuAssignment:
         )
         c = _by_id(checks)["gpu_assignment"]
         assert c.verdict == FAIL
-        assert "GPU_CLIP" in c.detail
         for var in REQUIRED_GPU_VARS:
-            assert var in (
-                "GPU_LLM",
-                "GPU_FLORENCE",
-                "GPU_YOLO26",
-                "GPU_CLIP",
-                "GPU_ENRICHMENT",
-                "GPU_ENRICHMENT_LIGHT",
-                "GPU_AI_SERVICES",
-            )
+            if var != "GPU_LLM":
+                assert var in c.detail
 
 
 # ---------------------------------------------------------------------------
-# cuda_arch (checklist item 2: CUDA_ARCHITECTURES=86, check BEFORE build)
+# cuda_arch (checklist item 2: 86, checked BEFORE the build)
 # ---------------------------------------------------------------------------
 
 
 class TestCudaArch:
     def test_86_passes_and_naming_89_fails(self, tmp_path: Path) -> None:
-        checks89 = run_precheck(
-            env_path=_write(
-                tmp_path,
-                "e89.env",
-                GREEN_ENV.replace("CUDA_ARCHITECTURES=86", "CUDA_ARCHITECTURES=89"),
-            ),
-            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
-            repo_root=tmp_path,
-        )
-        c = _by_id(checks89)["cuda_arch"]
-        assert c.verdict == FAIL
-        assert "89" in c.detail and "86" in c.detail
-        checks86 = run_precheck(
+        checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        assert _by_id(checks86)["cuda_arch"].verdict == PASS
+        assert _by_id(checks)["cuda_arch"].verdict == PASS
+        env89 = _write(
+            tmp_path, "89.env", GREEN_ENV.replace("CUDA_ARCHITECTURES=86", "CUDA_ARCHITECTURES=89")
+        )
+        checks = run_precheck(
+            env_path=env89,
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["cuda_arch"]
+        assert c.verdict == FAIL
+        assert "89" in c.detail
+        # 1.7: the build that consumes this value in the shipped mode is ai-vlm
+        assert "ai-vlm" in c.detail
 
     def test_empty_means_build_for_all_archs_warn(self, tmp_path: Path) -> None:
-        # setup.py semantics: empty = build for all common architectures -
-        # correct-but-slow, so WARN not FAIL.
         env = _write(
-            tmp_path,
-            "emptyarch.env",
-            GREEN_ENV.replace("CUDA_ARCHITECTURES=86", "CUDA_ARCHITECTURES="),
+            tmp_path, "empty.env", GREEN_ENV.replace("CUDA_ARCHITECTURES=86", "CUDA_ARCHITECTURES=")
         )
         checks = run_precheck(
             env_path=env,
@@ -187,18 +210,66 @@ class TestCudaArch:
 
 
 # ---------------------------------------------------------------------------
-# llm_model + ai_llm_mount (checklist item 3: Nano-4B Q4_K_M placeholder;
-# the ai-llm volume mount targets the 30B dir - adjust it too)
+# vlm_model / vlm_mount / vlm passthrough / vlm budget (checklist item 3,
+# converted from the legacy placeholder-LLM pair by 1.7)
 # ---------------------------------------------------------------------------
 
 
-class TestLlmModel:
-    def test_30b_path_fails_naming_current_value(self, tmp_path: Path) -> None:
+class TestVlmModel:
+    def test_qwen3vl_pair_passes(self, tmp_path: Path) -> None:
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        assert _by_id(checks)["vlm_model"].verdict == PASS
+
+    def test_wrong_quant_fails_naming_current_value(self, tmp_path: Path) -> None:
         env = _write(
             tmp_path,
-            "30b.env",
+            "q8.env",
             GREEN_ENV.replace(
-                "LLM_MODEL_PATH=/models/NVIDIA-Nemotron-3-Nano-4B-Instruct-Q4_K_M.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q8_0.gguf",
+            ),
+        )
+        checks = run_precheck(
+            env_path=env,
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_model"]
+        assert c.verdict == FAIL
+        assert "Q8_0" in c.detail  # current value surfaced, per the pair's shape
+
+    def test_missing_mmproj_fails_because_vision_needs_it(self, tmp_path: Path) -> None:
+        # A projector-less serve loads text-only and silently degrades every
+        # vlm_assess - the check refuses rather than calling it ready.
+        env = _write(
+            tmp_path,
+            "nommp.env",
+            "\n".join(
+                line for line in GREEN_ENV.splitlines() if not line.startswith("VLM_MMPROJ_PATH")
+            ),
+        )
+        checks = run_precheck(
+            env_path=env,
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_model"]
+        assert c.verdict == FAIL
+        assert "MMPROJ" in c.detail
+
+    def test_legacy_llm_path_is_not_the_serving_model(self, tmp_path: Path) -> None:
+        # The pre-swap env (Nano-30B LLM_MODEL_PATH, no VLM_* at all) must read
+        # FAIL on the vlm check - that is the conversion, stated as a pin.
+        env = _write(
+            tmp_path,
+            "legacy.env",
+            GREEN_ENV.replace(
+                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf\n"
+                "VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf",
                 "LLM_MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
             ),
         )
@@ -207,57 +278,253 @@ class TestLlmModel:
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        c = _by_id(checks)["llm_model"]
+        c = _by_id(checks)["vlm_model"]
         assert c.verdict == FAIL
-        assert "Nano-30B" in c.detail  # current value surfaced
+        assert "Qwen3VL" in c.detail  # what it wants, named
 
-    def test_nano4b_wrong_quant_fails(self, tmp_path: Path) -> None:
+
+class TestVlmMount:
+    def test_vlm_dir_mount_passes(self, tmp_path: Path) -> None:
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["ai_vlm_mount"]
+        assert c.verdict == PASS
+        assert "/vlm:/models" in c.detail
+
+    def test_legacy_30b_mount_on_ai_vlm_fails(self, tmp_path: Path) -> None:
+        bad = GREEN_COMPOSE.replace(
+            "${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro",
+            "${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro",
+        )
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "bad.yml", bad)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["ai_vlm_mount"]
+        assert c.verdict == FAIL
+        assert "30b" in c.detail.lower()
+
+    def test_ai_llms_own_30b_mount_does_not_false_redden_the_vlm_check(
+        self, tmp_path: Path
+    ) -> None:
+        # Block-scoped: the legacy service legitimately mounts the 30B dir.
+        # A flat line scan would fail the vlm mount on the legacy service's
+        # own volumes - that is the false red this pin exists to prevent.
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "prod.yml", LEGACY_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        assert _by_id(checks)["ai_vlm_mount"].verdict == PASS
+
+    def test_no_ai_vlm_service_is_a_warn_naming_the_file(self, tmp_path: Path) -> None:
+        # ghcr.yml's shape: no ai-vlm service at all. Not a FAIL (prod compose
+        # is the vlm path), but it must be said, not silently PASSed.
+        legacy_only = """\
+services:
+  ai-llm:
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/x:/models:ro
+"""
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "ghcr.yml", legacy_only)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["ai_vlm_mount"]
+        assert c.verdict == WARN
+        assert "ghcr.yml" in c.detail
+
+    def test_zoo_and_cache_mounts_are_not_read_as_the_model_mount(self, tmp_path: Path) -> None:
+        # gateway/backend mount ai_models at /models/zoo, /models/cache etc.
+        # Only a mount whose TARGET is exactly /models is the weights mount.
+        extra = GREEN_COMPOSE.replace(
+            "      - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro",
+            "      - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro\n"
+            "      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro",
+        )
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "both.yml", extra)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["ai_vlm_mount"]
+        assert c.verdict == PASS
+        assert c.detail.count("/models") == 1
+
+
+class TestVlmPassthrough:
+    def test_env_derived_model_paths_pass(self, tmp_path: Path) -> None:
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        assert _by_id(checks)["vlm_model_env_passthrough"].verdict == PASS
+
+    def test_hardcoded_model_path_warns(self, tmp_path: Path) -> None:
+        hard = GREEN_COMPOSE.replace(
+            "- MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}",
+            "- MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+        )
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "hard.yml", hard)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_model_env_passthrough"]
+        assert c.verdict == WARN
+        assert "MODEL_PATH" in c.detail
+        assert ".env switch" in c.detail  # the actionable half
+
+    def test_hardcoded_mmproj_warns_too(self, tmp_path: Path) -> None:
+        hard = GREEN_COMPOSE.replace(
+            "- MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}",
+            "- MMPROJ_PATH=/models/mmproj-other.gguf",
+        )
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "hard.yml", hard)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_model_env_passthrough"]
+        assert c.verdict == WARN
+        assert "MMPROJ_PATH" in c.detail
+
+
+class TestVlmCtxBudget:
+    def test_info_line_reports_per_slot_budget(self, tmp_path: Path) -> None:
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_ctx_budget"]
+        assert c.verdict == INFO
+        assert "16384" in c.detail  # 32768 / 2, the per-slot number spec §2 sizes
+
+    def test_slot_below_the_worst_case_need_warns(self, tmp_path: Path) -> None:
+        # 8192/2 = 4096 < the ~12.2K a worst-case vlm_assess needs: the
+        # verdict truncates silently. This is the check's tooth.
         env = _write(
             tmp_path,
-            "q8.env",
-            GREEN_ENV.replace("Q4_K_M.gguf", "Q8_0.gguf"),
+            "small.env",
+            GREEN_ENV.replace("VLM_CTX_SIZE=32768", "VLM_CTX_SIZE=8192"),
         )
         checks = run_precheck(
             env_path=env,
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        assert _by_id(checks)["llm_model"].verdict == FAIL
+        c = _by_id(checks)["vlm_ctx_budget"]
+        assert c.verdict == WARN
+        assert "4096" in c.detail
 
-    def test_mount_on_30b_dir_fails_nano4b_mount_passes(self, tmp_path: Path) -> None:
-        prod30 = GREEN_COMPOSE.replace(
-            "nemotron/nemotron-3-nano-4b-q4km:/models:ro",
-            "nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro",
+    def test_full_gpu_offload_layers_warn(self, tmp_path: Path) -> None:
+        env = _write(
+            tmp_path,
+            "full.env",
+            GREEN_ENV.replace("VLM_GPU_LAYERS=auto", "VLM_GPU_LAYERS=999"),
+        )
+        checks = run_precheck(
+            env_path=env,
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        assert _by_id(checks)["vlm_ctx_budget"].verdict == WARN
+
+
+# ---------------------------------------------------------------------------
+# legacy_llm / vlm_image (1.7: the checklist's "no legacy LLM deployed" item,
+# machine-checked instead of asserted)
+# ---------------------------------------------------------------------------
+
+
+class TestLegacyLlmNotDeployed:
+    def test_profile_gated_ai_llm_warns_not_fails(self, tmp_path: Path) -> None:
+        gated = LEGACY_COMPOSE.replace(
+            "  ai-llm:\n",
+            "  ai-llm:\n    profiles:\n      - llm\n",
         )
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "prod30.yml", prod30)],
+            compose_paths=[_write(tmp_path, "gated.yml", gated)],
             repo_root=tmp_path,
         )
-        c = _by_id(checks)["ai_llm_mount"]
-        assert c.verdict == FAIL
-        assert "30b" in c.detail.lower()
-        checks_ok = run_precheck(
+        c = _by_id(checks)["legacy_llm"]
+        assert c.verdict == WARN
+        assert "llm" in c.detail
+
+    def test_unprofiled_ai_llm_warns_that_it_starts_alongside_ai_vlm(self, tmp_path: Path) -> None:
+        # prod.yml's shipped shape: ai-llm has NO profiles block, so a
+        # `--profile vlm` up brings BOTH serving services on one GPU.
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "prod.yml", LEGACY_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["legacy_llm"]
+        assert c.verdict == WARN
+        assert "profile" in c.detail.lower()
+        assert "ai-llm" in c.detail
+
+    def test_no_ai_llm_service_passes(self, tmp_path: Path) -> None:
+        checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        assert _by_id(checks_ok)["ai_llm_mount"].verdict == PASS
+        assert _by_id(checks)["legacy_llm"].verdict == PASS
 
-    def test_hardcoded_model_path_warns(self, tmp_path: Path) -> None:
-        # ghcr compose pins MODEL_PATH literally - LLM_MODEL_PATH cannot reach it
-        ghcr = GREEN_COMPOSE.replace(
-            "- MODEL_PATH=${LLM_MODEL_PATH:-/models/NVIDIA-Nemotron-3-Nano-4B-Instruct-Q4_K_M.gguf}",
-            "- MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf",
+
+class TestVlmImageAvailable:
+    def test_ai_vlm_buildable_from_compose_passes(self, tmp_path: Path) -> None:
+        # GREEN_COMPOSE has profiles but no build block - add one: the shape
+        # where the vlm service is built from source on the box.
+        built = GREEN_COMPOSE.replace(
+            "    build:\n      args:\n        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}\n",
+            "    build:\n      context: ./ai/vlm\n      args:\n"
+            "        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}\n",
         )
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "ghcr.yml", ghcr)],
+            compose_paths=[_write(tmp_path, "built.yml", built)],
             repo_root=tmp_path,
         )
-        c = _by_id(checks)["model_env_passthrough"]
+        assert _by_id(checks)["vlm_image"].verdict == PASS
+
+    def test_image_only_vlm_service_warns_arch_must_match_build(self, tmp_path: Path) -> None:
+        img = GREEN_COMPOSE.replace(
+            "    build:\n      args:\n        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}\n",
+            "    image: ghcr.io/org/ai-vlm:latest\n",
+        )
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "img.yml", img)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_image"]
         assert c.verdict == WARN
-        assert "MODEL_PATH" in c.detail
+        assert "86" in c.detail
+
+    def test_no_ai_vlm_anywhere_warns_the_ghcr_path_cannot_serve(self, tmp_path: Path) -> None:
+        legacy_only = """\
+services:
+  ai-llm:
+    image: ghcr.io/org/ai-llm:latest
+"""
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "ghcr.yml", legacy_only)],
+            repo_root=tmp_path,
+        )
+        c = _by_id(checks)["vlm_image"]
+        assert c.verdict == WARN
+        assert "ghcr.yml" in c.detail
 
 
 # ---------------------------------------------------------------------------
@@ -267,21 +534,26 @@ class TestLlmModel:
 
 class TestDevicePassthrough:
     def test_literal_gpu_all_warns(self, tmp_path: Path) -> None:
-        compose = GREEN_COMPOSE.replace("- nvidia.com/gpu=${GPU_LLM:-0}", "- nvidia.com/gpu=all")
+        compose = GREEN_COMPOSE.replace(
+            "      - nvidia.com/gpu=${GPU_LLM:-0}",
+            "      - nvidia.com/gpu=all",
+        )
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "w.yml", compose)],
+            compose_paths=[_write(tmp_path, "all.yml", compose)],
             repo_root=tmp_path,
         )
         c = _by_id(checks)["device_passthrough"]
         assert c.verdict == WARN
-        assert "all" in c.detail
+        assert "A400" in c.detail
 
     def test_hardwired_nonzero_device_fails(self, tmp_path: Path) -> None:
-        compose = GREEN_COMPOSE.replace("- nvidia.com/gpu=${GPU_LLM:-0}", "- nvidia.com/gpu=1")
+        compose = GREEN_COMPOSE.replace(
+            "      - nvidia.com/gpu=${GPU_LLM:-0}", "      - nvidia.com/gpu=1"
+        )
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "w.yml", compose)],
+            compose_paths=[_write(tmp_path, "hard.yml", compose)],
             repo_root=tmp_path,
         )
         assert _by_id(checks)["device_passthrough"].verdict == FAIL
@@ -296,7 +568,7 @@ class TestDevicePassthrough:
 
 
 # ---------------------------------------------------------------------------
-# tmpdir_trap (checklist item 4a: .env TMPDIR false-reddens write_runtime_env)
+# test-environment traps (TMPDIR, stale __pycache__)
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +582,7 @@ class TestTmpdirTrap:
         )
         c = _by_id(checks)["tmpdir_trap"]
         assert c.verdict == WARN
-        assert "write_runtime_env" in c.detail
+        assert "test_system.py" in c.detail
 
     def test_no_tmpdir_passes(self, tmp_path: Path) -> None:
         checks = run_precheck(
@@ -321,36 +593,24 @@ class TestTmpdirTrap:
         assert _by_id(checks)["tmpdir_trap"].verdict == PASS
 
 
-# ---------------------------------------------------------------------------
-# pycache_stale (checklist item 4b: stale __pycache__ for DELETED modules)
-# ---------------------------------------------------------------------------
-
-
 class TestStalePycache:
     def test_orphan_pyc_detected_live_pyc_not_flagged(self, tmp_path: Path) -> None:
-        pkg = tmp_path / "pkg"
-        pkg.mkdir()
-        (pkg / "alive.py").write_text("x = 1\n", encoding="utf-8")
-        cache = pkg / "__pycache__"
-        cache.mkdir()
-        (cache / "alive.cpython-314.pyc").write_bytes(b"\x00")  # source exists -> fine
-        (cache / "deleted_module.cpython-314.pyc").write_bytes(b"\x00")  # no source -> stale
-        stale = scan_stale_pycache(tmp_path)
-        assert stale == ["pkg/__pycache__/deleted_module.cpython-314.pyc"]
+        pkg = tmp_path / "backend" / "services"
+        (pkg / "__pycache__").mkdir(parents=True)
+        (pkg / "live.py").write_text("x = 1\n")
+        (pkg / "__pycache__" / "live.cpython-314.pyc").write_bytes(b"\x00")
+        (pkg / "__pycache__" / "ghost.cpython-314.pyc").write_bytes(b"\x00")
+        assert scan_stale_pycache(tmp_path) == [
+            "backend/services/__pycache__/ghost.cpython-314.pyc"
+        ]
 
     def test_clean_tree_returns_empty(self, tmp_path: Path) -> None:
-        pkg = tmp_path / "pkg"
-        pkg.mkdir()
-        (pkg / "alive.py").write_text("x = 1\n", encoding="utf-8")
-        cache = pkg / "__pycache__"
-        cache.mkdir()
-        (cache / "alive.cpython-314.pyc").write_bytes(b"\x00")
         assert scan_stale_pycache(tmp_path) == []
 
     def test_check_lists_stale_names(self, tmp_path: Path) -> None:
-        cache = tmp_path / "scripts" / "__pycache__"
-        cache.mkdir(parents=True)
-        (cache / "gone.cpython-314.pyc").write_bytes(b"\x00")
+        pkg = tmp_path / "backend"
+        (pkg / "__pycache__").mkdir(parents=True)
+        (pkg / "__pycache__" / "gone.cpython-314.pyc").write_bytes(b"\x00")
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
@@ -362,37 +622,7 @@ class TestStalePycache:
 
 
 # ---------------------------------------------------------------------------
-# ctx_budget (spec sizing: Nano-4B ~2.64 GiB + 262K-token KV, ~5.5 GiB [C])
-# ---------------------------------------------------------------------------
-
-
-class TestCtxBudget:
-    def test_info_line_reports_the_sizing_inputs(self, tmp_path: Path) -> None:
-        checks = run_precheck(
-            env_path=_write(tmp_path, "green.env", GREEN_ENV),
-            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
-            repo_root=tmp_path,
-        )
-        c = _by_id(checks)["ctx_budget"]
-        assert c.verdict == INFO
-        assert "262144" in c.detail
-
-    def test_full_offload_above_budget_warns(self, tmp_path: Path) -> None:
-        # GPU_LAYERS=999 (all layers) at 262K ctx is the >26GB config - not the
-        # ~5.5 GiB Nano-4B single-GPU budget.
-        env = _write(
-            tmp_path, "offload.env", GREEN_ENV.replace("GPU_LAYERS=auto", "GPU_LAYERS=999")
-        )
-        checks = run_precheck(
-            env_path=env,
-            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
-            repo_root=tmp_path,
-        )
-        assert _by_id(checks)["ctx_budget"].verdict == WARN
-
-
-# ---------------------------------------------------------------------------
-# health (checklist item 5: owner-run, never auto-pass)
+# health (checklist item 5: never sandbox-closable)
 # ---------------------------------------------------------------------------
 
 
@@ -417,10 +647,12 @@ class TestHealth:
             "gpu_assignment",
             "device_passthrough",
             "cuda_arch",
-            "llm_model",
-            "ai_llm_mount",
-            "model_env_passthrough",
-            "ctx_budget",
+            "vlm_model",
+            "ai_vlm_mount",
+            "vlm_model_env_passthrough",
+            "vlm_ctx_budget",
+            "legacy_llm",
+            "vlm_image",
             "tmpdir_trap",
             "pycache_stale",
             "health",
@@ -441,13 +673,14 @@ class TestChecklistRender:
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        md = render_checklist(checks, date_str="2026-09-25")
-        assert "2026-09-25" in md
+        md = render_checklist(checks, date_str="2026-09-27")
+        assert "2026-09-27" in md
         # spec §"A5500 bring-up checklist" items, copied (paraphrase anchors):
         for anchor in (
             "GPU assignment",
             "CUDA architecture",
-            "Placeholder LLM",
+            "Serving VLM",
+            "No legacy LLM",
             "Test-environment traps",
             "Health",
         ):
@@ -455,9 +688,12 @@ class TestChecklistRender:
         # [V] amendments present for every reviewed claim
         assert md.count("[V") >= 5
         # verdicts rendered
-        assert "gpu_assignment" in md and "MANUAL" in md
+        assert "vlm_model" in md and "MANUAL" in md
 
-    def test_render_flags_amended_ghcr_passthrough_claim(self, tmp_path: Path) -> None:
+    def test_render_states_the_smoke_before_traffic_requirement(self, tmp_path: Path) -> None:
+        # spec :482-500 / 1.7: the Qwen3-VL-4B smoke serve + enforcement probe
+        # must run BEFORE any event reaches it. That ordering is the handout's
+        # point, so the render must carry it, not just the model name.
         from scripts.a5500_precheck import render_checklist
 
         checks = run_precheck(
@@ -465,10 +701,25 @@ class TestChecklistRender:
             compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
             repo_root=tmp_path,
         )
-        md = render_checklist(checks, date_str="2026-09-25")
-        # the spec says "adjust the mount too" - [V] amendment records the
-        # ghcr compose additionally hardcodes MODEL_PATH
-        assert "ghcr" in md.lower()
+        md = render_checklist(checks, date_str="2026-09-27")
+        assert "enforcement" in md.lower()
+        assert "before" in md.lower()
+
+    def test_render_names_the_vlm_verdicts_not_the_legacy_pair(self, tmp_path: Path) -> None:
+        from scripts.a5500_precheck import render_checklist
+
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        md = render_checklist(checks, date_str="2026-09-27")
+        assert "vlm_model" in md
+        assert "ai_vlm_mount" in md
+        # the retired pair's ids are gone from the render (conversion, not
+        # accretion: an A5500 reader must not find a Nano-4B instruction)
+        assert "llm_model`" not in md
+        assert "ai_llm_mount" not in md
 
 
 # ---------------------------------------------------------------------------
@@ -490,14 +741,34 @@ def real_checks() -> list[Check]:
 
 
 class TestRealTreePrepReview:
-    def test_example_ships_the_three_known_not_ready_fails(self, real_checks) -> None:
+    def test_example_ships_the_known_not_ready_fails(self, real_checks) -> None:
         by_id = _by_id(real_checks)
-        # .env.example ships dual-GPU defaults (:516-519,:899), CUDA 89 (:512),
-        # 30B model path (:404) and the 30B dir mount -> each must read FAIL.
+        # .env.example ships dual-GPU defaults (:580-583,:962) and CUDA 89
+        # (:576) -> each must read FAIL for the A5500.
         assert by_id["gpu_assignment"].verdict == FAIL
         assert by_id["cuda_arch"].verdict == FAIL
-        assert by_id["llm_model"].verdict == FAIL
-        assert by_id["ai_llm_mount"].verdict == FAIL
+
+    def test_example_ships_the_serving_vlm_ready(self, real_checks) -> None:
+        by_id = _by_id(real_checks)
+        # The VLM model pair ships correct (env :462-463) and prod.yml mounts
+        # the /vlm dir (:253) with env-derived paths (:265-266): the shipped
+        # mode's weights are NOT part of what's missing on the A5500.
+        assert by_id["vlm_model"].verdict == PASS
+        assert by_id["ai_vlm_mount"].verdict == PASS
+        assert by_id["vlm_model_env_passthrough"].verdict == PASS
+
+    def test_ghcr_image_path_cannot_serve_the_vlm_mode(self, real_checks) -> None:
+        by_id = _by_id(real_checks)
+        # 1.7's finding, pinned: docker-compose.ghcr.yml has NO ai-vlm service
+        # (it never gained one), so the ghcr image path cannot serve vlm mode.
+        assert by_id["vlm_image"].verdict == WARN
+        assert "ghcr" in by_id["vlm_image"].detail
+
+    def test_legacy_ai_llm_is_unprofiled_in_prod_compose(self, real_checks) -> None:
+        by_id = _by_id(real_checks)
+        c = by_id["legacy_llm"]
+        assert c.verdict == WARN
+        assert "ai-llm" in c.detail
 
     def test_example_tmpdir_trap_read(self, real_checks) -> None:
         assert _by_id(real_checks)["tmpdir_trap"].verdict == WARN

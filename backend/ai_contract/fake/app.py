@@ -28,16 +28,18 @@ ai.* (package rule) and never touches network/GPU/weights.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from functools import lru_cache
 from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 
 from backend.ai_contract.fake.generators import (
     GATEWAY_CLASSES,
+    SCHEMA_DIR,
     SECURITY_CLASSES,
     create_response_bytes,
     generate,
@@ -46,12 +48,29 @@ from backend.ai_contract.operations import OPERATIONS
 from backend.ai_contract.provider import operations_for_slot
 
 PROFILE_HEADER = "x-fake-profile"
+# spec §7 ladder knobs (Phase 1.1): the failure-ladder tests (1.3) need the
+# fake to FAIL three specific ways - timeout / schema-invalid / 5xx - not
+# just succeed. Header-scoped per request, so the healthy path's byte-
+# identity (module docstring) is untouched; an unknown value falls back to
+# healthy, same doctrine as the profile header below.
+FAULT_HEADER = "x-fake-fault"
 
 _TABLE = {"security": tuple(sorted(SECURITY_CLASSES)), "gateway": GATEWAY_CLASSES}
 
 
 def _response(obj: Any) -> Response:
     return Response(content=create_response_bytes(obj), media_type="application/json")
+
+
+@lru_cache(maxsize=64)
+def _response_property(op_id: str, kind: str) -> str | None:
+    """The response schema's first required property - the schema-invalid
+    fault mutates exactly one key so the body STILL parses as JSON but no
+    longer validates (spec S5's unparseable-verdict branch; a 4xx would be
+    a different ladder case, server refusal, not a 2xx the parser rejects)."""
+    schema = json.loads((SCHEMA_DIR / f"{op_id}.{kind}.json").read_text(encoding="utf-8"))
+    req = schema.get("required") or []
+    return req[0] if req else None
 
 
 def create_fake_app(profile: str = "gateway") -> FastAPI:
@@ -80,7 +99,29 @@ def create_fake_app(profile: str = "gateway") -> FastAPI:
                     payload = None
             prof = request.headers.get(PROFILE_HEADER, profile)
             prof = prof if prof in _TABLE else profile
-            return _response(generate(op_id, payload, prof))
+            fault = request.headers.get(FAULT_HEADER)
+            if fault == "5xx":
+                raise HTTPException(status_code=503, detail="injected fault: 5xx")
+            if fault is not None and fault.startswith("timeout"):
+                # ':SECONDS' suffix keeps ladder tests fast; the DEFAULT
+                # stall (2.0s) is well past any read timeout a client
+                # plausibly sets on this route (ai_vlm read timeout is
+                # 1.3's setting, ~0.5-2s class), so a bare header still
+                # reproduces the timeout against a real socket. ASGITrans-
+                # port never enforces client timeouts, so the in-process
+                # observable is the stall itself, never a ReadTimeout.
+                _, _, secs = fault.partition(":")
+                try:
+                    delay = float(secs) if secs else 2.0
+                except ValueError:
+                    delay = 2.0
+                await asyncio.sleep(delay)
+            value = generate(op_id, payload, prof)
+            if fault == "schema-invalid":
+                key = _response_property(op_id, "response")
+                if key:
+                    value[key] = None  # violates every root key (all minLength/enum/obj)
+            return _response(value)
 
         _handler.__name__ = f"fake_{op_id}"
         return _handler

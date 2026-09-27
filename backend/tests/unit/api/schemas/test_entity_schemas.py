@@ -60,12 +60,25 @@ class TestEntityCreate:
         entity = EntityCreate(
             entity_type=EntityTypeEnum.PERSON,
             embedding_vector=EmbeddingVectorData(
-                vector=[0.1, 0.2, 0.3], model="clip", dimension=768
+                vector=[0.1] * 512,
+                model="osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+                dimension=512,
             ),
         )
         assert entity.embedding_vector is not None
-        assert entity.embedding_vector.model == "clip"
-        assert entity.embedding_vector.dimension == 768
+        assert entity.embedding_vector.model == "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+        assert entity.embedding_vector.dimension == 512
+
+    def test_embedding_vector_data_requires_model(self) -> None:
+        """The JSONB schema has no model default anymore (F11, ledger item 20).
+
+        ``Entity.set_embedding`` refuses a write that never names its weights,
+        so the OpenAPI shape mirrors it: ``model`` is required.
+        """
+        from backend.api.schemas.entities import EmbeddingVectorData
+
+        with pytest.raises(ValidationError, match="model"):
+            EmbeddingVectorData(vector=[0.1] * 512, dimension=512)
 
 
 class TestEntityUpdate:

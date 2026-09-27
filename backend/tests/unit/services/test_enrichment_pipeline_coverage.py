@@ -155,7 +155,10 @@ async def test_run_reid_with_person_attributes() -> None:
 
     mock_redis = AsyncMock()
     mock_reid_service = AsyncMock()
-    mock_reid_service.generate_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3])
+    # Post-swap producer contract (B5): (vector, belt)
+    mock_reid_service.generate_embedding = AsyncMock(
+        return_value=([0.1, 0.2, 0.3], "osnet-test@w@abc")
+    )
     mock_reid_service.find_matching_entities = AsyncMock(return_value=[])
     mock_reid_service.store_embedding = AsyncMock()
 
@@ -198,11 +201,16 @@ async def test_run_reid_with_person_attributes() -> None:
     entity_embedding = call_args[0][1]
     assert entity_embedding.attributes["clothing"] == "black jacket"
     assert entity_embedding.attributes["carrying"] == "backpack"
+    # F11: the stored row names the weights that computed the bytes
+    assert entity_embedding.model_id == "osnet-test@w@abc"
 
 
 @pytest.mark.asyncio
-async def test_run_reid_with_vehicle_attributes() -> None:
-    """Test _run_reid extracts vehicle attributes from vision extraction."""
+async def test_run_reid_vehicle_attributes_never_stored() -> None:
+    """B5a closure (ledger item 20): vehicle detections never reach the
+    embedding producer in the shipped mode — vehicle identity rides plate
+    match — so the old vehicle-attributes-into-EntityEmbedding path is dead.
+    This pins the closure: nothing generated, nothing stored."""
     from backend.services.vision_extractor import BatchExtractionResult, VehicleAttributes
 
     mock_model_manager = MagicMock()
@@ -212,7 +220,9 @@ async def test_run_reid_with_vehicle_attributes() -> None:
 
     mock_redis = AsyncMock()
     mock_reid_service = AsyncMock()
-    mock_reid_service.generate_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3])
+    mock_reid_service.generate_embedding = AsyncMock(
+        return_value=([0.1, 0.2, 0.3], "osnet-test@w@abc")
+    )
     mock_reid_service.find_matching_entities = AsyncMock(return_value=[])
     mock_reid_service.store_embedding = AsyncMock()
 
@@ -223,7 +233,7 @@ async def test_run_reid_with_vehicle_attributes() -> None:
     )
     pipeline._reid_service = mock_reid_service
 
-    # Create result with vision extraction vehicle attributes
+    # Vision extraction with vehicle attributes (the old test's subject)
     result = EnrichmentResult()
     result.vision_extraction = BatchExtractionResult(
         person_attributes={},
@@ -249,12 +259,8 @@ async def test_run_reid_with_vehicle_attributes() -> None:
 
     await pipeline._run_reid([vehicle_det], image, "driveway", result)
 
-    # Verify store_embedding was called with vehicle attributes
-    mock_reid_service.store_embedding.assert_called_once()
-    call_args = mock_reid_service.store_embedding.call_args
-    entity_embedding = call_args[0][1]
-    assert entity_embedding.attributes["color"] == "blue"
-    assert entity_embedding.attributes["vehicle_type"] == "sedan"
+    mock_reid_service.generate_embedding.assert_not_awaited()
+    mock_reid_service.store_embedding.assert_not_awaited()
 
 
 @pytest.mark.asyncio

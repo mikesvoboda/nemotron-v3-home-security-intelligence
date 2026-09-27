@@ -598,6 +598,7 @@ class TestEntityRepositoryEmbeddingSearch:
             entity_type="person",
             threshold=0.5,
             limit=10,
+            model_id="clip",
         )
 
         # Should return list of (entity, similarity_score) tuples
@@ -631,6 +632,7 @@ class TestEntityRepositoryEmbeddingSearch:
             entity_type="person",
             threshold=0.85,  # High threshold
             limit=10,
+            model_id="clip",
         )
 
         # Should filter out low-similarity entities
@@ -655,6 +657,7 @@ class TestEntityRepositoryEmbeddingSearch:
             entity_type="person",
             threshold=0.5,
             limit=10,
+            model_id="clip",
         )
 
         assert len(results) == 1
@@ -683,6 +686,7 @@ class TestEntityRepositoryEmbeddingSearch:
             entity_type="person",
             threshold=0.5,
             limit=3,
+            model_id="clip",
         )
 
         # Should return at most 3 results
@@ -711,6 +715,7 @@ class TestEntityRepositoryEmbeddingSearch:
             entity_type="person",
             threshold=0.5,
             limit=10,
+            model_id="clip",
         )
 
         # Should only include entity with embedding
@@ -790,6 +795,7 @@ class TestEntityRepositoryGetOrCreateForDetection:
             entity_type="person",
             embedding=[1.0, 0.0, 0.0],
             threshold=0.85,
+            model_id="clip",
         )
 
         assert is_new is False
@@ -812,6 +818,7 @@ class TestEntityRepositoryGetOrCreateForDetection:
             entity_type="person",
             embedding=[0.5, 0.5, 0.0],
             threshold=0.85,
+            model_id="clip",
         )
 
         assert is_new is True
@@ -842,6 +849,7 @@ class TestEntityRepositoryGetOrCreateForDetection:
             entity_type="person",
             embedding=[1.0, 0.0, 0.0],
             threshold=0.85,
+            model_id="clip",
         )
 
         assert is_new is True
@@ -873,6 +881,7 @@ class TestEntityRepositoryGetOrCreateForDetection:
             entity_type="person",
             embedding=[1.0, 0.0, 0.0],
             threshold=0.85,
+            model_id="clip",
         )
 
         assert is_new is False

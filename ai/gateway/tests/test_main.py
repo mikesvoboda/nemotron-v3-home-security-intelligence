@@ -355,13 +355,57 @@ class TestLifespan:
         mock_tc.is_model_ready = track_model_ready
 
         with _patch_all_get_triton_client(mock_tc):
-            from ai.gateway.main import ALL_MODELS, app, lifespan
+            from ai.gateway.main import ACTIVE_MODELS, app, lifespan
 
             async with lifespan(app):
                 pass
 
-        # Every model in ALL_MODELS should have been checked
-        assert len(model_names_checked) >= len(ALL_MODELS)
+        # Every model the ACTIVE residency set serves should have been checked
+        assert model_names_checked == list(ACTIVE_MODELS)
+
+    async def test_lifespan_checks_the_active_residency_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Rev 6 residency: with the vlm set active, startup checks ONLY its
+        models — logging the retired models `not_loaded` on every start would
+        be a permanent false alarm, and /health over them is false-degraded.
+
+        Patched at the module attribute (the boot-time fact main.py binds at
+        import), not by importlib.reload: reloading main.py re-registers its
+        Prometheus metrics and dies on DuplicateTimeseries."""
+        mock_tc = _make_mock_triton_client()
+        checked: list[str] = []
+
+        async def track(name: str) -> bool:
+            checked.append(name)
+            return True
+
+        mock_tc.is_model_ready = track
+        import ai.gateway.main as main_mod
+
+        monkeypatch.setattr(main_mod, "ACTIVE_MODELS", ("yolo26", "reid"))
+        with _patch_all_get_triton_client(mock_tc):
+            async with main_mod.lifespan(main_mod.app):
+                pass
+        assert checked == ["yolo26", "reid"]
+
+    async def test_health_over_vlm_set_is_not_degraded_by_retired_models(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """/health models map covers the ACTIVE set only; a vlm-mode gateway
+        reports healthy with 2/2, not degraded 2/14."""
+        import ai.gateway.main as main_mod
+
+        monkeypatch.setattr(main_mod, "ACTIVE_MODELS", ("yolo26", "reid"))
+        mock_tc = _make_mock_triton_client()
+        with _patch_all_get_triton_client(mock_tc):
+            transport = ASGITransport(app=main_mod.app)
+            async with AsyncClient(transport=transport, base_url="http://t") as ac:
+                resp = await ac.get("/health")
+        body = resp.json()
+        assert body["status"] == "healthy"
+        assert set(body["models"]) == {"yolo26", "reid"}
+        assert body["models_total"] == 2
 
     async def test_lifespan_handles_server_never_ready(self) -> None:
         """Startup completes even if Triton never becomes ready."""

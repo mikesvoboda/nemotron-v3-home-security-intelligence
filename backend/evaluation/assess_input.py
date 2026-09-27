@@ -28,6 +28,13 @@ class AssessInput(BaseModel):
     zone_crossing: bool = False
     household: dict[str, Any] = Field(default_factory=dict)
     timestamp: str
+    # Rev 6 (F11 ruling 4): the one field the freeze reopens for. The
+    # specialist stage's short texts (faces/plates/re-ID) ride the snapshot so
+    # the prompt builder reads them from the same object production and replay
+    # share (spec §6: the VLM never originates them). Defaults empty so the
+    # 421 pre-rev-6 items — whose stored JSON has no key — still load; replay
+    # uses the stored outputs and never re-runs a specialist.
+    specialist_outputs: dict[str, str] = Field(default_factory=dict)
 
 
 class EvalItem(BaseModel):

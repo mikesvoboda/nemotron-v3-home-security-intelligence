@@ -189,6 +189,72 @@ LLM_OPS: dict[str, dict[str, Any]] = {
     },
 }
 
+# --- VLM seam (spec §3): schemas come from the contract CLASSES themselves --
+VLM_VERDICT_SOURCE = "backend/services/vlm_verdict.py"
+
+VLM_OPS: dict[str, dict[str, Any]] = {
+    "vlm_assess": {
+        "method": "POST",
+        # Registered path is /vlm/-prefixed on purpose: the REAL engine wire
+        # is POST /v1/chat/completions (llama.cpp serve, spec §3 Engine 1),
+        # which llm_chat_completion already owns as an op.path - and the fake
+        # mounts one route per op.path (fake/app.py:88), so an unprefixed
+        # vlm_assess would double-mount and validate the wrong body. vlm_client
+        # speaks the real spelling; this registry path is the contract handle.
+        "path": "/vlm/chat/completions",
+        "availability": {
+            "gateway": False,
+            "enrichment_light_adapter": False,
+            # llama.cpp serve answers it directly, like the llm_* ops (Tier C)
+            "per_model_server": True,
+            # fake is the SPEC column; absent here the fake under-declares
+            # and provider registration fails (provider.py:227-235)
+            "fake": True,
+        },
+        "request": None,  # attached from VlmAssessRequest in build_all
+        "response": None,  # attached from VlmVerdict in build_all
+        "evidence": (
+            "spec §3 (engine wire POST /v1/chat/completions, base64 image_url "
+            "+ json_schema); chat-shape enforcement probe proven ENFORCED at "
+            "b7972 (scripts/vlm_probes/s2_multimodal_schema.py); "
+            "schemas generated from backend/services/vlm_verdict.py classes"
+        ),
+    },
+}
+
+
+def _vlm_contract_schemas() -> tuple[dict[str, Any], dict[str, Any]]:
+    """model_json_schema() of the REAL VlmVerdict/VlmAssessRequest classes.
+
+    Loaded standalone-by-path (the module's header documents why its import
+    closure must stay pydantic-only - importing it as backend.services.*
+    would run the 697-line eager services/__init__ inside every --check).
+    This is the drift doctrine E5 enforces: the constrained schema the client
+    sends and the shape the parser validates ARE the same class's schema, so
+    they cannot diverge. Import failure is a HARD generator error - the drift
+    gate must notice the contract module vanishing, not silently drop the op.
+    """
+    import importlib.util
+
+    path = REPO_ROOT / VLM_VERDICT_SOURCE
+    spec = importlib.util.spec_from_file_location("vss_vlm_verdict", path)
+    if spec is None or spec.loader is None:
+        raise SystemExit(f"gen-ai-contract: cannot load {VLM_VERDICT_SOURCE}")
+    module = importlib.util.module_from_spec(spec)
+    # register BEFORE exec (test_gen_ai_contract._load's own lesson): the
+    # module opens `from __future__ import annotations`, so pydantic resolves
+    # the string annotations through sys.modules - unregistered, every class
+    # is "not fully defined".
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.modules.pop(spec.name, None)
+    return (
+        module.VlmVerdict.model_json_schema(),
+        module.VlmAssessRequest.model_json_schema(),
+    )
+
 # WP7.3 Tier A: the backend calls these; they 404 on the deployed gateway.
 # per_model_server=True records where the path DOES exist (heavy server /
 # native-host path); model_unload carries the path-shape divergence in its
@@ -379,6 +445,22 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     "EnrichmentClient.enrich_detection": "enrichment_enrich",
     "EnrichmentClient.get_model_status": "model_status",
     "EnrichmentClient.preload_model": "model_preload",
+    # VlmClient (1.3: vlm_assess leaves the not-wired third state - the
+    # client dials the real wire POST /v1/chat/completions; the registry
+    # path stays the /vlm/ contract handle, see VLM_OPS below)
+    "VlmClient.assess": "vlm_assess",
+    # close() is a pure pool teardown. wake() DOES make an HTTP call - the
+    # §6 cold-start ping (max_tokens:1 on the engine's own chat endpoint) -
+    # but it is not a registry OPERATION: no request/response contract, no
+    # schema, nothing a provider can be conformant about. None records
+    # "no operation here", which is what the key means for both.
+    "VlmClient.close": None,
+    "VlmClient.wake": None,
+    # prompt_text() renders the text half of the assess message. Public
+    # because the analyzer stores it verbatim as Event.llm_prompt (spec §4:
+    # images referenced by path), so a single source renders both the wire
+    # and the audit row - but it makes NO HTTP call, so no operation here.
+    "VlmClient.prompt_text": None,
 }
 
 
@@ -641,11 +723,16 @@ def _attach_missing_response_schemas(ops: dict[str, dict[str, Any]]) -> None:
 def build_all() -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
     ops, path_index = collect_gateway_operations()
     check_phantoms(ops)
-    for op_id, rec in {**LLM_OPS, **PHANTOM_OPS}.items():
+    for op_id, rec in {**LLM_OPS, **VLM_OPS, **PHANTOM_OPS}.items():
         if op_id in ops:
             raise SystemExit(f"id collision: {op_id} declared in two sources")
         ops[op_id] = rec
     _attach_missing_response_schemas(ops)
+    # VLM seam: both sides generated FROM the contract classes (spec §3,
+    # "Generated, never hand-written") - not transcribed, not snapshotted.
+    verdict_schema, request_schema = _vlm_contract_schemas()
+    ops["vlm_assess"]["response"] = verdict_schema
+    ops["vlm_assess"]["request"] = request_schema
     # client-map sanity: every mapped op exists
     mapped = {v for v in CLIENT_OP_MAP.values() if v}
     missing = mapped - set(ops)
@@ -729,7 +816,7 @@ def _json_primitive(x: object) -> bool:
     return x is None or isinstance(x, (bool, int, float, str))
 
 
-def _json_node(node: object, indent: int, suffix: str) -> str:
+def _json_node(node: object, indent: int, suffix: str, prefix: int = 0) -> str:
     """Serialize one node at prettier 3.x's JSON fixpoint (verified against the
     pre-commit hook's prettier 3.2.4 bytes: 36/36 schemas byte-identical).
 
@@ -738,9 +825,16 @@ def _json_node(node: object, indent: int, suffix: str) -> str:
       because the generator sorts; prettier itself preserves source order);
     - a primitive-only array collapses to one line iff the collapsed line -
       INCLUDING the trailing comma the parent appends (the 100/101 boundary
-      was probed) - fits printWidth, else expands one element per line;
+      was probed) AND the `"key": ` the parent object appends (found the hard
+      way: vlm_assess.response's 7-key `required` collapsed at pad+array=92
+      while the real line was `"required": [...]` = 103 and prettier expanded)
+      - fits printWidth, else expands one element per line;
     - arrays of objects always expand with each object on its own block;
     - strings use json.dumps default escaping (\\uXXXX), which is prettier's.
+
+    `prefix` is the character count already committed on the node's first
+    line (parent's indent + its `"key": `), threaded down so every collapse
+    decision measures the line prettier would actually print.
 
     Deliberately NOT a prettier shell-out: CI jobs that run --check have no
     guarantee of the hook's pinned prettier@3.2.4 (the sandbox additionally
@@ -758,18 +852,19 @@ def _json_node(node: object, indent: int, suffix: str) -> str:
             # dict value and inside arrays ("[{}, ...]" is not generated here)
             return "{}"
         keys = sorted(node)
-        parts = [
-            f"{pad_in}{json.dumps(k)}: "
-            f"{_json_node(node[k], indent + 2, ',' if i < len(keys) - 1 else '')}"
-            for i, k in enumerate(keys)
-        ]
+        parts = []
+        for i, k in enumerate(keys):
+            key_prefix = len(pad_in) + len(json.dumps(k)) + 2
+            child_suffix = "," if i < len(keys) - 1 else ""
+            rendered = _json_node(node[k], indent + 2, child_suffix, key_prefix)
+            parts.append(f"{pad_in}{json.dumps(k)}: {rendered}")
         return "{\n" + ",\n".join(parts) + "\n" + pad + "}"
     if isinstance(node, list):
         if not node:
             return "[]"
         if all(_json_primitive(e) for e in node):
             single = json.dumps(node)
-            if len(pad) + len(single) + len(suffix) <= _PRINT_WIDTH:
+            if prefix + len(single) + len(suffix) <= _PRINT_WIDTH:
                 return single
             parts = [pad_in + _json_node(e, indent + 2, "") for e in node]
             return "[\n" + ",\n".join(parts) + "\n" + pad + "]"
@@ -781,7 +876,7 @@ def _json_node(node: object, indent: int, suffix: str) -> str:
             ]
             if all("\n" not in s for s in inner):
                 joined = "[" + ", ".join(inner) + "]"
-                if len(pad) + len(joined) + len(suffix) <= _PRINT_WIDTH:
+                if prefix + len(joined) + len(suffix) <= _PRINT_WIDTH:
                     return joined
             parts = [
                 pad_in + _json_node(e, indent + 2, "," if i < len(node) - 1 else "")
@@ -847,6 +942,12 @@ def _example_for(key: str, prop: dict, defs: dict, depth: int = 0) -> Any:
             if branch.get("type") != "null":
                 return _example_for(key, branch, defs, depth)
         return None
+    if "enum" in prop:
+        # first declared member, deterministically (vlm_assess.verdict is the
+        # first enum in the contract; WP7.2 surveyed none before it). The
+        # payload golden is a validated fixture - the "sample_<key>" string
+        # default would VIOLATE an enum schema, and this golden must post.
+        return prop["enum"][0]
     t = prop.get("type", "object" if "properties" in prop else "string")
     if t == "string":
         if prop.get("contentEncoding") == "binary":

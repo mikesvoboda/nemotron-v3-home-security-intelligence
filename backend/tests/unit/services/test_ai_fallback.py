@@ -959,10 +959,15 @@ class TestFallbackEmbedding:
     """Tests for get_fallback_embedding method."""
 
     def test_fallback_embedding_returns_zero_vector(self, fallback_service) -> None:
-        """Test that fallback embedding returns zero vector."""
+        """Test that fallback embedding returns zero vector.
+
+        512 dims — the OSNet-AIN x1.0 space the full swap (ledger item 20)
+        made the only person-vector space; a 768-dim stub could never be
+        compared against anything the store holds.
+        """
         embedding = fallback_service.get_fallback_embedding()
 
-        assert len(embedding) == 768
+        assert len(embedding) == 512
         assert all(v == 0.0 for v in embedding)
 
 

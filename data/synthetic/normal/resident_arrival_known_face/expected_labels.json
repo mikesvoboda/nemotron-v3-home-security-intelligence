@@ -1,0 +1,27 @@
+{
+  "source": "specialist-context-cases",
+  "category": "normal",
+  "video_id": "SC-BENIGN-KNOWN-FACE",
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "scene": {
+    "location": "driveway",
+    "time_of_day": "evening"
+  },
+  "risk": {
+    "min_score": 5,
+    "max_score": 25,
+    "level": "low"
+  },
+  "specialist_context": {
+    "faces": {
+      "known_person": "Dad",
+      "similarity": 0.78
+    }
+  }
+}

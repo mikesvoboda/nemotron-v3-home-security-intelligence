@@ -294,7 +294,8 @@ class TestFallbackBehavior:
         """Test fallback embedding returns zero vector."""
         embedding = ai_fallback_service.get_fallback_embedding()
 
-        assert len(embedding) == 768
+        # 512 dims — the OSNet-AIN x1.0 space (full swap, ledger item 20).
+        assert len(embedding) == 512
         assert all(v == 0.0 for v in embedding)
 
 

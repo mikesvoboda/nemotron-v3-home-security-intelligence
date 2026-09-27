@@ -6593,141 +6593,93 @@ class TestEnrichmentResultWeatherIntegration:
 
 
 # =============================================================================
-# CLIP Embedding Caching Tests (NEM-5517/5518/5519)
+# Re-ID Embedding Caching Tests (NEM-5517/5518/5519, post-swap ledger item 20)
 # =============================================================================
 
 
-class TestEnrichmentResultCLIPEmbeddingCaching:
-    """Tests for CLIP embedding caching in EnrichmentResult.
+class TestEnrichmentResultReIDEmbeddingCaching:
+    """Tests for person re-ID embedding caching in EnrichmentResult.
 
-    These tests verify that CLIP embeddings generated during re-identification
-    are properly cached in enrichment_data for reuse by downstream services.
+    Post-swap (ledger item 20) the cached vectors are OSNet-AIN x1.0
+    (512-d) with their F11 belt cached beside them. The old CLIP cache
+    (clip_embeddings, 768-d, routed into the CLIP-named keys face_clip /
+    vehicle_visual) is retired along with its producer — a field named
+    clip_embeddings holding OSNet bytes is the silent-drift class the
+    ledger doctrine forbids, hence the honest rename.
 
     Related to NEM-5517/5518/5519: Embedding Caching.
     """
 
-    def test_clip_embeddings_field_exists(self) -> None:
-        """Test that EnrichmentResult has a clip_embeddings field."""
+    def test_reid_embeddings_field_exists(self) -> None:
+        """EnrichmentResult carries the re-ID cache and the belt cache."""
         result = EnrichmentResult()
-        assert hasattr(result, "clip_embeddings")
-        assert isinstance(result.clip_embeddings, dict)
+        assert isinstance(result.reid_embeddings, dict)
+        assert isinstance(result.reid_embedding_models, dict)
+        # the retired CLIP-named field is gone, not aliased
+        assert not hasattr(result, "clip_embeddings")
 
-    def test_clip_embeddings_can_store_embeddings(self) -> None:
-        """Test that clip_embeddings can store embedding vectors."""
+    def test_reid_embeddings_can_store_embeddings(self) -> None:
+        """The cache holds OSNet-space vectors (512-d)."""
         result = EnrichmentResult()
-        test_embedding = [0.1 * i for i in range(768)]
+        test_embedding = [0.1 * i for i in range(512)]
 
-        result.clip_embeddings["1"] = test_embedding
+        result.reid_embeddings["1"] = test_embedding
 
-        assert "1" in result.clip_embeddings
-        assert len(result.clip_embeddings["1"]) == 768
-        assert result.clip_embeddings["1"][0] == 0.0
-        assert result.clip_embeddings["1"][1] == pytest.approx(0.1)
+        assert "1" in result.reid_embeddings
+        assert len(result.reid_embeddings["1"]) == 512
+        assert result.reid_embeddings["1"][0] == 0.0
+        assert result.reid_embeddings["1"][1] == pytest.approx(0.1)
 
-    def test_has_clip_embeddings_property(self) -> None:
-        """Test has_clip_embeddings property for presence detection."""
-        # Without embeddings
+    def test_has_reid_embeddings_property(self) -> None:
+        """has_reid_embeddings property for presence detection."""
         result_empty = EnrichmentResult()
-        assert result_empty.has_clip_embeddings is False
+        assert result_empty.has_reid_embeddings is False
 
-        # With embeddings
         result_with = EnrichmentResult()
-        result_with.clip_embeddings["1"] = [0.5] * 768
-        assert result_with.has_clip_embeddings is True
+        result_with.reid_embeddings["1"] = [0.5] * 512
+        assert result_with.has_reid_embeddings is True
 
-    def test_to_storage_dict_includes_vehicle_clip_embedding(self) -> None:
-        """Test that to_storage_dict includes vehicle CLIP embeddings.
-
-        When a vehicle has CLIP embeddings and vehicle_reid_matches,
-        the embedding should be stored as vehicle_visual.
-        """
+    def test_to_storage_dict_stores_person_reid_with_belt(self) -> None:
+        """A cached vector stores as person_reid WITH its belt — no
+        detection-context routing into CLIP-named keys anymore."""
         result = EnrichmentResult()
-        test_embedding = [0.5] * 768
+        result.reid_embeddings["1"] = [0.5] * 512
+        result.reid_embedding_models["1"] = "osnet-test@w@abc"
+        result.vehicle_reid_matches["1"] = []  # context can no longer reroute
 
-        # Add CLIP embedding and vehicle re-id matches
-        result.clip_embeddings["1"] = test_embedding
-        result.vehicle_reid_matches["1"] = []  # Empty list indicates processed as vehicle
-
-        # Get enrichment data for detection 1
         enrichment = result.to_storage_dict(1)
 
         assert enrichment is not None
-        assert "embeddings" in enrichment
-        assert "vehicle_visual" in enrichment["embeddings"]
-        assert len(enrichment["embeddings"]["vehicle_visual"]) == 768
+        assert enrichment["embeddings"] == {
+            "person_reid": [0.5] * 512,
+            "model_id": "osnet-test@w@abc",
+        }
 
-    def test_to_storage_dict_includes_person_clip_embedding(self) -> None:
-        """Test that to_storage_dict includes person CLIP embeddings.
-
-        When a person has CLIP embeddings and person_reid_matches,
-        the embedding should be stored as face_clip.
-        """
+    def test_to_storage_dict_retires_clip_named_keys(self) -> None:
+        """Neither face_clip nor vehicle_visual can be produced from the
+        re-ID cache — the keys died with their producer."""
         result = EnrichmentResult()
-        test_embedding = [0.3] * 768
+        result.reid_embeddings["2"] = [0.3] * 512
+        result.reid_embedding_models["2"] = "osnet-test@w@abc"
+        result.person_reid_matches["2"] = []
 
-        # Add CLIP embedding and person re-id matches
-        result.clip_embeddings["2"] = test_embedding
-        result.person_reid_matches["2"] = []  # Empty list indicates processed as person
-
-        # Get enrichment data for detection 2
         enrichment = result.to_storage_dict(2)
 
         assert enrichment is not None
-        assert "embeddings" in enrichment
-        assert "face_clip" in enrichment["embeddings"]
-        assert len(enrichment["embeddings"]["face_clip"]) == 768
+        assert "face_clip" not in enrichment["embeddings"]
+        assert "vehicle_visual" not in enrichment["embeddings"]
+        assert enrichment["embeddings"]["person_reid"] == [0.3] * 512
 
-    def test_to_storage_dict_combines_osnet_and_clip_embeddings(self) -> None:
-        """Test that both OSNet and CLIP embeddings are stored for persons.
-
-        When a person has both OSNet (person_embeddings) and CLIP embeddings,
-        both should be stored: person_reid (OSNet) and face_clip (CLIP).
-        """
+    def test_to_storage_dict_beltless_vector_stores_alone(self) -> None:
+        """A vector cached WITHOUT a belt stores alone (the readers treat a
+        missing belt as untrusted — never a guessed producer)."""
         result = EnrichmentResult()
-        clip_embedding = [0.2] * 768
-        osnet_embedding = np.array([0.1] * 512, dtype=np.float32)
+        result.reid_embeddings["4"] = [0.4] * 512
 
-        # Create mock OSNet embedding result
-        class MockEmbeddingResult:
-            def __init__(self, embedding):
-                self.embedding = embedding
-
-        # Add both types of embeddings
-        result.clip_embeddings["3"] = clip_embedding
-        result.person_embeddings["3"] = MockEmbeddingResult(osnet_embedding)
-        result.person_reid_matches["3"] = []  # Mark as person
-
-        # Get enrichment data
-        enrichment = result.to_storage_dict(3)
-
-        assert enrichment is not None
-        assert "embeddings" in enrichment
-        # Should have both embeddings
-        assert "face_clip" in enrichment["embeddings"]
-        assert "person_reid" in enrichment["embeddings"]
-        assert len(enrichment["embeddings"]["face_clip"]) == 768
-        assert len(enrichment["embeddings"]["person_reid"]) == 512
-
-    def test_clip_embedding_for_unmatched_detection(self) -> None:
-        """Test CLIP embedding handling for detections without re-id matches.
-
-        When a detection has a CLIP embedding but no re-id matches,
-        we use context from person_embeddings to determine the type.
-        """
-        result = EnrichmentResult()
-        test_embedding = [0.4] * 768
-
-        # Add CLIP embedding but no re-id matches
-        result.clip_embeddings["4"] = test_embedding
-        # No person_reid_matches or vehicle_reid_matches for this detection
-
-        # Get enrichment data
         enrichment = result.to_storage_dict(4)
 
         assert enrichment is not None
-        assert "embeddings" in enrichment
-        # Default to vehicle_visual for unmatched detections
-        assert "vehicle_visual" in enrichment["embeddings"]
+        assert enrichment["embeddings"] == {"person_reid": [0.4] * 512}
 
     def test_no_embeddings_key_when_empty(self) -> None:
         """Test that embeddings key is not added when no embeddings exist."""

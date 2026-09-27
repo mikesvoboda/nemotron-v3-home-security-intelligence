@@ -4,7 +4,7 @@ import { CheckSquare, ChevronDown, ChevronRight, Square } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 
 import { usePrefetchEventDetections } from '../../hooks/useEventDetectionsQuery';
-import { getRiskLevel, type RiskLevel } from '../../utils/risk';
+import { resolveRiskLevel, type RiskLevel } from '../../utils/risk';
 import { EventCardSkeleton } from '../common';
 import EventCard, { type Detection } from './EventCard';
 
@@ -92,7 +92,11 @@ function calculateRiskCounts(events: Event[]): Record<RiskLevel, number> {
   };
 
   events.forEach((event) => {
-    const level = (event.risk_level || getRiskLevel(event.risk_score || 0)) as RiskLevel;
+    // resolveRiskLevel → null (1.6) means "no level" - it counts toward
+    // none of the four breakdown badges, exactly like LiveActivitySection
+    // already does. A NULL-score event is not a 'low'.
+    const level = resolveRiskLevel(event.risk_level, event.risk_score);
+    if (level === null) return;
     counts[level] = (counts[level] || 0) + 1;
   });
 
@@ -287,8 +291,8 @@ function TimeGroupSection({
                   id={String(event.id)}
                   timestamp={event.started_at}
                   camera_name={cameraName}
-                  risk_score={event.risk_score || 0}
-                  risk_label={event.risk_level || getRiskLevel(event.risk_score || 0)}
+                  risk_score={event.risk_score ?? null}
+                  verdict={event.verification?.verdict}
                   summary={event.summary || 'No summary available'}
                   thumbnail_url={event.thumbnail_url || undefined}
                   detections={detections}

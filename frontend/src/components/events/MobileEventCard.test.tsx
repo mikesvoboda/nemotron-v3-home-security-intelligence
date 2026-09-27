@@ -45,6 +45,31 @@ describe('MobileEventCard', () => {
     expect(badge).toHaveTextContent('High (75)');
   });
 
+  it('NULL score renders the Unverified badge, not a green Low (1.6)', () => {
+    // The lie this pins: risk_score || 0 made a never-analyzed event
+    // (D11) read as a confident, safe "Low".
+    render(<MobileEventCard {...defaultProps} risk_score={null} />);
+
+    const badge = screen.getByRole('status', { name: /verification verdict/i });
+    expect(badge).toHaveTextContent('Unverified');
+    expect(badge).toHaveAttribute('data-verdict', 'unverified');
+    expect(screen.queryByRole('status', { name: /risk level/i })).not.toBeInTheDocument();
+  });
+
+  it('NULL score with a real verdict names the verdict (1.6)', () => {
+    render(<MobileEventCard {...defaultProps} risk_score={null} verdict="verification_failed" />);
+
+    const badge = screen.getByRole('status', { name: /verification verdict/i });
+    expect(badge).toHaveTextContent('Verification failed');
+  });
+
+  it('a real score of 0 still renders the Low badge (null and zero differ)', () => {
+    render(<MobileEventCard {...defaultProps} risk_score={0} />);
+
+    const badge = screen.getByRole('status', { name: /risk level/i });
+    expect(badge).toHaveTextContent(/Low/i);
+  });
+
   it('renders in single-line compact layout', () => {
     const { container } = render(<MobileEventCard {...defaultProps} />);
 

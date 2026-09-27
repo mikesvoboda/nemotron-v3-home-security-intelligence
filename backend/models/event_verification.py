@@ -23,16 +23,18 @@ backend/tests/integration/test_p04_event_verifications.py.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, get_args
 
 from sqlalchemy import (
     CheckConstraint,
+    ColumnElement,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     String,
     Text,
+    select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,9 +48,47 @@ if TYPE_CHECKING:
     from .event import Event
 
 # spec §4: verdict ∈ {confirmed, rejected, uncertain, verification_failed}
-VERDICT_VALUES = ("confirmed", "rejected", "uncertain", "verification_failed")
-
 VerdictLiteral = Literal["confirmed", "rejected", "uncertain", "verification_failed"]
+VERDICT_VALUES: tuple[str, ...] = get_args(VerdictLiteral)
+
+# 1.6: the API filter vocabulary is the four verdicts PLUS a pseudo-value.
+# VERDICT_NONE = "show me what was never verified" — not expressible as any
+# verdict, and in a fresh vlm deployment it is the first question an operator
+# asks. The Literal (not a str) is what makes a typo a 422 instead of an
+# empty list: the 1.5 no-silent-fallback rule, applied to a filter.
+VERDICT_NONE = "none"
+VerdictFilterLiteral = Literal["confirmed", "rejected", "uncertain", "verification_failed", "none"]
+VERDICT_FILTER_VALUES: tuple[str, ...] = get_args(VerdictFilterLiteral)
+
+
+def verdict_filter_condition(verdict: str) -> ColumnElement[bool]:
+    """SQL condition for ``?verdict=<value>`` on the event list/search routes.
+
+    The verdict lives ONLY on ``event_verifications`` — it is never
+    denormalized onto Event — so filtering is EXISTS / NOT EXISTS on the
+    relationship, not a column comparison. ``Event.verifications`` has no
+    unique constraint (a repair path may stack rows), so a row whose ANY
+    verification matches is a match; ``verification_payload`` independently
+    renders the newest row for display.
+
+    ``verdict`` arrives already validated at the route: the param is typed
+    ``VerdictFilterLiteral``, so anything outside the vocabulary is a 422
+    before this runs — the 1.5 no-silent-fallback rule, applied to a filter.
+    """
+    from .event import Event  # function-local: event.py names THIS module (TYPE_CHECKING)
+
+    if verdict == VERDICT_NONE:
+        return ~(
+            select(EventVerification.id).where(EventVerification.event_id == Event.id).exists()
+        )
+    return (
+        select(EventVerification.id)
+        .where(
+            EventVerification.event_id == Event.id,
+            EventVerification.verdict == verdict,
+        )
+        .exists()
+    )
 
 
 class EventVerification(Base):
@@ -110,6 +150,9 @@ class EventVerification(Base):
     __table_args__ = (
         Index("idx_event_verifications_event_id", "event_id"),
         Index("idx_event_verifications_created_at", "created_at"),
+        # The CHECK stays the four REAL verdicts: VERDICT_FILTER_VALUES is a
+        # filter vocabulary and 'none' means "no row exists", so a row may
+        # never carry it. The two lists are deliberately not the same set.
         CheckConstraint(
             "verdict IN ('confirmed', 'rejected', 'uncertain', 'verification_failed')",
             name="ck_event_verifications_verdict",

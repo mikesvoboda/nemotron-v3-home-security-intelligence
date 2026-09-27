@@ -467,7 +467,6 @@ async def wire_services(container: Container) -> None:
     from backend.services.enrichment_pipeline import EnrichmentPipeline
     from backend.services.health_event_emitter import HealthEventEmitter
     from backend.services.health_service_registry import HealthServiceRegistry
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
 
     # HealthServiceRegistry - sync singleton (NEM-2611)
     # Created early so other services can register with it during startup
@@ -495,16 +494,23 @@ async def wire_services(container: Container) -> None:
 
     container.register_async_singleton("enrichment_pipeline", pipeline_factory)
 
-    # NemotronAnalyzer - async singleton (depends on Redis, ContextEnricher, EnrichmentPipeline)
-    async def analyzer_factory() -> NemotronAnalyzer:
+    # The per-event analyzer - async singleton (1.5: mode-built). The
+    # class choice lives ONLY in pipeline_factory (the seam source-scan
+    # forbids constructing it here); this factory only prepares the
+    # legacy mode's extra collaborators, which the vlm analyzer does not
+    # take — so they are built only when something will receive them.
+    async def analyzer_factory() -> Any:
+        from backend.core.config import get_settings
+        from backend.services.pipeline_factory import build_pipeline_analyzer
+
         redis = await container.get_async("redis_client")
-        enricher = container.get("context_enricher")
-        pipeline = await container.get_async("enrichment_pipeline")
-        return NemotronAnalyzer(
-            redis_client=redis,
-            context_enricher=enricher,
-            enrichment_pipeline=pipeline,
-        )
+        kwargs: dict[str, Any] = {}
+        if get_settings().pipeline_mode == "legacy":
+            kwargs = {
+                "context_enricher": container.get("context_enricher"),
+                "enrichment_pipeline": await container.get_async("enrichment_pipeline"),
+            }
+        return build_pipeline_analyzer(redis_client=redis, **kwargs)
 
     container.register_async_singleton("nemotron_analyzer", analyzer_factory)
 

@@ -115,7 +115,7 @@ async def fake_client(fake_app):
 class TestFakeProviderDeterminism:
     async def test_two_identical_requests_are_byte_identical(self, fake_client) -> None:
         """The Done-when, literal: byte-identical, not merely equal-JSON.
-        Every one of the 37 ops, so no op hides a set-iteration or a
+        Every registry op, so no op hides a set-iteration or a
         time-derived default."""
         for op_id in sorted(OPERATIONS):
             op = OPERATIONS[op_id]

@@ -399,6 +399,9 @@ def osnet_collabs(extract: AsyncMock | None = None):
 def emb_result(values=(0.1, 0.2)):
     r = MagicMock()
     r.embedding = list(values)
+    # A real PersonEmbeddingResult carries the belt (F11); the fake names the
+    # same producer the handle would report (the models.yml-pinned weights).
+    r.model_id = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
     return r
 
 
@@ -466,7 +469,14 @@ async def test_osnet_skips_persons_whose_crop_is_none():
     extract = AsyncMock(return_value=emb_result())
     p_crop = AsyncMock(side_effect=[None, CROP])
     out, _p, _subs = await run_osnet([person(3), person(None)], crop=p_crop, extract=extract)
-    assert out == {"1": {"embedding": [0.1, 0.2], "embedding_dim": 2, "detection_id": "1"}}
+    assert out == {
+        "1": {
+            "embedding": [0.1, 0.2],
+            "embedding_dim": 2,
+            "detection_id": "1",
+            "model_id": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+        }
+    }
     assert [c.args for c in extract.await_args_list] == [(MODEL, CROP)]
 
 
@@ -489,7 +499,14 @@ async def test_osnet_returns_embedding_entries_keyed_by_det_id():
     extract = AsyncMock(return_value=emb_result((0.5, 0.6, 0.7)))
     out, _p, _subs = await run_osnet([person(9)], extract=extract)
     assert isinstance(out, dict)
-    assert out == {"9": {"embedding": [0.5, 0.6, 0.7], "embedding_dim": 3, "detection_id": "9"}}
+    assert out == {
+        "9": {
+            "embedding": [0.5, 0.6, 0.7],
+            "embedding_dim": 3,
+            "detection_id": "9",
+            "model_id": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+        }
+    }
 
 
 @pytest.mark.asyncio

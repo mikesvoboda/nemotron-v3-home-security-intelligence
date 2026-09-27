@@ -30,6 +30,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+# F11 ruling 2: every stored face vector says WHICH weights produced it,
+# and the default is the sentinel — a row that never says is untrusted by
+# default, never trusted with a fake id. The constant lives in a
+# dependency-free leaf because the extractor needs the same vocabulary and
+# models must not import services.
+from backend.core.face_provenance import LEGACY_MODEL_ID
+
 from .camera import Base
 
 if TYPE_CHECKING:
@@ -121,6 +128,8 @@ class FaceEmbedding(Base):
         id: Unique identifier for the embedding
         person_id: Foreign key to the associated KnownPerson
         embedding: Serialized 512-dim float32 embedding vector
+        model_id: Which weights computed the vector — a real model id, or
+            the sentinel when the origin is unknown (F11 ruling 2)
         quality_score: Face quality score when embedding was captured (0-1)
         source_image_path: Optional path to the source image
         created_at: When the embedding was created
@@ -136,6 +145,20 @@ class FaceEmbedding(Base):
         nullable=False,
     )
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # No text() here on purpose: SQLAlchemy renders a string server_default as
+    # a SQL string literal, so the module constant IS the DEFAULT — one
+    # spelling, no f-string to make semgrep's text() audit right to fire
+    # (plate_read.py's "now()" is the same mechanism, which is why it looks
+    # unquoted-but-isn't). The DEFAULT must match the Python default, the
+    # migration SQL and the conftest drift repair EXACTLY: rows created by SQL
+    # that never went through the ORM get this value, and a divergent spelling
+    # would silently split the gallery's provenance vocabulary.
+    model_id: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        server_default=LEGACY_MODEL_ID,
+        default=LEGACY_MODEL_ID,
+    )
     quality_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     source_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -173,6 +196,8 @@ class FaceDetectionEvent(Base):
         timestamp: When the face was detected
         bbox: Bounding box coordinates [x1, y1, x2, y2]
         embedding: Serialized 512-dim float32 embedding vector
+        model_id: Which weights computed that vector (provenance carried
+            into any gallery copy of it)
         matched_person_id: FK to matched KnownPerson (None if unknown)
         match_confidence: Cosine similarity with matched person
         is_unknown: True if face is unknown (no match found)
@@ -199,6 +224,15 @@ class FaceDetectionEvent(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     bbox: Mapped[dict] = mapped_column(JSONB, nullable=False)
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # The event's vector gets COPIED into the gallery (identify_face_event,
+    # the auto-enrollment queue), so the provenance must ride the event too
+    # — otherwise a copy inherits a default it did not earn (F11 ruling 2).
+    model_id: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        server_default=LEGACY_MODEL_ID,
+        default=LEGACY_MODEL_ID,
+    )
     matched_person_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("known_persons.id", ondelete="SET NULL"),

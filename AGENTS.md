@@ -451,6 +451,7 @@ Host ports come from `.env` (defaults shown below are from `.env.example`); `doc
 | AI Gateway metrics   | 8002      | Gateway Prometheus metrics (`AI_GATEWAY_METRICS_PORT`)                                              |
 | Nemotron (llama.cpp) | 8091      | LLM risk analysis container (GPU)                                                                   |
 | vLLM (optional)      | 8097      | Alternative LLM engine — compose profile `vllm`, off by default                                     |
+| VLM (`AI_VLM_PORT`)  | 8098      | VLM verification server — compose profile `vlm`, off by default (container port fixed at 8098)      |
 
 Since commit bc7d6101 production has **no standalone YOLO26/Florence/CLIP/enrichment containers**. `YOLO26_PORT=8095`, `FLORENCE_PORT=8092`, `CLIP_PORT=8093`, `ENRICHMENT_PORT=8094` and `ENRICHMENT_LIGHT_PORT=8096` in `.env.example` are legacy values kept for reference and local dev scripts only. The `JAEGER_*` and `ELASTICSEARCH_*` port vars were removed — tracing is Grafana Tempo (NEM-5545) on `TEMPO_PORT=3200`, and Tempo is self-contained (no Jaeger/Elasticsearch storage backend).
 

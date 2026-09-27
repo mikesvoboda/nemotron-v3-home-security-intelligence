@@ -24,6 +24,8 @@ from uuid import UUID
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
 
+from backend.core.logging import get_logger
+from backend.core.vector_provenance import LEGACY_MODEL_ID
 from backend.models import Entity
 from backend.models.enums import EntityType
 from backend.repositories.base import Repository
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from backend.models import Detection
+
+logger = get_logger(__name__)
 
 # Type alias to avoid shadowing by the list() method
 _list = builtins.list
@@ -240,12 +244,29 @@ class EntityRepository(Repository[Entity]):
 
         return entities, total
 
+    @staticmethod
+    def _provenance_matches(entity: Entity, model_id: str | None) -> bool:
+        """F11 guard for the JSONB belt (ledger item 20).
+
+        A stored row is comparable ONLY when its ``model`` names the same
+        weights as the probe's; the pre-swap sentinel (a row that never
+        named its producer, or a JSONB written before provenance) and a
+        probe of no named model both compare against nothing. This is a
+        SKIP, not a 0.0: the retired behaviour scored foreign rows through
+        _cosine_similarity's silent dimension pass, which reports "no
+        match" for what is really "no comparison possible".
+        """
+        if not model_id or model_id == LEGACY_MODEL_ID:
+            return False
+        return entity.get_embedding_model() == model_id
+
     async def find_by_embedding(
         self,
         embedding: Sequence[float],
         entity_type: str,
         threshold: float = 0.85,
         limit: int = 10,
+        model_id: str | None = None,
     ) -> Sequence[tuple[Entity, float]]:
         """Find similar entities by embedding vector.
 
@@ -257,6 +278,10 @@ class EntityRepository(Repository[Entity]):
             entity_type: Filter by entity type
             threshold: Minimum similarity score (0-1, default: 0.85)
             limit: Maximum number of results (default: 10)
+            model_id: Which weights computed ``embedding``. Required for a
+                comparison to happen at all (F11): rows from another space,
+                or that never named a space, are skipped — a probe with no
+                named producer scores against NOTHING.
 
         Returns:
             List of (entity, similarity_score) tuples sorted by similarity descending
@@ -267,6 +292,7 @@ class EntityRepository(Repository[Entity]):
                 entity_type="person",
                 threshold=0.85,
                 limit=5,
+                model_id=osnet_model_id(),
             )
             for entity, score in matches:
                 print(f"Entity {entity.id}: {score:.2f}")
@@ -281,15 +307,28 @@ class EntityRepository(Repository[Entity]):
 
         # Compute cosine similarity in application layer
         matches: list[tuple[Entity, float]] = []
+        skipped = 0
 
         for entity in candidates:
             entity_embedding = entity.get_embedding_vector()
             if entity_embedding is None:
                 continue
 
+            if not self._provenance_matches(entity, model_id):
+                skipped += 1
+                continue
+
             similarity = self._cosine_similarity(embedding, entity_embedding)
             if similarity >= threshold:
                 matches.append((entity, similarity))
+
+        if skipped:
+            logger.debug(
+                "find_by_embedding skipped %d %s row(s) outside model %r (provenance guard, F11)",
+                skipped,
+                entity_type,
+                model_id,
+            )
 
         # Sort by similarity descending and limit results
         matches.sort(key=lambda x: x[1], reverse=True)
@@ -350,6 +389,7 @@ class EntityRepository(Repository[Entity]):
         embedding: Sequence[float],
         threshold: float = 0.85,
         attributes: dict[str, Any] | None = None,
+        model_id: str | None = None,
     ) -> tuple[Entity, bool]:
         """Get existing matching entity or create new one.
 
@@ -363,6 +403,9 @@ class EntityRepository(Repository[Entity]):
             embedding: Embedding vector for similarity matching
             threshold: Minimum similarity score to consider a match (default: 0.85)
             attributes: Optional metadata to store on new entity (e.g., camera_id)
+            model_id: Which weights computed ``embedding`` — required (F11;
+                the retired "clip" literal would mislabel OSNet bytes, so
+                an unnamed write now raises from from_detection instead)
 
         Returns:
             Tuple of (entity, is_new) where is_new is True if entity was created
@@ -386,6 +429,7 @@ class EntityRepository(Repository[Entity]):
             entity_type=entity_type,
             threshold=threshold,
             limit=1,
+            model_id=model_id,
         )
 
         if matches:
@@ -395,12 +439,13 @@ class EntityRepository(Repository[Entity]):
             await self.session.flush()
             return matched_entity, False
 
-        # No match - create new entity
+        # No match - create new entity. from_detection refuses a None model
+        # (F11: no "clip" default to mislabel OSNet bytes anymore).
         entity = Entity.from_detection(
             entity_type=entity_type,
             detection_id=detection_id,
             embedding=list(embedding),
-            model="clip",
+            model=model_id,
             entity_metadata=attributes,
         )
         self.session.add(entity)

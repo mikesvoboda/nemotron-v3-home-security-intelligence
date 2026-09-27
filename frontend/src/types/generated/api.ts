@@ -5386,7 +5386,9 @@ export interface paths {
          *     Args:
          *         detection_id: Detection ID to find matches for
          *         entity_type: Type of entity to search ('person' or 'vehicle')
-         *         threshold: Minimum cosine similarity threshold (default 0.85)
+         *         threshold: Minimum cosine similarity threshold (default
+         *             DEFAULT_SIMILARITY_THRESHOLD — 0.7, the OSNet-space value,
+         *             full swap ledger item 20)
          *         reid_service: Re-identification service dependency
          *
          *     Returns:
@@ -5731,6 +5733,10 @@ export interface paths {
          *     Args:
          *         camera_id: Optional camera ID to filter by
          *         risk_level: Optional risk level to filter by (low, medium, high, critical)
+         *         verdict: Optional VLM verdict filter (confirmed/rejected/uncertain/
+         *             verification_failed, or 'none' for never-verified events). An
+         *             unrecognised value is a 422 from the Literal-typed param - never
+         *             an empty list, which would read as a false all-clear.
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
@@ -6040,6 +6046,8 @@ export interface paths {
          *         risk_level: Alias for severity - accepts same format
          *         object_type: Optional comma-separated object types (person, vehicle, animal)
          *         reviewed: Optional filter by reviewed status
+         *         verdict: Optional VLM verdict filter (or 'none' for never-verified events),
+         *             same vocabulary and 422-on-typo rule as GET /api/events?verdict
          *         limit: Maximum number of results to return (1-1000, default 50)
          *         offset: Number of results to skip for pagination (default 0)
          *         db: Database session
@@ -6578,20 +6586,34 @@ export interface paths {
         put?: never;
         /**
          * Match Face
-         * @description Match a face embedding against known persons.
+         * @deprecated
+         * @description Retired: POST a client-computed face embedding vector (F11, M1 review F-F).
          *
-         *     Compares the provided 512-dimensional embedding against all stored
-         *     embeddings and returns the best match if above the threshold.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space. After the swap every ``face_embeddings`` row names the
+         *     weights that computed it (``model_id``), and a posted list of floats
+         *     carries no such belt — scoring one would either cross embedding spaces
+         *     or trust a client-claimed model id, which is no trust anchor. This is
+         *     the face twin of the retired ``POST /api/household-matcher/match-person``
+         *     (D-1), retired here for the same reason and in the same shape.
          *
-         *     Args:
-         *         data: Match request with embedding and optional threshold
-         *         session: Database session
+         *     Before the swap this endpoint answered with a real-looking similarity
+         *     computed against whichever space the stored rows happened to live in —
+         *     the exact failure F11 exists to prevent, reachable over the wire.
+         *
+         *     The sanctioned paths compute the vector server-side and store its
+         *     provenance beside it:
+         *
+         *     - the enrichment pipeline's face leg (matches automatically)
+         *     - ``POST /api/face-recognition/known-persons`` and
+         *       ``POST /api/face-recognition/known-persons/{id}/embeddings``
+         *       (enrollment: extraction runs server-side from the detection)
          *
          *     Returns:
-         *         FaceMatchResponse with match results
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the server-side paths.
          */
         post: operations["face-recognition_match_face"];
         delete?: never;
@@ -7120,20 +7142,29 @@ export interface paths {
         put?: never;
         /**
          * Match Person
-         * @description Match a person embedding against known household members.
+         * @deprecated
+         * @description Retired: POST a client-computed person embedding vector (D-1, F11).
          *
-         *     Compares the provided embedding against all stored person embeddings
-         *     and returns the best match if it exceeds the similarity threshold.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space: after the full swap every ``person_embeddings`` row
+         *     names the weights that computed it (``model_id``), and a posted list
+         *     of floats carries no such belt — comparing it would either score
+         *     across embedding spaces or force trusting a client-claimed model id,
+         *     which is no trust anchor. This is the person twin of the retired
+         *     ``POST /face-recognition/known-persons/{id}/embeddings`` (F11 ruling 2).
          *
-         *     Args:
-         *         request: PersonMatchRequest with embedding and optional threshold
-         *         db: Database session
+         *     The sanctioned paths compute the vector server-side and store the
+         *     model id beside it:
+         *
+         *     - the enrichment pipeline (``person_reid`` leg, matched automatically)
+         *     - ``POST /api/household/members/{member_id}/embeddings`` (member
+         *       enrollment: extraction runs server-side from the event's detection)
          *
          *     Returns:
-         *         HouseholdMatchResponse with match details if found
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the server-side paths.
          */
         post: operations["household-matcher_match_person"];
         delete?: never;
@@ -7157,7 +7188,12 @@ export interface paths {
          *
          *     Matching priority:
          *     1. License plate match (exact, case-insensitive) - returns similarity 1.0
-         *     2. Visual embedding match (if plate doesn't match or isn't provided)
+         *     2. Visual embedding match (if plate doesn't match or isn't provided).
+         *        LEGACY branch: no shipped producer writes vehicle embedding bytes since
+         *        the person re-ID full swap (ledger item 20, B5a — OSNet-AIN is a person
+         *        model), so in the shipped mode vehicle identity rides plate match and
+         *        this branch finds nothing to compare against. A vehicle re-ID model is
+         *        a named follow-up.
          *
          *     Args:
          *         request: VehicleMatchRequest with plate and/or embedding
@@ -7287,12 +7323,16 @@ export interface paths {
          * @description Add a person embedding from an event to a household member.
          *
          *     This endpoint extracts a person embedding from the event's detection image
-         *     using the ReIdentificationService (CLIP ViT-L) and stores it in the
-         *     PersonEmbedding table for future person re-identification.
+         *     using the ReIdentificationService (resident OSNet-AIN x1.0 handle, full
+         *     swap ledger item 20) and stores it in the PersonEmbedding table, beside
+         *     the model_id of the weights that computed it, for future person
+         *     re-identification.
          *
          *     The endpoint finds the first person detection in the event, loads the
-         *     detection image, and generates a 768-dimensional CLIP embedding using
-         *     the detection's bounding box to focus on the person.
+         *     detection image, and generates a 512-dimensional OSNet embedding using
+         *     the detection's bounding box to focus on the person. When the pinned
+         *     weights are not resident it answers 503 naming the cause — never a
+         *     zero-vector stub.
          *
          *     Args:
          *         member_id: ID of the household member
@@ -7880,21 +7920,27 @@ export interface paths {
         put?: never;
         /**
          * Add Face Embedding
-         * @description Add a face embedding for a known person.
+         * @deprecated
+         * @description Retired: POST a client-computed embedding vector (F11 ruling 2).
          *
-         *     The embedding should be a 512-dimensional ArcFace embedding vector.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space — the whole one-embedding-space rule rests on every
+         *     stored vector's provenance being knowable, and a posted list of floats
+         *     carries none. Historical vectors from this path were produced by a
+         *     `numpy.random.rand(512)` placeholder, so a gallery built here was
+         *     noise wearing real-looking numbers (ledger row 1.3b).
          *
-         *     Args:
-         *         person_id: ID of the person
-         *         data: Embedding data with 512-dim vector
-         *         session: Database session
+         *     The sanctioned enrollment paths compute server-side and store the
+         *     model id with the vector:
+         *
+         *     - ``POST /known-persons/{id}/enroll-from-detection`` (a detection's own frame)
+         *     - ``POST /known-persons/bulk-enroll`` (uploaded image)
          *
          *     Returns:
-         *         Created FaceEmbeddingResponse
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 404 if person not found
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the image-based endpoints.
          */
         post: operations["face-recognition_add_face_embedding"];
         delete?: never;
@@ -22670,7 +22716,7 @@ export interface components {
          *         }
          *       ],
          *       "query_detection_id": "det_001",
-         *       "threshold": 0.85,
+         *       "threshold": 0.7,
          *       "total_matches": 1
          *     }
          */
@@ -26048,7 +26094,7 @@ export interface components {
             image_quality_enabled: boolean;
             /**
              * Reid Enabled
-             * @description Enable CLIP re-identification for tracking entities across cameras
+             * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
             reid_enabled: boolean;
             /**
@@ -26089,7 +26135,7 @@ export interface components {
             image_quality_enabled?: boolean | null;
             /**
              * Reid Enabled
-             * @description Enable CLIP re-identification for tracking entities across cameras
+             * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
             reid_enabled?: boolean | null;
             /**
@@ -31068,7 +31114,7 @@ export interface components {
          * MatcherConfigResponse
          * @description Schema for household matcher configuration response.
          * @example {
-         *       "similarity_threshold": 0.85,
+         *       "similarity_threshold": 0.7,
          *       "total_member_embeddings": 5,
          *       "total_registered_vehicles": 3
          *     }
@@ -34086,7 +34132,7 @@ export interface components {
          *         0,
          *         0
          *       ],
-         *       "similarity_threshold": 0.85
+         *       "similarity_threshold": 0.7
          *     }
          */
         PersonMatchRequest: {
@@ -34097,7 +34143,7 @@ export interface components {
             embedding: number[];
             /**
              * Similarity Threshold
-             * @description Optional custom similarity threshold (default: 0.85)
+             * @description Optional custom similarity threshold (default: 0.7)
              */
             similarity_threshold?: number | null;
         };
@@ -39728,13 +39774,13 @@ export interface components {
          *       "entity_type": "person",
          *       "include_historical": true,
          *       "limit": 10,
-         *       "threshold": 0.85
+         *       "threshold": 0.7
          *     }
          */
         SimilaritySearchRequest: {
             /**
              * Embedding
-             * @description Embedding vector to search for (typically 768-dimensional CLIP embedding)
+             * @description Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)
              */
             embedding: number[];
             /**
@@ -39762,8 +39808,8 @@ export interface components {
             limit: number;
             /**
              * Threshold
-             * @description Minimum cosine similarity threshold for matches (default: 0.85)
-             * @default 0.85
+             * @description Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)
+             * @default 0.7
              */
             threshold: number;
         };
@@ -39789,7 +39835,7 @@ export interface components {
          *           "timestamp": "2025-12-23T10:00:00Z"
          *         }
          *       ],
-         *       "threshold": 0.85,
+         *       "threshold": 0.7,
          *       "total_matches": 1
          *     }
          */
@@ -41967,7 +42013,7 @@ export interface components {
          * @example {
          *       "color": "silver",
          *       "license_plate": "ABC123",
-         *       "similarity_threshold": 0.85,
+         *       "similarity_threshold": 0.7,
          *       "vehicle_type": "car"
          *     }
          */
@@ -41979,7 +42025,7 @@ export interface components {
             color?: string | null;
             /**
              * Embedding
-             * @description Vehicle visual embedding vector (768-dim CLIP) for visual matching
+             * @description Vehicle visual embedding vector for visual matching. LEGACY: no shipped producer writes vehicle embedding bytes since the person re-ID full swap (ledger item 20) — vehicle matching runs on license_plate, and a vehicle re-ID model is a named follow-up.
              */
             embedding?: number[] | null;
             /**
@@ -41989,7 +42035,7 @@ export interface components {
             license_plate?: string | null;
             /**
              * Similarity Threshold
-             * @description Optional custom similarity threshold for visual matching (default: 0.85)
+             * @description Optional custom similarity threshold for visual matching (default: 0.7)
              */
             similarity_threshold?: number | null;
             /**
@@ -52001,6 +52047,8 @@ export interface operations {
                 camera_id?: string | null;
                 /** @description Filter by risk level (low, medium, high, critical) */
                 risk_level?: string | null;
+                /** @description Filter by VLM verification verdict (confirmed, rejected, uncertain, verification_failed) or 'none' for events never verified. Anything else is a 422, never an empty list - a typo'd verdict must not read as a false all-clear. */
+                verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
                 /** @description Filter by start date (ISO format) */
                 start_date?: string | null;
                 /** @description Filter by end date (ISO format) */
@@ -52383,6 +52431,8 @@ export interface operations {
                 severity?: string | null;
                 /** @description Alias for severity - filter by risk levels (comma-separated: low,medium,high,critical) */
                 risk_level?: string | null;
+                /** @description Filter by VLM verification verdict (or 'none' for never-verified). Same vocabulary and 422-on-typo rule as GET /api/events?verdict. */
+                verdict?: ("confirmed" | "rejected" | "uncertain" | "verification_failed" | "none") | null;
                 /** @description Filter by object types (comma-separated: person,vehicle,animal) */
                 object_type?: string | null;
                 /** @description Filter by reviewed status */
@@ -53162,6 +53212,13 @@ export interface operations {
                     "application/json": components["schemas"]["FaceMatchResponse"];
                 };
             };
+            /** @description Always returned: POSTing a client-computed face embedding vector is retired (F11, face twin of the re-ID swap's D-1). A matching request rides the enrichment pipeline's face leg, which computes the vector server-side and knows its model_id. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -53815,8 +53872,8 @@ export interface operations {
                     "application/json": components["schemas"]["HouseholdMatchResponse"];
                 };
             };
-            /** @description Invalid embedding format */
-            400: {
+            /** @description Always returned: POSTing a client-computed person embedding vector is retired (F11, re-ID full swap D-1). A matching request rides the enrichment pipeline, which computes the vector server-side and carries its model_id. */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -53830,13 +53887,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
@@ -55007,6 +55057,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FaceEmbeddingResponse"];
                 };
+            };
+            /** @description Always returned: POSTing a client-computed embedding vector is retired (F11 ruling 2). Enroll via /known-persons/{person_id}/enroll-from-detection or /known-persons/bulk-enroll instead. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -126,7 +126,7 @@ from backend.services.model_zoo import (
     ModelManager,
     get_model_manager,
 )
-from backend.services.osnet_loader import extract_person_embedding
+from backend.services.osnet_loader import extract_person_embedding, osnet_model_id
 from backend.services.pet_classifier_loader import (
     PetClassificationResult,
     classify_pet,
@@ -136,6 +136,7 @@ from backend.services.pet_classifier_loader import (
 from backend.services.reid_service import (
     EntityEmbedding,
     EntityMatch,
+    ReIDUnavailableError,
     get_reid_service,
 )
 from backend.services.scene_change_detector import (
@@ -799,10 +800,15 @@ class EnrichmentResult:
     _smoke_consecutive_count: int = 0
     # YOLO-World zero-shot detection results (NEM-5566) - suspicious scenarios only
     yolo_world_detections: list[dict[str, Any]] = field(default_factory=list)
-    # CLIP embeddings for re-identification (768-dim), keyed by detection ID
-    # These are generated during _run_reid and cached for reuse by downstream services
-    # (NEM-5517/5518/5519: Embedding Caching)
-    clip_embeddings: dict[str, list[float]] = field(default_factory=dict)
+    # Person re-ID embeddings (512-dim OSNet-AIN x1.0, ledger item 20), keyed
+    # by detection ID. Generated during _run_reid and cached for reuse by
+    # downstream services (NEM-5517/5518/5519: Embedding Caching). Named for
+    # what they ARE since the swap: a field called clip_embeddings holding
+    # OSNet bytes is exactly the silent drift the ledger doctrine forbids.
+    reid_embeddings: dict[str, list[float]] = field(default_factory=dict)
+    # The F11 belt beside each cached vector — the producer's model_id,
+    # cached with the bytes so a downstream reader never re-guesses the space.
+    reid_embedding_models: dict[str, str] = field(default_factory=dict)
     # CLIP zero-shot scene classification results (NEM-5525)
     # Contains {label: score} dict and top_label from CLIP /classify endpoint
     clip_scene_classification: dict[str, float] | None = None
@@ -1064,9 +1070,9 @@ class EnrichmentResult:
         return bool(self.person_embeddings)
 
     @property
-    def has_clip_embeddings(self) -> bool:
-        """Check if any CLIP embeddings are available (NEM-5517/5518/5519)."""
-        return bool(self.clip_embeddings)
+    def has_reid_embeddings(self) -> bool:
+        """Check if any person re-ID (OSNet) embeddings are cached (NEM-5517/5518/5519)."""
+        return bool(self.reid_embeddings)
 
     @property
     def has_clip_scene_classification(self) -> bool:
@@ -1965,34 +1971,34 @@ class EnrichmentResult:
 
         # Cached embeddings for reuse (NEM-5517/5518/5519: Embedding Caching)
         # Store embeddings computed during enrichment to prevent redundant computation
-        # in downstream services (household_matcher, entity_clustering, reid_service)
-        embeddings: dict[str, list[float] | None] = {}
+        # in downstream services (household_matcher, entity_clustering, reid_service).
+        #
+        # Post-swap (ledger item 20) there is exactly one embedding producer
+        # here — the OSNet-AIN x1.0 person re-ID handle — so this payload
+        # carries `person_reid` + its F11 belt, and nothing else. The old
+        # CLIP-named keys ("face_clip", "vehicle_visual") are RETIRED: their
+        # writer (CLIP-as-re-ID-producer) is gone, and the OSNet bytes never
+        # belonged in them (a person-body crop labeled "face_clip" was
+        # already a misnomer; vehicles have no embedding producer at all —
+        # see _run_reid). Old rows that still carry those keys are
+        # unprovenanced legacy bytes: readers must not score them against
+        # anything (the extract_* helpers in household_matcher document
+        # this), and full removal of the schema keys is a named follow-up
+        # alongside the vehicle re-ID model.
+        embeddings: dict[str, list[float] | str | None] = {}
 
-        # CLIP embedding (768-dim) from re-identification
-        # This is the primary embedding source for persons and vehicles
-        if det_id_str in self.clip_embeddings:
-            clip_emb = self.clip_embeddings[det_id_str]
-            # Determine the embedding type based on detection context
-            # Check if this detection has vehicle re-id matches (indicates vehicle)
-            if det_id_str in self.vehicle_reid_matches:
-                embeddings["vehicle_visual"] = clip_emb
-            # Check if this detection has person re-id matches (indicates person)
-            elif det_id_str in self.person_reid_matches:
-                # Use face_clip for persons (CLIP is used for face-level matching)
-                embeddings["face_clip"] = clip_emb
-            # Default: store as person_reid if we have CLIP but no matches yet
-            # Could be either person or vehicle, store based on available context
-            # If we have person_embeddings (OSNet), this is likely a person
-            elif det_id_str in self.person_embeddings:
-                embeddings["face_clip"] = clip_emb
-            else:
-                # Store as vehicle_visual by default for unmatched CLIP embeddings
-                # The extraction functions will handle both cases
-                embeddings["vehicle_visual"] = clip_emb
+        # Person re-ID embedding (512-dim OSNet-AIN x1.0) from the
+        # _run_reid cache (belt cached beside the bytes — never re-guessed)
+        if det_id_str in self.reid_embeddings:
+            embeddings["person_reid"] = self.reid_embeddings[det_id_str]
+            belt = self.reid_embedding_models.get(det_id_str)
+            if belt:
+                embeddings["model_id"] = belt
 
-        # Person re-ID embedding (512-dim OSNet) - separate from CLIP
-        # OSNet embeddings are more specialized for person re-identification
-        if det_id_str in self.person_embeddings:
+        # The enrichment service's OSNet pass (Triton `reid`, same pinned
+        # weights — B5b) feeds the same key; the _run_reid cache wins where
+        # both ran, and whichever produced the bytes names them.
+        if "person_reid" not in embeddings and det_id_str in self.person_embeddings:
             embedding_result = self.person_embeddings[det_id_str]
             if hasattr(embedding_result, "embedding"):
                 emb = embedding_result.embedding
@@ -2001,12 +2007,21 @@ class EnrichmentResult:
                     embeddings["person_reid"] = emb.tolist()
                 elif isinstance(emb, list):
                     embeddings["person_reid"] = emb
+                belt = getattr(embedding_result, "model_id", None)
             elif isinstance(embedding_result, dict) and "embedding" in embedding_result:
                 emb = embedding_result["embedding"]
                 if hasattr(emb, "tolist"):
                     embeddings["person_reid"] = emb.tolist()
                 elif isinstance(emb, list):
                     embeddings["person_reid"] = emb
+                belt = embedding_result.get("model_id")
+            else:
+                belt = None
+            # F11 belt rides with the vector: a downstream reader must never
+            # guess which space these bytes live in (the matcher treats a
+            # missing belt as untrusted, not as the producer's default).
+            if belt:
+                embeddings["model_id"] = belt
 
         # Only add embeddings key if we have any embeddings to store
         if embeddings:
@@ -2109,7 +2124,7 @@ class EnrichmentPipeline:
             face_detection_enabled: Enable face detection
             ocr_enabled: Enable OCR on detected plates
             vision_extraction_enabled: Enable Florence-2 vision extraction
-            reid_enabled: Enable CLIP re-identification
+            reid_enabled: Enable person re-identification (OSNet-AIN x1.0)
             scene_change_enabled: Enable scene change detection
             violence_detection_enabled: Enable violence detection (runs when 2+ persons)
             weather_classification_enabled: Enable SigLIP weather classification (runs on full frame)
@@ -3431,6 +3446,10 @@ class EnrichmentPipeline:
                             "embedding": emb.tolist() if hasattr(emb, "tolist") else emb,
                             "embedding_dim": len(emb) if hasattr(emb, "__len__") else 0,
                             "detection_id": det_id,
+                            # F11 belt (A6): the loaded handle names its own
+                            # weights; a payload that cannot say is stored
+                            # unprovenanced and reads back untrusted.
+                            "model_id": getattr(emb_result, "model_id", None),
                         }
 
             duration = time.monotonic() - start
@@ -3968,6 +3987,11 @@ class EnrichmentPipeline:
                 "embedding": unified.reid_embedding,
                 "embedding_dim": len(unified.reid_embedding),
                 "detection_id": det_id,
+                # The Triton ``reid`` leg serves the SAME models.yml-pinned
+                # OSNet weights export_reid.py exported (B5b): one weights
+                # row, one belt string, whichever process computed the
+                # vector. Not a per-process guess.
+                "model_id": osnet_model_id(),
             }
 
         # --- Action (person only) ---
@@ -5468,11 +5492,16 @@ class EnrichmentPipeline:
                 observe_enrichment_model_duration("reid-via-service", duration)
 
                 if remote_result and remote_result.embedding:
-                    # Store the embedding in person_embeddings for context generation
+                    # Store the embedding in person_embeddings for context
+                    # generation. Belt: the ``reid`` service this URL points
+                    # at serves the SAME models.yml-pinned OSNet weights
+                    # (export_reid.py's export of this row), so the label is
+                    # the one helper's string, not a per-process guess (B5b).
                     result.person_embeddings[det_id] = {
                         "embedding": remote_result.embedding,
                         "embedding_dim": remote_result.embedding_dim,
                         "detection_id": det_id,
+                        "model_id": osnet_model_id(),
                     }
 
                     logger.debug(
@@ -5564,7 +5593,7 @@ class EnrichmentPipeline:
         1. Filter vehicles -> run license plate detection -> run OCR
         2. Filter persons -> run face detection
         3. Run Florence-2 vision extraction for attributes
-        4. Run CLIP re-identification
+        4. Run person re-identification (OSNet-AIN x1.0)
         5. Run scene change detection
 
         Args:
@@ -5753,131 +5782,159 @@ class EnrichmentPipeline:
         assert self.redis_client is not None, "redis_client required for re-id"
         redis: Redis = self.redis_client  # type: ignore[assignment]
 
-        # CLIP model is now accessed via HTTP service (ai-clip)
-        # The context manager is kept for compatibility but model is unused
-        async with self.model_manager.load("siglip2-base-patch16-224"):
-            for i, det in enumerate(detections):
-                det_id = str(det.id) if det.id else str(i)
+        # The producer is the reid service's resident OSNet zoo handle
+        # (ledger item 20) — no siglip model-manager load, no ai-clip call.
+        for i, det in enumerate(detections):
+            det_id = str(det.id) if det.id else str(i)
 
-                # Use pattern matching for entity type classification
-                # Only process person and vehicle detections for re-identification
-                match det.class_name:
-                    case _ if det.class_name == PERSON_CLASS:
-                        entity_type = "person"
-                    case _ if det.class_name in VEHICLE_CLASSES:
-                        entity_type = "vehicle"
-                    case _:
-                        continue  # Skip non-person/vehicle detections
+            # Use pattern matching for entity type classification
+            # Only process person and vehicle detections for re-identification
+            match det.class_name:
+                case _ if det.class_name == PERSON_CLASS:
+                    entity_type = "person"
+                case _ if det.class_name in VEHICLE_CLASSES:
+                    entity_type = "vehicle"
+                case _:
+                    continue  # Skip non-person/vehicle detections
 
-                try:
-                    # Generate embedding using ai-clip HTTP service
-                    # Scale bbox if image was resized (e.g., thumbnail vs original video)
-                    bbox = None
-                    if det.bbox:
-                        bbox_tuple = det.bbox.to_int_tuple()
-                        # Check if we need to scale the bbox
-                        if det.video_width and det.video_height:
-                            img_width, img_height = image.size
-                            # Only scale if dimensions differ
-                            if img_width != det.video_width or img_height != det.video_height:
-                                scale_x = img_width / det.video_width
-                                scale_y = img_height / det.video_height
-                                bbox = (
-                                    int(bbox_tuple[0] * scale_x),
-                                    int(bbox_tuple[1] * scale_y),
-                                    int(bbox_tuple[2] * scale_x),
-                                    int(bbox_tuple[3] * scale_y),
-                                )
-                            else:
-                                bbox = bbox_tuple
+            # B5a: vehicles have NO embedding producer in the shipped mode.
+            # OSNet-AIN is a person model — a vehicle crop through it is
+            # noise wearing plausible numbers — and /clip is retired from
+            # vlm residency, so the honest behavior is to store nothing.
+            # Vehicle identity rides plate match (household_matcher
+            # .match_vehicle tries plate first, similarity 1.0), which is
+            # untouched. A vehicle re-ID model is a named follow-up.
+            if entity_type == "vehicle":
+                logger.debug(
+                    "Vehicle re-ID has no embedding producer in the shipped mode; "
+                    "skipping embedding for detection (identity rides plate match)",
+                    extra={
+                        "operation": "reid_vehicle_no_producer",
+                        "detection_id": det_id,
+                        "entity_type": entity_type,
+                    },
+                )
+                continue
+
+            try:
+                # Scale bbox if image was resized (e.g., thumbnail vs original video)
+                bbox = None
+                if det.bbox:
+                    bbox_tuple = det.bbox.to_int_tuple()
+                    # Check if we need to scale the bbox
+                    if det.video_width and det.video_height:
+                        img_width, img_height = image.size
+                        # Only scale if dimensions differ
+                        if img_width != det.video_width or img_height != det.video_height:
+                            scale_x = img_width / det.video_width
+                            scale_y = img_height / det.video_height
+                            bbox = (
+                                int(bbox_tuple[0] * scale_x),
+                                int(bbox_tuple[1] * scale_y),
+                                int(bbox_tuple[2] * scale_x),
+                                int(bbox_tuple[3] * scale_y),
+                            )
                         else:
                             bbox = bbox_tuple
-                    embedding = await self._reid_service.generate_embedding(image, bbox=bbox)
+                    else:
+                        bbox = bbox_tuple
+                embedding, embedding_model_id = await self._reid_service.generate_embedding(
+                    image, bbox=bbox
+                )
 
-                    # Cache the CLIP embedding for reuse by downstream services
-                    # (NEM-5517/5518/5519: Embedding Caching)
-                    result.clip_embeddings[det_id] = embedding
+                # Cache the re-ID embedding (and its belt) for reuse by
+                # downstream services (NEM-5517/5518/5519: Embedding Caching;
+                # F11: the belt is cached beside the bytes, never re-guessed)
+                result.reid_embeddings[det_id] = embedding
+                result.reid_embedding_models[det_id] = embedding_model_id
 
-                    # Find matches
-                    matches = await self._reid_service.find_matching_entities(
-                        redis,
-                        embedding,
-                        entity_type=entity_type,
-                        exclude_detection_id=det_id,
-                    )
+                # Find matches — the probe's belt names the partition to
+                # search (D-3: a search over OSNet bytes physically cannot
+                # read another space's rows)
+                matches = await self._reid_service.find_matching_entities(
+                    redis,
+                    embedding,
+                    entity_type=entity_type,
+                    exclude_detection_id=det_id,
+                    model_id=embedding_model_id,
+                )
 
-                    if matches:
-                        # Use pattern matching to route matches to appropriate storage
-                        match entity_type:
-                            case "person":
-                                result.person_reid_matches[det_id] = matches
-                            case "vehicle":
-                                result.vehicle_reid_matches[det_id] = matches
+                if matches:
+                    result.person_reid_matches[det_id] = matches
 
-                    # Store this embedding for future matching
-                    attrs = {}
-                    if result.vision_extraction:
-                        if det_id in result.vision_extraction.person_attributes:
-                            p_attrs = result.vision_extraction.person_attributes[det_id]
-                            attrs = {
-                                "clothing": p_attrs.clothing,
-                                "carrying": p_attrs.carrying,
-                            }
-                        elif det_id in result.vision_extraction.vehicle_attributes:
-                            v_attrs = result.vision_extraction.vehicle_attributes[det_id]
-                            attrs = {
-                                "color": v_attrs.color,
-                                "vehicle_type": v_attrs.vehicle_type,
-                            }
+                # Store this embedding for future matching
+                attrs = {}
+                if result.vision_extraction:
+                    if det_id in result.vision_extraction.person_attributes:
+                        p_attrs = result.vision_extraction.person_attributes[det_id]
+                        attrs = {
+                            "clothing": p_attrs.clothing,
+                            "carrying": p_attrs.carrying,
+                        }
 
-                    entity_embedding = EntityEmbedding(
-                        entity_type=entity_type,
-                        embedding=embedding,
-                        camera_id=camera_id or "unknown",
-                        timestamp=datetime.now(UTC),
-                        detection_id=det_id,
-                        attributes=attrs,
-                    )
-                    await self._reid_service.store_embedding(redis, entity_embedding)
+                entity_embedding = EntityEmbedding(
+                    entity_type=entity_type,
+                    embedding=embedding,
+                    camera_id=camera_id or "unknown",
+                    timestamp=datetime.now(UTC),
+                    detection_id=det_id,
+                    attributes=attrs,
+                    model_id=embedding_model_id,
+                )
+                await self._reid_service.store_embedding(redis, entity_embedding)
 
-                except (
-                    httpx.ConnectError,
-                    httpx.TimeoutException,
-                    httpx.HTTPStatusError,
-                    CLIPUnavailableError,
-                    AIServiceError,
-                ) as e:
-                    # Transient error - log as warning, continue processing other detections
-                    logger.warning(
-                        f"Re-id failed for detection {det_id} (transient)",
-                        extra={
-                            "error_type": type(e).__name__,
-                            "detection_id": det_id,
-                            "entity_type": entity_type,
-                        },
-                    )
-                except (ValueError, KeyError, TypeError) as e:
-                    # Parse/validation error - log as error with traceback
-                    logger.error(
-                        f"Re-id failed for detection {det_id} (parse error)",
-                        extra={
-                            "error_type": type(e).__name__,
-                            "detection_id": det_id,
-                            "entity_type": entity_type,
-                        },
-                        exc_info=True,
-                    )
-                except Exception as e:
-                    # Unexpected error - log with full details
-                    logger.error(
-                        f"Re-id failed for detection {det_id}: {sanitize_error(e)}",
-                        extra={
-                            "error_type": type(e).__name__,
-                            "detection_id": det_id,
-                            "entity_type": entity_type,
-                        },
-                        exc_info=True,
-                    )
+            except ReIDUnavailableError as e:
+                # Availability, not a bug: the weights are not resident. The
+                # leg reports unavailable (no line, no score); counted debug,
+                # every detection fails the same way, so one warning.
+                logger.warning(
+                    "Re-id unavailable for detection %s (weights not resident): %s",
+                    det_id,
+                    e,
+                    extra={
+                        "operation": "reid_unavailable",
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                        "entity_type": entity_type,
+                    },
+                )
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                httpx.HTTPStatusError,
+                AIServiceError,
+            ) as e:
+                # Transient error - log as warning, continue processing other detections
+                logger.warning(
+                    f"Re-id failed for detection {det_id} (transient)",
+                    extra={
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                        "entity_type": entity_type,
+                    },
+                )
+            except (ValueError, KeyError, TypeError) as e:
+                # Parse/validation error - log as error with traceback
+                logger.error(
+                    f"Re-id failed for detection {det_id} (parse error)",
+                    extra={
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                        "entity_type": entity_type,
+                    },
+                    exc_info=True,
+                )
+            except Exception as e:
+                # Unexpected error - log with full details
+                logger.error(
+                    f"Re-id failed for detection {det_id}: {sanitize_error(e)}",
+                    extra={
+                        "error_type": type(e).__name__,
+                        "detection_id": det_id,
+                        "entity_type": entity_type,
+                    },
+                    exc_info=True,
+                )
 
     async def _run_household_matching(
         self,
@@ -5940,8 +5997,22 @@ class EnrichmentPipeline:
                             )
                             continue
 
+                    # F11: the probe's provenance was cached beside its bytes
+                    # when the enrichment stage produced them, so the belt is
+                    # free to read here. Omitting it made match_person answer
+                    # "untrusted probe" for every person on this path while
+                    # the batch reader (match_detections) threaded it fine -
+                    # two readers of one guard, one guarded (M1 review F-C).
+                    probe_model_id = (
+                        embedding_result.get("model_id")
+                        if isinstance(embedding_result, dict)
+                        else getattr(embedding_result, "model_id", None)
+                    )
+
                     try:
-                        match = await matcher.match_person(embedding, session)
+                        match = await matcher.match_person(
+                            embedding, session, model_id=probe_model_id
+                        )
                         if match:
                             # Store with detection ID for context isolation (NEM-5512/5513/5514)
                             # Convert det_id to int for consistent keying

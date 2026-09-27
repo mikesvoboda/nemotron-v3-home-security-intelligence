@@ -256,6 +256,9 @@ import type {
   RecordingsListResponse,
   ReplayResponse,
   EventRegistryResponse,
+  // Operation-level query params - used to derive the verdict-filter
+  // vocabulary from the schema instead of restating it (EventVerdictFilter).
+  operations,
 } from '../types/generated';
 import type { SummariesLatestResponse, SummaryDetail } from '../types/summary';
 
@@ -346,9 +349,23 @@ export type { EventRegistryResponse, EventTypeInfo } from '../types/generated';
 // Additional types not in OpenAPI (client-side only)
 // ============================================================================
 
+/**
+ * The verdict-filter vocabulary, derived from the generated OpenAPI type
+ * rather than restated (1.6, spec §4). A backend rename then fails a
+ * typecheck here instead of silently filtering nothing - FastAPI ignores
+ * unknown query params, so a stale client string would read as "no filter"
+ * rather than as an error. The four real verdicts plus 'none' (never
+ * verified); anything else is a 422 server-side, never an empty list.
+ */
+export type EventVerdictFilter = NonNullable<
+  NonNullable<operations['events_list_events']['parameters']['query']>['verdict']
+>;
+
 export interface EventsQueryParams {
   camera_id?: string;
   risk_level?: string;
+  /** VLM verdict filter - see {@link EventVerdictFilter}. */
+  verdict?: EventVerdictFilter;
   start_date?: string;
   end_date?: string;
   reviewed?: boolean;
@@ -2251,6 +2268,9 @@ export async function fetchEvents(
   if (params) {
     if (params.camera_id) queryParams.append('camera_id', params.camera_id);
     if (params.risk_level) queryParams.append('risk_level', params.risk_level);
+    // Every verdict value is a non-empty string - 'none' included - so a
+    // truthy guard cannot drop a real filter.
+    if (params.verdict) queryParams.append('verdict', params.verdict);
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
     if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));

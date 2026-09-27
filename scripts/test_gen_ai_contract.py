@@ -161,6 +161,87 @@ def _first_diff(a: str, b: str) -> str:
     return f"line counts differ: {len(a.splitlines())} vs {len(b.splitlines())}"
 
 
+class TestVlmContract:
+    """Phase 1.1 - the vlm_assess seam (spec §3). The drift doctrine in code:
+    the constrained schema the client sends and the shape the parser expects
+    must be the SAME generated artifact, derived from VlmVerdict. E5 (the
+    nvext defect) is what happens when they are maintained separately."""
+
+    def _canon(self, obj):
+        return json.dumps(obj, sort_keys=True)
+
+    def test_vlm_assess_op_declared(self):
+        ops, _ = gen.build_all()
+        assert "vlm_assess" in ops, "spec §3: one capability op vlm_assess in VLM_OPS"
+        rec = ops["vlm_assess"]
+        assert rec["method"] == "POST"
+        # registered path is /vlm/-prefixed: the real engine wire is
+        # /v1/chat/completions, but llm_chat_completion owns that op.path and
+        # the fake mounts one route per path (fake/app.py:88) - an unprefixed
+        # vlm_assess would double-mount and validate the wrong body.
+        assert rec["path"] == "/vlm/chat/completions"
+        assert rec["availability"] == {
+            "gateway": False,
+            "enrichment_light_adapter": False,
+            "per_model_server": True,
+            # fake availability is the spec column; absent here the fake
+            # under-declares and registration fails (provider.py:227-235)
+            "fake": True,
+        }
+
+    def test_vlm_response_schema_derives_from_vlmverdict(self):
+        """The generated op schema must equal the LIVE class's
+        model_json_schema() - not a transcription, not a snapshot of itself."""
+        from backend.services.vlm_verdict import VlmVerdict
+
+        ops, _ = gen.build_all()
+        assert self._canon(ops["vlm_assess"]["response"]) == self._canon(
+            VlmVerdict.model_json_schema()
+        ), "response schema drifted from VlmVerdict - regenerate, never hand-edit"
+
+    def test_vlm_request_schema_derives_from_vlmassessrequest(self):
+        from backend.services.vlm_verdict import VlmAssessRequest
+
+        ops, _ = gen.build_all()
+        assert self._canon(ops["vlm_assess"]["request"]) == self._canon(
+            VlmAssessRequest.model_json_schema()
+        )
+
+    def test_vlm_goldens_generated(self):
+        files = gen.render_goldens()
+        assert "golden/snapshots/vlm_assess.response.snapshot.json" in files
+        assert "golden/payloads/vlm_assess.response.example.json" in files
+        assert "golden/snapshots/vlm_assess.request.snapshot.json" in files
+        assert "golden/payloads/vlm_assess.request.example.json" in files
+        # the payload golden is a fixture both sides import and the
+        # conformance tier validates - an enum field must carry an ENUM
+        # VALUE, not the "sample_<key>" default (the generator's _example_for
+        # has no enum branch without this pin).
+        payload = json.loads(files["golden/payloads/vlm_assess.response.example.json"])
+        assert payload["verdict"] in {"confirmed", "rejected", "uncertain"}
+        assert len(payload["criteria"]) >= 1
+        assert 0 <= payload["risk_score"] <= 100
+
+    def test_vlm_criteria_alias_the_shipped_verification_shape(self):
+        """P0.4 shipped VerificationCriterion {name, passed, evidence} under a
+        'VlmVerdict.criteria' docstring - the constrained model must stay an
+        alias of that wire shape, not a fork of it."""
+        from backend.api.schemas.event_verification import VerificationCriterion
+        from backend.services.vlm_verdict import VlmCriterion
+
+        assert set(VlmCriterion.model_fields) == set(VerificationCriterion.model_fields)
+
+    def test_vlm_assess_context_tracks_the_frozen_assess_input(self):
+        """VlmAssessContext repeats the frozen AssessInput's fields (kept
+        separate so this module's import closure stays pydantic-only for the
+        generator); a silent fork here would split the replay snapshot from
+        the wire context - one code path, one shape (spec §2)."""
+        from backend.evaluation.assess_input import AssessInput
+        from backend.services.vlm_verdict import VlmAssessContext
+
+        assert set(VlmAssessContext.model_fields) == set(AssessInput.model_fields)
+
+
 class TestCheckMode:
     def test_check_passes_on_fresh_generation(self):
         """--check against the tree as committed exits 0 - if the committed

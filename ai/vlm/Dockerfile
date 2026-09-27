@@ -55,6 +55,9 @@ RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/lib
 
 # Single-arch build for this host's GPU: 103 == sm_103 (verified: nvcc 13.3 emits
 # -gencode arch=compute_103,code=sm_103 and the binary runs on GB300, driver 610.57.04).
+# ONE Dockerfile, two hosts (Phase 1.2 scope call - no per-host fork): the arch
+# is a build-arg, so GB300 dev passes CUDA_ARCHITECTURES=103 (aarch64) and the
+# A5500 bring-up (1.7) passes 86 (sm_86, x86) to THIS context unchanged.
 # GGML_NATIVE=ON is safe when CMAKE_CUDA_ARCHITECTURES is set explicitly (b7972's
 # GGML_NATIVE block only substitutes arches when the var is NOT DEFINED; configure
 # with these exact flags at b7972 succeeded in-container).
@@ -102,7 +105,17 @@ ENV MODEL_PATH=/models/vlm/model.gguf
 # fails only when it is empty. A built-in default would silently turn multimodal
 # on for text-only runs (and vice versa, an unset one here makes the test useless).
 ENV MMPROJ_PATH=
-ENV PORT=8080
+# Spec section 2 flags, same unset-at-build doctrine (compose sets real values):
+# MODEL_ALIAS names the model in the REST API (/props, /v1/models) so
+# provenance records what actually served; empty = llama.cpp's own default.
+ENV MODEL_ALIAS=
+# SLEEP_IDLE_SECONDS: llama.cpp sleep mode - after this many idle seconds the
+# weights go to CPU RAM and VRAM is released to other residents (spec section 2's
+# residency mechanism; 1.4 layers control on top). Empty = never sleep.
+ENV SLEEP_IDLE_SECONDS=
+# 8098: the container-side port is FIXED to match the compose contract
+# (host-side AI_VLM_PORT is a separate mapping; internal URL = ai-vlm:8098).
+ENV PORT=8098
 ENV GPU_LAYERS=99
 ENV CTX_SIZE=8192
 ENV PARALLEL=1
@@ -111,7 +124,7 @@ ENV THREADS=8
 ENV BATCH_SIZE=2048
 ENV UBATCH_SIZE=512
 
-EXPOSE 8080
+EXPOSE 8098
 
 RUN mkdir -p /models && chown -R llama:llama /models
 
@@ -124,9 +137,15 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     if [ \"${FLASH_ATTENTION}\" = 'true' ]; then FLASH_ARGS='--flash-attn on'; fi; \
     MM_ARGS=''; \
     if [ -n \"${MMPROJ_PATH}\" ]; then MM_ARGS=\"--mmproj ${MMPROJ_PATH}\"; fi; \
+    ALIAS_ARGS=''; \
+    if [ -n \"${MODEL_ALIAS}\" ]; then ALIAS_ARGS=\"--alias ${MODEL_ALIAS}\"; fi; \
+    SLEEP_ARGS=''; \
+    if [ -n \"${SLEEP_IDLE_SECONDS}\" ]; then SLEEP_ARGS=\"--sleep-idle-seconds ${SLEEP_IDLE_SECONDS}\"; fi; \
     llama-server \
     --model ${MODEL_PATH} \
     ${MM_ARGS} \
+    ${ALIAS_ARGS} \
+    ${SLEEP_ARGS} \
     --host 0.0.0.0 \
     --port ${PORT} \
     --n-gpu-layers ${GPU_LAYERS} \

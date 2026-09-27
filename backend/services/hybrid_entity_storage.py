@@ -60,6 +60,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 from backend.core.logging import get_logger
+from backend.core.vector_provenance import LEGACY_MODEL_ID
 from backend.services.reid_service import EntityEmbedding, EntityMatch
 
 if TYPE_CHECKING:
@@ -102,6 +103,9 @@ class HybridEntityMatch:
     time_gap_seconds: float
     source: Literal["redis", "postgresql"]
     entity: Entity | None = None
+    # The belt rides out of both stores (F11): a PostgreSQL row that never
+    # named its producer arrives as the sentinel, never as "no claim".
+    model_id: str = LEGACY_MODEL_ID
 
     @classmethod
     def from_redis_match(cls, match: EntityMatch) -> HybridEntityMatch:
@@ -125,6 +129,7 @@ class HybridEntityMatch:
             time_gap_seconds=match.time_gap_seconds,
             source="redis",
             entity=None,
+            model_id=match.entity.model_id,
         )
 
     @classmethod
@@ -158,6 +163,9 @@ class HybridEntityMatch:
             time_gap_seconds=time_gap_seconds,
             source="postgresql",
             entity=entity,
+            # A JSONB written before provenance (or without a model key)
+            # arrives as the sentinel — untrusted, never "no claim".
+            model_id=entity.get_embedding_model() or LEGACY_MODEL_ID,
         )
 
 
@@ -230,6 +238,7 @@ class HybridEntityStorage:
         camera_id: str,
         timestamp: datetime,
         attributes: dict[str, Any] | None = None,
+        model_id: str | None = None,
     ) -> tuple[UUID, bool]:
         """Store embedding in both Redis and PostgreSQL.
 
@@ -237,10 +246,15 @@ class HybridEntityStorage:
         1. Assign entity via clustering service (PostgreSQL)
         2. Store embedding in Redis for hot cache access
 
+        The producer id (F11) threads to BOTH legs: the JSONB belt via
+        assign_entity, the Redis partition + per-entry belt via
+        EntityEmbedding.model_id. A None cannot be stored honestly —
+        assign_entity's from_detection raises before anything is written.
+
         Args:
             detection_id: Database ID of the detection record
             entity_type: Type of entity ("person", "vehicle", etc.)
-            embedding: Embedding vector (typically 768-dim CLIP embedding)
+            embedding: Embedding vector (OSNet-AIN x1.0, 512-dim post-swap)
             camera_id: ID of the camera that captured the detection
             timestamp: When the detection occurred
             attributes: Optional attributes dict (clothing, color, etc.)
@@ -269,6 +283,7 @@ class HybridEntityStorage:
             camera_id=camera_id,
             timestamp=timestamp,
             attributes=attributes,
+            model_id=model_id,
         )
 
         logger.debug(
@@ -287,6 +302,8 @@ class HybridEntityStorage:
             timestamp=timestamp,
             detection_id=str(detection_id),
             attributes=attributes or {},
+            # The same belt, both stores (F11): None decodes as untrusted.
+            model_id=model_id or LEGACY_MODEL_ID,
         )
 
         try:
@@ -312,6 +329,7 @@ class HybridEntityStorage:
         threshold: float = 0.85,
         exclude_detection_id: str | None = None,
         include_historical: bool = True,
+        model_id: str | None = None,
     ) -> list[HybridEntityMatch]:
         """Find matching entities, checking Redis first then PostgreSQL.
 
@@ -351,6 +369,7 @@ class HybridEntityStorage:
                 entity_type=entity_type,
                 threshold=threshold,
                 exclude_detection_id=exclude_detection_id,
+                model_id=model_id,
             )
 
             for match in redis_matches:
@@ -381,6 +400,7 @@ class HybridEntityStorage:
                     entity_type=entity_type,
                     threshold=threshold,
                     limit=50,  # Reasonable limit for historical search
+                    model_id=model_id,
                 )
 
                 for entity, similarity in pg_matches:

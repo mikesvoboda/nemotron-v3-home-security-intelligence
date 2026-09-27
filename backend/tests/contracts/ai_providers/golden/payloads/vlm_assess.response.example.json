@@ -1,0 +1,18 @@
+{
+  "criteria": [
+    {
+      "evidence": "sample_evidence",
+      "name": "sample_name",
+      "passed": false
+    }
+  ],
+  "description": "sample_description",
+  "provenance": {
+    "engine": "sample_engine",
+    "model_id": "sample_model_id"
+  },
+  "reasoning": "sample_reasoning",
+  "risk_score": 1,
+  "summary": "sample_summary",
+  "verdict": "confirmed"
+}
