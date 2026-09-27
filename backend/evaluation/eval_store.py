@@ -518,3 +518,124 @@ def _generated_at(labels_path: Path) -> str:
     except OSError, json.JSONDecodeError:
         pass
     return "1970-01-01T00:00:00+00:00"
+
+
+# ------------------------------------------------------ generation builder
+def build_gen2(
+    store_dir: str | Path,
+    *,
+    corpus_dir: str | Path,
+    stock_root: str | Path,
+) -> dict[str, Any]:
+    """Eval-store GENERATION 2 - the corpus the Phase 2 replay can actually run
+    against (plan 2.0.1).
+
+    WHY THIS EXISTS (measured on the frozen store, Phase 2 plan §0): gen-1's
+    421 frozen snapshots carry the PRE-rev-6 six keys - zero of them hold
+    `specialist_outputs` - and the freeze makes that unfixable in place
+    (`put_item` refuses a changed fingerprint). A replay over gen-1 sends an
+    empty specialist block on every item and measures a system 1.3b did not
+    ship. The repo corpus has since grown the five 1.3b verdict-changing sets,
+    so the fix is a NEW generation at a NEW path built by the SAME shipped
+    loaders - never an edit of the frozen file (D-P2-1). gen-1 stays on disk,
+    byte-identical, as the record of what G0.4 froze.
+
+    Guards, in the order that writes nothing on a rejected build:
+
+    1. a missing corpus is a hard error (the loaders already refuse);
+    2. ZERO items with a rendered specialist block aborts the build - that is
+       gen-1's defect rebuilt and green, the one outcome 2.0 must not ship;
+    3. pointing at a generation that already holds items the new corpus does
+       not contain refuses, because that is the mutation the per-item freeze
+       exists to prevent, spotted here as one aggregate error instead of
+       hundreds of item-by-item ones.
+
+    The report is read BACK OUT OF THE DATABASE, not from the in-memory list:
+    the numbers a run is later compared against have to be the numbers the
+    write actually produced. Aggregate counts only - no item content (D10).
+    """
+    out_dir = Path(store_dir)
+    # The store DIRECTORY is the D10 boundary - the item-level guard checks
+    # where media resolves; nothing checks where the corpus itself lands. A
+    # labeled store inside the checkout is one `git add -A` from the privacy
+    # line, so this refuses before a corpus is read or a file is created.
+    try:
+        resolved_dir = out_dir.resolve()
+    except OSError:
+        resolved_dir = out_dir.absolute()
+    if resolved_dir == _REPO_ROOT or _REPO_ROOT in resolved_dir.parents:
+        raise RuntimeError(
+            f"gen-2 build refused: {out_dir} resolves INSIDE the repo checkout "
+            f"({_REPO_ROOT}). The eval store is off-repo by ruling (D10/F6) - "
+            f"pass a location outside the workspace, e.g. "
+            f"$AGENT_GPU_DIR/out/eval-store/gen-2."
+        )
+
+    synthetic = load_synthetic_items(corpus_dir)
+    stock = load_stock_items(stock_root)
+    items = [*synthetic, *stock]
+
+    if not any(i.snapshot.specialist_outputs for i in items):
+        raise RuntimeError(
+            f"gen-2 build refused: 0 of {len(items)} items carry a rendered "
+            f"specialist_outputs block. That is gen-1's defect rebuilt - the "
+            f"corpus must include the label sets declaring specialist_context "
+            f"(1.3b's verdict-changing cases), or the replay measures a "
+            f"system without the specialist stage."
+        )
+
+    db_file = out_dir / "eval.sqlite"
+    pre_existed = db_file.exists()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    store = EvalStore(db_file)
+
+    if pre_existed:
+        # Idempotent rebuild (identical inputs -> identical fingerprints, and
+        # put_item's no-op on an identical re-put) is allowed. Anything else
+        # is writing a different corpus into an existing generation.
+        incoming = {_fingerprint(i) for i in items}
+        stale = [
+            item_id
+            for (item_id, fp) in store._db.execute("SELECT item_id, fingerprint FROM items")
+            if fp not in incoming
+        ]
+        if stale:
+            raise RuntimeError(
+                f"gen-2 build refused: {len(stale)} items in the EXISTING store "
+                f"at {db_file} are not in this corpus (first: {stale[0]!r}). "
+                f"A generation is immutable once built - build a new one at a "
+                f"new path."
+            )
+
+    for item in items:
+        store.put_item(item)
+
+    report: dict[str, Any] = {
+        "items": 0,
+        "benign": 0,
+        "incident": 0,
+        "with_media": 0,
+        "with_specialist_outputs": 0,
+    }
+    for (payload,) in store._db.execute("SELECT payload FROM items ORDER BY item_id"):
+        d = json.loads(payload)
+        report["items"] += 1
+        label = d.get("expected_label")
+        if label in ("benign", "incident"):
+            report[label] += 1
+        if d.get("media_paths"):
+            report["with_media"] += 1
+        if d.get("snapshot", {}).get("specialist_outputs"):
+            report["with_specialist_outputs"] += 1
+    report["store"] = str(db_file)
+    _LOG.info(
+        "eval-store gen-2 built at %s: %d items (benign %d / incident %d), "
+        "%d media-bearing, %d with specialist context",
+        db_file,
+        report["items"],
+        report["benign"],
+        report["incident"],
+        report["with_media"],
+        report["with_specialist_outputs"],
+    )
+    return report
