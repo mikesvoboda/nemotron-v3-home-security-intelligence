@@ -1052,3 +1052,17 @@ class TestAssessHappyPathReturnsRealVerdict:
         verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
         assert verdict.verdict == "confirmed" and verdict.risk_score == 50
         await client.close()
+
+
+class TestPromptTime:
+    """The Time line: UTC ISO when CAMERA_TIMEZONE is unset, local time when set."""
+
+    def test_time_line_is_the_iso_string_when_camera_timezone_unset(self) -> None:
+        client = make_client(camera_timezone=None)
+        prompt = client._render_prompt([], _request(["/x/a.jpg"]))
+        assert "Time: 2026-09-25T12:00:00+00:00\n" in prompt
+
+    def test_time_line_is_local_with_zone_when_camera_timezone_set(self) -> None:
+        client = make_client(camera_timezone="America/New_York")
+        prompt = client._render_prompt([], _request(["/x/a.jpg"]))
+        assert "Time: 2026-09-25 08:00:00 local (America/New_York, UTC-04:00)\n" in prompt

@@ -53,6 +53,7 @@ from backend.core.metrics import (
     record_prompt_truncated,
 )
 from backend.core.mime_types import IMAGE_MIME_TYPES, VIDEO_MIME_TYPES
+from backend.services.capture_time import render_prompt_time
 from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -472,7 +473,7 @@ class VlmClient:
             "(engine, model_id - copy the values from the served model's own "
             "reported identity).\n\n"
             f"Camera: {ctx.camera_id}\n"
-            f"Time: {ctx.timestamp}\n"
+            f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
