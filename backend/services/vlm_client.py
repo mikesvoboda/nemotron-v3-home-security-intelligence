@@ -61,6 +61,7 @@ from backend.services.circuit_breaker import (
 from backend.services.key_frame_selector import MAX_KEY_FRAMES
 from backend.services.nemotron_analyzer import (
     ConstrainedDecodingNotEnforced,
+    _is_length_truncated,
     build_probe_schema,
 )
 from backend.services.token_counter import get_token_counter
@@ -295,26 +296,51 @@ class VlmClient:
                     f"vlm probe transport failure ({exc})", verdict="inconclusive"
                 ) from exc
             content = _content_of(resp) if resp.status_code == 200 else ""
+            stop = _stop_reason_of(resp)
             echoed = False
             try:
                 echoed = json.loads(content).get("probe_const") == nonce
             except Exception:
                 echoed = False
             if echoed:
+                # The grammar produced a value the prompt never contained - a
+                # stop reason cannot argue with that. Finding A's
+                # `truncated_with_const` case must not lose a real ENFORCED.
                 self._enforced = True
                 logger.info(
                     "vlm enforcement probe: ENFORCED",
                     extra={"base_url": self._base_url, "build_info": self._build_info},
                 )
                 return
+            if resp.status_code == 200 and _is_length_truncated(stop):
+                # FINDING A. The reply hit its token budget, so the const may
+                # simply never have been emitted - and `probe_const` can
+                # legally sort LAST in the grammar. That is "could not
+                # measure", NOT "measured: the server ignores the grammar",
+                # and the difference decides an M2 pick: at 400 tokens six
+                # scenes truncate, while three of the same four echo the
+                # const at 1200 (ledger finding A [V]). Fail-closed is
+                # unchanged - still a raise, still nothing cached, still no
+                # score. Only the WORD changes, and it changes toward honesty.
+                await self._note_failure("vlm_probe_truncated")
+                raise ConstrainedDecodingNotEnforced(
+                    f"vlm probe reply hit its token budget (stop={stop!r}, "
+                    f"max_tokens={_PROBE_MAX_TOKENS}) before the const could "
+                    "be read - enforcement is UNMEASURED at this budget, not "
+                    "absent. Fail closed.",
+                    verdict="inconclusive",
+                )
             await self._note_failure("vlm_probe_not_enforced")
             if resp.status_code == 200:
                 # The E5-class lie, generalized to response_format: accepted
-                # the parameter, did not enforce it. NEVER a silent prose mode.
+                # the parameter, answered completely, and did not enforce it.
+                # A COMPLETE reply without the const is the evidence itself -
+                # never forgiven by finding A's triage.
                 raise ConstrainedDecodingNotEnforced(
                     f"vlm endpoint accepted response_format.json_schema but the reply "
-                    f"did not echo the probe const (build {self._build_info!r}) - "
-                    "constrained decoding is not enforced here. Fail closed.",
+                    f"did not echo the probe const (build {self._build_info!r}, "
+                    f"stop={stop!r}) - constrained decoding is not enforced "
+                    "here. Fail closed.",
                     verdict="ignored",
                 )
             raise ConstrainedDecodingNotEnforced(
@@ -710,3 +736,32 @@ def _content_of(resp: httpx.Response) -> str:
         return resp.json()["choices"][0]["message"]["content"] or ""
     except Exception:
         return ""
+
+
+def _stop_reason_of(resp: httpx.Response) -> str | None:
+    """The engine's own account of why generation STOPPED.
+
+    Both wires, because the repo probes both: llama.cpp's native
+    ``/completion`` reports ``stop_type``, its OpenAI-compat
+    ``/v1/chat/completions`` reports ``finish_reason``. Choice-level first,
+    then body-level. ``None`` means the server did not say - which is NOT
+    evidence of truncation; judging that goes through
+    ``nemotron_analyzer._is_length_truncated``, the one vocabulary both probe
+    surfaces share.
+    """
+    if resp.status_code != 200:
+        return None
+    try:
+        body = resp.json()
+    except Exception:
+        return None
+    if not isinstance(body, dict):
+        return None
+    choices = body.get("choices")
+    choice = choices[0] if isinstance(choices, list) and choices else None
+    for source in (choice if isinstance(choice, dict) else {}, body):
+        for key in ("finish_reason", "stop_type", "stop_reason"):
+            value = source.get(key)
+            if isinstance(value, str) and value:
+                return value
+    return None

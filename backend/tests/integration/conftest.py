@@ -1193,23 +1193,32 @@ def mock_llm_enforces_grammar():
     async def enforcing_probe(client, base_url, headers, prompt_text, schema):
         spec = (schema.get("properties") or {}).get("probe_const") or {}
         nonce = spec.get("const")
+        # `_probe_completion` returns (status, content, stop_reason) - the
+        # third element is finding A's triage signal. A mock that ENFORCED
+        # finished its object, so it reports a natural stop rather than
+        # leaving the field unset (an unset field is "the server did not
+        # say", which is neither evidence for nor against truncation).
         if (
             isinstance(nonce, str)
             and spec.get("type") == "string"
             and "probe_const" in (schema.get("required") or [])
         ):
-            return 200, json.dumps(
-                {
-                    "probe_const": nonce,
-                    "risk_score": 10,
-                    "risk_level": "low",
-                    "summary": "mock endpoint enforces the grammar",
-                    "reasoning": "probe echo",
-                }
+            return (
+                200,
+                json.dumps(
+                    {
+                        "probe_const": nonce,
+                        "risk_score": 10,
+                        "risk_level": "low",
+                        "summary": "mock endpoint enforces the grammar",
+                        "reasoning": "probe echo",
+                    }
+                ),
+                "eos",
             )
         # Malformed probe request: BE the IGNORED endpoint (prose back),
         # never fake a pass the schema didn't earn.
-        return 200, "prose - grammar not enforced on this schema (mock verdict)"
+        return 200, "prose - grammar not enforced on this schema (mock verdict)", "eos"
 
     with patch.object(na, "_probe_completion", enforcing_probe):
         yield

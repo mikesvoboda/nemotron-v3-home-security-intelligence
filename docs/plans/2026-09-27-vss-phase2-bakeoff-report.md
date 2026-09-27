@@ -66,7 +66,16 @@ measured truncating at the probe's 400-token budget. Against B — the case wher
 gap would matter most — the image-free enforcement probe was run three times: `ENFORCED`, exit 0,
 all three. A build that genuinely did not enforce would refuse every item, not item 1. So the
 refusals are read as a budget artifact at the probe boundary; the repair (`finish_reason`-aware
-triage that keeps fail-closed) is finding A's own change, not a Phase 2 fold-in.
+triage that keeps fail-closed) is finding A's own change, not a Phase 2 fold-in. **Update on that
+repair, same day:** it shipped, and its real-pixels proof adds a caveat this report should not paper
+over. On the _shipped single-image chat probe_ — build_probe_schema + the client's own prompt
+sentence + one JPEG — all six stock scenes echo the const at the shipped 400-token budget, so the
+400-vs-cliff figure above is `s3_salience_stock.py`'s call-site, not the shipped probe's, and the
+artifact that refused `break_in_attempt` in these replays is not reproduced by re-running the
+shipped probe at 400. The triage itself is what got proven: at deliberately reduced budgets
+(100/150) every truncated reply reclassifies `ignored → inconclusive` and the word `ignored` is
+never used at any budget, so the repair neither forgives prose nor condemns a budget. Ledger row
+for finding A carries the run and gate numbers.
 
 **The KV line is the one difference that survives the corpus noise,** because it is a log reading
 rather than a measurement of model behaviour: at the same context and parallelism, B spends 768 MiB

@@ -114,11 +114,13 @@ def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> Fast
             return JSONResponse({"choices": [{"message": {"content": '{"risk_score": 0.25}'}}]})
         rf = body.get("response_format")
         content: str
+        finish: str | None = "stop"
         if rf is None:
             content = "the scene" if body.get("max_tokens") == 1 else "prose"
         elif mode == "ignore":
             # accepts the parameter, answers prose WITHOUT the grammar -
-            # the exact E5-class lie the probe must catch.
+            # the exact E5-class lie the probe must catch. It stopped
+            # NATURALLY, so the missing const is real evidence.
             content = "The scene shows a driveway with a car."
         else:
             # strict: a WELL-FORMED wrapper gets grammar-shaped content;
@@ -134,9 +136,28 @@ def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> Fast
                 if const is not None:
                     filled["probe_const"] = const  # grammar ENFORCEMENT == echo
                 content = json.dumps(filled)
-        return JSONResponse(
-            {"choices": [{"message": {"content": content}}], "usage": {"total_tokens": 7}}
-        )
+        # The truncated arms describe the PROBE request only - the assess leg
+        # sends response_format too, so "is this the probe?" is whether the
+        # schema carries the nonce const. Deciding the arm on anything else
+        # would reshape the assess leg and pin nothing.
+        _sch = (((rf or {}).get("json_schema") or {}).get("schema")) or {}
+        _const = (_sch.get("properties") or {}).get("probe_const", {}).get("const")
+        if rf is not None and isinstance(_const, str):
+            if mode == "truncated":
+                # finding A's shape: the budget ran out mid-object, so the
+                # const (which may legally sort last) was never emitted.
+                content, finish = '{"risk_level": "me', "length"
+            elif mode == "truncated_with_const":
+                # out of budget, but the const arrived FIRST - the grammar
+                # already proved itself; a stop reason cannot un-prove that.
+                content, finish = json.dumps({"probe_const": _const}), "length"
+        choice: dict = {"message": {"content": content}}
+        # The compat wire's stop signal. Emitted only when the fake has one to
+        # report: finding A's triage must not infer truncation from a field
+        # the server never sent.
+        if finish is not None:
+            choice["finish_reason"] = finish
+        return JSONResponse({"choices": [choice], "usage": {"total_tokens": 7}})
 
     return app
 
@@ -549,13 +570,57 @@ class TestEnforcementProbe:
     async def test_ignoring_endpoint_reads_not_enforced_and_raises(self, image_dir) -> None:
         """The E5-class regression the plan names: accepts-but-ignores must
         NOT be a silent prose mode. First assess RAISES, nothing cached -
-        the next call re-probes (S-1: a bad result must not ossify)."""
+        the next call re-probes (S-1: a bad result must not ossify).
+
+        Finding A's repair is what lets this pin be SHARP rather than
+        two-word: the old `verdict in {"ignored", "inconclusive"}` accepted
+        either, which is precisely how a fabricated `ignored` and an honest
+        `inconclusive` shared a file. A complete prose reply at a natural
+        stop is now pinned to `ignored`, and only the truncated shape earns
+        `inconclusive` (see the pair below)."""
         client = make_client("ignore")
         with pytest.raises(ConstrainedDecodingNotEnforced) as exc:
             await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
-        assert exc.value.verdict in {"ignored", "inconclusive"}
+        assert exc.value.verdict == "ignored"
         with pytest.raises(ConstrainedDecodingNotEnforced):
             await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+
+    async def test_a_truncated_probe_reply_is_inconclusive_not_ignored(self, image_dir) -> None:
+        """FINDING A, the shipped path. The probe's own comment names the
+        hazard - "a budget that truncates mid-object FABRICATES an IGNORED
+        verdict (the const can sort last in the grammar)" - and the ledger
+        measured it: six scenes return `finish_reason: length` at 400 tokens,
+        three of the same four echo the const at 1200. So a cut-off reply
+        licenses NO claim about the server's grammar. It is unmeasured, and
+        the word must be the one that says so."""
+        client = make_client("truncated")
+        with pytest.raises(ConstrainedDecodingNotEnforced) as exc:
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert exc.value.verdict == "inconclusive"
+        assert "budget" in str(exc.value).lower() or "truncat" in str(exc.value).lower()
+        await client.close()
+
+    async def test_truncation_still_fails_closed_and_caches_nothing(self, image_dir) -> None:
+        """The half that keeps this a REPAIR and not a loosening: renaming the
+        verdict must not soften a single consequence. Still a raise, still no
+        score, still nothing cached - the next call re-probes (S-1)."""
+        client = make_client("truncated")
+        for _ in range(2):
+            with pytest.raises(ConstrainedDecodingNotEnforced):
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert client._enforced is None, "an unmeasured probe must never cache a verdict"
+        await client.close()
+
+    async def test_a_truncated_reply_that_carried_the_const_is_enforced(self, image_dir) -> None:
+        """The mirror pin, guarding the other direction. If the const arrived,
+        the grammar produced a value the prompt never mentioned - which is the
+        probe's ENTIRE question - so running out of budget afterwards proves
+        nothing against enforcement. A triage that demoted this would quietly
+        lose real ENFORCED results."""
+        client = make_client("truncated_with_const")
+        await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert client._enforced is True
         await client.close()
 
     async def test_only_enforced_is_cached(self, image_dir) -> None:

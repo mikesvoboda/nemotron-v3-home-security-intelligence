@@ -322,6 +322,32 @@ class ConstrainedDecodingNotEnforced(RuntimeError):
 
 PROBE_PROMPT = "Emit the verdict object for the standing scene.\n"
 
+# What an engine calls it when a reply ran out of budget: `length` on the
+# OpenAI-compat wire (`finish_reason`, the field finding A read on the shape
+# the vlm client actually posts) and `stop_type: length` on the native
+# /completion; the rest are aliases other servers on these wires use.
+# Deliberately a CLOSED set - a missing or unrecognised signal means "the
+# server did not say", and inferring truncation from silence would launder a
+# real IGNORED into an INCONCLUSIVE: the same fabrication, mirrored. Lives
+# here because both probe surfaces need ONE vocabulary (vlm_client imports
+# it; a second copy drifting is exactly the P0.3 assumption this file exists
+# to eliminate).
+_TRUNCATED_STOPS = frozenset({"length", "max", "limit", "insufficient"})
+
+
+def _is_length_truncated(stop: str | None) -> bool:
+    """True ONLY on an explicit out-of-budget stop signal.
+
+    Anything else - including ``None`` - returns False, which is the
+    conservative direction: an unrecognised reply is judged exactly as it is
+    today, so this can only ever move a fabricated verdict toward honesty and
+    can never forgive a genuinely non-enforcing endpoint.
+    """
+    # `is not None` rather than `bool(stop)`: same answer either way ("" is
+    # not in the set), but it lets mypy narrow str | None the way the runtime
+    # already does, so the guard is checked rather than trusted.
+    return stop is not None and stop.lower() in _TRUNCATED_STOPS
+
 
 async def _probe_completion(
     client: Any,
@@ -329,12 +355,22 @@ async def _probe_completion(
     headers: dict[str, str],
     prompt_text: str,
     schema: dict[str, Any],
-) -> tuple[int, str]:
+) -> tuple[int, str, str | None]:
     """ONE constrained-completion call shape - the enforcement probe's
     transport. Shared by the analyzer's runtime gate and the promoted CI CLI
     (scripts/vlm_probes/enforcement.py) so the two surfaces can never drift
     on how the probe is asked (drift there would make a CI pass prove
-    nothing about runtime). Returns (status_code, completion content)."""
+    nothing about runtime).
+
+    Returns ``(status_code, content, stop_reason)``.
+
+    The stop reason is the third element because of finding A: a reply that
+    ran out of budget mid-object carries no const, and an absent const read as
+    IGNORED ("measured: this server does not enforce") is a finding the server
+    never gave. The status code alone cannot tell those apart - S-1's lesson
+    restated one level down. A judge that does not care reads the first two
+    and ignores the third; the transport stays one function either way.
+    """
     resp = await client.post(
         f"{base_url}/completion",
         json={
@@ -342,7 +378,9 @@ async def _probe_completion(
             # S-2's ledgered trap: a budget too small truncates the reply
             # MID-object, which fakes an IGNORED verdict (the const may
             # legally sort last and grammar can't close past the budget).
-            # 400 is the S-2 [V]-proven safe budget for this schema.
+            # 400 is the S-2 [V]-proven safe budget for this schema, and
+            # finding A is what to do when even a proven budget runs out:
+            # triage the stop reason, never re-guess the budget from here.
             "n_predict": 400,
             "temperature": 0.0,
             "json_schema": schema,
@@ -350,7 +388,9 @@ async def _probe_completion(
         headers=headers,
     )
     body = resp.json() if resp.status_code == 200 else {}
-    return resp.status_code, (body or {}).get("content") or ""
+    body = body if isinstance(body, dict) else {}
+    stop = body.get("stop_type") or body.get("stop_reason")
+    return resp.status_code, body.get("content") or "", stop if isinstance(stop, str) else None
 
 
 def build_probe_schema(
@@ -805,7 +845,12 @@ class NemotronAnalyzer:
             probe_schema, nonce = build_probe_schema(
                 RISK_ANALYSIS_JSON_SCHEMA, nonce=str(uuid.uuid4())
             )
-            status, content = await _probe_completion(
+            # `_probe_stop` is deliberately UNREAD here: finding A's triage
+            # belongs to the shipped vlm path, and the legacy path is
+            # unsupported (F10 - not extended). The shared transport grew a
+            # field because the CI CLI needs it; this analyzer's verdict for a
+            # truncated reply stays exactly what it was.
+            status, content, _probe_stop = await _probe_completion(
                 self._http_client,
                 self._llm_url,
                 self._get_auth_headers(),
