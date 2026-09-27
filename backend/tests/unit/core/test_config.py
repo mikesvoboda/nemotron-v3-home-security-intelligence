@@ -24,6 +24,7 @@ def clean_env(monkeypatch):
         "API_PORT",
         "CORS_ORIGINS",
         "FOSCAM_BASE_PATH",
+        "CAMERA_TIMEZONE",
         "FILE_WATCHER_POLLING",
         "FILE_WATCHER_POLLING_INTERVAL",
         "RETENTION_DAYS",
@@ -1035,3 +1036,25 @@ class TestVlmSlotContextWindowConfiguration:
         clean_env.setenv("VLM_CTX_SIZE", "not-a-number")
         settings = Settings(_env_file=None)
         assert settings.vlm_context_window == 16384
+
+
+class TestCameraTimezone:
+    """CAMERA_TIMEZONE (synthbench P0): the cameras' clock zone, for filename capture time."""
+
+    def test_default_is_unset(self) -> None:
+        # Pydantic Settings still reads .env after delenv (see clean_env), so
+        # pin the declared default rather than a constructed instance.
+        assert Settings.model_fields["camera_timezone"].default is None
+
+    def test_accepts_an_iana_zone(self, clean_env, monkeypatch) -> None:
+        monkeypatch.setenv("CAMERA_TIMEZONE", "America/New_York")
+        assert Settings().camera_timezone == "America/New_York"
+
+    def test_empty_means_unset(self, clean_env, monkeypatch) -> None:
+        monkeypatch.setenv("CAMERA_TIMEZONE", "")
+        assert Settings().camera_timezone is None
+
+    def test_rejects_an_unknown_zone(self, clean_env, monkeypatch) -> None:
+        monkeypatch.setenv("CAMERA_TIMEZONE", "Mars/Olympus_Mons")
+        with pytest.raises(ValidationError, match="camera_timezone"):
+            Settings()
