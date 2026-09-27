@@ -133,3 +133,46 @@ Report JSONs (aggregate-only) live at
 `$AGENT_GPU_DIR/out/eval-store/gen-2/reports/2.2.3-candb-ctx32k-p2.json` and
 `2.2.4-candc.json` plus `2.1.6-smoke-ba82322.json` (candidate A), wiped with the store at Brev
 teardown (D10).
+
+## Erratum (dated 2026-09-27, same day; found by the harness review, ledger item 30)
+
+**Candidate A's S5 row under-read A by one.** The summary table's S5 row says A had "0 unparseable,
+2 refusals surfaced", and the finding-A prose says "the probe's **one** refusal". A's second refusal
+was not an enforcement artifact: queried against the eval store's stored rows (the class name each
+refused row carries in `raw_response.error`), A's two refusals were `stock:break_in_attempt` →
+`ConstrainedDecodingNotEnforced` — the one the prose counts — AND `stock:vehicle_parking` →
+`VlmSchemaError`, a real unparseable. The pre-fix harness reported refusals as one undifferentiated
+count and could not name the class, so "0" was what the row could see, not what happened. The
+fixed `s5_refusals` (shipped at `8ad70693`) emits `unparseable` / `unavailable` / `by_error_class`
+precisely so a 2.2 report cannot repeat this; re-running A's 13 items through the fixed metrics on
+the STORED rows gives unparseable = 1 for A, 0 for B, 0 for C. S5's bar ("0 unparseable verdicts")
+therefore reads **failed by 1** for A on the stock corpus — which does not change the ranking story
+this report tells (it explicitly does not pick a model, and a 1-of-13 schema miss on one scene is
+reported, not laundered), but the row as printed is wrong and stands corrected here, dated, not
+silently edited above.
+
+**One sharpening of the finding-A attribution, same erratum, measured the same day.** The 400-token
+cliff the attribution leans on had been walked on build **A** only (`b7972`: 3/4 echo on the shipped
+chat-wire schema, ledger finding G). B's `break_in_attempt` refusal — same scene, same error class —
+was corroborated for B only by the image-free enforcement probe (three × ENFORCED), which pins the
+_build_, not the _scene × budget_. The gap is closed by measurement, not argument: B re-served
+(`b11090-b1c2863e2`, `agent-gpu`, `--vram 20`, `rm`'d after) and the shipped client's own probe body
+run n=8 per cell at temp 0 — **B truncates `break_in_attempt` at 400 on 8/8 requests and echoes on
+8/8 at 700** (full reply ≈1595 chars; the 400-token reply reaches ≈1582 before `finish_reason=length`),
+while the control scene `casing` echoes 8/8 at both budgets. So B's single refusal IS the budget
+artifact, deterministically — and not a broken build: the same scene clears two rows down the ladder,
+and the run's own enforcement gate passed on the SECOND item's image at 400, which is finding G's
+cache-vs-cliff interaction confirmed live on B (an inconclusive probe caches nothing; item 2's image
+answered ENFORCED and the other 11 items flew). The shapes differ by build — A coin-flips (3/4), B
+deterministically truncates (0/8) — but the class is shared, and 700 now measures as clearing
+`break_in_attempt` on BOTH builds (A: 4/4, finding G's own ladder; B: 8/8, this one), which is
+input to open issue 28, not a new question.
+(`/tmp/b_probe_ladder.json`, aggregate counts only, D10.)
+
+**What the correction does NOT touch:** the S4 p95 figures (20.7 / 14.6 / 10.8 s). The harness that
+computed them had an off-by-one (`latencies[int(n*0.95)]`, one rank high at whole-multiple n), but
+at these runs' n=13 both the old index and the fixed nearest-rank rule give rank 13, so these
+numbers were always the quantity claimed — verified, not assumed, when the p95 code was fixed.
+Candidate D stays BLOCKED, the KV reading stands, and finding G (the probe budget) is unchanged:
+`break_in_attempt`'s refusal was already attributed to the 400-token cliff; this adds only that
+A's OTHER refusal was a different class entirely.
