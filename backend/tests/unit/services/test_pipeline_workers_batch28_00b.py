@@ -166,6 +166,7 @@ Shipped-behaviour facts the legs rely on
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 import sys
 import time as real_time
@@ -173,6 +174,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from functools import cache
 from typing import Any
 from unittest.mock import MagicMock, call, create_autospec, patch
 
@@ -185,6 +187,67 @@ from backend.services.nemotron_analyzer import NemotronAnalyzer
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
 pytestmark = [pytest.mark.unit]
+
+
+# =============================================================================
+# World-aware re-anchor for the ``where=`` lineno pins (2026-09-27)
+# =============================================================================
+# See the same block in test_pipeline_workers_batch28_00.py: in mutmut's mutant
+# home the module is the INSTRUMENTED trampoline file (every mutated function
+# duplicated, so the shipped call legitimately fires at shifted lines).  The
+# honest, mutation-detecting fact is that the record fired at a line holding
+# THIS EXACT shipped call block — a moved/reworded call breaks the match and
+# still reddens; text/extra mutations are caught by the untouched pins.
+_LOG_CALL_BLOCKS: dict[int, tuple[str, ...]] = {
+    1044: (
+        "logger.debug(",
+        'f"Failed to broadcast batch.analysis_started: {broadcast_err}",',
+        'extra={"batch_id": batch_id},',
+        ")",
+    ),
+    1081: (
+        "logger.debug(",
+        'f"Total pipeline latency: {total_duration_ms:.1f}ms",',
+        "extra={",
+        '"total_pipeline_ms": total_duration_ms,',
+        '"pipeline_start_time": pipeline_start_time,',
+        "},",
+        ")",
+    ),
+    1089: (
+        "logger.warning(",
+        "f\"Failed to parse pipeline_start_time '{pipeline_start_time}': {e}\",",
+        'extra={"pipeline_start_time": pipeline_start_time},',
+        ")",
+    ),
+    1094: (
+        "logger.info(",
+        'f"Created event {event.id}: risk_score={event.risk_score}",',
+        "extra={",
+        '"event_id": event.id,',
+        '"risk_score": event.risk_score,',
+        '"items_processed": self._stats.items_processed,',
+        "},",
+        ")",
+    ),
+}
+
+
+@cache
+def _shipped_linenos(start: int) -> frozenset[int]:
+    """Every line (1-based) of M's loaded source holding the shipped call block."""
+    stripped = [ln.strip() for ln in inspect.getsource(M).splitlines()]
+    block = list(_LOG_CALL_BLOCKS[start])
+    hits = frozenset(
+        i + 1
+        for i in range(len(stripped) - len(block) + 1)
+        if stripped[i : i + len(block)] == block
+    )
+    assert hits, (
+        f"shipped call transcribed at L{start} not found anywhere in M's source "
+        f"({M.__file__}) — transcription drifted, fix the block table"
+    )
+    return hits
 
 
 # =============================================================================
@@ -363,8 +426,9 @@ def pin_record(
     """Assert the observable surface of one shipped log call (RAW ``msg`` + call site)."""
     assert r.msg == msg, f"log text mutated at {where}: {r.msg!r} != {msg!r}"
     assert r.levelno == level, f"log level mutated at {where}: {r.levelno} != {level}"
-    assert r.lineno == where, (
-        f"log call site mutated: {msg!r} shipped at L{where}, fired at L{r.lineno}"
+    assert r.lineno in _shipped_linenos(int(where)), (
+        f"log call site mutated: {msg!r} shipped at L{where}, fired at L{r.lineno} "
+        f"(no line of M's loaded source holds the shipped call there)"
     )
     assert tuple(r.args or ()) == (), (
         f"unexpected lazy args for an f-string message at {where}: {r.args!r}"

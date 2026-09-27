@@ -11705,3 +11705,77 @@ pattern) is filed as follow-up, not silently mixed into a campaign commit.
 **METAS BACKED UP before the re-bank**: 262 metas + mutmut-stats.json →
 /tmp/wp-b28/backup-metas-132413/ (all-metas.tgz 258 +
 orchestrator-metas.tgz 4 = 262, counted).
+
+## Batch-28 closeout, step 2 — the pw re-bank stats-abort (18:34Z), the recovery, and the two-part fix
+
+**Timeline (all `date -u`)**: commit c4ba5d4e (batteries + L row) → pre-run
+score measured 64.32356979924418% (killed 54515 timeout 2165 survived 31433
+total 88117 no_tests 4 unchecked 0 modules 222/269) — command
+`uv run python scripts/mutation-score.py` — identical to the published
+baseline, i.e. the cache was honest at launch →
+`MUTMAX=14 ./scripts/mutation-run.sh pipeline_workers` started 18:26:02Z
+(log /tmp/wp-b28/rebank-pw.log) → generation OK (269 files, 172s) →
+`Found 830 new tests, rerunning stats collection` → **`failed to collect
+stats. runner returned 1`** at 18:34:18Z, rc=1. The aborted run had ALREADY
+rewritten the live metas (pw meta 548,284 B → 375,579 B) — the coverage pass
+in the same generation aborted under the same -x, so `mutate_only_covered_lines`
+collapsed mutation to covered-line keys. Measured collapse:
+score-tool read 112 modules / 10,011 keys / 313 unchecked.
+
+**Recovery = the backup-before-any-run directive.** Restored from
+`/tmp/wp-b28/backup-metas-132413/` (all-metas.tgz 258 + orchestrator-metas.tgz
+4 + pipeline_workers.py.meta + mutmut-stats.json), then re-measured:
+`score 64.32356979924418% killed 54515 timeout 2165 survived 31433 total
+88117 no_tests 4 unchecked 0 modules 222` — baseline byte-honest again. No
+verdicts lost.
+
+**Root cause (two independent members of the known abort-under-`-x` family;
+memory `mutants-tree-missing-also-copy-abort-family` predicted this trap and
+its pre-check recipe — I gated against a RAW mutants copy instead of the
+instrumented one, which is why 13:19's gate passed):**
+
+1. **SEVENTH member, new shape: absolute-lineno log pins in a battery.**
+   `_00/_00b`'s `pin_record` asserted `r.lineno == where` with the PRISTINE
+   workspace line. In mutmut's mutant home the imported module is the
+   INSTRUMENTED trampoline file: every mutated function is duplicated (orig +
+   one copy per mutant) — pw is 2,271 lines shipped vs 3,042 instrumented — so
+   a shipped call legitimately fires at a shifted line. The stats rerun
+   executes the originals and still saw shifted linenos: 11 tests red
+   (`assert 1544 == 1001`, `assert 1569 == 1026`, …) → -x aborts stats AND
+   coverage. Measured by faithful repro (mutants/ cwd, mutmut's exact args,
+   the 830-test new-set reconstructed via
+   `find backend/tests/unit -name 'test_*.py' -newermt '2026-09-27 06:00'`
+   → 75 files): **14 failed, 2840 passed** (/tmp/wp-b28/statsrepro.log).
+   Blast radius measured: 86 of the 959 bank keys name one of the 11 tests in
+   their replay proof (/tmp/wp-b28/lineno-dependent-keys.json) — their
+   pristine-world kills stand; the fix keeps them honest in both worlds.
+   **FIX (semantics-preserving): world-aware re-anchor.** `pin_record` now
+   asserts `r.lineno in _shipped_linenos(where)` where `_shipped_linenos`
+   re-anchors the SHIPPED logger-call block (exact stripped line-tuple,
+   transcribed for the 6 pinned call sites L1001/1026/1044/1081/1089/1094,
+   each verified unique in the pristine source) against
+   `inspect.getsource(M)` — whichever file M was loaded from. One hit in the
+   pristine world (identical assertion strength: the shipped call fired at the
+   shipped block); one hit per trampoline copy in the mutant home. A mutation
+   that moves/rewords/reshapes the call breaks the block match at the executed
+   line and still reddens; a transcription that drifts fails LOUD (the anchor
+   asserts non-empty). The msg/level/args/exc_info/extras pins are untouched.
+2. **THIRD-member recurrence (path-reads) for three rebase-introduced tests**:
+   `test_levels.py` reads `frontend/src/utils/risk.ts`,
+   `test_check_test_coverage_gate.py` resolves `frontend/src/hooks/useTopEventsQuery.test.tsx`,
+   `test_person_vector_provenance.py` reads
+   `docs/api/migrations/2026-09-26-person-vector-provenance-model-id.sql` —
+   none reachable in the mutant home. **FIX: also_copy += `frontend/src/`
+   (3.0 MB hooks + 327 KB utils, whole dir 14 MB — measured) +
+   `docs/api/migrations/`** (29 KB). also_copy is NOT in
+   `config_fingerprint()` (verified in the installed package: groups are
+   test_execution/test_selection/timeout/type_check) → verdict-safe.
+
+**Gate after the fix (the memory's own recipe, run honestly this time):**
+`_00+_00b` in the instrumented mutant home with mutmut's exact args:
+**30 passed** (cwd=mutants, cwd-relative nodeids, `-m "not gpu" -p no:randomly
+-p no:benchmark -o addopts= --timeout=120`); full 830-test new-set faithful
+repro (cwd=mutants, MUTANT_UNDER_TEST=stats, PY_IGNORE_IMPORTMISMATCH=1):
+**2854 passed, 2 skipped, rc=0** in 85 s (/tmp/wp-b28/statsrepro3.log).
+Batteries synced into mutants/ + pyproject synced; `copy_also_copy_files`
+verified dirs_exist_ok copytree → new entries honored on next generation.

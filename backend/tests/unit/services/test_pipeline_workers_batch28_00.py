@@ -147,12 +147,14 @@ Discipline (batch28_17 / batch28_06 pattern)
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 import sys
 import time as real_time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import cache
 from typing import Any
 from unittest.mock import MagicMock, call, create_autospec, patch
 
@@ -166,6 +168,63 @@ from backend.services.nemotron_analyzer import NemotronAnalyzer
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
 pytestmark = [pytest.mark.unit]
+
+
+# =============================================================================
+# World-aware re-anchor for the ``where=`` lineno pins (2026-09-27)
+# =============================================================================
+# In the pristine tree each shipped logger call fires at exactly the line
+# transcribed below.  In mutmut's mutant home the module under import is the
+# INSTRUMENTED trampoline file: every mutated function is duplicated (orig + one
+# copy per mutant), so the shipped statement legitimately fires at one of
+# several shifted lines.  A record from a trampoline copy IS still the shipped
+# call -- a copy differs from the shipped text ONLY at the mutant's own line --
+# so the honest mutation-detecting fact is: the record fired at a line that
+# currently holds THIS EXACT shipped call block.  A mutation that moves,
+# rewords or reshapes the call breaks the block match at the executed line and
+# still reddens here; mutations elsewhere in the function are caught by the
+# msg/level/args/exc_info/extras pins, which are untouched.  ``inspect.getsource
+# (M)`` reads whichever file M was imported from, so both worlds re-anchor.
+_LOG_CALL_BLOCKS: dict[int, tuple[str, ...]] = {
+    1001: (
+        "logger.error(",
+        'f"SECURITY: Rejecting invalid analysis queue payload: {e}",',
+        "extra={",
+        '"raw_item": str(item)[:500],  # Truncate to prevent log injection',
+        '"error": str(e),',
+        "},",
+        ")",
+    ),
+    1026: ('logger.info(f"Processing analysis for batch {batch_id}")',),
+    1044: (
+        "logger.debug(",
+        'f"Failed to broadcast batch.analysis_started: {broadcast_err}",',
+        'extra={"batch_id": batch_id},',
+        ")",
+    ),
+}
+
+
+@cache
+def _shipped_linenos(start: int) -> frozenset[int]:
+    """Every line (1-based) of M's loaded source holding the shipped call block.
+
+    One line in the pristine world; one per trampoline copy in the mutant home.
+    The assertion below guards transcription drift: if the block cannot be found
+    at all, the pins are stale and must fail LOUD, not silently pass.
+    """
+    stripped = [ln.strip() for ln in inspect.getsource(M).splitlines()]
+    block = list(_LOG_CALL_BLOCKS[start])
+    hits = frozenset(
+        i + 1
+        for i in range(len(stripped) - len(block) + 1)
+        if stripped[i : i + len(block)] == block
+    )
+    assert hits, (
+        f"shipped call transcribed at L{start} not found anywhere in M's source "
+        f"({M.__file__}) — transcription drifted, fix the block table"
+    )
+    return hits
 
 
 # =============================================================================
@@ -390,8 +449,9 @@ def pin_record(
     """
     assert r.msg == msg, f"log text mutated at {where}: {r.msg!r} != {msg!r}"
     assert r.levelno == level, f"log level mutated at {where}: {r.levelno} != {level}"
-    assert r.lineno == where, (
-        f"log call site mutated: {msg!r} shipped at L{where}, fired at L{r.lineno}"
+    assert r.lineno in _shipped_linenos(int(where)), (
+        f"log call site mutated: {msg!r} shipped at L{where}, fired at L{r.lineno} "
+        f"(no line of M's loaded source holds the shipped call there)"
     )
     assert tuple(r.args or ()) == (), (
         f"unexpected lazy args for an f-string message at {where}: {r.args!r}"

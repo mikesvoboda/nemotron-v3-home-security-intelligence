@@ -841,6 +841,13 @@ also_copy = [
     "frontend/docker-entrypoint.sh",
     "frontend/package.json",
     "frontend/Dockerfile",
+    # 2026-09-27 stats-abort repair (pw re-bank 18:34Z): test_levels.py reads
+    # frontend/src/utils/risk.ts, test_check_test_coverage_gate.py resolves
+    # frontend/src/hooks/*.test.tsx, test_person_vector_provenance.py reads
+    # docs/api/migrations/*.sql — all path-reads relative to the mutant-home
+    # root; missing -> -x aborts stats (also_copy abort family).
+    "frontend/src/",
+    "docs/api/migrations/",
 ]
 
 # =============================================================================
