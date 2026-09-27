@@ -20,6 +20,8 @@
  * @module pipeline
  */
 
+import { compareRiskSortKey } from './risk';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -156,9 +158,18 @@ export const sortByDate = <T extends { started_at: string }>(
 /**
  * Creates a transform that sorts events by risk score.
  *
- * Treats undefined or null risk_score as 0.
- * Uses stable sort to preserve original order for equal scores.
- * Does not mutate the input array.
+ * A null/undefined score is UNKNOWN, not 0 (D11): it ranks above every
+ * score worst-first, so a never-analyzed event surfaces where someone will
+ * look at it instead of burying beside genuinely-harmless ones. That rule
+ * lives in ONE place — `compareRiskSortKey` in ./risk — and this transform
+ * calls it rather than re-deriving a second answer; two copies of "where
+ * does unknown go" is how a sort drifts from the badge beside it. (This
+ * replaced `?? 0`, which made an unverified event sort as the LOWEST risk
+ * and whose test pinned that as intended behaviour.)
+ *
+ * Uses stable sort to preserve original order for equal scores — two
+ * unknowns are EQUAL, never `Infinity - Infinity` = NaN, which would make
+ * the whole ordering implementation-defined. Does not mutate the input array.
  *
  * @param order - Sort order: 'asc' (lowest first) or 'desc' (highest first)
  * @returns Transform function that sorts by risk score
@@ -178,9 +189,7 @@ export const sortByRisk = <T extends { risk_score?: number | null }>(
   return (events: T[]) => {
     // Create a copy to avoid mutation
     return [...events].sort((a, b) => {
-      const scoreA = a.risk_score ?? 0;
-      const scoreB = b.risk_score ?? 0;
-      const diff = scoreA - scoreB;
+      const diff = compareRiskSortKey(a.risk_score, b.risk_score);
       return order === 'asc' ? diff : -diff;
     });
   };

@@ -22,7 +22,7 @@ import {
   useCameraActivityQuery,
   type CameraActivityDateRange,
 } from '../../hooks/useCameraActivityQuery';
-import { getRiskBgClass } from '../../utils/risk';
+import { getRiskBgClass, getRiskLevel } from '../../utils/risk';
 
 import type { CameraActivityDataPoint, RiskLevel } from '../../types/analytics';
 
@@ -44,11 +44,14 @@ interface CameraActivityHeatmapProps {
 /**
  * Risk level Tailwind border classes.
  */
-const RISK_BORDER_CLASSES: Record<RiskLevel, string> = {
+const RISK_BORDER_CLASSES: Record<RiskLevel | 'unverified', string> = {
   low: 'border-green-500',
   medium: 'border-yellow-500',
   high: 'border-orange-500',
   critical: 'border-red-500',
+  // Neutral, and NOT green: a camera whose events carry no score has not
+  // been found calm, it has not been checked.
+  unverified: 'border-gray-600',
 };
 
 // ============================================================================
@@ -213,8 +216,12 @@ interface CameraActivityItemProps {
  */
 function CameraActivityItem({ camera, onClick }: CameraActivityItemProps) {
   const thumbnailUrl = getThumbnailUrl(camera.thumbnail_path);
-  const riskLevel = camera.risk_level ?? 'low';
-  const borderClass = RISK_BORDER_CLASSES[riskLevel];
+  // null risk_level = nothing on this camera has a score (D11: every event
+  // unverified, or no events). `?? 'low'` painted that camera GREEN, which
+  // reads "calm" — the lie 1.6 removed from the event cards, in tile form.
+  // Unverified gets its own neutral border and its own word, never a level.
+  const riskLevel = camera.risk_level;
+  const borderClass = RISK_BORDER_CLASSES[riskLevel ?? 'unverified'];
 
   // Construct aria-label for accessibility
   const ariaLabel = `${camera.camera_name}: ${camera.event_count} events${camera.max_risk_score !== null ? `, risk score ${camera.max_risk_score}` : ''}`;
@@ -222,7 +229,7 @@ function CameraActivityItem({ camera, onClick }: CameraActivityItemProps) {
   return (
     <div
       data-testid={`camera-activity-item-${camera.camera_id}`}
-      data-risk-level={riskLevel}
+      data-risk-level={riskLevel ?? 'unverified'}
       aria-label={ariaLabel}
       tabIndex={0}
       role="button"
@@ -254,10 +261,14 @@ function CameraActivityItem({ camera, onClick }: CameraActivityItemProps) {
           </div>
         )}
 
-        {/* Risk score badge */}
+        {/* Risk score badge — gated on the score, so its color derives from
+            that same score rather than from risk_level, which is a separate
+            field and can be null while a score exists. (It used to read
+            `riskLevel`, which is why the tile could no longer typecheck once
+            risk_level was allowed to be null.) */}
         {camera.max_risk_score !== null && (
           <div
-            className={`absolute right-2 top-2 rounded px-1.5 py-0.5 text-xs font-medium ${getRiskBgClass(riskLevel)} text-white`}
+            className={`absolute right-2 top-2 rounded px-1.5 py-0.5 text-xs font-medium ${getRiskBgClass(getRiskLevel(camera.max_risk_score))} text-white`}
           >
             Risk: {camera.max_risk_score}
           </div>

@@ -60,6 +60,85 @@ describe('DeletedEventCard', () => {
     expect(screen.getByText(/Medium \(45\)/i)).toBeInTheDocument();
   });
 
+  // M1 review F-E follow-through: a NULL risk_score under D11 means
+  // verification_failed / never-verified, NOT a score of 0. This card used to
+  // do `event.risk_score ?? 0` and then getRiskLevel(0), so a trash-listed
+  // event the VLM never scored rendered as a confident green "Low 0" — the
+  // exact lie 1.6 removed from EventCard/MobileEventCard, left standing on
+  // the one surface fed by GET /api/events/deleted.
+  describe('a NULL risk_score states "not verified" instead of "Low 0" (D11)', () => {
+    it('renders the Unverified badge, never a level badge', () => {
+      const event = createMockDeletedEvent({ risk_score: null, risk_level: null });
+
+      render(
+        <DeletedEventCard
+          event={event}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+        />
+      );
+
+      expect(screen.getByText(/Unverified/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Low/i)).not.toBeInTheDocument();
+      // And the fabricated number itself is gone, not merely re-colored.
+      expect(screen.queryByText(/\(0\)/)).not.toBeInTheDocument();
+    });
+
+    it('names verification_failed when the event carries that verdict', () => {
+      const event = createMockDeletedEvent({
+        risk_score: null,
+        risk_level: null,
+        verification: {
+          engine: 'llama.cpp',
+          model_id: 'qwen3vl-4b',
+          verdict: 'verification_failed',
+        },
+      });
+
+      render(
+        <DeletedEventCard
+          event={event}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+        />
+      );
+
+      expect(screen.getByText(/Verification failed/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Low/i)).not.toBeInTheDocument();
+    });
+
+    it('draws no risk progress bar when there is no score', () => {
+      // A 0%-filled bar under an "Unverified" badge re-lies in a second
+      // medium: the trough itself reads as "measured, and low".
+      const event = createMockDeletedEvent({ risk_score: null, risk_level: null });
+
+      render(
+        <DeletedEventCard
+          event={event}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+        />
+      );
+
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('still draws the bar and the badge when a score exists', () => {
+      const event = createMockDeletedEvent({ risk_score: 75, risk_level: 'high' });
+
+      render(
+        <DeletedEventCard
+          event={event}
+          onRestore={mockOnRestore}
+          onPermanentDelete={mockOnPermanentDelete}
+        />
+      );
+
+      expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '75');
+      expect(screen.getByText(/High \(75\)/i)).toBeInTheDocument();
+    });
+  });
+
   it('displays time since deletion', () => {
     const event = createMockDeletedEvent({
       deleted_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago

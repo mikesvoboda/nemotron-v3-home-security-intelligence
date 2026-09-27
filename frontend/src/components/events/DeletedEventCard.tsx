@@ -17,6 +17,7 @@ import { cardPropsComparator } from '../../utils/memoization';
 import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import Button from '../common/Button';
 import RiskBadge from '../common/RiskBadge';
+import VerdictBadge from '../common/VerdictBadge';
 
 import type { DeletedEvent } from '../../services/api';
 
@@ -87,9 +88,17 @@ const DeletedEventCard = memo(function DeletedEventCard({
 }: DeletedEventCardProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  // Default to 0 if risk_score is null/undefined
-  const riskScore = event.risk_score ?? 0;
-  const riskLevel = getRiskLevel(riskScore);
+  // Risk level + score as ONE nullable object, the shape ActivityFeed
+  // ships: the JSX branch then narrows both without a non-null assertion
+  // or a dead `?? 'low'` fallback. null means there is no level to show —
+  // a NULL score under D11 is verification_failed/unverified, NOT a score
+  // of 0, and the `?? 0` this replaces rendered a never-verified
+  // soft-deleted event as a confident green "Low 0" (M1 review F-E
+  // follow-through).
+  const risk =
+    event.risk_score === null || event.risk_score === undefined
+      ? null
+      : { score: event.risk_score, level: getRiskLevel(event.risk_score) };
   const timeSinceDeletion = formatTimeSinceDeletion(event.deleted_at);
 
   const handleRestore = useCallback(() => {
@@ -200,27 +209,39 @@ const DeletedEventCard = memo(function DeletedEventCard({
                 <span>{new Date(event.started_at).toLocaleString()}</span>
               </div>
             </div>
-            <RiskBadge level={riskLevel} score={riskScore} showScore={true} size="sm" />
+            {risk !== null ? (
+              <RiskBadge level={risk.level} score={risk.score} showScore={true} size="sm" />
+            ) : (
+              // Same swap EventCard/MobileEventCard ship: with no level to
+              // show, the verdict badge states the real state ('none' →
+              // Unverified). A colored Low badge may never stand in for
+              // "not checked" — soft-deleted is not soft-verified.
+              <VerdictBadge verdict={event.verification?.verdict} size="sm" />
+            )}
           </div>
 
-          {/* Risk Progress Bar */}
-          <div className="mb-2">
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800"
-              role="progressbar"
-              aria-valuenow={riskScore}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
+          {/* Risk Progress Bar — only when a score exists. A 0%-filled bar
+              under an "Unverified" badge would re-lie in a second medium:
+              the trough itself reads as "measured, and low". */}
+          {risk !== null && (
+            <div className="mb-2">
               <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${riskScore}%`,
-                  backgroundColor: getRiskColor(riskLevel),
-                }}
-              />
+                className="h-1.5 w-full overflow-hidden rounded-full bg-gray-800"
+                role="progressbar"
+                aria-valuenow={risk.score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${risk.score}%`,
+                    backgroundColor: getRiskColor(risk.level),
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Summary */}
           <p className="mb-3 line-clamp-2 text-sm text-gray-400">{event.summary}</p>

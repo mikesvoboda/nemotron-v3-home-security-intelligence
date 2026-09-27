@@ -202,18 +202,27 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
           setEvents((prevEvents) => {
             // Convert Event to SecurityEvent format
             const securityEvents: SecurityEvent[] = newEvents.map((e) => {
-              // Validate risk_level is a valid value
+              // Validate risk_level is a valid value — but "not a level I
+              // recognise" is NOT "low" (D11). null is the unknown the
+              // SecurityEventData contract declares, and renderers branch on
+              // it; folding it into 'low' is the same lie as `?? 0` below it.
               const validRiskLevels = ['low', 'medium', 'high', 'critical'] as const;
               type RiskLevel = (typeof validRiskLevels)[number];
-              const riskLevel: RiskLevel = validRiskLevels.includes(e.risk_level as RiskLevel)
+              const riskLevel: RiskLevel | null = validRiskLevels.includes(
+                e.risk_level as RiskLevel
+              )
                 ? (e.risk_level as RiskLevel)
-                : 'low';
+                : null;
 
               return {
                 id: e.id,
                 event_id: e.id,
                 camera_id: e.camera_id,
-                risk_score: e.risk_score ?? 0,
+                // D11: no score = verification_failed/never-verified, not a 0.
+                // The sibling WS path (`handleEventMessage`) already stores the
+                // payload verbatim; this REST mapper must not invent a number
+                // the WS path would never invent.
+                risk_score: e.risk_score ?? null,
                 risk_level: riskLevel,
                 summary: e.summary ?? '',
                 timestamp: e.started_at,

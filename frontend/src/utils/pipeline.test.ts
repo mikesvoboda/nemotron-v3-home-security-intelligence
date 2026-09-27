@@ -223,32 +223,60 @@ describe('sortByRisk', () => {
     expect(result[4].id).toBe(1); // 75
   });
 
-  it('treats undefined risk_score as 0', () => {
+  // Rewritten with the null pin above: an ABSENT score is the same unknown
+  // state as a null one (a field the API never filled is not a score of 0),
+  // so it takes the same place — last ascending, first descending.
+  it('treats an absent risk_score as the same unknown as null', () => {
     const events = [
       { id: 1, started_at: '2024-01-15T10:00:00Z', risk_score: 50 },
       { id: 2, started_at: '2024-01-15T10:00:00Z' }, // undefined risk_score
       { id: 3, started_at: '2024-01-15T10:00:00Z', risk_score: 25 },
     ];
     type EventWithOptionalRisk = { id: number; started_at: string; risk_score?: number };
-    const result = sortByRisk<EventWithOptionalRisk>('asc')(events);
+    const asc = sortByRisk<EventWithOptionalRisk>('asc')(events);
+    const desc = sortByRisk<EventWithOptionalRisk>('desc')(events);
 
-    expect(result[0].id).toBe(2); // undefined = 0
-    expect(result[1].id).toBe(3); // 25
-    expect(result[2].id).toBe(1); // 50
+    expect(asc.map((e) => e.id)).toEqual([3, 1, 2]); // unknown last "lowest"
+    expect(desc.map((e) => e.id)).toEqual([2, 1, 3]); // unknown first, needs eyes
   });
 
-  it('treats null risk_score as 0', () => {
-    const events = [
+  // Rewritten 2026-09-27 (M1 review, frontend null-lie class). This pin used to
+  // read "treats null risk_score as 0" and assert null sorts FIRST ascending —
+  // i.e. it pinned the lie itself. Under D11 a NULL score is
+  // verification_failed/unverified, NOT a score of 0, and utils/risk.ts
+  // (riskSortKey, shipped in 1.6) already rules: unknown ranks ABOVE every
+  // score worst-first so it needs eyes on it. A sort helper that folds unknown
+  // into 0 buries never-analyzed events next to genuinely harmless ones.
+  describe('null risk_score is unknown, not zero (D11)', () => {
+    type Nullable = { id: number; started_at: string; risk_score?: number | null };
+    const events: Nullable[] = [
       { id: 1, started_at: '2024-01-15T10:00:00Z', risk_score: 50 },
-      { id: 2, started_at: '2024-01-15T10:00:00Z', risk_score: null as unknown as number },
+      { id: 2, started_at: '2024-01-15T10:00:00Z', risk_score: null },
       { id: 3, started_at: '2024-01-15T10:00:00Z', risk_score: 25 },
     ];
-    type EventWithNullableRisk = { id: number; started_at: string; risk_score?: number | null };
-    const result = sortByRisk<EventWithNullableRisk>('asc')(events);
 
-    expect(result[0].id).toBe(2); // null = 0
-    expect(result[1].id).toBe(3); // 25
-    expect(result[2].id).toBe(1); // 50
+    it('ranks unknown FIRST worst-first (it needs eyes, not the tail)', () => {
+      const result = sortByRisk<Nullable>('desc')(events);
+      expect(result.map((e) => e.id)).toEqual([2, 1, 3]);
+    });
+
+    it('ranks unknown LAST best-first (a never-analyzed event is not "lowest risk")', () => {
+      const result = sortByRisk<Nullable>('asc')(events);
+      expect(result.map((e) => e.id)).toEqual([3, 1, 2]);
+    });
+
+    it('treats two unknowns as EQUAL — Infinity - Infinity is NaN, which scrambles a sort', () => {
+      const withTwo: Nullable[] = [
+        { id: 1, started_at: 'x', risk_score: 50 },
+        { id: 2, started_at: 'x', risk_score: null },
+        { id: 3, started_at: 'x', risk_score: undefined },
+      ];
+      // A NaN comparator result makes the WHOLE ordering implementation-
+      // defined, so pin that both unknowns still outrank the scored event
+      // descending and keep their relative (stable) input order.
+      const result = sortByRisk<Nullable>('desc')(withTwo);
+      expect(result.map((e) => e.id)).toEqual([2, 3, 1]);
+    });
   });
 
   it('does not mutate the original array', () => {
