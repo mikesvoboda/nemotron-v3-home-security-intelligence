@@ -491,6 +491,13 @@ def test_real_tree_matches_spec_baselines():
     only at red-check time) are absent. Adjudicated environment via
     HOST_JUSTIFIED + regenerated registry (commit b80d00b4); same data-chain
     class as scenarios.parquet.
+    pytest_skip_imperative 96→99 (2026-09-27): the re-ID swap's real-.pth
+    proof, test_osnet_loader.py:1360/1387/1398 — the loader's B2 acceptance
+    test skips per env: pinned weights absent (AGENT_GPU_DIR unset), torch
+    absent, torchreid's tensorboard chain unimportable. Adjudicated (two
+    environment, one todo weights-gate) via regenerated registry + baseline
+    raised the same commit — the increase path exercised exactly as designed;
+    every CI env takes all three skips, every GPU box runs the real thing.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -502,7 +509,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 96,
+        "pytest_skip_imperative": 99,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,
