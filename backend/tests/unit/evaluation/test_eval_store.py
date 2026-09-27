@@ -297,6 +297,87 @@ class TestSyntheticLoader:
             assert s.get_item(items[0].item_id) == items[0]
 
 
+class TestSyntheticLabelAuthority:
+    """The directory is the label's authority; a `category` key may CONFIRM a
+    placement, never overrule or invent one (ledger item 33).
+
+    Measured on a temp corpus before this slice, by running the shipped
+    loader: a set placed in `threats/` whose file declared `"normal"` came
+    back `expected_label="benign"`, and a set in a directory outside
+    {normal, suspicious, threats} with no declaration came back
+    `expected_label="threats"` - a string no reader counts, which the size bar
+    then reports as `unknown` (neither side). Both are silent: no log, no
+    skip, no manifest row. A threat counted benign deflates exactly the side
+    S2 ranks incidents against, so an ambiguity here is REFUSED, not resolved
+    by precedence - same posture as item 24's two-sources-of-truth fix.
+
+    Zero committed sets hit either case (measured: 366 agree, 47 declare
+    nothing, 0 conflict, 0 out-of-vocab), so the refusal is free.
+    """
+
+    @staticmethod
+    def _write(tmp_path: Path, category: str, set_name: str, body: dict) -> Path:
+        d = tmp_path / category / set_name
+        d.mkdir(parents=True)
+        (d / "expected_labels.json").write_text(json.dumps(body))
+        return d
+
+    def test_conflicting_declaration_is_refused(self, tmp_path) -> None:
+        """threats/ + declared "normal" must not become a benign item."""
+        self._write(tmp_path, "threats", "package_theft_x", {"category": "normal", "risk": {}})
+        with pytest.raises(ValueError, match="category"):
+            load_synthetic_items(tmp_path)
+
+    def test_conflict_names_both_sides(self, tmp_path) -> None:
+        """A refusal that says "bad category" is unactionable - the generator's
+        owner needs to see which side won and which lost."""
+        self._write(tmp_path, "normal", "quiet_set", {"category": "threats"})
+        with pytest.raises(ValueError) as excinfo:
+            load_synthetic_items(tmp_path)
+        msg = str(excinfo.value)
+        assert "normal" in msg and "threats" in msg
+
+    def test_declaration_outside_the_vocabulary_is_refused(self, tmp_path) -> None:
+        """`"category": "threat"` (typo) is not a label in the vocabulary; the
+        old code returned it verbatim as `expected_label`, uncountable."""
+        self._write(tmp_path, "suspicious", "casing_typo", {"category": "threat"})
+        with pytest.raises(ValueError, match="outside the"):
+            load_synthetic_items(tmp_path)
+
+    def test_out_of_vocab_placement_is_refused_not_uncountable(self, tmp_path) -> None:
+        """The failure that needs NO declaration at all: `incidents/` is not a
+        placement this codebase knows, and the old fallback made the directory
+        name the label."""
+        self._write(tmp_path, "incidents", "some_set", {"risk": {}})
+        with pytest.raises(ValueError, match="outside the category vocabulary"):
+            load_synthetic_items(tmp_path)
+
+    def test_no_declaration_still_uses_placement(self, tmp_path) -> None:
+        """The committed corpus's common case (47 of 413 sets): the file says
+        nothing and the directory carries the label. The refusal must not
+        reach this."""
+        self._write(
+            tmp_path, "threats", "vandalism_q", {"risk": {"min_score": 60, "max_score": 80}}
+        )
+        (item,) = load_synthetic_items(tmp_path)
+        assert item.expected_label == "incident"
+
+    def test_agreeing_declaration_is_accepted(self, tmp_path) -> None:
+        """Confirming a placement is legal - it is the generator's own
+        self-check, and refusing it would punish the good case."""
+        self._write(tmp_path, "suspicious", "loitering_ok", {"category": "suspicious"})
+        (item,) = load_synthetic_items(tmp_path)
+        assert item.expected_label == "incident"
+
+    def test_committed_corpus_still_loads_in_full(self) -> None:
+        """The refusal is only free if nothing committed trips it - and this
+        pins that it stays free: every set keeps loading, and every label
+        lands inside the two-value vocabulary the bar counts."""
+        items = load_synthetic_items(REPO_ROOT / "data" / "synthetic")
+        assert len(items) == 413
+        assert {i.expected_label for i in items} == {"benign", "incident"}
+
+
 class TestSyntheticSpecialistContext:
     """1.3b: verdict-changing synthetic cases. A label set may carry a
     `specialist_context` block - the scenario's declared specialist GIVEN
