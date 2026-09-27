@@ -148,6 +148,12 @@ class TestCosineSimilarity:
         assert abs(similarity - 0.707) < 0.01
 
 
+# The belt a person-vector producer names (F11, ledger item 20): a gallery
+# row or probe that never names one is untrusted, so fixtures comparing real
+# vectors must name a producer.
+PROVENANCE = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+
+
 # =============================================================================
 # HouseholdMatcher Person Matching Tests
 # =============================================================================
@@ -208,11 +214,11 @@ class TestHouseholdMatcherPersonMatching:
 
         # Mock _get_all_member_embeddings to return our test data
         matcher._get_all_member_embeddings = AsyncMock(
-            return_value=[(1, "John Doe", test_embedding)]
+            return_value=[(1, "John Doe", test_embedding, PROVENANCE)]
         )
 
         # Perform the match
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         # Verify the result
         assert result is not None
@@ -234,10 +240,10 @@ class TestHouseholdMatcherPersonMatching:
 
         # Mock _get_all_member_embeddings
         matcher._get_all_member_embeddings = AsyncMock(
-            return_value=[(1, "Jane Doe", stored_embedding)]
+            return_value=[(1, "Jane Doe", stored_embedding, PROVENANCE)]
         )
 
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         assert result is not None
         assert result.member_id == 1
@@ -257,10 +263,10 @@ class TestHouseholdMatcherPersonMatching:
         stored_embedding = np.array([0.0, 1.0, 0.0, 0.0, 0.0], dtype=np.float32)
 
         matcher._get_all_member_embeddings = AsyncMock(
-            return_value=[(1, "Random Person", stored_embedding)]
+            return_value=[(1, "Random Person", stored_embedding, PROVENANCE)]
         )
 
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         assert result is None  # No match because similarity < 0.85
 
@@ -275,7 +281,7 @@ class TestHouseholdMatcherPersonMatching:
 
         matcher._get_all_member_embeddings = AsyncMock(return_value=[])
 
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         assert result is None
 
@@ -290,14 +296,29 @@ class TestHouseholdMatcherPersonMatching:
 
         # Create multiple embeddings with varying similarity
         embeddings = [
-            (1, "Low Match", np.array([0.7, 0.7, 0.1], dtype=np.float32)),  # ~0.7 similarity
-            (2, "Best Match", np.array([0.99, 0.01, 0.0], dtype=np.float32)),  # ~0.99 similarity
-            (3, "Medium Match", np.array([0.9, 0.3, 0.0], dtype=np.float32)),  # ~0.95 similarity
+            (
+                1,
+                "Low Match",
+                np.array([0.7, 0.7, 0.1], dtype=np.float32),
+                PROVENANCE,
+            ),  # ~0.7 similarity
+            (
+                2,
+                "Best Match",
+                np.array([0.99, 0.01, 0.0], dtype=np.float32),
+                PROVENANCE,
+            ),  # ~0.99 similarity
+            (
+                3,
+                "Medium Match",
+                np.array([0.9, 0.3, 0.0], dtype=np.float32),
+                PROVENANCE,
+            ),  # ~0.95 similarity
         ]
 
         matcher._get_all_member_embeddings = AsyncMock(return_value=embeddings)
 
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         assert result is not None
         assert result.member_id == 2
@@ -317,13 +338,13 @@ class TestHouseholdMatcherPersonMatching:
         stored_embedding = np.array([0.11, 0.21, 0.31], dtype=np.float32)
 
         matcher._get_all_member_embeddings = AsyncMock(
-            return_value=[(1, "Test Person", stored_embedding)]
+            return_value=[(1, "Test Person", stored_embedding, PROVENANCE)]
         )
 
         # With default 0.85 threshold, this would match
         # With 0.95 threshold, it should not match (similarity ~0.999)
         # Actually this should match because the vectors are very similar
-        result = await matcher.match_person(test_embedding, mock_session)
+        result = await matcher.match_person(test_embedding, mock_session, model_id=PROVENANCE)
 
         # The similarity of these vectors is ~0.9997, so it should match
         assert result is not None
@@ -839,7 +860,7 @@ class TestHouseholdMatcherMatchDetections:
 
         call_count = [0]
 
-        async def mock_match_person(embedding, session):
+        async def mock_match_person(embedding, session, model_id=None):
             call_count[0] += 1
             # Return Mike match only if called with detection 1's embedding
             if call_count[0] == 1:
@@ -1021,7 +1042,7 @@ class TestHouseholdMatcherCachedEmbeddings:
         stored_embedding = np.array([0.1] * 512, dtype=np.float32)
 
         matcher._get_all_member_embeddings = AsyncMock(
-            return_value=[(1, "John Doe", stored_embedding)]
+            return_value=[(1, "John Doe", stored_embedding, PROVENANCE)]
         )
 
         # Create enrichment_data with cached person_reid embedding
@@ -1038,7 +1059,7 @@ class TestHouseholdMatcherCachedEmbeddings:
 
         # Convert to numpy array for matching
         cached_np = np.array(cached_embedding, dtype=np.float32)
-        result = await matcher.match_person(cached_np, mock_session)
+        result = await matcher.match_person(cached_np, mock_session, model_id=PROVENANCE)
 
         assert result is not None
         assert result.member_id == 1

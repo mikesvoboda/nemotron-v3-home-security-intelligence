@@ -22,6 +22,7 @@ Redis Storage Pattern:
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import re
 import time
@@ -40,6 +41,7 @@ from backend.core.metrics import (
     record_reid_attempt,
     record_reid_match,
 )
+from backend.core.vector_provenance import LEGACY_MODEL_ID
 from backend.services.bbox_validation import (
     InvalidBoundingBoxError,
     clamp_bbox_to_image,
@@ -61,8 +63,10 @@ EMBEDDING_TTL_SECONDS = 86400
 # Default similarity threshold for matching
 DEFAULT_SIMILARITY_THRESHOLD = 0.85
 
-# CLIP ViT-L embedding dimension
-EMBEDDING_DIMENSION = 768
+# Person-vector embedding dimension — OSNet-AIN x1.0 (ledger item 20: the
+# full swap retired CLIP-as-re-ID-producer, so this store's space is the
+# resident re-ID weights' 512-d space, not CLIP's 768).
+EMBEDDING_DIMENSION = 512
 
 # Regex pattern for Florence-2 location tokens like <loc_71>, <loc_86>, etc.
 _LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
@@ -129,13 +133,20 @@ def clean_vqa_output(text: str | None) -> str | None:
 class EntityEmbedding:
     """Embedding data for a detected entity.
 
+    Provenance (F11, ledger item 20): every entry names the weights that
+    computed it. The Redis key is partitioned by model_id as the strong
+    guard, but the belt travels INSIDE each payload — a row that never
+    said who computed it decodes to the sentinel and is untrusted, never
+    trusted-with-nothing.
+
     Attributes:
         entity_type: Type of entity ("person" or "vehicle")
-        embedding: 768-dimensional vector from CLIP ViT-L
+        embedding: 512-dimensional OSNet-AIN x1.0 vector
         camera_id: ID of the camera that captured the entity
         timestamp: When the entity was detected
         detection_id: Unique ID of the detection
         attributes: Additional attributes from vision extraction (e.g., clothing, color)
+        model_id: Which weights computed this embedding (or the sentinel)
     """
 
     entity_type: str
@@ -144,6 +155,7 @@ class EntityEmbedding:
     timestamp: datetime
     detection_id: str
     attributes: dict[str, Any] = field(default_factory=dict)
+    model_id: str = LEGACY_MODEL_ID
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization.
@@ -158,11 +170,18 @@ class EntityEmbedding:
             "timestamp": self.timestamp.isoformat(),
             "detection_id": self.detection_id,
             "attributes": self.attributes,
+            "model_id": self.model_id,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EntityEmbedding:
         """Create from dictionary.
+
+        A payload with no ``model_id`` key predates provenance (or was
+        written by a producer that never named itself): it decodes to the
+        sentinel, which every comparison reads as untrusted. Defaulting a
+        silent gap to the LIVE model would launder old CLIP bytes into the
+        OSNet space — the failure F11 exists to prevent.
 
         Args:
             data: Dictionary with embedding data
@@ -181,6 +200,7 @@ class EntityEmbedding:
             timestamp=timestamp,
             detection_id=data["detection_id"],
             attributes=data.get("attributes", {}),
+            model_id=data.get("model_id") or LEGACY_MODEL_ID,
         )
 
 
@@ -599,7 +619,12 @@ class ReIdentificationService:
         """
         async with self._rate_limit_semaphore:
             date_key = embedding.timestamp.strftime("%Y-%m-%d")
-            key = f"entity_embeddings:{date_key}"
+            # The key is PARTITIONED by provenance (F11, D-3): a search
+            # over one space physically cannot read another's rows, and a
+            # weights swap just stops writing the old partition (the 24 h
+            # TTL expires it — no flush op). The per-entry model_id stays
+            # the belt: a partition's key never outranks its payload.
+            key = f"entity_embeddings:{embedding.model_id}:{date_key}"
 
             try:
                 # NEM-4474: Use Lua script for atomic read-modify-write operation
@@ -696,6 +721,8 @@ class ReIdentificationService:
                         camera_id=embedding.camera_id,
                         timestamp=embedding.timestamp,
                         attributes=embedding.attributes,
+                        # The belt continues to the JSONB leg (F11).
+                        model_id=embedding.model_id,
                     )
 
                     logger.debug(
@@ -719,6 +746,51 @@ class ReIdentificationService:
 
             return None
 
+    async def _history_partition_keys(
+        self, redis_client: Redis | Any, dates: list[str]
+    ) -> list[str]:
+        """Every ``entity_embeddings:{model_id}:{date}`` partition key.
+
+        SCAN discovery, the repo's established pattern (batch_aggregator,
+        dedupe, cache_service). Handles the RedisClient wrapper (scan_keys)
+        and a raw client (scan_iter); anything else (a test double whose
+        auto-mock returns a coroutine, a client without SCAN, a raised
+        scan) contributes nothing and is simply skipped — SURFACING browse
+        still reads the pre-partition date-only keys, which the caller
+        always includes.
+        """
+        keys: list[str] = []
+
+        def _collect(found: Any) -> None:
+            for k in found:
+                item = k.decode() if isinstance(k, bytes) else k
+                keys.append(str(item))
+
+        try:
+            from backend.core.redis import RedisClient
+
+            if isinstance(redis_client, RedisClient):
+                for date_str in dates:
+                    _collect(await redis_client.scan_keys(f"entity_embeddings:*:{date_str}"))
+            elif hasattr(redis_client, "scan_iter"):
+                for date_str in dates:
+                    found = redis_client.scan_iter(
+                        match=f"entity_embeddings:*:{date_str}", count=100
+                    )
+                    if inspect.isawaitable(found):
+                        # A Mock double's scan_iter auto-mock returns a
+                        # coroutine, not the async iterator redis gives:
+                        # close it (no "never awaited" warning) and move on.
+                        close = getattr(found, "close", None)
+                        if callable(close):
+                            close()
+                        continue
+                    _collect([k async for k in found])
+        except Exception as e:
+            logger.debug("entity_embeddings partition scan failed: %s", e)
+
+        return keys
+
     async def find_matching_entities(
         self,
         redis_client: Redis,
@@ -728,6 +800,7 @@ class ReIdentificationService:
         exclude_detection_id: str | None = None,
         include_historical: bool = False,
         camera_id: str | None = None,
+        model_id: str | None = None,
     ) -> list[EntityMatch]:
         """Find entities matching the given embedding.
 
@@ -778,6 +851,7 @@ class ReIdentificationService:
                         threshold=threshold,
                         exclude_detection_id=exclude_detection_id,
                         include_historical=include_historical,
+                        model_id=model_id,
                     )
 
                     # Convert HybridEntityMatch to EntityMatch for backward compatibility
@@ -788,6 +862,7 @@ class ReIdentificationService:
                             camera_id=hybrid_match.camera_id,
                             timestamp=hybrid_match.timestamp,
                             detection_id=hybrid_match.detection_id or str(hybrid_match.entity_id),
+                            model_id=hybrid_match.model_id,
                             attributes=hybrid_match.attributes,
                         )
                         matches.append(
@@ -836,12 +911,20 @@ class ReIdentificationService:
                 # Use a set to avoid duplicates if today and yesterday are the same key
                 dates_to_check = list({today, yesterday})
 
-                # Collect all candidate entities and their embeddings for batch processing
+                # Read ONLY the probe's own partition (F11, D-3): a search
+                # over OSNet bytes physically cannot read another space's
+                # rows. Without a named model_id there is no partition to
+                # read and no honest comparison — the legacy date-only keys
+                # hold pre-swap vectors, which are untrusted by definition,
+                # so scoring them is not an option; zero candidates is.
                 candidate_entities: list[EntityEmbedding] = []
                 candidate_embeddings: list[list[float]] = []
+                skipped_provenance = 0
 
                 for date_str in dates_to_check:
-                    key = f"entity_embeddings:{date_str}"
+                    if not model_id or model_id == LEGACY_MODEL_ID:
+                        continue
+                    key = f"entity_embeddings:{model_id}:{date_str}"
                     data_raw = await redis_client.get(key)
 
                     if not data_raw:
@@ -870,9 +953,31 @@ class ReIdentificationService:
                         ):
                             continue
 
+                        # The belt inside the payload outranks the key:
+                        # a foreign- or sentinel-provenance row inside a
+                        # well-named partition is still uncomparable, and
+                        # a mis-sized one (a stale 768-d row) would RAISE
+                        # inside batch_cosine_similarity and kill the whole
+                        # pass. Skip it, counted, and keep scoring.
+                        entry_id = stored_data.get("model_id") or LEGACY_MODEL_ID
+                        if entry_id != model_id:
+                            skipped_provenance += 1
+                            continue
+
                         stored = EntityEmbedding.from_dict(stored_data)
+                        if len(stored.embedding) != len(embedding):
+                            skipped_provenance += 1
+                            continue
                         candidate_entities.append(stored)
                         candidate_embeddings.append(stored.embedding)
+
+                if skipped_provenance:
+                    logger.debug(
+                        "Re-ID search skipped %d uncomparable %s row(s) "
+                        "(provenance mismatch or dimension)",
+                        skipped_provenance,
+                        entity_type,
+                    )
 
                 # Compute all similarities at once using batch operation (NEM-1071)
                 if candidate_embeddings:
@@ -945,8 +1050,15 @@ class ReIdentificationService:
                 # Use a set to avoid duplicates if today and yesterday are the same key
                 dates_to_check = list({today, yesterday})
 
-                for date_str in dates_to_check:
-                    key = f"entity_embeddings:{date_str}"
+                # A BROWSE surface lists all spaces side by side (each row
+                # carries its own model_id and the API shows it), so unlike
+                # find_matching_entities it reads the pre-partition
+                # date-only keys AND every model partition SCAN finds.
+                # Surfacing is not scoring — F11's guard lives where a
+                # similarity is produced.
+                keys_to_read = [f"entity_embeddings:{d}" for d in dates_to_check]
+                keys_to_read += await self._history_partition_keys(redis_client, dates_to_check)
+                for key in keys_to_read:
                     data_raw = await redis_client.get(key)
 
                     if not data_raw:

@@ -48,8 +48,10 @@ logger = get_logger(__name__)
 # Default similarity threshold for entity matching
 DEFAULT_SIMILARITY_THRESHOLD = 0.85
 
-# Default embedding model
-DEFAULT_EMBEDDING_MODEL = "clip"
+# No DEFAULT_EMBEDDING_MODEL (ledger item 20, plan A4): a module-level
+# "clip" default meant every write INHERITED a claim about its weights.
+# The model id now flows from the producer, per write, as assign_entity's
+# model_id argument — one string from osnet_loader.osnet_model_id().
 
 
 class EntityClusteringService:
@@ -93,7 +95,6 @@ class EntityClusteringService:
         self,
         entity_repository: EntityRepository,
         similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
-        embedding_model: str = DEFAULT_EMBEDDING_MODEL,
     ) -> None:
         """Initialize the EntityClusteringService.
 
@@ -103,17 +104,18 @@ class EntityClusteringService:
             similarity_threshold: Minimum similarity score (0-1) to consider
                 a detection as matching an existing entity. Higher values
                 require more similar embeddings for a match. Default: 0.85
-            embedding_model: Name of the embedding model used for generating
-                embeddings. Used for metadata tracking. Default: "clip"
+
+        (The retired ``embedding_model`` parameter named a model ONCE per
+        service for EVERY write — ledger item 20 moved the claim to the
+        write: assign_entity's model_id, from the producer that computed
+        that vector.)
         """
         self.entity_repository = entity_repository
         self.similarity_threshold = similarity_threshold
-        self.embedding_model = embedding_model
 
         logger.debug(
-            "EntityClusteringService initialized with threshold=%s, model=%s",
+            "EntityClusteringService initialized with threshold=%s",
             similarity_threshold,
-            embedding_model,
         )
 
     async def assign_entity(
@@ -124,6 +126,7 @@ class EntityClusteringService:
         camera_id: str,
         timestamp: datetime,
         attributes: dict[str, Any] | None = None,
+        model_id: str | None = None,
     ) -> tuple[Entity, bool, float | None]:
         """Assign a detection to an entity (existing or new).
 
@@ -135,10 +138,15 @@ class EntityClusteringService:
         Args:
             detection_id: Database ID of the detection record
             entity_type: Type of entity ("person", "vehicle", "animal", etc.)
-            embedding: Embedding vector (typically 768-dim CLIP embedding)
+            embedding: Embedding vector (OSNet-AIN x1.0, 512-dim, post-swap)
             camera_id: ID of the camera that captured the detection
             timestamp: When the detection occurred
             attributes: Optional attributes dict (clothing, color, etc.)
+            model_id: Which weights computed ``embedding`` (F11). Required:
+                it filters the candidate comparison AND lands on the new
+                row's belt. A None here makes find_by_embedding score
+                against nothing and Entity.from_detection raise — a loud
+                failure instead of an unprovenanced write.
 
         Returns:
             Tuple of (entity, is_new_entity, match_similarity):
@@ -162,6 +170,7 @@ class EntityClusteringService:
             entity_type=entity_type,
             threshold=self.similarity_threshold,
             limit=1,  # We only need the best match
+            model_id=model_id,
         )
 
         # Step 2: If match found above threshold, update existing entity
@@ -198,6 +207,7 @@ class EntityClusteringService:
             embedding=embedding,
             timestamp=timestamp,
             attributes=attributes,
+            model_id=model_id,
         )
         # Initialize cameras_seen in entity_metadata (NEM-2453)
         if new_entity.entity_metadata is None:
@@ -259,6 +269,7 @@ class EntityClusteringService:
         embedding: list[float],
         timestamp: datetime,
         attributes: dict[str, Any] | None,
+        model_id: str | None,
     ) -> Entity:
         """Create a new entity for a detection with no matches.
 
@@ -275,12 +286,13 @@ class EntityClusteringService:
         Returns:
             The newly created Entity instance
         """
-        # Create entity using the factory method
+        # Create entity using the factory method. The belt rides from the
+        # caller's model_id (F11); from_detection refuses a None.
         entity = Entity.from_detection(
             entity_type=entity_type,
             detection_id=detection_id,
             embedding=embedding,
-            model=self.embedding_model,
+            model=model_id,
             entity_metadata=attributes,
         )
 
@@ -343,7 +355,6 @@ _entity_clustering_service: EntityClusteringService | None = None
 def get_entity_clustering_service(
     entity_repository: EntityRepository,
     similarity_threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
-    embedding_model: str = DEFAULT_EMBEDDING_MODEL,
 ) -> EntityClusteringService:
     """Get or create EntityClusteringService instance.
 
@@ -355,7 +366,6 @@ def get_entity_clustering_service(
     Args:
         entity_repository: Repository for entity database operations
         similarity_threshold: Minimum similarity for matching
-        embedding_model: Name of the embedding model
 
     Returns:
         EntityClusteringService instance
@@ -363,7 +373,6 @@ def get_entity_clustering_service(
     return EntityClusteringService(
         entity_repository=entity_repository,
         similarity_threshold=similarity_threshold,
-        embedding_model=embedding_model,
     )
 
 

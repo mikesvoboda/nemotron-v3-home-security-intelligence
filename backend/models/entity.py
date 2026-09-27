@@ -193,16 +193,30 @@ class Entity(Base):
     def set_embedding(
         self,
         vector: list[float],
-        model: str = "clip",
+        model: str | None = None,
         dimension: int | None = None,
     ) -> None:
         """Set the entity's embedding vector with metadata.
 
+        The producer is REQUIRED (F11, ledger item 20). The retired default
+        was the literal "clip" — after the full swap a write that never
+        names its weights would mislabel whatever bytes it carries, which
+        is provenance backwards: the belt flows from the PRODUCER, never
+        from a module default.
+
         Args:
             vector: The embedding vector as a list of floats
-            model: The model used to generate the embedding (default: "clip")
+            model: Which weights computed the vector — required, non-empty
             dimension: Optional dimension override (defaults to len(vector))
+
+        Raises:
+            ValueError: if ``model`` is missing or empty
         """
+        if not model:
+            raise ValueError(
+                "set_embedding requires the model id that computed the vector "
+                "(F11 provenance) — there is no default to inherit anymore"
+            )
         self.embedding_vector = {
             "vector": vector,
             "model": model,
@@ -237,7 +251,7 @@ class Entity(Base):
         entity_type: EntityType | str,
         detection_id: int | None = None,
         embedding: list[float] | None = None,
-        model: str = "clip",
+        model: str | None = None,
         entity_metadata: dict[str, Any] | None = None,
         trust_status: TrustStatus | str = TrustStatus.UNKNOWN,
     ) -> Entity:
@@ -249,7 +263,10 @@ class Entity(Base):
             entity_type: The type of entity (person, vehicle, etc.)
             detection_id: Optional ID of the primary detection
             embedding: Optional embedding vector
-            model: Model used for embedding (default: "clip")
+            model: Which weights computed the embedding — REQUIRED whenever
+                an embedding rides (F11; set_embedding refuses otherwise).
+                Without an embedding the row carries no belt and none is
+                needed.
             entity_metadata: Optional additional metadata
             trust_status: Trust classification (default: unknown)
 

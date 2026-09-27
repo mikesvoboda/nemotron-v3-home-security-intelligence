@@ -1445,6 +1445,14 @@ def _apply_schema_to_database(db_url: str) -> None:
                     "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
                 )
             )
+            # Ledger item 20 (the full re-ID swap): the person gallery needs
+            # the same drift repair, DEFAULT spelled byte-identically.
+            conn.execute(
+                text(
+                    "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                )
+            )
 
             # Create unique indexes for cameras table
             conn.execute(
@@ -1601,6 +1609,12 @@ async def _reset_db_schema() -> None:
             await conn.execute(
                 text(
                     "ALTER TABLE face_detection_events ADD COLUMN IF NOT EXISTS "
+                    "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                )
+            )
+            await conn.execute(
+                text(
+                    "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
                     "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
                 )
             )

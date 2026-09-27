@@ -873,6 +873,16 @@ def _ensure_worker_schema(worker_db_url: str) -> str:
                         "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
                     )
                 )
+                # Ledger item 20 (the full re-ID swap): the person gallery
+                # gets the same repair, DEFAULT byte-identical to the model
+                # and docs/api/migrations/
+                #   2026-09-26-person-vector-provenance-model-id.sql.
+                conn.execute(
+                    sa_text(
+                        "ALTER TABLE person_embeddings ADD COLUMN IF NOT EXISTS "
+                        "model_id VARCHAR(128) NOT NULL DEFAULT 'legacy-unknown-provenance'"
+                    )
+                )
                 # NEM-1652: soft delete columns
                 conn.execute(
                     sa_text(

@@ -6,7 +6,9 @@ This module exposes the HouseholdMatcher service for person and vehicle
 matching against known household members and registered vehicles.
 
 Endpoints:
-    POST /api/household-matcher/match-person    - Match person embedding
+    POST /api/household-matcher/match-person    - RETIRED 410 (D-1, F11): a
+        client-computed vector carries no model_id, so it cannot be compared
+        in the gallery's space
     POST /api/household-matcher/match-vehicle   - Match vehicle by plate or embedding
     POST /api/household-matcher/match-batch     - Batch match multiple detections
     GET  /api/household-matcher/config          - Get matcher configuration
@@ -69,67 +71,56 @@ def _match_to_response(
 @router.post(
     "/match-person",
     response_model=HouseholdMatchResponse,
+    deprecated=True,
     responses={
-        400: {"description": "Invalid embedding format"},
-        500: {"description": "Internal server error"},
+        status.HTTP_410_GONE: {
+            "description": (
+                "Always returned: POSTing a client-computed person embedding "
+                "vector is retired (F11, re-ID full swap D-1). A matching "
+                "request rides the enrichment pipeline, which computes the "
+                "vector server-side and carries its model_id."
+            )
+        }
     },
 )
 async def match_person(
-    request: PersonMatchRequest,
-    db: AsyncSession = Depends(get_db),
+    request: PersonMatchRequest,  # noqa: ARG001 - never read: endpoint retired
+    db: AsyncSession = Depends(get_db),  # noqa: ARG001 - no DB on a retired endpoint
 ) -> HouseholdMatchResponse:
-    """Match a person embedding against known household members.
+    """Retired: POST a client-computed person embedding vector (D-1, F11).
 
-    Compares the provided embedding against all stored person embeddings
-    and returns the best match if it exceeds the similarity threshold.
+    A vector the server did not compute cannot be trusted to live in the
+    gallery's space: after the full swap every ``person_embeddings`` row
+    names the weights that computed it (``model_id``), and a posted list
+    of floats carries no such belt — comparing it would either score
+    across embedding spaces or force trusting a client-claimed model id,
+    which is no trust anchor. This is the person twin of the retired
+    ``POST /face-recognition/known-persons/{id}/embeddings`` (F11 ruling 2).
 
-    Args:
-        request: PersonMatchRequest with embedding and optional threshold
-        db: Database session
+    The sanctioned paths compute the vector server-side and store the
+    model id beside it:
+
+    - the enrichment pipeline (``person_reid`` leg, matched automatically)
+    - ``POST /api/household/members/{member_id}/embeddings`` (member
+      enrollment: extraction runs server-side from the event's detection)
 
     Returns:
-        HouseholdMatchResponse with match details if found
+        Never — the endpoint is retired.
 
     Raises:
-        HTTPException: 400 if embedding is invalid
+        HTTPException: 410 Gone, always, naming the server-side paths.
     """
-    # Validate embedding
-    if len(request.embedding) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Embedding cannot be empty",
-        )
-
-    # Convert to numpy array
-    try:
-        embedding_array = np.array(request.embedding, dtype=np.float32)
-    except (ValueError, TypeError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid embedding format: {e}",
-        ) from e
-
-    # Get matcher with optional custom threshold
-    if request.similarity_threshold is not None:
-        matcher = HouseholdMatcher(similarity_threshold=request.similarity_threshold)
-    else:
-        matcher = get_household_matcher()
-
-    # Perform matching
-    match = await matcher.match_person(embedding_array, db)
-
-    if match is None:
-        logger.debug("No person match found for provided embedding")
-        return HouseholdMatchResponse(matched=False)
-
-    logger.info(
-        "Person matched to %s (id=%d) with similarity %.3f",
-        match.member_name,
-        match.member_id,
-        match.similarity,
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Submitting a precomputed person embedding vector is retired: "
+            "the server must compute every stored vector so its provenance "
+            "(model_id) is known, and a client-claimed model id is no trust "
+            "anchor. Person matching happens via the enrichment pipeline's "
+            "person_reid leg, or enrollment via "
+            "POST /api/household/members/{member_id}/embeddings."
+        ),
     )
-
-    return _match_to_response(match)
 
 
 @router.post(

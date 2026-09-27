@@ -181,10 +181,22 @@ models:
     triton_kind: KIND_GPU
 
   - name: osnet-ain-x1-0
-    description: 'OSNet-AIN x1.0 person re-identification embeddings (MSMT17 Rank-1 73.3%)'
+    description: 'OSNet-AIN x1.0 person re-identification embeddings (single-source MSMT17->Market Rank-1 70.1)'
     service: both
+    # The retired description claimed "MSMT17 Rank-1 73.3%" — that is the
+    # multi-source (MS+D+C -> Market) number; single-source MSMT17->Market is
+    # 70.1 (14-specialist-model-research.md flags the conflation). Erratum
+    # ledgered with the swap (item 20), never a silent spec edit.
     hf_repo: ''
     local_path: model-zoo/osnet-ain-x1-0
+    runtime_file: osnet_ain_x1_0_msmt17.pth
+    # F12-for-person-vectors (ledger item 20): sha256 over the whole file,
+    # fetched from the repo's own source (ai/download_models.sh ->
+    # huggingface.co/kaiyangzhou/osnet). The loader verifies it BEFORE
+    # torch.load; wrong bytes are the same answer as no bytes. osnet_model_id()
+    # derives every producer's belt from this line — the one person-vector
+    # space is this row.
+    sha256: 8a07e8da38946f7cee37f4561617bf8b6d2fe8f3a4027852893ea092e46d919f # pragma: allowlist secret
     size_mb: 10
     download_phase: 1
     required: false
@@ -217,7 +229,7 @@ models:
     download_phase: 3
     required: false
     download_method: skip
-    sha256: 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91
+    sha256: 5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91 # pragma: allowlist secret
     category: detection
     vram_mb: 0
     enabled: true
@@ -235,7 +247,7 @@ models:
     download_phase: 3
     required: false
     download_method: skip
-    sha256: 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43
+    sha256: 4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43 # pragma: allowlist secret
     category: embedding
     vram_mb: 0
     # enabled like every model row: the pick landed (F12). ABSENT WEIGHTS are

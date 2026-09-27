@@ -39,6 +39,12 @@ from backend.services.reid_service import (
     reset_reid_service,
 )
 
+# The belt every stored row and probe now carries (ledger item 20: the
+# full swap). find_matching_entities reads the probe's partition; rows
+# written without a named producer decode to the sentinel and compare
+# against nothing — so these fixtures name one.
+TEST_MODEL = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+
 # =============================================================================
 # Module-level Fixtures
 # =============================================================================
@@ -91,6 +97,7 @@ class TestEntityEmbedding:
             timestamp=now,
             detection_id="det_123",
             attributes={"clothing": "blue jacket"},
+            model_id=TEST_MODEL,
         )
 
         assert embedding.entity_type == "person"
@@ -108,6 +115,7 @@ class TestEntityEmbedding:
             camera_id="garage",
             timestamp=datetime.now(UTC),
             detection_id="det_456",
+            model_id=TEST_MODEL,
         )
 
         assert embedding.attributes == {}
@@ -122,6 +130,7 @@ class TestEntityEmbedding:
             timestamp=now,
             detection_id="det_123",
             attributes={"clothing": "red shirt"},
+            model_id=TEST_MODEL,
         )
 
         result = embedding.to_dict()
@@ -191,6 +200,7 @@ class TestEntityEmbedding:
             timestamp=datetime(2025, 12, 25, 12, 0, 0, tzinfo=UTC),
             detection_id="det_123",
             attributes={"clothing": "green hat", "carrying": "backpack"},
+            model_id=TEST_MODEL,
         )
 
         reconstructed = EntityEmbedding.from_dict(original.to_dict())
@@ -617,6 +627,7 @@ class TestStoreEmbedding:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_123",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -624,7 +635,9 @@ class TestStoreEmbedding:
         # Verify set was called with correct key and TTL
         mock_redis.set.assert_called_once()
         call_args = mock_redis.set.call_args
-        assert call_args[0][0] == "entity_embeddings:2025-12-25"
+        # The key is PARTITIONED by producer (D-3): a legacy date-only key
+        # can never mix two vector spaces into one value blob.
+        assert call_args[0][0] == f"entity_embeddings:{TEST_MODEL}:2025-12-25"
         # Mock is not a RedisClient instance, so code uses 'ex' (raw redis-py API)
         assert call_args.kwargs.get("ex") == EMBEDDING_TTL_SECONDS
 
@@ -648,6 +661,7 @@ class TestStoreEmbedding:
             camera_id="garage",
             timestamp=now,
             detection_id="det_456",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -685,6 +699,7 @@ class TestStoreEmbedding:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_new",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -707,6 +722,7 @@ class TestStoreEmbedding:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_123",
+            model_id=TEST_MODEL,
         )
 
         with pytest.raises(Exception) as exc_info:
@@ -733,6 +749,7 @@ class TestStoreEmbedding:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_123",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -762,6 +779,7 @@ class TestStoreEmbedding:
             camera_id="garage",
             timestamp=now,
             detection_id="det_456",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -799,6 +817,7 @@ class TestStoreEmbedding:
             camera_id="driveway",
             timestamp=now,
             detection_id="det_789",
+            model_id=TEST_MODEL,
         )
 
         # Should not raise any exceptions
@@ -825,6 +844,7 @@ class TestStoreEmbedding:
             camera_id="back_door",
             timestamp=now,
             detection_id="det_abc",
+            model_id=TEST_MODEL,
         )
 
         await service.store_embedding(mock_redis, embedding)
@@ -834,8 +854,8 @@ class TestStoreEmbedding:
         positional_args = call_args[0]
         keyword_args = call_args[1]
 
-        # First arg should be key
-        assert positional_args[0] == "entity_embeddings:2025-06-15"
+        # First arg should be the producer-partitioned key
+        assert positional_args[0] == f"entity_embeddings:{TEST_MODEL}:2025-06-15"
 
         # Second arg should be JSON data
         stored_data = json.loads(positional_args[1])
@@ -863,7 +883,7 @@ class TestFindMatchingEntities:
         service = ReIdentificationService()
         embedding = [0.1] * EMBEDDING_DIMENSION
 
-        matches = await service.find_matching_entities(mock_redis, embedding)
+        matches = await service.find_matching_entities(mock_redis, embedding, model_id=TEST_MODEL)
 
         assert matches == []
 
@@ -877,6 +897,7 @@ class TestFindMatchingEntities:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
@@ -890,7 +911,11 @@ class TestFindMatchingEntities:
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.9
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         # May find match from both today and yesterday (same data), check at least 1
@@ -910,6 +935,7 @@ class TestFindMatchingEntities:
                     camera_id="front_door",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_exclude",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
                 EntityEmbedding(
                     entity_type="person",
@@ -917,6 +943,7 @@ class TestFindMatchingEntities:
                     camera_id="back_door",
                     timestamp=now - timedelta(minutes=10),
                     detection_id="det_include",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -934,6 +961,7 @@ class TestFindMatchingEntities:
             entity_type="person",
             threshold=0.9,
             exclude_detection_id="det_exclude",
+            model_id=TEST_MODEL,
         )
 
         # All matches should be for det_include (det_exclude is filtered)
@@ -953,6 +981,7 @@ class TestFindMatchingEntities:
                     camera_id="front_door",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -967,14 +996,22 @@ class TestFindMatchingEntities:
 
         # High threshold should filter out the match
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.999
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.999,
+            model_id=TEST_MODEL,
         )
 
         # Similarity between [0.1,...] and [1.0,...] is about 1.0 (same direction)
         # So this actually matches. Let's use opposite vectors instead
         query_embedding = [-0.1] * EMBEDDING_DIMENSION
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.5
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.5,
+            model_id=TEST_MODEL,
         )
 
         # Opposite vectors have similarity -1, below threshold
@@ -996,6 +1033,7 @@ class TestFindMatchingEntities:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
                 EntityEmbedding(
                     entity_type="person",
@@ -1003,6 +1041,7 @@ class TestFindMatchingEntities:
                     camera_id="camera_2",
                     timestamp=now - timedelta(minutes=10),
                     detection_id="det_2",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1024,7 +1063,11 @@ class TestFindMatchingEntities:
         query_embedding = embedding_exact  # Match det_2 exactly
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.9
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         assert len(matches) == 2
@@ -1046,6 +1089,7 @@ class TestFindMatchingEntities:
                     timestamp=now - timedelta(minutes=30),
                     detection_id="det_car",
                     attributes={"color": "blue"},
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
         }
@@ -1057,7 +1101,11 @@ class TestFindMatchingEntities:
         query_embedding = [0.5] * EMBEDDING_DIMENSION
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="vehicle", threshold=0.9
+            mock_redis,
+            query_embedding,
+            entity_type="vehicle",
+            threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         # May find duplicates from today/yesterday if same data returned
@@ -1081,6 +1129,7 @@ class TestFindMatchingEntities:
                     camera_id="front_door",
                     timestamp=now - timedelta(hours=1),
                     detection_id="det_today",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1094,6 +1143,7 @@ class TestFindMatchingEntities:
                     camera_id="back_door",
                     timestamp=yesterday,
                     detection_id="det_yesterday",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1114,7 +1164,11 @@ class TestFindMatchingEntities:
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.9
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         # Should find both today's and yesterday's detections
@@ -1131,7 +1185,10 @@ class TestFindMatchingEntities:
         service = ReIdentificationService()
 
         matches = await service.find_matching_entities(
-            mock_redis, [0.1] * EMBEDDING_DIMENSION, entity_type="person"
+            mock_redis,
+            [0.1] * EMBEDDING_DIMENSION,
+            entity_type="person",
+            model_id=TEST_MODEL,
         )
 
         assert matches == []
@@ -1169,6 +1226,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
                 EntityEmbedding(
                     entity_type="person",
@@ -1176,6 +1234,7 @@ class TestGetEntityHistory:
                     camera_id="camera_2",
                     timestamp=now - timedelta(minutes=10),
                     detection_id="det_2",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1211,6 +1270,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
                 EntityEmbedding(
                     entity_type="person",
@@ -1218,6 +1278,7 @@ class TestGetEntityHistory:
                     camera_id="camera_2",
                     timestamp=now - timedelta(minutes=10),
                     detection_id="det_2",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1254,6 +1315,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=10),  # Older
                     detection_id="det_old",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
                 EntityEmbedding(
                     entity_type="person",
@@ -1261,6 +1323,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),  # Newer
                     detection_id="det_new",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1299,6 +1362,7 @@ class TestGetEntityHistory:
                     camera_id="garage",
                     timestamp=now - timedelta(hours=1),
                     detection_id="det_car",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
         }
@@ -1355,6 +1419,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1398,6 +1463,7 @@ class TestGetEntityHistory:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1450,6 +1516,7 @@ class TestMalformedRedisDataHandling:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1471,7 +1538,11 @@ class TestMalformedRedisDataHandling:
 
         # Should not raise AttributeError
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, "person", threshold=0.5
+            mock_redis,
+            query_embedding,
+            "person",
+            threshold=0.5,
+            model_id=TEST_MODEL,
         )
 
         # Should find the valid entity
@@ -1492,6 +1563,7 @@ class TestMalformedRedisDataHandling:
                     camera_id="camera_1",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_1",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -1513,7 +1585,11 @@ class TestMalformedRedisDataHandling:
         query_embedding = [0.9] * 10
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, "person", threshold=0.5
+            mock_redis,
+            query_embedding,
+            "person",
+            threshold=0.5,
+            model_id=TEST_MODEL,
         )
 
         assert len(matches) == 1
@@ -1541,7 +1617,11 @@ class TestMalformedRedisDataHandling:
 
         # Should return empty list, not crash
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, "person", threshold=0.5
+            mock_redis,
+            query_embedding,
+            "person",
+            threshold=0.5,
+            model_id=TEST_MODEL,
         )
 
         assert matches == []
@@ -1591,6 +1671,7 @@ class TestFormatEntityMatch:
             camera_id="front_door",
             timestamp=datetime.now(UTC) - timedelta(seconds=30),
             detection_id="det_123",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.95, time_gap_seconds=30)
 
@@ -1608,6 +1689,7 @@ class TestFormatEntityMatch:
             camera_id="back_door",
             timestamp=datetime.now(UTC) - timedelta(minutes=15),
             detection_id="det_456",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.88, time_gap_seconds=15 * 60)
 
@@ -1625,6 +1707,7 @@ class TestFormatEntityMatch:
             camera_id="garage",
             timestamp=datetime.now(UTC) - timedelta(hours=2, minutes=30),
             detection_id="det_789",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.92, time_gap_seconds=2.5 * 3600)
 
@@ -1643,6 +1726,7 @@ class TestFormatEntityMatch:
             timestamp=datetime.now(UTC),
             detection_id="det_123",
             attributes={"clothing": "blue jacket"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
 
@@ -1659,6 +1743,7 @@ class TestFormatEntityMatch:
             timestamp=datetime.now(UTC),
             detection_id="det_123",
             attributes={"carrying": "backpack"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
 
@@ -1675,6 +1760,7 @@ class TestFormatEntityMatch:
             timestamp=datetime.now(UTC),
             detection_id="det_car",
             attributes={"color": "red", "vehicle_type": "SUV"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=300)
 
@@ -1701,6 +1787,7 @@ class TestFormatReidContext:
             camera_id="front_door",
             timestamp=datetime.now(UTC) - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=300)
 
@@ -1722,6 +1809,7 @@ class TestFormatReidContext:
                 camera_id=f"camera_{i}",
                 timestamp=datetime.now(UTC) - timedelta(minutes=i * 5),
                 detection_id=f"det_{i}",
+                model_id=TEST_MODEL,
             )
             matches.append(
                 EntityMatch(entity=entity, similarity=0.9 - i * 0.01, time_gap_seconds=i * 300)
@@ -1764,6 +1852,7 @@ class TestFormatFullReidContext:
             camera_id="front_door",
             timestamp=datetime.now(UTC) - timedelta(minutes=5),
             detection_id="det_person",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=300)
 
@@ -1780,6 +1869,7 @@ class TestFormatFullReidContext:
             camera_id="garage",
             timestamp=datetime.now(UTC) - timedelta(hours=1),
             detection_id="det_car",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=3600)
 
@@ -1796,6 +1886,7 @@ class TestFormatFullReidContext:
             camera_id="front_door",
             timestamp=datetime.now(UTC) - timedelta(minutes=5),
             detection_id="det_person",
+            model_id=TEST_MODEL,
         )
         person_match = EntityMatch(entity=person_entity, similarity=0.9, time_gap_seconds=300)
 
@@ -1805,6 +1896,7 @@ class TestFormatFullReidContext:
             camera_id="garage",
             timestamp=datetime.now(UTC) - timedelta(hours=1),
             detection_id="det_car",
+            model_id=TEST_MODEL,
         )
         vehicle_match = EntityMatch(entity=vehicle_entity, similarity=0.85, time_gap_seconds=3600)
 
@@ -1834,6 +1926,7 @@ class TestFormatReidSummary:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_person",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=300)
 
@@ -1849,6 +1942,7 @@ class TestFormatReidSummary:
             camera_id="garage",
             timestamp=datetime.now(UTC),
             detection_id="det_car",
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=3600)
 
@@ -1864,6 +1958,7 @@ class TestFormatReidSummary:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_person",
+            model_id=TEST_MODEL,
         )
         person_match = EntityMatch(entity=person_entity, similarity=0.9, time_gap_seconds=300)
 
@@ -1873,6 +1968,7 @@ class TestFormatReidSummary:
             camera_id="garage",
             timestamp=datetime.now(UTC),
             detection_id="det_car",
+            model_id=TEST_MODEL,
         )
         vehicle_match = EntityMatch(entity=vehicle_entity, similarity=0.85, time_gap_seconds=3600)
 
@@ -1908,8 +2004,13 @@ class TestConstants:
         assert DEFAULT_SIMILARITY_THRESHOLD == 0.85
 
     def test_embedding_dimension(self) -> None:
-        """Test EMBEDDING_DIMENSION is 768 for CLIP ViT-L."""
-        assert EMBEDDING_DIMENSION == 768
+        """Test EMBEDDING_DIMENSION is 512 for OSNet-AIN x1.0.
+
+        The full swap (ledger item 20) retires CLIP-as-re-ID-producer: the
+        one person-vector space is OSNet-AIN x1.0's 512 dims, so a stored
+        768-dim vector is a foreign space and never gets scored.
+        """
+        assert EMBEDDING_DIMENSION == 512
 
 
 # =============================================================================
@@ -2000,6 +2101,7 @@ class TestRateLimitingBehavior:
                 camera_id="front_door",
                 timestamp=now,
                 detection_id=f"det_{i}",
+                model_id=TEST_MODEL,
             )
             for i in range(5)
         ]
@@ -2030,7 +2132,9 @@ class TestRateLimitingBehavior:
 
         start_time = asyncio.get_running_loop().time()
         tasks = [
-            service.find_matching_entities(mock_redis, [0.1] * EMBEDDING_DIMENSION)
+            service.find_matching_entities(
+                mock_redis, [0.1] * EMBEDDING_DIMENSION, model_id=TEST_MODEL
+            )
             for _ in range(4)
         ]
         await asyncio.gather(*tasks)
@@ -2453,6 +2557,7 @@ class TestStoreEmbeddingWithHybridStorage:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_123",
+            model_id=TEST_MODEL,
         )
 
         result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=False)
@@ -2481,6 +2586,7 @@ class TestStoreEmbeddingWithHybridStorage:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_456",
+            model_id=TEST_MODEL,
         )
 
         result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
@@ -2516,6 +2622,7 @@ class TestStoreEmbeddingWithHybridStorage:
             timestamp=now,
             detection_id="det_789",
             attributes={"clothing": "blue jacket"},
+            model_id=TEST_MODEL,
         )
 
         result = await service.store_embedding(mock_redis, embedding, persist_to_postgres=True)
@@ -2558,6 +2665,7 @@ class TestStoreEmbeddingWithHybridStorage:
             camera_id="garage",
             timestamp=now,
             detection_id="det_vehicle",
+            model_id=TEST_MODEL,
         )
 
         # Call without persist_to_postgres (should default to True)
@@ -2585,6 +2693,7 @@ class TestStoreEmbeddingWithHybridStorage:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_compat",
+            model_id=TEST_MODEL,
         )
 
         # Original store_embedding returned None implicitly
@@ -2615,6 +2724,7 @@ class TestStoreEmbeddingWithHybridStorage:
             camera_id="front_door",
             timestamp=now,
             detection_id="det_error",
+            model_id=TEST_MODEL,
         )
 
         with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
@@ -2648,6 +2758,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_redis",
+            model_id=TEST_MODEL,
         )
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
 
@@ -2663,6 +2774,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             entity_type="person",
             threshold=0.9,
             include_historical=False,
+            model_id=TEST_MODEL,
         )
 
         # Should find Redis match
@@ -2683,6 +2795,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_fallback",
+            model_id=TEST_MODEL,
         )
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
 
@@ -2698,7 +2811,8 @@ class TestFindMatchingEntitiesWithHybridStorage:
             query_embedding,
             entity_type="person",
             threshold=0.9,
-            include_historical=True,  # Ignored without hybrid_storage
+            include_historical=True,  # Ignored without hybrid_storage,
+            model_id=TEST_MODEL,
         )
 
         # Should still find Redis match
@@ -2741,6 +2855,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             entity_type="person",
             threshold=0.85,
             include_historical=True,
+            model_id=TEST_MODEL,
         )
 
         # Should call hybrid_storage.find_matches
@@ -2768,6 +2883,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_default",
+            model_id=TEST_MODEL,
         )
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
 
@@ -2784,6 +2900,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             query_embedding,
             entity_type="person",
             threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         # Should NOT call hybrid_storage.find_matches (include_historical=False)
@@ -2831,6 +2948,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             entity_type="person",
             threshold=0.85,
             include_historical=True,
+            model_id=TEST_MODEL,
         )
 
         # Should return EntityMatch objects
@@ -2862,6 +2980,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
             threshold=0.85,
             exclude_detection_id="det_exclude_me",
             include_historical=True,
+            model_id=TEST_MODEL,
         )
 
         # Should pass exclude_detection_id to hybrid_storage
@@ -2884,6 +3003,7 @@ class TestFindMatchingEntitiesWithHybridStorage:
                     camera_id="front_door",
                     timestamp=now - timedelta(minutes=5),
                     detection_id="det_compat",
+                    model_id=TEST_MODEL,
                 ).to_dict(),
             ],
             "vehicles": [],
@@ -2896,7 +3016,11 @@ class TestFindMatchingEntitiesWithHybridStorage:
         query_embedding = [0.1] * EMBEDDING_DIMENSION
 
         matches = await service.find_matching_entities(
-            mock_redis, query_embedding, entity_type="person", threshold=0.9
+            mock_redis,
+            query_embedding,
+            entity_type="person",
+            threshold=0.9,
+            model_id=TEST_MODEL,
         )
 
         # Should find match just like before
@@ -3053,6 +3177,7 @@ class TestFormatEntityMatchWithVqaArtifacts:
             timestamp=datetime.now(UTC),
             detection_id="det_car",
             attributes={"color": "<loc_10><loc_20>red<loc_30><loc_40>"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=300)
 
@@ -3070,6 +3195,7 @@ class TestFormatEntityMatchWithVqaArtifacts:
             timestamp=datetime.now(UTC),
             detection_id="det_car",
             attributes={"vehicle_type": "VQA>What type of vehicle<loc_5><loc_10>SUV"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.85, time_gap_seconds=300)
 
@@ -3109,6 +3235,7 @@ class TestFormatEntityMatchWithVqaArtifacts:
             timestamp=datetime.now(UTC),
             detection_id="det_123",
             attributes={"clothing": "red shirt", "carrying": "shopping bag"},
+            model_id=TEST_MODEL,
         )
         match = EntityMatch(entity=entity, similarity=0.9, time_gap_seconds=60)
 
@@ -3141,7 +3268,11 @@ class TestReIDServiceMetrics:
             "backend.services.reid_service.record_reid_attempt", autospec=True
         ) as mock_record_attempt:
             await service.find_matching_entities(
-                mock_redis, embedding, entity_type="person", camera_id="test_cam"
+                mock_redis,
+                embedding,
+                entity_type="person",
+                camera_id="test_cam",
+                model_id=TEST_MODEL,
             )
 
             mock_record_attempt.assert_called_once_with("person", "test_cam")
@@ -3162,7 +3293,9 @@ class TestReIDServiceMetrics:
         with patch(
             "backend.services.reid_service.record_reid_attempt", autospec=True
         ) as mock_record_attempt:
-            await service.find_matching_entities(mock_redis, embedding, entity_type="vehicle")
+            await service.find_matching_entities(
+                mock_redis, embedding, entity_type="vehicle", model_id=TEST_MODEL
+            )
 
             mock_record_attempt.assert_called_once_with("vehicle", "unknown")
 
@@ -3181,7 +3314,11 @@ class TestReIDServiceMetrics:
             "backend.services.reid_service.observe_reid_match_duration", autospec=True
         ) as mock_observe:
             await service.find_matching_entities(
-                mock_redis, embedding, entity_type="person", camera_id="cam1"
+                mock_redis,
+                embedding,
+                entity_type="person",
+                camera_id="cam1",
+                model_id=TEST_MODEL,
             )
 
             # Should have been called with entity_type and some duration
@@ -3203,6 +3340,7 @@ class TestReIDServiceMetrics:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
@@ -3222,6 +3360,7 @@ class TestReIDServiceMetrics:
                 entity_type="person",
                 threshold=0.9,
                 camera_id="back_door",
+                model_id=TEST_MODEL,
             )
 
             # Should have matches
@@ -3244,6 +3383,7 @@ class TestReIDServiceMetrics:
             camera_id="front_door",  # Different from query camera
             timestamp=now - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
@@ -3262,7 +3402,8 @@ class TestReIDServiceMetrics:
                 query_embedding,
                 entity_type="person",
                 threshold=0.9,
-                camera_id="back_door",  # Different camera - should trigger handoff
+                camera_id="back_door",  # Different camera - should trigger handoff,
+                model_id=TEST_MODEL,
             )
 
             # Should have matches
@@ -3284,6 +3425,7 @@ class TestReIDServiceMetrics:
             camera_id="front_door",  # Same as query camera
             timestamp=now - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
@@ -3302,7 +3444,8 @@ class TestReIDServiceMetrics:
                 query_embedding,
                 entity_type="person",
                 threshold=0.9,
-                camera_id="front_door",  # Same camera - no handoff
+                camera_id="front_door",  # Same camera - no handoff,
+                model_id=TEST_MODEL,
             )
 
             # No cross-camera handoff should be recorded for same camera
@@ -3320,6 +3463,7 @@ class TestReIDServiceMetrics:
             camera_id="front_door",
             timestamp=now - timedelta(minutes=5),
             detection_id="det_stored",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [stored_embedding.to_dict()], "vehicles": []}
@@ -3339,6 +3483,7 @@ class TestReIDServiceMetrics:
                 query_embedding,
                 entity_type="person",
                 threshold=0.9,
+                model_id=TEST_MODEL,
             )
 
             # No cross-camera handoff should be recorded when camera is unknown
@@ -3356,6 +3501,7 @@ class TestReIDServiceMetrics:
             camera_id="garage_cam",
             timestamp=now - timedelta(minutes=2),
             detection_id="det_vehicle",
+            model_id=TEST_MODEL,
         )
 
         stored_data = {"persons": [], "vehicles": [stored_embedding.to_dict()]}
@@ -3384,6 +3530,7 @@ class TestReIDServiceMetrics:
                 entity_type="vehicle",
                 threshold=0.9,
                 camera_id="driveway_cam",
+                model_id=TEST_MODEL,
             )
 
             # Verify all metrics are called with correct entity_type

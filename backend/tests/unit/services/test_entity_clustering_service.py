@@ -24,6 +24,10 @@ import pytest
 from backend.models.entity import Entity
 from backend.services.entity_clustering_service import EntityClusteringService
 
+# The belt every write now carries (ledger item 20): a producer id, named
+# per call, never inherited from the service.
+PROVENANCE = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -114,11 +118,15 @@ def mock_entity_repository() -> AsyncMock:
 
 @pytest.fixture
 def clustering_service(mock_entity_repository: AsyncMock) -> EntityClusteringService:
-    """Create EntityClusteringService with mock repository."""
+    """Create EntityClusteringService with mock repository.
+
+    Post-swap (ledger item 20) the service carries NO model claim: the
+    belt is per-write, assign_entity's model_id (see
+    test_person_vector_provenance.TestEntitiesJsonbProvenance).
+    """
     return EntityClusteringService(
         entity_repository=mock_entity_repository,
         similarity_threshold=0.85,
-        embedding_model="clip",
     )
 
 
@@ -135,7 +143,8 @@ class TestEntityClusteringServiceInit:
         service = EntityClusteringService(entity_repository=mock_entity_repository)
         assert service.entity_repository == mock_entity_repository
         assert service.similarity_threshold == 0.85  # Default threshold
-        assert service.embedding_model == "clip"  # Default model
+        # Ledger item 20: no service-level model claim exists to default.
+        assert not hasattr(service, "embedding_model")
 
     def test_init_with_custom_threshold(self, mock_entity_repository: AsyncMock) -> None:
         """Test service initializes with custom similarity threshold."""
@@ -145,13 +154,19 @@ class TestEntityClusteringServiceInit:
         )
         assert service.similarity_threshold == 0.90
 
-    def test_init_with_custom_embedding_model(self, mock_entity_repository: AsyncMock) -> None:
-        """Test service initializes with custom embedding model."""
-        service = EntityClusteringService(
-            entity_repository=mock_entity_repository,
-            embedding_model="resnet",
-        )
-        assert service.embedding_model == "resnet"
+    def test_init_rejects_a_service_level_model_claim(
+        self, mock_entity_repository: AsyncMock
+    ) -> None:
+        """The retired embedding_model parameter must STAY retired (item 20).
+
+        It named one model for every write the service ever made; after
+        the swap a service-level claim is exactly the drift the ruling
+        forbids, so passing one is a TypeError, not a silent accept."""
+        with pytest.raises(TypeError):
+            EntityClusteringService(
+                entity_repository=mock_entity_repository,
+                embedding_model="resnet",
+            )
 
 
 # =============================================================================
@@ -192,6 +207,7 @@ class TestAssignEntityNewEntity:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=123,
             entity_type="person",
             embedding=embedding,
@@ -233,6 +249,7 @@ class TestAssignEntityNewEntity:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, _ = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=456,
             entity_type="person",
             embedding=embedding,
@@ -279,6 +296,7 @@ class TestAssignEntityMatchExisting:
         timestamp = datetime.now(UTC)
 
         entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=789,
             entity_type="person",
             embedding=embedding,
@@ -310,6 +328,7 @@ class TestAssignEntityMatchExisting:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=101,
             entity_type="person",
             embedding=embedding,
@@ -342,6 +361,7 @@ class TestAssignEntityMatchExisting:
         timestamp = datetime.now(UTC)
 
         entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=202,
             entity_type="person",
             embedding=embedding,
@@ -388,6 +408,7 @@ class TestDetectionCount:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=301,
             entity_type="person",
             embedding=embedding,
@@ -419,6 +440,7 @@ class TestDetectionCount:
         timestamp = datetime.now(UTC)
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=302,
             entity_type="person",
             embedding=embedding,
@@ -465,6 +487,7 @@ class TestTimestampUpdates:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=401,
             entity_type="vehicle",
             embedding=embedding,
@@ -501,6 +524,7 @@ class TestTimestampUpdates:
         new_timestamp = datetime.now(UTC)
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=402,
             entity_type="person",
             embedding=embedding,
@@ -535,6 +559,7 @@ class TestTimestampUpdates:
         new_timestamp = datetime.now(UTC)
 
         entity, _is_new, _ = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=403,
             entity_type="vehicle",
             embedding=embedding,
@@ -585,6 +610,7 @@ class TestMultipleDetectionsClustering:
         mock_entity_repository.session.refresh.side_effect = mock_refresh_first
 
         entity1, is_new1, _ = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=501,
             entity_type="person",
             embedding=person_embedding,
@@ -600,6 +626,7 @@ class TestMultipleDetectionsClustering:
         ]
 
         entity2, is_new2, similarity2 = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=502,
             entity_type="person",
             embedding=person_embedding,
@@ -645,6 +672,7 @@ class TestMultipleDetectionsClustering:
         mock_entity_repository.session.add.reset_mock()
 
         entity1, is_new1, _ = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=601,
             entity_type="person",
             embedding=person1_embedding,
@@ -674,6 +702,7 @@ class TestMultipleDetectionsClustering:
         mock_entity_repository.session.add.reset_mock()
 
         entity2, is_new2, _ = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=602,
             entity_type="person",
             embedding=person2_embedding,
@@ -719,6 +748,7 @@ class TestEntityTypes:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=701,
             entity_type="vehicle",
             embedding=embedding,
@@ -748,6 +778,7 @@ class TestEntityTypes:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=702,
             entity_type="animal",
             embedding=embedding,
@@ -795,6 +826,7 @@ class TestThresholdBoundaries:
         timestamp = datetime.now(UTC)
 
         _entity, is_new, match_similarity = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=801,
             entity_type="person",
             embedding=embedding,
@@ -831,6 +863,7 @@ class TestThresholdBoundaries:
         timestamp = datetime.now(UTC)
 
         _entity, is_new, match_similarity = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=802,
             entity_type="person",
             embedding=embedding,
@@ -870,6 +903,7 @@ class TestThresholdBoundaries:
         timestamp = datetime.now(UTC)
 
         _entity, is_new, match_similarity = await service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=803,
             entity_type="person",
             embedding=embedding,
@@ -912,6 +946,7 @@ class TestEdgeCases:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, _ = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=901,
             entity_type="person",
             embedding=embedding,
@@ -940,6 +975,7 @@ class TestEdgeCases:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, _ = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=902,
             entity_type="person",
             embedding=embedding,
@@ -971,6 +1007,7 @@ class TestEdgeCases:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         _entity, is_new, _ = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=903,
             entity_type="person",
             embedding=embedding,
@@ -1013,6 +1050,7 @@ class TestAssignEntityFlow:
         mock_entity_repository.session.refresh.side_effect = mock_refresh
 
         entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=1001,
             entity_type="person",
             embedding=embedding,
@@ -1028,12 +1066,15 @@ class TestAssignEntityFlow:
         assert entity.entity_type == "person"
         assert entity.detection_count == 1
 
-        # Verify repository interactions
+        # Verify repository interactions — including the belt: the probe's
+        # model_id reaches the comparison (F11; ledger item 20), so an
+        # unnamed probe could never silently score the whole table.
         mock_entity_repository.find_by_embedding.assert_called_once_with(
             embedding=embedding,
             entity_type="person",
             threshold=0.85,
             limit=1,
+            model_id=PROVENANCE,
         )
         mock_entity_repository.session.add.assert_called_once()
         # flush is called multiple times: once for entity creation, once for cameras_seen tracking
@@ -1064,6 +1105,7 @@ class TestAssignEntityFlow:
         timestamp = datetime.now(UTC)
 
         entity, is_new, match_similarity = await clustering_service.assign_entity(
+            model_id=PROVENANCE,
             detection_id=1002,
             entity_type="person",
             embedding=embedding,

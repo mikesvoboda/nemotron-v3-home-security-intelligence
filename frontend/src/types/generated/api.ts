@@ -7126,20 +7126,29 @@ export interface paths {
         put?: never;
         /**
          * Match Person
-         * @description Match a person embedding against known household members.
+         * @deprecated
+         * @description Retired: POST a client-computed person embedding vector (D-1, F11).
          *
-         *     Compares the provided embedding against all stored person embeddings
-         *     and returns the best match if it exceeds the similarity threshold.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space: after the full swap every ``person_embeddings`` row
+         *     names the weights that computed it (``model_id``), and a posted list
+         *     of floats carries no such belt — comparing it would either score
+         *     across embedding spaces or force trusting a client-claimed model id,
+         *     which is no trust anchor. This is the person twin of the retired
+         *     ``POST /face-recognition/known-persons/{id}/embeddings`` (F11 ruling 2).
          *
-         *     Args:
-         *         request: PersonMatchRequest with embedding and optional threshold
-         *         db: Database session
+         *     The sanctioned paths compute the vector server-side and store the
+         *     model id beside it:
+         *
+         *     - the enrichment pipeline (``person_reid`` leg, matched automatically)
+         *     - ``POST /api/household/members/{member_id}/embeddings`` (member
+         *       enrollment: extraction runs server-side from the event's detection)
          *
          *     Returns:
-         *         HouseholdMatchResponse with match details if found
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the server-side paths.
          */
         post: operations["household-matcher_match_person"];
         delete?: never;
@@ -53831,8 +53840,8 @@ export interface operations {
                     "application/json": components["schemas"]["HouseholdMatchResponse"];
                 };
             };
-            /** @description Invalid embedding format */
-            400: {
+            /** @description Always returned: POSTing a client-computed person embedding vector is retired (F11, re-ID full swap D-1). A matching request rides the enrichment pipeline, which computes the vector server-side and carries its model_id. */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -53846,13 +53855,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-            /** @description Internal server error */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

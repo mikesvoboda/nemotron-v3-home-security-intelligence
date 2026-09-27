@@ -452,18 +452,31 @@ class TestS1PoseKeypointsArePositional:
 
 
 # ---------------------------------------------------------------------------
-# S2 — embedding-space tag exists; get_embedding_model() has ZERO production
-#      callers, so post-swap cosine compares unrelated spaces (plan 961-963).
+# S2 — embedding-space tag existed with ZERO production readers (the
+#      pre-swap finding, plan 961-963); the re-ID full swap closed it —
+#      see TestS2EmbeddingSpaceTag.
 # ---------------------------------------------------------------------------
 class TestS2EmbeddingSpaceTag:
-    def test_s2a_zero_production_readers_of_the_tag(self) -> None:
-        """The plan's load-bearing claim, re-verified by corpus scan TODAY:
-        entity.py:193 set_embedding stores {"vector","model","dimension"}
-        (:206-210); :223 get_embedding_model is the only reader, and a scan
-        of backend/ ai/ scripts/ (test trees + THIS module excluded — the
-        V1c self-match trap lesson) finds ZERO readers. fake/gateway N/A
-        (model layer). PREDICTED-GREEN. UNVERIFIED at pytest level."""
-        producers = []
+    """S2's finding was: the {"vector","model","dimension"} tag is written,
+    never read — so a cosine across two embedding spaces "reported plausible
+    numbers with zero error raised".
+
+    CLOSED by the re-ID full swap (owner ruling, ledger item 20; F11 "one
+    embedding space, model id on every stored vector"). These two pins are
+    the CLOSE side: they now assert the tag HAS production readers and that
+    the writer refuses an unnamed producer. A pin here going back to
+    "zero readers" would mean the belt became decorative again.
+    """
+
+    def test_s2a_the_tag_has_readers_and_guards_every_comparison(self) -> None:
+        """Post-swap: the corpus scan that once found ZERO readers must find
+        the guard's readers — the entity repository's provenance filter (a
+        foreign-space row is SKIPPED, never scored) and hybrid storage's
+        belt-copy (a PostgreSQL match carries its model_id downstream).
+        Same scan recipe as the original (test trees + this module excluded,
+        the V1c self-match trap lesson); the assertion is inverted with the
+        contract."""
+        readers = []
         for root in ("backend", "ai", "scripts"):
             tree = REPO_ROOT / root
             if not tree.is_dir():
@@ -477,32 +490,52 @@ class TestS2EmbeddingSpaceTag:
                     assert "def get_embedding_model(" in text  # the def itself
                     continue
                 if "get_embedding_model" in text:
-                    producers.append(str(rel))
-        assert producers == [], f"plan claim falsified — readers appeared: {producers}"
+                    readers.append(str(rel))
+        assert set(readers) >= {
+            "backend/repositories/entity_repository.py",
+            "backend/services/hybrid_entity_storage.py",
+        }, f"the belt lost its readers again: {readers}"
 
-    def test_s2b_the_tag_records_the_space_and_no_writer_validates_it(self) -> None:
-        """probe-verified: set_embedding(..., model="siglip-2") stores the tag
-        verbatim (get_embedding_model() -> "siglip-2", dimension 4) and
-        validates NOTHING; hybrid_entity_storage.py:150 reads only
-        get_embedding_vector() — the tag is write-only, so post-swap cosine
-        silently mixes CLIP-768 and SigLIP-2 spaces (plan's scenario).
-        fake/gateway N/A. PREDICTED-GREEN (pure ORM object). UNVERIFIED."""
+        # And the reader is a GUARD, not decoration: the repository refuses a
+        # foreign-space row and a probe that names no space at all.
+        from backend.models.entity import Entity
+        from backend.repositories.entity_repository import EntityRepository
+
+        def _row(model: str | None) -> Entity:
+            e = Entity(entity_type="person", trust_status="unknown")
+            e.embedding_vector = {"vector": [0.1] * 4, "model": model, "dimension": 4}
+            return e
+
+        keep = EntityRepository._provenance_matches
+        assert keep(_row("osnet-ain-x1-0@w@aaaaaaaaaaaa"), "osnet-ain-x1-0@w@aaaaaaaaaaaa")
+        assert not keep(_row("clip"), "osnet-ain-x1-0@w@aaaaaaaaaaaa")
+        assert not keep(_row("osnet-ain-x1-0@w@aaaaaaaaaaaa"), None)
+
+    def test_s2b_the_writer_refuses_an_unnamed_producer(self) -> None:
+        """Pre-swap, set_embedding(..., model="siglip-2") recorded the tag and
+        validated NOTHING, and the default was the LITERAL "clip" — so a write
+        that never named its producer mislabeled the bytes (provenance
+        backwards). Post-swap the producer is REQUIRED: an omitted or
+        explicitly-None model refuses loudly, and a named one is stored and
+        readable verbatim."""
         from backend.models.entity import Entity
 
+        with pytest.raises(ValueError, match="model"):
+            Entity(entity_type="person").set_embedding([0.1] * 4)
+        with pytest.raises(ValueError, match="model"):
+            Entity(entity_type="person").set_embedding([0.1] * 4, model=None)
+
         ent = Entity(entity_type="person")
-        ent.set_embedding([0.1] * 4)  # default model="clip" (entity.py:196)
-        assert ent.embedding_vector["model"] == "clip"
-        assert ent.get_embedding_model() == "clip"
+        ent.set_embedding([0.1] * 4, model="siglip-2")
+        assert ent.embedding_vector["model"] == "siglip-2"
+        assert ent.get_embedding_model() == "siglip-2"
         assert ent.embedding_vector["dimension"] == 4
-        other = Entity(entity_type="person")
-        other.set_embedding([0.2] * 4, model="siglip-2")
-        assert other.get_embedding_model() == "siglip-2"  # recorded, never checked
-        # storage reads the vector but NOT the tag:
+        # storage still reads the vector — and now rides the tag too:
         storage = (REPO_ROOT / "backend/services/hybrid_entity_storage.py").read_text(
             encoding="utf-8"
         )
         assert "entity.get_embedding_vector()" in storage
-        assert "get_embedding_model" not in storage
+        assert "get_embedding_model" in storage
 
     def test_s2c_speaking_provider_stamps_a_different_space_untagged(self) -> None:
         """fake stamps CLIP-space 768-dim (clip_embed) and reid-space 512-dim

@@ -21,6 +21,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from backend.core.vector_provenance import LEGACY_MODEL_ID
+
 from .camera import Base
 
 if TYPE_CHECKING:
@@ -161,10 +163,17 @@ class PersonEmbedding(Base):
     The embedding is stored as a serialized numpy array in LargeBinary format.
     The confidence field indicates how reliable this embedding is for matching.
 
+    Every stored vector names the weights that computed it (``model_id``,
+    F11): a comparison across two different ids is never scored, and a row
+    that never named its producer carries the ``LEGACY_MODEL_ID`` sentinel
+    and is untrusted by default — the honest expression of drop-and-
+    re-enroll (owner ruling, ledger item 20).
+
     Attributes:
         id: Unique identifier for the embedding
         member_id: Foreign key to the associated household member
         embedding: Serialized numpy array containing the re-ID embedding
+        model_id: Which weights computed this embedding (or the sentinel)
         source_event_id: Optional reference to the event where this embedding was captured
         confidence: Reliability score for this embedding (0-1)
         created_at: When the embedding was created
@@ -180,6 +189,15 @@ class PersonEmbedding(Base):
         nullable=False,
     )
     embedding: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # Plain-string default (no text()): a pre-quoted f-string renders
+    # '''sentinel''' and splits the vocabulary (the face pair's DDL lesson —
+    # test_emitted_ddl_default_matches_the_migration_sql pins the literal).
+    model_id: Mapped[str] = mapped_column(
+        String(128),
+        nullable=False,
+        server_default=LEGACY_MODEL_ID,
+        default=LEGACY_MODEL_ID,
+    )
     source_event_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("events.id", ondelete="SET NULL"),

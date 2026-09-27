@@ -12,11 +12,14 @@ Tests cover:
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
+import backend.services.osnet_loader as ol
 from backend.services.osnet_loader import (
     OSNET_EMBEDDING_DIM,
     PersonEmbeddingResult,
@@ -173,6 +176,11 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+        # The loader probes BOTH torchreid spellings (0.2.5 nests under
+        # torchreid.reid.models), and this file's real-weights proof caches the
+        # real nested module process-wide — the mock must shadow both, or a
+        # randomized run lets the real build_model answer this test.
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", mock_torchreid.models)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
         with pytest.raises(RuntimeError, match="Failed to load OSNet model"):
@@ -220,6 +228,11 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+        # The loader probes BOTH torchreid spellings (0.2.5 nests under
+        # torchreid.reid.models), and this file's real-weights proof caches the
+        # real nested module process-wide — the mock must shadow both, or a
+        # randomized run lets the real build_model answer this test.
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
@@ -275,6 +288,11 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+        # The loader probes BOTH torchreid spellings (0.2.5 nests under
+        # torchreid.reid.models), and this file's real-weights proof caches the
+        # real nested module process-wide — the mock must shadow both, or a
+        # randomized run lets the real build_model answer this test.
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
@@ -341,6 +359,11 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+        # The loader probes BOTH torchreid spellings (0.2.5 nests under
+        # torchreid.reid.models), and this file's real-weights proof caches the
+        # real nested module process-wide — the mock must shadow both, or a
+        # randomized run lets the real build_model answer this test.
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
@@ -409,6 +432,11 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
         monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
         monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+        # The loader probes BOTH torchreid spellings (0.2.5 nests under
+        # torchreid.reid.models), and this file's real-weights proof caches the
+        # real nested module process-wide — the mock must shadow both, or a
+        # randomized run lets the real build_model answer this test.
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", mock_torchreid.models)
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
@@ -451,9 +479,15 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
-        # Remove torchreid if present
-        if "torchreid" in sys.modules:
-            del sys.modules["torchreid"]
+        # Simulate torchreid being uninstalled. Deleting sys.modules keys is
+        # NOT enough (importlib re-imports an on-disk package), and it never
+        # was: the shipped `from torchreid.models import` raised even on a
+        # fresh import in envs like this one. Patch the loader's probe to
+        # raise ImportError — exactly what "not installed" looks like to it.
+        def _no_torchreid() -> None:
+            raise ImportError("torchreid not installed (simulated)")
+
+        monkeypatch.setattr(ol, "_import_build_model", _no_torchreid)
 
         result = await load_osnet_model("/test/model")
 
@@ -482,9 +516,12 @@ class TestLoadOSNetModel:
         monkeypatch.setitem(sys.modules, "torchvision", MagicMock())
         monkeypatch.setattr("backend.services.osnet_loader.Path", lambda x: mock_path)
 
-        # Remove torchreid if present
-        if "torchreid" in sys.modules:
-            del sys.modules["torchreid"]
+        # Simulate torchreid being uninstalled (see the TorchScript test:
+        # patch the probe; sys.modules deletion can't hide an on-disk package).
+        def _no_torchreid() -> None:
+            raise ImportError("torchreid not installed (simulated)")
+
+        monkeypatch.setattr(ol, "_import_build_model", _no_torchreid)
 
         with pytest.raises(
             RuntimeError, match="OSNet requires either torchreid package or TorchScript"
@@ -1069,8 +1106,9 @@ class TestFormatPersonReidContext:
         assert result.embedding.shape == (OSNET_EMBEDDING_DIM,)
 
     @pytest.mark.asyncio
-    async def test_extract_person_embedding_too_short_padding(self, monkeypatch) -> None:
-        """Test extract_person_embedding pads short embeddings."""
+    async def test_extract_person_embedding_too_short_raises(self, monkeypatch) -> None:
+        """D-5 (ledger item 20): short features RAISE — the retired padding
+        turned a wrong checkpoint into a plausible 512-vector with no trail."""
         import sys
 
         mock_torch = MagicMock()
@@ -1103,11 +1141,8 @@ class TestFormatPersonReidContext:
 
         monkeypatch.setitem(sys.modules, "torch", mock_torch)
 
-        result = await extract_person_embedding(model_dict, mock_image)
-
-        assert isinstance(result, PersonEmbeddingResult)
-        # Should be padded to correct dimension
-        assert result.embedding.shape == (OSNET_EMBEDDING_DIM,)
+        with pytest.raises(RuntimeError, match=f"{OSNET_EMBEDDING_DIM}"):
+            await extract_person_embedding(model_dict, mock_image)
 
 
 class TestOSNetConstants:
@@ -1116,3 +1151,349 @@ class TestOSNetConstants:
     def test_osnet_embedding_dim_constant(self) -> None:
         """Test OSNET_EMBEDDING_DIM is set correctly."""
         assert OSNET_EMBEDDING_DIM == 512
+
+
+# =============================================================================
+# Provenance + pinning (ledger item 20: the full swap — F11 belt, F12 hash)
+# =============================================================================
+
+OSNET_SHA256 = (
+    "8a07e8da38946f7cee37f4561617bf8b6d2fe8f3a4027852893ea092e46d919f"  # pragma: allowlist secret
+)
+OSNET_ID = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+
+
+def _yaml_catalog() -> dict:
+    from pathlib import Path
+
+    import yaml
+
+    models_yml = Path(__file__).resolve().parents[4] / "models.yml"
+    entries = yaml.safe_load(models_yml.read_text())["models"]
+    return {e["name"]: e for e in entries}
+
+
+class TestModelsYmlOsnetRow:
+    """The zoo row is the SINGLE source of the OSNet identity: weights file
+    name + SHA-256 pin. Every producer's belt derives from it, so a weights
+    swap changes every stored model_id at once — or the pin below fails."""
+
+    def test_row_pins_weights_by_sha256(self) -> None:
+        row = _yaml_catalog()["osnet-ain-x1-0"]
+        assert row["sha256"] == OSNET_SHA256
+
+    def test_row_names_the_weights_file(self) -> None:
+        row = _yaml_catalog()["osnet-ain-x1-0"]
+        assert row["runtime_file"] == "osnet_ain_x1_0_msmt17.pth"
+
+    def test_description_carries_the_honest_benchmark(self) -> None:
+        """The retired wording ("MSMT17 Rank-1 73.3%") conflated the
+        multi-source (MS+D+C->Market) number with single-source MSMT17;
+        single-source MSMT17->Market is 70.1 (14-specialist-model-research)."""
+        row = _yaml_catalog()["osnet-ain-x1-0"]
+        assert "73.3" not in row["description"]
+        assert "70.1" in row["description"]
+
+
+class TestOsnetModelId:
+    """osnet_model_id() is the ONE belt string every person-vector producer
+    labels with (B5b) — backend handle, unified.reid_embedding, safe-extract
+    payloads all read it, so "one space" is mechanical, not aspirational."""
+
+    def test_value_is_row_derived_never_a_literal(self) -> None:
+        row = _yaml_catalog()["osnet-ain-x1-0"]
+        stem = row["runtime_file"].removesuffix(".pth")
+        assert ol.osnet_model_id() == f"osnet-ain-x1-0@{stem}@{row['sha256'][:12]}"
+        assert ol.osnet_model_id() == OSNET_ID
+
+    def test_same_value_for_every_caller(self) -> None:
+        assert ol.osnet_model_id() == ol.osnet_model_id()
+
+
+class TestGetReidHandle:
+    """Membership read of the resident models — NEVER a load trigger (the
+    face get_face_leg_handles pattern)."""
+
+    def test_absent_model_answers_none(self, monkeypatch) -> None:
+        fake_manager = MagicMock()
+        fake_manager._loaded_models = {}
+        monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
+        assert ol.get_reid_handle() is None
+
+    def test_resident_model_is_returned_unchanged(self, monkeypatch) -> None:
+        handle = {"model": MagicMock(), "model_id": OSNET_ID}
+        fake_manager = MagicMock()
+        fake_manager._loaded_models = {"osnet-ain-x1-0": handle}
+        monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
+        assert ol.get_reid_handle() is handle
+
+    def test_read_never_triggers_a_load(self, monkeypatch) -> None:
+        fake_manager = MagicMock()
+        fake_manager._loaded_models = {}
+        monkeypatch.setattr("backend.services.model_zoo.get_model_manager", lambda: fake_manager)
+        ol.get_reid_handle()
+        assert fake_manager.load.call_count == 0
+        assert fake_manager.preload.call_count == 0
+
+
+class TestOsnetShaPinEnforcedBeforeLoad:
+    """F12 shape, person-vector twin: wrong bytes are the same answer as no
+    bytes — UNAVAILABLE, and the file is never torch.load'ed."""
+
+    @pytest.mark.asyncio
+    async def test_hash_miss_raises_and_torch_load_never_runs(self, tmp_path, monkeypatch) -> None:
+        weights = tmp_path / "osnet_ain_x1_0_msmt17.pth"
+        weights.write_bytes(b"not-the-pinned-bytes")
+
+        mock_torch = MagicMock()
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        with pytest.raises(RuntimeError, match="sha256"):
+            await load_osnet_model(str(tmp_path), expected_sha256=OSNET_SHA256)
+        assert mock_torch.load.call_count == 0
+        assert mock_torch.jit.load.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_load_result_carries_the_belt(self, tmp_path, monkeypatch) -> None:
+        import hashlib
+
+        content = b"pinned-enough-for-this-harness"
+        weights = tmp_path / "osnet_ain_x1_0_msmt17.pth"
+        weights.write_bytes(content)
+        sha = hashlib.sha256(content).hexdigest()
+
+        # Fake the whole torch/torchreid stack; the pin check is real.
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+        fake_model = MagicMock()
+        fake_model.load_state_dict.return_value = (
+            type("R", (), {"missing_keys": [], "unexpected_keys": []})(),
+        )
+        mock_build = MagicMock(return_value=fake_model)
+        fake_models_mod = MagicMock(build_model=mock_build)
+        fake_torchreid = MagicMock()
+        fake_torchreid.reid.models = fake_models_mod
+        mock_tv = MagicMock()
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        monkeypatch.setitem(sys.modules, "torchvision", mock_tv)
+        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_tv.transforms)
+        monkeypatch.setitem(sys.modules, "torchreid", fake_torchreid)
+        monkeypatch.setitem(sys.modules, "torchreid.reid", fake_torchreid.reid)
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", fake_models_mod)
+
+        # Belt grammar is computed from the ACTUAL loaded file, same helper.
+        result = await load_osnet_model(str(tmp_path), expected_sha256=sha)
+        assert result["model_id"] == f"osnet-ain-x1-0@osnet_ain_x1_0_msmt17@{sha[:12]}"
+
+    @pytest.mark.asyncio
+    async def test_directory_mode_finds_the_named_weights_file(self, tmp_path, monkeypatch) -> None:
+        """Directory deploy (no runtime_file passed): the loader finds
+        osnet_ain_x1_0_msmt17.pth and the belt names its file."""
+        import hashlib
+
+        weights = tmp_path / "osnet_ain_x1_0_msmt17.pth"
+        weights.write_bytes(b"dir-mode-bytes")
+        sha = hashlib.sha256(weights.read_bytes()).hexdigest()
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+        fake_model = MagicMock()
+        fake_model.load_state_dict.return_value = (
+            type("R", (), {"missing_keys": [], "unexpected_keys": []})(),
+        )
+        mock_build = MagicMock(return_value=fake_model)
+        fake_models_mod = MagicMock(build_model=mock_build)
+        fake_torchreid = MagicMock()
+        fake_torchreid.reid.models = fake_models_mod
+        mock_tv = MagicMock()
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        monkeypatch.setitem(sys.modules, "torchvision", mock_tv)
+        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_tv.transforms)
+        monkeypatch.setitem(sys.modules, "torchreid", fake_torchreid)
+        monkeypatch.setitem(sys.modules, "torchreid.reid", fake_torchreid.reid)
+        monkeypatch.setitem(sys.modules, "torchreid.reid.models", fake_models_mod)
+
+        result = await load_osnet_model(str(tmp_path), expected_sha256=sha)
+        assert result["model"] is fake_model
+        assert result["model_id"] == f"osnet-ain-x1-0@osnet_ain_x1_0_msmt17@{sha[:12]}"
+
+
+class TestTensorboardImportHazard:
+    """torchreid's package chain imports torch.utils.tensorboard, which needs
+    the tensorboard package — absent from this venv, and SummaryWriter is
+    trainer-only (never inference). The loader pre-registers a bounded stub
+    so the REAL build_model branch works; without it, every env without
+    tensorboard silently degrades to the TorchScript fallback and the whole
+    store answers 'unavailable' in the field."""
+
+    def test_stub_installed_when_tensorboard_missing(self, monkeypatch) -> None:
+        import builtins
+        import sys as _sys
+
+        real_import = builtins.__import__
+
+        def no_tensorboard(name, *a, **k):
+            if name == "tensorboard" or name.startswith("tensorboard."):
+                raise ImportError("No module named 'tensorboard'")
+            return real_import(name, *a, **k)
+
+        saved = _sys.modules.pop("torch.utils.tensorboard", None)
+        try:
+            monkeypatch.setattr(builtins, "__import__", no_tensorboard)
+            ol._ensure_tensorboard_importable()
+            stub = _sys.modules.get("torch.utils.tensorboard")
+            assert stub is not None
+            assert hasattr(stub, "SummaryWriter")
+            assert stub.SummaryWriter("x") is not None  # inert, not a raise
+        finally:
+            _sys.modules.pop("torch.utils.tensorboard", None)
+            if saved is not None:
+                _sys.modules["torch.utils.tensorboard"] = saved
+
+    def test_real_module_wins_when_importable(self) -> None:
+        import importlib
+
+        try:
+            importlib.import_module("torch.utils.tensorboard")
+            real = sys.modules["torch.utils.tensorboard"]
+        except ImportError:
+            pytest.skip("torch.utils.tensorboard not importable in this env")
+        ol._ensure_tensorboard_importable()
+        assert sys.modules["torch.utils.tensorboard"] is real
+
+
+class TestRealWeightsProof:
+    """The swap's acceptance line (plan Slice B2): build_model
+    ('osnet_ain_x1_0') must ACTUALLY import and run in this venv — the
+    tier mocks everything else, so without this pin a silent
+    tensorboard/torchreid failure ships a store that only answers
+    'unavailable'. Gated: skips when the pinned weights or torchreid are
+    absent (CI); runs the real thing wherever they exist."""
+
+    @staticmethod
+    def _weights() -> Path | None:
+        import os
+
+        base = os.environ.get("AGENT_GPU_DIR") or ""
+        candidate = Path(base) / "models/model-zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth"
+        return candidate if candidate.is_file() else None
+
+    @pytest.mark.asyncio
+    async def test_pinned_weights_load_end_to_end(self, monkeypatch) -> None:
+        weights = self._weights()
+        if weights is None:
+            pytest.skip("pinned OSNet weights not present (AGENT_GPU_DIR unset)")
+        try:
+            import torch  # noqa: F401
+
+            # torchreid's chain needs the tensorboard hazard handled FIRST
+            # (bare `import torchreid` fails in a venv without tensorboard —
+            # the loader applies the same shim; doing it here is what makes
+            # this proof test the loader's REAL path, not a false skip).
+            ol._ensure_tensorboard_importable()
+            import torchreid  # noqa: F401
+        except ImportError:
+            pytest.skip("torch/torchreid not installed")
+
+        # The weights live under $AGENT_GPU_DIR (dev box), outside the
+        # deploy-time allowed dirs (/models/...); allow this one dir so the
+        # proof runs the real load through the real path validation.
+        import backend.core.security as sec
+
+        monkeypatch.setattr(
+            sec,
+            "DEFAULT_ALLOWED_MODEL_DIRECTORIES",
+            (*sec.DEFAULT_ALLOWED_MODEL_DIRECTORIES, str(weights.parent.parent.parent)),
+        )
+
+        result = await load_osnet_model(str(weights.parent), expected_sha256=OSNET_SHA256)
+        assert result["model_id"] == OSNET_ID
+        assert result["embedding_dim"] == 512
+
+        # Real crop -> real 512-d unit vector (no padding, no truncation).
+        from PIL import Image
+
+        crop = Image.new("RGB", (64, 128), color=(90, 120, 150))
+        emb = await extract_person_embedding(result, crop)
+        assert isinstance(emb, PersonEmbeddingResult)
+        assert emb.embedding.shape == (512,)
+        assert abs(float(np.linalg.norm(emb.embedding)) - 1.0) < 1e-4
+        assert emb.model_id == OSNET_ID
+        assert np.isfinite(emb.embedding).all()
+
+
+class TestDimensionGuardRaises:
+    """D-5: a wrong checkpoint must never become a plausible vector. The
+    retired pad/truncate-to-512 made any dim a 512-vector with no trail;
+    the guard now refuses the vector."""
+
+    @pytest.mark.asyncio
+    async def test_short_features_raise_not_pad(self, monkeypatch) -> None:
+        import sys
+
+        mock_torch = MagicMock()
+        mock_tensor = MagicMock()
+        mock_output = MagicMock()
+        short = np.random.rand(OSNET_EMBEDDING_DIM - 100).astype("float32")
+        mock_output.squeeze.return_value.cpu.return_value.numpy.return_value = short
+        mock_tensor.__getitem__ = lambda self, k: mock_output
+        mock_torch.stack.return_value = mock_tensor
+        mock_torch.inference_mode.return_value = MagicMock(
+            __enter__=lambda s: None, __exit__=lambda *a: False
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([MagicMock(device="cpu")])
+        mock_model.return_value = mock_output
+        mock_transform = MagicMock(return_value=mock_tensor)
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        image = MagicMock()
+        image.mode = "RGB"
+        image.size = (128, 256)
+
+        with pytest.raises(RuntimeError, match="512"):
+            await extract_person_embedding(
+                {"model": mock_model, "transform": mock_transform, "model_id": OSNET_ID},
+                image,
+            )
+
+    @pytest.mark.asyncio
+    async def test_long_features_raise_not_truncate(self, monkeypatch) -> None:
+        import sys
+
+        mock_torch = MagicMock()
+        mock_tensor = MagicMock()
+        mock_output = MagicMock()
+        long = np.random.rand(OSNET_EMBEDDING_DIM + 64).astype("float32")
+        mock_output.squeeze.return_value.cpu.return_value.numpy.return_value = long
+        mock_torch.inference_mode.return_value = MagicMock(
+            __enter__=lambda s: None, __exit__=lambda *a: False
+        )
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([MagicMock(device="cpu")])
+        mock_model.return_value = mock_output
+        mock_transform = MagicMock(return_value=mock_tensor)
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+
+        image = MagicMock()
+        image.mode = "RGB"
+        image.size = (128, 256)
+
+        with pytest.raises(RuntimeError, match="512"):
+            await extract_person_embedding(
+                {"model": mock_model, "transform": mock_transform, "model_id": OSNET_ID},
+                image,
+            )
+
+    def test_person_embedding_result_carries_the_belt(self) -> None:
+        r = PersonEmbeddingResult(embedding=np.ones(OSNET_EMBEDDING_DIM), model_id=OSNET_ID)
+        assert r.model_id == OSNET_ID
+        assert r.to_dict()["model_id"] == OSNET_ID
+
+    def test_belt_defaults_none_not_a_claim(self) -> None:
+        r = PersonEmbeddingResult(embedding=np.ones(OSNET_EMBEDDING_DIM))
+        assert r.model_id is None

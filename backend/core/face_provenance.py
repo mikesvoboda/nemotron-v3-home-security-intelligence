@@ -5,6 +5,12 @@ origin is unknown must not be trusted with an origin. This module is the
 shared vocabulary for that flag — deliberately a dependency-free leaf,
 because both the ORM models (the column's default) and the extractor that
 computes the honest ids need it, and neither may import the other.
+
+Since the person-vector swap (ledger item 20) the constant lives in
+``core.vector_provenance``, which the person galleries read too: ONE
+sentinel for every vector store, or "untrusted" would mean different things
+in the face and person paths. This module re-exports it so the face-path
+import sites stay exactly as they are.
 """
 
 from __future__ import annotations
@@ -20,6 +26,6 @@ from __future__ import annotations
 #: every vector enrolled before it — and any vector a client POSTed — is
 #: noise in a space of its own. Flagging them is what makes the re-enroll
 #: rule real rather than only forward-looking.
-LEGACY_MODEL_ID = "legacy-unknown-provenance"
+from backend.core.vector_provenance import LEGACY_MODEL_ID
 
 __all__ = ["LEGACY_MODEL_ID"]

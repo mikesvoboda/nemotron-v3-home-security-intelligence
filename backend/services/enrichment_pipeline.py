@@ -126,7 +126,7 @@ from backend.services.model_zoo import (
     ModelManager,
     get_model_manager,
 )
-from backend.services.osnet_loader import extract_person_embedding
+from backend.services.osnet_loader import extract_person_embedding, osnet_model_id
 from backend.services.pet_classifier_loader import (
     PetClassificationResult,
     classify_pet,
@@ -2001,12 +2001,21 @@ class EnrichmentResult:
                     embeddings["person_reid"] = emb.tolist()
                 elif isinstance(emb, list):
                     embeddings["person_reid"] = emb
+                belt = getattr(embedding_result, "model_id", None)
             elif isinstance(embedding_result, dict) and "embedding" in embedding_result:
                 emb = embedding_result["embedding"]
                 if hasattr(emb, "tolist"):
                     embeddings["person_reid"] = emb.tolist()
                 elif isinstance(emb, list):
                     embeddings["person_reid"] = emb
+                belt = embedding_result.get("model_id")
+            else:
+                belt = None
+            # F11 belt rides with the vector: a downstream reader must never
+            # guess which space these bytes live in (the matcher treats a
+            # missing belt as untrusted, not as the producer's default).
+            if belt:
+                embeddings["model_id"] = belt
 
         # Only add embeddings key if we have any embeddings to store
         if embeddings:
@@ -3431,6 +3440,10 @@ class EnrichmentPipeline:
                             "embedding": emb.tolist() if hasattr(emb, "tolist") else emb,
                             "embedding_dim": len(emb) if hasattr(emb, "__len__") else 0,
                             "detection_id": det_id,
+                            # F11 belt (A6): the loaded handle names its own
+                            # weights; a payload that cannot say is stored
+                            # unprovenanced and reads back untrusted.
+                            "model_id": getattr(emb_result, "model_id", None),
                         }
 
             duration = time.monotonic() - start
@@ -3968,6 +3981,11 @@ class EnrichmentPipeline:
                 "embedding": unified.reid_embedding,
                 "embedding_dim": len(unified.reid_embedding),
                 "detection_id": det_id,
+                # The Triton ``reid`` leg serves the SAME models.yml-pinned
+                # OSNet weights export_reid.py exported (B5b): one weights
+                # row, one belt string, whichever process computed the
+                # vector. Not a per-process guess.
+                "model_id": osnet_model_id(),
             }
 
         # --- Action (person only) ---
@@ -5468,11 +5486,16 @@ class EnrichmentPipeline:
                 observe_enrichment_model_duration("reid-via-service", duration)
 
                 if remote_result and remote_result.embedding:
-                    # Store the embedding in person_embeddings for context generation
+                    # Store the embedding in person_embeddings for context
+                    # generation. Belt: the ``reid`` service this URL points
+                    # at serves the SAME models.yml-pinned OSNet weights
+                    # (export_reid.py's export of this row), so the label is
+                    # the one helper's string, not a per-process guess (B5b).
                     result.person_embeddings[det_id] = {
                         "embedding": remote_result.embedding,
                         "embedding_dim": remote_result.embedding_dim,
                         "detection_id": det_id,
+                        "model_id": osnet_model_id(),
                     }
 
                     logger.debug(

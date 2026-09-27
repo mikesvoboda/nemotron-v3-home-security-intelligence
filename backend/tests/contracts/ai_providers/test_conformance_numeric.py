@@ -866,10 +866,10 @@ class TestN5DimConfusion:
         store records len(embedding) verbatim (:312-313) and
         ReIDMatcher._cosine_similarity (:244) SILENTLY returns 0.0 for unequal
         lengths (:255-256).
-      N5c backend/services/osnet_loader.py:347-358 SILENTLY truncates
-        (flatten()[:512] at :350) / zero-PADs to OSNET_EMBEDDING_DIM=512
-        (:41; np.pad :353-355) and re-normalizes the mangled vector
-        (:360-363); batch path duplicates at :446-453.
+      N5c backend/services/osnet_loader.py SILENTLY truncated (flatten()[:512])
+        / zero-PADs to OSNET_EMBEDDING_DIM=512 and re-normalized the mangled
+        vector (pre-swap :347-363 + batch twin :446-453). CLOSED by the re-ID
+        full swap (D-5): a wrong dim now RAISES (test_N5c below).
       N5d backend/models/face_identity.py:116: 'Stores 512-dimensional
         ArcFace embeddings' is DOCSTRING only — no validator rejects 768-dim
         faces (dimension is convention, not constraint).
@@ -926,13 +926,16 @@ class TestN5DimConfusion:
             "the WORST of the three failure modes for swap readiness."
         )
 
-    # backend-internal characterization via AST (the pad path needs model
-    # weights to EXERCISE — the dossier ruled N5c cite-only; a source pin is
-    # the honest drift-sensitive stand-in). torch imports live inside methods
-    # (osnet_loader.py:108 lazy), but a weight-loaded run is not
-    # one-shot-safe here — see file notes (left_out). Predicted GREEN.
-    # UNVERIFIED.
-    def test_N5c_osnet_loader_pads_and_truncates_to_512(self) -> None:
+    # backend-internal characterization via AST (the RAISE path would need
+    # model weights to EXERCISE — same one-shot-safety note as before; a
+    # source pin is the honest drift-sensitive stand-in). Predicted GREEN.
+    def test_N5c_osnet_loader_raises_on_wrong_dim(self) -> None:
+        """N5c's silent pad/truncate was one of the three dim-failure modes;
+        the re-ID full swap retired it by owner ruling (D-5: "a wrong
+        checkpoint must never become a plausible vector"). The guard now
+        RAISES naming the expected 512. If pad/truncate ever comes back,
+        this pin reddens — the N5 table's C column changes mode, it never
+        goes blank."""
         src = (REPO_ROOT / "backend/services/osnet_loader.py").read_text(encoding="utf-8")
         tree = ast.parse(src)
         consts = {
@@ -943,14 +946,16 @@ class TestN5DimConfusion:
             if isinstance(t, ast.Name) and t.id == "OSNET_EMBEDDING_DIM"
         }
         assert consts.get("OSNET_EMBEDDING_DIM") == 512
-        assert "embedding.flatten()[:OSNET_EMBEDDING_DIM]" in src, (
-            "truncate path (osnet_loader.py:350) drifted"
+        assert "np.pad(" not in src, (
+            "the retired silent-pad path came back (pre-swap osnet_loader "
+            ":352-355) — D-5 ruled a wrong dim RAISES, never pads"
         )
-        assert "np.pad(" in src, "pad path (osnet_loader.py:352-355) drifted"
-        # NOTE: the SILENT pad/truncate + re-normalize (:360-363, batch twin
-        # :446-453) means an osnet-shaped provider emitting 256-dim rows gets
-        # a zero-padded 512 vector nobody complained about — contrast N5a
-        # (raise) and N5b (silent 0.0). Three modes, one pipeline (plan N5).
+        assert "embedding.flatten()[:OSNET_EMBEDDING_DIM]" not in src, (
+            "the retired silent-truncate path came back (pre-swap :350)"
+        )
+        assert "_enforce_embedding_dim" in src, (
+            "the D-5 raise guard drifted out of the extraction path"
+        )
 
     # backend-internal characterization (dossier N5d: 512 is documentation +
     # service convention, not a constraint). Predicted GREEN (docstring
