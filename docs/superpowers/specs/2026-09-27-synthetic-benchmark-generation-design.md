@@ -395,11 +395,11 @@ A 02:14 IR-night scene uploaded at 15:00 reaches the VLM as 15:00, which contrad
 
 P0 derives capture time from the Foscam filename and falls back to wall clock when the name does
 not parse. The parser accepts both observed patterns, `MDAlarm_YYYYMMDD-HHMMSS` and
-`MDalarm_YYYYMMDD_HHMMSS`, plus the `HMDAlarm_` prefix [V]. This also fixes production: after an
-outage or backlog, every image currently gets its processing time. The runner writes each scene's
-clock time into filenames at its **most recent past occurrence**: a filename time more than 5
-minutes after arrival is rejected as a clock or timezone error, and `.env.bench` sets
-`CAMERA_TIMEZONE`.
+`MDalarm_YYYYMMDD_HHMMSS`, plus the `HMDAlarm_` prefix [V]. It also helps production: after an
+outage or backlog, the VLM currently sees each image's processing time instead of its capture time.
+The runner writes each scene's clock time into filenames at its **most recent past occurrence**: a
+filename time more than 5 minutes after arrival is rejected as a clock or timezone error, and
+`.env.bench` sets `CAMERA_TIMEZONE`.
 
 **Settled in P0:** capture time feeds only the VLM's time context, meaning the snapshot's
 `timestamp` and the prompt's `Time:` line, shown as local time. `Detection.detected_at`, event
