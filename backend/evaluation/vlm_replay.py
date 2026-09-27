@@ -71,8 +71,12 @@ MAX_REPLAY_IMAGES = 4  # VlmAssessRequest.image_paths' own field constraint
 def client_factory(base_url: str | None = None) -> Callable[[], VlmClient]:
     """The production client (settings → `ai_vlm_url`, breaker, probe), or an
     explicit endpoint when one is named. Tests pass a fake with the same
-    no-arg signature - the seam is this FACTORY, never an instance, so the
-    per-item `close()` lifecycle stays real.
+    no-arg signature.
+
+    It is a FACTORY rather than an instance so a test can inject a double
+    without the harness knowing it did - and `run_replay` calls it exactly
+    ONCE per run, because one run is one endpoint at one build (the client's
+    own documented lifetime, and the enforcement cache's correct scope).
 
     The `base_url` form exists because a run must be able to SAY which endpoint
     it measured: two candidates behind two published ports is exactly the
@@ -250,20 +254,30 @@ async def run_replay(
 
     run_id = store.start_run(engine=engine, model=f"{candidate}@{commit}")
     rows: list[dict[str, Any]] = []
-    for item in items:
-        client = make_client()
-        try:
+    # ONE client for the whole run. The shipped client is "one client per
+    # endpoint" and caches its enforcement proof per instance on purpose
+    # (S-2: a proof must not launder onto another build), so a client per item
+    # re-probes per item - and five probe failures trip the SHARED `ai-vlm`
+    # breaker, after which every remaining item answers VlmUnavailableError
+    # without I/O. That report would describe a breaker, not a model. One run
+    # is one endpoint at one build, which is exactly the client's own
+    # lifetime; the close sits in `finally` so a propagating bug cannot leak
+    # the httpx lifecycle. (Measured on the 2.1.6 smoke's repro - ledger
+    # finding B.)
+    client = make_client()
+    try:
+        for item in items:
             row = await replay_item(client, item)
-        finally:
-            await client.close()
-        store.put_result(
-            run_id,
-            row["item_id"],
-            verdict=row["verdict"],
-            risk_score=row["risk_score"],
-            raw_response=row["raw_response"],
-        )
-        rows.append(row)
+            store.put_result(
+                run_id,
+                row["item_id"],
+                verdict=row["verdict"],
+                risk_score=row["risk_score"],
+                raw_response=row["raw_response"],
+            )
+            rows.append(row)
+    finally:
+        await client.close()
 
     report = compute_report(rows, store)
     report["run_id"] = run_id

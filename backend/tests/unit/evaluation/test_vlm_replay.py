@@ -291,10 +291,21 @@ class TestRunReplay:
         ids = {r["item_id"] for r in store.replay(report["run_id"])}
         assert ids == {"item-1", "item-2"}  # ordered by item_id, stable prefix
 
-    async def test_the_client_close_lifecycle_runs_per_item(self, tmp_path) -> None:
-        """`make_client` is a FACTORY so the per-item close stays real (the
-        shipped client owns a per-call httpx lifecycle)."""
-        items = [_item(tmp_path, n) for n in (1, 2)]
+    async def test_one_client_per_run_closed_once(self, tmp_path) -> None:
+        """The shipped client documents itself as "one client per endpoint" and
+        caches its enforcement proof PER INSTANCE on purpose (S-2: a proof must
+        not launder onto another build). A fresh client per item therefore
+        re-probes per item - and five probe failures trip the SHARED `ai-vlm`
+        breaker, after which every remaining item answers
+        `VlmUnavailableError` without I/O. The report would then describe a
+        breaker, not a model. One run IS one endpoint and one build, so one
+        instance is the client's own correct lifetime.
+
+        (This replaced a pin that asserted the per-item close as real. The
+        close stays real; the LIFETIME was wrong, and the cost was measured on
+        the 2.1.6 smoke's repro - ledger finding B.)
+        """
+        items = [_item(tmp_path, n) for n in (1, 2, 3)]
         store = _store(tmp_path, items)
         results = {it.media_paths[0]: _verdict() for it in items}
         made: list[FakeClient] = []
@@ -305,7 +316,25 @@ class TestRunReplay:
             return c
 
         await run_replay(store, candidate="F@test", make_client=make)
-        assert [c.closed for c in made] == [1, 1]
+        assert len(made) == 1, "a client per item re-probes per item (finding B)"
+        assert [c.closed for c in made] == [1], "the one client is closed exactly once"
+
+    async def test_the_client_is_closed_even_when_an_item_raises_loudly(self, tmp_path) -> None:
+        """One client per run means the close is no longer inside a per-item
+        `finally`: a propagating bug (the ladder covers engine failures, not
+        programming errors) must still not leak the httpx lifecycle."""
+        items = [_item(tmp_path, n) for n in (1, 2)]
+        store = _store(tmp_path, items)
+        made: list[FakeClient] = []
+
+        def make() -> FakeClient:
+            c = FakeClient({items[0].media_paths[0]: TypeError("harness bug")})
+            made.append(c)
+            return c
+
+        with pytest.raises(TypeError):
+            await run_replay(store, candidate="F@test", make_client=make)
+        assert [c.closed for c in made] == [1]
 
     async def test_a_refusal_after_start_run_still_stores_its_row(self, tmp_path) -> None:
         items = [_item(tmp_path, 1)]
