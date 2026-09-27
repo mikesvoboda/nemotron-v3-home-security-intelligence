@@ -128,6 +128,28 @@ class EvalStore:
         row = self._db.execute("SELECT payload FROM items WHERE item_id=?", (item_id,)).fetchone()
         return EvalItem.model_validate_json(row[0]) if row else None
 
+    def iter_items(self, *, with_media_only: bool = False) -> list[EvalItem]:
+        """Every frozen item, ordered by id (the replay walks the corpus in a
+        fixed order so two runs of the same generation are comparable line for
+        line). Purely a read - `replay()` is the results-side twin of this
+        items-side need; neither had a caller until the Phase 2 harness."""
+        sql = "SELECT payload FROM items"
+        if with_media_only:
+            # A cheap pre-filter only: the pattern also matches the EMPTY
+            # array (`"media_paths":[]`), so it narrows the scan and decides
+            # nothing - the parse below re-checks each row. The pin
+            # `test_with_media_only_excludes_born_labeled_items` is what keeps
+            # this honest.
+            sql += " WHERE payload LIKE '%\"media_paths\":[%'"
+        rows = self._db.execute(sql + " ORDER BY item_id").fetchall()
+        out: list[EvalItem] = []
+        for (payload,) in rows:
+            item = EvalItem.model_validate_json(payload)
+            if with_media_only and not item.media_paths:
+                continue
+            out.append(item)
+        return out
+
     # -- runs / results ------------------------------------------------------
     def start_run(self, engine: str, model: str) -> str:
         run_id = uuid.uuid4().hex

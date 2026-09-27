@@ -131,6 +131,23 @@ class TestEvalStore:
             got = s.get_item("syn-0001")
             assert got is not None and got.expected_label == "incident"
 
+    def test_iter_items_orders_by_id_and_filters_media_bearers(self, tmp_path) -> None:
+        """Phase 2 replay's read API. The `with_media_only` SQL pre-filter
+        ALSO matches the empty array (`"media_paths":[]`), so the born-labeled
+        items must be dropped by the parse re-check, not the LIKE - this is
+        the pin that keeps that comment honest."""
+        with EvalStore(tmp_path / "eval.sqlite") as s:
+            s.put_item(_item(1).model_copy(update={"item_id": "a-bare"}))
+            for n in (2, 3):
+                f = tmp_path / f"f{n}.jpg"
+                f.write_bytes(b"\xff\xd8z" * 100)
+                s.put_item(_item(n, label="benign").model_copy(update={"media_paths": [str(f)]}))
+            everything = s.iter_items()
+            assert [i.item_id for i in everything] == ["a-bare", "syn-0002", "syn-0003"]
+            with_media = s.iter_items(with_media_only=True)
+            assert [i.item_id for i in with_media] == ["syn-0002", "syn-0003"]
+            assert all(i.media_paths for i in with_media)
+
     def test_items_are_immutable(self, tmp_path) -> None:
         with EvalStore(tmp_path / "eval.sqlite") as s:
             s.put_item(_item(2))
