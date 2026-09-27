@@ -27,6 +27,8 @@ class AssessInput(BaseModel):
     zones: list[str] = Field(default_factory=list)
     zone_crossing: bool = False
     household: dict[str, Any] = Field(default_factory=dict)
+    # ISO UTC capture moment (synthbench P0): the earliest Foscam filename
+    # time when CAMERA_TIMEZONE is set, else the earliest detected_at.
     timestamp: str
     # Rev 6 (F11 ruling 4): the one field the freeze reopens for. The
     # specialist stage's short texts (faces/plates/re-ID) ride the snapshot so
