@@ -24,6 +24,7 @@ reader for /etc.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, ClassVar
 
 import httpx
@@ -238,6 +239,92 @@ class TestWireShape:
         with pytest.raises(vc.VlmImageError):
             await client.assess(_request([str(image_dir / "front_door" / "nope.jpg")]))
         await client.close()
+
+
+class TestRefusesNonStills:
+    """A clip is not a still, and `_image_parts` has no business embedding one.
+
+    How a video reaches here is not hypothetical: for a video batch
+    `detector_client` sets `detection_file_path = video_path` (:1174), so
+    EVERY row of a video frame carries the `.mp4` as its `file_path`, the
+    selector hands that path to the request as the batch's one still, and
+    `_image_parts` base64'd the whole container into the prompt as
+    `data:video/mp4;base64,...`. Two ways to lose, both silent: a big enough
+    clip blows llama-server's slot (and the breaker then reports a MODEL
+    outage for a data bug), or the engine tolerates it and "verifies" an event
+    from bytes no image decoder ever read.
+
+    The legacy path solved this by extracting a frame
+    (`enrichment_pipeline._load_image` -> `_extract_frame_from_video`). The
+    vlm path cannot copy it yet: the detector's extracted JPEGs are DELETED
+    after detection (`pipeline_workers:746`), `thumbnail_path` is never
+    populated for these rows, and `ffmpeg` is not in the backend image - so
+    the honest move is a refusal that names the cause, which lands as
+    `verification_failed` with a NULL score (D11/S5: never a silent
+    substitute), never a score computed from a container.
+    """
+
+    def _clip(self, image_dir, name: str = "clip.mp4", payload: bytes = b"") -> Path:
+        clip = image_dir / "front_door" / name
+        # synthetic bytes only (the privacy rule covers fixtures)
+        clip.write_bytes(payload or (b"\x00\x00\x00\x18ftypmp42" + b"\x00" * 4096))
+        return clip
+
+    async def test_a_clip_is_refused_before_any_read(self, image_dir) -> None:
+        """The type guard wins over the size guard: even a TINY clip - one
+        that would sail past any byte limit - is refused by what it IS."""
+        client = make_client()
+        clip = self._clip(image_dir, payload=b"tiny")
+        with pytest.raises(vc.VlmImageError) as exc:
+            await client.assess(_request([str(clip)]))
+        assert "video" in str(exc.value).lower()
+        assert client._app_calls() == [], "refused BEFORE any I/O"
+        await client.close()
+
+    async def test_the_refusal_names_the_batch_so_the_cause_is_findable(self, image_dir) -> None:
+        """An operator reading the incident must be able to tell "the vlm
+        path has no frame extractor" apart from "the VLM is down" - the two
+        looked identical when 1.2's client wire was missing, and a clip
+        landing as a bare `image file not found` would do it again."""
+        client = make_client()
+        clip = self._clip(image_dir)
+        with pytest.raises(vc.VlmImageError) as exc:
+            await client.assess(_request([str(clip)]))
+        msg = str(exc.value).lower()
+        assert "frame extraction" in msg or "extract" in msg
+        assert str(clip.name) in str(exc.value)
+        await client.close()
+
+    async def test_an_oversized_still_is_refused_not_embedded(self, image_dir) -> None:
+        """The byte backstop, for a STILL (a corrupt capture, or a filesystem
+        that handed us something enormous): base64 of the payload is what
+        kills the slot, so the guard sits BEFORE `read_bytes`."""
+        client = make_client(vlm_max_image_bytes=1024)
+        big = image_dir / "front_door" / "huge.jpg"
+        big.write_bytes(b"\xff\xd8\xff" + b"\x00" * 4096)
+        with pytest.raises(vc.VlmImageError) as exc:
+            await client.assess(_request([str(big)]))
+        assert "1024" in str(exc.value), "the limit belongs in the message"
+        assert client._app_calls() == []
+        await client.close()
+
+    async def test_an_ordinary_still_still_passes_both_guards(self, image_dir) -> None:
+        """No-regression half: the fixture stills (35 bytes) are unaffected -
+        the guards refuse a class of input, not the working path."""
+        client = make_client()
+        verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert isinstance(verdict, VlmVerdict)
+        await client.close()
+
+    def test_the_default_byte_limit_is_not_a_still_squeezing_one(self) -> None:
+        """The shipped default has to clear a real camera still with room to
+        spare, or the guard becomes an outage with a name. A 2160p MJPEG
+        still runs ~2-3 MB, so the floor is set in MB, not hundreds of KB -
+        and the client must READ the setting, not carry its own copy."""
+        default = vc.get_settings().vlm_max_image_bytes
+        assert default >= 4 * 1024 * 1024, f"shipped limit {default} cannot hold a 4K still"
+        client = vc.VlmClient(base_url="http://fake-vlm:8098")
+        assert client._settings.vlm_max_image_bytes == default
 
 
 class TestEnforcementProbe:

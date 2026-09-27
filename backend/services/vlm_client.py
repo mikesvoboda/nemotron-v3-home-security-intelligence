@@ -40,7 +40,6 @@ import asyncio
 import base64
 import json
 import logging
-import mimetypes
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +48,7 @@ from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
 from backend.core.metrics import record_model_cold_start, record_pipeline_error
+from backend.core.mime_types import IMAGE_MIME_TYPES, VIDEO_MIME_TYPES
 from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -322,7 +322,17 @@ class VlmClient:
     # ------------------------------------------------------------------
 
     def _image_parts(self, request: VlmAssessRequest) -> list[dict[str, Any]]:
+        """The request's stills as data-URI parts (read AFTER three guards).
+
+        Every path here came from a database row, so each one is checked
+        before it is opened: inside the capture root (privacy/traversal),
+        a still by TYPE, and small enough by BYTES. All three refuse by
+        raising `VlmImageError`, which the analyzer already maps to
+        `verification_failed` with a NULL score - the honest degradation,
+        never a score computed from something the model could not see.
+        """
         root = Path(self._settings.foscam_base_path).resolve()
+        limit = self._settings.vlm_max_image_bytes
         parts: list[dict[str, Any]] = []
         for raw in request.image_paths[:4]:
             path = Path(raw)
@@ -337,8 +347,42 @@ class VlmClient:
                 )
             if not resolved.is_file():
                 raise VlmImageError(f"image file not found: {str(resolved)!r}")
-            mime = mimetypes.guess_type(resolved.name)[0] or "image/jpeg"
+            # BY TYPE, an allowlist (the repo's own IMAGE_MIME_TYPES - the set
+            # the capture path writes and the rest of the service accepts). An
+            # extension IS the type here: `_video` below.
+            suffix = resolved.suffix.lower()
+            if suffix not in IMAGE_MIME_TYPES:
+                # `guess_type(...) or "image/jpeg"` used to sit here, which
+                # called a .mp4 "image/jpeg" and embedded it. A video batch
+                # reaches this path by design - detector_client:1174 stores the
+                # CLIP as `file_path` on every row of a video frame - so this
+                # is the shipped path's known gap: the vlm route has no frame
+                # extractor (ffmpeg is not in the backend image, and the
+                # detector's extracted JPEGs are deleted at
+                # pipeline_workers:746). Refusing loudly beats the two silent
+                # losses: a container-base64 that overflows the llama.cpp slot
+                # (which the breaker then reports as a MODEL outage, exactly
+                # the 1.2 misdiagnosis shape) or an engine "verifying" bytes no
+                # image decoder ever read. Naming the file and the cause keeps
+                # it findable instead of looking like a VLM that is down.
+                kind = VIDEO_MIME_TYPES.get(suffix)
+                what = f"a {kind} container" if kind else f"type {suffix or '(none)'!r}"
+                raise VlmImageError(
+                    f"key frame {resolved.name!r} is {what}, not a still the vlm "
+                    "path can embed; a video batch needs frame extraction before "
+                    "vlm_assess (see _image_parts in this module)"
+                )
+            # BY BYTES, before the read (base64 inflates ~4/3 and the prompt
+            # shares one slot with the verdict's output).
+            size = resolved.stat().st_size
+            if size > limit:
+                raise VlmImageError(
+                    f"key frame {resolved.name!r} is {size} bytes, over the "
+                    f"vlm_max_image_bytes limit of {limit}; refused rather than "
+                    "risking a context-slot overflow"
+                )
             b64 = base64.b64encode(resolved.read_bytes()).decode()
+            mime = IMAGE_MIME_TYPES[suffix]
             parts.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
         return parts
 

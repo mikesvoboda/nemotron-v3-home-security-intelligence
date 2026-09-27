@@ -608,6 +608,13 @@ services:
       # verdict to read the engine's own id from); must track VLM_MODEL_PATH's
       # identity, which the ai-vlm service above reads from the same .env.
       - VLM_MODEL_ID=${VLM_MODEL_ID:-Qwen3VL-4B-Instruct-Q4_K_M}
+      # largest file embedded as ONE key frame. The guard exists because a
+      # base64 payload inflates ~4/3 and the prompt shares one llama.cpp slot
+      # (VLM_CTX_SIZE / VLM_PARALLEL) with the verdict's output — an oversized
+      # capture overflows the slot and the breaker reports a MODEL outage for
+      # a data problem. Operator-settable for a camera that shoots large
+      # stills; threading it is what makes setting it in .env DO something.
+      - VLM_MAX_IMAGE_BYTES=${VLM_MAX_IMAGE_BYTES:-8388608}
       # LLM context budget — must mirror the ai-llm service above so the backend's
       # per-request token budget matches the slot it is actually served from.
       # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count

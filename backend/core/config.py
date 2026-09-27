@@ -1365,6 +1365,18 @@ class Settings(BaseSettings):
         "production should set it (S-2: enforcement is per-build - a stale proof "
         "must not launder onto an unknown build).",
     )
+    vlm_max_image_bytes: int = Field(
+        default=8 * 1024 * 1024,
+        ge=64 * 1024,
+        le=64 * 1024 * 1024,
+        description="Largest file the vlm client will embed as one key frame. "
+        "base64 grows a payload by ~4/3, and the prompt shares one llama.cpp slot "
+        "with the verdict's output (VLM_CTX_SIZE / VLM_PARALLEL), so an oversized "
+        "capture is a slot overflow that presents as a MODEL outage. 8 MB clears a "
+        "4K MJPEG still (~2-3 MB) several times over while refusing the container-"
+        "sized file - the ordinary consequence of a video batch reaching the frame "
+        "path, which the client now refuses by TYPE before it reaches this.",
+    )
     # Provenance ids written to event_verifications rows (P0.4's engine/
     # model_id columns are NOT NULL). The repo has no served-model-id setting
     # - the endpoint's own name is only visible in error text - so the

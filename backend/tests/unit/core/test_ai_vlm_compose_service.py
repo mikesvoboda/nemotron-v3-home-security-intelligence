@@ -167,6 +167,9 @@ class TestBackendClientWiring:
         return dict(item.split("=", 1) for item in raw)
 
     # every vlm-client Settings field the shipped vlm mode consumes at runtime
+    # (VLM_MAX_IMAGE_BYTES joined 2026-09-27 with the _image_parts guards -
+    # an operator who sets it in .env and finds the container still using the
+    # code default is this test's whole reason to exist)
     CLIENT_VARS: ClassVar = (
         "AI_VLM_URL",
         "AI_VLM_READ_TIMEOUT",
@@ -174,6 +177,7 @@ class TestBackendClientWiring:
         "VLM_ENFORCEMENT_PROBE_ENABLED",
         "VLM_REQUIRED_BUILD",
         "VLM_MODEL_ID",
+        "VLM_MAX_IMAGE_BYTES",
     )
 
     @pytest.mark.parametrize("var", CLIENT_VARS)
