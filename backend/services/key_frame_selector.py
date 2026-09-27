@@ -10,6 +10,10 @@ Contract the property tests pin (backend/tests/unit/services/
 test_key_frame_selector.py):
 
   * 0-4 results, unique detection ids, a subset of the input;
+  * ONE result per FILE (`file_path` is a still's identity): the budget
+    counts physical stills, so two detections sharing an image - the
+    detector's ordinary output shape, one row per object over one frame -
+    can never claim two slots;
   * deterministic: arrival order cannot change the result (replay equality);
   * ONE frame per (camera, class) pair - the pair's best, so a weaker
     member never shares the frame budget with the representative that
@@ -67,14 +71,25 @@ def _rank_key(frame: FrameRef) -> tuple[float, int, int]:
 
 
 def select_key_frames(frames: list[FrameRef]) -> list[FrameRef]:
-    """Return 1-4 frames (0 iff the input is empty), strongest pair first.
+    """Return 1-4 DISTINCT STILLS (0 iff the input is empty), strongest first.
 
     Per (camera, class) pair the representative is the max by
     (confidence, timestamp, id-desc tiebreak); pairs then compete for the
-    4 slots on their representative's rank. A batch whose detections all
-    share one pair yields a single frame - within spec's 1-4 band, and a
-    second frame of one track tells the verifier nothing the best one
-    didn't."""
+    slots on their representative's rank - but a pair wins at most ONE slot
+    per FILE, because the budget counts physical stills, not pairs. A batch
+    whose detections all share one pair yields a single frame - within spec's
+    1-4 band, and a second frame of one track tells the verifier nothing the
+    best one didn't.
+
+    The per-FILE rule (added 2026-09-27) is the same insight one level up:
+    the detector emits one row per OBJECT over a shared `file_path`, so a
+    single JPEG carrying a person, a car and a dog is three PAIRS on one
+    STILL, and a pair-only budget would hand that one image up to four slots
+    - the verifier shown one picture by a request that claimed four, with
+    three genuinely different frames starved out. `file_path` is the still's
+    identity; when a file loses its slot to a stronger pair, the still is
+    still represented, so nothing the model could learn from that FILE is
+    lost - only the duplicate pixels are."""
     # Unique by detection id (first occurrence wins) so a duplicated row
     # cannot double-count against the frame budget.
     unique: dict[int, FrameRef] = {}
@@ -87,4 +102,14 @@ def select_key_frames(frames: list[FrameRef]) -> list[FrameRef]:
 
     representatives = [max(members, key=_rank_key) for members in pairs.values()]
     ranked = sorted(representatives, key=_rank_key, reverse=True)
-    return ranked[:MAX_KEY_FRAMES]
+
+    picks: list[FrameRef] = []
+    shown: set[str] = set()
+    for frame in ranked:
+        if frame.file_path in shown:
+            continue
+        picks.append(frame)
+        shown.add(frame.file_path)
+        if len(picks) == MAX_KEY_FRAMES:
+            break
+    return picks

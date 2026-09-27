@@ -394,6 +394,69 @@ class TestBuildAssessContext:
         )
         assert len(request.image_paths) == 1
 
+    # -------------------------------------------------------------------
+    # Provenance names the rows whose PIXELS were shown (2026-09-27)
+    # -------------------------------------------------------------------
+    # The detector emits one Detection ROW per object over ONE shared
+    # `file_path` (detector_client:1184), so `file_path` is not a key. The
+    # selector picks per STILL and each pick carries the id of the row that
+    # represents that still; the provenance row must be those ids. It used to
+    # re-derive them with `{row["file_path"]: row["id"]}`, whose LAST write
+    # wins - so with three objects on one JPEG the stored provenance named
+    # whichever row happened to sort last in the batch while the model had
+    # been shown the strongest one. `key_frame_detection_ids` is the UI's
+    # thumbnail resolver (spec §4): a wrong id renders evidence that was not
+    # the evidence.
+
+    def test_shared_file_batch_shows_one_still(self) -> None:
+        """Three objects on one JPEG -> the request carries ONE image, the
+        still the model is actually shown (not the same file three times)."""
+        rows = [
+            make_detection_row(
+                11, object_type="person", confidence=0.95, file_path="/media/f1.jpg"
+            ),
+            make_detection_row(12, object_type="car", confidence=0.90, file_path="/media/f1.jpg"),
+            make_detection_row(13, object_type="dog", confidence=0.85, file_path="/media/f1.jpg"),
+        ]
+        request = va.build_assess_request(
+            context=va.build_assess_context(camera_id="c", detections=rows),
+            detections=rows,
+        )
+        assert request.image_paths == ["/media/f1.jpg"]
+
+    def test_key_frame_ids_are_the_selectors_representatives(self) -> None:
+        rows = [
+            make_detection_row(
+                11, object_type="person", confidence=0.95, file_path="/media/f1.jpg"
+            ),
+            make_detection_row(12, object_type="car", confidence=0.90, file_path="/media/f1.jpg"),
+            make_detection_row(13, object_type="dog", confidence=0.85, file_path="/media/f1.jpg"),
+        ]
+        ctx = va.build_assess_context(camera_id="c", detections=rows)
+        request = va.build_assess_request(context=ctx, detections=rows)
+        # the strongest member of the shared still - NOT detection 13, which
+        # is what a `{path: id}` dict hands back (last write wins).
+        assert va.key_frame_ids(request, detections=rows) == [11]
+
+    def test_key_frame_ids_line_up_with_image_paths_one_to_one(self) -> None:
+        """id[i] is the row whose file is image_paths[i], for a batch mixing a
+        crowded still with a distinct one - the pairing the UI relies on."""
+        rows = [
+            make_detection_row(
+                11, object_type="person", confidence=0.95, file_path="/media/f1.jpg"
+            ),
+            make_detection_row(12, object_type="car", confidence=0.90, file_path="/media/f1.jpg"),
+            make_detection_row(
+                14, object_type="bicycle", confidence=0.50, file_path="/media/f2.jpg"
+            ),
+        ]
+        ctx = va.build_assess_context(camera_id="c", detections=rows)
+        request = va.build_assess_request(context=ctx, detections=rows)
+        ids = va.key_frame_ids(request, detections=rows)
+        by_id = {r["id"]: r["file_path"] for r in rows}
+        assert len(ids) == len(request.image_paths)
+        assert [by_id[i] for i in ids] == request.image_paths
+
     def test_specialist_outputs_flow_from_the_snapshot_not_a_side_door(self):
         """Rev 6 plan: "the prompt builder takes the outputs FROM the
         snapshot." The context is the ONE carrier end to end; the builder has

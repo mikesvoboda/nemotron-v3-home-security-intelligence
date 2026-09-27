@@ -30,6 +30,14 @@ _SETTINGS = settings(max_examples=200, deadline=None, suppress_health_check=[Hea
 
 _CONFIDENCE = st.one_of(st.none(), st.floats(min_value=0.0, max_value=1.0, allow_nan=False))
 
+# A SMALL pool of stills, on purpose (added 2026-09-27). `st.text()` used to
+# draw a unique path per row, which made every generated batch "one file per
+# detection" - a shape no real batch has, because the detector emits one row
+# per OBJECT over a shared `file_path`. The physical-still property below was
+# invisible to the suite for exactly that reason: all its other invariants
+# held while the still budget was being double-spent.
+_FILE_PATHS = st.sampled_from([f"/export/foscam/img/{c}.jpg" for c in "abcdefgh"])
+
 _FRAME = st.builds(
     FrameRef,
     detection_id=st.integers(min_value=1, max_value=10_000),
@@ -37,7 +45,7 @@ _FRAME = st.builds(
     object_type=st.sampled_from(["person", "car", "dog", "package"]),
     confidence=_CONFIDENCE,
     timestamp=st.integers(min_value=1_700_000_000, max_value=1_700_001_000),
-    file_path=st.text(min_size=1, max_size=20).map(lambda s: f"/export/foscam/img/{s}.jpg"),
+    file_path=_FILE_PATHS,
     thumbnail_path=st.one_of(
         st.none(), st.text(min_size=1, max_size=20).map(lambda s: f"/export/foscam/thumbs/{s}.jpg")
     ),
@@ -64,6 +72,16 @@ class TestProperties:
     def test_output_is_a_subset_of_input_ids(self, frames: list[FrameRef]) -> None:
         pool = {f.detection_id for f in frames}
         assert {f.detection_id for f in select_key_frames(frames)} <= pool
+
+    @_SETTINGS
+    @given(st.lists(_FRAME, max_size=30))
+    def test_no_still_is_shown_twice(self, frames: list[FrameRef]) -> None:
+        """The frame budget counts STILLS, so the picks are distinct FILES -
+        not merely distinct ids. `test_no_duplicate_detection_ids` alone
+        allowed the same JPEG to fill all four slots."""
+        picked = select_key_frames(frames)
+        paths = [f.file_path for f in picked]
+        assert len(paths) == len(set(paths))
 
     @_SETTINGS
     @given(st.lists(_FRAME, max_size=30))
@@ -136,6 +154,97 @@ def _frame(did: int, cam: str, cls: str, conf: float | None, ts: int) -> FrameRe
         file_path=f"/export/foscam/{cam}/{did}.jpg",
         thumbnail_path=None,
     )
+
+
+class TestOneStillOneSlot:
+    """A still is a PHYSICAL thing: one image file. The frame budget is a
+    budget of STILLS (spec §2's "1-4 key frames", and the ctx/slot arithmetic
+    that sizes CTX_SIZE around 4 images), so two detections that share a
+    `file_path` are the SAME still and can never claim two slots.
+
+    This is not an edge case - it is the dominant shape of a real batch:
+    `detector_client` emits one Detection ROW per object and gives every row
+    the same `file_path` (:1184 loop over result["detections"]), and the
+    video path additionally pins every extracted frame's rows to the one
+    `.mp4` (:1174). A batch of one frame containing a person, a car and a
+    dog is therefore three (camera, class) PAIRS on ONE FILE: under a
+    detection-id-only dedupe the four-slot budget filled with the same JPEG
+    up to four times, the verifier saw one image while the request claimed
+    four, and the provenance row listed detections whose pixels were never
+    shown. The property suite above never caught it because its generator
+    draws `file_path` from `st.text()` - independent paths per row - so
+    "unique detection ids" and "at most four frames" both held while the
+    physical budget was being double-spent.
+    """
+
+    def _at(self, did: int, path: str, cls: str = "person", conf: float = 0.9) -> FrameRef:
+        return FrameRef(
+            detection_id=did,
+            camera_id="cam_a",
+            object_type=cls,
+            confidence=conf,
+            timestamp=100,
+            file_path=path,
+        )
+
+    def test_objects_sharing_one_still_claim_one_slot(self) -> None:
+        """Three objects, one JPEG (the detector's real output shape)."""
+        frames = [
+            self._at(1, "/media/cam_a/f1.jpg", "person", 0.90),
+            self._at(2, "/media/cam_a/f1.jpg", "car", 0.80),
+            self._at(3, "/media/cam_a/f1.jpg", "dog", 0.70),
+        ]
+        picked = select_key_frames(frames)
+        assert len(picked) == 1, "one file, one slot"
+        assert picked[0].detection_id == 1, "the best member represents the still"
+
+    def test_distinct_stills_still_fill_the_budget(self) -> None:
+        """The no-regression half: genuinely different frames still get their
+        slots - the guard dedupes files, it does not cap a diverse batch."""
+        frames = [self._at(i, f"/media/cam_a/f{i}.jpg", f"type{i}") for i in range(1, 7)]
+        assert len(select_key_frames(frames)) == 4
+
+    def test_a_shared_still_never_starves_the_distinct_ones(self) -> None:
+        """The budget, spent honestly. One JPEG holding four objects, plus
+        two more stills that each carry one weaker object. The crowded file
+        supplies FOUR (camera, class) pairs, so pair-ranking hands it all
+        four slots: the verifier receives the same image four times and the
+        two genuinely different frames are never shown - the request's
+        "1-4 key frames" is one frame wearing four hats. With a per-file
+        budget, the crowded still gets the ONE slot it deserves and the
+        distinct frames keep the other two."""
+        crowded = [
+            self._at(1, "/media/cam_a/f1.jpg", "person", 0.95),
+            self._at(2, "/media/cam_a/f1.jpg", "car", 0.90),
+            self._at(3, "/media/cam_a/f1.jpg", "dog", 0.85),
+            self._at(4, "/media/cam_a/f1.jpg", "package", 0.80),
+        ]
+        # Classes the crowded file never carries, so each of these IS a pair
+        # representative - and they still lose the PAIR ranking to the
+        # crowded file's four, so today they are squeezed out entirely. Once
+        # the budget is per STILL they get their two slots back.
+        others = [
+            self._at(5, "/media/cam_a/f2.jpg", "bicycle", 0.50),
+            self._at(6, "/media/cam_b/f3.jpg", "backpack", 0.45),
+        ]
+        picked = select_key_frames(crowded + others)
+        assert len(picked) == 3, "one crowded still + two distinct stills = three STILLS"
+        assert len({f.file_path for f in picked}) == len(picked), "no file appears twice"
+        assert {f.file_path for f in picked} == {
+            "/media/cam_a/f1.jpg",
+            "/media/cam_a/f2.jpg",
+            "/media/cam_b/f3.jpg",
+        }
+
+    def test_the_representative_is_the_strongest_member_of_the_still(self) -> None:
+        """Which detection id stands in for a shared file is not arbitrary:
+        the strongest member wins, so the provenance row names a detection
+        the model actually saw at its best confidence."""
+        frames = [
+            self._at(7, "/media/cam_a/f1.jpg", "car", 0.30),
+            self._at(8, "/media/cam_a/f1.jpg", "person", 0.99),
+        ]
+        assert [f.detection_id for f in select_key_frames(frames)] == [8]
 
 
 class TestSpecNamedCases:

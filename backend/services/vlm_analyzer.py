@@ -210,10 +210,28 @@ def build_assess_request(
     return VlmAssessRequest(image_paths=[f.file_path for f in picks], context=context)
 
 
-def _key_frame_ids(request: VlmAssessRequest, detections: list[dict[str, Any]]) -> list[int]:
-    """Map the request's chosen paths back to detection ids for the
-    provenance row (spec §4: the UI resolves them to existing thumbnails)."""
-    by_path = {row["file_path"]: row["id"] for row in detections}
+def key_frame_ids(
+    request: VlmAssessRequest,
+    *,
+    detections: list[dict[str, Any]],
+) -> list[int]:
+    """The detection ids whose PIXELS the model was shown, index-aligned with
+    `request.image_paths` (spec §4: the UI resolves them to existing
+    thumbnails).
+
+    Public because the pairing is a claim worth testing on its own. It runs
+    the SAME pure, deterministic selector over the SAME rows the request was
+    built from and takes each pick's `detection_id` - which is the row the
+    selector chose to REPRESENT that still.
+
+    A `{row["file_path"]: row["id"]}` dict cannot express that and used to be
+    this function: `file_path` is not a key (the detector emits one row per
+    object over a shared frame), the dict's LAST write silently won, and the
+    stored provenance then named a detection the model was never shown as the
+    evidence for a frame it was. Deriving from the picks makes the two sides
+    of the pair come from one decision, so they cannot disagree."""
+    picks = select_key_frames(build_frame_refs(detections, request.context.camera_id))
+    by_path = {f.file_path: f.detection_id for f in picks}
     return [by_path[p] for p in request.image_paths if p in by_path]
 
 
@@ -505,7 +523,10 @@ class VlmAnalyzer:
             specialist_outputs=specialist_outputs,
         )
         request = build_assess_request(context=context, detections=detections)
-        key_frame_ids = _key_frame_ids(request, detections)
+        # The local must not share the function's name: an assignment in a
+        # method body makes the name local for the whole scope, so the RHS
+        # lookup would raise UnboundLocalError.
+        frame_ids = key_frame_ids(request, detections=detections)
 
         # ---------------- NO SESSION (external call) ---------------------
         client = self._get_client()
@@ -557,7 +578,7 @@ class VlmAnalyzer:
                 verdict=outcome["verdict"],
                 scene_description=outcome["description"] or None,
                 criteria=outcome["criteria"],
-                key_frame_detection_ids=key_frame_ids,
+                key_frame_detection_ids=frame_ids,
                 engine=engine,
                 model_id=model_id,
                 # honest latency: the attempt happened; None only if it
