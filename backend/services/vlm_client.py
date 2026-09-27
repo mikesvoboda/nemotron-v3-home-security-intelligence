@@ -110,9 +110,20 @@ class VlmTransportError(VlmClientError):
 
 
 class VlmSchemaError(VlmClientError):
-    """§6 step 2 territory: the reply arrived but violates VlmVerdict even
-    after the grammar supposedly guaranteed it (E5-class server-side lie or
-    a truncated object). Post-validation is the last line (S5)."""
+    """§6 step 2 territory: the reply arrived COMPLETE but violates
+    VlmVerdict even after the grammar supposedly guaranteed it (the E5-class
+    server-side lie). Post-validation is the last line (S5). A reply cut off
+    by its token budget is NOT this class - see VlmTruncatedError."""
+
+
+class VlmTruncatedError(VlmSchemaError):
+    """Finding A's sibling on the assess leg: the engine stopped with a
+    length signal mid-object, so the JSON never closed. Subclassed under
+    VlmSchemaError so every existing `except VlmSchemaError` keeps mapping to
+    verification_failed (the ladder is neutral - a truncation has never
+    scored), but named apart because the CAUSE and the retry calculus differ:
+    a budget is not a model that emits invalid JSON, and the §6 retry asks
+    again at the SAME max_tokens, so re-asking cannot close the object."""
 
 
 class VlmUnavailableError(VlmClientError):
@@ -317,12 +328,15 @@ class VlmClient:
                 # simply never have been emitted - and `probe_const` can
                 # legally sort LAST in the grammar. That is "could not
                 # measure", NOT "measured: the server ignores the grammar",
-                # and the difference decides an M2 pick: at 400 tokens six
-                # scenes truncate, while three of the same four echo the
-                # const at 1200 (ledger finding A [V]). Fail-closed is
-                # unchanged - still a raise, still nothing cached, still no
-                # score. Only the WORD changes, and it changes toward honesty.
-                await self._note_failure("vlm_probe_truncated")
+                # and the difference decides an M2 pick. Measured on this
+                # shipped shape (wire schema + const, candidate A): at 400
+                # `loitering`/`pet_activity`/`prowling` never echo, `break_in_
+                # attempt` echoes 3/4 - the SAME request, temp 0 - and the two
+                # stable scenes clear at 400 (ledger findings A and G [V]).
+                # Fail-closed is unchanged - still a raise, still nothing
+                # cached, still no score. Only the WORD changes, and it changes
+                # toward honesty.
+                await self._note_budget_exhausted("vlm_probe_truncated")
                 raise ConstrainedDecodingNotEnforced(
                     f"vlm probe reply hit its token budget (stop={stop!r}, "
                     f"max_tokens={_PROBE_MAX_TOKENS}) before the const could "
@@ -622,6 +636,40 @@ class VlmClient:
             try:
                 verdict = VlmVerdict.model_validate_json(content)
             except ValidationError as exc:
+                stop = _stop_reason_of(resp)
+                if _is_length_truncated(stop):
+                    # FINDING A on the assess leg. The object was cut off by
+                    # its own budget, so it was never a candidate for being
+                    # valid JSON - calling this `vlm_schema_invalid` blames the
+                    # model for a number we chose. And the §6 retry cannot
+                    # help: it re-asks the SAME body at the SAME
+                    # _ASSESS_MAX_TOKENS (only temperature changes), so it
+                    # would produce the same length-capped object while
+                    # recording one more breaker failure toward opening
+                    # ai-vlm over a budget. Raise once, with the cause named.
+                    # The ladder's OUTCOME is unchanged - this is still a
+                    # VlmClientError, so the analyzer still answers
+                    # verification_failed with a NULL score.
+                    last_error = VlmTruncatedError(
+                        f"vlm verdict reply hit its token budget before the "
+                        f"object closed (stop={stop!r}, "
+                        f"max_tokens={_ASSESS_MAX_TOKENS}); verdict UNMEASURED "
+                        "at this budget, not invalid"
+                    )
+                    await self._note_budget_exhausted("vlm_assess_truncated")
+                    logger.warning(
+                        "vlm verdict truncated at max_tokens=%d",
+                        _ASSESS_MAX_TOKENS,
+                        # string data rides `extra`, per this module's own
+                        # convention (the transport-error warning above) - the
+                        # repo's semgrep rule flags a %s in the message.
+                        extra={"stop": stop},
+                    )
+                    # `from exc` keeps the failed parse as the underlying
+                    # cause: the ValidationError is the SYMPTOM (the JSON never
+                    # closed), the budget is the CAUSE, and the traceback
+                    # should read in that order.
+                    raise last_error from exc
                 last_error = VlmSchemaError(f"vlm verdict failed validation: {exc}")
                 await self._note_failure("vlm_schema_invalid")
                 logger.warning("vlm schema violation (attempt %d)", attempt + 1)
@@ -648,6 +696,28 @@ class VlmClient:
         record_pipeline_error(reason)
         if self._breaker.is_open:
             await self._push_unhealthy(reason)
+
+    async def _note_budget_exhausted(self, reason: str) -> None:
+        """Count it, but do NOT feed the breaker.
+
+        The breaker answers one question - "should we stop calling this
+        service?" - and a reply cut off by OUR max_tokens answers it NO: the
+        transport worked, the grammar applied, the endpoint returned 200 and
+        did real work. Feeding it means a verbose corpus OPENS `ai-vlm` over a
+        number we chose, after which every later item raises
+        VlmUnavailableError WITHOUT I/O and the replay reports a breaker, not
+        a model - the exact contamination finding B found for a per-item
+        client, reached instead through a budget.
+
+        Nothing is silenced: the metric still counts (that is the aggregate
+        the M2 read uses, under its own cause), the item still refuses to
+        score, and the analyzer still answers verification_failed with a NULL
+        score. The diagnosis stays loud; the breaker is just not lied to.
+
+        Deliberately NOT used for the service-level probe refusals (props
+        unreachable, transport, build mismatch) - those genuinely do mean
+        "stop calling this endpoint", and their breaker behavior is unchanged."""
+        record_pipeline_error(reason)
 
     async def _push_unhealthy(self, reason: str) -> None:
         from backend.core.metrics import set_ai_service_degraded

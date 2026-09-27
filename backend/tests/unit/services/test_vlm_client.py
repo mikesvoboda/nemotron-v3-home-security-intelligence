@@ -151,6 +151,12 @@ def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> Fast
                 # out of budget, but the const arrived FIRST - the grammar
                 # already proved itself; a stop reason cannot un-prove that.
                 content, finish = json.dumps({"probe_const": _const}), "length"
+        elif rf is not None and mode == "assess_truncated":
+            # The ASSESS leg's finding A (the verdict schema, no const): 700
+            # tokens run out mid-`description`, so the object never closes.
+            # The reply is the SAME at any temperature - the retry's whole
+            # premise is broken here.
+            content, finish = '{"risk_score": 80, "risk_level": "high", "descr', "length"
         choice: dict = {"message": {"content": content}}
         # The compat wire's stop signal. Emitted only when the fake has one to
         # report: finding A's triage must not infer truncation from a field
@@ -612,6 +618,31 @@ class TestEnforcementProbe:
         assert client._enforced is None, "an unmeasured probe must never cache a verdict"
         await client.close()
 
+    async def test_a_truncated_probe_never_opens_the_breaker(self, image_dir) -> None:
+        """Finding G's measured consequence, pinned on the probe leg. The
+        enforcement gate runs on the FIRST item, so a probe budget that
+        truncates on a verbose scene used to record a breaker failure before
+        refusing - five such scenes and `ai-vlm` opens for the whole replay,
+        with every later item refused WITHOUT I/O. That is finding B's
+        contamination reached through a budget rather than a per-item client,
+        and it was OBSERVED, not imagined: the real-pixels run refused 6/6
+        scenes this way (ledger finding G). The endpoint answered 200; the
+        breaker's question is 'stop calling it?', and the answer is no."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = make_client("truncated")
+        path = str(image_dir / "front_door/a.jpg")
+        for _ in range(10):  # past the 5-failure threshold
+            with pytest.raises(ConstrainedDecodingNotEnforced) as caught:
+                await client.assess(_request([path]))
+            assert caught.value.verdict == "inconclusive", (
+                "every item must carry its OWN unmeasured verdict, not a breaker's blanket refusal"
+            )
+        await client.close()
+        assert not get_circuit_breaker("ai-vlm").is_open, (
+            "a probe budget must not open a service breaker"
+        )
+
     async def test_a_truncated_reply_that_carried_the_const_is_enforced(self, image_dir) -> None:
         """The mirror pin, guarding the other direction. If the const arrived,
         the grammar produced a value the prompt never mentioned - which is the
@@ -692,6 +723,106 @@ class TestFailureLadder:
         with pytest.raises(vc.VlmSchemaError):
             await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
         assert len(client._app_calls()) == 2, "answered once + one retry, then raised"
+        await client.close()
+
+
+class TestAssessTruncation:
+    """Ledger finding A's sibling on the ASSESS leg (see TestEnforcementProbe
+    for the probe leg). The assess call sends the verdict schema at
+    _ASSESS_MAX_TOKENS=700; the schema's required prose fields mean a rich
+    scene can run out of budget before the object closes - the SAME truncation
+    hazard finding A named for the probe. The shape's meaning is different
+    though: a truncated verdict is a BUDGET artifact, not a model that emits
+    invalid JSON (vlm_schema_invalid), and it is the SAME artifact on every
+    attempt - the retry is at the same _ASSESS_MAX_TOKENS, only the
+    temperature changes. The §6 transport retry re-runs an identical request
+    at temp 0 because a transport failure is transient; a length-capped object
+    is deterministic, so the retry (1) cannot change the outcome, (2) burns one
+    breaker failure toward opening ai-vlm for a budget, and (3) labels the
+    cause as a model defect. A budget must not read as a schema violation or a
+    model outage.
+
+    Deliberately narrower than the probe's triage: this changes the CAUSE label
+    and spares the wasted breaker failures, NOT the ladder's OUTCOME - a
+    truncated verdict still raises a VlmClientError subclass, so the analyzer
+    still maps it to verification_failed with a NULL score. The ladder is
+    neutral; only the diagnosis sharpens."""
+
+    async def test_truncated_assess_reply_raises_truncated_not_schema_error(
+        self, image_dir
+    ) -> None:
+        """`finish_reason: length` + a body cut off mid-object: the honest
+        label is VlmTruncatedError (a budget), never VlmSchemaError (which the
+        fake's schema-invalid mode reserves for well-formed-but-invalid JSON
+        that stopped NATURALLY - that one still retries, correctly)."""
+        client = make_client("assess_truncated", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTruncatedError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+
+    async def test_truncated_assess_reply_does_not_retry(self, image_dir) -> None:
+        """The retry is at the same max_tokens, so it re-asks the identical
+        question and gets the identical length-capped object. Re-asking cannot
+        help and records a second breaker failure for a budget; one measured
+        truncation is decisive, so the leg asks ONCE."""
+        client = make_client("assess_truncated", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTruncatedError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert len(client._app_calls()) == 1, "a deterministic budget is not retried"
+        await client.close()
+
+    async def test_truncated_assess_records_the_truncated_cause(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The metric label is the point of the change: `vlm_assess_truncated`,
+        distinct from `vlm_schema_invalid`, so a budget never inflates the
+        model-defect counter (the aggregate the M2 read uses). Patched in
+        vlm_client's own namespace - that is where `_note_failure` looks it up."""
+        recorded: list[str] = []
+        monkeypatch.setattr(vc, "record_pipeline_error", lambda reason: recorded.append(reason))
+        client = make_client("assess_truncated", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTruncatedError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert "vlm_assess_truncated" in recorded, recorded
+
+    async def test_truncation_never_opens_the_breaker(self, image_dir) -> None:
+        """The breaker asks "should we stop calling this service?" A truncated
+        reply answers that question NO: the transport worked, the grammar
+        applied, the endpoint returned 200 and did real work - OUR max_tokens
+        was too small for the scene. Feeding it the breaker means a verbose
+        corpus opens `ai-vlm` over a number we chose, and every later item
+        then answers VlmUnavailableError WITHOUT I/O, so the report describes a
+        breaker instead of a model (finding B's exact contamination, reached
+        from a budget). The item still refuses to score - verification_failed
+        with a NULL score - and the metric still counts, so nothing is
+        silenced: the diagnosis is loud, the breaker just isn't lied to."""
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = make_client("assess_truncated", vlm_enforcement_probe_enabled=False)
+        for _ in range(10):  # well past the breaker's 5-failure threshold
+            with pytest.raises(vc.VlmClientError) as caught:
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+            assert isinstance(caught.value, vc.VlmTruncatedError), (
+                f"every item must answer with ITS OWN cause, item answered "
+                f"{type(caught.value).__name__} - the breaker opened, so later "
+                "items were refused without I/O"
+            )
+        await client.close()
+        assert not get_circuit_breaker("ai-vlm").is_open, "a budget must not open a service breaker"
+
+    async def test_a_natural_stop_invalid_reply_still_retries_as_schema_error(
+        self, image_dir
+    ) -> None:
+        """The triage must not forgive real model defects: a well-formed reply
+        that STOPS NATURALLY and violates the schema is still VlmSchemaError
+        and still gets its temp-0 retry (finding A's discipline, mirrored:
+        don't downgrade a schema violation just because some other field looks
+        like truncation)."""
+        client = make_client("schema-invalid", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmSchemaError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert len(client._app_calls()) == 2, "a genuine schema defect keeps its retry"
         await client.close()
 
 

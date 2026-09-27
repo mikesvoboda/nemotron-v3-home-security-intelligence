@@ -67,15 +67,24 @@ gap would matter most — the image-free enforcement probe was run three times: 
 all three. A build that genuinely did not enforce would refuse every item, not item 1. So the
 refusals are read as a budget artifact at the probe boundary; the repair (`finish_reason`-aware
 triage that keeps fail-closed) is finding A's own change, not a Phase 2 fold-in. **Update on that
-repair, same day:** it shipped, and its real-pixels proof adds a caveat this report should not paper
-over. On the _shipped single-image chat probe_ — build_probe_schema + the client's own prompt
-sentence + one JPEG — all six stock scenes echo the const at the shipped 400-token budget, so the
-400-vs-cliff figure above is `s3_salience_stock.py`'s call-site, not the shipped probe's, and the
-artifact that refused `break_in_attempt` in these replays is not reproduced by re-running the
-shipped probe at 400. The triage itself is what got proven: at deliberately reduced budgets
-(100/150) every truncated reply reclassifies `ignored → inconclusive` and the word `ignored` is
-never used at any budget, so the repair neither forgives prose nor condemns a budget. Ledger row
-for finding A carries the run and gate numbers.
+repair, same day, and a correction to this report's own paragraph:** it shipped, and the first
+follow-up measurement of the shipped client retracted a sentence this report had just gained. An
+earlier proof had claimed the 400-token cliff "did not reproduce on the shipped shape" — that was
+_wrong, and wrong in the exact way finding A is about_: it drove the probe with the analyzer schema
+(4 scalar fields) while the shipped chat probe sends the full verdict wire schema (it adds a required
+`description`, a `criteria` array, a `provenance` object — far more required output). Re-measured
+with the shipped client's own `_wire_schema()`, the cliff is real and is not a clean cliff but a
+_coin flip_: repeated identical requests at 400 echo 3/4 on `break_in_attempt` (4/4 at 700),
+`pet_activity` 0/4 at 400 → 4/4 at 700, `loitering` needs ≈2000, `casing`/`delivery_driver` stable at 400. So `break_in_attempt` refusing item 1 above is the shipped probe's own behavior, not only a
+`s3_salience_stock.py` artifact — and because the enforcement gate caches once per client, a scene at
+the cliff makes a run's verdict depend on which image came first. That cache-vs-cliff interaction is
+recorded as ledger finding G (an open question for the owner, not silently folded into the triage).
+What the repair validly proved still stands: driven to truncation on purpose (budgets 100/150) every
+truncated reply reclassifies `ignored → inconclusive` and `ignored` appears zero times, so the triage
+neither forgives prose nor condemns a budget — and the assess leg's identical truncation is now its
+own honest cause (`VlmTruncatedError`, raised once, no futile same-budget retry) rather than a
+schema-invalid model blame. Ledger finding A carries the runs and gate numbers; finding G and open
+issue 28 carry the budget question the owner owns.
 
 **The KV line is the one difference that survives the corpus noise,** because it is a log reading
 rather than a measurement of model behaviour: at the same context and parallelism, B spends 768 MiB
