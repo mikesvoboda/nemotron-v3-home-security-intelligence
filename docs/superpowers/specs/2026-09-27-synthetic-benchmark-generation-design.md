@@ -402,10 +402,11 @@ filename time more than 5 minutes after arrival is rejected as a clock or timezo
 `.env.bench` sets `CAMERA_TIMEZONE`.
 
 **Settled in P0:** capture time feeds only the VLM's time context, meaning the snapshot's
-`timestamp` and the prompt's `Time:` line, shown as local time. `Detection.detected_at`, event
-start and end times, batch windows, retention, the orphan sweep and every now-relative query keep
-arrival time. No schema changes. Unset `CAMERA_TIMEZONE` keeps today's behavior. Moving event
-times to capture time is a possible follow-up.
+`timestamp` and the prompt's `Time:` line, shown as local time. When `CAMERA_TIMEZONE` is set, the
+prompt's detection rows omit their arrival `detected_at`, so the prompt shows one moment.
+`Detection.detected_at`, event start and end times, batch windows, retention, the orphan sweep and
+every now-relative query keep arrival time. No schema changes. Unset `CAMERA_TIMEZONE` keeps
+today's behavior. Moving event times to capture time is a possible follow-up.
 
 ## §6 Scorer and report
 

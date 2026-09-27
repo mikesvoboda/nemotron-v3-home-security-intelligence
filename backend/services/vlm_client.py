@@ -463,6 +463,11 @@ class VlmClient:
         ctx = request.context
         # Rev 6: outputs ride the snapshot (context) — the one carrier.
         specialist = json.dumps(ctx.specialist_outputs, ensure_ascii=False)
+        if self._settings.camera_timezone:
+            # The Time: line carries the capture moment; a row's detected_at is
+            # its arrival and would contradict it. Drop it from the rendered
+            # copy only - the snapshot rows keep it.
+            rows = [{k: v for k, v in row.items() if k != "detected_at"} for row in rows]
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "

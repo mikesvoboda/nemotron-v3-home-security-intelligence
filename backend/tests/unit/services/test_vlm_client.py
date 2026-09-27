@@ -1066,3 +1066,37 @@ class TestPromptTime:
         client = make_client(camera_timezone="America/New_York")
         prompt = client._render_prompt([], _request(["/x/a.jpg"]))
         assert "Time: 2026-09-25 08:00:00 local (America/New_York, UTC-04:00)\n" in prompt
+
+    # A 02:14 scene uploaded at 15:00: the row's detected_at is the arrival.
+    _ARRIVAL = "2026-09-25T15:00:03.412000+00:00"
+
+    def _row(self) -> dict[str, Any]:
+        return {"id": 7, "object_type": "person", "confidence": 0.9, "detected_at": self._ARRIVAL}
+
+    @staticmethod
+    def _detections_line(prompt: str) -> str:
+        return next(ln for ln in prompt.splitlines() if ln.startswith("Detections: "))
+
+    def test_rows_omit_detected_at_when_camera_timezone_set(self) -> None:
+        """The Time: line carries the capture moment; a row's arrival
+        detected_at would contradict it, so the prompt shows one moment."""
+        client = make_client(camera_timezone="America/New_York")
+        prompt = client.prompt_text(_request(["/x/a.jpg"], detections=[self._row()]))
+        line = self._detections_line(prompt)
+        assert "detected_at" not in line
+        assert '"id": 7' in line, "the rest of the row still renders"
+
+    def test_rows_keep_detected_at_when_camera_timezone_unset(self) -> None:
+        client = make_client(camera_timezone=None)
+        prompt = client.prompt_text(_request(["/x/a.jpg"], detections=[self._row()]))
+        assert self._detections_line(prompt) == (
+            f"Detections: {json.dumps([self._row()], ensure_ascii=False)}"
+        ), "unset CAMERA_TIMEZONE renders the rows byte for byte"
+
+    def test_the_request_rows_keep_detected_at_after_rendering(self) -> None:
+        client = make_client(camera_timezone="America/New_York")
+        request = _request(["/x/a.jpg"], detections=[self._row()])
+        client.prompt_text(request)
+        assert request.context.detections == [self._row()], (
+            "only the rendered copy drops detected_at; the snapshot is untouched"
+        )
