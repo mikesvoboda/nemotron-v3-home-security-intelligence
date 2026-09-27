@@ -640,6 +640,37 @@ class _ThreadWatchdog(threading.Thread):
             )
 
 
+def select_preload_candidates(model_zoo: dict[str, Any], *, preload_enabled: bool) -> list[str]:
+    """Pick the model-zoo rows to load resident at boot.
+
+    The sweep used to filter on ``cfg.enabled and not cfg.available``, and
+    ``available`` only flips True *after* a successful load (the success tail of
+    ``_load_model``), so at boot that was every enabled row: flag on meant "load
+    all 25 enabled models", flag off meant "load none", and the row-level
+    ``preload:`` opt-in — parsed into ``ModelConfig.preload`` by the models.yml
+    loader — was read by nobody. That left the residency flag useless on the
+    24 GB card (item 24) and made ``smoke-fire-yolov8n``'s "CRITICAL: never
+    evict, preload at startup" row decorative. This is the single selection
+    point: enabled AND row-preload, and ``available`` is still skipped so a row
+    another path already loaded this boot is not loaded twice.
+    (``never_evict``/``priority`` still have no consumer — the model zoo has no
+    eviction pass at all; the ledger notes that rather than implying this change
+    wired them.)
+
+    Args:
+        model_zoo: Mapping of model name to ``ModelConfig``
+        preload_enabled: The ``BACKEND_MODEL_PRELOAD`` setting for this deployment
+
+    Returns:
+        Model names to preload, in zoo order (empty when residency is off)
+    """
+    if not preload_enabled:
+        return []
+    return [
+        name for name, cfg in model_zoo.items() if cfg.enabled and cfg.preload and not cfg.available
+    ]
+
+
 async def run_constrained_startup_check(container: Any) -> str:
     """P0.3 startup gate (spec §3): prove constrained-decoding enforcement
     once at startup and REPORT the verdict - never crash the lifespan.
@@ -1160,17 +1191,19 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     )
     lifespan_logger.info("Workers registered for readiness monitoring (DI + legacy)")
 
-    # Eagerly preload all enabled AI models into GPU VRAM when BACKEND_MODEL_PRELOAD=true.
-    # This eliminates cold-load pipeline timeouts on high-VRAM systems (>24GB).
-    # setup.py auto-sets this based on detected VRAM at install time.
+    # Eagerly preload the models that declare `preload: true` in models.yml when
+    # BACKEND_MODEL_PRELOAD=true. This eliminates the ~1.16 s cold load per request
+    # that answered specialist legs "unavailable" at boot (ledger item 24).
+    # setup.py auto-sets the flag from detected VRAM (inclusive >= 24 GB);
+    # select_preload_candidates() is the single row-selection point.
     if settings.backend_model_preload:
         from backend.services.model_zoo import get_model_manager, get_model_zoo
 
         model_zoo = get_model_zoo()
         model_manager = get_model_manager()
-        preload_names = [
-            name for name, cfg in model_zoo.items() if cfg.enabled and not cfg.available
-        ]
+        preload_names = select_preload_candidates(
+            model_zoo, preload_enabled=settings.backend_model_preload
+        )
         lifespan_logger.info(
             f"BACKEND_MODEL_PRELOAD=true — preloading {len(preload_names)} models into GPU VRAM"
         )

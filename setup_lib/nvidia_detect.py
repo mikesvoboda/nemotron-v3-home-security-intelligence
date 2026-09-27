@@ -214,6 +214,30 @@ def get_gpu_info() -> list[GpuInfo] | None:
         return None
 
 
+#: VRAM (MiB) at or above which backend models load resident at startup. The
+#: threshold is INCLUSIVE: the target 24 GB card (the A5500 of ledger item 24)
+#: reports exactly 24576 MiB, and a strict `>` excluded it on its own spec
+#: figure — the flag exists precisely to serve that card.
+PRELOAD_MIN_VRAM_MB = 24 * 1024
+
+
+def should_preload_models(total_vram_mb: int) -> bool:
+    """Whether the installer should turn on startup model residency.
+
+    The single source for a decision that used to be written three times in
+    setup.py's mode functions, where the comparison was strict (`>`) and
+    excluded a 24 GB card at exactly 24576 MiB. Owner ruling 2026-09-27:
+    inclusive threshold, and the boot sweep honors the per-row `preload:` flag.
+
+    Args:
+        total_vram_mb: Sum of VRAM across detected GPUs (0 when none detected)
+
+    Returns:
+        True when total VRAM is at or above PRELOAD_MIN_VRAM_MB
+    """
+    return total_vram_mb >= PRELOAD_MIN_VRAM_MB
+
+
 def get_driver_version() -> str | None:
     """Get the NVIDIA driver version from nvidia-smi.
 

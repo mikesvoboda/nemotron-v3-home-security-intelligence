@@ -2906,3 +2906,70 @@ class TestLoadFnPathArgument:
                 pass
 
         assert seen_paths == [config.path]
+
+
+class TestResidencyRowsAreDeclared:
+    """Item 1 / F11 (owner ruling 2026-09-27): the sweep now honors cfg.preload,
+    so the rows are the contract — a mechanism with no declared rows preloads
+    nothing and leaves the legs answering "unavailable" on the target card.
+
+    The three F11 rows below are the ones whose handles are read from the
+    manager's registry by membership and never loaded on demand:
+    osnet_loader.get_reid_handle, and face_recognizer_loader.get_face_leg_handles
+    (which needs BOTH face rows or returns None). The plate leg is deliberately
+    absent — it self-loads through fast_alpr_loader and the optional [alpr]
+    extra, not the zoo registry.
+
+    smoke-fire-yolov8n declares preload: true too ("CRITICAL: never evict,
+    preload at startup") and its loader DOES register in this env, so it is the
+    fourth row the shipped selector picks. The set-equality pin therefore DERIVES
+    its expectation from the yaml rather than a hand-copied list: asserting a
+    literal here silently overtook reality once already while this test was being
+    written (found by running it, not by reading it).
+    """
+
+    F11_ROWS = ("osnet-ain-x1-0", "face-detector-scrfd", "face-recognizer")
+
+    def setup_method(self) -> None:
+        reset_model_zoo()
+
+    def teardown_method(self) -> None:
+        reset_model_zoo()
+
+    def test_f11_rows_declare_preload_true(self) -> None:
+        for name in self.F11_ROWS:
+            config = get_model_config(name)
+            assert config is not None, name
+            assert config.enabled is True, name
+            assert config.preload is True, f"{name} must declare preload: true"
+
+    def test_shipped_zoo_selects_every_declared_row(self) -> None:
+        """End-to-end: the real models.yml through the real parser into the real
+        selector. Flag on => the resident set is exactly the rows that opt in —
+        nothing dropped by the predicate, nothing smuggled in."""
+        from pathlib import Path
+
+        import yaml
+
+        from backend.main import select_preload_candidates
+
+        entries = yaml.safe_load(Path("models.yml").read_text())["models"]
+        declared = sorted(
+            e["name"] for e in entries if e.get("preload") is True and e.get("enabled") is True
+        )
+        selected = select_preload_candidates(get_model_zoo(), preload_enabled=True)
+        assert sorted(selected) == declared
+        assert set(self.F11_ROWS) <= set(selected), (
+            "F11's specialist rows must be in the boot-resident set"
+        )
+        # Declared-but-unregistered rows (a loader whose optional deps are absent
+        # here) are the only allowed difference, and it must be small and named.
+        missing = set(declared) - set(selected)
+        assert not missing, f"declared rows the selector dropped: {sorted(missing)}"
+
+    def test_flag_off_selects_nothing_on_the_shipped_zoo(self) -> None:
+        """The CPU/sandbox posture stays honest: residency off => zero rows, the
+        legs answer 'unavailable' rather than pretending."""
+        from backend.main import select_preload_candidates
+
+        assert select_preload_candidates(get_model_zoo(), preload_enabled=False) == []
