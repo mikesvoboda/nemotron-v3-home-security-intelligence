@@ -126,7 +126,7 @@ The enrichment models (Florence-2, CLIP/SigLIP embeddings, enrichment) provide e
 context for detections, including:
 
 - **Florence-2**: Visual attributes, OCR, dense captions
-- **CLIP** (SigLIP 2 in the Triton gateway): Embedding generation for re-identification
+- **CLIP** (SigLIP 2 in the Triton gateway): Scene-baseline and fashion-similarity embeddings — person re-ID vectors moved to OSNet-AIN x1.0 in the backend
 - **Enrichment**: Orchestrates and aggregates enrichment data (vehicle, clothing,
   demographics, action, pose, pet, depth models)
 
@@ -165,7 +165,7 @@ curl http://localhost:8000/api/system/circuit-breakers | jq '.circuit_breakers |
 | Variable                    | Default | Effect When Disabled                             |
 | --------------------------- | ------- | ------------------------------------------------ |
 | `VISION_EXTRACTION_ENABLED` | `true`  | No Florence-2 attributes, OCR, or dense captions |
-| `REID_ENABLED`              | `true`  | No CLIP embeddings or re-identification          |
+| `REID_ENABLED`              | `true`  | No OSNet person re-ID vectors                    |
 | `SCENE_CHANGE_ENABLED`      | `true`  | No scene change detection between frames         |
 
 ### Common Causes
@@ -257,8 +257,10 @@ If GPU is overloaded, consider:
 If re-ID is slow or producing poor matches:
 
 ```bash
-# Adjust similarity threshold (higher = stricter matching; default 0.85, range 0.5-1.0)
-REID_SIMILARITY_THRESHOLD=0.85
+# Adjust similarity threshold (higher = stricter matching; default 0.7, range 0.5-1.0.
+# 0.7 is the OSNet-AIN x1.0 space value and is PROVISIONAL pending calibration —
+# the CLIP-era 0.85 would drop every legitimate OSNet match)
+REID_SIMILARITY_THRESHOLD=0.7
 
 # Reduce TTL if embeddings are stale (default 24h, max 168)
 REID_TTL_HOURS=12

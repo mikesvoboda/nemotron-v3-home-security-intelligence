@@ -879,11 +879,11 @@ and `NEMOTRON_URL=http://ai-llm:8091`.
 
 ### Enrichment Feature Toggles
 
-| Variable                    | Default | Description                         |
-| --------------------------- | ------- | ----------------------------------- |
-| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 based extraction  |
-| `REID_ENABLED`              | `true`  | Enable CLIP-based re-identification |
-| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection       |
+| Variable                    | Default | Description                                      |
+| --------------------------- | ------- | ------------------------------------------------ |
+| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 based extraction               |
+| `REID_ENABLED`              | `true`  | Enable person re-identification (OSNet-AIN x1.0) |
+| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection                    |
 
 ### AI Service Ports
 

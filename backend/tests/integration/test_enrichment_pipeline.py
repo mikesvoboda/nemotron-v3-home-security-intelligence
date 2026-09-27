@@ -362,7 +362,7 @@ class TestPersonEnrichment:
         person_detection: DetectionInput,
         mock_model_manager: MagicMock,
     ) -> None:
-        """Test person detection triggers Florence caption + CLIP re-id."""
+        """Test person detection triggers Florence caption + OSNet re-id."""
         mock_vision_result = BatchExtractionResult(
             vehicle_attributes={},
             person_attributes={
@@ -380,8 +380,9 @@ class TestPersonEnrichment:
             ),
         )
 
-        # Mock embedding and redis client
-        test_embedding = [0.1] * 768  # Normalized CLIP embedding
+        # Mock embedding and redis client — B5 producer contract: the
+        # (vector, model_id) tuple of the OSNet-AIN x1.0 space (ledger 20).
+        test_embedding = ([0.1] * 512, "osnet-test@weights@abc123")
         mock_redis = AsyncMock()
 
         with (

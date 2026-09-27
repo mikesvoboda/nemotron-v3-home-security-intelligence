@@ -5386,7 +5386,9 @@ export interface paths {
          *     Args:
          *         detection_id: Detection ID to find matches for
          *         entity_type: Type of entity to search ('person' or 'vehicle')
-         *         threshold: Minimum cosine similarity threshold (default 0.85)
+         *         threshold: Minimum cosine similarity threshold (default
+         *             DEFAULT_SIMILARITY_THRESHOLD — 0.7, the OSNet-space value,
+         *             full swap ledger item 20)
          *         reid_service: Re-identification service dependency
          *
          *     Returns:
@@ -7172,7 +7174,12 @@ export interface paths {
          *
          *     Matching priority:
          *     1. License plate match (exact, case-insensitive) - returns similarity 1.0
-         *     2. Visual embedding match (if plate doesn't match or isn't provided)
+         *     2. Visual embedding match (if plate doesn't match or isn't provided).
+         *        LEGACY branch: no shipped producer writes vehicle embedding bytes since
+         *        the person re-ID full swap (ledger item 20, B5a — OSNet-AIN is a person
+         *        model), so in the shipped mode vehicle identity rides plate match and
+         *        this branch finds nothing to compare against. A vehicle re-ID model is
+         *        a named follow-up.
          *
          *     Args:
          *         request: VehicleMatchRequest with plate and/or embedding
@@ -7302,12 +7309,16 @@ export interface paths {
          * @description Add a person embedding from an event to a household member.
          *
          *     This endpoint extracts a person embedding from the event's detection image
-         *     using the ReIdentificationService (CLIP ViT-L) and stores it in the
-         *     PersonEmbedding table for future person re-identification.
+         *     using the ReIdentificationService (resident OSNet-AIN x1.0 handle, full
+         *     swap ledger item 20) and stores it in the PersonEmbedding table, beside
+         *     the model_id of the weights that computed it, for future person
+         *     re-identification.
          *
          *     The endpoint finds the first person detection in the event, loads the
-         *     detection image, and generates a 768-dimensional CLIP embedding using
-         *     the detection's bounding box to focus on the person.
+         *     detection image, and generates a 512-dimensional OSNet embedding using
+         *     the detection's bounding box to focus on the person. When the pinned
+         *     weights are not resident it answers 503 naming the cause — never a
+         *     zero-vector stub.
          *
          *     Args:
          *         member_id: ID of the household member
@@ -22691,7 +22702,7 @@ export interface components {
          *         }
          *       ],
          *       "query_detection_id": "det_001",
-         *       "threshold": 0.85,
+         *       "threshold": 0.7,
          *       "total_matches": 1
          *     }
          */
@@ -26069,7 +26080,7 @@ export interface components {
             image_quality_enabled: boolean;
             /**
              * Reid Enabled
-             * @description Enable CLIP re-identification for tracking entities across cameras
+             * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
             reid_enabled: boolean;
             /**
@@ -26110,7 +26121,7 @@ export interface components {
             image_quality_enabled?: boolean | null;
             /**
              * Reid Enabled
-             * @description Enable CLIP re-identification for tracking entities across cameras
+             * @description Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras
              */
             reid_enabled?: boolean | null;
             /**
@@ -31089,7 +31100,7 @@ export interface components {
          * MatcherConfigResponse
          * @description Schema for household matcher configuration response.
          * @example {
-         *       "similarity_threshold": 0.85,
+         *       "similarity_threshold": 0.7,
          *       "total_member_embeddings": 5,
          *       "total_registered_vehicles": 3
          *     }
@@ -34107,7 +34118,7 @@ export interface components {
          *         0,
          *         0
          *       ],
-         *       "similarity_threshold": 0.85
+         *       "similarity_threshold": 0.7
          *     }
          */
         PersonMatchRequest: {
@@ -34118,7 +34129,7 @@ export interface components {
             embedding: number[];
             /**
              * Similarity Threshold
-             * @description Optional custom similarity threshold (default: 0.85)
+             * @description Optional custom similarity threshold (default: 0.7)
              */
             similarity_threshold?: number | null;
         };
@@ -39749,13 +39760,13 @@ export interface components {
          *       "entity_type": "person",
          *       "include_historical": true,
          *       "limit": 10,
-         *       "threshold": 0.85
+         *       "threshold": 0.7
          *     }
          */
         SimilaritySearchRequest: {
             /**
              * Embedding
-             * @description Embedding vector to search for (typically 768-dimensional CLIP embedding)
+             * @description Embedding vector to search for (512-dim OSNet-AIN x1.0 person vector)
              */
             embedding: number[];
             /**
@@ -39783,8 +39794,8 @@ export interface components {
             limit: number;
             /**
              * Threshold
-             * @description Minimum cosine similarity threshold for matches (default: 0.85)
-             * @default 0.85
+             * @description Minimum cosine similarity threshold for matches (default: the OSNet-space service constant)
+             * @default 0.7
              */
             threshold: number;
         };
@@ -39810,7 +39821,7 @@ export interface components {
          *           "timestamp": "2025-12-23T10:00:00Z"
          *         }
          *       ],
-         *       "threshold": 0.85,
+         *       "threshold": 0.7,
          *       "total_matches": 1
          *     }
          */
@@ -41988,7 +41999,7 @@ export interface components {
          * @example {
          *       "color": "silver",
          *       "license_plate": "ABC123",
-         *       "similarity_threshold": 0.85,
+         *       "similarity_threshold": 0.7,
          *       "vehicle_type": "car"
          *     }
          */
@@ -42000,7 +42011,7 @@ export interface components {
             color?: string | null;
             /**
              * Embedding
-             * @description Vehicle visual embedding vector (768-dim CLIP) for visual matching
+             * @description Vehicle visual embedding vector for visual matching. LEGACY: no shipped producer writes vehicle embedding bytes since the person re-ID full swap (ledger item 20) — vehicle matching runs on license_plate, and a vehicle re-ID model is a named follow-up.
              */
             embedding?: number[] | null;
             /**
@@ -42010,7 +42021,7 @@ export interface components {
             license_plate?: string | null;
             /**
              * Similarity Threshold
-             * @description Optional custom similarity threshold for visual matching (default: 0.85)
+             * @description Optional custom similarity threshold for visual matching (default: 0.7)
              */
             similarity_threshold?: number | null;
             /**

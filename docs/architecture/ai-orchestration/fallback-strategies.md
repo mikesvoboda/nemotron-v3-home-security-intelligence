@@ -302,7 +302,7 @@ def get_fallback_caption(
     return f"{objects_str.capitalize()} detected"
 ```
 
-### Re-identification (CLIP)
+### Re-identification (OSNet-AIN x1.0)
 
 ```python
 def should_skip_reid(self) -> bool:
@@ -310,11 +310,14 @@ def should_skip_reid(self) -> bool:
     return not self.is_service_available(AIService.CLIP)
 
 def get_fallback_embedding(self) -> list[float]:
-    """Get fallback embedding when CLIP unavailable.
+    """Get fallback embedding when re-ID extraction is unavailable.
 
     Returns a zero vector that will not match any existing embeddings.
+    512-dimensional — the OSNet-AIN x1.0 person-vector space (full swap,
+    ledger item 20; a CLIP-era 768 stub could never be compared against
+    anything the store holds anyway).
     """
-    return [0.0] * 768  # 768-dimensional zero vector
+    return [0.0] * 512
 ```
 
 ## Available Features by Degradation Level

@@ -688,10 +688,14 @@ class TestAddEmbedding:
         mock_result_event.scalar_one_or_none.return_value = mock_event
         mock_db.execute.side_effect = [mock_result_member, mock_result_event]
 
-        # Mock ReIdentificationService to return a 768-dim embedding
-        mock_embedding = [0.1] * 768
+        # Mock ReIdentificationService: B5's contract returns
+        # (vector, model_id) — OSNet-AIN x1.0's 512 dims + the belt (F11).
+        mock_embedding = [0.1] * 512
         mock_reid_service = AsyncMock()
-        mock_reid_service.generate_embedding.return_value = mock_embedding
+        mock_reid_service.generate_embedding.return_value = (
+            mock_embedding,
+            "osnet-test@weights@abc123",
+        )
 
         # Mock image loading
         mock_image = MagicMock(spec=Image.Image)
@@ -1039,10 +1043,13 @@ class TestAddEmbedding:
         mock_result_event.scalar_one_or_none.return_value = mock_event
         mock_db.execute.side_effect = [mock_result_member, mock_result_event]
 
-        # Mock ReID service
-        mock_embedding = [0.1] * 768
+        # Mock ReID service — B5 contract: (vector, belt), OSNet 512-d.
+        mock_embedding = [0.1] * 512
         mock_reid_service = AsyncMock()
-        mock_reid_service.generate_embedding.return_value = mock_embedding
+        mock_reid_service.generate_embedding.return_value = (
+            mock_embedding,
+            "osnet-test@weights@abc123",
+        )
 
         # Mock image loading
         mock_image = MagicMock(spec=Image.Image)

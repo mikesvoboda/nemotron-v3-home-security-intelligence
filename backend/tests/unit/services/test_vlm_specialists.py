@@ -22,11 +22,11 @@ What these tests pin, per the owner's ruling (2026-09-26):
   similarity percent), no bytes, no paths (spec §6 privacy). The gate comes
   from config (face_min_size_px + face_scrfd_threshold), never a constant.
 
-Re-ID honesty: the entity store (household PersonEmbedding) is CLIP-768-space
-(reid_service.generate_embedding); the resident Triton reid model emits
-OSNet-512. A cross-space cosine would be noise, so until that ledgered gap is
-closed, match_against_person_embeddings returns "seen_before unknown" plus the
-raw vector — a score here would be a lie.
+Re-ID honesty (updated by the full swap, ledger item 20): the store and the
+probe now share the ONE OSNet-AIN x1.0 space, so the leg computes real
+similarities. The honesty moved down a level — a gallery row is scored only
+under its own model_id (compare_person_vectors), and a sentinel/foreign
+gallery says "unavailable (re-enroll)", never a number.
 """
 
 from __future__ import annotations
@@ -390,6 +390,258 @@ class TestEmbeddingSpaceMismatch:
         so the mismatch rule can't silently vanish with a schema change."""
         _wire_manager(monkeypatch, _FakeManager(det=_FakeDetector()))
         assert await vs._gallery_model_ids(None) == set()
+
+
+class TestReIDLegRealSpace:
+    """Slice C (ledger item 20): the leg is REAL now. Crops come from the
+    detections whose frame the selector picked, the probe is the resident
+    OSNet handle, and compare_person_vectors owns the one-space rule. These
+    pins fake only the weights (the tier posture everywhere else)."""
+
+    BELT = "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894"
+
+    @staticmethod
+    def _wire_osnet(monkeypatch, handle, extract):
+        import backend.services.osnet_loader as ol
+
+        monkeypatch.setattr(ol, "get_reid_handle", lambda: handle)
+        monkeypatch.setattr(ol, "extract_person_embedding", extract)
+
+    @staticmethod
+    def _handle(model_id=BELT):
+        return {"model": None, "transform": None, "model_id": model_id}
+
+    @staticmethod
+    def _probe_vector():
+        """THE probe vector — one fixed draw both the fake extractor and the
+        gallery rows are built from, so cosine relations are exact, not
+        luck."""
+        v = np.random.default_rng(42).random(512).astype(np.float32)
+        return v / np.linalg.norm(v)
+
+    @staticmethod
+    def _extract(model_dict, image, detection_id=None):  # noqa: ARG004
+        async def _run():
+            from backend.services.osnet_loader import PersonEmbeddingResult
+
+            return PersonEmbeddingResult(
+                embedding=TestReIDLegRealSpace._probe_vector(),
+                detection_id=detection_id,
+                model_id=model_dict.get("model_id"),
+            )
+
+        return _run()
+
+    @staticmethod
+    def _person_det(frame_path, det_id=7):
+        return {
+            "id": det_id,
+            "object_type": "person",
+            "file_path": frame_path,
+            "bbox_x": 10,
+            "bbox_y": 10,
+            "bbox_width": 40,
+            "bbox_height": 60,
+        }
+
+    @staticmethod
+    async def _rows(rows):
+        async def gallery(session):
+            return rows
+
+        return gallery
+
+    async def test_match_names_and_percent(self, monkeypatch, face_frame) -> None:
+        """Same belt, close vector -> the existing match grammar with the
+        REAL similarity."""
+        p = self._probe_vector()
+        close = p + np.random.default_rng(7).normal(0, 0.02, 512).astype(np.float32)
+        close = close / np.linalg.norm(close)
+        rows = [(1, "Dad", close, self.BELT)]
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows(rows),
+        )
+        assert "matches household member Dad" in text
+        assert "% match" in text
+        _assert_prompt_line(text)
+
+    async def test_comparable_gallery_no_one_over_threshold(self, monkeypatch, face_frame) -> None:
+        # A genuinely distant gallery row: zero-mean draw (the probe is all-
+        # positive, so cosine lands near 0) — far under the 0.7 OSNet-space
+        # threshold. The leg ran; this is a real observation the VLM may
+        # act on.
+        q = np.random.default_rng(11).normal(0.0, 1.0, 512).astype(np.float32)
+        far = q / np.linalg.norm(q)
+        assert abs(float(self._probe_vector() @ far)) < 0.3
+        rows = [(1, "Dad", far, self.BELT)]
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows(rows),
+        )
+        assert text == "no known-person re-ID matches"
+
+    async def test_sentinel_gallery_is_re_enroll_NEVER_a_score(
+        self, monkeypatch, face_frame
+    ) -> None:
+        from backend.core.vector_provenance import LEGACY_MODEL_ID
+
+        rows = [(1, "Dad", self._probe_vector(), LEGACY_MODEL_ID)]
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows(rows),
+        )
+        assert text == "unavailable (re-enroll)"
+        assert "%" not in text  # never a score
+
+    async def test_empty_gallery_is_no_gallery_not_no_matches(
+        self, monkeypatch, face_frame
+    ) -> None:
+        """ "No matches" claims an observation; an unenrolled household has
+        never been observed — "a stranger is outside" would be the lie."""
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows([]),
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+        assert "no known-person" not in text
+        _assert_prompt_line(text)
+
+    async def test_handleless_probe_is_re_enroll(self, monkeypatch, face_frame) -> None:
+        """A probe whose weights never named themselves cannot vouch for ANY
+        row — beltless handle AND beltless extraction result (the handle's
+        id still wins when it has one, so both halves must be mute here)."""
+
+        async def _beltless_extract(model_dict, image, detection_id=None):
+            from backend.services.osnet_loader import PersonEmbeddingResult
+
+            return PersonEmbeddingResult(
+                embedding=self._probe_vector(), detection_id=detection_id, model_id=None
+            )
+
+        rows = [(1, "Dad", self._probe_vector(), self.BELT)]
+        self._wire_osnet(monkeypatch, self._handle(model_id=None), _beltless_extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows(rows),
+        )
+        assert text == "unavailable (re-enroll)"
+        assert "%" not in text
+
+    async def test_weights_absent_is_default_phrase(self, monkeypatch, face_frame) -> None:
+        import backend.services.osnet_loader as ol
+
+        monkeypatch.setattr(ol, "get_reid_handle", lambda: None)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+        )
+        assert text == "unavailable: specialist did not run"
+        # the zoo name is operator detail — log half, never the prompt
+        assert "osnet" not in text.lower()
+        _assert_prompt_line(text)
+
+    async def test_no_person_crop_among_picks_is_no_frames_not_no_matches(
+        self, monkeypatch, face_frame
+    ) -> None:
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[],
+            settings=Settings(),
+            session=object(),
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+        assert "no known-person" not in text
+
+    async def test_non_person_detections_are_not_probed(self, monkeypatch, face_frame) -> None:
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        det = self._person_det(face_frame) | {"object_type": "car"}
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[det],
+            settings=Settings(),
+            session=object(),
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+
+    async def test_frame_outside_the_picks_is_not_probed(self, monkeypatch, face_frame) -> None:
+        """The line describes exactly the frames the VLM sees (selector
+        doctrine, same as the face leg)."""
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=["/some/other/frame.jpg"],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+
+    async def test_extraction_failure_never_raises(self, monkeypatch, face_frame) -> None:
+        async def _boom(model_dict, image, detection_id=None):
+            raise RuntimeError("CUDA blew up")
+
+        rows = [(1, "Dad", self._probe_vector(), self.BELT)]
+        self._wire_osnet(monkeypatch, self._handle(), _boom)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=object(),
+            gallery=await self._rows(rows),
+        )
+        # every crop failed — the leg did not observe anything (logged, then
+        # the default phrase; "no matches" would be an invented observation)
+        assert text.lower().startswith(UNAVAILABLE)
+        assert "no known-person" not in text
+
+    async def test_no_session_is_unavailable_not_no_matches(self, monkeypatch, face_frame) -> None:
+        """Without the DB the gallery cannot answer — 'no matches' would
+        claim nobody the household knows is present."""
+        self._wire_osnet(monkeypatch, self._handle(), self._extract)
+        text = await vs.collect_reid_text(
+            frame_paths=[face_frame],
+            detections=[self._person_det(face_frame)],
+            settings=Settings(),
+            session=None,
+        )
+        assert text.lower().startswith(UNAVAILABLE)
+        assert "no known-person" not in text
+
+
+class TestReIDLegGrammar:
+    """reid_text's arms, pinned directly (the eval corpus builds them)."""
+
+    def test_matches_none_is_re_enroll_line(self) -> None:
+        assert vs.reid_text(None, None) == "unavailable (re-enroll)"
+
+    def test_unavailable_reason_is_clean_line(self) -> None:
+        line = vs.reid_text(None, "some internal reason")
+        assert line == "unavailable: specialist did not run"
+
+    def test_empty_matches_is_the_real_no_match_line(self) -> None:
+        assert vs.reid_text([], None) == "no known-person re-ID matches"
 
 
 class TestThreatExclusion:

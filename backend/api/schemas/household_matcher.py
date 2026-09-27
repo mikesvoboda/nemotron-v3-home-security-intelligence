@@ -20,7 +20,7 @@ class PersonMatchRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "embedding": [0.1, 0.2, 0.3, 0.0, 0.0],  # Truncated example of 512-dim vector
-                "similarity_threshold": 0.85,
+                "similarity_threshold": 0.7,
             }
         }
     )
@@ -34,7 +34,7 @@ class PersonMatchRequest(BaseModel):
         None,
         ge=0.0,
         le=1.0,
-        description="Optional custom similarity threshold (default: 0.85)",
+        description="Optional custom similarity threshold (default: 0.7)",
     )
 
 
@@ -52,7 +52,7 @@ class VehicleMatchRequest(BaseModel):
                 "embedding": None,
                 "vehicle_type": "car",
                 "color": "silver",
-                "similarity_threshold": 0.85,
+                "similarity_threshold": 0.7,
             }
         }
     )
@@ -64,7 +64,12 @@ class VehicleMatchRequest(BaseModel):
     )
     embedding: list[float] | None = Field(
         None,
-        description="Vehicle visual embedding vector (768-dim CLIP) for visual matching",
+        description=(
+            "Vehicle visual embedding vector for visual matching. LEGACY: no shipped "
+            "producer writes vehicle embedding bytes since the person re-ID full swap "
+            "(ledger item 20) — vehicle matching runs on license_plate, and a vehicle "
+            "re-ID model is a named follow-up."
+        ),
     )
     vehicle_type: str = Field(
         ...,
@@ -79,7 +84,7 @@ class VehicleMatchRequest(BaseModel):
         None,
         ge=0.0,
         le=1.0,
-        description="Optional custom similarity threshold for visual matching (default: 0.85)",
+        description="Optional custom similarity threshold for visual matching (default: 0.7)",
     )
 
 
@@ -225,7 +230,7 @@ class MatcherConfigResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "similarity_threshold": 0.85,
+                "similarity_threshold": 0.7,
                 "total_member_embeddings": 5,
                 "total_registered_vehicles": 3,
             }

@@ -84,8 +84,9 @@ Everything below runs inside the single `ai-gateway` container on port 8090:
 
 - **`/florence`**: Florence-2 vision-language extraction — `/extract`, `/ocr`,
   `/dense-caption`, `/phrase-grounding`, `/detect_security_objects`
-- **`/clip`**: SigLIP 2 embeddings and re-identification — `/embed`, `/classify`,
-  `/similarity`, `/anomaly-score`
+- **`/clip`**: SigLIP 2 embeddings — scene classification, similarity, anomaly
+  scoring (`/embed`, `/classify`, `/similarity`, `/anomaly-score`); person re-ID
+  vectors come from the OSNet-AIN x1.0 `reid` model, not this router (ledger 20)
 - **`/enrichment`** (heavy): vehicle, clothing, demographics, action
 - **`/enrich-lt`** (light): pose, threat, person ReID, pet, depth
 

@@ -251,10 +251,14 @@ class EmbeddingsData(BaseModel):
     matching and entity clustering. This prevents redundant embedding
     computation and ensures consistency.
 
-    Embedding dimensions:
-    - person_reid: 512-dim OSNet embedding for person re-identification
-    - face_clip: 768-dim CLIP embedding for face recognition
-    - vehicle_visual: 768-dim CLIP embedding for vehicle matching
+    Embedding dimensions (after the re-ID full swap, ledger item 20):
+    - person_reid: 512-dim OSNet-AIN x1.0 embedding for person re-ID —
+      the one person-vector space, labeled by ``model_id`` (F11)
+    - face_clip / vehicle_visual: RETIRED keys. CLIP-as-producer was
+      retired; the pipeline no longer writes these, and bytes that predate
+      the swap carry no provenance, so readers must not score them against
+      anything. They stay in the schema so historical events decode; the
+      keys' removal is a named follow-up alongside the vehicle re-ID model.
 
     Related to NEM-4234: AI Pipeline Accuracy Improvements - Phase 3.
     """
@@ -262,13 +266,22 @@ class EmbeddingsData(BaseModel):
     model_config = ConfigDict(extra="allow")  # Allow future embedding types
 
     person_reid: list[float] | None = Field(
-        None, description="512-dim OSNet embedding for person re-identification"
+        None, description="512-dim OSNet-AIN x1.0 embedding for person re-identification"
+    )
+    model_id: str | None = Field(
+        None,
+        description="Producer provenance for person_reid (weights file + sha256 prefix); "
+        "absent means the payload predates the swap and is not scoreable",
     )
     face_clip: list[float] | None = Field(
-        None, description="768-dim CLIP embedding for face recognition"
+        None,
+        description="RETIRED: legacy 768-dim CLIP face bytes; never written anymore and "
+        "never comparable to the pinned face space (F12)",
     )
     vehicle_visual: list[float] | None = Field(
-        None, description="768-dim CLIP embedding for vehicle matching"
+        None,
+        description="RETIRED: legacy 768-dim CLIP vehicle bytes; no vehicle embedding "
+        "producer ships in the resident mode (vehicle identity rides plate match)",
     )
 
 

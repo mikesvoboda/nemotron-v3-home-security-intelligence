@@ -77,7 +77,7 @@ erDiagram
 2. **Detection** records are created when YOLO26 identifies objects in images
 3. **Events** aggregate multiple detections within time windows (90s) and include LLM-generated risk assessments
 4. **Zones** define regions of interest within camera views for targeted detection
-5. **Entities** track persons/vehicles across cameras using CLIP-based re-identification
+5. **Entities** track persons across cameras using OSNet-AIN x1.0 re-identification (vehicles by license plate)
 
 ---
 
@@ -1129,7 +1129,7 @@ Coordinates are normalized (0.0-1.0):
 
 ## Entities
 
-Entities track persons and vehicles across cameras using CLIP-based re-identification.
+Entities track persons across cameras using OSNet-AIN x1.0 re-identification (512-dim vectors with `model_id` provenance); vehicles are tracked by license-plate match.
 
 ### Endpoints
 
@@ -1204,7 +1204,7 @@ GET /api/entities/matches/123?entity_type=person&threshold=0.85
 | Name        | Type   | Description                                             |
 | ----------- | ------ | ------------------------------------------------------- |
 | entity_type | string | Type to search: `person` or `vehicle` (default: person) |
-| threshold   | float  | Minimum cosine similarity (default: 0.85)               |
+| threshold   | float  | Minimum cosine similarity (default: 0.7)                |
 
 **Response:**
 
@@ -1231,10 +1231,11 @@ GET /api/entities/matches/123?entity_type=person&threshold=0.85
 
 ### Re-identification Architecture
 
-- **Algorithm:** CLIP ViT-L 768-dimensional embeddings
-- **Storage:** Redis with 24-hour TTL
-- **Matching:** Cosine similarity (default threshold: 0.85)
+- **Algorithm:** OSNet-AIN x1.0 512-dimensional person embeddings (`model_id` provenance on every stored vector; OSNet-AIN x1.0 is the one person-vector space — ledger item 20)
+- **Storage:** Redis with 24-hour TTL, keys partitioned by `model_id`
+- **Matching:** Cosine similarity (default threshold: 0.7, OSNet-space, provisional pending calibration); vectors from different producers are never scored — an unprovenanced or mismatched row reads as "unavailable (re-enroll)"
 - **Scope:** Today's and yesterday's embeddings
+- **Vehicles:** license-plate match (no vehicle embedding producer ships in resident mode)
 
 ---
 

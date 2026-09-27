@@ -495,9 +495,9 @@ class TestN1aEmbeddingsUnitNorm:
 
 class TestN1bLegacyLiteralsAreNotUnitNorm:
     """N1b source (dossier N1b, cites verified): backend/tests/integration/
-    test_enrichment_pipeline.py:384
+    test_enrichment_pipeline.py:384 (dossier cite)
         test_embedding = [0.1] * 768  # Normalized CLIP embedding
-    true L2 norm 0.1*sqrt(768) = 2.771. Spot sites:
+    true L2 norm 0.1*sqrt(768) = 2.771. Spot sites at dossier time:
     test_vision_extraction_pipeline.py:877,:922; test_scene_baseline.py:181;
     test_enrichment_models.py:502 ([0.1]*512). PLAN CITE CORRECTION (dossier):
     the '87 literals' count does NOT reproduce — the actual census is 145
@@ -506,29 +506,39 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
     (every np.linalg.norm hit normalizes a fixture before use, e.g.
     test_osnet_loader.py:71). This suite's N1a assertions are therefore the
     FIRST, and the fake's exact-unit outputs diverge from every legacy fixture
-    by design (the dossier's mock-vs-real numeric mismatch)."""
+    by design (the dossier's mock-vs-real numeric mismatch).
+
+    RE-ARMED 2026-09-27 by the re-ID full swap (ledger item 20): the canonical
+    fixture literal became the B5 producer tuple
+    ``([0.1] * 512, "osnet-test@weights@abc123")`` one line down at :385 —
+    this is precisely the anti-pin's own escape hatch ("if someone fixed the
+    literal, rewrite against the NEW canonical literal"). The property is
+    unchanged: 0.1*sqrt(512) = 2.263 ≠ 1, so N1a's unit-norm provider still
+    contradicts the fixture corpus. (Scene-baseline/fashion fixtures keep
+    their real CLIP-768 dims — CLIP is not retired, only as re-ID producer.)"""
 
     # no provider (characterization). fake n/a, gateway n/a. Predicted GREEN
     # (pure math + file read). UNVERIFIED under pytest.
-    def test_N1b_canonical_literal_norm_is_2_77_not_1(self) -> None:
-        v = [0.1] * 768
+    def test_N1b_canonical_literal_norm_is_2_26_not_1(self) -> None:
+        # The swap's canonical person-vector fixture literal (OSNet 512-dim).
+        v = [0.1] * 512
         norm = math.sqrt(sum(x * x for x in v))
         assert abs(norm - 1.0) > 1.0, (
-            f"[0.1]*768 norm={norm!r}: if this ever reads ~1, someone fixed "
+            f"[0.1]*512 norm={norm!r}: if this ever reads ~1, someone fixed "
             "the literal — then N1a's unit-norm provider property stops "
             "contradicting the fixture corpus and this anti-pin must be "
             "rewritten against the NEW canonical literal."
         )
-        # cite-pinned drift guard: the literal and its WRONG comment must
-        # still sit at the dossier's line (line churn = the census claim needs
-        # re-running against the new corpus).
+        # cite-pinned drift guard: the canonical embedding fixture line must
+        # still sit where the swap left it (line churn = the census claim
+        # needs re-running against the new corpus).
         lines = (
             (REPO_ROOT / "backend/tests/integration/test_enrichment_pipeline.py")
             .read_text(encoding="utf-8")
             .splitlines()
         )
-        assert "[0.1] * 768" in lines[383] and "Normalized CLIP embedding" in lines[383], (
-            f"test_enrichment_pipeline.py:384 drifted: {lines[383]!r}"
+        assert "[0.1] * 512" in lines[384] and "osnet-test@weights@abc123" in lines[384], (
+            f"test_enrichment_pipeline.py:385 drifted: {lines[384]!r}"
         )
 
 

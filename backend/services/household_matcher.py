@@ -208,6 +208,53 @@ def compare_person_vectors(
     )
 
 
+async def load_person_gallery(
+    session: AsyncSession,
+) -> list[tuple[int, str, np.ndarray, str]]:
+    """The person gallery as ``compare_person_vectors`` rows (module-level).
+
+    Both readers — :meth:`HouseholdMatcher.match_person` and the VLM re-ID
+    leg (vlm_specialists.collect_reid_text) — load through THIS function, so
+    "a row is only scoreable under its own model_id" holds exactly once
+    (F11/item 20). A second query that re-derives the row shape is the drift
+    the one-embedding-space ruling exists to prevent.
+
+    Returns ``(member_id, member_name, vector, model_id)`` quads; rows whose
+    member relationship is gone and rows whose bytes fail to deserialize are
+    skipped with a counted warning (one corrupt row must not kill the pass).
+    """
+    result: list[tuple[int, str, np.ndarray, str]] = []
+
+    # Query PersonEmbedding with eager loading of member relationship
+    stmt = select(PersonEmbedding).options(selectinload(PersonEmbedding.member))
+    query_result = await session.execute(stmt)
+    embeddings = query_result.scalars().all()
+
+    for person_embedding in embeddings:
+        if person_embedding.member is None:
+            continue
+
+        # Deserialize embedding from bytes to numpy array
+        try:
+            embedding_array = np.frombuffer(person_embedding.embedding, dtype=np.float32)
+            result.append(
+                (
+                    person_embedding.member.id,
+                    person_embedding.member.name,
+                    embedding_array,
+                    person_embedding.model_id,
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to deserialize embedding for member %d: %s",
+                person_embedding.member_id,
+                str(e),
+            )
+
+    return result
+
+
 class HouseholdMatcher:
     """Match detections against known household members and vehicles.
 
@@ -368,48 +415,11 @@ class HouseholdMatcher:
     ) -> list[tuple[int, str, np.ndarray, str]]:
         """Get all person embeddings with member info AND provenance.
 
-        Queries all PersonEmbedding records joined with their HouseholdMember
-        and returns them as (member_id, member_name, embedding, model_id)
-        quads — the row's model_id rides along so the comparison can refuse
-        cross-space pairs (F11/item 20); the gallery's shape is
-        :func:`compare_person_vectors`'s input contract.
-
-        Args:
-            session: Database session for queries
-
-        Returns:
-            List of tuples (member_id, member_name, embedding_array, model_id)
+        Delegates to :func:`load_person_gallery` — the matcher and the VLM
+        re-ID leg read the gallery through the SAME loader, so the
+        provenance rule can live in exactly one comparison function.
         """
-        result = []
-
-        # Query PersonEmbedding with eager loading of member relationship
-        stmt = select(PersonEmbedding).options(selectinload(PersonEmbedding.member))
-        query_result = await session.execute(stmt)
-        embeddings = query_result.scalars().all()
-
-        for person_embedding in embeddings:
-            if person_embedding.member is None:
-                continue
-
-            # Deserialize embedding from bytes to numpy array
-            try:
-                embedding_array = np.frombuffer(person_embedding.embedding, dtype=np.float32)
-                result.append(
-                    (
-                        person_embedding.member.id,
-                        person_embedding.member.name,
-                        embedding_array,
-                        person_embedding.model_id,
-                    )
-                )
-            except Exception as e:
-                logger.warning(
-                    "Failed to deserialize embedding for member %d: %s",
-                    person_embedding.member_id,
-                    str(e),
-                )
-
-        return result
+        return await load_person_gallery(session)
 
     async def _find_by_plate(self, plate: str, session: AsyncSession) -> RegisteredVehicle | None:
         """Find vehicle by license plate (case-insensitive).
@@ -706,21 +716,29 @@ def extract_person_embedding_with_provenance(
 
 
 def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
-    """Extract vehicle_visual embedding from enrichment_data.
+    """Extract a RETIRED ``vehicle_visual`` key from enrichment_data.
 
-    Reads the cached vehicle visual embedding from the enrichment_data
-    structure, enabling reuse across services without recomputing.
+    The full swap (ledger item 20) retired CLIP-as-embedding-producer, and
+    ``to_storage_dict`` no longer WRITES this key: a payload that still
+    carries it predates the swap and is unprovenanced — there is no belt
+    naming weights that no longer exist. Readers must NOT score these bytes
+    against anything: the vehicle gallery (``RegisteredVehicle.reid_embedding``)
+    has no production writer, so the comparison has nothing to match, and
+    shipping a vehicle re-ID model is a named follow-up (B5a). Kept so old
+    stored events decode; full removal of the CLIP-named payload keys
+    (``vehicle_visual``, ``face_clip``) rides with that follow-up.
 
     Args:
         enrichment_data: The enrichment_data dict from a Detection, or None.
 
     Returns:
-        List of floats representing the 768-dim CLIP embedding, or None if not available.
+        List of floats as stored (legacy 768-dim CLIP bytes), or None if not
+        present — never a scoreable vector in the shipped space.
 
     Example:
         enrichment_data = {
             "embeddings": {
-                "vehicle_visual": [0.3, 0.4, ...],  # 768-dim
+                "vehicle_visual": [0.3, 0.4, ...],  # legacy, do not score
             }
         }
         embedding = extract_vehicle_embedding(enrichment_data)
@@ -745,24 +763,17 @@ def extract_vehicle_embedding(enrichment_data: dict[str, Any] | None) -> list[fl
 
 
 def extract_face_embedding(enrichment_data: dict[str, Any] | None) -> list[float] | None:
-    """Extract face_clip embedding from enrichment_data.
+    """Extract a RETIRED ``face_clip`` key from enrichment_data.
 
-    Reads the cached face CLIP embedding from the enrichment_data
-    structure, enabling reuse across services without recomputing.
-
-    Args:
-        enrichment_data: The enrichment_data dict from a Detection, or None.
-
-    Returns:
-        List of floats representing the 768-dim CLIP embedding, or None if not available.
-
-    Example:
-        enrichment_data = {
-            "embeddings": {
-                "face_clip": [0.5, 0.6, ...],  # 768-dim
-            }
-        }
-        embedding = extract_face_embedding(enrichment_data)
+    Same posture as :func:`extract_vehicle_embedding`: the swap stopped
+    writing this CLIP-named key, and an entry that still carries it is
+    unprovenanced legacy bytes — face identity runs on the SHA-256-pinned
+    ArcFace/ONNX space (F12), and CLIP bytes have NEVER been comparable to
+    it, so nothing may score these against a face gallery. Kept so old
+    stored events decode; removal rides with the payload-key cleanup named
+    alongside the vehicle re-ID model. (The real face producer is
+    ``face_recognizer_loader.extract_face_embedding`` — a different
+    function with the same name.)
     """
     if enrichment_data is None:
         return None

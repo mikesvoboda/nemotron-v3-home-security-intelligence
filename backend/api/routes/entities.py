@@ -667,7 +667,9 @@ async def get_entity_matches(
     Args:
         detection_id: Detection ID to find matches for
         entity_type: Type of entity to search ('person' or 'vehicle')
-        threshold: Minimum cosine similarity threshold (default 0.85)
+        threshold: Minimum cosine similarity threshold (default
+            DEFAULT_SIMILARITY_THRESHOLD — 0.7, the OSNet-space value,
+            full swap ledger item 20)
         reid_service: Re-identification service dependency
 
     Returns:

@@ -27,13 +27,17 @@ Three rules dominate every function below:
    PROVISIONAL (F12): calibration on the owner's gallery/night footage is a
    Phase 2 item, with AdaFace (small/night challenger) and CR-FIQA (quality
    model) ledgered as later items, not built.
-3. **Honesty about vector spaces (F11 ruling 4 / F12).** The re-ID leg
-   refuses a cross-space score and says so (see ``collect_reid_text`` — the
-   store is CLIP-768, the resident Triton model is OSNet-512; a cosine across
-   them is noise, and numpy raises before it even gets that far). The face
-   leg enforces the same doctrine via model ids (``_gallery_model_ids``):
-   probe and gallery vectors from different weight builds never produce a
-   score, they produce "unavailable (re-enroll)".
+3. **Honesty about vector spaces (F11 ruling 4 / F12, closed by item 20).**
+   The re-ID leg probes with the resident OSNet-AIN x1.0 weights and scores
+   ONLY rows whose stored ``model_id`` equals the probe's
+   (``compare_person_vectors`` — the one place the rule lives). A gallery of
+   sentinel or foreign-id rows cannot answer and says
+   "unavailable (re-enroll)", never a score. The face leg enforces the same
+   doctrine via ``_gallery_model_ids``: probe and gallery vectors from
+   different weight builds never produce a score, they produce
+   "unavailable (re-enroll)". (Before the full swap the re-ID leg could only
+   refuse — store CLIP-768 vs resident OSNet-512 — and its line was a
+   standing apology; the swap made the line real.)
 
 Privacy (spec §6): texts carry names, percents, counts and plate strings
 only — never bytes, never paths. Face detection uses the F12 CPU leg
@@ -57,6 +61,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
@@ -108,13 +113,11 @@ def _unavailable_line(specialist: str, code: str, *, detail: str | None = None) 
     return _UNAVAILABLE_PHRASES.get(code, _UNAVAILABLE_DEFAULT_PHRASE)
 
 
-#: What the re-ID text says when the gallery and the probe live in different
-#: vector spaces. Deliberately not a number — see collect_reid_text.
-CROSS_SPACE_REASON = (
-    "household re-ID store is CLIP-768 space; the resident Triton reid model "
-    "is OSNet-512 — no cross-space score (ledgered follow-up: re-enroll in "
-    "one space or swap to PersonViT/CLIP-ReID, rev 7)"
-)
+#: (The full swap, ledger item 20, retired CROSS_SPACE_REASON: the store and
+#: the probe now share the ONE OSNet-AIN x1.0 space, so the leg computes real
+#: similarities. The honest refusal survives where it belongs — as the
+#: space_mismatch code inside collect_reid_text, driven by the gallery's and
+#: the probe's model ids, not by a module-level apology.)
 
 
 # ---------------------------------------------------------------------------
@@ -264,29 +267,29 @@ def plate_text(results: Sequence[Any], matches: Sequence[Any]) -> str:
 
 
 def reid_text(matches: Sequence[Any] | None, unavailable_reason: str | None) -> str:
-    """Honesty line first: a cross-space score would be a LIE, not a value.
+    """One line: match names + percents, the honest no-match sentence, or a
+    degradation phrase.
 
-    The household store (PersonEmbedding) holds CLIP-768 vectors
-    (reid_service.generate_embedding -> clip_client). The resident Triton
-    `reid` model is OSNet-512. Neither cosine is meaningful; numpy would
-    raise ValueError on the dot product before the result mattered. Until
-    the ledgered follow-up lands (re-enroll in one space, or swap the
-    incumbent for PersonViT/CLIP-ReID — rev 7 candidate), the line says only
-    that re-ID could not run. The engineering WHY — the sentence in
-    ``CROSS_SPACE_REASON`` — is true and worth keeping, but it is log/ledger
-    material, not prompt material (owner ruling 2026-09-26): a cosine is not
-    being withheld because of a opinion the model can act on, and the model
-    has no handle on "OSNet-512".
+    Real similarities ride this grammar since the full swap (ledger item
+    20) put the store and the probe in the ONE OSNet-AIN x1.0 space. The
+    score itself never comes from a bare number the stage invented: the
+    caller ran :func:`compare_person_vectors`, the one place the
+    same-space rule lives.
+
+    ``unavailable_reason`` (a human-readable WHY) stays LOG-ONLY material —
+    it reaches the log via :func:`_unavailable_line`'s ``detail``; the model
+    line stays the short model-facing phrase (owner ruling 2026-09-26:
+    prompt text is not a diagnostics channel).
     """
     if unavailable_reason:
         return _unavailable_line("person_reid", "unavailable", detail=unavailable_reason)
     if matches is None:
-        # Its own code, not the face leg's space_mismatch: the ACTION differs
-        # (the face mismatch says "re-enroll this person"; this one says the
-        # store itself must move to one space), and the model line is the
-        # plain default because "re-enroll" would be a hint the model cannot
-        # act on here.
-        return _unavailable_line("person_reid", "space_incomparable", detail=CROSS_SPACE_REASON)
+        # Its own code, not the face leg's space_mismatch wording borrowed:
+        # compare_person_vectors answers UNAVAILABLE_REENROLL when nothing
+        # in the gallery can be compared (sentinel rows, unprovenanced
+        # probe); the ACTION is re-enroll and that IS model-facing ("the
+        # household's person gallery is stale"), the ids behind it are not.
+        return _unavailable_line("person_reid", "space_mismatch")
     if not matches:
         return "no known-person re-ID matches"
     parts = []
@@ -607,26 +610,227 @@ class _PlateMatch:
 # ---------------------------------------------------------------------------
 
 
-async def collect_reid_text() -> str:
-    """F11 ruling 4 / F12: refuse the cross-space score, ledger the gap.
+async def collect_reid_text(
+    *,
+    frame_paths: Sequence[Any] = (),
+    detections: Sequence[Any] | None = None,
+    settings: Settings | None = None,
+    session: AsyncSession | None = None,
+    gallery: Any = None,
+) -> str:
+    """The person re-ID specialist's one line — a REAL probe since item 20.
 
-    The two candidate probe sources both fail the same-space test TODAY:
-    - the resident Triton `reid` model emits OSNet-512 (the residency set's
-      one GPU specialist); the household PersonEmbedding store holds
-      CLIP-768 vectors (generate_embedding -> clip_client) — numpy's dot
-      raises before a score even exists, and even padded it would be noise;
-    - reid_service.generate_embedding IS the store's space (CLIP-768), but
-      it requires a person crop per key frame (the YOLO26 detections' boxes
-      live in the analyzer's detections list, not passed here yet) and —
-      decisive for the ledger — the clip client's `/clip` router is RETIRED
-      in vlm residency, so in vlm mode it can't produce a probe at all.
+    Person crops from ``detections`` whose frame is among the selector's
+    picks (``frame_paths``) are embedded with the resident OSNet-AIN x1.0
+    handle and compared against the household gallery by
+    :func:`compare_person_vectors` — the one place the same-space rule
+    lives, shared with the DB matcher. Outcomes map to the grammar in
+    :func:`reid_text`:
 
-    So the honest line is the space-gap sentence. The day the store is
-    re-enrolled in one space (or swapped to PersonViT/CLIP-ReID, rev 7),
-    this function learns to probe + match + report real similarities, and
-    the sentence goes away — pinned by test to say exactly what's missing.
+    * a comparable gallery with no one over threshold → "no known-person
+      re-ID matches" (a real observation the VLM may act on);
+    * a best row per matched member → the match line with the real percent;
+    * sentinel / foreign-id rows only, or a probe that never named its
+      weights → "unavailable (re-enroll)" (code ``space_mismatch``), never a
+      number;
+    * weights absent (preload off / deploy without the zoo) → the default
+      phrase with code ``weights_absent``;
+    * nothing to look at (no person crops among the picks) → code
+      ``no_frames``, which is "the specialist did not run", NOT "nobody is
+      home".
+
+    ``gallery`` is injectable for tests (async (session) → rows); the
+    default is :func:`load_person_gallery`, the same loader the DB matcher
+    reads. ``session=None`` (no DB) means the gallery cannot answer, and the
+    honest line is unavailable — NOT "no matches", which would tell the VLM
+    nobody the household knows is present. Never raises: every failure path
+    lands on a degradation line (spec §6).
     """
-    return reid_text(matches=None, unavailable_reason=CROSS_SPACE_REASON)
+    try:
+        return await _collect_reid_text(
+            frame_paths=frame_paths,
+            detections=detections,
+            settings=settings,
+            session=session,
+            gallery=gallery,
+        )
+    except Exception as e:  # the stage's contract: degrade, never raise
+        logger.warning("person_reid specialist failed", exc_info=True)
+        return _unavailable_line("person_reid", "leg_failed", detail=str(e))
+
+
+async def _collect_reid_text(  # noqa: PLR0911 - one return per leg state is the pinned shape (no_frames/no_person_crops/weights_absent/no_session/space_mismatch/extraction_failed/no_gallery/match-or-none)
+    *,
+    frame_paths: Sequence[Any],
+    detections: Sequence[Any] | None,
+    settings: Settings | None,
+    session: AsyncSession | None,
+    gallery: Any,
+) -> str:
+    import numpy as np
+
+    from backend.core.vector_provenance import LEGACY_MODEL_ID
+    from backend.services import osnet_loader
+    from backend.services.household_matcher import (
+        PersonMatchOutcome,
+        compare_person_vectors,
+        get_household_matcher,
+    )
+
+    picks = set(_face_frames(frame_paths))
+    crops = _person_crops(detections, picks)
+    if not crops:
+        # Nothing to look at: the leg did not run (no_frames), and an empty
+        # gallery question is never "no matches" (that's an observation).
+        return _unavailable_line(
+            "person_reid",
+            "no_frames" if not picks else "no_person_crops",
+            detail="no person detection among the selected key frames",
+        )
+
+    handle = osnet_loader.get_reid_handle()
+    if handle is None:
+        return _unavailable_line(
+            "person_reid",
+            "weights_absent",
+            detail=f"{osnet_loader.OSNET_ZOO_NAME} not loaded (BACKEND_MODEL_PRELOAD / models.yml)",
+        )
+    # The probe's belt is the HANDLE's own string — never the catalog's
+    # claim (B5's rule, pinned in the producer suite).
+    probe_model_id = handle.get("model_id") or LEGACY_MODEL_ID
+
+    if session is None:
+        return _unavailable_line(
+            "person_reid",
+            "no_session",
+            detail="no DB session for the person gallery",
+        )
+
+    rows = await (gallery or _default_person_gallery)(session)
+
+    threshold = (
+        settings.reid_similarity_threshold
+        if settings is not None
+        else get_household_matcher().similarity_threshold
+    )
+
+    best_by_member: dict[int | None, Any] = {}
+    outcome_seen: PersonMatchOutcome | None = None
+    probed = 0
+    for image, det_id in crops:
+        try:
+            result = await osnet_loader.extract_person_embedding(handle, image)
+        except Exception:
+            # one bad crop must not kill the leg over the crops that worked
+            logger.warning("person_reid crop failed", exc_info=True, extra={"det_id": det_id})
+            continue
+        probed += 1
+        probe = np.asarray(result.embedding, dtype=np.float32)
+        # The handle's belt wins; a handle that named nothing stays the
+        # sentinel, which compare_person_vectors refuses to score.
+        belt = result.model_id or probe_model_id
+        comparison = compare_person_vectors(probe, belt, rows, threshold=threshold)
+        outcome_seen = comparison.outcome
+        if comparison.outcome is PersonMatchOutcome.MATCH and comparison.match is not None:
+            # member_id is Optional on the dataclass; the None arm is a
+            # match that names nobody, so it can only update under its
+            # own None key, never claim a member's slot.
+            key = comparison.match.member_id
+            prev = best_by_member.get(key)
+            if prev is None or comparison.match.similarity > prev.similarity:
+                best_by_member[key] = comparison.match
+        if comparison.outcome is PersonMatchOutcome.UNAVAILABLE_REENROLL:
+            # A gallery that cannot answer is decided once — the reason is
+            # the same for every probe, so it wins over any crop's NO_MATCH.
+            return _unavailable_line(
+                "person_reid",
+                "space_mismatch",
+                detail=f"{comparison.skipped} gallery rows not comparable to the probe space",
+            )
+
+    if probed == 0:
+        # Every crop failed — "no matches" would report an observation the
+        # leg never made. The failures were each logged; the count rides the
+        # detail.
+        return _unavailable_line(
+            "person_reid",
+            "extraction_failed",
+            detail=f"all {len(crops)} person crop extractions failed",
+        )
+    if outcome_seen is PersonMatchOutcome.NO_GALLERY:
+        # Never enrolled at all: "no matches" would read as "a stranger is
+        # outside", which is exactly the false alarm the rule exists to stop.
+        return _unavailable_line(
+            "person_reid", "no_gallery", detail="household has no stored person vectors"
+        )
+    return reid_text(list(best_by_member.values()), None)
+
+
+def _person_crops(detections: Sequence[Any] | None, picks: set[str]) -> list[tuple[Any, str]]:
+    """(cropped image, detection id) for person detections among ``picks``.
+
+    Duck-typed like the face leg: detection dicts (the analyzer's shape) or
+    objects. Frames outside the selector's picks are skipped, so the line
+    describes exactly the frames the VLM sees. A file that cannot be read
+    yields nothing for that detection — an unreadable frame is not a
+    finding.
+    """
+    from PIL import Image
+
+    out: list[tuple[Any, str]] = []
+    for det in detections or ():
+        if (
+            det.get("object_type") if isinstance(det, dict) else getattr(det, "object_type", None)
+        ) != "person":
+            continue
+        path = det.get("file_path") if isinstance(det, dict) else getattr(det, "file_path", None)
+        if not path or (picks and path not in picks):
+            continue
+        det_id = str(det.get("id") if isinstance(det, dict) else getattr(det, "id", ""))
+        try:
+            frame = Image.open(path)
+            frame.load()
+        except OSError, ValueError:
+            continue
+        crop = _bbox_crop(frame, det)
+        if crop is not None:
+            out.append((crop, det_id))
+    return out
+
+
+def _bbox_crop(frame: Any, det: Any) -> Any | None:
+    """Crop the detection's box, clamped to the frame (never a raise).
+
+    The producer validates the same way (reid_service's NEM-1073 block);
+    here an invalid box just means no probe for that detection — the leg
+    must not die over one bad YOLO box.
+    """
+    from backend.services.bbox_validation import validate_and_clamp_bbox
+
+    def _num(key: str, attr: str) -> Any:
+        return det.get(key) if isinstance(det, dict) else getattr(det, attr, None)
+
+    try:
+        x, y = float(_num("bbox_x", "bbox_x")), float(_num("bbox_y", "bbox_y"))
+        w, h = float(_num("bbox_width", "bbox_width")), float(_num("bbox_height", "bbox_height"))
+    except TypeError, ValueError:
+        return None
+    if not all(math.isfinite(v) for v in (x, y, w, h)):  # NaN/inf guard, local
+        return None
+    width, height = frame.size
+    box = (x, y, x + w, y + h)
+    result = validate_and_clamp_bbox(box, width, height)
+    if not result.is_valid or result.clamped_bbox is None:
+        return None
+    x1, y1, x2, y2 = result.clamped_bbox
+    crop = frame.crop((int(x1), int(y1), int(x2), int(y2)))
+    return crop.convert("RGB") if crop.mode != "RGB" else crop
+
+
+async def _default_person_gallery(session: AsyncSession) -> list[Any]:
+    from backend.services.household_matcher import load_person_gallery
+
+    return await load_person_gallery(session)
 
 
 # ---------------------------------------------------------------------------
@@ -649,7 +853,7 @@ async def collect_specialist_outputs(
     *,
     key_frame_paths: Sequence[Any],
     settings: Settings,
-    detections: Sequence[Any] | None = None,  # noqa: ARG001 - re-ID crop carrier
+    detections: Sequence[Any] | None = None,
     session: AsyncSession | None = None,
     face_gallery: Any = None,
     run_threat: bool = False,
@@ -657,17 +861,17 @@ async def collect_specialist_outputs(
     """One short text per specialist, over the selector's picks.
 
     ``key_frame_paths`` are FrameRefs from key_frame_selector (duck-typed
-    .file_path); plain paths work too. ``detections`` is accepted (and
-    future-consumed by the re-ID crop path) but unused by the three legs
-    today — face detects its own crops, plates OCR whole frames. Runs
-    concurrently; every leg self-degrades (they each catch their own world)
-    and the gather wraps one more belt so even a bug here cannot fail the
-    batch — the absolute floor is all-unavailable keys.
+    .file_path); plain paths work too. ``detections`` carries the person
+    crops the re-ID leg probes (since the full swap, item 20); face detects
+    its own crops, plates OCR whole frames. Runs concurrently; every leg
+    self-degrades (they each catch their own world) and the gather wraps one
+    more belt so even a bug here cannot fail the batch — the absolute floor
+    is all-unavailable keys.
 
-    ``session`` is the analyzer's session-1: the face leg needs it for the
-    gallery; the plate/re-ID legs do not. (The stage runs BEFORE the VLM
-    call but inside the read phase, so this doesn't stretch the session
-    across the 25 s read budget.)
+    ``session`` is the analyzer's session-1: the face and re-ID legs need it
+    for their galleries; the plate leg opens its own. (The stage runs BEFORE
+    the VLM call but inside the read phase, so this doesn't stretch the
+    session across the 25 s read budget.)
 
     ``run_threat`` exists so the rev-7 weapon-hint slot has a wiring point
     without shipping the detector: when True and a backend threat consumer
@@ -680,7 +884,12 @@ async def collect_specialist_outputs(
         session=session,
     )
     plates_task = collect_plate_text(frame_paths=key_frame_paths)
-    reid_task = collect_reid_text()
+    reid_task = collect_reid_text(
+        frame_paths=key_frame_paths,
+        detections=detections,
+        settings=settings,
+        session=session,
+    )
     tasks = {"faces": faces_task, "plates": plates_task, "person_reid": reid_task}
     if run_threat:
         tasks["threat"] = collect_threat_text(frame_paths=key_frame_paths)

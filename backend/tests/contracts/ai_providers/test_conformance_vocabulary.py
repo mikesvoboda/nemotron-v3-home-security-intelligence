@@ -664,16 +664,17 @@ class TestV3ThreeNames:
         src = (REPO_ROOT / "backend/services/enrichment_pipeline.py").read_text(encoding="utf-8")
         lines = src.splitlines()
         # Re-keyed 2026-09-26 by the re-ID full swap's enrichment_pipeline
-        # edits (:3942 -> :3955, :5196 -> :5214) — the split itself is
-        # unchanged. Same precedent as the eval_store 295 -> 300 re-key
-        # (ledger item 14): a canary that fired on drift re-arms at its new
-        # line, it does not relax.
+        # edits (:3942 -> :3955, :5196 -> :5214), re-keyed again the same day
+        # by the swap's Slice B/C producer+leg edits (:3955 -> :3961,
+        # :5214 -> :5220) — the split itself is unchanged. Same precedent as
+        # the eval_store 295 -> 300 re-key (ledger item 14): a canary that
+        # fired on drift re-arms at its new line, it does not relax.
         assert re.search(
-            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3954]
-        ), f":3955 drifted: {lines[3954]!r}"
+            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3960]
+        ), f":3961 drifted: {lines[3960]!r}"
         assert re.search(
-            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5213]
-        ), f":5214 drifted: {lines[5213]!r}"
+            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5219]
+        ), f":5220 drifted: {lines[5219]!r}"
 
     async def test_V3_threat_rows_carry_no_canonical_name_at_all(self, fake_client) -> None:
         """V3 consequence, drivable: the fake's threat rows

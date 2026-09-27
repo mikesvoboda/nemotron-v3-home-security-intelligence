@@ -137,7 +137,7 @@ disable them if you’re resource constrained or running without those services.
 | Variable                    | Required | Default | Description                               |
 | --------------------------- | -------- | ------- | ----------------------------------------- |
 | `VISION_EXTRACTION_ENABLED` | No       | `true`  | Enable Florence-2 based vision extraction |
-| `REID_ENABLED`              | No       | `true`  | Enable CLIP-based re-identification       |
+| `REID_ENABLED`              | No       | `true`  | Enable OSNet-AIN person re-identification |
 | `SCENE_CHANGE_ENABLED`      | No       | `true`  | Enable scene change detection             |
 
 ### Florence Feature Toggles
@@ -152,11 +152,13 @@ disable them if you’re resource constrained or running without those services.
 
 | Variable                       | Required | Default | Range   | Description                              |
 | ------------------------------ | -------- | ------- | ------- | ---------------------------------------- |
-| `REID_SIMILARITY_THRESHOLD`    | No       | `0.85`  | 0.5-1.0 | Cosine similarity threshold for matching |
+| `REID_SIMILARITY_THRESHOLD`    | No       | `0.7`   | 0.5-1.0 | Cosine similarity threshold for matching |
 | `REID_TTL_HOURS`               | No       | `24`    | 1-168   | Redis TTL for embeddings                 |
 | `REID_MAX_CONCURRENT_REQUESTS` | No       | `10`    | 1-100   | Max concurrent re-ID operations          |
 | `REID_EMBEDDING_TIMEOUT`       | No       | `30.0`  | 5-120s  | Timeout for ReID embedding generation    |
 | `SCENE_CHANGE_THRESHOLD`       | No       | `0.90`  | 0.5-1.0 | SSIM threshold (below = change detected) |
+
+> **Note:** `REID_SIMILARITY_THRESHOLD` is tuned to the OSNet-AIN x1.0 person-vector space (512-d); the CLIP-era `0.85` would drop every legitimate OSNet match. The `0.7` default is PROVISIONAL pending calibration against real household galleries.
 
 ### Image Quality Assessment
 

@@ -1183,7 +1183,7 @@ Webhook receivers for external monitoring systems (primarily Alertmanager).
 
 ### `entities.py`
 
-Entity re-identification tracking across multiple cameras using CLIP embeddings.
+Entity re-identification tracking across multiple cameras using OSNet-AIN x1.0 person embeddings (512-dim, `model_id` provenance).
 
 **Router prefix:** `/api/entities`
 

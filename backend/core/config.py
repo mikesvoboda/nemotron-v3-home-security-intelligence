@@ -1496,7 +1496,7 @@ class Settings(BaseSettings):
     )
     clip_url: str = Field(
         default="http://ai-gateway:8090/clip",
-        description="CLIP embedding service URL for re-identification. Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
+        description="CLIP (SigLIP 2) embedding service URL for scene classification, threat-description matching, and scene-baseline embeddings; person re-ID vectors come from the resident OSNet-AIN x1.0 handle (full swap, ledger item 20). Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
     )
     enrichment_url: str = Field(
         default="http://ai-gateway:8090/enrichment",
@@ -1775,7 +1775,7 @@ class Settings(BaseSettings):
                 f"Example: 'http://localhost:8090/florence'. Error: {e}"
             ) from None
 
-    # Vision extraction settings (Florence-2, CLIP re-id, scene analysis)
+    # Vision extraction settings (Florence-2, OSNet re-id, scene analysis)
     vision_extraction_enabled: bool = Field(
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
@@ -1808,17 +1808,21 @@ class Settings(BaseSettings):
     )
     reid_enabled: bool = Field(
         default=True,
-        description="Enable CLIP re-identification for tracking entities across cameras",
+        description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking "
+        "people across cameras",
     )
     scene_change_enabled: bool = Field(
         default=True,
         description="Enable SSIM-based scene change detection",
     )
     reid_similarity_threshold: float = Field(
-        default=0.85,
+        default=0.7,
         ge=0.5,
         le=1.0,
-        description="Cosine similarity threshold for re-identification matching (0.5-1.0)",
+        description="Cosine similarity threshold for re-identification matching (0.5-1.0). "
+        "Default 0.7 matches the OSNet-AIN x1.0 vector space (the CLIP-era 0.85 would drop "
+        "every legitimate OSNet match). PROVISIONAL - calibrate against real household "
+        "galleries, same as the face thresholds.",
     )
     reid_ttl_hours: int = Field(
         default=24,
@@ -1832,14 +1836,14 @@ class Settings(BaseSettings):
         le=100,
         description="Maximum concurrent re-identification operations (embedding generation, "
         "storage, and matching). Prevents resource exhaustion from too many simultaneous "
-        "CLIP/Redis operations. Recommended: 5-20 depending on hardware.",
+        "OSNet inference/Redis operations. Recommended: 5-20 depending on hardware.",
     )
     reid_embedding_timeout: float = Field(
         default=30.0,
         ge=5.0,
         le=120.0,
         description="Timeout (seconds) for ReID embedding generation operations. "
-        "Prevents hanging when CLIP service is slow or unresponsive. Default: 30.0 seconds.",
+        "Prevents hanging when OSNet inference is slow or unresponsive. Default: 30.0 seconds.",
     )
     reid_max_retries: int = Field(
         default=3,

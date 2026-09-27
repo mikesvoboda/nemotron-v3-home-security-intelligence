@@ -2,7 +2,7 @@
 
 Tests cover:
 - ReIdentificationService initialization
-- Feature extraction via CLIP client
+- Feature extraction via the resident OSNet handle (osnet_loader seam)
 - Cosine similarity calculations
 - Redis storage and retrieval of embeddings
 - Entity matching with similarity thresholds
@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from PIL import Image
 
-from backend.services.clip_client import CLIPUnavailableError
 from backend.services.reid_service import (
     DEFAULT_SIMILARITY_THRESHOLD,
     EMBEDDING_DIMENSION,
@@ -28,6 +27,7 @@ from backend.services.reid_service import (
     EntityEmbedding,
     EntityMatch,
     ReIdentificationService,
+    ReIDUnavailableError,
     batch_cosine_similarity,
     clean_vqa_output,
     cosine_similarity,
@@ -490,36 +490,37 @@ class TestBatchCosineSimilarity:
 
 
 class TestReIdentificationServiceInit:
-    """Tests for ReIdentificationService initialization."""
+    """Tests for ReIdentificationService initialization.
 
-    def test_init_without_clip_client(self) -> None:
-        """Test initialization without providing clip_client."""
+    The swap (ledger item 20) retired the CLIP seam entirely: there is no
+    client to inject, so init is now about the operational knobs (the
+    rate/timeout/retry config, whose value-pins live in their own classes)
+    and the absence of any injected producer.
+    """
+
+    def test_init_takes_no_producer_injection(self) -> None:
+        """No clip_client parameter anymore — the producer is read from
+        the zoo handle at call time, never held by the service."""
+        import inspect
+
+        params = inspect.signature(ReIdentificationService.__init__).parameters
+        assert "clip_client" not in params
         service = ReIdentificationService()
-        assert service._clip_client is None
+        assert not hasattr(service, "_clip_client")
+        assert not hasattr(service, "clip_client")
 
-    def test_init_with_clip_client(self) -> None:
-        """Test initialization with custom clip_client."""
-        mock_client = MagicMock()
-        service = ReIdentificationService(clip_client=mock_client)
-        assert service._clip_client is mock_client
-
-    def test_clip_client_property_returns_provided_client(self) -> None:
-        """Test clip_client property returns provided client."""
-        mock_client = MagicMock()
-        service = ReIdentificationService(clip_client=mock_client)
-        assert service.clip_client is mock_client
-
-    @patch("backend.services.reid_service.get_clip_client", autospec=True)
-    def test_clip_client_property_gets_global_client(self, mock_get_client: MagicMock) -> None:
-        """Test clip_client property gets global client when none provided."""
-        mock_global_client = MagicMock()
-        mock_get_client.return_value = mock_global_client
-
+    def test_init_applies_settings_defaults(self) -> None:
+        """The fixture settings (10 / 30.0 / 3) flow through."""
         service = ReIdentificationService()
-        client = service.clip_client
+        assert service.max_concurrent_requests == 10
 
-        mock_get_client.assert_called_once()
-        assert client is mock_global_client
+    def test_init_respects_explicit_knobs(self) -> None:
+        service = ReIdentificationService(
+            max_concurrent_requests=3, embedding_timeout=5.0, max_retries=1
+        )
+        assert service.max_concurrent_requests == 3
+        assert service._embedding_timeout == 5.0
+        assert service._max_retries == 1
 
 
 # =============================================================================
@@ -527,76 +528,210 @@ class TestReIdentificationServiceInit:
 # =============================================================================
 
 
+_DEFAULT_HANDLE = object()
+
+
+def _install_osnet_seam(monkeypatch, handle=_DEFAULT_HANDLE, extract=None):
+    """Route the producer through a fake osnet_loader seam.
+
+    The swap made reid_service call osnet_loader VIA THE MODULE
+    (osnet_loader.get_reid_handle / osnet_loader.extract_person_embedding),
+    so the seams are monkeypatched as module attributes — the same posture
+    the provenance suite pins. ``handle=None`` means genuinely ABSENT
+    (weights not resident); omitting it installs a default belted handle.
+    """
+    import backend.services.osnet_loader as ol
+
+    if handle is _DEFAULT_HANDLE:
+        handle = {"model": MagicMock(), "transform": MagicMock(), "model_id": TEST_MODEL}
+    monkeypatch.setattr(ol, "get_reid_handle", lambda: handle)
+    if extract is not None:
+        monkeypatch.setattr(ol, "extract_person_embedding", extract)
+    return handle
+
+
+class ExtractDouble:
+    """A double for ``osnet_loader.extract_person_embedding``.
+
+    ``behavior`` is an async ``f(image) -> vector`` (it may raise). The
+    double adds the handle/belt plumbing so the tests drive only what they
+    care about — the same posture the old ``mock_client.embed`` held, and
+    ``call_count`` replaces ``mock_client.embed.call_count``.
+    """
+
+    def __init__(self, behavior) -> None:
+        self._behavior = behavior
+        self.call_count = 0
+        self.calls: list = []
+
+    async def __call__(self, model_dict, image, detection_id=None):
+        import numpy as np
+
+        from backend.services.osnet_loader import PersonEmbeddingResult
+
+        self.call_count += 1
+        self.calls.append((model_dict, image))
+        vector = await self._behavior(image)
+        return PersonEmbeddingResult(
+            embedding=np.array(vector, dtype=np.float32),
+            detection_id=detection_id,
+            model_id=model_dict.get("model_id"),
+        )
+
+
+def _install_extract(monkeypatch, double: ExtractDouble) -> ExtractDouble:
+    """Install a resident handle and ``double`` as the extract seam."""
+    import backend.services.osnet_loader as ol
+
+    monkeypatch.setattr(ol, "extract_person_embedding", double)
+    return double
+
+
+def _returns(vector):
+    async def _behavior(image):
+        return vector
+
+    return _behavior
+
+
 class TestGenerateEmbedding:
-    """Tests for ReIdentificationService.generate_embedding method."""
+    """Tests for ReIdentificationService.generate_embedding (OSNet producer)."""
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_success(self) -> None:
-        """Test successful embedding generation."""
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+    async def test_generate_embedding_success(self, monkeypatch) -> None:
+        """Resident handle -> (512-d vector, belt)."""
+        handle = _install_osnet_seam(monkeypatch)
+        extract = _install_extract(
+            monkeypatch, ExtractDouble(_returns([0.1] * EMBEDDING_DIMENSION))
+        )
 
-        service = ReIdentificationService(clip_client=mock_client)
+        service = ReIdentificationService()
         image = Image.new("RGB", (100, 100), color="red")
 
-        embedding = await service.generate_embedding(image)
+        embedding, belt = await service.generate_embedding(image)
 
         assert len(embedding) == EMBEDDING_DIMENSION
-        mock_client.embed.assert_called_once_with(image)
+        assert belt == TEST_MODEL
+        # the HANDLED dict is passed straight through — no stale copy
+        assert extract.calls == [(handle, image)]
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_with_bbox(self) -> None:
-        """Test embedding generation with bounding box crop."""
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.5] * EMBEDDING_DIMENSION
+    async def test_generate_embedding_returns_json_safe_native_floats(self, monkeypatch) -> None:
+        """The producer's vector must be JSON-serializable (found by the
+        swap's real-bytes driver, ledger item 20).
 
-        service = ReIdentificationService(clip_client=mock_client)
+        ``osnet_loader`` hands back a numpy ``float32`` array, so a plain
+        ``list()`` of it yields numpy scalars — and ``store_embedding``
+        serializes the payload with ``json.dumps`` for its atomic Lua write
+        (NEM-4474), which raises ``TypeError: Object of type float32 is not
+        JSON serializable``. The retired CLIP producer never met this because
+        its vector arrived JSON-decoded from HTTP, already native floats —
+        so the store path only discovered the assumption when the producer
+        became local OSNet inference. The doubles here build a REAL numpy
+        array (``ExtractDouble``), which is what makes this pin meaningful
+        rather than circular.
+        """
+        _install_osnet_seam(monkeypatch)
+        _install_extract(monkeypatch, ExtractDouble(_returns([0.1] * EMBEDDING_DIMENSION)))
+
+        service = ReIdentificationService()
+        embedding, _belt = await service.generate_embedding(Image.new("RGB", (64, 128)))
+
+        assert all(type(v) is float for v in embedding), (
+            "producer returned a non-native float — the store path's "
+            "json.dumps cannot serialize numpy scalars"
+        )
+        # The exact consumer that failed in the field.
+        json.dumps({"embedding": embedding})
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_with_bbox(self, monkeypatch) -> None:
+        """bbox crop happens before extraction (NEM-1073 crop path kept)."""
+        _install_osnet_seam(monkeypatch)
+        extract = _install_extract(
+            monkeypatch, ExtractDouble(_returns([0.5] * EMBEDDING_DIMENSION))
+        )
+
+        service = ReIdentificationService()
         image = Image.new("RGB", (200, 200), color="blue")
 
-        embedding = await service.generate_embedding(image, bbox=(50, 50, 150, 150))
+        embedding, _belt = await service.generate_embedding(image, bbox=(50, 50, 150, 150))
 
         assert len(embedding) == EMBEDDING_DIMENSION
-        # Verify embed was called with a cropped image
-        called_image = mock_client.embed.call_args[0][0]
+        # extraction received the CROPPED image
+        _handle, called_image = extract.calls[0]
         assert called_image.size == (100, 100)
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_deprecated_model_param(self) -> None:
-        """Test that model parameter logs a warning but works."""
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+    async def test_generate_embedding_belt_from_handle_not_catalog(self, monkeypatch) -> None:
+        """The belt is the handle's string — a hand-deployed different
+        weights file labels with its own id, never the catalog's claim."""
+        other = "osnet-ain-x1-0@other_weights.pth@deadbeef0000"
+        handle = {
+            "model": MagicMock(),
+            "transform": MagicMock(),
+            "model_id": other,
+        }
+        _install_osnet_seam(monkeypatch, handle=handle)
+        _install_extract(monkeypatch, ExtractDouble(_returns([0.2] * EMBEDDING_DIMENSION)))
 
-        service = ReIdentificationService(clip_client=mock_client)
-        image = Image.new("RGB", (100, 100), color="green")
-
-        with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
-            embedding = await service.generate_embedding(image, model={"some": "model"})
-
-            mock_logger.warning.assert_called()
-            assert "deprecated" in str(mock_logger.warning.call_args).lower()
-
-        assert len(embedding) == EMBEDDING_DIMENSION
+        service = ReIdentificationService()
+        _emb, belt = await service.generate_embedding(Image.new("RGB", (32, 64)))
+        assert belt == other
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_clip_unavailable(self) -> None:
-        """Test embedding generation when CLIP service is unavailable."""
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = CLIPUnavailableError("Service down")
+    async def test_generate_embedding_beltless_handle_decodes_to_sentinel(
+        self, monkeypatch
+    ) -> None:
+        """A handle dict that never named itself is the sentinel state —
+        said as the sentinel (F11), never laundered into the live space."""
+        import numpy as np
 
-        service = ReIdentificationService(clip_client=mock_client)
+        from backend.core.vector_provenance import LEGACY_MODEL_ID
+        from backend.services.osnet_loader import PersonEmbeddingResult
+
+        handle = {"model": MagicMock(), "transform": MagicMock()}  # no model_id
+        _install_osnet_seam(monkeypatch, handle=handle)
+
+        async def _extract(model_dict, image, detection_id=None):
+            return PersonEmbeddingResult(
+                embedding=np.ones(512, dtype=np.float32),
+                detection_id=detection_id,
+                model_id=None,
+            )
+
+        monkeypatch.setattr("backend.services.osnet_loader.extract_person_embedding", _extract)
+
+        service = ReIdentificationService()
+        _emb, belt = await service.generate_embedding(Image.new("RGB", (32, 64)))
+        assert belt == LEGACY_MODEL_ID
+        assert "@" not in belt  # the sentinel is @-free by construction
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_reid_unavailable(self, monkeypatch) -> None:
+        """No resident handle -> ReIDUnavailableError naming the zoo row."""
+        _install_osnet_seam(monkeypatch, handle=None)
+
+        service = ReIdentificationService()
         image = Image.new("RGB", (100, 100), color="yellow")
 
-        with pytest.raises(CLIPUnavailableError):
+        with pytest.raises(ReIDUnavailableError, match="osnet-ain-x1-0"):
             await service.generate_embedding(image)
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_generate_embedding_generic_error(self, mock_sleep: AsyncMock) -> None:
-        """Test embedding generation with generic error raises RuntimeError."""
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = ValueError("Some error")
+    async def test_generate_embedding_generic_error(
+        self, mock_sleep: AsyncMock, monkeypatch
+    ) -> None:
+        """Extraction failure exhausts retries -> RuntimeError."""
+        _install_osnet_seam(monkeypatch)
 
-        service = ReIdentificationService(clip_client=mock_client)
+        async def _boom(model_dict, image, detection_id=None):
+            raise ValueError("Some error")
+
+        monkeypatch.setattr("backend.services.osnet_loader.extract_person_embedding", _boom)
+
+        service = ReIdentificationService()
         image = Image.new("RGB", (100, 100), color="purple")
 
         with pytest.raises(RuntimeError) as exc_info:
@@ -2000,8 +2135,14 @@ class TestConstants:
         assert EMBEDDING_TTL_SECONDS == 86400  # 24 * 60 * 60
 
     def test_default_similarity_threshold(self) -> None:
-        """Test DEFAULT_SIMILARITY_THRESHOLD value."""
-        assert DEFAULT_SIMILARITY_THRESHOLD == 0.85
+        """The DEFAULT_SIMILARITY_THRESHOLD is the OSNet-space default.
+
+        0.7 is the value ``osnet_loader.match_person_embeddings`` ships
+        (D-2, confirmed 2026-09-26): a CLIP-tuned 0.85 would silently drop
+        every legitimate OSNet match. PROVISIONAL until calibration against
+        real household galleries (same note as the face thresholds).
+        """
+        assert DEFAULT_SIMILARITY_THRESHOLD == 0.7
 
     def test_embedding_dimension(self) -> None:
         """Test EMBEDDING_DIMENSION is 512 for OSNet-AIN x1.0.
@@ -2045,21 +2186,30 @@ class TestRateLimitingBehavior:
     """Tests for rate limiting behavior in ReIdentificationService operations."""
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_respects_rate_limit(self) -> None:
+    async def test_generate_embedding_respects_rate_limit(self, monkeypatch) -> None:
         """Test that generate_embedding operations are rate limited."""
         import asyncio
 
-        mock_client = AsyncMock()
+        # Add a small delay to the OSNet extraction seam to simulate
+        # inference time (the semaphore wraps the extraction, NEM-1085)
+        _install_osnet_seam(monkeypatch)
 
-        # Add a small delay to simulate processing time
-        async def slow_embed(image: Image.Image) -> list[float]:
+        async def slow_extract(model_dict, image, detection_id=None):
             await asyncio.sleep(0.1)
-            return [0.1] * EMBEDDING_DIMENSION
+            import numpy as np
 
-        mock_client.embed.side_effect = slow_embed
+            from backend.services.osnet_loader import PersonEmbeddingResult
+
+            return PersonEmbeddingResult(
+                embedding=np.ones(EMBEDDING_DIMENSION, dtype=np.float32),
+                detection_id=detection_id,
+                model_id=model_dict["model_id"],
+            )
+
+        monkeypatch.setattr("backend.services.osnet_loader.extract_person_embedding", slow_extract)
 
         # Create service with max 2 concurrent requests
-        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=2)
+        service = ReIdentificationService(max_concurrent_requests=2)
         image = Image.new("RGB", (100, 100), color="red")
 
         # Launch 5 concurrent requests
@@ -2145,15 +2295,15 @@ class TestRateLimitingBehavior:
         assert elapsed >= 0.15, f"Rate limiting not effective, elapsed: {elapsed}s"
 
     @pytest.mark.asyncio
-    async def test_rate_limit_does_not_block_when_under_limit(self) -> None:
+    async def test_rate_limit_does_not_block_when_under_limit(self, monkeypatch) -> None:
         """Test that requests proceed immediately when under the rate limit."""
         import asyncio
 
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+        _install_osnet_seam(monkeypatch)
+        _install_extract(monkeypatch, ExtractDouble(_returns([0.1] * EMBEDDING_DIMENSION)))
 
         # High limit, should not block
-        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=100)
+        service = ReIdentificationService(max_concurrent_requests=100)
         image = Image.new("RGB", (100, 100), color="blue")
 
         start_time = asyncio.get_running_loop().time()
@@ -2192,14 +2342,23 @@ class TestRateLimitingEdgeCases:
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_rate_limit_released_on_exception(self, mock_sleep: AsyncMock) -> None:
+    async def test_rate_limit_released_on_exception(
+        self, mock_sleep: AsyncMock, monkeypatch
+    ) -> None:
         """Test that semaphore is released even when operation raises exception."""
         import asyncio
 
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = RuntimeError("Test error")
+        _install_osnet_seam(monkeypatch)
+        state = {"fail": True}
 
-        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=1)
+        async def _behavior(image):
+            if state["fail"]:
+                raise RuntimeError("Test error")
+            return [0.1] * EMBEDDING_DIMENSION
+
+        _install_extract(monkeypatch, ExtractDouble(_behavior))
+
+        service = ReIdentificationService(max_concurrent_requests=1)
         image = Image.new("RGB", (100, 100), color="green")
 
         # First request should fail but release semaphore
@@ -2207,25 +2366,24 @@ class TestRateLimitingEdgeCases:
             await service.generate_embedding(image)
 
         # Second request should not be blocked (semaphore was released)
-        mock_client.embed.side_effect = None
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+        state["fail"] = False
 
         # This should complete without hanging
         async with asyncio.timeout(1.0):
-            result = await service.generate_embedding(image)
+            result, _belt = await service.generate_embedding(image)
             assert len(result) == EMBEDDING_DIMENSION
 
     @pytest.mark.asyncio
-    async def test_concurrent_operations_stay_within_limit(self) -> None:
+    async def test_concurrent_operations_stay_within_limit(self, monkeypatch) -> None:
         """Test that concurrent operations never exceed the configured limit."""
         import asyncio
 
-        mock_client = AsyncMock()
+        _install_osnet_seam(monkeypatch)
         concurrent_count = 0
         max_observed_concurrent = 0
         lock = asyncio.Lock()
 
-        async def tracking_embed(image: Image.Image) -> list[float]:
+        async def tracking_behavior(image: Image.Image) -> list[float]:
             nonlocal concurrent_count, max_observed_concurrent
             async with lock:
                 concurrent_count += 1
@@ -2235,9 +2393,9 @@ class TestRateLimitingEdgeCases:
                 concurrent_count -= 1
             return [0.1] * EMBEDDING_DIMENSION
 
-        mock_client.embed.side_effect = tracking_embed
+        _install_extract(monkeypatch, ExtractDouble(tracking_behavior))
 
-        service = ReIdentificationService(clip_client=mock_client, max_concurrent_requests=3)
+        service = ReIdentificationService(max_concurrent_requests=3)
         image = Image.new("RGB", (100, 100), color="yellow")
 
         # Launch many concurrent requests
@@ -2315,21 +2473,20 @@ class TestReIDTimeoutBehavior:
     """Tests for ReID embedding timeout behavior."""
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_times_out(self) -> None:
+    async def test_generate_embedding_times_out(self, monkeypatch) -> None:
         """Test that generate_embedding times out for slow operations."""
         import asyncio
 
-        mock_client = AsyncMock()
+        _install_osnet_seam(monkeypatch)
 
-        async def slow_embed(image: Image.Image) -> list[float]:
+        async def slow_behavior(image: Image.Image) -> list[float]:
             await asyncio.sleep(0.5)  # Longer than 0.1s timeout
             return [0.1] * EMBEDDING_DIMENSION
 
-        mock_client.embed.side_effect = slow_embed
+        _install_extract(monkeypatch, ExtractDouble(slow_behavior))
 
         # Use very short timeout
         service = ReIdentificationService(
-            clip_client=mock_client,
             embedding_timeout=0.1,
             max_retries=1,  # Only 1 attempt to fail fast
         )
@@ -2344,16 +2501,16 @@ class TestReIDTimeoutBehavior:
         )
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_completes_before_timeout(self) -> None:
+    async def test_generate_embedding_completes_before_timeout(self, monkeypatch) -> None:
         """Test that generate_embedding succeeds when operation is fast enough."""
-        mock_client = AsyncMock()
-        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+        _install_osnet_seam(monkeypatch)
+        _install_extract(monkeypatch, ExtractDouble(_returns([0.1] * EMBEDDING_DIMENSION)))
 
         # Use reasonable timeout
-        service = ReIdentificationService(clip_client=mock_client, embedding_timeout=30.0)
+        service = ReIdentificationService(embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="green")
 
-        embedding = await service.generate_embedding(image)
+        embedding, _belt = await service.generate_embedding(image)
 
         assert len(embedding) == EMBEDDING_DIMENSION
 
@@ -2363,42 +2520,41 @@ class TestReIDRetryBehavior:
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_retry_on_transient_error(self, mock_sleep: AsyncMock) -> None:
+    async def test_retry_on_transient_error(self, mock_sleep: AsyncMock, monkeypatch) -> None:
         """Test that transient errors trigger retry."""
-        mock_client = AsyncMock()
-        call_count = 0
+        _install_osnet_seam(monkeypatch)
 
         async def failing_then_succeeding(image: Image.Image) -> list[float]:
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                raise ConnectionError("Temporary connection failure")
+            failing_then_succeeding.count += 1
+            if failing_then_succeeding.count < 3:
+                raise ConnectionError("Temporary extraction failure")
             return [0.1] * EMBEDDING_DIMENSION
 
-        mock_client.embed.side_effect = failing_then_succeeding
+        failing_then_succeeding.count = 0  # type: ignore[attr-defined]
+        extract = _install_extract(monkeypatch, ExtractDouble(failing_then_succeeding))
 
-        service = ReIdentificationService(
-            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
-        )
+        service = ReIdentificationService(max_retries=3, embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="blue")
 
-        embedding = await service.generate_embedding(image)
+        embedding, _belt = await service.generate_embedding(image)
 
         assert len(embedding) == EMBEDDING_DIMENSION
-        assert call_count == 3  # 2 failures + 1 success
+        assert extract.call_count == 3  # 2 failures + 1 success
         # Verify sleep was called for backoff (2 retries = 2 sleeps)
         assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_retry_exhausted_raises_error(self, mock_sleep: AsyncMock) -> None:
+    async def test_retry_exhausted_raises_error(self, mock_sleep: AsyncMock, monkeypatch) -> None:
         """Test that error is raised when all retries are exhausted."""
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = ConnectionError("Persistent failure")
+        _install_osnet_seam(monkeypatch)
 
-        service = ReIdentificationService(
-            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
-        )
+        async def _boom(image):
+            raise ConnectionError("Persistent failure")
+
+        extract = _install_extract(monkeypatch, ExtractDouble(_boom))
+
+        service = ReIdentificationService(max_retries=3, embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="purple")
 
         with pytest.raises(RuntimeError) as exc_info:
@@ -2406,37 +2562,45 @@ class TestReIDRetryBehavior:
 
         assert "failed" in str(exc_info.value).lower()
         # Should have tried 3 times
-        assert mock_client.embed.call_count == 3
+        assert extract.call_count == 3
         # Should have slept between retries (2 sleeps for 3 attempts)
         assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_no_retry_on_clip_unavailable_error(self) -> None:
-        """Test that CLIPUnavailableError is not retried."""
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = CLIPUnavailableError("CLIP service down")
+    async def test_no_retry_on_reid_unavailable(self, monkeypatch) -> None:
+        """An absent weights handle is availability, not transient: the
+        producer refuses BEFORE the retry loop (and before the semaphore),
+        so the zoo is never hammered by backoff retries. The old pin named
+        CLIPUnavailableError — the seam the swap retired."""
+        calls: list = []
+        import backend.services.osnet_loader as ol
 
-        service = ReIdentificationService(
-            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
-        )
+        def _get_handle():
+            calls.append(1)
+
+        monkeypatch.setattr(ol, "get_reid_handle", _get_handle)
+
+        service = ReIdentificationService(max_retries=3, embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="orange")
 
-        with pytest.raises(CLIPUnavailableError):
+        with pytest.raises(ReIDUnavailableError):
             await service.generate_embedding(image)
 
-        # Should not retry - only called once
-        assert mock_client.embed.call_count == 1
+        # Checked once — no retry loop entered
+        assert len(calls) == 1
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_exponential_backoff_timing(self, mock_sleep: AsyncMock) -> None:
+    async def test_exponential_backoff_timing(self, mock_sleep: AsyncMock, monkeypatch) -> None:
         """Test that retry uses exponential backoff (2^attempt seconds)."""
-        mock_client = AsyncMock()
-        mock_client.embed.side_effect = ConnectionError("Temporary failure")
+        _install_osnet_seam(monkeypatch)
 
-        service = ReIdentificationService(
-            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
-        )
+        async def _boom(image):
+            raise ConnectionError("Temporary failure")
+
+        extract = _install_extract(monkeypatch, ExtractDouble(_boom))
+
+        service = ReIdentificationService(max_retries=3, embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="cyan")
 
         try:
@@ -2445,7 +2609,7 @@ class TestReIDRetryBehavior:
             pass
 
         # Should have 3 attempts
-        assert mock_client.embed.call_count == 3
+        assert extract.call_count == 3
 
         # Verify exponential backoff delays were requested
         # Delay after 1st failure: 1 second (2^0)
@@ -2461,23 +2625,20 @@ class TestReIDRetryLogging:
 
     @pytest.mark.asyncio
     @patch("backend.services.reid_service.asyncio.sleep", new_callable=AsyncMock)
-    async def test_retry_logs_warning(self, mock_sleep: AsyncMock) -> None:
+    async def test_retry_logs_warning(self, mock_sleep: AsyncMock, monkeypatch) -> None:
         """Test that retry attempts are logged at warning level."""
-        mock_client = AsyncMock()
-        call_count = 0
+        _install_osnet_seam(monkeypatch)
 
         async def failing_then_succeeding(image: Image.Image) -> list[float]:
-            nonlocal call_count
-            call_count += 1
-            if call_count < 2:
+            failing_then_succeeding.count += 1
+            if failing_then_succeeding.count < 2:
                 raise ConnectionError("Temporary failure")
             return [0.1] * EMBEDDING_DIMENSION
 
-        mock_client.embed.side_effect = failing_then_succeeding
+        failing_then_succeeding.count = 0  # type: ignore[attr-defined]
+        _install_extract(monkeypatch, ExtractDouble(failing_then_succeeding))
 
-        service = ReIdentificationService(
-            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
-        )
+        service = ReIdentificationService(max_retries=3, embedding_timeout=30.0)
         image = Image.new("RGB", (100, 100), color="magenta")
 
         with patch("backend.services.reid_service.logger", autospec=True) as mock_logger:
@@ -2514,19 +2675,20 @@ class TestHybridStorageInitialization:
         assert service._hybrid_storage is mock_hybrid_storage
 
     def test_hybrid_storage_with_all_parameters(self) -> None:
-        """Test initialization with hybrid_storage and all other parameters."""
-        mock_clip_client = MagicMock()
+        """Test initialization with hybrid_storage and all other parameters.
+
+        (The swap removed the ``clip_client`` knob — the producer is now the
+        resident OSNet handle, read at call time, not injected.)
+        """
         mock_hybrid_storage = MagicMock()
 
         service = ReIdentificationService(
-            clip_client=mock_clip_client,
             max_concurrent_requests=5,
             embedding_timeout=60.0,
             max_retries=5,
             hybrid_storage=mock_hybrid_storage,
         )
 
-        assert service._clip_client is mock_clip_client
         assert service.max_concurrent_requests == 5
         assert service._embedding_timeout == 60.0
         assert service._max_retries == 5

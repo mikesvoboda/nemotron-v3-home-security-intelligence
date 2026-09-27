@@ -13,7 +13,7 @@ EntityEmbedding.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
@@ -442,6 +442,198 @@ class TestProducerBeltSingleSource:
 
         src = inspect.getsource(ep.EnrichmentPipeline._compute_reid_via_service)
         assert "osnet_model_id" in src
+
+
+class TestGenerateEmbeddingProducer:
+    """B5: the store's own producer computes person vectors with the resident
+    OSNet handle, returns the belt beside the bytes, and refuses loudly when
+    the weights are not resident (no CLIP client, no silent stub)."""
+
+    def _image(self) -> object:
+        from PIL import Image
+
+        return Image.new("RGB", (64, 128), color="red")
+
+    async def test_absent_handle_refuses_loudly(self, monkeypatch) -> None:
+        import backend.services.osnet_loader as ol
+        from backend.services.reid_service import ReIdentificationService, ReIDUnavailableError
+
+        monkeypatch.setattr(ol, "get_reid_handle", lambda: None)
+        service = ReIdentificationService()
+        with pytest.raises(ReIDUnavailableError, match="osnet-ain-x1-0"):
+            await service.generate_embedding(self._image())
+
+    async def test_resident_handle_returns_vector_and_belt(self, monkeypatch) -> None:
+        """The belt is the HANDLE's string — the file actually loaded — not
+        osnet_model_id(): a hand-deployed different weights file labels with
+        its own id (honest different space), never the catalog's claim."""
+        import numpy as np
+
+        import backend.services.osnet_loader as ol
+        from backend.services.reid_service import ReIdentificationService
+
+        handle = {"model": MagicMock(), "transform": MagicMock(), "model_id": OTHER_ID}
+        monkeypatch.setattr(ol, "get_reid_handle", lambda: handle)
+
+        async def _fake_extract(model_dict, image, detection_id=None):
+            from backend.services.osnet_loader import PersonEmbeddingResult
+
+            assert model_dict is handle
+            return PersonEmbeddingResult(
+                embedding=np.ones(512, dtype=np.float32),
+                detection_id=detection_id,
+                model_id=model_dict["model_id"],
+            )
+
+        monkeypatch.setattr(ol, "extract_person_embedding", _fake_extract)
+
+        service = ReIdentificationService()
+        vector, belt = await service.generate_embedding(self._image(), bbox=(1, 1, 40, 100))
+        assert len(vector) == 512
+        assert belt == OTHER_ID
+
+    def test_service_no_longer_holds_a_clip_client(self) -> None:
+        """The CLIP seam is gone: constructing the service takes no client and
+        the module never imports the CLIP client (the producer is the zoo
+        handle; CLIP stays only where it is really CLIP's job)."""
+        import inspect
+
+        import backend.services.reid_service as rs
+
+        params = inspect.signature(rs.ReIdentificationService.__init__).parameters
+        assert "clip_client" not in params
+        src = inspect.getsource(rs)
+        assert "clip_client" not in src
+        assert "get_clip_client" not in src
+
+
+class TestEnrollmentCarriesTheBelt:
+    """The enrollment path stores WHAT IT COMPUTED: the PersonEmbedding row
+    gets the producer's model_id, and an unavailable producer answers a 5xx
+    naming the cause (the face enrollment precedent) — never a row whose
+    provenance is a guess."""
+
+    @pytest.mark.asyncio
+    async def test_person_embedding_row_gets_the_belt(self, monkeypatch, tmp_path) -> None:
+        import numpy as np
+        from fastapi import HTTPException
+
+        import backend.api.routes.household as hh
+        from backend.models.household import HouseholdMember
+
+        member = HouseholdMember(id=1, name="Dad")
+        detection = MagicMock()
+        detection.id = 50
+        detection.object_type = "person"
+        detection.file_path = str(tmp_path / "t.jpg")
+        detection.bbox_x = 10
+        detection.bbox_y = 10
+        detection.bbox_width = 20
+        detection.bbox_height = 40
+        event = MagicMock()
+        event.id = 100
+        event.detections = [detection]
+
+        session = AsyncMock()
+        counts = {"n": 0}
+
+        def _execute(query):
+            result = MagicMock()
+            counts["n"] += 1
+            result.scalar_one_or_none.return_value = member if counts["n"] == 1 else event
+            return result
+
+        session.execute.side_effect = _execute
+
+        service = MagicMock()
+        service.generate_embedding = AsyncMock(return_value=([0.1] * 512, OSNET_ID))
+        monkeypatch.setattr(hh, "get_reid_service", lambda: service)
+
+        import contextlib
+
+        from PIL import Image
+
+        real_open = Image.open
+
+        @contextlib.contextmanager
+        def _fake_open(path):
+            yield Image.new("RGB", (64, 128))
+
+        monkeypatch.setattr(hh.Image, "open", _fake_open)
+        assert real_open is not None  # PIL stays importable under the patch
+
+        request = MagicMock()
+        request.event_id = 100
+        request.confidence = 0.95
+
+        try:
+            await hh.add_embedding_from_event(member_id=1, request=request, session=session)
+        except HTTPException as exc:  # pragma: no cover - fail loud below
+            raise AssertionError(f"enrollment raised {exc.status_code}: {exc.detail}") from exc
+
+        row = session.add.call_args[0][0]
+        assert row.model_id == OSNET_ID
+        assert np.frombuffer(row.embedding, dtype=np.float32).shape == (512,)
+
+    @pytest.mark.asyncio
+    async def test_unavailable_producer_answers_5xx_naming_the_cause(
+        self, monkeypatch, tmp_path
+    ) -> None:
+        from fastapi import HTTPException
+
+        import backend.api.routes.household as hh
+        from backend.models.household import HouseholdMember
+        from backend.services.reid_service import ReIDUnavailableError
+
+        member = HouseholdMember(id=1, name="Dad")
+        detection = MagicMock()
+        detection.id = 50
+        detection.object_type = "person"
+        detection.file_path = str(tmp_path / "t.jpg")
+        detection.bbox_x = None
+        detection.bbox_y = None
+        detection.bbox_width = None
+        detection.bbox_height = None
+        event = MagicMock()
+        event.id = 100
+        event.detections = [detection]
+
+        session = AsyncMock()
+        counts = {"n": 0}
+
+        def _execute(query):
+            result = MagicMock()
+            counts["n"] += 1
+            result.scalar_one_or_none.return_value = member if counts["n"] == 1 else event
+            return result
+
+        session.execute.side_effect = _execute
+
+        service = MagicMock()
+        service.generate_embedding = AsyncMock(
+            side_effect=ReIDUnavailableError("osnet-ain-x1-0 is not resident")
+        )
+        monkeypatch.setattr(hh, "get_reid_service", lambda: service)
+
+        import contextlib
+
+        from PIL import Image
+
+        @contextlib.contextmanager
+        def _fake_open(path):
+            yield Image.new("RGB", (64, 128))
+
+        monkeypatch.setattr(hh.Image, "open", _fake_open)
+
+        request = MagicMock()
+        request.event_id = 100
+        request.confidence = 0.95
+
+        with pytest.raises(HTTPException) as exc:
+            await hh.add_embedding_from_event(member_id=1, request=request, session=session)
+        assert exc.value.status_code in (503, 500)
+        assert "osnet" in str(exc.value.detail).lower()
+        session.add.assert_not_called()
 
 
 class TestClientVectorEndpointRetired:

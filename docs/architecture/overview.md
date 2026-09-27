@@ -196,7 +196,7 @@ flowchart TB
 | **EnrichmentPipeline**    | `backend/services/enrichment_pipeline.py`    | Orchestrate multi-model detection enrichment              |
 | **EnrichmentClient**      | `backend/services/enrichment_client.py`      | HTTP client for enrichment API service                    |
 | **FlorenceClient**        | `backend/services/florence_client.py`        | HTTP client for Florence-2 vision extraction              |
-| **CLIPClient**            | `backend/services/clip_client.py`            | HTTP client for CLIP re-identification                    |
+| **CLIPClient**            | `backend/services/clip_client.py`            | HTTP client for the gateway CLIP router (scene baseline, classification) |
 | **PerformanceCollector**  | `backend/services/performance_collector.py`  | AI pipeline performance metrics collection                |
 | **PromptService**         | `backend/services/prompt_service.py`         | Dynamic prompt template management                        |
 | **PromptVersionService**  | `backend/services/prompt_version_service.py` | Prompt versioning and A/B testing support                 |
@@ -257,7 +257,7 @@ flowchart TB
 | **YOLO26 Server** | `ai/yolo26/model.py` | Object detection inference, security-class filtering |
 | **Nemotron LLM**     | `ai/nemotron/`       | Risk reasoning via llama.cpp server                  |
 | **Florence-2**       | `ai/florence/`       | Optional vision extraction used by enrichment        |
-| **CLIP**             | `ai/clip/`           | Optional entity re-identification used by enrichment |
+| **CLIP**             | `ai/clip/`           | Optional scene/anomaly embeddings used by enrichment |
 | **Enrichment API**   | `ai/enrichment/`     | Optional higher-level enrichment endpoint            |
 
 ---
@@ -356,7 +356,7 @@ flowchart TB
         subgraph GPUContainers["Containerized GPU Services (CDI)"]
             DET["YOLO26 Container<br/>PyTorch + Transformers<br/>Port 8095<br/>~3–4GB VRAM"]
             FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
-            CLIP["CLIP Container<br/>Re-ID (optional)<br/>Port 8093<br/>VRAM varies"]
+            CLIP["CLIP Container<br/>Scene embeddings (optional)<br/>Port 8093<br/>VRAM varies"]
             ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
             LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*"]
         end

@@ -144,7 +144,7 @@ class FeatureSettings(BaseModel):
     )
     reid_enabled: bool = Field(
         ...,
-        description="Enable CLIP re-identification for tracking entities across cameras",
+        description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
     )
     scene_change_enabled: bool = Field(
         ...,
@@ -529,7 +529,7 @@ class FeatureSettingsUpdate(BaseModel):
     )
     reid_enabled: bool | None = Field(
         None,
-        description="Enable CLIP re-identification for tracking entities across cameras",
+        description="Enable re-identification (OSNet-AIN x1.0 person vectors) for tracking people across cameras",
     )
     scene_change_enabled: bool | None = Field(
         None,

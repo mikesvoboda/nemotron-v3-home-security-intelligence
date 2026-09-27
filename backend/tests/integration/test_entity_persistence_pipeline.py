@@ -31,16 +31,23 @@ if TYPE_CHECKING:
 # Mark all tests in this module as async
 pytestmark = pytest.mark.asyncio
 
+# A named OSNet-space belt (grammar from osnet_model_id(), ledger item 20).
+# The swap removed the "clip" default: an embedding write with no model_id
+# now RAISES (F11 — no unprovenanced vectors), so every test producer names
+# one space.
+_TEST_MODEL_ID = "osnet-ain-x1-0@test-weights@testsha0000"
+
 
 def unique_embedding(seed: int | None = None) -> list[float]:
-    """Generate a unique 768-dim embedding for testing.
+    """Generate a unique 512-dim embedding for testing (the OSNet-AIN x1.0
+    space, full swap ledger item 20).
 
     Using random values ensures embeddings don't accidentally match
     entities from other tests sharing the same database session.
     """
     # S311: Using pseudo-random for test data, not cryptographic purposes
     rng = random.Random(seed) if seed is not None else random.Random()  # noqa: S311
-    return [rng.uniform(-1, 1) for _ in range(768)]
+    return [rng.uniform(-1, 1) for _ in range(512)]
 
 
 class TestEntityClusteringServiceCameraTracking:
@@ -71,6 +78,7 @@ class TestEntityClusteringServiceCameraTracking:
             embedding=embedding,
             camera_id="front_door",
             timestamp=datetime.now(UTC),
+            model_id=_TEST_MODEL_ID,
             attributes={"clothing": "blue jacket"},
         )
 
@@ -106,6 +114,7 @@ class TestEntityClusteringServiceCameraTracking:
             embedding=embedding,
             camera_id="front_door",
             timestamp=datetime.now(UTC),
+            model_id=_TEST_MODEL_ID,
         )
         initial_count = entity1.detection_count
 
@@ -116,6 +125,7 @@ class TestEntityClusteringServiceCameraTracking:
             embedding=embedding,  # Same embedding should match
             camera_id="back_door",
             timestamp=datetime.now(UTC),
+            model_id=_TEST_MODEL_ID,
         )
 
         # Assert: Should match existing entity and add camera
@@ -152,6 +162,7 @@ class TestEntityClusteringServiceCameraTracking:
             embedding=embedding,
             camera_id="garage",
             timestamp=datetime.now(UTC),
+            model_id=_TEST_MODEL_ID,
         )
         initial_count = entity1.detection_count
         initial_cameras_len = len(entity1.entity_metadata.get("cameras_seen", []))
@@ -163,6 +174,7 @@ class TestEntityClusteringServiceCameraTracking:
             embedding=embedding,
             camera_id="garage",  # Same camera
             timestamp=datetime.now(UTC),
+            model_id=_TEST_MODEL_ID,
         )
 
         # Assert
@@ -216,6 +228,7 @@ class TestHybridEntityStorageIntegration:
             embedding=embedding,
             camera_id="driveway",
             timestamp=timestamp,
+            model_id=_TEST_MODEL_ID,
             attributes={"color": "red", "vehicle_type": "sedan"},
         )
 
@@ -265,6 +278,7 @@ class TestHybridEntityStorageIntegration:
             embedding=embedding,
             camera_id="entrance",
             timestamp=first_timestamp,
+            model_id=_TEST_MODEL_ID,
         )
 
         # Get initial detection count
@@ -279,6 +293,7 @@ class TestHybridEntityStorageIntegration:
             embedding=embedding,
             camera_id="lobby",
             timestamp=second_timestamp,
+            model_id=_TEST_MODEL_ID,
         )
 
         # Assert
@@ -351,6 +366,7 @@ class TestEnrichmentPipelineWithSession:
             camera_id="test_camera",
             timestamp=datetime.now(UTC),
             detection_id="6001",
+            model_id=_TEST_MODEL_ID,
             attributes={"clothing": "black coat"},
         )
 
@@ -390,6 +406,7 @@ class TestEntityRepositoryGetOrCreate:
             entity_type="person",
             embedding=embedding,
             threshold=0.85,
+            model_id=_TEST_MODEL_ID,
             attributes={"camera_id": "parking_lot"},
         )
 
@@ -412,6 +429,7 @@ class TestEntityRepositoryGetOrCreate:
             entity_type="vehicle",
             embedding=embedding,
             threshold=0.85,
+            model_id=_TEST_MODEL_ID,
         )
         initial_count = entity1.detection_count
 
@@ -421,6 +439,7 @@ class TestEntityRepositoryGetOrCreate:
             entity_type="vehicle",
             embedding=embedding,
             threshold=0.85,
+            model_id=_TEST_MODEL_ID,
         )
 
         assert is_new2 is False
@@ -467,6 +486,7 @@ class TestEntityStatsAfterPipeline:
                 embedding=embedding,
                 camera_id=f"camera_{i}",
                 timestamp=datetime.now(UTC),
+                model_id=_TEST_MODEL_ID,
             )
 
         # Verify stats - should have at least some new entities

@@ -12,7 +12,7 @@ Models:
     - yolo11-license-plate: License plate detection on vehicles (legacy, 300MB)
     - yolo11-face: Face detection on persons
     - paddleocr: OCR text extraction from detected plates (legacy, 100MB)
-    - siglip2-base-patch16-224: SigLIP 2 Base embeddings for re-identification (replaces CLIP ViT-L)
+    - siglip2-base-patch16-224: SigLIP 2 Base embeddings for scene baseline / zero-shot (person re-ID moved to osnet-ain-x1-0, ledger 20)
     - florence-2-large: Vision-language queries for attribute extraction
     - yolo-world-s: Open-vocabulary zero-shot detection
     - vitpose-small: Human pose keypoint detection (17 COCO keypoints)

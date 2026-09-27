@@ -734,10 +734,13 @@ class TestAddEmbeddingFromEvent:
 
         mock_session.execute.side_effect = mock_execute_side_effect
 
-        # Mock ReID service
-        mock_embedding = [0.1] * 768
+        # Mock ReID service — B5 contract: (vector, belt), OSNet 512-d.
+        mock_embedding = [0.1] * 512
         mock_reid_service = AsyncMock()
-        mock_reid_service.generate_embedding.return_value = mock_embedding
+        mock_reid_service.generate_embedding.return_value = (
+            mock_embedding,
+            "osnet-test@weights@abc123",
+        )
 
         # Mock image loading
         mock_image = MagicMock(spec=Image.Image)
@@ -849,10 +852,13 @@ class TestAddEmbeddingFromEvent:
 
         mock_session.execute.side_effect = mock_execute_side_effect
 
-        # Mock ReID service
-        mock_embedding = [0.1] * 768
+        # Mock ReID service — B5 contract: (vector, belt), OSNet 512-d.
+        mock_embedding = [0.1] * 512
         mock_reid_service = AsyncMock()
-        mock_reid_service.generate_embedding.return_value = mock_embedding
+        mock_reid_service.generate_embedding.return_value = (
+            mock_embedding,
+            "osnet-test@weights@abc123",
+        )
 
         # Mock image loading
         mock_image = MagicMock(spec=Image.Image)

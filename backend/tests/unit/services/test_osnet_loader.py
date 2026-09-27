@@ -1379,6 +1379,8 @@ class TestRealWeightsProof:
         return candidate if candidate.is_file() else None
 
     @pytest.mark.asyncio
+    @pytest.mark.timeout(30)  # real torchreid build + inference; the 5s tier
+    # default flakes under xdist load (weights present => not a skip path)
     async def test_pinned_weights_load_end_to_end(self, monkeypatch) -> None:
         weights = self._weights()
         if weights is None:

@@ -444,11 +444,11 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ### Feature Toggles
 
-| Variable                    | Default | Description                   |
-| --------------------------- | ------- | ----------------------------- |
-| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 extraction  |
-| `REID_ENABLED`              | `true`  | Enable CLIP re-identification |
-| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection |
+| Variable                    | Default | Description                                      |
+| --------------------------- | ------- | ------------------------------------------------ |
+| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 extraction                     |
+| `REID_ENABLED`              | `true`  | Enable person re-identification (OSNet-AIN x1.0) |
+| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection                    |
 
 ---
 

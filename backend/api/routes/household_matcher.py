@@ -139,7 +139,12 @@ async def match_vehicle(
 
     Matching priority:
     1. License plate match (exact, case-insensitive) - returns similarity 1.0
-    2. Visual embedding match (if plate doesn't match or isn't provided)
+    2. Visual embedding match (if plate doesn't match or isn't provided).
+       LEGACY branch: no shipped producer writes vehicle embedding bytes since
+       the person re-ID full swap (ledger item 20, B5a — OSNet-AIN is a person
+       model), so in the shipped mode vehicle identity rides plate match and
+       this branch finds nothing to compare against. A vehicle re-ID model is
+       a named follow-up.
 
     Args:
         request: VehicleMatchRequest with plate and/or embedding

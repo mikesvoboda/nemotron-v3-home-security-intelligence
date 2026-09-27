@@ -85,15 +85,16 @@ The following features originally planned for post-MVP have been implemented:
 
 ### 3) Entity Continuity (ReID-lite) - IMPLEMENTED
 
-**Location:** `backend/services/reid_service.py`, `backend/services/clip_client.py`
+**Location:** `backend/services/reid_service.py`, `backend/services/osnet_loader.py`
 
-**What's implemented:**
+**What's implemented** (re-ID producer swapped 2026-09-26, ledger item 20 — OSNet-AIN x1.0 is the one person-vector space; the CLIP `/clip` router no longer computes person vectors):
 
-- **CLIP ViT-L embeddings** (768-dimensional vectors) via the `ai-gateway` `/clip` router
-- **Cross-camera entity matching** with configurable similarity threshold (default: 0.85)
-- **Redis storage** for embeddings with 24-hour TTL
+- **OSNet-AIN x1.0 embeddings** (512-dimensional person vectors) from the resident zoo handle, SHA-256-pinned weights, `model_id` provenance on every stored vector
+- **Cross-camera entity matching** with configurable similarity threshold (default: 0.7, OSNet-space, provisional pending calibration)
+- **Redis storage** for embeddings with 24-hour TTL, partitioned by `model_id`
 - **Concurrency-based rate limiting** to prevent resource exhaustion
 - **Entity attributes tracking** (clothing, color from vision extraction)
+- Vehicles: no embedding producer ships in resident mode — vehicle identity rides license-plate match (a vehicle re-ID model is a named follow-up)
 
 ### 4) Pattern-of-Life / Anomaly Detection - IMPLEMENTED
 

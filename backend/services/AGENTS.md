@@ -27,7 +27,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 2. **AI Clients** - HTTP clients for external AI services (Florence, CLIP)
 3. **AI Services** - DI wrappers for face/plate detection services
 4. **Context Enrichment** - Zone detection, baseline tracking, re-identification
-5. **Entity Re-identification** - Embedding clustering, hybrid storage bridge
+5. **Person Re-identification** - OSNet-AIN x1.0 embedding clustering, hybrid storage bridge
 6. **Model Zoo** - On-demand model loading for attribute extraction
 7. **Model Loaders** - Individual model loading functions for Model Zoo
 8. **Model Loader Base** - Abstract base class for model loaders
@@ -86,7 +86,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `baseline.py`              | Activity baseline tracking for anomaly detection | Yes                        |
 | `scene_baseline.py`        | Scene-level baseline tracking                    | No (import directly)       |
 | `scene_change_detector.py` | SSIM-based scene change detection                | Yes                        |
-| `reid_service.py`          | Entity re-identification across cameras          | Yes                        |
+| `reid_service.py`          | Person re-identification across cameras          | Yes                        |
 | `reid_matcher.py`          | Person re-ID matching across detections          | No (import directly)       |
 | `bbox_validation.py`       | Bounding box validation utilities                | No (import directly)       |
 
@@ -100,7 +100,8 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 | Service                        | Purpose                                          | Exported via `__init__.py` |
 | ------------------------------ | ------------------------------------------------ | -------------------------- |
-| `clip_loader.py`               | Load CLIP ViT-L for embeddings                   | Yes                        |
+| `clip_loader.py`               | Load SigLIP 2 Base for /clip embeddings          | Yes                        |
+| `osnet_loader.py`              | Load OSNet-AIN x1.0 person re-ID embeddings      | No (import directly)       |
 | `florence_loader.py`           | Load Florence-2 for vision-language              | Yes                        |
 | `yolo_world_loader.py`         | Load YOLO-World for open-vocabulary detection    | No (import directly)       |
 | `vitpose_loader.py`            | Load ViTPose for human pose estimation           | No (import directly)       |
@@ -498,7 +499,7 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 1. Load appropriate models based on detection types
 2. Extract license plates from vehicles (YOLO + PaddleOCR)
 3. Detect faces on persons (YOLO)
-4. Generate embeddings for re-identification (CLIP)
+4. Generate person re-ID embeddings (OSNet-AIN x1.0, resident zoo handle)
 5. Run vision-language queries (Florence-2)
 6. Extract pose, clothing, vehicle type attributes
 7. Assess violence, weather, image quality
@@ -528,7 +529,8 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 | yolo11-license-plate           | detection          | 300       | License plate detection                           |
 | yolo11-face                    | detection          | 200       | Face detection                                    |
 | paddleocr                      | ocr                | 100       | Text extraction from plates                       |
-| clip-vit-l                     | embedding          | 800       | Re-identification embeddings                      |
+| siglip2-base-patch16-224       | embedding          | 200       | Scene/text embeddings (not person re-ID)          |
+| osnet-ain-x1-0                 | embedding          | 100       | Person re-ID embeddings (512-d, OSNet-AIN)        |
 | florence-2-large               | vision-language    | 1200      | Attribute extraction (disabled - runs as service) |
 | yolo-world-s                   | detection          | 1500      | Open-vocabulary detection                         |
 | vitpose-small                  | pose               | 1500      | Human pose keypoints (17 COCO)                    |
@@ -605,13 +607,13 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 
 ### clip_client.py
 
-**Purpose:** HTTP client for CLIP embedding generation.
+**Purpose:** HTTP client for the ai-gateway CLIP router (SigLIP 2, 768-d). Retired as the PERSON re-ID producer (full swap, ledger item 20 — OSNet-AIN x1.0 is the one person-vector space); this client still serves scene classification, threat-description matching, and the scene-baseline anomaly path.
 
 **Service:** In production compose CLIP runs inside the shared `ai-gateway` container; with `USE_AI_GATEWAY=true` this client targets `http://ai-gateway:8090/clip`. Standalone mode (gateway off) falls back to `clip_url` (`http://localhost:8093`, Docker `http://ai-clip:8093`).
 
 **Features:**
 
-- 768-dimensional embeddings from CLIP ViT-L
+- 768-dimensional scene/text embeddings from the gateway `clip` router
 - 10s connect timeout, 15s read timeout
 - Error handling with CLIPUnavailableError
 
@@ -692,40 +694,44 @@ enrichment = await client.enrich(
 
 ### reid_service.py
 
-**Purpose:** Entity re-identification across cameras using CLIP embeddings.
+**Purpose:** Person re-identification across cameras using OSNet-AIN x1.0 embeddings (512-d; full swap, ledger item 20). Vehicles have no embedding producer in the shipped mode — vehicle identity rides plate match; a vehicle re-ID model is a named follow-up.
 
 **Features:**
 
-- Generate embeddings from detected entities via ai-clip HTTP service
+- Generate embeddings from person crops via the resident OSNet zoo handle (`osnet_loader.get_reid_handle()`; no weights resident ⇒ `ReIDUnavailableError`, never a zero vector)
+- Provenance on every stored vector: `model_id` belt derived from the models.yml sha pin (F11), grammar `osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894` (`<name>@<weights>@<sha256 prefix 12>`); Redis keys partition by it so a search cannot read another space's rows
+- Pre-swap rows decode to the `legacy-unknown-provenance` sentinel and are never scored — mismatch or unprovenanced answers `unavailable (re-enroll)`; drop and re-enroll, no backfill
+- The VLM `person_reid` specialist leg (`vlm_specialists.py`) is real: it probes person crops with this resident handle and scores only same-`model_id` gallery rows
+- A client-computed vector cannot be trusted to share this space, so `POST /api/household-matcher/match-person` (send a pre-computed embedding) is retired — it answers 410 Gone (D-1)
 - Store embeddings in Redis with 24-hour TTL
-- Match entities across camera views using cosine similarity
+- Match entities across camera views using cosine similarity (threshold default 0.7, OSNet-space, PROVISIONAL)
 - Rate limiting via asyncio.Semaphore (configurable max concurrent requests)
-- Timeout and retry logic with exponential backoff
+- Timeout and retry logic with exponential backoff (retries never re-try an availability refusal)
 - Batch similarity computation for performance (NEM-1071)
 - Bounding box validation with clamping (NEM-1073)
 
 **Redis Storage:**
 
 ```
-entity_embeddings:{date} -> {
-    "persons": [{entity_type, embedding, camera_id, timestamp, detection_id, attributes}, ...],
-    "vehicles": [...]
+entity_embeddings:{model_id}:{date} -> {
+    "persons": [{entity_type, embedding, model_id, camera_id, timestamp, detection_id, attributes}, ...],
+    "vehicles": [...]   # list exists; no vehicle embedding producer writes it in the shipped mode
 }
 TTL: 24 hours (86400 seconds)
 ```
 
 **Key Classes:**
 
-- `EntityEmbedding` - Embedding data for detected entity
+- `EntityEmbedding` - Embedding data for detected entity (carries `model_id`; pre-swap rows decode to the `legacy-unknown-provenance` sentinel and are never scored)
 - `EntityMatch` - Match result with similarity score
 - `ReIdentificationService` - Main service class
 
 **Public API:**
 
-- `ReIdentificationService(clip_client, max_concurrent_requests, embedding_timeout, max_retries)`
-- `async generate_embedding(image, bbox)` - Generate 768-dim embedding
-- `async store_embedding(redis, embedding)` - Store in Redis
-- `async find_matching_entities(redis, embedding, entity_type, threshold)` - Find matches
+- `ReIdentificationService(max_concurrent_requests, embedding_timeout, max_retries, hybrid_storage)`
+- `async generate_embedding(image, bbox) -> (vector, model_id)` - Extract via the resident OSNet handle
+- `async store_embedding(redis, embedding)` - Store in Redis (partitioned by the entry's model_id)
+- `async find_matching_entities(redis, embedding, entity_type, threshold, model_id)` - Find matches (reads only the probe's own partition)
 - `get_reid_service()` - Get global singleton
 
 **Prompt Formatting:**
@@ -783,15 +789,20 @@ Embeddings are stored in the Detection model:
 
 ```python
 Detection.enrichment_data = {
-    "reid_embedding": [0.1, 0.2, ...],  # 512-dim from OSNet-x0.25
-    "reid_hash": "abc123...",           # First 16 chars of SHA-256
+    "reid_embedding": {
+        "vector": [0.1, 0.2, ...],      # 512-dim from OSNet-AIN x1.0
+        "hash": "abc123...",             # First 16 chars of SHA-256
+        "model": "osnet_ain_x1_0",
+    },
     ...
 }
 ```
 
+A bare vector list under the same key is also read. This matcher is a same-space lookup with no `model_id` guard of its own; the provenance-checked person comparison (mismatch or unprovenanced ⇒ `unavailable (re-enroll)`) lives in `household_matcher.compare_person_vectors`.
+
 **Integration with Enrichment Service:**
 
-The enrichment service generates OSNet embeddings via the `/enrich` endpoint (gateway: `http://ai-gateway:8090/enrichment/enrich`) when `detection_type="person"`. These embeddings are stored by the backend and can be queried by ReIDMatcher.
+The primary producer is `reid_service`, computing through the resident OSNet zoo handle. The enrichment service's OSNet pass — the gateway `reid` model behind `/enrich` (gateway: `http://ai-gateway:8090/enrichment/enrich`) when `detection_type="person"` — is the same models.yml-pinned weights, so its vectors live in the one space and carry the same `model_id`; where both ran, the resident pipeline's cached vector wins.
 
 ### scene_change_detector.py
 
@@ -2284,13 +2295,13 @@ deleted = generator.delete_clip(event_id)  # Returns bool
 
 ### clip_loader.py
 
-**Purpose:** CLIP model loader for re-identification embeddings.
+**Purpose:** SigLIP 2 Base model loader (module and function names kept as `clip_*` for compatibility). Loads the `siglip2-base-patch16-224` zoo row — 768-dim scene/text embeddings. Retired as a re-ID producer (full swap, ledger item 20): the person-vector space is OSNet-AIN x1.0, computed by `osnet_loader`.
 
 **Key Features:**
 
-- Async loading of CLIP ViT-L models from HuggingFace
-- Generates 768-dimensional embeddings for entity re-identification
-- Automatic GPU detection and device placement
+- Async loading of the SigLIP 2 Base model from the local model directory
+- Generates 768-dimensional scene/text embeddings (never person re-ID vectors)
+- Requires CUDA — CPU inference holds the GIL and starves the event loop
 - Thread pool execution to avoid blocking
 
 **Public API:**
@@ -2298,8 +2309,8 @@ deleted = generator.delete_clip(event_id)  # Returns bool
 ```python
 from backend.services.clip_loader import load_clip_model
 
-# Load CLIP model
-result = await load_clip_model("openai/clip-vit-large-patch14")
+# Load SigLIP 2 Base model
+result = await load_clip_model("/models/model-zoo/siglip2-base-patch16-224")
 model = result["model"]
 processor = result["processor"]
 
@@ -2517,7 +2528,7 @@ class ModelLoaderBase(ABC, Generic[T]):
     @property
     @abstractmethod
     def model_name(self) -> str:
-        """Unique model identifier (e.g., 'clip-vit-l')."""
+        """Unique model identifier (e.g., 'siglip2-base-patch16-224')."""
         ...
 
     @property
@@ -2546,17 +2557,17 @@ from backend.services.model_loader_base import ModelLoaderBase
 class CLIPLoader(ModelLoaderBase[dict]):
     @property
     def model_name(self) -> str:
-        return "clip-vit-l"
+        return "siglip2-base-patch16-224"
 
     @property
     def vram_mb(self) -> int:
-        return 800
+        return 200
 
     async def load(self, device: str = "cuda") -> dict:
-        from transformers import CLIPModel, CLIPProcessor
+        from transformers import AutoModel, AutoProcessor
 
-        model = CLIPModel.from_pretrained(self.model_path)
-        processor = CLIPProcessor.from_pretrained(self.model_path)
+        model = AutoModel.from_pretrained(self.model_path)
+        processor = AutoProcessor.from_pretrained(self.model_path)
         if device.startswith("cuda"):
             model = model.cuda()
         return {"model": model, "processor": processor}
@@ -3110,7 +3121,7 @@ EnrichmentPipeline.enrich_batch(image_path, detections)
 ├── For each person detection:
 │   ├── florence_client.vqa() -> clothing, carrying, action
 │   ├── face_detector.detect() -> face locations
-│   ├── reid_service.generate_embedding() -> CLIP embedding
+│   ├── reid_service.generate_embedding() -> (OSNet-AIN x1.0 512-d vector, model_id)
 │   ├── vitpose_loader -> pose keypoints
 │   ├── fashion_clip_loader -> clothing categories
 │   └── violence_loader (if 2+ persons) -> violence score
@@ -3119,7 +3130,7 @@ EnrichmentPipeline.enrich_batch(image_path, detections)
 │   ├── florence_client.vqa() -> color, type, commercial
 │   ├── plate_detector.detect() -> license plate bbox
 │   ├── ocr_service.extract() -> plate text
-│   ├── reid_service.generate_embedding() -> CLIP embedding
+│   ├── (no embedding producer — vehicle identity rides plate match)
 │   ├── vehicle_classifier_loader -> detailed type (11 classes)
 │   └── vehicle_damage_loader -> damage detection (6 types)
 │

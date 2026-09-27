@@ -91,20 +91,32 @@ class EmbeddingVectorData(BaseModel):
     """Schema for embedding vector storage (matches JSONB structure in Entity model).
 
     The embedding_vector column stores a JSONB object with these fields.
+    ``model`` names the weights that computed the vector (F11 provenance,
+    ledger item 20): the writer (``Entity.set_embedding``) requires it, so
+    every stored row carries one — a pre-swap row reads back as the legacy
+    ``"clip"`` label and is refused by every comparison, which IS the
+    drop-and-re-enroll ruling expressed honestly. Person vectors are the
+    OSNet-AIN x1.0 space (512-dim) since the full swap.
     """
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
                 "vector": [0.1, 0.2, 0.3],
-                "model": "clip",
-                "dimension": 768,
+                "model": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+                "dimension": 512,
             }
         }
     )
 
     vector: list[float] = Field(..., description="The embedding vector as a list of floats")
-    model: str = Field(default="clip", description="The model used to generate the embedding")
+    model: str = Field(
+        ...,
+        description=(
+            "Which weights computed the vector (the producer's model_id). Required — "
+            "there is no default to mislabel bytes with (F11)"
+        ),
+    )
     dimension: int = Field(..., description="Dimension of the embedding vector")
 
 
@@ -244,8 +256,8 @@ class EntityCreate(EntityBase):
                 "entity_type": "person",
                 "embedding_vector": {
                     "vector": [0.1, 0.2, 0.3],
-                    "model": "clip",
-                    "dimension": 768,
+                    "model": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+                    "dimension": 512,
                 },
                 "primary_detection_id": 123,
                 "entity_metadata": {"clothing_color": "blue"},
@@ -316,8 +328,8 @@ class EntityRead(EntityBase):
                 "entity_type": "person",
                 "embedding_vector": {
                     "vector": [0.1, 0.2, 0.3],
-                    "model": "clip",
-                    "dimension": 768,
+                    "model": "osnet-ain-x1-0@osnet_ain_x1_0_msmt17@8a07e8da3894",
+                    "dimension": 512,
                 },
                 "first_seen_at": "2025-12-23T10:00:00Z",
                 "last_seen_at": "2025-12-23T14:30:00Z",
@@ -636,7 +648,7 @@ class EntityMatchResponse(BaseModel):
                     }
                 ],
                 "total_matches": 1,
-                "threshold": 0.85,
+                "threshold": 0.7,
             }
         }
     )

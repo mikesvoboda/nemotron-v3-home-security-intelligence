@@ -106,7 +106,7 @@ models:
     triton_kind: KIND_GPU
 
   - name: siglip2-base-patch16-224
-    description: 'SigLIP 2 Base ONNX for entity re-identification embeddings (ai-gateway + backend)'
+    description: 'SigLIP 2 Base ONNX for scene-baseline and zero-shot embeddings (ai-gateway + backend); person re-ID vectors moved to osnet-ain-x1-0 (ledger 20)'
     service: both
     hf_repo: onnx-community/siglip2-base-patch16-224-ONNX
     local_path: model-zoo/siglip2-base-patch16-224

@@ -49,6 +49,11 @@ from backend.services.vision_extractor import (
     reset_vision_extractor,
 )
 
+# A named OSNet-space belt for the fixtures (grammar from osnet_model_id(),
+# ledger item 20). D-3 partitions Redis by model_id, so a fixture that wants
+# its rows found has to store AND search under ONE name.
+_TEST_REID_MODEL_ID = "osnet-ain-x1-0@test-weights@testsha0000"
+
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -420,8 +425,10 @@ class TestReIdentificationIntegration:
         # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
         redis_client = real_redis
 
-        # Create a test embedding (768 dimensions like CLIP ViT-L)
-        test_embedding = [float(i % 100) / 100.0 for i in range(768)]
+        # A named OSNet-space test vector (512-d, ledger item 20): D-3 reads
+        # ONLY the partition named by the probe's model_id, so the belt is
+        # part of the fixture, not decoration.
+        test_embedding = [float(i % 100) / 100.0 for i in range(512)]
         # Normalize it
         norm = sum(x * x for x in test_embedding) ** 0.5
         test_embedding = [x / norm for x in test_embedding]
@@ -433,6 +440,7 @@ class TestReIdentificationIntegration:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_001",
+            model_id=_TEST_REID_MODEL_ID,
             attributes={"clothing": "blue jacket"},
         )
         await reid_service.store_embedding(redis_client, entity)
@@ -444,6 +452,7 @@ class TestReIdentificationIntegration:
             entity_type="person",
             threshold=0.9,
             exclude_detection_id="det_002",  # Different detection
+            model_id=_TEST_REID_MODEL_ID,
         )
 
         assert len(matches) == 1
@@ -458,7 +467,7 @@ class TestReIdentificationIntegration:
         # Use RedisClient wrapper (which uses 'expire=' parameter) instead of raw Redis
         redis_client = real_redis
 
-        test_embedding = [float(i % 100) / 100.0 for i in range(768)]
+        test_embedding = [float(i % 100) / 100.0 for i in range(512)]
         norm = sum(x * x for x in test_embedding) ** 0.5
         test_embedding = [x / norm for x in test_embedding]
 
@@ -469,6 +478,7 @@ class TestReIdentificationIntegration:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_same",
+            model_id=_TEST_REID_MODEL_ID,
             attributes={},
         )
         await reid_service.store_embedding(redis_client, entity)
@@ -480,6 +490,7 @@ class TestReIdentificationIntegration:
             entity_type="person",
             threshold=0.5,
             exclude_detection_id="det_same",  # Same detection
+            model_id=_TEST_REID_MODEL_ID,
         )
 
         # Should not find any matches
@@ -493,7 +504,7 @@ class TestReIdentificationIntegration:
         redis_client = real_redis
 
         # Create embedding for person at front door
-        base_embedding = [float(i % 100) / 100.0 for i in range(768)]
+        base_embedding = [float(i % 100) / 100.0 for i in range(512)]
         norm = sum(x * x for x in base_embedding) ** 0.5
         base_embedding = [x / norm for x in base_embedding]
 
@@ -503,6 +514,7 @@ class TestReIdentificationIntegration:
             camera_id="front_door",
             timestamp=datetime.now(UTC),
             detection_id="det_front_001",
+            model_id=_TEST_REID_MODEL_ID,
             attributes={"clothing": "red shirt"},
         )
         await reid_service.store_embedding(redis_client, entity1)
@@ -519,6 +531,7 @@ class TestReIdentificationIntegration:
             entity_type="person",
             threshold=0.85,
             exclude_detection_id="det_garage_001",
+            model_id=_TEST_REID_MODEL_ID,
         )
 
         assert len(matches) >= 1
@@ -617,17 +630,18 @@ class TestFullPipelineIntegration:
         mock_vision_extractor: VisionExtractor,
     ):
         """Test full pipeline with all components enabled."""
-        # Mock CLIP embedding generation
-        test_embedding = [float(i % 100) / 100.0 for i in range(768)]
+        # Mock OSNet embedding generation (B5 tuple contract, ledger 20)
+        test_embedding = [float(i % 100) / 100.0 for i in range(512)]
         norm = sum(x * x for x in test_embedding) ** 0.5
         test_embedding = [x / norm for x in test_embedding]
 
         reid_service = get_reid_service()
         original_generate = reid_service.generate_embedding
 
-        async def mock_generate_embedding(image, bbox=None, model=None):
-            """Mock that matches new API: generate_embedding(image, bbox=None, model=None)."""
-            return test_embedding
+        async def mock_generate_embedding(image, bbox=None):
+            """Mock that matches the swap's API: generate_embedding(image,
+            bbox=None) -> (vector, model_id)."""
+            return test_embedding, _TEST_REID_MODEL_ID
 
         reid_service.generate_embedding = mock_generate_embedding
 
@@ -874,7 +888,7 @@ class TestEnrichmentResultIntegration:
         mock_match = EntityMatch(
             entity=EntityEmbedding(
                 entity_type="person",
-                embedding=[0.1] * 768,
+                embedding=[0.1] * 512,  # OSNet-AIN x1.0 space (ledger 20)
                 camera_id="test",
                 timestamp=datetime.now(UTC),
                 detection_id="d1",
@@ -919,7 +933,7 @@ class TestEnrichmentResultIntegration:
                     EntityMatch(
                         entity=EntityEmbedding(
                             entity_type="person",
-                            embedding=[0.1] * 768,
+                            embedding=[0.1] * 512,  # OSNet-AIN x1.0 space (ledger 20)
                             camera_id="back_door",
                             timestamp=datetime.now(UTC),
                             detection_id="prev_001",

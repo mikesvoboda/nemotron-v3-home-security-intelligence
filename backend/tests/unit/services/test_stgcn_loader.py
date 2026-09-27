@@ -200,6 +200,8 @@ class TestLoadStgcnModel:
 
 
 class TestStgcnppForward:
+    @pytest.mark.timeout(15)  # real torch CPU forward; the 5s tier default
+    # flakes when 16 xdist workers contend (observed in the 2026-09-26 run)
     def test_forward_shape_and_determinism(self) -> None:
         model = STGCNPP().eval()
         x = torch.randn(1, 2, 24, 17, 3)  # even T: odd trips branch-size drift at stride 2

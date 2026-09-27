@@ -1,7 +1,8 @@
 """Unified Embedding Service for Face and Person Re-ID Integration.
 
 This module bridges the gap between the face recognition system (512-dim ArcFace)
-and the person re-identification system (768-dim CLIP), enabling:
+and the person re-identification system (512-dim OSNet-AIN x1.0 since the full
+swap, ledger item 20), enabling:
 
 1. Face-to-Entity Mapping: Links detected faces to tracked entities
 2. Household Member Resolution: Maps face matches to household context
@@ -10,8 +11,10 @@ and the person re-identification system (768-dim CLIP), enabling:
 
 Architecture Overview:
 - Face Recognition: 512-dim ArcFace embeddings for facial identity
-- Person Re-ID: 768-dim CLIP embeddings for whole-person matching
-- Entity Clustering: 768-dim CLIP embeddings for canonical entity tracking
+- Person Re-ID: 512-dim OSNet-AIN x1.0 embeddings for whole-person matching
+- Entity Clustering: the same OSNet-AIN x1.0 space for canonical entity
+  tracking (one person-vector space, F11 — every stored vector names its
+  weights via model_id)
 
 The service does NOT convert between embedding types (they serve different purposes),
 but instead maintains associations that allow face recognition to inform entity

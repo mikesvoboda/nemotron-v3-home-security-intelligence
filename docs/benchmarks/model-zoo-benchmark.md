@@ -47,6 +47,14 @@ The Model Zoo provides on-demand loading of AI models during batch processing to
 
 ### Embedding Models
 
+> **Erratum (2026-09-27, ledger item 20):** both rows below are stale —
+> `clip-vit-l` was removed with the xclip full removal (#6649) and
+> `osnet-x0-25` no longer exists in `models.yml`. The person re-ID space is
+> `osnet-ain-x1-0` (OSNet-AIN x1.0, 512-dim) since the full swap; CLIP/SigLIP
+> is no longer a re-ID producer. The benchmarks for the current rows were
+> never measured in this document — see `models.yml` for the live registry;
+> do not quote the VRAM figures below as current.
+
 | Model         | VRAM   | Category  | Description                           | Status  |
 | ------------- | ------ | --------- | ------------------------------------- | ------- |
 | `clip-vit-l`  | 800 MB | embedding | CLIP embeddings for re-identification | Enabled |

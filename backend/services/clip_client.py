@@ -83,8 +83,11 @@ class CLIPClient:
     This client handles communication with the external ai-clip service,
     including health checks, image submission, and response parsing.
 
-    The CLIP model generates 768-dimensional embeddings suitable for
-    cosine similarity comparisons in re-identification tasks.
+    The service (SigLIP 2 Base) generates 768-dimensional embeddings for
+    scene classification, threat-description similarity, and the
+    scene-baseline anomaly path. It is not a person re-ID producer anymore:
+    person vectors are OSNet-AIN x1.0, computed by the resident handle
+    (full swap, ledger item 20).
 
     Usage:
         client = CLIPClient()

@@ -134,7 +134,9 @@ def _model_manager_with(calls: list) -> MagicMock:
 
 def _reid_pipeline(calls: list) -> tuple[EnrichmentPipeline, AsyncMock]:
     svc = AsyncMock()
-    svc.generate_embedding = AsyncMock(return_value=[0.1, 0.2])
+    # Post-swap producer contract (B5): generate_embedding returns
+    # (vector, belt) — the belt rides beside the bytes (F11).
+    svc.generate_embedding = AsyncMock(return_value=([0.1, 0.2], "osnet-test@w@abc"))
     svc.find_matching_entities = AsyncMock(return_value=[])
     svc.store_embedding = AsyncMock()
     p = EnrichmentPipeline(
@@ -615,18 +617,22 @@ def test_run_reid_asserts_redis_client_present():
     assert str(excinfo.value) == "redis_client required for re-id"
 
 
-def test_run_reid_loads_siglip2_model_and_uses_live_redis():
-    """mutmut_4 (redis local -> None), 5/6/7 (model name)."""
+def test_run_reid_uses_reid_service_and_live_redis_no_model_manager():
+    """The swap (ledger item 20): the producer is the reid service's OSNet
+    handle — the old siglip2 model-manager load is GONE (a load of a model
+    the method never used). mutmut_4 (redis local -> None) stays pinned."""
     calls: list = []
     p, svc = _reid_pipeline(calls)
     result = EnrichmentResult()
     det = DetectionInput(id=1, class_name="person", confidence=0.9, bbox=BoundingBox(1, 2, 3, 4))
     asyncio.run(p._run_reid([det], Image.new("RGB", (64, 64)), "cam", result))
-    assert calls == ["siglip2-base-patch16-224"]
+    assert calls == []  # no model-manager load anymore (the swap closed it)
     assert svc.generate_embedding.await_count == 1
     assert svc.find_matching_entities.await_args[0][0] is p.redis_client
     assert svc.store_embedding.await_args[0][0] is p.redis_client
-    assert result.clip_embeddings == {"1": [0.1, 0.2]}
+    assert result.reid_embeddings == {"1": [0.1, 0.2]}
+    # the belt rides beside the cached bytes (F11)
+    assert result.reid_embedding_models == {"1": "osnet-test@w@abc"}
 
 
 def test_run_reid_det_id_falls_back_to_index_string():
@@ -637,14 +643,14 @@ def test_run_reid_det_id_falls_back_to_index_string():
     # id=None -> str(i) == "0"; under the mutants this becomes str(None) == "None"
     det = DetectionInput(id=None, class_name="person", confidence=0.9, bbox=BoundingBox(1, 2, 3, 4))
     asyncio.run(p._run_reid([det], Image.new("RGB", (64, 64)), "cam", result))
-    assert list(result.clip_embeddings) == ["0"]
+    assert list(result.reid_embeddings) == ["0"]
     assert _stored_entity(svc).detection_id == "0"
     # id truthy -> str(det.id)
     p2, svc2 = _reid_pipeline([])
     result2 = EnrichmentResult()
     det2 = DetectionInput(id=9, class_name="person", confidence=0.9, bbox=BoundingBox(1, 2, 3, 4))
     asyncio.run(p2._run_reid([det2], Image.new("RGB", (64, 64)), "cam", result2))
-    assert list(result2.clip_embeddings) == ["9"]
+    assert list(result2.reid_embeddings) == ["9"]
     assert _stored_entity(svc2).detection_id == "9"
 
 
@@ -658,7 +664,7 @@ def test_run_reid_skips_non_person_vehicle_detections():
         DetectionInput(id=2, class_name="person", confidence=0.9, bbox=BoundingBox(1, 2, 3, 4)),
     ]
     asyncio.run(p._run_reid(dets, Image.new("RGB", (64, 64)), "cam", result))
-    assert list(result.clip_embeddings) == ["2"]
+    assert list(result.reid_embeddings) == ["2"]
     assert svc.store_embedding.await_count == 1
     assert _stored_entity(svc).entity_type == "person"
 

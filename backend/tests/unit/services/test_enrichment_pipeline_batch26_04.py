@@ -729,26 +729,45 @@ def test_assess_image_quality_disabled_runtime_error_records_nothing(pipe, rec, 
 
 # ==========================================================================
 # GROUP: _run_reid
-#   L5804 find_matching_entities(entity_type=entity_type) and
-#   L5833 EntityEmbedding(entity_type=entity_type) — same shape, one splice each
-#   keys: 38, 60
+#   Post-swap (ledger item 20 / B5a): persons get OSNet vectors with the
+#   belt; VEHICLES get NOTHING (no embedding producer in the shipped mode —
+#   identity rides plate match). The old shape (both types through one CLIP
+#   generate) is what the swap closed; this pins the new one.
 # ==========================================================================
-def test_run_reid_uses_per_detection_entity_type_for_lookup_and_stored_embedding(rec):
+def test_run_reid_persons_get_belts_and_vehicles_store_nothing(rec):
     reid = mock.MagicMock(name="reid_service")
-    reid.generate_embedding = mock.AsyncMock(side_effect=[[0.1, 0.2], [0.3, 0.4]])
+    reid.generate_embedding = mock.AsyncMock(
+        side_effect=[([0.1, 0.2], "osnet-test@w@aaa"), ([0.3, 0.4], "osnet-test@w@aaa")]
+    )
     reid.find_matching_entities = mock.AsyncMock(return_value=[])
     reid.store_embedding = mock.AsyncMock()
     p = _bare_pipe(redis_client=mock.MagicMock(name="redis"), reid_service=reid)
     result = M.EnrichmentResult()
 
-    asyncio.run(p._run_reid([_det("person", 51), _det("car", 52)], _img(), "cam-9", result))
+    asyncio.run(
+        p._run_reid(
+            [_det("person", 51), _det("person", 53), _det("car", 52)], _img(), "cam-9", result
+        )
+    )
 
+    # person-only generation: the car detection never reached the producer
+    assert reid.generate_embedding.await_count == 2
     assert [c.kwargs["entity_type"] for c in reid.find_matching_entities.call_args_list] == [
         "person",
-        "vehicle",
+        "person",
+    ]
+    # the probe's belt names the partition searched (D-3)
+    assert [c.kwargs["model_id"] for c in reid.find_matching_entities.call_args_list] == [
+        "osnet-test@w@aaa",
+        "osnet-test@w@aaa",
     ]
     stored = [c[0][1] for c in reid.store_embedding.call_args_list]
-    assert [e.entity_type for e in stored] == ["person", "vehicle"]
-    assert [e.detection_id for e in stored] == ["51", "52"]
+    assert [e.entity_type for e in stored] == ["person", "person"]
+    assert [e.detection_id for e in stored] == ["51", "53"]
+    assert [e.model_id for e in stored] == ["osnet-test@w@aaa", "osnet-test@w@aaa"]
     assert [e.camera_id for e in stored] == ["cam-9", "cam-9"]
-    assert list(result.clip_embeddings) == ["51", "52"]
+    assert list(result.reid_embeddings) == ["51", "53"]
+    assert result.reid_embedding_models == {
+        "51": "osnet-test@w@aaa",
+        "53": "osnet-test@w@aaa",
+    }
