@@ -34,6 +34,10 @@ def clean_env(monkeypatch):
         "ENVIRONMENT",
         "CTX_SIZE",
         "PARALLEL",
+        # the vlm path's own pool/slot pair (vlm_context_window derives from
+        # these; a stale runtime value would silently move that budget)
+        "VLM_CTX_SIZE",
+        "VLM_PARALLEL",
         # Severity bounds are read straight from these by TestSeverityThreshold-
         # Configuration below, whose invalid-ordering cases rely on all three
         # starting at their defaults. No committed config sets them, but delete
@@ -974,3 +978,60 @@ class TestLlamaContextWindowConfiguration:
         clean_env.setenv("CTX_SIZE", "not-a-number")
         settings = Settings(_env_file=None)
         assert settings.nemotron_context_window == 32768
+
+
+class TestVlmSlotContextWindowConfiguration:
+    """The vlm path's OWN pool/slot pair - and it is a different number.
+
+    The legacy pair above describes the ai-llm container the backend
+    environment: block mirrors (CTX_SIZE 262144 / PARALLEL 8 -> 32768 a slot).
+    The `vlm` PIPELINE_MODE replaces that LLM with ai-vlm, which llama.cpp
+    starts at VLM_CTX_SIZE 32768 / VLM_PARALLEL 2 -> 16384 a slot. So the
+    backend's one context-window setting describes a service that is NOT
+    RUNNING in the shipped mode, and `vlm_client._fitted_prompt` would grade a
+    prompt against a slot twice the size of the one it lands in: prompts
+    16.4K-32.8K tokens go out, the slot overflows, the event reads as a MODEL
+    outage. These pins hold the two derivations apart.
+    """
+
+    def test_vlm_defaults_divide_to_half_the_legacy_budget(self, clean_env):
+        settings = Settings(_env_file=None)
+        assert settings.vlm_slot_count == 2
+        # 32768 // 2 - ai-vlm's own container args (prod.yml:276-277)
+        assert settings.vlm_context_window == 16384
+        assert settings.vlm_context_window < settings.nemotron_context_window, (
+            "the shipped vlm slot is SMALLER than the legacy one; if this "
+            "flips, the two aliases have collapsed onto one env var"
+        )
+
+    def test_vlm_aliases_do_not_read_the_legacy_vars(self, clean_env):
+        """The whole hazard in one pin: the backend container carries
+        CTX_SIZE=262144/PARALLEL=8 unconditionally. If vlm_context_window ever
+        picked those up, a vlm-mode backend would believe in a 32768 slot.
+        Same env, and the vlm budget must stay 16384."""
+        clean_env.setenv("CTX_SIZE", "262144")
+        clean_env.setenv("PARALLEL", "8")
+        settings = Settings(_env_file=None)
+        assert settings.nemotron_context_window == 32768
+        assert settings.vlm_context_window == 16384
+        assert settings.vlm_slot_count == 2
+
+    def test_operator_vlm_pool_and_slots_move_the_budget(self, clean_env):
+        """VLM_CTX_SIZE/VLM_PARALLEL are the operator's knobs and the client's
+        budget must follow them, not the code default."""
+        clean_env.setenv("VLM_CTX_SIZE", "65536")
+        clean_env.setenv("VLM_PARALLEL", "4")
+        settings = Settings(_env_file=None)
+        assert settings.vlm_slot_count == 4
+        assert settings.vlm_context_window == 16384  # 65536 // 4
+
+    def test_vlm_pool_alone_doubles_the_budget(self, clean_env):
+        clean_env.setenv("VLM_CTX_SIZE", "131072")
+        settings = Settings(_env_file=None)
+        assert settings.vlm_context_window == 65536  # 131072 // 2 default slots
+
+    def test_malformed_vlm_pool_falls_back_instead_of_crashing(self, clean_env):
+        """Startup must not die on a typo - the legacy validator's posture."""
+        clean_env.setenv("VLM_CTX_SIZE", "not-a-number")
+        settings = Settings(_env_file=None)
+        assert settings.vlm_context_window == 16384

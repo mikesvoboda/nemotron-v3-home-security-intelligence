@@ -24,6 +24,7 @@ reader for /etc.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -325,6 +326,207 @@ class TestRefusesNonStills:
         assert default >= 4 * 1024 * 1024, f"shipped limit {default} cannot hold a 4K still"
         client = vc.VlmClient(base_url="http://fake-vlm:8098")
         assert client._settings.vlm_max_image_bytes == default
+
+
+class TestPromptBudget:
+    """The text half of the prompt must FIT the slot the request actually
+    lands in - measured, not assumed.
+
+    spec §2 sized the ai-vlm slot around "4 images x <=1280 tokens + ~6K
+    prompt + ~1K verdict" per slot (the same arithmetic the compose block
+    comments). The ~6K was never enforced anywhere on the vlm path, and a
+    legal batch walks straight past it: `batch_max_detections` defaults 500
+    (config.py:948) and `prompt_text` renders EVERY row as JSON - measured
+    with the repo's own counter, 200 detections -> 12,033 text tokens, 500
+    -> 29,733, against a 16,384-token slot (VLM_CTX_SIZE 32768 /
+    VLM_PARALLEL 2). The legacy path has this arm (nemotron's
+    `_validate_and_truncate_prompt` + `record_prompt_truncated`); the vlm
+    path shipped without it.
+
+    The second, quieter half: the natural counter to reach for,
+    `settings.nemotron_context_window`, reads the LEGACY ai-llm service's
+    CTX_SIZE/PARALLEL (the backend container mirrors 262144/8 = 32768 -
+    verified: the backend's environment: block never carries VLM_CTX_SIZE),
+    so counting a vlm prompt against it grades against a slot twice the
+    size of the one the request gets. `settings.vlm_context_window` is the
+    vlm-scoped derivation (same CTX/PARALLEL rule, the ai-vlm pair); the
+    client budgets against THAT.
+
+    Truncation is VISIBLE (the `apply_verdict_invariants` "log the clamp"
+    doctrine): dropped rows are counted in the prompt itself, and the
+    survivors are the HIGH-confidence rows - the same ranking that chose the
+    key frames, so what survives is the evidence the model can actually
+    corroborate against the attached stills. Never a silent shortlist.
+    """
+
+    # Default lives OUTSIDE the capture root on purpose: the pure-renderer
+    # pins never touch the filesystem, and a path the guard would refuse is
+    # the honest default for a test that must not depend on file IO.
+    OUTSIDE_ROOT = "/export/foscam/front_door"
+
+    @staticmethod
+    def _rows(count: int, base: str | Path = OUTSIDE_ROOT) -> list[dict[str, Any]]:
+        from datetime import UTC, datetime
+
+        return [
+            {
+                "id": i,
+                "camera_id": "front_door",
+                "object_type": "person" if i % 2 else "car",
+                "confidence": 0.5 + (i % 50) / 100,
+                "detected_at": datetime(2026, 9, 27, 12, 0, tzinfo=UTC),
+                "file_path": f"{base}/det_{i}.jpg",
+                "thumbnail_path": None,
+                "track_id": None,
+                "bbox": [10, 10, 100, 200],
+            }
+            for i in range(1, count + 1)
+        ]
+
+    def _big_request(self, count: int = 500, base: str | Path = OUTSIDE_ROOT) -> Any:
+        from backend.services.vlm_analyzer import build_assess_context, build_assess_request
+
+        rows = self._rows(count, base)
+        ctx = build_assess_context(
+            camera_id="front_door",
+            detections=rows,
+            zones=["porch"],
+            specialist_outputs={"faces": "2 unknown faces", "plates": "no plates"},
+        )
+        return build_assess_request(context=ctx, detections=rows)
+
+    def test_a_max_size_batch_fits_the_vlm_slot(self) -> None:
+        """THE acceptance pin: a 500-detection batch (the shipped
+        batch_max_detections ceiling) renders a prompt whose TEXT tokens +
+        image reservation + verdict budget fit ONE vlm slot. Before the arm
+        existed this measured 29,733 + 5,120 + 700 against a 16,384 slot."""
+        from backend.services.token_counter import get_token_counter
+
+        settings = vc.get_settings()
+        client = make_client()
+        text = client.prompt_text(self._big_request())
+        counter = get_token_counter()
+        reserved = client._image_token_reservation(self._big_request())
+        used = counter.count_tokens(text) + reserved + vc._ASSESS_MAX_TOKENS
+        assert used <= settings.vlm_context_window, (
+            f"{used} tokens into a {settings.vlm_context_window}-token slot"
+        )
+
+    def test_truncation_is_visible_and_counted(self) -> None:
+        """A dropped tail says so, with the count: a model told nothing
+        would read 12 shown rows as the whole scene ("no further activity")
+        - a silent lie by omission on the one channel D10 says is evidence."""
+        client = make_client()
+        text = client.prompt_text(self._big_request())
+        assert "omitted" in text.lower(), "the prompt admits the truncation"
+        # the marker carries a real number out of 500
+        m = re.search(r"(\d+) further detection", text)
+        assert m and 0 < int(m.group(1)) < 500
+
+    def test_survivors_are_the_strongest_rows(self) -> None:
+        """Which rows survive is not arrival order: the highest-confidence
+        detections win, because those are the rows the key-frame selector
+        stands behind - the model can corroborate them against the stills."""
+        client = make_client()
+        text = client.prompt_text(self._big_request())
+        ids_kept = [int(m) for m in re.findall(r'"id": (\d+)', text)]
+        rows = self._rows(500)
+        conf = {r["id"]: r["confidence"] for r in rows}
+        best = max(conf.values())
+        assert any(conf[i] >= best - 1e-9 for i in ids_kept), (
+            "the single most confident detection survives truncation"
+        )
+
+    def test_a_small_prompt_is_untouched_byte_for_byte(self) -> None:
+        """No-regression half: an ordinary batch never sees the arm - the
+        stored llm_prompt stays exactly what the builders render."""
+        from backend.services.vlm_analyzer import build_assess_context, build_assess_request
+
+        rows = self._rows(6)
+        ctx = build_assess_context(camera_id="front_door", detections=rows, zones=["porch"])
+        request = build_assess_request(context=ctx, detections=rows)
+        client = make_client()
+        text = client.prompt_text(request)
+        assert "omitted" not in text.lower()
+        for row in rows:
+            assert f'"id": {row["id"]}' in text, "every row of a fitting batch is rendered"
+
+    def test_the_budget_is_the_vlm_slot_not_the_legacy_llms(self) -> None:
+        """The two derivations are DIFFERENT numbers and the arm reads the
+        vlm one. Measured slope: ~61 tokens per detection row, so a 300-row
+        batch renders ~18.4K text tokens - used ~24.2K with images+output.
+        That is LEGAL for the legacy slot (32768) and ILLEGAL for the vlm
+        slot (16384), which makes the batch itself the discriminator: a
+        300-row prompt truncates if and only if the budget is the vlm
+        figure. Counting against `nemotron_context_window` - what the
+        backend container actually carries, the ai-llm pair it mirrors -
+        would wave this batch through into a slot half its size.
+        """
+        s = vc.get_settings()
+        assert s.vlm_context_window < s.nemotron_context_window, (
+            "shipped defaults: the vlm slot is HALF the legacy slot - if this "
+            "ever reads False the two derivations collapsed into one number"
+        )
+        client = make_client()
+        text = client.prompt_text(self._big_request(300))
+        assert "omitted" in text.lower(), (
+            "a batch legal for the LEGACY slot but illegal for the vlm slot "
+            "must truncate - proof the guard counts against vlm_context_window"
+        )
+
+    def _wire_request(self, count: int, image_dir: Path) -> Any:
+        """A request whose stills live UNDER the capture root and exist as real
+        synthetic files, for the pins that drive `assess` (the pure-renderer
+        pins never touch the filesystem).
+
+        The rows are built FROM the root rather than rewritten onto it: the
+        guard resolves `row["file_path"]` itself, so a request whose rows still
+        point at /export/... is refused before the bytes on disk matter at all.
+        Synthetic bytes only, and at most MAX_KEY_FRAMES files get embedded.
+        """
+        request = self._big_request(count, base=image_dir / "front_door")
+        for raw in request.image_paths:
+            path = Path(raw)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"\xff\xd8\xff" + b"\x00" * 32)
+        return request
+
+    async def test_the_truncation_hits_the_metric_once(self, image_dir, monkeypatch) -> None:
+        """`record_prompt_truncated` is how an operator SEES the arm firing
+        (legacy's NEM-1666 telemetry) - an uncounted clamp is a silent one.
+
+        Exactly ONCE per oversized batch, and the count is the interesting
+        part: `prompt_text` is called twice per assess (once for the wire,
+        once by the analyzer for the stored `llm_prompt`), so a metric inside
+        the renderer would double every event. The renderer returns a flag;
+        the wire call owns the effect."""
+        calls: list[int] = []
+        monkeypatch.setattr(vc, "record_prompt_truncated", lambda: calls.append(1))
+        client = make_client()
+        await client.assess(self._wire_request(500, image_dir))
+        assert calls == [1], f"expected one record, got {calls}"
+        await client.close()
+
+    async def test_a_fitting_prompt_records_no_truncation(self, image_dir, monkeypatch) -> None:
+        calls: list[int] = []
+        monkeypatch.setattr(vc, "record_prompt_truncated", lambda: calls.append(1))
+        client = make_client()
+        await client.assess(self._wire_request(6, image_dir))
+        assert calls == [], "a prompt that fit recorded nothing"
+        await client.close()
+
+    async def test_the_stored_prompt_is_the_truncated_one(self) -> None:
+        """The analyzer stores `prompt_text(request)` verbatim as
+        Event.llm_prompt, so what an operator reads back must be the question
+        the model was actually asked - marker and surviving rows, not the
+        pre-truncation original. One code path guarantees it; this pins that
+        the two call sites agree."""
+        client = make_client()
+        request = self._big_request()
+        wire, truncated = client._fitted_prompt(request)
+        assert truncated
+        assert client.prompt_text(request) == wire, "renderer is deterministic"
+        assert "omitted" in wire
 
 
 class TestEnforcementProbe:

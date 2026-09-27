@@ -273,6 +273,15 @@ services:
       # precedent), so per-slot budget = 32768/2 = 16384 tokens >= the
       # ~12.2K a worst-case vlm_assess needs (4 images x <=1280 tokens +
       # ~6K prompt + ~1K verdict). PARALLEL=2 per spec §2.
+      # ERRATUM (ledger 2026-09-27): the "~6K prompt" half of that sizing does
+      # NOT describe the shipped worst case. Detections arrive at ~61 tokens a
+      # row (measured with the repo's own token counter) and batch_max_detections
+      # is 500, so a full batch is ~30K text tokens on its own - the 6K figure
+      # holds at about 90 rows. The slot is still the right size, because the
+      # client now FITS the prompt to it (vlm_client._fitted_prompt drops the
+      # weakest rows and says so) instead of trusting the arithmetic. Sizing and
+      # fitting are both load-bearing; the spec's number is the sizing rule, not
+      # a bound the detector honors.
       - CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - PARALLEL=${VLM_PARALLEL:-2}
       - THREADS=${VLM_THREADS:-4}
@@ -615,6 +624,15 @@ services:
       # a data problem. Operator-settable for a camera that shoots large
       # stills; threading it is what makes setting it in .env DO something.
       - VLM_MAX_IMAGE_BYTES=${VLM_MAX_IMAGE_BYTES:-8388608}
+      # The vlm prompt budget, computed HERE from the ai-vlm service's own slot
+      # sizing (config.py vlm_context_window = VLM_CTX_SIZE // VLM_PARALLEL).
+      # The two vars must be threaded, not just set on ai-vlm: _fitted_prompt
+      # runs in this container, and an unthreaded var leaves it grading a
+      # prompt against Settings' default while the server runs the operator's
+      # value — the same one-sided wire as AI_VLM_URL above. Defaults match
+      # the ai-vlm block byte for byte (test_ai_vlm_compose_service pins it).
+      - VLM_CTX_SIZE=${VLM_CTX_SIZE:-32768}
+      - VLM_PARALLEL=${VLM_PARALLEL:-2}
       # LLM context budget — must mirror the ai-llm service above so the backend's
       # per-request token budget matches the slot it is actually served from.
       # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count

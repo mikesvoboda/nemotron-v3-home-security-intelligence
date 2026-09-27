@@ -210,6 +210,80 @@ class TestBackendClientWiring:
         assert backend_env["VLM_REQUIRED_BUILD"] == "${VLM_REQUIRED_BUILD:-}"
 
 
+class TestSlotSizingReachesTheBackend:
+    """The prompt budget (`vlm_client._fitted_prompt`) is derived from
+    VLM_CTX_SIZE / VLM_PARALLEL, and BOTH halves of that division are read by
+    the CLIENT process (Settings.vlm_slot_count / vlm_context_window), not
+    only by the server container.
+
+    Before this, compose set them ONLY on ai-vlm (:276-277) and never on the
+    backend, and neither was declared in .env.example at all - the same class
+    as 2ea790bc's AI_VLM_URL finding: the server half of the wire shipped and
+    the client half did not, so the container silently kept the code default.
+    Here the code default happens to MATCH the shipped compose default, which
+    is why the bug was invisible - and why the agreement itself needs a pin.
+    An operator who raises VLM_CTX_SIZE=65536 for a longer-context build gets
+    a server that accepts a prompt the backend still refuses to send (or, at a
+    smaller value, the backend sends one the slot overflows - the exact
+    "model outage that is a config gap" shape).
+    """
+
+    @pytest.fixture(scope="class")
+    def backend_env(self, compose: dict) -> dict[str, str]:
+        raw = compose["services"]["backend"].get("environment", [])
+        return dict(item.split("=", 1) for item in raw)
+
+    @pytest.mark.parametrize("var", ("VLM_CTX_SIZE", "VLM_PARALLEL"))
+    def test_var_declared_in_env_example(self, var: str) -> None:
+        text = ENV_EXAMPLE.read_text(encoding="utf-8")
+        assert re.search(rf"^{var}=", text, re.M), (
+            f"{var} is referenced by docker-compose.prod.yml and read by "
+            "Settings; the root env-first rule says it lands in .env.example "
+            "in the same change that references it"
+        )
+
+    @pytest.mark.parametrize("var", ("VLM_CTX_SIZE", "VLM_PARALLEL"))
+    def test_var_reaches_the_backend_container(self, backend_env: dict, var: str) -> None:
+        assert backend_env.get(var, "").startswith(f"${{{var}:-"), (
+            f"{var} must be threaded to the backend as ${{{var}:-...}} - the "
+            "prompt budget is computed in THIS process"
+        )
+
+    # (compose key on ai-vlm, env var both sides interpolate, Settings field)
+    PAIR: ClassVar = (
+        ("CTX_SIZE", "VLM_CTX_SIZE", "vlm_context_window"),
+        ("PARALLEL", "VLM_PARALLEL", "vlm_slot_count"),
+    )
+
+    @staticmethod
+    def _default_of(interpolated: str, var: str) -> int:
+        assert interpolated.startswith(f"${{{var}:-"), f"{var}: {interpolated!r}"
+        return int(interpolated.split(":-")[1].rstrip("}"))
+
+    def test_the_three_defaults_agree(self, vlm_env: dict, backend_env: dict) -> None:
+        """One number in three places: the ai-vlm container, the backend's
+        threading, and Settings' own field default. If compose ever ships
+        65536/4 while Settings keeps 32768/2, the client grades its prompt
+        against a slot that no longer exists.
+
+        Compared in llama.cpp's RAW units (the whole pool / the slot count),
+        which is where all three agree; the per-slot budget the client
+        actually uses is the quotient - pinned in
+        test_config.TestVlmSlotContextWindowConfiguration."""
+        from backend.core.config import Settings
+
+        defaults = Settings.model_fields
+        for key, var, field in self.PAIR:
+            server = self._default_of(vlm_env[key], var)
+            client = self._default_of(backend_env[var], var)
+            declared = defaults[field].default
+            assert server == client == declared, (
+                f"{var}: ai-vlm={server}, backend={client}, "
+                f"Settings.{field}={declared!r} - the budget is only honest "
+                "while all three are the same number"
+            )
+
+
 class TestDockerfileFlagWiring:
     """§2 flags that are llama-server args (--sleep-idle-seconds, --alias)
     must be wired through the runtime CMD as guarded env - the file already

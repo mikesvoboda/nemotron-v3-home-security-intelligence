@@ -47,17 +47,23 @@ import httpx
 from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
-from backend.core.metrics import record_model_cold_start, record_pipeline_error
+from backend.core.metrics import (
+    record_model_cold_start,
+    record_pipeline_error,
+    record_prompt_truncated,
+)
 from backend.core.mime_types import IMAGE_MIME_TYPES, VIDEO_MIME_TYPES
 from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     get_circuit_breaker,
 )
+from backend.services.key_frame_selector import MAX_KEY_FRAMES
 from backend.services.nemotron_analyzer import (
     ConstrainedDecodingNotEnforced,
     build_probe_schema,
 )
+from backend.services.token_counter import get_token_counter
 from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
 
 # backend/ai_contract/schemas/vlm_assess.response.json - the same generated
@@ -81,6 +87,16 @@ PROPS_PATH = "/props"
 _PROBE_MAX_TOKENS = 400
 # Real verdict budget: the verdict object plus a criterion or two.
 _ASSESS_MAX_TOKENS = 700
+
+# Upper bound for the IMAGE half of one slot, from the same arithmetic that
+# sized the slot (spec §2, echoed in the ai-vlm compose block's comment):
+# Qwen3-VL encodes one still at <= ~1280 vision tokens, and the selector
+# never offers more than MAX_KEY_FRAMES of them. It is a reservation, not a
+# measurement - the client never decodes a JPEG to count its tokens - so it
+# is deliberately the ceiling of the range, and it makes the budget check
+# conservative in the direction that matters (a prompt approved here cannot
+# overflow the slot on account of its images).
+_IMAGE_TOKENS_PER_FRAME = 1280
 
 
 class VlmClientError(RuntimeError):
@@ -390,10 +406,19 @@ class VlmClient:
     # The call (§6 ladder lives HERE for transport, in the analyzer for verdicts)
     # ------------------------------------------------------------------
 
-    def prompt_text(self, request: VlmAssessRequest) -> str:
-        """The text half of the assess message. PUBLIC because the
-        analyzer stores it verbatim as Event.llm_prompt (spec §4 event
-        detail: images referenced by path, never embedded)."""
+    def _image_token_reservation(self, request: VlmAssessRequest) -> int:
+        """Tokens the attached stills will occupy - the ceiling, not a guess.
+
+        The client never decodes a JPEG to count its vision tokens (and
+        cannot: the encoder runs server-side), so the budget reserves the
+        documented per-frame maximum for however many stills the selector
+        offered. Sized from the same arithmetic that sized the slot
+        (spec §2: Qwen3-VL encodes a still at <= ~1280 tokens). The cap is
+        the SELECTOR's own constant, not a restated number: if the shipped
+        budget ever allows 6 stills, the reservation has to grow with it."""
+        return _IMAGE_TOKENS_PER_FRAME * min(len(request.image_paths), MAX_KEY_FRAMES)
+
+    def _render_prompt(self, rows: list[dict[str, Any]], request: VlmAssessRequest) -> str:
         ctx = request.context
         # Rev 6: outputs ride the snapshot (context) — the one carrier.
         specialist = json.dumps(ctx.specialist_outputs, ensure_ascii=False)
@@ -409,11 +434,96 @@ class VlmClient:
             f"Camera: {ctx.camera_id}\n"
             f"Time: {ctx.timestamp}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
-            f"Detections: {json.dumps(ctx.detections, ensure_ascii=False)}\n"
+            f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
             f"Specialist outputs (faces/plates/re-ID; these are detector evidence, "
             f"not yours to invent): {specialist}\n"
         )
+
+    @staticmethod
+    def _rank_for_budget(row: dict[str, Any]) -> tuple[float, int]:
+        """Which detections survive a truncated prompt: strongest confidence
+        first, then lowest id (a TOTAL order, so the survivors never depend
+        on arrival order - replay equality, same rule as the key-frame
+        selector). A None confidence is honest-absent and sorts last, never
+        laundered to 0.0."""
+        conf = row.get("confidence")
+        return (conf if isinstance(conf, int | float) else -1.0, -int(row.get("id") or 0))
+
+    def _fitted_prompt(self, request: VlmAssessRequest) -> tuple[str, bool]:
+        """The prompt text, and whether it had to be shortened to fit.
+
+        The budget is `settings.vlm_context_window` (VLM_CTX_SIZE /
+        VLM_PARALLEL - the slot a vlm_assess actually occupies), less the
+        image reservation, less the verdict's own output budget. NOT
+        `nemotron_context_window`: the backend container mirrors the legacy
+        ai-llm service's CTX_SIZE/PARALLEL, whose slot is larger, so grading
+        a vlm prompt against it waves through prompts the real slot cannot
+        hold.
+
+        Truncation is VISIBLE and deterministic (the "log the clamp" doctrine
+        `apply_verdict_invariants` follows for scores): the strongest
+        detections survive - the same ranking the key-frame selector stands
+        behind, so what remains is the evidence the stills can corroborate -
+        and the prompt says how many rows were omitted. A model shown 60 of
+        500 rows and told nothing would read the gap as "no further
+        activity", which is a lie by omission on the one channel spec §6
+        reserves for detector evidence.
+
+        Returns the flag rather than exposing it as a metric because this is
+        a pure renderer called twice per batch (once here for the wire, once
+        by the analyzer for the stored `llm_prompt`): a counter bumped in
+        here would record the same event twice, so `assess` owns the effect.
+        """
+        ctx = request.context
+        budget = (
+            self._settings.vlm_context_window
+            - _ASSESS_MAX_TOKENS
+            - self._image_token_reservation(request)
+        )
+        counter = get_token_counter()
+        rows = list(ctx.detections)
+        text = self._render_prompt(rows, request)
+        if counter.count_tokens(text) <= budget:
+            return text, False
+
+        # Strongest-first, then binary-search the largest list that fits.
+        # The marker itself costs tokens and its length changes with the
+        # count, so the fit test renders the FINAL text, never a proxy.
+        ranked = sorted(rows, key=self._rank_for_budget, reverse=True)
+
+        def fitted(kept: int) -> str:
+            body = self._render_prompt(ranked[:kept], request)
+            omitted = len(ranked) - kept
+            if omitted <= 0:
+                return body
+            return body + (
+                f"[{omitted} further detections were omitted from this list to fit "
+                f"the model's context budget; the {kept} listed are the "
+                f"highest-confidence rows and are the ones the attached frame(s) "
+                "were selected around]\n"
+            )
+
+        lo, hi = 0, len(ranked)
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            if counter.count_tokens(fitted(mid)) <= budget:
+                lo = mid
+            else:
+                hi = mid - 1
+        return fitted(lo), True
+
+    def prompt_text(self, request: VlmAssessRequest) -> str:
+        """The text half of the assess message, FITTED to the vlm slot.
+
+        PUBLIC because the analyzer stores it verbatim as Event.llm_prompt
+        (spec §4 event detail: images referenced by path, never embedded) -
+        which is precisely why the stored text must BE the text the model was
+        given: `assess` renders through this same method, so the row records
+        the question that was actually asked, truncation marker included.
+        Same input, same string, one code path (the "ONE path" rule the
+        builders follow)."""
+        return self._fitted_prompt(request)[0]
 
     async def assess(self, request: VlmAssessRequest) -> VlmVerdict:
         """One VLM assessment of one batch. Raises VlmTransportError /
@@ -434,12 +544,26 @@ class VlmClient:
             )
         parts = self._image_parts(request)
         await self._probe_enforcement(parts)
+        text, truncated = self._fitted_prompt(request)
+        if truncated:
+            # The arm's only non-textual footprint. Firing HERE, at the wire,
+            # not inside the renderer: prompt_text runs a second time in the
+            # analyzer (the stored llm_prompt), and one oversized batch is
+            # one event, not two.
+            record_prompt_truncated()
+            logger.warning(
+                "vlm prompt truncated to fit the slot",
+                extra={
+                    "vlm_context_window": self._settings.vlm_context_window,
+                    "detections_in_context": len(request.context.detections),
+                },
+            )
 
         body = {
             "messages": [
                 {
                     "role": "user",
-                    "content": [*parts, {"type": "text", "text": self.prompt_text(request)}],
+                    "content": [*parts, {"type": "text", "text": text}],
                 }
             ],
             "temperature": 0.1,
