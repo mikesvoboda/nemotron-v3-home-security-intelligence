@@ -6,13 +6,25 @@ Machine-checks every claim the design spec's "A5500 bring-up checklist (step
 owner executes on the A5500 box. This script never touches a GPU, never runs
 detection and never claims health - execution is owner-run on real media.
 
-Checklist items covered (spec §A5500 bring-up):
+Checklist items covered (spec §A5500 bring-up, amended 2026-09-27 by 1.7 to
+the SHIPPED vlm mode - PIPELINE_MODE=vlm is the default and that path calls
+nothing but ai-vlm, so the legacy placeholder-LLM rows became serving-VLM
+rows rather than accreting alongside them):
   1. GPU assignment      every GPU_* variable = 0 (SINGLE-GPU note)
      device passthrough  no hardwired nonzero device; CDI ``gpu=all`` = WARN
-  2. CUDA architecture   CUDA_ARCHITECTURES=86, checked BEFORE ai-llm build
-  3. Placeholder LLM     LLM_MODEL_PATH -> Nemotron-3-Nano-4B Q4_K_M, and the
-                         ai-llm volume mount must target the Nano-4B dir, not
-                         the 30B dir (MODEL_PATH passthrough audited too)
+  2. CUDA architecture   CUDA_ARCHITECTURES=86, checked BEFORE the ai-vlm
+                         build (the compose threads it into that build arg)
+  3. Serving VLM         VLM_MODEL_PATH -> Qwen3-VL-4B Q4_K_M AND its mmproj
+                         (a projector-less serve is text-only and degrades
+                         silently); ai-vlm's /models mount -> the vlm dir, not
+                         a legacy LLM dir; MODEL_PATH/MMPROJ_PATH stay
+                         env-derived; the per-slot ctx covers a worst-case
+                         vlm_assess
+     No legacy LLM       is ai-llm profile-gated, or does it start next to
+                         ai-vlm on the one GPU? (F10 keeps the service; the
+                         checklist forbids deploying it)
+     vlm image           can the scanned compose files build/serve ai-vlm at
+                         all, or is that path image-only / absent?
   4. Test traps          TMPDIR in .env (false-reddens the four
                          write_runtime_env tests); stale __pycache__ dirs
                          for deleted modules (false-reddens deletion guards)
@@ -32,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date
@@ -57,16 +70,23 @@ REQUIRED_GPU_VARS = (
     "GPU_AI_SERVICES",
 )
 
-# Placeholder LLM per spec D5/0.2: NVIDIA-Nemotron-3-Nano-4B, official GGUF,
-# Q4_K_M, ~2.64 GiB, arch nemotron_h on llama.cpp b7972.
-NANO4B_RE = "nano-4b"
-Q4KM_RE = "q4_k_m"
-CTX_BUDGET_NOTE = (
-    "Nano-4B Q4_K_M ~2.64 GiB + 262K-token KV; spec budget ~5.5 GiB [C]"
-)
-# GPU_LAYERS=999 (full offload) at 262K ctx is the >26 GB config (.env.example
-# ~:360 comment), which busts the single-GPU Nano-4B budget.
+# The shipped serving pair (spec D5 as amended by rev 5 / 1.7): Qwen3-VL-4B
+# -Instruct main GGUF at Q4_K_M + its mmproj projector - two files, one
+# identity. The legacy Nano-4B placeholder plan is retired with the mode.
+QWEN3VL_RE = "qwen3vl"
+VLM_MAIN_QUANT_RE = "q4_k_m"
+# Spec §2 sizing: per-slot context = VLM_CTX_SIZE / VLM_PARALLEL must cover
+# the worst-case vlm_assess (4 images x <=1280 tokens + ~6K prompt + ~1K
+# verdict ~= 12.2K). 32768/2 = 16384 clears it; a smaller slot truncates the
+# verdict input with no log line.
+WORST_CASE_SLOT_TOKENS = 12_200
+# VLM_GPU_LAYERS=999 (full offload) is the big-model config; the A5500 shape
+# is auto (llama.cpp --fit picks layers by free VRAM).
 FULL_OFFLOAD_LAYERS = "999"
+
+# Shortest host path wins so a ``${VAR:-/export/ai_models}`` default - whose
+# own ``:-`` contains a colon - does not split the mount at the wrong place.
+MOUNT_RE = re.compile(r"^(?P<host>.*?):(?P<target>/[^:]*)(?::(?P<mode>ro|rw))?$")
 
 
 @dataclass(frozen=True)
@@ -192,92 +212,318 @@ def _check_cuda_arch(env: dict[str, str]) -> Check:
         FAIL,
         f"CUDA_ARCHITECTURES={val!r}, expected 86 (A5500 = Ampere sm_86). "
         ".env.example ships 89; setup.py's auto-detect only rewrites it when "
-        "setup.py runs against the GPU - CHECK BEFORE BUILDING ai-llm",
+        "setup.py runs against the GPU - CHECK BEFORE BUILDING ai-vlm (the "
+        "shipped mode's build consumes this value; prod compose :240)",
     )
 
 
-def _check_llm_model(env: dict[str, str]) -> Check:
-    path = env.get("LLM_MODEL_PATH", "")
-    lowered = path.lower()
-    if NANO4B_RE in lowered and Q4KM_RE in lowered and lowered.endswith(".gguf"):
-        return Check("llm_model", PASS, f"LLM_MODEL_PATH={path}")
-    return Check(
-        "llm_model",
-        FAIL,
-        f"LLM_MODEL_PATH={path!r}: spec 0.2 wants the Nemotron-3-Nano-4B "
-        "placeholder GGUF at Q4_K_M (architecture nemotron_h, registered by "
-        "llama.cpp b7972); the 30B stays on disk as the replay control, it is "
-        "NOT the serving placeholder",
-    )
-
-
-def _check_mount(compose_paths: list[Path]) -> Check:
-    hits_30b: list[str] = []
-    hits_nano4b: list[str] = []
+def _per_file_service_lines(
+    compose_paths: list[Path], service: str
+) -> dict[str, list[str]]:
+    """{compose file: raw lines of ``service``'s block}; absent = not defined."""
+    out: dict[str, list[str]] = {}
     for path in compose_paths:
-        for line in _read(path).splitlines():
-            s = line.strip()
-            if not (s.startswith("- ") and "ai_models" in s and ":/models" in s):
+        lines = _read(path).splitlines()
+        block: list[str] = []
+        in_block = False
+        for line in lines:
+            # a service key is exactly two spaces + name + colon
+            if line.startswith("  ") and not line.startswith("   ") and line.rstrip().endswith(":"):
+                name = line.strip().rstrip(":")
+                in_block = name == service and line.startswith("  ")
+                if in_block:
+                    block = []
+                    out[path.name] = block
                 continue
-            lowered = s.lower()
-            if "30b" in lowered:
-                hits_30b.append(f"{path.name}: {s}")
-            elif NANO4B_RE in lowered:
-                hits_nano4b.append(f"{path.name}: {s}")
-    if hits_30b:
-        return Check(
-            "ai_llm_mount",
-            FAIL,
-            "ai-llm volume mount targets the 30B dir - adjust it too "
-            "(spec 0.2): " + "; ".join(hits_30b),
-        )
-    if hits_nano4b:
-        return Check("ai_llm_mount", PASS, "mount targets a Nano-4B dir: " + "; ".join(hits_nano4b))
-    return Check(
-        "ai_llm_mount",
-        WARN,
-        "no ai_models:/models mount matched 30b/nano-4b naming - inspect the "
-        "ai-llm volumes block by eye",
+            if in_block:
+                if line and not line.startswith("    "):
+                    in_block = False  # dedent back to a sibling/top-level key
+                else:
+                    block.append(line)
+    return out
+
+
+def _profile_names(block_lines: list[str]) -> list[str]:
+    names: list[str] = []
+    in_profiles = False
+    profiles_indent = 0
+    for line in block_lines:
+        stripped = line.strip()
+        if stripped == "profiles:":
+            in_profiles = True
+            profiles_indent = len(line) - len(line.lstrip())
+            continue
+        if in_profiles:
+            indent = len(line) - len(line.lstrip())
+            if stripped.startswith("- ") and indent > profiles_indent:
+                names.append(stripped[2:].strip())
+            elif stripped:
+                in_profiles = False
+    return names
+
+
+def _check_vlm_model(env: dict[str, str]) -> Check:
+    """The shipped serving pair: Qwen3-VL-4B-Instruct main GGUF + mmproj.
+
+    A projector-less llama.cpp serve loads TEXT-ONLY and every vlm_assess
+    silently degrades - so the pair is checked as a pair, and a legacy
+    LLM_MODEL_PATH is not an answer (the vlm path calls nothing else,
+    .env.example:218 comment).
+    """
+    main = env.get("VLM_MODEL_PATH", "")
+    mmproj = env.get("VLM_MMPROJ_PATH", "")
+    want = (
+        "the shipped mode serves the Qwen3VL-4B (Qwen3-VL-4B-Instruct) pair: "
+        "VLM_MODEL_PATH at Q4_K_M + VLM_MMPROJ_PATH at its mmproj "
+        "(.env.example:462-463 default; legacy LLM_MODEL_PATH is not it)"
     )
+    if not main:
+        return Check("vlm_model", FAIL, f"VLM_MODEL_PATH unset - {want}")
+    lowered = main.lower()
+    if QWEN3VL_RE not in lowered or VLM_MAIN_QUANT_RE not in lowered or not lowered.endswith(".gguf"):
+        return Check("vlm_model", FAIL, f"VLM_MODEL_PATH={main!r} - expected: {want}")
+    if not mmproj:
+        return Check(
+            "vlm_model",
+            FAIL,
+            f"VLM_MMPROJ_PATH unset while VLM_MODEL_PATH={main!r}: a "
+            "projector-less serve loads text-only and silently degrades "
+            "every vlm_assess - the vision pair ships as two files - " + want,
+        )
+    if QWEN3VL_RE not in mmproj.lower() or not mmproj.lower().endswith(".gguf"):
+        return Check(
+            "vlm_model",
+            FAIL,
+            f"VLM_MMPROJ_PATH={mmproj!r} does not name a Qwen3VL GGUF beside "
+            f"VLM_MODEL_PATH={main!r} - the projector must match the main "
+            "file's identity (they are exported together)",
+        )
+    return Check("vlm_model", PASS, f"VLM pair: {main} + {mmproj}")
 
 
-def _check_passthrough(compose_paths: list[Path]) -> Check:
-    hardcoded: list[str] = []
+def _check_ai_vlm_mount(compose_paths: list[Path]) -> Check:
+    """ai-vlm's weights mount: source dir must be the vlm dir, target /models.
+
+    Only a mount whose TARGET is exactly /models is the weights mount - the
+    gateway/backend mount ai_models at /models/zoo, /models/model-zoo,
+    /models/cache, which are other services' business.
+    """
+    fail_hits: list[str] = []
+    pass_hits: list[str] = []
+    other: list[str] = []
+    absent: list[str] = []
+    merged = _per_file_service_lines(compose_paths, "ai-vlm")
     for path in compose_paths:
-        for line in _read(path).splitlines():
+        fname = path.name
+        lines = merged.get(fname)
+        if lines is None:
+            absent.append(fname)
+            continue
+        for line in lines:
+            s = line.strip()
+            if not (s.startswith("- ") and ":/models" in s):
+                continue
+            m = MOUNT_RE.match(s[2:])
+            if m is None or m.group("target") != "/models":
+                continue  # target is /models/something: a zoo/cache mount
+            host = m.group("host")
+            if "/vlm" in host.lower():
+                pass_hits.append(f"{fname}: {s}")
+            elif any(tok in host.lower() for tok in ("30b", "nano-4b", "nemotron")):
+                fail_hits.append(f"{fname}: {s}")
+            else:
+                other.append(f"{fname}: {s}")
+    if fail_hits:
+        return Check(
+            "ai_vlm_mount",
+            FAIL,
+            "ai-vlm weights mount targets a legacy LLM dir - the vlm path "
+            "needs the vlm dir (spec 1.7): " + "; ".join(fail_hits),
+        )
+    if pass_hits:
+        return Check("ai_vlm_mount", PASS, "ai-vlm weights mount: " + "; ".join(pass_hits))
+    if other:
+        return Check(
+            "ai_vlm_mount",
+            WARN,
+            "ai-vlm mounts /models from a dir that names nothing recognizable"
+            " - confirm it holds the Qwen3VL pair: " + "; ".join(other),
+        )
+    if absent:
+        return Check(
+            "ai_vlm_mount",
+            WARN,
+            "no ai-vlm service defined in "
+            + ", ".join(sorted(set(absent)))
+            + " - that compose cannot serve the shipped vlm mode (prod "
+            "compose is the vlm path; the ghcr image path never gained one)",
+        )
+    return Check("ai_vlm_mount", WARN, "ai-vlm has no weights mount at /models - inspect by eye")
+
+
+def _check_vlm_env_passthrough(compose_paths: list[Path]) -> Check:
+    """MODEL_PATH/MMPROJ_PATH inside ai-vlm must derive from the VLM_* vars.
+
+    Only ai-vlm's own env lines count (block scope): ai-llm derives its
+    MODEL_PATH from LLM_MODEL_PATH and that is the retired path's business.
+    """
+    hardcoded: list[str] = []
+    for fname, lines in _merge_service_lines(compose_paths, "ai-vlm").items():
+        for line in lines:
             s = line.strip()
             if s.startswith("- MODEL_PATH=") or s.startswith("MODEL_PATH="):
-                if "${LLM_MODEL_PATH" not in s:
-                    hardcoded.append(f"{path.name}: {s}")
+                if "${VLM_MODEL_PATH" not in s:
+                    hardcoded.append(f"{fname}: {s}")
+            elif s.startswith("- MMPROJ_PATH=") or s.startswith("MMPROJ_PATH="):
+                if "${VLM_MMPROJ_PATH" not in s:
+                    hardcoded.append(f"{fname}: {s}")
     if hardcoded:
         return Check(
-            "model_env_passthrough",
+            "vlm_model_env_passthrough",
             WARN,
-            "MODEL_PATH hardcoded (LLM_MODEL_PATH cannot reach it) - editing "
-            ".env alone will NOT switch the served model here: "
+            "MODEL_PATH/MMPROJ_PATH hardcoded - no .env switch reaches them "
+            "(editing .env alone will NOT change the served model here): "
             + "; ".join(hardcoded),
         )
     return Check(
-        "model_env_passthrough", PASS, "MODEL_PATH derives from LLM_MODEL_PATH in every compose"
+        "vlm_model_env_passthrough",
+        PASS,
+        "MODEL_PATH/MMPROJ_PATH derive from VLM_MODEL_PATH/VLM_MMPROJ_PATH "
+        "in every ai-vlm definition",
     )
 
 
-def _check_budget(env: dict[str, str]) -> Check:
-    layers = env.get("GPU_LAYERS", "auto")
-    ctx = env.get("CTX_SIZE", "")
+def _merge_service_lines(compose_paths: list[Path], service: str) -> dict[str, list[str]]:
+    merged = _per_file_service_lines(compose_paths, service)
+    return {k: v for k, v in merged.items() if v is not None}
+
+
+def _check_vlm_ctx_budget(env: dict[str, str]) -> Check:
+    """Per-slot context must cover the worst-case vlm_assess (spec §2).
+
+    The backend divides CTX_SIZE by PARALLEL itself, so the number that
+    matters is the slot, not the pool: 4 images x <=1280 tokens + ~6K
+    prompt + ~1K verdict ~= 12.2K. A smaller slot truncates the verdict
+    input silently - the failure has no log line.
+    """
+    layers = env.get("VLM_GPU_LAYERS", "auto")
+    ctx_raw = env.get("VLM_CTX_SIZE", "32768")
+    par_raw = env.get("VLM_PARALLEL", "2")
+    try:
+        slot = int(ctx_raw) // max(int(par_raw), 1)
+    except ValueError:
+        return Check(
+            "vlm_ctx_budget", WARN, f"VLM_CTX_SIZE={ctx_raw!r}/VLM_PARALLEL={par_raw!r} not integers"
+        )
     if layers == FULL_OFFLOAD_LAYERS:
         return Check(
-            "ctx_budget",
+            "vlm_ctx_budget",
             WARN,
-            f"GPU_LAYERS=999 (all layers on GPU) at CTX_SIZE={ctx or '?'} is the "
-            ">26 GB config for the 30B - busts the Nano-4B ~5.5 GiB single-GPU "
-            "budget; auto/48 is the A5500 shape",
+            f"VLM_GPU_LAYERS=999 (all layers on GPU) at VLM_CTX_SIZE={ctx_raw} - "
+            "auto lets llama.cpp --fit decide by free VRAM; the A5500 shape is auto",
+        )
+    if slot < WORST_CASE_SLOT_TOKENS:
+        return Check(
+            "vlm_ctx_budget",
+            WARN,
+            f"per-slot context {slot} tokens (VLM_CTX_SIZE={ctx_raw}/"
+            f"PARALLEL={par_raw}) < the ~{WORST_CASE_SLOT_TOKENS} a worst-case "
+            "vlm_assess needs (4 images x <=1280 + ~6K prompt + ~1K verdict) "
+            "- the verdict input truncates with no log line",
         )
     return Check(
-        "ctx_budget",
+        "vlm_ctx_budget",
         INFO,
-        f"CTX_SIZE={ctx or '?'} PARALLEL={env.get('PARALLEL', '?')} "
-        f"GPU_LAYERS={layers} - {CTX_BUDGET_NOTE}",
+        f"per-slot {slot} tokens (CTX={ctx_raw}/PARALLEL={par_raw}) covers the "
+        f"~{WORST_CASE_SLOT_TOKENS} worst case; VLM_GPU_LAYERS={layers}",
+    )
+
+
+def _check_legacy_llm(compose_paths: list[Path]) -> Check:
+    """"no legacy LLM deployed" (spec :482-500, rev 5 / F10), machine-checked.
+
+    F10 says build empty states, not deletions - ai-llm STAYS in the compose
+    (its tests keep passing), so the honest check is whether a `--profile vlm`
+    up would START it. Unprofiled = it starts on every up, alongside ai-vlm,
+    asking for VRAM a single A5500 cannot give twice.
+    """
+    unprofiled: list[str] = []
+    gated: list[str] = []
+    for fname, lines in _merge_service_lines(compose_paths, "ai-llm").items():
+        names = _profile_names(lines)
+        if names:
+            gated.append(f"{fname}: profiles={names}")
+        else:
+            unprofiled.append(fname)
+    if unprofiled:
+        return Check(
+            "legacy_llm",
+            WARN,
+            "ai-llm has NO profiles: block in "
+            + ", ".join(sorted(set(unprofiled)))
+            + " - a --profile vlm up starts the retired serving path ALONGSIDE "
+            "ai-vlm (one A5500 GPU cannot serve both); profile-gate it or "
+            "keep it out of the up set (F10 keeps the service, not its "
+            "deployment)",
+        )
+    if gated:
+        return Check(
+            "legacy_llm",
+            WARN,
+            "ai-llm is profile-gated (" + "; ".join(gated) + ") - it only "
+            "runs if that profile is explicitly named; leave it off",
+        )
+    return Check("legacy_llm", PASS, "no ai-llm service in the scanned compose files")
+
+
+def _check_vlm_image(compose_paths: list[Path]) -> Check:
+    """Can the scanned compose files actually BUILD/SERVE the vlm service?
+
+    The A5500 build line (--build-arg CUDA_ARCHITECTURES=86) only means
+    something through a build: block; an image: ref says nothing about the
+    arch it carries, and a compose with no ai-vlm at all (ghcr.yml's shipped
+    shape) cannot serve the mode at all.
+    """
+    buildable: list[str] = []
+    image_only: list[str] = []
+    absent: list[str] = []
+    for path in compose_paths:
+        fname = path.name
+        lines = _per_file_service_lines([path], "ai-vlm").get(fname)
+        if lines is None:
+            absent.append(fname)
+            continue
+        stripped = [l.strip() for l in lines]
+        if any(s == "build:" for s in stripped):
+            buildable.append(fname)
+        elif any(s.startswith("image:") for s in stripped):
+            image_only.append(fname)
+        else:
+            image_only.append(fname)  # neither build nor image: treat as not buildable here
+    if absent:
+        return Check(
+            "vlm_image",
+            WARN,
+            "no ai-vlm service in "
+            + ", ".join(sorted(set(absent)))
+            + " - the ghcr image path cannot serve the shipped vlm mode; run "
+            "docker-compose.prod.yml with --profile vlm on the A5500 box",
+        )
+    if image_only:
+        return Check(
+            "vlm_image",
+            WARN,
+            "ai-vlm ships as an image ref in "
+            + ", ".join(sorted(set(image_only)))
+            + " - CUDA_ARCHITECTURES=86 must match how THAT image was built; "
+            "the check-before-build only bites on a build: block",
+        )
+    return Check(
+        "vlm_image",
+        PASS,
+        "ai-vlm builds from source in "
+        + ", ".join(sorted(set(buildable)))
+        + " - build with --build-arg CUDA_ARCHITECTURES=86 (A5500 sm_86)",
     )
 
 
@@ -326,10 +572,12 @@ def run_precheck(env_path: Path, compose_paths: list[Path], repo_root: Path) -> 
         _check_gpu_assignment(env),
         _check_devices(compose_paths),
         _check_cuda_arch(env),
-        _check_llm_model(env),
-        _check_mount(compose_paths),
-        _check_passthrough(compose_paths),
-        _check_budget(env),
+        _check_vlm_model(env),
+        _check_ai_vlm_mount(compose_paths),
+        _check_vlm_env_passthrough(compose_paths),
+        _check_vlm_ctx_budget(env),
+        _check_legacy_llm(compose_paths),
+        _check_vlm_image(compose_paths),
         _check_tmpdir(env),
         _check_pycache(repo_root),
         _check_health(),
@@ -342,45 +590,62 @@ def run_precheck(env_path: Path, compose_paths: list[Path], repo_root: Path) -> 
 # box 1: "the spec's anchors drift; re-verify each line-number claim first").
 AMENDMENTS: dict[str, list[str]] = {
     "GPU assignment": [
-        "[V 2026-09-25] .env.example:503 documents 'SINGLE-GPU: Set all to 0'; "
+        "[V 2026-09-27] .env.example:567 documents 'SINGLE-GPU: Set all to 0'; "
         "shipped defaults are dual-GPU: GPU_YOLO26/CLIP/ENRICHMENT/"
-        "ENRICHMENT_LIGHT=1 (:516-519) and GPU_AI_SERVICES=1 (:899) - set all "
-        "to 0 on the A5500 box",
+        "ENRICHMENT_LIGHT=1 (:580-583) and GPU_AI_SERVICES=1 (:962) - set all "
+        "to 0 on the A5500 box (GPU_LLM/GPU_FLORENCE already ship 0, :578-579)",
     ],
     "Device passthrough": [
-        "[V 2026-09-25] amend: compose carries NO per-device A400 entry to "
-        "remove. docker-compose.prod.yml:139 uses nvidia.com/gpu=${GPU_LLM:-0}; "
-        ":303 and :1262 pass nvidia.com/gpu=all (rootless-podman CDI design "
-        "comment at :300,:320). A400 removal is therefore CDI-handler / "
-        "physical, not a compose edit - confirm the retired card is out of "
-        "the CDI set",
+        "[V 2026-09-25, anchors re-checked 2026-09-27] amend: compose carries "
+        "NO per-device A400 entry to remove. docker-compose.prod.yml ai-vlm "
+        "uses nvidia.com/gpu=${GPU_LLM:-0} (:244); :415 and :1392 pass "
+        "nvidia.com/gpu=all (rootless-podman CDI design comment at :442). "
+        "A400 removal is therefore CDI-handler / physical, not a compose "
+        "edit - confirm the retired card is out of the CDI set",
     ],
     "CUDA architecture": [
-        "[V 2026-09-25] .env.example:512 ships CUDA_ARCHITECTURES=89; "
-        "docker-compose.prod.yml:136 threads ${CUDA_ARCHITECTURES:-} into the "
-        "ai-llm build; setup.py:490 writes the auto-detected value only when "
-        "setup.py runs - check-before-build stands",
+        "[V 2026-09-27] .env.example:576 ships CUDA_ARCHITECTURES=89; "
+        "docker-compose.prod.yml:240 threads ${CUDA_ARCHITECTURES:-} into the "
+        "ai-vlm build (the :136 ai-llm line serves the retired mode); "
+        "ai/vlm/Dockerfile:64 treats it as a build-arg - check-before-build "
+        "stands",
     ],
-    "Placeholder LLM": [
-        "[V 2026-09-25] .env.example:404 ships "
-        "LLM_MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf; "
-        "docker-compose.prod.yml ai-llm volume mounts "
-        ".../nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro (spec's "
-        "'targets the 30B dir' confirmed) and MODEL_PATH="
-        "${LLM_MODEL_PATH:-...30B...} - both the .env value AND the mount dir "
-        "change for the Nano-4B",
-        "[V 2026-09-25] amend: docker-compose.ghcr.yml:165/:172 hardcode the "
-        "models mount AND MODEL_PATH=.../Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf - "
-        "on the ghcr image path a .env switch does not reach the model; edit "
-        "the compose (or run prod compose) on the A5500 box",
+    "Serving VLM": [
+        "[V 2026-09-27] the shipped mode is the VLM path: PIPELINE_MODE=vlm "
+        "and GATEWAY_MODEL_SET=vlm are the .env.example defaults (:211,:221) "
+        "and the residency comment records that the mode 'calls nothing "
+        "else' (:218); ai-vlm is profile-gated profiles:[vlm] "
+        "(docker-compose.prod.yml:221,:227-228) - bring-up runs the VLM, not "
+        "the Nano-4B placeholder plan",
+        "[V 2026-09-27] the pair ships correct: VLM_MODEL_PATH at "
+        "Qwen3VL-4B-Instruct-Q4_K_M + VLM_MMPROJ_PATH at the Q8_0 mmproj "
+        "(.env.example:462-463); prod compose mounts "
+        "${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro (:253) and "
+        "derives MODEL_PATH/MMPROJ_PATH from the VLM_* vars (:265-266) - the "
+        "weights are NOT what the A5500 lacks",
+        "[V 2026-09-27] amend (ghcr-hardcode fact, kept from the P0.2 review "
+        "and still true in kind): docker-compose.ghcr.yml has NO ai-vlm "
+        "service at all - the ghcr image path cannot serve the shipped mode. "
+        "Run docker-compose.prod.yml with --profile vlm on the A5500 box "
+        "(that compose file also hardcodes its legacy ai-llm's "
+        "MODEL_PATH=...Q2_K_L.gguf at :172, unchanged)",
+    ],
+    "No legacy LLM": [
+        "[V 2026-09-27] prod compose's ai-llm has NO profiles: block (:120 - "
+        "the P0.2-era anchor :139 is its devices line), so `podman compose "
+        "--profile vlm up` starts the retired 30B serving path ALONGSIDE "
+        "ai-vlm; one A5500 cannot serve both. F10 keeps the service (its "
+        "tests keep passing, nothing gets deleted) - keep it out of the up "
+        "set: run only the vlm profile and do not start ai-llm",
     ],
     "Test-environment traps": [
-        "[V 2026-09-25] TMPDIR=/ephemeral/podman-tmp at .env.example:58; "
-        "backend/api/routes/system.py:2508-2530 _runtime_env_path() gates on "
-        "tempfile.gettempdir() -> the four write_runtime_env tests "
-        "(unit/api/routes/test_system.py:576,:598; unit/routes/"
-        "test_system_routes.py:106,:2301) false-redden when env TMPDIR "
-        "differs from pytest tmp_path. CI sets no TMPDIR",
+        "[V 2026-09-25, anchors re-checked 2026-09-27] TMPDIR="
+        "/ephemeral/podman-tmp at .env.example:57; backend/api/routes/"
+        "system.py:2508 _runtime_env_path() gates on tempfile.gettempdir() "
+        "-> the four write_runtime_env tests (unit/api/routes/"
+        "test_system.py:576,:598; unit/routes/test_system_routes.py:106 and "
+        "its sibling) false-redden when env TMPDIR differs from pytest "
+        "tmp_path. CI sets no TMPDIR",
         "[V 2026-09-25] pycache trap: scripts/a5500_precheck.py "
         "scan_stale_pycache() lists .pyc files whose source module is deleted "
         "(run it before trusting any deletion-guard run)",
@@ -392,8 +657,8 @@ AMENDMENTS: dict[str, list[str]] = {
 }
 
 CHECKLIST_HEADLINE = (
-    "A5500 bring-up checklist (step 0.2) - dated copy with [V] repo-side "
-    "amendments from the P0.2 prep review"
+    "A5500 bring-up checklist (vlm mode, plan 1.7) - dated copy with [V] "
+    "repo-side amendments from the prep review"
 )
 
 
@@ -408,10 +673,13 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
     lines = [
         f"# {CHECKLIST_HEADLINE}",
         "",
-        f"Dated {date_str}. Source: spec §'A5500 bring-up checklist (step 0.2)' "
-        f"(docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md). "
-        f"Repo-side prep via `scripts/a5500_precheck.py` (F9/F6: execution is "
-        f"owner-run on real media; this document claims no execution).",
+        f"Dated {date_str}. Source: spec §'A5500 bring-up checklist (step "
+        f"0.2)' (docs/superpowers/specs/2026-09-23-vss-gaming-gpu-profile-"
+        f"design.md) as amended by plan 1.7 to the shipped vlm mode (spec "
+        f"rev 5 / F10: the legacy LLM path is unsupported - the checklist's "
+        f"placeholder-LLM rows became serving-VLM rows). Repo-side prep via "
+        f"`scripts/a5500_precheck.py` (F9/F6: execution is owner-run on real "
+        f"media; this document claims no execution).",
         "",
         "Ordering guard: lifted 2026-09-25 by ledger F9 (no pre-switch traffic "
         "exists); re-arms the day the home stack serves live events.",
@@ -429,24 +697,45 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
     lines += [
         "",
         "## - [ ] CUDA architecture",
-        "`CUDA_ARCHITECTURES=86`. Check it BEFORE building `ai-llm`.",
+        "`CUDA_ARCHITECTURES=86`. Check it BEFORE building `ai-vlm` (the "
+        "shipped mode's build; the retired mode's `ai-llm` build takes the "
+        "same value).",
         f"- repo verdict: {v('cuda_arch')}",
     ]
     lines += [f"- {a}" for a in AMENDMENTS["CUDA architecture"]]
     lines += [
         "",
-        "## - [ ] Placeholder LLM",
-        "Point `LLM_MODEL_PATH` at `NVIDIA-Nemotron-3-Nano-4B` Q4_K_M "
-        "(official GGUF, 2.64 GiB; arch `nemotron_h`, registered by llama.cpp "
-        "b7972). Adjust the `ai-llm` volume mount (it targets the 30B dir). "
-        "Budget ~5.5 GiB including the 262K-token KV. The 30B GGUF STAYS on "
-        "disk - it is the replay control.",
-        f"- repo verdict: {v('llm_model')}",
-        f"- repo verdict: {v('ai_llm_mount')}",
-        f"- repo verdict: {v('model_env_passthrough')}",
-        f"- repo verdict: {v('ctx_budget')}",
+        "## - [ ] Serving VLM",
+        "The A5500 brings up the SHIPPED vlm mode (1.7, spec rev 5): "
+        "`VLM_MODEL_PATH` at the `Qwen3-VL-4B-Instruct` Q4_K_M GGUF AND "
+        "`VLM_MMPROJ_PATH` at its mmproj projector (two files - a "
+        "projector-less serve loads text-only and silently degrades every "
+        "vlm_assess). `ai-vlm`'s `/models` mount must target the `vlm` "
+        "weights dir, and `MODEL_PATH`/`MMPROJ_PATH` must stay derived from "
+        "the `VLM_*` vars so a `.env` switch reaches the container. Per-slot "
+        "context = `VLM_CTX_SIZE`/`VLM_PARALLEL` must cover a worst-case "
+        "vlm_assess (~12.2K tokens; the shipped 32768/2 = 16384 does). "
+        "MANDATORY ordering: smoke-serve Qwen3-VL-4B and run the P0.3 "
+        "enforcement probe (a refusal check against the serving path) "
+        "BEFORE any event reaches it - never attach live traffic to an "
+        "unprobed server.",
+        f"- repo verdict: {v('vlm_model')}",
+        f"- repo verdict: {v('ai_vlm_mount')}",
+        f"- repo verdict: {v('vlm_model_env_passthrough')}",
+        f"- repo verdict: {v('vlm_ctx_budget')}",
+        f"- repo verdict: {v('vlm_image')}",
     ]
-    lines += [f"- {a}" for a in AMENDMENTS["Placeholder LLM"]]
+    lines += [f"- {a}" for a in AMENDMENTS["Serving VLM"]]
+    lines += [
+        "",
+        "## - [ ] No legacy LLM",
+        "No legacy LLM serving path is deployed on the A5500 (spec :482-500 "
+        "/ F10): the `ai-llm` service stays in the tree - its tests keep "
+        "passing, nothing is deleted - but it must NOT start alongside "
+        "`ai-vlm`. Keep it out of the up set.",
+        f"- repo verdict: {v('legacy_llm')}",
+    ]
+    lines += [f"- {a}" for a in AMENDMENTS["No legacy LLM"]]
     lines += [
         "",
         "## - [ ] Test-environment traps",
