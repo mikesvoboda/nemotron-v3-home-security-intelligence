@@ -1,10 +1,11 @@
 # Synthetic Benchmark Generation — Design
 
-**Status:** §1-§7 approved section by section by the owner (2026-09-27); §8-§9 added in writing.
-Awaiting owner review of the written spec.
+**Status:** approved by the owner (2026-09-27): §1-§7 section by section, then the written spec.
+Ready for implementation planning.
 **Date:** 2026-09-27
 **Branch:** `feat/synthetic-benchmark-generation`
-**Revision:** rev 1
+**Revision:** rev 1 (2026-09-27). The owner's answers to the two open questions are folded in as D13
+and D14.
 
 Evidence tags: **[V]** verified in this session by probe or source read; **[A]** assumption to
 confirm during planning; **[?]** unverified external claim (most model facts come from a
@@ -27,20 +28,22 @@ security system is judged on the threats it catches. Two facts make that the cen
 
 ## Decisions (locked by owner, 2026-09-27)
 
-| #   | Decision                                                                                                                                                                                                                                  |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | **Live end to end.** Generated media land in synthetic cameras' FTP folders and the real pipeline runs. The scorer compares what every stage stored against each event's ground truth. Per-stage direct-call harnesses are out of scope.  |
-| D2  | **Ground truth = spec + independent automatic verification + human audit sample** (§4).                                                                                                                                                   |
-| D3  | **Fully synthetic scenes.** No real camera frame is used as a plate, reference or edit source.                                                                                                                                            |
-| D4  | **Stills and clips.** Stills feed the detector and specialists (and the VLM); the clip is kept for a VLM that analyzes video directly. The benchmark scores the VLM in stills mode now and in video mode once a video-capable VLM exists. |
-| D5  | **Accuracy and load.** One frozen, versioned corpus replays in a _paced_ mode (accuracy) and a _burst_ mode (load, and accuracy under load).                                                                                              |
-| D6  | **Two tiers over one taxonomy** (§1): Tier A anchored sites built spec-first and compositionally; Tier B independent text-to-image at volume across a broad property taxonomy.                                                            |
-| D7  | **Local open-weight generation only.** Hosted generators (Hailuo, Veo, Gemini) are out: their content filters remove the threats the benchmark exists to test.                                                                            |
-| D8  | **Licenses are not a selection criterion** (standing ruling 2026-09-25). Models are picked on fit, measured in P1.                                                                                                                        |
-| D9  | **The flagship vLLM may be stopped for generation.** The `generate window` command stops it and **always** restarts it, including on failure or interrupt (§3.6).                                                                         |
-| D10 | **Capture time comes from the Foscam filename** — a prerequisite backend PR (P0, §5.3).                                                                                                                                                   |
-| D11 | **Isolated benchmark instance, clean database per run** (§5.1). Synthetic households and events never touch any other database.                                                                                                           |
-| D12 | **Tier B first.** The first end-to-end result comes from a ~500-still Tier B v0 before Tier A work starts (§7.3).                                                                                                                         |
+| #   | Decision                                                                                                                                                                                                                                                                                                                          |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | **Live end to end.** Generated media land in synthetic cameras' FTP folders and the real pipeline runs. The scorer compares what every stage stored against each event's ground truth. Per-stage direct-call harnesses are out of scope.                                                                                          |
+| D2  | **Ground truth = spec + independent automatic verification + human audit sample** (§4).                                                                                                                                                                                                                                           |
+| D3  | **Fully synthetic scenes.** No real camera frame is used as a plate, reference or edit source. Real footage may inform degrade calibration through aggregate statistics only (D13).                                                                                                                                               |
+| D4  | **Stills and clips.** Stills feed the detector and specialists (and the VLM); the clip is kept for a VLM that analyzes video directly. The benchmark scores the VLM in stills mode now and in video mode once a video-capable VLM exists.                                                                                         |
+| D5  | **Accuracy and load.** One frozen, versioned corpus replays in a _paced_ mode (accuracy) and a _burst_ mode (load, and accuracy under load).                                                                                                                                                                                      |
+| D6  | **Two tiers over one taxonomy** (§1): Tier A anchored sites built spec-first and compositionally; Tier B independent text-to-image at volume across a broad property taxonomy.                                                                                                                                                    |
+| D7  | **Local open-weight generation only.** Hosted generators (Hailuo, Veo, Gemini) are out: their content filters remove the threats the benchmark exists to test.                                                                                                                                                                    |
+| D8  | **Licenses are not a selection criterion** (standing ruling 2026-09-25). Models are picked on fit, measured in P1.                                                                                                                                                                                                                |
+| D9  | **The flagship vLLM may be stopped for generation.** The `generate window` command stops it and **always** restarts it, including on failure or interrupt (§3.6).                                                                                                                                                                 |
+| D10 | **Capture time comes from the Foscam filename** — a prerequisite backend PR (P0, §5.3).                                                                                                                                                                                                                                           |
+| D11 | **Isolated benchmark instance, clean database per run** (§5.1). Synthetic households and events never touch any other database.                                                                                                                                                                                                   |
+| D12 | **Tier B first.** The first end-to-end result comes from a ~500-still Tier B v0 before Tier A work starts (§7.3).                                                                                                                                                                                                                 |
+| D13 | **Degrade calibration from real footage** (owner, Q1). Degrade parameters (noise, JPEG quantization, IR response, contrast and blur) may be fitted to aggregate statistics of the real Foscam footage on the owner's machine. No real pixel enters the corpus or git; the committed output is a parameter file of numbers (§3.4). |
+| D14 | **Retire the 408 media-less VSS items** (owner, Q2) once media-backed replacements from this corpus are imported and the eval store still meets its size floor (≥ 100 benign, ≥ 20 incidents) without them (§8).                                                                                                                  |
 
 ## §1 Scope
 
@@ -235,6 +238,13 @@ Deterministic, seeded code converts a clean render into what a Foscam camera upl
   [A]), and P6 checks how the video path treats short clips.
 
 Stills are sampled from the clip at Foscam-like burst spacing (1-2 s).
+
+**Calibration (D13).** `synthbench degrade calibrate` reads the real footage under
+`/export/foscam` on the owner's machine and fits the degrade parameters per camera type and
+condition (day, IR night) to aggregate statistics: noise level, JPEG quantization tables, IR
+luminance response, contrast and sharpness. It writes a committed parameter file of numbers only;
+no real pixel, crop or thumbnail leaves the calibration run. A test pins that the calibration
+output holds no array larger than a parameter table.
 
 ### §3.5 Generator diversity in Tier B
 
@@ -484,23 +494,24 @@ TDD throughout. CI never needs a GPU.
 
 Each phase gets its own plan and PR. The implementing agent writes one phase's plan at a time.
 
-| Phase | Deliverable                                                                                           | GPU                 |
-| ----- | ----------------------------------------------------------------------------------------------------- | ------------------- |
-| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                            | no                  |
-| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec             | window              |
-| P2    | Contract, taxonomy, sampler, `expectations()`                                                         | no                  |
-| P3    | Generation stack and GPU window, Tier B first (text-to-image + degrade)                               | window              |
-| P4    | Verifier and audit page                                                                               | window              |
-| P5    | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0 | beside the flagship |
-| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                          | window              |
-| P7    | Burst mode, `compare`, VSS eval-store export, then scale to v1 sizes                                  | mixed               |
+| Phase | Deliverable                                                                                                | GPU                 |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ------------------- |
+| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                                 | no                  |
+| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec                  | window              |
+| P2    | Contract, taxonomy, sampler, `expectations()`                                                              | no                  |
+| P3    | Generation stack and GPU window, Tier B first (text-to-image + degrade calibrated per D13)                 | window              |
+| P4    | Verifier and audit page                                                                                    | window              |
+| P5    | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0      | beside the flagship |
+| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                               | window              |
+| P7    | Burst mode, `compare`, VSS eval-store export and retirement of the 408 items (D14), then scale to v1 sizes | mixed               |
 
 ## §8 Relationship to existing work
 
 - **`scripts/synthetic/`**: its 17 scenario templates seed the taxonomy's scenario list, and its
   expected outputs inform the fact vocabulary. `synthbench` does not import it.
-- **VSS eval store**: the export adapter (§2.7) supplies media-backed items. Whether they replace
-  the 408 media-less items is open question Q2.
+- **VSS eval store**: the export adapter (§2.7) supplies media-backed items, and they replace the
+  408 media-less items (D14). Retirement runs after the import, only if the store still meets its
+  size floor without them, and is recorded in the VSS ledger as an owner ruling.
 - **VSS D6** ("ingest is FTP stills only"): unchanged. The benchmark carries clips so video-mode
   VLM scoring is ready when a video-capable VLM exists; it does not change the ingest decision.
 
@@ -520,10 +531,6 @@ Each phase gets its own plan and PR. The implementing agent writes one phase's p
 | R8  | Generated clips are shorter than real ones (6-10 s vs ~40 s).                                             | P6 checks how the video path handles short clips; pad or chain segments if needed.                                         |
 | R9  | Burst mode may merge events across the 90 s window.                                                       | Scored as `split` or merged findings; that is the load test working, not a scorer bug.                                     |
 
-### §9.2 Open questions for the owner
+### §9.2 Open questions
 
-- **Q1.** May degrade parameters (noise level, JPEG quantization, IR response) be _calibrated_
-  from statistics of real Foscam footage, with no real pixels entering the corpus? D3 as written
-  forbids real frames only as plates, references and edit sources.
-- **Q2.** Once the corpus exports media-backed items, should the 408 media-less VSS items be
-  retired or kept?
+None open. Q1 became D13 and Q2 became D14 (owner, 2026-09-27).
