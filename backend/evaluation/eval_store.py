@@ -40,6 +40,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 class EvalStore:
     def __init__(self, db_path: str | Path) -> None:
+        # The store DIRECTORY names the generation (gen-1 / gen-2 / ... by
+        # ruling, one dir per generation at a new path) - a replay report
+        # must be able to say which corpus it measured without carrying an
+        # absolute path anywhere near git (D10).
+        self.dir_name = Path(db_path).resolve().parent.name
         self._db = sqlite3.connect(str(db_path))
         self._db.execute("PRAGMA foreign_keys = ON")
         # A contended write waits instead of aborting (G0 close-out audit #12):

@@ -34,6 +34,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import statistics
 import subprocess
 import time
@@ -171,7 +172,16 @@ def compute_report(rows: list[dict[str, Any]], store: EvalStore) -> dict[str, An
     """Aggregate only (D10): rates, n, Wilson - never per-item content."""
     labels, items = _labels_and_items(store)
     latencies = sorted(r["latency_ms"] for r in rows if r.get("latency_ms") is not None)
-    p95 = latencies[min(len(latencies) - 1, int(len(latencies) * 0.95))] if latencies else None
+    # Nearest-rank p95: the value at rank ceil(0.95n), clamped to the last
+    # index. `latencies[int(n * 0.95)]` was one rank high at every whole-
+    # multiple n (n=20 -> index 19 -> rank 20 = the max) — and at n=13 the
+    # two agree (ceil(12.35) = 13), which is why the bake-off's three
+    # indicative figures stay valid while the formula was still wrong.
+    p95 = (
+        latencies[min(math.ceil(len(latencies) * 0.95) - 1, len(latencies) - 1)]
+        if latencies
+        else None
+    )
     return {
         "s2": s2_false_positive_rate(rows, labels),
         "s3": s3_recall(rows, items),
@@ -234,8 +244,30 @@ async def run_replay(
             "(build_gen2); with_media_only=False is refused because an imageless "
             "vlm_assess cannot be built (image_paths requires >=1 path)."
         )
+    if limit is not None and limit < 1:
+        # `items[:0]` is [] and a run over nothing completes a FULL report
+        # (run row, JSON file, exit 0); `items[:-1]` silently drops the last
+        # item. This module already refuses a media-less generation loudly -
+        # a vacuous denominator arriving through `--limit` was the last hole
+        # in that posture.
+        raise ValueError(f"limit must be >= 1 (got {limit}); omit it to replay everything")
     if limit is not None:
         items = items[:limit]
+
+    if make_client is not None and endpoint is not None:
+        # The docstring's claim ("the report cannot name a URL the run did
+        # not call") was only true while the injected branch echoed nothing.
+        # A caller that passes BOTH - a per-candidate factory pinning the
+        # image plus an endpoint "for the record" - is one port-table slip
+        # away from a report naming candidate A's URL for a run that dialed
+        # B. The harness cannot verify an injected transport, so it refuses
+        # the contradiction instead of printing the caller's assertion.
+        raise ValueError(
+            "endpoint is not recordable alongside an injected make_client: the "
+            "factory owns its transport and the run cannot verify the URL it "
+            "dials. Omit endpoint (the report then says vlm_url_source="
+            "'injected'), or let the run build its own client from it."
+        )
 
     url: str | None
     if make_client is None:
@@ -249,8 +281,8 @@ async def run_replay(
     else:
         # An injected factory owns its transport; the harness must not claim
         # to know the URL it calls, so the field says "injected" and the URL
-        # stays whatever the caller named (None unless it chose to say).
-        url, url_source = endpoint, "injected"
+        # is None. (Naming one is refused above.)
+        url, url_source = None, "injected"
 
     run_id = store.start_run(engine=engine, model=f"{candidate}@{commit}")
     rows: list[dict[str, Any]] = []
@@ -280,6 +312,24 @@ async def run_replay(
         await client.close()
 
     report = compute_report(rows, store)
+    # Which corpus this measured, plan 2.1.5's requirement: without it two
+    # generations that share the 13 stock media items produce byte-
+    # comparable S2/S3 rows under indistinguishable headers - the exact
+    # ambiguity gen-2 exists to remove. Counts + the store DIRECTORY NAME
+    # (the generation, by ruling); never an absolute path, never item ids
+    # (D10). The corpus-wide counts, not the replayed subset, so a --limit
+    # run still says what generation it drew from.
+    all_items = store.iter_items()
+    corpus_labels: dict[str, int] = {}
+    for it in all_items:
+        key = it.expected_label or "unlabeled"
+        corpus_labels[key] = corpus_labels.get(key, 0) + 1
+    report["corpus"] = {
+        "store_dir": store.dir_name,
+        "items": len(all_items),
+        "with_media": sum(1 for it in all_items if it.media_paths),
+        "labels": dict(sorted(corpus_labels.items())),
+    }
     report["run_id"] = run_id
     report["candidate"] = candidate
     report["engine"] = engine
@@ -323,16 +373,21 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     store = EvalStore(Path(args.store) / "eval.sqlite")
-    report = asyncio.run(
-        run_replay(
-            store,
-            candidate=args.candidate,
-            engine=args.engine,
-            limit=args.limit,
-            with_media_only=not args.all_items,
-            endpoint=args.vlm_url,
+    try:
+        report = asyncio.run(
+            run_replay(
+                store,
+                candidate=args.candidate,
+                engine=args.engine,
+                limit=args.limit,
+                with_media_only=not args.all_items,
+                endpoint=args.vlm_url,
+            )
         )
-    )
+    finally:
+        # The client gets a `finally` close three floors down; the store
+        # connection owed the same since the day this CLI opened it.
+        store.close()
     out = save_vlm_report(
         report,
         Path(args.out) if args.out else Path(args.store) / "reports" / f"{report['run_id']}.json",

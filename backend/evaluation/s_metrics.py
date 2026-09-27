@@ -49,7 +49,10 @@ def wilson_interval(k: int, n: int, z: float = 1.959963984540054) -> tuple[float
     denom = 1 + z2 / n
     centre = p + z2 / (2 * n)
     margin = z * math.sqrt((p * (1 - p) + z2 / (4 * n)) / n)
-    return ((centre - margin) / denom, (centre + margin) / denom)
+    # The closed form lands on 1.0 and 0.0 analytically at k=n and k=0;
+    # float noise pushes a handful of n (11, 21, 285, ...) a few ulps past
+    # them, and a "proportion" above 1 is a bug no rounding fully hides.
+    return (max(0.0, (centre - margin) / denom), min(1.0, (centre + margin) / denom))
 
 
 def _scored(row: dict[str, Any]) -> bool:
@@ -73,14 +76,20 @@ def s2_false_positive_rate(results: list[dict[str, Any]], labels: dict[str, str]
     denom = fp = refused = skipped = 0
     for row in results:
         item_id = row["item_id"]
-        if labels.get(item_id, "") == "benign":
+        label = labels.get(item_id, "")
+        if label == "benign":
             denom += 1
             if not _scored(row):
                 refused += 1
                 continue
             if level_at_or_above(score_to_level(row["risk_score"]), "medium"):
                 fp += 1
-        elif item_id not in labels:
+        elif label != "incident":
+            # Neither label, in either direction: the key missing AND the
+            # key present holding "" (the control freeze's unlabeled shape,
+            # `label or ""`). Keying this off `not in labels` alone let an
+            # empty-label item leave BOTH bars' denominators with nothing
+            # counting it - a denominator shrink that read as clean data.
             skipped += 1
     lo, hi = wilson_interval(fp, denom)
     return {
@@ -108,10 +117,17 @@ def s3_recall(results: list[dict[str, Any]], items: dict[str, dict[str, Any]]) -
     """
 
     def measure(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        hit = miss = refused = 0
+        hit = miss = refused = unfailable = 0
         for row in rows:
             item = items[row["item_id"]]
             floor = item["floor"]
+            if floor == "low":
+                # Any score reaches `low`, so this row cannot move the bar;
+                # a bucket that is ALL unfailable reports recall the model
+                # cannot lose (the shipped stock set's 0.875 was that number
+                # - see the double report). Counted beside the rate, now, so
+                # the reader sees it from the data rather than the prose.
+                unfailable += 1
             if not _scored(row):
                 refused += 1
                 continue  # a refusal is not a hit; it is reported as refused
@@ -128,17 +144,20 @@ def s3_recall(results: list[dict[str, Any]], items: dict[str, dict[str, Any]]) -
             "hit": hit,
             "miss": miss,
             "refused": refused,
+            "unfailable": unfailable,
         }
 
-    incident_rows = [
-        row for row in results if items.get(row["item_id"], {}).get("label") == "incident"
+    labeled = [
+        r for r in results if items.get(r["item_id"], {}).get("label") in ("benign", "incident")
     ]
-    zero_floor = [r for r in incident_rows if items[r["item_id"]]["floor"] == "low"]
+    unlabeled = len(results) - len(labeled)
+    incident_rows = [r for r in labeled if items[r["item_id"]]["label"] == "incident"]
     nonzero = [r for r in incident_rows if items[r["item_id"]]["floor"] != "low"]
     out: dict[str, Any] = {
         k: measure(rows) for k, rows in (("all", incident_rows), ("excluding_zero_floor", nonzero))
     }
-    out["zero_floor_items"] = len(zero_floor)
+    out["zero_floor_items"] = sum(1 for r in incident_rows if items[r["item_id"]]["floor"] == "low")
+    out["unlabeled"] = unlabeled  # empty/missing label: out of both bars, counted here
     out["bar_pct"] = S3_MIN_PCT
     return out
 
@@ -165,16 +184,48 @@ def s5_refusals(results: list[dict[str, Any]]) -> dict[str, Any]:
     """S5's shape at the ROW level: every refusal is verdict
     `verification_failed` WITH a NULL score. A verification_failed row that
     carries a score, or a scored row's NULL, is the ladder broken at the
-    harness boundary - counted and loud, never smoothed."""
+    harness boundary - counted and loud, never smoothed.
+
+    The refusals are also broken down by the error class `replay_item`
+    stored in `raw_response.error` (class NAMES only - aggregate, D10). The
+    bar is "0 **unparseable** verdicts" (spec :77), a statement about the
+    model's output; one undifferentiated count made 13-of-13 schema
+    failures and 13-of-13 connection refusals report identically, and the
+    breaker arm of the 2.1.6 smoke proved a run CAN fail all items on
+    plumbing while looking exactly like a model that refused everything.
+    Class keys are strings, never imports: this module stays a leaf.
+    """
     broken = [
         row["item_id"]
         for row in results
         if (row["verdict"] == VERIFICATION_FAILED) != (row.get("risk_score") is None)
     ]
     refused = sum(1 for r in results if r["verdict"] == VERIFICATION_FAILED)
+    by_class: dict[str, int] = {}
+    unparseable = unavailable = unclassifiable = 0
+    for row in results:
+        if row["verdict"] != VERIFICATION_FAILED:
+            continue
+        error = (row.get("raw_response") or {}).get("error")
+        if not error:
+            unclassifiable += 1  # refused but the row cannot say why: loud by count
+            continue
+        by_class[error] = by_class.get(error, 0) + 1
+        # "Schema" covers its VlmTruncatedError subclass by name prefix -
+        # a truncated reply IS an unparseable one. Image and transport
+        # failures produced no model output to call unparseable;
+        # enforcement/refusal causes are their own story beside it.
+        if error.startswith("VlmSchema") or error.startswith("VlmTruncated"):
+            unparseable += 1
+        elif error.startswith(("VlmTransport", "VlmUnavailable", "VlmImage")):
+            unavailable += 1
     return {
         "refusals": refused,
         "n": len(results),
         "refusal_rate": (refused / len(results)) if results else None,
         "broken_rows": broken,
+        "by_error_class": by_class,
+        "unparseable": unparseable,  # the bar's own quantity
+        "unavailable": unavailable,  # no reply: plumbing, not robustness
+        "unclassifiable": unclassifiable,  # refused with no cause on the row
     }

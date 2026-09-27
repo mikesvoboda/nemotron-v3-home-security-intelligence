@@ -157,7 +157,13 @@ class TestReplayItem:
         assert row["verdict"] == "verification_failed"
         assert row["risk_score"] is None
         assert row["raw_response"]["error"] == "VlmTransportError"
-        assert "50" not in json.dumps(row["raw_response"])  # the analyzer's old lie
+        # The analyzer's old lie was a refusal arriving WITH a score; "50 not
+        # in the dump" pinned nothing (it fails on any message containing
+        # "50", passes any real default-score regression in another field).
+        # The risk of it re-appearing is the row SHAPE: no key other than
+        # verdict/item_id/raw_response/latency carries a number, and no
+        # scored key exists to drift into.
+        assert set(row) == {"item_id", "verdict", "risk_score", "raw_response", "latency_ms"}
 
     async def test_a_bug_propagates_loud_not_degraded(self, tmp_path) -> None:
         """The ladder covers engine failures, not programming errors - the
@@ -201,23 +207,37 @@ class TestRunReplay:
         assert run[1].startswith("Fake-1B-Q4@")
         assert re.search(r"@(?:[0-9a-f]{7,40}|unknown)$", run[1]), "commit pin missing"
 
-    async def test_the_report_names_the_endpoint_it_measured(self, tmp_path) -> None:
-        """Two candidates on two published ports is 2.2's whole shape, and the
-        one way to mix them up is a report that never says which URL it
-        called. A named endpoint must reach the report verbatim."""
+    async def test_an_injected_factory_names_no_url(self, tmp_path) -> None:
+        """An injected factory owns its transport; the harness cannot verify
+        what it dials, so the report says `injected` and names no URL. The
+        D10 leak pins use this shape (factory without endpoint) and rely on
+        vlm_url being absent rather than an unverified echo."""
         items = [_item(tmp_path, 1)]
         store = _store(tmp_path, items)
 
         def make() -> FakeClient:
             return FakeClient({items[0].media_paths[0]: _verdict()})
 
-        report = await run_replay(
-            store, candidate="F@test", make_client=make, endpoint="http://host:18123"
-        )
-        assert report["vlm_url"] == "http://host:18123"
-        # an injected factory owns its transport: the harness must NOT claim a
-        # URL it cannot verify it called.
+        report = await run_replay(store, candidate="F@test", make_client=make)
+        assert report["vlm_url"] is None
         assert report["vlm_url_source"] == "injected"
+
+    async def test_naming_an_endpoint_alongside_a_factory_is_refused(self, tmp_path) -> None:
+        """The docstring here used to CLAIM "the report cannot name a URL the
+        run did not call" while the code echoed a caller-named `endpoint`
+        through an injected factory that carries no URL - a 2.2 driver could
+        point `--vlm-url` at candidate A while its factory built B, and the
+        report would name A. The invariant is enforced now: if the harness
+        cannot verify the transport, it refuses the contradiction instead of
+        printing the caller's assertion."""
+        items = [_item(tmp_path, 1)]
+        store = _store(tmp_path, items)
+
+        def make() -> FakeClient:  # pragma: no cover - must never be called
+            raise AssertionError("refused build must not construct a client")
+
+        with pytest.raises(ValueError, match="endpoint"):
+            await run_replay(store, candidate="F@test", make_client=make, endpoint="http://x:1")
 
     async def test_an_unnamed_endpoint_is_resolved_once_and_recorded_as_such(
         self, tmp_path, monkeypatch
@@ -278,6 +298,118 @@ class TestRunReplay:
             await run_replay(
                 store, candidate="F@test", with_media_only=False, make_client=FakeClient
             )
+
+    async def test_zero_and_negative_limits_are_refused_not_sliced(self, tmp_path) -> None:
+        """`items[:limit]` with limit=0 yields [] and the run completes a
+        full report over zero items (exit 0, a run row, a written JSON), and
+        limit=-1 silently drops the last item. The same function refuses a
+        media-less generation loudly, so the vacuous-green run was the one
+        hole left in this module's own posture."""
+        items = [_item(tmp_path, n) for n in (1, 2, 3)]
+        store = _store(tmp_path, items)
+
+        def make() -> FakeClient:  # pragma: no cover - must never be called
+            raise AssertionError("refused limit must not build a client")
+
+        with pytest.raises(ValueError, match="limit"):
+            await run_replay(store, candidate="F@test", make_client=make, limit=0)
+        with pytest.raises(ValueError, match="limit"):
+            await run_replay(store, candidate="F@test", make_client=make, limit=-1)
+
+    async def test_p95_is_the_nearest_rank_not_the_maximum(self, tmp_path) -> None:
+        """`latencies[int(n*0.95)]` sat one rank high at every n where 0.95n
+        is whole (n=20 -> index 19 -> rank 20 = the max; the min() clamp
+        kept it in range, so it failed silently). Nearest-rank p95 is the
+        value at rank ceil(0.95n): at n=20 that's the 19th, not the 20th.
+        At n=13 the two formulas agree (ceil(12.35) = 13 = int(12.35)+1),
+        which is why the bake-off's three n=13 figures were always the right
+        number. Pinned through compute_report directly with known latencies:
+        real durations can't be faked through time.monotonic, and the report
+        is a pure function of its rows."""
+        from backend.evaluation.vlm_replay import compute_report
+
+        items = [_item(tmp_path, n) for n in range(1, 21)]
+        store = _store(tmp_path, items)
+        rows = [
+            {
+                "item_id": it.item_id,
+                "verdict": "confirmed",
+                "risk_score": 60,
+                "raw_response": {},
+                "latency_ms": i * 100,  # 100..2000 ms
+            }
+            for i, it in enumerate(items, start=1)
+        ]
+        lat = compute_report(rows, store)["latency_ms_indicative_only"]
+        assert lat["n"] == 20
+        assert lat["p95"] == 1900  # rank ceil(0.95*20) = 19, NOT the 2000 max
+        assert lat["max"] == 2000
+
+    async def test_the_report_says_which_corpus_it_measured(self, tmp_path) -> None:
+        """Plan 2.1.5 requires 'corpus generation + counts' in the report.
+        Two generations sharing the 13 stock media items produce
+        byte-comparable S2/S3 rows and indistinguishable headers - the exact
+        ambiguity gen-2 exists to remove. Aggregate counts + the store
+        DIRECTORY NAME only: no absolute path, no item ids (D10)."""
+        items = [
+            _item(tmp_path, 1, label="incident"),
+            _item(tmp_path, 2, label="benign", expected=10),
+            _item(tmp_path, 3, label="", expected=40),  # the freeze's shape
+        ]
+        store = _store(tmp_path, items)
+        results = {it.media_paths[0]: _verdict("confirmed", 40) for it in items}
+
+        def make() -> FakeClient:
+            return FakeClient(results)
+
+        report = await run_replay(store, candidate="F@test", make_client=make)
+        corpus = report["corpus"]
+        assert corpus["items"] == 3
+        assert corpus["with_media"] == 3
+        assert corpus["labels"] == {"benign": 1, "incident": 1, "unlabeled": 1}
+        # A name the report can be compared by, never a path (D10 kept the
+        # absolute store location out of everything that rides to git).
+        assert corpus["store_dir"]
+        assert "/" not in corpus["store_dir"]
+
+    def test_main_closes_the_store(self, tmp_path, monkeypatch) -> None:
+        """`main()` opens the EvalStore and never closes it - sqlite3 would
+        eventually GC, but the rule this repo holds everywhere else is close
+        in `finally`. Spied, not assumed."""
+        import backend.evaluation.vlm_replay as vr
+
+        closed: list[bool] = []
+
+        class SpyStore(EvalStore):
+            def close(self) -> None:
+                closed.append(True)
+                super().close()
+
+        async def fake_run(store, **kwargs):
+            return {
+                "s2": {},
+                "s3": {},
+                "verdict_mix": {},
+                "s5": {},
+                "run_id": "r1",
+                "candidate": "F@test",
+                "engine": "llama.cpp",
+                "commit": "unknown",
+                "n_items": 0,
+                "vlm_url": None,
+                "vlm_url_source": "injected",
+                "started_at_utc": "x",
+                "latency_ms_indicative_only": {},
+                "corpus": {},
+            }
+
+        monkeypatch.setattr(vr, "EvalStore", SpyStore)
+        monkeypatch.setattr(vr, "run_replay", fake_run)
+        rc = vr.main(
+            ["--store", str(tmp_path), "--candidate", "F@test", "--out", str(tmp_path / "r.json")]
+        )
+        assert rc == 0
+        assert closed == [True]
 
     async def test_limit_replays_a_prefix_deterministically(self, tmp_path) -> None:
         items = [_item(tmp_path, n) for n in (1, 2, 3)]
@@ -403,4 +535,13 @@ class TestModuleHygiene:
         )
 
     def test_constrained_decoding_error_is_in_the_ladder(self) -> None:
-        assert any(m.endswith("nemotron_analyzer") for m in self._imported_modules())
+        """The analyzer's ConstrainedDecodingNotEnforced must be a member of
+        the replay's `_DEGRADABLE_ERRORS`, not merely mentioned: "any import
+        path ending in nemotron_analyzer" is satisfied by importing anything
+        else from that module. The set pin above already compares the SET of
+        names to the analyzer's; this names the one class whose absence would
+        crash a bake-off run where production degrades."""
+        from backend.evaluation.vlm_replay import _DEGRADABLE_ERRORS
+        from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+
+        assert ConstrainedDecodingNotEnforced in _DEGRADABLE_ERRORS

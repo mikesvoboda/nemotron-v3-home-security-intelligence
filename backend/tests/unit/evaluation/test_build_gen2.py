@@ -182,6 +182,37 @@ class TestBuildGen2:
         with pytest.raises(FileNotFoundError):
             build_gen2(tmp_path / "g", corpus_dir=tmp_path / "nowhere", stock_root=stock)
 
+    def test_the_build_path_never_opens_a_gen_1_file(self, tmp_path, monkeypatch) -> None:
+        """Plan 2.0.2's claimed pin, made real: "gen-2's build path never
+        opens a path containing `gen-1`". The immutability guards above
+        protect a gen-2 file that was pointed at deliberately; nothing here
+        proved a BUILD never reaches toward the frozen generation. Spy the
+        store class itself - every database the build touches passes
+        through EvalStore(db_file) - and stage a gen-1 store right next to
+        the target dir so a near-miss path would also be caught."""
+        opened: list[str] = []
+        real = EvalStore
+
+        class SpyStore(EvalStore):
+            def __init__(self, db_path) -> None:
+                opened.append(str(db_path))
+                super().__init__(db_path)
+
+        import backend.evaluation.eval_store as es
+
+        monkeypatch.setattr(es, "EvalStore", SpyStore)
+        gen1 = tmp_path / "gen-1"
+        gen1.mkdir()
+        real(gen1 / "eval.sqlite").close()  # a frozen store, present and near
+        before = (gen1 / "eval.sqlite").stat().st_size
+        stock = _stage_stock(tmp_path, ["casing"])
+        report = build_gen2(tmp_path / "gen-2", corpus_dir=CORPUS_DIR, stock_root=stock)
+        assert report["items"] > 0
+        assert opened, "the spy never saw a store - the seam moved"
+        for path in opened:
+            assert "gen-1" not in path, f"the build opened the frozen generation: {path}"
+        assert (gen1 / "eval.sqlite").stat().st_size == before
+
 
 class TestGen1IsStillFrozen:
     """The guard that motivated the generation, pinned at the NEW call site
