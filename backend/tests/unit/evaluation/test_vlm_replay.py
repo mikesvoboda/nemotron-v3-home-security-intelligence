@@ -15,6 +15,7 @@ import ast
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -199,6 +200,56 @@ class TestRunReplay:
         # the run's model string says WHAT and WHERE - candidate@commit
         assert run[1].startswith("Fake-1B-Q4@")
         assert re.search(r"@(?:[0-9a-f]{7,40}|unknown)$", run[1]), "commit pin missing"
+
+    async def test_the_report_names_the_endpoint_it_measured(self, tmp_path) -> None:
+        """Two candidates on two published ports is 2.2's whole shape, and the
+        one way to mix them up is a report that never says which URL it
+        called. A named endpoint must reach the report verbatim."""
+        items = [_item(tmp_path, 1)]
+        store = _store(tmp_path, items)
+
+        def make() -> FakeClient:
+            return FakeClient({items[0].media_paths[0]: _verdict()})
+
+        report = await run_replay(
+            store, candidate="F@test", make_client=make, endpoint="http://host:18123"
+        )
+        assert report["vlm_url"] == "http://host:18123"
+        # an injected factory owns its transport: the harness must NOT claim a
+        # URL it cannot verify it called.
+        assert report["vlm_url_source"] == "injected"
+
+    async def test_an_unnamed_endpoint_is_resolved_once_and_recorded_as_such(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """The stale-env case: `AI_VLM_URL` pointing at the wrong candidate
+        produces a green-looking run that measured the wrong model. The run
+        cannot prevent that, but it can refuse to hide it - the URL AND its
+        source both land in the report, from ONE resolution."""
+        import backend.evaluation.vlm_replay as vr
+
+        seen: list[str] = []
+
+        class SpyClient:
+            def __init__(self, base_url: str) -> None:
+                seen.append(base_url)
+
+            async def assess(self, request):  # pragma: no cover - trivial
+                return _verdict()
+
+            async def close(self) -> None:
+                pass
+
+        monkeypatch.setattr(vr, "VlmClient", SpyClient)
+        monkeypatch.setattr(
+            vr, "get_settings", lambda: SimpleNamespace(ai_vlm_url="http://settings-wins:8098")
+        )
+        items = [_item(tmp_path, 1)]
+        store = _store(tmp_path, items)
+        report = await run_replay(store, candidate="F@test")  # no make_client, no endpoint
+        assert seen == ["http://settings-wins:8098"]  # the client got THAT url
+        assert report["vlm_url"] == "http://settings-wins:8098"  # and the report says it
+        assert report["vlm_url_source"] == "settings"
 
     async def test_latency_is_reported_but_never_stored_in_results(self, tmp_path) -> None:
         items = [_item(tmp_path, 1)]

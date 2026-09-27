@@ -42,6 +42,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from backend.core.config import get_settings
 from backend.evaluation.assess_input import EvalItem
 from backend.evaluation.eval_store import EvalStore
 from backend.evaluation.levels import floor_for_expected_score
@@ -67,11 +68,20 @@ _DEGRADABLE_ERRORS: tuple[type[BaseException], ...] = (
 MAX_REPLAY_IMAGES = 4  # VlmAssessRequest.image_paths' own field constraint
 
 
-def client_factory() -> VlmClient:
-    """The production client (settings → `ai_vlm_url`, breaker, probe). Tests
-    pass a fake with the same no-arg signature - the seam is this function,
-    never an instance, so the per-item `close()` lifecycle stays real."""
-    return VlmClient()
+def client_factory(base_url: str | None = None) -> Callable[[], VlmClient]:
+    """The production client (settings → `ai_vlm_url`, breaker, probe), or an
+    explicit endpoint when one is named. Tests pass a fake with the same
+    no-arg signature - the seam is this FACTORY, never an instance, so the
+    per-item `close()` lifecycle stays real.
+
+    The `base_url` form exists because a run must be able to SAY which endpoint
+    it measured: two candidates behind two published ports is exactly the
+    2.2 bake-off's shape, and a run whose report cannot name its endpoint is
+    not a pinned run (F13).
+    """
+    if base_url is not None:
+        return lambda: VlmClient(base_url=base_url)
+    return VlmClient
 
 
 def git_commit(short: bool = True) -> str:
@@ -180,12 +190,21 @@ async def run_replay(
     engine: str = "llama.cpp",
     limit: int | None = None,
     with_media_only: bool = True,
-    make_client: Callable[[], Any] = client_factory,
+    make_client: Callable[[], Any] | None = None,
+    endpoint: str | None = None,
 ) -> dict[str, Any]:
     """One run of the harness. `candidate` names the exact build (weights +
     quant + image tag); it lands in the run row's `model` next to the commit,
     because 'the same replay per candidate' is only comparable if the run says
     what it ran.
+
+    `endpoint` is the other half of that sentence — WHICH URL was measured.
+    It is resolved once here and the client is built from that same value, so
+    the report cannot name a URL the run did not call: a bake-off with two
+    candidates on two published ports has exactly one way to mix them up, and
+    it is not by being careful. When no factory is injected the run also says
+    where the URL came from (`--vlm-url` or settings), since "we measured the
+    default" is the sentence a stale `AI_VLM_URL` in the environment produces.
 
     Returns the aggregate report + the run id. Raises FileNotFoundError for a
     generation with nothing runnable (gen-1: every item is media-less, so the
@@ -214,6 +233,21 @@ async def run_replay(
     if limit is not None:
         items = items[:limit]
 
+    url: str | None
+    if make_client is None:
+        # The run builds its own client, so it can name the URL it built it
+        # from - and where that URL came from, because "we measured the
+        # default" is exactly what a stale AI_VLM_URL in the environment
+        # produces: a green-looking run against the wrong candidate.
+        url_source = "cli" if endpoint is not None else "settings"
+        url = endpoint if endpoint is not None else get_settings().ai_vlm_url
+        make_client = client_factory(url)
+    else:
+        # An injected factory owns its transport; the harness must not claim
+        # to know the URL it calls, so the field says "injected" and the URL
+        # stays whatever the caller named (None unless it chose to say).
+        url, url_source = endpoint, "injected"
+
     run_id = store.start_run(engine=engine, model=f"{candidate}@{commit}")
     rows: list[dict[str, Any]] = []
     for item in items:
@@ -237,6 +271,8 @@ async def run_replay(
     report["engine"] = engine
     report["commit"] = commit
     report["n_items"] = len(items)
+    report["vlm_url"] = url
+    report["vlm_url_source"] = url_source
     report["started_at_utc"] = datetime.now(UTC).isoformat(timespec="seconds")
     return report
 
@@ -260,6 +296,11 @@ def main(argv: list[str] | None = None) -> int:
         "--candidate", required=True, help="exact build id, e.g. Qwen3VL-4B-Q4_K_M@ai-vlm:sm103-v12"
     )
     ap.add_argument("--engine", default="llama.cpp")
+    ap.add_argument(
+        "--vlm-url",
+        default=None,
+        help="endpoint to measure (default: settings.ai_vlm_url, recorded either way)",
+    )
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument(
         "--all-items", action="store_true", help="replay every item, not just media-bearing"
@@ -275,6 +316,7 @@ def main(argv: list[str] | None = None) -> int:
             engine=args.engine,
             limit=args.limit,
             with_media_only=not args.all_items,
+            endpoint=args.vlm_url,
         )
     )
     out = save_vlm_report(
@@ -282,7 +324,10 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.out) if args.out else Path(args.store) / "reports" / f"{report['run_id']}.json",
     )
     print(
-        json.dumps({k: report[k] for k in ("run_id", "candidate", "commit", "n_items")}, indent=2)
+        json.dumps(
+            {k: report[k] for k in ("run_id", "candidate", "commit", "n_items", "vlm_url")},
+            indent=2,
+        )
     )
     print(f"report -> {out}")
     return 0
