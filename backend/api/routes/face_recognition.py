@@ -531,6 +531,14 @@ async def extract_face_embedding_from_detection(
         settings = get_settings()
         image = await _run_face_leg_step(Image.open, str(image_path))
         image = await _run_face_leg_step(_to_rgb, image)
+        # Enroll the DETECTION's person, not the frame's most confident
+        # face (M1 review F-B): the docstring always named bbox_* as the
+        # input, but the leg was handed the whole image and picked the best
+        # face anywhere in it — so a bystander's face became this
+        # detection's enrolled identity, and the quality gate measured the
+        # wrong person. Cropping first makes picking wrong someone else
+        # impossible: the leg can only see the person this box contains.
+        image = await _run_face_leg_step(_crop_to_detection_bbox, image, detection)
         picked = await _run_face_leg_step(
             frl.extract_enrollment_vector,
             image,
@@ -557,6 +565,62 @@ async def extract_face_embedding_from_detection(
         f"(quality={quality_score:.2f}, model_id={model_id})"
     )
     return embedding, quality_score, model_id
+
+
+def _crop_to_detection_bbox(image: Any, detection: Detection) -> Any:
+    """Crop to the detection's own box, clamped to the frame.
+
+    Tracker boxes routinely hang off the frame edge, so the box is clamped
+    rather than trusted (the same order the pipeline's ``_crop_to_bbox``
+    uses: fix inverted coordinates, then clamp, then require a positive
+    area).
+
+    Two honest arms, because ``bbox_*`` is nullable
+    (``models/detection.py:56-59``):
+
+    - **no box at all** (every field None): the frame is genuinely all we
+      were given. That is a weaker enrollment — the leg falls back to
+      picking the most confident face in view — so it is logged as
+      unpositioned rather than passed off as the box-scoped path.
+    - **a box with no usable area**: corrupt input. Refused loudly; a
+      silent whole-frame fallback here is exactly the
+      "enroll whatever face the frame happens to hold" behavior this crop
+      exists to remove.
+    """
+    width, height = image.size
+    if all(
+        getattr(detection, name, None) is None
+        for name in ("bbox_x", "bbox_y", "bbox_width", "bbox_height")
+    ):
+        logger.info(
+            f"detection {detection.id} carries no bbox: enrollment proceeds "
+            "unpositioned (whole frame) - a bystander's face cannot be ruled "
+            "out, so this is the weaker path, not the shipped one"
+        )
+        return image
+
+    x1 = int(detection.bbox_x or 0)
+    y1 = int(detection.bbox_y or 0)
+    x2 = x1 + int(detection.bbox_width or 0)
+    y2 = y1 + int(detection.bbox_height or 0)
+
+    if x2 < x1:
+        x1, x2 = x2, x1
+    if y2 < y1:
+        y1, y2 = y2, y1
+
+    x1 = max(0, x1)
+    y1 = max(0, y1)
+    x2 = min(width, x2)
+    y2 = min(height, y2)
+
+    if x2 <= x1 or y2 <= y1:
+        raise RuntimeError(
+            f"detection {detection.id} has no usable bbox "
+            f"({x1}, {y1}, {x2}, {y2}) in a {width}x{height} frame: "
+            "enrollment needs the person's own box"
+        )
+    return image.crop((x1, y1, x2, y2))
 
 
 def _to_rgb(image: Any) -> Any:
@@ -1253,47 +1317,63 @@ async def get_unknown_strangers(
     return UnknownStrangerListResponse(items=items, total=len(items))
 
 
-@router.post("/face-events/match", response_model=FaceMatchResponse)
+@router.post(
+    "/face-events/match",
+    response_model=FaceMatchResponse,
+    deprecated=True,
+    responses={
+        status.HTTP_410_GONE: {
+            "description": (
+                "Always returned: POSTing a client-computed face embedding "
+                "vector is retired (F11, face twin of the re-ID swap's D-1). "
+                "A matching request rides the enrichment pipeline's face leg, "
+                "which computes the vector server-side and knows its model_id."
+            )
+        }
+    },
+)
 async def match_face(
-    data: FaceMatchRequest,
-    session: AsyncSession = Depends(get_db),
+    data: FaceMatchRequest,  # noqa: ARG001 - never read: endpoint retired
+    session: AsyncSession = Depends(get_db),  # noqa: ARG001 - no DB on a retired endpoint
 ) -> FaceMatchResponse:
-    """Match a face embedding against known persons.
+    """Retired: POST a client-computed face embedding vector (F11, M1 review F-F).
 
-    Compares the provided 512-dimensional embedding against all stored
-    embeddings and returns the best match if above the threshold.
+    A vector the server did not compute cannot be trusted to live in the
+    gallery's space. After the swap every ``face_embeddings`` row names the
+    weights that computed it (``model_id``), and a posted list of floats
+    carries no such belt — scoring one would either cross embedding spaces
+    or trust a client-claimed model id, which is no trust anchor. This is
+    the face twin of the retired ``POST /api/household-matcher/match-person``
+    (D-1), retired here for the same reason and in the same shape.
 
-    Args:
-        data: Match request with embedding and optional threshold
-        session: Database session
+    Before the swap this endpoint answered with a real-looking similarity
+    computed against whichever space the stored rows happened to live in —
+    the exact failure F11 exists to prevent, reachable over the wire.
+
+    The sanctioned paths compute the vector server-side and store its
+    provenance beside it:
+
+    - the enrichment pipeline's face leg (matches automatically)
+    - ``POST /api/face-recognition/known-persons`` and
+      ``POST /api/face-recognition/known-persons/{id}/embeddings``
+      (enrollment: extraction runs server-side from the detection)
 
     Returns:
-        FaceMatchResponse with match results
+        Never — the endpoint is retired.
 
     Raises:
-        HTTPException: 400 if embedding is invalid
+        HTTPException: 410 Gone, always, naming the server-side paths.
     """
-    # Validate embedding length
-    if len(data.embedding) != 512:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Embedding must be 512-dimensional, got {len(data.embedding)}",
-        )
-
-    service = get_face_recognition_service()
-    result = await service.match_face(
-        session,
-        embedding=data.embedding,
-        threshold=data.threshold,
-    )
-
-    return FaceMatchResponse(
-        matched=result["matched"],
-        person_id=result["person_id"],
-        person_name=result["person_name"],
-        similarity=result["similarity"],
-        is_unknown=result["is_unknown"],
-        is_household_member=result["is_household_member"],
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "Submitting a precomputed face embedding vector is retired: the "
+            "server must compute every matched vector so its provenance "
+            "(model_id) is known, and a client-claimed model id is no trust "
+            "anchor. Face matching happens via the enrichment pipeline's face "
+            "leg, or enrollment via "
+            "POST /api/face-recognition/known-persons/{id}/embeddings."
+        ),
     )
 
 

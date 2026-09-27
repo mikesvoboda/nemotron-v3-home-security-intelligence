@@ -8,25 +8,25 @@ This directory contains React components for managing known persons, viewing fac
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `index.ts` | Barrel exports for the module |
-| `KnownPersonCard.tsx` | Display card for known person in grid layout |
-| `KnownPersonCard.test.tsx` | Test suite for KnownPersonCard |
+| File                       | Purpose                                      |
+| -------------------------- | -------------------------------------------- |
+| `index.ts`                 | Barrel exports for the module                |
+| `KnownPersonCard.tsx`      | Display card for known person in grid layout |
+| `KnownPersonCard.test.tsx` | Test suite for KnownPersonCard               |
 
 ## Related Files
 
-| File | Purpose |
-|------|---------|
-| `frontend/src/types/faceRecognition.ts` | TypeScript type definitions |
-| `frontend/src/hooks/useFaceRecognitionApi.ts` | Combined API client + React Query hooks (fetch helpers and queries both live here — there is no separate services/faceRecognitionApi.ts) |
-| `frontend/src/hooks/useKnownPersonsApi.ts` | Known-persons CRUD queries (`useKnownPersonsQuery`, create/update/delete mutations) |
-| `frontend/src/hooks/useFaceEventsQuery.ts` | Cursor-paginated face-event feed query |
-| `frontend/src/hooks/useUnknownStrangerAlerts.ts` | Unknown-face WebSocket alerts |
-| `backend/api/routes/face_recognition.py` | Backend API endpoints |
-| `backend/api/schemas/face_recognition.py` | Backend Pydantic schemas |
-| `backend/services/face_detector.py` | Face detection service |
-| `backend/services/household_matcher.py` | Household member matching service |
+| File                                             | Purpose                                                                                                                                  |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/src/types/faceRecognition.ts`          | TypeScript type definitions                                                                                                              |
+| `frontend/src/hooks/useFaceRecognitionApi.ts`    | Combined API client + React Query hooks (fetch helpers and queries both live here — there is no separate services/faceRecognitionApi.ts) |
+| `frontend/src/hooks/useKnownPersonsApi.ts`       | Known-persons CRUD queries (`useKnownPersonsQuery`, create/update/delete mutations)                                                      |
+| `frontend/src/hooks/useFaceEventsQuery.ts`       | Cursor-paginated face-event feed query                                                                                                   |
+| `frontend/src/hooks/useUnknownStrangerAlerts.ts` | Unknown-face WebSocket alerts                                                                                                            |
+| `backend/api/routes/face_recognition.py`         | Backend API endpoints                                                                                                                    |
+| `backend/api/schemas/face_recognition.py`        | Backend Pydantic schemas                                                                                                                 |
+| `backend/services/face_detector.py`              | Face detection service                                                                                                                   |
+| `backend/services/household_matcher.py`          | Household member matching service                                                                                                        |
 
 ## Component Hierarchy
 
@@ -88,39 +88,39 @@ interface KnownPersonCardProps {
 
 #### Tab Components
 
-| Component | Purpose | Phase |
-|-----------|---------|-------|
-| `KnownPersonsTab` | Grid view of known persons with search and filters | 2 |
-| `FaceEventsTab` | Chronological feed of face detection events | 2 |
-| `PersonTrackingTab` | Journey visualization for a selected person | 3 |
+| Component           | Purpose                                            | Phase |
+| ------------------- | -------------------------------------------------- | ----- |
+| `KnownPersonsTab`   | Grid view of known persons with search and filters | 2     |
+| `FaceEventsTab`     | Chronological feed of face detection events        | 2     |
+| `PersonTrackingTab` | Journey visualization for a selected person        | 3     |
 
 #### Card Components
 
-| Component | Purpose | Phase |
-|-----------|---------|-------|
-| `FaceEventCard` | Display card for face detection event with thumbnail | 2 |
+| Component       | Purpose                                              | Phase |
+| --------------- | ---------------------------------------------------- | ----- |
+| `FaceEventCard` | Display card for face detection event with thumbnail | 2     |
 
 #### Modal Components
 
-| Component | Purpose | Phase |
-|-----------|---------|-------|
-| `KnownPersonDetailModal` | Full detail view with embeddings and appearances | 2 |
-| `AddPersonModal` | Form for adding a new known person | 2 |
-| `EnrollFaceModal` | Enroll face from detection into known person | 2 |
-| `IdentifyPersonModal` | Manually identify unknown face as known person | 2 |
+| Component                | Purpose                                          | Phase |
+| ------------------------ | ------------------------------------------------ | ----- |
+| `KnownPersonDetailModal` | Full detail view with embeddings and appearances | 2     |
+| `AddPersonModal`         | Form for adding a new known person               | 2     |
+| `EnrollFaceModal`        | Enroll face from detection into known person     | 2     |
+| `IdentifyPersonModal`    | Manually identify unknown face as known person   | 2     |
 
 #### Panel Components
 
-| Component | Purpose | Phase |
-|-----------|---------|-------|
-| `UnknownStrangersPanel` | Alert panel showing recent unknown faces | 3 |
-| `FaceStatsCards` | Statistics cards for face detection metrics | 3 |
+| Component               | Purpose                                     | Phase |
+| ----------------------- | ------------------------------------------- | ----- |
+| `UnknownStrangersPanel` | Alert panel showing recent unknown faces    | 3     |
+| `FaceStatsCards`        | Statistics cards for face detection metrics | 3     |
 
 #### Timeline Components
 
-| Component | Purpose | Phase |
-|-----------|---------|-------|
-| `PersonJourneyTimeline` | Visual timeline of person appearances across cameras | 3 |
+| Component               | Purpose                                              | Phase |
+| ----------------------- | ---------------------------------------------------- | ----- |
+| `PersonJourneyTimeline` | Visual timeline of person appearances across cameras | 3     |
 
 ## Important Patterns
 
@@ -203,23 +203,23 @@ Uses Headless UI Menu component with transition animations:
 
 > **Gotcha:** there is no `/api/face-recognition/...` prefix. The backend router (`backend/api/routes/face_recognition.py`) mounts at `/api`, so the resource paths are `/api/known-persons` and `/api/face-events`.
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/api/known-persons` | List known persons |
-| POST | `/api/known-persons` | Create known person |
-| GET | `/api/known-persons/{id}` | Get known person details |
-| PATCH | `/api/known-persons/{id}` | Update known person |
-| DELETE | `/api/known-persons/{id}` | Delete known person |
-| GET | `/api/known-persons/{id}/embeddings` | List embeddings |
-| DELETE | `/api/known-persons/{id}/embeddings/{embedding_id}` | Delete embedding |
-| POST | `/api/known-persons/{id}/enroll-from-detection` | Enroll face from a detection |
-| GET | `/api/known-persons/{id}/appearances` | Get appearances |
-| GET | `/api/face-events` | List face events |
-| GET | `/api/face-events/stats` | Get face statistics |
-| GET | `/api/face-events/unknown` | Get unknown faces |
-| POST | `/api/face-events/{event_id}/identify` | Identify face |
-| POST | `/api/face-events/match` | Match face against known persons |
-| GET | `/api/enrollment-queue` | Auto-enrollment candidate queue |
+| Method | Endpoint                                            | Purpose                                                                                                                                                                           |
+| ------ | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/known-persons`                                | List known persons                                                                                                                                                                |
+| POST   | `/api/known-persons`                                | Create known person                                                                                                                                                               |
+| GET    | `/api/known-persons/{id}`                           | Get known person details                                                                                                                                                          |
+| PATCH  | `/api/known-persons/{id}`                           | Update known person                                                                                                                                                               |
+| DELETE | `/api/known-persons/{id}`                           | Delete known person                                                                                                                                                               |
+| GET    | `/api/known-persons/{id}/embeddings`                | List embeddings                                                                                                                                                                   |
+| DELETE | `/api/known-persons/{id}/embeddings/{embedding_id}` | Delete embedding                                                                                                                                                                  |
+| POST   | `/api/known-persons/{id}/enroll-from-detection`     | Enroll face from a detection                                                                                                                                                      |
+| GET    | `/api/known-persons/{id}/appearances`               | Get appearances                                                                                                                                                                   |
+| GET    | `/api/face-events`                                  | List face events                                                                                                                                                                  |
+| GET    | `/api/face-events/stats`                            | Get face statistics                                                                                                                                                               |
+| GET    | `/api/face-events/unknown`                          | Get unknown faces                                                                                                                                                                 |
+| POST   | `/api/face-events/{event_id}/identify`              | Identify face                                                                                                                                                                     |
+| POST   | `/api/face-events/match`                            | **Retired (410 Gone)** — a client-posted vector carries no trustworthy `model_id`, so nothing about it can be honestly scored (F11). Match via the enrichment pipeline's face leg |
+| GET    | `/api/enrollment-queue`                             | Auto-enrollment candidate queue                                                                                                                                                   |
 
 ## Testing
 
@@ -243,13 +243,13 @@ cd frontend && npm run typecheck
 
 ### Test Files
 
-| File | Coverage |
-|------|----------|
-| `KnownPersonCard.test.tsx` | Card rendering, badges, context menu, keyboard nav |
-| `KnownPersonsTab.test.tsx` | Tab rendering, person grid, search, filters |
-| `FaceEventCard.test.tsx` | Event card rendering, thumbnails, actions |
-| `AddPersonModal.test.tsx` | Form validation, submission, error handling |
-| `KnownPersonDetailModal.test.tsx` | Detail view, embeddings list, appearances |
+| File                              | Coverage                                           |
+| --------------------------------- | -------------------------------------------------- |
+| `KnownPersonCard.test.tsx`        | Card rendering, badges, context menu, keyboard nav |
+| `KnownPersonsTab.test.tsx`        | Tab rendering, person grid, search, filters        |
+| `FaceEventCard.test.tsx`          | Event card rendering, thumbnails, actions          |
+| `AddPersonModal.test.tsx`         | Form validation, submission, error handling        |
+| `KnownPersonDetailModal.test.tsx` | Detail view, embeddings list, appearances          |
 
 ## Entry Points
 

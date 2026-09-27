@@ -678,9 +678,18 @@ class TestHouseholdMatcherConfiguration:
     """Tests for HouseholdMatcher configuration."""
 
     def test_default_similarity_threshold(self) -> None:
-        """Test that default similarity threshold is 0.85."""
+        """The default is the CONFIGURED re-ID threshold, not a baked number.
+
+        It moved with the person-vector space (D-2, ledger item 20): the
+        CLIP-era 0.85 is a near-certain miss for OSNet vectors, so a reader
+        that keeps its own copy of the old number silently stops matching
+        legitimate faces. Reading it from settings means one config change
+        moves every reader at once.
+        """
+        from backend.core.config import get_settings
+
         matcher = HouseholdMatcher()
-        assert matcher.similarity_threshold == 0.85
+        assert matcher.similarity_threshold == get_settings().reid_similarity_threshold
 
     def test_custom_similarity_threshold(self) -> None:
         """Test setting a custom similarity threshold."""

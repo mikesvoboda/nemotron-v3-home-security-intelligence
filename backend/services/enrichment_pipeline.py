@@ -5997,8 +5997,22 @@ class EnrichmentPipeline:
                             )
                             continue
 
+                    # F11: the probe's provenance was cached beside its bytes
+                    # when the enrichment stage produced them, so the belt is
+                    # free to read here. Omitting it made match_person answer
+                    # "untrusted probe" for every person on this path while
+                    # the batch reader (match_detections) threaded it fine -
+                    # two readers of one guard, one guarded (M1 review F-C).
+                    probe_model_id = (
+                        embedding_result.get("model_id")
+                        if isinstance(embedding_result, dict)
+                        else getattr(embedding_result, "model_id", None)
+                    )
+
                     try:
-                        match = await matcher.match_person(embedding, session)
+                        match = await matcher.match_person(
+                            embedding, session, model_id=probe_model_id
+                        )
                         if match:
                             # Store with detection ID for context isolation (NEM-5512/5513/5514)
                             # Convert det_id to int for consistent keying

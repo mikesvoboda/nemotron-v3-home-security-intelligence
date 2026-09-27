@@ -56347,7 +56347,8 @@
     },
     "/api/face-events/match": {
       "post": {
-        "description": "Match a face embedding against known persons.\n\nCompares the provided 512-dimensional embedding against all stored\nembeddings and returns the best match if above the threshold.\n\nArgs:\n    data: Match request with embedding and optional threshold\n    session: Database session\n\nReturns:\n    FaceMatchResponse with match results\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
+        "deprecated": true,
+        "description": "Retired: POST a client-computed face embedding vector (F11, M1 review F-F).\n\nA vector the server did not compute cannot be trusted to live in the\ngallery's space. After the swap every ``face_embeddings`` row names the\nweights that computed it (``model_id``), and a posted list of floats\ncarries no such belt \u2014 scoring one would either cross embedding spaces\nor trust a client-claimed model id, which is no trust anchor. This is\nthe face twin of the retired ``POST /api/household-matcher/match-person``\n(D-1), retired here for the same reason and in the same shape.\n\nBefore the swap this endpoint answered with a real-looking similarity\ncomputed against whichever space the stored rows happened to live in \u2014\nthe exact failure F11 exists to prevent, reachable over the wire.\n\nThe sanctioned paths compute the vector server-side and store its\nprovenance beside it:\n\n- the enrichment pipeline's face leg (matches automatically)\n- ``POST /api/face-recognition/known-persons`` and\n  ``POST /api/face-recognition/known-persons/{id}/embeddings``\n  (enrollment: extraction runs server-side from the detection)\n\nReturns:\n    Never \u2014 the endpoint is retired.\n\nRaises:\n    HTTPException: 410 Gone, always, naming the server-side paths.",
         "operationId": "face-recognition_match_face",
         "requestBody": {
           "content": {
@@ -56369,6 +56370,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "410": {
+            "description": "Always returned: POSTing a client-computed face embedding vector is retired (F11, face twin of the re-ID swap's D-1). A matching request rides the enrichment pipeline's face leg, which computes the vector server-side and knows its model_id."
           },
           "422": {
             "content": {

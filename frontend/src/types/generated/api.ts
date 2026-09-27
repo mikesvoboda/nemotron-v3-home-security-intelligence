@@ -6586,20 +6586,34 @@ export interface paths {
         put?: never;
         /**
          * Match Face
-         * @description Match a face embedding against known persons.
+         * @deprecated
+         * @description Retired: POST a client-computed face embedding vector (F11, M1 review F-F).
          *
-         *     Compares the provided 512-dimensional embedding against all stored
-         *     embeddings and returns the best match if above the threshold.
+         *     A vector the server did not compute cannot be trusted to live in the
+         *     gallery's space. After the swap every ``face_embeddings`` row names the
+         *     weights that computed it (``model_id``), and a posted list of floats
+         *     carries no such belt — scoring one would either cross embedding spaces
+         *     or trust a client-claimed model id, which is no trust anchor. This is
+         *     the face twin of the retired ``POST /api/household-matcher/match-person``
+         *     (D-1), retired here for the same reason and in the same shape.
          *
-         *     Args:
-         *         data: Match request with embedding and optional threshold
-         *         session: Database session
+         *     Before the swap this endpoint answered with a real-looking similarity
+         *     computed against whichever space the stored rows happened to live in —
+         *     the exact failure F11 exists to prevent, reachable over the wire.
+         *
+         *     The sanctioned paths compute the vector server-side and store its
+         *     provenance beside it:
+         *
+         *     - the enrichment pipeline's face leg (matches automatically)
+         *     - ``POST /api/face-recognition/known-persons`` and
+         *       ``POST /api/face-recognition/known-persons/{id}/embeddings``
+         *       (enrollment: extraction runs server-side from the detection)
          *
          *     Returns:
-         *         FaceMatchResponse with match results
+         *         Never — the endpoint is retired.
          *
          *     Raises:
-         *         HTTPException: 400 if embedding is invalid
+         *         HTTPException: 410 Gone, always, naming the server-side paths.
          */
         post: operations["face-recognition_match_face"];
         delete?: never;
@@ -53197,6 +53211,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FaceMatchResponse"];
                 };
+            };
+            /** @description Always returned: POSTing a client-computed face embedding vector is retired (F11, face twin of the re-ID swap's D-1). A matching request rides the enrichment pipeline's face leg, which computes the vector server-side and knows its model_id. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

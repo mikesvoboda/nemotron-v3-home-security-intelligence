@@ -286,16 +286,30 @@ class HouseholdMatcher:
             print(f"Matched: {match.vehicle_description}")
     """
 
-    # Default similarity threshold for matching
-    SIMILARITY_THRESHOLD = 0.85
+    # Fallback default: the OSNet-space value D-2 chose, kept as a class
+    # constant so a bare HouseholdMatcher() still lands in the shipped
+    # space. __init__ prefers the CONFIGURED value, so one settings change
+    # moves every reader at once (M1 review F-D: this number was still the
+    # CLIP-era 0.85 here after D-2 moved the space to 0.7, which is the
+    # near-certain-miss setting for OSNet vectors).
+    SIMILARITY_THRESHOLD = 0.7
 
     def __init__(self, similarity_threshold: float | None = None) -> None:
         """Initialize the HouseholdMatcher.
 
         Args:
             similarity_threshold: Minimum cosine similarity for a match.
-                                  Defaults to 0.85 if not provided.
+                Defaults to ``settings.reid_similarity_threshold`` — the
+                configured OSNet-space value — falling back to
+                ``SIMILARITY_THRESHOLD`` if settings cannot be read.
         """
+        if similarity_threshold is None:
+            from backend.core.config import get_settings
+
+            try:
+                similarity_threshold = get_settings().reid_similarity_threshold
+            except Exception:  # pragma: no cover - config unreadable
+                similarity_threshold = self.SIMILARITY_THRESHOLD
         self._similarity_threshold = (
             similarity_threshold if similarity_threshold is not None else self.SIMILARITY_THRESHOLD
         )

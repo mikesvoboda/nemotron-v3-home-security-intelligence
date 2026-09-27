@@ -407,14 +407,30 @@ async def _collect_face_texts(
             x1, y1, x2, y2 = face.bbox
             face_px = min(x2 - x1, y2 - y1)
             match = None
+            gallery_halt: FaceUnavailable | None = None
             if session is not None:
                 try:
                     match = await gallery(session, vector, settings.face_match_threshold)
                 except Exception as e:
                     # the LEG (honest), and never a stale/garbled score
-                    return [
-                        FaceUnavailable(f"gallery query failed: {e}", code="gallery_query_failed")
-                    ]
+                    gallery_halt = FaceUnavailable(
+                        f"gallery query failed: {e}", code="gallery_query_failed"
+                    )
+                if gallery_halt is None and match and match.get("unavailable"):
+                    # The gallery answered honestly ("nothing here shares
+                    # this probe's space") — an AVAILABILITY state, so it
+                    # degrades the line exactly like the mismatch guard
+                    # below and never folds into "1 unknown face": an
+                    # uncomparable gallery says nothing about the person
+                    # (M1 review F-E follow-through).
+                    gallery_halt = FaceUnavailable(
+                        f"gallery holds no vector in space {sorted(probe_ids)} (re-enroll needed)",
+                        code="space_mismatch",
+                    )
+            if gallery_halt is not None:
+                # One return for both "the gallery could not answer" arms:
+                # a whole-line degrade regardless of the per-face gate.
+                return [gallery_halt]
             outcomes.append(
                 classify_face_outcome(
                     face_px=face_px,
@@ -506,10 +522,26 @@ async def collect_face_text(
 async def _default_gallery_match(
     session: AsyncSession, vector: list[float], threshold: float
 ) -> dict[str, Any] | None:
+    """Score a probe against the gallery, naming the space it came from.
+
+    ``match_face`` needs the probe's ``model_id`` (F11: a stored vector
+    scores only against a probe from the same weights), and the seam's
+    signature is 3-arg because it is an injected fake's shape too. So the
+    belt is read HERE, from the loaded recognizer handle - the same handle
+    the caller just computed this vector with, which makes the claim a fact
+    rather than an assertion. Handles gone mid-call (an unload race) reads
+    None, which the guard answers "unavailable": honest, never a guess.
+    """
+    from backend.services import face_recognizer_loader as frl
     from backend.services.face_recognition_service import get_face_recognition_service
 
+    probe_model_id: str | None = None
+    handles = frl.get_face_leg_handles()
+    if handles is not None:
+        probe_model_id = str(handles[1].get("model_id") or "") or None
+
     service = get_face_recognition_service()
-    return await service.match_face(session, vector, threshold=threshold)
+    return await service.match_face(session, vector, threshold=threshold, model_id=probe_model_id)
 
 
 # ---------------------------------------------------------------------------
