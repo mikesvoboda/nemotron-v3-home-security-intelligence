@@ -11620,3 +11620,88 @@ the g00+g01 battery: **134 KILLED / 0 SURVIVED** (replay_rows.json 134 keys,
 group_11 gpu prove retry: **31/31 killed** (replay_11c.json). Campaign #6
 detector_client fanout LAUNCHED (wf_7f0e33dd, 13 groups / 733 killable + 7 EQ,
 5-file wave structure + coherence audit).
+
+---
+
+## 2026-09-27 batch-28 (pipeline_workers) CLOSE — 18 batteries, 305 tests, 959-key bank 947 KILLED / 12 EQUIVALENT / 0 REAL_GAP
+
+**WHAT LANDED** (this commit): 18 files
+`backend/tests/unit/services/test_pipeline_workers_batch28_{00,00b,02,03,04,05,06,07,08,09,09b,10,12,13,14,15,16,17}.py`,
+**305 tests** (measured: `cd /agents/agent-veranda3/workspace &&
+.venv/bin/python -m pytest backend/tests/unit/services/test_pipeline_workers_batch28_*.py
+-q -p no:randomly -o addopts=` → `305 passed` in 15.97s; seeded
+`-p randomly --randomly-seed=90210` → 305 passed; `-n 8 --dist=worksteal
+--randomly-seed=20260927` → 305 passed; `ruff check` "All checks passed!" +
+`ruff format --check` clean; `scripts/check-mock-spec.py` rc=0). Source module
+md5 `d6e3c91fc85bfaea19f0d907491eefbf` verified before AND after every mutating
+step; the batteries never write the module.
+
+**DECIDE: disposition = 947 KILLED / 12 EQUIVALENT / 0 REAL_GAP / 0 UNPROVEN of
+the 959-key survivor bank.** Command: `python3 /tmp/wp-b28/dispo-pw.py` →
+`KILLED 947  EQUIVALENT 12  REAL_GAP 0  UNPROVEN 0  (total 959)`; per-key JSON
+`/tmp/wp-b28/dispo-pw.json`. Evidence = per-key replay JSONs
+(/tmp/wp-pw/pipeline*workers/replay*\*.json + /tmp/wp-b28/safe/): g00g01_merged
+134/134, g02g10 101/102, pg34 128/128, pg56 125/125, pg78 110/111, pg911
+121/122, pg1213 107/107, pg1417 77/78, g10 45/46, g15g16_final 42/52, plus
+targeted proofs replay_drift3.json (2 keys) and replay_drain17.json (1 key).
+Every KILLED carries a NAMED FAILED test (collection errors don't count); every
+key with occurrence twins was reddened at EVERY candidate position except where
+the bank line disambiguated the true mutant.
+
+**DECIDE: `QueueMetricsWorker.stop__mutmut_12` is KILLABLE, not EQUIVALENT.**
+The manifest upheld it EQUIVALENT (dead `_task` write); replay_pg1417.json
+measures occ 0/1 at L1450 (`self._task = ""`) RED with named killer
+`test_metrics_stop_uses_the_worker_then_cancels`. Measurement supersedes the
+claim → the count is 947 KILLED / 12 EQUIVALENT (manifest's split was
+946/13). The 12 upheld EQ: the four `_task` dead-init (`AnalysisQueueWorker.__init__`
+m16, `BatchTimeoutWorker.__init__` m11, `DetectionQueueWorker.__init__` m50,
+`QueueMetricsWorker.__init__` m8), five dropped RetryConfig literals m34–m38
+(== dataclass defaults, retry_handler.py:68-72), `_process_video_detection` m27,
+and both `_run_loop` m3.
+
+**THREE HARNESS ROOT CAUSES fixed this session in /tmp/wp-b28/replay_lib.py**
+(each measured, each invalidated earlier "unkillable" claims):
+
+1. PATH POISON — `prove --test <absolute path>` made pytest rootdir-resolve to
+   the lane, so the child imported the PRISTINE module and every mutant ran
+   green (g02g10 read 0/102; the same splice with a RELATIVE path reddened 2
+   named tests). Guard now raises SystemExit on absolute test paths.
+2. OFF-BY-ONE bank-line disambiguation — the 0-based `_line_map` output was
+   compared to a 1-based line count, so the twin keep-set was always empty and
+   occurrence-twin sets never collapsed (false unkills). Fixed to compare
+   0-based to 0-based; the 20 previously-unkilled g00g01 keys then went 20/20.
+3. SPLICE DEFECTS — multi-line splices double-indented the first line
+   (IndentationError faked an unkillable mutant, dc01 m47), and mutmut's `@N@`
+   name placeholder in signature diffs matched nothing (both `drain_queues`
+   m1 keys). Both fixed and proven: replay_drift3.json + replay_drain17.json
+   each RED with a named failing test.
+
+**BANK TRUTH (measured, DECIDE for batch-29)**: the live bank is the 06:31 full
+re-bank — `pipeline_workers.py.meta` holds 1,104 exit-code-0 survivors: all 959
+campaign-bank keys (batteries were uncommitted) PLUS **145 new survivors the
+rebase's VLM-Phase-1 code introduced** (drain_queues 44, \_run_loop 38,
+\_process_video_detection 16, \_process_detection_item 11, broadcast_worker_event
+11, stop_accepting 8, get_pipeline_manager 7, \_process_analysis_item 6,
+get_pending_count 3, reset_state 1). Batch-29 scope = those 145.
+
+**GATES**: faithful mutant-home gate `bash /tmp/wp-b28/pw-gate.sh` → `GATE rc=0`
+(/tmp/wp-b28/gate-pw-131959.log, 18 files, cwd=mutants — the place mutmut's
+stats rerun executes). Neighborhood co-run: `pytest backend/tests/unit/services/
+-k pipeline_worker` → 449 passed. Full unit suite `-n 8 --dist=worksteal
+--randomly-seed=20260927`: with my files 12 failed/31,030 passed vs baseline
+(files stashed) 11 failed/30,727 passed — the 11 pre-exist and are sandbox-only
+(`test_check_api_breaking_changes` spawns `'python'`, absent from PATH here;
+with `.venv/bin` on PATH it is 11 passed). The 12th is the repo's DOCUMENTED
+leaked-singleton flake family (`test_clip_client.py::test_reset_clip_client_when_none`,
+RuntimeError 'Event loop is closed' closing a proxy-pooled connection bound to
+a dead loop — root cause recorded verbatim at
+`backend/tests/unit/services/test_http_connection_pooling.py:477`, which
+defends itself with a discard-first line; `test_florence_client.py`'s autouse
+fixture hits the identical error at the SAME seed on BASELINE, proving the
+family is pre-existing, not induced). DECIDE: no production/fixture bend in
+this commit; the victim-side hardening (discard-before-reset per the house
+pattern) is filed as follow-up, not silently mixed into a campaign commit.
+
+**METAS BACKED UP before the re-bank**: 262 metas + mutmut-stats.json →
+/tmp/wp-b28/backup-metas-132413/ (all-metas.tgz 258 +
+orchestrator-metas.tgz 4 = 262, counted).
