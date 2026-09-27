@@ -11428,3 +11428,128 @@ After removal: not_checked 0, completed=true.
 
 **NEXT:** campaign #2 enrichment_pipeline lane red-check shards (tag
 ep0, load-balanced 6 lanes, GO-EP0 now).
+
+## 2026-09-27 — MILESTONE 1 PUBLISHES: 64.32356979924418% completed=true (+4.3065 pts over the 60.0171% baseline) — the third `completed=true` taint (cached exit-33s) closed; first tier gate 65 is one campaign away
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-27`, rc=0; run
+"full3", launched 07:30Z 2026-09-27 as `MUTMAX=14
+./scripts/mutation-run.sh` with NO positional args, exited 0 code 0 at
+10:31:16Z, log /tmp/wp-ep/rebank-full3.log):** killed 54,515 + timeout
+2,165 = **56,680** of **88,117** in-denominator keys → **score
+64.32356979924418%**, survived 31,433, **no_tests 4**, suspicious 0,
+unchecked 0, torn 0, **`completed=true`** (progress gate
+scripts/mutation-score.py:246-250), **222 modules scored of 262 targets**
+(`target_modules` len 262 in the same output; module set IDENTICAL to the
+baseline entry, 0 added / 0 removed). History run[3] appended (runs=4)
+through the CI's own append path. Verdict map: VERDICT_CODES
+scripts/mutation-score.py:56-69 (1/3 killed, 0 survived, -24/36/255
+timeout, 5/33 no_tests).
+
+**THE ADMISSIBILITY GATE PASSED (three numbers, per the
+completed=true-taint rule):** modules 222 (not 186 = map-collapse
+signature); total 88,117 vs the ~86.6–88.1k healthy band (not 61,613 =
+−29% shrink); **no_tests 4** — and measured, the 4 are the SAME FOUR keys
+as the published baseline (event_service 1, fast_alpr_loader 1,
+health_monitor_orchestrator 1, polygon_zone_service 1, `identical set:
+True`), i.e. the 7,353-mutant `no_tests` STORM is gone rather than merely
+relabelled. `not_checked` 0 and `torn_metas` 0 hold, so `completed=true`
+is backed by a fully-checked cache.
+
+**WHAT full3 REPAIRED (third symptom of the taint family, in one line).**
+full2 rebuilt the stats map to 2,811 fns / 222 modules / 0 gap yet still
+reported no_tests 7,353 byte-identically, because mutmut skips any key
+that already carries a verdict (`__main__.py:1019 if not mutant_names and
+result is not None: continue`) — the cached 33s were never re-issued
+tests. Targeted repair: back up metas+stats
+(/tmp/full2-done-20260927T072640Z/), then strip EXACTLY the 7,353
+exit-33 entries from the 22 metas holding them (per-file arithmetic
+asserted, list /tmp/wp-pw/no_tests_metas.json: performance_collector
+1300, partition_manager 733, pipeline_quality_audit 722, onvif 603 …,
+and note the 22nd-group of four 1-entry metas IS the baseline's own four
+no_tests files), rerun with NO positionals so cached real verdicts skip
+and only the stripped keys recheck. Result measured in the log's own
+counter line: 🫥 7,353 → **4** while 🎉 went 49,719 → 54,515. YIELD
+DECOMPOSED (full2 console line vs full3 score, osnet_loader's 12
+generation-dropped keys netted out so the residue is the strip's own):
+**kills +4,800, timeouts +3, survived +2,546, no_tests −7,349 = 7,349
+re-verdicted**; the 4 that came BACK exit-33 are exactly the baseline's
+4 (event_service / fast_alpr_loader / health_monitor_orchestrator /
+polygon_zone_service) — genuinely covering-test-free, not residue. full2's
+console-line score was 51,881/88,129 = 58.8694% BELOW the bar; the repair
+is worth +5.45 pts, and 65.4% of the rechecked mutants killed ⇒ the
+collapsed map was hiding ~4,800 real kills, not padding a score.
+
+**THE NUMBER IS SOURCE-TRUE.** HEAD 202dc61d (2026-09-26T16:46:24-04:00)
+is the batch-27 test commit; `git show --stat` for it lists ONLY test
+files + pyproject (+3,066/−34, no `backend/**.py` source), working tree
+clean at score time, and `git log --since 2026-09-25 -- backend/services
+{enrichment_pipeline,enrichment_client,osnet_loader,stream_manager,
+zone_anomaly_service,prompts}.py` returns NOTHING — so no source moved
+between the tree's generation and this rescore. `mutants/` is gitignored
+(.gitignore:162) so cache state is not part of the commit.
+
+**DENOMINATOR SHIFT IS DISCLOSED, NOT HIDDEN (3 modules, +1,520 keys
+net).** total moved 86,597 → 88,117 because full1/2/3 re-derived
+generation under the REPAIRED map over 2 commits that added tests:
+enrichment_pipeline 4,831→6,268 (+1,437), enrichment_client
+2,589→2,684 (+95), osnet_loader 374→362 (−12). Three independent
+checks say the milestone is not a denominator artefact: (a) **module-
+scoped apples-to-apples** over the 219 modules whose totals did NOT move:
+baseline 48,407/78,803 = 61.4279% → full3 49,122/78,803 = 62.3352%,
+**+0.91 pts with the denominator pinned exactly**; (b) new kills over the
+OLD total: 56,680/86,597 = 65.4526%; (c) 19 modules gained k+t, 3 lost —
+the gains are named and attributed (below), the losses are stale-cache
+under-kills (below). Per the STOP-AND-ASK boundary: the DENOMINATOR
+DEFINITION is unchanged (same 262-module [tool.mutmut] target set, same
+gitignored 222-module cache, no continue-on-error/break flip, no
+quarantine) — what moved is mutant counts regenerated by installed tests,
+so no ruling is required to publish; recorded here for audit anyway.
+
+**ATTRIBUTION (kills gained vs the published baseline, per module).**
+enrichment_pipeline **+3,907** (40.72% → 93.71%, 5,046k+828t/6,268) =
+batch-26's 24 batteries + the +1,437 regenerated keys; prompts **+433**;
+pipeline_quality_audit_service **+137**; enrichment_client **+89**
+(54.07% → 55.48%, 1,282k+207t/2,684) = batch-27's 193 tests (53/53
+real-mutant + 247/247 injection kills audited); prompt_auto_tuner +72;
+token_counter +25; webhook_service +21; transcode_cache +10;
+pipeline_workers +6; 10 more modules +1..+5.
+
+**THE 3 REGRESSIONS ARE STALE-CACHE UNDER-KILLS, NOT CODE MOVES
+(measured).** stream_manager −7 (baseline 104k+7t=111 → 96k+8t=104) and
+zone_anomaly_service −1 (238→237): their metas are BYTE-IDENTICAL between
+the pre-strip backup and the live cache (exit-code histograms equal,
+`keys dropped: 0 verdict flips: 0`), so the loss entered at full1's
+fresh generation UNDER THE COLLAPSED map — a mutant whose selection lost
+its killing test survives, and mutmut's cache-skip then preserves that
+verdict forever. osnet_loader −4 is the −12 keys that generation dropped
+(374→362). Direction matters: stale cache COSTS kills, it cannot
+fabricate them, so the published score is conservative by ~8 keys.
+DECIDE: bundle those 3 metas into the next targeted strip (with the
+batch-28-era re-bank) to re-derive them under the healthy map; NOT worth
+a standalone run.
+
+**CAMPAIGN STATE, HONESTLY COUNTED.** Campaign #2
+enrichment_pipeline: 4,764k+828t/6,268 = **93.71%**, but the residual
+**394 survivors are NOT yet dispositioned** — the ep6 run exited
+completed=false (score-ep6.json: 45.6317%, total 68,573, 168 modules), so
+no ep manifest exists (measured: no ep manifest/survivor-delta files
+anywhere under /tmp). The module is therefore NOT closed under the
+zero-undispositioned rule and no campaign-close claim is made for it;
+its +3,907 still counts toward the badge, and the 394-survivor inventory
+is the next dispositioning job. Campaign #3 enrichment_client: batch-27
+batteries are in and banked (+89); its residual 1,195 survivors are
+likewise pre-manifest. Campaign #4 pipeline_workers: batch-28 authoring
+in flight (12 of 18 groups proven on disk; 3 lanes recovering 358 keys),
+module row 534k+10t/1,648 = 33.01%.
+
+**NEXT:** (1) batch-28 recovery lanes land → mutant-home gate (mutmut's
+exact args, serial, -x, synced tree) → commit via pre-commit →
+pipeline_workers re-bank → module close; (2) gpu_monitor batch (audited
+manifest, 1,068 survivors) and detector_client (740); (3) disposition the
+enrichment_pipeline 394 + enrichment_client 1,195 residuals to close
+campaigns #2/#3 on paper; (4) the 8-key stale-cache strip above. Tier
+gate 65 needs 57,277 k+t against 56,680 banked = **597 kills** — well
+inside the audited 2,701-killable campaign-#4 inventory (pipeline_workers
+959 + gpu_monitor 1,068 + detector_client 740 survivors, manifest-verified
+zero-undispositioned).
