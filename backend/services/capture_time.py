@@ -61,7 +61,11 @@ def parse_capture_time(file_path: str | None, tz: tzinfo) -> datetime | None:
 def resolve_capture_time(
     file_path: str | None, *, detected_at: datetime, tz: tzinfo | None
 ) -> datetime:
-    """The filename's capture time when it yields a plausible one, else detected_at."""
+    """The filename's capture time when it yields a plausible one, else detected_at.
+
+    `detected_at` must be timezone-aware (the ORM column is timestamptz): the
+    skew check compares it with the aware UTC filename time, so a naive value
+    raises TypeError whenever a filename parses."""
     if tz is None:
         return detected_at
     captured = parse_capture_time(file_path, tz)
