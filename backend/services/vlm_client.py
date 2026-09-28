@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from PIL import Image
 from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
@@ -500,12 +501,45 @@ class VlmClient:
             f"Camera: {ctx.camera_id}\n"
             f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
-            "Each detection bbox is [x, y, width, height] in source-frame pixels: "
-            "the top-left corner, then the box size.\n"
+            f"{self._box_guidance(rows, request)}"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
             f"Specialist outputs (faces/plates/re-ID; these are detector evidence, "
             f"not yours to invent): {specialist}\n"
+        )
+
+    @staticmethod
+    def _frame_sizes(request: VlmAssessRequest) -> list[str]:
+        """Pixel sizes of the attached frames ("WxH", distinct, in order),
+        read from the image headers only; an unreadable frame is skipped,
+        never guessed."""
+        sizes: list[str] = []
+        for path in request.image_paths:
+            try:
+                with Image.open(path) as im:
+                    size = f"{im.width}x{im.height}"
+            except OSError, ValueError:
+                continue
+            if size not in sizes:
+                sizes.append(size)
+        return sizes
+
+    def _box_guidance(self, rows: list[dict[str, Any]], request: VlmAssessRequest) -> str:
+        """How to read the rows' boxes - only when there are rows. The A5500
+        M1 chain showed the 8B reading bare [x, y, w, h] numbers as corners,
+        then (with the convention stated but no frame size) rejecting a
+        correct person box as "positioned incorrectly": it cannot place pixel
+        numbers without the frame, and it treated box arithmetic as evidence
+        of a false detection. With no rows the prompt is unchanged."""
+        if not rows:
+            return ""
+        sizes = self._frame_sizes(request)
+        frame = f"its {' or '.join(sizes)} source frame" if sizes else "its source frame"
+        return (
+            f"Each detection bbox is [x, y, width, height] in pixels of {frame}: "
+            "the top-left corner, then the box size. The boxes are the detector's "
+            "localization aids: judge each candidate from what the frame(s) show, "
+            "and never reject a detection because of its box numbers alone.\n"
         )
 
     @staticmethod

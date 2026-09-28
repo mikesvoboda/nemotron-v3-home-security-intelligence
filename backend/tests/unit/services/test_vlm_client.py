@@ -1162,3 +1162,44 @@ class TestBboxConventionIsStated:
         )
         assert "[x, y, width, height]" in text
         assert "[511, 242, 272, 456]" in text, "the rendered numbers stay the snapshot's"
+
+
+class TestBoxesAreGroundedInTheFrame:
+    """A5500 M1 re-run, 2026-09-28: with the [x, y, width, height] convention
+    stated, the 8B still called a tight, correct person box on a 1280x704
+    still "too small or positioned incorrectly" and scored a hooded figure
+    at the door at night uncertain/0 - it cannot place pixel numbers without
+    the frame size, and it treated box arithmetic as evidence of a false
+    detection. The prompt now names the frame size and says the boxes are
+    localization aids, not a verdict input. Owner ruling 2026-09-28."""
+
+    @staticmethod
+    def _still(root: Path, name: str, size: tuple[int, int]) -> str:
+        from PIL import Image
+
+        path = root / "front_door" / name
+        Image.new("RGB", size, (40, 40, 40)).save(path, "JPEG")
+        return str(path)
+
+    _DET: ClassVar = {
+        "id": 1,
+        "object_type": "person",
+        "confidence": 0.93,
+        "bbox": [551, 217, 180, 477],
+    }
+
+    def test_the_prompt_names_the_source_frame_size(self, image_dir) -> None:
+        still = self._still(image_dir, "sized.jpg", (1280, 704))
+        text = make_client().prompt_text(_request([still], detections=[self._DET]))
+        assert "1280x704" in text
+
+    def test_boxes_are_localization_aids_not_verdict_evidence(self, image_dir) -> None:
+        still = self._still(image_dir, "sized.jpg", (1280, 704))
+        text = make_client().prompt_text(_request([still], detections=[self._DET]))
+        assert "never reject a detection because of its box numbers" in text
+
+    def test_no_detections_means_no_box_guidance(self, image_dir) -> None:
+        text = make_client().prompt_text(
+            _request([str(image_dir / "front_door/a.jpg")], detections=[])
+        )
+        assert "bbox" not in text, "an item with no boxes keeps the pre-fix prompt"
