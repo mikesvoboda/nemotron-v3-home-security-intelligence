@@ -11862,3 +11862,62 @@ install-ready — 13 battery files staged + md5-verified in /tmp/lane-dc
 35.27% (1,068 survivors, gm batteries in lanes), then the batch-29 23-key
 tail, then campaigns #2/#3 remainder (enrichment_client survivor pool
 1,195 — biggest single lever left).
+
+## 2026-09-28 — MILESTONE 3 PUBLISHES: 66.31923376961082% completed=true (+0.8654 pts) — campaign #6 `detector_client` CLOSES at 99.32111337406653%; zero collateral movement anywhere else
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: `MUTMAX=14 ./scripts/mutation-run.sh detector_client`, START
+2026-09-28T00:36:01Z, **EXIT rc=0 02:36:58Z**, log /tmp/wp-dc/rebank-dc.log;
+snapshot /tmp/wp-dc/score-postdc.json):** killed 59,016 + timeout 2,194 =
+**61,210** of **92,296** → **score 66.31923376961082%**, survived 31,058,
+no_tests 28, unchecked 0, torn 0, **completed=true**, 229/269 modules.
+History run[5] appended through the CI's own append path (runs=6).
+
+**CAMPAIGN #6 CLOSE ROW (`detector_client`):** killed 1,280 + timeout 183
+= **1,463** of **1,473** keys = **99.32111337406653%**, survived **10**,
+no_tests 0 (meta: {'1':1272,'-24':183,'3':8,'0':10}; the eight exit-3s are
+killed-class per VERDICT_CODES scripts/mutation-score.py:56-69). Pre-close
+row 534 kt / 1,274 = 41.92% → **+929 kt** on +199 keys (the batteries
+covered 199 previously-uncovered mutants which the same run decided).
+Per-module delta vs the 65.4538 snapshot: `detector_client` is the ONLY
+module that moved — SUM Δkt across all 229 rows = 929 = the dc Δ exactly;
+zero collateral.
+
+**THE 10 SURVIVORS (measured from the post meta,
+mutants/backend/services/detector_client.py.meta exit_code_by_key==0):**
+`__init__` m20 (the dc02-m20 **provable equivalence** — a dropped value-
+equal-default kwarg consumed only through an `is True` getattr gate;
+False/None indistinguishable, matches audit C7, upheld NOT to author a
+test for it); model_readiness_probe m4/m7/m12/m14/m21 (five,
+group-03-lineage candidates on the readiness probe);
+\_send_detection_request m1 + m331; detect_objects m198 + m567 — the last
+four are candidates of groups whose replay proofs stand at 44/45 and
+45/45 (dc02 full45, dc01 manual m47): this run's fresh keys born from new
+coverage. All 10 are the module's batch-29 tail, ledger'd for the batch-
+29 scope (with pw's 23).
+
+**STRICT-> GATE + LADDER.** 66.31923376961082 > 65.45381499940281 (the
+run[4] milestone) and > 64.32356979924418 (baseline) — lawful publish,
+tier 66 territory: the +1.9955 pts over
+baseline so far cover 26% of the 7.676-pt run[3]-to-72 climb; tier-72 bar on
+THIS denominator = kt ≥ 0.72×92,296 = 66,453 → +5,243 kt to go; the
+remaining survivor pools: prompts 855 (73.48% today), gpu_monitor 1,068
+(35.27%), enrichment_client 1,195 (55.48%), event_broadcaster 723,
+batch_aggregator 644, clip_client 559, ep 420 (93.39% — nearly closed).
+
+**INSTALL REPAIR LEDGERED ELSEWHERE, SUMMARIZED (full detail
+/tmp/wp-b28/STATE.md 00:40Z section):** seventh abort-family member hit
+AT SOURCE — the 13 committed batteries (67806950, 359 tests) pinned 45
+absolute logger-call linenos valid ONLY in the raw-copy replay world; the
+instrumented pre-commit gate (cwd=mutants) went 172/359 red and the fix —
+ast-exacted shipped-call-block re-anchor, all 48 blocks textually
+distinct, pristine path derived by stripping `mutants/` from `M.__file__`
+— re-verified 359/359 in BOTH worlds before install. Gates: pristine 359P,
+instrumented 359P, neighbor co-run 112P, semgrep clean, ruff clean.
+
+**NEXT:** campaign #5 `gpu_monitor` (582 kt / 1,650 = 35.27%, 1,068
+survivors — the single biggest killable pool; its 23 staged batteries
+carry the SAME frozenset absolute pins — the re-anchor recipe applies at
+install, instrumented gate mandatory), then batch-29 (pw 23 + dc 10),
+then `enrichment_client` survivors, then `prompts`.
