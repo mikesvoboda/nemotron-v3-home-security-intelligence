@@ -112,7 +112,7 @@ jobs:
 
       - name: Download baseline benchmark results
         if: steps.options.outputs.compare == 'true'
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         id: benchmark-cache
         with:
           path: .benchmarks
@@ -217,7 +217,7 @@ jobs:
 
       - name: Save baseline for future comparisons
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6.1.0
         with:
           path: .benchmarks
           key: benchmark-baseline-${{ runner.os }}-${{ hashFiles('backend/tests/benchmarks/**/*.py') }}-${{ github.sha }}
