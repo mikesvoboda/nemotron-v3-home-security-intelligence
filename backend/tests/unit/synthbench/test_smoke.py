@@ -12,6 +12,7 @@ from synthbench.generate.comfy.client import ComfyError
 
 class FakeClient:
     graphs: ClassVar[list[dict[str, Any]]] = []
+    timeouts: ClassVar[list[float]] = []
 
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url
@@ -21,6 +22,7 @@ class FakeClient:
 
     def run(self, graph: dict[str, Any], *, timeout_s: float) -> list[bytes]:
         FakeClient.graphs.append(graph)
+        FakeClient.timeouts.append(timeout_s)
         classes = {n["class_type"] for n in graph.values()}
         if "WanImageToVideo" in classes:
             raise ComfyError("p1 failed at node 13 (KSamplerAdvanced): OutOfMemoryError: oom")
@@ -33,6 +35,7 @@ class FakeClient:
 @pytest.fixture
 def fake(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     FakeClient.graphs = []
+    FakeClient.timeouts = []
     monkeypatch.setattr(smoke, "ComfyClient", FakeClient)
     monkeypatch.setenv("SYNTHBENCH_ROOT", str(tmp_path))
     return tmp_path / "smoke"
@@ -51,6 +54,7 @@ def test_only_runs_the_named_keys_and_writes_their_outputs(
     edit = FakeClient.graphs[0]
     loads = [n["inputs"]["image"] for n in edit.values() if n["class_type"] == "LoadImage"]
     assert loads == ["uploaded-smoke_ref.png"]
+    assert FakeClient.timeouts == [1800, 1800]
 
 
 def test_a_failing_graph_is_reported_and_the_run_continues(

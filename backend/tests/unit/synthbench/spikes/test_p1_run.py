@@ -30,6 +30,7 @@ class FakeClient:
         self.graphs: list[dict[str, Any]] = []
         self.calls: list[str] = []
         self.polls: list[float] = []
+        self.timeouts: list[float] = []
         self._errors = iter(errors or [])
 
     def free(self) -> None:
@@ -42,6 +43,7 @@ class FakeClient:
         self.calls.append("run")
         self.graphs.append(graph)
         self.polls.append(poll_s)
+        self.timeouts.append(timeout_s)
         error = next(self._errors, None)
         if error is not None:
             raise error
@@ -91,6 +93,13 @@ def test_a_failed_job_is_recorded_and_does_not_raise(tmp_path: Path) -> None:
     assert record["ok"] is False
     assert record["error"].startswith("RuntimeError: CUDA out of memory")
     assert not (tmp_path / job.output).exists()
+
+
+def test_a_clip_gets_a_longer_render_timeout_than_an_image(tmp_path: Path) -> None:
+    client = FakeClient()
+    run.run_job(image_jobs()[0], client, tmp_path)
+    run.run_job(clip_jobs()[0], client, tmp_path)
+    assert client.timeouts == [600.0, 1800.0]
 
 
 def test_execute_writes_one_group_row_per_model(
