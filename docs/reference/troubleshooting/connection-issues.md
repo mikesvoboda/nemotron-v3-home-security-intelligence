@@ -189,6 +189,7 @@ Try: `docker compose -f docker-compose.prod.yml pull && docker compose -f docker
 - Images uploaded but not processed
 - No detections created from new images
 - Pipeline status shows file watcher not running
+- Pipeline status shows `watch_mode: polling-fallback` (the kernel refused the native watch at startup; `watch_fallback_reason` names the errno)
 
 ### Diagnosis
 
@@ -201,6 +202,9 @@ ls -la /export/foscam/
 
 # Check for inotify limits (Linux)
 cat /proc/sys/fs/inotify/max_user_watches
+
+# SELinux hosts: enforcing + a camera root that is not container_file_t = watch denied
+getenforce; ls -Zd /export/foscam
 ```
 
 ### Solutions
@@ -232,6 +236,17 @@ sudo sysctl -p
 **4. Check file permissions:**
 
 Backend needs read access to camera folders.
+
+**5. SELinux denies the watch (Fedora/RHEL, enforcing):**
+
+A `container_t` backend can read a `usr_t` camera root but not inotify-watch it (`avc: denied { watch watch_reads }` in the audit log), so the watcher falls back to polling with `watch_fallback_reason: EACCES`. The tracked compose files mount `/cameras` with `:z`, which makes podman relabel the root to `container_file_t`; a custom compose file needs the same option. Or relabel the root once:
+
+```bash
+sudo semanage fcontext -a -t container_file_t '/export/foscam(/.*)?'
+sudo restorecon -R /export/foscam
+```
+
+`setup.py deploy` checks this before starting containers and reads `watch_mode` after the backend is healthy. Both checks only warn and never relabel anything.
 
 ---
 
