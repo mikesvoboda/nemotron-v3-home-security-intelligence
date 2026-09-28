@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -154,3 +155,27 @@ class TestMain:
     def test_rejects_an_unknown_command(self) -> None:
         with pytest.raises(SystemExit):
             serve.main(["restart"])
+
+
+def _containerfile() -> str:
+    return (serve.CONTAINERFILE_DIR / "Containerfile").read_text()
+
+
+class TestContainerfile:
+    """pip only adds packages around the base image's CUDA torch stack, never replaces it."""
+
+    def test_every_pip_install_is_constrained_or_dependency_free(self) -> None:
+        installs = re.findall(r"pip install [^\n&]*", _containerfile())
+        assert len(installs) >= 4
+        for cmd in installs:
+            assert "-c /tmp/constraints.txt" in cmd or "--no-deps" in cmd, cmd
+
+    def test_torchaudio_is_compiled_against_the_base_torch_and_then_pinned(self) -> None:
+        # v0.37.0 imports torchaudio at module level (comfy.sd, gemma4, the LTX nodes); the base
+        # has none and PyPI's aarch64 wheel is a CUDA 13.0 build that refuses the base torch.
+        text = _containerfile()
+        assert "ARG TORCHAUDIO_REF=v2.11.0" in text
+        assert "https://github.com/pytorch/audio.git /tmp/audio" in text
+        assert "--no-build-isolation --no-deps /tmp/audio" in text
+        assert text.index("pytorch/audio.git") < text.index("> /tmp/constraints.txt")
+        assert "sed -i" not in text

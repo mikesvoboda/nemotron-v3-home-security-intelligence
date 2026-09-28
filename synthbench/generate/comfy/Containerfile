@@ -11,11 +11,16 @@ RUN git clone --depth 1 --branch "${COMFYUI_REF}" https://github.com/comfyanonym
 WORKDIR /opt/ComfyUI
 
 # Never let pip replace the base image's CUDA builds of torch & friends.
-# torchaudio is dropped from ComfyUI's requirements when the base lacks it
-# (PyPI's torchaudio would drag in a CPU torch); audio nodes are not used.
+# The base ships no torchaudio, yet v0.37.0 imports it at module level (comfy.sd,
+# the Gemma 4 text encoder, the LTX nodes). PyPI's aarch64 wheel is a CUDA 13.0
+# build that refuses the base's CUDA 13.4 torch, so torchaudio is compiled
+# against the base torch, then pinned with it for every later pip install.
+ARG TORCHAUDIO_REF=v2.11.0
+RUN git clone --depth 1 --branch "${TORCHAUDIO_REF}" https://github.com/pytorch/audio.git /tmp/audio \
+ && pip install --no-cache-dir --no-build-isolation --no-deps /tmp/audio \
+ && rm -rf /tmp/audio
 RUN pip list --format=freeze | grep -E '^(torch|torchvision|torchaudio|triton)==' > /tmp/constraints.txt \
  && cat /tmp/constraints.txt \
- && if ! grep -q '^torchaudio==' /tmp/constraints.txt; then sed -i '/^torchaudio/d' requirements.txt; fi \
  && pip install --no-cache-dir -c /tmp/constraints.txt -r requirements.txt
 
 # Bake-off measurement tools: independent of every pipeline model (spec §4.1).
