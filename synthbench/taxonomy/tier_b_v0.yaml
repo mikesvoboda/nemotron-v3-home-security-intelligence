@@ -1,0 +1,374 @@
+# Tier B v0 taxonomy slice (spec §1.2; agent-driven design §3).
+#
+# The sampler draws every ground-truth fact from this file. P3's `synthbench check` requires a
+# prompt to use one term from the list of each subject's and prop's class. Editing this file
+# changes its sha256, and `python -m synthbench sample` then refuses to add batches to a corpus
+# version built from the old file: a changed taxonomy needs a new corpus version.
+#
+# OWNER REVIEW: the scenario list, labels, risk bands and weights below are a v0 draft (plan
+# ruling P2-R4). The spec's label set is incident / benign / ambiguous (§1.3), so suspicious
+# scenarios are labeled incident with lower risk bands, and hard negatives are benign by
+# definition. Left out of v0: assault (hard to show without injury detail, §3.8) and camera
+# tampering (it needs the tampered camera's own view).
+#
+# Times are quoted: YAML 1.1 reads an unquoted 08:00 as a number.
+
+version: tierb-v0
+
+zones:
+  [
+    front_porch,
+    lobby_door,
+    driveway,
+    garage_exterior,
+    garage_interior,
+    backyard,
+    pool_deck,
+    side_gate,
+    patio,
+    shed,
+    street_edge,
+    dock,
+    kitchen,
+    living_room,
+    hallway,
+    mailroom,
+    parking_lot,
+    loading_dock,
+  ]
+
+lighting:
+  - { id: day, hours: [['08:00', '16:29']], weight: 4 }
+  - { id: golden_hour, hours: [['06:30', '07:59'], ['16:30', '18:14']], weight: 1 }
+  - { id: dusk, hours: [['18:15', '19:59']], weight: 1 }
+  - { id: ir_night, hours: [['20:00', '05:29']], weight: 2 }
+  - { id: porch_lit_night, hours: [['20:00', '05:29']], weight: 1, outdoor_only: true }
+
+weather:
+  - { id: clear, weight: 6 }
+  - { id: rain, weight: 2 }
+  - { id: snow, weight: 1 }
+  - { id: fog, weight: 1 }
+
+artifacts:
+  - id: headlight_glare
+    probability: 0.15
+    lighting: [dusk, ir_night, porch_lit_night]
+    outdoor_only: true
+  - { id: lens_droplets, probability: 0.4, weather: [rain], outdoor_only: true }
+  - { id: motion_blur, probability: 0.05 }
+
+cameras:
+  - { id: doorbell_fisheye, zones: [front_porch, lobby_door] }
+  - id: eave_wide
+    zones: [front_porch, driveway, backyard, pool_deck, side_gate, patio, shed, street_edge, dock]
+  - { id: garage_mounted, zones: [driveway, garage_exterior] }
+  - { id: pole_lot, zones: [parking_lot, loading_dock, street_edge] }
+  - id: indoor_corner
+    zones: [kitchen, living_room, hallway, garage_interior, mailroom]
+    indoor: true
+
+properties:
+  - id: suburban_house
+    zones:
+      [
+        front_porch,
+        driveway,
+        garage_exterior,
+        garage_interior,
+        backyard,
+        pool_deck,
+        side_gate,
+        patio,
+        shed,
+        street_edge,
+        kitchen,
+        living_room,
+        hallway,
+      ]
+  - { id: urban_townhouse, zones: [front_porch, street_edge, patio, kitchen, living_room, hallway] }
+  - id: rural_farmhouse
+    zones: [front_porch, driveway, backyard, side_gate, shed, kitchen, living_room]
+  - id: lake_house
+    zones: [front_porch, driveway, backyard, pool_deck, patio, dock, kitchen, living_room]
+  - { id: apartment_entrance, zones: [lobby_door, mailroom, street_edge] }
+  - { id: small_office, zones: [lobby_door, parking_lot, street_edge, hallway] }
+  - { id: warehouse, zones: [loading_dock, parking_lot] }
+
+colors: [black, white, gray, navy, red, green, brown, tan, blue, yellow]
+garments: [hoodie, jacket, t-shirt, coat, sweater, work shirt, rain jacket, vest]
+clothed: [person, child]
+
+terms:
+  person: [person, man, woman, figure, someone, individual, adult, teenager]
+  child: [child, kid, toddler, boy, girl]
+  dog: [dog, puppy]
+  cat: [cat, kitten]
+  deer: [deer]
+  raccoon: [raccoon]
+  car: [car, sedan, suv, hatchback, pickup, vehicle]
+  package: [package, parcel, box]
+  handgun: [handgun, pistol, gun]
+  knife: [knife, blade]
+  baseball_bat: [baseball bat, bat]
+  crowbar: [crowbar, pry bar]
+  machete: [machete]
+  toy_gun: [toy gun, toy pistol, water gun]
+  leaf_blower: [leaf blower]
+  hedge_trimmer: [hedge trimmer]
+  power_drill: [power drill, drill]
+  angle_grinder: [angle grinder, grinder]
+  reciprocating_saw: [reciprocating saw, saw]
+  flashlight: [flashlight, torch]
+  spray_paint: [spray paint, spray can]
+  ski_mask: [ski mask, balaclava]
+  scarf: [scarf, neck gaiter, face covering]
+  pool_net: [pool net, skimmer net, pool skimmer]
+  phone: [phone, smartphone]
+  smoke: [smoke]
+  fire: [fire, flames]
+
+scenarios:
+  # --- benign ---
+  - id: delivery_driver
+    group: benign
+    label: benign
+    risk_band: [0, 20]
+    zones: [front_porch, lobby_door]
+    lighting: [day, golden_hour, dusk]
+    subjects: [{ one_of: [person], role: delivery_driver }]
+    props: [{ one_of: [package], held_by: 0 }]
+  - id: resident_arrival
+    group: benign
+    label: benign
+    risk_band: [0, 15]
+    zones: [driveway, front_porch, garage_exterior, lobby_door]
+    subjects: [{ one_of: [person], role: resident }]
+  - id: yard_maintenance
+    group: benign
+    label: benign
+    risk_band: [0, 15]
+    zones: [backyard, driveway, side_gate]
+    lighting: [day, golden_hour]
+    subjects: [{ one_of: [person], role: landscaper }]
+    props: [{ one_of: [leaf_blower, hedge_trimmer], held_by: 0 }]
+  - id: pool_service
+    group: benign
+    label: benign
+    risk_band: [0, 15]
+    zones: [pool_deck]
+    lighting: [day]
+    subjects: [{ one_of: [person], role: pool_technician }]
+    props: [{ one_of: [pool_net], held_by: 0 }]
+  - id: pet_activity
+    group: benign
+    label: benign
+    risk_band: [0, 10]
+    zones: [backyard, front_porch, driveway, patio, kitchen, living_room]
+    subjects: [{ one_of: [dog, cat], role: pet }]
+  - id: wildlife
+    group: benign
+    label: benign
+    risk_band: [0, 10]
+    zones: [backyard, driveway, street_edge, dock]
+    lighting: [day, golden_hour, dusk, ir_night]
+    subjects: [{ one_of: [deer, raccoon], role: wildlife }]
+  - id: neighbor_passing
+    group: benign
+    label: benign
+    risk_band: [0, 10]
+    zones: [street_edge]
+    subjects: [{ one_of: [person], role: neighbor }]
+  # --- hard negatives: benign scenes that look alarming (spec §1.3) ---
+  - id: hooded_jogger
+    group: hard_negative
+    label: benign
+    risk_band: [0, 25]
+    zones: [street_edge, driveway]
+    lighting: [golden_hour, dusk, ir_night]
+    subjects: [{ one_of: [person], role: hooded_jogger }]
+  - id: power_tools_at_night
+    group: hard_negative
+    label: benign
+    risk_band: [5, 30]
+    zones: [garage_exterior, garage_interior, driveway, backyard]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: resident_doing_repairs }]
+    props: [{ one_of: [power_drill, angle_grinder], held_by: 0 }]
+  - id: winter_face_covering
+    group: hard_negative
+    label: benign
+    risk_band: [5, 30]
+    zones: [front_porch, driveway, lobby_door]
+    weather: [snow]
+    subjects: [{ one_of: [person], role: resident_in_winter_clothes }]
+    props: [{ one_of: [scarf], held_by: 0 }]
+  - id: flashlight_neighbor
+    group: hard_negative
+    label: benign
+    risk_band: [5, 30]
+    zones: [backyard, side_gate, street_edge, driveway]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: neighbor_looking_for_a_pet }]
+    props: [{ one_of: [flashlight], held_by: 0 }]
+  - id: landscaper_machete
+    group: hard_negative
+    label: benign
+    risk_band: [5, 30]
+    zones: [backyard, side_gate]
+    lighting: [day, golden_hour]
+    subjects: [{ one_of: [person], role: landscaper }]
+    props: [{ one_of: [machete], held_by: 0 }]
+  # --- ambiguous: scored in their own bucket, never in S2 or S3 (spec §1.3) ---
+  - id: costume_weapon
+    group: ambiguous
+    label: ambiguous
+    risk_band: [20, 60]
+    zones: [front_porch, street_edge, lobby_door]
+    lighting: [golden_hour, dusk, porch_lit_night]
+    subjects: [{ one_of: [person, child], role: costumed_visitor }]
+    props: [{ one_of: [toy_gun], held_by: 0 }]
+  # --- suspicious: labeled incident with lower risk bands (see the header) ---
+  - id: loitering
+    group: suspicious
+    label: incident
+    risk_band: [40, 70]
+    zones: [front_porch, driveway, street_edge, lobby_door, parking_lot]
+    subjects: [{ one_of: [person], role: loiterer }]
+  - id: peering_into_windows
+    group: suspicious
+    label: incident
+    risk_band: [50, 80]
+    zones: [backyard, side_gate, patio, front_porch]
+    subjects: [{ one_of: [person], role: stranger_peering_in }]
+  - id: trying_car_doors
+    group: suspicious
+    label: incident
+    risk_band: [55, 85]
+    zones: [driveway, street_edge, parking_lot]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: stranger_trying_door_handles }]
+    props: [{ one_of: [car] }]
+  - id: casing_with_phone
+    group: suspicious
+    label: incident
+    risk_band: [40, 70]
+    zones: [street_edge, driveway, parking_lot]
+    subjects: [{ one_of: [person], role: stranger_photographing_the_property }]
+    props: [{ one_of: [phone], held_by: 0 }]
+  - id: tailgating
+    group: suspicious
+    label: incident
+    risk_band: [45, 75]
+    zones: [lobby_door]
+    subjects:
+      - { one_of: [person], role: resident_entering }
+      - { one_of: [person], role: stranger_following_closely }
+  # --- threats ---
+  - id: firearm_visible
+    group: threat
+    label: incident
+    risk_band: [85, 100]
+    weight: 2
+    zones: [front_porch, driveway, backyard, side_gate, lobby_door, parking_lot]
+    subjects: [{ one_of: [person], role: armed_stranger }]
+    props: [{ one_of: [handgun], held_by: 0 }]
+  - id: knife_visible
+    group: threat
+    label: incident
+    risk_band: [80, 100]
+    weight: 2
+    zones: [front_porch, driveway, backyard, side_gate, lobby_door, parking_lot]
+    subjects: [{ one_of: [person], role: armed_stranger }]
+    props: [{ one_of: [knife], held_by: 0 }]
+  - id: blunt_weapon
+    group: threat
+    label: incident
+    risk_band: [75, 100]
+    zones: [front_porch, driveway, backyard, parking_lot]
+    subjects: [{ one_of: [person], role: armed_stranger }]
+    props: [{ one_of: [baseball_bat, crowbar], held_by: 0 }]
+  - id: forced_entry
+    group: threat
+    label: incident
+    risk_band: [80, 100]
+    weight: 2
+    zones: [front_porch, side_gate, patio, garage_exterior, lobby_door]
+    subjects: [{ one_of: [person], role: stranger_prying_a_door }]
+    props: [{ one_of: [crowbar], held_by: 0 }]
+  - id: package_theft
+    group: threat
+    label: incident
+    risk_band: [60, 90]
+    weight: 2
+    zones: [front_porch, lobby_door, mailroom]
+    subjects: [{ one_of: [person], role: stranger_taking_a_package }]
+    props: [{ one_of: [package], held_by: 0 }]
+  - id: car_break_in
+    group: threat
+    label: incident
+    risk_band: [70, 95]
+    zones: [driveway, street_edge, parking_lot]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: stranger_breaking_a_car_window }]
+    props: [{ one_of: [car] }]
+  - id: catalytic_converter_theft
+    group: threat
+    label: incident
+    risk_band: [70, 95]
+    zones: [driveway, street_edge, parking_lot]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: stranger_under_a_car }]
+    props:
+      - { one_of: [car] }
+      - { one_of: [reciprocating_saw], held_by: 0 }
+  - id: masked_intruder_night
+    group: threat
+    label: incident
+    risk_band: [85, 100]
+    weight: 2
+    zones: [front_porch, backyard, side_gate, patio, kitchen, living_room, hallway]
+    lighting: [ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: masked_intruder }]
+    props: [{ one_of: [ski_mask], held_by: 0 }]
+  - id: fence_climbing
+    group: threat
+    label: incident
+    risk_band: [65, 90]
+    zones: [side_gate, backyard]
+    subjects: [{ one_of: [person], role: stranger_climbing_a_fence }]
+  - id: pool_trespass
+    group: threat
+    label: incident
+    risk_band: [55, 85]
+    zones: [pool_deck]
+    lighting: [dusk, ir_night, porch_lit_night]
+    subjects: [{ one_of: [person], role: trespasser }]
+  - id: vandalism
+    group: threat
+    label: incident
+    risk_band: [55, 85]
+    zones: [garage_exterior, front_porch, street_edge, loading_dock]
+    subjects: [{ one_of: [person], role: vandal }]
+    props: [{ one_of: [spray_paint], held_by: 0 }]
+  - id: person_down
+    group: threat
+    label: incident
+    risk_band: [70, 100]
+    zones: [front_porch, driveway, backyard, kitchen, living_room, hallway, parking_lot]
+    subjects: [{ one_of: [person], role: collapsed_person }]
+  - id: fire_or_smoke
+    group: threat
+    label: incident
+    risk_band: [85, 100]
+    weight: 2
+    zones: [backyard, garage_exterior, patio, shed, kitchen]
+    props: [{ one_of: [smoke, fire] }]
+  - id: child_alone_at_pool
+    group: threat
+    label: incident
+    risk_band: [85, 100]
+    weight: 2
+    zones: [pool_deck]
+    lighting: [day, golden_hour, dusk]
+    subjects: [{ one_of: [child], role: unsupervised_child }]
