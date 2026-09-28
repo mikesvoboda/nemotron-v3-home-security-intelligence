@@ -20,6 +20,23 @@ _.legacy_wire
 # error / None tuple, never on the fixture itself.
 _.without_leg
 
+# Mutation batch-28/29 batteries (PR #6682, dead-code CI red 2026-09-28): the
+# same WP0.4 idiom, three ways vulture cannot model --
+# (a) side-effect-only fixtures: the test requests them PURELY so the patched
+#     world is installed (asyncio clock frozen / pynvml absent); the body
+#     asserts on logs and return values, never on the parameter itself;
+_.no_clock
+_.no_pynvml
+# (b) a parametrize value that exists to NAME the four boundary cases (the
+#     disjunct labels of the bbox rejection predicate); pytest injects it as a
+#     kwarg bound to the argname, so it cannot be renamed or dropped, and the
+#     body legitimately uses only the paired bbox;
+_.edge
+# (c) a fake-NVML method parameter required by the mocked library's real
+#     signature (nvmlDeviceGetTemperature(handle, sensor)); the stub answers
+#     positionally and ignores the selector, like the library's own stubs.
+_.sensor
+
 # Test fixtures that are injected by pytest
 _.isolated_db
 _.reset_fallback_service
