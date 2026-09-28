@@ -761,19 +761,19 @@ pytest_skip:
     expires: '2026-12-31'
     reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
-  - id: backend/tests/conftest.py:2616
+  - id: backend/tests/conftest.py:2617
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: pandas not installed (required for synthetic scenarios)
-  - id: backend/tests/conftest.py:2620
+  - id: backend/tests/conftest.py:2621
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py
-  - id: backend/tests/conftest.py:2641
+  - id: backend/tests/conftest.py:2642
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

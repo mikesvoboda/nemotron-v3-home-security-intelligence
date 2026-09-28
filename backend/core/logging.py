@@ -724,8 +724,19 @@ class DatabaseHandler(logging.Handler):
                 from sqlalchemy.orm import sessionmaker
 
                 settings = get_settings()
-                # Convert async URL to sync URL for PostgreSQL
-                sync_url = settings.database_url.replace("postgresql+asyncpg", "postgresql")
+                # Convert async URL to sync URL for PostgreSQL. The driver must be
+                # named: SQLAlchemy 2.1 points a bare "postgresql://" at psycopg 3
+                # (not installed), and the resulting ModuleNotFoundError is an
+                # ImportError -- caught below, so DB logging would silently turn
+                # itself off instead of failing loudly. config.py's validator also
+                # accepts the bare form, and on 2.0 a bare URL reached psycopg2
+                # here by default -- so normalize both spellings, not just the
+                # +asyncpg one, to keep every accepted config working.
+                sync_url = settings.database_url.replace(
+                    "postgresql+asyncpg", "postgresql+psycopg2"
+                )
+                if sync_url.startswith("postgresql://"):
+                    sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
                 self._engine = create_engine(sync_url)
                 self._session_factory = sessionmaker(bind=self._engine)
