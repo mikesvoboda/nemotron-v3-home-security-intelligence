@@ -38,6 +38,42 @@
 import * as Sentry from '@sentry/react';
 
 /**
+ * Privacy floor for Sentry v11's `dataCollection` knobs.
+ *
+ * v10 resolved an unset `dataCollection` by routing it through
+ * `sendDefaultPii` (utils/data-collection/resolveDataCollectionOptions.js in
+ * 10.75.1); this app never sets `sendDefaultPii`, so it landed on v10's
+ * collect-nothing branch. v11 deleted that route — unset now falls straight
+ * through to `DEFAULTS`, where every knob is `true` and `httpBodies` lists all
+ * four directions (same file in 11.0.0, lines 1-13 and 29-50). Upgrading
+ * 10 -> 11 with no config change therefore silently starts shipping cookies,
+ * request/response headers, HTTP bodies, query params and inferred client IPs
+ * to Sentry — for a home-security camera dashboard.
+ *
+ * This object is that floor, spelled with v11's public booleans. It is NOT
+ * byte-identical to v10-off: v10-off used `{ deny: PII_HEADER_SNIPPETS }`
+ * allowlists, and `PII_HEADER_SNIPPETS` is not a public export in v11, so the
+ * deny-list variant cannot be imported here. The result is slightly stricter
+ * than v10-off, never looser.
+ *
+ * Deleting this object is the deliberate way to opt into v11's
+ * collect-everything default; it is not an oversight to be cleaned up.
+ */
+const DATA_COLLECTION_BASELINE = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  databaseQueryData: false,
+  queues: false,
+  stackFrameVariables: false,
+  frameContextLines: 0,
+} satisfies NonNullable<Sentry.BrowserOptions['dataCollection']>;
+
+/**
  * Sentry initialization configuration options.
  * Extends Sentry's BrowserOptions with typed environment variable defaults.
  */
@@ -168,6 +204,9 @@ export function initSentry(customConfig?: Partial<SentryConfig>): void {
     replaysSessionSampleRate,
     replaysOnErrorSampleRate,
     integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
+    // Privacy floor — see DATA_COLLECTION_BASELINE above. Placed before the
+    // customConfig spread so a caller can still widen it deliberately.
+    dataCollection: DATA_COLLECTION_BASELINE,
     // Merge custom config last to allow overrides
     ...customConfig,
   });
