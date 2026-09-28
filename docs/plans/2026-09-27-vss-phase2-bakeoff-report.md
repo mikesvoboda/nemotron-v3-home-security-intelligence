@@ -276,3 +276,33 @@ without it refused all 13 items before any read — the guard working, not a mod
 E `e4ea8bbd`, F-artifact `0123c66c`, F `90ed4690`, all pinned `d3794497`;
 `agent-gpu rm` after each serve → `containers: []`. These are GB300 readings: **indicative only
 (F13), never bar verdicts (F14), and not a pick** — the M2 decision still belongs to the owner.
+
+## M2 resolved by owner instruction (dated 2026-09-28, ledger item 35); the table above is NOT rewritten
+
+The owner picked, verbatim: **"lets go with Qwen3-VL-8B for now. we can revisit later if needed."**
+Column **C — Qwen3-VL-8B-Instruct Q4_K_M** is the shipped serving VLM, and the shipped default moved
+to it (`.env.example`, compose, `Settings.vlm_model_id`, spec rev 7). Nothing in the table above is
+edited, reordered, or re-scored; this section is additive, in the same shape as the two errata above.
+
+**What this corpus decided, and what it did not.** Stated again plainly because it is this report's
+own standing non-claim (§"What this report explicitly does not do") and the pick does not quietly
+retire it: **n=13 ordered nothing.** Every S2/S3 figure here is GB300-indicative (F13) and never a
+bar verdict (F14), and the C-vs-A gap in the verdict mix is inside what 13 items can separate. The
+pick was made on **resource shape and build dependency** — the axis this report did have evidence on
+(KV geometry from the GGUF headers, the fit readings, the b7972/b11090 build finding) — which is
+exactly the use the report said its evidence could support and no more.
+
+**The flip conditions, written falsifiable while they are fresh** — each is a measurement that
+reopens the pick, not a mood:
+
+1. **8B fails S1 on 24 GB hardware** ⇒ fall to the 4B pair. It is the named fallback row in the
+   A5500 handout, so this aborts onto a model with a number rather than into a re-run.
+2. **KV density turns out to bind stream count** ⇒ **Nemotron-Nano-12B-v2-VL reopens ahead of both**:
+   its KV is 768 MiB against our 4608 MiB (6 KV layers of 63 vs 36 of 36). This is the one axis where
+   a candidate beat the pick on measured evidence, and it beats it on a bigger model too.
+3. **Post-item-19 corpus S3 < `S3_MIN` 90 %**, or C's `uncertain` rate 0.231 proves to be a real
+   hedging prior rather than 13-item noise ⇒ the pick reopens.
+
+**What is NOT adopted from this report:** no S#/D# text change beyond rev 7's identity sentences, and
+the `uncertain` spread stays a 13-item hint. The A/B/C/D table remains the historical candidate set —
+it is what ran, and rewriting it would destroy the only comparison anyone can re-check.

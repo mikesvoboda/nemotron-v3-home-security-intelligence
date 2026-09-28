@@ -42,6 +42,23 @@ question is whether that is affordable _with the rest of the stack resident_, so
 settings beside every S1 number, and run the worst-case four-image batch (`~12.2K tokens`
 per the 1.7 handout) rather than an idle serve.
 
+**Dated 2026-09-28 — the table's rows are no longer symmetric (owner ruling, ledger item 35).** The
+owner picked **Qwen3-VL-8B-Instruct Q4_K_M** as the shipped serving VLM ("lets go with Qwen3-VL-8B for
+now. we can revisit later if needed."), so this matrix is now the measurement that **confirms or
+reopens** that pick rather than informing it: the 8B row is the one S1 must clear, and the 4B row is
+the named fallback (flip condition 1 — if 8B fails S1 here, the pick falls to 4B, which is why its row
+stays measured and not retired). The `uncertain`-prior condition is answered by the post-item-19
+corpus, not by a Brev box.
+
+Weights for the 8B pair, pinned by sha256 as fetched and re-verified 2026-09-28 (`Qwen/Qwen3-VL-8B-Instruct-GGUF`):
+`Qwen3VL-8B-Instruct-Q4_K_M.gguf` 5,027,784,800 B `67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2`;
+`mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` 752,289,728 B `c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd`.
+No model-zoo row exists for any serving VLM (`models.yml` is the Triton/enrichment set), so these
+sha256s live in this document and the ledger — they cannot ride the zoo's `sha256:` mechanism.
+**Bake-off finding F applies to a fresh box:** files fetched into the weights root arrive mode **640**,
+and `ai/vlm` runs as uid 1000 `llama` — the _other_ class on a bind-mounted root — so the serve dies
+`Permission denied` on a file the host reads fine. `chmod 644` both files after fetching.
+
 ## Read this before trusting any tier's number
 
 1. **Confirm the architecture first** (spec :455, and the risk table :587 names the failure: "A

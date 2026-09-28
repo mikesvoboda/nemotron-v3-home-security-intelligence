@@ -3,7 +3,17 @@
 **Status:** approved design (§1-§8 approved section by section by the owner, 2026-09-23), ready for implementation planning
 **Date:** 2026-09-23
 **Branch:** `feat/vss-gaming-gpu-profile`
-**Revision:** rev 6 (2026-09-25, owner ruling, ledger F11): **specialists are resident, and their
+**Revision:** rev 7 (2026-09-28, owner ruling, ledger item 35): **the M2 pick is
+Qwen3-VL-8B-Instruct Q4_K_M, and it ships as the default.** Owner, verbatim: "lets go with
+Qwen3-VL-8B for now. we can revisit later if needed." The pick is **provisional** in a specific sense:
+F13 reserves S1 and S4 for 24 GB-class hardware and F14 reserves the S2/S3 verdicts for the real
+corpus item 19 gates, so no measurement in this repo yet closes it — the A5500 run and the post-item-19
+corpus do, and the 4B pair is the named fallback row in the A5500 handout rather than a retired option.
+Three flip conditions are falsifiable in the ledger item: 8B fails S1 on 24 GB; KV density binds
+stream count (which reopens Nemotron-12B-VL, whose KV is 768 MiB against 4608); post-item-19 S3 misses
+`S3_MIN` or C's `uncertain` rate proves to be a real prior. The pick was made on resource shape and
+build dependency — the axes the bake-off had evidence on — and explicitly not on an n=13 corpus that
+this repo's own report says ordered nothing. (D5, M1, §5, §8 checklist.) Rev 6 (2026-09-25, owner ruling, ledger F11): **specialists are resident, and their
 results reach the VLM.** Rev 5 left a single Triton load set, so Triton keeps
 `--model-control-mode=none` and serves a static `vlm` model repository. Explicit mode, on-demand
 specialist loading and the specialist wake-on-open are dropped. Specialist results (face match,
@@ -55,7 +65,7 @@ consumer tier.
 | D2  | **Three test environments** (§8). **The GB300** (this repo's development box) is the development loop and runs the salience bake-off. **The amd64 RTX A5500** (24 GB, sm_86, **single GPU**; the A400 is retired) runs the real-data steps and the production go-live. **Brev VMs** supply the per-tier hardware matrix. An agent runs wherever a step's environment is. Ampere has no FP8 or FP4 tensor cores, so the A5500 proves fit and salience, not native NVFP4 speed. |
 | D3  | **Per-event architecture: detector + one VLM.** The detector gates every upload and supplies geometry. One VLM describes, verifies and scores candidates from the evidence stills in **one constrained call**. Florence-2 and most enrichment retire. The face, re-ID and plate specialists stay. **Rev 6:** they are resident, their results reach the VLM as `specialist_outputs`, and the threat (weapon) detector may join them as an optional fourth specialist.         |
 | D4  | **Engine: contract-first.** llama.cpp (GGUF + mmproj) ships first. RT-VLM, VSS's engine, follows behind the same contract in a **gated** phase; its A5500 fit, or its failure, is recorded as upstream evidence. The VSS Delta build is produced in that phase.                                                                                                                                                                                                               |
-| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). **Rev 5:** there is no placeholder LLM, because the legacy path is not deployed.                                                                                                                                                                                                                                                            |
+| D5  | **Model slots are pluggable.** The owner picks the VLM after the bake-off (M2). The reasoning LLM is deferred to the owner (R10). **Rev 5:** there is no placeholder LLM, because the legacy path is not deployed. **Rev 7:** the owner picked — Qwen3-VL-8B-Instruct Q4_K_M, provisional on S1/S4 and the real-corpus S2/S3 (ledger item 35). The 4B pair stays available as the measured fallback; pluggability is what makes that a config change and not a migration.     |
 | D6  | **Ingest is FTP stills only.** Live streaming is R1.                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | D7  | **Evaluation is replay, not live shadow,** over **self-contained eval items** that production retention cannot touch. **Rev 5: there is no control.** S2 and S3 are fixed bars on labeled items; nothing is compared against the legacy path.                                                                                                                                                                                                                                 |
 | D8  | **Success criteria S1-S6** (below) gate the go-live.                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -290,7 +300,10 @@ come from the hardware matrix (step 2.3). Report per candidate:
 - long-context KV cost;
 - license and gating.
 
-**The owner picks.**
+**The owner picks.** **Rev 7: picked — Qwen3-VL-8B-Instruct Q4_K_M** (2026-09-28, ledger item 35), on
+resource shape and build dependency rather than on the bake-off's n=13 verdict separation, which the
+report itself declines to read as a ranking. The candidate list above is the historical set that ran
+and is not rewritten; the 4B pair stays the measured fallback row.
 
 **Go-live** (rev 5; there is no legacy system to cut over from):
 
@@ -438,8 +451,12 @@ size bar.
 - 1.6 The frontend changes.
 - 1.7 **The A5500 bring-up in `vlm` mode** (checklist below). It replaces the removed step 0.2.
 
-**M1:** `vlm` mode runs end to end on the A5500 with Qwen3-VL-4B as the smoke model, and every CI
-tier is green.
+**M1:** `vlm` mode runs end to end on the A5500 with the shipped serving VLM as the smoke model, and
+every CI tier is green. **Rev 7:** that smoke model is Qwen3-VL-8B-Instruct Q4_K_M, because the pick
+moved the shipped default and 1.7 is run against the shipped default — the run has not happened yet,
+so this line names what M1 will be executed on, not something already achieved. The 4B pair is the
+handout's named fallback row, so a fit failure aborts onto a model with a number instead of into a
+re-run. M1 stays open.
 
 **Phase 2: Evaluation and bake-off**
 
@@ -506,7 +523,8 @@ Rev 5 moved this from step 0.2. The A5500 comes up directly in `vlm` mode, with 
 - [ ] **No legacy LLM.** `ai-llm`, Florence and the heavy enrichment are not deployed. The
       `scripts/a5500_precheck.py` checks for the placeholder LLM (`llm_model`, `ai_llm_mount`) are
       obsolete; replace them with an `ai-vlm` model/mount check.
-- [ ] **VLM.** `ai-vlm` serves the smoke model (Qwen3-VL-4B) with `CUDA_ARCHITECTURES=86`. Run the
+- [ ] **VLM.** `ai-vlm` serves the smoke model (rev 7: Qwen3-VL-8B-Instruct Q4_K_M; the 4B pair is the
+      handout's measured fallback row) with `CUDA_ARCHITECTURES=86`. Run the
       enforcement probe against it before any event reaches it.
 - [ ] **Triton (rev 6).** The gateway serves the static `vlm` model repository (YOLO26, re-ID and,
       if used, the threat detector) with `--model-control-mode=none`. No retired model loads.
