@@ -43,7 +43,7 @@ from scripts.a5500_precheck import (  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Synthetic fixtures - single-GPU-ready config (the acceptance input), in the
-# SHIPPED vlm mode: PIPELINE_MODE=vlm, Qwen3-VL-4B pair, /vlm mount.
+# SHIPPED vlm mode: PIPELINE_MODE=vlm, Qwen3-VL-8B pair, /vlm mount.
 # ---------------------------------------------------------------------------
 
 GREEN_ENV = """\
@@ -58,8 +58,8 @@ GPU_CLIP=0
 GPU_ENRICHMENT=0
 GPU_ENRICHMENT_LIGHT=0
 GPU_AI_SERVICES=0
-VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf
-VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf
+VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf
+VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
 VLM_CTX_SIZE=32768
 VLM_PARALLEL=2
 VLM_GPU_LAYERS=auto
@@ -78,8 +78,8 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
     environment:
-      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}
-      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}
+      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}
+      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}
       - CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - PARALLEL=${VLM_PARALLEL:-2}
 """
@@ -229,8 +229,8 @@ class TestVlmModel:
             tmp_path,
             "q8.env",
             GREEN_ENV.replace(
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf",
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q8_0.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q8_0.gguf",
             ),
         )
         checks = run_precheck(
@@ -268,8 +268,8 @@ class TestVlmModel:
             tmp_path,
             "legacy.env",
             GREEN_ENV.replace(
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf\n"
-                "VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf\n"
+                "VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
                 "LLM_MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
             ),
         )
@@ -368,7 +368,7 @@ class TestVlmPassthrough:
 
     def test_hardcoded_model_path_warns(self, tmp_path: Path) -> None:
         hard = GREEN_COMPOSE.replace(
-            "- MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}",
+            "- MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}",
             "- MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
         )
         checks = run_precheck(
@@ -383,7 +383,7 @@ class TestVlmPassthrough:
 
     def test_hardcoded_mmproj_warns_too(self, tmp_path: Path) -> None:
         hard = GREEN_COMPOSE.replace(
-            "- MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}",
+            "- MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}",
             "- MMPROJ_PATH=/models/mmproj-other.gguf",
         )
         checks = run_precheck(
@@ -691,7 +691,7 @@ class TestChecklistRender:
         assert "vlm_model" in md and "MANUAL" in md
 
     def test_render_states_the_smoke_before_traffic_requirement(self, tmp_path: Path) -> None:
-        # spec :482-500 / 1.7: the Qwen3-VL-4B smoke serve + enforcement probe
+        # spec :482-500 / 1.7: the Qwen3-VL-8B smoke serve + enforcement probe
         # must run BEFORE any event reaches it. That ordering is the handout's
         # point, so the render must carry it, not just the model name.
         from scripts.a5500_precheck import render_checklist
@@ -750,8 +750,11 @@ class TestRealTreePrepReview:
 
     def test_example_ships_the_serving_vlm_ready(self, real_checks) -> None:
         by_id = _by_id(real_checks)
-        # The VLM model pair ships correct (env :462-463) and prod.yml mounts
-        # the /vlm dir (:253) with env-derived paths (:265-266): the shipped
+        # The VLM model pair ships correct (the .env.example VLM_MODEL_PATH /
+        # VLM_MMPROJ_PATH defaults; cited by name because the line anchors in
+        # this file's comments drift a slice or two after any .env edit) and
+        # prod.yml mounts
+        # the /vlm dir with env-derived paths: the shipped
         # mode's weights are NOT part of what's missing on the A5500.
         assert by_id["vlm_model"].verdict == PASS
         assert by_id["ai_vlm_mount"].verdict == PASS

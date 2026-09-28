@@ -14,7 +14,7 @@ rows rather than accreting alongside them):
      device passthrough  no hardwired nonzero device; CDI ``gpu=all`` = WARN
   2. CUDA architecture   CUDA_ARCHITECTURES=86, checked BEFORE the ai-vlm
                          build (the compose threads it into that build arg)
-  3. Serving VLM         VLM_MODEL_PATH -> Qwen3-VL-4B Q4_K_M AND its mmproj
+  3. Serving VLM         VLM_MODEL_PATH -> Qwen3-VL-8B Q4_K_M AND its mmproj
                          (a projector-less serve is text-only and degrades
                          silently); ai-vlm's /models mount -> the vlm dir, not
                          a legacy LLM dir; MODEL_PATH/MMPROJ_PATH stay
@@ -70,9 +70,13 @@ REQUIRED_GPU_VARS = (
     "GPU_AI_SERVICES",
 )
 
-# The shipped serving pair (spec D5 as amended by rev 5 / 1.7): Qwen3-VL-4B
-# -Instruct main GGUF at Q4_K_M + its mmproj projector - two files, one
-# identity. The legacy Nano-4B placeholder plan is retired with the mode.
+# The shipped serving pair (spec D5 as amended by rev 5 / 1.7, and rev 7 moved
+# the identity): Qwen3-VL-8B-Instruct main GGUF at Q4_K_M + its mmproj
+# projector - two files, one identity. The legacy Nano-4B placeholder plan is
+# retired with the mode. The 4B pair remains the handout's MEASURED FALLBACK
+# row (rev 7's flip condition 1), which the regexes below already admit: they
+# match arch + quant, not size, deliberately - widening them is not how the
+# pick moves.
 QWEN3VL_RE = "qwen3vl"
 VLM_MAIN_QUANT_RE = "q4_k_m"
 # Spec §2 sizing: per-slot context = VLM_CTX_SIZE / VLM_PARALLEL must cover
@@ -263,19 +267,21 @@ def _profile_names(block_lines: list[str]) -> list[str]:
 
 
 def _check_vlm_model(env: dict[str, str]) -> Check:
-    """The shipped serving pair: Qwen3-VL-4B-Instruct main GGUF + mmproj.
+    """The shipped serving pair: Qwen3-VL-8B-Instruct main GGUF + mmproj.
 
     A projector-less llama.cpp serve loads TEXT-ONLY and every vlm_assess
     silently degrades - so the pair is checked as a pair, and a legacy
-    LLM_MODEL_PATH is not an answer (the vlm path calls nothing else,
-    .env.example:218 comment).
+    LLM_MODEL_PATH is not an answer (the vlm path calls nothing else, per
+    .env.example's GATEWAY_MODEL_SET comment).
     """
     main = env.get("VLM_MODEL_PATH", "")
     mmproj = env.get("VLM_MMPROJ_PATH", "")
     want = (
-        "the shipped mode serves the Qwen3VL-4B (Qwen3-VL-4B-Instruct) pair: "
+        "the shipped mode serves the Qwen3VL-8B (Qwen3-VL-8B-Instruct) pair: "
         "VLM_MODEL_PATH at Q4_K_M + VLM_MMPROJ_PATH at its mmproj "
-        "(.env.example:462-463 default; legacy LLM_MODEL_PATH is not it)"
+        "(the .env.example VLM_MODEL_PATH/VLM_MMPROJ_PATH defaults; cited by "
+        "name, not line - a line anchor here went stale within one slice; "
+        "legacy LLM_MODEL_PATH is not it)"
     )
     if not main:
         return Check("vlm_model", FAIL, f"VLM_MODEL_PATH unset - {want}")
@@ -614,15 +620,48 @@ AMENDMENTS: dict[str, list[str]] = {
         "[V 2026-09-27] the shipped mode is the VLM path: PIPELINE_MODE=vlm "
         "and GATEWAY_MODEL_SET=vlm are the .env.example defaults (:211,:221) "
         "and the residency comment records that the mode 'calls nothing "
-        "else' (:218); ai-vlm is profile-gated profiles:[vlm] "
-        "(docker-compose.prod.yml:221,:227-228) - bring-up runs the VLM, not "
+        "else' (:218); ai-vlm is profile-gated profiles:[vlm] on the ai-vlm "
+        "service (the anchor here read :221,:227-228 and was already stale - "
+        "cite the service name, not the line) - bring-up runs the VLM, not "
         "the Nano-4B placeholder plan",
-        "[V 2026-09-27] the pair ships correct: VLM_MODEL_PATH at "
-        "Qwen3VL-4B-Instruct-Q4_K_M + VLM_MMPROJ_PATH at the Q8_0 mmproj "
-        "(.env.example:462-463); prod compose mounts "
+        "[V 2026-09-28] amend (owner ruling, spec rev 7, ledger item 35): the "
+        "shipped pair is now Qwen3VL-8B-Instruct-Q4_K_M + VLM_MMPROJ_PATH at "
+        "its Q8_0 mmproj (the .env.example VLM_MODEL_PATH/VLM_MMPROJ_PATH "
+        "defaults; cited by name, not line); prod compose mounts "
         "${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro (:253) and "
         "derives MODEL_PATH/MMPROJ_PATH from the VLM_* vars (:265-266) - the "
-        "weights are NOT what the A5500 lacks",
+        "weights are NOT what the A5500 lacks, and both 8B files are on the "
+        "share readable (mode 644) with sha256s pinned in ledger item 35",
+        "[V 2026-09-28] ORDER OF THIS RUN (rev 7's 8B-primary ruling): serve "
+        "the 8B pair first and take its S1 peak, then re-run the SAME command "
+        "with VLM_MODEL_PATH/VLM_MMPROJ_PATH pointed at the 4B pair and take "
+        "its S1 peak. Two readings, not one, because the 4B is the pick's "
+        "named FALLBACK (flip condition 1: 8B fails S1 on 24 GB => fall to "
+        "4B) and an abort must land on a model that already has a number on "
+        "this box. The measured footprints to expect, quoted from the bake-off "
+        "report and nothing else: 8B `vram_actual_mib 11216` (9376 projected), "
+        "4B `7285 MiB projected (fit log)` - and the 4B has NO broker-actual "
+        "in that report, which is precisely why both readings are taken here "
+        "rather than trusting a projection. KV is 4608 MiB for BOTH at CTX "
+        "32768 / PARALLEL 2 (identical 36-layer geometry - the 8B buys no KV "
+        "relief), so that cost does not move with the fallback.",
+        "[V 2026-09-28] record two timings this run that the repo has NEVER "
+        "measured and this handout no longer guesses at: (a) the 8B pair's "
+        "cold LOAD time against the healthcheck start_period of 120s "
+        "(docker-compose.prod.yml, which mirrors ai/vlm/Dockerfile:133 - if "
+        "the pair needs more, both numbers move together or the server is "
+        "torn down for being slow when it is only early); (b) a WAKE time "
+        "from sleep against the client's AI_VLM_WAKE_TIMEOUT_SECONDS=90.0 - "
+        "the 8B pair is 2.0x the 4B's bytes to copy back from CPU RAM "
+        "(5,027,784,800+752,289,728 vs 2,497,281,664+453,974,304), and M1's "
+        "assertions 2/3 are exactly the wake-through-sleep check.",
+        "[V 2026-09-28] the two KV figures in this repo DISAGREE and the "
+        "disagreement is unresolved: compose's older prose implied ~73KB per "
+        "token per slot (~2.4 GB for 2x16K slots) while the bake-off report "
+        "recorded 4608 MiB (~144KB/token) for the same 32768/2 pool - about "
+        "2x. Neither is a measurement of THIS container. Copy llama-server's "
+        "own startup KV line into the run notes; it is the authority and it "
+        "costs nothing to capture.",
         "[V 2026-09-27] amend (ghcr-hardcode fact, kept from the P0.2 review "
         "and still true in kind): docker-compose.ghcr.yml has NO ai-vlm "
         "service at all - the ghcr image path cannot serve the shipped mode. "
@@ -706,8 +745,9 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
     lines += [
         "",
         "## - [ ] Serving VLM",
-        "The A5500 brings up the SHIPPED vlm mode (1.7, spec rev 5): "
-        "`VLM_MODEL_PATH` at the `Qwen3-VL-4B-Instruct` Q4_K_M GGUF AND "
+        "The A5500 brings up the SHIPPED vlm mode (1.7, spec rev 5; the model "
+        "identity is rev 7's owner pick, ledger item 35): "
+        "`VLM_MODEL_PATH` at the `Qwen3-VL-8B-Instruct` Q4_K_M GGUF AND "
         "`VLM_MMPROJ_PATH` at its mmproj projector (two files - a "
         "projector-less serve loads text-only and silently degrades every "
         "vlm_assess). `ai-vlm`'s `/models` mount must target the `vlm` "
@@ -715,10 +755,11 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
         "the `VLM_*` vars so a `.env` switch reaches the container. Per-slot "
         "context = `VLM_CTX_SIZE`/`VLM_PARALLEL` must cover a worst-case "
         "vlm_assess (~12.2K tokens; the shipped 32768/2 = 16384 does). "
-        "MANDATORY ordering: smoke-serve Qwen3-VL-4B and run the P0.3 "
+        "MANDATORY ordering: smoke-serve Qwen3-VL-8B and run the P0.3 "
         "enforcement probe (a refusal check against the serving path) "
         "BEFORE any event reaches it - never attach live traffic to an "
-        "unprobed server.",
+        "unprobed server. Then take the same reading on the 4B pair: it is "
+        "the pick's named fallback, so a fit failure must not cost a re-run.",
         f"- repo verdict: {v('vlm_model')}",
         f"- repo verdict: {v('ai_vlm_mount')}",
         f"- repo verdict: {v('vlm_model_env_passthrough')}",
