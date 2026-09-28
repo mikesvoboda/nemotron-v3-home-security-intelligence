@@ -11921,3 +11921,100 @@ survivors — the single biggest killable pool; its 23 staged batteries
 carry the SAME frozenset absolute pins — the re-anchor recipe applies at
 install, instrumented gate mandatory), then batch-29 (pw 23 + dc 10),
 then `enrichment_client` survivors, then `prompts`.
+
+## 2026-09-28 — MILESTONE 4 PUBLISHES: 67.43042239483464% completed=true (+1.1112 pts) — campaign #5 `gpu_monitor` CLOSES at 97.23058398555088%; zero collateral movement anywhere else
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: `MUTMAX=14 ./scripts/mutation-run.sh gpu_monitor` wrapper PID
+1325181, START 2026-09-27T22:48:43Z, wrapper EXIT 2026-09-28T04:34:44Z, log
+/tmp/wp-b28/rebank-gm.log; snapshot /tmp/wp-b28/score-postgm.json):** killed
+60,049 + timeout 2,194 = **62,243** of **92,307** → **score
+67.43042239483464%**, survived 30,036, no_tests 28, unchecked 0, torn 0,
+**completed=true**, 229/269 module rows. History run[6] appended through the
+CI's own append path (runs=7). Denominator 92,296 → 92,307: +11 keys born
+inside gpu_monitor from the new coverage, all 11 decided killed (meta
+durations confirm) — no widened-set change (pw M2 precedent +103/-50).
+
+**CAMPAIGN #5 CLOSE ROW (`gpu_monitor`):** killed 1,615 + timeout 0 =
+**1,615** of **1,661** keys = **97.23058398555088%**, survived **46**,
+no_tests 0. Pre-close row 582 kt / 1,650 = 35.27% → **+1,033 kt** on +11
+keys. Per-module delta vs the 66.3192 snapshot (post-snapshot
+/tmp/wp-dc/score-postdc.json): `gpu_monitor` is the ONLY module that moved
+— Δkt = +1,033 = the tree Δkt exactly; zero collateral across all 229 rows;
+no module appeared/disappeared (229 → 229).
+
+**INSTALL (commit 7f074017, pushed):** 22 battery files
+test*gpu_monitor_batch28_00..22 (no 09 — merged into 08 in-lane), 299 tests.
+Gates, all THIS session: pristine 299 passed
+(`uv run pytest backend/tests/unit/services/test_gpu_monitor_batch28*\*.py
+-q -m "not gpu" -p no:randomly -p no:benchmark -o addopts= --timeout=180`);
+instrumented gate in the bank tree
+(`cd mutants; PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python -m pytest
+…same args`) initially 3 FAILED / 296 passed → after the world-aware fix 299
+passed; neighbor co-run with test_gpu_monitor.py 405 passed; ruff clean;
+semgrep clean after two `# nosemgrep: path-traversal-open`pragmas on gm22's`M.**file**` reads (dc convention). Pre-bank backup
+/tmp/wp-b28/backup-metas-prebanc-gm-224843.tgz (269 metas, 0 stale, test
+trees synced DIFFCOUNT=0).
+
+**NEW ABORT-ADJACENT FAMILY FOUND AND NEUTRALIZED AT INSTALL (not a
+stats-abort member — a false-kill machine):** three batteries pinned
+"shipped comment verbatim in the imported source, EXACTLY ONCE" (gm10/gm11
+`text_pins`, gm12 `COMMENT_WINDOW_LINE`). In the instrumented world every
+shipped comment appears once per mutant copy (L677/L682/L693/L715 206×,
+L993 24×), so the pin is permanent-red in the bank and would have credited a
+false "killed" to EVERY key whose selection set reaches the module. Fix:
+`_shipped_source()` — the imported module's path minus the `mutants/`
+component (the instrumented file is generated verbatim from it), i.e. the
+proven detector_client `_PRISTINE` recipe. Kill-credit audit BEFORE fixing:
+replay artifacts (/tmp/wp-pw/gm/replay_gm10.json, replay_gm11.json,
+replayF_R19/R22b) show **0 keys solely owned** by the three tests; all 18
+co-owned kills stand on the value-oracle rows → zero measured kt lost.
+gm22's two `in`-check comment pins verified green in BOTH worlds (text
+appears ≥1× even under 206 copies) — left pristine-read, inert in the bank.
+
+**THE 46 SURVIVORS (all 46 pre-bank exit 0 — zero regressions; every diff
+extracted by construction, mutant-def vs shipped-def ast text, /tmp/
+wp-b28/gm-survivor-diffs.json; survivor list /tmp/wp-b28/gm-survivors-
+postbank.txt):**
+_EQUIVALENT ×6 (upheld by construction):_ `__init__` m15/m16/m17/m18 —
+`self._gpu_available = None/True` and `self._nvml_initialized = None/True`
+(L173/L174) are DEAD STORES: `__init__` calls `self._initialize_nvml()` at
+L191 before its first read at L194, and `_initialize_nvml` assigns both
+attributes on ALL FOUR exits (L223/L227-228/L231-232 plus the True path in
+the success leg) — no input distinguishes the initial value. fps m19/m20 —
+`count / 60.0 if count >= 0 else 0.0` (L999) → `> 0` / `>= 1`: the three
+predicates differ only at count == 0 (count is a non-negative int per L998
+`result.scalar() or 0`), and at 0 shipped already computes
+`count / 60.0 == 0.0` — value-identical on every input; the else-arm is
+unreachable under all three predicates.
+_KILLABLE ×40 (true-gap → batch-29):_ the nvidia-smi parser poison-pill
+family, sync `_get_gpu_stats_nvidia_smi` (L309/314/319/324/329 × 8 mutants:
+m41/44/48/49/52/55/59/60/63/66/70/71/74/78/82/83/86/90/94/95) and async
+`_get_gpu_stats_nvidia_smi_async` (L419/424/429/434/439 × 20:
+m45/48/52/53/56/59/63/64/67/70/74/75/78/82/86/87/90/94/98/99). Three shapes
+per field, `and`→`or`, drop-guard `… or True`, and sentinel
+wrap/case (`"[N/A]"` → `"XX[N/A]XX"`/`"[n/a]"`): all three take the
+`float(parts[i])`/`int(float(parts[i]))` path on inputs where shipped yields
+None (`"[N/A]"`/`"[n/a]"`/other-sentinel field text) — under the shipped
+gate those parse-raise NEVER run, so one nvidia-smi row per field carrying
+`"[N/A]"`-shaped poison reddens every one of the 40 (ValueError vs shipped
+None-per-field). They survived because the lane's gm01 battery proof (groups
+3/4 nvidia-smi stats, task #47 "replay 40/46 + 6 manual") was never
+confirmed — same not-yet-proven lineage as dc's batch-29 five. Zero replay
+artifacts claimed any of the 46 (cross-referenced replay*/coh*/classify\*.json,
+0/46 hits) — nothing re-credited, nothing lost.
+
+**STRICT-> GATE + LADDER.** 67.43042239483464 > 66.31923376961082 (run[5]
+milestone) > 65.45381499940281 (run[4]) > 64.32356979924418 (baseline) —
+lawful publish. The +3.1069 pts over the run[3] baseline now cover **40.5%**
+of the 7.6764-pt run[3]-to-72 climb; tier-72 bar on THIS denominator = kt ≥
+0.72×92,307 = **66,461** → **+4,218 kt** to go. Remaining survivor pools
+(post-snapshot): enrichment_client 1,195 (55.48%), gpu_monitor 46 (closed,
+40 batch-29), prompts 855 (73.48%), event_broadcaster 723 (43.78%),
+batch_aggregator 644 (44.24%), clip_client 559 (46.51%), ep 420 (93.39% —
+nearly closed), plus pw 23 + dc 10 batch-29 tails.
+
+**NEXT:** batch-29 consolidated scope = pw 23 + dc 10 + gm 40 (poison-pill
+rows + the two never-proven lane batteries) ≈ 73 keys, then campaign #3
+`enrichment_client` (1,195 survivors), then `prompts`.
