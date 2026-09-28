@@ -1076,9 +1076,10 @@ class TestRealTreePrepReview:
     def test_health_manual_on_real_tree(self, real_checks) -> None:
         assert _by_id(real_checks)["health"].verdict == MANUAL
 
-    def test_on_an_enforcing_usr_t_host_only_the_ghcr_camera_mount_goes_blind(self) -> None:
-        # prod.yml's backend mount carries :z (f88797b4c); ghcr.yml still
-        # mounts /cameras:ro with no relabel. Host state injected, tree real.
+    def test_on_an_enforcing_usr_t_host_every_backend_camera_mount_relabels(self) -> None:
+        # prod.yml's backend mount carries :z (f88797b4c) and ghcr.yml's now
+        # carries :ro,z (owner ruling 2026-09-28: all compose) - before that
+        # the ghcr path was the one that went blind. Host state injected, tree real.
         checks = run_precheck(
             env_path=PROJECT_ROOT / ".env.example",
             compose_paths=[
@@ -1090,6 +1091,6 @@ class TestRealTreePrepReview:
             selinux_label=lambda _path: "system_u:object_r:usr_t:s0",
         )
         c = _by_id(checks)["selinux_camera_root"]
-        assert c.verdict == WARN
-        assert "docker-compose.ghcr.yml" in c.detail
-        assert "docker-compose.prod.yml: " not in c.detail
+        assert c.verdict == PASS
+        assert "docker-compose.prod.yml: " in c.detail
+        assert "docker-compose.ghcr.yml: " in c.detail

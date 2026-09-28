@@ -513,7 +513,9 @@ services:
   foscam-init:
     image: docker.io/library/alpine:3.19
     volumes:
-      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
+      # :z - first container to touch the camera root on a fresh host; without
+      # the relabel SELinux denies this chown on a usr_t dir (A5500, 2026-09-28).
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z
     command: sh -c "chown -R $${HOST_UID:-1000}:$${HOST_GID:-1000} /cameras 2>/dev/null || true"
     environment:
       - HOST_UID=${HOST_UID:-1000}

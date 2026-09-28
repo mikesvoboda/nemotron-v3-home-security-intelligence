@@ -262,7 +262,9 @@ services:
       - '127.0.0.1:8000:8000'
     volumes:
       - ./backend/data:/app/data:z,U
-      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
+      # z - the file watcher must inotify-WATCH this tree; SELinux denies that
+      # watch on a usr_t camera root (read-only does not avoid the denial).
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro,z
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
