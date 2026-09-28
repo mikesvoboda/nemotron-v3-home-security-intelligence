@@ -12196,3 +12196,144 @@ EQUIVALENT (upheld) + remaining tail = dispositioned at bank row 1,713+3 kt /
 batch-29 tail**. **Batch-29 CLOSED disposition-wise: pw 23 = 18 killed
 (batteried) + 5 EQUIVALENT; dc 10 = 2 killed (commit 29fa2dab) + 8 EQUIVALENT
 (09-28 dc row).** Next campaign scope: prompts (845 survivors / 3,192 keys).
+
+## 2026-09-28 — MILESTONE 5 PUBLISHES: 68.01666756859137% completed=true (+0.5862 pts vs M4) — campaign #3 `enrichment_client` CLOSES at 93.59165424739196% (+1,023 kt vs M4); the 1,447-key main-merge hole bank fully closed by two sanctioned full-set runs, zero re-decides (the trio 713-key fill regressed to sticky no_tests — disclosed below, with recovery plan)
+
+**THE NUMBER (measured THIS session, `uv run python scripts/mutation-score.py`
+rc=0; campaign publish run `MUTMAX=14 ./scripts/mutation-run.sh
+enrichment_client`; repair runs `MUTMAX=14 ./scripts/mutation-run.sh` — no
+module arg = documented full-set hole-fill mode; per mutmut `_run()` a run
+re-executes ONLY keys with no stored result, so nothing was re-decided; logs
+/home/agent/runs/repair.log (run 1) + repair2.log (run 2); snapshots
+/home/agent/runs/score-postgm.json + score-postrestart.json +
+score-repair.json + score-repair2.json):** killed 60,506 + timeout
+2,338 = **62,844** of **92,395** → **score 68.01666756859137%**,
+survived 28,810, no_tests 741, unchecked
+0, torn 0, **completed=True**,
+230 module rows (M4: 229). M4 was 62,243/92,307 =
+67.43042239483462%. **STRICT-> holds** (68.01666756859137 > 67.43042239483462).
+
+**DENOMINATOR DISCLOSURE (measured per-module, NO policy change):** M4 checked
+92,307 → this run's total 92,395 (Δ+88).
+The delta is re-enumeration, not widened-set policy (source_paths and
+mutate_only_covered_lines untouched), measured row-by-row: `capture_time`
+(new file merged in main #6683) +59, `pipeline_workers` +10, `vlm_analyzer`
++11, `vlm_client` +8 — ΣΔ+88. Key-set sizes of every other module are
+unchanged. The publish math clears M4 on EVERY candidate denominator: at the
+M4-era total 92,307 the same kills give 68.08151061132959%; at this
+run's 92,395 → 68.01666756859137%. Both printed here honestly; the published
+entry is the fresh score's own total.
+
+**TRIO DISCLOSURE — 500 kt REGRESSED TO STICKY `no_tests` (measured
+end-to-end, not papered over; recovery item for the next campaign):** rows
+`calibration_monitor.py` / `session_service.py` / `trajectory_analyzer.py` held real M4
+verdicts (kt 114, 47, 339 of
+201, 60, 452 keys). Timeline measured
+from the meta backups: all-`None` (holes) in the 11:20Z backup
+(backup-metas-prerelaunch.tgz — the 713 are within the 1,447 census by
+arithmetic 675 rowed + 59 capture_time + 713 = 1,447); EMPTY
+`exit_code_by_key` dicts in the 14:28Z pre-repair#2 backup
+(backup-metas-repair2.tgz — why the trio rows are absent from both the
+damaged-bank and repair#1 snapshots: 226 rows there); repair#2's generation
+re-enumerated their key-sets, and the run loop then classified EVERY key
+`no_tests` (exit 33) — R2 rows: kt 0, no_tests
+201, 60, 452 (713 of this run's
+741; remainder `reid_service` 24 + 4 singletons). Mechanism
+measured to the data, trigger NOT guessed: `tests_by_mangled_function_name`
+(2,887 fns, stamped git_commit 202dc61d) has ZERO entries for the trio's
+functions while their tests DID run at collection (`duration_by_test` carries
+their 123 node IDs) — dependency edges lost, never rebuilt; the map is
+BYTE-IDENTICAL between the 11:20Z backup and now, and enrichment_client/
+vlm_analyzer fns ARE in it. The trio's test files collect green in BOTH trees
+TODAY (`pytest --collect-only` → 122, rc=0), so the edge-loss state is in the
+stats cache, not the tests. The 33s are STICKY: per `__main__.py` `_run()`
+(L1029-1030: `if not mutant_names and result is not None: continue`; the 33
+written by L1032-1034) a full-set run skips any key with a stored verdict —
+repair runs will never re-decide them; only a module-scoped run (explicit
+mutant_names bypass the skip) can, AND that needs the map edges back first.
+RECOVERY PLAN (first task of the next campaign): force a stats re-collection,
+verify trio fns appear in the map, then module-scoped
+`MUTMAX=14 ./scripts/mutation-run.sh` on each trio module re-decides their
+713 keys; restore worth ≈+0.5412 pts
+(63,344/92,395 = 68.55782239298664% counterfactual).
+Impact IS in the published number (713 keys stay in the denominator as
+no_tests while their 500 kills left the numerator) — M5 clears M4
+anyway, both denominators.
+
+**ROW-LEVEL NO-REDECIDE AUDIT (re-run THIS publish, stricter than the original
+gate):** /home/agent/runs/verify-repair2.py at repair#2 completion passed its
+gate-2 VACUOUSLY (its M4-row input score-postgm.json had modules=[] — stub
+totals only); the independent KEY-level proof (every non-None verdict in
+pre-repair#2 metas vs current, 90,946 keys, 0 violations) was the real
+evidence and stands. This publish rebuilt score-postgm.json from the committed
+history M4 entry (229 rows) and re-ran the gate: it fires on EXACTLY 9 field
+changes = the trio's 6 (disclosed above) + enrichment_client's 3 (killed/
+timeout/survived — that module was module-scoped RE-RUN by campaign #3's
+publish command, its re-decides are the campaign), and the other **226
+M4-decided rows are field-identical** (total/killed/timeout/survived). No
+unexplained drift anywhere.
+
+**CAMPAIGN #3 CLOSE ROW (`enrichment_client`):** killed 2161 +
+timeout 351 = **2512** of **2684** keys =
+**93.59165424739196%**, survived **172**, no_tests 0. M4 row 1,489 kt → **+1,023
+kt** at constant 2,684 keys (the interim score-postrestart.json
+snapshot already carries the campaign fills — its 2,512 = the final 2,512 —
+which is why it is the M4 row that states the campaign delta).
+`enrichment_client` is the ONLY campaign-motivated mover; every other Δkt
+mover below is a repaired-hole module, the new `capture_time` row (new file
+merged in main #6683), or the disclosed trio regression.
+
+**THE HOLES — FULL HONEST CHAIN (1,447 → 884+563 → 0):** the post-ec bank
+carried unchecked=1,447 across 11 modules, attributed by per-meta key-pattern
+forensics to main merges #6683/#6684 (new `capture_time` 59; merge-reset trio
+452+201+60 — banked at M4, reset by the merges, disclosed below; VLM-Phase-1
+blast radius `vlm_analyzer` 461 / `vlm_client` 33;
+contiguous appended key ranges in `osnet_loader`/`prompts`; stragglers
+auth/auth_service/pw). SEPARATELY DISCLOSED: an accidental SECOND `mutmut run`
+overlapped the campaign run's generation ~7 seconds (relaunch on a misread
+signal; killed before stats) — a one-runner-rule violation banked as a
+standing census requirement, forensically NOT the cause of these holes.
+**Repair #1** (started 15:33Z, log repair.log) re-executed only no-result keys,
+closed 884 of the 1,447, then DIED at mutmut's clean-test gate ~12 min in with
+NO failed test anywhere in the log. ROOT CAUSE (proven this session): the
+sandbox restart wiped apt package `systemd`; the shipped `phase_build` calls
+`_ensure_podman_socket` (setup_lib/deploy_phases.py:379) which shells out to
+`systemctl` unconditionally, and
+`backend/tests/unit/setup_lib/test_deploy_phases.py::TestPhaseBuild::test_skips_when_skip_build`
+— file 87 of 852 in gate ordering — never mocks subprocess →
+`FileNotFoundError: systemctl` → red in BOTH trees → `-x` aborted the gate
+child → `os._exit(1)`; the child's buffered pytest output died with it
+(structural: workers/isolation.py:129 `run_in_fork` + CatchOutput pre-fork
+redirect + in-process `pytest.main`; memory `mutmut-clean-gate-silent-death`).
+After `sudo -n apt-get install -y systemd` the faithful forkserver repro of the
+gate — same child body, all 16,506 cached node IDs, workspace venv,
+/home/agent/runs/cleangate-forkserver.py — ran **exit 0 in 639.5s**. kt across
+the death is BYTE-IDENTICAL to repair #1's measured 62,361 (the gate sits
+before any mutant execution; every moved row kept exactly its own fills; the
+563 surviving holes untouched). **Repair #2** closed the remaining 563
+(`vlm_analyzer.py` 461, `vlm_client.py` 33, `osnet_loader.py` 10),
+verified by /home/agent/runs/verify-repair2.py (no-re-decide gate on every
+PRE-decided row + hole-row kt monotone + completed=true).
+
+**Δkt MOVERS vs M4:**
+
+`backend/services/calibration_monitor.py`: 114 → 0 Δ-114 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/capture_time.py`: 0 → 47 Δ+47 (repair fill)
+`backend/services/enrichment_client.py`: 1,489 → 2,512 Δ+1,023 (campaign #3 close)
+`backend/services/pipeline_workers.py`: 1,717 → 1,727 Δ+10 (repair fill)
+`backend/services/session_service.py`: 47 → 0 Δ-47 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/trajectory_analyzer.py`: 339 → 0 Δ-339 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/vlm_analyzer.py`: 469 → 482 Δ+13 (repair fill)
+`backend/services/vlm_client.py`: 348 → 356 Δ+8 (repair fill)
+
+**BATCH-29 (NOT counted in this badge, rowed separately):** pw tail
+dispositioned 18 KILLABLE / 5 EQUIVALENT by construction probe and kill-
+batteried (commit 5454d0c0, red-check 18/18); dc tail 2 KILLABLE batteried
+(29fa2dab) + 8 EQUIVALENT; gm 40 re-disposed EQUIVALENT (48f379a2 addendum).
+These keys keep their bank survived verdicts — repair runs only fill holes —
+kill credit lands at the next full re-bank.
+
+**NOT PUBLISHED FROM:** red-check counts, extrapolation, or any damaged-bank
+snapshot (/home/agent/runs/score-postrestart.json completed=false unchecked
+1447; score-repair.json completed=false unchecked 563). Command +
+snapshots above; all numbers measured THIS session.
