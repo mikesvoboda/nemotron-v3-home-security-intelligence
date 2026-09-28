@@ -45,6 +45,7 @@ jobs:
               - 'uv.lock'
               - 'ai/**'
               - 'scripts/**/*.py'
+              - 'synthbench/**'
             frontend:
               - 'frontend/**'
               - '!frontend/**/*.md'

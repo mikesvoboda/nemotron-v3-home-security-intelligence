@@ -16,7 +16,7 @@ import argparse
 import hashlib
 import json
 import sys
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -116,13 +116,23 @@ def hf_download(f: WeightFile) -> Path:
     return Path(hf_hub_download(f.repo, f.path, revision=f.revision))
 
 
-def build_farm(files: Sequence[WeightFile], local: dict[str, Path], farm_root: Path) -> list[Path]:
-    """Symlink every row into <farm_root>/<category>/<link name>; idempotent, repairs wrong links."""
-    names = link_names(files)
+def build_farm(
+    files: Sequence[WeightFile],
+    local: dict[str, Path],
+    farm_root: Path,
+    *,
+    names: Mapping[WeightFile, str] | None = None,
+) -> list[Path]:
+    """Symlink every row into <farm_root>/<category>/<link name>; idempotent, repairs wrong links.
+
+    `names` defaults to `link_names(files)`. When `files` is a subset of a manifest, pass
+    the full manifest's `link_names`, so a link's name never depends on what was left out.
+    """
+    link_name = link_names(files) if names is None else names
     links: list[Path] = []
     for f in files:
         target = local[f.sha256]
-        link = farm_root / f.category / names[f]
+        link = farm_root / f.category / link_name[f]
         link.parent.mkdir(parents=True, exist_ok=True)
         if not (link.is_symlink() and link.resolve() == target.resolve()):
             if link.is_symlink() or link.exists():
@@ -149,9 +159,11 @@ def main(argv: Sequence[str] | None = None, *, download: Downloader = hf_downloa
     )
     args = parser.parse_args(argv)
     skip = set(args.skip_repo)
-    files = [f for f in load_manifest(args.manifest) if f.repo not in skip]
+    manifest = load_manifest(args.manifest)
+    files = [f for f in manifest if f.repo not in skip]
     local = fetch(files, download)
-    links = build_farm(files, local, args.farm_root)
+    # Names come from the whole manifest: skipping a repo must not rename other models' links.
+    links = build_farm(files, local, args.farm_root, names=link_names(manifest))
     sys.stdout.write(f"verified {len(local)} files; {len(links)} links under {args.farm_root}\n")
     return 0
 

@@ -201,3 +201,34 @@ class TestSyncCli:
         )
         assert code == 0
         assert (farm / "vae" / "x.safetensors").resolve() == blob.resolve()
+
+    def test_skip_repo_keeps_the_full_manifest_link_names(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache = tmp_path / "cache"
+        cache.mkdir()
+
+        def download(f: w.WeightFile) -> Path:
+            path = cache / f.sha256  # blobs named by their manifest sha256
+            path.touch()
+            return path
+
+        monkeypatch.setattr(w, "sha256_of", lambda path: path.name)
+        farm = tmp_path / "farm"
+        code = w.main(
+            [
+                "sync",
+                "--manifest",
+                str(P1_SLATE),
+                "--farm-root",
+                str(farm),
+                "--skip-repo",
+                "Comfy-Org/flux2-dev",
+            ],
+            download=download,
+        )
+        assert code == 0
+        assert sorted(p.name for p in (farm / "vae").iterdir() if "flux2-vae" in p.name) == [
+            "flux2-klein-4b--flux2-vae.safetensors",
+            "ideogram-4--flux2-vae.safetensors",
+        ]
