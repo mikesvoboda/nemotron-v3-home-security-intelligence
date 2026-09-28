@@ -1,0 +1,7 @@
+synthbench:
+  base_path: /export/models/comfyui
+  diffusion_models: diffusion_models/
+  latent_upscale_models: latent_upscale_models/
+  loras: loras/
+  text_encoders: text_encoders/
+  vae: vae/

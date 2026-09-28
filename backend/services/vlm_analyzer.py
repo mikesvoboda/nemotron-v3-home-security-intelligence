@@ -49,7 +49,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 
 from sqlalchemy import select
@@ -69,6 +69,7 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import event_detections
 from backend.models.event_verification import EventVerification
+from backend.services.capture_time import camera_tz, resolve_capture_time
 from backend.services.key_frame_selector import FrameRef, select_key_frames
 from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
 from backend.services.severity import SeverityService, get_severity_service
@@ -106,6 +107,7 @@ def build_assess_context(
     household: dict[str, Any] | None = None,
     zone_crossing: bool = False,
     specialist_outputs: dict[str, str] | None = None,
+    capture_tz: tzinfo | None = None,
 ) -> VlmAssessContext:
     """Field-for-field AssessInput (spec §5 / G0.4 - the shape pin lives in
     scripts/test_gen_ai_contract.py; this function is that pin's runtime
@@ -114,9 +116,13 @@ def build_assess_context(
     detected_at) so a production-built snapshot and an eval-store snapshot
     are the SAME shape - the corpus stays comparable with what 2.1 replays.
 
-    Timestamp: ISO of the EARLIEST detected_at (the snapshot's moment);
-    already-string values (store rows) pass through untouched."""
+    Timestamp: ISO (UTC) of the EARLIEST capture time. With `capture_tz` set
+    (CAMERA_TIMEZONE), a row's capture time is its Foscam filename time
+    (capture_time.resolve_capture_time); otherwise, or when the name does
+    not parse, it is the row's detected_at. Rows keep detected_at (arrival)
+    either way. Already-string values (store rows) pass through untouched."""
     det_rows = []
+    times: list[str] = []
     for row in detections:
         det = row.get("detected_at")
         bbox = row.get("bbox")
@@ -136,8 +142,12 @@ def build_assess_context(
                 "detected_at": det.isoformat() if isinstance(det, datetime) else det,
             }
         )
+        if isinstance(det, datetime):
+            moment = resolve_capture_time(row.get("file_path"), detected_at=det, tz=capture_tz)
+            times.append(moment.isoformat())
+        elif det:
+            times.append(det)
 
-    times = [r["detected_at"] for r in det_rows if r["detected_at"]]
     timestamp = min(times) if times else datetime.now(UTC).isoformat()
 
     return VlmAssessContext(
@@ -505,6 +515,8 @@ class VlmAnalyzer:
                         ("faces", "plates", "person_reid"), "unavailable: specialist stage error"
                     )
 
+        # Event times stay arrival time (detected_at): alerting compares them
+        # with "now". Only the VLM's context uses capture time (P0 scope).
         start_time = min(
             (d["detected_at"] for d in detections if d.get("detected_at") is not None),
             default=datetime.now(UTC),
@@ -521,6 +533,7 @@ class VlmAnalyzer:
             household=household,
             zone_crossing=detect_zone_crossing(detections, zone_names_by_det),
             specialist_outputs=specialist_outputs,
+            capture_tz=camera_tz(self._settings.camera_timezone),
         )
         request = build_assess_request(context=context, detections=detections)
         # The local must not share the function's name: an assignment in a

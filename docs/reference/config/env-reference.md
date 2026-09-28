@@ -230,9 +230,10 @@ disable them if you’re resource constrained or running without those services.
 
 ## Camera Integration
 
-| Variable           | Required | Default          | Description                       |
-| ------------------ | -------- | ---------------- | --------------------------------- |
-| `FOSCAM_BASE_PATH` | No       | `/export/foscam` | Base directory for camera uploads |
+| Variable           | Required | Default          | Description                                                                                                  |
+| ------------------ | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `FOSCAM_BASE_PATH` | No       | `/export/foscam` | Base directory for camera uploads                                                                            |
+| `CAMERA_TIMEZONE`  | No       | unset            | IANA timezone of the cameras' clocks; when set, the VLM's time context uses the Foscam filename capture time |
 
 Camera images are expected at: `{FOSCAM_BASE_PATH}/{camera_name}/`
 
@@ -756,6 +757,16 @@ The `VITE_*` variables are embedded at frontend build time; the `FRONTEND_*` por
 | `FRONTEND_INTERNAL_PORT` | No       | `8080`                  | Container port for nginx (health checks) |
 
 > `FRONTEND_PORT=5173` is dead in `docker-compose.prod.yml` — the compose file never references it (5173 only survives as the Vite dev-server target in `frontend/Dockerfile`). It is still consumed by `scripts/test-docker.sh` and a `setup.py` port-scanner entry, but it does not affect deployed frontend ports.
+
+---
+
+## Synthetic Benchmark
+
+| Variable                  | Required | Default                     | Description                                                      |
+| ------------------------- | -------- | --------------------------- | ---------------------------------------------------------------- |
+| `SYNTHBENCH_COMFYUI_PORT` | No       | `8188`                      | Host port of the synthbench ComfyUI renderer (127.0.0.1 only)    |
+| `SYNTHBENCH_ROOT`         | No       | `/export/synthbench`        | Generated media, GPU-window state and caches                     |
+| `SYNTHBENCH_PODMAN_ROOT`  | No       | `/export/models/containers` | Dedicated podman store (images, build temp files) for synthbench |
 
 ---
 
