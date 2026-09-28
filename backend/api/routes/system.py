@@ -4266,6 +4266,11 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
         return None
 
 
+# FileWatcher.watch_mode values; anything else (e.g. a watcher stub) reports its
+# observer type instead.
+_WATCH_MODES = ("native", "polling", "polling-fallback")
+
+
 @router.get("/pipeline", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
     redis: RedisClient | None = Depends(get_redis_optional),
@@ -4279,6 +4284,8 @@ async def get_pipeline_status(
     - camera_root: Directory being watched
     - pending_tasks: Files waiting for debounce completion
     - observer_type: Filesystem observer type (native/polling)
+    - watch_mode: native / polling (configured) / polling-fallback (the kernel
+      refused the native watch at startup; watch_fallback_reason = errno name)
 
     **BatchAggregator**: Groups detections into time-based batches
     - active_batches: Number of batches being aggregated
@@ -4299,11 +4306,15 @@ async def get_pipeline_status(
     file_watcher_status: FileWatcherStatusResponse | None = None
     if _file_watcher is not None:
         observer_type = "polling" if getattr(_file_watcher, "_use_polling", False) else "native"
+        watch_mode = getattr(_file_watcher, "watch_mode", None)
+        fallback_reason = getattr(_file_watcher, "watch_fallback_reason", None)
         file_watcher_status = FileWatcherStatusResponse(
             running=getattr(_file_watcher, "running", False),
             camera_root=getattr(_file_watcher, "camera_root", ""),
             pending_tasks=len(getattr(_file_watcher, "_pending_tasks", {})),
             observer_type=observer_type,
+            watch_mode=watch_mode if watch_mode in _WATCH_MODES else observer_type,
+            watch_fallback_reason=fallback_reason if isinstance(fallback_reason, str) else None,
         )
 
     # Get BatchAggregator status from Redis

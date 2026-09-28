@@ -2724,3 +2724,115 @@ class TestWp44ExporterStatusContract:
         assert bb.status.value == "unknown"
         assert bb.endpoint == "http://blackbox-exporter:9115"  # KNOWN default endpoint
         assert bb.error == "Exporter not found in Prometheus targets"  # exact text
+
+
+# =============================================================================
+# /api/system/pipeline: HOW uploads are detected (A5500 box, 2026-09-28)
+#
+# The FileWatcher now verifies its inotify watch at start and falls back to
+# polling when the kernel refuses it (SELinux denied the watch on /cameras and
+# the native observer was silently blind). An operator must be able to SEE
+# that from the pipeline status, not only from one ERROR line at boot.
+# =============================================================================
+
+
+class TestPipelineStatusReportsTheWatchMode:
+    @pytest.fixture
+    def register_file_watcher(self) -> Generator[object]:
+        import backend.api.routes.system as system_module
+
+        original = system_module._file_watcher
+
+        def _register(watcher: object) -> None:
+            system_module._file_watcher = watcher  # type: ignore[assignment]
+
+        with patch(
+            "backend.api.routes.system._get_degradation_status", autospec=True, return_value=None
+        ):
+            yield _register
+        system_module._file_watcher = original
+
+    @staticmethod
+    def _watcher(camera_root: Path, probe: object, *, use_polling: bool = False) -> object:
+        from backend.services.file_watcher import FileWatcher
+
+        return FileWatcher(
+            camera_root=str(camera_root),
+            use_polling=use_polling,
+            polling_interval=0.1,
+            watch_probe=lambda _path: probe,
+        )
+
+    async def test_a_refused_watch_reports_polling_fallback_and_its_errno(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        import errno
+
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True, error=errno.EACCES))
+        await watcher.start()
+        try:
+            register_file_watcher(watcher)
+            status = await get_pipeline_status(redis=None)
+        finally:
+            await watcher.stop()
+
+        fw = status.file_watcher
+        assert fw is not None
+        assert fw.watch_mode == "polling-fallback"
+        assert fw.watch_fallback_reason == "EACCES"
+        assert fw.observer_type == "polling"  # the observer that is actually running
+
+    async def test_an_established_watch_reports_native(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True))
+        with patch.object(watcher.observer, "start", autospec=True):
+            await watcher.start()
+        register_file_watcher(watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.watch_mode == "native"
+        assert fw.watch_fallback_reason is None
+        assert fw.observer_type == "native"
+
+    async def test_configured_polling_reports_polling(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True), use_polling=True)
+        register_file_watcher(watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.watch_mode == "polling"
+        assert fw.watch_fallback_reason is None
+
+    async def test_a_watcher_without_a_watch_mode_still_serialises(
+        self, register_file_watcher
+    ) -> None:
+        # The integration suite registers bare MagicMock watchers (running,
+        # camera_root, _use_polling, _pending_tasks only): their auto-attributes
+        # must not reach the response model.
+        from backend.api.routes.system import get_pipeline_status
+
+        mock_watcher = MagicMock()
+        mock_watcher.running = True
+        mock_watcher.camera_root = "/export/foscam"
+        mock_watcher._use_polling = True
+        mock_watcher._pending_tasks = {}
+        register_file_watcher(mock_watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.observer_type == "polling"
+        assert fw.watch_mode == "polling"
+        assert fw.watch_fallback_reason is None
