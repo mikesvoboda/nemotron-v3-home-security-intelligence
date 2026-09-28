@@ -293,13 +293,18 @@ services:
       # share block_count 36 / head_count 32 (GGUF headers, ledger item 34),
       # so shipping the 8B bought no KV relief and this line's arithmetic is
       # unchanged. UNRESOLVED (named 2026-09-28, nobody should silently pick a
-      # side): two figures exist for THIS pool and they disagree by ~2x - this
-      # comment's older prose said "~73KB per token per slot, 2x16K slots
-      # ~2.4GB" (a Qwen3-VL-4B q8_0 estimate), and the bake-off report's
-      # candidate C row recorded 4608 MiB, which is ~144KB/token. Neither is a
-      # measurement of this container's pool; llama-server's own startup KV
-      # line is, and the A5500 handout asks for it. So this comment states no
-      # number until one exists.
+      # side): two figures exist for THIS pool and they disagree by somewhere
+      # between ~2x and ~4x - this comment's older prose said "~73KB per token
+      # per slot, 2x16K slots ~2.4GB" (a Qwen3-VL-4B q8_0 estimate), and the
+      # bake-off report's candidate C row recorded "4608 MiB / 16384 cells".
+      # The spread is the report's own ambiguity, not a third estimate: read
+      # 4608 as ONE 16384-cell slot's KV and it is ~288KB/token (~4x); read it
+      # as the whole 32768 pool expressed per 16K and it is ~144KB/token
+      # (~2x). An earlier revision of this comment asserted "~2x" flat, which
+      # picked a side of an unstated basis. Neither figure is a measurement of
+      # this container's pool; llama-server's own startup KV line is, and the
+      # A5500 handout asks for it. So this comment states no number until one
+      # exists.
       - CACHE_TYPE_K=${VLM_CACHE_TYPE_K:-q8_0}
       - CACHE_TYPE_V=${VLM_CACHE_TYPE_V:-q8_0}
       - FLASH_ATTENTION=${VLM_FLASH_ATTENTION:-true}
