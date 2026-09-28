@@ -28,6 +28,9 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
 - **Nothing under `synthbench/generate/` imports `backend`** (spec §7.1). A test enforces this (Task 1).
 - **Tests live under `backend/tests/unit/synthbench/`.** CI runs only `backend/tests/unit/`. Tests must be GPU-free and fast (pytest-timeout is 5 s; `-p randomly`). Live GPU checks are CLI steps, never `@pytest.mark.gpu`: the CI GPU runner runs that marker and has no ComfyUI.
 - **Storage:** weights live in the HF cache under `HF_HOME=/export/models`. Generated media, window state and caches go under `SYNTHBENCH_ROOT=/export/synthbench`. **Never write to the root filesystem** (it is 96% full), and never use `~/.cache`.
+  - **Podman images live in a dedicated store** under `SYNTHBENCH_PODMAN_ROOT` (default `/export/models/containers`, on ZFS), never in the user's default rootless store. That store also holds the compose stack and stays untouched.
+  - Every synthbench podman call starts with the prefix from `synthbench.generate.podman` (Task 1): `podman --root $SYNTHBENCH_PODMAN_ROOT/storage --runroot /run/user/<uid>/synthbench-containers`. Builds and pulls also run with `TMPDIR=$SYNTHBENCH_PODMAN_ROOT/tmp`, so blob staging stays off `/var/tmp`.
+  - In shell commands, write `$(uv run python -m synthbench.generate.podman) <subcommand> ...`, never bare `podman`. Plain `podman images` does not list synthbench images, by design.
 - **Ports:** ComfyUI's host port comes from `SYNTHBENCH_COMFYUI_PORT` (default `8188`, documented in `.env.example`). It binds `127.0.0.1` only.
 - **Flagship:** container `dgx-inference-vllm-1` on the **rootful docker** daemon, with restart policy `unless-stopped`. Its healthcheck `StartPeriod` is 30 min, so the restore timeout is 45 min.
   - Stop and start it only with `docker stop` / `docker start`. **Never run `docker compose up`** on that stack: it would restart the stopped Cosmos container.
@@ -38,7 +41,10 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
 - Weights are pinned to exact commits and checked by sha256 (`synthbench/generate/manifests/p1-slate.json`: 33 rows, 30 unique files, 291 GB). Two files are named `vae/flux2-vae.safetensors` but differ in content (FLUX.2 [dev] vs Klein), so link names are prefixed per model (Task 1).
 - Measurement models must not be models the pipeline runs. OWLv2, facenet (VGGFace2) and EasyOCR appear nowhere in `backend/` or `ai/` (verified 2026-09-27).
 - Content rules (spec §3.8): identities are generated from scratch, never from photos of real people. Threat content is realistic and non-graphic.
-- Commits use conventional subjects and end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Git hooks are not installed here: run `uvx pre-commit run --files <changed files>` before each commit and re-stage what it fixes. Semgrep's `pkg_resources` crash is a known environment problem. Never use `--no-verify`.
+- Commits use conventional subjects and end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Git hooks are not installed here, so every commit is gated on them: `SKIP=semgrep uvx pre-commit run --files <changed files> && git commit ...`.
+  - The `&&` is mandatory: a failing hook must block the commit. If a hook rewrites a file, re-run the same command until it exits 0.
+  - `SKIP=semgrep`: the semgrep hook crashes on a known environment break (`pkg_resources`); CI runs semgrep. Task 3 also skips `hadolint`, which is not installed here (see Task 3).
+  - Never use `--no-verify`.
 
 **Deviations from spec §7.1, to record in spec rev 2:**
 
@@ -47,25 +53,26 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
 
 ## File Structure
 
-| File                                                                                                                              | Responsibility                                                                     |
-| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `synthbench/__init__.py`, `synthbench/AGENTS.md`                                                                                  | package root; agent guide (purpose, layout, rules)                                 |
-| `synthbench/generate/__init__.py`                                                                                                 | generation-stack package (no `backend` imports)                                    |
-| `synthbench/generate/manifests/p1-slate.json`                                                                                     | **already committed with this plan**: the resolved, pinned P1 weights              |
-| `synthbench/generate/weights.py`                                                                                                  | manifest loading, sha256 fetch, symlink farm, `extra_model_paths` text; CLI `sync` |
-| `synthbench/generate/window.py`                                                                                                   | GPU window context manager and CLI (`run`, `restore`, `status`)                    |
-| `synthbench/generate/comfy/__init__.py`                                                                                           | ComfyUI subpackage                                                                 |
-| `synthbench/generate/comfy/Containerfile`, `extra_model_paths.yaml`                                                               | the pinned renderer image; the farm mapping it loads                               |
-| `synthbench/generate/comfy/serve.py`                                                                                              | `podman build/run/stop` arguments, readiness wait; CLI `build`, `up`, `down`       |
-| `synthbench/generate/comfy/client.py`                                                                                             | ComfyUI HTTP client (upload, queue, wait, outputs, download)                       |
-| `synthbench/generate/comfy/validate.py`                                                                                           | offline validation of an API graph against `/object_info`                          |
-| `synthbench/generate/comfy/graphs.py`                                                                                             | one API-graph builder per model; the three builder registries                      |
-| `synthbench/generate/comfy/snapshot.py`, `object_info.v0.37.0.json`                                                               | captures `/object_info` filtered to the node types the builders use                |
-| `synthbench/generate/comfy/smoke.py`                                                                                              | live smoke CLI: runs each registered builder once at low resolution                |
-| `synthbench/spikes/p1_bakeoff/{__init__,cases,plan,run,measure,sheet,report}.py`                                                  | the throwaway bake-off                                                             |
-| `backend/tests/unit/synthbench/...`                                                                                               | all tests (see each task)                                                          |
-| `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`, `.env.example`, `docs/reference/config/env-reference.md` | wiring (Task 1)                                                                    |
-| `docs/benchmarks/synthbench/p1-bakeoff.md`                                                                                        | the aggregate bake-off report (Task 8)                                             |
+| File                                                                                                                              | Responsibility                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `synthbench/__init__.py`, `synthbench/AGENTS.md`                                                                                  | package root; agent guide (purpose, layout, rules)                                  |
+| `synthbench/generate/__init__.py`, `synthbench/generate/AGENTS.md`                                                                | generation-stack package (no `backend` imports); its agent guide                    |
+| `synthbench/generate/manifests/p1-slate.json`                                                                                     | **already committed with this plan**: the resolved, pinned P1 weights               |
+| `synthbench/generate/weights.py`                                                                                                  | manifest loading, sha256 fetch, symlink farm, `extra_model_paths` text; CLI `sync`  |
+| `synthbench/generate/podman.py`                                                                                                   | the dedicated podman store: `--root`/`--runroot` prefix and `TMPDIR`; CLI prints it |
+| `synthbench/generate/window.py`                                                                                                   | GPU window context manager and CLI (`run`, `restore`, `status`)                     |
+| `synthbench/generate/comfy/__init__.py`, `synthbench/generate/comfy/AGENTS.md`                                                    | ComfyUI subpackage; its agent guide                                                 |
+| `synthbench/generate/comfy/Containerfile`, `extra_model_paths.yaml`                                                               | the pinned renderer image; the farm mapping it loads                                |
+| `synthbench/generate/comfy/serve.py`                                                                                              | `podman build/run/stop` arguments, readiness wait; CLI `build`, `up`, `down`        |
+| `synthbench/generate/comfy/client.py`                                                                                             | ComfyUI HTTP client (upload, queue, wait, outputs, download, free)                  |
+| `synthbench/generate/comfy/validate.py`                                                                                           | offline validation of an API graph against `/object_info`                           |
+| `synthbench/generate/comfy/graphs.py`                                                                                             | one API-graph builder per model; the three builder registries                       |
+| `synthbench/generate/comfy/snapshot.py`, `object_info.v0.37.0.json`                                                               | captures `/object_info` filtered to the node types the builders use                 |
+| `synthbench/generate/comfy/smoke.py`                                                                                              | live smoke CLI: runs each registered builder once at low resolution                 |
+| `synthbench/spikes/p1_bakeoff/{__init__,cases,plan,run,measure,sheet,report}.py`, `synthbench/spikes/p1_bakeoff/AGENTS.md`        | the throwaway bake-off; its agent guide                                             |
+| `backend/tests/unit/synthbench/...`                                                                                               | all tests (see each task)                                                           |
+| `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `pyproject.toml`, `.env.example`, `docs/reference/config/env-reference.md` | wiring (Task 1; Task 5 adds a `.prettierignore` line, Task 7 a py312 ruff target)   |
+| `docs/benchmarks/synthbench/p1-bakeoff.md`                                                                                        | the aggregate bake-off report (Task 8)                                              |
 
 ---
 
@@ -73,9 +80,9 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
 
 **Files:**
 
-- Create: `synthbench/__init__.py`, `synthbench/AGENTS.md`, `synthbench/generate/__init__.py`, `synthbench/generate/comfy/__init__.py`, `synthbench/generate/weights.py`, `synthbench/generate/comfy/extra_model_paths.yaml`
-- Create: `backend/tests/unit/synthbench/__init__.py`, `backend/tests/unit/synthbench/test_weights.py`, `backend/tests/unit/synthbench/test_import_rule.py`
-- Modify: `.github/workflows/ci.yml` (the `Mypy` step, currently `uv run mypy backend/ --ignore-missing-imports`), `.pre-commit-config.yaml` (the `mypy` hook's `files: ^backend/`), `pyproject.toml` (`[tool.ruff.lint.per-file-ignores]`), `.env.example`, `docs/reference/config/env-reference.md`
+- Create: `synthbench/__init__.py`, `synthbench/AGENTS.md`, `synthbench/generate/__init__.py`, `synthbench/generate/AGENTS.md`, `synthbench/generate/comfy/__init__.py`, `synthbench/generate/comfy/AGENTS.md`, `synthbench/generate/weights.py`, `synthbench/generate/podman.py`, `synthbench/generate/comfy/extra_model_paths.yaml`
+- Create: `backend/tests/unit/synthbench/__init__.py`, `backend/tests/unit/synthbench/test_weights.py`, `backend/tests/unit/synthbench/test_podman.py`, `backend/tests/unit/synthbench/test_import_rule.py`
+- Modify: `.github/workflows/ci.yml` (the `Mypy` step, currently `uv run mypy backend/ --ignore-missing-imports`; the `Ruff check` and `Ruff format check` steps, currently `uv run ruff check backend/` and `uv run ruff format --check backend/`), `.pre-commit-config.yaml` (the `ruff`, `ruff-format` and `mypy` hooks' `files: ^backend/`), `pyproject.toml` (`[tool.ruff.lint.per-file-ignores]`), `.env.example`, `docs/reference/config/env-reference.md`
 - Already present: `synthbench/generate/manifests/p1-slate.json` (committed with this plan; do not edit it)
 
 **Interfaces:**
@@ -93,6 +100,12 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
   - `extra_model_paths_yaml(farm_root: Path) -> str`
   - `main(argv, *, download=hf_download) -> int` (CLI `sync`)
   - Errors: `ManifestError`, `ChecksumError`.
+- Produces, in `podman.py` (the dedicated podman store; under `synthbench/generate/`, so the import rule covers it):
+  - `DEFAULT_ROOT = "/export/models/containers"`; `podman_root(env=None) -> Path` reads `SYNTHBENCH_PODMAN_ROOT`
+  - `podman_argv(env: Mapping[str, str] | None = None, *, uid: int | None = None) -> list[str]`: `["podman", "--root", f"{root}/storage", "--runroot", f"/run/user/{uid}/synthbench-containers"]`, `uid` defaulting to `os.getuid()`
+  - `podman_env(env=None) -> dict[str, str]`: a copy of the environment with `TMPDIR=<root>/tmp`. Callers that build or pull create `<root>/storage` and `<root>/tmp` first; nothing is created at import.
+  - `main() -> int`: prints `shlex.join(podman_argv())`, so docs write `$(uv run python -m synthbench.generate.podman) images`
+  - Tasks 2 and 3 build every podman argv from `podman_argv()`; Tasks 3, 5, 7 and 8 use the CLI prefix in shell commands.
 - Farm root on the GB300: `/export/models/comfyui`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -260,7 +273,7 @@ class TestFetch:
             path.write_bytes(b"tampered")
             return path
 
-        with pytest.raises(w.ChecksumError, match="vae/a.safetensors"):
+        with pytest.raises(w.ChecksumError, match=r"vae/a\.safetensors"):
             w.fetch([a], download)
 
 
@@ -293,9 +306,9 @@ class TestBuildFarm:
 class TestExtraModelPaths:
     def test_lists_every_category_under_the_farm(self) -> None:
         text = w.extra_model_paths_yaml(Path("/export/models/comfyui"))
-        assert text.startswith("synthbench:\n    base_path: /export/models/comfyui\n")
+        assert text.startswith("synthbench:\n  base_path: /export/models/comfyui\n")
         for category in w.CATEGORIES:
-            assert f"    {category}: {category}/\n" in text
+            assert f"  {category}: {category}/\n" in text
 
     def test_the_committed_container_yaml_matches(self) -> None:
         committed = REPO_ROOT / "synthbench" / "generate" / "comfy" / "extra_model_paths.yaml"
@@ -317,10 +330,61 @@ class TestSyncCli:
         assert (farm / "vae" / "x.safetensors").resolve() == blob.resolve()
 ```
 
+`backend/tests/unit/synthbench/test_podman.py`:
+
+```python
+"""synthbench's dedicated podman store: every call carries --root/--runroot off the root fs."""
+
+from __future__ import annotations
+
+import os
+import shlex
+from pathlib import Path
+
+import pytest
+
+from synthbench.generate import podman
+
+
+def test_the_default_store_is_under_export_models() -> None:
+    assert podman.podman_argv({}, uid=1000) == [
+        "podman",
+        "--root", "/export/models/containers/storage",
+        "--runroot", "/run/user/1000/synthbench-containers",
+    ]
+
+
+def test_the_store_follows_synthbench_podman_root() -> None:
+    env = {"SYNTHBENCH_PODMAN_ROOT": "/x/containers"}
+    assert podman.podman_root(env) == Path("/x/containers")
+    assert podman.podman_argv(env, uid=7)[1:] == [
+        "--root", "/x/containers/storage", "--runroot", "/run/user/7/synthbench-containers",
+    ]
+
+
+def test_the_runroot_uses_the_real_uid_by_default() -> None:
+    assert podman.podman_argv({})[-1] == f"/run/user/{os.getuid()}/synthbench-containers"
+
+
+def test_podman_env_stages_temp_files_in_the_store_and_keeps_the_rest() -> None:
+    env = {"PATH": "/bin", "SYNTHBENCH_PODMAN_ROOT": "/x"}
+    assert podman.podman_env(env) == {**env, "TMPDIR": "/x/tmp"}
+    assert env == {"PATH": "/bin", "SYNTHBENCH_PODMAN_ROOT": "/x"}  # a copy, not a mutation
+
+
+def test_main_prints_the_shell_prefix(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SYNTHBENCH_PODMAN_ROOT", "/x")
+    assert podman.main() == 0
+    assert capsys.readouterr().out == shlex.join(podman.podman_argv()) + "\n"
+    assert podman.podman_argv()[2] == "/x/storage"
+```
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest backend/tests/unit/synthbench/ -n0 -q`
-Expected: `test_weights.py` errors with `ModuleNotFoundError: No module named 'synthbench'`. `test_import_rule.py` passes vacuously once the directory exists. That's fine: it guards every later task.
+Expected: `test_weights.py` errors with `ImportError: cannot import name 'weights' from 'synthbench.generate' (unknown location)`, and `test_podman.py` with the same error for `'podman'`: the committed manifest already makes `synthbench/` a namespace package. `test_import_rule.py` passes vacuously once the directory exists. That's fine: it guards every later task.
 
 - [ ] **Step 3: Create the package skeleton**
 
@@ -358,6 +422,7 @@ Phase plans live in `docs/superpowers/plans/2026-09-27-synthbench-*.md`.
 | --------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `generate/weights.py` + `generate/manifests/` | pinned, sha256-verified weights; ComfyUI symlink farm (`/export/models/comfyui`)   |
 | `generate/window.py`                          | GPU window: stops the flagship vLLM, ALWAYS restores it                            |
+| `generate/podman.py`                          | the dedicated podman store (`SYNTHBENCH_PODMAN_ROOT`): argv prefix and `TMPDIR`    |
 | `generate/comfy/`                             | ComfyUI container (podman), HTTP client, graph validator, per-model graph builders |
 | `spikes/p1_bakeoff/`                          | throwaway P1 bake-off harness (not a pattern to copy)                              |
 
@@ -366,11 +431,68 @@ Phase plans live in `docs/superpowers/plans/2026-09-27-synthbench-*.md`.
 - `synthbench/generate/**` never imports `backend` (test: `backend/tests/unit/synthbench/test_import_rule.py`).
 - Tests live in `backend/tests/unit/synthbench/` (CI runs only `backend/tests/unit/`); no GPU in tests.
 - Storage: weights in `HF_HOME=/export/models`, outputs in `SYNTHBENCH_ROOT=/export/synthbench`; never the root fs.
-- Only `python -m synthbench.generate.window run -- ...` may stop the flagship; never `docker compose up` on the dgx-inference stack.
-- Our containers are podman; the flagship is rootful docker.
+- Only `uv run python -m synthbench.generate.window run -- ...` may stop the flagship; never `docker compose up` on the dgx-inference stack.
+- Our containers are podman, in a dedicated store under `SYNTHBENCH_PODMAN_ROOT` (default `/export/models/containers`), never the default one. Code builds podman argv from `podman_argv()`; shell commands use `$(uv run python -m synthbench.generate.podman) ...`. The flagship is rootful docker.
 ```
 
-- [ ] **Step 4: Implement `synthbench/generate/weights.py`**
+`synthbench/generate/AGENTS.md`:
+
+```markdown
+# synthbench/generate — Agent Guide
+
+## Purpose
+
+The durable generation stack (spec §3) that P3 builds on: pinned weights, the GPU window and the ComfyUI renderer. TDD applies here.
+
+## Key Files
+
+| Path                      | What                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------- |
+| `weights.py`              | manifest loading, sha256 fetch, symlink farm, `extra_model_paths` text; CLI `sync`      |
+| `manifests/p1-slate.json` | the pinned P1 weights (33 rows, 30 unique files); committed, never edited by hand       |
+| `window.py`               | GPU window: stops the flagship vLLM, ALWAYS restores it; CLI `run`, `restore`, `status` |
+| `podman.py`               | the dedicated podman store: `podman_argv()` prefix, `podman_env()` `TMPDIR`; CLI prefix |
+| `comfy/`                  | the ComfyUI renderer (see `comfy/AGENTS.md`)                                            |
+
+## Rules
+
+- Never import `backend` (spec §7.1; test: `backend/tests/unit/synthbench/test_import_rule.py`).
+- Tests live in `backend/tests/unit/synthbench/`; they never touch the GPU or the flagship.
+- Only `uv run python -m synthbench.generate.window run -- ...` may stop the flagship.
+- Every podman call goes through `podman_argv()` (shell: `$(uv run python -m synthbench.generate.podman) ...`); builds and pulls also pass `env=podman_env()`.
+```
+
+`synthbench/generate/comfy/AGENTS.md`:
+
+```markdown
+# synthbench/generate/comfy — Agent Guide
+
+## Purpose
+
+The pinned ComfyUI v0.37.0 renderer (spec §3.1-§3.2): its podman image, an HTTP client, an offline graph validator and one API-graph builder per model.
+
+## Key Files
+
+| Path                                      | What                                                                              |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| `Containerfile`, `extra_model_paths.yaml` | the renderer image (NGC PyTorch base); the farm mapping it loads                  |
+| `serve.py`                                | `podman build/run/stop` arguments and readiness wait; CLI `build`, `up`, `down`   |
+| `client.py`                               | HTTP client: upload, queue, wait, outputs, download, free                         |
+| `validate.py`                             | offline check of an API graph against `/object_info`                              |
+| `graphs.py`                               | one graph builder per model; the T2I, edit and I2V registries                     |
+| `snapshot.py`, `object_info.v0.37.0.json` | the captured, filtered `/object_info` that the unit tests validate graphs against |
+| `smoke.py`, `smoke_ref.png`               | live smoke CLI and its person-free reference image                                |
+
+## Rules
+
+- `extra_model_paths.yaml` is generated: a test checks it equals `weights.extra_model_paths_yaml(...)` for `/export/models/comfyui`.
+- Builders follow the official v0.37.0 templates; the captured `/object_info` is the authority for input names and types.
+- The renderer binds 127.0.0.1 only and carries the `synthbench.gpu=1` label, so the GPU window stops it before the flagship restarts.
+- The image lives in the synthbench podman store: in shell, `$(uv run python -m synthbench.generate.podman) images`, never bare `podman`.
+- Never let pip replace the base image's torch, torchvision or triton.
+```
+
+- [ ] **Step 4: Implement `synthbench/generate/weights.py` and `synthbench/generate/podman.py`**
 
 ```python
 """Pinned, sha256-verified model weights for the ComfyUI renderer (spec §3.1).
@@ -486,7 +608,7 @@ def fetch(files: Iterable[WeightFile], download: Downloader) -> dict[str, Path]:
 
 
 def hf_download(f: WeightFile) -> Path:
-    from huggingface_hub import hf_hub_download  # noqa: PLC0415 - heavy import, CLI path only
+    from huggingface_hub import hf_hub_download  # heavy import, CLI path only
 
     return Path(hf_hub_download(f.repo, f.path, revision=f.revision))
 
@@ -509,8 +631,8 @@ def build_farm(files: Sequence[WeightFile], local: dict[str, Path], farm_root: P
 
 def extra_model_paths_yaml(farm_root: Path) -> str:
     """ComfyUI's extra_model_paths.yaml pointing every category at the farm."""
-    lines = ["synthbench:", f"    base_path: {farm_root}"]
-    lines += [f"    {category}: {category}/" for category in CATEGORIES]
+    lines = ["synthbench:", f"  base_path: {farm_root}"]
+    lines += [f"  {category}: {category}/" for category in CATEGORIES]
     return "\n".join(lines) + "\n"
 
 
@@ -547,17 +669,76 @@ synthbench:
   vae: vae/
 ```
 
-(Prettier must not reformat this file. If it does, add `synthbench/generate/comfy/extra_model_paths.yaml` to `.prettierignore` and say so in your report.)
+(The 2-space indentation is what prettier's YAML formatting produces, so the pre-commit prettier hook leaves the committed file, and with it `test_the_committed_container_yaml_matches`, unchanged.)
+
+`synthbench/generate/podman.py`:
+
+```python
+"""The dedicated podman store for synthbench images, off the root filesystem.
+
+Every synthbench podman call starts with podman_argv(): rootless podman with
+--root under $SYNTHBENCH_PODMAN_ROOT (default /export/models/containers, on
+ZFS) and its own --runroot, so the user's default store, which also holds the
+compose stack, is never touched. Builds and pulls also run with podman_env(),
+whose TMPDIR keeps podman's blob staging off /var/tmp. Plain `podman images`
+does not list these images, by design. In shell commands:
+
+    $(uv run python -m synthbench.generate.podman) images
+"""
+
+from __future__ import annotations
+
+import os
+import shlex
+import sys
+from collections.abc import Mapping
+from pathlib import Path
+
+DEFAULT_ROOT = "/export/models/containers"
+
+
+def podman_root(env: Mapping[str, str] | None = None) -> Path:
+    e = os.environ if env is None else env
+    return Path(e.get("SYNTHBENCH_PODMAN_ROOT", DEFAULT_ROOT))
+
+
+def podman_argv(env: Mapping[str, str] | None = None, *, uid: int | None = None) -> list[str]:
+    """`podman` plus the global flags that select the synthbench store."""
+    user = os.getuid() if uid is None else uid
+    return [
+        "podman",
+        "--root", str(podman_root(env) / "storage"),
+        "--runroot", f"/run/user/{user}/synthbench-containers",
+    ]
+
+
+def podman_env(env: Mapping[str, str] | None = None) -> dict[str, str]:
+    """A copy of the environment with TMPDIR=<root>/tmp, for builds and pulls.
+
+    Callers that build or pull create <root>/storage and <root>/tmp first.
+    """
+    e = os.environ if env is None else env
+    return {**e, "TMPDIR": str(podman_root(e) / "tmp")}
+
+
+def main() -> int:
+    sys.stdout.write(shlex.join(podman_argv()) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest backend/tests/unit/synthbench/ -n0 -q --cov=synthbench --cov-report=term-missing`
-Expected: all pass. `weights.py` coverage is at least 90%; only the `hf_download` body and `__main__` may be missed.
+Expected: all pass. `weights.py` coverage is at least 90%; only the `hf_download` body and `__main__` may be missed. `podman.py` is fully covered except `__main__`.
 
 - [ ] **Step 6: Wire CI, hooks, lint and env docs**
 
-- `.github/workflows/ci.yml`: change the Mypy step's command to `uv run mypy backend/ synthbench/ --ignore-missing-imports`.
-- `.pre-commit-config.yaml`: change the `mypy` hook's `files: ^backend/` to `files: ^(backend|synthbench)/`.
+- `.github/workflows/ci.yml`: change the Mypy step's command to `uv run mypy backend/ synthbench/ --ignore-missing-imports`, the `Ruff check` step's to `uv run ruff check backend/ synthbench/` and the `Ruff format check` step's to `uv run ruff format --check backend/ synthbench/`.
+- `.pre-commit-config.yaml`: change `files: ^backend/` to `files: ^(backend|synthbench)/` in the `ruff`, `ruff-format` and `mypy` hooks. This gives `synthbench/` a lasting lint gate.
 - `pyproject.toml`, `[tool.ruff.lint.per-file-ignores]`: add the entry below.
 
   ```toml
@@ -579,17 +760,20 @@ Expected: all pass. `weights.py` coverage is at least 90%; only the `hf_download
   SYNTHBENCH_COMFYUI_PORT=8188
   # Generated media, GPU-window state and caches. Keep this OFF the root filesystem.
   SYNTHBENCH_ROOT=/export/synthbench
+  # Dedicated podman store for synthbench images and build temp files (OFF the root filesystem)
+  SYNTHBENCH_PODMAN_ROOT=/export/models/containers
   ```
 
-- `docs/reference/config/env-reference.md`: add a `## Synthetic Benchmark` section (before the final `---` of the file, in the style of the other tables).
+- `docs/reference/config/env-reference.md`: add a `## Synthetic Benchmark` section after the `## Frontend (Build-Time)` section and before `## Next Steps`, in the style of the other tables.
 
   ```markdown
   ## Synthetic Benchmark
 
-  | Variable                  | Required | Default              | Description                                                   |
-  | ------------------------- | -------- | -------------------- | ------------------------------------------------------------- |
-  | `SYNTHBENCH_COMFYUI_PORT` | No       | `8188`               | Host port of the synthbench ComfyUI renderer (127.0.0.1 only) |
-  | `SYNTHBENCH_ROOT`         | No       | `/export/synthbench` | Generated media, GPU-window state and caches                  |
+  | Variable                  | Required | Default                     | Description                                                      |
+  | ------------------------- | -------- | --------------------------- | ---------------------------------------------------------------- |
+  | `SYNTHBENCH_COMFYUI_PORT` | No       | `8188`                      | Host port of the synthbench ComfyUI renderer (127.0.0.1 only)    |
+  | `SYNTHBENCH_ROOT`         | No       | `/export/synthbench`        | Generated media, GPU-window state and caches                     |
+  | `SYNTHBENCH_PODMAN_ROOT`  | No       | `/export/models/containers` | Dedicated podman store (images, build temp files) for synthbench |
   ```
 
 Run: `uv run mypy synthbench/ --ignore-missing-imports` → `Success`. Run `uv run ruff check --fix synthbench/ backend/tests/unit/synthbench/` and `uv run ruff format synthbench/ backend/tests/unit/synthbench/`, both clean. If ruff reports `PLR0913` (too many arguments) anywhere in `synthbench/`, add `"PLR0913"` to the new per-file-ignores entry with the comment `# injectable seams (clock, sleep, runner) for tests` rather than removing the seams.
@@ -597,9 +781,9 @@ Run: `uv run mypy synthbench/ --ignore-missing-imports` → `Success`. Run `uv r
 - [ ] **Step 7: Commit**
 
 ```bash
-uvx pre-commit run --files synthbench/__init__.py synthbench/AGENTS.md synthbench/generate/__init__.py synthbench/generate/comfy/__init__.py synthbench/generate/weights.py synthbench/generate/comfy/extra_model_paths.yaml backend/tests/unit/synthbench/__init__.py backend/tests/unit/synthbench/test_weights.py backend/tests/unit/synthbench/test_import_rule.py .github/workflows/ci.yml .pre-commit-config.yaml pyproject.toml .env.example docs/reference/config/env-reference.md
-git add synthbench/ backend/tests/unit/synthbench/ .github/workflows/ci.yml .pre-commit-config.yaml pyproject.toml .env.example docs/reference/config/env-reference.md
-git commit -m "feat(synthbench): package skeleton and sha256-pinned ComfyUI weights farm
+SKIP=semgrep uvx pre-commit run --files synthbench/__init__.py synthbench/AGENTS.md synthbench/generate/__init__.py synthbench/generate/AGENTS.md synthbench/generate/comfy/__init__.py synthbench/generate/comfy/AGENTS.md synthbench/generate/weights.py synthbench/generate/podman.py synthbench/generate/comfy/extra_model_paths.yaml backend/tests/unit/synthbench/__init__.py backend/tests/unit/synthbench/test_weights.py backend/tests/unit/synthbench/test_podman.py backend/tests/unit/synthbench/test_import_rule.py .github/workflows/ci.yml .pre-commit-config.yaml pyproject.toml .env.example docs/reference/config/env-reference.md \
+  && git add synthbench/ backend/tests/unit/synthbench/ .github/workflows/ci.yml .pre-commit-config.yaml pyproject.toml .env.example docs/reference/config/env-reference.md \
+  && git commit -m "feat(synthbench): package skeleton and sha256-pinned ComfyUI weights farm
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -615,16 +799,18 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 
+- Consumes: `podman_argv` (Task 1).
 - Produces:
   - `FLAGSHIP = "dgx-inference-vllm-1"`, `HEALTH_TIMEOUT_S = 2700.0`, `POLL_S = 15.0`
   - `Runtime` Protocol (`stop`, `start`, `is_healthy`) and `DockerRuntime`
   - `WindowPaths(state_dir)` with `.marker`, `.lock`, and `from_env()` (`$SYNTHBENCH_ROOT/state`)
   - `restore(runtime, container=FLAGSHIP, *, timeout_s, poll_s, sleep, clock) -> None`
   - `gpu_window(runtime, paths, *, container, before_restore, timeout_s, poll_s, sleep, clock, say)` (context manager)
-  - `stop_gpu_containers() -> None`
+  - `stop_gpu_containers(run=subprocess.run) -> None`: stops every container labeled `synthbench.gpu=1` in the synthbench podman store (argv from `podman_argv()`, Task 1)
+  - `raise_on_sigterm(signum, frame) -> None`: the SIGTERM handler (raises `SystemExit(128 + signum)`); Task 6's runner installs the same one
   - `main(argv, *, runtime=None, paths=None, before_restore=stop_gpu_containers) -> int`
   - Errors: `WindowBusy`, `FlagshipNotRestored`
-- Task 8 runs `python -m synthbench.generate.window run -- <command>`.
+- Task 8 runs `uv run python -m synthbench.generate.window run -- <command>`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -639,6 +825,7 @@ import fcntl
 import json
 import os
 import signal
+import subprocess
 import sys
 from contextlib import AbstractContextManager
 from pathlib import Path
@@ -647,6 +834,7 @@ from typing import Any
 import pytest
 
 from synthbench.generate import window as gw
+from synthbench.generate.podman import podman_argv
 
 
 class FakeRuntime:
@@ -797,6 +985,22 @@ class TestGpuWindow:
         assert rt.calls.index("hook") < rt.calls.index("start")
 
 
+class TestStopGpuContainers:
+    def test_lists_and_stops_labeled_containers_in_the_synthbench_store(self) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            return subprocess.CompletedProcess(argv, 0, "abc\n" if "ps" in argv else "", "")
+
+        gw.stop_gpu_containers(run=run)
+        prefix = podman_argv()
+        assert calls == [
+            [*prefix, "ps", "-q", "--filter", gw.GPU_LABEL_FILTER],
+            [*prefix, "stop", "--time", "30", "abc"],
+        ]
+
+
 class TestMain:
     def test_run_returns_the_child_exit_code(self, paths: gw.WindowPaths) -> None:
         rt = FakeRuntime()
@@ -863,7 +1067,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
-from typing import Protocol
+from typing import Any, Protocol
+
+from synthbench.generate.podman import podman_argv
 
 FLAGSHIP = "dgx-inference-vllm-1"
 FLAGSHIP_MODELS_URL = "http://127.0.0.1:8000/v1/models"
@@ -957,7 +1163,7 @@ def restore(
         sleep(poll_s)
 
 
-def _raise_on_sigterm(signum: int, _frame: FrameType | None) -> None:
+def raise_on_sigterm(signum: int, _frame: FrameType | None) -> None:
     raise SystemExit(128 + signum)
 
 
@@ -992,7 +1198,7 @@ def gpu_window(
         paths.marker.write_text(
             json.dumps({"pid": os.getpid(), "container": container, "opened_at": time.time()})
         )
-        previous = signal.signal(signal.SIGTERM, _raise_on_sigterm)
+        previous = signal.signal(signal.SIGTERM, raise_on_sigterm)
         try:
             runtime.stop(container)
             yield
@@ -1009,16 +1215,20 @@ def gpu_window(
         os.close(lock_fd)
 
 
-def stop_gpu_containers() -> None:
+def stop_gpu_containers(
+    run: Callable[..., subprocess.CompletedProcess[Any]] = subprocess.run,
+) -> None:
     """Before the flagship restarts, stop every podman container labeled
-    synthbench.gpu=1 (the ComfyUI renderer) so nothing else holds GPU memory."""
-    listing = subprocess.run(
-        ["podman", "ps", "-q", "--filter", GPU_LABEL_FILTER],
+    synthbench.gpu=1 (the ComfyUI renderer) so nothing else holds GPU memory.
+    The renderer lives in the synthbench podman store, hence podman_argv()."""
+    prefix = podman_argv()
+    listing = run(
+        [*prefix, "ps", "-q", "--filter", GPU_LABEL_FILTER],
         capture_output=True, text=True, timeout=30, check=False,
     )
     for container_id in listing.stdout.split():
-        subprocess.run(
-            ["podman", "stop", "--time", "30", container_id],
+        run(
+            [*prefix, "stop", "--time", "30", container_id],
             capture_output=True, timeout=120, check=False,
         )
 
@@ -1075,7 +1285,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest backend/tests/unit/synthbench/test_window.py -n0 -q --cov=synthbench.generate.window --cov-report=term-missing`
-Expected: all pass. Only the `DockerRuntime` bodies, `stop_gpu_containers` and `__main__` may be missed.
+Expected: all pass. Only the `DockerRuntime` bodies, `_run_child`'s `except` branch and `__main__` may be missed.
 
 - [ ] **Step 5: Lint, type-check, commit**
 
@@ -1083,9 +1293,9 @@ Expected: all pass. Only the `DockerRuntime` bodies, `stop_gpu_containers` and `
 uv run ruff check --fix synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py
 uv run ruff format synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py
 uv run mypy synthbench/ --ignore-missing-imports
-uvx pre-commit run --files synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py
-git add synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py
-git commit -m "feat(synthbench): GPU window that always restores the flagship
+SKIP=semgrep uvx pre-commit run --files synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py \
+  && git add synthbench/generate/window.py backend/tests/unit/synthbench/test_window.py \
+  && git commit -m "feat(synthbench): GPU window that always restores the flagship
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1103,13 +1313,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 
-- Consumes: `synthbench/generate/comfy/extra_model_paths.yaml` (Task 1).
+- Consumes: `synthbench/generate/comfy/extra_model_paths.yaml`; `podman_argv`, `podman_env` and `podman_root` (Task 1).
 - Produces:
 
   - `IMAGE = "localhost/synthbench-comfyui:v0.37.0"`, `CONTAINER = "synthbench-comfyui"`, `GPU_LABEL = "synthbench.gpu=1"`
   - `ServeConfig(port, models_root, out_dir, cache_dir)` with `.base_url` and `from_env(env=None)`
-  - `build_args() -> list[str]`, `run_args(cfg) -> list[str]`
-  - `start(cfg, run=subprocess.run) -> None`, `stop(run=subprocess.run) -> None`
+  - `build_args() -> list[str]`, `run_args(cfg) -> list[str]`; both start with `podman_argv()`
+  - `build(run=subprocess.run) -> None`: creates `<root>/storage` and `<root>/tmp` of the synthbench podman store, then runs `build_args()` with `env=podman_env()`
+  - `start(cfg, run=subprocess.run) -> None`, `stop(run=subprocess.run) -> None` (`stop` also uses `podman_argv()`)
   - `wait_ready(base_url, *, timeout_s=600.0, poll_s=2.0, get=httpx.get, sleep, clock) -> dict[str, Any]`
   - `main(argv) -> int` (CLI `build`, `up`, `down`)
 
@@ -1130,6 +1341,7 @@ import httpx
 import pytest
 
 from synthbench.generate.comfy import serve
+from synthbench.generate.podman import podman_argv
 
 
 def _cfg(tmp_path: Path) -> serve.ServeConfig:
@@ -1137,6 +1349,21 @@ def _cfg(tmp_path: Path) -> serve.ServeConfig:
         port=18188, models_root=Path("/export/models"),
         out_dir=tmp_path / "out", cache_dir=tmp_path / "cache",
     )
+
+
+class FakeRunner:
+    """Stands in for subprocess.run and records every argv and env."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+        self.envs: list[dict[str, str] | None] = []
+
+    def __call__(
+        self, argv: list[str], *, env: dict[str, str] | None = None, **_kw: Any
+    ) -> subprocess.CompletedProcess[str]:
+        self.calls.append(argv)
+        self.envs.append(env)
+        return subprocess.CompletedProcess(argv, 0, "", "")
 
 
 class TestConfig:
@@ -1165,7 +1392,7 @@ class TestRunArgs:
 
     def test_gpu_label_device_and_pinned_image(self, tmp_path: Path) -> None:
         args = serve.run_args(_cfg(tmp_path))
-        assert args[:2] == ["podman", "run"]
+        assert args[: len(podman_argv()) + 1] == [*podman_argv(), "run"]
         assert args[args.index("--device") + 1] == "nvidia.com/gpu=all"
         assert args[args.index("--label") + 1] == serve.GPU_LABEL
         assert args[-1] == serve.IMAGE == "localhost/synthbench-comfyui:v0.37.0"
@@ -1173,26 +1400,32 @@ class TestRunArgs:
 
 class TestStartStop:
     def test_start_creates_dirs_and_runs(self, tmp_path: Path) -> None:
-        seen: list[list[str]] = []
-
-        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
-            seen.append(argv)
-            return subprocess.CompletedProcess(argv, 0, "", "")
-
+        run = FakeRunner()
         cfg = _cfg(tmp_path)
         serve.start(cfg, run=run)
         assert cfg.out_dir.is_dir() and cfg.cache_dir.is_dir()
-        assert seen == [serve.run_args(cfg)]
+        assert run.calls == [serve.run_args(cfg)]
 
     def test_stop_ignores_a_missing_container(self) -> None:
-        seen: list[list[str]] = []
-
-        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
-            seen.append(argv)
-            return subprocess.CompletedProcess(argv, 0, "", "")
-
+        run = FakeRunner()
         serve.stop(run=run)
-        assert seen == [["podman", "stop", "--ignore", "--time", "30", serve.CONTAINER]]
+        assert run.calls == [[*podman_argv(), "stop", "--ignore", "--time", "30", serve.CONTAINER]]
+
+
+class TestBuild:
+    def test_builds_into_the_synthbench_store_with_its_tmpdir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        store = tmp_path / "containers"
+        monkeypatch.setenv("SYNTHBENCH_PODMAN_ROOT", str(store))
+        run = FakeRunner()
+        serve.build(run=run)
+        assert (store / "storage").is_dir() and (store / "tmp").is_dir()
+        assert run.calls == [serve.build_args()]
+        assert serve.build_args()[:3] == ["podman", "--root", str(store / "storage")]
+        assert serve.build_args()[3:6] == ["--runroot", podman_argv()[4], "build"]
+        (env,) = run.envs
+        assert env is not None and env["TMPDIR"] == str(store / "tmp")
 
 
 class TestWaitReady:
@@ -1236,7 +1469,8 @@ The container sees /export/models read-only at the SAME path, so the symlink
 farm under /export/models/comfyui resolves inside it. It writes outputs under
 $SYNTHBENCH_ROOT/comfy-out, listens on 127.0.0.1 only, and carries the
 synthbench.gpu=1 label that the GPU window uses to stop it before the
-flagship restarts.
+flagship restarts. Image and container live in the synthbench podman store
+(synthbench.generate.podman), never in the default one on the root fs.
 """
 
 from __future__ import annotations
@@ -1253,6 +1487,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+from synthbench.generate.podman import podman_argv, podman_env, podman_root
 
 IMAGE = "localhost/synthbench-comfyui:v0.37.0"
 CONTAINER = "synthbench-comfyui"
@@ -1287,14 +1523,22 @@ class ServeConfig:
 
 def build_args() -> list[str]:
     return [
-        "podman", "build", "-t", IMAGE,
+        *podman_argv(), "build", "-t", IMAGE,
         "-f", str(CONTAINERFILE_DIR / "Containerfile"), str(CONTAINERFILE_DIR),
     ]
 
 
+def build(run: Runner = subprocess.run) -> None:
+    """Build into the synthbench store; the base-image pull stages under <root>/tmp."""
+    root = podman_root()
+    (root / "storage").mkdir(parents=True, exist_ok=True)
+    (root / "tmp").mkdir(parents=True, exist_ok=True)
+    run(build_args(), check=True, env=podman_env())
+
+
 def run_args(cfg: ServeConfig) -> list[str]:
     return [
-        "podman", "run", "-d", "--rm", "--name", CONTAINER,
+        *podman_argv(), "run", "-d", "--rm", "--name", CONTAINER,
         "--label", GPU_LABEL,
         "--device", "nvidia.com/gpu=all",
         "--shm-size", "16g",
@@ -1314,7 +1558,7 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
 
 def stop(run: Runner = subprocess.run) -> None:
     run(
-        ["podman", "stop", "--ignore", "--time", "30", CONTAINER],
+        [*podman_argv(), "stop", "--ignore", "--time", "30", CONTAINER],
         check=False, capture_output=True, text=True,
     )
 
@@ -1349,7 +1593,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     cfg = ServeConfig.from_env()
     if args.command == "build":
-        subprocess.run(build_args(), check=True)
+        build()
         return 0
     if args.command == "up":
         start(cfg)
@@ -1403,22 +1647,32 @@ uv run pytest backend/tests/unit/synthbench/test_serve.py -n0 -q --cov=synthbenc
 uv run ruff check --fix synthbench/generate/comfy/serve.py backend/tests/unit/synthbench/test_serve.py
 uv run ruff format synthbench/generate/comfy/serve.py backend/tests/unit/synthbench/test_serve.py
 uv run mypy synthbench/ --ignore-missing-imports
-uvx pre-commit run --files synthbench/generate/comfy/serve.py synthbench/generate/comfy/Containerfile backend/tests/unit/synthbench/test_serve.py
-git add synthbench/generate/comfy/serve.py synthbench/generate/comfy/Containerfile backend/tests/unit/synthbench/test_serve.py
-git commit -m "feat(synthbench): pinned ComfyUI v0.37.0 renderer image and podman helpers
+$(uv run python -m synthbench.generate.podman) run --rm -i docker.io/hadolint/hadolint:v2.15.1 \
+  /bin/hadolint --failure-threshold error - < synthbench/generate/comfy/Containerfile
+SKIP=semgrep,hadolint uvx pre-commit run --files synthbench/generate/comfy/serve.py synthbench/generate/comfy/Containerfile backend/tests/unit/synthbench/test_serve.py \
+  && git add synthbench/generate/comfy/serve.py synthbench/generate/comfy/Containerfile backend/tests/unit/synthbench/test_serve.py \
+  && git commit -m "feat(synthbench): pinned ComfyUI v0.37.0 renderer image and podman helpers
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
+
+`identify` tags `Containerfile` as a Dockerfile, which triggers the local `hadolint` hook. hadolint is not installed here and CI never runs it, so this commit skips that hook (`SKIP=semgrep,hadolint`) and hadolint runs from its container image instead, with the hook's `--failure-threshold error`. Fix any error it reports before committing, and record its output in the report file. If `v2.15.1` cannot be pulled, try `:latest`; if no hadolint image can be pulled, say so in the report.
 
 - [ ] **Step 6: Build the image and prove it runs (flagship stays up)**
 
 This step answers risk R2 (ComfyUI on arm64/sm_103). Prerequisites:
 
 - the background weights download has finished (the controller confirms this in the dispatch);
-- the farm exists: `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json --skip-repo Lightricks/LTX-2.5` (add `--skip-repo` only while LTX-2.5 is still gated).
+- the farm exists and is complete: `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` prints `verified 30 files; 31 links under /export/models/comfyui`.
+
+The image goes into the synthbench podman store (Global Constraints, storage), so every podman command below carries its prefix.
 
 ```bash
 uv run python -m synthbench.generate.comfy.serve build      # pulls ~20 GB NGC base on first build
+$(uv run python -m synthbench.generate.podman) images --format '{{.Repository}}:{{.Tag}} {{.Size}}'
+podman images --format '{{.Repository}}:{{.Tag}}' | grep synthbench-comfyui   # expect no output
+$(uv run python -m synthbench.generate.podman) run --rm --entrypoint python \
+  localhost/synthbench-comfyui:v0.37.0 -c "import transformers, av, easyocr, facenet_pytorch"
 uv run python -m synthbench.generate.comfy.serve up         # prints /system_stats JSON
 curl -s 127.0.0.1:${SYNTHBENCH_COMFYUI_PORT:-8188}/object_info/UNETLoader | python3 -m json.tool | head -40
 uv run python -m synthbench.generate.comfy.serve down
@@ -1428,12 +1682,14 @@ Expected:
 
 - `system_stats.devices[0].name` contains `GB300`, and the reported torch version is the base image's (not a PyPI build).
 - The `UNETLoader` `unet_name` options include `z_image_turbo_bf16.safetensors` and `flux2_dev_fp8mixed.safetensors`, which proves the farm and `extra_model_paths.yaml` resolve inside the container.
+- `$(uv run python -m synthbench.generate.podman) images` lists `localhost/synthbench-comfyui:v0.37.0`, and plain `podman images` does NOT: the default store is untouched.
+- The import check exits 0: the measurement tools Task 7 runs inside this image (`transformers`, `av`, `easyocr`, `facenet_pytorch`) all import.
 
-Record the three facts (device, torch version, one farm file listed) in the report file.
+Record the device, the torch version, one farm file listed and the image size in the report file.
 
 If the build fails:
 
-- **nofile limit:** a `RUN` step failing on the file-descriptor limit is known on this host (rootless buildah uses nofile=1024). Rebuild with `podman build --ulimit nofile=65536:65536 ...` and put that flag into `build_args()` (with a test).
+- **nofile limit:** a `RUN` step failing on the file-descriptor limit is known on this host (rootless buildah uses nofile=1024). Add `--ulimit nofile=65536:65536` to `build_args()` (with a test) and rerun `serve build`.
 - **anything else:** if ComfyUI cannot import torch or use the GPU, **stop and report BLOCKED** with the log. That triggers the spec's per-slot `diffusers` fallback decision (R2), which belongs to the owner.
 
 ---
@@ -1449,7 +1705,7 @@ If the build fails:
 
 - Produces:
 
-  - `Graph = dict[str, dict[str, Any]]` (in `client.py`)
+  - `Graph = dict[str, dict[str, Any]]` (in `client.py`; `validate.py` imports it from there)
   - `OutputFile(filename, subfolder, type)` and `ComfyError(RuntimeError)`
   - `ComfyClient(base_url, *, transport=None, timeout_s=60.0)` with methods:
     - `.object_info() -> dict[str, Any]`
@@ -1458,7 +1714,8 @@ If the build fails:
     - `.wait(prompt_id, *, timeout_s, poll_s=1.0, sleep, clock) -> dict[str, Any]`
     - `.outputs(entry) -> list[OutputFile]`
     - `.download(out: OutputFile) -> bytes`
-    - `.run(graph, *, timeout_s) -> list[bytes]`
+    - `.run(graph, *, timeout_s) -> list[bytes]`: on `TimeoutError` it POSTs `/interrupt` and `/queue {"delete": [prompt_id]}`, then re-raises, so a hung prompt never delays the jobs after it
+    - `.free() -> None`: POST `/free {"unload_models": true, "free_memory": true}`; Task 6 calls it before each model group
     - `.close() -> None`
   - `validate_graph(graph: Graph, object_info: dict[str, Any]) -> list[str]` (in `validate.py`; an empty list means valid)
 
@@ -1493,8 +1750,9 @@ class FakeComfy:
         self.history_polls = 0
         self.queued: list[dict[str, object]] = []
         self.uploads: list[str] = []
+        self.control: list[tuple[str, object]] = []
 
-    def __call__(self, request: httpx.Request) -> httpx.Response:
+    def __call__(self, request: httpx.Request) -> httpx.Response:  # noqa: PLR0911
         path = request.url.path
         if path == "/prompt":
             body = json.loads(request.content)
@@ -1520,6 +1778,10 @@ class FakeComfy:
             return httpx.Response(200, json={"name": "ref.png", "subfolder": "", "type": "input"})
         if path == "/object_info":
             return httpx.Response(200, json={"SaveImage": {}})
+        if path in {"/free", "/interrupt", "/queue"}:
+            body = json.loads(request.content) if request.content else None
+            self.control.append((path, body))
+            return httpx.Response(200)
         return httpx.Response(404)
 
 
@@ -1570,7 +1832,20 @@ class TestComfyClient:
 
     def test_object_info(self) -> None:
         assert _client(httpx.MockTransport(FakeComfy())).object_info() == {"SaveImage": {}}
+
+    def test_a_timed_out_run_interrupts_and_dequeues_its_prompt(self) -> None:
+        fake = FakeComfy(history_after=10**6)
+        with pytest.raises(TimeoutError, match="p1"):
+            _client(httpx.MockTransport(fake)).run(GRAPH, timeout_s=0, sleep=_no_sleep)
+        assert fake.control == [("/interrupt", None), ("/queue", {"delete": ["p1"]})]
+
+    def test_free_unloads_models_and_frees_memory(self) -> None:
+        fake = FakeComfy()
+        _client(httpx.MockTransport(fake)).free()
+        assert fake.control == [("/free", {"unload_models": True, "free_memory": True})]
 ```
+
+`timeout_s=0` makes the first empty `/history` poll time out without a fake clock: `time.monotonic()` never goes backwards.
 
 `backend/tests/unit/synthbench/test_validate.py`:
 
@@ -1772,7 +2047,7 @@ class ComfyClient:
             "/view", params={"filename": out.filename, "subfolder": out.subfolder, "type": out.type}
         )
         resp.raise_for_status()
-        return resp.content
+        return bytes(resp.content)
 
     def run(
         self,
@@ -1781,8 +2056,20 @@ class ComfyClient:
         timeout_s: float,
         sleep: Callable[[float], None] = time.sleep,
     ) -> list[bytes]:
-        entry = self.wait(self.queue(graph), timeout_s=timeout_s, sleep=sleep)
+        prompt_id = self.queue(graph)
+        try:
+            entry = self.wait(prompt_id, timeout_s=timeout_s, sleep=sleep)
+        except TimeoutError:
+            # A prompt left on the server would delay, and time out, every later job.
+            self._http.post("/interrupt")
+            self._http.post("/queue", json={"delete": [prompt_id]})
+            raise
         return [self.download(out) for out in self.outputs(entry)]
+
+    def free(self) -> None:
+        """Unload every model and free cached memory, so the next group's VRAM is its own."""
+        resp = self._http.post("/free", json={"unload_models": True, "free_memory": True})
+        resp.raise_for_status()
 ```
 
 Note: `outputs` iterates the nodes in history order. `test_run_queues_waits_and_downloads_every_output` expects `a.png` before `v.mp4`, which matches the fake's insertion order.
@@ -1802,7 +2089,7 @@ from __future__ import annotations
 
 from typing import Any
 
-Graph = dict[str, dict[str, Any]]
+from synthbench.generate.comfy.client import Graph
 
 
 def _is_link(value: Any) -> bool:
@@ -1884,9 +2171,9 @@ uv run pytest backend/tests/unit/synthbench/test_comfy_client.py backend/tests/u
 uv run ruff check --fix synthbench/generate/comfy/ backend/tests/unit/synthbench/
 uv run ruff format synthbench/generate/comfy/ backend/tests/unit/synthbench/
 uv run mypy synthbench/ --ignore-missing-imports
-uvx pre-commit run --files synthbench/generate/comfy/client.py synthbench/generate/comfy/validate.py backend/tests/unit/synthbench/test_comfy_client.py backend/tests/unit/synthbench/test_validate.py
-git add synthbench/generate/comfy/client.py synthbench/generate/comfy/validate.py backend/tests/unit/synthbench/test_comfy_client.py backend/tests/unit/synthbench/test_validate.py
-git commit -m "feat(synthbench): ComfyUI client and offline graph validator
+SKIP=semgrep uvx pre-commit run --files synthbench/generate/comfy/client.py synthbench/generate/comfy/validate.py backend/tests/unit/synthbench/test_comfy_client.py backend/tests/unit/synthbench/test_validate.py \
+  && git add synthbench/generate/comfy/client.py synthbench/generate/comfy/validate.py backend/tests/unit/synthbench/test_comfy_client.py backend/tests/unit/synthbench/test_validate.py \
+  && git commit -m "feat(synthbench): ComfyUI client and offline graph validator
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1897,7 +2184,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 
-- Create: `synthbench/generate/comfy/graphs.py`, `synthbench/generate/comfy/snapshot.py`, `synthbench/generate/comfy/object_info.v0.37.0.json` (generated), `synthbench/generate/comfy/smoke.py`
+- Create: `synthbench/generate/comfy/graphs.py`, `synthbench/generate/comfy/snapshot.py`, `synthbench/generate/comfy/object_info.v0.37.0.json` (generated), `synthbench/generate/comfy/smoke.py`, `synthbench/generate/comfy/smoke_ref.png` (generated)
+- Modify: `.prettierignore` (add `synthbench/generate/comfy/object_info.v0.37.0.json`)
 - Test: `backend/tests/unit/synthbench/test_graphs.py`
 
 **Interfaces:**
@@ -1915,28 +2203,29 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Farm file names to use (from the P1 manifest and the link-name rule):**
 
-| Model           | diffusion_models                                                                                      | text_encoders                                                                                                      | vae                                                                        | other                                                                                         |
-| --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| flux2-dev       | `flux2_dev_fp8mixed.safetensors`                                                                      | `mistral_3_small_flux2_fp8.safetensors`                                                                            | `flux2-dev--flux2-vae.safetensors`                                         |                                                                                               |
-| flux2-klein-4b  | `flux-2-klein-4b.safetensors`                                                                         | `qwen_3_4b.safetensors`                                                                                            | `flux2-klein-4b--flux2-vae.safetensors`                                    |                                                                                               |
-| qwen-image-2.1  | `qwen_image_2.1_bf16.safetensors`                                                                     | `qwen3vl_8b_bf16.safetensors`                                                                                      | `qwen_image_2.1_vae_bf16.safetensors`                                      |                                                                                               |
-| z-image-turbo   | `z_image_turbo_bf16.safetensors`                                                                      | `qwen_3_4b.safetensors`                                                                                            | `ae.safetensors`                                                           |                                                                                               |
-| hidream-i1-full | `hidream_i1_full_fp8.safetensors`                                                                     | `clip_l_hidream`, `clip_g_hidream`, `t5xxl_fp8_e4m3fn_scaled`, `llama_3.1_8b_instruct_fp8_scaled` (`.safetensors`) | `ae.safetensors`                                                           |                                                                                               |
-| ideogram-4      | `ideogram4_fp8_scaled.safetensors`, `ideogram4_unconditional_fp8_scaled.safetensors`                  | `qwen3vl_8b_fp8_scaled.safetensors`                                                                                | `ideogram-4--flux2-vae.safetensors`                                        |                                                                                               |
-| ltx-2.5         | `ltx-2.5-22b-distilled-transformer-bf16.safetensors`                                                  | `gemma4-12b-with-proj-ltx-2.5-bf16.safetensors`                                                                    | `ltx-2.5-video-vae-bf16.safetensors`, `ltx-2.5-audio-vae-bf16.safetensors` | latent_upscale_models: `ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors`              |
-| wan2.2-i2v      | `wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors`, `wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors` | `umt5_xxl_fp16.safetensors`                                                                                        | `wan_2.1_vae.safetensors`                                                  | loras: `wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors`, `…_low_noise.safetensors` |
+| Model           | diffusion_models                                                                                      | text_encoders                                                                                                                                     | vae                                                                        | other                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| flux2-dev       | `flux2_dev_fp8mixed.safetensors`                                                                      | `mistral_3_small_flux2_fp8.safetensors`                                                                                                           | `flux2-dev--flux2-vae.safetensors`                                         |                                                                                                                                |
+| flux2-klein-4b  | `flux-2-klein-4b.safetensors`                                                                         | `qwen_3_4b.safetensors`                                                                                                                           | `flux2-klein-4b--flux2-vae.safetensors`                                    |                                                                                                                                |
+| qwen-image-2.1  | `qwen_image_2.1_bf16.safetensors`                                                                     | `qwen3vl_8b_bf16.safetensors`                                                                                                                     | `qwen_image_2.1_vae_bf16.safetensors`                                      |                                                                                                                                |
+| z-image-turbo   | `z_image_turbo_bf16.safetensors`                                                                      | `qwen_3_4b.safetensors`                                                                                                                           | `ae.safetensors`                                                           |                                                                                                                                |
+| hidream-i1-full | `hidream_i1_full_fp8.safetensors`                                                                     | `clip_l_hidream.safetensors`, `clip_g_hidream.safetensors`, `t5xxl_fp8_e4m3fn_scaled.safetensors`, `llama_3.1_8b_instruct_fp8_scaled.safetensors` | `ae.safetensors`                                                           |                                                                                                                                |
+| ideogram-4      | `ideogram4_fp8_scaled.safetensors`, `ideogram4_unconditional_fp8_scaled.safetensors`                  | `qwen3vl_8b_fp8_scaled.safetensors`                                                                                                               | `ideogram-4--flux2-vae.safetensors`                                        |                                                                                                                                |
+| ltx-2.5         | `ltx-2.5-22b-distilled-transformer-bf16.safetensors`                                                  | `gemma4-12b-with-proj-ltx-2.5-bf16.safetensors`                                                                                                   | `ltx-2.5-video-vae-bf16.safetensors`, `ltx-2.5-audio-vae-bf16.safetensors` | latent_upscale_models: `ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors`                                               |
+| wan2.2-i2v      | `wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors`, `wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors` | `umt5_xxl_fp16.safetensors`                                                                                                                       | `wan_2.1_vae.safetensors`                                                  | loras: `wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors`, `wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors` |
 
 **Reference templates.** Each builder is derived from the official ComfyUI template of the same model. Templates are in UI format, often with subgraphs, and must be flattened by reading them. The version matching v0.37.0 is inside the renderer image:
 
 ```bash
-podman run --rm --entrypoint python localhost/synthbench-comfyui:v0.37.0 -c \
-  "import comfyui_workflow_templates_json as t, os; print(os.path.dirname(t.__file__))"
-podman run --rm --entrypoint cat localhost/synthbench-comfyui:v0.37.0 \
-  <that dir>/templates/image_z_image_turbo.json
+$(uv run python -m synthbench.generate.podman) run --rm --entrypoint python \
+  localhost/synthbench-comfyui:v0.37.0 \
+  -c "import comfyui_workflow_templates_json as t, os; print(os.path.dirname(t.__file__))"
+$(uv run python -m synthbench.generate.podman) run --rm --entrypoint cat \
+  localhost/synthbench-comfyui:v0.37.0 <that dir>/templates/image_z_image_turbo.json
 ```
 
 | Builder               | Template                                                                                                                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | -------------------------------------------------- |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | t2i `z-image-turbo`   | `image_z_image_turbo.json` (worked example below)                                                                                                                                    |
 | t2i `flux2-dev`       | `image_flux2_fp8.json`, text-to-image path, Turbo LoRA off (worked example below)                                                                                                    |
 | t2i `flux2-klein-4b`  | `image_flux2_klein_text_to_image.json`                                                                                                                                               |
@@ -1947,7 +2236,14 @@ podman run --rm --entrypoint cat localhost/synthbench-comfyui:v0.37.0 \
 | edit `flux2-dev`      | `image_flux2_fp8.json`, reference path: each image goes `LoadImage → ImageScaleToTotalPixels → VAEEncode → ReferenceLatent`, chained on the conditioning                             |
 | edit `flux2-klein-4b` | `image_flux2_klein_image_edit_4b_distilled.json`                                                                                                                                     |
 | i2v `ltx-2.5`         | `video_ltx2_5_i2v.json`. Use our bf16 files (the template uses int8 ones), set the `TextGenerateLTX2Prompt` prompt-enhancer path off, and feed `prompt` to `CLIPTextEncode` directly |
-| i2v `wan2.2-i2v`      | the Wan 2.2 14B I2V template in the same directory (find it with `ls templates                                                                                                       | grep -i wan2_2 | grep -i i2v`), in its 4-step lightx2v-LoRA variant |
+| i2v `wan2.2-i2v`      | the Wan 2.2 14B I2V template in the same directory (find it with the command below), in its 4-step lightx2v-LoRA variant                                                             |
+
+Find the Wan 2.2 I2V template's file name with:
+
+```bash
+$(uv run python -m synthbench.generate.podman) run --rm --entrypoint ls \
+  localhost/synthbench-comfyui:v0.37.0 <that dir>/templates | grep -i wan2_2 | grep -i i2v
+```
 
 Rules for every builder:
 
@@ -1955,7 +2251,8 @@ Rules for every builder:
 - Replace every model file name with the farm name from the table.
 - Replace the seed, prompt, width, height (and frames for video) with the builder's arguments.
 - Drop preview, note and UI-only nodes.
-- Put a one-line comment above each builder naming its template.
+- The i2v builders resize the keyframe to their `width` × `height` the way their template does. The keyframes are `flux2-dev` images at 1920×1088; Task 6 renders clips at `CLIP_SIZES`: 1280×704 for LTX-2.5 (its latent grid needs multiples of 32) and 1280×720 for Wan 2.2.
+- Put a one-line comment `# From template <file>.json` above each builder, as in the worked examples. Don't write `# template: <file>.json`: ruff's ERA001 reads that form as commented-out code and `--fix` can't repair it.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2041,7 +2338,7 @@ def _prefix(model: str) -> str:
     return f"synthbench/{model}"
 
 
-# template: image_z_image_turbo.json
+# From template image_z_image_turbo.json
 def z_image_turbo_t2i(prompt: str, *, seed: int, width: int, height: int) -> Graph:
     return {
         "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "z_image_turbo_bf16.safetensors", "weight_dtype": "default"}},
@@ -2060,7 +2357,7 @@ def z_image_turbo_t2i(prompt: str, *, seed: int, width: int, height: int) -> Gra
     }
 
 
-# template: image_flux2_fp8.json (text-to-image path; Turbo LoRA off)
+# From template image_flux2_fp8.json (text-to-image path; Turbo LoRA off)
 def flux2_dev_t2i(prompt: str, *, seed: int, width: int, height: int) -> Graph:
     return {
         "1": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux2_dev_fp8mixed.safetensors", "weight_dtype": "default"}},
@@ -2168,15 +2465,18 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-Run:
+Run the sync first: the snapshot records ComfyUI's view of the farm, so every loader's options must list every model's files, LTX-2.5's included.
 
 ```bash
+HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json
 uv run python -m synthbench.generate.comfy.serve up
 uv run python -m synthbench.generate.comfy.snapshot
 uv run pytest backend/tests/unit/synthbench/test_graphs.py -n0 -q
 ```
 
-Iterate on the builders until every `test_every_sample_graph_validates` case passes. Re-run `snapshot` whenever a builder starts using a new node type.
+The sync prints `verified 30 files; 31 links under /export/models/comfyui`. Iterate on the builders until every `test_every_sample_graph_validates` case passes. Re-run `snapshot` whenever a builder starts using a new node type.
+
+`snapshot` writes the JSON with `indent=1`, which prettier would re-indent on every commit. Add `synthbench/generate/comfy/object_info.v0.37.0.json` to `.prettierignore` on its own line, under a one-line comment saying it is generated by `snapshot.py`.
 
 - [ ] **Step 5: Live smoke on the models that fit beside the flagship**
 
@@ -2232,7 +2532,7 @@ def main(argv: list[str] | None = None) -> int:
                 suffix = "mp4" if kind == "i2v" else "png"
                 (out_dir / f"{kind}_{model}.{suffix}").write_bytes(blobs[0])
                 sys.stdout.write(f"OK   {key:28s} {time.monotonic() - started:7.1f}s\n")
-            except Exception as exc:  # noqa: BLE001 - smoke reports every failure and continues
+            except Exception as exc:  # smoke reports every failure and continues
                 failures += 1
                 sys.stdout.write(f"FAIL {key:28s} {type(exc).__name__}: {exc}\n")
     finally:
@@ -2251,7 +2551,8 @@ uv run python -c "
 from pathlib import Path
 from synthbench.generate.comfy.client import ComfyClient
 from synthbench.generate.comfy import graphs
-c = ComfyClient('http://127.0.0.1:8188')
+from synthbench.generate.comfy.serve import ServeConfig
+c = ComfyClient(ServeConfig.from_env().base_url)
 g = graphs.T2I_BUILDERS['z-image-turbo']('a quiet suburban front porch with a potted plant, daylight', seed=5, width=512, height=288)
 Path('synthbench/generate/comfy/smoke_ref.png').write_bytes(c.run(g, timeout_s=900)[0])"
 ```
@@ -2272,9 +2573,9 @@ uv run ruff check --fix synthbench/generate/comfy/ backend/tests/unit/synthbench
 uv run ruff format synthbench/generate/comfy/ backend/tests/unit/synthbench/test_graphs.py
 uv run mypy synthbench/ --ignore-missing-imports
 uv run pytest backend/tests/unit/synthbench/ -n0 -q
-uvx pre-commit run --files synthbench/generate/comfy/graphs.py synthbench/generate/comfy/snapshot.py synthbench/generate/comfy/smoke.py synthbench/generate/comfy/object_info.v0.37.0.json synthbench/generate/comfy/smoke_ref.png backend/tests/unit/synthbench/test_graphs.py
-git add synthbench/generate/comfy/ backend/tests/unit/synthbench/test_graphs.py
-git commit -m "feat(synthbench): per-model ComfyUI graph builders with offline validation and live smoke
+SKIP=semgrep uvx pre-commit run --files synthbench/generate/comfy/graphs.py synthbench/generate/comfy/snapshot.py synthbench/generate/comfy/smoke.py synthbench/generate/comfy/object_info.v0.37.0.json synthbench/generate/comfy/smoke_ref.png backend/tests/unit/synthbench/test_graphs.py .prettierignore \
+  && git add synthbench/generate/comfy/ backend/tests/unit/synthbench/test_graphs.py .prettierignore \
+  && git commit -m "feat(synthbench): per-model ComfyUI graph builders with offline validation and live smoke
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -2285,22 +2586,23 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Files:**
 
-- Create: `synthbench/spikes/__init__.py`, `synthbench/spikes/p1_bakeoff/__init__.py`, `synthbench/spikes/p1_bakeoff/cases.py`, `synthbench/spikes/p1_bakeoff/plan.py`, `synthbench/spikes/p1_bakeoff/run.py`
+- Create: `synthbench/spikes/__init__.py`, `synthbench/spikes/p1_bakeoff/__init__.py`, `synthbench/spikes/p1_bakeoff/AGENTS.md`, `synthbench/spikes/p1_bakeoff/cases.py`, `synthbench/spikes/p1_bakeoff/plan.py`, `synthbench/spikes/p1_bakeoff/run.py`
 - Test: `backend/tests/unit/synthbench/spikes/__init__.py`, `backend/tests/unit/synthbench/spikes/test_p1_plan.py`, `backend/tests/unit/synthbench/spikes/test_p1_run.py`
 
 **Interfaces:**
 
-- Consumes: `T2I_BUILDERS`, `EDIT_BUILDERS` and `I2V_BUILDERS` (Task 5); `ComfyClient` (Task 4); `ServeConfig`, `start`, `stop` and `wait_ready` (Task 3).
+- Consumes: `T2I_BUILDERS`, `EDIT_BUILDERS` and `I2V_BUILDERS` (Task 5); `ComfyClient` with `.free()` (Task 4); `ServeConfig`, `start`, `stop` and `wait_ready` (Task 3); `raise_on_sigterm` (Task 2).
 - Produces:
-  - In `cases.py`: `CASES: tuple[Case, ...]` (9 entries); `Case` with `.id`, `.prompt`, `.owl_queries` and `.ocr_target`; `IDENTITY_REFERENCE`, `SHOTS` (5 entries), `LIGHTING` (3 keys: day, dusk, ir_night); `identity_edit_prompt(shot, lighting)` and `identity_t2i_prompt(shot, lighting)`; `CLIPS` (4 entries); `SEEDS`, `CLIP_SEEDS`; `MODEL_SIZES`, `CLIP_SIZE`, `CLIP_FRAMES`; `T2I_MODELS`, `EDIT_MODELS`, `I2V_MODELS`; `KEYFRAME_MODEL`, `KEYFRAME_SEED`.
+  - In `cases.py`: `CASES: tuple[Case, ...]` (9 entries); `Case` with `.id`, `.prompt`, `.owl_queries` and `.ocr_target`; `IDENTITY_REFERENCE`, `SHOTS` (5 entries), `LIGHTING` (3 keys: day, dusk, ir_night); `identity_edit_prompt(shot, lighting)` and `identity_t2i_prompt(shot, lighting)`; `CLIPS` (4 entries); `SEEDS`, `CLIP_SEEDS`; `MODEL_SIZES`, `CLIP_SIZES`, `CLIP_FRAMES`; `T2I_MODELS`, `EDIT_MODELS`, `I2V_MODELS`; `KEYFRAME_MODEL`, `KEYFRAME_SEED`.
   - In `plan.py`: `Job` (frozen) with fields `model`, `kind`, `case`, `seed`, `prompt`, `width`, `height`, `output`, `inputs` and `frames`; `image_jobs() -> list[Job]`, `clip_jobs() -> list[Job]`, `keyframe_path(ref: str) -> str`, `pending(jobs, root) -> list[Job]`.
-  - In `run.py`: `parse_used_mib(text) -> int`, `VramSampler`, `run_job(job, client, root) -> dict[str, Any]`, `execute(jobs, client, root) -> None`, `main(argv) -> int`.
+  - In `run.py`: the `Client` Protocol (`free`, `upload_image`, `run`), `parse_used_mib(text) -> int`, `VramSampler` (`.peak_mib: int | None`, `None` when no sample succeeded), `run_job(job, client, root) -> dict[str, Any]`, `execute(jobs, client, root) -> None` (calls `client.free()` before each model group), `main(argv) -> int`.
+- `cases.py` also runs inside the renderer image, because Task 7's `measure.py` imports it. Keep it Python 3.12-parseable; Task 7 pins that with a py312 ruff target and a test.
 - Outputs under `<root>` (default `$SYNTHBENCH_ROOT/p1`):
 
   - `images/<model>/<case>/<seed>.png`
   - `images/<model>/identity/{reference,<shot>_<lighting>}.png`
   - `clips/<model>/<clip>/<seed>.mp4`
-  - `records.jsonl` (one row per job) and `groups.jsonl` (one row per model group: `seconds`, `peak_vram_mib`).
+  - `records.jsonl` (one row per job: the `Job` fields, with `inputs` as a JSON list, plus `ok`, `error`, `seconds`) and `groups.jsonl` (one row per model group: `model`, `jobs`, `seconds`, `peak_vram_mib`; `null` when no VRAM sample succeeded).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2356,6 +2658,15 @@ def test_clip_jobs_use_keyframes_from_the_keyframe_model() -> None:
     assert len(jobs) == len(c.I2V_MODELS) * len(c.CLIPS) * len(c.CLIP_SEEDS) == 16
     assert {j.inputs[0].split("/")[1] for j in jobs} == {c.KEYFRAME_MODEL}
     assert {j.frames for j in jobs if j.model == "ltx-2.5"} == {c.CLIP_FRAMES["ltx-2.5"]}
+    for model in c.I2V_MODELS:
+        assert {(j.width, j.height) for j in jobs if j.model == model} == {c.CLIP_SIZES[model]}
+
+
+def test_clip_sizes_and_frames_fit_each_video_model() -> None:
+    assert set(c.CLIP_SIZES) == set(c.CLIP_FRAMES) == set(c.I2V_MODELS)
+    assert all(side % 32 == 0 for side in c.CLIP_SIZES["ltx-2.5"])  # the LTX latent grid
+    assert (c.CLIP_FRAMES["ltx-2.5"] - 1) % 8 == 0  # LTX-2.5: 8n + 1 frames
+    assert (c.CLIP_FRAMES["wan2.2-i2v"] - 1) % 4 == 0  # Wan 2.2: 4n + 1 frames
 
 
 def test_keyframe_paths() -> None:
@@ -2373,7 +2684,9 @@ def test_pending_skips_finished_outputs(tmp_path: Path) -> None:
 
 def test_every_case_prompt_names_the_security_camera_framing() -> None:
     assert all("security camera" in case.prompt for case in c.CASES)
-    assert next(case for case in c.CASES if case.id == "legible_plate").ocr_target == "8KXR-417"
+    plate = next(case for case in c.CASES if case.id == "legible_plate")
+    assert plate.ocr_target == "8KXR-417"
+    assert "no text" not in plate.prompt  # the plate case must not forbid the text it measures
 ```
 
 `backend/tests/unit/synthbench/spikes/test_p1_run.py`:
@@ -2397,11 +2710,16 @@ class FakeClient:
     def __init__(self, fail: bool = False) -> None:
         self.fail = fail
         self.graphs: list[dict[str, Any]] = []
+        self.calls: list[str] = []
+
+    def free(self) -> None:
+        self.calls.append("free")
 
     def upload_image(self, path: Path) -> str:
         return path.name
 
     def run(self, graph: dict[str, Any], *, timeout_s: float) -> list[bytes]:
+        self.calls.append("run")
         self.graphs.append(graph)
         if self.fail:
             raise RuntimeError("CUDA out of memory")
@@ -2436,6 +2754,28 @@ def test_execute_writes_one_group_row_per_model(tmp_path: Path, monkeypatch: pyt
     groups = [json.loads(line) for line in (tmp_path / "groups.jsonl").read_text().splitlines()]
     assert [g["model"] for g in groups] == sorted({j.model for j in jobs}, key=[j.model for j in jobs].index)
     assert all(g["jobs"] == 1 and g["peak_vram_mib"] == 4096 for g in groups)
+
+
+def test_execute_frees_the_previous_models_before_each_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(run, "_query_used_mib", lambda: 4096)
+    jobs = [j for j in image_jobs() if j.case == "knife" and j.seed in {11, 22}]
+    client = FakeClient()
+    run.execute(jobs, client, tmp_path)
+    assert client.calls == ["free", "run", "run"] * len({j.model for j in jobs})
+
+
+def test_a_group_without_a_vram_sample_records_null(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_gpu() -> int:
+        raise OSError("nvidia-smi: not found")
+
+    monkeypatch.setattr(run, "_query_used_mib", no_gpu)
+    run.execute(image_jobs()[:1], FakeClient(), tmp_path)
+    groups = [json.loads(line) for line in (tmp_path / "groups.jsonl").read_text().splitlines()]
+    assert [g["peak_vram_mib"] for g in groups] == [None]
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -2457,6 +2797,12 @@ DAY = (
     "Photorealistic still from a fixed outdoor security camera mounted under the eaves about "
     "three meters high, wide-angle lens looking down at the scene, daytime, natural color, "
     "ordinary suburban home, no text, no watermark."
+)
+# DAY without "no text": the plate case must not forbid the text it measures.
+DAY_PLATE = (
+    "Photorealistic still from a fixed outdoor security camera mounted under the eaves about "
+    "three meters high, wide-angle lens looking down at the scene, daytime, natural color, "
+    "ordinary suburban home, no watermark."
 )
 DUSK = (
     "Photorealistic still from a fixed outdoor security camera mounted under the eaves about "
@@ -2506,7 +2852,7 @@ CASES: tuple[Case, ...] = (
     Case("smoke_from_eave", "Thick gray smoke pours out from under the roof eave of the "
          "two-story house.", DUSK, ("smoke", "a house")),
     Case("legible_plate", "A silver sedan is parked in the driveway facing the camera, its "
-         "front license plate clearly readable: 8KXR-417.", DAY,
+         "front license plate clearly readable: 8KXR-417.", DAY_PLATE,
          ("a license plate", "a car"), ocr_target="8KXR-417"),
 )
 
@@ -2571,7 +2917,9 @@ MODEL_SIZES: dict[str, tuple[int, int]] = {
 T2I_MODELS: tuple[str, ...] = tuple(MODEL_SIZES)
 EDIT_MODELS: tuple[str, ...] = ("qwen-image-2.1", "flux2-dev", "flux2-klein-4b")
 I2V_MODELS: tuple[str, ...] = ("ltx-2.5", "wan2.2-i2v")
-CLIP_SIZE: tuple[int, int] = (1280, 720)
+# Per model: LTX-2.5's latent grid needs multiples of 32 (720 is not one).
+CLIP_SIZES: dict[str, tuple[int, int]] = {"ltx-2.5": (1280, 704), "wan2.2-i2v": (1280, 720)}
+# LTX-2.5 takes 8n + 1 frames, Wan 2.2 takes 4n + 1.
 CLIP_FRAMES: dict[str, int] = {"ltx-2.5": 97, "wan2.2-i2v": 81}
 KEYFRAME_MODEL = "flux2-dev"
 KEYFRAME_SEED = 11
@@ -2641,8 +2989,8 @@ def keyframe_path(ref: str) -> str:
 
 def clip_jobs() -> list[Job]:
     jobs: list[Job] = []
-    width, height = c.CLIP_SIZE
     for model in c.I2V_MODELS:
+        width, height = c.CLIP_SIZES[model]
         for clip in c.CLIPS:
             for seed in c.CLIP_SEEDS:
                 jobs.append(
@@ -2662,8 +3010,8 @@ def pending(jobs: list[Job], root: Path) -> list[Job]:
 ```python
 """Run the P1 bake-off. Inside a GPU window:
 
-    python -m synthbench.generate.window run -- \
-        python -m synthbench.spikes.p1_bakeoff.run all
+    uv run python -m synthbench.generate.window run -- \
+        uv run python -m synthbench.spikes.p1_bakeoff.run all
 
 Resumable (finished outputs are skipped). One row per job goes to
 <root>/records.jsonl; one row per model group (seconds, peak VRAM) to
@@ -2684,15 +3032,18 @@ import threading
 import time
 from dataclasses import asdict
 from pathlib import Path
-from types import FrameType, TracebackType
+from types import TracebackType
 from typing import Any, Protocol
 
 from synthbench.generate.comfy import graphs, serve
 from synthbench.generate.comfy.client import ComfyClient, Graph
+from synthbench.generate.window import raise_on_sigterm
 from synthbench.spikes.p1_bakeoff.plan import Job, clip_jobs, image_jobs, pending
 
 
 class Client(Protocol):
+    def free(self) -> None: ...
+
     def upload_image(self, path: Path) -> str: ...
 
     def run(self, graph: Graph, *, timeout_s: float) -> list[bytes]: ...
@@ -2711,19 +3062,23 @@ def _query_used_mib() -> int:
 
 
 class VramSampler:
-    """Samples GPU memory.used (MiB) once a second; .peak_mib after exit."""
+    """Samples GPU memory.used (MiB) once a second; .peak_mib after exit.
+
+    .peak_mib stays None when no sample succeeded: an unknown peak, never a 0.
+    """
 
     def __init__(self, interval_s: float = 1.0) -> None:
-        self.peak_mib = 0
+        self.peak_mib: int | None = None
         self._interval = interval_s
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
     def _sample(self) -> None:
         try:
-            self.peak_mib = max(self.peak_mib, _query_used_mib())
+            used = _query_used_mib()
         except (OSError, subprocess.SubprocessError, ValueError):
-            pass
+            return
+        self.peak_mib = used if self.peak_mib is None else max(self.peak_mib, used)
 
     def _loop(self) -> None:
         while not self._stop.wait(self._interval):
@@ -2762,7 +3117,10 @@ def _graph(job: Job, names: list[str]) -> Graph:
 
 def run_job(job: Job, client: Client, root: Path) -> dict[str, Any]:
     started = time.monotonic()
-    record: dict[str, Any] = asdict(job) | {"ok": False, "error": None, "seconds": None}
+    # inputs as a list: the JSONL row must read back equal to the returned record
+    record: dict[str, Any] = asdict(job) | {
+        "inputs": list(job.inputs), "ok": False, "error": None, "seconds": None,
+    }
     try:
         names = [client.upload_image(root / p) for p in job.inputs]
         blobs = client.run(_graph(job, names), timeout_s=1800.0 if job.kind == "i2v" else 600.0)
@@ -2772,7 +3130,7 @@ def run_job(job: Job, client: Client, root: Path) -> dict[str, Any]:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(blobs[0])
         record["ok"] = True
-    except Exception as exc:  # noqa: BLE001 - a failure is a bake-off result, never fatal
+    except Exception as exc:  # a failure is a bake-off result, never fatal
         record["error"] = f"{type(exc).__name__}: {exc}"[:500]
     record["seconds"] = round(time.monotonic() - started, 3)
     _append(root / "records.jsonl", record)
@@ -2783,6 +3141,9 @@ def execute(jobs: list[Job], client: Client, root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     for model, group_iter in itertools.groupby(jobs, key=lambda j: j.model):
         group = list(group_iter)
+        # ComfyUI keeps earlier groups' models resident; unload them so that
+        # this group's peak VRAM is its own model's (spec §3.7).
+        client.free()
         started = time.monotonic()
         with VramSampler() as vram:
             for job in group:
@@ -2791,10 +3152,6 @@ def execute(jobs: list[Job], client: Client, root: Path) -> None:
             "model": model, "jobs": len(group),
             "seconds": round(time.monotonic() - started, 1), "peak_vram_mib": vram.peak_mib,
         })
-
-
-def _raise_on_sigterm(signum: int, _frame: FrameType | None) -> None:
-    raise SystemExit(128 + signum)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2809,7 +3166,7 @@ def main(argv: list[str] | None = None) -> int:
         clip_jobs() if args.stage in {"clips", "all"} else []
     )
     jobs = [j for j in pending(jobs, args.root) if not wanted or j.model in wanted]
-    signal.signal(signal.SIGTERM, _raise_on_sigterm)
+    signal.signal(signal.SIGTERM, raise_on_sigterm)
     cfg = serve.ServeConfig.from_env()
     serve.start(cfg)
     try:
@@ -2830,16 +3187,45 @@ if __name__ == "__main__":
 
 Note: `stage all` runs the image jobs and then the clip jobs in one process, so the keyframes exist before the clip jobs start. `pending` is evaluated once at start, so a clip job whose keyframe failed simply records a failure.
 
-- [ ] **Step 6: Run the tests, lint, commit**
+- [ ] **Step 6: Write the directory's agent guide, run the tests, lint, commit**
+
+Every code directory in this repo has an `AGENTS.md` (`scripts/agents_md_validator.py` reports missing ones). `synthbench/spikes/p1_bakeoff/AGENTS.md`:
+
+```markdown
+# synthbench/spikes/p1_bakeoff — Agent Guide
+
+## Purpose
+
+The throwaway P1 bake-off harness (spec §3.7; plan `docs/superpowers/plans/2026-09-27-synthbench-p1-bakeoff.md`). Not a pattern to copy: durable code lives in `synthbench/generate/`.
+
+## Key Files
+
+| File         | What                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------ |
+| `cases.py`   | the hard prompts, identity shots, clip cases, seeds and sizes                        |
+| `plan.py`    | expands the cases into stage-major jobs (each model's jobs are contiguous)           |
+| `run.py`     | resumable runner, run inside a GPU window; writes `records.jsonl` and `groups.jsonl` |
+| `measure.py` | OWLv2, facenet and EasyOCR measurement; runs inside the renderer image               |
+| `sheet.py`   | the static HTML contact sheet the owner rates                                        |
+| `report.py`  | aggregates records, measures and ratings into the P1 report under `docs/benchmarks/` |
+
+## Rules
+
+- Outputs go under `$SYNTHBENCH_ROOT/p1`; every CLI here takes `--root`. Media never enters the repo.
+- `measure.py` and `cases.py` run on the renderer image's Python 3.12: keep them 3.12-parseable.
+- Tests live in `backend/tests/unit/synthbench/spikes/` and cover only the pure logic.
+```
+
+Then:
 
 ```bash
 uv run pytest backend/tests/unit/synthbench/spikes/ -n0 -q
 uv run ruff check --fix synthbench/spikes/ backend/tests/unit/synthbench/spikes/
 uv run ruff format synthbench/spikes/ backend/tests/unit/synthbench/spikes/
 uv run mypy synthbench/ --ignore-missing-imports
-uvx pre-commit run --files synthbench/spikes/__init__.py synthbench/spikes/p1_bakeoff/__init__.py synthbench/spikes/p1_bakeoff/cases.py synthbench/spikes/p1_bakeoff/plan.py synthbench/spikes/p1_bakeoff/run.py backend/tests/unit/synthbench/spikes/__init__.py backend/tests/unit/synthbench/spikes/test_p1_plan.py backend/tests/unit/synthbench/spikes/test_p1_run.py
-git add synthbench/spikes/ backend/tests/unit/synthbench/spikes/
-git commit -m "feat(synthbench): P1 bake-off cases, stage-major job plan and resumable runner (spike)
+SKIP=semgrep uvx pre-commit run --files synthbench/spikes/__init__.py synthbench/spikes/p1_bakeoff/__init__.py synthbench/spikes/p1_bakeoff/AGENTS.md synthbench/spikes/p1_bakeoff/cases.py synthbench/spikes/p1_bakeoff/plan.py synthbench/spikes/p1_bakeoff/run.py backend/tests/unit/synthbench/spikes/__init__.py backend/tests/unit/synthbench/spikes/test_p1_plan.py backend/tests/unit/synthbench/spikes/test_p1_run.py \
+  && git add synthbench/spikes/ backend/tests/unit/synthbench/spikes/ \
+  && git commit -m "feat(synthbench): P1 bake-off cases, stage-major job plan and resumable runner (spike)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -2851,16 +3237,19 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 **Files:**
 
 - Create: `synthbench/spikes/p1_bakeoff/measure.py`, `synthbench/spikes/p1_bakeoff/sheet.py`, `synthbench/spikes/p1_bakeoff/report.py`
-- Test: `backend/tests/unit/synthbench/spikes/test_p1_measure.py`, `backend/tests/unit/synthbench/spikes/test_p1_report.py`
+- Modify: `pyproject.toml` (a new `[tool.ruff.per-file-target-version]` table)
+- Test: `backend/tests/unit/synthbench/spikes/test_p1_measure.py`, `backend/tests/unit/synthbench/spikes/test_p1_report.py`, `backend/tests/unit/synthbench/spikes/test_p1_py312.py`
 
 **Interfaces:**
 
-- Consumes: `records.jsonl` and `groups.jsonl` (Task 6), `CASES`, `EDIT_MODELS` and `I2V_MODELS` (Task 6).
+- Consumes: `records.jsonl` and `groups.jsonl` (Task 6; a model can have several `groups.jsonl` rows after a resumed run, and `peak_vram_mib` can be `null`), `CASES`, `EDIT_MODELS` and `I2V_MODELS` (Task 6).
 - Produces:
 
-  - In `measure.py`: `normalize_plate(text) -> str`, `cer(pred, target) -> float`, `cosine_distance(a, b) -> float`, `measure_record(record, root, tools) -> dict[str, Any]`, and `main()`, which runs **inside the renderer image** and writes `<root>/measures.jsonl`.
-  - In `sheet.py`: `render(records, measures, root) -> str`; `main()` writes `<root>/sheet.html`.
-  - In `report.py`: `summarize(records, groups, measures, ratings) -> dict[str, Any]`, `propose_picks(summary) -> dict[str, str]`, `to_markdown(summary, picks) -> str`; `main()` writes `docs/benchmarks/synthbench/p1-bakeoff.md`.
+  - In `measure.py`: `normalize_plate(text) -> str`, `cer(pred, target) -> float`, `cosine_distance(a, b) -> float`, `measure_record(record, root, tools) -> dict[str, Any]`, and `main(argv) -> int`, which runs **inside the renderer image** and writes `<root>/measures.jsonl`.
+  - In `sheet.py`: `render(records, measures, root) -> str`; `main(argv) -> int` writes `<root>/sheet.html`.
+  - In `report.py`: `summarize(records, groups, measures, ratings) -> dict[str, Any]`, `propose_picks(summary) -> dict[str, str]`, `to_markdown(summary, picks) -> str`; `main(argv) -> int` writes `docs/benchmarks/synthbench/p1-bakeoff.md`.
+  - The three `main`s take the same `--root` option as `run.py` (default `$SYNTHBENCH_ROOT/p1`).
+  - The files that run inside the renderer image (`measure.py` and everything it imports from `synthbench`: `cases.py` and the package `__init__.py` files) get ruff target `py312` and a test that they parse as Python 3.12. The image's NGC Python is 3.12, and ruff's repo-wide py314 target would otherwise rewrite `except (A, B):` into PEP 758 syntax that 3.12 cannot parse.
 
 - [ ] **Step 1: Write the failing tests (pure logic only)**
 
@@ -2880,7 +3269,7 @@ from synthbench.spikes.p1_bakeoff import measure as m
 
 
 def test_normalize_plate() -> None:
-    assert m.normalize_plate(" 8kxr–417 ") == "8KXR417"
+    assert m.normalize_plate(" 8kxr-417 ") == "8KXR-417"
     assert m.normalize_plate("8KXR-417") == "8KXR-417"
 
 
@@ -2972,11 +3361,16 @@ def _measures() -> list[dict[str, Any]]:
 
 
 def test_summarize_per_model() -> None:
-    s = r.summarize(_records(), [{"model": "a", "peak_vram_mib": 30720}], _measures(), _ratings())
+    groups = [
+        {"model": "a", "peak_vram_mib": 20480},
+        {"model": "a", "peak_vram_mib": 30720},  # a resumed run appends a row
+        {"model": "b", "peak_vram_mib": None},  # no VRAM sample succeeded
+    ]
+    s = r.summarize(_records(), groups, _measures(), _ratings())
     a, b = s["models"]["a"], s["models"]["b"]
     assert (a["ok"], a["failed"], b["failed"]) == (3, 0, 1)
     assert a["median_seconds"] == 5.0
-    assert a["peak_vram_gib"] == 30.0
+    assert a["peak_vram_gib"] == 30.0 and b["peak_vram_gib"] is None
     assert a["threat_good_rate"] == 1.0 and b["threat_good_rate"] == 0.0
     assert a["plate_exact_rate"] == 1.0 and b["plate_mean_cer"] == 0.5
 
@@ -2994,10 +3388,49 @@ def test_markdown_has_a_row_per_model_and_the_picks() -> None:
     assert "| a |" in text and "| b |" in text and "Proposed picks" in text
 ```
 
+`backend/tests/unit/synthbench/spikes/test_p1_py312.py`:
+
+```python
+"""Files that run inside the renderer image (NGC PyTorch, Python 3.12) stay 3.12-parseable."""
+
+from __future__ import annotations
+
+import ast
+import tomllib
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
+# measure.py and everything it imports from synthbench, package __init__ files included
+CONTAINER_FILES = (
+    "synthbench/__init__.py",
+    "synthbench/spikes/__init__.py",
+    "synthbench/spikes/p1_bakeoff/__init__.py",
+    "synthbench/spikes/p1_bakeoff/cases.py",
+    "synthbench/spikes/p1_bakeoff/measure.py",
+)
+
+
+@pytest.mark.parametrize("rel", CONTAINER_FILES)
+def test_parses_as_python_3_12(rel: str) -> None:
+    ast.parse((REPO_ROOT / rel).read_text(), filename=rel, feature_version=(3, 12))
+
+
+def test_ruff_targets_py312_for_every_container_file() -> None:
+    ruff = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["tool"]["ruff"]
+    targets = ruff.get("per-file-target-version", {})
+    assert {rel: targets.get(rel) for rel in CONTAINER_FILES} == dict.fromkeys(
+        CONTAINER_FILES, "py312"
+    )
+```
+
+`ast.parse(..., feature_version=(3, 12))` rejects PEP 758's unparenthesized `except A, B:` (verified on 3.14.7).
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `uv run pytest backend/tests/unit/synthbench/spikes/test_p1_measure.py backend/tests/unit/synthbench/spikes/test_p1_report.py -n0 -q`
-Expected: `ImportError` for `measure` / `report`.
+Run: `uv run pytest backend/tests/unit/synthbench/spikes/test_p1_measure.py backend/tests/unit/synthbench/spikes/test_p1_report.py backend/tests/unit/synthbench/spikes/test_p1_py312.py -n0 -q`
+Expected: `ImportError` for `measure` / `report`. In `test_p1_py312.py`, the `measure.py` case fails with `FileNotFoundError` and the ruff-target test fails its assertion (no `per-file-target-version` table yet).
 
 - [ ] **Step 3: Implement `measure.py`**
 
@@ -3008,14 +3441,20 @@ The pure helpers and dispatch below are complete. The `RealTools` class loads it
 EasyOCR plate reading. All three are independent of the pipeline's models.
 
 Run inside the renderer image (GPU; the flagship may stay up):
-    podman run --rm --device nvidia.com/gpu=all -v "$PWD":/work:ro -w /work \
+    $(uv run python -m synthbench.generate.podman) run --rm --device nvidia.com/gpu=all \
+      -v "$PWD":/work:ro -w /work \
       -v /export/synthbench:/export/synthbench -v /export/synthbench/cache:/root/.cache \
-      -e SYNTHBENCH_ROOT=/export/synthbench --entrypoint python \
-      localhost/synthbench-comfyui:v0.37.0 -m synthbench.spikes.p1_bakeoff.measure
+      -e SYNTHBENCH_ROOT=/export/synthbench -e EASYOCR_MODULE_PATH=/root/.cache/easyocr \
+      --entrypoint python localhost/synthbench-comfyui:v0.37.0 \
+      -m synthbench.spikes.p1_bakeoff.measure
+
+This module and cases.py run on the image's Python 3.12: ruff targets py312
+for them (pyproject.toml), and test_p1_py312.py checks that they parse.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
@@ -3084,7 +3523,7 @@ def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str
 
 class RealTools:  # pragma: no cover - runs in the renderer image only
     def __init__(self) -> None:
-        import torch  # noqa: PLC0415
+        import torch
 
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
         self._owl: Any = None
@@ -3092,13 +3531,15 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         self._faces: Any = None
 
     def owl(self, image: Path, queries: tuple[str, ...]) -> dict[str, float]:
-        import torch  # noqa: PLC0415
-        from PIL import Image  # noqa: PLC0415
-        from transformers import Owlv2ForObjectDetection, Owlv2Processor  # noqa: PLC0415
+        import torch
+        from PIL import Image
+        from transformers import Owlv2ForObjectDetection, Owlv2Processor
 
         if self._owl is None:
+            # Bound as Any: mypy rejects the .to() chain on the transformers stub.
+            owl_cls: Any = Owlv2ForObjectDetection
             self._owl = (Owlv2Processor.from_pretrained(OWL_MODEL),
-                         Owlv2ForObjectDetection.from_pretrained(OWL_MODEL).to(self._device).eval())
+                         owl_cls.from_pretrained(OWL_MODEL).to(self._device).eval())
         processor, model = self._owl
         img = Image.open(image).convert("RGB")
         inputs = processor(text=[list(queries)], images=img, return_tensors="pt").to(self._device)
@@ -3107,7 +3548,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return {q: round(float(logits[:, i].max()), 4) for i, q in enumerate(queries)}
 
     def ocr(self, image: Path) -> str:
-        import easyocr  # noqa: PLC0415
+        import easyocr
 
         if self._ocr is None:
             self._ocr = easyocr.Reader(["en"], gpu=self._device == "cuda")
@@ -3115,7 +3556,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return " ".join(text for _box, text, _conf in sorted(results, key=lambda r: -r[2]))
 
     def _face_models(self) -> Any:
-        from facenet_pytorch import MTCNN, InceptionResnetV1  # noqa: PLC0415
+        from facenet_pytorch import MTCNN, InceptionResnetV1
 
         if self._faces is None:
             self._faces = (MTCNN(image_size=160, device=self._device),
@@ -3123,7 +3564,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return self._faces
 
     def _embed(self, pil_image: Any) -> list[float] | None:
-        import torch  # noqa: PLC0415
+        import torch
 
         detector, embedder = self._face_models()
         crop = detector(pil_image)
@@ -3134,12 +3575,12 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return [round(float(x), 6) for x in vector]
 
     def face(self, image: Path) -> list[float] | None:
-        from PIL import Image  # noqa: PLC0415
+        from PIL import Image
 
         return self._embed(Image.open(image).convert("RGB"))
 
     def clip_faces(self, clip: Path) -> list[list[float]]:
-        import av  # noqa: PLC0415
+        import av
 
         with av.open(str(clip)) as container:
             frames = [f.to_image() for f in container.decode(video=0)]
@@ -3148,8 +3589,13 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return [f for f in faces if f is not None]
 
 
-def main() -> int:  # pragma: no cover - runs in the renderer image only
-    root = Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "p1"
+def main(argv: list[str] | None = None) -> int:  # pragma: no cover - renderer image only
+    parser = argparse.ArgumentParser(prog="python -m synthbench.spikes.p1_bakeoff.measure")
+    parser.add_argument(
+        "--root", type=Path,
+        default=Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "p1",
+    )
+    root: Path = parser.parse_args(argv).root
     records = [json.loads(line) for line in (root / "records.jsonl").read_text().splitlines()]
     latest = {r["output"]: r for r in records}  # a resumed job's last row wins
     tools = RealTools()
@@ -3164,17 +3610,33 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
+Then add this table to `pyproject.toml`, after the `[tool.ruff]` settings and before `[tool.ruff.lint]`:
+
+```toml
+# Files that run inside the renderer image (NGC PyTorch, Python 3.12): measure.py and
+# everything it imports from synthbench. Ruff's repo-wide py314 target would rewrite
+# `except (A, B):` into PEP 758 syntax that Python 3.12 cannot parse.
+[tool.ruff.per-file-target-version]
+"synthbench/__init__.py" = "py312"
+"synthbench/spikes/__init__.py" = "py312"
+"synthbench/spikes/p1_bakeoff/__init__.py" = "py312"
+"synthbench/spikes/p1_bakeoff/cases.py" = "py312"
+"synthbench/spikes/p1_bakeoff/measure.py" = "py312"
+```
+
+If `measure.py` ever imports another `synthbench` module, add it here and to `CONTAINER_FILES` in `test_p1_py312.py`.
+
 - [ ] **Step 4: Implement `sheet.py`**
 
-This is a static HTML contact sheet, opened from `/export/synthbench/p1/sheet.html`. It has one section per case (and per clip case), one row per model and one column per seed. Each cell shows:
+This is a static HTML contact sheet, opened from `<root>/sheet.html` (`/export/synthbench/p1/sheet.html` by default). It has one section per case (and per clip case), one row per model and one column per seed. Each cell shows:
 
 - the image or `<video controls>`;
 - the OWLv2 scores or plate text from `measures.jsonl`;
 - three radio buttons (`good` / `partial` / `fail`) named by the record's `output` path, plus a note input.
 
-Failed records show their error text instead of media. A "Download ratings.json" button serializes `{output: {rating, note}}` with a `Blob` download, and the owner saves the file as `/export/synthbench/p1/ratings.json`.
+Failed records show their error text instead of media. A "Download ratings.json" button serializes `{output: {rating, note}}` with a `Blob` download, and the owner saves the file as `<root>/ratings.json`.
 
-`render(records, measures, root) -> str` is pure and escapes every string with `html.escape`. `main()` reads the JSONL files and writes `sheet.html`.
+`render(records, measures, root) -> str` is pure and escapes every string with `html.escape`. `main(argv)` takes the same `--root` option as `run.py` (default `$SYNTHBENCH_ROOT/p1`), reads the JSONL files there and writes `<root>/sheet.html`.
 
 Add this test to `test_p1_report.py`:
 
@@ -3199,7 +3661,7 @@ def test_sheet_has_one_rating_group_per_ok_record() -> None:
 - Per model, compute:
   - `ok` and `failed` counts;
   - `median_seconds` (ok image jobs only; clips are separate);
-  - `peak_vram_gib` from `groups` (MiB / 1024, rounded to 0.1);
+  - `peak_vram_gib`: the max `peak_vram_mib` over that model's `groups` rows (a resumed run appends rows), skipping `null`, as MiB / 1024 rounded to 0.1; `None` when the model has no non-null row;
   - `threat_good_rate`: the share of `good` ratings among rated records of the threat cases `handgun_in_hand`, `knife`, `crowbar_at_door`, `balaclava_ir_night`, `forced_door`, `pried_window`, `child_alone_pool` and `smoke_from_eave`;
   - `owl_hit_rate`: the share of case records whose first OWL query scores ≥ 0.30;
   - `plate_exact_rate` and `plate_mean_cer`;
@@ -3218,9 +3680,9 @@ def test_sheet_has_one_rating_group_per_ok_record() -> None:
 
 A slot with no eligible model maps to `"none"`.
 
-`to_markdown(summary, picks)` produces a header with the date, commit and corpus note ("aggregate metrics only; media stays in /export/synthbench/p1"), one table per image model and one per clip model, then "Proposed picks (owner approves into spec rev 2)" and a "Risks R1-R3 outcome" section with placeholders the controller fills in Task 8.
+`to_markdown(summary, picks)` produces a header with the date, commit and corpus note ("aggregate metrics only; media stays in /export/synthbench/p1"), one table of image models (a row per model) and one of clip models, then "Proposed picks (owner approves into spec rev 2)" and a "Risks R1-R3 outcome" section with placeholders the controller fills in Task 8.
 
-`main()` reads `/export/synthbench/p1/*.jsonl` and `ratings.json`, then writes `docs/benchmarks/synthbench/p1-bakeoff.md`.
+`main(argv)` takes the same `--root` option as `run.py` (default `$SYNTHBENCH_ROOT/p1`), reads `<root>/*.jsonl` and `<root>/ratings.json`, then writes `docs/benchmarks/synthbench/p1-bakeoff.md`.
 
 - [ ] **Step 6: Run the tests, lint, commit**
 
@@ -3229,9 +3691,9 @@ uv run pytest backend/tests/unit/synthbench/spikes/ -n0 -q
 uv run ruff check --fix synthbench/spikes/ backend/tests/unit/synthbench/spikes/
 uv run ruff format synthbench/spikes/ backend/tests/unit/synthbench/spikes/
 uv run mypy synthbench/ --ignore-missing-imports
-uvx pre-commit run --files synthbench/spikes/p1_bakeoff/measure.py synthbench/spikes/p1_bakeoff/sheet.py synthbench/spikes/p1_bakeoff/report.py backend/tests/unit/synthbench/spikes/test_p1_measure.py backend/tests/unit/synthbench/spikes/test_p1_report.py
-git add synthbench/spikes/p1_bakeoff/ backend/tests/unit/synthbench/spikes/
-git commit -m "feat(synthbench): P1 measurement, contact sheet and report aggregation (spike)
+SKIP=semgrep uvx pre-commit run --files synthbench/spikes/p1_bakeoff/measure.py synthbench/spikes/p1_bakeoff/sheet.py synthbench/spikes/p1_bakeoff/report.py backend/tests/unit/synthbench/spikes/test_p1_measure.py backend/tests/unit/synthbench/spikes/test_p1_report.py backend/tests/unit/synthbench/spikes/test_p1_py312.py pyproject.toml \
+  && git add synthbench/spikes/p1_bakeoff/ backend/tests/unit/synthbench/spikes/ pyproject.toml \
+  && git commit -m "feat(synthbench): P1 measurement, contact sheet and report aggregation (spike)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -3243,17 +3705,17 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 This task is not dispatched to an implementer subagent. The controller runs it because it opens GPU windows. The owner rates the contact sheet and approves the picks.
 
 - [ ] **Step 1: Weights complete.**
-  1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5.
-  2. The controller verifies access and then runs `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` (no `--skip-repo`).
+  1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5: done 2026-09-28 (all 30 files are cached).
+  2. The controller runs `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` (no `--skip-repo`).
   3. Expected: `verified 30 files; 31 links under /export/models/comfyui`. `ae.safetensors` and `qwen_3_4b.safetensors` are each shared by two models, and the three `flux2-vae` files are prefixed per model. Record the output.
-- [ ] **Step 2: First window: smoke the four full-GPU graphs.** Run `python -m synthbench.generate.window run -- bash -c 'uv run python -m synthbench.generate.comfy.serve up >/dev/null && uv run python -m synthbench.generate.comfy.smoke --only t2i:flux2-dev,edit:flux2-dev,i2v:ltx-2.5,i2v:wan2.2-i2v; rc=$?; uv run python -m synthbench.generate.comfy.serve down; exit $rc'`.
+- [ ] **Step 2: First window: smoke the four full-GPU graphs.** Run `uv run python -m synthbench.generate.window run -- bash -c 'uv run python -m synthbench.generate.comfy.serve up >/dev/null && uv run python -m synthbench.generate.comfy.smoke --only t2i:flux2-dev,edit:flux2-dev,i2v:ltx-2.5,i2v:wan2.2-i2v; rc=$?; uv run python -m synthbench.generate.comfy.serve down; exit $rc'`.
   - Before starting, tell the owner that the flagship (and with it LiteLLM's `claude-flagship` and the agent-vss1 sandbox) will be down.
-  - Confirm afterwards that `python -m synthbench.generate.window status` shows `{"marker": false, "flagship_healthy": true}`.
+  - Confirm afterwards that `uv run python -m synthbench.generate.window status` shows `{"marker": false, "flagship_healthy": true}`.
   - Fix any failing builder through the Task 5 loop (validator, then smoke) before the full run.
-- [ ] **Step 3: The full run.** Run `python -m synthbench.generate.window run -- uv run python -m synthbench.spikes.p1_bakeoff.run all`.
+- [ ] **Step 3: The full run.** Run `uv run python -m synthbench.generate.window run -- uv run python -m synthbench.spikes.p1_bakeoff.run all`.
   - The run is resumable. If it must be split across windows (for example to give the flagship back during the day), rerun the same command; finished outputs are skipped.
   - Afterwards: `window status` is clean, `records.jsonl` has 328 distinct outputs (312 images + 16 clips) and `groups.jsonl` has one row per model group.
-- [ ] **Step 4: Measure (flagship up).** Run the `podman run ... measure` command from the `measure.py` docstring. It writes `measures.jsonl`.
+- [ ] **Step 4: Measure (flagship up).** Run the `$(uv run python -m synthbench.generate.podman) run ... measure` command from the `measure.py` docstring. It writes `measures.jsonl`.
 - [ ] **Step 5: Owner rating.**
   1. Run `uv run python -m synthbench.spikes.p1_bakeoff.sheet`.
   2. The owner opens `/export/synthbench/p1/sheet.html`, rates every threat, identity and clip cell, and saves `ratings.json` next to the sheet.
@@ -3265,8 +3727,8 @@ This task is not dispatched to an implementer subagent. The controller runs it b
      - **R2:** ComfyUI on arm64/sm_103 held (or the fallback used);
      - **R3:** candidate facts confirmed (existence, sizes, gating: FLUX.2-dev, Ideogram 4 and LTX-2.5 were gated and accepted).
   3. Add `docs/benchmarks/synthbench/p1-bakeoff.md` to `docs/benchmarks/AGENTS.md`'s index.
-  4. Commit as `docs(synthbench): P1 bake-off report`.
+  4. Commit, gated on the hooks: `SKIP=semgrep uvx pre-commit run --files docs/benchmarks/synthbench/p1-bakeoff.md docs/benchmarks/AGENTS.md && git add docs/benchmarks/synthbench/p1-bakeoff.md docs/benchmarks/AGENTS.md && git commit -m "docs(synthbench): P1 bake-off report" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
 - [ ] **Step 7: Spec rev 2 (owner-gated).**
   1. Present the proposed picks and the report's numbers.
   2. After the owner approves (or overrides) them, update the spec: §3.2's pick column, §3.7 ("picks recorded"), the two §7.1 deviations listed in this plan's Global Constraints, and the revision line (rev 2, date, owner approval).
-  3. Commit as `docs(synthbench): spec rev 2 - P1 picks approved`.
+  3. Commit, gated on the hooks: `SKIP=semgrep uvx pre-commit run --files docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git add docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git commit -m "docs(synthbench): spec rev 2 - P1 picks approved" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
