@@ -226,7 +226,13 @@ def test_dry_run_prints_the_pending_jobs_per_model_and_kind(
     lines = capsys.readouterr().out.splitlines()
     assert lines[:3] == ["flux2-dev t2i 37", "flux2-dev edit 15", "flux2-klein-4b t2i 37"]
     assert "hidream-i1-full t2i 52" in lines and "wan2.2-i2v i2v 8" in lines
-    assert lines[-4:] == ["ltx-2.5 i2v 8", "wan2.2-i2v i2v 8", "minimax-h3 i2v 8", "total 336"]
+    assert lines[-5:] == [
+        "ltx-2.5 i2v 8",
+        "wan2.2-i2v i2v 8",
+        "minimax-h3 i2v 8",
+        "minimax-h3-turbo i2v 8",
+        "total 344",
+    ]
     assert signal.getsignal(signal.SIGTERM) == before
 
 

@@ -304,20 +304,20 @@ def test_animator_prefers_rated_clips_then_lower_drift() -> None:
 
 
 def test_report_and_sheet_cover_every_clip_model() -> None:
-    # Task 9 made the Animator slot a three-way comparison: nothing may assume a pair.
-    models = ("ltx-2.5", "wan2.2-i2v", "minimax-h3")
+    # Tasks 9 and 9b made the Animator slot a four-way comparison: nothing may assume a pair.
+    models = ("ltx-2.5", "wan2.2-i2v", "minimax-h3", "minimax-h3-turbo")
     records, measures, ratings = [], [], {}
-    for model, drift in zip(models, (0.3, 0.2, 0.1), strict=True):
+    for model, drift in zip(models, (0.4, 0.3, 0.2, 0.1), strict=True):
         out = f"clips/{model}/armed_approach/11.mp4"
         records.append(_row(model, "armed_approach", out, kind="i2v", frames=97))
         measures.append({"output": out, "frames_with_face": 8, "frame_drift_max": drift})
         ratings[out] = {"rating": "good"}
     s = r.summarize(list(reversed(records)), [], measures, ratings)
     assert list(s["clip_models"]) == list(models)  # the I2V_MODELS order, not input order
-    assert r.propose_picks(s)["animator"] == "minimax-h3"
+    assert r.propose_picks(s)["animator"] == "minimax-h3-turbo"
     text = r.to_markdown(s, r.propose_picks(s))
     clip_table = text.split("## Clip models", 1)[1].split("How to read", 1)[0]
-    assert [line.split(" | ", 1)[0] for line in clip_table.splitlines()[4:7]] == [
+    assert [line.split(" | ", 1)[0] for line in clip_table.splitlines()[4:8]] == [
         f"| {model}" for model in models
     ]
     html = sheet.render(records, measures, root=None)

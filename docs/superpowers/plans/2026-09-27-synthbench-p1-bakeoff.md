@@ -3708,7 +3708,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5: done 2026-09-28 (all 30 files are cached).
   2. The controller runs `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` (no `--skip-repo`).
   3. Expected: `verified 30 files; 31 links under /export/models/comfyui`. `ae.safetensors` and `qwen_3_4b.safetensors` are each shared by two models, and the three `flux2-vae` files are prefixed per model. Record the output.
-  4. Task 9 added MiniMax-H3's four files. A full sync (not run in Task 9) should now print `verified 34 files; 35 links under /export/models/comfyui`; Task 9's H3-only sync printed `verified 4 files; 4 links under /export/models/comfyui`.
+  4. Task 9 added MiniMax-H3's four files and Task 9b its 4-step turbo LoRA. A full sync (not run in Tasks 9 or 9b) should now print `verified 35 files; 36 links under /export/models/comfyui`. Task 9's H3-only sync printed `verified 4 files; 4 links under /export/models/comfyui`, and Task 9b's printed `verified 5 files; 5 links under /export/models/comfyui`.
 
 **Window safety (Steps 2 and 3).** A GPU window must outlive the controller's tool session. A foreground tool call is capped at 10 minutes, and a hangup or a session teardown kills whatever the call started, possibly with the flagship down. So every window runs detached, bounded in time and watched. Run every command from the repo root.
 
@@ -3725,7 +3725,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
 
 - **Pre-flight, before every window.** All five checks must pass; if any fails, do not open the window.
   1. `uv run python -m synthbench.generate.window status` prints `{"marker": false, "flagship_healthy": true}`. This also proves the live `docker inspect` and `/v1/models` probe that every restore relies on. If it prints `"flagship_healthy": false` while the flagship is in fact healthy, stop: a window's restore could never finish.
-  2. `uv run python -m synthbench.spikes.p1_bakeoff.run all --dry-run` shows the expected pending counts per model and kind: `total 336` before the first full run (`total 328` before Task 9 added MiniMax-H3's 8 clips), and only what is left after a partial one.
+  2. `uv run python -m synthbench.spikes.p1_bakeoff.run all --dry-run` shows the expected pending counts per model and kind: `total 344` before the first full run (`total 336` before Task 9b added MiniMax-H3 turbo's 8 clips, `total 328` before Task 9 added MiniMax-H3's 8), and only what is left after a partial one.
   3. `$(uv run python -m synthbench.generate.podman) ps -a` lists no container.
   4. `$(uv run python -m synthbench.generate.podman) images localhost/synthbench-comfyui:v0.37.0` lists the image.
   5. `ss -ltn "sport = :${SYNTHBENCH_COMFYUI_PORT:-8188}"` prints only its header line: the ComfyUI port is free.
@@ -3758,7 +3758,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   - Afterwards:
     - `window status` is clean;
     - `run all --dry-run` prints `total 0`;
-    - `records.jsonl` covers all 336 outputs (312 images + 24 clips: 8 per video model), each with an ok latest row;
+    - `records.jsonl` covers all 344 outputs (312 images + 32 clips: 8 per video model), each with an ok latest row;
     - `groups.jsonl` has at least one row per model group (a resumed group appends another).
 - [ ] **Step 4: Measure (the flagship stays up).**
 
@@ -3798,7 +3798,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
      - **R1:** which threat props each model could or could not render: start from the report's per-case table and its §3.7 fallback candidates.
      - **R2:** ComfyUI on arm64/sm_103 held (or the fallback used).
      - **R3:** the candidate facts are confirmed (existence, sizes and gating: FLUX.2-dev, Ideogram 4 and LTX-2.5 were gated and accepted). Also record the scope caveats (final-review I7):
-       - Cosmos-Predict2.5 was not in the owner-approved P1 slate (2026-09-27), so the Animator comparison covers LTX-2.5, Wan 2.2 and MiniMax-H3 (Task 9) first-frame i2v only;
+       - Cosmos-Predict2.5 was not in the owner-approved P1 slate (2026-09-27), so the Animator comparison covers LTX-2.5, Wan 2.2, MiniMax-H3 (Task 9) and MiniMax-H3 turbo (Task 9b) first-frame i2v only;
        - first/last-frame guides are deferred to P6;
        - P1's "edit" is reference-conditioned generation, not §3.3's masked inpainting.
   3. Add `docs/benchmarks/synthbench/p1-bakeoff.md` to `docs/benchmarks/AGENTS.md`'s index.
@@ -3809,7 +3809,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
      - §3.2's pick column;
      - §3.7 ("picks recorded");
      - the two §7.1 deviations listed in this plan's Global Constraints;
-     - the Step 6 R3 caveats: Cosmos-Predict2.5 was not in the P1 slate, so the Animator pick compares LTX-2.5, Wan 2.2 and MiniMax-H3 (Task 9) first-frame i2v only; first/last-frame guides are deferred to P6; P1's "edit" is reference-conditioned generation, not masked inpainting;
+     - the Step 6 R3 caveats: Cosmos-Predict2.5 was not in the P1 slate, so the Animator pick compares LTX-2.5, Wan 2.2, MiniMax-H3 (Task 9) and MiniMax-H3 turbo (Task 9b) first-frame i2v only; first/last-frame guides are deferred to P6; P1's "edit" is reference-conditioned generation, not masked inpainting;
      - the revision line (rev 2, date, owner approval).
   3. Commit, gated on the hooks: `SKIP=semgrep uvx pre-commit run --files docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git add docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git commit -m "docs(synthbench): spec rev 2 - P1 picks approved" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
 
@@ -3829,7 +3829,7 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   | vae              | `minimax_h3_video_vae_fp16.safetensors`            | the template names `minimax_h3_video_vae_int8_convrot`, absent at the pinned revision; `VAELoader` loads both |
   | vae              | `minimax_h3_audio_vae_fp32.safetensors`            | as in the template                                                                                            |
 
-  The cached turbo LoRAs stay out of the manifest: the i2v graph never loads them.
+  The cached turbo LoRAs stay out of the `minimax-h3` rows: its graph never loads them. Task 9b adds the 4-step one under `minimax-h3-turbo`.
 
 - **Clip size and frames.** 1344x768: H3's native 768p canvas (a 768 short edge on a 32-pixel grid, capped at 768 × 1344) and the node's default. 124 frames: H3 takes 17k + 5 frames at 24 fps and snaps anything else up; 124 is the template's 5 s and the low end of the trained range.
 - **Done without a GPU.** The H3-only sync (`--skip-repo` for every other repo) printed `verified 4 files; 4 links under /export/models/comfyui`. The snapshot was regenerated from the live renderer with a single `GET /object_info`.
@@ -3837,3 +3837,14 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   1. Smoke it: `uv run python -m synthbench.generate.comfy.smoke --only i2v:minimax-h3`, wrapped in `serve up` / `serve down` as in Task 8 Step 2. The smoke's 17 frames snap up to 22.
   2. Render its 8 clips: `uv run python -m synthbench.spikes.p1_bakeoff.run clips --models minimax-h3`. Finished outputs are skipped, so this is a resume.
   3. Then re-run Task 8 Steps 4-6 (measure, sheet, rating, report) so that they cover the H3 clips.
+- **Task 9b: MiniMax-H3 turbo (added 2026-09-28, owner direction).**
+  - **Why.** H3 base took about 5.5 min per clip (20 steps at 15.4 s/step for 1344x768 × 124 frames), against about 12 s for LTX-2.5 and 51 s for Wan 2.2. For speed, the owner asked for the turbo LoRA.
+  - **Scope.** H3 turbo is a separate, fourth Animator entry, `graphs.minimax_h3_turbo_i2v`, registered as `I2V_BUILDERS["minimax-h3-turbo"]`, so the bake-off compares base and turbo on both quality and speed. The base builder is unchanged: a test pins its graph byte for byte.
+  - **Template.** The builder is the same template's "Enable Lightning LoRA" branch switched on. A `LoraLoaderModelOnly` at strength 1.0 on the diffusion model feeds `BasicScheduler` and `BasicGuider`. `res_multistep`, `simple`, denoise 1.0, `BasicGuider` (no cfg) and no shift node are all unchanged from the base graph.
+  - **LoRA and steps.** Template default: 8-step; chosen: 4-step (speed, owner direction). The branch's default is `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16` at 8 steps. The template's Model Links note offers both fl2v turbo LoRAs, "8 steps" and "4 steps". We take `minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16` at **4 steps**: it is trained for 768p, our canvas.
+  - **Files.** 5 manifest rows under `minimax-h3-turbo`. Four are H3 base's files: same content, so they share its bare links. The fifth is `loras/minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors` (1.96 GB, `Comfy-Org/MiniMax-H3` at the same revision). The manifest is now 42 rows, 35 unique files.
+  - **Clips.** Same 1344x768 and 124 frames as H3 base: 8 clips. The bake-off grows from 336 to 344 jobs (clips 24 → 32).
+  - **Snapshot.** The renderer was down between windows 3 and 4, so the snapshot was derived offline. Task 9's full live `/object_info` capture, filtered, reproduces the committed snapshot byte for byte; the derivation adds the new LoRA to the sorted `LoraLoaderModelOnly.lora_name` combo, a one-line diff.
+  - **Left for the controller, in window 4:**
+    1. Verify the snapshot with one live GET: `uv run python -m synthbench.generate.comfy.snapshot && git diff --exit-code synthbench/generate/comfy/object_info.v0.37.0.json`.
+    2. Smoke `i2v:minimax-h3-turbo`, then `run clips --models minimax-h3-turbo`, then re-run Task 8 Steps 4-6.

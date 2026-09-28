@@ -2301,6 +2301,7 @@
    "required": {
     "lora_name": [
      [
+      "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
       "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
       "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"
      ]

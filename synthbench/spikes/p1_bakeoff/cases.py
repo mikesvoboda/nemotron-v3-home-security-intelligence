@@ -184,16 +184,23 @@ MODEL_SIZES: dict[str, tuple[int, int]] = {
 }
 T2I_MODELS: tuple[str, ...] = tuple(MODEL_SIZES)
 EDIT_MODELS: tuple[str, ...] = ("qwen-image-2.1", "flux2-dev", "flux2-klein-4b")
-I2V_MODELS: tuple[str, ...] = ("ltx-2.5", "wan2.2-i2v", "minimax-h3")
+I2V_MODELS: tuple[str, ...] = ("ltx-2.5", "wan2.2-i2v", "minimax-h3", "minimax-h3-turbo")
 # Per model: LTX-2.5's latent grid needs multiples of 32 (720 is not one). MiniMax-H3's
 # native canvas: a 768 short edge on a 32-pixel grid, 768 x 1344 at most (its template).
+# minimax-h3-turbo is the same model with its template's turbo LoRA: same canvas and length.
 CLIP_SIZES: dict[str, tuple[int, int]] = {
     "ltx-2.5": (1280, 704),
     "wan2.2-i2v": (1280, 720),
     "minimax-h3": (1344, 768),
+    "minimax-h3-turbo": (1344, 768),
 }
 # LTX-2.5 takes 8n + 1 frames, Wan 2.2 takes 4n + 1, MiniMax-H3 17k + 5 at 24 fps
 # (it snaps anything else up; 124 is its template's 5 s and its trained minimum).
-CLIP_FRAMES: dict[str, int] = {"ltx-2.5": 97, "wan2.2-i2v": 81, "minimax-h3": 124}
+CLIP_FRAMES: dict[str, int] = {
+    "ltx-2.5": 97,
+    "wan2.2-i2v": 81,
+    "minimax-h3": 124,
+    "minimax-h3-turbo": 124,
+}
 KEYFRAME_MODEL = "flux2-dev"
 KEYFRAME_SEED = 11

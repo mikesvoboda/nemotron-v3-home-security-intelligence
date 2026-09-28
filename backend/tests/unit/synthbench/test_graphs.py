@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 import pytest
+from synthbench.generate import weights
 from synthbench.generate.comfy import graphs
 from synthbench.generate.comfy.validate import validate_graph
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SNAPSHOT = REPO_ROOT / "synthbench" / "generate" / "comfy" / "object_info.v0.37.0.json"
+P1_SLATE = REPO_ROOT / "synthbench" / "generate" / "manifests" / "p1-slate.json"
 
 
 @pytest.fixture(scope="module")
@@ -30,9 +33,9 @@ def test_registries_cover_the_approved_slate() -> None:
         "ideogram-4",
     }
     assert set(graphs.EDIT_BUILDERS) == {"qwen-image-2.1", "flux2-dev", "flux2-klein-4b"}
-    assert set(graphs.I2V_BUILDERS) == {"ltx-2.5", "wan2.2-i2v", "minimax-h3"}
-    assert len(graphs.sample_graphs()) == 12
-    assert "i2v:minimax-h3" in graphs.sample_graphs()
+    assert set(graphs.I2V_BUILDERS) == {"ltx-2.5", "wan2.2-i2v", "minimax-h3", "minimax-h3-turbo"}
+    assert len(graphs.sample_graphs()) == 13
+    assert {"i2v:minimax-h3", "i2v:minimax-h3-turbo"} <= set(graphs.sample_graphs())
 
 
 @pytest.mark.parametrize("key", sorted(graphs.sample_graphs()))
@@ -90,6 +93,13 @@ def _size(*sites: tuple[str, str]) -> dict[str, list[Site]]:
         "height": sorted((c, i.format("height")) for c, i in sites),
     }
 
+
+_H3_ROUTES: dict[str, list[Site]] = {  # its text encoding happens inside MiniMaxH3ImageToVideo
+    "prompt": [("MiniMaxH3ImageToVideo", "prompt")],
+    "seed": [("RandomNoise", "noise_seed")],
+    **_size(("MiniMaxH3ImageToVideo", "{}")),
+    "frames": [("MiniMaxH3ImageToVideo", "length")],
+}
 
 # Where each builder must route each argument: nowhere else, and never dropped.
 ROUTES: dict[str, dict[str, list[Site]]] = {
@@ -150,12 +160,8 @@ ROUTES: dict[str, dict[str, list[Site]]] = {
         **_size(("WanImageToVideo", "{}")),
         "frames": [("WanImageToVideo", "length")],
     },
-    "i2v:minimax-h3": {  # its text encoding happens inside MiniMaxH3ImageToVideo
-        "prompt": [("MiniMaxH3ImageToVideo", "prompt")],
-        "seed": [("RandomNoise", "noise_seed")],
-        **_size(("MiniMaxH3ImageToVideo", "{}")),
-        "frames": [("MiniMaxH3ImageToVideo", "length")],
-    },
+    "i2v:minimax-h3": _H3_ROUTES,
+    "i2v:minimax-h3-turbo": _H3_ROUTES,  # the turbo LoRA changes no argument's route
 }
 
 
@@ -274,6 +280,80 @@ def test_minimax_h3_keeps_the_template_sampling_and_its_audio() -> None:
         "minimax_h3_audio_vae_fp32.safetensors"
     )
     assert video["fps"] == 24.0
+
+
+# The template's "Enable Lightning LoRA" branch (video_minimax_h3_i2v.json @ 98fd32c, off by
+# default): LoraLoaderModelOnly at strength 1 feeding the scheduler and the guider, res_multistep
+# on the simple scheduler under BasicGuider (no cfg), no shift node. Template default: 8-step
+# LoRA at 8 steps; chosen: the 4-step 768p LoRA at 4 steps (speed, owner direction).
+H3_TURBO_LORA = "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors"
+
+
+def test_minimax_h3_turbo_takes_the_template_lightning_lora_values() -> None:
+    graph = _build("i2v:minimax-h3-turbo", ARGS_A)
+    lora = _only(graph, "LoraLoaderModelOnly")
+    lora_id = next(k for k, n in graph.items() if n is lora)
+    unet_id = next(k for k, n in graph.items() if n["class_type"] == "UNETLoader")
+    assert lora["inputs"] == {
+        "model": [unet_id, 0],
+        "lora_name": H3_TURBO_LORA,
+        "strength_model": 1.0,
+    }
+    scheduler = _only(graph, "BasicScheduler")["inputs"]
+    assert scheduler == {"model": [lora_id, 0], "scheduler": "simple", "steps": 4, "denoise": 1.0}
+    assert _only(graph, "BasicGuider")["inputs"]["model"] == [lora_id, 0]
+    assert _only(graph, "KSamplerSelect")["inputs"]["sampler_name"] == "res_multistep"
+    # No cfg: BasicGuider takes none, and the branch adds no guider, shift or sampling node.
+    assert not any("cfg" in n["inputs"] for n in graph.values())
+    assert {n["class_type"] for n in graph.values()}.isdisjoint(
+        {"CFGGuider", "MiniMaxH3SigmaShift", "ModelSamplingSD3"}
+    )
+
+
+def test_minimax_h3_turbo_is_the_base_graph_with_the_lora_switched_on() -> None:
+    base, turbo = _build("i2v:minimax-h3", ARGS_A), _build("i2v:minimax-h3-turbo", ARGS_A)
+    [lora_id] = [k for k, n in turbo.items() if n["class_type"] == "LoraLoaderModelOnly"]
+    unet = [turbo[lora_id]["inputs"]["model"][0], 0]
+    # Switch it back off: drop the LoRA, feed its consumers the base model, restore the
+    # template's 20 steps and the base prefix. What is left must be the base graph exactly.
+    off = json.loads(json.dumps({k: n for k, n in turbo.items() if k != lora_id}))
+    for node in off.values():
+        for name, value in node["inputs"].items():
+            if value == [lora_id, 0]:
+                node["inputs"][name] = unet
+    _only(off, "BasicScheduler")["inputs"]["steps"] = 20
+    _only(off, "SaveVideo")["inputs"]["filename_prefix"] = "synthbench/minimax-h3"
+    assert off == base
+
+
+# sha256 of json.dumps(graph), recorded at 0acfc21e before Task 9b: adding the turbo entry
+# must leave every byte of the base graph as it was (diff against `git show 0acfc21e`).
+_H3_BASE_SHA256 = {
+    "A": "6cac9e5701a42f526368b5656010b96ac4934600f70548f16d7f544a64f7ba1d",  # pragma: allowlist secret
+    "B": "b7e407aaf7d15221a53decbff6bbce608251822bf22fd9b9116cafc61cd2fbd8",  # pragma: allowlist secret
+}
+
+
+@pytest.mark.parametrize(("name", "args"), [("A", ARGS_A), ("B", ARGS_B)])
+def test_the_minimax_h3_base_graph_is_byte_for_byte_unchanged(
+    name: str, args: dict[str, Any]
+) -> None:
+    wire = json.dumps(_build("i2v:minimax-h3", args)).encode()
+    assert hashlib.sha256(wire).hexdigest() == _H3_BASE_SHA256[name]
+
+
+@pytest.mark.parametrize("model", ["minimax-h3", "minimax-h3-turbo"])
+def test_the_manifest_holds_every_file_the_h3_graphs_load(model: str) -> None:
+    graph = graphs.sample_graphs()[f"i2v:{model}"]
+    loaded = {
+        (name, value)
+        for n in graph.values()
+        for name, value in n["inputs"].items()
+        if name.endswith("_name") and isinstance(value, str) and value.endswith(".safetensors")
+    }
+    manifest = weights.load_manifest(P1_SLATE)
+    names = weights.link_names(manifest)
+    assert {name for _, name in loaded} == {names[f] for f in manifest if f.model == model}
 
 
 def test_ideogram_rounds_its_size_the_way_the_template_does() -> None:

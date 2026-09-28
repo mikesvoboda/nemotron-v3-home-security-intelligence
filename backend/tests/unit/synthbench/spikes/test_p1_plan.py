@@ -45,7 +45,7 @@ def test_every_output_path_is_unique() -> None:
 
 def test_clip_jobs_use_keyframes_from_the_keyframe_model() -> None:
     jobs = clip_jobs()
-    assert len(jobs) == len(c.I2V_MODELS) * len(c.CLIPS) * len(c.CLIP_SEEDS) == 24
+    assert len(jobs) == len(c.I2V_MODELS) * len(c.CLIPS) * len(c.CLIP_SEEDS) == 32
     assert Counter(j.model for j in jobs) == dict.fromkeys(c.I2V_MODELS, 8)
     assert {j.inputs[0].split("/")[1] for j in jobs} == {c.KEYFRAME_MODEL}
     assert {j.frames for j in jobs if j.model == "ltx-2.5"} == {c.CLIP_FRAMES["ltx-2.5"]}
@@ -54,8 +54,8 @@ def test_clip_jobs_use_keyframes_from_the_keyframe_model() -> None:
 
 
 def test_the_bakeoff_totals() -> None:
-    assert c.I2V_MODELS == ("ltx-2.5", "wan2.2-i2v", "minimax-h3")
-    assert len(image_jobs()) + len(clip_jobs()) == 312 + 24 == 336
+    assert c.I2V_MODELS == ("ltx-2.5", "wan2.2-i2v", "minimax-h3", "minimax-h3-turbo")
+    assert len(image_jobs()) + len(clip_jobs()) == 312 + 32 == 344
 
 
 def test_clip_sizes_and_frames_fit_each_video_model() -> None:
@@ -69,6 +69,10 @@ def test_clip_sizes_and_frames_fit_each_video_model() -> None:
     assert width % 32 == 0 and height % 32 == 0
     assert min(width, height) == 768 and width * height <= 768 * 1344
     assert (c.CLIP_FRAMES["minimax-h3"] - 5) % 17 == 0
+    # Task 9b: the turbo LoRA changes the sampling only; base and turbo clips must compare
+    # at the same canvas and length.
+    assert c.CLIP_SIZES["minimax-h3-turbo"] == c.CLIP_SIZES["minimax-h3"]
+    assert c.CLIP_FRAMES["minimax-h3-turbo"] == c.CLIP_FRAMES["minimax-h3"]
 
 
 def test_keyframe_paths() -> None:

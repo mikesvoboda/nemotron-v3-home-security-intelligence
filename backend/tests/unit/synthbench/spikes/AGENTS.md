@@ -10,7 +10,7 @@ Tests for the pure logic of the P1 bake-off spike (`synthbench/spikes/p1_bakeoff
 | -------------------- | ----------------------------------------------------------------------------------------------------- |
 | `test_p1_plan.py`    | `plan.py`, `cases.py`: job counts, stage-major order, keyframes, resume (`pending`)                   |
 | `test_p1_run.py`     | `run.py`: records, VRAM settle and sampling, the transport and timeout breakers, `main`'s early exits |
-| `test_p1_graphs.py`  | all 336 bake-off graphs, built through the runner, validate against the committed snapshot            |
+| `test_p1_graphs.py`  | all 344 bake-off graphs, built through the runner, validate against the committed snapshot            |
 | `test_p1_measure.py` | `measure.py`: plate scoring, the common measurement size, per-record dispatch, the clip frame reader  |
 | `test_p1_report.py`  | `report.py`: aggregation, pick rules, the markdown; `sheet.py`: the contact sheet                     |
 | `test_p1_judge.py`   | `judge.py`: the non-leading request, its fallbacks, `derive` per case type, the resumable CLI         |

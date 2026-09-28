@@ -13,6 +13,9 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 P1_SLATE = REPO_ROOT / "synthbench" / "generate" / "manifests" / "p1-slate.json"
 REV = "a" * 40
 H3_REVISION = "4cc1d817b6184899b41293954329f576cb5ae86b"  # pragma: allowlist secret
+H3_TURBO_LORA_SHA256 = (
+    "c396a9a06f58399e9df9754b18299818d84a2ddd371724ba48fe4a41221437dc"  # pragma: allowlist secret
+)
 
 
 def _sha(data: bytes) -> str:
@@ -59,8 +62,8 @@ class TestLoadManifest:
 
     def test_the_committed_p1_slate_loads(self) -> None:
         files = w.load_manifest(P1_SLATE)
-        assert len(files) == 37
-        assert len(w.unique_by_sha(files)) == 34
+        assert len(files) == 42
+        assert len(w.unique_by_sha(files)) == 35
         assert {f.model for f in files} == {
             "flux2-dev",
             "qwen-image-2.1",
@@ -71,6 +74,7 @@ class TestLoadManifest:
             "ltx-2.5",
             "wan2.2-i2v",
             "minimax-h3",
+            "minimax-h3-turbo",
         }
 
     def test_the_p1_slate_pins_the_minimax_h3_i2v_files(self) -> None:
@@ -84,6 +88,21 @@ class TestLoadManifest:
         }
         assert {(f.repo, f.revision) for f in h3} == {("Comfy-Org/MiniMax-H3", H3_REVISION)}
         assert all(f.path == f"{f.category}/{f.name}" for f in h3)
+
+    def test_the_p1_slate_pins_the_minimax_h3_turbo_files(self) -> None:
+        # Task 9b: the base model's four files (same content, so the same bare links) plus
+        # the 4-step 768p fl2v turbo LoRA.
+        files = w.load_manifest(P1_SLATE)
+        base = {(f.category, f.name): f for f in files if f.model == "minimax-h3"}
+        turbo = {(f.category, f.name): f for f in files if f.model == "minimax-h3-turbo"}
+        lora = ("loras", "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors")
+        assert set(turbo) == set(base) | {lora}
+        assert all(turbo[key].sha256 == f.sha256 for key, f in base.items())
+        assert (turbo[lora].size, turbo[lora].sha256) == (1956192992, H3_TURBO_LORA_SHA256)
+        assert {(f.repo, f.revision) for f in turbo.values()} == {
+            ("Comfy-Org/MiniMax-H3", H3_REVISION)
+        }
+        assert all(f.path == f"{f.category}/{f.name}" for f in turbo.values())
 
     @pytest.mark.parametrize(
         ("field", "value", "message"),
@@ -135,7 +154,7 @@ class TestLinkNames:
         for f, name in names.items():
             contents.setdefault((f.category, name), set()).add(f.sha256)
         assert all(len(shas) == 1 for shas in contents.values())
-        assert len(contents) == 35  # the farm's links: 34 unique files, ideogram-4 reuses one
+        assert len(contents) == 36  # the farm's links: 35 unique files, ideogram-4 reuses one
 
 
 class TestFetch:

@@ -807,11 +807,30 @@ def wan22_i2v(prompt: str, *, image: str, seed: int, width: int, height: int, fr
     }
 
 
-# From template video_minimax_h3_i2v.json @ 98fd32c (Lightning LoRA off: 20 steps; fp16 video VAE)
-def minimax_h3_i2v(
-    prompt: str, *, image: str, seed: int, width: int, height: int, frames: int
+# The template's "Enable Lightning LoRA" branch (off by default): a LoraLoaderModelOnly at
+# strength 1 on the diffusion model feeds the scheduler and the guider, and the steps switch;
+# the sampler, scheduler, guider (no cfg) and shifts stay. Template default: the 8-step LoRA at
+# 8 steps; chosen: the 4-step 768p LoRA at 4 steps (speed, owner direction), which the
+# template's Model Links note also offers ("4 steps") and which matches our 768p canvas.
+_H3_TURBO_LORA = "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors"
+_H3_TURBO_STEPS = 4
+
+
+def _minimax_h3(
+    prompt: str,
+    *,
+    image: str,
+    seed: int,
+    width: int,
+    height: int,
+    frames: int,
+    model: str,
+    lora: str | None,
+    steps: int,
 ) -> Graph:
-    return {
+    """The template's i2v graph; `lora` switches its Lightning LoRA branch on (node "16")."""
+    diffusion = "1" if lora is None else "16"
+    graph: Graph = {
         "1": {
             "class_type": "UNETLoader",
             "inputs": {
@@ -848,10 +867,18 @@ def minimax_h3_i2v(
                 "length": frames,
             },
         },
-        "7": {"class_type": "BasicGuider", "inputs": {"model": ["1", 0], "conditioning": ["6", 0]}},
+        "7": {
+            "class_type": "BasicGuider",
+            "inputs": {"model": [diffusion, 0], "conditioning": ["6", 0]},
+        },
         "8": {
             "class_type": "BasicScheduler",
-            "inputs": {"model": ["1", 0], "scheduler": "simple", "steps": 20, "denoise": 1.0},
+            "inputs": {
+                "model": [diffusion, 0],
+                "scheduler": "simple",
+                "steps": steps,
+                "denoise": 1.0,
+            },
         },
         "9": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "res_multistep"}},
         "10": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
@@ -871,8 +898,48 @@ def minimax_h3_i2v(
             "class_type": "CreateVideo",
             "inputs": {"images": ["12", 0], "audio": ["13", 0], "fps": 24.0, "bit_depth": 8},
         },
-        "15": _save_video(["14", 0], "minimax-h3"),
+        "15": _save_video(["14", 0], model),
     }
+    if lora is not None:
+        graph["16"] = {
+            "class_type": "LoraLoaderModelOnly",
+            "inputs": {"model": ["1", 0], "lora_name": lora, "strength_model": 1.0},
+        }
+    return graph
+
+
+# From template video_minimax_h3_i2v.json @ 98fd32c (Lightning LoRA off: 20 steps; fp16 video VAE)
+def minimax_h3_i2v(
+    prompt: str, *, image: str, seed: int, width: int, height: int, frames: int
+) -> Graph:
+    return _minimax_h3(
+        prompt,
+        image=image,
+        seed=seed,
+        width=width,
+        height=height,
+        frames=frames,
+        model="minimax-h3",
+        lora=None,
+        steps=20,
+    )
+
+
+# From template video_minimax_h3_i2v.json @ 98fd32c (turbo branch: 4-step 768p LoRA, 4 steps)
+def minimax_h3_turbo_i2v(
+    prompt: str, *, image: str, seed: int, width: int, height: int, frames: int
+) -> Graph:
+    return _minimax_h3(
+        prompt,
+        image=image,
+        seed=seed,
+        width=width,
+        height=height,
+        frames=frames,
+        model="minimax-h3-turbo",
+        lora=_H3_TURBO_LORA,
+        steps=_H3_TURBO_STEPS,
+    )
 
 
 T2I_BUILDERS: dict[str, T2IBuilder] = {
@@ -892,6 +959,7 @@ I2V_BUILDERS: dict[str, I2VBuilder] = {
     "ltx-2.5": ltx_25_i2v,
     "wan2.2-i2v": wan22_i2v,
     "minimax-h3": minimax_h3_i2v,
+    "minimax-h3-turbo": minimax_h3_turbo_i2v,
 }
 
 _SAMPLE: dict[str, Any] = {"seed": 11, "width": 1024, "height": 576}
