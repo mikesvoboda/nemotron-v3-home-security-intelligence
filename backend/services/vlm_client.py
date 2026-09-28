@@ -83,12 +83,14 @@ BREAKER_NAME = "ai-vlm"
 CHAT_PATH = "/v1/chat/completions"
 PROPS_PATH = "/props"
 
-# The probe's budget: same S-2 lesson as _probe_completion's 400 - a budget
-# that truncates mid-object FABRICATES an IGNORED verdict (the const can
-# sort last in the grammar).
-_PROBE_MAX_TOKENS = 400
 # Real verdict budget: the verdict object plus a criterion or two.
 _ASSESS_MAX_TOKENS = 700
+# The probe's budget: a budget that truncates mid-object FABRICATES an IGNORED
+# verdict (the const can sort last in the grammar), so the probe object - the
+# verdict object plus one const - must get MORE room than a verdict does. The
+# old fixed 400 was below the shipped 8B's 427-429-token probe reply (A5500,
+# 2026-09-28): every probe went INCONCLUSIVE and every verdict failed closed.
+_PROBE_MAX_TOKENS = _ASSESS_MAX_TOKENS + 64
 
 # Upper bound for the IMAGE half of one slot, from the same arithmetic that
 # sized the slot (spec §2, echoed in the ai-vlm compose block's comment):

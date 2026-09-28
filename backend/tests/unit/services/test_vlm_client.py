@@ -557,6 +557,17 @@ class TestPromptBudget:
 
 
 class TestEnforcementProbe:
+    def test_the_probe_budget_never_binds_before_the_verdict_budget(self) -> None:
+        """A5500, 2026-09-28: the shipped 8B needs 427-429 tokens for the probe
+        object (verdict + const, no image, finish=stop) and the budget was 400,
+        so every in-client probe came back INCONCLUSIVE and every verdict failed
+        closed - on a server the CLI gate measured ENFORCED 8/8. `probe_const`
+        can sort last, so the probe object is the verdict object plus one const:
+        a verdict that fits its own call must never be unmeasurable here."""
+        assert vc._PROBE_MAX_TOKENS > vc._ASSESS_MAX_TOKENS, (
+            f"probe budget {vc._PROBE_MAX_TOKENS} <= verdict budget {vc._ASSESS_MAX_TOKENS}"
+        )
+
     async def test_enforced_echoes_const_then_caches(self, image_dir) -> None:
         client = make_client("strict")
         req = _request([str(image_dir / "front_door/a.jpg")])
