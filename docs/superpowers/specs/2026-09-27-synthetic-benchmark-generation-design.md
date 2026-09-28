@@ -4,8 +4,9 @@
 Ready for implementation planning.
 **Date:** 2026-09-27
 **Branch:** `feat/synthetic-benchmark-generation`
-**Revision:** rev 1 (2026-09-27). The owner's answers to the two open questions are folded in as D13
-and D14.
+**Revision:** rev 2 (2026-09-28): P1 picks approved by the owner (§3.2, §3.7), with P1's scope
+notes (§3.2, §3.3) and the two §7.1 deviations. Rev 1 (2026-09-27) folded the owner's answers to
+the two open questions in as D13 and D14.
 
 Evidence tags: **[V]** verified in this session by probe or source read; **[A]** assumption to
 confirm during planning; **[?]** unverified external claim (most model facts come from a
@@ -208,16 +209,41 @@ the repo.
 
 ### §3.2 Stages and model slots
 
-Phase P1 fills the pick for each slot. Nothing is pre-committed.
+Phase P1 filled the pick for each slot; the owner approved the picks on 2026-09-28 (rev 2). The
+evidence is in `docs/benchmarks/synthbench/p1-bakeoff.md`.
 
-| Slot        | Job                                                                           | Candidates [?]                                                |
-| ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| T2I-quality | Tier A camera plates; cast, vehicle and prop sheets; the Tier B quality slice | FLUX.2 [dev], Qwen-Image-2.1, HiDream-I1                      |
-| T2I-volume  | the bulk of Tier B                                                            | Z-Image-Turbo, FLUX.2 Klein                                   |
-| Compositor  | place cast and props on a plate inside the spec's boxes                       | Qwen-Image-2.1 edit, FLUX.2 [dev] edit (≤ 10 references each) |
-| Text        | legible plate strings and signage                                             | Qwen-Image-2.1, Ideogram 4                                    |
-| Animator    | keyframes → clip (first/last-frame and multi-keyframe guides)                 | LTX-2.x, Wan 2.x, Cosmos-Predict2.5                           |
-| Degrade     | Foscam camera model                                                           | plain code (OpenCV, ffmpeg), not a model                      |
+| Slot        | Job                                                                           | Candidates [?]                                                                                                                                     | Pick (rev 2) [V]               |
+| ----------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| T2I-quality | Tier A camera plates; cast, vehicle and prop sheets; the Tier B quality slice | FLUX.2 [dev], Qwen-Image-2.1, HiDream-I1                                                                                                           | FLUX.2 [dev]                   |
+| T2I-volume  | the bulk of Tier B                                                            | Z-Image-Turbo, FLUX.2 Klein                                                                                                                        | FLUX.2 [dev] (owner override)  |
+| Compositor  | place cast and props on a plate inside the spec's boxes                       | Qwen-Image-2.1 edit, FLUX.2 [dev] edit (≤ 10 references each)                                                                                      | FLUX.2 [dev] edit              |
+| Text        | legible plate strings and signage                                             | Qwen-Image-2.1, Ideogram 4 — refuses most threat prompts (safety card in weights); not picked                                                      | FLUX.2 [dev]                   |
+| Animator    | keyframes → clip (first/last-frame and multi-keyframe guides)                 | LTX-2.x, Wan 2.x, Cosmos-Predict2.5 (not in the P1 slate), MiniMax-H3 (added P1 by owner direction; license excludes US/EU/UK/KR — owner decision) | MiniMax-H3 turbo (4-step LoRA) |
+| Degrade     | Foscam camera model                                                           | plain code (OpenCV, ffmpeg), not a model                                                                                                           | —                              |
+
+Basis for each pick (all from the P1 report):
+
+- **T2I-quality:** FLUX.2 [dev] had the highest threat good rate, 100% (n=24), OWLv2 hit 92%.
+- **T2I-volume:** the owner overrode the automated rule's Qwen-Image-2.1. FLUX.2 [dev] takes ~11 s
+  per 1080p-equivalent image, ~1 s over the report's 10 s bar; the owner chose one model for every
+  still for its 100% good rate.
+- **Compositor:** owner decision on the automated evidence (facenet drift 0.118, faces 15/15),
+  because the identity shots were not rated.
+- **Text:** FLUX.2 [dev] read plate exact 4/4, CER 0.00.
+- **Animator:** owner decision on the automated evidence: 67.7 s/clip, 124 frames at 24 fps with
+  audio, the lowest frame drift (0.372), 47.4 GiB net peak VRAM. Clips were not rated. The MiniMax
+  H3 Community License's "Applicable Territory" excludes the EU, UK, Republic of Korea and USA, and
+  outputs may not be used to improve other AI models; the owner decided with those terms known.
+
+**P1 scope notes.**
+
+- Each image slot's rule ranked all six image candidates above (the Compositor's only the three
+  with an edit graph: FLUX.2 [dev], FLUX.2 Klein and Qwen-Image-2.1), so a pick need not come from
+  its own row's candidates.
+- Cosmos-Predict2.5 was not in the owner-approved P1 slate, so the Animator comparison covers
+  LTX-2.5, Wan 2.2 and MiniMax-H3 (base as a single reference clip, turbo in full), first-frame
+  image-to-video only.
+- First/last-frame guides and multi-reference identity are deferred to P6.
 
 Stages hand off through files (spec → assets → keyframes → clip → stills → manifest), so a model
 swap touches one stage.
@@ -227,6 +253,10 @@ swap touches one stage.
 The compositor edits only inside a mask drawn from the spec's box, with the cast or prop sheet as
 reference. Declared boxes are near-exact by construction; the verifier confirms them rather than
 discovering them.
+
+**P1 scope note (rev 2).** P1's "edit" jobs were reference-conditioned generation, not the masked
+inpainting described here. The Compositor pick (§3.2) rests on that evidence; P1 did not test
+masked placement.
 
 ### §3.4 Camera degrade
 
@@ -297,6 +327,32 @@ Measured per candidate:
 The picks and their numbers are recorded in this spec's next revision. If no model renders a
 threat prop convincingly, fall back to a prop reference sheet composited in, and train a LoRA
 only as a last resort.
+
+**Picks recorded (rev 2, 2026-09-28).** The picks are in §3.2; the numbers are in
+`docs/benchmarks/synthbench/p1-bakeoff.md` [V]. Key numbers:
+
+- **Corpus:** 337/337 outputs ok: 312 images (6 models × 52) and 25 clips (LTX-2.5 8, Wan 2.2 8,
+  MiniMax-H3 turbo 8, MiniMax-H3 base 1 as a reference, stopped for speed at ~5.5 min/clip),
+  rendered in five GPU windows on 2026-09-28 (the report lists them).
+- **Owner ratings:** 142 cells, threat images only (6 of the 8 threat cases). Identity shots,
+  clips, the hazard cases and the plate case are unrated.
+- **Threat props (R1):** FLUX.2 [dev] rendered all six rated threat props, 100% good on each. No
+  rated case needs the prop-reference-sheet fallback. Ideogram 4's weights refuse by painting an
+  "Image blocked by safety filter" card: 35/52 of its images were refused (by OCR). Its license
+  forbids circumventing its safety measures, and we did not.
+- **Runtime (R2):** ComfyUI v0.37.0 held on arm64/sm_103 on NGC `pytorch:26.08-py3` with the base
+  image's torch. The one forced change: torchaudio v2.11.0 built from source against the base
+  torch. No slot needed the `diffusers` fallback (§3.1).
+- **Candidate facts (R3):** every pinned file existed at its revision and was sha256-verified
+  (42 manifest rows, 35 unique files, 335 GB). FLUX.2 [dev], Ideogram 4 and LTX-2.5 were gated and
+  accepted by the owner.
+
+**Judge calibration.** The bake-off also ran a VLM judge as evidence only: the flagship
+(`claude-flagship` = Qwen3.8-Flash-Next), the same family as the pipeline's VLM stage
+(Qwen3VL-4B). Against the owner on 123 rated, non-refused threat cells it agreed 55%, Cohen's
+κ 0.06 (TP 47, FN 28, FP 27, TN 21). It is **not usable as a quality gate for threat renders** in
+this configuration. So P3's automatic verification (§4.1) needs a different-family judge, or two
+families agreeing, plus the sampled human audit (§4.3).
 
 ### §3.8 Content rules
 
@@ -477,6 +533,14 @@ synthbench/
 **Import rule**, enforced by a test like the existing "backend never imports `ai.*`" rule: only
 `synthbench.score` and `synthbench.run` may import `backend`. `generate/` and `verify/` never do,
 so the generation container carries no backend dependencies.
+
+**Deviations (rev 2, recorded from the P1 plan):**
+
+1. Tests live under `backend/tests/unit/synthbench/`, not `synthbench/tests/`, because CI runs
+   only `backend/tests/unit/`.
+2. CI coverage stays `--cov=backend`, because `scripts/test_coverage_denominator.py` pins its
+   denominator; P1 measured `synthbench` coverage locally with `--cov=synthbench` instead.
+   Widening CI coverage is a follow-up.
 
 `scripts/synthetic/` (Gemini/Veo) stays untouched. `synthbench` supersedes it; retiring it is a
 later cleanup.
