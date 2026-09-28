@@ -12056,3 +12056,73 @@ corrected: pw 23 + dc ≤10** (the gm 40 leave the scope; dc's count stays as
 rowed pending the same construction probe on its 9 non-EQ survivors — the
 probe decides killable-vs-equivalent by measurement, not by diff-shape
 reading, before any battery is authored).
+
+## 2026-09-28 — LEDGER CORRECTION (batch-29/dc): the 10 detector_client survivors dispositioned BY CONSTRUCTION PROBE — 8 EQUIVALENT, 2 KILLABLE; batch-29 dc tail shrinks to 2 keys
+
+**THE MEASUREMENT (this session).** Construction sweep
+`/tmp/wp-b28/dc-equiv-probe.py`, run in the bank tree
+(`cd mutants; PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python …`, plain
+script — no pytest, no meta/stats writes, safe next to the live re-bank),
+rc=0. Contract identical to gm-equiv-probe: per key
+`MUTANT_UNDER_TEST=backend.services.detector_client.xǁDetectorClientǁ<fn>__mutmut_<N>`
+exactly as the trampoline reads it (`get_mutant_under_test()`, env-wins,
+re-read per call — mutmut/mutation/trampoline.py:47-58), driving the REAL
+instrumented functions over case sweeps and comparing shipped-vs-mutant:
+`send`=9 cases (ConnectError/OSError/500-exhausted legs digest exception
+type + `original_error` type + `__context__` type; 400-json-fail legs with
+`response.text` of 600/60/0 chars digest the ValueError message length and
+head/tail; 404; malformed-JSON; success payload repr), `probe`=1 case ×3
+reps (real `model_readiness_probe` with `_send_detection_request` captured
+→ probe bool + sha256 + byte-length of the ENCODED JPEG handed downstream
+— the probe's only observable output), `init`=3 legs (settings
+use_ai_gateway present-True/present-False/attribute-missing → `_detector_url`),
+`unexp`=3 legs (real `detect_objects`, `_send` raising RuntimeError/OSError
+with path+token-bearing messages → DetectorUnavailableError message text +
+`original_error` type; ValueError leg), `video`=2 legs (success image-arm +
+video-arm → Detection media_type/video_width/video_height/duration/file_path).
+Image paths fixed to `/tmp/wp-b28/dc-probe-img.jpg` (random tempdirs faked
+a det198 diff on the first run — caught and killed before it was rowed).
+**POSITIVE CONTROL inside the sweep:** `model_readiness_probe__mutmut_10`
+(NOT a survivor; `(32,32)`→`(33,32)`) MUST and DOES redden
+(643→651 bytes, sha `37ef58f0…`→`be3b2db1…`) — if the probe ever reports
+control-EQUIVALENT the probe is broken, not the code.
+
+**DISPOSITIONS (all 10, from the same rc=0 run):**
+
+- **KILLABLE (2)** — `send331` =
+  `xǁDetectorClientǁ_send_detection_request__mutmut_331`
+  (`e.response.text[:500]`→`[:501]`, shipped site
+  backend/services/detector_client.py:827): 400 leg with 600-char text →
+  ValueError message **len 527 vs 528** (diff pair IS the test body:
+  `httpx.HTTPStatusError(400)` whose `response.json` raises and
+  `response.text` is 501+ chars, assert the raised message length).
+  `det567` = `xǁDetectorClientǁdetect_objects__mutmut_567`
+  (`sanitize_error(e)`→`sanitize_error(None)`, site :1441): RuntimeError
+  and OSError legs both → shipped `"…detection: IO boom …/tok=abc"`
+  vs mutant `"…detection: None"` — a 2-case test (message != contains
+  "None", and the sanitized path/credential text is present).
+- **EQUIVALENT (8)** — `init20` (`getattr(…,"use_ai_gateway",False)`→
+  `None`, site :284, consumed only by `is True`; upheld, matches audit
+  C7); `send1` (`last_exception: Exception | None = None`→`""`, site
+  :632; the var is reassigned by every handler that can reach the truthy
+  read at :915, and `""` vs `None` both fall to the bare
+  `DetectorUnavailableError` — 0/9 diffs); `det198`
+  (`is_video = False`→`None`, site :1182; read only via `if is_video and
+video_metadata:` :1296 — 0/2 diffs); readiness-probe m4/m7/m12/m14/m21
+  (`color=(0,0,0)`→`None`/omitted/`(1,0,0)`/`(0,0,1)`, site :520, and
+  `format="JPEG"`→`"jpeg"`, site :524) — **all five produce a
+  byte-IDENTICAL JPEG payload**: measured on this PIL (12.3.0), black,
+  (1,0,0), (0,0,1) and the uninitialized `color=None` buffer all encode
+  to the same 643-byte stream (sha `37ef58f0f757645e`; near-black colors
+  fall inside the JPEG quantization cell of black), `color` default is
+  0, and PIL normalizes the save-format key case. The bytes handed to
+  `_send_detection_request` are the probe's ONLY output, and they are
+  equal → no input distinguishes shipped from mutant.
+
+**What stands / what changes:** module close numbers UNCHANGED (1,463/1,473
+= 99.32111337406653%, survived 10 — no kill credited, no badge movement).
+dc is now dispositioned **1,463 KILLED + 8 EQUIVALENT + 2 KILLABLE
+(test-to-author) = 1,473, zero undispositioned**. **Batch-29 scope: pw 23 +
+dc 2** (`send331`, `det567`); the 8 leave the scope permanently. Probe
+artifacts: /tmp/wp-b28/dc-equiv-probe.py (exit 0), stderr
+/tmp/wp-b28/dc-probe.err.
