@@ -516,6 +516,10 @@ ignore = [
     "ARG002", # unused method argument for fixtures used via side effects
     "PLR2004",# magic values ok in tests
 ]
+"synthbench/**/*.py" = [
+    "S603",  # subprocess with a fixed argv list (podman/docker/nvidia-smi); never a shell
+    "S607",  # those tools are resolved from PATH on purpose
+]
 
 [tool.ruff.format]
 quote-style = "double"

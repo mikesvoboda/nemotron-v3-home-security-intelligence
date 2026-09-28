@@ -321,10 +321,10 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Ruff check
-        run: uv run ruff check backend/
+        run: uv run ruff check backend/ synthbench/
 
       - name: Ruff format check
-        run: uv run ruff format --check backend/
+        run: uv run ruff format --check backend/ synthbench/
 
       - name: Complexity check (Radon)
         run: |
@@ -362,7 +362,7 @@ jobs:
         run: uv sync --extra dev --frozen
 
       - name: Mypy
-        run: uv run mypy backend/ --ignore-missing-imports
+        run: uv run mypy backend/ synthbench/ --ignore-missing-imports
 
   # Backend unit tests split into 4 shards for faster execution
   unit-tests:

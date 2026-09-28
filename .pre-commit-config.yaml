@@ -169,11 +169,11 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
-        files: ^backend/
+        files: ^(backend|synthbench)/
         exclude: ^mutants/
       - id: ruff-format
         types_or: [python, pyi]
-        files: ^backend/
+        files: ^(backend|synthbench)/
         exclude: ^mutants/
 
   # Python - Type checking with mypy
@@ -191,7 +191,7 @@ repos:
           - redis==8.1.0
           - types-PyYAML
         args: [--ignore-missing-imports]
-        files: ^backend/
+        files: ^(backend|synthbench)/
 
   # Prettier (Formatting) - Non-TypeScript, non-frontend files only
   # TypeScript files use local prettier-frontend hook to avoid type parameter stripping bug
