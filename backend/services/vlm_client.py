@@ -489,6 +489,15 @@ class VlmClient:
             # its arrival and would contradict it. Drop it from the rendered
             # copy only - the snapshot rows keep it.
             rows = [{k: v for k, v in row.items() if k != "detected_at"} for row in rows]
+        if request.frame_detection_ids is not None:
+            # Rendered copy only: each row names the attached frame it is on
+            # (1-based), null when its still is not attached (A5500 M1).
+            frame_of: dict[Any, int] = {
+                det_id: i
+                for i, ids in enumerate(request.frame_detection_ids, start=1)
+                for det_id in ids
+            }
+            rows = [{**row, "frame": frame_of.get(row.get("id"))} for row in rows]
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
@@ -540,6 +549,14 @@ class VlmClient:
             "the top-left corner, then the box size. The boxes are the detector's "
             "localization aids: judge each candidate from what the frame(s) show, "
             "and never reject a detection because of its box numbers alone.\n"
+            + (
+                "Each row's frame is the 1-based index of the attached frame it was "
+                "detected on; null means its frame is not attached - such a row is "
+                "the same camera's detection on another still, not a box on the "
+                "frames you see.\n"
+                if request.frame_detection_ids is not None
+                else ""
+            )
         )
 
     @staticmethod

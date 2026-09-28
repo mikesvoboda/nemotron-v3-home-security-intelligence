@@ -217,7 +217,12 @@ def build_assess_request(
     bytes; spec §6 privacy). The specialist texts already live inside the
     context — the request adds only the image selection (rev 6)."""
     picks = select_key_frames(build_frame_refs(detections, context.camera_id))
-    return VlmAssessRequest(image_paths=[f.file_path for f in picks], context=context)
+    # Every row on each attached still (not only the selector's representative),
+    # so the prompt can say which frame a detection is on (A5500 M1, 2026-09-28).
+    on_frame = [[row["id"] for row in detections if row["file_path"] == f.file_path] for f in picks]
+    return VlmAssessRequest(
+        image_paths=[f.file_path for f in picks], context=context, frame_detection_ids=on_frame
+    )
 
 
 def key_frame_ids(

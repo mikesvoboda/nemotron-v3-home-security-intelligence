@@ -1203,3 +1203,40 @@ class TestBoxesAreGroundedInTheFrame:
             _request([str(image_dir / "front_door/a.jpg")], detections=[])
         )
         assert "bbox" not in text, "an item with no boxes keeps the pre-fix prompt"
+
+
+class TestRowsNameTheirFrame:
+    """A5500 M1 re-run, 2026-09-28: three person detections from three stills,
+    one still attached. The model: "a single individual ... no evidence of
+    multiple people ... the bounding boxes appear to be misaligned" - it read
+    all three boxes as boxes on the one frame it could see. When the request
+    links rows to attached frames, each rendered row says which frame it is
+    on (null = a frame not attached); without the link, rows render exactly
+    as before (replays of the existing corpus stay byte-identical)."""
+
+    @staticmethod
+    def _rows() -> list[dict[str, Any]]:
+        return [
+            {"id": i, "object_type": "person", "confidence": 0.9, "bbox": [10, 20, 30, 40]}
+            for i in (1, 2, 3)
+        ]
+
+    @staticmethod
+    def _rendered_rows(text: str) -> list[dict[str, Any]]:
+        line = next(ln for ln in text.splitlines() if ln.startswith("Detections: "))
+        return json.loads(line.removeprefix("Detections: "))
+
+    def test_each_row_names_its_attached_frame(self, image_dir) -> None:
+        base = _request([str(image_dir / "front_door/a.jpg")], detections=self._rows())
+        request = VlmAssessRequest(
+            image_paths=base.image_paths, context=base.context, frame_detection_ids=[[2]]
+        )
+        text = make_client().prompt_text(request)
+        assert {r["id"]: r["frame"] for r in self._rendered_rows(text)} == {1: None, 2: 1, 3: None}
+        assert "not attached" in text
+
+    def test_without_frame_links_rows_render_unchanged(self, image_dir) -> None:
+        request = _request([str(image_dir / "front_door/a.jpg")], detections=self._rows())
+        assert all(
+            "frame" not in r for r in self._rendered_rows(make_client().prompt_text(request))
+        )

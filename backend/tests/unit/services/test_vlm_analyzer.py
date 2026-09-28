@@ -458,6 +458,29 @@ class TestBuildAssessContext:
         assert len(ids) == len(request.image_paths)
         assert [by_id[i] for i in ids] == request.image_paths
 
+    def test_request_names_every_row_on_each_attached_frame(self) -> None:
+        """A5500 M1 (2026-09-28): three person rows on three stills, ONE still
+        attached - the model assumed all three boxes were on the image it saw,
+        found one person, and called the detector wrong. The request now says
+        which rows sit on which attached frame: every row on that still, not
+        only the selector's representative."""
+        rows = [
+            make_detection_row(
+                11, object_type="person", confidence=0.95, file_path="/media/f1.jpg"
+            ),
+            make_detection_row(12, object_type="car", confidence=0.90, file_path="/media/f1.jpg"),
+            make_detection_row(
+                14, object_type="bicycle", confidence=0.50, file_path="/media/f2.jpg"
+            ),
+        ]
+        ctx = va.build_assess_context(camera_id="c", detections=rows)
+        request = va.build_assess_request(context=ctx, detections=rows)
+        on = {p: sorted(r["id"] for r in rows if r["file_path"] == p) for p in request.image_paths}
+        assert request.frame_detection_ids is not None
+        assert [sorted(ids) for ids in request.frame_detection_ids] == [
+            on[p] for p in request.image_paths
+        ]
+
     def test_specialist_outputs_flow_from_the_snapshot_not_a_side_door(self):
         """Rev 6 plan: "the prompt builder takes the outputs FROM the
         snapshot." The context is the ONE carrier end to end; the builder has
