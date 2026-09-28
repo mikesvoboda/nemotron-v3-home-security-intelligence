@@ -237,6 +237,73 @@ class TestGpuWindow:
         assert rt.running and not paths.marker.exists()
         assert {sig: signal.getsignal(sig) for sig in caller} == caller
 
+    @pytest.mark.usefixtures("trapped_signals")
+    def test_a_signal_during_the_leftover_restore_does_not_abort_it(
+        self, paths: gw.WindowPaths
+    ) -> None:
+        class InterruptedStart(FakeRuntime):
+            def start(self, container: str) -> None:
+                os.kill(os.getpid(), signal.SIGTERM)
+                super().start(container)
+
+        paths.state_dir.mkdir(parents=True)
+        paths.marker.write_text("{}")
+        rt = InterruptedStart(running=False)
+        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        opened = False
+        with pytest.raises(SystemExit) as exc, _window(rt, paths):
+            opened = True
+        assert exc.value.code == 128 + signal.SIGTERM
+        assert rt.calls == ["start", "healthy?"]
+        assert rt.running and not paths.marker.exists()
+        assert not opened
+        assert {sig: signal.getsignal(sig) for sig in caller} == caller
+
+    def test_a_broken_log_pipe_still_restores(self, paths: gw.WindowPaths) -> None:
+        rt = FakeRuntime()
+        closing = False
+
+        def say(message: str) -> None:  # `... |& tee log`, and tee died with the Ctrl-C
+            nonlocal closing
+            closing = closing or message.startswith("closing")
+            if closing:
+                raise BrokenPipeError
+
+        clock = FakeClock()
+        with gw.gpu_window(rt, paths, sleep=clock.sleep, clock=clock, say=say):
+            pass
+        assert closing
+        assert "start" in rt.calls
+        assert rt.running and not paths.marker.exists()
+
+    def test_a_stop_that_lands_after_the_first_start_is_started_again(
+        self, paths: gw.WindowPaths
+    ) -> None:
+        class LateStop(FakeRuntime):
+            """Ctrl-C kills the `docker stop` CLI, but dockerd finishes the stop anyway:
+            the first start is a no-op on the still-running container, then it stops."""
+
+            stop_pending = False
+
+            def stop(self, container: str) -> None:
+                self.calls.append("stop")
+                self.stop_pending = True
+                raise KeyboardInterrupt
+
+            def start(self, container: str) -> None:
+                if self.stop_pending:
+                    self.calls.append("start")
+                    self.stop_pending = False
+                    self.running = False
+                    return
+                super().start(container)
+
+        rt = LateStop()
+        with pytest.raises(KeyboardInterrupt), _window(rt, paths):
+            pass
+        assert rt.calls == ["stop", "start", "healthy?", "start", "healthy?"]
+        assert rt.running and not paths.marker.exists()
+
 
 class TestStopGpuContainers:
     def test_lists_and_stops_labeled_containers_in_the_synthbench_store(self) -> None:

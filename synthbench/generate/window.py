@@ -26,7 +26,7 @@ import sys
 import time
 import urllib.request
 from collections.abc import Callable, Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
 from types import FrameType
@@ -117,6 +117,17 @@ def _say(message: str) -> None:
     sys.stderr.write(f"[gpu-window] {message}\n")
 
 
+def _quietly(say: Callable[[str], None]) -> Callable[[str], None]:
+    """`say` for the restore path, where a failed log write must never keep the flagship
+    down (e.g. BrokenPipeError after `... |& tee log` lost tee to the same Ctrl-C)."""
+
+    def say_or_skip(message: str) -> None:
+        with suppress(Exception):
+            say(message)
+
+    return say_or_skip
+
+
 def restore(
     runtime: Runtime,
     container: str = FLAGSHIP,
@@ -126,13 +137,19 @@ def restore(
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
 ) -> None:
-    """Start the container (a no-op when it already runs) and wait until healthy."""
+    """Start the container and wait until healthy, starting it again after every unhealthy poll.
+
+    A start is a no-op on a running container. Repeating it catches a stop that lands after
+    the first start (dockerd finishes a stop even when a Ctrl-C killed its CLI) and a
+    flagship that crash-exited while coming up.
+    """
     runtime.start(container)
     deadline = clock() + timeout_s
     while not runtime.is_healthy(container):
         if clock() >= deadline:
             raise FlagshipNotRestored(f"{container} not healthy {timeout_s:.0f}s after start")
         sleep(poll_s)
+        runtime.start(container)
 
 
 def raise_on_sigterm(signum: int, _frame: FrameType | None) -> None:
@@ -195,13 +212,22 @@ def gpu_window(
     clock: Callable[[], float] = time.monotonic,
     say: Callable[[str], None] = _say,
 ) -> Iterator[None]:
+    say_quietly = _quietly(say)
     with _window_lock(paths):
         if paths.marker.exists():
-            say("found the marker of an interrupted window: restoring the flagship first")
-            restore(
-                runtime, container, timeout_s=timeout_s, poll_s=poll_s, sleep=sleep, clock=clock
-            )
-            paths.marker.unlink()
+            with _exit_signals_deferred(sigterm_after=signal.getsignal(signal.SIGTERM)):
+                say_quietly(
+                    "found the marker of an interrupted window: restoring the flagship first"
+                )
+                restore(
+                    runtime,
+                    container,
+                    timeout_s=timeout_s,
+                    poll_s=poll_s,
+                    sleep=sleep,
+                    clock=clock,
+                )
+                paths.marker.unlink()
         say(
             f"stopping {container}: LiteLLM's claude-flagship route and any sandbox agent "
             "on it are down until this window closes"
@@ -218,7 +244,7 @@ def gpu_window(
                 try:
                     before_restore()
                 finally:
-                    say(
+                    say_quietly(
                         f"closing: starting {container} and waiting until it is healthy "
                         "(SIGTERM and Ctrl-C take effect after that)"
                     )
@@ -231,7 +257,7 @@ def gpu_window(
                         clock=clock,
                     )
                     paths.marker.unlink(missing_ok=True)
-                    say(f"{container} is healthy again")
+                    say_quietly(f"{container} is healthy again")
 
 
 def stop_gpu_containers(
