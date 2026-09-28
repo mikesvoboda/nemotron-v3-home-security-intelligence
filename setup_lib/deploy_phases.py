@@ -9,6 +9,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,12 +39,21 @@ def _run_with_timeout(
             stderr=f"timed out after {timeout}s",
         )
 from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, compose_run
-from setup_lib.healthcheck import check_service_health, poll_endpoint
+from setup_lib.healthcheck import check_service_health, file_watcher_warning, poll_endpoint
 from setup_lib.rootful_services import (
     CADVISOR_SERVICE_NAME,
     DCGM_SERVICE_NAME,
     _is_service_installed,
     _run_sudo,
+)
+from setup_lib.selinux_check import (
+    WARN,
+    CameraRootVerdict,
+    camera_root,
+    check_camera_root,
+    read_selinux_enforcing,
+    read_selinux_label,
+    service_camera_mounts,
 )
 
 
@@ -689,6 +699,34 @@ _ALLOY_MEMLOCK_BYTES = 8_589_934_592  # 8 GB — must match docker-compose.prod.
 # see _MODE_PLANS[...].app_services at the top of this module.
 
 
+def _preflight_selinux_camera_root(
+    config: DeployConfig,
+    *,
+    selinux_enforcing: Callable[[], bool | None] = read_selinux_enforcing,
+    selinux_label: Callable[[str], str | None] = read_selinux_label,
+) -> CameraRootVerdict:
+    """Pre-flight: will SELinux deny the backend's inotify watch on the camera root?
+
+    The shared check (setup_lib/selinux_check.py, also the a5500 precheck's
+    selinux_camera_root row) against FOSCAM_BASE_PATH from .env and the
+    backend's /cameras mount in the compose file this deploy runs. Warn-only:
+    a WARN never fails the deploy, and nothing is relabelled - that is a host
+    change, so the command is printed for the operator instead.
+    """
+    verdict = check_camera_root(
+        camera_root(config.env),
+        service_camera_mounts([config.project_root / config.compose_file]),
+        selinux_enforcing=selinux_enforcing,
+        selinux_label=selinux_label,
+    )
+    if verdict.verdict == WARN:
+        print("  WARNING: SELinux will deny the file watcher's watch on the camera root")
+        print(f"    {verdict.detail}")
+    else:
+        print(f"  selinux: {verdict.detail}")
+    return verdict
+
+
 def phase_infrastructure(config: DeployConfig) -> DeployResult:
     """Start infrastructure (postgres, redis, go2rtc) and monitoring stack."""
     # Ensure backend data directories exist (thumbnails for video processor)
@@ -709,6 +747,10 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
             print(f"  foscam: {foscam_path} owned by {host_uid}:{host_gid}")
         else:
             print(f"  foscam: {foscam_path} (chown skipped - run: sudo chown -R {host_uid}:{host_gid} {foscam_path})")
+
+    # Pre-flight (warn-only): read the camera root's label now that it exists,
+    # before any container mounts it.
+    _preflight_selinux_camera_root(config)
 
     # Core infrastructure (pre-built images only)
     ok = compose_run(
@@ -998,14 +1040,30 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
     ]
 
     all_healthy = True
+    ready_names: set[str] = set()
     for name, url, timeout in services:
         ready = poll_endpoint(url, timeout=timeout)
         if ready:
+            ready_names.add(name)
             result = check_service_health(name, url, timeout=10)
             print(f"  {name}: healthy ({result['response_time_ms']}ms)")
         else:
             print(f"  {name}: not ready yet")
             all_healthy = False
+
+    # Did the camera watch take? The backend reports a REFUSED inotify watch
+    # as watch_mode=polling-fallback - on any host, whatever the compose file.
+    # Warn-only: the backend still ingests (by scanning).
+    if "Backend" in ready_names:
+        pipeline = check_service_health(
+            "Pipeline", f"http://localhost:{api_port}/api/system/pipeline", timeout=10
+        )
+        status = pipeline.get("data")
+        warning = file_watcher_warning(status, camera_root(config.env))
+        if warning:
+            print(f"  File watcher: WARNING - {warning}")
+        elif mode := ((status or {}).get("file_watcher") or {}).get("watch_mode"):
+            print(f"  File watcher: {mode}")
 
     # Deployment summary
     try:

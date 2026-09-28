@@ -1040,6 +1040,215 @@ class TestRecoverCreatedContainers:
         assert _compose_args(cr) == [("--profile", "legacy", "up", "-d", "--no-build", "ai-llm")]
 
 
+# ---------------------------------------------------------------------------
+# SELinux camera root (A5500 box, 2026-09-28): an enforcing host + a usr_t
+# camera root + a /cameras mount without :z = the backend can READ uploads but
+# its inotify WATCH is denied, and the file watcher went blind. Deploy checks
+# before (the shared setup_lib/selinux_check preflight) and after (the
+# backend's own watch_mode on /api/system/pipeline). Warn-only: deploy never
+# relabels a host path, it prints the command.
+# ---------------------------------------------------------------------------
+
+USR_T = "system_u:object_r:usr_t:s0"
+BACKEND_CAMERA_COMPOSE = """\
+services:
+  backend:
+    volumes:
+      - ${{FOSCAM_BASE_PATH:-/export/foscam}}:/cameras{opts}
+"""
+
+
+class TestSelinuxCameraRootPreflight:
+    """_preflight_selinux_camera_root(): the shared host check, run by deploy."""
+
+    @staticmethod
+    def _config(
+        tmp_path: Path, env: dict[str, str] | None = None, compose: dict[str, str] | None = None
+    ):
+        """DeployConfig on tmp_path; ``compose`` = {file name: backend /cameras opts}."""
+        from setup_lib.deploy import DeployConfig
+
+        for name, opts in (compose or {}).items():
+            (tmp_path / name).write_text(BACKEND_CAMERA_COMPOSE.format(opts=opts))
+        return DeployConfig(
+            project_root=tmp_path,
+            compose_file="docker-compose.prod.yml",
+            compose_cmd=["podman", "compose"],
+            env=env or {},
+        )
+
+    def test_warns_with_the_fix_and_changes_nothing_on_the_host(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        config = self._config(
+            tmp_path, {"FOSCAM_BASE_PATH": "/srv/cams"}, {"docker-compose.prod.yml": ""}
+        )
+        with (
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as sudo,
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as run,
+        ):
+            verdict = _preflight_selinux_camera_root(
+                config, selinux_enforcing=lambda: True, selinux_label=lambda _path: USR_T
+            )
+
+        out = capsys.readouterr().out
+        assert verdict.verdict == "WARN"
+        assert "WARNING" in out
+        assert "docker-compose.prod.yml: ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras" in out
+        assert "sudo semanage fcontext -a -t container_file_t '/srv/cams(/.*)?'" in out
+        assert "sudo restorecon -R /srv/cams" in out
+        sudo.assert_not_called()
+        run.assert_not_called()
+
+    def test_reads_the_compose_file_deploy_uses(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # prod relabels; a bare ghcr file next to it is not what deploy runs.
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        config = self._config(
+            tmp_path, compose={"docker-compose.prod.yml": ":z", "docker-compose.ghcr.yml": ":ro"}
+        )
+        verdict = _preflight_selinux_camera_root(
+            config, selinux_enforcing=lambda: True, selinux_label=lambda _path: USR_T
+        )
+
+        out = capsys.readouterr().out
+        assert verdict.verdict == "PASS"
+        assert "WARNING" not in out
+        assert "ghcr" not in out
+
+    @pytest.mark.parametrize(
+        ("env", "root"),
+        [({}, "/export/foscam"), ({"FOSCAM_BASE_PATH": "/srv/cams"}, "/srv/cams")],
+    )
+    def test_the_label_is_read_from_foscam_base_path(
+        self, tmp_path: Path, env: dict[str, str], root: str
+    ) -> None:
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        asked: list[str] = []
+        config = self._config(tmp_path, env, {"docker-compose.prod.yml": ""})
+        _preflight_selinux_camera_root(
+            config,
+            selinux_enforcing=lambda: True,
+            selinux_label=lambda path: asked.append(path) or USR_T,
+        )
+        assert asked == [root]
+
+    def test_phase_infrastructure_runs_it_and_a_warn_never_fails_the_deploy(
+        self, tmp_path: Path
+    ) -> None:
+        from setup_lib.deploy_phases import phase_infrastructure
+        from setup_lib.selinux_check import CameraRootVerdict
+
+        cams = tmp_path / "cams"
+        cams.mkdir()
+        config = self._config(tmp_path, {"FOSCAM_BASE_PATH": str(cams)})
+        with (
+            patch(
+                "setup_lib.deploy_phases._preflight_selinux_camera_root",
+                return_value=CameraRootVerdict("WARN", "would be denied"),
+                autospec=True,
+            ) as preflight,
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as sudo,
+            patch("time.sleep", autospec=True),
+        ):
+            sudo.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+            result = phase_infrastructure(config)
+
+        preflight.assert_called_once_with(config)
+        assert result.success is True
+
+
+class TestFileWatcherPostDeploy:
+    """phase_health_check() reads the backend's own watch_mode: a refused
+    inotify watch shows as polling-fallback on ANY host, whatever the compose."""
+
+    @staticmethod
+    def _health(
+        tmp_path: Path, pipeline: dict | None, backend_ready: bool = True
+    ) -> tuple[object, list[str]]:
+        import urllib.error
+
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_health_check
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"API_PORT": "8000", "FOSCAM_BASE_PATH": "/srv/cams"},
+        )
+        probed: list[str] = []
+
+        def fake_health(name: str, url: str, timeout: int = 60) -> dict:
+            probed.append(url)
+            data = pipeline if url.endswith("/api/system/pipeline") else {"status": "ok"}
+            return {"name": name, "status": "healthy", "response_time_ms": 5, "data": data}
+
+        with (
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=urllib.error.URLError("no network in unit tests"),
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.poll_endpoint",
+                side_effect=lambda url, **_kw: backend_ready or "/api/" not in url,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.check_service_health",
+                side_effect=fake_health,
+                autospec=True,
+            ),
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as mock_run,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+            result = phase_health_check(config)
+        return result, probed
+
+    @staticmethod
+    def _pipeline(mode: str, reason: str | None = None) -> dict:
+        return {"file_watcher": {"watch_mode": mode, "watch_fallback_reason": reason}}
+
+    def test_polling_fallback_is_warned_with_the_reason(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        result, probed = self._health(tmp_path, self._pipeline("polling-fallback", "EACCES"))
+
+        out = capsys.readouterr().out
+        assert "http://localhost:8000/api/system/pipeline" in probed
+        assert "WARNING" in out
+        assert "polling-fallback" in out
+        assert "EACCES" in out
+        assert "sudo restorecon -R /srv/cams" in out
+        # a warning, not a failed health check
+        assert result.success is True
+
+    def test_a_native_watch_prints_the_mode_and_no_warning(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._health(tmp_path, self._pipeline("native"))
+
+        out = capsys.readouterr().out
+        assert "File watcher: native" in out
+        assert "WARNING" not in out
+
+    def test_the_pipeline_is_not_probed_when_the_backend_is_not_ready(self, tmp_path: Path) -> None:
+        _result, probed = self._health(tmp_path, None, backend_ready=False)
+
+        assert not any(url.endswith("/api/system/pipeline") for url in probed)
+
+
 class TestDeployPhasesRegistry:
     """Tests for the DEPLOY_PHASES registry."""
 

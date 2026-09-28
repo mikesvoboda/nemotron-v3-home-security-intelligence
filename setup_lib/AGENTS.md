@@ -12,7 +12,14 @@ setup_lib/
   __init__.py     # Package exports
   core.py         # Core utility functions
   port_scanner.py # Network port scanning
+  selinux_check.py # Can the backend watch the camera root under SELinux?
 ```
+
+`selinux_check.py` is STDLIB ONLY by contract: `scripts/a5500_precheck.py`
+loads it by path (never via this package's `__init__.py`) and must run with
+no venv. `deploy_phases.phase_infrastructure` runs the same check as a
+preflight (warn-only, never relabels). Pinned by
+`backend/tests/unit/setup_lib/test_selinux_check.py::TestImportLight`.
 
 ## Key Files
 
