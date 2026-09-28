@@ -298,6 +298,8 @@ services:
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       - FOSCAM_BASE_PATH=/cameras
+      # Foscam filename clock zone; threaded because Settings only sees what compose passes
+      - CAMERA_TIMEZONE=${CAMERA_TIMEZONE:-}
       - DEBUG=${DEBUG:-false}
       - ADMIN_ENABLED=${ADMIN_ENABLED:-false}
       - FAST_PATH_ENABLED=${FAST_PATH_ENABLED:-false}

@@ -53,6 +53,7 @@ from backend.core.metrics import (
     record_prompt_truncated,
 )
 from backend.core.mime_types import IMAGE_MIME_TYPES, VIDEO_MIME_TYPES
+from backend.services.capture_time import render_prompt_time
 from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -462,6 +463,11 @@ class VlmClient:
         ctx = request.context
         # Rev 6: outputs ride the snapshot (context) — the one carrier.
         specialist = json.dumps(ctx.specialist_outputs, ensure_ascii=False)
+        if self._settings.camera_timezone:
+            # The Time: line carries the capture moment; a row's detected_at is
+            # its arrival and would contradict it. Drop it from the rendered
+            # copy only - the snapshot rows keep it.
+            rows = [{k: v for k, v in row.items() if k != "detected_at"} for row in rows]
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
@@ -472,7 +478,7 @@ class VlmClient:
             "(engine, model_id - copy the values from the served model's own "
             "reported identity).\n\n"
             f"Camera: {ctx.camera_id}\n"
-            f"Time: {ctx.timestamp}\n"
+            f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"

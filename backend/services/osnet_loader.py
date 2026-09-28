@@ -183,10 +183,13 @@ def get_reid_handle() -> dict[str, Any] | None:
     """The resident OSNet handle, or None — a membership read, NEVER a load
     trigger (the face get_face_leg_handles pattern).
 
-    The row is ``enabled: true``, so the BACKEND_MODEL_PRELOAD sweep loads
-    it at boot; a deploy without the weights (or with preload off, as in
-    CPU/sandbox) has NO entry — and the leg/enrollment answer unavailable,
-    which is the honest degrade, not a silent stub.
+    The row is ``enabled: true`` AND declares ``preload: true``, which the boot
+    sweep honors since item 1 (``select_preload_candidates``) — before that the
+    sweep ignored the row flag and residency depended on the install-time VRAM
+    guess, so on a 24 GB card the handle was absent. A deploy without the
+    weights (or with preload off, as in CPU/sandbox) has NO entry — and the
+    leg/enrollment answer unavailable, which is the honest degrade, not a silent
+    stub.
 
     The import is lazy because model_zoo imports this module: a module-level
     import would be a cycle.

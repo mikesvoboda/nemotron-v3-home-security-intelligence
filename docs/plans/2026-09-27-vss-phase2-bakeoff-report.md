@@ -176,3 +176,103 @@ numbers were always the quantity claimed — verified, not assumed, when the p95
 Candidate D stays BLOCKED, the KV reading stands, and finding G (the probe budget) is unchanged:
 `break_in_attempt`'s refusal was already attributed to the 400-token cliff; this adds only that
 A's OTHER refusal was a different class entirely.
+
+## Erratum 2 — dated 2026-09-27, larger-model survey (ledger item 34); the table above is NOT rewritten
+
+The Phase 3 goal asked whether a model past 12 B earns its keep, so two more candidates ran
+through **this report's own harness** — the same frozen gen-2 n=13 media items, the same
+`run_replay` code, config-matched (`CTX_SIZE 32768`, `PARALLEL 2`), on the GB300 through
+`agent-gpu`, aggregate output only (D10). This section is additive: the A/B/C/D columns above are
+the bake-off as it ran; the survey's two rows are `E` and `F` below and live nowhere else.
+
+|                                                                                                                                                              | **E** Qwen3-VL-30B-A3B Q4_K_M                                                                                                               | **F** Mistral-Small-3.2-24B Q4_K_M                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| weights / source                                                                                                                                             | official `Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF` 17.28 GiB + mmproj Q8_0 0.66 GiB, ungated, header arch `qwen3vlmoe` (128 experts / 8 active) | **no GGUF in the official `mistralai` repo** — mirrors only; ran `unsloth/…-GGUF` 13.35 GiB + mmproj-F16 0.82 GiB, ungated, `quantized_by: Unsloth`, header arch `llama` (the `mistral3` vision tower lives in the mmproj) |
+| build that answers the wire                                                                                                                                  | `ai-vlm:sm103-v12` b7972 (loads and answers; see the budget finding)                                                                        | **needs `ai-vlm:sm103-b11090`** — at b7972 its `json_schema` requests 500 (finding ① below)                                                                                                                                |
+| **S2** FP rate (n=5)                                                                                                                                         | 0 %, but **only 1 of 5 scored — 4 refused**                                                                                                 | 0 %, [0.000, 0.434], refused 0                                                                                                                                                                                             |
+| **S3** `all` (n=8)                                                                                                                                           | 0.25 — 6 of 8 refused (refusals read as unfailable here, so this number is budget-dead, not salience-dead)                                  | 0.875, [0.529, 0.978], 1 refused                                                                                                                                                                                           |
+| verdict mix (n=13)                                                                                                                                           | rejected 3 / **failed 10**                                                                                                                  | confirmed 1 / **uncertain 11** / failed 1                                                                                                                                                                                  |
+| **S4** latency (indicative)                                                                                                                                  | med 6.7 s p95 23.9 s (the p95 is the max: the truncated items burn the full budget)                                                         | **med 3.8 s p95 8.1 s — the fastest of all six**                                                                                                                                                                           |
+| **S5** unparseable                                                                                                                                           | 0 broken, **10 refusals: 9 × `VlmTruncatedError` @ 700 + 1 `ConstrainedDecodingNotEnforced`**                                               | 0 broken, 1 refusal (`break_in_attempt` — finding A's cliff item, now confirmed on a fourth build)                                                                                                                         |
+| KV                                                                                                                                                           | 3072 MiB (48 layers; lower than A/C's 4608 despite more layers — the MoE geometry pays less KV, mirroring B's hybrid-class effect)          | 5120 MiB                                                                                                                                                                                                                   |
+| VRAM (VLM-only residency on the GB300 — an S1 _component estimate_; S1 proper is the whole stack on 24 GB hardware, F13/spec :387, measured on neither here) | projected 20897 / broker-actual **22688 MiB — exceeds the 20889 MiB (20.4 GiB) S1 budget on the VLM alone**                                 | projected 18688 / broker-actual **20274 MiB (p2 probe) and 20680 MiB (the scored run) — leaves only ≈210–615 MiB of the S1 budget for everything else**                                                                    |
+| **tool probe (R3)**                                                                                                                                          | SUPPORTED, both arms, multimodal, arg honoured, exit 0                                                                                      | SUPPORTED, both arms, multimodal, arg honoured, exit 0 (on b11090)                                                                                                                                                         |
+| license / provenance                                                                                                                                         | `apache-2.0` HF tag; **header carries no license key** (finding F generalizes: the repo tag is the source)                                  | `apache-2.0` (model card); GGUF header carries no license key AND is third-party-converted — two provenance hops where A/E need one                                                                                        |
+
+**The goal's "nothing past 12 B fits the 20.4 GiB S1 bar at shipped config" is half right, and the
+wrong half is the interesting one.** Measured on the GB300 at VLM-only residency (the component
+estimate the design's :387 explicitly allows before 24 GB hardware exists — this is NOT an S1
+verdict, which is the whole stack on 24 GB hardware, F13): the 30 B-A3B **exceeds the S1 budget on
+the VLM alone** (22688 > 20889 MiB), so it is out on fit regardless of the rest of the stack.
+Mistral 24 B leaves only ≈210–615 MiB of that budget — technically still "fits," but there is no
+room left for the detector and the specialists, which is the majority of what S1's definition
+requires resident. So the claim stands in substance ("nothing past 12 B fits the full shipped
+stack at 24 GB") and is wrong in its stated reason (24 B is not over the bar by itself — it is a
+margin too thin to hold the stack); the A5500 run (2.3, owner-run) is the measurement that settles
+it honestly.
+
+**Finding ① — llama.cpp b7972's `response_format: json_schema` path fails against this GGUF, and the
+first F row was that failure, not the model.** The first F serve (b7972, the A/C image) replayed
+13/13 refused: 5 × `ConstrainedDecodingNotEnforced`, then the shipped breaker OPEN swallowed the
+remaining 8 as `VlmUnavailableError` (run `0123c66c` — kept as the artifact's evidence, never
+counted). Localized with the endpoint up: `json_schema` requests returned HTTP 500
+(`Failed to parse input at pos N`, the string lives in the server binary) at ~75–100 % — **with or
+without an image, at PARALLEL 1 or 2** — while plain completion, `response_format: json_object`,
+and the _same grammar sent directly_ were 6/6 clean. The enforcement probe's single ENFORCED pass
+had passed through the same ~25 % window the s2 probe's arm B kept missing — intermittency, which
+is why a one-shot probe is not a line. The same weights on `ai-vlm:sm103-b11090` (already shipped
+for candidate B) answered `json_schema` **8/8 clean**, and the scored F row above ran there. None of
+A/B/C's models trip this on their own builds, so nothing shipped changes today; the follow-up is
+naming the llama.cpp commit that fixed the server-side `response_format`→grammar translation,
+since F is the first `llama`-arch GGUF this harness ever ran.
+
+**Finding ② — the survey's answer to "does past-12 B earn its keep?" is no, and it arrives on the
+budget axis, not the quality axis.** E's dominant failure is finding A's class at model scale: 9 of
+13 replies hit the shipped 700-token verdict budget `stop='length'` — a bigger model writing a
+longer verdict answers the same wire WORSE, and `break_in_attempt`'s truncation ladder (finding A/G)
+now has a third shape: deterministically over budget on its own, not just at the probe cliff. F
+fits the budget (median 3.8 s, the fastest reply of any candidate) and pays for it in hedging: 11 of
+13 `uncertain`. Neither model shows a quality gain the n=13 corpus could even see.
+
+**The criterion-differentiation read, reconciled.** The goal's parenthetical "(A 4B flat-repeated
+evidence 7/11; B/C differentiated all)" is two measures compressed into one clause; the recipe is
+reproduced here from the stored replies because the transcript's original was never written down
+(`$AGENT_GPU_DIR/out/eval-store/gen-2/tools/crit_diff.py`, aggregate counts only). Over answered
+items (a stored reply whose criteria rows carry evidence):
+
+- **m1 — single-criterion answers** (exactly 1 criteria row: nothing to differentiate):
+  A **7/11** — the goal's number reproduces exactly. C 7/13, B 0/12, E 1/3 (only 3 items answered),
+  F **9/12**.
+- **m2 — repeated evidence across criteria** (≥2 criteria, fewer distinct evidence strings than
+  rows): A 1/11, B 1/12, **C 0/13** ("differentiated all" is an m2 statement), E 0/3, F 0/12.
+
+Read the pair together and the "larger models differentiate better" story does not hold: the 4 B's
+headline 7/11 is m1, and under that same measure C is 7/13 and F is 9/12 — the bigger models answer
+single-criterion just as often; under m2 every candidate is near-clean, so m2 ranks nothing at
+n = 13. Neither measure separates anything the report's own non-claim (n=13 is a grammar floor,
+F14) does not already forbid.
+
+**Registration claim, restated as measured.** "All five architectures register in our llama.cpp
+build": the four GGUF-expressible survey archs (`qwen3vl`, `qwen3vlmoe`, `nemotron_h`, `mistral3`)
+are REGISTERED — verified by string in `libllama.so` of `ai-vlm:sm103-v12` (an earlier grep against
+the executable alone said ABSENT; the registry lives in the shared library, not the binary). The
+fifth, Cosmos-Reason2-8B, cannot even be read: its HF `config.json` is gated (401) and it has no
+GGUF — D's BLOCKED stands.
+
+**Commands (for re-run, not for re-belief):** pull by
+`curl -sSL -C - --retry 5 https://huggingface.co/<repo>/resolve/main/<file>` into
+`$AGENT_GPU_DIR/models/vlm/` + `chmod 644` (finding F's read bit again; both pairs landing at once
+was checked and impossible — `df` read 29 G free against 32.1 GiB of weights — so the survey ran
+one weight set at a time and deleted each after its leg: E first, then F; the bake-off's own A/B/C
+weights were not touched. Both survey files landed at their exact HF-reported byte counts). Serve exactly C's row shape with
+`--mount models:/models --env MODEL_PATH=/models/vlm/<file> --env MMPROJ_PATH=… --env
+GPU_LAYERS=auto --env CTX_SIZE=32768 --env PARALLEL=2 --env PORT=8098 --vram` declared honestly
+(28672 E, 22528 F; broker actuals 22688 / 20274–20680). Replay:
+`uv run python -m backend.evaluation.vlm_replay --store "$AGENT_GPU_DIR/out/eval-store/gen-2"
+--candidate <file>@<image> --vlm-url http://host.docker.internal:18100 --out <report>` with
+`FOSCAM_BASE_PATH=$AGENT_GPU_DIR/out/media` (the stock-media capture-root guard; the first attempt
+without it refused all 13 items before any read — the guard working, not a model failure). Reports:
+`gen-2/reports/2.4-survey-{qwen3vl-30b,mistral-24b,mistral-24b-b11090}.json`; runs
+E `e4ea8bbd`, F-artifact `0123c66c`, F `90ed4690`, all pinned `d3794497`;
+`agent-gpu rm` after each serve → `containers: []`. These are GB300 readings: **indicative only
+(F13), never bar verdicts (F14), and not a pick** — the M2 decision still belongs to the owner.

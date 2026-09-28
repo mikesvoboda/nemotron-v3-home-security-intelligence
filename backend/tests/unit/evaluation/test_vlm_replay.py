@@ -15,13 +15,13 @@ import ast
 import json
 import re
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from backend.evaluation.assess_input import AssessInput, EvalItem
 from backend.evaluation.eval_store import EvalStore
 from backend.evaluation.vlm_replay import (
+    client_factory,
     replay_item,
     run_replay,
     save_vlm_report,
@@ -251,7 +251,7 @@ class TestRunReplay:
         seen: list[str] = []
 
         class SpyClient:
-            def __init__(self, base_url: str) -> None:
+            def __init__(self, base_url: str, settings: object = None) -> None:
                 seen.append(base_url)
 
             async def assess(self, request):  # pragma: no cover - trivial
@@ -261,9 +261,9 @@ class TestRunReplay:
                 pass
 
         monkeypatch.setattr(vr, "VlmClient", SpyClient)
-        monkeypatch.setattr(
-            vr, "get_settings", lambda: SimpleNamespace(ai_vlm_url="http://settings-wins:8098")
-        )
+        # a real Settings (the factory copies it to pin camera_timezone)
+        settings = vr.get_settings().model_copy(update={"ai_vlm_url": "http://settings-wins:8098"})
+        monkeypatch.setattr(vr, "get_settings", lambda: settings)
         items = [_item(tmp_path, 1)]
         store = _store(tmp_path, items)
         report = await run_replay(store, candidate="F@test")  # no make_client, no endpoint
@@ -479,6 +479,33 @@ class TestRunReplay:
         (row,) = store.replay(report["run_id"])
         assert row["verdict"] == "verification_failed"
         assert row["risk_score"] is None
+
+
+class TestReplayIgnoresTheHostCameraTimezone:
+    """Stored snapshot timestamps are not capture moments (the epoch sentinel,
+    metadata generated_at, or event.started_at), and a run records only
+    candidate@commit - so a replay prompt must not change with the replay
+    host's CAMERA_TIMEZONE."""
+
+    @pytest.mark.parametrize("base_url", [None, "http://x:1"])
+    def test_the_replay_client_pins_camera_timezone_to_none(
+        self, monkeypatch, base_url: str | None
+    ) -> None:
+        from backend.core.config import get_settings
+
+        monkeypatch.setenv("CAMERA_TIMEZONE", "America/New_York")
+        get_settings.cache_clear()
+        assert get_settings().camera_timezone == "America/New_York", "the host sets it"
+
+        client = client_factory(base_url)()
+        assert client._settings.camera_timezone is None
+        sentinel = "1970-01-01T00:00:00+00:00"
+        request = VlmAssessRequest(
+            image_paths=["/x/a.jpg"], context={"camera_id": "c", "timestamp": sentinel}
+        )
+        assert f"Time: {sentinel}\n" in client.prompt_text(request), (
+            "the epoch sentinel stays an obvious sentinel, not a local evening"
+        )
 
 
 class TestReportIsAggregateOnly:
