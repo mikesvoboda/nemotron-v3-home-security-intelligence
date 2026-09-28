@@ -83,7 +83,7 @@ def make_verdict(**overrides) -> VlmVerdict:
         "reasoning": "Criterion evidence reviewed.",
         "description": "Front door, one person, evening.",
         "criteria": [{"name": "person_present", "passed": True, "evidence": "full frame"}],
-        "provenance": {"engine": "llama.cpp", "model_id": "Qwen3VL-4B-Instruct-Q4_K_M"},
+        "provenance": {"engine": "llama.cpp", "model_id": "Qwen3VL-8B-Instruct-Q4_K_M"},
     } | overrides
     return VlmVerdict.model_validate(data)
 
@@ -150,7 +150,7 @@ class TestScoredEventOnLiveSchema:
         assert stored is not None
         assert stored.verdict == "confirmed"
         assert stored.engine == "llama.cpp"
-        assert stored.model_id == "Qwen3VL-4B-Instruct-Q4_K_M"
+        assert stored.model_id == "Qwen3VL-8B-Instruct-Q4_K_M"
         assert stored.key_frame_detection_ids, "the selector picked >=1 frame"
         assert set(stored.key_frame_detection_ids) <= set(det_ids), "picks are batch detections"
         assert len(stored.key_frame_detection_ids) == 1, (

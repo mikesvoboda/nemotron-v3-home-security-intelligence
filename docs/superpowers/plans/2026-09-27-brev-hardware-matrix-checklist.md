@@ -42,6 +42,28 @@ question is whether that is affordable _with the rest of the stack resident_, so
 settings beside every S1 number, and run the worst-case four-image batch (`~12.2K tokens`
 per the 1.7 handout) rather than an idle serve.
 
+**Dated 2026-09-28 — the table's rows are no longer symmetric (owner ruling, ledger item 35).** The
+owner picked **Qwen3-VL-8B-Instruct Q4_K_M** as the shipped serving VLM ("lets go with Qwen3-VL-8B for
+now. we can revisit later if needed."), so this matrix is now the measurement that **confirms or
+reopens** that pick rather than informing it: the 8B row is the one S1 must clear, and the 4B row is
+the named fallback (flip condition 1 — if 8B fails S1 here, the pick falls to 4B, which is why its row
+stays measured and not retired). The `uncertain`-prior condition is answered by the post-item-19
+corpus, not by a Brev box.
+
+Weights for the **8B** pair, pinned by sha256 as fetched and re-verified 2026-09-28 (`Qwen/Qwen3-VL-8B-Instruct-GGUF`):
+`Qwen3VL-8B-Instruct-Q4_K_M.gguf` 5,027,784,800 B `67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2`;
+`mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf` 752,289,728 B `c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd`.
+
+Weights for the **4B fallback** pair, added 2026-09-28 (`Qwen/Qwen3-VL-4B-Instruct-GGUF`) — this row did not exist until the A5500 readiness audit (ledger item 36) found that a tier is *required* to serve the fallback and the repo had no way to fetch it authentically:
+`Qwen3VL-4B-Instruct-Q4_K_M.gguf` 2,497,281,664 B `66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a`;
+`mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf` 453,974,304 B `30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d`.
+Both repo ids and all four byte counts checked against the HuggingFace API 2026-09-28 and matching the GB300 share exactly. **Take the `Q8_0` projector, never the `F16`** — each repo also ships `mmproj-…-F16.gguf` (8B 1,159,029,824 B, 4B 836,180,256 B); an F16 serve starts fine and its hash matches nothing above.
+No model-zoo row exists for any serving VLM (`models.yml` is the Triton/enrichment set), so these
+sha256s live in this document and the ledger — they cannot ride the zoo's `sha256:` mechanism.
+**Bake-off finding F applies to a fresh box:** files fetched into the weights root arrive mode **640**,
+and `ai/vlm` runs as uid 1000 `llama` — the _other_ class on a bind-mounted root — so the serve dies
+`Permission denied` on a file the host reads fine. `chmod 644` both files after fetching.
+
 ## Read this before trusting any tier's number
 
 1. **Confirm the architecture first** (spec :455, and the risk table :587 names the failure: "A

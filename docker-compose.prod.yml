@@ -262,9 +262,9 @@ services:
       - PORT=8098
       # Weights are host-mounted (never baked); names live in .env.example.
       # prod.yml ai-llm:158 style - ${VAR:-default}, no hardcoded literals.
-      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}
-      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}
-      - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-4B}
+      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}
+      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}
+      - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-8B}
       # All layers on GPU; auto = llama.cpp --fit decides by free VRAM.
       - GPU_LAYERS=${VLM_GPU_LAYERS:-auto}
       # Context budget (spec §2 "sized for 4 images + ~6K text + output",
@@ -287,26 +287,52 @@ services:
       - THREADS=${VLM_THREADS:-4}
       - BATCH_SIZE=${VLM_BATCH_SIZE:-2048}
       - UBATCH_SIZE=${VLM_UBATCH_SIZE:-512}
-      # KV quantization halves the 32K-pool footprint (Qwen3-VL-4B: ~73KB
-      # per token per slot at q8_0; 2x16K slots ~2.4GB) - same trade the
-      # ai-llm block documents.
+      # KV quantization halves the 32K-pool footprint - same trade the ai-llm
+      # block documents. The pool is a function of the ARCHITECTURE and the
+      # ctx/slot numbers above, not of the weights' size: the 4B and the 8B
+      # share block_count 36 / head_count 32 (GGUF headers, ledger item 34),
+      # so shipping the 8B bought no KV relief and this line's arithmetic is
+      # unchanged. UNRESOLVED (named 2026-09-28, nobody should silently pick a
+      # side): two figures exist for THIS pool and they disagree by somewhere
+      # between ~2x and ~4x - this comment's older prose said "~73KB per token
+      # per slot, 2x16K slots ~2.4GB" (a Qwen3-VL-4B q8_0 estimate), and the
+      # bake-off report's candidate C row recorded "4608 MiB / 16384 cells".
+      # The spread is the report's own ambiguity, not a third estimate: read
+      # 4608 as ONE 16384-cell slot's KV and it is ~288KB/token (~4x); read it
+      # as the whole 32768 pool expressed per 16K and it is ~144KB/token
+      # (~2x). An earlier revision of this comment asserted "~2x" flat, which
+      # picked a side of an unstated basis. Neither figure is a measurement of
+      # this container's pool; llama-server's own startup KV line is, and the
+      # A5500 handout asks for it. So this comment states no number until one
+      # exists.
       - CACHE_TYPE_K=${VLM_CACHE_TYPE_K:-q8_0}
       - CACHE_TYPE_V=${VLM_CACHE_TYPE_V:-q8_0}
       - FLASH_ATTENTION=${VLM_FLASH_ATTENTION:-true}
       # Residency (spec §2 --sleep-idle-seconds): llama.cpp sleep mode
       # releases the weights to CPU RAM after this much idleness; wake is
-      # a RAM->VRAM copy (seconds for a 4B), which the §6 ladder's latency
-      # budget absorbs. 300 s = bursty camera traffic stays warm, an idle
-      # night yields the VRAM. 1.4's residency control consumes, not
-      # replaces, this. Set empty to disable sleeping entirely.
+      # a RAM->VRAM copy of the whole pair - 5,027,784,800 B main +
+      # 752,289,728 B mmproj for the shipped 8B (sha256-pinned in ledger item
+      # 35), against 2,497,281,664 + 453,974,304 for the 4B pair it replaces:
+      # 2.0x the bytes to copy back. No wake time is measured here and none is
+      # claimed: the client's budget is AI_VLM_WAKE_TIMEOUT_SECONDS=90.0 and
+      # the A5500 handout records the actual against it. 300 s = bursty camera
+      # traffic stays warm, an idle night yields the VRAM. 1.4's residency
+      # control consumes, not replaces, this. Set empty to disable sleeping
+      # entirely.
       - SLEEP_IDLE_SECONDS=${VLM_SLEEP_IDLE_SECONDS:-300}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8098/health']
       interval: 10s
       timeout: 5s
       retries: 3
-      # Qwen3-VL-4B Q4 loads far faster than the 30B ai-llm; 120s matches
-      # the image's own HEALTHCHECK start-period.
+      # 120s is not an estimate: it mirrors the image's own HEALTHCHECK
+      # --start-period=120s (ai/vlm/Dockerfile:133) so the two never disagree
+      # about when a cold serve is allowed to answer. Whether the shipped 8B
+      # pair clears it is UNMEASURED - the earlier reason on this line was a
+      # 4B-vs-30B anecdote, not a reading - so the A5500 handout carries
+      # "record the 8B's actual load time against this window". If it does not
+      # clear it, both numbers move together or the server is torn down for
+      # being slow when it is only early.
       start_period: 120s
     restart: unless-stopped
     networks:
@@ -616,7 +642,7 @@ services:
       # degraded-path event_verifications.model_id label (a failed call has no
       # verdict to read the engine's own id from); must track VLM_MODEL_PATH's
       # identity, which the ai-vlm service above reads from the same .env.
-      - VLM_MODEL_ID=${VLM_MODEL_ID:-Qwen3VL-4B-Instruct-Q4_K_M}
+      - VLM_MODEL_ID=${VLM_MODEL_ID:-Qwen3VL-8B-Instruct-Q4_K_M}
       # largest file embedded as ONE key frame. The guard exists because a
       # base64 payload inflates ~4/3 and the prompt shares one llama.cpp slot
       # (VLM_CTX_SIZE / VLM_PARALLEL) with the verdict's output — an oversized

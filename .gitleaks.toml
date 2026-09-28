@@ -51,6 +51,8 @@ paths = [
   # Lock files contain checksums, not secrets
   '''package-lock\.json$''',
   '''uv\.lock$''',
+  # synthbench weights manifests: public sha256 content hashes and HF commit ids
+  '''synthbench/generate/manifests/.*\.json$''',
   # Secrets baseline file (tracks known false positives)
   '''\.secrets\.baseline$''',
   # Documentation may contain example secrets

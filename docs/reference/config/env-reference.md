@@ -760,6 +760,16 @@ The `VITE_*` variables are embedded at frontend build time; the `FRONTEND_*` por
 
 ---
 
+## Synthetic Benchmark
+
+| Variable                  | Required | Default                     | Description                                                      |
+| ------------------------- | -------- | --------------------------- | ---------------------------------------------------------------- |
+| `SYNTHBENCH_COMFYUI_PORT` | No       | `8188`                      | Host port of the synthbench ComfyUI renderer (127.0.0.1 only)    |
+| `SYNTHBENCH_ROOT`         | No       | `/export/synthbench`        | Generated media, GPU-window state and caches                     |
+| `SYNTHBENCH_PODMAN_ROOT`  | No       | `/export/models/containers` | Dedicated podman store (images, build temp files) for synthbench |
+
+---
+
 ## Next Steps
 
 - [Risk Levels Reference](risk-levels.md) - Severity configuration details

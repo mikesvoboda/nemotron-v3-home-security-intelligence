@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065    # v5.6.0
         with:
           python-version: '3.12'
 
@@ -55,7 +55,7 @@ jobs:
           ./dist/setup-linux --help
 
       - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02    # v4.6.2
         with:
           name: setup-linux
           path: dist/setup-linux
@@ -69,7 +69,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065    # v5.6.0
         with:
           python-version: '3.12'
 
@@ -104,7 +104,7 @@ jobs:
           .\dist\setup.exe --help
 
       - name: Upload artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02    # v4.6.2
         with:
           name: setup-windows
           path: dist/setup.exe
@@ -131,7 +131,7 @@ jobs:
           path: artifacts/
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64    # v3.0.3
         with:
           files: |
             artifacts/setup-linux

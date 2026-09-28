@@ -45,6 +45,7 @@ Service column: **ai-llm** = llama.cpp container (:8091) · **gateway** = Triton
 | ViT Age Classifier             | Age estimation                           | ~0.2 GB  | gateway + backend      | HuggingFace  | age groups                   |
 | ViT Gender Classifier          | Gender classification                    | ~0.2 GB  | gateway + backend      | HuggingFace  | Binary                       |
 | YOLOv8n Pose                   | Pose estimation (Triton `pose`)          | ~0.2 GB  | gateway + backend      | Ultralytics  | 17 keypoints                 |
+| Qwen3-VL-8B-Instruct           | Serving VLM (`vlm` mode)                 | ~11 GB¹  | ai-vlm :8098           | llama.cpp    | 16384/slot (see below)       |
 
 ---
 
@@ -120,6 +121,34 @@ A smaller, faster model for development and resource-constrained environments.
 - Local development without high-end GPU
 - Testing prompt templates and integration flows
 - CI/CD pipeline testing (faster iteration)
+
+---
+
+### Qwen3-VL-8B-Instruct (serving VLM, `vlm` mode)
+
+The vision-language model that grades events in the shipped `vlm` pipeline mode. llama.cpp serves
+it with an `mmproj` projector file — without the projector the serve is **text-only and every
+`vlm_assess` degrades silently**, so the two files are one identity and are configured as a pair.
+
+| Specification | Value                                                                                                                                      |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Source**    | [Qwen/Qwen3-VL-8B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF) (Apache-2.0)                                       |
+| **Files**     | `Qwen3VL-8B-Instruct-Q4_K_M.gguf` + `mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`, host-mounted read-only at `/models`                            |
+| **Config**    | `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` / `VLM_MODEL_ID` / `VLM_MODEL_ALIAS` (`.env.example`; `docker-compose.prod.yml` profile `vlm`)        |
+| **Service**   | `ai-vlm` :8098 (llama.cpp, `--jinja`, `--sleep-idle-seconds`) — backend reaches it at `http://ai-vlm:8098`                                 |
+| **Context**   | `VLM_CTX_SIZE` 32768 ÷ `VLM_PARALLEL` 2 = **16384 tokens per slot**; the backend derives its prompt budget from the same pair              |
+| **Status**    | **Provisional pick** — owner ruling 2026-09-28, spec rev 7, ledger item 35. Open S1/S4 (24 GB hardware) and the real-corpus S2/S3 close it |
+| **Fallback**  | `Qwen3VL-4B-Instruct-Q4_K_M` + its mmproj — the measured fallback row in the A5500 handout, same KV geometry                               |
+
+¹ The ~11 GB figure is the bake-off's broker-actual reading on a GB300 (`vram_actual_mib 11216`,
+9376 projected), **indicative only** — S1's bar is measured on 24 GB-class hardware with the whole
+stack resident and has not been taken for this model. Weights alone are 5.03 GB + 0.75 GB. The KV
+pool is a function of architecture and ctx/slot settings, not of weight size: 4B and 8B share
+`block_count 36` / `head_count 32`, so the 8B buys no KV relief.
+
+The `ai-llm` rows above (Nemotron-3-Nano-30B-A3B, Nemotron Mini 4B) belong to the **legacy serving
+path, which is unsupported** (spec rev 5, ledger F10) — in `vlm` mode `ai-llm` is not running at all.
+Their figures are kept for the code that still exists, not as a current deployment target.
 
 ---
 
