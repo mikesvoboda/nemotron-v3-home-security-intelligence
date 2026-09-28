@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from synthbench.generate.comfy.validate import validate_graph
@@ -98,3 +99,194 @@ def test_optional_inputs_are_accepted() -> None:
     graph = _good()
     graph["2"]["inputs"]["note"] = "hi"
     assert validate_graph(graph, INFO) == []
+
+
+# ComfyUI v0.37.0 "v3" dynamic inputs, as /object_info declares them (shapes copied from the
+# snapshot: TextEncodeQwenImage21.images, SaveVideo.format, ResizeImageMaskNode.input).
+V3_INFO: dict[str, Any] = {
+    "LoadImage": {"input": {"required": {"image": ["STRING", {}]}}, "output": ["IMAGE", "MASK"]},
+    "UNETLoader": INFO["UNETLoader"],
+    "Encode": {
+        "input": {
+            "required": {
+                "prompt": ["STRING", {}],
+                "images": [
+                    "COMFY_AUTOGROW_V3",
+                    {
+                        "template": {
+                            "input": {"required": {"image": ["IMAGE", {}]}},
+                            "names": ["image_1", "image_2"],
+                            "min": 0,
+                        }
+                    },
+                ],
+            }
+        },
+        "output": ["CONDITIONING"],
+    },
+    "Save": {
+        "input": {
+            "required": {
+                "format": [
+                    "COMFY_DYNAMICCOMBO_V3",
+                    {
+                        "options": [
+                            {
+                                "key": "auto",
+                                "inputs": {
+                                    "required": {
+                                        "codec": [
+                                            "COMFY_DYNAMICCOMBO_V3",
+                                            {
+                                                "options": [
+                                                    {"key": "auto", "inputs": {"required": {}}},
+                                                    {
+                                                        "key": "h264",
+                                                        "inputs": {
+                                                            "required": {},
+                                                            "optional": {"crf": ["FLOAT", {}]},
+                                                        },
+                                                    },
+                                                ]
+                                            },
+                                        ]
+                                    }
+                                },
+                            },
+                            {"key": "webm", "inputs": {"required": {}}},
+                        ]
+                    },
+                ]
+            }
+        },
+        "output": [],
+    },
+    "Resize": {
+        "input": {
+            "required": {
+                "input": [
+                    "COMFY_MATCHTYPE_V3",
+                    {"template": {"template_id": "input_type", "allowed_types": "IMAGE,MASK"}},
+                ]
+            }
+        },
+        "output": ["COMFY_MATCHTYPE_V3"],
+    },
+    "Preview": {"input": {"required": {"images": ["IMAGE", {}]}}, "output": []},
+}
+
+
+def test_autogrow_slots_are_optional_inputs_named_after_the_group() -> None:
+    graph = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "a.png"}},
+        "2": {"class_type": "Encode", "inputs": {"prompt": "p", "images.image_1": ["1", 0]}},
+        "3": {"class_type": "Encode", "inputs": {"prompt": "p"}},
+    }
+    assert validate_graph(graph, V3_INFO) == []
+
+
+def test_autogrow_slots_are_type_checked_and_bounded_by_the_template_names() -> None:
+    graph = {
+        "0": {
+            "class_type": "UNETLoader",
+            "inputs": {"unet_name": "z.safetensors", "weight_dtype": "default"},
+        },
+        "1": {"class_type": "LoadImage", "inputs": {"image": "a.png"}},
+        "2": {
+            "class_type": "Encode",
+            "inputs": {"prompt": "p", "images.image_1": ["0", 0], "images.image_3": ["1", 0]},
+        },
+    }
+    assert validate_graph(graph, V3_INFO) == [
+        "2 (Encode): images.image_1 expects IMAGE but '0' gives MODEL",
+        "2 (Encode): unknown input 'images.image_3'",
+    ]
+
+
+def test_autogrow_slots_below_min_are_required() -> None:
+    info = json.loads(json.dumps(V3_INFO))
+    info["Encode"]["input"]["required"]["images"][1]["template"]["min"] = 1
+    graph = {"2": {"class_type": "Encode", "inputs": {"prompt": "p"}}}
+    assert validate_graph(graph, info) == ["2 (Encode): missing required input 'images.image_1'"]
+
+
+def test_dynamic_combo_accepts_an_option_key_and_its_nested_inputs() -> None:
+    graph = {
+        "1": {"class_type": "Save", "inputs": {"format": "auto", "format.codec": "h264"}},
+        "2": {
+            "class_type": "Save",
+            "inputs": {"format": "auto", "format.codec": "h264", "format.codec.crf": 23.0},
+        },
+        "3": {"class_type": "Save", "inputs": {"format": "webm"}},
+    }
+    assert validate_graph(graph, V3_INFO) == []
+
+
+def test_dynamic_combo_rejects_unknown_keys_and_missing_nested_inputs() -> None:
+    graph = {
+        "1": {"class_type": "Save", "inputs": {"format": "gif"}},
+        "2": {"class_type": "Save", "inputs": {"format": "auto"}},
+        "3": {"class_type": "Save", "inputs": {"format": "webm", "format.codec": "auto"}},
+        "4": {"class_type": "Save", "inputs": {}},
+    }
+    assert validate_graph(graph, V3_INFO) == [
+        "1 (Save): format='gif' is not an allowed value",
+        "2 (Save): missing required input 'format.codec'",
+        "3 (Save): unknown input 'format.codec'",
+        "4 (Save): missing required input 'format'",
+    ]
+
+
+def test_match_type_inputs_take_their_allowed_types_and_outputs_match_anything() -> None:
+    graph = {
+        "0": {
+            "class_type": "UNETLoader",
+            "inputs": {"unet_name": "z.safetensors", "weight_dtype": "default"},
+        },
+        "1": {"class_type": "LoadImage", "inputs": {"image": "a.png"}},
+        "2": {"class_type": "Resize", "inputs": {"input": ["1", 0]}},
+        "3": {"class_type": "Preview", "inputs": {"images": ["2", 0]}},
+        "4": {"class_type": "Resize", "inputs": {"input": ["0", 0]}},
+    }
+    assert validate_graph(graph, V3_INFO) == [
+        "4 (Resize): input expects IMAGE,MASK but '0' gives MODEL"
+    ]
+
+
+def test_autogrow_prefix_templates_number_their_slots_from_zero() -> None:
+    # Shape of BatchImagesNode.images in the v0.37.0 /object_info.
+    info = V3_INFO | {
+        "Batch": {
+            "input": {
+                "required": {
+                    "images": [
+                        "COMFY_AUTOGROW_V3",
+                        {
+                            "template": {
+                                "input": {"required": {"image": ["IMAGE", {}]}},
+                                "prefix": "image",
+                                "min": 1,
+                                "max": 3,
+                            }
+                        },
+                    ]
+                }
+            },
+            "output": ["IMAGE"],
+        }
+    }
+    graph = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "a.png"}},
+        "2": {
+            "class_type": "Batch",
+            "inputs": {"images.image0": ["1", 0], "images.image2": ["1", 0]},
+        },
+        "3": {
+            "class_type": "Batch",
+            "inputs": {"images.image1": ["1", 0], "images.image3": ["1", 0]},
+        },
+    }
+    assert validate_graph(graph, info) == [
+        "3 (Batch): missing required input 'images.image0'",
+        "3 (Batch): unknown input 'images.image3'",
+    ]

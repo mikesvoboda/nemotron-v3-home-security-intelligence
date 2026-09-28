@@ -4,6 +4,13 @@ Catches, without a GPU: unknown node types, missing/unknown inputs, combo
 values the server would reject (including model files missing from the
 farm), dangling links, and link type mismatches. Both combo formats are
 understood: [[options...], {...}] and ["COMBO", {"options": [...]}].
+
+ComfyUI's "v3" dynamic inputs are expanded the way the server expands them
+(comfy_api.latest._io.get_finalized_class_inputs) before checking:
+COMFY_AUTOGROW_V3 becomes its template slots ("images.image_1", ...),
+COMFY_DYNAMICCOMBO_V3 becomes a combo of its option keys plus the selected
+option's inputs ("format.codec", ...), and a COMFY_MATCHTYPE_V3 input accepts
+its template's allowed_types while a COMFY_MATCHTYPE_V3 output matches any input.
 """
 
 from __future__ import annotations
@@ -35,6 +42,50 @@ def _types(declared: Any) -> set[str]:
     return {t.strip() for t in str(declared).split(",")}
 
 
+_AUTOGROW = "COMFY_AUTOGROW_V3"
+_DYNAMIC_COMBO = "COMFY_DYNAMICCOMBO_V3"
+_MATCH_TYPE = "COMFY_MATCHTYPE_V3"
+
+
+def _autogrow_slots(name: str, spec: list[Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    template: dict[str, Any] = spec[1]["template"]
+    names = template.get("names") or [f"{template['prefix']}{i}" for i in range(template["max"])]
+    section, slots = next((k, v) for k, v in template["input"].items() if v)
+    slot = next(iter(slots.values()))
+    required: dict[str, Any] = {}
+    optional: dict[str, Any] = {}
+    for i, slot_name in enumerate(names):
+        target = required if i < template.get("min", 1) and section == "required" else optional
+        target[f"{name}.{slot_name}"] = slot
+    return required, optional
+
+
+def _expand(
+    declared: dict[str, Any], inputs: dict[str, Any], prefix: str = ""
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """(required, optional) input specs keyed by the names an API graph uses."""
+    required: dict[str, Any] = {}
+    optional: dict[str, Any] = {}
+    for section, target in (("required", required), ("optional", optional)):
+        for name, spec in declared.get(section, {}).items():
+            key = f"{prefix}{name}"
+            if spec[0] == _AUTOGROW:
+                grown_required, grown_optional = _autogrow_slots(key, spec)
+                required |= grown_required
+                optional |= grown_optional
+            elif spec[0] == _DYNAMIC_COMBO:
+                options: list[dict[str, Any]] = spec[1]["options"]
+                target[key] = ["COMBO", {"options": [o["key"] for o in options]}]
+                chosen = next((o for o in options if o["key"] == inputs.get(key)), None)
+                if chosen is not None:
+                    nested_required, nested_optional = _expand(chosen["inputs"], inputs, f"{key}.")
+                    required |= nested_required
+                    optional |= nested_optional
+            else:
+                target[key] = spec
+    return required, optional
+
+
 def validate_graph(graph: Graph, object_info: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for node_id, node in graph.items():
@@ -43,10 +94,8 @@ def validate_graph(graph: Graph, object_info: dict[str, Any]) -> list[str]:
         if info is None:
             errors.append(f"{node_id}: unknown class_type {class_type!r}")
             continue
-        declared = info.get("input", {})
-        required: dict[str, Any] = declared.get("required", {})
-        optional: dict[str, Any] = declared.get("optional", {})
         inputs: dict[str, Any] = node.get("inputs", {})
+        required, optional = _expand(info.get("input", {}), inputs)
         where = f"{node_id} ({class_type})"
         errors += [
             f"{where}: missing required input {name!r}" for name in required if name not in inputs
@@ -86,7 +135,9 @@ def _check_link(
             f"{where}: {name} links to output {index} of {source_id!r} "
             f"({source['class_type']} has {len(outputs)})"
         ]
-    wanted, given = _types(spec[0]), _types(outputs[index])
-    if "*" in wanted or "*" in given or wanted & given or _options(spec) is not None:
+    declared = spec[1]["template"]["allowed_types"] if spec[0] == _MATCH_TYPE else spec[0]
+    wanted, given = _types(declared), _types(outputs[index])
+    matches_any = "*" in wanted or "*" in given or _MATCH_TYPE in given
+    if matches_any or wanted & given or _options(spec) is not None:
         return []
-    return [f"{where}: {name} expects {spec[0]} but {source_id!r} gives {outputs[index]}"]
+    return [f"{where}: {name} expects {declared} but {source_id!r} gives {outputs[index]}"]
