@@ -113,6 +113,11 @@ ENV MODEL_ALIAS=
 # weights go to CPU RAM and VRAM is released to other residents (spec section 2's
 # residency mechanism; 1.4 layers control on top). Empty = never sleep.
 ENV SLEEP_IDLE_SECONDS=
+# CACHE_TYPE_K / CACHE_TYPE_V: KV cache quantization (compose ships q8_0, half
+# the f16 pool). Empty = llama.cpp's f16 default. A quantized V cache needs flash
+# attention, which FLASH_ATTENTION=true enables below.
+ENV CACHE_TYPE_K=
+ENV CACHE_TYPE_V=
 # 8098: the container-side port is FIXED to match the compose contract
 # (host-side AI_VLM_PORT is a separate mapping; internal URL = ai-vlm:8098).
 ENV PORT=8098
@@ -141,11 +146,15 @@ CMD ["sh", "-c", "FLASH_ARGS=''; \
     if [ -n \"${MODEL_ALIAS}\" ]; then ALIAS_ARGS=\"--alias ${MODEL_ALIAS}\"; fi; \
     SLEEP_ARGS=''; \
     if [ -n \"${SLEEP_IDLE_SECONDS}\" ]; then SLEEP_ARGS=\"--sleep-idle-seconds ${SLEEP_IDLE_SECONDS}\"; fi; \
+    KV_ARGS=''; \
+    if [ -n \"${CACHE_TYPE_K}\" ]; then KV_ARGS=\"--cache-type-k ${CACHE_TYPE_K}\"; fi; \
+    if [ -n \"${CACHE_TYPE_V}\" ]; then KV_ARGS=\"${KV_ARGS} --cache-type-v ${CACHE_TYPE_V}\"; fi; \
     llama-server \
     --model ${MODEL_PATH} \
     ${MM_ARGS} \
     ${ALIAS_ARGS} \
     ${SLEEP_ARGS} \
+    ${KV_ARGS} \
     --host 0.0.0.0 \
     --port ${PORT} \
     --n-gpu-layers ${GPU_LAYERS} \

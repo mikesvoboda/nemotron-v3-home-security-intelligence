@@ -1129,31 +1129,43 @@ pytest_skip_imperative:
     expires: null
     reason: No confidence scores found in detections
     host_justification: synthetic-scenario DB rows (data chain), not repo content
-  - id: backend/tests/security/test_docker_compose_security.py:192
+  - id: backend/tests/security/test_docker_compose_security.py:197
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:205
+  - id: backend/tests/security/test_docker_compose_security.py:210
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:229
+  - id: backend/tests/security/test_docker_compose_security.py:234
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:240
+  - id: backend/tests/security/test_docker_compose_security.py:245
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/security/test_docker_compose_security.py:46
+  - id: backend/tests/security/test_docker_compose_security.py:348
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: git not available
+  - id: backend/tests/security/test_docker_compose_security.py:358
+    kind: todo
+    owner: mikesvoboda
+    tracking: UNTRACKED:GENERAL
+    expires: '2026-12-31'
+    reason: null
+  - id: backend/tests/security/test_docker_compose_security.py:51
     kind: todo
     owner: mikesvoboda
     tracking: UNTRACKED:GENERAL

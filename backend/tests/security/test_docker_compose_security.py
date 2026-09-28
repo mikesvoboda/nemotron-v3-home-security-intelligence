@@ -11,11 +11,16 @@ These security controls follow the principle of least privilege and prevent
 container escape attacks.
 """
 
+import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import ClassVar
 
 import pytest
 import yaml
+
+REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 class TestDockerComposeSecurityHardening:
@@ -242,3 +247,169 @@ class TestComposeConfigValidation:
         content = yaml.safe_load(docker_compose_path.read_text())
         assert "services" in content, "docker-compose.prod.yml missing 'services' section"
         assert isinstance(content["services"], dict), "'services' section should be a dictionary"
+
+
+# Every TRACKED compose file (`git ls-files '*docker-compose*.yml'`, pinned by
+# test_the_tracked_compose_list_is_what_git_tracks).
+TRACKED_COMPOSE_FILES: tuple[str, ...] = (
+    "config/docker-compose.gb300.yml",
+    "docker-compose.ci.yml",
+    "docker-compose.ghcr.yml",
+    "docker-compose.prod.yml",
+    "docker-compose.test.yml",
+)
+
+# Short syntax ``<source>:<target>[:<opts>]``. The shortest source wins, so the
+# ``:-`` inside a ``${FOSCAM_BASE_PATH:-/export/foscam}`` default does not split
+# the mount at the wrong colon.
+_SHORT_MOUNT_RE = re.compile(r"^(?P<source>.*?):(?P<target>/[^:]*)(?::(?P<opts>[^:]*))?$")
+
+
+class _ComposeLoader(yaml.SafeLoader):
+    """safe_load that also reads compose's merge tags (!override, !reset)."""
+
+
+def _construct_compose_tag(loader: yaml.SafeLoader, _suffix: str, node: yaml.Node) -> object:
+    if isinstance(node, yaml.MappingNode):
+        return loader.construct_mapping(node, deep=True)
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node, deep=True)
+    return loader.construct_scalar(node)  # type: ignore[arg-type]
+
+
+_ComposeLoader.add_multi_constructor("!", _construct_compose_tag)
+
+
+def _camera_mounts(compose_text: str) -> list[tuple[str, str, set[str]]]:
+    """(service, mount as written, options) for every camera-root mount.
+
+    A camera-root mount targets ``/cameras`` or sources FOSCAM_BASE_PATH. For
+    long syntax the relabel lives in ``bind.selinux``.
+    """
+    # _ComposeLoader IS a SafeLoader: it only adds plain-node reads of compose's
+    # own tags, no Python object construction.
+    config = yaml.load(compose_text, Loader=_ComposeLoader) or {}  # noqa: S506  # nosemgrep: unsafe-yaml-load
+    out: list[tuple[str, str, set[str]]] = []
+    for name, service in (config.get("services") or {}).items():
+        for volume in (service or {}).get("volumes") or []:
+            if isinstance(volume, dict):
+                source = str(volume.get("source", ""))
+                target = str(volume.get("target", ""))
+                opts = {str((volume.get("bind") or {}).get("selinux", ""))}
+            else:
+                m = _SHORT_MOUNT_RE.match(str(volume))
+                if m is None:
+                    continue  # anonymous volume: no host dir to relabel
+                source, target = m["source"], m["target"]
+                opts = set((m["opts"] or "").split(","))
+            if target.rstrip("/") == "/cameras" or "FOSCAM_BASE_PATH" in source:
+                out.append((name, str(volume), opts))
+    return out
+
+
+class TestCameraMountIsWatchableUnderSELinux:
+    """The backend's file watcher needs an inotify WATCH on /cameras, and on an
+    SELinux-enforcing host (the A5500 box: Fedora, enforcing) a container_t
+    process may read a usr_t directory but not watch it. The audit log showed
+    `avc: denied { watch watch_reads } ... path="/cameras" ... tcontext=usr_t`
+    at every backend start, while the watcher logged "started successfully" and
+    never received an event - so no upload was ever ingested (A5500 bring-up,
+    2026-09-28). `:z` makes podman relabel the source to the shared
+    container_file_t, the same fix the model-zoo mount already carries.
+    """
+
+    @pytest.fixture
+    def backend_volumes(self) -> list[str]:
+        path = Path(__file__).parent.parent.parent.parent / "docker-compose.prod.yml"
+        return yaml.safe_load(path.read_text())["services"]["backend"]["volumes"]
+
+    def test_camera_mount_is_relabelled_for_containers(self, backend_volumes: list[str]) -> None:
+        camera = [v for v in backend_volumes if isinstance(v, str) and ":/cameras" in v]
+        assert len(camera) == 1, f"expected one /cameras mount, found {camera}"
+        options = camera[0].split(":/cameras", 1)[1].lstrip(":").split(",")
+        assert "z" in options or "Z" in options, (
+            f"{camera[0]!r} has no SELinux relabel option - the watcher cannot "
+            "inotify-watch a usr_t camera root on an enforcing host"
+        )
+
+    # -- every compose file, every service (owner ruling 2026-09-28) ----------
+    # The backend is not the only container that touches the camera root:
+    # foscam-init chowns it BEFORE the backend starts (so on a fresh host it
+    # is the first to touch the dir - the A5500 audit log also showed its
+    # `avc: denied { setattr } for comm="chown" ... tcontext=...usr_t`), and
+    # the ghcr compose mounts it for its own backend. Each such mount relabels.
+
+    def test_the_tracked_compose_list_is_what_git_tracks(self) -> None:
+        # The list below is explicit, not a working-tree glob: a stale local
+        # docker-compose.override.yml (setup.py no longer generates one) is not
+        # the repo's. This keeps the list honest wherever git is available.
+        git = shutil.which("git")
+        if git is None:
+            pytest.skip("git not available")
+        result = subprocess.run(  # noqa: S603  # real git ls-files, fixed argv, 30s timeout
+            [git, "ls-files", "*docker-compose*.yml"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            pytest.skip(f"not a git checkout: {result.stderr.strip()}")
+        assert sorted(result.stdout.split()) == sorted(TRACKED_COMPOSE_FILES)
+
+    @pytest.mark.parametrize("fname", TRACKED_COMPOSE_FILES)
+    def test_every_camera_mount_relabels(self, fname: str) -> None:
+        text = (REPO_ROOT / fname).read_text()
+        bare = [
+            f"{service}: {mount}"
+            for service, mount, opts in _camera_mounts(text)
+            if not opts & {"z", "Z"}
+        ]
+        assert not bare, (
+            f"{fname}: camera-root mount(s) without :z/:Z - {bare}. On an "
+            "SELinux-enforcing host the container cannot watch (backend) or "
+            "chown (foscam-init) a usr_t camera root; add z to the options"
+        )
+
+    def test_the_camera_mounts_that_must_relabel_are_found(self) -> None:
+        # Non-vacuity: the pin above passes trivially if it finds nothing.
+        found = {
+            (fname, service)
+            for fname in TRACKED_COMPOSE_FILES
+            for service, _mount, _opts in _camera_mounts((REPO_ROOT / fname).read_text())
+        }
+        assert found >= {
+            ("docker-compose.prod.yml", "backend"),
+            ("docker-compose.prod.yml", "foscam-init"),
+            ("docker-compose.ghcr.yml", "backend"),
+        }
+
+    @pytest.mark.parametrize(
+        ("volume", "relabels"),
+        [
+            ("${FOSCAM_BASE_PATH:-/export/foscam}:/cameras", False),
+            ("${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro", False),
+            ("${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro,z", True),
+            ("${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:Z", True),
+            # the camera root mounted somewhere else is still the camera root
+            ("${FOSCAM_BASE_PATH}:/data/cams:ro", False),
+            ("/srv/cams:/cameras/:z", True),
+            ({"type": "bind", "source": "/srv/cams", "target": "/cameras"}, False),
+            (
+                {
+                    "type": "bind",
+                    "source": "/srv/cams",
+                    "target": "/cameras",
+                    "bind": {"selinux": "z"},
+                },
+                True,
+            ),
+        ],
+    )
+    def test_the_detector_reads_short_and_long_syntax(
+        self, volume: str | dict, relabels: bool
+    ) -> None:
+        text = yaml.safe_dump({"services": {"svc": {"volumes": [volume]}}})
+        [(_service, _mount, opts)] = _camera_mounts(text)
+        assert bool(opts & {"z", "Z"}) is relabels

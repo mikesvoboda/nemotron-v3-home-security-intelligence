@@ -237,7 +237,7 @@ async def _florence_infer(image_b64: str, prompt: str) -> tuple[str, float]:
             text_result = envelope["result"]
             if not isinstance(text_result, str):
                 text_result = json.dumps(text_result)
-    except json.JSONDecodeError, TypeError:
+    except (json.JSONDecodeError, TypeError):
         pass
 
     inference_time_ms = (time.monotonic() - start) * 1000
@@ -251,7 +251,7 @@ def _parse_json_output(text: str) -> Any:
     """
     try:
         return json.loads(text)
-    except json.JSONDecodeError, TypeError:
+    except (json.JSONDecodeError, TypeError):
         return text
 
 

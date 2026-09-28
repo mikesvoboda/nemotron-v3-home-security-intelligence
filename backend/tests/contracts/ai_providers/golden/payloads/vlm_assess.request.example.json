@@ -16,5 +16,6 @@
     "zone_crossing": false,
     "zones": ["sample_zones"]
   },
+  "frame_detection_ids": [[1]],
   "image_paths": ["ZmFrZS1pbWFnZQ=="]
 }

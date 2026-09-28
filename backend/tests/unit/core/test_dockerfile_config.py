@@ -226,3 +226,23 @@ class TestDockerfileConfig:
             f"--timeout-graceful-shutdown has value {timeout_value}, but should be 30. "
             "This aligns with batch_idle_timeout_seconds (30s) to ensure batches complete."
         )
+
+    def test_prod_dependencies_carry_the_face_extra(self, dockerfile_content: str) -> None:
+        """The prod image must install the `face` extra (onnxruntime).
+
+        The F12 face leg is a CPU onnxruntime loader, and onnxruntime lives ONLY
+        in the `face`/`alpr` extras (pyproject.toml) - never in the base closure.
+        The builder stage synced with no --extra, so on every compose box the
+        face rows failed to load ("onnxruntime not installed") and the leg
+        answered "unavailable" even with both hash-pinned files on disk. Found
+        on the A5500 bring-up, 2026-09-28. Pinned on the builder stage because
+        that is the .venv the prod stage copies.
+        """
+        builder = dockerfile_content.split(" AS builder", 1)[1].split(" AS prod", 1)[0]
+        syncs = [line for line in builder.splitlines() if "uv sync" in line]
+        assert syncs, "builder stage has no `uv sync` - the prod .venv comes from nowhere"
+        for line in syncs:
+            assert "--extra face" in line, (
+                f"builder `uv sync` lacks --extra face: {line.strip()!r} - the prod "
+                "image then has no onnxruntime and the face leg can never load"
+            )

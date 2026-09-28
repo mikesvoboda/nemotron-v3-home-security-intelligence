@@ -1856,7 +1856,12 @@ class TestCheckRedisHealthFunction:
 
 
 class TestCheckAIServicesHealth:
-    """Tests for check_ai_services_health function."""
+    """Tests for check_ai_services_health function (PIPELINE_MODE=legacy: these
+    patch the Nemotron check; vlm mode is TestCheckAIServicesHealthByPipelineMode)."""
+
+    @pytest.fixture(autouse=True)
+    def _legacy_mode(self, mock_settings: Settings) -> None:
+        mock_settings.pipeline_mode = "legacy"
 
     @pytest.mark.asyncio
     async def test_ai_services_health_all_healthy(self, mock_settings: Settings) -> None:
@@ -1899,6 +1904,137 @@ class TestCheckAIServicesHealth:
             # When one service is down, status is "degraded" not "unhealthy"
             assert result.status == "degraded"
             assert "nemotron" in result.message.lower()
+
+
+class TestCheckAIServicesHealthByPipelineMode:
+    """The system-health `ai` block follows PIPELINE_MODE (spec rev 5).
+
+    Observed on the A5500 box with PIPELINE_MODE=vlm: GET /api/system/health
+    answered `"ai": {"status": "degraded", "message": "Nemotron service
+    unavailable, YOLO26 operational"}` - a retired service reported as an
+    outage while the pipeline was fine. In vlm mode the block reports YOLO26 +
+    ai-vlm (llama-server `/health`: 200 ready, 503 loading - a probe that never
+    wakes a sleeping server, spec §6) and never probes nemotron. Legacy
+    (unsupported until R8) keeps today's YOLO26 + Nemotron answer exactly.
+
+    Driven at the HTTP boundary: a stand-in AsyncClient answers GET
+    `<base>/health` per base URL; an unrouted base is connection-refused, the
+    same answer the retired `ai-llm:8091` gives on the box.
+    """
+
+    YOLO26 = "http://ai-gateway:8090/yolo26"
+    NEMOTRON = "http://ai-llm:8091"
+    AI_VLM = "http://ai-vlm:8098"
+
+    @pytest.fixture(autouse=True)
+    def _fresh_health_breaker(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Module-global health breaker: a failure recorded by one test must
+        not open a circuit for the next."""
+        from backend.api.routes import system as system_routes
+
+        monkeypatch.setattr(system_routes, "_health_circuit_breaker", CircuitBreaker())
+
+    def _settings(self, mode: str) -> Settings:
+        return Settings(
+            _env_file=None,
+            pipeline_mode=mode,
+            yolo26_url=self.YOLO26,
+            nemotron_url=self.NEMOTRON,
+            ai_vlm_url=self.AI_VLM,
+        )
+
+    async def _run(self, mode: str, answers: dict[str, int | Exception]):
+        """Run check_ai_services_health against per-base-URL answers.
+
+        Returns (result, probed_urls)."""
+        import httpx
+
+        from backend.api.routes.system import check_ai_services_health
+
+        probed: list[str] = []
+
+        async def _get(url: str, *args: object, **kwargs: object) -> httpx.Response:
+            probed.append(url)
+            request = httpx.Request("GET", url)
+            for base, answer in answers.items():
+                if url == f"{base}/health":
+                    if isinstance(answer, Exception):
+                        raise answer
+                    return httpx.Response(answer, request=request)
+            raise httpx.ConnectError("connection refused", request=request)
+
+        with (
+            patch(
+                "backend.api.routes.system.get_settings",
+                autospec=True,
+                return_value=self._settings(mode),
+            ),
+            patch("backend.api.routes.system.httpx.AsyncClient", autospec=True) as client_cls,
+        ):
+            client_cls.return_value.__aenter__.return_value.get = AsyncMock(side_effect=_get)
+            result = await check_ai_services_health()
+        return result, probed
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_is_healthy_with_nemotron_gone(self) -> None:
+        """The incident: nemotron refuses (retired), YOLO26 + ai-vlm are up."""
+        result, probed = await self._run("vlm", {self.YOLO26: 200, self.AI_VLM: 200})
+
+        assert result.status == "healthy", result
+        assert result.details == {"yolo26": "healthy", "ai-vlm": "healthy"}
+        assert f"{self.AI_VLM}/health" in probed
+        assert not [u for u in probed if u.startswith(self.NEMOTRON)], (
+            f"vlm mode probed the retired nemotron: {probed}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_degraded_when_ai_vlm_is_down(self) -> None:
+        result, _ = await self._run("vlm", {self.YOLO26: 200})
+
+        assert result.status == "degraded"
+        assert result.message == "ai-vlm service unavailable, YOLO26 operational"
+        assert "nemotron" not in result.message.lower()
+        assert set(result.details) == {"yolo26", "ai-vlm"}
+        assert result.details["ai-vlm"] == "ai-vlm service connection refused"
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_loading_503_is_not_ready(self) -> None:
+        """llama-server answers /health 503 while it loads the model: up, but
+        not yet able to serve a verdict - degraded, and the detail says why."""
+        result, _ = await self._run("vlm", {self.YOLO26: 200, self.AI_VLM: 503})
+
+        assert result.status == "degraded"
+        assert "loading" in result.details["ai-vlm"].lower()
+        assert "503" in result.details["ai-vlm"]
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_unhealthy_when_yolo26_and_ai_vlm_are_down(self) -> None:
+        result, _ = await self._run("vlm", {})
+
+        assert result.status == "unhealthy"
+        assert result.message == "All AI services unavailable"
+        assert set(result.details) == {"yolo26", "ai-vlm"}
+
+    @pytest.mark.asyncio
+    async def test_legacy_mode_keeps_todays_nemotron_answer(self) -> None:
+        """Byte-for-byte pin of the pre-fix answer for the unsupported path."""
+        result, probed = await self._run("legacy", {self.YOLO26: 200})
+
+        assert result.status == "degraded"
+        assert result.message == "Nemotron service unavailable, YOLO26 operational"
+        assert result.details == {
+            "yolo26": "healthy",
+            "nemotron": "Nemotron service connection refused",
+        }
+        assert not [u for u in probed if u.startswith(self.AI_VLM)], probed
+
+    @pytest.mark.asyncio
+    async def test_legacy_mode_healthy_answer_unchanged(self) -> None:
+        result, _ = await self._run("legacy", {self.YOLO26: 200, self.NEMOTRON: 200})
+
+        assert result.status == "healthy"
+        assert result.message == "AI services operational"
+        assert result.details == {"yolo26": "healthy", "nemotron": "healthy"}
 
 
 class TestCircuitBreakerState:
@@ -2588,3 +2724,115 @@ class TestWp44ExporterStatusContract:
         assert bb.status.value == "unknown"
         assert bb.endpoint == "http://blackbox-exporter:9115"  # KNOWN default endpoint
         assert bb.error == "Exporter not found in Prometheus targets"  # exact text
+
+
+# =============================================================================
+# /api/system/pipeline: HOW uploads are detected (A5500 box, 2026-09-28)
+#
+# The FileWatcher now verifies its inotify watch at start and falls back to
+# polling when the kernel refuses it (SELinux denied the watch on /cameras and
+# the native observer was silently blind). An operator must be able to SEE
+# that from the pipeline status, not only from one ERROR line at boot.
+# =============================================================================
+
+
+class TestPipelineStatusReportsTheWatchMode:
+    @pytest.fixture
+    def register_file_watcher(self) -> Generator[object]:
+        import backend.api.routes.system as system_module
+
+        original = system_module._file_watcher
+
+        def _register(watcher: object) -> None:
+            system_module._file_watcher = watcher  # type: ignore[assignment]
+
+        with patch(
+            "backend.api.routes.system._get_degradation_status", autospec=True, return_value=None
+        ):
+            yield _register
+        system_module._file_watcher = original
+
+    @staticmethod
+    def _watcher(camera_root: Path, probe: object, *, use_polling: bool = False) -> object:
+        from backend.services.file_watcher import FileWatcher
+
+        return FileWatcher(
+            camera_root=str(camera_root),
+            use_polling=use_polling,
+            polling_interval=0.1,
+            watch_probe=lambda _path: probe,
+        )
+
+    async def test_a_refused_watch_reports_polling_fallback_and_its_errno(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        import errno
+
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True, error=errno.EACCES))
+        await watcher.start()
+        try:
+            register_file_watcher(watcher)
+            status = await get_pipeline_status(redis=None)
+        finally:
+            await watcher.stop()
+
+        fw = status.file_watcher
+        assert fw is not None
+        assert fw.watch_mode == "polling-fallback"
+        assert fw.watch_fallback_reason == "EACCES"
+        assert fw.observer_type == "polling"  # the observer that is actually running
+
+    async def test_an_established_watch_reports_native(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True))
+        with patch.object(watcher.observer, "start", autospec=True):
+            await watcher.start()
+        register_file_watcher(watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.watch_mode == "native"
+        assert fw.watch_fallback_reason is None
+        assert fw.observer_type == "native"
+
+    async def test_configured_polling_reports_polling(
+        self, tmp_path: Path, register_file_watcher
+    ) -> None:
+        from backend.api.routes.system import get_pipeline_status
+        from backend.services.inotify_probe import InotifyWatchProbe
+
+        watcher = self._watcher(tmp_path, InotifyWatchProbe(supported=True), use_polling=True)
+        register_file_watcher(watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.watch_mode == "polling"
+        assert fw.watch_fallback_reason is None
+
+    async def test_a_watcher_without_a_watch_mode_still_serialises(
+        self, register_file_watcher
+    ) -> None:
+        # The integration suite registers bare MagicMock watchers (running,
+        # camera_root, _use_polling, _pending_tasks only): their auto-attributes
+        # must not reach the response model.
+        from backend.api.routes.system import get_pipeline_status
+
+        mock_watcher = MagicMock()
+        mock_watcher.running = True
+        mock_watcher.camera_root = "/export/foscam"
+        mock_watcher._use_polling = True
+        mock_watcher._pending_tasks = {}
+        register_file_watcher(mock_watcher)
+        fw = (await get_pipeline_status(redis=None)).file_watcher
+
+        assert fw is not None
+        assert fw.observer_type == "polling"
+        assert fw.watch_mode == "polling"
+        assert fw.watch_fallback_reason is None
