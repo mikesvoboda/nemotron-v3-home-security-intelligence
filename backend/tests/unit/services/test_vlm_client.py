@@ -93,13 +93,15 @@ class RecordingTransport(httpx.AsyncBaseTransport):
         return response
 
 
-def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> FastAPI:
+def make_fake_llama(
+    mode: str = "strict", build_info: str = _BUILD_INFO, model_path: str | None = None
+) -> FastAPI:
     app = FastAPI()
     app.state.calls = []  # every chat request body, in order (wake tests read this directly)
 
     @app.get("/props")
     async def props() -> dict:
-        return {"build_info": build_info}
+        return {"build_info": build_info, **({"model_path": model_path} if model_path else {})}
 
     @app.post("/v1/chat/completions")
     async def chat(request: Request) -> JSONResponse:
@@ -1111,3 +1113,52 @@ class TestPromptTime:
         assert request.context.detections == [self._row()], (
             "only the rendered copy drops detected_at; the snapshot is untouched"
         )
+
+
+class TestProvenanceIsStampedNotTrusted:
+    """A5500 M1 chain, 2026-09-28: the verdict schema asked the MODEL for its
+    own provenance ("copy the values from the served model's own reported
+    identity") - which it cannot know, and the grammar forces it to write
+    something: event 613's row stored engine = model_id = the camera id.
+    Provenance is who answered; the client knows that from /props and its own
+    settings, so it stamps it and never trusts the model's copy (here the
+    strict fake writes "ok" into every string)."""
+
+    @staticmethod
+    def _client(model_path: str | None) -> vc.VlmClient:
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": True})
+        return vc.VlmClient(
+            base_url="http://fake-vlm:8098",
+            transport=RecordingTransport(make_fake_llama("strict", model_path=model_path)),
+            settings=settings,
+        )
+
+    async def test_the_served_identity_replaces_the_models_copy(self, image_dir) -> None:
+        client = self._client("/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf")
+        verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        label = client._settings.nemotron_verification_engine
+        assert verdict.provenance.engine == f"{label}@{_BUILD_INFO}"
+        assert verdict.provenance.model_id == "Qwen3VL-8B-Instruct-Q4_K_M"
+
+    async def test_the_configured_identity_when_the_server_does_not_say(self, image_dir) -> None:
+        client = self._client(None)
+        verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert verdict.provenance.model_id == client._settings.vlm_model_id
+        assert verdict.provenance.engine.endswith(f"@{_BUILD_INFO}")
+
+
+class TestBboxConventionIsStated:
+    """A5500 M1 chain, 2026-09-28: detection rows carry bbox as the store's
+    [x, y, width, height], rendered as a bare list. The 8B read it as corners
+    ("width of 272 - 511 = -239, which is impossible"), called three 0.94
+    person detections erroneous and scored the event 0/low. The prompt must
+    say what the four numbers are; the numbers themselves stay the snapshot's
+    (the eval corpus stays comparable)."""
+
+    def test_the_prompt_names_the_bbox_convention(self, image_dir) -> None:
+        det = {"id": 1, "object_type": "person", "confidence": 0.94, "bbox": [511, 242, 272, 456]}
+        text = make_client().prompt_text(
+            _request([str(image_dir / "front_door/a.jpg")], detections=[det])
+        )
+        assert "[x, y, width, height]" in text
+        assert "[511, 242, 272, 456]" in text, "the rendered numbers stay the snapshot's"

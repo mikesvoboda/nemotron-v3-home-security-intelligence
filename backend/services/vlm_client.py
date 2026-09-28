@@ -66,7 +66,7 @@ from backend.services.nemotron_analyzer import (
     build_probe_schema,
 )
 from backend.services.token_counter import get_token_counter
-from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
+from backend.services.vlm_verdict import VlmAssessRequest, VlmProvenance, VlmVerdict
 
 # backend/ai_contract/schemas/vlm_assess.response.json - the same generated
 # file the fake serves (fake/generators.py SCHEMA_DIR) and the golden payload
@@ -203,11 +203,27 @@ class VlmClient:
         # cached verdict, S-1: a transient INCONCLUSIVE must not ossify).
         self._enforced: bool | None = None
         self._build_info: str = ""
+        # The served model's own identity (/props model_path stem), read with
+        # the build pin; "" until the probe has read /props.
+        self._served_model_id: str = ""
         self._wire: dict[str, Any] | None = None
         self._probe_lock = asyncio.Lock()
         self._breaker: CircuitBreaker = get_circuit_breaker(
             BREAKER_NAME,
             CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0),
+        )
+
+    def _served_provenance(self) -> VlmProvenance:
+        """Who answered, as the CLIENT knows it - never the model's copy. The
+        verdict schema makes the model emit provenance, but it cannot know its
+        own identity and the grammar forces it to write something (the A5500
+        M1 chain stored the camera id as engine and model_id). The engine is
+        the configured label plus the /props build string when read; the
+        model id is the served file's stem, else the configured VLM_MODEL_ID."""
+        label = self._settings.nemotron_verification_engine
+        return VlmProvenance(
+            engine=f"{label}@{self._build_info}" if self._build_info else label,
+            model_id=self._served_model_id or self._settings.vlm_model_id,
         )
 
     async def _http(self) -> httpx.AsyncClient:
@@ -259,7 +275,9 @@ class VlmClient:
             try:
                 http = await self._http()
                 props = await http.get(PROPS_PATH)
-                self._build_info = (props.json() or {}).get("build_info", "")
+                payload = props.json() or {}
+                self._build_info = payload.get("build_info", "")
+                self._served_model_id = Path(payload.get("model_path") or "").stem
             except Exception as exc:
                 await self._note_failure("vlm_probe_props_unreachable")
                 raise ConstrainedDecodingNotEnforced(
@@ -482,6 +500,8 @@ class VlmClient:
             f"Camera: {ctx.camera_id}\n"
             f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
+            "Each detection bbox is [x, y, width, height] in source-frame pixels: "
+            "the top-left corner, then the box size.\n"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
             f"Specialist outputs (faces/plates/re-ID; these are detector evidence, "
@@ -684,7 +704,7 @@ class VlmClient:
                 continue
             await self._breaker.record_success_async()
             await self._push_healthy()
-            return verdict
+            return verdict.model_copy(update={"provenance": self._served_provenance()})
 
         raise last_error if last_error else VlmClientError("vlm assess failed")
 
