@@ -5,6 +5,7 @@ proposes a pick per slot, and writes docs/benchmarks/synthbench/p1-bakeoff.md.
 
 Reads <root>/records.jsonl (required), groups.jsonl, measures.jsonl and ratings.json
 (each optional). The report holds aggregate metrics only; media stays under <root>.
+judge.jsonl (optional, judge.py) adds the VLM judge's section: evidence, never a pick input.
 """
 
 from __future__ import annotations
@@ -68,6 +69,13 @@ SLOT_RULES: dict[str, str] = {
     "text": "highest plate exact rate; tie: lower mean CER",
     "animator": "highest clip good rate; tie: lower frame drift",
 }
+
+# The VLM judge (judge.py) is evidence, never a gate: propose_picks never reads it.
+JUDGE_CAVEAT = (
+    "judge = claude-flagship (Qwen3.8-Flash-Next); the pipeline's VLM stage is Qwen3VL-4B "
+    "(same family), so the judge is evidence, not a gate."
+)
+JUDGE_KINDS = ("threat", "identity", "clip")  # the case types with a judge_good verdict
 
 
 def read_jsonl(path: Path, *, missing_ok: bool = False) -> list[dict[str, Any]]:
@@ -286,13 +294,105 @@ def _clip_stats(
     }
 
 
+def cohen_kappa(*, tp: int, fp: int, fn: int, tn: int) -> float | None:
+    """Cohen's kappa of two binary raters from their confusion counts; None when chance
+    agreement is total (both raters used one class only) or there are no cells."""
+    n = tp + fp + fn + tn
+    chance = (tp + fn) * (tp + fp) + (fp + tn) * (fn + tn)  # x n^2
+    if not n or chance == n * n:
+        return None
+    observed = (tp + tn) / n
+    return (observed - chance / (n * n)) / (1 - chance / (n * n))
+
+
+def _confusion(pairs: list[tuple[bool, bool]]) -> dict[str, Any]:
+    """(owner good, judge good) pairs: counts, agreement and Cohen's kappa."""
+    tp = sum(1 for owner, judge in pairs if owner and judge)
+    fn = sum(1 for owner, judge in pairs if owner and not judge)
+    fp = sum(1 for owner, judge in pairs if not owner and judge)
+    tn = len(pairs) - tp - fn - fp
+    return {
+        "n": len(pairs),
+        "agreement": (tp + tn) / len(pairs) if pairs else None,
+        "kappa": cohen_kappa(tp=tp, fp=fp, fn=fn, tn=tn),
+        "tp": tp,
+        "fn": fn,
+        "fp": fp,
+        "tn": tn,
+    }
+
+
+def judge_calibration(
+    ratings: dict[str, dict[str, Any]], judge: Iterable[dict[str, Any]]
+) -> dict[str, Any]:
+    """Judge vs owner over the cells the owner rated and the judge gave a verdict on: owner
+    `good` is positive, `partial`/`fail` negative, against the judge's `judge_good`.
+    Overall and per JUDGE_KINDS; `rated` counts every rating, judged or not."""
+    pairs: dict[str, list[tuple[bool, bool]]] = {kind: [] for kind in ("overall", *JUDGE_KINDS)}
+    for output, row in latest(judge).items():
+        rating = ratings.get(output, {}).get("rating")
+        derived = row.get("derived") or {}
+        if rating not in RATINGS or row.get("error") or derived.get("judge_good") is None:
+            continue
+        pair = (rating == "good", bool(derived["judge_good"]))
+        pairs["overall"].append(pair)
+        if derived.get("case_type") in JUDGE_KINDS:
+            pairs[derived["case_type"]].append(pair)
+    rated = sum(1 for value in ratings.values() if value.get("rating") in RATINGS)
+    return {"rated": rated, "kinds": {kind: _confusion(p) for kind, p in pairs.items()}}
+
+
+def _judge_stats(rows: list[dict[str, Any]], judged: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """One model's judge verdicts over its ok outputs (latest judge row per output)."""
+    found = [judged[row["output"]] for row in rows if row["ok"] and row["output"] in judged]
+    derived = [j["derived"] for j in found if not j.get("error") and j.get("derived")]
+    good = [bool(d["judge_good"]) for d in derived if d.get("judge_good") is not None]
+    props = [bool(d["prop_match"]) for d in derived if d.get("prop_match") is not None]
+    realistic = [bool(d.get("realistic")) for d in derived]
+    artifacts = [d.get("artifact_count") or 0 for d in derived]
+    return {
+        "judge_n": len(derived),
+        "judge_errors": sum(1 for j in found if j.get("error")),
+        "judge_good_rate": _rate(good),
+        "judge_good_n": len(good),
+        "judge_prop_match_rate": _rate(props),
+        "judge_prop_match_n": len(props),
+        "judge_realistic_rate": _rate(realistic),
+        "judge_realistic_n": len(realistic),
+        "judge_artifact_mean": statistics.fmean(artifacts) if artifacts else None,
+        "judge_artifact_n": len(artifacts),
+    }
+
+
+def _judge_summary(
+    by_model: dict[str, list[dict[str, Any]]],
+    ratings: dict[str, dict[str, Any]],
+    judge: Iterable[dict[str, Any]],
+) -> dict[str, Any]:
+    """The VLM judge's evidence: per-model verdicts and the calibration. Never a pick input."""
+    judged = latest(judge)
+    return {
+        "rows": len(judged),
+        "judge_models": sorted(
+            {str(r["judge_model"]) for r in judged.values() if r.get("judge_model")}
+        ),
+        "models": {
+            model: _judge_stats(by_model[model], judged)
+            for model in sorted(by_model, key=_model_order)
+        },
+        "calibration": judge_calibration(ratings, judged.values()),
+    }
+
+
 def summarize(
     records: list[dict[str, Any]],
     groups: list[dict[str, Any]],
     measures: list[dict[str, Any]],
     ratings: dict[str, dict[str, Any]],
+    judge: Iterable[dict[str, Any]] = (),
 ) -> dict[str, Any]:
-    """Per image model (`models`) and per clip model (`clip_models`) metrics."""
+    """Per image model (`models`) and per clip model (`clip_models`) metrics, and the VLM
+    judge's evidence (`judge`, from judge.jsonl's rows; none by default)."""
     by_model: dict[str, list[dict[str, Any]]] = {}
     for row in latest(records).values():
         by_model.setdefault(row["model"], []).append(row)
@@ -312,7 +412,11 @@ def summarize(
             )
         if clip_rows:
             clips[model] = _counts(clip_rows) | vram | _clip_stats(clip_rows, by_output, ratings)
-    return {"models": images, "clip_models": clips}
+    return {
+        "models": images,
+        "clip_models": clips,
+        "judge": _judge_summary(by_model, ratings, judge),
+    }
 
 
 def _eligible(stats: dict[str, Any]) -> bool:
@@ -605,7 +709,81 @@ def to_markdown(
         "- **R3** (candidate facts): _TODO (Task 8): existence, sizes and gating confirmed._",
         "",
     ]
+    lines += _judge_markdown(summary.get("judge"))
     return "\n".join(lines)
+
+
+def _judge_markdown(judge: dict[str, Any] | None) -> list[str]:
+    """The VLM judge section: per-model verdict columns and the judge-vs-owner calibration."""
+    lines = ["## VLM judge (evidence, not a gate)", "", JUDGE_CAVEAT, ""]
+    if not judge or not judge["rows"]:
+        return [
+            *lines,
+            "No judge rows yet: with the flagship up, run "
+            "`uv run python -m synthbench.spikes.p1_bakeoff.judge` (writes <root>/judge.jsonl).",
+            "",
+        ]
+    lines += _table(
+        ["model", "judged", "errors", "judge good", "prop match", "realistic", "artifacts"],
+        [
+            [
+                model,
+                str(s["judge_n"]),
+                str(s["judge_errors"]),
+                _fmt_n(s["judge_good_rate"], "%", s["judge_good_n"]),
+                _fmt_n(s["judge_prop_match_rate"], "%", s["judge_prop_match_n"]),
+                _fmt_n(s["judge_realistic_rate"], "%", s["judge_realistic_n"]),
+                _fmt_n(s["judge_artifact_mean"], ".2f", s["judge_artifact_n"]),
+            ]
+            for model, s in judge["models"].items()
+        ],
+    )
+    names = ", ".join(f"`{name}`" for name in judge.get("judge_models", [])) or "n/a"
+    lines += [
+        "",
+        f"- Judge model id in judge.jsonl: {names}.",
+        "- The judge sees only the pixels (an image, or a clip's first, middle and last "
+        "frames) and one fixed instruction, never the prompt or the case, and fills a fixed "
+        "JSON description; `judge.py`'s `derive` compares it with the case's known facts. "
+        "`propose_picks` never reads it.",
+        "- **judged** / **errors**: ok outputs with a judge answer / with a failed judge call "
+        "(timeout, refusal, bad JSON). **judge good**: threat cases: the prop named, "
+        "photorealistic, not assessed benign; identity shots: the case's lighting, "
+        "photorealistic, at least one person; clips: photorealistic, no artifacts. The plate "
+        "case has none (plate CER is its measure). **prop match**: threat cases only. "
+        "**realistic**: the judge said photorealistic `yes`. **artifacts**: mean flaws listed "
+        "per output.",
+        "",
+        "### Judge vs owner",
+        "",
+    ]
+    calibration = judge["calibration"]
+    if not calibration["rated"]:
+        return [*lines, "no owner ratings yet", ""]
+    if not calibration["kinds"]["overall"]["n"]:
+        return [*lines, "No rated cell has a judge verdict yet.", ""]
+    lines += _table(
+        ["cells", "n", "agreement", "Cohen's kappa", "TP", "FN", "FP", "TN"],
+        [
+            [
+                kind,
+                str(c["n"]),
+                _fmt(c["agreement"], "%"),
+                _fmt(c["kappa"], ".2f"),
+                *(str(c[k]) for k in ("tp", "fn", "fp", "tn")),
+            ]
+            for kind, c in calibration["kinds"].items()
+        ],
+    )
+    return [
+        *lines,
+        "",
+        "Over the cells the owner rated and the judge gave a verdict on: owner `good` is "
+        "positive, `partial` or `fail` negative, against **judge good**. TP: both good; FN: "
+        "owner good, judge not; FP: judge good, owner not; TN: neither. Kappa is n/a when both "
+        "raters used one class only.",
+        "",
+    ]
 
 
 def _commit() -> str | None:
@@ -644,6 +822,7 @@ def main(argv: list[str] | None = None) -> int:
         read_jsonl(root / "groups.jsonl", missing_ok=True),
         read_jsonl(root / "measures.jsonl", missing_ok=True),
         ratings,
+        judge=read_jsonl(root / "judge.jsonl", missing_ok=True),
     )
     text = to_markdown(
         summary,

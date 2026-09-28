@@ -7,7 +7,9 @@ follow), one row per model, one column per seed (per shot for identity). Each ok
 has good / partial / fail radios named by the record's output path and a note; a failed
 cell shows its error. "Download ratings.json" saves {output: {rating, note}}: put it at
 <root>/ratings.json for report.py. Ratings also autosave in the browser's localStorage,
-so a reload keeps them.
+so a reload keeps them. With <root>/judge.jsonl (judge.py), each cell also carries the VLM
+judge's threat assessment and prop match, hidden until "show the VLM judge" is ticked:
+seeing it before rating could bias the ratings the judge is calibrated against.
 """
 
 from __future__ import annotations
@@ -91,6 +93,32 @@ restore();
 """
 
 
+# The VLM judge's lines stay hidden until the owner asks for them (rate first).
+_JUDGE_STYLE = "body:not(.show-judge) .judge { display: none; }"
+_JUDGE_TOGGLE = (
+    '<label><input type="checkbox" id="show-judge"> show the VLM judge</label> '
+    '<span class="m">(rate first: its verdicts can bias your ratings)</span>'
+)
+_JUDGE_SCRIPT = """
+const showJudge = document.getElementById("show-judge");
+showJudge.addEventListener("change", () => {
+  document.body.classList.toggle("show-judge", showJudge.checked);
+});
+"""
+
+
+def _judge_text(row: dict[str, Any]) -> str:
+    """The judge's threat assessment and prop match (threat cases), or its error."""
+    if row.get("error"):
+        return f"judge error: {row['error']}"
+    answer = row.get("answer") or {}
+    derived = row.get("derived") or {}
+    parts = [f"judge: {answer.get('threat_assessment') or 'n/a'}"]
+    if derived.get("prop_match") is not None:
+        parts.append(f"prop {'yes' if derived['prop_match'] else 'no'}")
+    return " · ".join(parts)
+
+
 def _section(record: dict[str, Any]) -> str:
     return "identity" if record["case"] == "identity_reference" else str(record["case"])
 
@@ -124,7 +152,9 @@ def _measure_text(measure: dict[str, Any]) -> str:
     return " | ".join(parts)
 
 
-def _cell(record: dict[str, Any], measure: dict[str, Any]) -> str:
+def _cell(
+    record: dict[str, Any], measure: dict[str, Any], judge: dict[str, Any] | None = None
+) -> str:
     esc = html.escape
     output = record["output"]
     if not record["ok"]:
@@ -144,21 +174,29 @@ def _cell(record: dict[str, Any], measure: dict[str, Any]) -> str:
         f'<label><input type="radio" name="{esc(output)}" value="{r}"> {r}</label> '
         for r in RATINGS
     )
+    judge_line = f'<div class="m judge">{esc(_judge_text(judge))}</div>' if judge else ""
     return (
         f"<td>{media}"
         f'<div class="m">{esc(_measure_text(measure))}</div>'
         f'<div class="m">{esc(timing)}</div>'
-        f"<div>{radios}</div>"
+        f"{judge_line}<div>{radios}</div>"
         f'<input class="note" type="text" placeholder="note" data-note="{esc(output)}">'
         "</td>"
     )
 
 
-def render(records: list[dict[str, Any]], measures: list[dict[str, Any]], root: Path | None) -> str:
+def render(
+    records: list[dict[str, Any]],
+    measures: list[dict[str, Any]],
+    root: Path | None,
+    judge: list[dict[str, Any]] | None = None,
+) -> str:
     """The contact sheet. Media paths are the records' outputs, relative to `root`,
-    where the sheet is written; `root` itself only labels the page."""
+    where the sheet is written; `root` itself only labels the page. `judge`: judge.jsonl's
+    rows, shown under each cell on request."""
     esc = html.escape
     by_output = latest(measures)
+    by_judge = latest(judge or [])
     sections: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}  # section/model/column
     for record in latest(records).values():
         model_cells = sections.setdefault(_section(record), {})
@@ -177,7 +215,11 @@ def render(records: list[dict[str, Any]], measures: list[dict[str, Any]], root: 
         body.append("<tr><th>model</th>" + "".join(f"<th>{esc(c)}</th>" for c in columns) + "</tr>")
         for model, cells in rows.items():
             tds = "".join(
-                _cell(cells[c], by_output.get(cells[c]["output"], {}))
+                _cell(
+                    cells[c],
+                    by_output.get(cells[c]["output"], {}),
+                    by_judge.get(cells[c]["output"]),
+                )
                 if c in cells
                 else "<td></td>"
                 for c in columns
@@ -190,16 +232,19 @@ def render(records: list[dict[str, Any]], measures: list[dict[str, Any]], root: 
             "<!doctype html>",
             '<html lang="en"><head><meta charset="utf-8">',
             f"<title>P1 bake-off contact sheet: {esc(label)}</title>",
+            *([f"<style>{_JUDGE_STYLE}</style>"] if by_judge else []),
             f"<style>{_STYLE}</style></head>",
             f'<body data-root="{esc(label)}" data-total="{ok_total}">',
             "<header><h1>P1 bake-off contact sheet</h1>",
             '<button id="download" type="button">Download ratings.json</button> ',
             '<span id="count"></span>',
+            *([_JUDGE_TOGGLE] if by_judge else []),
             f'<div class="m">Save the download as {esc(label)}/ratings.json. Ratings '
             "autosave in this browser.</div>",
             f'<div class="m">{nav}</div></header>',
             *body,
             f"<script>{_SCRIPT}</script>",
+            *([f"<script>{_JUDGE_SCRIPT}</script>"] if by_judge else []),
             "</body></html>",
             "",
         ]
@@ -216,8 +261,9 @@ def main(argv: list[str] | None = None) -> int:
     root: Path = parser.parse_args(argv).root
     records = read_jsonl(root / "records.jsonl")
     measures = read_jsonl(root / "measures.jsonl", missing_ok=True)
+    judge = read_jsonl(root / "judge.jsonl", missing_ok=True)
     out = root / "sheet.html"
-    out.write_text(render(records, measures, root))
+    out.write_text(render(records, measures, root, judge))
     sys.stdout.write(f"{out}\n")
     return 0
 

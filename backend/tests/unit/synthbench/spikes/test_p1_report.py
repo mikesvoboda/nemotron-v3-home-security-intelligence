@@ -532,3 +532,227 @@ def test_a_zero_score_winner_is_below_the_floor() -> None:
     assert picks["compositor"] == "none"  # its own floor: no edit model at >= 50% good
     text = r.to_markdown(s, picks)
     assert f"| t2i_quality | {r.BELOW_FLOOR} |" in text and "fallback" in text
+
+
+# --- Task 10: the VLM judge adds evidence columns and a calibration; it never picks ---
+
+
+def _judge_row(
+    output: str,
+    good: bool | None,
+    *,
+    case_type: str = "threat",
+    error: str | None = None,
+    **derived: Any,
+) -> dict[str, Any]:
+    """A judge.jsonl row as judge.py writes it."""
+    model = output.split("/")[1]
+    return {
+        "output": output,
+        "model": model,
+        "kind": "i2v" if case_type == "clip" else "t2i",
+        "case": output.split("/")[2],
+        "seconds": 2.0,
+        "judge_model": "claude-flagship",
+        "answer": None if error else {"threat_assessment": "threatening"},
+        "derived": None
+        if error
+        else {
+            "case_type": case_type,
+            "judge_good": good,
+            "prop_match": good if case_type == "threat" else None,
+            "realistic": True,
+            "artifact_count": 0,
+            "judge_threat": "threatening",
+        }
+        | derived,
+        "error": error,
+        "fallbacks": [],
+    }
+
+
+def _judge_rows() -> list[dict[str, Any]]:
+    return [
+        _judge_row("images/a/knife/11.png", True, artifact_count=1),
+        _judge_row("images/a/handgun_in_hand/11.png", False, realistic=False, artifact_count=2),
+        _judge_row("images/a/legible_plate/11.png", None, case_type="plate"),
+        _judge_row("images/b/knife/11.png", None, error="JudgeError: bad JSON"),
+        _judge_row("images/b/handgun_in_hand/11.png", None, error="ReadTimeout: timed out"),
+        _judge_row("images/b/handgun_in_hand/11.png", True),  # resumed: the last row wins
+    ]
+
+
+def test_summarize_without_judge_rows_keeps_every_existing_number() -> None:
+    before = r.summarize(_records(), [], _measures(), _ratings())
+    after = r.summarize(_records(), [], _measures(), _ratings(), judge=_judge_rows())
+    assert before["models"] == after["models"]
+    assert before["clip_models"] == after["clip_models"]
+    assert before["judge"]["rows"] == 0 and after["judge"]["rows"] == 5
+
+
+def test_judge_stats_per_model_each_with_its_n() -> None:
+    s = r.summarize(_records(), [], _measures(), _ratings(), judge=_judge_rows())
+    a, b = s["judge"]["models"]["a"], s["judge"]["models"]["b"]
+    assert (a["judge_n"], a["judge_errors"]) == (3, 0)
+    assert (a["judge_good_rate"], a["judge_good_n"]) == (0.5, 2)  # the plate has no verdict
+    assert (a["judge_prop_match_rate"], a["judge_prop_match_n"]) == (0.5, 2)
+    assert a["judge_realistic_rate"] == pytest.approx(2 / 3) and a["judge_realistic_n"] == 3
+    assert (a["judge_artifact_mean"], a["judge_artifact_n"]) == (1.0, 3)
+    assert (b["judge_n"], b["judge_errors"]) == (1, 1)  # knife/11 errored; handgun resumed ok
+    assert (b["judge_good_rate"], b["judge_good_n"]) == (1.0, 1)
+
+
+def test_cohen_kappa_against_hand_computed_values() -> None:
+    # tp=4 fn=1 fp=2 tn=3: po = 7/10; pe = (5*6 + 5*4)/100 = 0.5; kappa = 0.2/0.5 = 0.4
+    assert r.cohen_kappa(tp=4, fp=2, fn=1, tn=3) == pytest.approx(0.4)
+    # perfect agreement across both classes: 1; chance-level: 0
+    assert r.cohen_kappa(tp=3, fp=0, fn=0, tn=2) == pytest.approx(1.0)
+    assert r.cohen_kappa(tp=1, fp=1, fn=1, tn=1) == pytest.approx(0.0)
+    # both raters use one class only (pe = 1): undefined, never a division by zero
+    assert r.cohen_kappa(tp=3, fp=0, fn=0, tn=0) is None
+    assert r.cohen_kappa(tp=0, fp=0, fn=0, tn=0) is None
+
+
+def _calibration_fixture() -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    """10 rated threat cells (tp 4, fn 1, fp 2, tn 3) and 2 rated identity shots
+    (tp 1, fp 1), plus cells that must not count."""
+    ratings: dict[str, dict[str, Any]] = {}
+    rows: list[dict[str, Any]] = []
+    threat = [("good", True)] * 4 + [("good", False)] + [("fail", True), ("partial", True)]
+    threat += [("fail", False), ("partial", False), ("fail", False)]
+    for seed, (rating, good) in enumerate(threat):
+        out = f"images/m/knife/{seed}.png"
+        ratings[out] = {"rating": rating}
+        rows.append(_judge_row(out, good))
+    for shot, rating in enumerate(("good", "fail")):
+        out = f"images/m/identity/{shot}_day.png"
+        ratings[out] = {"rating": rating}
+        rows.append(_judge_row(out, True, case_type="identity"))
+    rows.append(_judge_row("images/m/knife/unrated.png", True))  # not rated: out
+    ratings["images/m/legible_plate/11.png"] = {"rating": "good"}  # no judge_good: out
+    rows.append(_judge_row("images/m/legible_plate/11.png", None, case_type="plate"))
+    ratings["images/m/smoke_from_eave/11.png"] = {"rating": "good"}  # judge error: out
+    rows.append(_judge_row("images/m/smoke_from_eave/11.png", None, error="x"))
+    ratings["images/m/knife/note.png"] = {"rating": None, "note": "later"}  # a note only: out
+    rows.append(_judge_row("images/m/knife/note.png", True))
+    return ratings, rows
+
+
+def test_calibration_overall_and_per_kind() -> None:
+    ratings, rows = _calibration_fixture()
+    cal = r.judge_calibration(ratings, rows)
+    threat, identity = cal["kinds"]["threat"], cal["kinds"]["identity"]
+    assert {k: threat[k] for k in ("n", "tp", "fn", "fp", "tn")} == {
+        "n": 10,
+        "tp": 4,
+        "fn": 1,
+        "fp": 2,
+        "tn": 3,
+    }
+    assert threat["agreement"] == pytest.approx(0.7) and threat["kappa"] == pytest.approx(0.4)
+    assert (identity["n"], identity["agreement"], identity["kappa"]) == (2, 0.5, 0.0)
+    overall = cal["kinds"]["overall"]  # tp 5 fn 1 fp 3 tn 3: pe = (6*8 + 6*4)/144 = 0.5
+    assert (overall["n"], overall["tp"], overall["fp"]) == (12, 5, 3)
+    assert overall["agreement"] == pytest.approx(8 / 12)
+    assert overall["kappa"] == pytest.approx((8 / 12 - 0.5) / 0.5)
+    clip = cal["kinds"]["clip"]
+    assert (clip["n"], clip["agreement"], clip["kappa"]) == (0, None, None)
+    assert cal["rated"] == 14  # every rating with a good/partial/fail, judged or not
+
+
+def test_picks_are_identical_with_and_without_judge_rows() -> None:
+    records, measures, ratings = _merge(
+        _compositor_candidate("qwen-image-2.1", face=[0.8, 0.6]),
+        _compositor_candidate("flux2-dev", face=[1.0, 0.0], threat="fail"),
+    )
+    records += _records()
+    measures += _measures()
+    ratings |= _ratings()
+    # a judge that contradicts the owner everywhere: it loves what the owner failed
+    judge = [
+        _judge_row(row["output"], ratings.get(row["output"], {}).get("rating") != "good")
+        for row in records
+    ]
+    without = r.summarize(records, [], measures, ratings)
+    with_judge = r.summarize(records, [], measures, ratings, judge=judge)
+    assert with_judge["judge"]["rows"] == len(judge)
+    assert r.propose_picks(with_judge) == r.propose_picks(without)
+    assert r.propose_picks(without)["compositor"] == "qwen-image-2.1"
+
+
+def test_markdown_renders_the_judge_columns_calibration_and_caveat() -> None:
+    ratings, rows = _calibration_fixture()
+    records = [_row("m", "knife", row["output"]) for row in rows]
+    s = r.summarize(records, [], [], ratings, judge=rows)
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "## VLM judge (evidence, not a gate)" in text
+    assert (
+        "judge = claude-flagship (Qwen3.8-Flash-Next); the pipeline's VLM stage is Qwen3VL-4B "
+        "(same family), so the judge is evidence, not a gate."
+    ) in text
+    # 16 outputs: 15 judged, 1 error row
+    row_m = next(line for line in text.splitlines() if line.startswith("| m | 15 | 1 |"))
+    assert "100% (n=15)" in row_m  # realistic, over every judged output
+    assert "### Judge vs owner" in text
+    assert "- Judge model id in judge.jsonl: `claude-flagship`." in text
+    threat = next(line for line in text.splitlines() if line.startswith("| threat |"))
+    assert threat == "| threat | 10 | 70% | 0.40 | 4 | 1 | 2 | 3 |"
+    clip = next(line for line in text.splitlines() if line.startswith("| clip |"))
+    assert clip == "| clip | 0 | n/a | n/a | 0 | 0 | 0 | 0 |"
+
+
+def test_markdown_says_no_owner_ratings_yet() -> None:
+    s = r.summarize(_records(), [], _measures(), {}, judge=_judge_rows())
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "no owner ratings yet" in text and "| overall |" not in text
+
+
+def test_markdown_when_no_rated_cell_has_a_judge_verdict() -> None:
+    judge = [_judge_row("images/a/legible_plate/11.png", None, case_type="plate")]
+    s = r.summarize(_records(), [], _measures(), _ratings(), judge=judge)
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "No rated cell has a judge verdict yet." in text and "| overall |" not in text
+
+
+def test_markdown_without_judge_rows_says_how_to_run_the_judge() -> None:
+    s = r.summarize(_records(), [], _measures(), _ratings())
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "## VLM judge (evidence, not a gate)" in text
+    assert "No judge rows yet" in text and "synthbench.spikes.p1_bakeoff.judge" in text
+
+
+def test_report_main_loads_judge_jsonl_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "p1"
+    _write_root(root)
+    (root / "ratings.json").write_text(json.dumps(_ratings()))
+    (root / "judge.jsonl").write_text("".join(json.dumps(j) + "\n" for j in _judge_rows()))
+    monkeypatch.setattr(r, "_commit", lambda: None)
+    out = tmp_path / "p1-bakeoff.md"
+    assert r.main(["--root", str(root), "--out", str(out)]) == 0
+    text = out.read_text()
+    assert "| a | 3 | 0 | 50% (n=2) |" in text
+    assert "| t2i_quality | a |" in text  # the picks as before
+
+
+def test_sheet_shows_the_judge_verdict_under_each_cell() -> None:
+    rows = _judge_rows()
+    rows[0]["derived"]["prop_match"] = True
+    html = sheet.render(_records(), _measures(), root=None, judge=rows)
+    assert "judge: threatening · prop yes" in html  # a/knife
+    assert "judge: threatening · prop no" in html  # a/handgun_in_hand
+    assert "judge error: JudgeError: bad JSON" in html  # b/knife: its only row errored
+    plate = html.index('name="images/a/legible_plate/11.png"')
+    assert "judge: threatening</div>" in html[plate - 800 : plate]  # no prop for the plate
+    assert 'id="show-judge"' in html  # hidden until the owner asks: rate first
+
+
+def test_sheet_without_judge_rows_has_no_judge_lines(tmp_path: Path) -> None:
+    html = sheet.render(_records(), _measures(), root=None)
+    assert "judge:" not in html and 'id="show-judge"' not in html
+    root = tmp_path / "p1"
+    _write_root(root)
+    (root / "judge.jsonl").write_text("".join(json.dumps(j) + "\n" for j in _judge_rows()))
+    assert sheet.main(["--root", str(root)]) == 0
+    assert "judge: threatening · prop yes" in (root / "sheet.html").read_text()
