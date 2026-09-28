@@ -742,7 +742,7 @@ class TestFailureLadder:
 class TestAssessTruncation:
     """Ledger finding A's sibling on the ASSESS leg (see TestEnforcementProbe
     for the probe leg). The assess call sends the verdict schema at
-    _ASSESS_MAX_TOKENS=700; the schema's required prose fields mean a rich
+    _ASSESS_MAX_TOKENS; the schema's required prose fields mean a rich
     scene can run out of budget before the object closes - the SAME truncation
     hazard finding A named for the probe. The shape's meaning is different
     though: a truncated verdict is a BUDGET artifact, not a model that emits
@@ -760,6 +760,19 @@ class TestAssessTruncation:
     truncated verdict still raises a VlmClientError subclass, so the analyzer
     still maps it to verification_failed with a NULL score. The ladder is
     neutral; only the diagnosis sharpens."""
+
+    # A5500, 2026-09-28: the shipped 8B's longest verdict on the 38-item
+    # detections set, from llama-server's own eval-token count (run 2ea4b96f,
+    # a two-image item). At 700 that reply and two others were cut off - S5
+    # counts a truncated reply as unparseable, and its bar is 0.
+    _MEASURED_8B_LONGEST_VERDICT = 852
+
+    def test_the_verdict_budget_covers_the_8bs_longest_measured_reply(self) -> None:
+        headroom = vc._ASSESS_MAX_TOKENS / self._MEASURED_8B_LONGEST_VERDICT
+        assert headroom >= 1.2, (
+            f"_ASSESS_MAX_TOKENS={vc._ASSESS_MAX_TOKENS} leaves {headroom:.2f}x the "
+            f"8B's measured {self._MEASURED_8B_LONGEST_VERDICT}-token verdict"
+        )
 
     async def test_truncated_assess_reply_raises_truncated_not_schema_error(
         self, image_dir
@@ -1152,8 +1165,9 @@ class TestBboxConventionIsStated:
     [x, y, width, height], rendered as a bare list. The 8B read it as corners
     ("width of 272 - 511 = -239, which is impossible"), called three 0.94
     person detections erroneous and scored the event 0/low. The prompt must
-    say what the four numbers are; the numbers themselves stay the snapshot's
-    (the eval corpus stays comparable)."""
+    say what the four numbers are. Since the native-grounding fix (below) this
+    is the FALLBACK: a frame whose size cannot be read (these fixture stills
+    are not decodable) keeps the snapshot's pixel numbers, and says so."""
 
     def test_the_prompt_names_the_bbox_convention(self, image_dir) -> None:
         det = {"id": 1, "object_type": "person", "confidence": 0.94, "bbox": [511, 242, 272, 456]}
@@ -1188,10 +1202,14 @@ class TestBoxesAreGroundedInTheFrame:
         "bbox": [551, 217, 180, 477],
     }
 
-    def test_the_prompt_names_the_source_frame_size(self, image_dir) -> None:
-        still = self._still(image_dir, "sized.jpg", (1280, 704))
-        text = make_client().prompt_text(_request([still], detections=[self._DET]))
-        assert "1280x704" in text
+    def test_pixel_boxes_name_their_frame_sizes(self, image_dir) -> None:
+        # Two sizes and no row-to-frame link: no single frame to scale by, so
+        # the rows keep pixels and the prompt names the sizes they are in.
+        big = self._still(image_dir, "big.jpg", (1280, 704))
+        small = self._still(image_dir, "small.jpg", (640, 480))
+        text = make_client().prompt_text(_request([big, small], detections=[self._DET]))
+        assert "[x, y, width, height]" in text
+        assert "1280x704 or 640x480" in text
 
     def test_boxes_are_localization_aids_not_verdict_evidence(self, image_dir) -> None:
         still = self._still(image_dir, "sized.jpg", (1280, 704))
@@ -1240,3 +1258,79 @@ class TestRowsNameTheirFrame:
         assert all(
             "frame" not in r for r in self._rendered_rows(make_client().prompt_text(request))
         )
+
+
+class TestBoxesUseTheModelsOwnGrounding:
+    """A5500, 2026-09-28: with the pixel convention stated, the frame size
+    named and each row's frame linked, the 8B still rejected a correct
+    419x513 person box on a 1280x704 still as "too small" (M1 event 617).
+    Qwen3-VL's own grounding format is bbox_2d = [x1, y1, x2, y2] on a 0-1000
+    scale of the frame - read that way, [369, 183, 419, 513] IS a sliver. On
+    the 38-item detections set (run a4e42603 vs d7d1e7fb) sending the model
+    its own format moved the verdict mix from 9 confirmed / 21 uncertain to
+    33 / 2. The rendered copy only: the snapshot keeps its pixels (the eval
+    corpus and the stored rows stay comparable). Owner ruling 2026-09-28."""
+
+    @staticmethod
+    def _still(root: Path, name: str, size: tuple[int, int]) -> str:
+        from PIL import Image
+
+        path = root / "front_door" / name
+        Image.new("RGB", size, (40, 40, 40)).save(path, "JPEG")
+        return str(path)
+
+    @staticmethod
+    def _rendered_rows(text: str) -> list[dict[str, Any]]:
+        line = next(ln for ln in text.splitlines() if ln.startswith("Detections: "))
+        return json.loads(line.removeprefix("Detections: "))
+
+    @staticmethod
+    def _det(det_id: int, bbox: list[int]) -> dict[str, Any]:
+        return {"id": det_id, "object_type": "person", "confidence": 0.95, "bbox": bbox}
+
+    def test_a_sized_frame_sends_corners_on_the_0_1000_scale(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        text = make_client().prompt_text(
+            _request([still], detections=[self._det(1, [369, 183, 419, 513])])
+        )
+        (row,) = self._rendered_rows(text)
+        # x1 = 369/1280, y1 = 183/704, x2 = (369+419)/1280, y2 = (183+513)/704
+        assert row["bbox_2d"] == [288, 260, 616, 989]
+        assert "bbox" not in row, "one box per row - never both conventions at once"
+        assert "[x1, y1, x2, y2]" in text
+        assert "0-1000" in text
+        assert "[x, y, width, height]" not in text
+
+    def test_the_snapshot_keeps_its_pixels(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        request = _request([still], detections=[self._det(1, [369, 183, 419, 513])])
+        make_client().prompt_text(request)
+        assert request.context.detections[0]["bbox"] == [369, 183, 419, 513]
+
+    def test_each_linked_row_scales_by_its_own_frame(self, image_dir) -> None:
+        big = self._still(image_dir, "big.jpg", (1000, 500))
+        small = self._still(image_dir, "small.jpg", (500, 250))
+        base = _request(
+            [big, small],
+            detections=[self._det(1, [100, 100, 100, 100]), self._det(2, [100, 100, 100, 100])],
+        )
+        request = VlmAssessRequest(
+            image_paths=base.image_paths, context=base.context, frame_detection_ids=[[1], [2]]
+        )
+        rows = {r["id"]: r for r in self._rendered_rows(make_client().prompt_text(request))}
+        assert rows[1]["bbox_2d"] == [100, 200, 200, 400]
+        assert rows[2]["bbox_2d"] == [200, 400, 400, 800]
+
+    def test_a_box_past_the_edge_is_clamped_to_the_frame(self, image_dir) -> None:
+        still = self._still(image_dir, "edge.jpg", (1000, 1000))
+        text = make_client().prompt_text(
+            _request([still], detections=[self._det(1, [900, 950, 300, 300])])
+        )
+        (row,) = self._rendered_rows(text)
+        assert row["bbox_2d"] == [900, 950, 1000, 1000]
+
+    def test_a_row_without_a_box_renders_unchanged(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        det = {"id": 1, "object_type": "person", "confidence": 0.9}
+        (row,) = self._rendered_rows(make_client().prompt_text(_request([still], detections=[det])))
+        assert "bbox_2d" not in row

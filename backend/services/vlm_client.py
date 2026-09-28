@@ -41,7 +41,7 @@ import base64
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 import httpx
 from PIL import Image
@@ -84,8 +84,10 @@ BREAKER_NAME = "ai-vlm"
 CHAT_PATH = "/v1/chat/completions"
 PROPS_PATH = "/props"
 
-# Real verdict budget: the verdict object plus a criterion or two.
-_ASSESS_MAX_TOKENS = 700
+# Real verdict budget: the verdict object plus a criterion per row and frame.
+# 700 cut off the shipped 8B's longest verdict (852 tokens, a two-image item;
+# A5500 2026-09-28) - a truncated reply is S5-unparseable, and S5's bar is 0.
+_ASSESS_MAX_TOKENS = 1024
 # The probe's budget: a budget that truncates mid-object FABRICATES an IGNORED
 # verdict (the const can sort last in the grammar), so the probe object - the
 # verdict object plus one const - must get MORE room than a verdict does. The
@@ -498,6 +500,7 @@ class VlmClient:
                 for det_id in ids
             }
             rows = [{**row, "frame": frame_of.get(row.get("id"))} for row in rows]
+        rows = self._grounded_boxes(rows, request)
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
@@ -518,20 +521,75 @@ class VlmClient:
         )
 
     @staticmethod
-    def _frame_sizes(request: VlmAssessRequest) -> list[str]:
-        """Pixel sizes of the attached frames ("WxH", distinct, in order),
-        read from the image headers only; an unreadable frame is skipped,
-        never guessed."""
-        sizes: list[str] = []
+    def _frame_dims(request: VlmAssessRequest) -> list[tuple[int, int] | None]:
+        """(width, height) of each attached frame, in order, read from the
+        image header only; None for a frame that cannot be read - never
+        guessed."""
+        dims: list[tuple[int, int] | None] = []
         for path in request.image_paths:
             try:
                 with Image.open(path) as im:
-                    size = f"{im.width}x{im.height}"
+                    dims.append((im.width, im.height))
             except OSError, ValueError:
-                continue
-            if size not in sizes:
+                dims.append(None)
+        return dims
+
+    @classmethod
+    def _frame_sizes(cls, request: VlmAssessRequest) -> list[str]:
+        """Pixel sizes of the readable attached frames ("WxH", distinct, in
+        order)."""
+        sizes: list[str] = []
+        for dim in cls._frame_dims(request):
+            if dim is not None and (size := f"{dim[0]}x{dim[1]}") not in sizes:
                 sizes.append(size)
         return sizes
+
+    def _grounded_boxes(
+        self, rows: list[dict[str, Any]], request: VlmAssessRequest
+    ) -> list[dict[str, Any]]:
+        """Rendered copy only: a row whose frame size is known carries
+        bbox_2d = [x1, y1, x2, y2] on a 0-1000 scale of that frame - Qwen3-VL's
+        own grounding format - in place of the snapshot's pixel [x, y, w, h].
+        With the pixel convention stated and the frame size named, the 8B
+        still read [369, 183, 419, 513] its own way (a sliver) and rejected a
+        correct person box as "too small" (A5500 M1, event 617). The scale is
+        the row's linked frame, else the one size every attached frame
+        shares; with neither, the row keeps its pixels (never a guessed
+        scale)."""
+        dims = self._frame_dims(request)
+        known = set(dims)
+        shared = dims[0] if len(known) == 1 else None  # None when unreadable too
+        grounded: list[dict[str, Any]] = []
+        for row in rows:
+            bbox = row.get("bbox")
+            k = row.get("frame")
+            wh = dims[k - 1] if isinstance(k, int) and 1 <= k <= len(dims) else shared
+            if wh is None or not self._is_box(bbox):
+                grounded.append(row)
+                continue
+            x, y, w, h = bbox
+            fw, fh = wh
+            corners = [
+                min(1000, max(0, round(v * 1000 / f)))
+                for v, f in ((x, fw), (y, fh), (x + w, fw), (y + h, fh))
+            ]
+            grounded.append(
+                {
+                    ("bbox_2d" if key == "bbox" else key): (corners if key == "bbox" else value)
+                    for key, value in row.items()
+                }
+            )
+        return grounded
+
+    @staticmethod
+    def _is_box(bbox: Any) -> TypeGuard[list[float]]:
+        """Four real numbers (the analyzer can hand over [None]*4 for a row
+        stored without a box)."""
+        return (
+            isinstance(bbox, (list, tuple))
+            and len(bbox) == 4
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in bbox)
+        )
 
     def _box_guidance(self, rows: list[dict[str, Any]], request: VlmAssessRequest) -> str:
         """How to read the rows' boxes - only when there are rows. The A5500
@@ -539,14 +597,27 @@ class VlmClient:
         then (with the convention stated but no frame size) rejecting a
         correct person box as "positioned incorrectly": it cannot place pixel
         numbers without the frame, and it treated box arithmetic as evidence
-        of a false detection. With no rows the prompt is unchanged."""
+        of a false detection. Rows are grounded in the model's own bbox_2d
+        format where the frame size is known (_grounded_boxes); the pixel
+        sentence covers the rows that are not. With no rows the prompt is
+        unchanged."""
         if not rows:
             return ""
-        sizes = self._frame_sizes(request)
-        frame = f"its {' or '.join(sizes)} source frame" if sizes else "its source frame"
+        convention = ""
+        if any("bbox_2d" in row for row in rows):
+            convention += (
+                "A row's bbox_2d is [x1, y1, x2, y2]: its top-left and bottom-right "
+                "corners on a 0-1000 scale of its frame (your own grounding format). "
+            )
+        if any("bbox_2d" not in row for row in rows):
+            sizes = self._frame_sizes(request)
+            frame = f"its {' or '.join(sizes)} source frame" if sizes else "its source frame"
+            convention += (
+                f"A row's bbox is [x, y, width, height] in pixels of {frame}: "
+                "the top-left corner, then the box size. "
+            )
         return (
-            f"Each detection bbox is [x, y, width, height] in pixels of {frame}: "
-            "the top-left corner, then the box size. The boxes are the detector's "
+            f"{convention}The boxes are the detector's "
             "localization aids: judge each candidate from what the frame(s) show, "
             "and never reject a detection because of its box numbers alone.\n"
             + (
