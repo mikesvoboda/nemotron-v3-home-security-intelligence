@@ -343,6 +343,16 @@ line-length = 100
 src = ["backend"]
 exclude = ["vulture_whitelist.py", "mutants/", "archive/"]
 
+# Files that run inside the renderer image (NGC PyTorch, Python 3.12): measure.py and
+# everything it imports from synthbench. Ruff's repo-wide py314 target would rewrite
+# `except (A, B):` into PEP 758 syntax that Python 3.12 cannot parse.
+[tool.ruff.per-file-target-version]
+"synthbench/__init__.py" = "py312"
+"synthbench/spikes/__init__.py" = "py312"
+"synthbench/spikes/p1_bakeoff/__init__.py" = "py312"
+"synthbench/spikes/p1_bakeoff/cases.py" = "py312"
+"synthbench/spikes/p1_bakeoff/measure.py" = "py312"
+
 [tool.ruff.lint]
 select = [
     "E",      # pycodestyle errors
