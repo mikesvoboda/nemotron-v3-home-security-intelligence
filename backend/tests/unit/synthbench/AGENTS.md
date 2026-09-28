@@ -30,6 +30,7 @@ uv run pytest backend/tests/unit/synthbench/ -n auto -q -p randomly   # as CI ru
 
 - No GPU, docker, podman or network: every subprocess and HTTP call goes through an injected fake (`run=`, `transport=`, `runtime=`). Live checks are CLI steps in the plan, never `@pytest.mark.gpu` (the CI GPU runner has no ComfyUI).
 - pytest-timeout is 5 s, and the suite runs under xdist and `-p randomly`: never sleep for real; pass a fake `sleep` and `clock`.
+- `conftest.py` imports the backend modules that the inherited autouse fixtures import lazily (`backend.core.config`, `backend.services.severity`). pytest-timeout also times setup and teardown, so otherwise the first test on each worker paid that ~2.3 s import inside its 5 s budget, and a busy host under `-n auto` interrupted it halfway. Keep it in step with those fixtures.
 - Signal tests use `test_window.py`'s `trapped_signals` fixture. A signal the window fails to defer then fails the test instead of killing the worker, and no handler leaks.
 - `gpu_window()` stops real podman containers by default: tests pass a fake `before_restore` (`test_window.py`'s `_window` helper does).
 
