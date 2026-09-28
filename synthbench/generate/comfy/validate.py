@@ -49,7 +49,7 @@ _MATCH_TYPE = "COMFY_MATCHTYPE_V3"
 
 def _autogrow_slots(name: str, spec: list[Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     template: dict[str, Any] = spec[1]["template"]
-    names = template.get("names") or [f"{template['prefix']}{i}" for i in range(template["max"])]
+    names: list[str] = template["names"]
     section, slots = next((k, v) for k, v in template["input"].items() if v)
     slot = next(iter(slots.values()))
     required: dict[str, Any] = {}

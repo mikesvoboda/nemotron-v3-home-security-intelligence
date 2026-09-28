@@ -60,3 +60,29 @@ def test_a_failing_graph_is_reported_and_the_run_continues(
     assert sorted(p.name for p in fake.iterdir()) == ["i2v_ltx-2.5.mp4"]
     out = capsys.readouterr().out
     assert "FAIL i2v:wan2.2-i2v" in out and "OutOfMemoryError" in out
+
+
+def test_unknown_only_keys_are_rejected_before_any_work(
+    fake: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        smoke.main(["--only", "i2v:ltx-2.5,i2v:wan2.2_i2v,t2i:nope"])
+    assert exit_info.value.code == 2
+    err = capsys.readouterr().err
+    assert "unknown --only key(s): i2v:wan2.2_i2v, t2i:nope" in err
+    assert "i2v:wan2.2-i2v" in err and "t2i:z-image-turbo" in err  # the valid keys are listed
+    assert FakeClient.graphs == []
+    assert not fake.exists()
+
+
+def _latent_size(graph: dict[str, Any], class_type: str) -> tuple[int, int]:
+    [node] = [n for n in graph.values() if n["class_type"] == class_type]
+    return node["inputs"]["width"], node["inputs"]["height"]
+
+
+def test_i2v_smokes_at_a_size_whose_ltx_stage_one_stays_on_the_32_pixel_grid(fake: Path) -> None:
+    assert smoke.main(["--only", "i2v:ltx-2.5,t2i:z-image-turbo"]) == 0
+    ltx, z_image = FakeClient.graphs
+    assert _latent_size(ltx, "EmptyLTXVLatentVideo") == (256, 160)  # half of 512x320
+    assert _latent_size(z_image, "EmptySD3LatentImage") == (512, 288)
+    assert smoke.SMOKE_SIZES == {"t2i": (512, 288), "edit": (512, 288), "i2v": (512, 320)}

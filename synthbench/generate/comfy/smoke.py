@@ -17,6 +17,9 @@ from synthbench.generate.comfy.client import ComfyClient
 from synthbench.generate.comfy.serve import ServeConfig
 
 SMOKE_REF = Path(__file__).resolve().parent / "smoke_ref.png"
+# (width, height) per kind. LTX-2.5 samples stage 1 at half size on EmptyLTXVLatentVideo's
+# 32-pixel grid, which ComfyUI floors silently, so i2v needs sides that are multiples of 64.
+SMOKE_SIZES: dict[str, tuple[int, int]] = {"t2i": (512, 288), "edit": (512, 288), "i2v": (512, 320)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,17 +27,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--only", default="", help="comma-separated keys like t2i:z-image-turbo")
     args = parser.parse_args(argv)
     wanted = {k for k in args.only.split(",") if k}
+    known = set(graphs.sample_graphs())
+    if unknown := wanted - known:
+        parser.error(
+            f"unknown --only key(s): {', '.join(sorted(unknown))}; "
+            f"valid keys: {', '.join(sorted(known))}"
+        )
     out_dir = Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "smoke"
     out_dir.mkdir(parents=True, exist_ok=True)
     client = ComfyClient(ServeConfig.from_env().base_url)
     failures = 0
     try:
         ref = client.upload_image(SMOKE_REF)
-        for key in sorted(graphs.sample_graphs()):
+        for key in sorted(known):
             if wanted and key not in wanted:
                 continue
             kind, model = key.split(":", 1)
-            small = {"seed": 11, "width": 512, "height": 288}
+            width, height = SMOKE_SIZES[kind]
+            small = {"seed": 11, "width": width, "height": height}
             if kind == "t2i":
                 graph = graphs.T2I_BUILDERS[model]("a front porch in daylight", **small)
             elif kind == "edit":
