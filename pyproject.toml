@@ -848,6 +848,14 @@ also_copy = [
     # root; missing -> -x aborts stats (also_copy abort family).
     "frontend/src/",
     "docs/api/migrations/",
+    # 2026-09-28 stats-abort repair (ec re-bank 06:37Z, eighth member of this
+    # family): test_nvidia_detect.py:675 (main merge #6683) reads
+    # Path("setup.py").read_text() RELATIVE TO CWD -- which under mutmut is
+    # the mutant home -- absent -> red under -x aborts the incremental
+    # "Found 74 new tests" stats re-run ("runner returned 1").  setup.py sits
+    # outside source_paths (generates ZERO mutants -- the copy is inert), and
+    # like every also_copy entry it must exist BEFORE any test path-reads it.
+    "setup.py",
 ]
 
 # =============================================================================
