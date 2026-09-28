@@ -283,45 +283,52 @@ def test_minimax_h3_keeps_the_template_sampling_and_its_audio() -> None:
 
 
 # The template's "Enable Lightning LoRA" branch (video_minimax_h3_i2v.json @ 98fd32c, off by
-# default): LoraLoaderModelOnly at strength 1 feeding the scheduler and the guider, res_multistep
-# on the simple scheduler under BasicGuider (no cfg), no shift node. Template default: 8-step
-# LoRA at 8 steps; chosen: the 4-step 768p LoRA at 4 steps (speed, owner direction).
+# default) puts a LoraLoaderModelOnly at strength 1 on the UNet, feeding the scheduler and the
+# guider (BasicGuider, no cfg; simple scheduler). Its default is the 8-step LoRA at 8 steps;
+# Task 9b takes the 4-step 768p LoRA (speed, owner direction) with the settings its authors
+# publish for it (ModelTC/Minimax-H3-Turbo @ 02e26d5: README model table, ComfyUI guide and
+# i2v workflow): 4 steps, MiniMaxH3SigmaShift 6 / 3 after the LoRA, and the euler sampler.
 H3_TURBO_LORA = "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors"
 
 
-def test_minimax_h3_turbo_takes_the_template_lightning_lora_values() -> None:
+def test_minimax_h3_turbo_runs_the_4step_768p_lora_at_its_trained_settings() -> None:
     graph = _build("i2v:minimax-h3-turbo", ARGS_A)
     lora = _only(graph, "LoraLoaderModelOnly")
     lora_id = next(k for k, n in graph.items() if n is lora)
+    shift = _only(graph, "MiniMaxH3SigmaShift")
+    shift_id = next(k for k, n in graph.items() if n is shift)
     unet_id = next(k for k, n in graph.items() if n["class_type"] == "UNETLoader")
     assert lora["inputs"] == {
         "model": [unet_id, 0],
         "lora_name": H3_TURBO_LORA,
         "strength_model": 1.0,
     }
+    # UNet -> LoRA -> shift 6 / 3 (its training shifts) -> the scheduler and the guider
+    assert shift["inputs"] == {"model": [lora_id, 0], "shift_video": 6.0, "shift_audio": 3.0}
     scheduler = _only(graph, "BasicScheduler")["inputs"]
-    assert scheduler == {"model": [lora_id, 0], "scheduler": "simple", "steps": 4, "denoise": 1.0}
-    assert _only(graph, "BasicGuider")["inputs"]["model"] == [lora_id, 0]
-    assert _only(graph, "KSamplerSelect")["inputs"]["sampler_name"] == "res_multistep"
-    # No cfg: BasicGuider takes none, and the branch adds no guider, shift or sampling node.
+    assert scheduler == {"model": [shift_id, 0], "scheduler": "simple", "steps": 4, "denoise": 1.0}
+    assert _only(graph, "BasicGuider")["inputs"]["model"] == [shift_id, 0]
+    assert _only(graph, "KSamplerSelect")["inputs"]["sampler_name"] == "euler"
+    # No cfg: BasicGuider takes none, and nothing adds a cfg guider or another sampling node.
     assert not any("cfg" in n["inputs"] for n in graph.values())
-    assert {n["class_type"] for n in graph.values()}.isdisjoint(
-        {"CFGGuider", "MiniMaxH3SigmaShift", "ModelSamplingSD3"}
-    )
+    assert {n["class_type"] for n in graph.values()}.isdisjoint({"CFGGuider", "ModelSamplingSD3"})
 
 
-def test_minimax_h3_turbo_is_the_base_graph_with_the_lora_switched_on() -> None:
+def test_minimax_h3_turbo_is_the_base_graph_plus_the_lora_and_its_shift() -> None:
     base, turbo = _build("i2v:minimax-h3", ARGS_A), _build("i2v:minimax-h3-turbo", ARGS_A)
     [lora_id] = [k for k, n in turbo.items() if n["class_type"] == "LoraLoaderModelOnly"]
+    [shift_id] = [k for k, n in turbo.items() if n["class_type"] == "MiniMaxH3SigmaShift"]
     unet = [turbo[lora_id]["inputs"]["model"][0], 0]
-    # Switch it back off: drop the LoRA, feed its consumers the base model, restore the
-    # template's 20 steps and the base prefix. What is left must be the base graph exactly.
-    off = json.loads(json.dumps({k: n for k, n in turbo.items() if k != lora_id}))
+    # Switch it back off: drop the LoRA and the shift, feed their consumers the base model,
+    # restore the template's 20 steps, its sampler and the base prefix. What is left must be
+    # the base graph exactly.
+    off = json.loads(json.dumps({k: n for k, n in turbo.items() if k not in {lora_id, shift_id}}))
     for node in off.values():
         for name, value in node["inputs"].items():
-            if value == [lora_id, 0]:
+            if value == [shift_id, 0]:
                 node["inputs"][name] = unet
     _only(off, "BasicScheduler")["inputs"]["steps"] = 20
+    _only(off, "KSamplerSelect")["inputs"]["sampler_name"] = "res_multistep"
     _only(off, "SaveVideo")["inputs"]["filename_prefix"] = "synthbench/minimax-h3"
     assert off == base
 

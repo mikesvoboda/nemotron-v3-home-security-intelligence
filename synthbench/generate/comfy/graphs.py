@@ -11,7 +11,7 @@ and preview, note and prompt-enhancer nodes are dropped.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, NamedTuple
 
 from synthbench.generate.comfy.client import Graph
 
@@ -807,13 +807,29 @@ def wan22_i2v(prompt: str, *, image: str, seed: int, width: int, height: int, fr
     }
 
 
-# The template's "Enable Lightning LoRA" branch (off by default): a LoraLoaderModelOnly at
-# strength 1 on the diffusion model feeds the scheduler and the guider, and the steps switch;
-# the sampler, scheduler, guider (no cfg) and shifts stay. Template default: the 8-step LoRA at
-# 8 steps; chosen: the 4-step 768p LoRA at 4 steps (speed, owner direction), which the
-# template's Model Links note also offers ("4 steps") and which matches our 768p canvas.
-_H3_TURBO_LORA = "minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors"
-_H3_TURBO_STEPS = 4
+class _H3Turbo(NamedTuple):
+    lora: str
+    steps: int
+    sampler: str
+    shift_video: float
+    shift_audio: float
+
+
+# The template's "Enable Lightning LoRA" branch (off by default) puts a LoraLoaderModelOnly at
+# strength 1 on the diffusion model, feeding the scheduler and the guider (BasicGuider, no cfg;
+# simple scheduler). Template default: the 8-step LoRA at 8 steps; chosen: the 4-step 768p LoRA
+# (speed, owner direction; the template's Model Links note also offers it). The template's
+# branch is tuned for its 8-step LoRA, so the chosen LoRA takes its authors' settings
+# (ModelTC/Minimax-H3-Turbo @ 02e26d5: README model table, ComfyUI guide, i2v workflow): 4 steps,
+# trained at shifts 6 / 3 (a MiniMaxH3SigmaShift after the LoRA; the model's built-in shifts
+# are 12 / 3), and the euler sampler.
+_H3_TURBO = _H3Turbo(
+    lora="minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors",
+    steps=4,
+    sampler="euler",
+    shift_video=6.0,
+    shift_audio=3.0,
+)
 
 
 def _minimax_h3(
@@ -825,11 +841,14 @@ def _minimax_h3(
     height: int,
     frames: int,
     model: str,
-    lora: str | None,
-    steps: int,
+    turbo: _H3Turbo | None,
 ) -> Graph:
-    """The template's i2v graph; `lora` switches its Lightning LoRA branch on (node "16")."""
-    diffusion = "1" if lora is None else "16"
+    """The template's i2v graph; `turbo` adds its LoRA ("16") and shift ("17") and sets the
+    steps and the sampler."""
+    if turbo is None:
+        diffusion, steps, sampler = "1", 20, "res_multistep"
+    else:
+        diffusion, steps, sampler = "17", turbo.steps, turbo.sampler
     graph: Graph = {
         "1": {
             "class_type": "UNETLoader",
@@ -880,7 +899,7 @@ def _minimax_h3(
                 "denoise": 1.0,
             },
         },
-        "9": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "res_multistep"}},
+        "9": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": sampler}},
         "10": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
         "11": {
             "class_type": "SamplerCustomAdvanced",
@@ -900,10 +919,18 @@ def _minimax_h3(
         },
         "15": _save_video(["14", 0], model),
     }
-    if lora is not None:
+    if turbo is not None:
         graph["16"] = {
             "class_type": "LoraLoaderModelOnly",
-            "inputs": {"model": ["1", 0], "lora_name": lora, "strength_model": 1.0},
+            "inputs": {"model": ["1", 0], "lora_name": turbo.lora, "strength_model": 1.0},
+        }
+        graph["17"] = {
+            "class_type": "MiniMaxH3SigmaShift",
+            "inputs": {
+                "model": ["16", 0],
+                "shift_video": turbo.shift_video,
+                "shift_audio": turbo.shift_audio,
+            },
         }
     return graph
 
@@ -920,12 +947,11 @@ def minimax_h3_i2v(
         height=height,
         frames=frames,
         model="minimax-h3",
-        lora=None,
-        steps=20,
+        turbo=None,
     )
 
 
-# From template video_minimax_h3_i2v.json @ 98fd32c (turbo branch: 4-step 768p LoRA, 4 steps)
+# From template video_minimax_h3_i2v.json @ 98fd32c (turbo branch; the 4-step LoRA's own settings)
 def minimax_h3_turbo_i2v(
     prompt: str, *, image: str, seed: int, width: int, height: int, frames: int
 ) -> Graph:
@@ -937,8 +963,7 @@ def minimax_h3_turbo_i2v(
         height=height,
         frames=frames,
         model="minimax-h3-turbo",
-        lora=_H3_TURBO_LORA,
-        steps=_H3_TURBO_STEPS,
+        turbo=_H3_TURBO,
     )
 
 
