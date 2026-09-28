@@ -667,11 +667,18 @@ class TestCameraSqlJunctionInteraction:
         r = await run_analyze(a, event_id=456)
         stmt = r["execute_calls"][1].args[0]
         sql = str(stmt.compile(dialect=DIALECT))
-        # MEASURED m_junction exact string
+        # MEASURED m_junction exact string. Re-measured on SQLAlchemy 2.1.1:
+        # executemany() values now render their explicit bind casts
+        # (::INTEGER / ::TIMESTAMP WITH TIME ZONE) in the compiled SQL;
+        # params are unchanged (asserted below). Same statement semantics --
+        # the cast was always applied, 2.1 just stopped hiding it in the
+        # expanded form.
         assert sql == (
             "INSERT INTO event_detections (event_id, detection_id, created_at) "
-            "VALUES (%(event_id_m0)s, %(detection_id_m0)s, %(created_at)s), "
-            "(%(event_id_m1)s, %(detection_id_m1)s, %(created_at_m1)s) "
+            "VALUES (%(event_id_m0)s::INTEGER, %(detection_id_m0)s::INTEGER, "
+            "%(created_at)s::TIMESTAMP WITH TIME ZONE), "
+            "(%(event_id_m1)s::INTEGER, %(detection_id_m1)s::INTEGER, "
+            "%(created_at_m1)s::TIMESTAMP WITH TIME ZONE) "
             "ON CONFLICT (event_id, detection_id) DO NOTHING"
         )
         params = stmt.compile(dialect=DIALECT).params
