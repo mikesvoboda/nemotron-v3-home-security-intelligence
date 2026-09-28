@@ -2858,10 +2858,12 @@ class Settings(BaseSettings):
     # Model preloading - eagerly load all models into GPU VRAM at startup
     backend_model_preload: bool = Field(
         default=False,
-        description="Eagerly load all enabled AI models into GPU VRAM at startup. "
-        "Auto-set to true by setup.py when total VRAM > 24GB. "
-        "Eliminates cold-load pipeline timeouts on high-VRAM systems. "
-        "Set to false on memory-constrained systems to use on-demand lazy loading.",
+        description="Eagerly load the models whose models.yml row declares "
+        "preload: true into GPU VRAM at startup. Auto-set to true by setup.py "
+        "when total VRAM >= 24GB (inclusive - a 24 GB card reports exactly "
+        "24576 MiB). Eliminates the ~1.16 s cold load per request that answers "
+        "specialist legs 'unavailable'. Set to false on memory-constrained "
+        "systems to use on-demand lazy loading.",
     )
 
     # Background evaluation settings

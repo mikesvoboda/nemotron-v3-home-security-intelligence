@@ -50,6 +50,7 @@ from backend.evaluation.label_import import (
     M0_MIN_BENIGN,
     M0_MIN_INCIDENTS,
     ImportResult,
+    LabelImportError,
     import_generated_items,
     import_loaded_event,
     item_id_for_event,
@@ -282,9 +283,16 @@ def _make_corpus(
     for i in range(with_frames):
         name = f"frame_{i}.jpg"
         (d / name).write_bytes(b"\xff\xd8synthetic\xff\xd9")
+        # One attribution sidecar per frame, exactly as the shipped writer
+        # does (scripts/synthetic_media.py): license + artist beside the
+        # bytes. The media-bearing import refuses a frame without it.
+        (d / f"frame_{i}.json").write_text(
+            json.dumps({"license": "CC0-1.0", "artist": "test-generator"})
+        )
         frames.append({"file": name})
     if extra_ext:
         (d / f"clip{extra_ext}").write_bytes(b"synthetic-video-bytes")
+        (d / "clip.json").write_text(json.dumps({"license": "CC0-1.0", "artist": "test-generator"}))
     if manifest:
         (d / "manifest.json").write_text(json.dumps(frames))
     return d
@@ -404,6 +412,142 @@ def _put_labelled_item(store, item_id: str, label: str, score: int = 0):
             source="test",
         )
     )
+
+
+class TestBornLabeledAmbiguity:
+    """Ledger item 33: the intake boundary a parallel agent's generator hits.
+
+    `import_generated_items` already refuses an out-of-vocabulary PLACE
+    (:455, "unknown category") and guards a declaration with
+    `declared if declared in _CATEGORY_LABELS else category` (:453) — but
+    neither path refuses a CONFLICT, where the file declares a different
+    in-vocabulary category than the directory it sits in. Its own comment
+    claims parity with `load_synthetic_items`, and as of this measurement
+    that parity is real in the wrong direction: both sides let a declaration
+    win. One set placed in `threats/` declaring `normal` is the whole hazard
+    in one directory: the generator's own bug becomes our silently-flipped
+    label, and the size bar counts it on the benign side.
+    """
+
+    def test_conflicting_declaration_refuses_the_whole_import(self, store, tmp_path):
+        """Not a skip: a corpus whose own two sources disagree is a
+        misconfigured run, the same class the D10 refusal already treats as
+        `LabelImportError` rather than a per-item loss."""
+        d = _make_corpus(tmp_path, "threats", "package_theft_flip")
+        (d / "expected_labels.json").write_text(
+            json.dumps({"category": "normal", "scenario": "package_theft_flip"})
+        )
+        with pytest.raises(LabelImportError, match="category"):
+            import_generated_items(corpus_dir=tmp_path, store=store)
+
+    def test_conflict_names_the_two_sources(self, store, tmp_path):
+        d = _make_corpus(tmp_path, "normal", "quiet_set_flip")
+        (d / "expected_labels.json").write_text(
+            json.dumps({"category": "threats", "scenario": "quiet_set_flip"})
+        )
+        with pytest.raises(LabelImportError) as excinfo:
+            import_generated_items(corpus_dir=tmp_path, store=store)
+        msg = str(excinfo.value)
+        assert "normal" in msg and "threats" in msg
+
+    def test_out_of_vocab_placement_refuses_too(self, store, tmp_path):
+        """This importer used to SKIP an unknown directory ("loud skip" per
+        its docstring). That is the same silent-label class one step away: a
+        batch the generator mis-folded into `incidents/` would import as zero
+        items and read as an empty-but-green run. Now it refuses, so one
+        shared resolver answers for both loaders."""
+        _make_corpus(tmp_path, "incidents", "misfolded_set")
+        with pytest.raises(LabelImportError, match="outside the category vocabulary"):
+            import_generated_items(corpus_dir=tmp_path, store=store)
+
+    def test_d10_rejection_is_a_refusal_not_a_skip(self, store, tmp_path, monkeypatch):
+        """The catch-all at label_import.py:503 must keep RAISING for a D10
+        rejection: "corpus rejected by the D10 guard" is a misconfigured run,
+        and the manifest doctrine says a manifest that hides losses is not
+        evidence. Only the `frozen` message may become a skip. Pinned by
+        making put_item raise exactly the store's privacy wording."""
+        _make_corpus(tmp_path, "threats", "casing_d10")
+
+        def refuse(item):
+            raise ValueError("privacy: eval media must live off-repo (D10)")
+
+        monkeypatch.setattr(store, "put_item", refuse)
+        with pytest.raises(LabelImportError, match="D10"):
+            import_generated_items(corpus_dir=tmp_path, store=store)
+        assert store._db.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 0
+
+    def test_declared_specialist_context_survives_the_import(self, store, tmp_path):
+        """The other half of the intake contract (ledger item 33).
+
+        `build_gen2` refuses a generation where ZERO items carry a rendered
+        specialist block — gen-1's defect, whose words are "the replay
+        measures a system 1.3b did not ship". But the born-labeled MEDIA
+        importer writes straight into a store and never calls that renderer:
+        until now a batch declaring `specialist_context` on every set froze
+        with an empty block on every item, and no guard stood in the way
+        because the guard lives on the other intake path. Same corpus, same
+        replay, silent opposite outcome depending on which door it entered.
+        """
+        d = _make_corpus(tmp_path, "threats", "weapon_visible_ctx")
+        (d / "expected_labels.json").write_text(
+            json.dumps(
+                {
+                    "category": "threats",
+                    "scenario": "weapon_visible_ctx",
+                    "specialist_context": {
+                        "person_reid": {"known_matches": [{"name": "Dad", "similarity": 0.81}]}
+                    },
+                }
+            )
+        )
+        rows = import_generated_items(corpus_dir=tmp_path, store=store)
+        assert not rows[0].skipped, rows[0].reason
+        frozen = store.get_item(rows[0].item_id)
+        assert "Dad" in (frozen.snapshot.specialist_outputs.get("person_reid") or ""), (
+            "declared specialist_context rendered nothing - the replay would "
+            "send an empty specialist block for a corpus that declared one"
+        )
+
+    def test_frames_without_attribution_sidecars_skip_loudly(self, store, tmp_path):
+        """The intake contract's attribution clause (ledger item 33). The
+        shipped media writer puts an attribution JSON BESIDE every frame
+        (scripts/synthetic_media.py; load_stock_items' docstring says the
+        same for the stock corpus). A generated batch that freezes frames
+        with no license/artist provenance beside them imports metrics that
+        can never be asked "where did this frame come from". Loud skip, not
+        refusal: the size bar right below already turns a wholesale-missing
+        batch into a failed gate, so the per-set loss stays visible in the
+        manifest without aborting a run over one bare set."""
+        d = _make_corpus(tmp_path, "threats", "nolat_set", manifest=False)
+        for p in sorted(d.glob("frame_*.json")):  # strip sidecars, keep labels + frames
+            p.unlink()
+        rows = import_generated_items(corpus_dir=tmp_path, store=store)
+        assert rows[0].skipped and "attribution" in rows[0].reason
+
+    def test_sidecar_must_be_readable_json(self, store, tmp_path):
+        """A 0-byte sidecar is a MISSING sidecar wearing a filename - the
+        G0 audit's "a 0-byte log is no pass" applied to attribution."""
+        d = _make_corpus(tmp_path, "threats", "trunc_set", manifest=False)
+        for p in d.glob("frame_*.json"):
+            p.write_text("{truncated")
+        rows = import_generated_items(corpus_dir=tmp_path, store=store)
+        assert rows[0].skipped and "attribution" in rows[0].reason
+
+    def test_count_identity_survives_an_out_of_vocab_label(self, store):
+        """The bar's real dependency: a label outside {benign, incident} must
+        never land on either side, and never hide as "unlabeled" either —
+        because a batch of 100 "threats"-labeled items reading as 100 benign
+        is how a mis-labeled corpus passes a size gate."""
+        for i in range(100):
+            _put_labelled_item(store, f"b{i}", "benign")
+        for i in range(20):
+            _put_labelled_item(store, f"i{i}", "incident")
+        for i in range(50):
+            _put_labelled_item(store, f"u{i}", "threats")  # the loader's old bug
+        rep = m0_size_report(store)
+        assert (rep["benign"], rep["incidents"]) == (100, 20)
+        assert rep["unknown"] == 50 and rep["unlabeled"] == 0
+        assert rep["benign"] + rep["incidents"] + rep["unknown"] == 170
 
 
 class TestM0SizeBar:
