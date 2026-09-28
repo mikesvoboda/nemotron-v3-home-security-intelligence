@@ -148,9 +148,9 @@ read that file for the current values rather than trusting this table.
 | `@tremor/react`         | ^3.17.4  | Data visualization components |
 | `@headlessui/react`     | ^2.2.9   | Accessible UI components      |
 | `@tanstack/react-query` | ^5.103.1 | Server state management       |
-| `lucide-react`          | ^0.564.0 | Icon library                  |
+| `lucide-react`          | ^1.48.0  | Icon library                  |
 | `clsx`                  | ^2.1.0   | Conditional class names       |
-| `framer-motion`         | ^13.4.0  | Animation library             |
+| `framer-motion`         | ^13.4.4  | Animation library             |
 | `sonner`                | ^2.0.7   | Toast notifications           |
 | `vite-plugin-pwa`       | ^1.2.0   | PWA service worker            |
 | `workbox-window`        | ^7.4.0   | Service worker client         |
@@ -161,19 +161,19 @@ read that file for the current values rather than trusting this table.
 | Package                          | Version | Purpose                        |
 | -------------------------------- | ------- | ------------------------------ |
 | `vite`                           | ^7.3.0  | Build tool and dev server      |
-| `vitest`                         | ^5.0.1  | Testing framework              |
+| `vitest`                         | ^5.0.2  | Testing framework              |
 | `typescript`                     | ^6.0.3  | Type checking                  |
 | `@vitejs/plugin-react`           | ^5.1.4  | Vite React plugin              |
 | `tailwindcss`                    | 3       | CSS framework                  |
 | `eslint`                         | ^9.39.2 | Linting (flat config)          |
-| `prettier`                       | ^3.9.8  | Code formatting                |
+| `prettier`                       | ^3.9.9  | Code formatting                |
 | `@playwright/test`               | ^1.58.1 | E2E testing (multi-browser)    |
-| `msw`                            | 2.12.10 | Mock Service Worker for tests  |
+| `msw`                            | 2.12.14 | Mock Service Worker for tests  |
 | `@testing-library/react`         | ^16.3.2 | React testing utilities        |
 | `@testing-library/jest-dom`      | ^7.0.1  | DOM matchers                   |
 | `@testing-library/user-event`    | ^14.5.2 | User interaction simulation    |
-| `jsdom`                          | ^28.1.0 | Browser environment simulation |
-| `@vitest/coverage-v8`            | ^5.0.1  | Code coverage                  |
+| `jsdom`                          | ^30.1.1 | Browser environment simulation |
+| `@vitest/coverage-v8`            | ^5.0.2  | Code coverage                  |
 | `@stryker-mutator/core`          | ^10.0.0 | Mutation testing core          |
 | `@stryker-mutator/vitest-runner` | ^10.0.0 | Stryker Vitest integration     |
 | `knip`                           | ^5.83.1 | Dead code detection            |
