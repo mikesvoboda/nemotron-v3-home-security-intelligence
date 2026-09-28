@@ -284,6 +284,28 @@ class TestSlotSizingReachesTheBackend:
             )
 
 
+class TestRetiredLlmIsOptIn:
+    """Spec rev 5 / F10: the legacy Nemotron path is unsupported and not
+    deployed, but ai-llm had no profiles: block, so every plain `up` (and
+    every `--profile vlm` up) started the 30B on the GPU the VLM needs, and
+    backend's `depends_on: ai-llm: service_healthy` made even `up backend`
+    drag it in. Ledger item 36 left it unprofiled only because gating it
+    broke plain `up`; `required: false` on the dependency removes that.
+    Owner ruling 2026-09-28 (A5500 run): disable it from starting.
+    """
+
+    def test_ai_llm_only_starts_under_the_legacy_profile(self, compose: dict) -> None:
+        assert compose["services"]["ai-llm"].get("profiles") == ["legacy"]
+
+    def test_backend_dependency_on_ai_llm_is_optional(self, compose: dict) -> None:
+        dep = compose["services"]["backend"]["depends_on"]["ai-llm"]
+        assert dep.get("required") is False, (
+            "without required: false, compose refuses a plain `up` whose backend "
+            "depends on a service in an inactive profile"
+        )
+        assert dep.get("condition") == "service_healthy", "legacy mode keeps its wait"
+
+
 class TestSpecialistResidencyReachesTheBackend:
     """Rev 6 makes the specialists RESIDENT (spec D3; models.yml's face rows:
     "never triggers a load, so both rows must be resident at boot"), and the
@@ -477,6 +499,27 @@ class TestDockerfileFlagWiring:
     def test_alias_guarded(self, dockerfile: str) -> None:
         assert "MODEL_ALIAS" in dockerfile
         assert "--alias" in dockerfile
+
+    @pytest.mark.parametrize(
+        ("var", "flag"), [("CACHE_TYPE_K", "--cache-type-k"), ("CACHE_TYPE_V", "--cache-type-v")]
+    )
+    def test_kv_cache_type_reaches_llama_server(self, dockerfile: str, var: str, flag: str) -> None:
+        """Compose set CACHE_TYPE_K/V=q8_0 and documented the halved pool, but
+        the CMD never passed them: the A5500 serve logged `K (f16)`/`V (f16)`,
+        a 4608 MiB pool instead of ~2304 (2026-09-28). Same unset-at-build,
+        guarded-in-CMD doctrine as SLEEP_IDLE_SECONDS."""
+        assert re.search(rf"^ENV {var}=$", dockerfile, re.M), f"{var} must stay unset at build"
+        assert re.search(rf"\[ -n \\?\"\$\{{{var}\}}\\?\" \]", dockerfile), f"{var} must be guarded"
+        assert re.search(rf"{flag} \$\{{{var}\}}", dockerfile), f"{flag} must carry ${{{var}}}"
+
+    # consumed outside the Dockerfile text: a compose label / the CUDA runtime
+    NOT_CMD_KNOBS: ClassVar = frozenset({"SERVICE_NAME", "CUDA_VISIBLE_DEVICES"})
+
+    def test_every_compose_knob_is_read_by_the_image(self, dockerfile: str, vlm_env: dict) -> None:
+        """The class, not the instance: an ai-vlm environment entry that the
+        image never reads is a setting that silently does nothing."""
+        dead = sorted(k for k in vlm_env if k not in self.NOT_CMD_KNOBS and k not in dockerfile)
+        assert not dead, f"compose sets {dead} on ai-vlm but ai/vlm/Dockerfile never reads them"
 
     def test_arch_stays_build_arg(self, dockerfile: str) -> None:
         assert re.search(r"^ARG CUDA_ARCHITECTURES=", dockerfile, re.M)
