@@ -6,6 +6,11 @@ area (~1.03 MP, the smallest native render size), so no model's legibility or
 face size gains from rendering more pixels. Plates are scored on their
 alphanumerics only (ALPR-style); `plate_text` keeps what OCR read.
 
+Every image is also read once by OCR for a refusal: Ideogram 4's weights paint
+"Image blocked by safety filter" (a gray card, or the text over a partial scene)
+for prompts they refuse. `refused` comes from that text; `card_like` (a nearly
+uniform image) is a diagnostic beside it. Clips are never refused.
+
 Run inside the renderer image (GPU; the flagship may stay up):
     $(uv run python -m synthbench.generate.podman) run --rm --device nvidia.com/gpu=all \
       -v "$PWD":/work:ro -w /work \
@@ -36,6 +41,12 @@ _CASES = {case.id: case for case in CASES}
 OWL_MODEL = "google/owlv2-base-patch16-ensemble"
 # The pixel budget every image is measured at: the smallest native size (flux2-klein-4b).
 MEASURE_SIZE = (1344, 768)
+# A uniform gray card: its grayscale standard deviation at MEASURE_SIZE is under this.
+# Calibrated on the 312 P1 images: Ideogram 4's 25 uniform cards measure 9.54-12.01 (the
+# 12.01 one carries IR-style noise), every real render 23.31 or more. Its refusals painted
+# over a partial scene measure 27-64: `refused` comes from the OCR text, and `card_like`
+# is only a diagnostic.
+CARD_GRAY_STD_MAX = 16.0
 
 # One OCR text fragment: (text, (left, top, right, bottom)) in image pixels.
 Fragment = tuple[str, tuple[float, float, float, float]]
@@ -104,6 +115,28 @@ def plate_candidates(fragments: list[Fragment]) -> list[str]:
     return candidates
 
 
+def is_refusal_text(fragments: list[Fragment]) -> bool:
+    """Whether OCR read the refusal card ("Image blocked by safety filter"): the text, in
+    reading order, lowercased and stripped of punctuation and spaces, holds "blocked" and
+    also "safety" or "filter", or holds "image blocked" (the model garbles the last words:
+    "saficy filke!"). Scene text ("safety glass", "blocked driveway") is not one."""
+    read = "".join(text for line in reading_order(fragments) for text, _ in line)
+    text = re.sub(r"[^a-z0-9]", "", read.lower())
+    return "imageblocked" in text or ("blocked" in text and ("safety" in text or "filter" in text))
+
+
+def looks_like_card(gray_std: float) -> bool:
+    """Whether an image's grayscale standard deviation at MEASURE_SIZE is a uniform card's."""
+    return gray_std < CARD_GRAY_STD_MAX
+
+
+def grayscale_std(image: Any) -> float:
+    """A PIL image's grayscale standard deviation, measured at measure_size()."""
+    from PIL import ImageStat
+
+    return float(ImageStat.Stat(at_measure_size(image.convert("RGB")).convert("L")).stddev[0])
+
+
 class Tools(Protocol):
     def owl(self, image: Path, queries: tuple[str, ...]) -> dict[str, float]: ...
 
@@ -112,6 +145,8 @@ class Tools(Protocol):
     def face(self, image: Path) -> list[float] | None: ...
 
     def clip_faces(self, clip: Path) -> list[list[float]]: ...
+
+    def gray_std(self, image: Path) -> float: ...
 
 
 def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str, Any]:
@@ -123,19 +158,22 @@ def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str
         out["frame_drift_max"] = max(
             (cosine_distance(faces[0], f) for f in faces[1:]), default=None
         )
+        out["refused"] = False  # frames are never OCR-read: refusal is an image finding
         return out
+    fragments = tools.ocr(path)  # every image, once: the refusal check; the plate reuses it
+    out["ocr_fragments"] = [t for line in reading_order(fragments) for t, _ in line]
+    out["refused"] = is_refusal_text(fragments)
+    out["card_like"] = looks_like_card(tools.gray_std(path))
     case = _CASES.get(record["case"])
     if case is not None:
         out["owl"] = tools.owl(path, case.owl_queries)
         if case.ocr_target:
-            fragments = tools.ocr(path)
             target = normalize_plate(case.ocr_target)
             # the closest candidate on alphanumerics; CER 0 (exact) whenever any one matches
             text = min(
                 plate_candidates(fragments) or [""],
                 key=lambda c: cer(normalize_plate(c), target),
             )
-            out["ocr_fragments"] = [t for line in reading_order(fragments) for t, _ in line]
             out["plate_text"] = text  # as read, for the sheet
             out["plate_exact"] = normalize_plate(text) == target
             out["plate_cer"] = cer(normalize_plate(text), target)
@@ -229,6 +267,11 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
     def clip_faces(self, clip: Path) -> list[list[float]]:
         faces = [self._embed(at_measure_size(frame)) for frame in clip_frames(clip)]
         return [f for f in faces if f is not None]
+
+    def gray_std(self, image: Path) -> float:
+        from PIL import Image
+
+        return grayscale_std(Image.open(image).convert("RGB"))
 
 
 def measure_all(

@@ -151,7 +151,8 @@ _CAMERA_LIGHTING: dict[str, str] = {camera: key for key, camera in LIGHTING.item
 # Cases whose prompt specifies a covered face.
 COVERED_FACE_CASES = frozenset({"balaclava_ir_night"})
 IDENTITY_CASES = frozenset({"identity", "identity_reference"})
-# A threat case's prop is its first OWLv2 query's key noun, or one of these synonyms.
+# A threat case's prop is its first OWLv2 query's key noun, or one of these synonyms. A term
+# matches when all its words are in one described item, in any order (mentions()).
 PROP_SYNONYMS: dict[str, tuple[str, ...]] = {
     "handgun": ("gun", "pistol", "firearm", "revolver"),
     "knife": ("knives", "blade", "machete", "dagger"),
@@ -171,7 +172,9 @@ PROP_TERM_OVERRIDES: dict[str, tuple[str, ...]] = {
         "bent frame",
         "climbing through",
         "pry bar",
+        "prybar",
         "crowbar",
+        "crow bar",
     ),
     "forced_door": (
         "broken door",
@@ -180,6 +183,7 @@ PROP_TERM_OVERRIDES: dict[str, tuple[str, ...]] = {
         "damaged door",
         "kicked in",
         "damaged frame",
+        "broken frame",
     ),
 }
 # Hazards, not intruders: a judge may fairly call them benign, so judge_good (does the render
@@ -447,15 +451,26 @@ def prop_terms(case: Case) -> tuple[str, ...]:
     return (noun, *PROP_SYNONYMS.get(noun, ()))
 
 
-def _norm(text: str) -> str:
-    return re.sub(r"[\s_-]+", " ", text.lower()).strip()
+def _words(text: str) -> list[str]:
+    """Lowercase alphanumeric words: "ground-floor" -> ["ground", "floor"]."""
+    return re.findall(r"[a-z0-9]+", text.lower())
 
 
 def mentions(texts: Sequence[str], terms: Sequence[str]) -> bool:
-    """Any term, as whole words (a plural s/es allowed), in any text: "gun" matches
-    "two guns" but not "gunmetal"."""
-    joined = " | ".join(_norm(text) for text in texts)
-    return any(re.search(rf"\b{re.escape(_norm(t))}(?:s|es)?\b", joined) for t in terms)
+    """Any term whose words all appear in one text, in any order, each as a whole word (a
+    plural s/es allowed): "bent frame" matches "window frame bent", "gun" matches "two
+    guns" but not "gunmetal". A term's words never combine across two texts."""
+    fields = [set(_words(text)) for text in texts]
+
+    def has(field: set[str], word: str) -> bool:
+        return bool({word, f"{word}s", f"{word}es"} & field)
+
+    return any(
+        all(has(field, word) for word in words)
+        for words in (_words(term) for term in terms)
+        if words
+        for field in fields
+    )
 
 
 def _dicts(value: object) -> list[dict[str, Any]]:

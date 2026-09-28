@@ -5,7 +5,8 @@
 One section per case (the identity reference and shots share one section, clip cases
 follow), one row per model, one column per seed (per shot for identity). Each ok cell
 has good / partial / fail radios named by the record's output path and a note; a failed
-cell shows its error. "Download ratings.json" saves {output: {rating, note}}: put it at
+cell shows its error, and a cell measure.py flagged `refused` says REFUSED (model safety
+card) above its radios. "Download ratings.json" saves {output: {rating, note}}: put it at
 <root>/ratings.json for report.py. Ratings also autosave in the browser's localStorage,
 so a reload keeps them. With <root>/judge.jsonl (judge.py), each cell also carries the VLM
 judge's threat assessment and prop match, hidden until "show the VLM judge" is ticked:
@@ -40,6 +41,7 @@ th, td { border: 1px solid #333; padding: 4px; vertical-align: top; text-align: 
 img, video { width: 320px; display: block; }
 .m { font-size: 11px; color: #aaa; max-width: 320px; }
 .err { color: #f77; max-width: 320px; white-space: pre-wrap; }
+.refused { color: #fb3; font-weight: bold; }
 .note { width: 310px; }
 """
 
@@ -92,6 +94,9 @@ document.getElementById("download").addEventListener("click", () => {
 restore();
 """
 
+
+# measure.py read the model's safety card in the image; the cell keeps its rating radios.
+REFUSED_LABEL = "REFUSED (model safety card)"
 
 # The VLM judge's lines stay hidden until the owner asks for them (rate first).
 _JUDGE_STYLE = "body:not(.show-judge) .judge { display: none; }"
@@ -175,8 +180,9 @@ def _cell(
         for r in RATINGS
     )
     judge_line = f'<div class="m judge">{esc(_judge_text(judge))}</div>' if judge else ""
+    refused = f'<div class="refused">{REFUSED_LABEL}</div>' if measure.get("refused") else ""
     return (
-        f"<td>{media}"
+        f"<td>{media}{refused}"
         f'<div class="m">{esc(_measure_text(measure))}</div>'
         f'<div class="m">{esc(timing)}</div>'
         f"{judge_line}<div>{radios}</div>"

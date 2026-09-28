@@ -464,7 +464,7 @@ def test_derive_a_threat_case_with_a_synonym_prop() -> None:
         ("forced_door", [], ["front door, kicked-in"], True),
         ("pried_window", [], ["ground-floor window pried open"], True),
         ("pried_window", [{"holding": "a crowbar"}], ["ground-floor window"], True),
-        ("pried_window", [], ["open ground-floor window"], False),  # "open window" is a phrase
+        ("pried_window", [], ["open ground-floor window"], True),  # words, any order
         ("pried_window", [], ["ground-floor window"], False),
         ("child_alone_pool", [{"clothing": "small child in a swimsuit"}], ["pool"], True),
         ("child_alone_pool", [], ["swimming pool", "toddler"], True),
@@ -500,7 +500,9 @@ def test_the_damage_cases_use_exactly_the_ruled_override_terms() -> None:
             "bent frame",
             "climbing through",
             "pry bar",
+            "prybar",
             "crowbar",
+            "crow bar",
         ),
         "forced_door": (
             "broken door",
@@ -509,6 +511,7 @@ def test_the_damage_cases_use_exactly_the_ruled_override_terms() -> None:
             "damaged door",
             "kicked in",
             "damaged frame",
+            "broken frame",
         ),
     }
     for case, terms in j.PROP_TERM_OVERRIDES.items():
@@ -518,6 +521,64 @@ def test_the_damage_cases_use_exactly_the_ruled_override_terms() -> None:
 def test_no_case_matches_on_a_bare_structural_noun() -> None:
     for case in CASES:
         assert not {"window", "door"} & set(j.prop_terms(case)), case.id
+
+
+# Task 11: the Task 10 re-review's misses. A term matches when all its words are in one
+# described item (a holding, a clothing or a notable object), in any order, plural s/es allowed.
+@pytest.mark.parametrize(
+    ("case", "people", "objects"),
+    [
+        ("forced_door", [], ["broken front door"]),
+        ("forced_door", [], ["damaged front door"]),
+        ("forced_door", [], ["front door, frame damaged"]),
+        ("forced_door", [], ["broken frame"]),
+        ("forced_door", [], ["broken door frames"]),
+        ("pried_window", [], ["bent window frame"]),
+        ("pried_window", [], ["window frame bent"]),
+        ("pried_window", [], ["open ground-floor window"]),
+        ("pried_window", [], ["ground-floor window, open"]),
+        ("pried_window", [{"holding": "a prybar"}], ["ground-floor window"]),
+        ("pried_window", [{"holding": "a crow bar"}], ["ground-floor window"]),
+        ("pried_window", [{"holding": "two crowbars"}], []),
+        ("crowbar_at_door", [{"holding": "a prybar"}], []),
+        ("crowbar_at_door", [{"holding": "a steel crow bar"}], []),
+        ("crowbar_at_door", [{"holding": "a bar to pry with"}], []),
+    ],
+)
+def test_prop_terms_match_their_words_in_any_order(
+    case: str, people: list[dict[str, str]], objects: list[str]
+) -> None:
+    people = [{"clothing": "", "face_covered": "unclear", "holding": ""} | p for p in people]
+    d = _derive(case, people=people, people_count=len(people), notable_objects=objects)
+    assert d["prop_match"] is True
+
+
+@pytest.mark.parametrize(
+    ("case", "people", "objects"),
+    [
+        # the words of one term must share one item: "broken" and "door" in two do not match
+        ("forced_door", [], ["broken glass", "front door"]),
+        ("pried_window", [{"holding": "a window cleaner"}], ["open gate"]),
+        ("pried_window", [{"holding": "nothing", "clothing": "open jacket"}], ["window"]),
+        # whole words: no substring of a longer word
+        ("forced_door", [], ["reinforced front door"]),
+        ("pried_window", [], ["windowsill", "bentwood chair"]),
+    ],
+)
+def test_prop_term_words_must_share_one_item_as_whole_words(
+    case: str, people: list[dict[str, str]], objects: list[str]
+) -> None:
+    people = [{"clothing": "", "face_covered": "unclear", "holding": ""} | p for p in people]
+    d = _derive(case, people=people, people_count=len(people), notable_objects=objects)
+    assert d["prop_match"] is False
+
+
+def test_mentions_matches_words_in_any_order_within_one_text() -> None:
+    assert j.mentions(["window frame bent"], ["bent frame"])
+    assert j.mentions(["Two GUNS"], ["gun"]) and j.mentions(["boxes"], ["box"])
+    assert not j.mentions(["gunmetal"], ["gun"])
+    assert not j.mentions(["bent fork", "window frame"], ["bent frame"])
+    assert not j.mentions(["anything"], [""])  # an empty term matches nothing
 
 
 @pytest.mark.parametrize("case", ["pried_window", "forced_door"])

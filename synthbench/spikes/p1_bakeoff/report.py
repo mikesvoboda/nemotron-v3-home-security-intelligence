@@ -54,6 +54,7 @@ BELOW_FLOOR = "none (below floor)"
 
 _CASE_IDS = frozenset(case.id for case in CASES)
 _THREAT_ORDER = tuple(case.id for case in CASES if case.id in THREAT_CASES)
+_IMAGE_CASE_ORDER = (*(case.id for case in CASES), "identity_reference", "identity")
 _ORDER = {model: i for i, model in enumerate(T2I_MODELS + I2V_MODELS)}
 
 SLOT_RULES: dict[str, str] = {
@@ -152,19 +153,22 @@ def _good(
 
 
 def _threat_good(
-    rows: list[dict[str, Any]], ratings: dict[str, dict[str, Any]]
+    rows: list[dict[str, Any]],
+    ratings: dict[str, dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> tuple[float | None, int]:
-    """Share of `good` over threat jobs: the rated ok outputs, plus every failed job as not
-    good. Unknown (None, 0) while none of the ok outputs is rated."""
-    ok_rows = [row for row in rows if row["ok"]]
+    """Share of `good` over threat jobs: the rated scenes (ok outputs not `refused`), plus
+    every refusal (rated or not) and every failed job as not good. Unknown (None, 0) while
+    none of the scenes is rated."""
+    scenes = [row for row in rows if row["ok"] and row["output"] not in refused]
     rated = [
         ratings[row["output"]]["rating"] == "good"
-        for row in ok_rows
+        for row in scenes
         if ratings.get(row["output"], {}).get("rating") in RATINGS
     ]
-    if ok_rows and not rated:
+    if scenes and not rated:
         return None, 0
-    hits = rated + [False] * (len(rows) - len(ok_rows))
+    hits = rated + [False] * (len(rows) - len(scenes))
     return _rate(hits), len(hits)
 
 
@@ -173,28 +177,61 @@ def _owl_hit(measure: dict[str, Any]) -> bool:
     return first_query_score >= OWL_HIT
 
 
+def _refusals(
+    ok_rows: list[dict[str, Any]], measures: dict[str, dict[str, Any]]
+) -> tuple[int, int]:
+    """(refused, measured): the ok outputs measure.py flagged `refused`, and those it checked
+    (a measure row from before refusal detection has no `refused` and is not counted)."""
+    flags = [
+        bool(measures[r["output"]]["refused"])
+        for r in ok_rows
+        if "refused" in measures.get(r["output"], {})
+    ]
+    return sum(flags), len(flags)
+
+
+def _refusal_cases(
+    ok_rows: list[dict[str, Any]], measures: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The R1 form: each case (cases.py order, then identity) where the model's refusals are
+    at least half its measured outputs."""
+    found: list[dict[str, Any]] = []
+    for case in _IMAGE_CASE_ORDER:
+        refused, n = _refusals([row for row in ok_rows if row["case"] == case], measures)
+        if refused and 2 * refused >= n:
+            found.append({"case": case, "refused": refused, "n": n})
+    return found
+
+
 def _threat_cases(
     rows: list[dict[str, Any]],
     measures: dict[str, dict[str, Any]],
     ratings: dict[str, dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> dict[str, dict[str, Any]]:
-    """Per threat case the model rendered: good rate (as _threat_good) and OWL hit rate."""
+    """Per threat case the model rendered: good rate (as _threat_good), OWL hit rate over
+    the scenes, and the refusals over the measured outputs."""
     cases: dict[str, dict[str, Any]] = {}
     for case in _THREAT_ORDER:
         case_rows = [row for row in rows if row["case"] == case]
         if not case_rows:
             continue
-        good, good_n = _threat_good(case_rows, ratings)
+        good, good_n = _threat_good(case_rows, ratings, refused)
         owl = [
             _owl_hit(measures[row["output"]])
             for row in case_rows
-            if row["ok"] and measures.get(row["output"], {}).get("owl")
+            if row["ok"]
+            and row["output"] not in refused
+            and measures.get(row["output"], {}).get("owl")
         ]
+        case_refused, measured = _refusals([row for row in case_rows if row["ok"]], measures)
         cases[case] = {
             "good_rate": good,
             "good_n": good_n,
             "owl_hit_rate": _rate(owl),
             "owl_n": len(owl),
+            "refused": case_refused,
+            "refused_n": measured,
         }
     return cases
 
@@ -203,16 +240,19 @@ def _identity(
     ok_rows: list[dict[str, Any]],
     measures: dict[str, dict[str, Any]],
     ratings: dict[str, dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
+    """Drift and faces over the identity shots that are scenes: a refused shot is left out,
+    and a refused reference leaves no reference to drift from."""
     reference: list[float] | None = None
     for row in ok_rows:
-        if row["case"] == "identity_reference":
+        if row["case"] == "identity_reference" and row["output"] not in refused:
             reference = measures.get(row["output"], {}).get("face")
     drifts: list[float] = []
     faces = no_face = 0
     for row in ok_rows:
         measure = measures.get(row["output"], {})
-        if row["case"] != "identity" or "face" not in measure:
+        if row["case"] != "identity" or "face" not in measure or row["output"] in refused:
             continue
         if measure["face"] is None:
             no_face += 1
@@ -234,13 +274,14 @@ def _image_stats(
     rows: list[dict[str, Any]],
     measures: dict[str, dict[str, Any]],
     ratings: dict[str, dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     ok_rows = [row for row in rows if row["ok"]]
     owl_hits: list[bool] = []
     plates: list[dict[str, Any]] = []
     for row in ok_rows:
         measure = measures.get(row["output"], {})
-        if row["case"] in _CASE_IDS and measure.get("owl"):
+        if row["case"] in _CASE_IDS and measure.get("owl") and row["output"] not in refused:
             owl_hits.append(_owl_hit(measure))
         if "plate_exact" in measure:
             plates.append(measure)
@@ -249,9 +290,14 @@ def _image_stats(
     megapixels = _megapixels(rows)
     per_mp = _per_mp(median, megapixels)
     threat_good, threat_n = _threat_good(
-        [row for row in rows if row["case"] in THREAT_CASES], ratings
+        [row for row in rows if row["case"] in THREAT_CASES], ratings, refused
     )
+    refusal_count, refusal_n = _refusals(ok_rows, measures)
     return {
+        "refused": refusal_count,
+        "refusal_n": refusal_n,
+        "refusal_rate": refusal_count / refusal_n if refusal_n else None,
+        "refusal_cases": _refusal_cases(ok_rows, measures),
         "median_seconds": median,
         "megapixels": megapixels,
         "seconds_per_mp": per_mp,
@@ -263,8 +309,8 @@ def _image_stats(
         "plate_exact_rate": _rate([bool(p["plate_exact"]) for p in plates]),
         "plate_n": len(plates),
         "plate_mean_cer": statistics.fmean(cers) if cers else None,
-        "threat_cases": _threat_cases(rows, measures, ratings),
-    } | _identity(ok_rows, measures, ratings)
+        "threat_cases": _threat_cases(rows, measures, ratings, refused),
+    } | _identity(ok_rows, measures, ratings, refused)
 
 
 def _clip_stats(
@@ -323,16 +369,21 @@ def _confusion(pairs: list[tuple[bool, bool]]) -> dict[str, Any]:
 
 
 def judge_calibration(
-    ratings: dict[str, dict[str, Any]], judge: Iterable[dict[str, Any]]
+    ratings: dict[str, dict[str, Any]],
+    judge: Iterable[dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
-    """Judge vs owner over the cells the owner rated and the judge gave a verdict on: owner
-    `good` is positive, `partial`/`fail` negative, against the judge's `judge_good`.
-    Overall and per JUDGE_KINDS; `rated` counts every rating, judged or not."""
+    """Judge vs owner over the cells the owner rated and the judge gave a verdict on, the
+    `refused` outputs left out (no scene to agree on): owner `good` is positive,
+    `partial`/`fail` negative, against the judge's `judge_good`. Overall and per
+    JUDGE_KINDS; `rated` counts every rating, judged or not."""
     pairs: dict[str, list[tuple[bool, bool]]] = {kind: [] for kind in ("overall", *JUDGE_KINDS)}
     for output, row in latest(judge).items():
         rating = ratings.get(output, {}).get("rating")
         derived = row.get("derived") or {}
         if rating not in RATINGS or row.get("error") or derived.get("judge_good") is None:
+            continue
+        if output in refused:  # a safety card: no scene for the owner and judge to agree on
             continue
         pair = (rating == "good", bool(derived["judge_good"]))
         pairs["overall"].append(pair)
@@ -342,9 +393,18 @@ def judge_calibration(
     return {"rated": rated, "kinds": {kind: _confusion(p) for kind, p in pairs.items()}}
 
 
-def _judge_stats(rows: list[dict[str, Any]], judged: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """One model's judge verdicts over its ok outputs (latest judge row per output)."""
-    found = [judged[row["output"]] for row in rows if row["ok"] and row["output"] in judged]
+def _judge_stats(
+    rows: list[dict[str, Any]],
+    judged: dict[str, dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    """One model's judge verdicts over its ok outputs that are scenes (latest judge row per
+    output): a refused output is left out of every judge column."""
+    found = [
+        judged[row["output"]]
+        for row in rows
+        if row["ok"] and row["output"] in judged and row["output"] not in refused
+    ]
     derived = [j["derived"] for j in found if not j.get("error") and j.get("derived")]
     good = [bool(d["judge_good"]) for d in derived if d.get("judge_good") is not None]
     props = [bool(d["prop_match"]) for d in derived if d.get("prop_match") is not None]
@@ -368,8 +428,10 @@ def _judge_summary(
     by_model: dict[str, list[dict[str, Any]]],
     ratings: dict[str, dict[str, Any]],
     judge: Iterable[dict[str, Any]],
+    refused: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
-    """The VLM judge's evidence: per-model verdicts and the calibration. Never a pick input."""
+    """The VLM judge's evidence: per-model verdicts and the calibration, refusals left out.
+    Never a pick input."""
     judged = latest(judge)
     return {
         "rows": len(judged),
@@ -377,10 +439,10 @@ def _judge_summary(
             {str(r["judge_model"]) for r in judged.values() if r.get("judge_model")}
         ),
         "models": {
-            model: _judge_stats(by_model[model], judged)
+            model: _judge_stats(by_model[model], judged, refused)
             for model in sorted(by_model, key=_model_order)
         },
-        "calibration": judge_calibration(ratings, judged.values()),
+        "calibration": judge_calibration(ratings, judged.values(), refused),
     }
 
 
@@ -392,7 +454,9 @@ def summarize(
     judge: Iterable[dict[str, Any]] = (),
 ) -> dict[str, Any]:
     """Per image model (`models`) and per clip model (`clip_models`) metrics, and the VLM
-    judge's evidence (`judge`, from judge.jsonl's rows; none by default)."""
+    judge's evidence (`judge`, from judge.jsonl's rows; none by default). An output
+    measure.py flagged `refused` (the model's safety card) is not a scene: it counts as not
+    good in the threat good rates and is left out of OWL, identity drift and the judge."""
     by_model: dict[str, list[dict[str, Any]]] = {}
     for row in latest(records).values():
         by_model.setdefault(row["model"], []).append(row)
@@ -400,6 +464,7 @@ def summarize(
     for group in groups:  # a resumed run appends a row per model group
         groups_by_model.setdefault(group["model"], []).append(group)
     by_output = latest(measures)
+    refused = frozenset(output for output, m in by_output.items() if m.get("refused"))
     images: dict[str, dict[str, Any]] = {}
     clips: dict[str, dict[str, Any]] = {}
     for model in sorted(by_model, key=_model_order):
@@ -408,14 +473,14 @@ def summarize(
         clip_rows = [row for row in by_model[model] if row["kind"] == "i2v"]
         if image_rows:
             images[model] = (
-                _counts(image_rows) | vram | _image_stats(image_rows, by_output, ratings)
+                _counts(image_rows) | vram | _image_stats(image_rows, by_output, ratings, refused)
             )
         if clip_rows:
             clips[model] = _counts(clip_rows) | vram | _clip_stats(clip_rows, by_output, ratings)
     return {
         "models": images,
         "clip_models": clips,
-        "judge": _judge_summary(by_model, ratings, judge),
+        "judge": _judge_summary(by_model, ratings, judge, refused),
     }
 
 
@@ -463,8 +528,10 @@ def _at_least(value: float | None, floor: float) -> bool:
 
 
 def fallback_cases(summary: dict[str, Any]) -> list[str]:
-    """Threat cases where no model has a single `good` (failed jobs count as not good):
-    spec §3.7's prop reference sheet candidates. A case nobody has rated is not listed."""
+    """Threat cases where no model has a single `good` (failed jobs and refusals count as
+    not good): spec §3.7's prop reference sheet candidates. A case waits while any model's
+    rate for it is unknown (none of its scenes rated), so a model that refused the case
+    outright cannot list it before the others are rated."""
     cases: list[str] = []
     for case in _THREAT_ORDER:
         rates = [
@@ -472,8 +539,7 @@ def fallback_cases(summary: dict[str, Any]) -> list[str]:
             for stats in summary["models"].values()
             if case in stats["threat_cases"]
         ]
-        known = [rate for rate in rates if rate is not None]
-        if known and max(known) <= 0:
+        if rates and None not in rates and max(rates) <= 0:
             cases.append(case)
     return cases
 
@@ -531,7 +597,30 @@ def _case_cell(stats: dict[str, Any] | None) -> str:
         return "-"
     good = _fmt_n(stats["good_rate"], "%", stats["good_n"])
     owl = _fmt_n(stats["owl_hit_rate"], "%", stats["owl_n"])
-    return f"good {good} · OWL {owl}"
+    refused = f" · refused {stats['refused']}/{stats['refused_n']}" if stats["refused"] else ""
+    return f"good {good} · OWL {owl}{refused}"
+
+
+def _refused_cell(stats: dict[str, Any]) -> str:
+    if not stats["refusal_n"]:
+        return "n/a"
+    return f"{stats['refused']}/{stats['refusal_n']} ({stats['refusal_rate']:.0%})"
+
+
+def _refusal_lines(summary: dict[str, Any]) -> list[str]:
+    """Per model, the cases it refused at least half the time (R1 evidence)."""
+    lines = [
+        "Refusals (R1): cases where a model painted its safety card instead of the scene for "
+        "at least half its measured outputs:",
+        "",
+    ]
+    found = [
+        f"- {model}: "
+        + ", ".join(f"{c['case']} {c['refused']}/{c['n']}" for c in stats["refusal_cases"])
+        for model, stats in summary["models"].items()
+        if stats["refusal_cases"]
+    ]
+    return [*lines, *(found or ["- none"])]
 
 
 def _table(header: list[str], rows: list[list[str]]) -> list[str]:
@@ -565,6 +654,7 @@ def to_markdown(
             model,
             str(s["ok"]),
             str(s["failed"]),
+            _refused_cell(s),
             _fmt(s["median_seconds"], ".1f"),
             _fmt(s["megapixels"], ".2f"),
             _fmt(s["seconds_per_mp"], ".1f"),
@@ -586,6 +676,7 @@ def to_markdown(
             "model",
             "ok",
             "failed",
+            "refused",
             "median s",
             "MP",
             "s/MP",
@@ -653,10 +744,14 @@ def to_markdown(
         "- **VRAM flags**: how `/free` settled when it was not clean (`timeout`: the peak may "
         "include the previous model; `unreadable`: no baseline).",
         "- **(n=...)**: how many outputs a rate or median is over.",
+        "- **refused**: ok images whose OCR text is the model's safety card (\"Image blocked "
+        'by safety filter"), over the images measured for it. A refusal is not a scene: it '
+        "counts as not good in **threat good** and is left out of **OWL hit**, **identity "
+        "drift**, **no face** and the judge's columns.",
         "- **threat good**: share of `good` over the model's threat jobs: the owner's rated "
-        "ok outputs, plus every failed job as not good (n/a until an ok threat output is "
-        "rated). **identity good** / **clip good**: share of `good` among the owner's rated "
-        "identity shots (the reference not counted) / clips.",
+        "scenes, plus every refusal (rated or not) and every failed job as not good (n/a "
+        "until a threat scene is rated). **identity good** / **clip good**: share of `good` "
+        "among the owner's rated identity shots (the reference not counted) / clips.",
         f"- **OWL hit**: share of case images whose first OWLv2 query scores >= {OWL_HIT:.2f}. "
         "**plate**: EasyOCR against the `legible_plate` target, compared on its "
         "alphanumerics only.",
@@ -698,13 +793,17 @@ def to_markdown(
         "§3.7 fallback candidates (prop reference sheet): "
         f"{', '.join(fallback_cases(summary)) or 'none'}",
         "",
-        "A case is a candidate when no model has a single `good` for it (failed jobs count "
-        "as not good). A case nobody has rated yet is not listed.",
+        "A case is a candidate when no model has a single `good` for it (failed jobs and "
+        "refusals count as not good). It waits while any model's rate for it is n/a (none of "
+        "its scenes rated yet).",
+        "",
+        *_refusal_lines(summary),
         "",
         "## Risks R1-R3 outcome",
         "",
         "- **R1** (threat props): _TODO (Task 8): which threat props each model could or "
-        "could not render (start from the per-case table and its fallback candidates)._",
+        "could not render (start from the per-case table, its fallback candidates and the "
+        "refusals)._",
         "- **R2** (ComfyUI on arm64/sm_103): _TODO (Task 8): held, or the fallback used._",
         "- **R3** (candidate facts): _TODO (Task 8): existence, sizes and gating confirmed._",
         "",
@@ -747,14 +846,16 @@ def _judge_markdown(judge: dict[str, Any] | None) -> list[str]:
         "JSON description; `judge.py`'s `derive` compares it with the case's known facts. "
         "`propose_picks` never reads it.",
         "- **judged** / **errors**: ok outputs with a judge answer / with a failed judge call "
-        "(timeout, refusal, bad JSON). **judge good**: threat cases: the prop named, "
-        "photorealistic, not assessed benign (the hazards `child_alone_pool` and "
+        "(timeout, the judge's own refusal, bad JSON). **judge good**: threat cases: the prop "
+        "named, photorealistic, not assessed benign (the hazards `child_alone_pool` and "
         "`smoke_from_eave` may be); identity shots: the case's lighting, photorealistic, at "
         "least one person; clips: photorealistic, no artifacts. The plate case has none "
-        "(plate CER is its measure). **prop match**: threat cases only; `pried_window` and "
+        "(plate CER is its measure). **prop match**: threat cases only; a term matches when "
+        "all its words are in one described item, in any order; `pried_window` and "
         "`forced_door` count only words for the damage, never a bare window or door. "
         "**realistic**: the judge said photorealistic `yes`. **artifacts**: mean flaws listed "
-        "per output.",
+        "per output. Outputs the image model refused (its safety card) are left out of every "
+        "column and of the calibration.",
         "",
         "### Judge vs owner",
         "",

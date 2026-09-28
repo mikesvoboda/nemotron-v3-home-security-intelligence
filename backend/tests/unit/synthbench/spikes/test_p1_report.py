@@ -493,6 +493,8 @@ def test_threat_props_per_case_and_the_fallback_candidates() -> None:
         "good_n": 2,
         "owl_hit_rate": 0.5,
         "owl_n": 2,
+        "refused": 0,
+        "refused_n": 0,  # measured before refusal detection
     }
     # knife reached the floor with one model; smoke is unrated, so it is no candidate yet
     assert r.fallback_cases(s) == ["handgun_in_hand"]
@@ -759,3 +761,174 @@ def test_sheet_without_judge_rows_has_no_judge_lines(tmp_path: Path) -> None:
     (root / "judge.jsonl").write_text("".join(json.dumps(j) + "\n" for j in _judge_rows()))
     assert sheet.main(["--root", str(root)]) == 0
     assert "judge: threatening · prop yes" in (root / "sheet.html").read_text()
+
+
+# --- Task 11: a refusal (the model's safety card) is not a render ---
+
+
+def _refusal_fixture() -> Rows:
+    """ideogram-4's threat renders, `refused` as measure.py flags them. knife: 3 of 4
+    refused, the scene rated good; handgun: 4 of 4 refused, unrated; pried_window: 1 of 2
+    refused, the scene rated fail; smoke: 1 of 4 refused, the scenes unrated. Every refusal
+    has a spurious OWL hit (0.9); every scene misses (0.1)."""
+    refused = {
+        "knife": (True, True, True, False),
+        "handgun_in_hand": (True, True, True, True),
+        "pried_window": (True, False),
+        "smoke_from_eave": (True, False, False, False),
+    }
+    records: list[dict[str, Any]] = []
+    measures: list[dict[str, Any]] = []
+    for case, flags in refused.items():
+        for seed, flag in zip((11, 22, 33, 44), flags, strict=False):
+            out = f"images/ideogram-4/{case}/{seed}.png"
+            records.append(_row("ideogram-4", case, out, seed=seed))
+            owl = {"first": 0.9 if flag else 0.1, "a person": 0.5}
+            measures.append({"output": out, "refused": flag, "card_like": flag, "owl": owl})
+    ratings = {
+        "images/ideogram-4/knife/44.png": {"rating": "good"},
+        "images/ideogram-4/pried_window/22.png": {"rating": "fail"},
+    }
+    return records, measures, ratings
+
+
+def test_refusal_rate_and_count_per_model_over_the_measured_images() -> None:
+    records, measures, ratings = _refusal_fixture()
+    # a plate measured before refusal detection existed: not in the refusal n
+    records.append(_row("ideogram-4", "legible_plate", "images/ideogram-4/legible_plate/11.png"))
+    measures.append(
+        {"output": "images/ideogram-4/legible_plate/11.png", "plate_exact": False, "plate_cer": 1}
+    )
+    i = r.summarize(records, [], measures, ratings)["models"]["ideogram-4"]
+    assert (i["refused"], i["refusal_n"]) == (9, 14)
+    assert i["refusal_rate"] == pytest.approx(9 / 14)
+
+
+def test_a_model_without_refusal_measures_has_no_refusal_rate() -> None:
+    a = r.summarize(_records(), [], _measures(), _ratings())["models"]["a"]
+    assert (a["refused"], a["refusal_n"], a["refusal_rate"]) == (0, 0, None)
+
+
+def test_threat_good_counts_a_refusal_as_not_good_even_unrated() -> None:
+    records, measures, ratings = _refusal_fixture()
+    ratings["images/ideogram-4/knife/11.png"] = {"rating": "good"}  # a refusal rated good: no
+    i = r.summarize(records, [], measures, ratings)["models"]["ideogram-4"]
+    # rated scenes: knife/44 good, pried/22 fail; plus the 9 refusals as not good
+    assert (i["threat_good_rate"], i["threat_good_n"]) == (pytest.approx(1 / 11), 11)
+    cases = i["threat_cases"]
+    assert (cases["knife"]["good_rate"], cases["knife"]["good_n"]) == (0.25, 4)
+    assert (cases["handgun_in_hand"]["good_rate"], cases["handgun_in_hand"]["good_n"]) == (0.0, 4)
+    assert (cases["pried_window"]["good_rate"], cases["pried_window"]["good_n"]) == (0.0, 2)
+    # an unrated scene keeps the case unknown, as it does without refusals
+    assert (cases["smoke_from_eave"]["good_rate"], cases["smoke_from_eave"]["good_n"]) == (None, 0)
+
+
+def test_refusals_are_left_out_of_the_owl_hit_rate() -> None:
+    records, measures, ratings = _refusal_fixture()
+    i = r.summarize(records, [], measures, ratings)["models"]["ideogram-4"]
+    assert (i["owl_hit_rate"], i["owl_hit_n"]) == (0.0, 5)  # the 5 scenes, all misses
+    knife = i["threat_cases"]["knife"]
+    assert (knife["owl_hit_rate"], knife["owl_n"]) == (0.0, 1)
+    assert (knife["refused"], knife["refused_n"]) == (3, 4)
+
+
+def test_refusals_are_left_out_of_identity_drift() -> None:
+    records, measures, ratings = _compositor_candidate("qwen-image-2.1", face=[1.0, 0.0])
+    by_output = {m["output"]: m for m in measures}
+    for shot in range(10):  # 10 of 15 shots refused; a card may still hold a "face"
+        by_output[f"images/qwen-image-2.1/identity/{shot}_day.png"] |= {
+            "refused": True,
+            "face": [0.0, 1.0],
+        }
+    q = r.summarize(records, [], measures, ratings)["models"]["qwen-image-2.1"]
+    assert (q["identity_drift_median"], q["identity_faces"], q["identity_no_face"]) == (0.0, 5, 0)
+    assert r.propose_picks(r.summarize(records, [], measures, ratings))["compositor"] == "none"
+    by_output["images/qwen-image-2.1/identity/reference.png"]["refused"] = True
+    q = r.summarize(records, [], measures, ratings)["models"]["qwen-image-2.1"]
+    assert q["identity_drift_median"] is None  # no reference: no drift
+
+
+def test_refusals_are_left_out_of_the_judge_rates_and_calibration() -> None:
+    records, measures, ratings = _refusal_fixture()
+    ratings |= {row["output"]: {"rating": "fail"} for row in records if row["seed"] == 11}
+    judge = [_judge_row(row["output"], False) for row in records]  # the judge says no to all
+    s = r.summarize(records, [], measures, ratings, judge=judge)
+    j = s["judge"]["models"]["ideogram-4"]
+    assert (j["judge_n"], j["judge_good_n"], j["judge_realistic_n"]) == (5, 5, 5)
+    cal = s["judge"]["calibration"]
+    # rated scenes: knife/44 (good), pried/22 (fail), smoke/11 is refused: 2 cells
+    assert (cal["kinds"]["threat"]["n"], cal["kinds"]["threat"]["fn"]) == (2, 1)
+    assert cal["rated"] == 6  # every rating still counts toward "rated"
+
+
+def test_the_per_case_table_shows_the_refusals() -> None:
+    records, measures, ratings = _refusal_fixture()
+    s = r.summarize(records, [], measures, ratings)
+    text = r.to_markdown(s, r.propose_picks(s))
+    knife = next(line for line in text.splitlines() if line.startswith("| knife |"))
+    assert "good 25% (n=4) · OWL 0% (n=1) · refused 3/4" in knife
+    handgun = next(line for line in text.splitlines() if line.startswith("| handgun_in_hand |"))
+    assert "refused 4/4" in handgun
+    row = next(line for line in text.splitlines() if line.startswith("| ideogram-4 |"))
+    assert "| 9/14 (64%) |" in row  # the per-model refused column
+
+
+def test_refusal_cases_are_the_cases_refused_at_least_half_the_time() -> None:
+    records, measures, ratings = _refusal_fixture()
+    s = r.summarize(records, [], measures, ratings)
+    assert s["models"]["ideogram-4"]["refusal_cases"] == [
+        {"case": "handgun_in_hand", "refused": 4, "n": 4},
+        {"case": "knife", "refused": 3, "n": 4},
+        {"case": "pried_window", "refused": 1, "n": 2},
+    ]  # smoke_from_eave, refused 1 of 4, is under half
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "- ideogram-4: handgun_in_hand 4/4, knife 3/4, pried_window 1/2" in text
+
+
+def test_the_markdown_says_when_no_model_refused() -> None:
+    s = r.summarize(_records(), [], _measures(), _ratings())
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "Refusals (R1" in text and "- none" in text
+
+
+def test_a_model_cannot_win_a_threat_slot_on_refusals() -> None:
+    records = [
+        _row("ideogram-4", "knife", f"images/ideogram-4/knife/{s}.png", seed=s) for s in (11, 22)
+    ]
+    records += [
+        _row("flux2-dev", "knife", f"images/flux2-dev/knife/{s}.png", seed=s) for s in (11, 22)
+    ]
+    measures = [
+        {"output": row["output"], "refused": row["model"] == "ideogram-4"} for row in records
+    ]
+    ratings = {row["output"]: {"rating": "good"} for row in records}  # the refusals rated good
+    ratings["images/flux2-dev/knife/22.png"] = {"rating": "fail"}
+    s = r.summarize(records, [], measures, ratings)
+    assert s["models"]["ideogram-4"]["threat_good_rate"] == 0.0
+    assert r.propose_picks(s)["t2i_quality"] == "flux2-dev"
+    alone = r.summarize(records[:2], [], measures, {})  # unrated, all refused: known, 0
+    assert r.propose_picks(alone)["t2i_quality"] == r.BELOW_FLOOR
+
+
+def test_a_fallback_candidate_waits_until_every_models_rate_is_known() -> None:
+    records = [
+        _row(m, "handgun_in_hand", f"images/{m}/handgun_in_hand/11.png")
+        for m in ("ideogram-4", "flux2-dev")
+    ]
+    measures = [{"output": "images/ideogram-4/handgun_in_hand/11.png", "refused": True}]
+    s = r.summarize(records, [], measures, {})  # ideogram refused (0%), flux2-dev not rated
+    assert r.fallback_cases(s) == []
+    s = r.summarize(
+        records, [], measures, {"images/flux2-dev/handgun_in_hand/11.png": {"rating": "fail"}}
+    )
+    assert r.fallback_cases(s) == ["handgun_in_hand"]
+
+
+def test_the_sheet_marks_refused_cells_and_keeps_their_radios() -> None:
+    records, measures, _ratings_ = _refusal_fixture()
+    html = sheet.render(records, measures, root=None)
+    assert html.count("REFUSED (model safety card)") == 9
+    knife = html.split('name="images/ideogram-4/knife/11.png"', 1)[0].rsplit("<td>", 1)[1]
+    assert "REFUSED (model safety card)" in knife
+    for record in records:
+        assert html.count(f'name="{record["output"]}"') == 3  # good / partial / fail
