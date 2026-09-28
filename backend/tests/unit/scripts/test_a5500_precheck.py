@@ -43,7 +43,7 @@ from scripts.a5500_precheck import (  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Synthetic fixtures - single-GPU-ready config (the acceptance input), in the
-# SHIPPED vlm mode: PIPELINE_MODE=vlm, Qwen3-VL-4B pair, /vlm mount.
+# SHIPPED vlm mode: PIPELINE_MODE=vlm, Qwen3-VL-8B pair, /vlm mount.
 # ---------------------------------------------------------------------------
 
 GREEN_ENV = """\
@@ -58,8 +58,8 @@ GPU_CLIP=0
 GPU_ENRICHMENT=0
 GPU_ENRICHMENT_LIGHT=0
 GPU_AI_SERVICES=0
-VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf
-VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf
+VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf
+VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf
 VLM_CTX_SIZE=32768
 VLM_PARALLEL=2
 VLM_GPU_LAYERS=auto
@@ -78,8 +78,8 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
     environment:
-      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}
-      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}
+      - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}
+      - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}
       - CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - PARALLEL=${VLM_PARALLEL:-2}
 """
@@ -98,6 +98,23 @@ LEGACY_COMPOSE = (
       - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
 """
 )
+
+
+# The four serving-weight digests the handout has to print, so a cold box can
+# verify what it fetched (the mmproj pair included: an F16 projector instead of
+# the Q8_0 loads fine and matches no hash, which is the loudest silent failure
+# available on this run). These are public model hashes, not credentials -
+# detect-secrets flags a bare sha256 as a Hex High Entropy String, the same false
+# positive models.yml:204 carries, so the same mitigation applies. It lives at
+# module level because the pragma must sit on the secret's OWN line: inside an
+# indented assert, ruff-format wraps a 64-char hex and orphans the pragma, and
+# detect-secrets then rejects it (verified against the real hook).
+SERVING_WEIGHT_SHA256S = {
+    "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",  # pragma: allowlist secret
+    "c6ba85508d82f42590e6eb77d5340369ab6fecf107a7561d809523d8aa5f3bfd",  # pragma: allowlist secret
+    "66358cb18bb6b3b1b6675aa412c7a88ef01d228f481184d13668e5201c730a0a",  # pragma: allowlist secret
+    "30ba2c7dd3127a4561b6cba9d13d0f711c91bdb38742e2f56d73c8cb596bd06d",  # pragma: allowlist secret
+}
 
 
 def _write(tmp_path: Path, name: str, text: str) -> Path:
@@ -229,8 +246,8 @@ class TestVlmModel:
             tmp_path,
             "q8.env",
             GREEN_ENV.replace(
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf",
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q8_0.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q8_0.gguf",
             ),
         )
         checks = run_precheck(
@@ -268,8 +285,8 @@ class TestVlmModel:
             tmp_path,
             "legacy.env",
             GREEN_ENV.replace(
-                "VLM_MODEL_PATH=/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf\n"
-                "VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf",
+                "VLM_MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf\n"
+                "VLM_MMPROJ_PATH=/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf",
                 "LLM_MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf",
             ),
         )
@@ -368,7 +385,7 @@ class TestVlmPassthrough:
 
     def test_hardcoded_model_path_warns(self, tmp_path: Path) -> None:
         hard = GREEN_COMPOSE.replace(
-            "- MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-4B-Instruct-Q4_K_M.gguf}",
+            "- MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}",
             "- MODEL_PATH=/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
         )
         checks = run_precheck(
@@ -383,7 +400,7 @@ class TestVlmPassthrough:
 
     def test_hardcoded_mmproj_warns_too(self, tmp_path: Path) -> None:
         hard = GREEN_COMPOSE.replace(
-            "- MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-4B-Instruct-Q8_0.gguf}",
+            "- MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}",
             "- MMPROJ_PATH=/models/mmproj-other.gguf",
         )
         checks = run_precheck(
@@ -691,7 +708,7 @@ class TestChecklistRender:
         assert "vlm_model" in md and "MANUAL" in md
 
     def test_render_states_the_smoke_before_traffic_requirement(self, tmp_path: Path) -> None:
-        # spec :482-500 / 1.7: the Qwen3-VL-4B smoke serve + enforcement probe
+        # spec :482-500 / 1.7: the Qwen3-VL-8B smoke serve + enforcement probe
         # must run BEFORE any event reaches it. That ordering is the handout's
         # point, so the render must carry it, not just the model name.
         from scripts.a5500_precheck import render_checklist
@@ -723,6 +740,132 @@ class TestChecklistRender:
 
 
 # ---------------------------------------------------------------------------
+# The handout is the A5500 run's ONLY interface to the repo, so it must carry
+# what the run is FOR. A 2026-09-28 readiness audit found it asked for two "S1
+# peaks" while never printing S1's bar, never mentioned S4 at all (the bar the
+# spec reserves to THIS box, spec :86/:388), mandated the enforcement probe as a
+# one-shot "refusal check" (bake-off finding ①: a lone ENFORCED pass produced a
+# false positive once), printed no build command for an image that has no
+# registry ref, and prescribed an up that hard-waits on the retired 30B. Each
+# pin below is one of those findings, asserted on the RENDER because the
+# render is what the operator reads - and every one of them was RED before the
+# rows were added. The failure mode is not an ugly document: a run that
+# satisfied every row the handout had would still leave a spec-reserved bar
+# unmeasured and would have taken a CPU-offloaded serve as a passing S1.
+# ---------------------------------------------------------------------------
+
+
+class TestHandoutIsExecutableOnAColdBox:
+    @staticmethod
+    def _render(tmp_path: Path) -> str:
+        from scripts.a5500_precheck import render_checklist
+
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", GREEN_ENV),
+            compose_paths=[_write(tmp_path, "green.yml", GREEN_COMPOSE)],
+            repo_root=tmp_path,
+        )
+        return render_checklist(checks, date_str="2026-09-27")
+
+    def test_s1_is_asked_with_its_bar_and_a_sampler(self, tmp_path: Path) -> None:
+        # S1 is "peak VRAM <= 20.4 GiB (0.85 x 24 GB) with detector +
+        # specialists + VLM resident, no CPU offload" (spec :83). A bare "take
+        # its S1 peak" cannot be judged, sampled, or ledgered.
+        md = self._render(tmp_path)
+        assert "20.4 GiB" in md, "S1's bar is absent: an operator cannot pass or fail it"
+        assert "nvidia-smi --query-gpu=memory.used" in md, "no sampler given"
+        assert "offload" in md.lower(), "S1's no-CPU-offload condition is not stated"
+        # VLM_GPU_LAYERS defaults to auto (= offload when over budget), so the
+        # trap has to be named or an offloaded serve reads as a pass.
+        assert "VLM_GPU_LAYERS" in md
+
+    def test_s4_is_asked_for_on_the_box_the_spec_reserves_it_to(self, tmp_path: Path) -> None:
+        # The audit's sharpest finding: zero occurrences of "S4"/"p95" anywhere
+        # in the handout or its generator, against spec :86 and the §8 machine
+        # split that assigns S4 to this card.
+        md = self._render(tmp_path)
+        assert "S4" in md
+        assert "30" in md and "p95" in md.lower()
+        assert "cold start" in md.lower(), "S4 counts cold starts; a warm-only run is not S4"
+
+    def test_the_probe_is_named_invoked_and_repeated_not_one_shot(self, tmp_path: Path) -> None:
+        # P0.3 is a nonce-const grammar check whose own docstring warns that a
+        # "wall of refusals" must not be read as the verdict; and bake-off
+        # finding ① is a false ENFORCED from a single pass. So: name the script,
+        # give its real invocation, require repeats.
+        md = self._render(tmp_path)
+        assert "scripts/vlm_probes/enforcement.py" in md
+        assert "--expect-build" in md
+        assert "3" in md and ("N>=3" in md or "three" in md.lower())
+        assert "refusal check" not in md, "the probe is a grammar check, not a refusal count"
+
+    def test_it_prints_a_build_command_because_there_is_nothing_to_pull(
+        self, tmp_path: Path
+    ) -> None:
+        # ai-vlm has no `image:` key, no ghcr presence, no VLM_IMAGE var - the
+        # A5500 must build. The handout already printed "--build-arg
+        # CUDA_ARCHITECTURES=86" inside the vlm_image VERDICT detail, which is
+        # why this pin is written to need an actual invocation and the
+        # nothing-to-pull fact: the flag alone was green before any fix and
+        # proves nothing (a pin that passes on the unfixed tree is the finding,
+        # not the reassurance).
+        md = self._render(tmp_path)
+        assert "podman build" in md or "build ai-vlm" in md, "no actual build invocation"
+        assert "no `image:` key" in md or "nothing to pull" in md.lower()
+
+    def test_the_up_set_is_executable_without_the_retired_30b(self, tmp_path: Path) -> None:
+        # backend depends_on ai-llm: service_healthy (prod:708-717) and ai-llm
+        # is unprofiled (:120), so "keep ai-llm out of the up set" was prose
+        # with no implementation. The repo's own proven answer is --no-deps
+        # (scripts/bootstrap-gb300.sh:276).
+        md = self._render(tmp_path)
+        assert "--no-deps" in md, "no executable up shape: a plain up waits on the 30B"
+
+    def test_weights_are_treated_as_absent_on_a_cold_box(self, tmp_path: Path) -> None:
+        # Both pairs, byte counts, hashes, the target dir, and finding F's
+        # chmod 644. The 4B pair had no sha256 anywhere in the repo before
+        # 2026-09-28 even though this run is REQUIRED to serve it. All FOUR
+        # digests are required, not just the two weights: the handout that omits
+        # an mmproj hash is the one that lets an F16 projector through.
+        md = self._render(tmp_path)
+        # Guard the pin itself: a membership test over an emptied set passes
+        # vacuously, which is the green-on-a-broken-tree failure this repo has
+        # now caught in its own test code twice.
+        assert len(SERVING_WEIGHT_SHA256S) == 4
+        missing = {h for h in SERVING_WEIGHT_SHA256S if h not in md}
+        assert not missing, f"handout omits {len(missing)} of 4 weight digests"
+        assert "chmod 644" in md
+        assert "NOT what the A5500 lacks" not in md, (
+            "the GB300-share claim is false on a cold box and was corrected, not carried forward"
+        )
+
+    def test_the_end_to_end_chain_that_makes_m1_assertion_2_mean_something(
+        self, tmp_path: Path
+    ) -> None:
+        # plan :181: synthetic still -> detector-closed batch -> vlm verdict ->
+        # event + verification row -> badge -> notification decision. Nothing in
+        # the old handout asked for any link of it, so every row could pass
+        # while M1's own exit test went unproven.
+        md = self._render(tmp_path)
+        for link in ("synthetic", "verdict", "verification row", "notification"):
+            assert link in md.lower(), f"M1's proof chain is missing the {link!r} link"
+
+    def test_the_first_verdict_is_explained_as_the_pre_fix_state(self, tmp_path: Path) -> None:
+        # A cold operator's first run prints "2 FAIL(s) - not ready" and exit 1.
+        # Those two FAILs ARE the pre-fix state steps 1-2 exist to clear; said
+        # nowhere, they read as the repo being broken rather than the box.
+        md = self._render(tmp_path)
+        assert "pre-fix" in md.lower() or "expected before" in md.lower()
+
+    def test_the_probes_are_run_with_the_venv_not_bare_python(self, tmp_path: Path) -> None:
+        # enforcement.py/tool_calls.py import httpx; the precheck is stdlib-only.
+        # Saying "run the probe" with a bare `python3` yields ModuleNotFoundError
+        # on a fresh clone and looks like the endpoint being broken.
+        md = self._render(tmp_path)
+        assert "uv run" in md
+
+
+# ---------------------------------------------------------------------------
 # Real-tree [V] prep-review pin: the shipped example is NOT A5500-ready, and
 # the precheck says exactly which items, with today's line anchors.
 # ---------------------------------------------------------------------------
@@ -750,8 +893,11 @@ class TestRealTreePrepReview:
 
     def test_example_ships_the_serving_vlm_ready(self, real_checks) -> None:
         by_id = _by_id(real_checks)
-        # The VLM model pair ships correct (env :462-463) and prod.yml mounts
-        # the /vlm dir (:253) with env-derived paths (:265-266): the shipped
+        # The VLM model pair ships correct (the .env.example VLM_MODEL_PATH /
+        # VLM_MMPROJ_PATH defaults; cited by name because the line anchors in
+        # this file's comments drift a slice or two after any .env edit) and
+        # prod.yml mounts
+        # the /vlm dir with env-derived paths: the shipped
         # mode's weights are NOT part of what's missing on the A5500.
         assert by_id["vlm_model"].verdict == PASS
         assert by_id["ai_vlm_mount"].verdict == PASS

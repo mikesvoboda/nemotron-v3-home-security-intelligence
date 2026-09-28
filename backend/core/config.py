@@ -1467,12 +1467,15 @@ class Settings(BaseSettings):
         "a different quant).",
     )
     vlm_model_id: str = Field(
-        default="Qwen3VL-4B-Instruct-Q4_K_M",
+        default="Qwen3VL-8B-Instruct-Q4_K_M",
         description="Phase 1.3: degraded-path model label for "
         "event_verifications.model_id in vlm mode (a failed call has no "
         "verdict to read the engine's own id from, and the column is NOT "
-        "NULL). Matches the 1.2 shipped VLM_MODEL_PATH GGUF identity; "
-        "override together with it when serving a different quant.",
+        "NULL). Matches the 1.2 shipped VLM_MODEL_PATH GGUF identity (rev 7 "
+        "moved that identity to the 8B pair; the two must still move "
+        "together — override both when serving a different quant). Pinned "
+        "against .env.example and the compose defaults by "
+        "test_ai_vlm_compose_service.TestShippedServingIdentity.",
     )
 
     enrichment_max_retries: int = Field(

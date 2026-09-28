@@ -284,6 +284,130 @@ class TestSlotSizingReachesTheBackend:
             )
 
 
+class TestShippedServingIdentity:
+    """ONE fact, five spellings: the shipped serving VLM's identity.
+
+    Before this pin, nothing anywhere asserted what the shipped default *is*.
+    `test_vlm_analyzer.py:639` compares the degraded-path label against
+    ``get_settings().vlm_model_id`` - self-referential, so it passes on any
+    default - and the literal ``Qwen3VL-4B-Instruct-Q4_K_M`` sits in fixtures
+    in two unit and one integration test, so those pass on a STALE default too.
+    A default could therefore move to a new model while every existing pin kept
+    asserting the old one.
+
+    That is the 2ea790bc class again, one layer down: ``vlm_model_id`` is the
+    label written to ``event_verifications.model_id`` when a vlm call FAILS
+    (a failed call has no verdict to read the engine's own id from, and the
+    column is NOT NULL), so if it names a different model than the weights
+    compose actually mounts, every degraded row on the incidents board
+    attributes itself to a model that was never serving. Provenance we cannot
+    defend is worse than no provenance - F11's whole point.
+
+    So: derive each spelling from the artifact that declares it (no fixture
+    repeats the string), assert they all agree, and THEN name the model - the
+    agreement alone would pass happily on four consistent 4B values.
+    """
+
+    SHIPPED = "Qwen3VL-8B-Instruct-Q4_K_M"
+
+    @pytest.fixture(scope="class")
+    def backend_env(self, compose: dict) -> dict[str, str]:
+        raw = compose["services"]["backend"].get("environment", [])
+        return dict(item.split("=", 1) for item in raw)
+
+    @staticmethod
+    def _env_value(var: str) -> str:
+        text = ENV_EXAMPLE.read_text(encoding="utf-8")
+        m = re.search(rf"^{var}=(\S+)$", text, re.M)
+        assert m, f"{var} must be declared in .env.example"
+        return m.group(1)
+
+    @staticmethod
+    def _stem(filename: str) -> str:
+        """Container path -> model identity, quant stripped, mmproj prefix gone.
+
+        ``/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf`` and
+        ``/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf`` both reduce to
+        ``Qwen3VL-8B-Instruct``: the pair is one model at two quantizations,
+        and an 8B main with a 4B mmproj is exactly the drift this derives.
+        """
+        name = Path(filename).name
+        assert name.endswith(".gguf"), f"not a GGUF path: {name}"
+        name = name[len("mmproj-") :] if name.startswith("mmproj-") else name
+        return re.sub(r"-I?Q[0-9]+(?:_[A-Z0-9]+)*$", "", name[: -len(".gguf")])
+
+    @staticmethod
+    def _compose_default(interpolated: str, var: str) -> str:
+        assert interpolated.startswith(f"${{{var}:-"), f"{var}: {interpolated!r}"
+        return interpolated.split(":-", 1)[1].rstrip("}")
+
+    def test_env_example_declares_the_shipped_model(self) -> None:
+        """The .env.example pair, by derivation from the paths."""
+        assert self._stem(self._env_value("VLM_MODEL_PATH")) == self._stem(
+            self._env_value("VLM_MMPROJ_PATH")
+        ), "VLM_MODEL_PATH and VLM_MMPROJ_PATH name different models"
+        assert self._env_value("VLM_MODEL_ID") == self.SHIPPED, (
+            f".env.example VLM_MODEL_ID is {self._env_value('VLM_MODEL_ID')!r}, "
+            f"expected {self.SHIPPED!r} - spec rev 7 / ledger item 35 moved the "
+            "shipped serving VLM and this is the line operators copy"
+        )
+
+    def test_the_five_spellings_are_one_model(self, vlm_env: dict, backend_env: dict) -> None:
+        """Label, declared path, compose path, compose label, compose alias -
+        all one model. Every one of these is independently overridable, which
+        is why agreement needs a pin rather than being obvious."""
+        from backend.core.config import Settings
+
+        declared = self._env_value("VLM_MODEL_PATH")
+        server_path = self._compose_default(vlm_env["MODEL_PATH"], "VLM_MODEL_PATH")
+        server_mmproj = self._compose_default(vlm_env["MMPROJ_PATH"], "VLM_MMPROJ_PATH")
+        client_label = self._compose_default(backend_env["VLM_MODEL_ID"], "VLM_MODEL_ID")
+        settings_label = Settings.model_fields["vlm_model_id"].default
+
+        assert self._stem(declared) == self._stem(server_path) == self._stem(server_mmproj), (
+            f"the mounted pair is not one model: .env.example names "
+            f"{self._stem(declared)!r}, compose mounts {self._stem(server_path)!r} "
+            f"with mmproj {self._stem(server_mmproj)!r}"
+        )
+        assert settings_label == client_label == self._env_value("VLM_MODEL_ID"), (
+            f"degraded-path label disagrees across its three homes: "
+            f"Settings.vlm_model_id={settings_label!r}, compose "
+            f"VLM_MODEL_ID={client_label!r}, .env.example="
+            f"{self._env_value('VLM_MODEL_ID')!r} - the label a failed call "
+            "writes must name the weights that were serving"
+        )
+        # /props and /v1/models report this, and VLM_REQUIRED_BUILD comparisons
+        # sit beside it: a stale alias is a server reporting another model's
+        # identity, which no test of the backend can see.
+        alias = self._compose_default(vlm_env["MODEL_ALIAS"], "VLM_MODEL_ALIAS")
+        assert self._stem(server_path).startswith(alias), (
+            f"MODEL_ALIAS {alias!r} is not a prefix of the served model "
+            f"{self._stem(server_path)!r} - the alias the endpoint reports must "
+            "name the same model as the weights"
+        )
+
+    def test_shipped_identity_is_the_m2_pick(self, vlm_env: dict, backend_env: dict) -> None:
+        """Agreement above would pass on four consistent 4B values, so name
+        the model the owner picked (2026-09-28: "lets go with Qwen3-VL-8B for
+        now. we can revisit later if needed."). Introspected from
+        Settings.model_fields, not from an instance - the house idiom for a
+        DEFAULT (test_pagination_limits.py:43), and the only way to pin a
+        default that a dev's .env could otherwise mask."""
+        from backend.core.config import Settings
+
+        assert Settings.model_fields["vlm_model_id"].default == self.SHIPPED
+        assert self._env_value("VLM_MODEL_PATH") == f"/models/{self.SHIPPED}.gguf"
+        assert (
+            self._compose_default(vlm_env["MODEL_PATH"], "VLM_MODEL_PATH")
+            == f"/models/{self.SHIPPED}.gguf"
+        )
+        assert backend_env["VLM_MODEL_ID"] == f"${{VLM_MODEL_ID:-{self.SHIPPED}}}"
+        assert vlm_env["MODEL_ALIAS"] == "${VLM_MODEL_ALIAS:-Qwen3VL-8B}", (
+            "the alias carries the SIZE, so it moves with the pick; the 4B "
+            "alias on an 8B server is the F11 provenance lie"
+        )
+
+
 class TestDockerfileFlagWiring:
     """§2 flags that are llama-server args (--sleep-idle-seconds, --alias)
     must be wired through the runtime CMD as guarded env - the file already
