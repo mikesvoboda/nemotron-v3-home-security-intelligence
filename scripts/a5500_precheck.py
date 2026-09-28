@@ -28,7 +28,9 @@ rows rather than accreting alongside them):
      SELinux camera root SELinux enforcing + camera root not container_file_t
                          + a backend /cameras mount without :z = the file
                          watcher's inotify watch is denied (reads the HOST:
-                         /sys/fs/selinux/enforce and the root's xattr)
+                         /sys/fs/selinux/enforce and the root's xattr). The
+                         check is setup_lib/selinux_check.py, shared with
+                         setup.py deploy's preflight and loaded here by path
   4. Test traps         TMPDIR in .env (false-reddens the four
                          write_runtime_env tests); stale __pycache__ dirs
                          for deleted modules (false-reddens deletion guards)
@@ -47,6 +49,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import re
 import sys
@@ -54,8 +57,29 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_selinux_check() -> ModuleType:
+    """setup_lib/selinux_check.py, loaded BY PATH.
+
+    ``import setup_lib.selinux_check`` would run setup_lib/__init__.py (the
+    whole setup toolchain); this script must stay stdlib-only and run with no
+    venv, and the shared module is stdlib-only by contract.
+    """
+    path = REPO_ROOT / "setup_lib" / "selinux_check.py"
+    spec = importlib.util.spec_from_file_location("_a5500_selinux_check", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load the shared SELinux check from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_selinux = _load_selinux_check()
 
 PASS = "PASS"
 WARN = "WARN"
@@ -94,13 +118,10 @@ WORST_CASE_SLOT_TOKENS = 12_200
 FULL_OFFLOAD_LAYERS = "999"
 
 # SELinux (A5500 box, 2026-09-28): the backend runs as container_t, which may
-# READ a usr_t camera root but not inotify-WATCH it. Only container_file_t (or
-# a :z/:Z mount, which relabels the source to it) lets the file watcher watch.
-SELINUX_ENFORCE_FILE = Path("/sys/fs/selinux/enforce")
-CONTAINER_FILE_T = "container_file_t"
-DEFAULT_CAMERA_ROOT = "/export/foscam"
-# ``<host>:/cameras[:opts]`` - the target must be exactly /cameras.
-CAMERA_MOUNT_RE = re.compile(r":/cameras(?::(?P<opts>[A-Za-z,]+))?$")
+# READ a usr_t camera root but not inotify-WATCH it. The check and its two
+# host readers live in setup_lib/selinux_check.py (shared with setup.py deploy).
+read_selinux_enforcing = _selinux.read_selinux_enforcing
+read_selinux_label = _selinux.read_selinux_label
 
 # Shortest host path wins so a ``${VAR:-/export/ai_models}`` default - whose
 # own ``:-`` contains a colon - does not split the mount at the wrong place.
@@ -547,28 +568,6 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
     )
 
 
-def _backend_camera_mounts(compose_paths: list[Path]) -> tuple[list[str], list[str]]:
-    """(relabelling, bare) ``file: mount`` entries for the BACKEND's /cameras mount.
-
-    Block-scoped to the backend service: foscam-init mounts the same root
-    bare, but it never watches anything.
-    """
-    relabelled: list[str] = []
-    bare: list[str] = []
-    for fname, lines in _merge_service_lines(compose_paths, "backend").items():
-        for line in lines:
-            s = line.strip()
-            if not s.startswith("- "):
-                continue
-            mount = s[2:].strip().strip("'\"")
-            m = CAMERA_MOUNT_RE.search(mount)
-            if m is None:
-                continue
-            opts = set((m.group("opts") or "").split(","))
-            (relabelled if opts & {"z", "Z"} else bare).append(f"{fname}: {mount}")
-    return relabelled, bare
-
-
 def _check_selinux_camera_root(
     env: dict[str, str],
     compose_paths: list[Path],
@@ -577,65 +576,17 @@ def _check_selinux_camera_root(
 ) -> Check:
     """Can the backend (container_t) inotify-WATCH the camera root?
 
-    A5500 box, 2026-09-28: SELinux enforcing, /export/foscam labelled usr_t,
-    mounted without :z - container_t may READ it (uploads were listable) but
-    the watch was denied (`avc: denied { watch watch_reads }`), and the file
-    watcher, which watchdog never told, went blind while logging success.
+    The shared setup_lib/selinux_check.py verdict (setup.py deploy runs the
+    same check as a preflight) against the BACKEND's /cameras mounts in the
+    scanned compose files.
     """
-    cid = "selinux_camera_root"
-    root = env.get("FOSCAM_BASE_PATH", "").strip("'\"") or DEFAULT_CAMERA_ROOT
-    enforcing = selinux_enforcing()
-    if enforcing is None:
-        return Check(
-            cid,
-            PASS,
-            "SELinux not present on this host (no /sys/fs/selinux/enforce) - no "
-            "label can deny the file watcher's inotify watch",
-        )
-    if not enforcing:
-        return Check(
-            cid,
-            PASS,
-            "SELinux is not enforcing (enforce=0) - a denied watch is only "
-            "logged, so the file watcher can watch the camera root",
-        )
-    label = selinux_label(root)
-    label_type = label.split(":")[2] if label and label.count(":") >= 3 else label
-    if label_type == CONTAINER_FILE_T:
-        return Check(
-            cid,
-            PASS,
-            f"camera root {root} is labeled {CONTAINER_FILE_T} - the backend "
-            "(container_t) may inotify-watch it",
-        )
-    relabelled, bare = _backend_camera_mounts(compose_paths)
-    if relabelled and not bare:
-        return Check(
-            cid,
-            PASS,
-            "the backend /cameras mount carries :z/:Z ("
-            + "; ".join(relabelled)
-            + f") - podman relabels {root} to {CONTAINER_FILE_T} when the "
-            "backend starts",
-        )
-    where = (
-        "; ".join(bare)
-        if bare
-        else "no backend /cameras mount found in " + ", ".join(p.name for p in compose_paths)
+    verdict = _selinux.check_camera_root(
+        _selinux.camera_root(env),
+        _selinux.service_camera_mounts(compose_paths, "backend"),
+        selinux_enforcing=selinux_enforcing,
+        selinux_label=selinux_label,
     )
-    return Check(
-        cid,
-        WARN,
-        f"SELinux is enforcing and camera root {root} is labeled "
-        f"{label or 'UNREADABLE (missing, or no security.selinux xattr)'}, not "
-        f"{CONTAINER_FILE_T}, and the backend /cameras mount does not relabel it "
-        f"({where}): the backend (container_t) can READ uploads but its inotify "
-        "WATCH is denied (host audit log: `avc: denied { watch }` on /cameras), so "
-        "the file watcher falls back to polling. Fix: add :z to that mount "
-        "(docker-compose.prod.yml carries it), or relabel the root once: sudo "
-        f"semanage fcontext -a -t {CONTAINER_FILE_T} '{root}(/.*)?' && sudo "
-        f"restorecon -R {root}",
-    )
+    return Check("selinux_camera_root", verdict.verdict, verdict.detail)
 
 
 def _check_tmpdir(env: dict[str, str]) -> Check:
@@ -674,23 +625,6 @@ def _check_health() -> Check:
         "Up+healthy, Prometheus targets, API health). Sandbox precheck can "
         "never close this row",
     )
-
-
-def read_selinux_enforcing(enforce_file: Path = SELINUX_ENFORCE_FILE) -> bool | None:
-    """True = enforcing, False = permissive, None = no SELinux on this host."""
-    try:
-        return enforce_file.read_text(encoding="utf-8").strip() == "1"
-    except OSError:
-        return None
-
-
-def read_selinux_label(path: str) -> str | None:
-    """The path's SELinux context (``user:role:type:level``), or None if unreadable."""
-    try:
-        raw = os.getxattr(path, "security.selinux")
-    except (OSError, AttributeError):  # missing path / no xattr / no os.getxattr (macOS)
-        return None
-    return raw.rstrip(b"\x00").decode("utf-8", errors="replace")
 
 
 def run_precheck(

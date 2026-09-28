@@ -19,6 +19,8 @@ the shipped mode at all.
 
 from __future__ import annotations
 
+import ast
+import inspect
 import sys
 from pathlib import Path
 
@@ -730,6 +732,34 @@ class TestSelinuxHostReaders:
         # an exception is not.
         label = read_selinux_label(str(tmp_path))
         assert label is None or (isinstance(label, str) and "\x00" not in label)
+
+
+class TestSharedSelinuxCheck:
+    """setup.py deploy's preflight and this row are ONE check
+    (setup_lib/selinux_check.py), so they cannot drift apart."""
+
+    SHARED = PROJECT_ROOT / "setup_lib" / "selinux_check.py"
+
+    @pytest.mark.parametrize("reader", [read_selinux_enforcing, read_selinux_label])
+    def test_the_host_readers_are_the_shared_modules(self, reader) -> None:
+        assert Path(inspect.getfile(reader)).resolve() == self.SHARED
+
+    def test_the_precheck_stays_stdlib_only(self) -> None:
+        # It runs on a cold box with no venv: the shared module is loaded by
+        # path, never via the setup_lib package (whose __init__ pulls the
+        # whole setup toolchain).
+        tree = ast.parse((PROJECT_ROOT / "scripts" / "a5500_precheck.py").read_text())
+        imported = {
+            (node.module or "").split(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        } | {
+            alias.name.split(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        }
+        assert imported <= set(sys.stdlib_module_names) | {"__future__"}, imported
 
 
 # ---------------------------------------------------------------------------
