@@ -8,6 +8,7 @@ import os
 import signal
 import subprocess
 import sys
+from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,34 @@ class FakeClock:
 @pytest.fixture
 def paths(tmp_path: Path) -> gw.WindowPaths:
     return gw.WindowPaths(tmp_path / "state")
+
+
+class SignalLeaked(Exception):
+    """A signal reached the caller's handler while the window was restoring."""
+
+
+@pytest.fixture
+def trapped_signals() -> Iterator[None]:
+    """Make the caller's SIGTERM/SIGINT handlers raise SignalLeaked.
+
+    A signal the window fails to defer then fails the test, instead of killing pytest
+    (SIGTERM's default action) or aborting the session (KeyboardInterrupt).
+    """
+
+    def trap(signum: int, _frame: object) -> None:
+        raise SignalLeaked(signum)
+
+    saved = {sig: signal.signal(sig, trap) for sig in (signal.SIGTERM, signal.SIGINT)}
+    yield
+    for sig, handler in saved.items():
+        signal.signal(sig, handler)
+
+
+def _deliver_through_the_installed_handler(signum: int) -> None:
+    """Call the Python handler now installed for signum, as CPython does when it arrives."""
+    handler = signal.getsignal(signum)
+    assert callable(handler)
+    handler(signum, None)
 
 
 def _window(
@@ -176,6 +205,38 @@ class TestGpuWindow:
             raise ValueError("x")
         assert rt.calls.index("hook") < rt.calls.index("start")
 
+    @pytest.mark.usefixtures("trapped_signals")
+    def test_a_sigterm_during_before_restore_waits_for_the_flagship(
+        self, paths: gw.WindowPaths
+    ) -> None:
+        rt = FakeRuntime()
+        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        with (
+            pytest.raises(SystemExit) as exc,
+            _window(rt, paths, before_restore=lambda: os.kill(os.getpid(), signal.SIGTERM)),
+        ):
+            pass
+        assert exc.value.code == 128 + signal.SIGTERM
+        assert rt.calls == ["stop", "start", "healthy?"]
+        assert rt.running and not paths.marker.exists()
+        assert {sig: signal.getsignal(sig) for sig in caller} == caller
+
+    @pytest.mark.usefixtures("trapped_signals")
+    def test_a_sigint_while_restoring_waits_for_the_flagship(self, paths: gw.WindowPaths) -> None:
+        class InterruptedStart(FakeRuntime):
+            def start(self, container: str) -> None:
+                _deliver_through_the_installed_handler(signal.SIGINT)
+                super().start(container)
+
+        rt = InterruptedStart()
+        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        with pytest.raises(SystemExit) as exc, _window(rt, paths):
+            pass
+        assert exc.value.code == 128 + signal.SIGINT
+        assert rt.calls == ["stop", "start", "healthy?"]
+        assert rt.running and not paths.marker.exists()
+        assert {sig: signal.getsignal(sig) for sig in caller} == caller
+
 
 class TestStopGpuContainers:
     def test_lists_and_stops_labeled_containers_in_the_synthbench_store(self) -> None:
@@ -218,5 +279,23 @@ class TestMain:
     def test_restore_clears_the_marker(self, paths: gw.WindowPaths) -> None:
         paths.state_dir.mkdir(parents=True)
         paths.marker.write_text("{}")
-        assert gw.main(["restore"], runtime=FakeRuntime(running=False), paths=paths) == 0
+        rt = FakeRuntime(running=False)
+        assert gw.main(["restore"], runtime=rt, paths=paths) == 0
+        assert rt.calls == ["start", "healthy?"]
         assert not paths.marker.exists()
+
+    def test_restore_refuses_while_a_live_window_holds_the_lock(
+        self, paths: gw.WindowPaths, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        paths.state_dir.mkdir(parents=True)
+        paths.marker.write_text("{}")
+        fd = os.open(paths.lock, os.O_CREAT | os.O_RDWR)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            rt = FakeRuntime(running=False)
+            assert gw.main(["restore"], runtime=rt, paths=paths) != 0
+            assert rt.calls == []
+            assert paths.marker.exists()
+            assert "refusing to restore" in capsys.readouterr().err
+        finally:
+            os.close(fd)

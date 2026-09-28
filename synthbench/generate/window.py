@@ -1,9 +1,11 @@
 """The GPU window (spec §3.6, D9).
 
 Stops the flagship vLLM, runs generation on the whole GB300, and ALWAYS
-restores the flagship: on success, error, Ctrl-C (SIGINT) and SIGTERM. A
+restores the flagship: on success, error, Ctrl-C (SIGINT) and SIGTERM. Once
+it starts restoring, SIGTERM and SIGINT wait until the flagship is healthy. A
 marker file survives a hard kill (SIGKILL, power loss), so the next
-invocation restores first. One window at a time (flock).
+invocation restores first. One window at a time (flock); the `restore` CLI
+takes the same lock, so it never starts the flagship under a live window.
 
 The flagship runs on the ROOTFUL docker daemon (the dgx-inference stack),
 not podman. It is stopped and started at container level: `docker compose
@@ -38,6 +40,9 @@ FLAGSHIP_MODELS_URL = "http://127.0.0.1:8000/v1/models"
 HEALTH_TIMEOUT_S = 45 * 60.0
 POLL_S = 15.0
 GPU_LABEL_FILTER = "label=synthbench.gpu=1"
+
+# What signal.signal() takes and returns.
+_SignalHandler = Callable[[int, FrameType | None], Any] | int | signal.Handlers | None
 
 
 class WindowBusy(RuntimeError):
@@ -135,6 +140,49 @@ def raise_on_sigterm(signum: int, _frame: FrameType | None) -> None:
 
 
 @contextmanager
+def _window_lock(paths: WindowPaths) -> Iterator[None]:
+    """Hold the one-window flock, or raise WindowBusy at once.
+
+    The kernel drops a flock when its holder dies, so a leftover marker never blocks it.
+    """
+    paths.state_dir.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(paths.lock, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise WindowBusy(f"another GPU window holds {paths.lock}") from exc
+        yield
+    finally:
+        os.close(lock_fd)
+
+
+@contextmanager
+def _exit_signals_deferred(sigterm_after: _SignalHandler) -> Iterator[None]:
+    """Only record SIGTERM and SIGINT until the block ends; nothing may cut it short.
+
+    Then SIGTERM gets `sigterm_after` and SIGINT its old handler back. If the block
+    succeeded and a signal came in, exit as raise_on_sigterm does (128 + signum). If
+    the block raised, that error propagates instead: it says more than the signal.
+    """
+    received: list[int] = []
+
+    def record(signum: int, _frame: FrameType | None) -> None:
+        received.append(signum)
+
+    sigint_before: _SignalHandler = signal.getsignal(signal.SIGINT)
+    try:
+        signal.signal(signal.SIGTERM, record)
+        signal.signal(signal.SIGINT, record)
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, sigterm_after)
+        signal.signal(signal.SIGINT, sigint_before)
+    if received:
+        raise SystemExit(128 + received[0])
+
+
+@contextmanager
 def gpu_window(
     runtime: Runtime,
     paths: WindowPaths,
@@ -147,13 +195,7 @@ def gpu_window(
     clock: Callable[[], float] = time.monotonic,
     say: Callable[[str], None] = _say,
 ) -> Iterator[None]:
-    paths.state_dir.mkdir(parents=True, exist_ok=True)
-    lock_fd = os.open(paths.lock, os.O_CREAT | os.O_RDWR, 0o644)
-    try:
-        try:
-            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise WindowBusy(f"another GPU window holds {paths.lock}") from exc
+    with _window_lock(paths):
         if paths.marker.exists():
             say("found the marker of an interrupted window: restoring the flagship first")
             restore(
@@ -172,18 +214,24 @@ def gpu_window(
             runtime.stop(container)
             yield
         finally:
-            signal.signal(signal.SIGTERM, previous)
-            try:
-                before_restore()
-            finally:
-                say(f"closing: starting {container} and waiting until it is healthy")
-                restore(
-                    runtime, container, timeout_s=timeout_s, poll_s=poll_s, sleep=sleep, clock=clock
-                )
-                paths.marker.unlink(missing_ok=True)
-                say(f"{container} is healthy again")
-    finally:
-        os.close(lock_fd)
+            with _exit_signals_deferred(sigterm_after=previous):
+                try:
+                    before_restore()
+                finally:
+                    say(
+                        f"closing: starting {container} and waiting until it is healthy "
+                        "(SIGTERM and Ctrl-C take effect after that)"
+                    )
+                    restore(
+                        runtime,
+                        container,
+                        timeout_s=timeout_s,
+                        poll_s=poll_s,
+                        sleep=sleep,
+                        clock=clock,
+                    )
+                    paths.marker.unlink(missing_ok=True)
+                    say(f"{container} is healthy again")
 
 
 def stop_gpu_containers(
@@ -246,8 +294,13 @@ def main(
         with gpu_window(rt, wp, before_restore=before_restore):
             return _run_child(command)
     if args.command == "restore":
-        restore(rt)
-        wp.marker.unlink(missing_ok=True)
+        try:
+            with _window_lock(wp):
+                restore(rt)
+                wp.marker.unlink(missing_ok=True)
+        except WindowBusy as exc:
+            _say(f"refusing to restore: {exc}; that window restores {FLAGSHIP} when it closes")
+            return 1
         return 0
     status = {"marker": wp.marker.exists(), "flagship_healthy": rt.is_healthy(FLAGSHIP)}
     sys.stdout.write(json.dumps(status) + "\n")
