@@ -97,7 +97,7 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
-        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|^archive/|\.tsbuildinfo$)
+        exclude: (package-lock\.json|uv\.lock|\.secrets\.baseline|^mutants/|^\.wp25-feed/|^archive/|\.tsbuildinfo$|^synthbench/generate/manifests/.*\.json$)
 
   # Auto-regenerate secrets baseline if it has conflicts or is out of date
   # Runs on every commit but only regenerates when baseline is invalid/conflicted
