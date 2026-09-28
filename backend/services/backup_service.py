@@ -24,7 +24,7 @@ import hashlib
 import json
 import tempfile
 import zipfile
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -320,7 +320,10 @@ class BackupService:
         # Query all records from the table
         stmt = select(model)
         result = await db.execute(stmt)
-        records = result.scalars().all()
+        # select(model) is a dynamic model here, so 2.1 leaves the scalar
+        # type unresolved -- Any matches how the rows are consumed (via the
+        # mapper's column keys, below).
+        records: Sequence[Any] = result.scalars().all()
 
         # Convert records to dictionaries
         rows: list[dict[str, Any]] = []
