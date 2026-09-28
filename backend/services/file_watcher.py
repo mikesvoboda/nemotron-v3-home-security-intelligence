@@ -32,6 +32,7 @@ auto_create_cameras is enabled (default: True).
 """
 
 import asyncio
+import os
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -61,6 +62,12 @@ from backend.core.metrics import record_pipeline_stage_latency
 from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
+from backend.services.inotify_probe import (
+    InotifyWatchProbe,
+    errno_name,
+    probe_inotify_watch,
+    watch_failure_hint,
+)
 from backend.services.redis_streams import get_detection_stream_service
 
 logger = get_logger(__name__)
@@ -402,6 +409,7 @@ class FileWatcher:
         use_polling: bool | None = None,
         polling_interval: float | None = None,
         stability_time: float = 2.0,
+        watch_probe: Callable[[str], InotifyWatchProbe] | None = None,
     ):
         """Initialize file watcher.
 
@@ -423,6 +431,9 @@ class FileWatcher:
             stability_time: Time in seconds that file size must remain unchanged
                            before considering the file stable (for FTP uploads).
                            Default is 2.0 seconds.
+            watch_probe: Startup self-check for the native observer: asks the
+                        kernel whether camera_root can be inotify-watched.
+                        Defaults to the real inotify probe; injectable for tests.
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
@@ -432,6 +443,7 @@ class FileWatcher:
         self.auto_create_cameras = auto_create_cameras
         self._camera_creator = camera_creator
         self.stability_time = stability_time
+        self._watch_probe = watch_probe or probe_inotify_watch
 
         # Track which cameras we've already tried to create (avoid repeated attempts)
         self._known_cameras: set[str] = set()
@@ -460,6 +472,12 @@ class FileWatcher:
             self.observer = PollingObserver(timeout=self._polling_interval)
         else:
             self.observer = Observer()
+
+        # How uploads are detected, for health surfaces: "native", "polling"
+        # (configured) or "polling-fallback" (the kernel refused the native
+        # watch at start(); the errno name is kept as the reason).
+        self.watch_mode: str = "polling" if self._use_polling else "native"
+        self.watch_fallback_reason: str | None = None
 
         # Track running state
         self.running = False
@@ -1022,6 +1040,14 @@ class FileWatcher:
             logger.warning(f"Camera root directory does not exist: {self.camera_root}")
             camera_root_path.mkdir(parents=True, exist_ok=True)
 
+        # watchdog swallows EACCES from inotify_add_watch, so a native observer
+        # on a root the kernel will not let us watch (SELinux, LSM, DAC) starts
+        # "successfully" and never delivers an event. Ask the kernel first.
+        if self.watch_mode == "native":
+            probe = self._watch_probe(str(camera_root_path))
+            if probe.supported and probe.error is not None:
+                self._fall_back_to_polling(str(camera_root_path), probe.error)
+
         # Watch the entire camera root directory recursively
         self.observer.schedule(
             self._event_handler,
@@ -1029,11 +1055,41 @@ class FileWatcher:
             recursive=True,
         )
 
-        # Start observer
-        self.observer.start()
+        try:
+            self.observer.start()
+        except OSError as e:
+            # watchdog DOES raise ENOSPC/EMFILE (its recursive walk can exhaust
+            # the watch limit after the root probe passed); polling needs no watch.
+            if self.watch_mode != "native" or e.errno is None:
+                raise
+            self._fall_back_to_polling(str(camera_root_path), e.errno)
+            self.observer.schedule(self._event_handler, str(camera_root_path), recursive=True)
+            self.observer.start()
         self.running = True
 
-        logger.info("FileWatcher started successfully")
+        if self.watch_mode == "polling-fallback":
+            logger.warning(
+                f"FileWatcher started in POLLING-FALLBACK mode ({self.watch_fallback_reason}) "
+                f"for {self.camera_root}: uploads are found by a "
+                f"{self._polling_interval}s directory scan, not native events"
+            )
+        else:
+            logger.info(f"FileWatcher started successfully (mode={self.watch_mode})")
+
+    def _fall_back_to_polling(self, camera_root: str, err: int) -> None:
+        """Replace the (unstarted) native observer with a PollingObserver, loudly."""
+        reason = errno_name(err)
+        logger.error(
+            f"FileWatcher: the kernel REFUSED an inotify watch on {camera_root} "
+            f"({reason}: {os.strerror(err)}) - a native observer would report "
+            "started and never deliver an upload. Falling back to PollingObserver "
+            f"(interval={self._polling_interval}s). Likely cause: {watch_failure_hint(err)}",
+            extra={"camera_root": camera_root, "watch_errno": reason},
+        )
+        self.observer = PollingObserver(timeout=self._polling_interval)
+        self._use_polling = True
+        self.watch_mode = "polling-fallback"
+        self.watch_fallback_reason = reason
 
     async def stop(self) -> None:
         """Stop watching and cleanup resources.
