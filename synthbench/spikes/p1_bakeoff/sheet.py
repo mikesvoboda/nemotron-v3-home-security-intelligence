@@ -106,6 +106,8 @@ def _column_order(column: str) -> tuple[int, int, str]:
 
 def _measure_text(measure: dict[str, Any]) -> str:
     parts: list[str] = []
+    if "error" in measure:  # measure.py could not measure this output
+        parts.append(f"measure error: {measure['error']}")
     if "owl" in measure:
         parts.append(" · ".join(f"{q} {score:.2f}" for q, score in measure["owl"].items()))
     if "plate_exact" in measure:

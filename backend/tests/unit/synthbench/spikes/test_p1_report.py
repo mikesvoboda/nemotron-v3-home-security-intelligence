@@ -235,7 +235,7 @@ def test_models_with_under_half_their_jobs_ok_are_never_picked() -> None:
     ]
     ratings = {
         "images/flaky/knife/11.png": {"rating": "good"},
-        "images/slow/knife/11.png": {"rating": "partial"},
+        "images/slow/knife/11.png": {"rating": "good"},
     }
     picks = r.propose_picks(r.summarize(records, [], [], ratings))
     assert picks["t2i_quality"] == "slow"
@@ -310,12 +310,14 @@ def test_sheet_orders_sections_and_columns_and_shows_the_measures() -> None:
     records += [
         _row("ltx-2.5", "armed_approach", clip, kind="i2v", cold=True, seconds=300.0),
         _row("a", "knife", "images/a/knife/11.png"),
+        _row("a", "knife", "images/a/knife/22.png", seed=22),
         _row("b", "legible_plate", "images/b/legible_plate/11.png"),
     ]
     measures += [
         *_measures(),
         {"output": clip, "frames_with_face": 8, "frame_drift_max": 0.25},
         {"output": "images/a/knife/11.png", "owl": {"a knife": 0.52, "a person": 0.9}},
+        {"output": "images/a/knife/22.png", "error": "OSError: truncated"},
     ]
     html = sheet.render(list(reversed(records)), measures, root=Path("/x/p1"))
     assert html.index('id="knife"') < html.index('id="legible_plate"')
@@ -326,4 +328,31 @@ def test_sheet_orders_sections_and_columns_and_shows_the_measures() -> None:
     assert "300.0 s (cold)" in html and "a knife 0.52 · a person 0.90" in html
     assert "plate: (none read) (CER 0.50)" in html
     assert "face: found" in html and "face: none" in html and "max drift 0.250" in html
+    assert "measure error: OSError: truncated" in html
     assert 'data-root="/x/p1"' in html
+
+
+def test_a_zero_score_winner_is_below_the_floor() -> None:
+    records, measures = [], []
+    for model in ("flux2-dev", "z-image-turbo"):
+        records += [
+            _row(model, "knife", f"images/{model}/knife/11.png"),
+            _row(model, "legible_plate", f"images/{model}/legible_plate/11.png"),
+        ]
+        measures.append(
+            {
+                "output": f"images/{model}/legible_plate/11.png",
+                "plate_exact": False,
+                "plate_cer": 0.5,
+            }
+        )
+    for model in ("ltx-2.5", "wan2.2-i2v"):
+        records.append(_row(model, "child_pool", f"clips/{model}/child_pool/11.mp4", kind="i2v"))
+    ratings = {row["output"]: {"rating": "fail"} for row in records}
+    s = r.summarize(records, [], measures, ratings)
+    picks = r.propose_picks(s)
+    for slot in ("t2i_quality", "t2i_volume", "text", "animator"):
+        assert picks[slot] == r.BELOW_FLOOR, slot
+    assert picks["compositor"] == "none"  # its own floor: no edit model at >= 50% good
+    text = r.to_markdown(s, picks)
+    assert f"| t2i_quality | {r.BELOW_FLOOR} |" in text and "fallback" in text

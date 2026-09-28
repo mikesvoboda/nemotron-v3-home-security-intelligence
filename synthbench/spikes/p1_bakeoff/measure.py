@@ -21,6 +21,7 @@ import math
 import os
 import re
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -28,6 +29,9 @@ from synthbench.spikes.p1_bakeoff.cases import CASES
 
 _CASES = {case.id: case for case in CASES}
 OWL_MODEL = "google/owlv2-base-patch16-ensemble"
+
+# One OCR text fragment: (text, (left, top, right, bottom)) in image pixels.
+Fragment = tuple[str, tuple[float, float, float, float]]
 
 
 def normalize_plate(text: str) -> str:
@@ -51,10 +55,36 @@ def cosine_distance(a: list[float], b: list[float]) -> float:
     return 1.0 - dot / norm if norm else 1.0
 
 
+def reading_order(fragments: list[Fragment]) -> list[list[Fragment]]:
+    """Text lines top to bottom, each left to right. A fragment joins the first line whose
+    first fragment's vertical span holds the fragment's vertical centre."""
+    lines: list[list[Fragment]] = []
+    for fragment in sorted(fragments, key=lambda f: f[1][1] + f[1][3]):
+        centre = (fragment[1][1] + fragment[1][3]) / 2
+        for line in lines:
+            if line[0][1][1] <= centre <= line[0][1][3]:
+                line.append(fragment)
+                break
+        else:
+            lines.append([fragment])
+    return [sorted(line, key=lambda f: f[1][0]) for line in lines]
+
+
+def plate_candidates(fragments: list[Fragment]) -> list[str]:
+    """Every fragment and every run of horizontally adjacent fragments (one line, left to
+    right), joined and normalized: a plate read in pieces, beside other text in the scene."""
+    candidates: list[str] = []
+    for line in reading_order(fragments):
+        for start in range(len(line)):
+            for end in range(start + 1, len(line) + 1):
+                candidates.append(normalize_plate("".join(text for text, _ in line[start:end])))
+    return candidates
+
+
 class Tools(Protocol):
     def owl(self, image: Path, queries: tuple[str, ...]) -> dict[str, float]: ...
 
-    def ocr(self, image: Path) -> str: ...
+    def ocr(self, image: Path) -> list[Fragment]: ...
 
     def face(self, image: Path) -> list[float] | None: ...
 
@@ -75,10 +105,14 @@ def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str
     if case is not None:
         out["owl"] = tools.owl(path, case.owl_queries)
         if case.ocr_target:
-            text = normalize_plate(tools.ocr(path))
+            fragments = tools.ocr(path)
+            target = case.ocr_target
+            # the closest candidate; CER 0 (exact) whenever any candidate matches
+            text = min(plate_candidates(fragments) or [""], key=lambda c: cer(c, target))
+            out["ocr_fragments"] = [t for line in reading_order(fragments) for t, _ in line]
             out["plate_text"] = text
-            out["plate_exact"] = text == case.ocr_target
-            out["plate_cer"] = cer(text, case.ocr_target)
+            out["plate_exact"] = text == target
+            out["plate_cer"] = cer(text, target)
     if record["case"] in {"identity", "identity_reference"}:
         out["face"] = tools.face(path)
     return out
@@ -112,13 +146,17 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
             logits = model(**inputs).logits[0].sigmoid()  # (boxes, queries)
         return {q: round(float(logits[:, i].max()), 4) for i, q in enumerate(queries)}
 
-    def ocr(self, image: Path) -> str:
+    def ocr(self, image: Path) -> list[Fragment]:
         import easyocr
 
         if self._ocr is None:
             self._ocr = easyocr.Reader(["en"], gpu=self._device == "cuda")
-        results = self._ocr.readtext(str(image))
-        return " ".join(text for _box, text, _conf in sorted(results, key=lambda r: -r[2]))
+        fragments: list[Fragment] = []
+        for corners, text, _conf in self._ocr.readtext(str(image)):  # corners: 4 (x, y) points
+            xs = [float(x) for x, _y in corners]
+            ys = [float(y) for _x, y in corners]
+            fragments.append((text, (min(xs), min(ys), max(xs), max(ys))))
+        return fragments
 
     def _face_models(self) -> Any:
         from facenet_pytorch import MTCNN, InceptionResnetV1
@@ -156,6 +194,21 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return [f for f in faces if f is not None]
 
 
+def measure_all(
+    records: list[dict[str, Any]], root: Path, tools: Tools
+) -> Iterator[dict[str, Any]]:
+    """One row per ok output (a resumed job's last row wins). A record that raises yields
+    {"output", "error"} and measuring goes on: one unreadable file must not stop the rest."""
+    latest = {r["output"]: r for r in records}
+    for record in latest.values():
+        if not record["ok"]:
+            continue
+        try:
+            yield measure_record(record, root, tools)
+        except Exception as exc:
+            yield {"output": record["output"], "error": f"{type(exc).__name__}: {exc}"[:500]}
+
+
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - renderer image only
     parser = argparse.ArgumentParser(prog="python -m synthbench.spikes.p1_bakeoff.measure")
     parser.add_argument(
@@ -165,12 +218,16 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - renderer i
     )
     root: Path = parser.parse_args(argv).root
     records = [json.loads(line) for line in (root / "records.jsonl").read_text().splitlines()]
-    latest = {r["output"]: r for r in records}  # a resumed job's last row wins
-    tools = RealTools()
-    with (root / "measures.jsonl").open("w") as fh:
-        for record in latest.values():
-            if record["ok"]:
-                fh.write(json.dumps(measure_record(record, root, tools)) + "\n")
+    rows = errors = 0
+    with (root / "measures.jsonl").open("w") as fh:  # a full re-measure every run
+        for row in measure_all(records, root, RealTools()):
+            fh.write(json.dumps(row) + "\n")
+            fh.flush()
+            rows += 1
+            if "error" in row:
+                errors += 1
+                sys.stderr.write(f"[p1-measure] {row['output']}: {row['error']}\n")
+    sys.stderr.write(f"[p1-measure] {rows} rows, {errors} errors -> {root / 'measures.jsonl'}\n")
     return 0
 
 

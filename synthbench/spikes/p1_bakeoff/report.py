@@ -45,6 +45,9 @@ MIN_OK_SHARE = 0.5  # a model with fewer ok jobs than this is never picked
 VOLUME_MAX_SECONDS = 10.0
 COMPOSITOR_MIN_GOOD = 0.5
 CLEAN_SETTLES = frozenset({"dropped", "no_drop"})  # anything else flags the model's VRAM numbers
+# A slot whose best eligible model scores 0 (no good rating, no exact plate) proposes nobody:
+# for the t2i slots that is spec §3.7's fallback trigger (a prop reference sheet).
+BELOW_FLOOR = "none (below floor)"
 
 _CASE_IDS = frozenset(case.id for case in CASES)
 _ORDER = {model: i for i, model in enumerate(T2I_MODELS + I2V_MODELS)}
@@ -228,7 +231,11 @@ def _best(
     tiebreak: str | None = None,
     where: Callable[[str, dict[str, Any]], bool] = lambda _model, _stats: True,
 ) -> str:
-    """The eligible model with the best `metric`; a tie goes to the lower `tiebreak`."""
+    """The eligible model with the best `metric`; a tie goes to the lower `tiebreak`.
+
+    A higher-is-better metric must beat 0 (BELOW_FLOOR otherwise); a lower-is-better one
+    (identity drift) relies on the caller's `where` floor.
+    """
     candidates = [
         (model, stats)
         for model, stats in table.items()
@@ -243,11 +250,15 @@ def _best(
         primary = -stats[metric] if higher else stats[metric]
         return primary, math.inf if tie is None else tie, model
 
-    return min(candidates, key=key)[0]
+    model, stats = min(candidates, key=key)
+    if higher and stats[metric] <= 0:
+        return BELOW_FLOOR
+    return model
 
 
 def propose_picks(summary: dict[str, Any]) -> dict[str, str]:
-    """One model per slot (SLOT_RULES), or "none" when no model is eligible."""
+    """One model per slot (SLOT_RULES); "none" when no eligible model has the metric, and
+    BELOW_FLOOR when the best one scores 0."""
     images, clips = summary["models"], summary["clip_models"]
     return {
         "t2i_quality": _best(images, "threat_good_rate", tiebreak="median_seconds"),
@@ -403,7 +414,11 @@ def to_markdown(
     )
     lines += [
         "",
-        f"Models with under {MIN_OK_SHARE:.0%} of their jobs ok are never proposed.",
+        f"Models with under {MIN_OK_SHARE:.0%} of their jobs ok are never proposed. "
+        "`none` means no eligible model has the metric (nothing rated or measured). "
+        f"`{BELOW_FLOOR}` means the best eligible model scored 0: for `t2i_quality` and "
+        "`t2i_volume` that is spec §3.7's fallback trigger (a prop reference sheet, then a "
+        "LoRA); for `text` and `animator` no model qualifies.",
         "",
         "## Risks R1-R3 outcome",
         "",
