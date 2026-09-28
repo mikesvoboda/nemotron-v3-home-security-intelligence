@@ -84,9 +84,16 @@ def client_factory(base_url: str | None = None) -> Callable[[], VlmClient]:
     2.2 bake-off's shape, and a run whose report cannot name its endpoint is
     not a pinned run (F13).
     """
-    if base_url is not None:
-        return lambda: VlmClient(base_url=base_url)
-    return VlmClient
+
+    def build() -> VlmClient:
+        # camera_timezone pinned to None: stored snapshot timestamps are not
+        # capture moments (epoch sentinel, generated_at, event.started_at), and
+        # a run records only candidate@commit, so the prompt must not change
+        # with the replay host's CAMERA_TIMEZONE.
+        settings = get_settings().model_copy(update={"camera_timezone": None})
+        return VlmClient(settings=settings, base_url=base_url)
+
+    return build
 
 
 def git_commit(short: bool = True) -> str:

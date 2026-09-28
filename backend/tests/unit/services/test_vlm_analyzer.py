@@ -39,6 +39,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -475,6 +476,74 @@ class TestBuildAssessContext:
         # the side parameter is gone: passing one is a TypeError
         with pytest.raises(TypeError):
             va.build_assess_request(context=ctx, detections=rows, specialist_outputs={"face": "x"})
+
+    FOSCAM = "/export/foscam/front_door/FoscamCamera_X/snap/MDAlarm_20260925-{}.jpg"
+    ARRIVAL = datetime(2026, 9, 25, 15, 0, 0, tzinfo=UTC)  # 11:00 EDT
+
+    def test_capture_tz_takes_the_timestamp_from_the_foscam_filename(self):
+        row = make_detection_row(
+            7, detected_at=self.ARRIVAL, file_path=self.FOSCAM.format("021400")
+        )
+        ctx = va.build_assess_context(
+            camera_id="front_door", detections=[row], capture_tz=ZoneInfo("America/New_York")
+        )
+        assert ctx.timestamp == "2026-09-25T06:14:00+00:00"
+        # rows keep arrival time: only the snapshot's moment moves
+        assert ctx.detections[0]["detected_at"].startswith("2026-09-25T15:00:00")
+
+    def test_capture_tz_unset_keeps_arrival_time(self):
+        row = make_detection_row(
+            7, detected_at=self.ARRIVAL, file_path=self.FOSCAM.format("021400")
+        )
+        ctx = va.build_assess_context(camera_id="front_door", detections=[row])
+        assert ctx.timestamp.startswith("2026-09-25T15:00:00")
+
+    def test_capture_tz_picks_the_earliest_capture_across_rows(self):
+        rows = [
+            make_detection_row(7, detected_at=self.ARRIVAL, file_path=self.FOSCAM.format("021405")),
+            make_detection_row(8, detected_at=self.ARRIVAL, file_path=self.FOSCAM.format("021400")),
+        ]
+        ctx = va.build_assess_context(
+            camera_id="front_door", detections=rows, capture_tz=ZoneInfo("America/New_York")
+        )
+        assert ctx.timestamp == "2026-09-25T06:14:00+00:00"
+
+    def test_a_non_foscam_name_falls_back_to_arrival(self):
+        row = make_detection_row(7, detected_at=self.ARRIVAL)  # /media/front_door/det_7.jpg
+        ctx = va.build_assess_context(
+            camera_id="front_door", detections=[row], capture_tz=ZoneInfo("America/New_York")
+        )
+        assert ctx.timestamp.startswith("2026-09-25T15:00:00")
+
+    def test_store_rows_pass_through_with_capture_tz_set(self):
+        # Replay: an eval-store row already carries its frozen ISO string.
+        store_row = {
+            "id": 1,
+            "object_type": "person",
+            "confidence": 0.9,
+            "bbox": [1, 2, 3, 4],
+            "detected_at": "2026-09-25T12:00:00+00:00",
+        }
+        ctx = va.build_assess_context(
+            camera_id="front_door", detections=[store_row], capture_tz=ZoneInfo("America/New_York")
+        )
+        assert ctx.timestamp == "2026-09-25T12:00:00+00:00"
+
+
+class TestCaptureTimeReachesTheRequest:
+    async def test_analyze_batch_sends_the_filename_capture_time(self, monkeypatch):
+        client = FakeClient([make_verdict()])
+        row = make_detection_row(
+            11,
+            detected_at=datetime(2026, 9, 25, 15, 0, 0, tzinfo=UTC),
+            file_path="/export/foscam/front_door/FoscamCamera_X/snap/MDAlarm_20260925-021400.jpg",
+        )
+        analyzer, _, _ = make_analyzer(monkeypatch, client=client, detections=[row])
+        analyzer._settings = analyzer._settings.model_copy(
+            update={"camera_timezone": "America/New_York"}
+        )
+        await analyze(analyzer)
+        assert client.calls[0].context.timestamp == "2026-09-25T06:14:00+00:00"
 
 
 # ---------------------------------------------------------------------------

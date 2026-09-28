@@ -54,17 +54,18 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 
 ### Core AI Pipeline Services
 
-| Service                  | Purpose                                      | Exported via `__init__.py` |
-| ------------------------ | -------------------------------------------- | -------------------------- |
-| `file_watcher.py`        | Monitor camera directories for media uploads | Yes                        |
-| `dedupe.py`              | Prevent duplicate file processing            | Yes                        |
-| `detector_client.py`     | Send images to YOLO26v2 for detection        | Yes                        |
-| `batch_aggregator.py`    | Group detections into time-based batches     | Yes                        |
-| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Yes                        |
-| `nemotron_streaming.py`  | Streaming LLM response extensions            | No (import directly)       |
-| `thumbnail_generator.py` | Generate preview images with bounding boxes  | Yes                        |
-| `video_processor.py`     | Extract video metadata and thumbnails        | No (import directly)       |
-| `event_broadcaster.py`   | Distribute events via WebSocket              | Yes                        |
+| Service                  | Purpose                                                                     | Exported via `__init__.py` |
+| ------------------------ | --------------------------------------------------------------------------- | -------------------------- |
+| `file_watcher.py`        | Monitor camera directories for media uploads                                | Yes                        |
+| `dedupe.py`              | Prevent duplicate file processing                                           | Yes                        |
+| `detector_client.py`     | Send images to YOLO26v2 for detection                                       | Yes                        |
+| `batch_aggregator.py`    | Group detections into time-based batches                                    | Yes                        |
+| `capture_time.py`        | Foscam filename → capture time for the VLM's time context (CAMERA_TIMEZONE) | No (import directly)       |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp                                       | Yes                        |
+| `nemotron_streaming.py`  | Streaming LLM response extensions                                           | No (import directly)       |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes                                 | Yes                        |
+| `video_processor.py`     | Extract video metadata and thumbnails                                       | No (import directly)       |
+| `event_broadcaster.py`   | Distribute events via WebSocket                                             | Yes                        |
 
 ### AI Client Services
 

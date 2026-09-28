@@ -230,9 +230,10 @@ disable them if you’re resource constrained or running without those services.
 
 ## Camera Integration
 
-| Variable           | Required | Default          | Description                       |
-| ------------------ | -------- | ---------------- | --------------------------------- |
-| `FOSCAM_BASE_PATH` | No       | `/export/foscam` | Base directory for camera uploads |
+| Variable           | Required | Default          | Description                                                                                                  |
+| ------------------ | -------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `FOSCAM_BASE_PATH` | No       | `/export/foscam` | Base directory for camera uploads                                                                            |
+| `CAMERA_TIMEZONE`  | No       | unset            | IANA timezone of the cameras' clocks; when set, the VLM's time context uses the Foscam filename capture time |
 
 Camera images are expected at: `{FOSCAM_BASE_PATH}/{camera_name}/`
 
