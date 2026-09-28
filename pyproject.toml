@@ -870,6 +870,17 @@ also_copy = [
     # outside source_paths (generates ZERO mutants -- the copy is inert), and
     # like every also_copy entry it must exist BEFORE any test path-reads it.
     "setup.py",
+    # 2026-09-28 stats-abort repair (trio recovery run 21:49Z, ninth member of
+    # this family): main merge #6703 added backend/tests/unit/synthbench/*,
+    # which import the synthbench/ package at the REPO ROOT. backend/tests has
+    # an __init__.py chain up to backend/, so pytest's package-root insertion
+    # puts the repo root on sys.path -- in the mutant home that root carries no
+    # synthbench/ copy -> ModuleNotFoundError: No module named 'synthbench' at
+    # collection of test_p1_graphs.py -> red under -x aborts stats ("runner
+    # returned 1"). synthbench/ sits OUTSIDE source_paths (generates ZERO
+    # mutants -- the copy is inert), 74K, and the package needs no deps beyond
+    # what the tests already import.
+    "synthbench/",
 ]
 
 # =============================================================================
