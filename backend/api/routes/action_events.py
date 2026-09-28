@@ -152,7 +152,7 @@ async def list_action_events(
 
     query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
-    events = list(result.scalars().all())
+    events: list[ActionEvent] = list(result.scalars().all())
 
     return ActionEventListResponse(
         items=[_action_event_to_response(e) for e in events],
@@ -215,7 +215,7 @@ async def list_suspicious_actions(
 
     query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
-    events = list(result.scalars().all())
+    events: list[ActionEvent] = list(result.scalars().all())
 
     return SuspiciousActionsResponse(
         items=[_action_event_to_response(e) for e in events],
@@ -303,7 +303,7 @@ async def get_camera_action_events(
 
     query = query.order_by(ActionEvent.timestamp.desc()).limit(limit).offset(offset)
     result = await db.execute(query)
-    events = list(result.scalars().all())
+    events: list[ActionEvent] = list(result.scalars().all())
 
     return ActionEventListResponse(
         items=[_action_event_to_response(e) for e in events],

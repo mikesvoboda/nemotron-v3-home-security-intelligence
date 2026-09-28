@@ -166,7 +166,10 @@ class DetectionRepository(Repository[Detection]):
             .group_by(Detection.object_type)
         )
         result = await self.session.execute(stmt)
-        return {row[0]: row[1] for row in result.all()}
+        # The `is not None` guard mirrors the WHERE clause above -- provably
+        # no rows are dropped; it only narrows the str | None key type that
+        # SQLAlchemy 2.1 now infers for a nullable column.
+        return {row[0]: row[1] for row in result.all() if row[0] is not None}
 
     # =========================================================================
     # Eager Loading Methods (NEM-3758)
