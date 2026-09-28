@@ -1366,8 +1366,9 @@ def _apply_schema_to_database(db_url: str) -> None:
     from backend.models.event_feedback import EventFeedback  # noqa: F401
     from backend.models.user_calibration import UserCalibration  # noqa: F401
 
-    # Create synchronous engine (without asyncpg)
-    sync_url = db_url.replace("+asyncpg", "")
+    # Create synchronous engine, naming psycopg2 -- a bare "postgresql://" means
+    # psycopg 3 under SQLAlchemy 2.1, and psycopg 3 is not installed here.
+    sync_url = db_url.replace("+asyncpg", "+psycopg2")
     engine = create_engine(sync_url)
 
     try:

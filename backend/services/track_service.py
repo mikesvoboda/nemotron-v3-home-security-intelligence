@@ -700,7 +700,9 @@ class TrackService:
             )
         )
         result = await self.db.execute(stmt)
-        avg_duration = result.scalar_one()
+        # AVG over extract(epoch, ...) is double precision -> Python float;
+        # NULL when zero rows match, which the check below already handles.
+        avg_duration: float | None = result.scalar_one()
 
         # Return 0.0 if no tracks found (avg returns None)
         return float(avg_duration) if avg_duration is not None else 0.0
