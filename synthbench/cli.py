@@ -66,10 +66,13 @@ def build_parser() -> argparse.ArgumentParser:
             "Synthetic benchmark generation. Exit codes: 0 done, 1 error (fix the request), "
             "2 stop and ask the owner."
         ),
+        allow_abbrev=False,
     )
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
     sample = commands.add_parser(
-        "sample", help="sample Tier B specs (facts only, no prompt) into a new batch"
+        "sample",
+        help="sample Tier B specs (facts only, no prompt) into a new batch",
+        allow_abbrev=False,
     )
     sample.add_argument(
         "--batch", required=True, help="new batch name: lowercase letters, digits and hyphens"
@@ -85,9 +88,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sample.add_argument(
         "--only", default="", help="comma-separated scenario ids to sample from (default: all)"
-    )
-    sample.add_argument(
-        "--version", default=None, help="corpus version (default: the taxonomy's version)"
     )
     return parser
 
@@ -147,11 +147,9 @@ def _append_index(store: CorpusStore, rows: Iterable[IndexRow]) -> None:
 def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     tax = load_taxonomy()
     batch: str = args.batch
-    version: str = args.version or tax.version
-    if not SLUG.fullmatch(batch) or not SLUG.fullmatch(version):
-        return _fail(
-            EXIT_ERROR, f"batch name and version must match {SLUG.pattern}: {batch!r}, {version!r}"
-        )
+    version = tax.version  # load_taxonomy already checked it against SLUG
+    if not SLUG.fullmatch(batch):
+        return _fail(EXIT_ERROR, f"batch name must match {SLUG.pattern}: {batch!r}")
     only = tuple(sorted({s for s in args.only.split(",") if s}))
     if unknown := sorted(set(only) - {s.id for s in tax.scenarios}):
         valid = ", ".join(s.id for s in tax.scenarios)
@@ -180,7 +178,8 @@ def _sample(
                 EXIT_ASK,
                 f"the taxonomy changed since corpus version {version} was created, so new "
                 "batches would not be comparable. Stop and ask the owner: a changed taxonomy "
-                "needs a new corpus version.",
+                "needs a new corpus version, which the owner sets by editing `version:` in "
+                "synthbench/taxonomy/tier_b_v0.yaml.",
             )
     else:
         _write(

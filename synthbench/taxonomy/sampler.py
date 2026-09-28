@@ -1,8 +1,8 @@
 """The seeded coverage-matrix sampler (spec §1.2, §7.2): taxonomy -> Tier B specs.
 
 The same seed, batch name and prior counts give identical specs. Scenario counts follow the
-taxonomy weights by Balinski and Young's quota method, so across carried-forward batches every
-scenario stays within one event of its weighted share.
+taxonomy weights by Balinski and Young's quota method, so across carried-forward batches drawn
+without `only` every scenario stays within one event of its weighted share.
 """
 
 from __future__ import annotations
@@ -49,8 +49,8 @@ def allocate(
         size = sum(counts.values()) + 1
         # Quota method: only scenarios still under their upper quota at the new size are
         # eligible; among them the highest weight per (count + 1) wins, and ties go to the
-        # earlier-listed scenario. Counts skewed by earlier --only batches can leave nobody
-        # eligible; then the whole pool competes.
+        # earlier-listed scenario. The upper quotas sum to at least the new size, so someone is
+        # always eligible; the whole-pool fallback only guards float edge cases.
         eligible = [
             (i, s)
             for i, s in enumerate(pool)

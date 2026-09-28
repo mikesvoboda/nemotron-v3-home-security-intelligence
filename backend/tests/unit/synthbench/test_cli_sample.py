@@ -205,6 +205,8 @@ def test_only_limits_the_scenarios(tmp_path: Path) -> None:
         (("--batch", "pilot-1", "--n", "5", "--only", "nope"), "unknown scenario"),
         (("--batch", "pilot-1", "--n", "0"), "1..500"),
         (("--batch", "pilot-1", "--n", "5", "--seed", "-1"), "seed must be an integer >= 0"),
+        (("--batch", "pilot-1", "--n", "5", "--version", "tierb-vo"), "unrecognized arguments"),
+        (("--batch", "pilot-1", "--n", "5", "--on", "knife_visible"), "unrecognized arguments"),
         (
             (
                 "--batch",

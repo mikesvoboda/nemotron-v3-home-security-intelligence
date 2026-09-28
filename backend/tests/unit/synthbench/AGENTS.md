@@ -41,5 +41,5 @@ uv run pytest backend/tests/unit/synthbench/ -n auto -q -p randomly   # as CI ru
 
 ## Related
 
-- `synthbench/AGENTS.md` and `synthbench/generate/AGENTS.md`: the code under test
+- `synthbench/AGENTS.md`, `synthbench/generate/AGENTS.md`, `synthbench/contract/AGENTS.md` and `synthbench/taxonomy/AGENTS.md`: the code under test
 - `spikes/AGENTS.md`: the P1 spike's tests

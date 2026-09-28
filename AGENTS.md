@@ -299,6 +299,8 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 ├── setup_lib/            # Python utilities for setup.py
 ├── synthbench/           # Synthetic benchmark generation (see synthbench/AGENTS.md)
 │   ├── generate/         # Durable stack: pinned weights, GPU window, ComfyUI renderer
+│   ├── contract/         # Event contract: spec/truth/provenance models, append-only corpus store
+│   ├── taxonomy/         # Committed Tier B taxonomy YAML and the seeded quota sampler
 │   └── spikes/           # Throwaway harnesses (p1_bakeoff: the P1 model bake-off)
 ├── tests/                # Root-level test suites (benchmark, load, smoke)
 ├── tools/                # Bundled tooling (nemo_data_designer)

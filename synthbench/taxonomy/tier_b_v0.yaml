@@ -11,7 +11,7 @@
 # definition. Left out of v0: assault (hard to show without injury detail, §3.8) and camera
 # tampering (it needs the tampered camera's own view).
 #
-# Times are quoted: YAML 1.1 reads an unquoted 08:00 as a number.
+# Times are quoted: YAML 1.1 reads an unquoted 16:30 as the base-60 integer 990.
 
 version: tierb-v0
 
