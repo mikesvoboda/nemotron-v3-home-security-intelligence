@@ -6,6 +6,10 @@ $SYNTHBENCH_ROOT/comfy-out, listens on 127.0.0.1 only, and carries the
 synthbench.gpu=1 label that the GPU window uses to stop it before the
 flagship restarts. Image and container live in the synthbench podman store
 (synthbench.generate.podman), never in the default one on the root fs.
+
+Container output goes to $SYNTHBENCH_ROOT/logs/comfyui.log (k8s-file), not
+journald on the root fs; the file outlives --rm, so a crash can be read after
+the container is gone. `up` stops waiting as soon as the container is gone.
 """
 
 from __future__ import annotations
@@ -33,6 +37,10 @@ CONTAINERFILE_DIR = Path(__file__).resolve().parent
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
+class ServeError(RuntimeError):
+    """podman could not start the renderer, or the renderer exited while starting."""
+
+
 @dataclass(frozen=True)
 class ServeConfig:
     port: int
@@ -43,6 +51,11 @@ class ServeConfig:
     @property
     def base_url(self) -> str:
         return f"http://127.0.0.1:{self.port}"
+
+    @property
+    def log_file(self) -> Path:
+        """<SYNTHBENCH_ROOT>/logs/comfyui.log; out_dir is <SYNTHBENCH_ROOT>/comfy-out."""
+        return self.out_dir.parent / "logs" / "comfyui.log"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ServeConfig:
@@ -86,6 +99,10 @@ def run_args(cfg: ServeConfig) -> list[str]:
         CONTAINER,
         "--label",
         GPU_LABEL,
+        "--log-driver",
+        "k8s-file",
+        "--log-opt",
+        f"path={cfg.log_file}",
         "--device",
         "nvidia.com/gpu=all",
         "--shm-size",
@@ -105,7 +122,13 @@ def run_args(cfg: ServeConfig) -> list[str]:
 def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
     cfg.cache_dir.mkdir(parents=True, exist_ok=True)
-    run(run_args(cfg), check=True, capture_output=True, text=True)
+    cfg.log_file.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        run(run_args(cfg), check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        raise ServeError(
+            f"podman run {CONTAINER} failed (exit {e.returncode}): {(e.stderr or '').strip()}"
+        ) from e
 
 
 def stop(run: Runner = subprocess.run) -> None:
@@ -117,6 +140,21 @@ def stop(run: Runner = subprocess.run) -> None:
     )
 
 
+def container_alive(run: Runner = subprocess.run) -> bool:
+    """False once the renderer container is gone (--rm removes it when ComfyUI exits).
+
+    `podman container exists` exits 1 for "no such container"; any other failure
+    (125) is a podman error, not evidence that ComfyUI exited.
+    """
+    done = run(
+        [*podman_argv(), "container", "exists", CONTAINER],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return done.returncode != 1
+
+
 def wait_ready(
     base_url: str,
     *,
@@ -125,8 +163,15 @@ def wait_ready(
     get: Callable[..., httpx.Response] = httpx.get,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
+    alive: Callable[[], bool] | None = None,
+    log_file: Path | None = None,
 ) -> dict[str, Any]:
-    """Poll /system_stats until ComfyUI answers; returns its JSON."""
+    """Poll /system_stats until ComfyUI answers; returns its JSON.
+
+    With `alive`, a container that is already gone raises ServeError at once
+    instead of after `timeout_s`. `log_file` is named in every failure.
+    """
+    see_log = f"; see {log_file}" if log_file else ""
     deadline = clock() + timeout_s
     while True:
         try:
@@ -136,8 +181,10 @@ def wait_ready(
                 return stats
         except httpx.HTTPError:
             pass
+        if alive is not None and not alive():
+            raise ServeError(f"the ComfyUI container exited before {base_url} answered{see_log}")
         if clock() >= deadline:
-            raise TimeoutError(f"ComfyUI at {base_url} not ready after {timeout_s:.0f}s")
+            raise TimeoutError(f"ComfyUI at {base_url} not ready after {timeout_s:.0f}s{see_log}")
         sleep(poll_s)
 
 
@@ -151,7 +198,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "up":
         start(cfg)
-        sys.stdout.write(json.dumps(wait_ready(cfg.base_url), indent=1) + "\n")
+        stats = wait_ready(cfg.base_url, alive=container_alive, log_file=cfg.log_file)
+        sys.stdout.write(json.dumps(stats, indent=1) + "\n")
         return 0
     stop()
     return 0

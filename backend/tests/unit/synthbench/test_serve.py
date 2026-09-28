@@ -143,18 +143,111 @@ class TestMain:
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         calls: list[str] = []
+        waited: dict[str, Any] = {}
+
+        def fake_wait(url: str, **kw: Any) -> dict[str, Any]:
+            waited.update(kw)
+            return {"url": url}
+
         monkeypatch.setenv("SYNTHBENCH_COMFYUI_PORT", "18188")
+        monkeypatch.setenv("SYNTHBENCH_ROOT", "/r")
         monkeypatch.setattr(serve, "build", lambda: calls.append("build"))
         monkeypatch.setattr(serve, "start", lambda cfg: calls.append(f"start {cfg.port}"))
-        monkeypatch.setattr(serve, "wait_ready", lambda url: {"url": url})
+        monkeypatch.setattr(serve, "wait_ready", fake_wait)
         monkeypatch.setattr(serve, "stop", lambda: calls.append("stop"))
         assert [serve.main([c]) for c in ("build", "up", "down")] == [0, 0, 0]
         assert calls == ["build", "start 18188", "stop"]
         assert json.loads(capsys.readouterr().out) == {"url": "http://127.0.0.1:18188"}
+        # `up` stops waiting as soon as the container is gone, and points at its log.
+        assert waited == {
+            "alive": serve.container_alive,
+            "log_file": Path("/r/logs/comfyui.log"),
+        }
 
     def test_rejects_an_unknown_command(self) -> None:
         with pytest.raises(SystemExit):
             serve.main(["restart"])
+
+
+class TestFailuresSurface:
+    """A dead renderer or a podman error surfaces at once, with its cause."""
+
+    def test_the_log_file_lives_under_synthbench_root(self) -> None:
+        assert serve.ServeConfig.from_env({}).log_file == Path(
+            "/export/synthbench/logs/comfyui.log"
+        )
+        assert serve.ServeConfig.from_env({"SYNTHBENCH_ROOT": "/r"}).log_file == Path(
+            "/r/logs/comfyui.log"
+        )
+
+    def test_container_output_goes_to_a_file_that_outlives_rm(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        args = serve.run_args(cfg)
+        assert args[args.index("--log-driver") + 1] == "k8s-file"
+        assert args[args.index("--log-opt") + 1] == f"path={tmp_path / 'logs' / 'comfyui.log'}"
+        assert cfg.log_file == tmp_path / "logs" / "comfyui.log"
+        assert "--rm" in args and args[-1] == serve.IMAGE
+
+    def test_start_creates_the_logs_dir(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        serve.start(cfg, run=FakeRunner())
+        assert cfg.log_file.parent.is_dir()
+
+    def test_start_reports_podmans_stderr(self, tmp_path: Path) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            raise subprocess.CalledProcessError(125, argv, "", 'Error: name "x" is in use\n')
+
+        with pytest.raises(serve.ServeError, match=r'exit 125.*name "x" is in use') as info:
+            serve.start(_cfg(tmp_path), run=run)
+        assert isinstance(info.value.__cause__, subprocess.CalledProcessError)
+
+    def test_wait_ready_fails_fast_once_the_container_is_gone(self) -> None:
+        polls: list[str] = []
+
+        def get(url: str, **_kw: Any) -> httpx.Response:
+            polls.append(url)
+            raise httpx.ConnectError("refused")
+
+        now = [0.0]
+        alive = iter([True, False])
+        with pytest.raises(serve.ServeError, match=r"exited.*/r/logs/comfyui\.log"):
+            serve.wait_ready(
+                "http://x",
+                get=get,
+                alive=lambda: next(alive),
+                log_file=Path("/r/logs/comfyui.log"),
+                sleep=lambda s: now.__setitem__(0, now[0] + s),
+                clock=lambda: now[0],
+            )
+        assert (len(polls), now[0]) == (2, 2.0)  # one poll interval, not the 600 s deadline
+
+    def test_a_timeout_also_points_at_the_log(self) -> None:
+        now = [0.0]
+        with pytest.raises(TimeoutError, match=r"not ready after 4s.*/r/logs/comfyui\.log"):
+            serve.wait_ready(
+                "http://x",
+                timeout_s=4.0,
+                get=lambda _u, **_k: httpx.Response(503),
+                alive=lambda: True,
+                log_file=Path("/r/logs/comfyui.log"),
+                sleep=lambda s: now.__setitem__(0, now[0] + s),
+                clock=lambda: now[0],
+            )
+
+    @pytest.mark.parametrize(("returncode", "alive"), [(0, True), (1, False), (125, True)])
+    def test_container_alive_asks_podman_container_exists(
+        self, returncode: int, alive: bool
+    ) -> None:
+        # Exit 1 means "no such container"; 125 is a podman error, not evidence of an exit.
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            assert kw["check"] is False
+            return subprocess.CompletedProcess(argv, returncode, "", "")
+
+        assert serve.container_alive(run=run) is alive
+        assert calls == [[*podman_argv(), "container", "exists", serve.CONTAINER]]
 
 
 def _containerfile() -> str:
