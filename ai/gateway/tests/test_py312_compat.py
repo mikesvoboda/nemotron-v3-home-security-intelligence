@@ -29,7 +29,9 @@ def test_parses_as_python_312(path: Path) -> None:
     try:
         ast.parse(path.read_text(encoding="utf-8"), str(path), feature_version=(3, 12))
     except SyntaxError as e:
-        pytest.fail(f"{path.relative_to(REPO_ROOT)}:{e.lineno}: {e.msg} - the gateway image is 3.12")
+        pytest.fail(
+            f"{path.relative_to(REPO_ROOT)}:{e.lineno}: {e.msg} - the gateway image is 3.12"
+        )
 
 
 @pytest.mark.parametrize("tree", IMAGE_TREES)
