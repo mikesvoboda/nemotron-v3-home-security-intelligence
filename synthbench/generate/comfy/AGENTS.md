@@ -23,3 +23,4 @@ The pinned ComfyUI v0.37.0 renderer (spec §3.1-§3.2): its podman image, an HTT
 - The renderer binds 127.0.0.1 only and carries the `synthbench.gpu=1` label, so the GPU window stops it before the flagship restarts.
 - The image lives in the synthbench podman store: in shell, `$(uv run python -m synthbench.generate.podman) images`, never bare `podman`.
 - Never let pip replace the base image's torch, torchvision or triton.
+- Never pip-install PyPI torchaudio here; it's built from source against the base torch (the `Containerfile`'s `TORCHAUDIO_REF` step; PyPI's aarch64 wheel is a CUDA 13.0 build that refuses the base torch).

@@ -3708,27 +3708,106 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5: done 2026-09-28 (all 30 files are cached).
   2. The controller runs `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` (no `--skip-repo`).
   3. Expected: `verified 30 files; 31 links under /export/models/comfyui`. `ae.safetensors` and `qwen_3_4b.safetensors` are each shared by two models, and the three `flux2-vae` files are prefixed per model. Record the output.
-- [ ] **Step 2: First window: smoke the four full-GPU graphs.** Run `uv run python -m synthbench.generate.window run -- bash -c 'uv run python -m synthbench.generate.comfy.serve up >/dev/null && uv run python -m synthbench.generate.comfy.smoke --only t2i:flux2-dev,edit:flux2-dev,i2v:ltx-2.5,i2v:wan2.2-i2v; rc=$?; uv run python -m synthbench.generate.comfy.serve down; exit $rc'`.
-  - Before starting, tell the owner that the flagship (and with it LiteLLM's `claude-flagship` and the agent-vss1 sandbox) will be down.
-  - Confirm afterwards that `uv run python -m synthbench.generate.window status` shows `{"marker": false, "flagship_healthy": true}`.
+
+**Window safety (Steps 2 and 3).** A GPU window must outlive the controller's tool session. A foreground tool call is capped at 10 minutes, and a hangup or a session teardown kills whatever the call started, possibly with the flagship down. So every window runs detached, bounded in time and watched. Run every command from the repo root.
+
+- **Marker watchdog, for all of Task 8.** Start it once, before Step 2's first pre-flight:
+
+  ```bash
+  mkdir -p /export/synthbench/state /export/synthbench/logs
+  setsid -f nohup bash -c 'echo $$ > /export/synthbench/state/watchdog.pid; while sleep 300; do [ -e /export/synthbench/state/window.open ] && uv run python -m synthbench.generate.window restore; done' > /export/synthbench/logs/watchdog.log 2>&1 < /dev/null
+  ```
+
+  - Every 5 minutes, while `/export/synthbench/state/window.open` exists, it runs `window restore`. This is safe: `restore` refuses while a live window holds the lock (the log shows `refusing to restore`), and it restores the flagship once the window process has died without closing.
+  - Record its PID: `cat /export/synthbench/state/watchdog.pid`.
+  - When Task 8 ends, stop it by that PID: check that `ps -p <pid> -o comm=` prints `bash`, then `kill <pid>`. Never use `pkill -f`, which matches its own command line.
+
+- **Pre-flight, before every window.** All five checks must pass; if any fails, do not open the window.
+  1. `uv run python -m synthbench.generate.window status` prints `{"marker": false, "flagship_healthy": true}`. This also proves the live `docker inspect` and `/v1/models` probe that every restore relies on. If it prints `"flagship_healthy": false` while the flagship is in fact healthy, stop: a window's restore could never finish.
+  2. `uv run python -m synthbench.spikes.p1_bakeoff.run all --dry-run` shows the expected pending counts per model and kind: `total 328` before the first full run, and only what is left after a partial one.
+  3. `$(uv run python -m synthbench.generate.podman) ps -a` lists no container.
+  4. `$(uv run python -m synthbench.generate.podman) images localhost/synthbench-comfyui:v0.37.0` lists the image.
+  5. `ss -ltn "sport = :${SYNTHBENCH_COMFYUI_PORT:-8188}"` prints only its header line: the ComfyUI port is free.
+- **Launch every window detached, with a wall-clock bound:**
+
+  ```bash
+  setsid -f nohup uv run python -m synthbench.generate.window run -- timeout -s TERM -k 5m <H>h <command> > /export/synthbench/logs/window-<n>.log 2>&1 < /dev/null
+  ```
+
+  - First tell the owner that the flagship (and with it LiteLLM's `claude-flagship` and the agent-vss1 sandbox) will be down for up to `<H>` hours plus the restore (up to 45 minutes).
+  - `<n>` numbers the windows (1, 2, ...). `<H>` bounds the window: after `<H>` hours `timeout` sends SIGTERM to the command (SIGKILL 5 minutes later), and the window then stops the renderer and restores the flagship.
+  - Monitor it; never wait for it inside a foreground tool call. Use `uv run python -m synthbench.generate.window status` (while the window is open, the marker file holds its pid), `tail -n 20 /export/synthbench/logs/window-<n>.log` and `wc -l /export/synthbench/p1/records.jsonl`.
+  - The window has closed when `status` prints `{"marker": false, "flagship_healthy": true}` and the log ends with `dgx-inference-vllm-1 is healthy again`.
+
+- **Last resort.** If both the window and the watchdog fail to bring the flagship back, run `docker start dgx-inference-vllm-1`. Never run `docker compose up` on that stack: it would also restart the stopped Cosmos container.
+
+- [ ] **Step 2: First window: smoke the four full-GPU graphs.**
+  - Before this step, the owner decides final-review M11: fold this smoke into Step 3's window, or keep it separate (the conservative default here).
+  - Run the pre-flight, then launch window 1 with `<H>` = 2 and this `<command>`: `bash -c 'uv run python -m synthbench.generate.comfy.serve up >/dev/null && uv run python -m synthbench.generate.comfy.smoke --only t2i:flux2-dev,edit:flux2-dev,i2v:ltx-2.5,i2v:wan2.2-i2v; rc=$?; uv run python -m synthbench.generate.comfy.serve down; exit $rc'`.
+  - When the window has closed, read each smoke's result in `window-1.log`.
   - Fix any failing builder through the Task 5 loop (validator, then smoke) before the full run.
-- [ ] **Step 3: The full run.** Run `uv run python -m synthbench.generate.window run -- uv run python -m synthbench.spikes.p1_bakeoff.run all`.
-  - The run is resumable. If it must be split across windows (for example to give the flagship back during the day), rerun the same command; finished outputs are skipped.
-  - Afterwards: `window status` is clean, `records.jsonl` has 328 distinct outputs (312 images + 16 clips) and `groups.jsonl` has one row per model group.
-- [ ] **Step 4: Measure (flagship up).** Run the `$(uv run python -m synthbench.generate.podman) run ... measure` command from the `measure.py` docstring. It writes `measures.jsonl`.
+- [ ] **Step 3: The full run.**
+  - Render sizes stay native, as the vendor templates set them (controller ruling on final-review I6; the owner may override before this step). `measure.py` and `report.py` normalize for resolution instead.
+  - Run the pre-flight, then launch the next window with `<command>` = `uv run python -m synthbench.spikes.p1_bakeoff.run all`. Set `<H>` to the hours the owner can spare the flagship (for example 8).
+  - The run is resumable, so a window may close before the run is done:
+    - the `<H>` bound expired;
+    - the renderer was lost (the runner stops at an httpx transport error instead of recording it as the model's failure);
+    - two jobs in a row timed out in one model group (`RunAborted` in the log).
+  - Then read the log, fix the cause if there is one, and repeat the pre-flight and the launch. Outputs that are finished (the file exists and its latest record is ok) are skipped.
+  - Afterwards:
+    - `window status` is clean;
+    - `run all --dry-run` prints `total 0`;
+    - `records.jsonl` covers all 328 outputs (312 images + 16 clips), each with an ok latest row;
+    - `groups.jsonl` has at least one row per model group (a resumed group appends another).
+- [ ] **Step 4: Measure (the flagship stays up).**
+
+  1. First prove the MTCNN → InceptionResnetV1 path on one real face: measure the flux2-dev identity reference alone, from a probe root.
+
+     ```bash
+     mkdir -p /export/synthbench/p1-probe
+     ln -sfn /export/synthbench/p1/images /export/synthbench/p1-probe/images
+     grep '"output": "images/flux2-dev/identity/reference.png"' /export/synthbench/p1/records.jsonl | tail -n 1 > /export/synthbench/p1-probe/records.jsonl
+     ```
+
+     - Run the `$(uv run python -m synthbench.generate.podman) run ... measure` command from the `measure.py` docstring, with `--root /export/synthbench/p1-probe` appended.
+     - Its `measures.jsonl` must hold one row whose `face` is a 512-number embedding, not `null` and not an `error`. Otherwise stop and fix the face path before the full measure: identity drift rests on it.
+     - Then delete `/export/synthbench/p1-probe`.
+
+  2. Run the same command without `--root`. It writes `/export/synthbench/p1/measures.jsonl`.
+
 - [ ] **Step 5: Owner rating.**
+
   1. Run `uv run python -m synthbench.spikes.p1_bakeoff.sheet`.
-  2. The owner opens `/export/synthbench/p1/sheet.html`, rates every threat, identity and clip cell, and saves `ratings.json` next to the sheet.
-  3. This step waits on the owner.
+  2. Serve the sheet over HTTP on loopback; some browsers block `file://` media. Pick a free port (check with `ss -ltn`), for example 8765, and start the server detached:
+
+     ```bash
+     setsid -f nohup python3 -m http.server --bind 127.0.0.1 --directory /export/synthbench/p1 8765 > /export/synthbench/logs/sheet-http.log 2>&1 < /dev/null
+     ```
+
+     Its PID is in `ss -ltnp "sport = :8765"`; record it.
+
+  3. A remote owner tunnels to it with `ssh -L 8765:127.0.0.1:8765 <GB300 host>` and opens `http://127.0.0.1:8765/sheet.html`.
+  4. Before rating starts, raise final-review M6 (which cells to rate) and M7 (blind rating) with the owner; both are the owner's call.
+  5. The owner rates every threat, identity and clip cell, downloads `ratings.json`, and puts it at `/export/synthbench/p1/ratings.json` (from a remote browser: `scp ratings.json <GB300 host>:/export/synthbench/p1/ratings.json`).
+  6. This step waits on the owner. Afterwards, stop the HTTP server by its PID.
+
 - [ ] **Step 6: Report.**
   1. Run `uv run python -m synthbench.spikes.p1_bakeoff.report`.
   2. Fill the "Risks R1-R3 outcome" section:
-     - **R1:** which threat props each model could or could not render;
-     - **R2:** ComfyUI on arm64/sm_103 held (or the fallback used);
-     - **R3:** candidate facts confirmed (existence, sizes, gating: FLUX.2-dev, Ideogram 4 and LTX-2.5 were gated and accepted).
+     - **R1:** which threat props each model could or could not render: start from the report's per-case table and its §3.7 fallback candidates.
+     - **R2:** ComfyUI on arm64/sm_103 held (or the fallback used).
+     - **R3:** the candidate facts are confirmed (existence, sizes and gating: FLUX.2-dev, Ideogram 4 and LTX-2.5 were gated and accepted). Also record the scope caveats (final-review I7):
+       - Cosmos-Predict2.5 was not in the owner-approved P1 slate (2026-09-27), so the Animator comparison covers LTX-2.5 and Wan 2.2 first-frame i2v only;
+       - first/last-frame guides are deferred to P6;
+       - P1's "edit" is reference-conditioned generation, not §3.3's masked inpainting.
   3. Add `docs/benchmarks/synthbench/p1-bakeoff.md` to `docs/benchmarks/AGENTS.md`'s index.
   4. Commit, gated on the hooks: `SKIP=semgrep uvx pre-commit run --files docs/benchmarks/synthbench/p1-bakeoff.md docs/benchmarks/AGENTS.md && git add docs/benchmarks/synthbench/p1-bakeoff.md docs/benchmarks/AGENTS.md && git commit -m "docs(synthbench): P1 bake-off report" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
 - [ ] **Step 7: Spec rev 2 (owner-gated).**
   1. Present the proposed picks and the report's numbers.
-  2. After the owner approves (or overrides) them, update the spec: §3.2's pick column, §3.7 ("picks recorded"), the two §7.1 deviations listed in this plan's Global Constraints, and the revision line (rev 2, date, owner approval).
+  2. After the owner approves (or overrides) them, update the spec:
+     - §3.2's pick column;
+     - §3.7 ("picks recorded");
+     - the two §7.1 deviations listed in this plan's Global Constraints;
+     - the Step 6 R3 caveats: Cosmos-Predict2.5 was not in the P1 slate, so the Animator pick compares LTX-2.5 and Wan 2.2 first-frame i2v only; first/last-frame guides are deferred to P6; P1's "edit" is reference-conditioned generation, not masked inpainting;
+     - the revision line (rev 2, date, owner approval).
   3. Commit, gated on the hooks: `SKIP=semgrep uvx pre-commit run --files docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git add docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md && git commit -m "docs(synthbench): spec rev 2 - P1 picks approved" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"`.
