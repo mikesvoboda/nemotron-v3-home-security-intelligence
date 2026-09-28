@@ -100,7 +100,7 @@ jobs:
         # undefined and the step would throw AFTER a real verdict (same
         # wrong-reason failure class the WP0.x audit catalogued).
         if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
