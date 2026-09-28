@@ -10,20 +10,25 @@ import argparse
 import os
 import sys
 from collections import Counter
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
-from typing import NoReturn
+from pathlib import Path
+from typing import NoReturn, TypeVar
 
-from synthbench.contract.common import SLUG
+from pydantic import ValidationError
+
+from synthbench.contract.common import SLUG, ContractModel
 from synthbench.contract.corpus import TIER_B_RENDER_SIZE, BatchRecord, CorpusManifest, IndexRow
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
-from synthbench.taxonomy.model import load_taxonomy, taxonomy_sha256
+from synthbench.taxonomy.model import Taxonomy, load_taxonomy, taxonomy_sha256
 from synthbench.taxonomy.sampler import MAX_BATCH, default_seed, sample_specs
 
 EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_ASK = 2
+
+M = TypeVar("M", bound=ContractModel)
 
 
 class _Parser(argparse.ArgumentParser):
@@ -41,6 +46,16 @@ def _batch_size(text: str) -> int:
         raise argparse.ArgumentTypeError(f"n must be an integer 1..{MAX_BATCH}: {text!r}") from None
     if not 1 <= value <= MAX_BATCH:
         raise argparse.ArgumentTypeError(f"n must be 1..{MAX_BATCH}, got {value}")
+    return value
+
+
+def _seed(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"seed must be an integer >= 0: {text!r}") from None
+    if value < 0:
+        raise argparse.ArgumentTypeError(f"seed must be an integer >= 0, got {value}")
     return value
 
 
@@ -63,7 +78,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--n", type=_batch_size, required=True, help=f"number of events, 1..{MAX_BATCH}"
     )
     sample.add_argument(
-        "--seed", type=int, default=None, help="sampler seed (default: derived from the batch name)"
+        "--seed",
+        type=_seed,
+        default=None,
+        help="sampler seed (default: derived from the batch name)",
     )
     sample.add_argument(
         "--only", default="", help="comma-separated scenario ids to sample from (default: all)"
@@ -83,6 +101,49 @@ def _fail(code: int, message: str) -> int:
     return code
 
 
+class _CorpusError(Exception):
+    """A corpus file could not be read, parsed or written: cmd_sample exits EXIT_ASK."""
+
+    def __init__(self, verb: str, path: Path, error: Exception) -> None:
+        lines = str(error).splitlines()
+        self.verb = verb
+        self.path = path
+        self.detail = f"{type(error).__name__}: {lines[0]}" if lines else type(error).__name__
+        super().__init__(f"cannot {verb} {path} ({self.detail})")
+
+
+# Corpus I/O goes through these four. A file that will not read or validate, or a write that
+# fails, means the corpus is not in the state the agent expects: that is the owner's call
+# (exit 2), not a request to fix (exit 1). Models built from the request are validated by the
+# caller, outside these helpers, so their ValidationErrors are not caught here.
+def _read(store: CorpusStore, path: Path, model: type[M]) -> M:
+    try:
+        return store.read(path, model)
+    except (OSError, UnicodeDecodeError, ValidationError) as error:
+        raise _CorpusError("read", path, error) from error
+
+
+def _read_index(store: CorpusStore) -> dict[str, IndexRow]:
+    try:
+        return store.latest_index()
+    except (OSError, UnicodeDecodeError, ValidationError) as error:
+        raise _CorpusError("read", store.index_file, error) from error
+
+
+def _write(store: CorpusStore, path: Path, model: ContractModel) -> None:
+    try:
+        store.write_new(path, model)
+    except OSError as error:  # includes FileExistsError when two first runs race
+        raise _CorpusError("write", path, error) from error
+
+
+def _append_index(store: CorpusStore, rows: Iterable[IndexRow]) -> None:
+    try:
+        store.append_index(rows)
+    except OSError as error:
+        raise _CorpusError("write", store.index_file, error) from error
+
+
 def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     tax = load_taxonomy()
     batch: str = args.batch
@@ -96,10 +157,25 @@ def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         valid = ", ".join(s.id for s in tax.scenarios)
         return _fail(EXIT_ERROR, f"unknown scenario(s): {', '.join(unknown)}; valid: {valid}")
 
+    seed: int = args.seed if args.seed is not None else default_seed(batch)
     store = CorpusStore.from_env(version, env)
+    try:
+        return _sample(tax, store, batch=batch, n=args.n, seed=seed, only=only)
+    except _CorpusError as error:
+        return _fail(
+            EXIT_ASK,
+            f"cannot {error.verb} {error.path} ({error.detail}). Stop and ask the owner.",
+        )
+
+
+def _sample(
+    tax: Taxonomy, store: CorpusStore, *, batch: str, n: int, seed: int, only: tuple[str, ...]
+) -> int:
+    """cmd_sample for a valid request. Corpus I/O failures raise _CorpusError."""
+    version = store.version
     digest = taxonomy_sha256()
     if store.manifest_file.exists():
-        if store.read(store.manifest_file, CorpusManifest).taxonomy_sha256 != digest:
+        if _read(store, store.manifest_file, CorpusManifest).taxonomy_sha256 != digest:
             return _fail(
                 EXIT_ASK,
                 f"the taxonomy changed since corpus version {version} was created, so new "
@@ -107,7 +183,8 @@ def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
                 "needs a new corpus version.",
             )
     else:
-        store.write_new(
+        _write(
+            store,
             store.manifest_file,
             CorpusManifest(
                 version=version,
@@ -117,31 +194,31 @@ def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
             ),
         )
 
-    seed: int = args.seed if args.seed is not None else default_seed(batch)
     batch_file = store.batch_file(batch)
-    record = store.read(batch_file, BatchRecord) if batch_file.exists() else None
-    if record is not None and (record.seed, record.n, record.only) != (seed, args.n, only):
+    record = _read(store, batch_file, BatchRecord) if batch_file.exists() else None
+    if record is not None and (record.seed, record.n, record.only) != (seed, n, only):
         return _fail(
             EXIT_ERROR,
             f"batch {batch} already exists with seed={record.seed}, n={record.n}, "
             f"only={','.join(record.only) or 'all'}; choose a new batch name",
         )
-    index = store.latest_index()
+    index = _read_index(store)
     if record is not None:
         prior = record.prior_counts
     else:
         prior = dict(Counter(row.scenario for row in index.values()))
     specs = sample_specs(
-        tax, version=version, batch=batch, n=args.n, seed=seed, prior=prior, only=only or None
+        tax, version=version, batch=batch, n=n, seed=seed, prior=prior, only=only or None
     )
     if record is None:
-        store.write_new(
+        _write(
+            store,
             batch_file,
             BatchRecord(
                 name=batch,
                 version=version,
                 seed=seed,
-                n=args.n,
+                n=n,
                 only=only,
                 prior_counts=prior,
                 event_ids=tuple(s.event_id for s in specs),
@@ -153,15 +230,15 @@ def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     for spec in specs:
         path = store.spec_file(spec.event_id)
         if not path.exists():
-            store.write_new(path, spec)
+            _write(store, path, spec)
             written += 1
-        elif store.read(path, Spec) != spec:
+        elif _read(store, path, Spec) != spec:
             return _fail(
                 EXIT_ASK,
                 f"{path} is not what the sampler produces for batch {batch}: the corpus was "
                 "changed by hand. Stop and ask the owner.",
             )
-    store.append_index(
+    rows = [
         IndexRow(
             event_id=s.event_id,
             batch=batch,
@@ -172,7 +249,8 @@ def cmd_sample(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         )
         for s in specs
         if s.event_id not in index
-    )
+    ]
+    _append_index(store, rows)
     counts = ", ".join(
         f"{k} {v}" for k, v in sorted(Counter(s.cell.scenario for s in specs).items())
     )

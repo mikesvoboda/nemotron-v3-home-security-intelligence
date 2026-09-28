@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 from collections import Counter
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,12 @@ def _exit_code(root: Path, *argv: str) -> int:
 
 def _store(root: Path) -> CorpusStore:
     return CorpusStore(root / "corpus", "tierb-v0")
+
+
+def _index_lines(root: Path) -> int:
+    """Rows in index.jsonl, duplicates included (latest_index() would hide them)."""
+    text = _store(root).index_file.read_text(encoding="utf-8")
+    return sum(1 for line in text.splitlines() if line.strip())
 
 
 def test_sample_writes_manifest_batch_specs_and_index(
@@ -73,6 +80,18 @@ def test_a_rerun_completes_a_partly_written_batch(tmp_path: Path) -> None:
     assert _run(tmp_path, "--batch", "pilot-1", "--n", "5") == cli.EXIT_OK
     assert lost.read_bytes() == original
     assert len(_store(tmp_path).latest_index()) == 5
+    assert _index_lines(tmp_path) == 5
+
+
+def test_rerunning_a_complete_batch_writes_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "4") == cli.EXIT_OK
+    before = _index_lines(tmp_path)
+    capsys.readouterr()
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "4") == cli.EXIT_OK
+    assert "(0 written now)" in capsys.readouterr().out
+    assert _index_lines(tmp_path) == before == 4
 
 
 def test_a_rerun_with_other_parameters_is_refused(
@@ -93,6 +112,49 @@ def test_a_hand_edited_spec_stops_the_rerun(
     path.write_text(json.dumps(data), encoding="utf-8")
     assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_ASK
     assert "ask the owner" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [lambda data: data[:20], lambda data: b"\xff\xfe" + data],
+    ids=["truncated", "not-utf8"],
+)
+def test_an_unreadable_spec_stops_the_rerun(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], corrupt: Callable[[bytes], bytes]
+) -> None:
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_OK
+    path = _store(tmp_path).spec_file("B-pilot-1-001")
+    path.write_bytes(corrupt(path.read_bytes()))
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_ASK
+    err = capsys.readouterr().err
+    assert str(path) in err
+    assert "ask the owner" in err
+
+
+def test_a_torn_index_line_stops_every_later_batch(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_OK
+    store = _store(tmp_path)
+    with store.index_file.open("a", encoding="utf-8") as handle:
+        handle.write('{"event_id": "B-pilot-1-0')  # a run killed mid-append
+    assert _run(tmp_path, "--batch", "batch-2", "--n", "3") == cli.EXIT_ASK
+    err = capsys.readouterr().err
+    assert str(store.index_file) in err
+    assert "ask the owner" in err
+    assert not store.batch_dir("batch-2").exists()
+
+
+def test_a_corpus_write_failure_stops_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    events = _store(tmp_path).version_dir / "events"
+    events.parent.mkdir(parents=True)
+    events.write_text("not a directory\n", encoding="utf-8")  # spec writes cannot mkdir under it
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "2") == cli.EXIT_ASK
+    err = capsys.readouterr().err
+    assert "cannot write" in err
+    assert "ask the owner" in err
 
 
 def test_a_changed_taxonomy_needs_a_new_corpus_version(
@@ -142,6 +204,7 @@ def test_only_limits_the_scenarios(tmp_path: Path) -> None:
         (("--batch", "Pilot 1", "--n", "5"), "must match"),
         (("--batch", "pilot-1", "--n", "5", "--only", "nope"), "unknown scenario"),
         (("--batch", "pilot-1", "--n", "0"), "1..500"),
+        (("--batch", "pilot-1", "--n", "5", "--seed", "-1"), "seed must be an integer >= 0"),
         (
             (
                 "--batch",
@@ -157,6 +220,7 @@ def test_bad_requests_exit_1(
     assert _exit_code(tmp_path, *argv) == cli.EXIT_ERROR
     assert message in capsys.readouterr().err
     assert not (tmp_path / "corpus" / "tierb-v0" / "batches").exists()
+    assert not (tmp_path / "corpus" / "tierb-v0" / "corpus.json").exists()
 
 
 def test_python_dash_m_synthbench_runs() -> None:
