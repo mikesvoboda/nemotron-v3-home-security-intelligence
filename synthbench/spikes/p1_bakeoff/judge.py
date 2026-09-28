@@ -157,9 +157,34 @@ PROP_SYNONYMS: dict[str, tuple[str, ...]] = {
     "knife": ("knives", "blade", "machete", "dagger"),
     "crowbar": ("crow bar", "pry bar", "prybar", "wrecking bar"),
     "ski mask": ("balaclava", "mask"),
-    "broken door": ("damaged door", "forced door", "kicked in door", "splintered", "broken frame"),
     "child": ("children", "kid", "toddler", "boy", "girl"),
 }
+# These REPLACE the key-noun rule (controller ruling, Task 10 fix round 1): a damage case's
+# key noun is a bare structural noun ("window", "door") that nearly every house image names,
+# so only words for the damage itself count. No case's terms may be a bare "window"/"door".
+PROP_TERM_OVERRIDES: dict[str, tuple[str, ...]] = {
+    "pried_window": (
+        "open window",
+        "broken window",
+        "pried",
+        "forced window",
+        "bent frame",
+        "climbing through",
+        "pry bar",
+        "crowbar",
+    ),
+    "forced_door": (
+        "broken door",
+        "forced",
+        "splintered",
+        "damaged door",
+        "kicked in",
+        "damaged frame",
+    ),
+}
+# Hazards, not intruders: a judge may fairly call them benign, so judge_good (does the render
+# match the case?) does not ask for a non-benign threat assessment.
+HAZARD_CASES = frozenset({"child_alone_pool", "smoke_from_eave"})
 
 
 class JudgeError(RuntimeError):
@@ -217,6 +242,10 @@ def parse_answer(content: object, required: Sequence[str]) -> tuple[dict[str, An
     if missing:
         raise JudgeError(f"the reply misses {', '.join(missing)}")
     return data, notes
+
+
+# Where vLLM's reasoning parser puts text it took for reasoning (newer builds say `reasoning`).
+_REASONING_FIELDS = ("reasoning_content", "reasoning")
 
 
 def _data_url(image: bytes) -> str:
@@ -308,13 +337,22 @@ class OpenAIJudge:
         message = choice.get("message") or {}
         if message.get("refusal"):
             raise JudgeError(f"the judge refused: {str(message['refusal'])[:200]}")
+        content = message.get("content")
+        notes: list[str] = []
+        if not (isinstance(content, str) and content.strip()):
+            # The qwen3 reasoning parser may leave the answer in the reasoning field.
+            for field in _REASONING_FIELDS:
+                reasoning = message.get(field)
+                if isinstance(reasoning, str) and reasoning.strip():
+                    content, notes = reasoning, [f"{field}: content was empty"]
+                    break
         try:
-            data, notes = parse_answer(message.get("content"), _required(schema))
+            data, parse_notes = parse_answer(content, _required(schema))
         except JudgeError as exc:
             if choice.get("finish_reason") == "length":
                 raise JudgeError(f"{exc} (cut off at max_tokens={MAX_TOKENS})") from exc
             raise
-        return Answer(data, fallbacks + notes)
+        return Answer(data, fallbacks + notes + parse_notes)
 
 
 # --- the media: resized JPEGs; a clip's first, middle and last frames ---
@@ -402,6 +440,9 @@ def key_noun(query: str) -> str:
 
 
 def prop_terms(case: Case) -> tuple[str, ...]:
+    """PROP_TERM_OVERRIDES for the case, else its first query's key noun and synonyms."""
+    if case.id in PROP_TERM_OVERRIDES:
+        return PROP_TERM_OVERRIDES[case.id]
     noun = key_noun(case.owl_queries[0])
     return (noun, *PROP_SYNONYMS.get(noun, ()))
 
@@ -437,8 +478,8 @@ def derive(
 ) -> dict[str, Any]:
     """The answer against the case's known facts; pure code, no model asked.
 
-    judge_good: threat cases: the prop named, photorealistic, and not assessed benign;
-    identity shots: the case's lighting, photorealistic, and at least one person; clips:
+    judge_good: threat cases: the prop named, photorealistic, and not assessed benign (the
+    HAZARD_CASES need not be: a hazard may fairly be called benign); identity shots: the case's lighting, photorealistic, and at least one person; clips:
     photorealistic with no artifacts; None for the plate case (plate_cer is its measure).
     """
     kind = case_type(record)
@@ -473,7 +514,9 @@ def derive(
     artifact_count = len(_strings(answer.get("artifacts")))
     threat = answer.get("threat_assessment")
     judge_good: bool | None = None
-    if kind == "threat":
+    if kind == "threat" and record["case"] in HAZARD_CASES:
+        judge_good = bool(prop_match) and realistic
+    elif kind == "threat":
         judge_good = bool(prop_match) and realistic and threat != "benign"
     elif kind == "identity":
         people_count = _count(answer.get("people_count"))

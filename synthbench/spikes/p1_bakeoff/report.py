@@ -748,9 +748,11 @@ def _judge_markdown(judge: dict[str, Any] | None) -> list[str]:
         "`propose_picks` never reads it.",
         "- **judged** / **errors**: ok outputs with a judge answer / with a failed judge call "
         "(timeout, refusal, bad JSON). **judge good**: threat cases: the prop named, "
-        "photorealistic, not assessed benign; identity shots: the case's lighting, "
-        "photorealistic, at least one person; clips: photorealistic, no artifacts. The plate "
-        "case has none (plate CER is its measure). **prop match**: threat cases only. "
+        "photorealistic, not assessed benign (the hazards `child_alone_pool` and "
+        "`smoke_from_eave` may be); identity shots: the case's lighting, photorealistic, at "
+        "least one person; clips: photorealistic, no artifacts. The plate case has none "
+        "(plate CER is its measure). **prop match**: threat cases only; `pried_window` and "
+        "`forced_door` count only words for the damage, never a bare window or door. "
         "**realistic**: the judge said photorealistic `yes`. **artifacts**: mean flaws listed "
         "per output.",
         "",

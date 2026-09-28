@@ -16,6 +16,7 @@ import pytest
 from PIL import Image
 from synthbench.spikes.p1_bakeoff import judge as j
 from synthbench.spikes.p1_bakeoff.cases import CASES, CLIPS, IDENTITY_REFERENCE
+from synthbench.spikes.p1_bakeoff.report import THREAT_CASES
 
 _CASES = {case.id: case for case in CASES}
 BASE_URL = "http://flagship/v1"
@@ -365,6 +366,52 @@ def test_refusals_bad_json_and_server_errors_raise(fake: FakeFlagship, match: st
         _judge(fake).describe([b"\xff\xd8jpeg"], j.ANSWER_SCHEMA)
 
 
+def _reply(message: dict[str, Any]) -> Callable[[dict[str, Any]], httpx.Response]:
+    def reply(_body: dict[str, Any]) -> httpx.Response:
+        choice = {"index": 0, "message": {"role": "assistant"} | message, "finish_reason": "stop"}
+        return httpx.Response(200, json={"choices": [choice]})
+
+    return reply
+
+
+@pytest.mark.parametrize("content", [None, "", "  \n"])
+@pytest.mark.parametrize("field", ["reasoning_content", "reasoning"])
+def test_an_empty_content_falls_back_to_the_reasoning_field(
+    content: str | None, field: str
+) -> None:
+    fake = FakeFlagship(_reply({"content": content, field: json.dumps(_answer())}))
+    answer = _judge(fake).describe([b"\xff\xd8jpeg"], j.ANSWER_SCHEMA)
+    assert answer == _answer()
+    assert answer.fallbacks == [f"{field}: content was empty"]
+
+
+def test_the_reasoning_fallback_still_recovers_wrapped_json_and_is_in_the_row(
+    tmp_path: Path,
+) -> None:
+    wrapped = f"<think>ok</think>```json\n{json.dumps(_answer())}\n```"
+    fake = FakeFlagship(_reply({"content": None, "reasoning_content": wrapped}))
+    record = _record("knife", "images/m/knife/11.png")
+    _png(tmp_path / record["output"])
+    row = j.judge_record(record, tmp_path, _judge(fake), "claude-flagship")
+    assert row["error"] is None and row["answer"] == _answer()
+    assert row["fallbacks"][0] == "reasoning_content: content was empty"
+    assert "stripped a code fence" in row["fallbacks"]
+
+
+def test_a_non_empty_content_is_never_replaced_by_the_reasoning_field() -> None:
+    fake = FakeFlagship(
+        _reply({"content": json.dumps(_answer()), "reasoning_content": "{not json}"})
+    )
+    answer = _judge(fake).describe([b"\xff\xd8jpeg"], j.ANSWER_SCHEMA)
+    assert answer == _answer() and answer.fallbacks == []
+
+
+def test_empty_content_and_no_reasoning_is_still_an_error() -> None:
+    fake = FakeFlagship(_reply({"content": None, "reasoning_content": None}))
+    with pytest.raises(j.JudgeError, match="empty content"):
+        _judge(fake).describe([b"\xff\xd8jpeg"], j.ANSWER_SCHEMA)
+
+
 def test_a_reply_cut_off_at_max_tokens_says_so() -> None:
     def truncated(_body: dict[str, Any]) -> httpx.Response:
         message = {"role": "assistant", "content": json.dumps(_answer())[:40]}
@@ -414,7 +461,11 @@ def test_derive_a_threat_case_with_a_synonym_prop() -> None:
         ("balaclava_ir_night", [{"clothing": "black balaclava", "holding": "nothing"}], [], True),
         ("forced_door", [], ["splintered door frame", "open front door"], True),
         ("forced_door", [], ["front door"], False),
-        ("pried_window", [], ["open ground-floor window"], True),
+        ("forced_door", [], ["front door, kicked-in"], True),
+        ("pried_window", [], ["ground-floor window pried open"], True),
+        ("pried_window", [{"holding": "a crowbar"}], ["ground-floor window"], True),
+        ("pried_window", [], ["open ground-floor window"], False),  # "open window" is a phrase
+        ("pried_window", [], ["ground-floor window"], False),
         ("child_alone_pool", [{"clothing": "small child in a swimsuit"}], ["pool"], True),
         ("child_alone_pool", [], ["swimming pool", "toddler"], True),
         ("smoke_from_eave", [], ["gray smoke under the roof"], True),
@@ -434,9 +485,65 @@ def test_prop_terms_come_from_the_first_owl_query_and_the_synonyms() -> None:
     assert j.key_noun("smoke") == "smoke"
     assert j.prop_terms(_CASES["handgun_in_hand"])[:4] == ("handgun", "gun", "pistol", "firearm")
     assert "pry bar" in j.prop_terms(_CASES["crowbar_at_door"])
-    assert j.prop_terms(_CASES["pried_window"]) == ("window",)
-    for case in CASES:  # every threat case's key noun is either in the table or bare
-        assert j.prop_terms(case)[0] == j.key_noun(case.owl_queries[0])
+    for case in CASES:  # the key noun leads, unless an override replaces the rule
+        if case.id not in j.PROP_TERM_OVERRIDES:
+            assert j.prop_terms(case)[0] == j.key_noun(case.owl_queries[0])
+
+
+def test_the_damage_cases_use_exactly_the_ruled_override_terms() -> None:
+    assert j.PROP_TERM_OVERRIDES == {
+        "pried_window": (
+            "open window",
+            "broken window",
+            "pried",
+            "forced window",
+            "bent frame",
+            "climbing through",
+            "pry bar",
+            "crowbar",
+        ),
+        "forced_door": (
+            "broken door",
+            "forced",
+            "splintered",
+            "damaged door",
+            "kicked in",
+            "damaged frame",
+        ),
+    }
+    for case, terms in j.PROP_TERM_OVERRIDES.items():
+        assert j.prop_terms(_CASES[case]) == terms  # they replace the key-noun rule
+
+
+def test_no_case_matches_on_a_bare_structural_noun() -> None:
+    for case in CASES:
+        assert not {"window", "door"} & set(j.prop_terms(case)), case.id
+
+
+@pytest.mark.parametrize("case", ["pried_window", "forced_door"])
+def test_a_plain_house_description_fails_the_damage_cases(case: str) -> None:
+    plain = ["a house with a window and a front door"]
+    d = _derive(case, people=[], people_count=0, notable_objects=plain)
+    assert d["prop_match"] is False and d["judge_good"] is False
+
+
+@pytest.mark.parametrize(
+    ("case", "people", "objects"),
+    [
+        ("pried_window", [], ["a house with a window and a front door", "broken window"]),
+        ("pried_window", [], ["ground-floor window pried open, the frame bent"]),
+        ("pried_window", [{"holding": "a pry bar"}], ["a person climbing through a window"]),
+        ("forced_door", [], ["a house with a window and a front door", "splintered frame"]),
+        ("forced_door", [], ["front door kicked in", "broken wood on the porch"]),
+        ("forced_door", [], ["damaged door hanging open"]),
+    ],
+)
+def test_a_damage_description_passes_the_damage_cases(
+    case: str, people: list[dict[str, str]], objects: list[str]
+) -> None:
+    people = [{"clothing": "", "face_covered": "unclear", "holding": ""} | p for p in people]
+    d = _derive(case, people=people, people_count=len(people), notable_objects=objects)
+    assert d["prop_match"] is True and d["judge_good"] is True
 
 
 def test_a_benign_or_unrealistic_threat_image_is_not_judge_good() -> None:
@@ -447,6 +554,28 @@ def test_a_benign_or_unrealistic_threat_image_is_not_judge_good() -> None:
     assert partly["realistic"] is False and partly["judge_good"] is False
     ambiguous = _derive("knife", people=[{"holding": "a knife"}], threat_assessment="ambiguous")
     assert ambiguous["judge_good"] is True
+
+
+def test_the_hazard_cases_are_the_child_and_the_smoke() -> None:
+    assert {"child_alone_pool", "smoke_from_eave"} == j.HAZARD_CASES
+    assert j.HAZARD_CASES <= THREAT_CASES
+
+
+@pytest.mark.parametrize(
+    ("case", "objects"),
+    [
+        ("child_alone_pool", ["toddler", "swimming pool"]),
+        ("smoke_from_eave", ["gray smoke under the roof eave"]),
+    ],
+)
+def test_a_hazard_case_is_judge_good_even_when_called_benign(case: str, objects: list[str]) -> None:
+    for threat in ("benign", "ambiguous", "threatening"):
+        d = _derive(case, people=[], notable_objects=objects, threat_assessment=threat)
+        assert d["judge_good"] is True and d["judge_threat"] == threat
+    no_prop = _derive(case, people=[], notable_objects=["house"], threat_assessment="benign")
+    assert no_prop["prop_match"] is False and no_prop["judge_good"] is False
+    fake = _derive(case, notable_objects=objects, photorealistic="partly")
+    assert fake["judge_good"] is False
 
 
 def test_the_balaclava_case_checks_the_covered_face_and_infrared() -> None:

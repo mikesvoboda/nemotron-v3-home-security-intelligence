@@ -695,6 +695,9 @@ def test_markdown_renders_the_judge_columns_calibration_and_caveat() -> None:
     assert "100% (n=15)" in row_m  # realistic, over every judged output
     assert "### Judge vs owner" in text
     assert "- Judge model id in judge.jsonl: `claude-flagship`." in text
+    assert "not assessed benign (the hazards `child_alone_pool` and `smoke_from_eave` may be)" in (
+        " ".join(text.split())
+    )
     threat = next(line for line in text.splitlines() if line.startswith("| threat |"))
     assert threat == "| threat | 10 | 70% | 0.40 | 4 | 1 | 2 | 3 |"
     clip = next(line for line in text.splitlines() if line.startswith("| clip |"))
