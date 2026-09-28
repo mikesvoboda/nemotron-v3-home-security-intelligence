@@ -541,7 +541,10 @@ services:
       # :U tells Podman to recursively chown the volume to match container user (appuser)
       # Docker ignores the :U flag, making this backward compatible
       - ./backend/data:/app/data:z,U
-      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras
+      # :z - the file watcher must inotify-WATCH this tree; SELinux lets
+      # container_t read a usr_t dir but not watch it, so without the relabel
+      # the watcher starts "successfully" and never sees an upload.
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:z
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
       # Pre-downloaded HuggingFace model cache (matches ai-gateway mount).
       # Required for fashion-clip (open_clip hf-hub format) and any other model

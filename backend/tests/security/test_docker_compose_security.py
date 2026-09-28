@@ -242,3 +242,29 @@ class TestComposeConfigValidation:
         content = yaml.safe_load(docker_compose_path.read_text())
         assert "services" in content, "docker-compose.prod.yml missing 'services' section"
         assert isinstance(content["services"], dict), "'services' section should be a dictionary"
+
+
+class TestCameraMountIsWatchableUnderSELinux:
+    """The backend's file watcher needs an inotify WATCH on /cameras, and on an
+    SELinux-enforcing host (the A5500 box: Fedora, enforcing) a container_t
+    process may read a usr_t directory but not watch it. The audit log showed
+    `avc: denied { watch watch_reads } ... path="/cameras" ... tcontext=usr_t`
+    at every backend start, while the watcher logged "started successfully" and
+    never received an event - so no upload was ever ingested (A5500 bring-up,
+    2026-09-28). `:z` makes podman relabel the source to the shared
+    container_file_t, the same fix the model-zoo mount already carries.
+    """
+
+    @pytest.fixture
+    def backend_volumes(self) -> list[str]:
+        path = Path(__file__).parent.parent.parent.parent / "docker-compose.prod.yml"
+        return yaml.safe_load(path.read_text())["services"]["backend"]["volumes"]
+
+    def test_camera_mount_is_relabelled_for_containers(self, backend_volumes: list[str]) -> None:
+        camera = [v for v in backend_volumes if isinstance(v, str) and ":/cameras" in v]
+        assert len(camera) == 1, f"expected one /cameras mount, found {camera}"
+        options = camera[0].split(":/cameras", 1)[1].lstrip(":").split(",")
+        assert "z" in options or "Z" in options, (
+            f"{camera[0]!r} has no SELinux relabel option - the watcher cannot "
+            "inotify-watch a usr_t camera root on an enforcing host"
+        )
