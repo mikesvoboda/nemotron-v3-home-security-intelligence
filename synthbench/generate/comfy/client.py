@@ -18,6 +18,26 @@ class ComfyError(RuntimeError):
     """ComfyUI rejected a graph or failed while executing it."""
 
 
+_FAILURE_EVENTS = ("execution_error", "execution_interrupted")
+
+
+def _failure_reason(prompt_id: str, messages: Any) -> str:
+    """Lead with the failing node and exception: callers keep only a prefix of the text."""
+    for event in reversed(messages if isinstance(messages, list) else []):
+        if not (isinstance(event, list) and len(event) == 2 and event[0] in _FAILURE_EVENTS):
+            continue
+        name, data = event
+        data = data if isinstance(data, dict) else {}
+        where = f"node {data.get('node_id')} ({data.get('node_type')})"
+        if name == "execution_interrupted":
+            return f"{prompt_id} interrupted at {where}"
+        return (
+            f"{prompt_id} failed at {where}: "
+            f"{data.get('exception_type')}: {data.get('exception_message')}"
+        )
+    return f"{prompt_id} failed (error): {messages}"
+
+
 @dataclass(frozen=True)
 class OutputFile:
     filename: str
@@ -78,7 +98,7 @@ class ComfyClient:
             if entry is not None:
                 status = entry.get("status", {})
                 if status.get("status_str") == "error":
-                    raise ComfyError(f"{prompt_id} failed (error): {status.get('messages')}")
+                    raise ComfyError(_failure_reason(prompt_id, status.get("messages")))
                 return entry
             if clock() >= deadline:
                 raise TimeoutError(f"{prompt_id} not finished after {timeout_s:.0f}s")

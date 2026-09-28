@@ -11,15 +11,48 @@ from synthbench.generate.comfy.client import ComfyClient, ComfyError, OutputFile
 
 GRAPH = {"1": {"class_type": "SaveImage", "inputs": {}}}
 
+# status.messages as ComfyUI v0.37.0 records them for a prompt that ran out of VRAM.
+_START = ["execution_start", {"prompt_id": "p1", "timestamp": 1759000000000}]
+_CACHED = [
+    "execution_cached",
+    {"nodes": ["1", "2", "3", "4", "5", "6"], "prompt_id": "p1", "timestamp": 1759000000001},
+]
+OOM_MESSAGES = [
+    _START,
+    _CACHED,
+    [
+        "execution_error",
+        {
+            "prompt_id": "p1",
+            "node_id": "7",
+            "node_type": "KSampler",
+            "executed": ["1", "2", "3", "4", "5", "6"],
+            "exception_message": "Allocation on device 0 would exceed allowed memory.",
+            "exception_type": "torch.OutOfMemoryError",
+            "traceback": ['  File "/opt/ComfyUI/execution.py", line 496, in execute\n'] * 40,
+            "current_inputs": {"seed": [3], "steps": [8], "cfg": [1.0]},
+            "current_outputs": ["1", "2", "3", "4", "5", "6"],
+            "timestamp": 1759000000002,
+        },
+    ],
+]
+
 
 def _client(handler: httpx.MockTransport) -> ComfyClient:
     return ComfyClient("http://comfy", transport=handler)
 
 
 class FakeComfy:
-    def __init__(self, *, history_after: int = 0, status: str = "success") -> None:
+    def __init__(
+        self,
+        *,
+        history_after: int = 0,
+        status: str = "success",
+        messages: list[list[object]] | None = None,
+    ) -> None:
         self.history_after = history_after
         self.status = status
+        self.messages = messages if messages is not None else [["x", {}]]
         self.history_polls = 0
         self.queued: list[dict[str, object]] = []
         self.uploads: list[str] = []
@@ -36,7 +69,11 @@ class FakeComfy:
             if self.history_polls <= self.history_after:
                 return httpx.Response(200, json={})
             entry = {
-                "status": {"status_str": self.status, "completed": True, "messages": [["x", {}]]},
+                "status": {
+                    "status_str": self.status,
+                    "completed": self.status == "success",
+                    "messages": self.messages,
+                },
                 "outputs": {
                     "9": {"images": [{"filename": "a.png", "subfolder": "s", "type": "output"}]},
                     "12": {
@@ -82,9 +119,31 @@ class TestComfyClient:
         }
         assert ComfyClient("http://c").outputs(entry) == [OutputFile("a.png", "s", "output")]
 
-    def test_a_failed_execution_raises(self) -> None:
+    def test_a_failed_execution_names_the_node_and_exception_up_front(self) -> None:
+        client = _client(httpx.MockTransport(FakeComfy(status="error", messages=OOM_MESSAGES)))
+        with pytest.raises(ComfyError) as excinfo:
+            client.run(GRAPH, timeout_s=10, sleep=_no_sleep)
+        assert str(excinfo.value) == (
+            "p1 failed at node 7 (KSampler): torch.OutOfMemoryError: "
+            "Allocation on device 0 would exceed allowed memory."
+        )
+        # Task 6 keeps only the first 500 characters of a failure; the reason must lead.
+        head = str(excinfo.value)[:200]
+        assert "torch.OutOfMemoryError" in head
+        assert "would exceed allowed memory" in head
+
+    def test_an_interrupted_execution_says_so(self) -> None:
+        interrupted = [
+            "execution_interrupted",
+            {"prompt_id": "p1", "node_id": "7", "node_type": "KSampler", "executed": ["1"]},
+        ]
+        fake = FakeComfy(status="error", messages=[_START, _CACHED, interrupted])
+        with pytest.raises(ComfyError, match=r"^p1 interrupted at node 7 \(KSampler\)$"):
+            _client(httpx.MockTransport(fake)).run(GRAPH, timeout_s=10, sleep=_no_sleep)
+
+    def test_a_failure_without_an_error_event_keeps_the_raw_messages(self) -> None:
         client = _client(httpx.MockTransport(FakeComfy(status="error")))
-        with pytest.raises(ComfyError, match="error"):
+        with pytest.raises(ComfyError, match=r"^p1 failed \(error\): \[\['x', \{\}\]\]$"):
             client.run(GRAPH, timeout_s=10, sleep=_no_sleep)
 
     def test_a_rejected_graph_raises_with_the_node_errors(self) -> None:
