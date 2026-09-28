@@ -38,7 +38,7 @@ A throwaway spike under `synthbench/spikes/p1_bakeoff/` drives the bake-off, mea
   - Our own containers use **podman**. Never debug them through `docker`.
 - **Only the controller opens GPU windows** (Task 8). Implementer subagents never stop the flagship. In Tasks 3 and 5 they may run ComfyUI beside the flagship, which leaves 48.9 GiB free (probed 2026-09-27).
 - ComfyUI is pinned to `v0.37.0`. The base image is `nvcr.io/nvidia/pytorch:26.08-py3`. **Never let pip replace the base image's torch, torchvision or triton.**
-- Weights are pinned to exact commits and checked by sha256 (`synthbench/generate/manifests/p1-slate.json`: 33 rows, 30 unique files, 291 GB). Two files are named `vae/flux2-vae.safetensors` but differ in content (FLUX.2 [dev] vs Klein), so link names are prefixed per model (Task 1).
+- Weights are pinned to exact commits and checked by sha256 (`synthbench/generate/manifests/p1-slate.json`: 42 rows, 35 unique files, 335 GB since Tasks 9 and 9b added MiniMax-H3; 33 rows, 30 unique files, 291 GB before). Two files are named `vae/flux2-vae.safetensors` but differ in content (FLUX.2 [dev] vs Klein), so link names are prefixed per model (Task 1).
 - Measurement models must not be models the pipeline runs. OWLv2, facenet (VGGFace2) and EasyOCR appear nowhere in `backend/` or `ai/` (verified 2026-09-27).
 - Content rules (spec §3.8): identities are generated from scratch, never from photos of real people. Threat content is realistic and non-graphic.
 - Commits use conventional subjects and end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Git hooks are not installed here, so every commit is gated on them: `SKIP=semgrep uvx pre-commit run --files <changed files> && git commit ...`.
@@ -3705,10 +3705,10 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 This task is not dispatched to an implementer subagent. The controller runs it because it opens GPU windows. The owner rates the contact sheet and approves the picks.
 
 - [ ] **Step 1: Weights complete.**
-  1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5: done 2026-09-28 (all 30 files are cached).
+  1. The owner accepts https://huggingface.co/Lightricks/LTX-2.5: done 2026-09-28 (all 30 files then in the manifest are cached).
   2. The controller runs `HF_HOME=/export/models uv run python -m synthbench.generate.weights sync --manifest synthbench/generate/manifests/p1-slate.json` (no `--skip-repo`).
-  3. Expected: `verified 30 files; 31 links under /export/models/comfyui`. `ae.safetensors` and `qwen_3_4b.safetensors` are each shared by two models, and the three `flux2-vae` files are prefixed per model. Record the output.
-  4. Task 9 added MiniMax-H3's four files and Task 9b its 4-step turbo LoRA. A full sync (not run in Tasks 9 or 9b) should now print `verified 35 files; 36 links under /export/models/comfyui`. Task 9's H3-only sync printed `verified 4 files; 4 links under /export/models/comfyui`, and Task 9b's printed `verified 5 files; 5 links under /export/models/comfyui`.
+  3. Expected: `verified 35 files; 36 links under /export/models/comfyui` (computed from the manifest with `weights.unique_by_sha` and `weights.link_names`). `ae.safetensors` and `qwen_3_4b.safetensors` are each shared by two models, the three `flux2-vae` links are prefixed per model, and `minimax-h3-turbo` shares `minimax-h3`'s four files and links. Record the output.
+  4. Earlier syncs printed smaller counts. Before Tasks 9 and 9b, the full sync printed `verified 30 files; 31 links under /export/models/comfyui` (Task 3, 2026-09-27; this was Step 1's run). Tasks 9 and 9b ran H3-only syncs, not a full one: Task 9's printed `verified 4 files; 4 links under /export/models/comfyui`, and Task 9b's printed `verified 5 files; 5 links under /export/models/comfyui`.
 
 **Window safety (Steps 2 and 3).** A GPU window must outlive the controller's tool session. A foreground tool call is capped at 10 minutes, and a hangup or a session teardown kills whatever the call started, possibly with the flagship down. So every window runs detached, bounded in time and watched. Run every command from the repo root.
 
@@ -3853,3 +3853,22 @@ This task is not dispatched to an implementer subagent. The controller runs it b
   - **Left for the controller, in window 4:**
     1. Verify the snapshot with one live GET: `uv run python -m synthbench.generate.comfy.snapshot && git diff --exit-code synthbench/generate/comfy/object_info.v0.37.0.json`.
     2. Smoke `i2v:minimax-h3-turbo`, then `run clips --models minimax-h3-turbo`, then re-run Task 8 Steps 4-6.
+
+### Task 10: flagship VLM judge (added 2026-09-28, owner direction)
+
+- **Why.** P3 will generate far more images than the owner can rate. Before a VLM judge is trusted with "did the image render what the prompt asked for?", P1 measures how well it agrees with the owner's ratings.
+- **Scope.** `synthbench/spikes/p1_bakeoff/judge.py` runs on the host. It sends each ok output to the flagship (`claude-flagship` = Qwen3.8-Flash-Next, OpenAI-compatible at `127.0.0.1:8000/v1`) with one fixed instruction and a fixed JSON schema: people (clothing, face covered, holding), notable objects, vehicles and plates, lighting, viewpoint, photorealism, artifacts, threat assessment. Images go as JPEG with the longer side at most 1344 px; clips as their first, middle and last frames. It writes `<root>/judge.jsonl`, one row per output, and resumes.
+- **Non-leading.** The judge never sees the prompt or the case id. A pure `derive()` compares its answer with the case's facts: `prop_match`, `lighting_match`, `realistic`, `judge_good` and more. The plate case gets no judge verdict (plate CER is its measure).
+- **Evidence, never a gate.** The pipeline's VLM stage is Qwen3VL-4B, the same family, so `propose_picks` never reads judge rows; a test proves the picks are unchanged with and without them. The report adds judge columns and a "judge vs owner" calibration (agreement, Cohen's κ, confusion counts per kind); the sheet shows verdicts only behind a "show the VLM judge" checkbox.
+- **Rulings (fix round 1).** No bare structural noun is a prop term: `pried_window` and `forced_door` count only words for the damage, never a bare "window" or "door". The hazard cases `child_alone_pool` and `smoke_from_eave` need no non-benign threat assessment. The judge parses `reasoning_content` when `content` is empty.
+- **Files.** `judge.py`; additive changes to `report.py` and `sheet.py`; tests in `backend/tests/unit/synthbench/spikes/test_p1_judge.py` (fake flagship over `httpx.MockTransport`) and `test_p1_report.py`. Commits 7e1959e7 and cc9ac03d.
+- **Result.** Judged 337/337, no fallbacks. Against the owner: agreement 55%, κ 0.06 on 123 rated, non-refused threat cells, so it is not usable as a threat-render gate (spec rev 2, §3.7).
+
+### Task 11: refusal detection and order-insensitive judge prop matching (added 2026-09-28)
+
+- **Why.** Ideogram 4's weights paint an "Image blocked by safety filter" card for prompts they refuse, and the runner recorded those as ok, so the report counted refusals as renders. We never circumvent the model's safety behaviour: its license forbids it.
+- **Refusals (`measure.py`, kept Python 3.12-parseable).** OCR runs on every image, once. `refused` is `is_refusal_text(fragments)`: the text holds "blocked" and "safety" or "filter", or holds "image blocked". `card_like` (grayscale std under `CARD_GRAY_STD_MAX` = 16 at the measurement size, calibrated on the 312 P1 images) is only a diagnostic. Clips are never refused.
+- **Report and sheet.** Refusal rate per model and refusals per case. A refused output counts as not good in threat good, even unrated, and drops out of OWL hit, identity drift, no face, and the judge columns and calibration. The report lists each model's cases refused on at least half the outputs. The `propose_picks` rules are unchanged. The sheet marks "REFUSED (model safety card)" and keeps rating open.
+- **Judge prop matching (`judge.py`).** Order-insensitive: a term matches when all its words appear in one described item, in any order, with s/es plurals ("bent frame" matches "window frame bent"). New variants: "prybar" and "crow bar" for crowbar, "broken frame" for `forced_door`. The guard test still forbids a bare "window" or "door" term.
+- **Files.** `measure.py`, `report.py`, `sheet.py`, `judge.py` and `synthbench/spikes/p1_bakeoff/AGENTS.md`; tests in `test_p1_measure.py`, `test_p1_report.py` and `test_p1_judge.py`. Commit 4c85d10e.
+- **Result.** After the measure re-run, ideogram-4 refused 35/52 by OCR (25 card-like); every other model refused none.

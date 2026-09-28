@@ -118,7 +118,7 @@ def fetch(files: Iterable[WeightFile], download: Downloader) -> dict[str, Path]:
 def hf_download(f: WeightFile) -> Path:
     if not os.environ.get("HF_HOME"):
         raise StorageError(
-            "HF_HOME is not set: the weights (291 GB) would go to ~/.cache on the nearly full "
+            "HF_HOME is not set: the weights (335 GB) would go to ~/.cache on the nearly full "
             "root filesystem; run with HF_HOME=/export/models"
         )
     from huggingface_hub import hf_hub_download  # heavy import, CLI path only
