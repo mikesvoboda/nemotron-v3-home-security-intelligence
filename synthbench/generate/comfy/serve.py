@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -39,6 +40,19 @@ Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 class ServeError(RuntimeError):
     """podman could not start the renderer, or the renderer exited while starting."""
+
+
+def _warn(message: str) -> None:
+    sys.stderr.write(f"[comfy-serve] warning: {message}\n")
+
+
+def baked_farm_root() -> Path:
+    """The farm the image loads models from: extra_model_paths.yaml's base_path."""
+    text = (CONTAINERFILE_DIR / "extra_model_paths.yaml").read_text()
+    found = re.search(r"^\s*base_path:\s*(\S+)\s*$", text, re.MULTILINE)
+    if found is None:
+        raise ServeError(f"no base_path in {CONTAINERFILE_DIR / 'extra_model_paths.yaml'}")
+    return Path(found.group(1))
 
 
 @dataclass(frozen=True)
@@ -120,6 +134,12 @@ def run_args(cfg: ServeConfig) -> list[str]:
 
 
 def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
+    farm, baked = cfg.models_root / "comfyui", baked_farm_root()
+    if farm != baked:
+        raise ServeError(
+            f"the farm under HF_HOME is {farm}, but the image loads models from {baked} "
+            f"(extra_model_paths.yaml); set HF_HOME={baked.parent} or rebuild the image"
+        )
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
     cfg.cache_dir.mkdir(parents=True, exist_ok=True)
     cfg.log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -132,26 +152,33 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
 
 
 def stop(run: Runner = subprocess.run) -> None:
-    run(
+    """Stop the renderer; a missing one is fine (--ignore), a failed stop is logged."""
+    done = run(
         [*podman_argv(), "stop", "--ignore", "--time", "30", CONTAINER],
         check=False,
         capture_output=True,
         text=True,
     )
+    if done.returncode != 0:
+        _warn(f"podman stop {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")
 
 
 def container_alive(run: Runner = subprocess.run) -> bool:
     """False once the renderer container is gone (--rm removes it when ComfyUI exits).
 
     `podman container exists` exits 1 for "no such container"; any other failure
-    (125) is a podman error, not evidence that ComfyUI exited.
+    (125), or no answer within 30 s, is a podman problem, not evidence that ComfyUI exited.
     """
-    done = run(
-        [*podman_argv(), "container", "exists", CONTAINER],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        done = run(
+            [*podman_argv(), "container", "exists", CONTAINER],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return True
     return done.returncode != 1
 
 

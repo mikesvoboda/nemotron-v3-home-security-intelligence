@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import inspect
 import json
 import os
 import signal
@@ -15,7 +16,11 @@ from typing import Any
 
 import pytest
 from synthbench.generate import window as gw
+from synthbench.generate.comfy import serve
 from synthbench.generate.podman import podman_argv
+
+# The signals the window defers while it restores the flagship.
+EXIT_SIGNALS = (signal.SIGTERM, signal.SIGHUP, signal.SIGINT)
 
 
 class FakeRuntime:
@@ -74,16 +79,16 @@ class SignalLeaked(Exception):
 
 @pytest.fixture
 def trapped_signals() -> Iterator[None]:
-    """Make the caller's SIGTERM/SIGINT handlers raise SignalLeaked.
+    """Make the caller's SIGTERM/SIGHUP/SIGINT handlers raise SignalLeaked.
 
     A signal the window fails to defer then fails the test, instead of killing pytest
-    (SIGTERM's default action) or aborting the session (KeyboardInterrupt).
+    (the SIGTERM and SIGHUP default action) or aborting the session (KeyboardInterrupt).
     """
 
     def trap(signum: int, _frame: object) -> None:
         raise SignalLeaked(signum)
 
-    saved = {sig: signal.signal(sig, trap) for sig in (signal.SIGTERM, signal.SIGINT)}
+    saved = {sig: signal.signal(sig, trap) for sig in EXIT_SIGNALS}
     yield
     for sig, handler in saved.items():
         signal.signal(sig, handler)
@@ -99,7 +104,9 @@ def _deliver_through_the_installed_handler(signum: int) -> None:
 def _window(
     rt: FakeRuntime, paths: gw.WindowPaths, clock: FakeClock | None = None, **kw: Any
 ) -> AbstractContextManager[None]:
+    """The window with fakes; `before_restore` defaults to a no-op, never the real podman."""
     fake = clock or FakeClock()
+    kw.setdefault("before_restore", lambda: None)
     return gw.gpu_window(rt, paths, sleep=fake.sleep, clock=fake, say=lambda _m: None, **kw)
 
 
@@ -143,6 +150,7 @@ class TestGpuWindow:
             raise KeyboardInterrupt
         assert rt.running
 
+    @pytest.mark.usefixtures("trapped_signals")
     def test_sigterm_still_restores_and_the_old_handler_returns(
         self, paths: gw.WindowPaths
     ) -> None:
@@ -153,6 +161,21 @@ class TestGpuWindow:
         assert exc.value.code == 128 + signal.SIGTERM
         assert rt.running
         assert signal.getsignal(signal.SIGTERM) == before
+
+    @pytest.mark.usefixtures("trapped_signals")
+    def test_a_sighup_still_restores_and_the_old_handlers_return(
+        self, paths: gw.WindowPaths
+    ) -> None:
+        # A terminal or SSH hangup (uv forwards SIGHUP to its child) must not end the
+        # window with the flagship down.
+        rt = FakeRuntime()
+        caller = {sig: signal.getsignal(sig) for sig in EXIT_SIGNALS}
+        with pytest.raises(SystemExit) as exc, _window(rt, paths):
+            os.kill(os.getpid(), signal.SIGHUP)
+        assert exc.value.code == 128 + signal.SIGHUP
+        assert rt.calls == ["stop", "start", "healthy?"]
+        assert rt.running and not paths.marker.exists()
+        assert {sig: signal.getsignal(sig) for sig in caller} == caller
 
     def test_a_failed_stop_still_starts_the_flagship(self, paths: gw.WindowPaths) -> None:
         rt = FakeRuntime(stop_error=RuntimeError("docker stop failed"))
@@ -210,7 +233,7 @@ class TestGpuWindow:
         self, paths: gw.WindowPaths
     ) -> None:
         rt = FakeRuntime()
-        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        caller = {sig: signal.getsignal(sig) for sig in EXIT_SIGNALS}
         with (
             pytest.raises(SystemExit) as exc,
             _window(rt, paths, before_restore=lambda: os.kill(os.getpid(), signal.SIGTERM)),
@@ -222,17 +245,20 @@ class TestGpuWindow:
         assert {sig: signal.getsignal(sig) for sig in caller} == caller
 
     @pytest.mark.usefixtures("trapped_signals")
-    def test_a_sigint_while_restoring_waits_for_the_flagship(self, paths: gw.WindowPaths) -> None:
+    @pytest.mark.parametrize("signum", [signal.SIGINT, signal.SIGHUP], ids=["SIGINT", "SIGHUP"])
+    def test_a_sigint_or_sighup_while_restoring_waits_for_the_flagship(
+        self, paths: gw.WindowPaths, signum: int
+    ) -> None:
         class InterruptedStart(FakeRuntime):
             def start(self, container: str) -> None:
-                _deliver_through_the_installed_handler(signal.SIGINT)
+                _deliver_through_the_installed_handler(signum)
                 super().start(container)
 
         rt = InterruptedStart()
-        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        caller = {sig: signal.getsignal(sig) for sig in EXIT_SIGNALS}
         with pytest.raises(SystemExit) as exc, _window(rt, paths):
             pass
-        assert exc.value.code == 128 + signal.SIGINT
+        assert exc.value.code == 128 + signum
         assert rt.calls == ["stop", "start", "healthy?"]
         assert rt.running and not paths.marker.exists()
         assert {sig: signal.getsignal(sig) for sig in caller} == caller
@@ -249,7 +275,7 @@ class TestGpuWindow:
         paths.state_dir.mkdir(parents=True)
         paths.marker.write_text("{}")
         rt = InterruptedStart(running=False)
-        caller = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        caller = {sig: signal.getsignal(sig) for sig in EXIT_SIGNALS}
         opened = False
         with pytest.raises(SystemExit) as exc, _window(rt, paths):
             opened = True
@@ -270,7 +296,9 @@ class TestGpuWindow:
                 raise BrokenPipeError
 
         clock = FakeClock()
-        with gw.gpu_window(rt, paths, sleep=clock.sleep, clock=clock, say=say):
+        with gw.gpu_window(
+            rt, paths, before_restore=lambda: None, sleep=clock.sleep, clock=clock, say=say
+        ):
             pass
         assert closing
         assert "start" in rt.calls
@@ -304,21 +332,122 @@ class TestGpuWindow:
         assert rt.calls == ["stop", "start", "healthy?", "start", "healthy?"]
         assert rt.running and not paths.marker.exists()
 
+    def test_the_gpu_containers_are_stopped_by_default(self) -> None:
+        # A later caller of the context manager must not restore the flagship with the
+        # renderer still resident.
+        default = inspect.signature(gw.gpu_window).parameters["before_restore"].default
+        assert default is gw.stop_gpu_containers
+
+
+class TestRestore:
+    def test_a_failed_reissued_start_is_logged_and_the_wait_goes_on(self) -> None:
+        class BlipOnSecondStart(FakeRuntime):
+            starts = 0
+
+            def start(self, container: str) -> None:
+                self.starts += 1
+                if self.starts == 2:  # dockerd blips while the flagship comes up
+                    self.calls.append("start failed")
+                    raise subprocess.CalledProcessError(
+                        1, ["docker", "start"], stderr=b"Cannot connect to the Docker daemon\n"
+                    )
+                super().start(container)
+
+        rt = BlipOnSecondStart(healthy_after=2)
+        clock = FakeClock()
+        said: list[str] = []
+        gw.restore(rt, sleep=clock.sleep, clock=clock, say=said.append)
+        assert rt.calls == ["start", "healthy?", "start failed", "healthy?", "start", "healthy?"]
+        assert rt.running
+        assert len(said) == 1 and "Cannot connect to the Docker daemon" in said[0]
+
+    def test_a_failed_first_start_still_raises(self) -> None:
+        class NoDaemon(FakeRuntime):
+            def start(self, container: str) -> None:
+                self.calls.append("start")
+                raise subprocess.CalledProcessError(1, ["docker", "start"])
+
+        rt = NoDaemon()
+        clock = FakeClock()
+        with pytest.raises(subprocess.CalledProcessError):
+            gw.restore(rt, sleep=clock.sleep, clock=clock, say=lambda _m: None)
+        assert rt.calls == ["start"]
+
+
+class FakePodman:
+    """Stands in for subprocess.run: each `ps` takes the next of `listings`; `stop` answers
+    `stop`. An answer is (returncode, stdout, stderr), or an exception to raise."""
+
+    def __init__(
+        self,
+        *listings: tuple[int, str, str] | Exception,
+        stop: tuple[int, str, str] | Exception = (0, "", ""),
+    ) -> None:
+        self.calls: list[list[str]] = []
+        self._listings = iter(listings)
+        self._stop = stop
+
+    def __call__(self, argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+        self.calls.append(argv)
+        answer = next(self._listings) if "ps" in argv else self._stop
+        if isinstance(answer, Exception):
+            raise answer
+        return subprocess.CompletedProcess(argv, *answer)
+
 
 class TestStopGpuContainers:
-    def test_lists_and_stops_labeled_containers_in_the_synthbench_store(self) -> None:
-        calls: list[list[str]] = []
-
-        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
-            calls.append(argv)
-            return subprocess.CompletedProcess(argv, 0, "abc\n" if "ps" in argv else "", "")
-
-        gw.stop_gpu_containers(run=run)
+    def test_lists_stops_and_lists_again_in_the_synthbench_store(self) -> None:
+        run = FakePodman((0, "abc\n", ""), (0, "", ""))
+        said: list[str] = []
+        gw.stop_gpu_containers(run=run, say=said.append)
         prefix = podman_argv()
-        assert calls == [
-            [*prefix, "ps", "-q", "--filter", gw.GPU_LABEL_FILTER],
-            [*prefix, "stop", "--time", "30", "abc"],
-        ]
+        listing = [*prefix, "ps", "-q", "--filter", gw.GPU_LABEL_FILTER]
+        assert run.calls == [listing, [*prefix, "stop", "--time", "30", "abc"], listing]
+        assert said == []
+
+    def test_nothing_running_is_one_quiet_listing(self) -> None:
+        run = FakePodman((0, "", ""))
+        said: list[str] = []
+        gw.stop_gpu_containers(run=run, say=said.append)
+        assert len(run.calls) == 1 and said == []
+
+    def test_a_failed_listing_is_logged_with_its_exit_code_and_stderr(self) -> None:
+        said: list[str] = []
+        gw.stop_gpu_containers(
+            run=FakePodman((125, "", "Error: database is locked\n")), say=said.append
+        )
+        assert len(said) == 1 and "125" in said[0] and "database is locked" in said[0]
+
+    def test_a_listing_that_raises_is_logged_and_never_raises(self) -> None:
+        said: list[str] = []
+        hung = subprocess.TimeoutExpired(["podman", "ps"], 30)
+        gw.stop_gpu_containers(run=FakePodman(hung), say=said.append)
+        assert len(said) == 1 and "TimeoutExpired" in said[0]
+
+    @pytest.mark.parametrize(
+        "stop",
+        [(125, "", "Error: container abc: timed out\n"), OSError("podman: not found")],
+        ids=["exit 125", "raises"],
+    )
+    def test_a_failed_stop_is_logged_and_the_survivor_named(
+        self, stop: tuple[int, str, str] | Exception
+    ) -> None:
+        run = FakePodman((0, "abc\n", ""), (0, "abc\n", ""), stop=stop)
+        said: list[str] = []
+        gw.stop_gpu_containers(run=run, say=said.append)
+        assert len(run.calls) == 3
+        assert len(said) == 2
+        assert "abc" in said[0] and ("125" in said[0] or "not found" in said[0])
+        assert "still running" in said[1] and "abc" in said[1]
+
+    def test_a_broken_log_never_raises(self) -> None:
+        def say(_message: str) -> None:
+            raise BrokenPipeError
+
+        gw.stop_gpu_containers(run=FakePodman((125, "", "Error: x\n")), say=say)
+
+    def test_the_filter_matches_the_label_serve_puts_on_the_renderer(self) -> None:
+        assert f"label={serve.GPU_LABEL}" == gw.GPU_LABEL_FILTER
 
 
 class TestMain:

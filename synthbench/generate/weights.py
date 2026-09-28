@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -30,6 +31,10 @@ class ManifestError(ValueError):
 
 class ChecksumError(RuntimeError):
     """A downloaded file's sha256 does not match the manifest."""
+
+
+class StorageError(RuntimeError):
+    """HF_HOME is unset, so a download would land in ~/.cache on the root filesystem."""
 
 
 @dataclass(frozen=True)
@@ -111,6 +116,11 @@ def fetch(files: Iterable[WeightFile], download: Downloader) -> dict[str, Path]:
 
 
 def hf_download(f: WeightFile) -> Path:
+    if not os.environ.get("HF_HOME"):
+        raise StorageError(
+            "HF_HOME is not set: the weights (291 GB) would go to ~/.cache on the nearly full "
+            "root filesystem; run with HF_HOME=/export/models"
+        )
     from huggingface_hub import hf_hub_download  # heavy import, CLI path only
 
     return Path(hf_hub_download(f.repo, f.path, revision=f.revision))

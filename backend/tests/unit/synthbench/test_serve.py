@@ -83,6 +83,26 @@ class TestStartStop:
         serve.stop(run=run)
         assert run.calls == [[*podman_argv(), "stop", "--ignore", "--time", "30", serve.CONTAINER]]
 
+    def test_stop_logs_a_failed_stop(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(argv, 125, "", "Error: container is locked\n")
+
+        serve.stop(run=run)
+        err = capsys.readouterr().err
+        assert "125" in err and "container is locked" in err
+
+    def test_start_refuses_a_farm_the_image_does_not_load(self, tmp_path: Path) -> None:
+        # The image's extra_model_paths.yaml loads from /export/models/comfyui; another
+        # HF_HOME would mount a farm that ComfyUI never reads.
+        run = FakeRunner()
+        cfg = serve.ServeConfig(18188, Path("/data/hf"), tmp_path / "out", tmp_path / "cache")
+        with pytest.raises(serve.ServeError, match=r"/data/hf/comfyui.*/export/models/comfyui"):
+            serve.start(cfg, run=run)
+        assert run.calls == []
+
+    def test_the_baked_farm_root_is_read_from_the_committed_yaml(self) -> None:
+        assert serve.baked_farm_root() == Path("/export/models/comfyui")
+
 
 class TestBuild:
     def test_builds_into_the_synthbench_store_with_its_tmpdir(
@@ -248,6 +268,16 @@ class TestFailuresSurface:
 
         assert serve.container_alive(run=run) is alive
         assert calls == [[*podman_argv(), "container", "exists", serve.CONTAINER]]
+
+    def test_container_alive_is_bounded_and_a_hung_podman_counts_as_alive(self) -> None:
+        timeouts: list[float] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            timeouts.append(kw["timeout"])
+            raise subprocess.TimeoutExpired(argv, kw["timeout"])
+
+        assert serve.container_alive(run=run) is True
+        assert timeouts == [30]
 
 
 def _containerfile() -> str:

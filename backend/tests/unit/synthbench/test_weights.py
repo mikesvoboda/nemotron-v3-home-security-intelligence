@@ -143,6 +143,47 @@ class TestFetch:
             w.fetch([a], download)
 
 
+class TestHfDownload:
+    """Weights land in the HF cache under HF_HOME, never in ~/.cache on the root fs."""
+
+    @pytest.fixture
+    def downloads(self, monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, str, str]]:
+        import huggingface_hub
+
+        calls: list[tuple[str, str, str]] = []
+
+        def fake(repo: str, path: str, *, revision: str) -> str:
+            calls.append((repo, path, revision))
+            return f"/export/models/hub/{path}"
+
+        monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+        monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake)
+        return calls
+
+    @pytest.mark.parametrize("hf_home", [None, ""], ids=["unset", "empty"])
+    def test_refuses_without_hf_home(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        downloads: list[tuple[str, str, str]],
+        hf_home: str | None,
+    ) -> None:
+        if hf_home is None:
+            monkeypatch.delenv("HF_HOME", raising=False)
+        else:
+            monkeypatch.setenv("HF_HOME", hf_home)
+        with pytest.raises(w.StorageError, match="HF_HOME=/export/models"):
+            w.hf_download(_wf("m1", "vae", "vae/a.safetensors", b"a"))
+        assert downloads == []
+
+    def test_downloads_the_pinned_revision_under_hf_home(
+        self, monkeypatch: pytest.MonkeyPatch, downloads: list[tuple[str, str, str]]
+    ) -> None:
+        monkeypatch.setenv("HF_HOME", "/export/models")
+        path = w.hf_download(_wf("m1", "vae", "vae/a.safetensors", b"a"))
+        assert downloads == [("org/repo", "vae/a.safetensors", REV)]
+        assert path == Path("/export/models/hub/vae/a.safetensors")
+
+
 class TestBuildFarm:
     def test_links_resolve_to_the_cached_files(self, tmp_path: Path) -> None:
         a = _wf("m1", "vae", "vae/v.safetensors", b"one")
