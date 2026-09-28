@@ -273,6 +273,12 @@ services:
       - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-8B}
       # All layers on GPU; auto = llama.cpp --fit decides by free VRAM.
       - GPU_LAYERS=${VLM_GPU_LAYERS:-auto}
+      # Each still costs at most the 1280 vision tokens the client reserves
+      # for it (vlm_client._IMAGE_TOKENS_PER_FRAME; pinned). Uncapped, Qwen3-VL
+      # spends ~1 token per 32x32 px: four 2 MP stills were 8,509 tokens, not
+      # 5,120, and a fitted batch overflowed the 16,384 slot (A5500 2026-09-28).
+      # llama-server reads LLAMA_ARG_* itself; it also bounds encoder VRAM.
+      - LLAMA_ARG_IMAGE_MAX_TOKENS=1280
       # Context budget (spec §2 "sized for 4 images + ~6K text + output",
       # mirroring ghcr.yml:277-285's comment method): the backend divides
       # CTX_SIZE by PARALLEL itself (config.py nemotron_context_window

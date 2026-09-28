@@ -24,6 +24,7 @@ reader for /etc.
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any, ClassVar
@@ -109,6 +110,22 @@ def make_fake_llama(
         app.state.calls.append(body)
         if mode == "down":
             return JSONResponse({"error": "gone"}, status_code=503)
+        if mode == "context_overflow":
+            # llama-server b7972's own body, captured on the A5500 (2026-09-28)
+            # for a fitted prompt the slot could not hold.
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 400,
+                        "message": "request (22293 tokens) exceeds the available context "
+                        "size (16384 tokens), try increasing it",
+                        "type": "exceed_context_size_error",
+                        "n_prompt_tokens": 22293,
+                        "n_ctx": 16384,
+                    }
+                },
+                status_code=400,
+            )
         if mode == "schema-invalid":
             # 200 + content that VIOLATES VlmVerdict: the float risk_score
             # from the spec's own bad example (int ge/le fails). Post-
@@ -436,9 +453,22 @@ class TestPromptBudget:
         text = client.prompt_text(self._big_request())
         counter = get_token_counter()
         reserved = client._image_token_reservation(self._big_request())
-        used = counter.count_tokens(text) + reserved + vc._ASSESS_MAX_TOKENS
+        served_text = math.ceil(counter.count_tokens(text) * vc._SERVED_TOKENS_PER_COUNTED)
+        used = served_text + reserved + vc._ASSESS_MAX_TOKENS
         assert used <= settings.vlm_context_window, (
             f"{used} tokens into a {settings.vlm_context_window}-token slot"
+        )
+
+    # A5500, 2026-09-28: the same fitted prompt, counted twice - 10,237 by the
+    # repo's counter, 13,785 by the served engine's /tokenize (Qwen splits
+    # every digit, and detection rows are mostly digits). The fit passed a
+    # prompt that, with its stills, was 22,293 tokens for a 16,384 slot.
+    _MEASURED_SERVED_RATIO = 13_785 / 10_237
+
+    def test_the_fit_counts_text_the_way_the_served_tokenizer_does(self) -> None:
+        assert vc._SERVED_TOKENS_PER_COUNTED >= self._MEASURED_SERVED_RATIO * 1.1, (
+            f"margin {vc._SERVED_TOKENS_PER_COUNTED} leaves under 10% over the "
+            f"measured {self._MEASURED_SERVED_RATIO:.2f}x tokenizer gap"
         )
 
     def test_truncation_is_visible_and_counted(self) -> None:
@@ -1334,3 +1364,49 @@ class TestBoxesUseTheModelsOwnGrounding:
         det = {"id": 1, "object_type": "person", "confidence": 0.9}
         (row,) = self._rendered_rows(make_client().prompt_text(_request([still], detections=[det])))
         assert "bbox_2d" not in row
+
+
+class TestContextOverflowIsABudget:
+    """A5500, 2026-09-28: a fitted prompt the slot could not hold came back
+    HTTP 400 `exceed_context_size_error` - and the client filed it as a
+    TRANSPORT error: one breaker failure, then the §6 retry re-sent the same
+    bytes for a second 400 and a second failure. Five such batches open
+    `ai-vlm` for every camera over a number WE mis-estimated. Like a
+    truncated verdict, it is a budget: raised once, named, counted under its
+    own cause, never fed to the breaker - and still verification_failed."""
+
+    async def test_it_raises_its_own_cause_once(self, image_dir) -> None:
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmContextOverflowError) as caught:
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert len(client._app_calls()) == 1, "the same bytes cannot fit on a retry"
+        assert "22293" in str(caught.value) and "16384" in str(caught.value)
+        assert not isinstance(caught.value, vc.VlmTransportError)
+        await client.close()
+
+    async def test_it_is_counted_under_its_own_cause(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        recorded: list[str] = []
+        monkeypatch.setattr(vc, "record_pipeline_error", lambda reason: recorded.append(reason))
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmContextOverflowError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert recorded == ["vlm_context_overflow"], recorded
+
+    async def test_it_never_opens_the_breaker(self, image_dir) -> None:
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        for _ in range(10):  # well past the breaker's 5-failure threshold
+            with pytest.raises(vc.VlmContextOverflowError):
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert not get_circuit_breaker("ai-vlm").is_open, "a budget must not open a service breaker"
+
+    async def test_any_other_400_is_still_a_transport_error(self, image_dir) -> None:
+        client = make_client("down", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTransportError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()

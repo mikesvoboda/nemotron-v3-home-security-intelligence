@@ -40,6 +40,7 @@ import asyncio
 import base64
 import json
 import logging
+import math
 from pathlib import Path
 from typing import Any, TypeGuard
 
@@ -105,6 +106,14 @@ _PROBE_MAX_TOKENS = _ASSESS_MAX_TOKENS + 64
 # overflow the slot on account of its images).
 _IMAGE_TOKENS_PER_FRAME = 1280
 
+# The fit counts text with the repo's counter, but the SLOT is filled by the
+# served tokenizer - and Qwen splits every digit, while detection rows are
+# mostly digits. Measured on one fitted prompt (A5500, 2026-09-28): 10,237 by
+# the counter, 13,785 by the engine's /tokenize (1.35x). The fit budgets each
+# counted token at this many served ones; deterministic, so the stored prompt
+# is still the sent prompt (a /tokenize call could not promise that).
+_SERVED_TOKENS_PER_COUNTED = 1.5
+
 
 class VlmClientError(RuntimeError):
     """Base for every client failure the analyzer maps into the ladder."""
@@ -132,6 +141,15 @@ class VlmTruncatedError(VlmSchemaError):
     again at the SAME max_tokens, so re-asking cannot close the object."""
 
 
+class VlmContextOverflowError(VlmClientError):
+    """The served slot refused the request as larger than its context (HTTP
+    400 `exceed_context_size_error`): OUR fit under-estimated it, the engine
+    is fine. Named apart from VlmTransportError because the retry calculus
+    differs - the §6 retry would re-send the same bytes for the same 400 -
+    and because a budget must not feed the service breaker. Still a
+    VlmClientError, so the analyzer still answers verification_failed."""
+
+
 class VlmUnavailableError(VlmClientError):
     """Breaker OPEN: refuse fast, no I/O (house breaker contract,
     detector_client's DetectorUnavailableError pattern). Pushes
@@ -143,6 +161,21 @@ class VlmImageError(VlmClientError):
     capture root. Refused BEFORE any I/O: the paths come from a database
     row, and a poisoned row must not turn the backend into a reader of
     /etc. (Privacy rule, spec §6.)"""
+
+
+def _context_overflow_of(resp: httpx.Response) -> dict[str, Any] | None:
+    """llama-server's own over-context refusal (HTTP 400, error.type
+    `exceed_context_size_error`, with n_prompt_tokens / n_ctx), else None.
+    Keyed on the structured type, never the message prose."""
+    if resp.status_code != 400:
+        return None
+    try:
+        error = resp.json().get("error")
+    except ValueError:
+        return None
+    if isinstance(error, dict) and error.get("type") == "exceed_context_size_error":
+        return {k: error.get(k) for k in ("n_prompt_tokens", "n_ctx")}
+    return None
 
 
 def _strip_grammar_unsafe(node: Any) -> Any:
@@ -672,9 +705,13 @@ class VlmClient:
             - self._image_token_reservation(request)
         )
         counter = get_token_counter()
+
+        def served(prompt: str) -> int:
+            return math.ceil(counter.count_tokens(prompt) * _SERVED_TOKENS_PER_COUNTED)
+
         rows = list(ctx.detections)
         text = self._render_prompt(rows, request)
-        if counter.count_tokens(text) <= budget:
+        if served(text) <= budget:
             return text, False
 
         # Strongest-first, then binary-search the largest list that fits.
@@ -697,7 +734,7 @@ class VlmClient:
         lo, hi = 0, len(ranked)
         while lo < hi:
             mid = (lo + hi + 1) // 2
-            if counter.count_tokens(fitted(mid)) <= budget:
+            if served(fitted(mid)) <= budget:
                 lo = mid
             else:
                 hi = mid - 1
@@ -778,6 +815,16 @@ class VlmClient:
                     "vlm transport error (attempt %d)", attempt + 1, extra={"error": str(exc)}
                 )
                 continue
+            if overflow := _context_overflow_of(resp):
+                # A5500 2026-09-28: filed as transport, this cost two breaker
+                # failures per batch (the retry re-sent the same bytes).
+                await self._note_budget_exhausted("vlm_context_overflow")
+                logger.warning("vlm request exceeded the served slot", extra=overflow)
+                raise VlmContextOverflowError(
+                    f"vlm request ({overflow.get('n_prompt_tokens')} tokens) exceeds the "
+                    f"served slot ({overflow.get('n_ctx')} tokens); the prompt fit "
+                    "under-estimated it - verdict UNMEASURED, the engine is fine"
+                )
             if resp.status_code != 200:
                 last_error = VlmTransportError(f"vlm HTTP {resp.status_code}: {resp.text[:200]}")
                 await self._note_failure("vlm_http_error")

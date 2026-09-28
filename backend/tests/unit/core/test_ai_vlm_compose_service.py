@@ -142,6 +142,21 @@ class TestComposeServiceShape:
         assert any("http://localhost:8098/health" in part for part in test)
 
 
+class TestEachStillCostsAtMostItsReservation:
+    """A5500, 2026-09-28: the client fits a prompt to the slot by RESERVING
+    vlm_client._IMAGE_TOKENS_PER_FRAME (1280) per still, but uncapped Qwen3-VL
+    spends ~1 token per 32x32 px - four 1.9-2.4 MP stills were 8,509 prompt
+    tokens (llama-server usage), not 5,120, and a fitted batch overflowed the
+    16,384 slot. The server caps each still at the reservation, so the fit's
+    arithmetic is true by construction (it also bounds encoder VRAM and
+    latency as cameras get sharper). llama-server reads LLAMA_ARG_* itself."""
+
+    def test_the_server_caps_each_still_at_the_clients_reservation(self, vlm_env: dict) -> None:
+        from backend.services import vlm_client as vc
+
+        assert vlm_env.get("LLAMA_ARG_IMAGE_MAX_TOKENS") == str(vc._IMAGE_TOKENS_PER_FRAME)
+
+
 class TestBackendClientWiring:
     """M1 review finding (critical): the vlm mode shipped with the SERVER
     half of the wire in compose and none of the CLIENT half. The backend
@@ -512,8 +527,13 @@ class TestDockerfileFlagWiring:
         assert re.search(rf"\[ -n \\?\"\$\{{{var}\}}\\?\" \]", dockerfile), f"{var} must be guarded"
         assert re.search(rf"{flag} \$\{{{var}\}}", dockerfile), f"{flag} must carry ${{{var}}}"
 
-    # consumed outside the Dockerfile text: a compose label / the CUDA runtime
-    NOT_CMD_KNOBS: ClassVar = frozenset({"SERVICE_NAME", "CUDA_VISIBLE_DEVICES"})
+    # consumed outside the Dockerfile text: a compose label / the CUDA runtime /
+    # llama-server itself (`--help`: "--image-max-tokens N ... (env:
+    # LLAMA_ARG_IMAGE_MAX_TOKENS)" at b7972) - env-wired so the measured
+    # image needs no rebuild; the A5500 run verified it by prompt_tokens.
+    NOT_CMD_KNOBS: ClassVar = frozenset(
+        {"SERVICE_NAME", "CUDA_VISIBLE_DEVICES", "LLAMA_ARG_IMAGE_MAX_TOKENS"}
+    )
 
     def test_every_compose_knob_is_read_by_the_image(self, dockerfile: str, vlm_env: dict) -> None:
         """The class, not the instance: an ai-vlm environment entry that the
