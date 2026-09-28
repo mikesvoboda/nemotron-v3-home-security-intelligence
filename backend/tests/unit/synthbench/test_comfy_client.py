@@ -197,7 +197,32 @@ class TestComfyClient:
         fake = FakeComfy(history_after=10**6)
         with pytest.raises(TimeoutError, match="p1"):
             _client(httpx.MockTransport(fake)).run(GRAPH, timeout_s=0, sleep=_no_sleep)
-        assert fake.control == [("/interrupt", None), ("/queue", {"delete": ["p1"]})]
+        # the interrupt names the prompt, so it can never stop another one
+        assert fake.control == [
+            ("/interrupt", {"prompt_id": "p1"}),
+            ("/queue", {"delete": ["p1"]}),
+        ]
+
+    @pytest.mark.parametrize("broken", ["/interrupt", "/queue"])
+    @pytest.mark.parametrize("failure", ["refused", "500"])
+    def test_a_failed_cleanup_is_logged_and_the_timeout_still_raises(
+        self, broken: str, failure: str, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        fake = FakeComfy(history_after=10**6)
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == broken:
+                fake.control.append((broken, failure))
+                if failure == "refused":
+                    raise httpx.ConnectError("connection refused")
+                return httpx.Response(500)
+            return fake(request)
+
+        with pytest.raises(TimeoutError, match="p1"):
+            _client(httpx.MockTransport(handler)).run(GRAPH, timeout_s=0, sleep=_no_sleep)
+        assert [path for path, _ in fake.control] == ["/interrupt", "/queue"]
+        err = capsys.readouterr().err
+        assert broken in err and "warning" in err
 
     def test_free_unloads_models_and_frees_memory(self) -> None:
         fake = FakeComfy()

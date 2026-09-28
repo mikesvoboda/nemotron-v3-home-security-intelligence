@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from itertools import groupby
 from pathlib import Path
 
+import pytest
 from synthbench.spikes.p1_bakeoff import cases as c
 from synthbench.spikes.p1_bakeoff.plan import clip_jobs, image_jobs, keyframe_path, pending
 
@@ -61,12 +63,42 @@ def test_keyframe_paths() -> None:
     assert keyframe_path("identity:1:day") == f"images/{c.KEYFRAME_MODEL}/identity/1_day.png"
 
 
+def _record(root: Path, output: str, *, ok: bool) -> None:
+    with (root / "records.jsonl").open("a") as fh:
+        fh.write(json.dumps({"output": output, "ok": ok}) + "\n")
+
+
 def test_pending_skips_finished_outputs(tmp_path: Path) -> None:
     jobs = image_jobs()[:2]
     done = tmp_path / jobs[0].output
     done.parent.mkdir(parents=True)
     done.write_bytes(b"png")
+    _record(tmp_path, jobs[0].output, ok=True)
     assert pending(jobs, tmp_path) == jobs[1:]
+
+
+@pytest.mark.parametrize(
+    "history",
+    [[], [False], [True, False]],
+    ids=["no record", "failed record", "last record failed"],
+)
+def test_an_output_without_an_ok_record_is_rendered_again(
+    tmp_path: Path, history: list[bool]
+) -> None:
+    # e.g. a signal between the output's rename and its record: no record, measure or
+    # sheet would ever show that file. The atomic write makes the re-run safe.
+    job = image_jobs()[0]
+    (tmp_path / job.output).parent.mkdir(parents=True)
+    (tmp_path / job.output).write_bytes(b"png")
+    for ok in history:
+        _record(tmp_path, job.output, ok=ok)
+    assert pending([job], tmp_path) == [job]
+
+
+def test_an_ok_record_without_its_output_is_rendered_again(tmp_path: Path) -> None:
+    job = image_jobs()[0]
+    _record(tmp_path, job.output, ok=True)
+    assert pending([job], tmp_path) == [job]
 
 
 def test_every_case_prompt_names_the_security_camera_framing() -> None:

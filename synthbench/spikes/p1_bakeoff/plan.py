@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -100,4 +101,14 @@ def clip_jobs() -> list[Job]:
 
 
 def pending(jobs: list[Job], root: Path) -> list[Job]:
-    return [job for job in jobs if not (root / job.output).exists()]
+    """The jobs still to render. An output is done when its file exists AND its latest row
+    in <root>/records.jsonl is ok (the row measure, sheet and report read); anything else
+    renders again, which the runner's atomic write makes safe."""
+    records = root / "records.jsonl"
+    latest: dict[str, bool] = {}
+    if records.exists():
+        for line in records.read_text().splitlines():
+            if line.strip():
+                row = json.loads(line)
+                latest[row["output"]] = bool(row["ok"])
+    return [job for job in jobs if not (latest.get(job.output) and (root / job.output).exists())]

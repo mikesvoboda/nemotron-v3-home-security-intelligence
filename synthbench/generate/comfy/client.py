@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 import uuid
 from collections.abc import Callable
@@ -142,10 +143,21 @@ class ComfyClient:
             entry = self.wait(prompt_id, timeout_s=timeout_s, poll_s=poll_s, sleep=sleep)
         except TimeoutError:
             # A prompt left on the server would delay, and time out, every later job.
-            self._http.post("/interrupt")
-            self._http.post("/queue", json={"delete": [prompt_id]})
+            # v0.37.0's /interrupt takes a prompt_id: it never stops another prompt.
+            self._after_timeout("/interrupt", {"prompt_id": prompt_id})
+            self._after_timeout("/queue", {"delete": [prompt_id]})
             raise
         return [self.download(out) for out in self.outputs(entry)]
+
+    def _after_timeout(self, path: str, body: dict[str, Any]) -> None:
+        """A cleanup POST; its failure is logged and never replaces the TimeoutError."""
+        try:
+            self._http.post(path, json=body).raise_for_status()
+        except Exception as exc:
+            sys.stderr.write(
+                f"[comfy-client] warning: POST {path} after a timeout failed: "
+                f"{type(exc).__name__}: {exc}\n"
+            )
 
     def free(self) -> None:
         """Unload every model and free cached memory, so the next group's VRAM is its own."""

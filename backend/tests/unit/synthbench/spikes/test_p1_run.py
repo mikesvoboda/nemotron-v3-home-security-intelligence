@@ -4,26 +4,33 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import inspect
 import itertools
 import json
-from collections.abc import Callable
+import signal
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
+from synthbench.generate.comfy import serve
 from synthbench.spikes.p1_bakeoff import run
-from synthbench.spikes.p1_bakeoff.plan import image_jobs, pending
+from synthbench.spikes.p1_bakeoff.plan import clip_jobs, image_jobs, pending
 
 # The real settle_vram, bound before the autouse fixture below replaces run.settle_vram.
 from synthbench.spikes.p1_bakeoff.run import Settle, settle_vram
 
 
 class FakeClient:
-    def __init__(self, fail: bool = False) -> None:
+    """`errors`: what each run() raises in turn (None: it renders); then `fail` decides."""
+
+    def __init__(self, fail: bool = False, errors: list[Exception | None] | None = None) -> None:
         self.fail = fail
         self.graphs: list[dict[str, Any]] = []
         self.calls: list[str] = []
         self.polls: list[float] = []
+        self._errors = iter(errors or [])
 
     def free(self) -> None:
         self.calls.append("free")
@@ -35,6 +42,9 @@ class FakeClient:
         self.calls.append("run")
         self.graphs.append(graph)
         self.polls.append(poll_s)
+        error = next(self._errors, None)
+        if error is not None:
+            raise error
         if self.fail:
             raise RuntimeError("CUDA out of memory")
         return [b"\x89PNG-bytes"]
@@ -126,6 +136,120 @@ def test_only_the_first_job_of_each_model_group_is_cold(
     run.execute(jobs, FakeClient(), tmp_path)
     rows = [json.loads(line) for line in (tmp_path / "records.jsonl").read_text().splitlines()]
     assert [r["cold"] for r in rows] == [True, False] * len({j.model for j in jobs})
+
+
+def _rows(root: Path) -> list[dict[str, Any]]:
+    path = root / "records.jsonl"
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def _knife_jobs(seeds: set[int]) -> list[Any]:
+    return [j for j in image_jobs() if j.case == "knife" and j.seed in seeds]
+
+
+@pytest.mark.parametrize(
+    "lost",
+    [httpx.ConnectError("connection refused"), httpx.ReadTimeout("no answer")],
+    ids=["refused", "read timeout"],
+)
+def test_a_lost_renderer_stops_the_run_instead_of_recording_a_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lost: Exception
+) -> None:
+    # A dead renderer is not the model's failure: nothing is recorded, a resume retries.
+    monkeypatch.setattr(run, "_query_used_mib", lambda: 4096)
+    with pytest.raises(type(lost)):
+        run.execute(_knife_jobs({11, 22}), FakeClient(errors=[lost]), tmp_path)
+    assert _rows(tmp_path) == []
+
+
+def test_two_timeouts_in_a_row_abort_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(run, "_query_used_mib", lambda: 4096)
+    client = FakeClient(errors=[TimeoutError("p1 not finished after 600s")] * 3)
+    with pytest.raises(run.RunAborted, match=r"2 jobs of flux2-dev in a row timed out"):
+        run.execute(_knife_jobs({11, 22, 33}), client, tmp_path)
+    assert client.calls == ["free", "run", "run"]  # the third job never started
+    assert [r["error"].split(":")[0] for r in _rows(tmp_path)] == ["TimeoutError"] * 2
+
+
+def test_a_timeout_between_renders_is_a_job_failure_and_the_count_resets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(run, "_query_used_mib", lambda: 4096)
+    timeout = TimeoutError("p1 not finished after 600s")
+    client = FakeClient(errors=[timeout, None, timeout, None])
+    run.execute(_knife_jobs({11, 22, 33, 44})[:4], client, tmp_path)
+    assert [r["ok"] for r in _rows(tmp_path)] == [False, True, False, True]
+
+
+def test_timeouts_are_counted_per_model_group(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(run, "_query_used_mib", lambda: 4096)
+    jobs = _knife_jobs({11, 22})[:4]  # two models, two jobs each
+    assert len({j.model for j in jobs}) == 2
+    timeout = TimeoutError("p1 not finished after 600s")
+    run.execute(jobs, FakeClient(errors=[None, timeout, timeout, None]), tmp_path)
+    assert [r["ok"] for r in _rows(tmp_path)] == [True, False, False, True]
+
+
+def test_vram_is_sampled_every_quarter_second() -> None:
+    # A 1 s interval misses sub-second VAE-decode spikes and understates the peak.
+    assert inspect.signature(run.VramSampler).parameters["interval_s"].default == 0.25
+
+
+@pytest.fixture
+def no_comfyui(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """main() must decide before it starts anything: starting ComfyUI fails the test.
+
+    main() installs its SIGTERM handler just before it starts ComfyUI; a regression that
+    gets that far must not leave the handler behind for the rest of the session.
+    """
+
+    def never(*_args: Any, **_kw: Any) -> None:
+        raise AssertionError("main() started ComfyUI")
+
+    monkeypatch.setattr(serve, "start", never)
+    monkeypatch.setattr(serve, "wait_ready", never)
+    sigterm = signal.getsignal(signal.SIGTERM)
+    yield
+    signal.signal(signal.SIGTERM, sigterm)
+
+
+@pytest.mark.usefixtures("no_comfyui")
+def test_dry_run_prints_the_pending_jobs_per_model_and_kind(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    before = signal.getsignal(signal.SIGTERM)
+    assert run.main(["all", "--root", str(tmp_path / "p1"), "--dry-run"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[:3] == ["flux2-dev t2i 37", "flux2-dev edit 15", "flux2-klein-4b t2i 37"]
+    assert "hidream-i1-full t2i 52" in lines and "wan2.2-i2v i2v 8" in lines
+    assert lines[-1] == "total 328"
+    assert signal.getsignal(signal.SIGTERM) == before
+
+
+@pytest.mark.usefixtures("no_comfyui")
+def test_unknown_models_are_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        run.main(["all", "--root", str(tmp_path), "--models", "flux2-dev,flux2-devv"])
+    assert exc.value.code == 2
+    assert "flux2-devv" in capsys.readouterr().err
+
+
+@pytest.mark.usefixtures("no_comfyui")
+def test_nothing_pending_returns_before_starting_comfyui(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    for job in clip_jobs():
+        (tmp_path / job.output).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / job.output).write_bytes(b"mp4")
+        run._append(tmp_path / "records.jsonl", {"output": job.output, "ok": True})
+    assert run.main(["clips", "--root", str(tmp_path)]) == 0
+    assert "nothing pending" in capsys.readouterr().err
 
 
 def test_jobs_poll_comfyui_every_100_ms(tmp_path: Path) -> None:

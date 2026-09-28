@@ -3,11 +3,16 @@
     uv run python -m synthbench.generate.window run -- \
         uv run python -m synthbench.spikes.p1_bakeoff.run all
 
-Resumable (finished outputs are skipped; outputs are written atomically). One
-row per job goes to <root>/records.jsonl (with `cold` for the job that loaded
-the model); one row per model group (seconds, peak VRAM, how /free settled and
-the VRAM baseline after it) to <root>/groups.jsonl. A failed job is recorded,
-never fatal: "model X cannot render Y" is a bake-off result.
+`--dry-run` prints the pending jobs per model and kind and starts nothing; with
+nothing pending the runner returns before it starts ComfyUI. Resumable: an output
+is finished when its file exists and its latest record is ok; outputs are written
+atomically. One row per job goes to <root>/records.jsonl (with `cold` for the job
+that loaded the model); one row per model group (seconds, peak VRAM, how /free
+settled and the VRAM baseline after it) to <root>/groups.jsonl. A failed job is
+recorded, never fatal: "model X cannot render Y" is a bake-off result. A lost
+renderer (an httpx transport error) and two timeouts in a row within a model group
+are infrastructure, not the model: they stop the run, the window restores the
+flagship, and a resume in a later window retries.
 """
 
 from __future__ import annotations
@@ -21,15 +26,19 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal, Protocol
 
+import httpx
+
 from synthbench.generate.comfy import graphs, serve
 from synthbench.generate.comfy.client import ComfyClient, Graph
 from synthbench.generate.window import raise_on_sigterm
+from synthbench.spikes.p1_bakeoff.cases import I2V_MODELS, T2I_MODELS
 from synthbench.spikes.p1_bakeoff.plan import Job, clip_jobs, image_jobs, pending
 
 # ComfyUI's /free returns before its worker unloads anything (PF19b): see settle_vram.
@@ -41,10 +50,20 @@ SETTLE_TIMEOUT_S = 60.0
 # How often a job polls ComfyUI's history: a coarse poll would pad every job's seconds.
 JOB_POLL_S = 0.1
 
+# How often the VRAM sampler reads memory.used: a VAE-decode spike lasts well under 1 s.
+VRAM_SAMPLE_S = 0.25
+
+# This many timeouts in a row within a model group mean a hung worker, not a slow model.
+MAX_CONSECUTIVE_TIMEOUTS = 2
+
 # What a failed VRAM reading raises: nvidia-smi missing, exiting non-zero or hanging, or bad output.
 _READ_ERRORS = (OSError, subprocess.SubprocessError, ValueError)
 
 SettleStatus = Literal["dropped", "no_drop", "timeout", "unreadable"]
+
+
+class RunAborted(RuntimeError):
+    """The renderer looks hung: stop the run, let the window restore, resume later."""
 
 
 @dataclass(frozen=True)
@@ -137,12 +156,12 @@ def settle_vram(
 
 
 class VramSampler:
-    """Samples GPU memory.used (MiB) once a second; .peak_mib after exit.
+    """Samples GPU memory.used (MiB) every VRAM_SAMPLE_S; .peak_mib after exit.
 
     .peak_mib stays None when no sample succeeded: an unknown peak, never a 0.
     """
 
-    def __init__(self, interval_s: float = 1.0) -> None:
+    def __init__(self, interval_s: float = VRAM_SAMPLE_S) -> None:
         self.peak_mib: int | None = None
         self._interval = interval_s
         self._stop = threading.Event()
@@ -209,7 +228,11 @@ def _graph(job: Job, names: list[str]) -> Graph:
 
 
 def run_job(job: Job, client: Client, root: Path, *, cold: bool = False) -> dict[str, Any]:
-    """`cold`: the first job of its model group, whose seconds include loading the model."""
+    """`cold`: the first job of its model group, whose seconds include loading the model.
+
+    Records every failure except a lost renderer (httpx.TransportError), which it raises
+    unrecorded: that is not the model's failure, and a resume retries the job.
+    """
     started = time.monotonic()
     # inputs as a list: the JSONL row must read back equal to the returned record
     record: dict[str, Any] = asdict(job) | {
@@ -232,6 +255,8 @@ def run_job(job: Job, client: Client, root: Path, *, cold: bool = False) -> dict
         out.parent.mkdir(parents=True, exist_ok=True)
         _write_atomic(out, blobs[0])
         record["ok"] = True
+    except httpx.TransportError:
+        raise  # the renderer is gone or not answering: stop the run, resume later
     except Exception as exc:  # a failure is a bake-off result, never fatal
         record["error"] = f"{type(exc).__name__}: {exc}"[:500]
     record["seconds"] = round(time.monotonic() - started, 3)
@@ -239,7 +264,14 @@ def run_job(job: Job, client: Client, root: Path, *, cold: bool = False) -> dict
     return record
 
 
+def _timed_out(record: dict[str, Any]) -> bool:
+    """run_job records a failure as "<exception type>: <message>"."""
+    return str(record["error"] or "").startswith(f"{TimeoutError.__name__}:")
+
+
 def execute(jobs: list[Job], client: Client, root: Path) -> None:
+    """Run the jobs group by group. Raises RunAborted after MAX_CONSECUTIVE_TIMEOUTS timeouts
+    in a row within a group, and a lost renderer's transport error: both stop the run."""
     root.mkdir(parents=True, exist_ok=True)
     for model, group_iter in itertools.groupby(jobs, key=lambda j: j.model):
         group = list(group_iter)
@@ -250,8 +282,16 @@ def execute(jobs: list[Job], client: Client, root: Path) -> None:
         settle = settle_vram(before_mib)  # /free returns before the unload happens (PF19b)
         started = time.monotonic()
         with VramSampler() as vram:
+            timeouts = 0
             for index, job in enumerate(group):
-                run_job(job, client, root, cold=index == 0)
+                record = run_job(job, client, root, cold=index == 0)
+                timeouts = timeouts + 1 if _timed_out(record) else 0
+                if timeouts >= MAX_CONSECUTIVE_TIMEOUTS:
+                    raise RunAborted(
+                        f"{timeouts} jobs of {model} in a row timed out: ComfyUI's worker "
+                        "looks hung. Stopping the run so the window restores the flagship; "
+                        "resume in a later window (the timed-out jobs render again)."
+                    )
         _append(
             root / "groups.jsonl",
             {
@@ -274,12 +314,30 @@ def main(argv: list[str] | None = None) -> int:
         default=Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "p1",
     )
     parser.add_argument("--models", default="", help="comma-separated model filter")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the pending jobs per model and kind; start nothing",
+    )
     args = parser.parse_args(argv)
     wanted = {m for m in args.models.split(",") if m}
+    unknown = sorted(wanted - {*T2I_MODELS, *I2V_MODELS})
+    if unknown:
+        parser.error(
+            f"unknown --models {','.join(unknown)} (known: {','.join(T2I_MODELS + I2V_MODELS)})"
+        )
     jobs = (image_jobs() if args.stage in {"images", "all"} else []) + (
         clip_jobs() if args.stage in {"clips", "all"} else []
     )
     jobs = [j for j in pending(jobs, args.root) if not wanted or j.model in wanted]
+    if args.dry_run:
+        counts = Counter((job.model, job.kind) for job in jobs)  # in job (stage-major) order
+        lines = [f"{model} {kind} {n}" for (model, kind), n in counts.items()]
+        sys.stdout.write("\n".join([*lines, f"total {len(jobs)}"]) + "\n")
+        return 0
+    if not jobs:
+        sys.stderr.write("[p1-bakeoff] nothing pending; not starting ComfyUI\n")
+        return 0
     signal.signal(signal.SIGTERM, raise_on_sigterm)
     cfg = serve.ServeConfig.from_env()
     serve.start(cfg)
