@@ -98,7 +98,7 @@ def make_verdict(
     verdict: str = "confirmed",
     risk_score: int = 85,
     engine: str = "llama.cpp",
-    model_id: str = "Qwen3VL-4B-Instruct-Q4_K_M",
+    model_id: str = "Qwen3VL-8B-Instruct-Q4_K_M",
 ) -> VlmVerdict:
     return VlmVerdict(
         verdict=verdict,
@@ -556,7 +556,7 @@ class TestAnalyzeBatchScored:
         assert row.key_frame_detection_ids == [11]
         # success provenance comes from the VERDICT (the engine's own label)
         assert row.engine == "llama.cpp"
-        assert row.model_id == "Qwen3VL-4B-Instruct-Q4_K_M"
+        assert row.model_id == "Qwen3VL-8B-Instruct-Q4_K_M"
         assert row.latency_ms is not None and row.latency_ms >= 0
 
         # broadcast happened exactly once, with the verification key, and
