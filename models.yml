@@ -35,8 +35,13 @@
 #   vram_mb         Estimated GPU VRAM usage in MB (0 = CPU-only).
 #   enabled         Whether model_zoo enables this model for backend use.
 #   priority        VRAM eviction priority: critical | high | medium | low
-#   preload         Eagerly load at startup when BACKEND_MODEL_PRELOAD=true.
-#   never_evict     Never evict from VRAM once loaded.
+#   preload         Row-level opt-in for the BACKEND_MODEL_PRELOAD startup sweep:
+#                   the sweep loads rows that are enabled AND preload: true
+#                   (backend/main.py select_preload_candidates). Before that
+#                   predicate existed this flag was parsed and read by nobody.
+#   never_evict     Parsed, NOT honored: the model zoo has no eviction pass, so
+#                   nothing consults it. Kept as the intended contract for the
+#                   day eviction exists (ledger item 32 notes it).
 #   runtime_file    Optional filename within local_path (e.g. "model.pt").
 #                   When set: runtime path = AI_MODELS_PATH/local_path/runtime_file
 #   runtime_path    Optional full runtime path override (for library sentinels like "piq").
@@ -205,7 +210,11 @@ models:
     vram_mb: 100
     enabled: true
     priority: medium
-    preload: false
+    # F11 residency: the re-ID leg and enrollment read this row's handle from the
+    # model manager's registry (osnet_loader.get_reid_handle), so it must be
+    # present at boot — an absent handle answers "unavailable" (~1.16 s cold load
+    # per request otherwise). Ledger item 24 / item 1.
+    preload: true
     never_evict: false
     triton_name: reid
     triton_kind: KIND_GPU
@@ -234,7 +243,10 @@ models:
     vram_mb: 0
     enabled: true
     priority: low
-    preload: false
+    # F11 residency: the face leg reads its detector+recognizer handles from the
+    # model manager's registry (face_recognizer_loader.get_face_leg_handles) and
+    # never triggers a load, so both rows must be resident at boot. Ledger items 24 and 32.
+    preload: true
     never_evict: false
 
   - name: face-recognizer
@@ -256,7 +268,10 @@ models:
     # (same shape the yolo11-face row already relies on with weights absent).
     enabled: true
     priority: low
-    preload: false
+    # F11 residency: paired with face-detector-scrfd above — get_face_leg_handles
+    # returns None unless BOTH rows are resident, so one without the other leaves
+    # the leg answering "unavailable". Ledger items 24 and 32.
+    preload: true
     never_evict: false
 
   - name: yolov8n-pose

@@ -14,6 +14,7 @@ import sys
 from functools import cache
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AnyHttpUrl, Field, SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -937,6 +938,29 @@ class Settings(BaseSettings):
         default=30,
         description="Idle timeout before processing incomplete batch",
     )
+
+    # Camera clock timezone (synthbench P0, spec §5.3). Foscam cameras name
+    # uploads by LOCAL capture time; with this set, the VLM's time context
+    # comes from the filename instead of processing time. Unset keeps
+    # arrival time rendered as UTC ISO - today's behavior.
+    camera_timezone: str | None = Field(
+        default=None,
+        description="IANA timezone of the cameras' clocks (e.g. America/New_York). "
+        "When set, the VLM's time context uses the capture time in Foscam upload "
+        "filenames and shows it as local time. Unset keeps arrival time.",
+    )
+
+    @field_validator("camera_timezone")
+    @classmethod
+    def _validate_camera_timezone(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ValueError(f"camera_timezone {v!r} is not an IANA timezone name") from e
+        return v
+
     batch_check_interval_seconds: float = Field(
         default=5.0,
         ge=1.0,
@@ -2858,10 +2882,12 @@ class Settings(BaseSettings):
     # Model preloading - eagerly load all models into GPU VRAM at startup
     backend_model_preload: bool = Field(
         default=False,
-        description="Eagerly load all enabled AI models into GPU VRAM at startup. "
-        "Auto-set to true by setup.py when total VRAM > 24GB. "
-        "Eliminates cold-load pipeline timeouts on high-VRAM systems. "
-        "Set to false on memory-constrained systems to use on-demand lazy loading.",
+        description="Eagerly load the models whose models.yml row declares "
+        "preload: true into GPU VRAM at startup. Auto-set to true by setup.py "
+        "when total VRAM >= 24GB (inclusive - a 24 GB card reports exactly "
+        "24576 MiB). Eliminates the ~1.16 s cold load per request that answers "
+        "specialist legs 'unavailable'. Set to false on memory-constrained "
+        "systems to use on-demand lazy loading.",
     )
 
     # Background evaluation settings

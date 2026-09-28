@@ -382,6 +382,38 @@ def _set_media(dirpath: Path) -> tuple[list[Path], str | None]:
     return paths, None
 
 
+def _attribution_gap(media: list[Path]) -> str | None:
+    """A generated frame's license/artist must be readable BESIDE it, not
+    merely asserted by the generator's report (ledger item 33; the shipped
+    writer works this way - scripts/synthetic_media.py writes one attribution
+    JSON per frame, and `load_stock_items` documents the same for stock).
+
+    A sidecar counts only when it parses to an object carrying a truthy
+    `license` AND `artist`: the two fields anyone would need before a metric
+    computed on this frame can be shared. A 0-byte or truncated sidecar is a
+    MISSING one wearing a filename (the G0 audit's own rule). A non-empty
+    string is accepted on trust here - deciding whether "unknown" is a real
+    license is the dataset reviewer's call, and this guard's job is only to
+    make the ABSENT provenance impossible to miss. Returns a loud-skip reason.
+    """
+    missing: list[str] = []
+    for frame in media:
+        sidecar = frame.with_suffix(".json")
+        try:
+            record = json.loads(sidecar.read_text())
+        except OSError, json.JSONDecodeError:
+            missing.append(sidecar.name)
+            continue
+        if not isinstance(record, dict) or not record.get("license") or not record.get("artist"):
+            missing.append(sidecar.name)
+    if missing:
+        return (
+            f"no readable attribution sidecar (license+artist) for "
+            f"{len(missing)} frame(s), first: {missing[0]}"
+        )
+    return None
+
+
 def _midpoint(risk: Any) -> int:
     """Declared band midpoint (load_synthetic_items' rule: unbounded or
     malformed -> 0, honest unknown)."""
@@ -407,7 +439,10 @@ def import_generated_items(
 
       * no media -> LOUD skip (load_synthetic_items carries those DRAFTs;
         inventing a path would be a D10 fabrication);
-      * an unknown category -> loud skip (no guessed label);
+      * an ambiguous category (unknown directory, out-of-vocabulary
+        declaration, or a declaration that CONTRADICTS the directory) -> hard
+        refusal. Not a skip: a batch the generator mis-folded would otherwise
+        import as zero items and read as an empty-but-green run.
       * a manifest escaping its set dir -> that frame is refused (audit #1);
       * store media paths ARE the source paths (the owner's generated corpus
         is off-repo, unlike production event media - EvalStore.put_item's
@@ -415,7 +450,10 @@ def import_generated_items(
         repo-resident corpus fails the run loudly rather than importing).
 
     A missing corpus_dir is a hard error. Idempotent by deterministic id."""
-    from backend.evaluation.eval_store import _CATEGORY_LABELS  # the ONE label vocabulary
+    from backend.evaluation.eval_store import (  # the ONE label authority
+        _render_specialist_outputs,
+        resolve_category_label,
+    )
 
     root = Path(corpus_dir)
     if not root.is_dir():
@@ -446,21 +484,18 @@ def import_generated_items(
             continue
         vid = labels.get("video_id") if isinstance(labels.get("video_id"), str) else None
         item_id = item_id_for_generated(category, set_name, vid)
-        # placement first; the labels file's own "category" may CONFIRM it
-        # (load_synthetic_items honors the same override) but never rescues
-        # an unknown directory into a guessed label.
-        declared = labels.get("category")
-        eff = declared if declared in _CATEGORY_LABELS else category
-        label = _CATEGORY_LABELS.get(eff)
-        if label is None:
-            out.append(
-                _skip(
-                    item_id,
-                    GENERATED_KIND,
-                    reason=f"unknown category {category!r} - no committed label",
-                )
-            )
-            continue
+        # One authority for both loaders (ledger item 33): the directory is the
+        # label, a declared "category" may CONFIRM it, and two disagreeing
+        # sources refuse the whole import. The guard here used to be
+        # `declared if declared in _CATEGORY_LABELS else category`, which
+        # let a file under threats/ declaring "normal" import as BENIGN while
+        # its comment claimed parity with load_synthetic_items — which had the
+        # same bug, not the same fix. An ambiguity cannot be resolved by
+        # precedence without bending the S2/S3 denominators, so it is refused.
+        try:
+            label = resolve_category_label(category, labels.get("category"), origin=set_name)
+        except ValueError as e:
+            raise LabelImportError(str(e)) from e
         if store.get_item(item_id) is not None:
             out.append(_skip(item_id, GENERATED_KIND, reason="already imported (immutable item)"))
             continue
@@ -477,6 +512,10 @@ def import_generated_items(
                     "DRAFT; this import is the media-bearing one)",
                 )
             )
+            continue
+        attribution_reason = _attribution_gap(media)
+        if attribution_reason:
+            out.append(_skip(item_id, GENERATED_KIND, reason=attribution_reason))
             continue
         score = _midpoint(labels.get("risk"))
         # expected_severity is the S3 demand - it exists for INCIDENTS only;
@@ -495,6 +534,13 @@ def import_generated_items(
                 zone_crossing=False,
                 household={},
                 timestamp="1970-01-01T00:00:00+00:00",  # honest epoch sentinel
+                # Rendered through the SHIPPED renderer, exactly as
+                # load_synthetic_items and load_stock_items do: the replay
+                # sends the stored text verbatim, so a batch that DECLARED a
+                # specialist given and froze an empty block would measure a
+                # system without the specialist stage — build_gen2's refusal,
+                # which this door had been walking past.
+                specialist_outputs=_render_specialist_outputs(labels, origin=set_name),
             ),
             source=GENERATED_KIND,
         )

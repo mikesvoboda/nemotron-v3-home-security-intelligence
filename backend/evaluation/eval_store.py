@@ -200,10 +200,51 @@ def _fingerprint(item: EvalItem) -> str:
 # owner's F6 path decision and the pinned AssessInput shape.
 _SYNTHETIC_CAMERA_ID = "synthetic-source"
 _CATEGORY_LABELS = {"normal": "benign", "suspicious": "incident", "threats": "incident"}
-# Each of the 13 scenarios exists as a committed label set in exactly one
-# category (e.g. data/synthetic/normal/delivery_driver,
-# data/synthetic/threats/package_theft) - verified 2026-09-24. Stock frames
-# inherit that placement rather than a new judgement.
+
+
+def resolve_category_label(placement: str, declared: Any, *, origin: str) -> str:
+    """THE label authority for a corpus set: the DIRECTORY it lives in.
+
+    A set's `expected_labels.json` may carry a `category` key, and that key
+    may CONFIRM the placement — it may never overrule it, and it may never
+    rescue an unknown directory into a guessed label (ledger item 33). Two
+    disagreeing sources is a refusal, not a precedence decision: an incident
+    that reads benign deflates the exact side S2 ranks incidents against, so
+    silently picking a winner would bend the measurement, not just report it.
+
+    Refusing is also the cheap option here: measured on the committed corpus
+    before this existed, 366 sets agree, 47 declare nothing, and ZERO
+    conflicted or used an out-of-vocabulary name.
+
+    `origin` names the set in the error so whoever generated it can find the
+    directory — "bad category" alone is not actionable.
+    """
+    if placement not in _CATEGORY_LABELS:
+        raise ValueError(
+            f"synthetic corpus {origin}: placed under {placement!r}, which is "
+            f"outside the category vocabulary {sorted(_CATEGORY_LABELS)}. The "
+            "directory is the label's authority, so an unknown one cannot be "
+            "labeled at all — moving the set is the fix, not adding a name."
+        )
+    if declared is None:
+        return _CATEGORY_LABELS[placement]
+    if declared not in _CATEGORY_LABELS:
+        raise ValueError(
+            f"synthetic corpus {origin}: declares category {declared!r}, which "
+            f"is outside the vocabulary {sorted(_CATEGORY_LABELS)}. It would "
+            "become a label no reader counts, and the size bar would report "
+            "it as `unknown` on neither side."
+        )
+    if declared != placement:
+        raise ValueError(
+            f"synthetic corpus {origin}: sits under {placement!r} but declares "
+            f"category {declared!r}. The two sources disagree about whether "
+            "this is a benign or an incident item; refusing rather than "
+            "choosing, because a flipped label here is invisible downstream."
+        )
+    return _CATEGORY_LABELS[placement]
+
+
 _SCENARIO_CATEGORY = {
     "delivery_driver": "normal",
     "pet_activity": "normal",
@@ -225,6 +266,11 @@ def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
     """Every `expected_labels.json` under corpus_dir becomes a draft item,
     sorted by id for a stable, fingerprintable order. Unreadable sets are
     skipped loudly (never fabricated around); a missing corpus is a hard error.
+
+    An ambiguous LABEL is also a hard error, not a skip: a set that disagrees
+    with its own directory, or names a category outside the vocabulary, is
+    refused whole by `resolve_category_label`. Skipping it would freeze the
+    silence that made the bug invisible in the first place.
     """
     root = Path(corpus_dir)
     if not root.is_dir():
@@ -242,7 +288,9 @@ def load_synthetic_items(corpus_dir: str | Path) -> list[EvalItem]:
             )
             continue
         category = path.parent.parent.name
-        label = _CATEGORY_LABELS.get(labels.get("category", category), category)
+        label = resolve_category_label(
+            category, labels.get("category"), origin=f"{category}/{path.parent.name}"
+        )
         # a malformed risk band is "unknown", never a crash (audit #14)
         raw_risk = labels.get("risk")
         risk = raw_risk if isinstance(raw_risk, dict) else {}

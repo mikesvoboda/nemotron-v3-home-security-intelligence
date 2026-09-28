@@ -317,3 +317,68 @@ class TestResetSignalHandlers:
 
             install_signal_handlers()
             assert call_count == 4  # Should install again after reset
+
+
+class TestSelectPreloadCandidates:
+    """Item 24 / item 1 (owner ruling 2026-09-27, ">= + cfg.preload reader"):
+    the boot sweep must honor the per-row `preload:` flag it used to ignore.
+
+    The old inline predicate was `cfg.enabled and not cfg.available`, and
+    `available` only flips True AFTER a load (model_zoo.py:734, init False at
+    :495) — so at boot it selected EVERY enabled row when the flag was on, and
+    nothing when off. `cfg.preload` was parsed (`model_zoo.py:497`) and read by
+    nobody, which made models.yml's `preload: true` row (smoke-fire-yolov8n,
+    "CRITICAL: never evict, preload at startup") decorative.
+    """
+
+    @staticmethod
+    def _cfg(name, *, enabled=True, preload=False, available=False):
+        from backend.services.model_zoo import ModelConfig
+
+        async def _noop(_path):  # never invoked by the selector
+            return None
+
+        return ModelConfig(
+            name=name,
+            path=f"model-zoo/{name}",
+            category="detection",
+            vram_mb=100,
+            load_fn=_noop,
+            enabled=enabled,
+            available=available,
+            preload=preload,
+        )
+
+    def test_flag_off_selects_nothing(self) -> None:
+        """CPU/dev-box lazy posture: flag off => zero rows, legs degrade honestly."""
+        from backend.main import select_preload_candidates
+
+        zoo = {"m": self._cfg("m", preload=True)}
+        assert select_preload_candidates(zoo, preload_enabled=False) == []
+
+    def test_flag_on_selects_only_preload_rows(self) -> None:
+        from backend.main import select_preload_candidates
+
+        zoo = {
+            "resident": self._cfg("resident", preload=True),
+            "lazy": self._cfg("lazy", preload=False),
+            "disabled_but_flagged": self._cfg("disabled_but_flagged", enabled=False, preload=True),
+        }
+        assert select_preload_candidates(zoo, preload_enabled=True) == ["resident"]
+
+    def test_already_loaded_row_not_reselected(self) -> None:
+        from backend.main import select_preload_candidates
+
+        zoo = {"loaded": self._cfg("loaded", preload=True, available=True)}
+        assert select_preload_candidates(zoo, preload_enabled=True) == []
+
+    def test_lifespan_uses_the_helper_not_the_old_predicate(self) -> None:
+        """The helper is the single selection point; the lifespan must call it
+        rather than keep the `enabled and not available` inline predicate."""
+        from pathlib import Path
+
+        src = Path("backend/main.py").read_text()
+        assert "select_preload_candidates(" in src, "lifespan does not use the helper"
+        assert "if cfg.enabled and not cfg.available" not in src, (
+            "the old availability-shaped predicate is still in the sweep"
+        )

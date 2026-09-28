@@ -623,3 +623,58 @@ class TestGetNvidiaDetectionSummary:
             assert result["driver_version"] is None
             assert result["driver_sufficient"] is False
             assert result["toolkit_installed"] is False
+
+
+class TestShouldPreloadModels:
+    """Item 24's auto-detect, now ONE helper instead of three inline copies.
+
+    The 24 GB A5500 declares 24576 MiB, so the strict `total_vram_mb > 24*1024`
+    it used to be written with three places excluded the card on its own spec
+    figure — the residency flag that exists to serve exactly that card stayed
+    off. Inclusive `>=` is the owner ruling (2026-09-27, ">= + cfg.preload reader").
+    """
+
+    def test_helper_exists(self) -> None:
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert callable(should_preload_models)
+
+    def test_exactly_24gb_preloads(self) -> None:
+        """The A5500's own spec figure must turn residency ON, not off."""
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert should_preload_models(24 * 1024) is True
+
+    def test_one_mib_under_24gb_stays_off(self) -> None:
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert should_preload_models(24 * 1024 - 1) is False
+
+    def test_above_threshold_preloads(self) -> None:
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert should_preload_models(24 * 1024 + 1) is True
+
+    def test_no_gpu_stays_off(self) -> None:
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert should_preload_models(0) is False
+
+    def test_multi_gpu_sum_is_used(self) -> None:
+        """Two 12 GB cards = 24 GB total = resident (the sum is the figure)."""
+        from setup_lib.nvidia_detect import should_preload_models
+
+        assert should_preload_models(12 * 1024 + 12 * 1024) is True
+
+    def test_setup_py_has_no_inline_copy_left(self) -> None:
+        """Three byte-identical inline copies drifted once already (item 24);
+        the fix is one helper, so no call site may keep its own comparison."""
+        import re
+        from pathlib import Path
+
+        src = Path("setup.py").read_text()
+        inline = re.findall(r"total_vram_mb\s*>\s*24\s*\*\s*1024", src)
+        assert not inline, f"setup.py still computes residency inline {len(inline)}x"
+        assert src.count("should_preload_models(") >= 3, (
+            "each of the three mode functions must call the shared helper"
+        )
