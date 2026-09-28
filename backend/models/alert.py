@@ -126,9 +126,7 @@ class Alert(Base):
 
     # Priority flag for smoke/fire and other urgent alerts (NEM-5298)
     # High priority alerts trigger [URGENT] email subjects and priority webhook fields
-    is_high_priority: Mapped[bool] = mapped_column(
-        Boolean, default=False, insert_default=False, nullable=False
-    )
+    is_high_priority: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     event: Mapped[Event] = relationship("Event", back_populates="alerts")
@@ -303,9 +301,7 @@ class AlertRule(Base):
 
     # Dwell time condition: Alert when dwell exceeds threshold in a zone
     dwell_threshold_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    exclude_household_members: Mapped[bool] = mapped_column(
-        Boolean, default=False, insert_default=False, nullable=False
-    )
+    exclude_household_members: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Pose condition: Alert on specific poses (crouching, lying_down, etc.)
     pose_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
@@ -316,20 +312,16 @@ class AlertRule(Base):
     action_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Threat condition: Alert on weapon detection
-    threat_detection_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=False, insert_default=False, nullable=False
-    )
+    threat_detection_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     threat_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     threat_min_severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     threat_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Smoke/fire condition: Alert on smoke or fire detection
     smoke_fire_detection_enabled: Mapped[bool] = mapped_column(
-        Boolean, default=False, insert_default=False, nullable=False
+        Boolean, default=False, nullable=False
     )
-    smoke_fire_consecutive_required: Mapped[int] = mapped_column(
-        Integer, default=2, insert_default=2, nullable=False
-    )
+    smoke_fire_consecutive_required: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     smoke_fire_confidence_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Cooldown: Deduplication key template and cooldown period
