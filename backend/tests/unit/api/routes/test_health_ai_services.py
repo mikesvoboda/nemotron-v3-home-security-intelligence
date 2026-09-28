@@ -10,6 +10,7 @@ Tests coverage for backend/api/routes/health_ai_services.py focusing on:
 
 from __future__ import annotations
 
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -91,6 +92,9 @@ def create_mock_settings(
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
     mock.enrichment_url = enrichment_url if enrichment_url else None
+    # These endpoint tests assert the nemotron row: PIPELINE_MODE=legacy (the
+    # vlm-mode table is TestAIServicesHealthByPipelineMode).
+    mock.pipeline_mode = "legacy"
     return mock
 
 
@@ -932,3 +936,98 @@ class TestAIServicesConfig:
     def test_config_count(self) -> None:
         """Test that there are exactly 5 AI services configured."""
         assert len(AI_SERVICES_CONFIG) == 5
+
+
+# =============================================================================
+# PIPELINE_MODE: the verdict-engine row follows the mode
+# =============================================================================
+
+
+class TestAIServicesHealthByPipelineMode:
+    """/api/health/ai-services must not call a healthy vlm deployment CRITICAL.
+
+    The table marks nemotron CRITICAL, so in PIPELINE_MODE=vlm - where the
+    legacy LLM is retired (spec rev 5) and connection-refused on the A5500 box
+    - the endpoint answered 503 "critical" for a working pipeline. In vlm mode
+    the nemotron row is replaced by ai-vlm (settings.ai_vlm_url), which is
+    non-critical like its degradation-manager registration: ai-vlm down is
+    DEGRADED. Legacy (unsupported until R8) keeps today's table and answer.
+    """
+
+    URLS: ClassVar[dict[str, str]] = {
+        "yolo26_url": "http://ai-gateway:8090/yolo26",
+        "nemotron_url": "http://ai-llm:8091",
+        "ai_vlm_url": "http://ai-vlm:8098",
+        "florence_url": "http://florence:8092",
+        "clip_url": "http://clip:8093",
+        "enrichment_url": "http://enrichment:8094",
+    }
+
+    async def _get(self, async_client: AsyncClient, mode: str, down: set[str]):
+        """GET the endpoint; every service answers /health 200 except the
+        url attrs in ``down`` (connection refused). Returns (response, probed)."""
+        from backend.core.config import Settings
+
+        settings = Settings(_env_file=None, pipeline_mode=mode, **self.URLS)
+        refused = {self.URLS[attr] for attr in down}
+        probed: list[str] = []
+
+        async def _route(url: str, *args: object, **kwargs: object) -> httpx.Response:
+            probed.append(url)
+            request = httpx.Request("GET", url)
+            if url.removesuffix("/health") in refused:
+                raise httpx.ConnectError("connection refused", request=request)
+            return httpx.Response(200, request=request)
+
+        with (
+            patch(
+                "backend.api.routes.health_ai_services.get_settings",
+                autospec=True,
+                return_value=settings,
+            ),
+            patch("backend.services.circuit_breaker._get_registry", autospec=True) as registry,
+            patch(
+                "backend.api.routes.health_ai_services.httpx.AsyncClient", autospec=True
+            ) as client_cls,
+        ):
+            registry.return_value.get.return_value = None
+            client_cls.return_value.__aenter__.return_value.get = AsyncMock(side_effect=_route)
+            response = await async_client.get("/api/health/ai-services")
+        return response, probed
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_retired_nemotron_is_not_critical(
+        self, async_client: AsyncClient
+    ) -> None:
+        """The incident: nemotron refuses, everything the vlm pipeline uses is up."""
+        response, probed = await self._get(async_client, "vlm", down={"nemotron_url"})
+
+        assert response.status_code == 200, response.json()
+        data = response.json()
+        assert data["overall_status"] == "healthy"
+        assert "nemotron" not in data["services"]
+        assert data["services"]["ai-vlm"]["status"] == "healthy"
+        assert data["services"]["ai-vlm"]["url"] == self.URLS["ai_vlm_url"]
+        assert not [u for u in probed if u.startswith(self.URLS["nemotron_url"])], probed
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_ai_vlm_down_is_degraded(self, async_client: AsyncClient) -> None:
+        response, _ = await self._get(async_client, "vlm", down={"ai_vlm_url"})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["overall_status"] == "degraded"
+        assert data["services"]["ai-vlm"]["status"] == "unhealthy"
+
+    @pytest.mark.asyncio
+    async def test_legacy_mode_nemotron_down_is_still_critical(
+        self, async_client: AsyncClient
+    ) -> None:
+        """Pin of today's legacy answer."""
+        response, probed = await self._get(async_client, "legacy", down={"nemotron_url"})
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["overall_status"] == "critical"
+        assert set(data["services"]) == {"yolo26", "nemotron", "florence", "clip", "enrichment"}
+        assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed

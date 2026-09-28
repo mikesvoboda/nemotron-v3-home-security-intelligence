@@ -112,3 +112,13 @@ class VlmAssessRequest(BaseModel):
 
     image_paths: list[str] = Field(min_length=1, max_length=4)
     context: VlmAssessContext
+    frame_detection_ids: list[list[int]] | None = Field(
+        default=None,
+        max_length=4,
+        description=(
+            "Per attached frame (index-aligned with image_paths), the ids of the "
+            "context detections on that frame. Lets the prompt say which frame each "
+            "detection row is on; None = not known (e.g. a replay of a store without "
+            "per-frame links), and rows then render without a frame."
+        ),
+    )

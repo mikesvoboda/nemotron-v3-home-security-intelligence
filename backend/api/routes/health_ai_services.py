@@ -85,6 +85,33 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
     },
 ]
 
+# PIPELINE_MODE=vlm (spec rev 5): ai-vlm is the verdict engine and the legacy
+# Nemotron LLM is retired, so its row is swapped for this one. Non-critical,
+# like ai-vlm's degradation-manager registration in main.py: ai-vlm down is
+# DEGRADED, not an outage of the whole AI subsystem.
+AI_VLM_SERVICE_CONFIG: dict[str, Any] = {
+    "name": "ai-vlm",
+    "display_name": "VLM Verdict Service",
+    "url_attr": "ai_vlm_url",
+    "circuit_breaker_name": "ai-vlm",
+    "critical": False,
+}
+
+
+def ai_services_config_for_mode(
+    settings: Settings, table: list[dict[str, Any]] = AI_SERVICES_CONFIG
+) -> list[dict[str, Any]]:
+    """The AI service table for the configured pipeline mode.
+
+    ``legacy`` (unsupported, code kept until R8): ``table`` unchanged. ``vlm``
+    (the shipped default): the nemotron row replaced by AI_VLM_SERVICE_CONFIG,
+    so a retired LLM is never probed or reported. Shared with the
+    /api/system/health/full table in system.py.
+    """
+    if settings.pipeline_mode == "legacy":
+        return table
+    return [AI_VLM_SERVICE_CONFIG if cfg["name"] == "nemotron" else cfg for cfg in table]
+
 
 def _get_circuit_breaker_state(service_name: str) -> AIServiceCircuitState:
     """Get the circuit breaker state for a service.
@@ -334,6 +361,7 @@ async def _get_queue_depths(redis: RedisClient | None) -> dict[str, QueueDepthIn
 
 def _calculate_overall_status(
     service_health: dict[str, AIServiceHealthDetail],
+    services_config: list[dict[str, Any]] = AI_SERVICES_CONFIG,
 ) -> AIServiceOverallStatus:
     """Calculate overall status from individual service health.
 
@@ -344,11 +372,13 @@ def _calculate_overall_status(
 
     Args:
         service_health: Dict mapping service names to health details
+        services_config: The service table the health was checked against
+            (its ``critical`` flags decide CRITICAL vs DEGRADED)
 
     Returns:
         AIServiceOverallStatus
     """
-    critical_services = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg.get("critical", False)}
+    critical_services = {cfg["name"] for cfg in services_config if cfg.get("critical", False)}
 
     # Check if any critical service is unhealthy
     for name, health in service_health.items():
@@ -394,22 +424,23 @@ async def get_ai_services_health(
 ) -> AIServicesHealthResponse:
     """Get unified AI services health status."""
     settings = get_settings()
+    services_config = ai_services_config_for_mode(settings)
 
     # Check all AI services in parallel
-    health_tasks = [_check_ai_service_health(config, settings) for config in AI_SERVICES_CONFIG]
+    health_tasks = [_check_ai_service_health(config, settings) for config in services_config]
 
     results = await asyncio.gather(*health_tasks)
 
     # Build services dict
     services: dict[str, AIServiceHealthDetail] = {}
-    for config, health in zip(AI_SERVICES_CONFIG, results, strict=True):
+    for config, health in zip(services_config, results, strict=True):
         services[config["name"]] = health
 
     # Get queue depths
     queues = await _get_queue_depths(redis)
 
     # Calculate overall status
-    overall_status = _calculate_overall_status(services)
+    overall_status = _calculate_overall_status(services, services_config)
 
     # Set HTTP status code based on overall health
     if overall_status == AIServiceOverallStatus.CRITICAL:

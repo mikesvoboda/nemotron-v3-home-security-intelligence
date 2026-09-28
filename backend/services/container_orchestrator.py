@@ -57,6 +57,21 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# The legacy LLM engines (ai-llm = llama.cpp Nemotron, ai-llm-vllm = the same
+# Nemotron under vLLM). Both sit on GPU_LLM - the GPU ai-vlm takes in
+# PIPELINE_MODE=vlm (spec rev 5) - so in vlm mode the orchestrator must never
+# start or restart them. It only acts on what it registers, and discovery lists
+# STOPPED containers too, so they are simply never registered in vlm mode.
+VLM_MODE_UNMANAGED_SERVICES: frozenset[str] = frozenset({"ai-llm", "ai-llm-vllm"})
+
+
+def _settings_for_mode() -> Any:
+    """The pipeline mode's single source of truth, wrapped so tests patch ONE
+    name (the pipeline_factory precedent) instead of the settings singleton."""
+    from backend.core.config import get_settings
+
+    return get_settings()
+
 
 def create_service_status_event(
     service: ManagedService,
@@ -514,8 +529,19 @@ class ContainerOrchestrator:
 
         # 3. Register discovered services in our registry
         # ContainerDiscoveryService now returns ManagedService directly
-        # (from the shared orchestrator module), no conversion needed
+        # (from the shared orchestrator module), no conversion needed.
+        # PIPELINE_MODE=vlm: the retired LLM engines are left unregistered so
+        # nothing here can ever start/restart them (VLM_MODE_UNMANAGED_SERVICES).
+        unmanaged: frozenset[str] = frozenset()
+        if _settings_for_mode().pipeline_mode != "legacy":
+            unmanaged = VLM_MODE_UNMANAGED_SERVICES
         for svc in discovered:
+            if svc.name in unmanaged:
+                logger.info(
+                    f"Not managing {svc.name}: the legacy LLM is retired in "
+                    "PIPELINE_MODE=vlm and must never be started or restarted"
+                )
+                continue
             # Set initial status to RUNNING since we discovered it
             svc.status = ContainerServiceStatus.RUNNING
             self._registry.register(svc)

@@ -102,6 +102,7 @@ from backend.api.routes import (
 )
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_container, get_settings, init_db, wire_services
+from backend.core.config import Settings
 from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.database import warm_connection_pool
 from backend.core.docker_client import DockerClient
@@ -671,6 +672,78 @@ def select_preload_candidates(model_zoo: dict[str, Any], *, preload_enabled: boo
     ]
 
 
+def build_ai_service_health_configs(settings: Settings) -> list[ServiceConfig]:
+    """The AI services the ServiceHealthMonitor probes - and may restart.
+
+    PIPELINE_MODE=vlm (spec rev 5, the shipped default) carries NO nemotron
+    entry: the legacy LLM is retired there, so a probe could only ever fail and
+    the monitor's answer to a failure is to restart it - i.e. to start the
+    30B LLM on the same GPU ai-vlm occupies. ai-vlm is not added in its place:
+    its health is breaker-push by the ledger 1.3 choice (see the degradation
+    manager registration in the lifespan). ``legacy`` (unsupported, code kept
+    until R8) keeps the YOLO26 + Nemotron pair exactly as before.
+
+    Args:
+        settings: Application settings
+
+    Returns:
+        ServiceConfig list for the monitor, in check order
+    """
+    # Determine restart strategy based on deployment mode:
+    # - If orchestrator is enabled (containerized deployment), use Docker restart with container names
+    # - Otherwise, use shell scripts for local development
+    use_docker_restart = settings.orchestrator.enabled and settings.ai_restart_enabled
+
+    # Determine health URLs and restart commands based on deployment mode.
+    # When ai-gateway is active, YOLO26 runs inside Triton and should be
+    # health-checked via the gateway's /health endpoint, not the standalone URL.
+    use_gateway = settings.use_ai_gateway and settings.ai_gateway_url
+    gateway_url = settings.ai_gateway_url.rstrip("/") if settings.ai_gateway_url else ""
+
+    if use_docker_restart:
+        # Containerized deployment: use docker restart with container names.
+        # The standalone ai-yolo26 container was retired fully on 2026-09-23,
+        # so yolo26 restarts always target ai-gateway — the only container
+        # that can host the detector.
+        yolo26_restart_cmd = "docker restart ai-gateway"
+        nemotron_restart_cmd = "docker restart ai-llm"
+    elif settings.ai_restart_enabled:
+        # Local development: use shell scripts (relative paths from project root)
+        yolo26_restart_cmd = "ai/start_detector.sh"
+        nemotron_restart_cmd = "ai/start_llm.sh"
+    else:
+        # Restart disabled: health monitoring only, no restart capability
+        yolo26_restart_cmd = None
+        nemotron_restart_cmd = None
+
+    # When using ai-gateway, check the gateway's aggregated /health endpoint
+    # instead of the nonexistent standalone ai-yolo26:8095/health.
+    yolo26_health_url = f"{gateway_url}/health" if use_gateway else f"{settings.yolo26_url}/health"
+
+    configs = [
+        ServiceConfig(
+            name="yolo26",
+            health_url=yolo26_health_url,
+            restart_cmd=yolo26_restart_cmd,
+            health_timeout=5.0,
+            max_retries=3,
+            backoff_base=5.0,
+        ),
+    ]
+    if settings.pipeline_mode == "legacy":
+        configs.append(
+            ServiceConfig(
+                name="nemotron",
+                health_url=f"{settings.nemotron_url}/health",
+                restart_cmd=nemotron_restart_cmd,
+                health_timeout=5.0,
+                max_retries=3,
+                backoff_base=5.0,
+            )
+        )
+    return configs
+
+
 async def run_constrained_startup_check(container: Any) -> str:
     """P0.3 startup gate (spec §3): prove constrained-decoding enforcement
     once at startup and REPORT the verdict - never crash the lifespan.
@@ -1028,63 +1101,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         lifespan_logger.info("Summary job scheduler started (60-minute interval)")
 
     # Initialize service health monitor for auto-recovery of AI services
-    # Note: This monitors YOLO26 and Nemotron services for health and can trigger restarts
+    # Note: This monitors YOLO26 (plus Nemotron in PIPELINE_MODE=legacy only)
+    # for health and can trigger restarts - see build_ai_service_health_configs
     # Redis is excluded since the application handles Redis failures gracefully already
     # Restart capability can be disabled via AI_RESTART_ENABLED=false for containerized deployments
     # where the restart scripts are not available inside the backend container
     service_health_monitor: ServiceHealthMonitor | None = None
     if redis_client is not None:
-        # Determine restart strategy based on deployment mode:
-        # - If orchestrator is enabled (containerized deployment), use Docker restart with container names
-        # - Otherwise, use shell scripts for local development
+        # Same predicate the helper uses to pick docker restart commands - it
+        # also picks the matching service manager below.
         use_docker_restart = settings.orchestrator.enabled and settings.ai_restart_enabled
-
-        # Determine health URLs and restart commands based on deployment mode.
-        # When ai-gateway is active, YOLO26 runs inside Triton and should be
-        # health-checked via the gateway's /health endpoint, not the standalone URL.
-        use_gateway = settings.use_ai_gateway and settings.ai_gateway_url
-        gateway_url = settings.ai_gateway_url.rstrip("/") if settings.ai_gateway_url else ""
-
-        if use_docker_restart:
-            # Containerized deployment: use docker restart with container names.
-            # The standalone ai-yolo26 container was retired fully on 2026-09-23,
-            # so yolo26 restarts always target ai-gateway — the only container
-            # that can host the detector.
-            yolo26_restart_cmd = "docker restart ai-gateway"
-            nemotron_restart_cmd = "docker restart ai-llm"
-        elif settings.ai_restart_enabled:
-            # Local development: use shell scripts (relative paths from project root)
-            yolo26_restart_cmd = "ai/start_detector.sh"
-            nemotron_restart_cmd = "ai/start_llm.sh"
-        else:
-            # Restart disabled: health monitoring only, no restart capability
-            yolo26_restart_cmd = None
-            nemotron_restart_cmd = None
-
-        # When using ai-gateway, check the gateway's aggregated /health endpoint
-        # instead of the nonexistent standalone ai-yolo26:8095/health.
-        yolo26_health_url = (
-            f"{gateway_url}/health" if use_gateway else f"{settings.yolo26_url}/health"
-        )
-
-        service_configs = [
-            ServiceConfig(
-                name="yolo26",
-                health_url=yolo26_health_url,
-                restart_cmd=yolo26_restart_cmd,
-                health_timeout=5.0,
-                max_retries=3,
-                backoff_base=5.0,
-            ),
-            ServiceConfig(
-                name="nemotron",
-                health_url=f"{settings.nemotron_url}/health",
-                restart_cmd=nemotron_restart_cmd,
-                health_timeout=5.0,
-                max_retries=3,
-                backoff_base=5.0,
-            ),
-        ]
+        service_configs = build_ai_service_health_configs(settings)
 
         # Use DockerServiceManager for containerized deployments, ShellServiceManager otherwise
         service_manager: ServiceManager
@@ -1104,14 +1131,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         await service_health_monitor.start()
 
         # Log restart configuration details
+        legacy_llm = settings.pipeline_mode == "legacy"
         if use_docker_restart:
-            restart_status = "enabled (Docker containers: ai-gateway, ai-llm)"
+            restart_status = (
+                "enabled (Docker containers: ai-gateway, ai-llm)"
+                if legacy_llm
+                else "enabled (Docker containers: ai-gateway)"
+            )
         elif settings.ai_restart_enabled:
             restart_status = "enabled (shell scripts)"
         else:
             restart_status = "disabled (AI_RESTART_ENABLED=false)"
+        monitored = "YOLO26, Nemotron" if legacy_llm else "YOLO26"
         lifespan_logger.info(
-            f"Service health monitor initialized (YOLO26, Nemotron) - restart: {restart_status}"
+            f"Service health monitor initialized ({monitored}) - restart: {restart_status}"
         )
 
     # Phase 1.3 (spec §6 step 4): register ai-vlm on the degradation

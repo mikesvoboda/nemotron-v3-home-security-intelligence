@@ -51,6 +51,90 @@ class TestDeployConfig:
         assert config.compose_file == "docker-compose.test.yml"
 
 
+class TestPipelineMode:
+    """DeployConfig.pipeline_mode - the ONE place deploy decides vlm vs legacy.
+
+    It must resolve exactly as the backend container will: compose interpolates
+    backend's PIPELINE_MODE=${PIPELINE_MODE:-vlm} from the env compose_run hands
+    it ({**os.environ, **config.env}), and Settings.pipeline_mode lower/strips
+    it, defaults to vlm and rejects anything but vlm/legacy.
+    """
+
+    def test_defaults_to_vlm_when_unset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Unset everywhere -> vlm (Settings.pipeline_mode's default)."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path)
+
+        assert config.pipeline_mode == "vlm"
+
+    def test_empty_value_is_vlm(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """PIPELINE_MODE= (empty) -> vlm, as compose's ${PIPELINE_MODE:-vlm} does."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": ""})
+
+        assert config.pipeline_mode == "vlm"
+
+    def test_reads_legacy_from_env_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """PIPELINE_MODE=legacy in .env selects the legacy (unsupported) path."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "legacy"})
+
+        assert config.pipeline_mode == "legacy"
+
+    def test_normalizes_case_and_whitespace(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """' Legacy ' is legacy - the backend validator lower()/strip()s it too."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": " Legacy "})
+
+        assert config.pipeline_mode == "legacy"
+
+    def test_shell_env_used_when_env_file_is_silent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """setup.py never writes PIPELINE_MODE, so a shell export reaches compose."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.setenv("PIPELINE_MODE", "legacy")
+        config = DeployConfig(project_root=tmp_path, env={})
+
+        assert config.pipeline_mode == "legacy"
+
+    def test_env_file_wins_over_shell(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """compose_run layers config.env over os.environ; the mode must agree."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.setenv("PIPELINE_MODE", "legacy")
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "vlm"})
+
+        assert config.pipeline_mode == "vlm"
+
+    def test_unknown_value_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A typo must not silently pick a pipeline (Settings raises on it too)."""
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "legcy"})
+
+        with pytest.raises(ValueError, match="legcy"):
+            _ = config.pipeline_mode
+
+
 class TestDeployResult:
     """Tests for DeployResult dataclass."""
 
@@ -447,3 +531,42 @@ class TestRunDeploy:
 
             assert result is True
             assert calls == ["ok", "fail_optional", "ok"]
+
+    def test_unknown_pipeline_mode_aborts_before_any_phase(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A bad PIPELINE_MODE fails the deploy before stop tears anything down."""
+        from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, run_deploy
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        calls = []
+
+        def phase_stop(c):
+            calls.append("stop")
+            return DeployResult(True, "ok")
+
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "legcy"})
+        mock_phases = [DeployPhase(name="stop", description="Stop", func=phase_stop)]
+
+        with patch("setup_lib.deploy_phases.DEPLOY_PHASES", mock_phases):
+            result = run_deploy(config)
+
+        assert result is False
+        assert calls == []
+
+    def test_logs_the_pipeline_mode(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """The deploy log says which pipeline it brought up."""
+        from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, run_deploy
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path)
+        mock_phases = [
+            DeployPhase(name="one", description="Phase 1", func=lambda _: DeployResult(True, "ok"))
+        ]
+
+        with patch("setup_lib.deploy_phases.DEPLOY_PHASES", mock_phases):
+            run_deploy(config)
+
+        assert "Pipeline mode: vlm" in capsys.readouterr().out

@@ -823,6 +823,13 @@ class SystemBroadcaster:
         if health_status == "healthy" and not ai_health["all_healthy"]:
             health_status = "degraded"
 
+        # Per-service entries: yolo26 plus whichever verdict engine the
+        # pipeline mode checked (nemotron in legacy, ai-vlm in vlm).
+        ai_block: dict[str, str] = {"status": ai_status}
+        for service in ("yolo26", "nemotron", "ai-vlm"):
+            if service in ai_health:
+                ai_block[service] = "healthy" if ai_health[service] else "unhealthy"
+
         return {
             "type": "system_status",
             "data": {
@@ -830,11 +837,7 @@ class SystemBroadcaster:
                 "cameras": camera_stats,
                 "queue": queue_stats,
                 "health": health_status,
-                "ai": {
-                    "status": ai_status,
-                    "yolo26": "healthy" if ai_health["yolo26"] else "unhealthy",
-                    "nemotron": "healthy" if ai_health["nemotron"] else "unhealthy",
-                },
+                "ai": ai_block,
             },
             "timestamp": datetime.now(UTC).isoformat(),
         }
@@ -1005,21 +1008,26 @@ class SystemBroadcaster:
         return False
 
     async def _check_ai_health(self) -> dict[str, bool]:
-        """Check AI services (YOLO26v2 and Nemotron) health.
+        """Check AI services (YOLO26v2 and the verdict engine) health.
 
         Performs concurrent health checks on both AI services to minimize
         latency in the broadcast loop. Uses a short timeout to avoid blocking.
+        The verdict engine follows PIPELINE_MODE: ai-vlm in ``vlm`` (the legacy
+        LLM is retired there, spec rev 5), Nemotron only in ``legacy``.
 
         Returns:
             Dictionary with:
             - yolo26: True if YOLO26v2 is healthy
-            - nemotron: True if Nemotron is healthy
+            - nemotron (legacy) / ai-vlm (vlm): True if the engine is healthy
             - any_healthy: True if at least one AI service is healthy
             - all_healthy: True if all AI services are healthy
         """
         settings = get_settings()
         yolo26_healthy = False
-        nemotron_healthy = False
+        engine_healthy = False
+        legacy = settings.pipeline_mode == "legacy"
+        engine_key = "nemotron" if legacy else "ai-vlm"
+        engine_url = settings.nemotron_url if legacy else settings.ai_vlm_url
 
         async def check_yolo26() -> bool:
             try:
@@ -1030,10 +1038,10 @@ class SystemBroadcaster:
                 # Network errors, timeouts, HTTP errors, and OS-level socket errors
                 return False
 
-        async def check_nemotron() -> bool:
+        async def check_engine() -> bool:
             try:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
-                    response = await client.get(f"{settings.nemotron_url}/health")
+                    response = await client.get(f"{engine_url}/health")
                     return bool(response.status_code == 200)
             except httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError:
                 # Network errors, timeouts, HTTP errors, and OS-level socket errors
@@ -1045,9 +1053,9 @@ class SystemBroadcaster:
         # 2. Each check function handles its own exceptions and returns bool
         # 3. TaskGroup would cancel the other check if one fails, which is undesirable
         try:
-            yolo26_healthy, nemotron_healthy = await asyncio.gather(
+            yolo26_healthy, engine_healthy = await asyncio.gather(
                 check_yolo26(),
-                check_nemotron(),
+                check_engine(),
             )
         except (asyncio.CancelledError, RuntimeError) as e:
             # asyncio.CancelledError: task cancellation during shutdown
@@ -1056,9 +1064,9 @@ class SystemBroadcaster:
 
         return {
             "yolo26": yolo26_healthy,
-            "nemotron": nemotron_healthy,
-            "any_healthy": yolo26_healthy or nemotron_healthy,
-            "all_healthy": yolo26_healthy and nemotron_healthy,
+            engine_key: engine_healthy,
+            "any_healthy": yolo26_healthy or engine_healthy,
+            "all_healthy": yolo26_healthy and engine_healthy,
         }
 
     async def _get_health_status(self) -> str:

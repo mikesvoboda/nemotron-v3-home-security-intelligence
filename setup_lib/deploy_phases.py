@@ -9,6 +9,8 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from setup_lib.core import check_port_available, generate_password
@@ -37,13 +39,92 @@ def _run_with_timeout(
             stderr=f"timed out after {timeout}s",
         )
 from setup_lib.deploy import DeployConfig, DeployPhase, DeployResult, compose_run
-from setup_lib.healthcheck import check_service_health, poll_endpoint
+from setup_lib.healthcheck import check_service_health, file_watcher_warning, poll_endpoint
 from setup_lib.rootful_services import (
     CADVISOR_SERVICE_NAME,
     DCGM_SERVICE_NAME,
     _is_service_installed,
     _run_sudo,
 )
+from setup_lib.selinux_check import (
+    WARN,
+    CameraRootVerdict,
+    camera_root,
+    check_camera_root,
+    read_selinux_enforcing,
+    read_selinux_label,
+    service_camera_mounts,
+)
+
+
+# ---------------------------------------------------------------------------
+# Pipeline mode -> what deploy builds, starts and health-checks
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _ModePlan:
+    """The per-PIPELINE_MODE facts deploy needs (the mode itself is decided
+    once, by ``DeployConfig.pipeline_mode``).
+
+    Each mode's GPU model server lives behind a compose profile (ai-vlm:
+    `vlm`; ai-llm: `legacy` since the 30B was retired), so every compose call
+    that names it carries ``--profile``: podman-compose drops a service whose
+    profile is inactive before it resolves command-line targets, so naming
+    the service alone is not enough there.
+    """
+
+    model_server: str
+    profile: str
+    # Started by phase_application, in dependency order (the retry loop walks it).
+    app_services: tuple[str, ...]
+    # phase_application's `up --wait` budget, seconds.
+    wait_timeout: int
+    # phase_health_check's poll of the model server: label, the .env host-port
+    # var + compose's default for it, and the poll budget in seconds.
+    health_label: str
+    port_var: str
+    default_port: str
+    health_timeout: int
+
+    @property
+    def profile_args(self) -> tuple[str, str]:
+        return ("--profile", self.profile)
+
+
+# vlm is the shipped mode (spec rev 5 / F10); legacy parses but is unsupported.
+_MODE_PLANS: dict[str, _ModePlan] = {
+    # ai-vlm LAST: a leaf - nothing depends_on it (backend reaches it by URL),
+    # so it only has to come up, not first. 180s: ai-vlm's healthy-or-unhealthy
+    # verdict lands by its compose start_period 120s + 3 x 10s retries = 150s.
+    # Health poll 120s = that start_period (= ai/vlm/Dockerfile HEALTHCHECK).
+    "vlm": _ModePlan(
+        model_server="ai-vlm",
+        profile="vlm",
+        app_services=("ai-gateway", "backend", "frontend", "ai-vlm"),
+        wait_timeout=180,
+        health_label="VLM",
+        port_var="AI_VLM_PORT",
+        default_port="8098",
+        health_timeout=120,
+    ),
+    # ai-llm FIRST: backend waits on it via service_healthy; 300s = the 30B's
+    # start_period (NEM-5512). Unchanged from before the 30B was retired.
+    "legacy": _ModePlan(
+        model_server="ai-llm",
+        profile="legacy",
+        app_services=("ai-llm", "ai-gateway", "backend", "frontend"),
+        wait_timeout=300,
+        health_label="LLM",
+        port_var="LLM_PORT",
+        default_port="8091",
+        health_timeout=180,
+    ),
+}
+
+
+def _mode_plan(config: DeployConfig) -> _ModePlan:
+    return _MODE_PLANS[config.pipeline_mode]
 
 
 def _get_compose_image(config: DeployConfig, service: str) -> str | None:
@@ -87,9 +168,13 @@ def phase_stop(config: DeployConfig) -> DeployResult:
 
     project_name = config.project_root.name
 
-    # Compose down + rm (short timeout — can hang if storage locked)
-    compose_run(config, "down", capture=True, timeout=60)
-    compose_run(config, "rm", "-f", capture=True, timeout=60)
+    # Compose down + rm (short timeout — can hang if storage locked). Every
+    # mode's profile is active here: down/rm skip services whose profile is
+    # not, and a leftover model server of EITHER mode (e.g. an ai-llm started
+    # before it was profiled) must not keep holding the GPU both share.
+    all_profiles = [arg for plan in _MODE_PLANS.values() for arg in plan.profile_args]
+    compose_run(config, *all_profiles, "down", capture=True, timeout=60)
+    compose_run(config, *all_profiles, "rm", "-f", capture=True, timeout=60)
 
     # Stop legacy systemd user services (container-postgres, container-redis)
     subprocess.run(
@@ -462,18 +547,21 @@ def phase_build(config: DeployConfig) -> DeployResult:
     if not ok:
         return DeployResult(False, "Application service build failed")
 
-    # Build ai-llm WITH cache (just llama.cpp, no app code)
-    print("  Building ai-llm (cached)...")
+    # Build the mode's model server WITH cache (llama.cpp at a pinned tag, no
+    # app code): ai-vlm in vlm mode, ai-llm only in legacy mode.
+    plan = _mode_plan(config)
+    print(f"  Building {plan.model_server} (cached)...")
     ok = compose_run(
         config,
+        *plan.profile_args,
         "build",
         *cuda_args,
-        "ai-llm",
+        plan.model_server,
         stream=config.verbose,
         timeout=900,
     )
     if not ok:
-        return DeployResult(False, "ai-llm build failed")
+        return DeployResult(False, f"{plan.model_server} build failed")
 
     return DeployResult(True, "All images built")
 
@@ -607,9 +695,36 @@ _MONITORING_SERVICES = [
 # failure doesn't cascade to grafana, frontend, or other services.
 _ALLOY_MEMLOCK_BYTES = 8_589_934_592  # 8 GB — must match docker-compose.prod.yml
 
-# Application services started in Phase 5 (dependency order matters for retry).
-# ai-llm must start first — backend depends on it via service_healthy.
-_APP_SERVICES = ("ai-llm", "ai-gateway", "backend", "frontend")
+# Application services started in Phase 5 are per pipeline mode:
+# see _MODE_PLANS[...].app_services at the top of this module.
+
+
+def _preflight_selinux_camera_root(
+    config: DeployConfig,
+    *,
+    selinux_enforcing: Callable[[], bool | None] = read_selinux_enforcing,
+    selinux_label: Callable[[str], str | None] = read_selinux_label,
+) -> CameraRootVerdict:
+    """Pre-flight: will SELinux deny the backend's inotify watch on the camera root?
+
+    The shared check (setup_lib/selinux_check.py, also the a5500 precheck's
+    selinux_camera_root row) against FOSCAM_BASE_PATH from .env and the
+    backend's /cameras mount in the compose file this deploy runs. Warn-only:
+    a WARN never fails the deploy, and nothing is relabelled - that is a host
+    change, so the command is printed for the operator instead.
+    """
+    verdict = check_camera_root(
+        camera_root(config.env),
+        service_camera_mounts([config.project_root / config.compose_file]),
+        selinux_enforcing=selinux_enforcing,
+        selinux_label=selinux_label,
+    )
+    if verdict.verdict == WARN:
+        print("  WARNING: SELinux will deny the file watcher's watch on the camera root")
+        print(f"    {verdict.detail}")
+    else:
+        print(f"  selinux: {verdict.detail}")
+    return verdict
 
 
 def phase_infrastructure(config: DeployConfig) -> DeployResult:
@@ -632,6 +747,10 @@ def phase_infrastructure(config: DeployConfig) -> DeployResult:
             print(f"  foscam: {foscam_path} owned by {host_uid}:{host_gid}")
         else:
             print(f"  foscam: {foscam_path} (chown skipped - run: sudo chown -R {host_uid}:{host_gid} {foscam_path})")
+
+    # Pre-flight (warn-only): read the camera root's label now that it exists,
+    # before any container mounts it.
+    _preflight_selinux_camera_root(config)
 
     # Core infrastructure (pre-built images only)
     ok = compose_run(
@@ -698,7 +817,7 @@ def _check_gpu_available() -> bool:
     return Path("/dev/nvidia0").exists()
 
 
-def _warn_gpu_missing() -> None:
+def _warn_gpu_missing(model_server: str) -> None:
     """Print a diagnostic when GPU devices are missing."""
     # Check if a driver package is installed but kernel module isn't loaded
     result = subprocess.run(
@@ -720,7 +839,7 @@ def _warn_gpu_missing() -> None:
         print(f"  WARNING: NVIDIA driver installed but /dev/nvidia0 missing!")
         print(f"    Running kernel: {kernel}")
         print("    Likely cause: kernel/module mismatch — run 'sudo update-grub' and reboot")
-        print("    GPU services (ai-llm, ai-gateway) will not start without GPU devices.")
+        print(f"    GPU services ({model_server}, ai-gateway) will not start without GPU devices.")
     else:
         print("  WARNING: No NVIDIA GPU detected — GPU services will not start.")
 
@@ -748,17 +867,33 @@ def _wait_container_running(service: str, timeout: int = 30) -> bool:
 def phase_application(config: DeployConfig) -> DeployResult:
     """Start all remaining services (backend, frontend, AI).
 
-    Uses --wait with a 5-minute timeout to allow ai-llm to finish loading
-    the 30B model before backend starts (backend depends on ai-llm: service_healthy).
-    Only targets _APP_SERVICES to avoid re-triggering alloy (handled in phase 4).
+    Starts the pipeline mode's app services (see _MODE_PLANS) through the
+    model server's compose profile, with --wait sized for that server's load:
+    ai-vlm in vlm mode (the retired ai-llm is never named, so never started),
+    ai-llm first in legacy mode (backend depends on it: service_healthy).
+    Only targets the app services to avoid re-triggering alloy (handled in phase 4).
     """
+    plan = _mode_plan(config)
+    services = plan.app_services
+
     # Pre-flight: warn if GPU devices are missing (containers will fail)
     if not _check_gpu_available():
-        _warn_gpu_missing()
+        _warn_gpu_missing(plan.model_server)
 
-    print("  Starting app services (waiting up to 5min for model loading)...")
+    print(
+        f"  Starting app services (waiting up to {plan.wait_timeout}s "
+        f"for {plan.model_server} to load)..."
+    )
     ok = compose_run(
-        config, "up", "-d", "--no-build", "--wait", "--wait-timeout", "300", *_APP_SERVICES
+        config,
+        *plan.profile_args,
+        "up",
+        "-d",
+        "--no-build",
+        "--wait",
+        "--wait-timeout",
+        str(plan.wait_timeout),
+        *services,
     )
     if ok:
         print("  All services started and healthy.")
@@ -768,8 +903,8 @@ def phase_application(config: DeployConfig) -> DeployResult:
     # dependency order and verify each actually reaches "running" state.
     print("  Retrying services in dependency order...")
     stuck: list[str] = []
-    for svc in _APP_SERVICES:
-        compose_run(config, "up", "-d", "--no-build", svc)
+    for svc in services:
+        compose_run(config, *plan.profile_args, "up", "-d", "--no-build", svc)
         if _wait_container_running(svc, timeout=60):
             print(f"    {svc}: running")
         else:
@@ -848,6 +983,11 @@ def _recover_created_containers(config: DeployConfig) -> None:
     if not result.stdout.strip():
         return
 
+    plan = _mode_plan(config)
+    # The OTHER mode's model server (e.g. a leftover ai-llm in vlm mode) must
+    # never be started here: compose starts a profiled service it is asked by name.
+    other_servers = {p.model_server for p in _MODE_PLANS.values()} - {plan.model_server}
+
     stuck = result.stdout.strip().splitlines()
     print(f"  Recovering {len(stuck)} container(s) stuck in 'created' state...")
     for name in stuck:
@@ -866,7 +1006,10 @@ def _recover_created_containers(config: DeployConfig) -> None:
             svc = name.split(f"{project}-", 1)[-1].rsplit("-", 1)[0]
         else:
             svc = name
-        compose_run(config, "up", "-d", "--no-build", svc)
+        if svc in other_servers:
+            print(f"    {svc}: skipped (not used in {config.pipeline_mode} mode)")
+            continue
+        compose_run(config, *plan.profile_args, "up", "-d", "--no-build", svc)
         time.sleep(2)
         if _wait_container_running(svc, timeout=30):
             print(f"    {svc}: recovered -> running")
@@ -880,7 +1023,8 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
 
     api_port = config.env.get("API_PORT", "8000")
     gateway_port = config.env.get("AI_GATEWAY_PORT", "8090")
-    llm_port = config.env.get("LLM_PORT", "8091")
+    plan = _mode_plan(config)
+    model_port = config.env.get(plan.port_var, plan.default_port)
 
     # Recover any containers stuck in "created" state before polling endpoints
     _recover_created_containers(config)
@@ -892,18 +1036,34 @@ def phase_health_check(config: DeployConfig) -> DeployResult:
     services = [
         ("Backend", f"http://localhost:{api_port}/api/system/health", 60),
         ("AI Gateway", f"http://localhost:{gateway_port}/health", 120),
-        ("LLM", f"http://localhost:{llm_port}/health", 180),
+        (plan.health_label, f"http://localhost:{model_port}/health", plan.health_timeout),
     ]
 
     all_healthy = True
+    ready_names: set[str] = set()
     for name, url, timeout in services:
         ready = poll_endpoint(url, timeout=timeout)
         if ready:
+            ready_names.add(name)
             result = check_service_health(name, url, timeout=10)
             print(f"  {name}: healthy ({result['response_time_ms']}ms)")
         else:
             print(f"  {name}: not ready yet")
             all_healthy = False
+
+    # Did the camera watch take? The backend reports a REFUSED inotify watch
+    # as watch_mode=polling-fallback - on any host, whatever the compose file.
+    # Warn-only: the backend still ingests (by scanning).
+    if "Backend" in ready_names:
+        pipeline = check_service_health(
+            "Pipeline", f"http://localhost:{api_port}/api/system/pipeline", timeout=10
+        )
+        status = pipeline.get("data")
+        warning = file_watcher_warning(status, camera_root(config.env))
+        if warning:
+            print(f"  File watcher: WARNING - {warning}")
+        elif mode := ((status or {}).get("file_watcher") or {}).get("watch_mode"):
+            print(f"  File watcher: {mode}")
 
     # Deployment summary
     try:

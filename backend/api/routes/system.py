@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.routes.health_ai_services import ai_services_config_for_mode
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -936,6 +937,38 @@ async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[boo
         return False, f"Nemotron service error: {e!s}"
 
 
+async def _check_ai_vlm_health(ai_vlm_url: str, timeout: float) -> tuple[bool, str | None]:
+    """Check ai-vlm (llama-server + mmproj, the PIPELINE_MODE=vlm verdict engine).
+
+    llama-server's ``/health`` answers 200 when ready and 503 while it loads
+    the model. It never wakes a sleeping server (spec §6 - the wake is a real
+    completion request), so probing it costs no VRAM.
+
+    Args:
+        ai_vlm_url: Base URL for the ai-vlm service
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(f"{ai_vlm_url}/health")
+            if response.status_code == 503:
+                return False, "ai-vlm is loading its model (HTTP 503)"
+            response.raise_for_status()
+            return True, None
+    except httpx.ConnectError:
+        return False, "ai-vlm service connection refused"
+    except httpx.TimeoutException:
+        return False, "ai-vlm service request timed out"
+    except httpx.HTTPStatusError as e:
+        return False, f"ai-vlm service returned HTTP {e.response.status_code}"
+    except (OSError, RuntimeError) as e:
+        # Network-level failures
+        return False, f"ai-vlm service error: {e!s}"
+
+
 # Timeout for individual AI service health checks (in seconds)
 AI_HEALTH_CHECK_TIMEOUT_SECONDS = 3.0
 
@@ -1015,6 +1048,27 @@ async def _check_nemotron_health_with_circuit_breaker(
     return is_healthy, error_msg
 
 
+async def _check_ai_vlm_health_with_circuit_breaker(
+    ai_vlm_url: str, timeout: float
+) -> tuple[bool, str | None]:
+    """Check ai-vlm health with the same circuit-breaker protection as the
+    other AI checks (an open circuit answers from cache, no network call)."""
+    service_name = "ai-vlm"
+
+    if _health_circuit_breaker.is_open(service_name):
+        cached_error = _health_circuit_breaker.get_cached_error(service_name)
+        return False, cached_error or "ai-vlm service unavailable (circuit open)"
+
+    is_healthy, error_msg = await _check_ai_vlm_health(ai_vlm_url, timeout)
+
+    if is_healthy:
+        _health_circuit_breaker.record_success(service_name)
+    else:
+        _health_circuit_breaker.record_failure(service_name, error_msg)
+
+    return is_healthy, error_msg
+
+
 async def _bounded_health_check(
     check_func: Any,
     *args: Any,
@@ -1044,10 +1098,56 @@ async def _bounded_health_check(
         return (False, "Health check timed out waiting for available slot")
 
 
-async def check_ai_services_health() -> HealthCheckServiceStatus:
-    """Check AI services health by pinging YOLO26 and Nemotron endpoints.
+async def _check_vlm_mode_ai_services_health(settings: Settings) -> HealthCheckServiceStatus:
+    """The `ai` block for PIPELINE_MODE=vlm: YOLO26 + ai-vlm, never nemotron.
 
-    Performs concurrent health checks on both AI services:
+    The legacy LLM is retired in vlm mode (spec rev 5); probing it could only
+    ever report a healthy pipeline as degraded. Same status rules as legacy:
+    both up = healthy, one up = degraded, none up = unhealthy.
+    """
+    yolo26_result, vlm_result = await asyncio.gather(
+        _bounded_health_check(
+            _check_yolo26_health_with_circuit_breaker,
+            settings.yolo26_url,
+            AI_HEALTH_CHECK_TIMEOUT_SECONDS,
+        ),
+        _bounded_health_check(
+            _check_ai_vlm_health_with_circuit_breaker,
+            settings.ai_vlm_url,
+            AI_HEALTH_CHECK_TIMEOUT_SECONDS,
+        ),
+    )
+    yolo26_healthy, yolo26_error = yolo26_result
+    vlm_healthy, vlm_error = vlm_result
+
+    details: dict[str, str] = {
+        "yolo26": "healthy" if yolo26_healthy else (yolo26_error or "unhealthy"),
+        "ai-vlm": "healthy" if vlm_healthy else (vlm_error or "unhealthy"),
+    }
+
+    if yolo26_healthy and vlm_healthy:
+        return HealthCheckServiceStatus(
+            status="healthy", message="AI services operational", details=details
+        )
+    if yolo26_healthy or vlm_healthy:
+        working_service = "YOLO26" if yolo26_healthy else "ai-vlm"
+        failed_service = "ai-vlm" if yolo26_healthy else "YOLO26"
+        return HealthCheckServiceStatus(
+            status="degraded",
+            message=f"{failed_service} service unavailable, {working_service} operational",
+            details=details,
+        )
+    return HealthCheckServiceStatus(
+        status="unhealthy", message="All AI services unavailable", details=details
+    )
+
+
+async def check_ai_services_health() -> HealthCheckServiceStatus:
+    """Check AI services health by pinging YOLO26 and the verdict engine.
+
+    The verdict engine follows PIPELINE_MODE: ai-vlm in ``vlm`` (the shipped
+    default - see _check_vlm_mode_ai_services_health), Nemotron only in
+    ``legacy``. Legacy performs concurrent health checks on:
     - YOLO26 (object detection): GET {yolo26_url}/health
     - Nemotron (LLM reasoning): GET {nemotron_url}/health
 
@@ -1061,6 +1161,8 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         - unhealthy: Both services are down (no AI capability)
     """
     settings = get_settings()
+    if settings.pipeline_mode != "legacy":
+        return await _check_vlm_mode_ai_services_health(settings)
     yolo26_url = settings.yolo26_url
     nemotron_url = settings.nemotron_url
 
@@ -4164,6 +4266,11 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
         return None
 
 
+# FileWatcher.watch_mode values; anything else (e.g. a watcher stub) reports its
+# observer type instead.
+_WATCH_MODES = ("native", "polling", "polling-fallback")
+
+
 @router.get("/pipeline", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
     redis: RedisClient | None = Depends(get_redis_optional),
@@ -4177,6 +4284,8 @@ async def get_pipeline_status(
     - camera_root: Directory being watched
     - pending_tasks: Files waiting for debounce completion
     - observer_type: Filesystem observer type (native/polling)
+    - watch_mode: native / polling (configured) / polling-fallback (the kernel
+      refused the native watch at startup; watch_fallback_reason = errno name)
 
     **BatchAggregator**: Groups detections into time-based batches
     - active_batches: Number of batches being aggregated
@@ -4197,11 +4306,15 @@ async def get_pipeline_status(
     file_watcher_status: FileWatcherStatusResponse | None = None
     if _file_watcher is not None:
         observer_type = "polling" if getattr(_file_watcher, "_use_polling", False) else "native"
+        watch_mode = getattr(_file_watcher, "watch_mode", None)
+        fallback_reason = getattr(_file_watcher, "watch_fallback_reason", None)
         file_watcher_status = FileWatcherStatusResponse(
             running=getattr(_file_watcher, "running", False),
             camera_root=getattr(_file_watcher, "camera_root", ""),
             pending_tasks=len(getattr(_file_watcher, "_pending_tasks", {})),
             observer_type=observer_type,
+            watch_mode=watch_mode if watch_mode in _WATCH_MODES else observer_type,
+            watch_fallback_reason=fallback_reason if isinstance(fallback_reason, str) else None,
         )
 
     # Get BatchAggregator status from Redis
@@ -5551,10 +5664,13 @@ async def get_full_health(
 ) -> FullHealthResponse:
     """Get comprehensive health status for all system components."""
     settings = get_settings()
+    # PIPELINE_MODE=vlm swaps the (critical) nemotron row for ai-vlm - the
+    # legacy LLM is retired there and must not read as a critical outage.
+    ai_services_config = ai_services_config_for_mode(settings, AI_SERVICES_CONFIG)
 
     postgres_task = _check_postgres_health_full(db)
     redis_task = _check_redis_health_full(redis)
-    ai_tasks = [_check_ai_service_health(config, settings) for config in AI_SERVICES_CONFIG]
+    ai_tasks = [_check_ai_service_health(config, settings) for config in ai_services_config]
 
     results = await asyncio.gather(
         postgres_task,
@@ -5577,7 +5693,7 @@ async def get_full_health(
         critical_unhealthy.append("redis")
 
     for i, health in enumerate(ai_healths):
-        service_config = AI_SERVICES_CONFIG[i]
+        service_config = ai_services_config[i]
         if health.status != ServiceHealthState.HEALTHY:
             if service_config.get("critical", False):
                 critical_unhealthy.append(health.name)

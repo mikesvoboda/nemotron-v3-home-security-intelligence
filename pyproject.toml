@@ -352,6 +352,10 @@ exclude = ["vulture_whitelist.py", "mutants/", "archive/"]
 "synthbench/spikes/p1_bakeoff/__init__.py" = "py312"
 "synthbench/spikes/p1_bakeoff/cases.py" = "py312"
 "synthbench/spikes/p1_bakeoff/measure.py" = "py312"
+# The ai-gateway image (NGC Triton, Python 3.12) ships both trees
+# (ai/gateway/tests/test_py312_compat.py).
+"ai/gateway/**/*.py" = "py312"
+"ai/triton/**/*.py" = "py312"
 
 [tool.ruff.lint]
 select = [

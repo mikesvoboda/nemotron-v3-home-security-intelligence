@@ -9,6 +9,7 @@ Implements NEM-1582: Service health check orchestration and circuit breaker inte
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -513,3 +514,104 @@ async def test_check_ai_service_health_no_url_payload_contract() -> None:
     assert result.url == ""  # explicit '' — kills url=None / kwarg-removed mutations
     assert result.last_check is not None
     assert result.last_check.tzinfo is not None
+
+
+# =============================================================================
+# PIPELINE_MODE: the verdict-engine row follows the mode
+# =============================================================================
+
+
+class TestFullHealthByPipelineMode:
+    """GET /api/system/health/full must not call a healthy vlm deployment down.
+
+    Its table marks nemotron CRITICAL, so in PIPELINE_MODE=vlm - legacy LLM
+    retired (spec rev 5), connection-refused on the A5500 box - the endpoint
+    answered 503 "Critical services unhealthy: nemotron". In vlm mode the
+    nemotron row is replaced by ai-vlm (non-critical: down = DEGRADED); legacy
+    (unsupported until R8) keeps today's table and answer.
+    """
+
+    URLS: ClassVar[dict[str, str]] = {
+        "yolo26_url": "http://ai-gateway:8090/yolo26",
+        "nemotron_url": "http://ai-llm:8091",
+        "ai_vlm_url": "http://ai-vlm:8098",
+        "florence_url": "http://florence:8092",
+        "clip_url": "http://clip:8093",
+        "enrichment_url": "http://enrichment:8094",
+    }
+
+    async def _full_health(self, mode: str, down: set[str]):
+        """Call get_full_health with db/redis healthy; every AI service answers
+        /health 200 except the url attrs in ``down`` (connection refused).
+        Returns (result, http_status, probed_urls)."""
+        from starlette.responses import Response
+
+        settings = Settings(_env_file=None, pipeline_mode=mode, **self.URLS)
+        refused = {self.URLS[attr] for attr in down}
+        probed: list[str] = []
+
+        async def _route(url: str, *args: object, **kwargs: object) -> httpx.Response:
+            probed.append(url)
+            request = httpx.Request("GET", url)
+            if url.removesuffix("/health") in refused:
+                raise httpx.ConnectError("connection refused", request=request)
+            return httpx.Response(200, request=request)
+
+        db = AsyncMock(spec=AsyncSession)
+        db_result = MagicMock(spec=Result)
+        db_result.scalar.return_value = datetime.now(UTC)
+        db.execute = AsyncMock(return_value=db_result)
+        redis = AsyncMock(spec=RedisClient)
+        redis.health_check = AsyncMock(return_value={"redis_version": "7.2"})
+        response = Response()
+
+        with (
+            patch.object(system_routes, "get_settings", autospec=True, return_value=settings),
+            patch("backend.services.circuit_breaker._get_registry", autospec=True) as registry,
+            patch.object(system_routes, "_emit_full_health_status_changes", autospec=True),
+            patch("backend.api.routes.system.httpx.AsyncClient", autospec=True) as client_cls,
+        ):
+            registry.return_value.get.return_value = None
+            registry.return_value.get_all_status.return_value = {}
+            client_cls.return_value.__aenter__.return_value.get = AsyncMock(side_effect=_route)
+            result = await system_routes.get_full_health(response, db, redis)
+        return result, response.status_code, probed
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_retired_nemotron_is_not_a_critical_outage(self) -> None:
+        """The incident: nemotron refuses, everything the vlm pipeline uses is up."""
+        result, http_status, probed = await self._full_health("vlm", down={"nemotron_url"})
+
+        assert result.status == ServiceHealthState.HEALTHY, result.message
+        assert http_status == 200
+        names = [s.name for s in result.ai_services]
+        assert names == ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
+        vlm = next(s for s in result.ai_services if s.name == "ai-vlm")
+        assert vlm.url == self.URLS["ai_vlm_url"]
+        assert not [u for u in probed if u.startswith(self.URLS["nemotron_url"])], probed
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_ai_vlm_down_is_degraded(self) -> None:
+        result, http_status, _ = await self._full_health("vlm", down={"ai_vlm_url"})
+
+        assert result.status == ServiceHealthState.DEGRADED
+        assert result.ready is True
+        assert result.message == "Degraded: ai-vlm unavailable"
+        assert http_status == 200
+
+    @pytest.mark.asyncio
+    async def test_legacy_mode_nemotron_down_is_still_critical(self) -> None:
+        """Pin of today's legacy answer."""
+        result, http_status, probed = await self._full_health("legacy", down={"nemotron_url"})
+
+        assert result.status == ServiceHealthState.UNHEALTHY
+        assert result.message == "Critical services unhealthy: nemotron"
+        assert http_status == 503
+        assert [s.name for s in result.ai_services] == [
+            "yolo26",
+            "nemotron",
+            "florence",
+            "clip",
+            "enrichment",
+        ]
+        assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed

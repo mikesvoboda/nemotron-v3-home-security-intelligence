@@ -39,6 +39,24 @@ class DeployConfig:
     log_file: Path | None = None
     _export_process: subprocess.Popen | None = field(default=None, repr=False)
 
+    @property
+    def pipeline_mode(self) -> str:
+        """The per-event pipeline this deploy brings up: ``vlm`` or ``legacy``.
+
+        The ONE place deploy decides it. Resolved exactly as the backend
+        container will see it: compose interpolates backend's
+        ``PIPELINE_MODE=${PIPELINE_MODE:-vlm}`` from the env compose_run hands
+        it (``.env`` over the shell), and ``Settings.pipeline_mode`` lower/strips
+        it. Unset or empty is ``vlm`` (the shipped, only supported mode);
+        anything but the two spellings raises - a typo must never silently
+        pick a pipeline (same rule as the backend validator).
+        """
+        raw = {**os.environ, **self.env}.get("PIPELINE_MODE", "")
+        mode = raw.strip().lower() or "vlm"
+        if mode not in ("vlm", "legacy"):
+            raise ValueError(f"Invalid PIPELINE_MODE '{raw}'. Must be 'vlm' or 'legacy'.")
+        return mode
+
 
 @dataclass
 class DeployResult:
@@ -302,6 +320,14 @@ def run_deploy(config: DeployConfig) -> bool:
         config.log_file = config.project_root / "data" / "logs" / "deploy.log"
 
     _log(config, "=== Production Deploy ===")
+
+    # Validate the mode before any phase runs: stop must not tear the stack
+    # down for a deploy that cannot know which model server to bring back.
+    try:
+        _log(config, f"Pipeline mode: {config.pipeline_mode}")
+    except ValueError as exc:
+        _log(config, f"FAILED: {exc}")
+        return False
 
     for i, phase in enumerate(DEPLOY_PHASES, 1):
         _log(config, f"[{i}/{total}] {phase.description}...")

@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
 """Export Person Re-ID (OSNet-AIN x1.0) to ONNX format for Triton Inference Server.
 
-Model: OSNet-AIN x1.0 — Omni-Scale Feature Learning with Attention Instance Normalization.
+Model: OSNet-AIN x1.0 — Omni-Scale Network with instance normalization (IN stem,
+    IN inside the residual branch of selected omni-scale blocks).
 Source: /models/zoo/osnet-ain-x1-0/osnet_ain_x1_0_msmt17.pth (raw PyTorch checkpoint)
 Input: (B, 3, 256, 128) FP32 — ImageNet-normalized (height=256, width=128)
-Output: (B, 512) FP32 — L2-normalizable embedding vector
+Output: (B, 512) FP32 — the raw embedding, NOT L2-normalized. This is
+    torchreid's eval-mode forward (fc = Linear + BatchNorm1d + ReLU, no
+    normalization); consumers normalize it (gateway /person-reid in
+    ai/gateway/adapters/enrichment_light.py, backend
+    backend/services/osnet_loader.py).
 
 Upgraded from OSNet-x0.25 to OSNet-AIN x1.0 for 4x better re-identification
 accuracy (NEM-5562). Uses MSMT17 domain-generalization trained weights.
 
-This model uses a standalone OSNet architecture (no torchreid dependency).
-The architecture is reproduced from ai/enrichment-light/models/person_reid.py
-which defines the complete OSNet-AIN x1.0 network structure.
+The architecture below is a standalone port of torchreid 0.2.5's
+``torchreid/reid/models/osnet_ain.py::osnet_ain_x1_0`` — the same network the
+backend builds with ``build_model('osnet_ain_x1_0')`` — because the ai-gateway
+image does not ship torchreid. It must stay key-for-key and numerically
+identical to torchreid: ai/gateway/tests/test_export_reid.py checks both against
+torchreid itself, and load_pytorch_model refuses any backbone key mismatch.
 
 Reference:
     Zhou et al. "Omni-Scale Feature Learning for Person Re-Identification."
@@ -54,15 +62,20 @@ EMBEDDING_DIM = 512
 # OSNet-AIN x1.0 channel configuration (full-width)
 OSNET_AIN_X10_CHANNELS = [64, 256, 384, 512]
 
+# The identity-classification head is trained per dataset (MSMT17: 4101
+# identities) and never runs in the eval forward the ONNX captures — the only
+# part of a checkpoint that may legitimately be absent or differ.
+CLASSIFIER_PREFIX = "classifier."
+
 
 # =============================================================================
-# OSNet Architecture Components
-# Reproduced from ai/enrichment-light/models/person_reid.py
+# OSNet-AIN architecture — port of torchreid/reid/models/osnet_ain.py (0.2.5).
+# Module attribute names are load-bearing: they ARE the checkpoint keys.
 # =============================================================================
 
 
 class ConvLayer(nn.Module):
-    """Convolution layer (conv + bn + relu)."""
+    """Convolution layer (conv + norm + relu); the norm is affine IN when ``instance_norm``."""
 
     def __init__(
         self,
@@ -72,6 +85,7 @@ class ConvLayer(nn.Module):
         stride: int = 1,
         padding: int = 0,
         groups: int = 1,
+        instance_norm: bool = False,
     ):
         super().__init__()
         self.conv = nn.Conv2d(
@@ -83,8 +97,13 @@ class ConvLayer(nn.Module):
             bias=False,
             groups=groups,
         )
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        # torchreid names the norm "bn" even when it is an InstanceNorm.
+        self.bn: nn.Module
+        if instance_norm:
+            self.bn = nn.InstanceNorm2d(out_channels, affine=True)
+        else:
+            self.bn = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.relu(self.bn(self.conv(x)))
@@ -105,22 +124,27 @@ class Conv1x1(nn.Module):
             groups=groups,
         )
         self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.relu(self.bn(self.conv(x)))
 
 
 class Conv1x1Linear(nn.Module):
-    """1x1 convolution + bn (without non-linearity)."""
+    """1x1 convolution + optional bn (without non-linearity)."""
 
-    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1, bn: bool = True):
         super().__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, 1, stride=stride, padding=0, bias=False)
-        self.bn = nn.BatchNorm2d(out_channels)
+        self.bn: nn.BatchNorm2d | None = None
+        if bn:
+            self.bn = nn.BatchNorm2d(out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.bn(self.conv(x))
+        x = self.conv(x)
+        if self.bn is not None:
+            x = self.bn(x)
+        return x
 
 
 class LightConv3x3(nn.Module):
@@ -139,10 +163,25 @@ class LightConv3x3(nn.Module):
             groups=out_channels,
         )
         self.bn = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.relu(self.bn(self.conv2(self.conv1(x))))
+
+
+class LightConvStream(nn.Module):
+    """Lightweight convolution stream: ``depth`` stacked LightConv3x3."""
+
+    def __init__(self, in_channels: int, out_channels: int, depth: int):
+        super().__init__()
+        if depth < 1:
+            raise ValueError(f"depth must be equal to or larger than 1, but got {depth}")
+        layers = [LightConv3x3(in_channels, out_channels)]
+        layers += [LightConv3x3(out_channels, out_channels) for _ in range(depth - 1)]
+        self.layers = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.layers(x)
 
 
 class ChannelGate(nn.Module):
@@ -167,15 +206,15 @@ class ChannelGate(nn.Module):
         )
         self.norm1: nn.LayerNorm | None = None
         if layer_norm:
-            self.norm1 = nn.LayerNorm([in_channels // reduction, 1, 1])
-        self.relu = nn.ReLU(inplace=True)
+            self.norm1 = nn.LayerNorm((in_channels // reduction, 1, 1))
+        self.relu = nn.ReLU()
         self.fc2 = nn.Conv2d(
             in_channels // reduction, num_gates, kernel_size=1, bias=True, padding=0
         )
         if gate_activation == "sigmoid":
             self.gate_activation: nn.Module | None = nn.Sigmoid()
         elif gate_activation == "relu":
-            self.gate_activation = nn.ReLU(inplace=True)
+            self.gate_activation = nn.ReLU()
         elif gate_activation == "linear":
             self.gate_activation = None
         else:
@@ -197,99 +236,106 @@ class ChannelGate(nn.Module):
 
 
 class OSBlock(nn.Module):
-    """Omni-scale feature learning block with optional instance normalization."""
+    """Omni-scale feature learning block: T streams of depth 1..T, one shared gate."""
 
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        bottleneck_reduction: int = 4,
-        instance_norm: bool = False,
-    ):
+    def __init__(self, in_channels: int, out_channels: int, reduction: int = 4, T: int = 4):
         super().__init__()
-        mid_channels = out_channels // bottleneck_reduction
+        if T < 1 or out_channels < reduction or out_channels % reduction != 0:
+            raise ValueError(
+                f"invalid OSBlock config: out={out_channels} reduction={reduction} T={T}"
+            )
+        mid_channels = out_channels // reduction
+
         self.conv1 = Conv1x1(in_channels, mid_channels)
-        self.conv2a = LightConv3x3(mid_channels, mid_channels)
-        self.conv2b = nn.Sequential(
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
-        )
-        self.conv2c = nn.Sequential(
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
-        )
-        self.conv2d = nn.Sequential(
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
-            LightConv3x3(mid_channels, mid_channels),
+        self.conv2 = nn.ModuleList(
+            [LightConvStream(mid_channels, mid_channels, t) for t in range(1, T + 1)]
         )
         self.gate = ChannelGate(mid_channels)
         self.conv3 = Conv1x1Linear(mid_channels, out_channels)
         self.downsample: Conv1x1Linear | None = None
         if in_channels != out_channels:
             self.downsample = Conv1x1Linear(in_channels, out_channels)
-        self.IN: nn.InstanceNorm2d | None = None
-        if instance_norm:
-            self.IN = nn.InstanceNorm2d(out_channels, affine=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         identity = x
         x1 = self.conv1(x)
-        x2a = self.conv2a(x1)
-        x2b = self.conv2b(x1)
-        x2c = self.conv2c(x1)
-        x2d = self.conv2d(x1)
-        x2 = self.gate(x2a) + self.gate(x2b) + self.gate(x2c) + self.gate(x2d)
+        x2: torch.Tensor | int = 0
+        for conv2_t in self.conv2:
+            x2 = x2 + self.gate(conv2_t(x1))
         x3 = self.conv3(x2)
         if self.downsample is not None:
             identity = self.downsample(identity)
-        out = x3 + identity
-        if self.IN is not None:
-            out = self.IN(out)
-        return F.relu(out)
+        return F.relu(x3 + identity)
+
+
+class OSBlockINin(nn.Module):
+    """Omni-scale block with instance normalization inside the residual branch.
+
+    Differs from OSBlock in exactly two places: conv3 has no BatchNorm, and an
+    affine InstanceNorm ("IN") normalizes the branch BEFORE the residual add.
+    """
+
+    def __init__(self, in_channels: int, out_channels: int, reduction: int = 4, T: int = 4):
+        super().__init__()
+        if T < 1 or out_channels < reduction or out_channels % reduction != 0:
+            raise ValueError(
+                f"invalid OSBlockINin config: out={out_channels} reduction={reduction} T={T}"
+            )
+        mid_channels = out_channels // reduction
+
+        self.conv1 = Conv1x1(in_channels, mid_channels)
+        self.conv2 = nn.ModuleList(
+            [LightConvStream(mid_channels, mid_channels, t) for t in range(1, T + 1)]
+        )
+        self.gate = ChannelGate(mid_channels)
+        self.conv3 = Conv1x1Linear(mid_channels, out_channels, bn=False)
+        self.downsample: Conv1x1Linear | None = None
+        if in_channels != out_channels:
+            self.downsample = Conv1x1Linear(in_channels, out_channels)
+        self.IN = nn.InstanceNorm2d(out_channels, affine=True)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = x
+        x1 = self.conv1(x)
+        x2: torch.Tensor | int = 0
+        for conv2_t in self.conv2:
+            x2 = x2 + self.gate(conv2_t(x1))
+        x3 = self.IN(self.conv3(x2))  # IN inside the residual branch
+        if self.downsample is not None:
+            identity = self.downsample(identity)
+        return F.relu(x3 + identity)
 
 
 class OSNet(nn.Module):
-    """Omni-Scale Network with Attention Instance Normalization for Person Re-Identification.
+    """Omni-Scale Network (torchreid's OSNet class, softmax-loss variant).
 
-    This is the complete OSNet-AIN architecture reproduced from
-    ai/enrichment-light/models/person_reid.py to avoid import dependencies.
+    Stage layout: conv1 (7x7, IN stem for AIN) -> maxpool -> conv2 -> pool2
+    -> conv3 -> pool3 -> conv4 -> conv5 (1x1) -> global avgpool -> fc.
     """
 
     def __init__(
         self,
         num_classes: int,
-        blocks: list[type[OSBlock]],
-        layers: list[int],
+        blocks: list[list[type[nn.Module]]],
         channels: list[int],
         feature_dim: int = 512,
-        conv1_IN: bool = False,
-        instance_norm_blocks: list[bool] | None = None,
+        conv1_instance_norm: bool = False,
     ):
         super().__init__()
-        num_blocks = len(blocks)
+        if len(blocks) != len(channels) - 1:
+            raise ValueError("OSNet needs one channel width per stage plus the stem width")
         self.feature_dim = feature_dim
 
         # Convolutional backbone
-        self.conv1 = ConvLayer(3, channels[0], 7, stride=2, padding=3)
-        self.conv1_IN: nn.InstanceNorm2d | None = None
-        if conv1_IN:
-            self.conv1_IN = nn.InstanceNorm2d(channels[0], affine=True)
+        self.conv1 = ConvLayer(
+            3, channels[0], 7, stride=2, padding=3, instance_norm=conv1_instance_norm
+        )
         self.maxpool = nn.MaxPool2d(3, stride=2, padding=1)
-
-        if instance_norm_blocks is None:
-            instance_norm_blocks = [False] * num_blocks
-        self.conv2 = self._make_layer(
-            blocks[0], layers[0], channels[0], channels[1], True, instance_norm_blocks[0]
-        )
-        self.conv3 = self._make_layer(
-            blocks[1], layers[1], channels[1], channels[2], True, instance_norm_blocks[1]
-        )
-        self.conv4 = self._make_layer(
-            blocks[2], layers[2], channels[2], channels[3], False, instance_norm_blocks[2]
-        )
+        self.conv2 = self._make_layer(blocks[0], channels[0], channels[1])
+        self.pool2 = nn.Sequential(Conv1x1(channels[1], channels[1]), nn.AvgPool2d(2, stride=2))
+        self.conv3 = self._make_layer(blocks[1], channels[1], channels[2])
+        self.pool3 = nn.Sequential(Conv1x1(channels[2], channels[2]), nn.AvgPool2d(2, stride=2))
+        self.conv4 = self._make_layer(blocks[2], channels[2], channels[3])
         self.conv5 = Conv1x1(channels[3], channels[3])
         self.global_avgpool = nn.AdaptiveAvgPool2d(1)
 
@@ -297,45 +343,33 @@ class OSNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(channels[3], feature_dim),
             nn.BatchNorm1d(feature_dim),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
         )
 
         # Identity classification layer (used during training only)
         self.classifier = nn.Linear(feature_dim, num_classes)
 
+    @staticmethod
     def _make_layer(
-        self,
-        block: type[OSBlock],
-        layer: int,
-        in_channels: int,
-        out_channels: int,
-        reduce_spatial_size: bool,
-        instance_norm: bool = False,
+        blocks: list[type[nn.Module]], in_channels: int, out_channels: int
     ) -> nn.Sequential:
-        layers_list: list[nn.Module] = [
-            block(in_channels, out_channels, instance_norm=instance_norm)
-        ]
-        for _ in range(1, layer):
-            layers_list.append(block(out_channels, out_channels, instance_norm=instance_norm))
-        if reduce_spatial_size:
-            layers_list.append(
-                nn.Sequential(Conv1x1(out_channels, out_channels), nn.AvgPool2d(2, stride=2))
-            )
-        return nn.Sequential(*layers_list)
+        layers = [blocks[0](in_channels, out_channels)]
+        layers += [block(out_channels, out_channels) for block in blocks[1:]]
+        return nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass returns embeddings (not logits) when in eval mode."""
+        """Embeddings (not logits) in eval mode — torchreid's feature-extraction output."""
         x = self.conv1(x)
-        if self.conv1_IN is not None:
-            x = self.conv1_IN(x)
         x = self.maxpool(x)
         x = self.conv2(x)
+        x = self.pool2(x)
         x = self.conv3(x)
+        x = self.pool3(x)
         x = self.conv4(x)
         x = self.conv5(x)
         v = self.global_avgpool(x)
-        # Use flatten(1) instead of view(v.size(0), -1) so ONNX export
-        # correctly traces a dynamic batch dimension on the output tensor.
+        # Same values as torchreid's view(v.size(0), -1); flatten(1) makes the
+        # ONNX export trace a dynamic batch dimension on the output tensor.
         v = v.flatten(1)
         v = self.fc(v)
         # During inference (eval mode), return feature embeddings
@@ -346,33 +380,40 @@ class OSNet(nn.Module):
 
 
 def create_osnet_ain_x1_0(num_classes: int = 1) -> OSNet:
-    """Create OSNet-AIN x1.0 architecture (full-width with instance normalization).
+    """Create OSNet-AIN x1.0 exactly as torchreid's ``osnet_ain_x1_0(pretrained=False)``.
+
+    No weight init is ported: the export path loads every backbone tensor
+    strictly from the checkpoint (load_pytorch_model), so init never reaches
+    an exported graph.
 
     Args:
-        num_classes: Number of output classes. Use 1 for feature extraction.
+        num_classes: Width of the (eval-unused) classifier head.
 
     Returns:
         OSNet model configured for AIN x1.0 width.
     """
     return OSNet(
         num_classes=num_classes,
-        blocks=[OSBlock, OSBlock, OSBlock],
-        layers=[2, 2, 2],
+        blocks=[
+            [OSBlockINin, OSBlockINin],
+            [OSBlock, OSBlockINin],
+            [OSBlockINin, OSBlock],
+        ],
         channels=OSNET_AIN_X10_CHANNELS,
         feature_dim=EMBEDDING_DIM,
-        conv1_IN=True,
-        instance_norm_blocks=[True, True, False],
+        conv1_instance_norm=True,
     )
 
 
 def load_pytorch_model(model_path: str) -> torch.nn.Module:
-    """Load OSNet-AIN x1.0 from a PyTorch checkpoint file.
+    """Load OSNet-AIN x1.0 from a PyTorch checkpoint file — every backbone key or nothing.
 
-    Creates the model with num_classes matching the checkpoint so that all
-    weights load without size mismatches.  The classifier head is only used
-    during training; in eval mode the forward() method returns the 512-dim
-    embedding vector before the classifier, so the extra classifier weights
-    are harmless dead weight that never affect inference output.
+    Creates the model with num_classes matching the checkpoint so the head
+    loads too when present. The head is the only tolerated difference: in
+    eval mode forward() returns the 512-dim embedding before the classifier,
+    so a missing or extra ``classifier.*`` key never affects the export.
+    Any other missing or unexpected key raises — a silently partial load
+    exports a partly random-initialized embedder.
 
     Handles both direct state dicts and DataParallel-wrapped checkpoints
     (keys prefixed with 'module.').
@@ -385,6 +426,8 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
 
     Raises:
         FileNotFoundError: If the checkpoint file does not exist.
+        RuntimeError: If any non-classifier key is missing, unexpected, or
+            has the wrong shape.
     """
     weights_path = Path(model_path)
     if not weights_path.exists():
@@ -395,7 +438,7 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
 
     # Handle DataParallel-wrapped checkpoints
     if any(k.startswith("module.") for k in state_dict):
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+        state_dict = {k.removeprefix("module."): v for k, v in state_dict.items()}
         logger.info("Stripped 'module.' prefix from DataParallel checkpoint")
 
     # Detect num_classes from checkpoint classifier weights so the model
@@ -408,14 +451,22 @@ def load_pytorch_model(model_path: str) -> torch.nn.Module:
     logger.info(f"Creating OSNet-AIN x1.0 architecture (num_classes={num_classes})...")
     model = create_osnet_ain_x1_0(num_classes=num_classes)
 
-    # Load weights — should be an exact match now
-    missing, unexpected = model.load_state_dict(state_dict, strict=False)
-
-    missing_important = [k for k in missing if "classifier" not in k]
-    if missing_important:
-        logger.warning(f"Missing keys in state_dict: {missing_important}")
-    if unexpected:
-        logger.debug(f"Unexpected keys in state_dict (ignored): {unexpected}")
+    # strict=False only so the classifier head may differ; shape mismatches
+    # still raise inside load_state_dict, and every other key is checked here.
+    result = model.load_state_dict(state_dict, strict=False)
+    missing = [k for k in result.missing_keys if not k.startswith(CLASSIFIER_PREFIX)]
+    unexpected = [k for k in result.unexpected_keys if not k.startswith(CLASSIFIER_PREFIX)]
+    if missing or unexpected:
+        raise RuntimeError(
+            f"{weights_path} is not a torchreid osnet_ain_x1_0 checkpoint: "
+            f"{len(missing)} missing backbone keys {missing[:10]}, "
+            f"{len(unexpected)} unexpected keys {unexpected[:10]} — refusing to export "
+            "a partially random-initialized embedder"
+        )
+    head_keys = sorted(set(result.missing_keys) | set(result.unexpected_keys))
+    if head_keys:
+        logger.info(f"Classifier head not loaded (unused by the eval embedding): {head_keys}")
+    logger.info(f"Strict backbone load OK: {len(state_dict)} checkpoint tensors, none refused")
 
     model.eval()
     logger.info(
@@ -481,10 +532,18 @@ def validate_onnx(
     pytorch_model: torch.nn.Module,
     onnx_path: str,
 ) -> bool:
-    """Validate the ONNX model by comparing outputs against PyTorch.
+    """Validate the ONNX conversion by comparing outputs against the exported PyTorch model.
 
     Tests multiple batch sizes to verify dynamic axis support,
     and checks that embeddings are numerically close.
+
+    This proves export fidelity ONLY — it compares the ONNX against the very
+    model it was exported from, so it cannot see a wrong architecture (it
+    passed at cosine 1.000 while a mis-ported network left 459 tensors at
+    random init). Correctness against an independent reference lives
+    elsewhere: load_pytorch_model refuses any backbone key mismatch, and
+    ai/gateway/tests/test_export_reid.py checks the port against torchreid's
+    osnet_ain_x1_0 key-for-key and numerically.
 
     Args:
         pytorch_model: The original PyTorch OSNet model.

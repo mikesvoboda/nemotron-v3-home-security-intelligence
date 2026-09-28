@@ -72,6 +72,16 @@ DEFAULT_OUTPUT_PATH = "/models/cache/yolo26/1/model.onnx"
 # Export settings
 IMGSZ = 640
 
+# The Triton contract (ai/triton/model_repository/yolo26/config.pbtxt output0):
+# YOLO26's NMS-free one-to-one head, max_det rows of (x1, y1, x2, y2, score, class).
+# The one-to-many training head exports as [1, 84, 8400] and Triton refuses it.
+EXPECTED_OUTPUT_SHAPE: tuple[int, ...] = (1, 300, 6)
+
+
+def output_shape_ok(dims: tuple[int, ...] | list[int]) -> bool:
+    """Whether an exported output0 shape is the head Triton's config declares."""
+    return tuple(dims) == EXPECTED_OUTPUT_SHAPE
+
 
 def export_to_onnx(
     model_path: str,
@@ -125,10 +135,15 @@ def export_to_onnx(
 
         # Export to ONNX (Ultralytics produces .onnx next to the source .pt)
         logger.info("Starting ONNX export...")
+        # nms=False selects YOLO26's NMS-free one-to-one head. Since ultralytics
+        # 8.4.164 the default (nms=None) means "external NMS" and exports the
+        # one-to-many head instead; older releases defaulted to end2end, so the
+        # explicit value is correct on both.
         export_result = model.export(
             format="onnx",
             device=device,
             imgsz=IMGSZ,
+            nms=False,
         )
 
         # Locate the exported ONNX file
@@ -428,6 +443,21 @@ def validate_model(output_path: str) -> bool:
 
     file_size_mb = file_size / (1024 * 1024)
     logger.info(f"Model file size: {file_size_mb:.1f} MB")
+
+    if path.suffix == ".onnx":
+        # Fail closed: an ONNX export always has onnx installed (ultralytics needs it).
+        import onnx
+
+        output0 = onnx.load(str(path), load_external_data=False).graph.output[0]
+        dims = tuple(d.dim_value for d in output0.type.tensor_type.shape.dim)
+        if not output_shape_ok(dims):
+            logger.error(
+                f"output0 shape {list(dims)} is not Triton's {list(EXPECTED_OUTPUT_SHAPE)} - "
+                "the one-to-many head was exported (export must pass nms=False)"
+            )
+            return False
+        logger.info(f"output0 shape {list(dims)} matches the Triton config")
+
     logger.info("Validation passed (full inference validation deferred to Triton)")
     return True
 

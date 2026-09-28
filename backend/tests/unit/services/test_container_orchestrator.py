@@ -2109,3 +2109,108 @@ class TestWp44ControlPathArgsAndMessages:
 
         assert await orchestrator.restart_service("ai-yolo26", reset_failures=True) is True
         orchestrator._registry.reset_failures.assert_called_once_with("ai-yolo26")
+
+
+# =============================================================================
+# PIPELINE_MODE=vlm: the retired LLM containers are never managed
+# =============================================================================
+
+
+class TestRetiredLlmContainersInVlmMode:
+    """PIPELINE_MODE=vlm must never let the orchestrator start/restart the LLM.
+
+    Discovery lists containers with ``all=True`` - a STOPPED ai-llm (the A5500
+    runbook stops it before ``--profile vlm up``) is discovered, registered,
+    and handed to ``LifecycleManager.handle_stopped``, which starts it. On
+    2026-09-28 only a podman-socket PermissionError kept the backend from
+    doing that: it would have put the retired 30B LLM on the GPU ai-vlm
+    occupies. In vlm mode neither legacy LLM engine (ai-llm, and ai-llm-vllm -
+    the same Nemotron on the same GPU_LLM) is registered, so nothing - health
+    loop, lifecycle, or the services API - can start or restart it. Legacy
+    (unsupported until R8) registers them exactly as before.
+    """
+
+    @staticmethod
+    def _discovered(name: str, container_id: str) -> DiscoveredService:
+        return DiscoveredService(
+            name=name,
+            display_name=name,
+            container_id=container_id,
+            image=f"localhost/{name}:latest",
+            port=8091,
+            category=ServiceCategory.AI,
+            health_endpoint="/health",
+            max_failures=5,
+            restart_backoff_base=5.0,
+            restart_backoff_max=300.0,
+            startup_grace_period=120,
+        )
+
+    def _all_ai(self) -> list[DiscoveredService]:
+        return [
+            self._discovered("ai-gateway", "gw0001"),
+            self._discovered("ai-llm", "llm0001"),
+            self._discovered("ai-llm-vllm", "vllm0001"),
+        ]
+
+    @staticmethod
+    def _use_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
+        from backend.core.config import Settings
+        from backend.services import container_orchestrator as co
+
+        monkeypatch.setattr(
+            co,
+            "_settings_for_mode",
+            lambda: Settings(_env_file=None, pipeline_mode=mode),
+            raising=False,
+        )
+
+    @pytest.mark.asyncio
+    async def test_vlm_mode_never_registers_the_retired_llm_containers(
+        self,
+        orchestrator: ContainerOrchestrator,
+        mock_docker_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._use_mode(monkeypatch, "vlm")
+        with patch.object(
+            orchestrator._discovery_service,
+            "discover_all",
+            return_value=self._all_ai(),
+            autospec=True,
+        ):
+            await orchestrator.start()
+
+        assert {s.name for s in orchestrator.get_all_services()} == {"ai-gateway"}, (
+            "vlm mode registered a retired LLM container - the orchestrator can start it"
+        )
+        for name in ("ai-llm", "ai-llm-vllm"):
+            assert await orchestrator.start_service(name) is False
+            assert await orchestrator.restart_service(name, reset_failures=True) is False
+        for call in (
+            *mock_docker_client.start_container.await_args_list,
+            *mock_docker_client.restart_container.await_args_list,
+        ):
+            assert call.args[0] not in ("llm0001", "vllm0001"), call
+
+    @pytest.mark.asyncio
+    async def test_legacy_mode_still_registers_every_discovered_ai_container(
+        self,
+        orchestrator: ContainerOrchestrator,
+        mock_docker_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self._use_mode(monkeypatch, "legacy")
+        with patch.object(
+            orchestrator._discovery_service,
+            "discover_all",
+            return_value=self._all_ai(),
+            autospec=True,
+        ):
+            await orchestrator.start()
+
+        assert {s.name for s in orchestrator.get_all_services()} == {
+            "ai-gateway",
+            "ai-llm",
+            "ai-llm-vllm",
+        }
