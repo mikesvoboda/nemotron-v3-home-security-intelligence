@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import tempfile
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -18,6 +19,8 @@ from synthbench.contract.corpus import IndexRow
 M = TypeVar("M", bound=ContractModel)
 
 DEFAULT_SYNTHBENCH_ROOT = Path("/export/synthbench")
+# A tier letter, then no path separators or dot segments: the id never leaves version_dir.
+_EVENT_ID = re.compile(r"[AB]-[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
 def to_json(model: ContractModel) -> str:
@@ -55,10 +58,11 @@ class CorpusStore:
         return self.version_dir / "index.jsonl"
 
     def event_dir(self, event_id: str) -> Path:
-        tier, _, rest = event_id.partition("-")
-        if tier not in ("A", "B") or not rest:
-            raise ValueError(f"event_id must start with A- or B-: {event_id!r}")
-        return self.version_dir / "events" / tier / event_id
+        if not _EVENT_ID.fullmatch(event_id):
+            raise ValueError(
+                f"event_id must be A- or B- followed by letters, digits, '_' or '-': {event_id!r}"
+            )
+        return self.version_dir / "events" / event_id[0] / event_id
 
     def spec_file(self, event_id: str) -> Path:
         return self.event_dir(event_id) / "spec.json"

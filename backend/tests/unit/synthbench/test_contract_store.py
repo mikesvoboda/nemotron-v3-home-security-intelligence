@@ -49,9 +49,13 @@ def test_the_layout_matches_the_design(tmp_path: Path) -> None:
     )
     assert store.manifest_file == tmp_path / "tierb-v0" / "corpus.json"
     assert store.index_file == tmp_path / "tierb-v0" / "index.jsonl"
+    tier_a = "A-lakehouse-dock_cam2-00417"
+    assert store.event_dir(tier_a) == tmp_path / "tierb-v0" / "events" / "A" / tier_a
 
 
-@pytest.mark.parametrize("event_id", ["C-x-000", "B", "b-pilot-1-000"])
+@pytest.mark.parametrize(
+    "event_id", ["C-x-000", "B", "b-pilot-1-000", "B-a/../escape", "B-x/y", "B-.."]
+)
 def test_event_ids_need_a_tier_prefix(tmp_path: Path, event_id: str) -> None:
     with pytest.raises(ValueError, match="A- or B-"):
         CorpusStore(tmp_path, "tierb-v0").event_dir(event_id)
