@@ -27,13 +27,16 @@ has a number on this box, not to a re-run.
 
     git clone <repo> && cd <repo>
     git checkout feat/vss-gaming-gpu-profile
-    git rev-parse --short HEAD   # must be 38eb8716 or a descendant — record it
+    git rev-parse --short HEAD   # must be aea3a40a or a descendant — record it
 
 Branch `feat/vss-gaming-gpu-profile` on remote `github`
-(`mikesvoboda/nemotron-v3-home-security-intelligence`). Head as of this writing:
-`38eb8716188c6c4ab4eb5a851cd63f7e103b076d`. If the branch has moved, pull — the
-checklist and its generator are updated together and a stale head can send you
-after a bug that is already fixed (or hide one that isn't).
+(`mikesvoboda/nemotron-v3-home-security-intelligence`). The head that added THIS
+file is `aea3a40a3bf3041a13cd85eabf36380a78adb20d`; anything older than it does
+not contain this document, which is the one reason the pin is that commit rather
+than the readiness-fix commit (`38eb8716`) whose content you actually need —
+pull the tip and you have both. If the branch has moved further, pull anyway:
+the checklist and its generator are updated together and a stale head can send
+you after a bug that is already fixed (or hide one that isn't).
 
 ## Two documents, two authorities
 
