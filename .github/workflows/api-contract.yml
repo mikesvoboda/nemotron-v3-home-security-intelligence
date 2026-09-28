@@ -254,7 +254,7 @@ jobs:
       - name: Comment PR with contract test results
         if: always()
         continue-on-error: true # Don't fail job if commenting fails (permissions may be limited)
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
         with:
           script: |
             const fs = require('fs');
@@ -346,7 +346,7 @@ jobs:
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
         with:
           name: api-contract-test-results
           path: |

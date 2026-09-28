@@ -71,6 +71,35 @@ describe('Sentry Integration', () => {
       );
     });
 
+    it('pins the v11 dataCollection privacy floor closed', async () => {
+      // @sentry/react 11 resolved an UNSET dataCollection by falling through
+      // to its own DEFAULTS, which collect cookies, request/response headers,
+      // all four HTTP body directions, query params and inferred IPs. v10
+      // routed the unset case through sendDefaultPii instead, and this app
+      // never sets sendDefaultPii — so the version bump alone would have
+      // flipped a home-security dashboard from collect-nothing to
+      // collect-everything. This suite mocks @sentry/react outright, so
+      // nothing else here can catch that; this assertion is the gate.
+      vi.stubEnv('VITE_SENTRY_DSN', 'https://test@sentry.io/123');
+
+      const { initSentry: init } = await import('./sentry');
+      init();
+
+      expect(Sentry.init).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataCollection: expect.objectContaining({
+            userInfo: false,
+            cookies: false,
+            httpHeaders: false,
+            httpBodies: [],
+            urlQueryParams: false,
+            stackFrameVariables: false,
+            frameContextLines: 0,
+          }),
+        })
+      );
+    });
+
     it('does not initialize Sentry when DSN is not provided', async () => {
       vi.stubEnv('VITE_SENTRY_DSN', '');
 

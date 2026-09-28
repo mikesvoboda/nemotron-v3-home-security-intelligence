@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
         with:
           name: test-results-unit-run-${{ matrix.run }}
           path: |
@@ -185,7 +185,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
         with:
           name: test-results-integration-run-${{ matrix.run }}
           path: |
@@ -242,7 +242,7 @@ jobs:
 
       - name: Upload flaky test report
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
         with:
           name: flaky-test-report
           path: flaky-test-report.json
@@ -329,7 +329,7 @@ jobs:
 
       - name: Create issue for new flaky tests
         if: steps.check_new_flaky.outputs.new_flaky_count > 0
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3    # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

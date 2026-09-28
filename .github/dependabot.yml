@@ -88,8 +88,11 @@ updates:
       # refused minor. 2.13.0 shipped the network-source architecture rewrite
       # (#2650) and 2.15.0 reproduces both frontend test failures measured in
       # docs/plans/2026-09-21-dependabot-triage.md — every 2.13+ is refused,
-      # only exact 2.12.x is clean. 2.12.10 is the last 2.12 patch, so nothing
-      # landable is suppressed. devDependency only: no security exposure.
+      # only exact 2.12.x is clean. The 2.12 line kept shipping after that
+      # triage: 2.12.11–2.12.14 landed 2026-03-15..21, and this wave's #6686
+      # carries 2.12.10 -> 2.12.14 — all 8 vitest shards re-ran green on it
+      # (20,329 tests). 2.12.14 is the last 2.12 patch, so the >=2.13 floor
+      # suppresses nothing landable. devDependency only: no security exposure.
       - dependency-name: 'msw'
         versions: ['>=2.13']
       # Floors for the majors deferred 2026-09-23 with measured reasons — each
