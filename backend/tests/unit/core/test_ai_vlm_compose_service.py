@@ -284,6 +284,52 @@ class TestSlotSizingReachesTheBackend:
             )
 
 
+class TestSpecialistResidencyReachesTheBackend:
+    """Rev 6 makes the specialists RESIDENT (spec D3; models.yml's face rows:
+    "never triggers a load, so both rows must be resident at boot"), and the
+    only thing that loads them is main.py's boot sweep, gated on
+    Settings.backend_model_preload (default False). setup.py writes
+    BACKEND_MODEL_PRELOAD into the generated .env - but the backend has no
+    env_file:, so before this the prod container never saw it: on every
+    compose box the face and re-ID legs answered "unavailable" with both
+    hash-pinned weights on disk, and M1's specialist half could not be
+    exercised. (Not a VRAM change: the prod image's torch is +cpu, so the
+    backend's OSNet is a CPU resident.) Found on the A5500 bring-up,
+    2026-09-28 - item 32 fixed the sweep and the 24 GB threshold, but not
+    the wire into the container.
+    """
+
+    VAR: ClassVar = "BACKEND_MODEL_PRELOAD"
+
+    @pytest.fixture(scope="class")
+    def backend_env(self, compose: dict) -> dict[str, str]:
+        raw = compose["services"]["backend"].get("environment", [])
+        return dict(item.split("=", 1) for item in raw)
+
+    def test_var_declared_in_env_example(self) -> None:
+        text = ENV_EXAMPLE.read_text(encoding="utf-8")
+        assert re.search(rf"^{self.VAR}=", text, re.M), (
+            f"{self.VAR} is referenced by docker-compose.prod.yml and read by "
+            "Settings; the root env-first rule says it lands in .env.example "
+            "in the same change that references it"
+        )
+
+    def test_var_reaches_the_backend_container(self, backend_env: dict) -> None:
+        assert backend_env.get(self.VAR, "").startswith(f"${{{self.VAR}:-"), (
+            f"{self.VAR} must be threaded to the backend as ${{{self.VAR}:-...}} - "
+            "setup.py's host decision lives in .env, which the container never reads"
+        )
+
+    def test_compose_default_is_the_settings_default(self, backend_env: dict) -> None:
+        """Threading is the fix; the DEFAULT is not. A box whose .env never
+        set the var must boot exactly as before (Settings' False), and the
+        per-host call stays setup.py's (VRAM >= 24 GB, inclusive)."""
+        from backend.core.config import Settings
+
+        declared = Settings.model_fields["backend_model_preload"].default
+        assert backend_env[self.VAR] == f"${{{self.VAR}:-{str(declared).lower()}}}"
+
+
 class TestShippedServingIdentity:
     """ONE fact, five spellings: the shipped serving VLM's identity.
 

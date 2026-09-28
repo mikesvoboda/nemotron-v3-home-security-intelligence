@@ -127,9 +127,11 @@ CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--re
 FROM base AS builder
 
 # Install production dependencies only (no dev/test deps)
+# --extra face: onnxruntime (CPU) for the F12 face leg - it is in no base
+# dependency, so without it the face rows can never load in this image.
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+    uv sync --frozen --no-dev --no-install-project --extra face
 
 # =============================================================================
 # Production target: minimal runtime image without build tools

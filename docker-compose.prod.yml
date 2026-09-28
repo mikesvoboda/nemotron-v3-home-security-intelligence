@@ -565,6 +565,11 @@ services:
       # GATEWAY_MODEL_SET above (pinned together in
       # test_gateway_model_set_compose.py).
       - PIPELINE_MODE=${PIPELINE_MODE:-vlm}
+      # Specialist residency: the boot sweep that loads the face + re-ID
+      # rows is gated on this, and the backend has no env_file:, so without
+      # this line setup.py's .env value never reached the container
+      # (test_ai_vlm_compose_service.TestSpecialistResidencyReachesTheBackend).
+      - BACKEND_MODEL_PRELOAD=${BACKEND_MODEL_PRELOAD:-false}
       # Logging verbosity: WARNING (default) suppresses all INFO/DEBUG pipeline messages.
       # Set LOG_LEVEL=INFO in .env to see file watcher queuing, detection, and event creation.
       # Set LOG_LEVEL=DEBUG for full trace including debounce and deduplication decisions.
