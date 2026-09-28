@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
+from backend.api.routes.health_ai_services import ai_services_config_for_mode
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -5652,10 +5653,13 @@ async def get_full_health(
 ) -> FullHealthResponse:
     """Get comprehensive health status for all system components."""
     settings = get_settings()
+    # PIPELINE_MODE=vlm swaps the (critical) nemotron row for ai-vlm - the
+    # legacy LLM is retired there and must not read as a critical outage.
+    ai_services_config = ai_services_config_for_mode(settings, AI_SERVICES_CONFIG)
 
     postgres_task = _check_postgres_health_full(db)
     redis_task = _check_redis_health_full(redis)
-    ai_tasks = [_check_ai_service_health(config, settings) for config in AI_SERVICES_CONFIG]
+    ai_tasks = [_check_ai_service_health(config, settings) for config in ai_services_config]
 
     results = await asyncio.gather(
         postgres_task,
@@ -5678,7 +5682,7 @@ async def get_full_health(
         critical_unhealthy.append("redis")
 
     for i, health in enumerate(ai_healths):
-        service_config = AI_SERVICES_CONFIG[i]
+        service_config = ai_services_config[i]
         if health.status != ServiceHealthState.HEALTHY:
             if service_config.get("critical", False):
                 critical_unhealthy.append(health.name)
