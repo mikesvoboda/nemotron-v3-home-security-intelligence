@@ -4,6 +4,7 @@
   "op": "vlm_assess",
   "properties": {
     "context": "ref(VlmAssessContext)",
+    "frame_detection_ids": "anyOf(array<array<integer>>,null)",
     "image_paths": "array<string>"
   },
   "required": ["context", "image_paths"],
