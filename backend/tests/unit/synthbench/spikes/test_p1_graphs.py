@@ -1,6 +1,6 @@
 """Every P1 bake-off graph, built exactly as the runner builds it, validates offline.
 
-The runner sends 328 graphs (312 images + 16 clips) through run._graph. Each one is
+The runner sends 336 graphs (312 images + 24 clips) through run._graph. Each one is
 checked against the captured v0.37.0 /object_info, so a change to a builder, a case or
 the runner that ComfyUI would reject fails here instead of inside a GPU window.
 """
@@ -22,7 +22,7 @@ SNAPSHOT = REPO_ROOT / "synthbench" / "generate" / "comfy" / "object_info.v0.37.
 def test_every_bakeoff_graph_validates_against_the_snapshot() -> None:
     object_info: dict[str, Any] = json.loads(SNAPSHOT.read_text())
     jobs = image_jobs() + clip_jobs()
-    assert len(jobs) == 328
+    assert len(jobs) == 336
     assert {job.kind for job in jobs} == {"t2i", "edit", "i2v"}
     errors = {}
     for job in jobs:

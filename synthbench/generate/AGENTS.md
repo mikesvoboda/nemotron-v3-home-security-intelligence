@@ -9,7 +9,7 @@ The durable generation stack (spec §3) that P3 builds on: pinned weights, the G
 | Path                      | What                                                                                    |
 | ------------------------- | --------------------------------------------------------------------------------------- |
 | `weights.py`              | manifest loading, sha256 fetch, symlink farm, `extra_model_paths` text; CLI `sync`      |
-| `manifests/p1-slate.json` | the pinned P1 weights (33 rows, 30 unique files); committed, never edited by hand       |
+| `manifests/p1-slate.json` | the pinned P1 weights (37 rows, 34 unique files); committed, never edited by hand       |
 | `window.py`               | GPU window: stops the flagship vLLM, ALWAYS restores it; CLI `run`, `restore`, `status` |
 | `podman.py`               | the dedicated podman store: `podman_argv()` prefix, `podman_env()` `TMPDIR`; CLI prefix |
 | `comfy/`                  | the ComfyUI renderer (see `comfy/AGENTS.md`)                                            |

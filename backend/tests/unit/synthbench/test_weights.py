@@ -12,6 +12,7 @@ from synthbench.generate import weights as w
 REPO_ROOT = Path(__file__).resolve().parents[4]
 P1_SLATE = REPO_ROOT / "synthbench" / "generate" / "manifests" / "p1-slate.json"
 REV = "a" * 40
+H3_REVISION = "4cc1d817b6184899b41293954329f576cb5ae86b"  # pragma: allowlist secret
 
 
 def _sha(data: bytes) -> str:
@@ -58,8 +59,8 @@ class TestLoadManifest:
 
     def test_the_committed_p1_slate_loads(self) -> None:
         files = w.load_manifest(P1_SLATE)
-        assert len(files) == 33
-        assert len(w.unique_by_sha(files)) == 30
+        assert len(files) == 37
+        assert len(w.unique_by_sha(files)) == 34
         assert {f.model for f in files} == {
             "flux2-dev",
             "qwen-image-2.1",
@@ -69,7 +70,20 @@ class TestLoadManifest:
             "ideogram-4",
             "ltx-2.5",
             "wan2.2-i2v",
+            "minimax-h3",
         }
+
+    def test_the_p1_slate_pins_the_minimax_h3_i2v_files(self) -> None:
+        # Task 9: only the files the i2v graph loads (its template's Lightning LoRA is off).
+        h3 = [f for f in w.load_manifest(P1_SLATE) if f.model == "minimax-h3"]
+        assert {(f.category, f.name) for f in h3} == {
+            ("diffusion_models", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"),
+            ("text_encoders", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"),
+            ("vae", "minimax_h3_video_vae_fp16.safetensors"),
+            ("vae", "minimax_h3_audio_vae_fp32.safetensors"),
+        }
+        assert {(f.repo, f.revision) for f in h3} == {("Comfy-Org/MiniMax-H3", H3_REVISION)}
+        assert all(f.path == f"{f.category}/{f.name}" for f in h3)
 
     @pytest.mark.parametrize(
         ("field", "value", "message"),
@@ -113,6 +127,15 @@ class TestLinkNames:
             "flux2-klein-4b--flux2-vae.safetensors",
             "ideogram-4--flux2-vae.safetensors",
         ]
+
+    def test_no_two_p1_slate_files_share_a_link(self) -> None:
+        # Rows that share a link share its content (ae, qwen_3_4b); nothing else collides.
+        names = w.link_names(w.load_manifest(P1_SLATE))
+        contents: dict[tuple[str, str], set[str]] = {}
+        for f, name in names.items():
+            contents.setdefault((f.category, name), set()).add(f.sha256)
+        assert all(len(shas) == 1 for shas in contents.values())
+        assert len(contents) == 35  # the farm's links: 34 unique files, ideogram-4 reuses one
 
 
 class TestFetch:

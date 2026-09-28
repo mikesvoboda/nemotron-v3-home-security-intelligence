@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from itertools import groupby
 from pathlib import Path
 
@@ -44,11 +45,17 @@ def test_every_output_path_is_unique() -> None:
 
 def test_clip_jobs_use_keyframes_from_the_keyframe_model() -> None:
     jobs = clip_jobs()
-    assert len(jobs) == len(c.I2V_MODELS) * len(c.CLIPS) * len(c.CLIP_SEEDS) == 16
+    assert len(jobs) == len(c.I2V_MODELS) * len(c.CLIPS) * len(c.CLIP_SEEDS) == 24
+    assert Counter(j.model for j in jobs) == dict.fromkeys(c.I2V_MODELS, 8)
     assert {j.inputs[0].split("/")[1] for j in jobs} == {c.KEYFRAME_MODEL}
     assert {j.frames for j in jobs if j.model == "ltx-2.5"} == {c.CLIP_FRAMES["ltx-2.5"]}
     for model in c.I2V_MODELS:
         assert {(j.width, j.height) for j in jobs if j.model == model} == {c.CLIP_SIZES[model]}
+
+
+def test_the_bakeoff_totals() -> None:
+    assert c.I2V_MODELS == ("ltx-2.5", "wan2.2-i2v", "minimax-h3")
+    assert len(image_jobs()) + len(clip_jobs()) == 312 + 24 == 336
 
 
 def test_clip_sizes_and_frames_fit_each_video_model() -> None:
@@ -56,6 +63,12 @@ def test_clip_sizes_and_frames_fit_each_video_model() -> None:
     assert all(side % 32 == 0 for side in c.CLIP_SIZES["ltx-2.5"])  # the LTX latent grid
     assert (c.CLIP_FRAMES["ltx-2.5"] - 1) % 8 == 0  # LTX-2.5: 8n + 1 frames
     assert (c.CLIP_FRAMES["wan2.2-i2v"] - 1) % 4 == 0  # Wan 2.2: 4n + 1 frames
+    # MiniMax-H3: a 32-pixel canvas grid, a 768 short edge within its 768 x 1344 area cap,
+    # and 17k + 5 frames (anything else is snapped up, so the record's frames would lie)
+    width, height = c.CLIP_SIZES["minimax-h3"]
+    assert width % 32 == 0 and height % 32 == 0
+    assert min(width, height) == 768 and width * height <= 768 * 1344
+    assert (c.CLIP_FRAMES["minimax-h3"] - 5) % 17 == 0
 
 
 def test_keyframe_paths() -> None:

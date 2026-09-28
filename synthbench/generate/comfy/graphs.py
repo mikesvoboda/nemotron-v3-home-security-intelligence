@@ -807,6 +807,74 @@ def wan22_i2v(prompt: str, *, image: str, seed: int, width: int, height: int, fr
     }
 
 
+# From template video_minimax_h3_i2v.json @ 98fd32c (Lightning LoRA off: 20 steps; fp16 video VAE)
+def minimax_h3_i2v(
+    prompt: str, *, image: str, seed: int, width: int, height: int, frames: int
+) -> Graph:
+    return {
+        "1": {
+            "class_type": "UNETLoader",
+            "inputs": {
+                "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+                "weight_dtype": "default",
+            },
+        },
+        "2": {
+            "class_type": "CLIPLoader",
+            "inputs": {
+                "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+                "type": "minimax",
+                "device": "default",
+            },
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {"vae_name": "minimax_h3_video_vae_fp16.safetensors"},
+        },
+        "4": {
+            "class_type": "VAELoader",
+            "inputs": {"vae_name": "minimax_h3_audio_vae_fp32.safetensors"},
+        },
+        "5": {"class_type": "LoadImage", "inputs": {"image": image}},
+        "6": {  # encodes the prompt itself; returns the conditioning and the AV latent
+            "class_type": "MiniMaxH3ImageToVideo",
+            "inputs": {
+                "clip": ["2", 0],
+                "vae": ["3", 0],
+                "first_frame": ["5", 0],
+                "prompt": prompt,
+                "width": width,
+                "height": height,
+                "length": frames,
+            },
+        },
+        "7": {"class_type": "BasicGuider", "inputs": {"model": ["1", 0], "conditioning": ["6", 0]}},
+        "8": {
+            "class_type": "BasicScheduler",
+            "inputs": {"model": ["1", 0], "scheduler": "simple", "steps": 20, "denoise": 1.0},
+        },
+        "9": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "res_multistep"}},
+        "10": {"class_type": "RandomNoise", "inputs": {"noise_seed": seed}},
+        "11": {
+            "class_type": "SamplerCustomAdvanced",
+            "inputs": {
+                "noise": ["10", 0],
+                "guider": ["7", 0],
+                "sampler": ["9", 0],
+                "sigmas": ["8", 0],
+                "latent_image": ["6", 1],
+            },
+        },
+        "12": {"class_type": "VAEDecode", "inputs": {"samples": ["11", 0], "vae": ["3", 0]}},
+        "13": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["11", 0], "vae": ["4", 0]}},
+        "14": {
+            "class_type": "CreateVideo",
+            "inputs": {"images": ["12", 0], "audio": ["13", 0], "fps": 24.0, "bit_depth": 8},
+        },
+        "15": _save_video(["14", 0], "minimax-h3"),
+    }
+
+
 T2I_BUILDERS: dict[str, T2IBuilder] = {
     "flux2-dev": flux2_dev_t2i,
     "flux2-klein-4b": flux2_klein_4b_t2i,
@@ -820,7 +888,11 @@ EDIT_BUILDERS: dict[str, EditBuilder] = {
     "flux2-dev": flux2_dev_edit,
     "flux2-klein-4b": flux2_klein_4b_edit,
 }
-I2V_BUILDERS: dict[str, I2VBuilder] = {"ltx-2.5": ltx_25_i2v, "wan2.2-i2v": wan22_i2v}
+I2V_BUILDERS: dict[str, I2VBuilder] = {
+    "ltx-2.5": ltx_25_i2v,
+    "wan2.2-i2v": wan22_i2v,
+    "minimax-h3": minimax_h3_i2v,
+}
 
 _SAMPLE: dict[str, Any] = {"seed": 11, "width": 1024, "height": 576}
 

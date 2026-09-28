@@ -175,6 +175,44 @@ def test_at_measure_size_resizes_a_pil_image_keeping_its_aspect() -> None:
     assert m.at_measure_size(small) is small
 
 
+def _write_clip_with_audio(path: Path, frames: int) -> None:
+    """A tiny mp4 like LTX-2.5's and MiniMax-H3's: video plus an AAC track, the audio
+    stream first. Frame i is a flat gray of level 8 * i."""
+    av = pytest.importorskip("av")
+    np = pytest.importorskip("numpy")
+    with av.open(str(path), "w") as out:
+        audio = out.add_stream("aac", rate=48000, layout="stereo")
+        video = out.add_stream("mpeg4", rate=24)
+        video.width, video.height, video.pix_fmt = 64, 48, "yuv420p"
+        for i in range(frames):
+            pixels = np.full((48, 64, 3), 8 * i, dtype=np.uint8)
+            out.mux(video.encode(av.VideoFrame.from_ndarray(pixels, format="rgb24")))
+        for i in range(frames * 2):  # 2 x 1024 samples per 24 fps frame: longer than the video
+            samples = av.AudioFrame.from_ndarray(
+                np.zeros((2, 1024), dtype=np.float32), format="fltp", layout="stereo"
+            )
+            samples.sample_rate, samples.pts = 48000, i * 1024
+            out.mux(audio.encode(samples))
+        out.mux(video.encode())
+        out.mux(audio.encode())
+
+
+def test_clip_frames_reads_the_video_stream_of_a_clip_with_audio(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    _write_clip_with_audio(clip, frames=30)
+    frames = m.clip_frames(clip)
+    assert len(frames) == 8 and {f.size for f in frames} == {(64, 48)}
+    # every third frame (30 // 8), in order: gray levels 0, 24, 48, ... within codec error
+    levels = [f.convert("L").getpixel((32, 24)) for f in frames]
+    assert levels == pytest.approx([24 * k for k in range(8)], abs=6)
+
+
+def test_clip_frames_keeps_every_frame_of_a_short_clip(tmp_path: Path) -> None:
+    clip = tmp_path / "short.mp4"
+    _write_clip_with_audio(clip, frames=5)
+    assert len(m.clip_frames(clip)) == 5
+
+
 def test_measure_all_turns_a_failing_record_into_an_error_row(tmp_path: Path) -> None:
     class BrokenOcr(FakeTools):
         def ocr(self, image: Path) -> list[m.Fragment]:

@@ -30,8 +30,9 @@ def test_registries_cover_the_approved_slate() -> None:
         "ideogram-4",
     }
     assert set(graphs.EDIT_BUILDERS) == {"qwen-image-2.1", "flux2-dev", "flux2-klein-4b"}
-    assert set(graphs.I2V_BUILDERS) == {"ltx-2.5", "wan2.2-i2v"}
-    assert len(graphs.sample_graphs()) == 11
+    assert set(graphs.I2V_BUILDERS) == {"ltx-2.5", "wan2.2-i2v", "minimax-h3"}
+    assert len(graphs.sample_graphs()) == 12
+    assert "i2v:minimax-h3" in graphs.sample_graphs()
 
 
 @pytest.mark.parametrize("key", sorted(graphs.sample_graphs()))
@@ -149,6 +150,12 @@ ROUTES: dict[str, dict[str, list[Site]]] = {
         **_size(("WanImageToVideo", "{}")),
         "frames": [("WanImageToVideo", "length")],
     },
+    "i2v:minimax-h3": {  # its text encoding happens inside MiniMaxH3ImageToVideo
+        "prompt": [("MiniMaxH3ImageToVideo", "prompt")],
+        "seed": [("RandomNoise", "noise_seed")],
+        **_size(("MiniMaxH3ImageToVideo", "{}")),
+        "frames": [("MiniMaxH3ImageToVideo", "length")],
+    },
 }
 
 
@@ -236,6 +243,37 @@ def test_wan_seeds_the_high_noise_pass_that_adds_the_noise() -> None:
     model = graph[seeded["inputs"]["model"][0]]
     lora = graph[model["inputs"]["model"][0]]
     assert "high_noise" in lora["inputs"]["lora_name"]
+
+
+def _only(graph: graphs.Graph, class_type: str) -> dict[str, Any]:
+    [node] = [n for n in graph.values() if n["class_type"] == class_type]
+    return node
+
+
+def test_minimax_h3_keeps_the_template_sampling_and_its_audio() -> None:
+    graph = _build("i2v:minimax-h3", ARGS_A)
+    i2v = _only(graph, "MiniMaxH3ImageToVideo")
+    assert graph[i2v["inputs"]["first_frame"][0]]["class_type"] == "LoadImage"
+    assert "last_frame" not in i2v["inputs"]  # first-frame i2v only; first/last is P6
+    # The template's Lightning-LoRA switch is off: the base model at 20 steps, and no
+    # MiniMaxH3SigmaShift (the model's built-in 12.0 / 3.0 video / audio shifts apply).
+    assert {n["class_type"] for n in graph.values()}.isdisjoint(
+        {"LoraLoaderModelOnly", "MiniMaxH3SigmaShift"}
+    )
+    scheduler = _only(graph, "BasicScheduler")["inputs"]
+    assert (scheduler["scheduler"], scheduler["steps"], scheduler["denoise"]) == ("simple", 20, 1.0)
+    assert _only(graph, "KSamplerSelect")["inputs"]["sampler_name"] == "res_multistep"
+    assert _only(graph, "BasicGuider")["inputs"]["conditioning"] == [
+        next(k for k, n in graph.items() if n is i2v),
+        0,
+    ]
+    video = _only(graph, "CreateVideo")["inputs"]
+    audio = graph[video["audio"][0]]
+    assert audio["class_type"] == "VAEDecodeAudio"
+    assert graph[audio["inputs"]["vae"][0]]["inputs"]["vae_name"] == (
+        "minimax_h3_audio_vae_fp32.safetensors"
+    )
+    assert video["fps"] == 24.0
 
 
 def test_ideogram_rounds_its_size_the_way_the_template_does() -> None:

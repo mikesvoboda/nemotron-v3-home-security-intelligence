@@ -47,6 +47,86 @@
   "python_module": "comfy_extras.nodes_custom_sampler",
   "search_aliases": null
  },
+ "BasicScheduler": {
+  "api_node": false,
+  "category": "model/sampling/schedulers",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": null,
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "denoise": [
+     "FLOAT",
+     {
+      "default": 1.0,
+      "max": 1.0,
+      "min": 0.0,
+      "step": 0.01
+     }
+    ],
+    "model": [
+     "MODEL",
+     {}
+    ],
+    "scheduler": [
+     "COMBO",
+     {
+      "multiselect": false,
+      "options": [
+       "simple",
+       "sgm_uniform",
+       "karras",
+       "exponential",
+       "ddim_uniform",
+       "beta",
+       "normal",
+       "linear_quadratic",
+       "kl_optimal"
+      ]
+     }
+    ],
+    "steps": [
+     "INT",
+     {
+      "default": 20,
+      "max": 10000,
+      "min": 1
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "model",
+    "scheduler",
+    "steps",
+    "denoise"
+   ]
+  },
+  "is_input_list": false,
+  "name": "BasicScheduler",
+  "output": [
+   "SIGMAS"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "SIGMAS"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_custom_sampler",
+  "search_aliases": null
+ },
  "CFGGuider": {
   "api_node": false,
   "category": "model/sampling/guiders",
@@ -210,6 +290,7 @@
       "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
       "llama_3.1_8b_instruct_fp8_scaled.safetensors",
       "mistral_3_small_flux2_fp8.safetensors",
+      "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
       "qwen3vl_8b_bf16.safetensors",
       "qwen3vl_8b_fp8_scaled.safetensors",
       "qwen_3_4b.safetensors",
@@ -2319,6 +2400,111 @@
    "define sigmas"
   ]
  },
+ "MiniMaxH3ImageToVideo": {
+  "api_node": false,
+  "category": "model/conditioning/minimax",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "MiniMax H3 Image to Video",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "optional": {
+    "first_frame": [
+     "IMAGE",
+     {}
+    ],
+    "last_frame": [
+     "IMAGE",
+     {}
+    ]
+   },
+   "required": {
+    "clip": [
+     "CLIP",
+     {}
+    ],
+    "height": [
+     "INT",
+     {
+      "default": 768,
+      "max": 16384,
+      "min": 32,
+      "step": 32
+     }
+    ],
+    "length": [
+     "INT",
+     {
+      "default": 124,
+      "max": 3600,
+      "min": 5,
+      "step": 17,
+      "tooltip": "Frame count at 24 fps, snapped up to the model's 17k+5 grid (124 = ~5s; trained range is ~124-362, longer is untested)"
+     }
+    ],
+    "prompt": [
+     "STRING",
+     {
+      "dynamicPrompts": true,
+      "multiline": true
+     }
+    ],
+    "vae": [
+     "VAE",
+     {}
+    ],
+    "width": [
+     "INT",
+     {
+      "default": 1344,
+      "max": 16384,
+      "min": 32,
+      "step": 32
+     }
+    ]
+   }
+  },
+  "input_order": {
+   "optional": [
+    "first_frame",
+    "last_frame"
+   ],
+   "required": [
+    "clip",
+    "vae",
+    "prompt",
+    "width",
+    "height",
+    "length"
+   ]
+  },
+  "is_input_list": false,
+  "name": "MiniMaxH3ImageToVideo",
+  "output": [
+   "CONDITIONING",
+   "LATENT"
+  ],
+  "output_is_list": [
+   false,
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "positive",
+   "LATENT"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null,
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_minimax_h3",
+  "search_aliases": null
+ },
  "ModelSamplingAuraFlow": {
   "category": "model/patch",
   "description": "",
@@ -2440,6 +2626,7 @@
        "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
        "llama_3.1_8b_instruct_fp8_scaled.safetensors",
        "mistral_3_small_flux2_fp8.safetensors",
+       "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
        "qwen3vl_8b_bf16.safetensors",
        "qwen3vl_8b_fp8_scaled.safetensors",
        "qwen_3_4b.safetensors",
@@ -2458,6 +2645,7 @@
        "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
        "llama_3.1_8b_instruct_fp8_scaled.safetensors",
        "mistral_3_small_flux2_fp8.safetensors",
+       "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
        "qwen3vl_8b_bf16.safetensors",
        "qwen3vl_8b_fp8_scaled.safetensors",
        "qwen_3_4b.safetensors",
@@ -2476,6 +2664,7 @@
        "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
        "llama_3.1_8b_instruct_fp8_scaled.safetensors",
        "mistral_3_small_flux2_fp8.safetensors",
+       "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
        "qwen3vl_8b_bf16.safetensors",
        "qwen3vl_8b_fp8_scaled.safetensors",
        "qwen_3_4b.safetensors",
@@ -2494,6 +2683,7 @@
        "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors",
        "llama_3.1_8b_instruct_fp8_scaled.safetensors",
        "mistral_3_small_flux2_fp8.safetensors",
+       "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
        "qwen3vl_8b_bf16.safetensors",
        "qwen3vl_8b_fp8_scaled.safetensors",
        "qwen_3_4b.safetensors",
@@ -3779,6 +3969,7 @@
       "ideogram4_fp8_scaled.safetensors",
       "ideogram4_unconditional_fp8_scaled.safetensors",
       "ltx-2.5-22b-distilled-transformer-bf16.safetensors",
+      "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
       "qwen_image_2.1_bf16.safetensors",
       "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors",
       "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors",
@@ -3867,6 +4058,56 @@
    "decode latent",
    "latent to image",
    "render latent"
+  ]
+ },
+ "VAEDecodeAudio": {
+  "api_node": false,
+  "category": "model/latent",
+  "deprecated": false,
+  "description": "",
+  "dev_only": false,
+  "display_name": "VAE Decode Audio",
+  "essentials_category": null,
+  "experimental": false,
+  "has_intermediate_output": false,
+  "input": {
+   "required": {
+    "samples": [
+     "LATENT",
+     {}
+    ],
+    "vae": [
+     "VAE",
+     {}
+    ]
+   }
+  },
+  "input_order": {
+   "required": [
+    "samples",
+    "vae"
+   ]
+  },
+  "is_input_list": false,
+  "name": "VAEDecodeAudio",
+  "output": [
+   "AUDIO"
+  ],
+  "output_is_list": [
+   false
+  ],
+  "output_matchtypes": null,
+  "output_name": [
+   "AUDIO"
+  ],
+  "output_node": false,
+  "output_tooltips": [
+   null
+  ],
+  "price_badge": null,
+  "python_module": "comfy_extras.nodes_audio",
+  "search_aliases": [
+   "latent to audio"
   ]
  },
  "VAEDecodeTiled": {
@@ -4006,6 +4247,8 @@
       "ideogram-4--flux2-vae.safetensors",
       "ltx-2.5-audio-vae-bf16.safetensors",
       "ltx-2.5-video-vae-bf16.safetensors",
+      "minimax_h3_audio_vae_fp32.safetensors",
+      "minimax_h3_video_vae_fp16.safetensors",
       "qwen_image_2.1_vae_bf16.safetensors",
       "wan_2.1_vae.safetensors",
       "pixel_space"

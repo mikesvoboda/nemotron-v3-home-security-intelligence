@@ -144,6 +144,17 @@ def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str
     return out
 
 
+def clip_frames(clip: Path, count: int = 8) -> list[Any]:
+    """Up to `count` evenly spaced frames (PIL images) of the clip's first video stream.
+    Decoding only that stream skips the audio track LTX-2.5 and MiniMax-H3 clips carry."""
+    import av
+
+    with av.open(str(clip)) as container:
+        frames = [f.to_image() for f in container.decode(video=0)]
+    step = max(len(frames) // count, 1)
+    return frames[::step][:count]
+
+
 class RealTools:  # pragma: no cover - runs in the renderer image only
     def __init__(self) -> None:
         import torch
@@ -216,12 +227,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         return self._embed(at_measure_size(Image.open(image).convert("RGB")))
 
     def clip_faces(self, clip: Path) -> list[list[float]]:
-        import av
-
-        with av.open(str(clip)) as container:
-            frames = [f.to_image() for f in container.decode(video=0)]
-        step = max(len(frames) // 8, 1)
-        faces = [self._embed(at_measure_size(frame)) for frame in frames[::step][:8]]
+        faces = [self._embed(at_measure_size(frame)) for frame in clip_frames(clip)]
         return [f for f in faces if f is not None]
 
 
