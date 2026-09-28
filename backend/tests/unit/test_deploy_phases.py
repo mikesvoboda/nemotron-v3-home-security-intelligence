@@ -22,8 +22,9 @@ import pytest
 from setup_lib.deploy import DeployConfig
 from setup_lib.deploy_phases import (
     _ALLOY_MEMLOCK_BYTES,
-    _APP_SERVICES,
+    _MODE_PLANS,
     _MONITORING_SERVICES,
+    _mode_plan,
     phase_application,
     phase_infrastructure,
     phase_stop,
@@ -36,6 +37,12 @@ pytestmark = pytest.mark.unit
 # =============================================================================
 # Fixtures
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _no_shell_pipeline_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deploy reads PIPELINE_MODE from the shell too; keep these tests hermetic."""
+    monkeypatch.delenv("PIPELINE_MODE", raising=False)
 
 
 @pytest.fixture
@@ -267,14 +274,141 @@ class TestInfrastructurePhaseAlloyMemlock:
 class TestApplicationPhaseServiceRetry:
     """Tests for individual service retry logic in phase_application."""
 
-    def test_app_services_constant_has_all_critical_services(self) -> None:
-        """Test that _APP_SERVICES contains all critical application services."""
-        expected = {"backend", "frontend", "ai-gateway", "ai-llm"}
-        assert set(_APP_SERVICES) == expected
+    @pytest.fixture(autouse=True)
+    def _gpu_present(self):
+        """The real pre-flight reads /dev/nvidia0 and shells out to dpkg without it."""
+        with patch(
+            "setup_lib.deploy_phases._check_gpu_available", return_value=True, autospec=True
+        ):
+            yield
 
-    def test_app_services_starts_with_ai_llm(self) -> None:
-        """Test that ai-llm is first in _APP_SERVICES (backend depends on it)."""
-        assert _APP_SERVICES[0] == "ai-llm"
+    def test_vlm_app_services_are_gateway_backend_frontend_and_ai_vlm(
+        self, mock_config: DeployConfig
+    ) -> None:
+        """vlm (default): the retired 30B is not an app service; the VLM is."""
+        assert set(_mode_plan(mock_config).app_services) == {
+            "ai-gateway",
+            "backend",
+            "frontend",
+            "ai-vlm",
+        }
+
+    def test_vlm_app_services_start_ai_vlm_last(self, mock_config: DeployConfig) -> None:
+        """ai-vlm is a leaf (backend reaches it by URL, nothing depends_on it), so
+        it starts after the gateway -> backend -> frontend chain it is not part of."""
+        assert _mode_plan(mock_config).app_services == (
+            "ai-gateway",
+            "backend",
+            "frontend",
+            "ai-vlm",
+        )
+
+    def test_legacy_app_services_start_with_ai_llm(self, mock_config: DeployConfig) -> None:
+        """legacy: ai-llm first - backend waits on it via service_healthy."""
+        mock_config.env["PIPELINE_MODE"] = "legacy"
+        assert _mode_plan(mock_config).app_services == (
+            "ai-llm",
+            "ai-gateway",
+            "backend",
+            "frontend",
+        )
+
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    def test_vlm_wait_call_starts_ai_vlm_through_its_profile_and_never_ai_llm(
+        self,
+        mock_compose_run: Mock,
+        mock_config: DeployConfig,
+    ) -> None:
+        """The one `up --wait` names ai-vlm under --profile vlm, sized for the VLM.
+
+        180s: ai-vlm's own healthy-or-unhealthy verdict lands by start_period
+        120s + 3 x 10s retries = 150s; the 30B's 300s is legacy's number.
+        """
+        mock_compose_run.return_value = True
+
+        phase_application(mock_config)
+
+        (wait_call,) = [c for c in mock_compose_run.call_args_list if "--wait" in c.args]
+        assert wait_call.args[1:] == (
+            "--profile",
+            "vlm",
+            "up",
+            "-d",
+            "--no-build",
+            "--wait",
+            "--wait-timeout",
+            "180",
+            "ai-gateway",
+            "backend",
+            "frontend",
+            "ai-vlm",
+        )
+
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    def test_legacy_wait_call_keeps_the_30b_budget_under_profile_legacy(
+        self,
+        mock_compose_run: Mock,
+        mock_config: DeployConfig,
+    ) -> None:
+        """legacy keeps today's shape (ai-llm first, 300s), now via --profile legacy."""
+        mock_config.env["PIPELINE_MODE"] = "legacy"
+        mock_compose_run.return_value = True
+
+        phase_application(mock_config)
+
+        (wait_call,) = [c for c in mock_compose_run.call_args_list if "--wait" in c.args]
+        assert wait_call.args[1:] == (
+            "--profile",
+            "legacy",
+            "up",
+            "-d",
+            "--no-build",
+            "--wait",
+            "--wait-timeout",
+            "300",
+            "ai-llm",
+            "ai-gateway",
+            "backend",
+            "frontend",
+        )
+
+    @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    def test_vlm_retry_path_carries_profile_and_never_names_ai_llm(
+        self,
+        mock_compose_run: Mock,
+        mock_wait_running: Mock,
+        mock_config: DeployConfig,
+    ) -> None:
+        """Per-service retries still reach the profiled ai-vlm, never ai-llm."""
+        mock_compose_run.side_effect = lambda _cfg, *args, **_kw: "--wait" not in args
+        mock_wait_running.return_value = True
+
+        phase_application(mock_config)
+
+        calls = [c.args[1:] for c in mock_compose_run.call_args_list]
+        assert not any("ai-llm" in args for args in calls)
+        retries = [args for args in calls if "--wait" not in args]
+        assert retries == [
+            ("--profile", "vlm", "up", "-d", "--no-build", svc)
+            for svc in ("ai-gateway", "backend", "frontend", "ai-vlm")
+        ]
+
+    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
+    def test_start_message_names_the_model_server_and_its_budget(
+        self,
+        mock_compose_run: Mock,
+        mock_config: DeployConfig,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """The progress line must not promise a 5-minute 30B load in vlm mode."""
+        mock_compose_run.return_value = True
+
+        phase_application(mock_config)
+
+        out = capsys.readouterr().out
+        assert "up to 180s for ai-vlm" in out
+        assert "5min" not in out
 
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_succeeds_when_compose_wait_succeeds(
@@ -311,7 +445,7 @@ class TestApplicationPhaseServiceRetry:
 
         # Verify: the --wait call includes app services
         wait_call = next(c for c in mock_compose_run.call_args_list if "--wait" in c.args)
-        for svc in _APP_SERVICES:
+        for svc in _mode_plan(mock_config).app_services:
             assert svc in wait_call.args, f"{svc} should be in --wait call"
 
         # Verify: alloy is NOT in the --wait call
@@ -343,7 +477,7 @@ class TestApplicationPhaseServiceRetry:
         retry_calls = [
             c
             for c in compose_calls
-            if any(svc in c.args for svc in _APP_SERVICES)
+            if any(svc in c.args for svc in _mode_plan(mock_config).app_services)
             and "up" in c.args
             and "-d" in c.args
             and "--wait" not in c.args
@@ -364,7 +498,7 @@ class TestApplicationPhaseServiceRetry:
         def compose_run_side_effect(config, *args, **kwargs):
             if "--wait" in args:
                 return False  # Initial --wait fails
-            for svc in _APP_SERVICES:
+            for svc in _mode_plan(mock_config).app_services:
                 if svc in args and "up" in args and "-d" in args:
                     retried_services.add(svc)
                     return True
@@ -375,9 +509,12 @@ class TestApplicationPhaseServiceRetry:
 
         result = phase_application(mock_config)
 
-        expected_services = set(_APP_SERVICES)
+        expected_services = set(_mode_plan(mock_config).app_services)
         assert retried_services == expected_services
 
+    @pytest.mark.parametrize(
+        ("mode", "server"), [("vlm", "ai-vlm"), ("legacy", "ai-llm")], ids=["vlm", "legacy"]
+    )
     @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_reports_stuck_services(
@@ -385,21 +522,48 @@ class TestApplicationPhaseServiceRetry:
         mock_compose_run: Mock,
         mock_wait_running: Mock,
         mock_config: DeployConfig,
+        mode: str,
+        server: str,
     ) -> None:
-        """Test that stuck services are reported but phase still succeeds."""
+        """Test that a stuck model server is reported but phase still succeeds."""
 
         def compose_run_side_effect(config, *args, **kwargs):
             return "--wait" not in args
 
+        mock_config.env["PIPELINE_MODE"] = mode
         mock_compose_run.side_effect = compose_run_side_effect
-        # ai-llm doesn't reach running, others do
-        mock_wait_running.side_effect = lambda svc, timeout=60: svc != "ai-llm"  # noqa: ARG005
+        # The mode's model server doesn't reach running, others do
+        mock_wait_running.side_effect = lambda svc, timeout=60: svc != server  # noqa: ARG005
 
         result = phase_application(mock_config)
 
         # Phase still succeeds (degraded is OK, deployment continues)
         assert result.success is True
-        assert "ai-llm" in result.message
+        assert server in result.message
+
+
+class TestApplicationPhaseGpuPreflight:
+    """The missing-GPU warning names the GPU services this mode actually starts."""
+
+    @patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True)
+    @patch("setup_lib.deploy_phases.subprocess.run", autospec=True)
+    @patch("setup_lib.deploy_phases._check_gpu_available", return_value=False, autospec=True)
+    def test_vlm_warning_names_ai_vlm_not_ai_llm(
+        self,
+        mock_gpu: Mock,
+        mock_subprocess_run: Mock,
+        mock_compose_run: Mock,
+        mock_config: DeployConfig,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Driver installed but /dev/nvidia0 missing: the vlm stack's GPU services."""
+        mock_subprocess_run.return_value = MagicMock(returncode=0, stdout="ii nvidia-driver-580")
+
+        phase_application(mock_config)
+
+        out = capsys.readouterr().out
+        assert "GPU services (ai-vlm, ai-gateway)" in out
+        assert "ai-llm" not in out
 
 
 # =============================================================================
@@ -800,3 +964,52 @@ class TestDeployPhasesIntegration:
 
         # Verify: should eventually succeed despite initial failures
         assert result.success is True
+
+
+# =============================================================================
+# Mode plans vs docker-compose.prod.yml (read, never run)
+# =============================================================================
+
+
+@pytest.fixture(scope="module")
+def services() -> dict:
+    """docker-compose.prod.yml's services block (parsed, never run)."""
+    import yaml
+
+    compose = Path(__file__).resolve().parents[3] / "docker-compose.prod.yml"
+    return yaml.safe_load(compose.read_text(encoding="utf-8"))["services"]
+
+
+class TestModePlansMatchCompose:
+    """_MODE_PLANS restates compose facts; pin them so a compose edit cannot
+    silently strand deploy (a renamed profile would make every `--profile`
+    call start nothing; a moved start_period would desync the budgets)."""
+
+    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
+    def test_model_server_sits_behind_the_profile_deploy_passes(
+        self, services: dict, mode: str
+    ) -> None:
+        plan = _MODE_PLANS[mode]
+        assert services[plan.model_server].get("profiles") == [plan.profile]
+
+    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
+    def test_app_services_exist_and_only_the_model_server_is_profiled(
+        self, services: dict, mode: str
+    ) -> None:
+        plan = _MODE_PLANS[mode]
+        for svc in plan.app_services:
+            assert svc in services, f"{svc} missing from docker-compose.prod.yml"
+            if svc != plan.model_server:
+                assert not services[svc].get("profiles"), f"{svc} is profiled"
+
+    def test_vlm_budgets_follow_ai_vlm_start_period(self, services: dict) -> None:
+        """Health poll = start_period; --wait covers start_period + interval x retries."""
+        hc = services["ai-vlm"]["healthcheck"]
+        start, interval = int(hc["start_period"].rstrip("s")), int(hc["interval"].rstrip("s"))
+        plan = _MODE_PLANS["vlm"]
+        assert plan.health_timeout == start
+        assert plan.wait_timeout >= start + interval * hc["retries"]
+
+    def test_legacy_wait_is_ai_llm_start_period(self, services: dict) -> None:
+        start = services["ai-llm"]["healthcheck"]["start_period"]
+        assert _MODE_PLANS["legacy"].wait_timeout == int(start.rstrip("s"))
