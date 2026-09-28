@@ -37,6 +37,8 @@ from scripts.a5500_precheck import (  # noqa: E402
     WARN,
     Check,
     parse_env,
+    read_selinux_enforcing,
+    read_selinux_label,
     run_precheck,
     scan_stale_pycache,
 )
@@ -585,6 +587,152 @@ class TestDevicePassthrough:
 
 
 # ---------------------------------------------------------------------------
+# selinux_camera_root (A5500 box, 2026-09-28): SELinux enforcing + a usr_t
+# camera root + a /cameras mount without :z = the backend can READ uploads but
+# its inotify WATCH is denied (`avc: denied { watch watch_reads }`), and the
+# file watcher went silently blind. The host readers are injected so these
+# pins never depend on the CI host's SELinux state.
+# ---------------------------------------------------------------------------
+
+USR_T = "system_u:object_r:usr_t:s0"
+CONTAINER_FILE_T = "system_u:object_r:container_file_t:s0"
+
+# prod.yml's shape: the backend mounts the camera root, and so does
+# foscam-init (whose bare mount is not the watcher's business).
+BACKEND_CAMERA_MOUNT = "      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras\n"
+CAMERA_COMPOSE = (
+    GREEN_COMPOSE
+    + "  backend:\n"
+    + "    volumes:\n"
+    + "      - ./backend/data:/app/data:z,U\n"
+    + BACKEND_CAMERA_MOUNT
+    + "  foscam-init:\n"
+    + "    volumes:\n"
+    + "      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras\n"
+)
+
+
+def _camera_compose_with(opts: str) -> str:
+    """CAMERA_COMPOSE with the BACKEND's /cameras mount given ``opts``."""
+    out = CAMERA_COMPOSE.replace(
+        BACKEND_CAMERA_MOUNT, BACKEND_CAMERA_MOUNT.replace(":/cameras\n", f":/cameras{opts}\n"), 1
+    )
+    assert out != CAMERA_COMPOSE
+    return out
+
+
+class TestSelinuxCameraRoot:
+    @staticmethod
+    def _check(
+        tmp_path: Path,
+        *,
+        enforcing: bool | None,
+        label: str | None,
+        compose: dict[str, str] | None = None,
+        env: str = GREEN_ENV,
+        labels_asked: list[str] | None = None,
+    ) -> Check:
+        def fake_label(path: str) -> str | None:
+            if labels_asked is not None:
+                labels_asked.append(path)
+            return label
+
+        compose = compose or {"prod.yml": CAMERA_COMPOSE}
+        checks = run_precheck(
+            env_path=_write(tmp_path, "green.env", env),
+            compose_paths=[_write(tmp_path, name, text) for name, text in compose.items()],
+            repo_root=tmp_path,
+            selinux_enforcing=lambda: enforcing,
+            selinux_label=fake_label,
+        )
+        return _by_id(checks)["selinux_camera_root"]
+
+    def test_enforcing_usr_t_and_no_relabel_warns_with_the_fix(self, tmp_path: Path) -> None:
+        c = self._check(tmp_path, enforcing=True, label=USR_T)
+        assert c.verdict == WARN
+        assert "/export/foscam" in c.detail  # FOSCAM_BASE_PATH default
+        assert "usr_t" in c.detail
+        assert ":z" in c.detail
+        assert "container_file_t" in c.detail
+        assert "avc: denied { watch }" in c.detail
+        assert "prod.yml" in c.detail
+
+    def test_selinux_not_enforcing_passes_with_the_reason(self, tmp_path: Path) -> None:
+        c = self._check(tmp_path, enforcing=False, label=USR_T)
+        assert c.verdict == PASS
+        assert "not enforcing" in c.detail
+
+    def test_no_selinux_on_the_host_passes_with_the_reason(self, tmp_path: Path) -> None:
+        c = self._check(tmp_path, enforcing=None, label=None)
+        assert c.verdict == PASS
+        assert "not present" in c.detail
+
+    def test_camera_root_already_container_file_t_passes(self, tmp_path: Path) -> None:
+        c = self._check(tmp_path, enforcing=True, label=CONTAINER_FILE_T)
+        assert c.verdict == PASS
+        assert "container_file_t" in c.detail
+
+    @pytest.mark.parametrize("opts", [":z", ":Z", ":ro,z"])
+    def test_a_relabelling_backend_mount_passes(self, tmp_path: Path, opts: str) -> None:
+        # foscam-init's bare mount stays bare: only the backend's counts.
+        c = self._check(
+            tmp_path, enforcing=True, label=USR_T, compose={"prod.yml": _camera_compose_with(opts)}
+        )
+        assert c.verdict == PASS
+        assert ":z" in c.detail
+
+    def test_a_compose_file_without_the_relabel_is_named(self, tmp_path: Path) -> None:
+        # prod.yml relabels, ghcr.yml mounts :ro bare: the ghcr path is the
+        # one that goes blind, and the WARN must say which file.
+        c = self._check(
+            tmp_path,
+            enforcing=True,
+            label=USR_T,
+            compose={
+                "prod.yml": _camera_compose_with(":z"),
+                "ghcr.yml": _camera_compose_with(":ro"),
+            },
+        )
+        assert c.verdict == WARN
+        assert "ghcr.yml" in c.detail
+        assert "prod.yml: " not in c.detail
+
+    def test_the_camera_root_comes_from_the_env_file(self, tmp_path: Path) -> None:
+        asked: list[str] = []
+        c = self._check(
+            tmp_path,
+            enforcing=True,
+            label=USR_T,
+            env=GREEN_ENV + "FOSCAM_BASE_PATH=/srv/cams\n",
+            labels_asked=asked,
+        )
+        assert asked == ["/srv/cams"]
+        assert "/srv/cams" in c.detail
+
+    def test_an_unreadable_label_under_enforcing_still_warns(self, tmp_path: Path) -> None:
+        # Camera root not created on this box yet, or no xattr: nothing proves
+        # it is watchable, and the mount will not relabel it.
+        c = self._check(tmp_path, enforcing=True, label=None)
+        assert c.verdict == WARN
+
+
+class TestSelinuxHostReaders:
+    def test_enforce_file_values(self, tmp_path: Path) -> None:
+        assert read_selinux_enforcing(_write(tmp_path, "on", "1\n")) is True
+        assert read_selinux_enforcing(_write(tmp_path, "off", "0\n")) is False
+        assert read_selinux_enforcing(tmp_path / "absent") is None
+
+    def test_label_of_a_missing_path_is_none_not_a_crash(self, tmp_path: Path) -> None:
+        assert read_selinux_label(str(tmp_path / "absent")) is None
+
+    def test_label_of_a_real_dir_is_a_string_or_none(self, tmp_path: Path) -> None:
+        # CI hosts may or may not carry SELinux xattrs; either answer is fine,
+        # an exception is not.
+        label = read_selinux_label(str(tmp_path))
+        assert label is None or (isinstance(label, str) and "\x00" not in label)
+
+
+# ---------------------------------------------------------------------------
 # test-environment traps (TMPDIR, stale __pycache__)
 # ---------------------------------------------------------------------------
 
@@ -670,6 +818,7 @@ class TestHealth:
             "vlm_ctx_budget",
             "legacy_llm",
             "vlm_image",
+            "selinux_camera_root",
             "tmpdir_trap",
             "pycache_stale",
             "health",
@@ -733,6 +882,7 @@ class TestChecklistRender:
         md = render_checklist(checks, date_str="2026-09-27")
         assert "vlm_model" in md
         assert "ai_vlm_mount" in md
+        assert "selinux_camera_root" in md
         # the retired pair's ids are gone from the render (conversion, not
         # accretion: an A5500 reader must not find a Nano-4B instruction)
         assert "llm_model`" not in md
@@ -925,3 +1075,21 @@ class TestRealTreePrepReview:
 
     def test_health_manual_on_real_tree(self, real_checks) -> None:
         assert _by_id(real_checks)["health"].verdict == MANUAL
+
+    def test_on_an_enforcing_usr_t_host_only_the_ghcr_camera_mount_goes_blind(self) -> None:
+        # prod.yml's backend mount carries :z (f88797b4c); ghcr.yml still
+        # mounts /cameras:ro with no relabel. Host state injected, tree real.
+        checks = run_precheck(
+            env_path=PROJECT_ROOT / ".env.example",
+            compose_paths=[
+                PROJECT_ROOT / "docker-compose.prod.yml",
+                PROJECT_ROOT / "docker-compose.ghcr.yml",
+            ],
+            repo_root=PROJECT_ROOT,
+            selinux_enforcing=lambda: True,
+            selinux_label=lambda _path: "system_u:object_r:usr_t:s0",
+        )
+        c = _by_id(checks)["selinux_camera_root"]
+        assert c.verdict == WARN
+        assert "docker-compose.ghcr.yml" in c.detail
+        assert "docker-compose.prod.yml: " not in c.detail
