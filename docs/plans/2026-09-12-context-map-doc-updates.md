@@ -12126,3 +12126,73 @@ dc is now dispositioned **1,463 KILLED + 8 EQUIVALENT + 2 KILLABLE
 dc 2** (`send331`, `det567`); the 8 leave the scope permanently. Probe
 artifacts: /tmp/wp-b28/dc-equiv-probe.py (exit 0), stderr
 /tmp/wp-b28/dc-probe.err.
+
+## 2026-09-28 — LEDGER CORRECTION (batch-29/pw): the 23 pipeline_workers survivors dispositioned BY CONSTRUCTION PROBE — 18 KILLABLE / 5 EQUIVALENT; battery authored + red-checked 18/18 (commit 5454d0c0); batch-29 CLOSES disposition-wise
+
+**THE MEASUREMENT (this session).** Construction sweep
+`/home/agent/runs/pw-equiv-probe.py`, run read-only in the bank tree
+(`cd mutants; MUTANT_UNDER_TEST=<key> ..` per key on the REAL trampolines;
+plain script, no pytest, no meta/stats writes — safe next to a live runner).
+Six driver groups (bcast/reset/pend/drain/det/an) with the shipped half
+rehearsed FIRST and mandatory positive controls alive; shipped-world capture
+counts this run: bcast 1396 / reset 104 / pend 895 / drain 5481 / det 5021 /
+an 9812 comparisons. Per-key env form exactly what the trampoline reads
+(`get_mutant_under_test()`, env-wins, re-read per call —
+mutmut/mutation/trampoline.py:47-58). Full report:
+`/home/agent/runs/pw-sweep-full.txt` — **18 KILLABLE / 5 EQUIVALENT of 23**;
+every `ship=`/`mut=` diff-pair printed there became a battery leg.
+
+**THREE PROBE CORRECTIONS, in BOTH failure directions (the lesson is
+[[survivor-disposition-requires-sweep-not-diffshape]] +
+[[log-context-filter-fakes-extra-kwarg-mutants]]):**
+(1) FALSE-KILLABLE ×4 — an early pass STUBBED `log_context`, so the analysis
+`extra={"batch_id": …}` mutants (m219/m221/m271/m273) showed diffs. Production
+truth: the shipped body runs inside
+`log_context(batch_id=batch_id, camera_id=…, operation="analysis")`
+(pipeline_workers.py:1013-1016) and the `ContextFilter` attached by
+`get_logger` (backend/core/logging.py:484-485, 1127-1129) merges those fields
+into EVERY in-scope record — drop the explicit extra and the filter re-injects
+the identical `record.batch_id`. Unobservable; re-dispositioned EQUIVALENT,
+matching their survival of the real bank run. `worker_name`/`worker_type`
+(bcast m33-m39) are in NO `log_context` and NO filter key (audited) — those
+kills stand.
+(2) FALSE-EQUIVALENT ×2 — det m107 needed a leg that EXECUTES the mutated
+generic `except Exception` (L540): `DetectorUnavailableError` takes the DLQ arm
+and never reaches it, which is why every 0-starting bank leg missed it; added
+plain-`RuntimeError` legs G0/G2/G5 + a PRE-WARMED error count (2→3 shipped vs
+1 mutant is the only discriminating input). drain m57 (post-log reset) needed
+a progress-then-hold leg (D7) to exist at all.
+(3) CLOCK EPOCH DRIFT — bcast/det/pend captures initially not re-zeroed per
+capture; `T[0]=1000.0` added at capture top or ordering manufactures diffs.
+
+**DISPOSITIONS:** KILLABLE (18) — bcast m19/m33/m35/m36/m37/m38/m39, reset m1,
+det m107, drain m21/m23/m51/m52/m53/m54/m57, pend m2/m4. EQUIVALENT (5) —
+drain m55 (`stall_time >= threshold`→`>`): `stall_time` only reaches the 5.0
+region on the IEEE ladder 0.0+0.1\*n — measured THIS session:
+`4.999999999999998 → 5.099999999999998`, no reachable value equals 5.0 exactly,
+so `>=`/`>` never disagree (0 diffs over every probe leg + ladder simulation);
+
+- analysis m219/m221/m271/m273 per correction (1).
+
+**THE BATTERY + RED-CHECK (kill proof).**
+`backend/tests/unit/services/test_pipeline_workers_batch29_00.py`, 12 tests,
+commit **5454d0c0** (every pre-commit hook PASSED — semgrep env repaired after
+the sandbox restart, [[sandbox-restart-pre-commit-python312]]; no skips).
+Pristine 12/12 in 2.18s; co-run green in the mutant home (2.72s). The drain
+legs replay the shipped poll loop under a scripted clock (`time.time` autospec
+0.1-step + `asyncio.sleep` autospec no-op) with a 3.0s WALL guard, so elapsed
+time is exact and every leg terminates on the shipped timeout arm in
+microseconds. Per-key trampoline red-check
+(`/home/agent/runs/pw29-redcheck.sh`, no source mutated, serialized):
+**18/18 keys RED**, each naming its killer test
+(`/home/agent/runs/pw-sweep-redcheck2`).
+
+**What stands / what changes:** NO badge movement — the repair runs fill holes
+only and never re-decide, so these 18 keys keep their survived verdicts in the
+bank until the next FULL re-bank; the kill credit lands then. pw is now
+dispositioned **1,716 KILLED + 5 EQUIVALENT (this row) + 11 batch-28
+EQUIVALENT (upheld) + remaining tail = dispositioned at bank row 1,713+3 kt /
+1,750 / survived 34 (score-repair.json), zero undispositioned in the 23-key
+batch-29 tail**. **Batch-29 CLOSED disposition-wise: pw 23 = 18 killed
+(batteried) + 5 EQUIVALENT; dc 10 = 2 killed (commit 29fa2dab) + 8 EQUIVALENT
+(09-28 dc row).** Next campaign scope: prompts (845 survivors / 3,192 keys).
