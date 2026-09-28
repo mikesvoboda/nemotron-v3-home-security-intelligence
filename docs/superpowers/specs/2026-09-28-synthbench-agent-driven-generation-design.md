@@ -177,6 +177,13 @@ The guard (§1) is independent of the renderer, so the status file stays fresh w
 renderer runs. When the guard stops the renderer, a render in flight fails and is recorded like
 any failed job; `synthbench render` resumes it later.
 
+The guard acts on the renderer container, not on a model, so it covers anything ComfyUI loads,
+including MiniMax-H3 turbo for P6's clips. FLUX.2 (56.2 GiB peak) and H3-turbo (47.4 GiB, P1)
+do not fit together beside the flagship, so ComfyUI swaps between them, and mixed work runs
+stage-major: stills, then clips. H3 has not run beside the flagship. P6 probes it first, as
+FLUX.2 was probed on 2026-09-28, before relying on it. One clip holds the GPU for a minute or
+more, so yield is coarser for clips.
+
 ### §5.2 Yield
 
 Before each image, `synthbench render` reads `status/flagship.json`. It waits, polling every 5 s,
