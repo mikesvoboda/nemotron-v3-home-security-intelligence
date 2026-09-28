@@ -79,11 +79,13 @@ document.addEventListener("change", save);
 document.addEventListener("input", save);
 document.getElementById("download").addEventListener("click", () => {
   const body = JSON.stringify(collect(), null, 2);
+  const url = URL.createObjectURL(new Blob([body], {type: "application/json"}));
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([body], {type: "application/json"}));
+  link.href = url;
   link.download = "ratings.json";
   link.click();
-  URL.revokeObjectURL(link.href);
+  // revoked later: some browsers start the download only after this handler returns
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 restore();
 """

@@ -94,6 +94,7 @@ def test_sheet_has_one_rating_group_per_ok_record() -> None:
 
 
 def _row(model: str, case: str, output: str, **kw: Any) -> dict[str, Any]:
+    """A record; at 1920x1080 its 1080p-equivalent seconds are its seconds."""
     return {
         "model": model,
         "kind": "t2i",
@@ -102,6 +103,8 @@ def _row(model: str, case: str, output: str, **kw: Any) -> dict[str, Any]:
         "output": output,
         "ok": True,
         "seconds": 1.0,
+        "width": 1920,
+        "height": 1080,
     } | kw
 
 
@@ -191,39 +194,80 @@ def test_identity_drift_is_measured_against_the_models_reference() -> None:
     records, measures = _identity("qwen-image-2.1")
     q = r.summarize(records, [], measures, {})["models"]["qwen-image-2.1"]
     assert q["identity_drift_median"] == 0.2
-    assert q["identity_no_face"] == 1
+    assert (q["identity_faces"], q["identity_no_face"]) == (2, 1)
+
+
+Rows = tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, dict[str, str]]]
+
+
+def _compositor_candidate(
+    model: str,
+    *,
+    face: list[float],
+    faces: int = 15,
+    identity_good: int = 15,
+    threat: str = "good",
+) -> Rows:
+    """An edit model's 15 identity shots: the first `faces` have `face` (drift from the
+    reference [1, 0]), the rest none; the first `identity_good` are rated good, the rest
+    fail. The reference is rated fail, to show it never counts. One rated threat image."""
+    base = f"images/{model}/identity"
+    records = [
+        _row(model, "identity_reference", f"{base}/reference.png"),
+        _row(model, "knife", f"images/{model}/knife/11.png"),
+    ]
+    measures: list[dict[str, Any]] = [{"output": f"{base}/reference.png", "face": [1.0, 0.0]}]
+    ratings = {
+        f"{base}/reference.png": {"rating": "fail"},
+        f"images/{model}/knife/11.png": {"rating": threat},
+    }
+    for shot in range(15):
+        out = f"{base}/{shot}_day.png"
+        records.append(_row(model, "identity", out, kind="edit"))
+        measures.append({"output": out, "face": face if shot < faces else None})
+        ratings[out] = {"rating": "good" if shot < identity_good else "fail"}
+    return records, measures, ratings
+
+
+def _merge(*parts: Rows) -> Rows:
+    records, measures, ratings = [], [], {}
+    for part_records, part_measures, part_ratings in parts:
+        records += part_records
+        measures += part_measures
+        ratings |= part_ratings
+    return records, measures, ratings
+
+
+def test_identity_good_rate_counts_the_owners_identity_ratings_only() -> None:
+    records, measures, ratings = _compositor_candidate("qwen-image-2.1", face=[1.0, 0.0])
+    ratings |= {f"images/qwen-image-2.1/identity/{i}_day.png": {"rating": "fail"} for i in range(6)}
+    q = r.summarize(records, [], measures, ratings)["models"]["qwen-image-2.1"]
+    assert (q["identity_good_rate"], q["identity_good_n"]) == (0.6, 15)  # the reference is out
 
 
 def test_compositor_is_the_lowest_drift_edit_model_with_good_threats() -> None:
-    records, measures = [], []
-    for model, drift_face in (("qwen-image-2.1", [0.8, 0.6]), ("flux2-dev", [1.0, 0.0])):
-        base = f"images/{model}/identity"
-        records += [
-            _row(model, "identity_reference", f"{base}/reference.png"),
-            _row(model, "identity", f"{base}/0_day.png", kind="edit"),
-            _row(model, "knife", f"images/{model}/knife/11.png"),
-        ]
-        measures += [
-            {"output": f"{base}/reference.png", "face": [1.0, 0.0]},
-            {"output": f"{base}/0_day.png", "face": drift_face},
-        ]
-    # the lowest drift of all, but not an edit model
-    records += [
-        _row("z-image-turbo", "identity_reference", "images/z/identity/reference.png"),
-        _row("z-image-turbo", "identity", "images/z/identity/0_day.png"),
-        _row("z-image-turbo", "knife", "images/z/knife/11.png"),
-    ]
-    measures += [
-        {"output": "images/z/identity/reference.png", "face": [1.0, 0.0]},
-        {"output": "images/z/identity/0_day.png", "face": [1.0, 0.0]},
-    ]
-    ratings = {
-        "images/qwen-image-2.1/knife/11.png": {"rating": "good"},
-        "images/flux2-dev/knife/11.png": {"rating": "fail"},  # lowest edit drift, bad threats
-        "images/z/knife/11.png": {"rating": "good"},
-    }
+    records, measures, ratings = _merge(
+        _compositor_candidate("qwen-image-2.1", face=[0.8, 0.6]),
+        _compositor_candidate("flux2-dev", face=[1.0, 0.0], threat="fail"),  # bad threats
+        _compositor_candidate("z-image-turbo", face=[1.0, 0.0]),  # not an edit model
+    )
     picks = r.propose_picks(r.summarize(records, [], measures, ratings))
     assert picks["compositor"] == "qwen-image-2.1"
+
+
+def test_compositor_needs_good_identity_ratings_and_enough_faces() -> None:
+    # A near-copy of the reference drifts least; the owner's ratings and the face floor
+    # keep it from winning, as they keep out a model whose faces are mostly not found.
+    records, measures, ratings = _merge(
+        _compositor_candidate("qwen-image-2.1", face=[0.8, 0.6], faces=8, identity_good=8),
+        _compositor_candidate("flux2-dev", face=[1.0, 0.0], identity_good=7),
+        _compositor_candidate("flux2-klein-4b", face=[1.0, 0.0], faces=7),
+    )
+    s = r.summarize(records, [], measures, ratings)
+    assert r.propose_picks(s)["compositor"] == "qwen-image-2.1"
+    row = next(line for line in r.to_markdown(s, {}).splitlines() if "| flux2-klein-4b |" in line)
+    assert "100% (n=15)" in row  # identity good, over the rated shots
+    assert "0.000 (n=7)" in row  # identity drift, over the shots with a face
 
 
 def test_models_with_under_half_their_jobs_ok_are_never_picked() -> None:
@@ -330,6 +374,115 @@ def test_sheet_orders_sections_and_columns_and_shows_the_measures() -> None:
     assert "face: found" in html and "face: none" in html and "max drift 0.250" in html
     assert "measure error: OSError: truncated" in html
     assert 'data-root="/x/p1"' in html
+
+
+def test_a_failed_threat_job_counts_as_not_good() -> None:
+    records = [
+        _row("a", "knife", "images/a/knife/11.png"),
+        _row("a", "knife", "images/a/knife/22.png", seed=22, ok=False, error="OOM"),
+        _row("a", "knife", "images/a/knife/33.png", seed=33),  # ok, not rated yet
+    ]
+    ratings = {"images/a/knife/11.png": {"rating": "good"}}
+    a = r.summarize(records, [], [], ratings)["models"]["a"]
+    assert (a["threat_good_rate"], a["threat_good_n"]) == (0.5, 2)
+
+
+def test_threat_good_is_unknown_until_an_ok_threat_output_is_rated() -> None:
+    records = [
+        _row("a", "knife", "images/a/knife/11.png"),
+        _row("a", "knife", "images/a/knife/22.png", seed=22, ok=False, error="OOM"),
+        _row("b", "knife", "images/b/knife/11.png", ok=False, error="OOM"),
+    ]
+    s = r.summarize(records, [], [], {})["models"]
+    assert (s["a"]["threat_good_rate"], s["a"]["threat_good_n"]) == (None, 0)
+    assert (s["b"]["threat_good_rate"], s["b"]["threat_good_n"]) == (0.0, 1)  # all failed
+
+
+def test_every_rate_in_the_report_shows_its_n() -> None:
+    s = r.summarize(_records(), [], _measures(), _ratings())
+    text = r.to_markdown(s, r.propose_picks(s))
+    row_b = next(line for line in text.splitlines() if line.startswith("| b |"))
+    assert "0% (n=3)" in row_b  # threat good: 2 rated fails and 1 failed job
+    assert "0% (n=1)" in row_b  # plate exact
+
+
+def test_image_megapixels_and_the_volume_bar_at_1080p_equivalent() -> None:
+    records = [
+        _row(
+            model,
+            "knife",
+            f"images/{model}/knife/{seed}.png",
+            seed=seed,
+            seconds=secs,
+            width=w,
+            height=h,
+        )
+        for model, (w, h), secs in (
+            ("flux2-klein-4b", (1344, 768), 6.0),
+            ("z-image-turbo", (1920, 1088), 9.0),
+        )
+        for seed in (11, 22)
+    ]
+    ratings = {row["output"]: {"rating": "good"} for row in records}
+    ratings["images/z-image-turbo/knife/22.png"] = {"rating": "fail"}  # klein rates higher
+    s = r.summarize(records, [], [], ratings)
+    klein, z = s["models"]["flux2-klein-4b"], s["models"]["z-image-turbo"]
+    assert klein["megapixels"] == pytest.approx(1.032192)
+    assert klein["seconds_per_mp"] == pytest.approx(6.0 / 1.032192)
+    assert klein["median_seconds_1080p"] == pytest.approx(6.0 * 2.0736 / 1.032192)  # 12.05
+    assert z["median_seconds_1080p"] == pytest.approx(9.0 * 2.0736 / 2.08896)  # 8.93
+    # klein's 6 s at 1.03 MP is 12 s at 1080p: over the 10 s bar, though its raw time is not
+    assert r.propose_picks(s)["t2i_volume"] == "z-image-turbo"
+    text = r.to_markdown(s, r.propose_picks(s))
+    row = next(line for line in text.splitlines() if line.startswith("| flux2-klein-4b |"))
+    assert "| 1.03 | 5.8 |" in row  # MP, s/MP
+
+
+def test_clip_throughput_is_per_frame_megapixel() -> None:
+    out = "clips/ltx-2.5/armed_approach/11.mp4"
+    records = [
+        _row("ltx-2.5", "armed_approach", out, kind="i2v", seconds=97.0, width=1280, height=704)
+        | {"frames": 97}
+    ]
+    v = r.summarize(records, [], [], {})["clip_models"]["ltx-2.5"]
+    assert (v["megapixels"], v["frames"]) == (pytest.approx(0.90112), 97)
+    assert v["seconds_per_mp"] == pytest.approx(97.0 / (0.90112 * 97))
+
+
+def test_threat_props_per_case_and_the_fallback_candidates() -> None:
+    records = [
+        _row(model, case, f"images/{model}/{case}/{seed}.png", seed=seed)
+        for model in ("flux2-dev", "z-image-turbo")
+        for case in ("knife", "handgun_in_hand", "smoke_from_eave")
+        for seed in (11, 22)
+    ]
+    ratings = {
+        row["output"]: {"rating": "fail"} for row in records if row["case"] != "smoke_from_eave"
+    }
+    ratings["images/flux2-dev/knife/11.png"] = {"rating": "good"}  # smoke is not rated yet
+    measures = [
+        {"output": "images/flux2-dev/knife/11.png", "owl": {"a knife": 0.5, "a person": 0.9}},
+        {"output": "images/flux2-dev/knife/22.png", "owl": {"a knife": 0.1, "a person": 0.9}},
+    ]
+    s = r.summarize(records, [], measures, ratings)
+    assert s["models"]["flux2-dev"]["threat_cases"]["knife"] == {
+        "good_rate": 0.5,
+        "good_n": 2,
+        "owl_hit_rate": 0.5,
+        "owl_n": 2,
+    }
+    # knife reached the floor with one model; smoke is unrated, so it is no candidate yet
+    assert r.fallback_cases(s) == ["handgun_in_hand"]
+    text = r.to_markdown(s, r.propose_picks(s))
+    assert "§3.7 fallback candidates (prop reference sheet): handgun_in_hand" in text
+    knife = next(line for line in text.splitlines() if line.startswith("| knife |"))
+    assert "good 50% (n=2) · OWL 50% (n=2)" in knife
+
+
+def test_the_sheet_revokes_the_download_url_after_the_click() -> None:
+    html = sheet.render(_records(), [], root=None)
+    assert "setTimeout(() => URL.revokeObjectURL(url)" in html
+    assert "URL.revokeObjectURL(link.href);" not in html
 
 
 def test_a_zero_score_winner_is_below_the_floor() -> None:

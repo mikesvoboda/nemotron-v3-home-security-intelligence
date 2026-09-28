@@ -1,6 +1,11 @@
 """P1 measurement (spec §3.7): OWLv2 prop adherence, facenet identity drift,
 EasyOCR plate reading. All three are independent of the pipeline's models.
 
+Every image (and clip frame) is first resized, aspect kept, to MEASURE_SIZE's
+area (~1.03 MP, the smallest native render size), so no model's legibility or
+face size gains from rendering more pixels. Plates are scored on their
+alphanumerics only (ALPR-style); `plate_text` keeps what OCR read.
+
 Run inside the renderer image (GPU; the flagship may stay up):
     $(uv run python -m synthbench.generate.podman) run --rm --device nvidia.com/gpu=all \
       -v "$PWD":/work:ro -w /work \
@@ -29,13 +34,31 @@ from synthbench.spikes.p1_bakeoff.cases import CASES
 
 _CASES = {case.id: case for case in CASES}
 OWL_MODEL = "google/owlv2-base-patch16-ensemble"
+# The pixel budget every image is measured at: the smallest native size (flux2-klein-4b).
+MEASURE_SIZE = (1344, 768)
 
 # One OCR text fragment: (text, (left, top, right, bottom)) in image pixels.
 Fragment = tuple[str, tuple[float, float, float, float]]
 
 
 def normalize_plate(text: str) -> str:
-    return re.sub(r"[^A-Z0-9-]", "", text.upper())
+    """What plate scoring compares: the uppercase alphanumerics. A hyphen, dot or gap the
+    model drew (or OCR dropped at a fragment split) never decides exact vs not."""
+    return re.sub(r"[^A-Z0-9]", "", text.upper())
+
+
+def measure_size(width: int, height: int) -> tuple[int, int]:
+    """(width, height) scaled, aspect kept, to MEASURE_SIZE's area."""
+    scale = math.sqrt(MEASURE_SIZE[0] * MEASURE_SIZE[1] / (width * height))
+    return max(round(width * scale), 1), max(round(height * scale), 1)
+
+
+def at_measure_size(image: Any) -> Any:
+    """A PIL image at measure_size() (Lanczos); the same image when it is already there."""
+    from PIL import Image
+
+    size = measure_size(*image.size)
+    return image if size == image.size else image.resize(size, Image.Resampling.LANCZOS)
 
 
 def cer(pred: str, target: str) -> float:
@@ -72,12 +95,12 @@ def reading_order(fragments: list[Fragment]) -> list[list[Fragment]]:
 
 def plate_candidates(fragments: list[Fragment]) -> list[str]:
     """Every fragment and every run of horizontally adjacent fragments (one line, left to
-    right), joined and normalized: a plate read in pieces, beside other text in the scene."""
+    right), joined as read: a plate read in pieces, beside other text in the scene."""
     candidates: list[str] = []
     for line in reading_order(fragments):
         for start in range(len(line)):
             for end in range(start + 1, len(line) + 1):
-                candidates.append(normalize_plate("".join(text for text, _ in line[start:end])))
+                candidates.append("".join(text for text, _ in line[start:end]))
     return candidates
 
 
@@ -106,13 +129,16 @@ def measure_record(record: dict[str, Any], root: Path, tools: Tools) -> dict[str
         out["owl"] = tools.owl(path, case.owl_queries)
         if case.ocr_target:
             fragments = tools.ocr(path)
-            target = case.ocr_target
-            # the closest candidate; CER 0 (exact) whenever any candidate matches
-            text = min(plate_candidates(fragments) or [""], key=lambda c: cer(c, target))
+            target = normalize_plate(case.ocr_target)
+            # the closest candidate on alphanumerics; CER 0 (exact) whenever any one matches
+            text = min(
+                plate_candidates(fragments) or [""],
+                key=lambda c: cer(normalize_plate(c), target),
+            )
             out["ocr_fragments"] = [t for line in reading_order(fragments) for t, _ in line]
-            out["plate_text"] = text
-            out["plate_exact"] = text == target
-            out["plate_cer"] = cer(text, target)
+            out["plate_text"] = text  # as read, for the sheet
+            out["plate_exact"] = normalize_plate(text) == target
+            out["plate_cer"] = cer(normalize_plate(text), target)
     if record["case"] in {"identity", "identity_reference"}:
         out["face"] = tools.face(path)
     return out
@@ -140,7 +166,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
                 owl_cls.from_pretrained(OWL_MODEL).to(self._device).eval(),
             )
         processor, model = self._owl
-        img = Image.open(image).convert("RGB")
+        img = at_measure_size(Image.open(image).convert("RGB"))
         inputs = processor(text=[list(queries)], images=img, return_tensors="pt").to(self._device)
         with torch.no_grad():
             logits = model(**inputs).logits[0].sigmoid()  # (boxes, queries)
@@ -148,11 +174,16 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
 
     def ocr(self, image: Path) -> list[Fragment]:
         import easyocr
+        import numpy as np
+        from PIL import Image
 
         if self._ocr is None:
             self._ocr = easyocr.Reader(["en"], gpu=self._device == "cuda")
+        # An RGB array reaches EasyOCR's detector as a file path's pixels would; its grey
+        # copy for the recognizer swaps the R/B weights, the same for every model.
+        pixels = np.asarray(at_measure_size(Image.open(image).convert("RGB")))
         fragments: list[Fragment] = []
-        for corners, text, _conf in self._ocr.readtext(str(image)):  # corners: 4 (x, y) points
+        for corners, text, _conf in self._ocr.readtext(pixels):  # corners: 4 (x, y) points
             xs = [float(x) for x, _y in corners]
             ys = [float(y) for _x, y in corners]
             fragments.append((text, (min(xs), min(ys), max(xs), max(ys))))
@@ -182,7 +213,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
     def face(self, image: Path) -> list[float] | None:
         from PIL import Image
 
-        return self._embed(Image.open(image).convert("RGB"))
+        return self._embed(at_measure_size(Image.open(image).convert("RGB")))
 
     def clip_faces(self, clip: Path) -> list[list[float]]:
         import av
@@ -190,7 +221,7 @@ class RealTools:  # pragma: no cover - runs in the renderer image only
         with av.open(str(clip)) as container:
             frames = [f.to_image() for f in container.decode(video=0)]
         step = max(len(frames) // 8, 1)
-        faces = [self._embed(frame) for frame in frames[::step][:8]]
+        faces = [self._embed(at_measure_size(frame)) for frame in frames[::step][:8]]
         return [f for f in faces if f is not None]
 
 

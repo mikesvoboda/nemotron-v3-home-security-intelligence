@@ -6,12 +6,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from PIL import Image
+from synthbench.spikes.p1_bakeoff import cases
 from synthbench.spikes.p1_bakeoff import measure as m
 
 
-def test_normalize_plate() -> None:
-    assert m.normalize_plate(" 8kxr-417 ") == "8KXR-417"
-    assert m.normalize_plate("8KXR-417") == "8KXR-417"
+def test_normalize_plate_keeps_only_the_alphanumerics() -> None:
+    # ALPR-style: the separator a model drew (or OCR dropped) never decides a plate
+    assert m.normalize_plate(" 8kxr-417 ") == "8KXR417"
+    assert m.normalize_plate("8KXR.417") == m.normalize_plate("8KXR 417") == "8KXR417"
 
 
 @pytest.mark.parametrize(
@@ -94,7 +97,7 @@ STATE_ABOVE = ("CALIFORNIA", (100.0, 150.0, 300.0, 170.0))  # above the plate, i
             True,
             0.0,
         ),
-        ([("8KR417", (110.0, 180.0, 290.0, 220.0))], False, 0.25),
+        ([("8KR417", (110.0, 180.0, 290.0, 220.0))], False, 1 / 7),
         # split around the state name: joins stay within one line, in left-to-right order
         (
             [
@@ -105,12 +108,14 @@ STATE_ABOVE = ("CALIFORNIA", (100.0, 150.0, 300.0, 170.0))  # above the plate, i
             True,
             0.0,
         ),
-        # the hyphen lost between split fragments: close, not exact
+        # the hyphen lost between split fragments: alphanumerics match, so exact
         (
             [("417", (210.0, 180.0, 290.0, 220.0)), ("8KXR", (110.0, 180.0, 190.0, 220.0))],
-            False,
-            0.125,
+            True,
+            0.0,
         ),
+        # another separator, lower case: still exact
+        ([("8kxr.417", (110.0, 180.0, 290.0, 220.0))], True, 0.0),
         ([], False, 1.0),
     ],
 )
@@ -139,6 +144,35 @@ def test_the_ocr_fragments_are_kept_in_reading_order(tmp_path: Path) -> None:
     out = m.measure_record(_rec(case="legible_plate"), tmp_path, Ocr())
     assert out["ocr_fragments"] == ["CALIFORNIA", "8KXR-417", "42"]
     assert out["plate_text"] == "8KXR-417"
+
+
+def test_the_plate_text_is_kept_as_read(tmp_path: Path) -> None:
+    class Ocr(FakeTools):
+        def ocr(self, image: Path) -> list[m.Fragment]:
+            return [("8kxr", (110.0, 180.0, 190.0, 220.0)), ("417.", (210.0, 180.0, 290.0, 220.0))]
+
+    out = m.measure_record(_rec(case="legible_plate"), tmp_path, Ocr())
+    assert out["plate_text"] == "8kxr417."
+    assert out["plate_exact"] is True and out["plate_cer"] == 0.0
+
+
+def test_every_native_size_is_measured_at_the_smallest_ones_area() -> None:
+    # I6: OCR, OWL and faces see the same pixel budget whatever the model's native size.
+    assert min(cases.MODEL_SIZES.values(), key=lambda wh: wh[0] * wh[1]) == m.MEASURE_SIZE
+    area = m.MEASURE_SIZE[0] * m.MEASURE_SIZE[1]
+    assert m.measure_size(*m.MEASURE_SIZE) == m.MEASURE_SIZE
+    for width, height in [*cases.MODEL_SIZES.values(), *cases.CLIP_SIZES.values()]:
+        w, h = m.measure_size(width, height)
+        assert w * h == pytest.approx(area, rel=0.005)
+        assert w / h == pytest.approx(width / height, rel=0.005)
+
+
+def test_at_measure_size_resizes_a_pil_image_keeping_its_aspect() -> None:
+    image = Image.new("RGB", (1920, 1088))
+    resized = m.at_measure_size(image)
+    assert resized.size == m.measure_size(1920, 1088) == (1350, 765)
+    small = Image.new("RGB", m.MEASURE_SIZE)
+    assert m.at_measure_size(small) is small
 
 
 def test_measure_all_turns_a_failing_record_into_an_error_row(tmp_path: Path) -> None:
