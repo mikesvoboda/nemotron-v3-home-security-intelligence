@@ -3,6 +3,7 @@
 ## Purpose
 
 Synthetic benchmark generation: spec `docs/superpowers/specs/2026-09-27-synthetic-benchmark-generation-design.md`.
+Tier B generation is driven by a flagship agent beside the flagship: `docs/superpowers/specs/2026-09-28-synthbench-agent-driven-generation-design.md` (spec rev 3).
 Phase plans live in `docs/superpowers/plans/2026-09-27-synthbench-*.md`.
 
 ## Layout
