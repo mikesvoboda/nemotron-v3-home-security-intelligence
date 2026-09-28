@@ -12018,3 +12018,41 @@ nearly closed), plus pw 23 + dc 10 batch-29 tails.
 **NEXT:** batch-29 consolidated scope = pw 23 + dc 10 + gm 40 (poison-pill
 rows + the two never-proven lane batteries) ≈ 73 keys, then campaign #3
 `enrichment_client` (1,195 survivors), then `prompts`.
+
+## 2026-09-28 — LEDGER CORRECTION (M4 addendum): the 40 gm nvidia-smi-parser "KILLABLE" survivors re-disposed **EQUIVALENT by construction probe** — batch-29 scope shrinks to pw 23 + dc ≤10
+
+The M4 row above disposed the 40 parser survivors (sync m41..m95, async
+m45..m99) as "KILLABLE — poison-pill rows" from the DIFF SHAPE alone. That
+claim was asserted without the by-construction sweep mine (h) demands — and
+the sweep refutes it. **Correction, measured:**
+`/tmp/wp-b28/gm-equiv-probe.py` run INSIDE the bank tree
+(`cd mutants; env PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python …`, plain
+script — no pytest, no meta/stats writes; per-call
+`MUTANT_UNDER_TEST=backend.services.gpu_monitor.xǁGPUMonitorǁ<key>`, exactly
+the trampoline's `get_mutant_under_test()` contract): **40/40 keys, 0
+behavior differences over a 71-case sweep** (valid row; every field ∈
+{"[N/A]", "", "[n/a]", "XX[N/A]XX", "abc"}; every field ∈ {nan, inf, -inf,
+1e999, "39.", ".", 0x21, "39_5"}; short4; multigpu; 5-field; empty-stdout;
+rc=1), comparing the full returned dict (minus recorded_at) AND the raised
+exception type per case.
+
+**Why they are equivalent (shipped source):** every one of the 40 sits inside
+a per-field `try: … except ValueError: <field> = None` block (sync
+backend/services/gpu_monitor.py L307-331, async L417-441). All three mutant
+shapes (`and`→`or`, drop-guard `… or True`, sentinel wrap/case) only flip the
+GUARD branch for inputs where shipped yields None (`""` or the sentinel text);
+the mutant then takes the parse path, whose failure the SAME `except
+ValueError` coerces to `None` — shipped's own outcome — and whose success
+returns the identical float/int. `int(float("inf"))` raises `OverflowError`
+(not caught) in BOTH worlds identically. No input distinguishes shipped from
+any of the 40.
+
+**What stands / what changes:** module close numbers UNCHANGED (1,615/1,661 =
+97.23058398555088%, survived 46 — no kill was ever credited to these keys, no
+test was written against them, the badge is untouched). gm module is now
+dispositioned **1,615 KILLED + 46 EQUIVALENT (6 upheld at M4 + 40 by this
+probe) + 0 true-gap = 1,661, zero undispositioned**. **Batch-29 scope
+corrected: pw 23 + dc ≤10** (the gm 40 leave the scope; dc's count stays as
+rowed pending the same construction probe on its 9 non-EQ survivors — the
+probe decides killable-vs-equivalent by measurement, not by diff-shape
+reading, before any battery is authored).
