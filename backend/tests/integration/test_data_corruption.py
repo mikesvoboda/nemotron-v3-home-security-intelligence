@@ -43,6 +43,25 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.integration
 
 
+def fk_constraint_name(exc: Exception) -> str:
+    """The violated FK's constraint name, e.g. "events_camera_id_fkey".
+
+    These tests originally grepped str(exc) for the PARENT table ("cameras",
+    "events", ...). That came from the DETAIL tail Postgres sends ("Key
+    (camera_id)=(...) is not present in table \"cameras\""), which SQLAlchemy
+    2.1 no longer appends to the IntegrityError string -- and orig.diag.detail
+    arrives None through the asyncpg dialect, so it is not a fallback either.
+    The FK constraint name IS still in the message, and <parent>_id_fkey
+    encodes the parent unambiguously (every FK in this schema follows that
+    naming) -- the assertion gets the same information from a carrier 2.1
+    does keep.
+    """
+    message = str(exc).lower()
+    marker = 'foreign key constraint "'
+    start = message.index(marker) + len(marker)
+    return message[start : message.index('"', start)]
+
+
 class TestOrphanedRecordDetection:
     """Tests for detecting orphaned records in the database.
 
@@ -67,8 +86,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "cameras" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "detections_camera_id_fkey"
 
     @pytest.mark.asyncio
     async def test_event_without_camera_rejected(self, session: AsyncSession) -> None:
@@ -86,8 +104,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "cameras" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "events_camera_id_fkey"
 
     @pytest.mark.asyncio
     async def test_alert_without_event_rejected(self, session: AsyncSession) -> None:
@@ -106,8 +123,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "events" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "alerts_event_id_fkey"
 
     @pytest.mark.asyncio
     async def test_alert_with_invalid_rule_id_rejected(self, session: AsyncSession) -> None:
@@ -146,8 +162,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "alert_rules" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "alerts_rule_id_fkey"
 
     @pytest.mark.asyncio
     async def test_event_detection_with_invalid_event_rejected(self, session: AsyncSession) -> None:
@@ -180,8 +195,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "events" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "event_detections_event_id_fkey"
 
     @pytest.mark.asyncio
     async def test_event_detection_with_invalid_detection_rejected(
@@ -217,8 +231,7 @@ class TestOrphanedRecordDetection:
         with pytest.raises(IntegrityError) as exc_info:
             await session.flush()
 
-        assert "detections" in str(exc_info.value).lower()
-        assert "foreign key" in str(exc_info.value).lower()
+        assert fk_constraint_name(exc_info.value) == "event_detections_detection_id_fkey"
 
     @pytest.mark.asyncio
     async def test_orphaned_detections_prevented_by_cascade_delete(

@@ -258,7 +258,8 @@ class OrphanedFileScanner:
         event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
         result = await session.execute(event_query)
 
-        for (clip_path,) in result.all():
+        for row in result.all():
+            clip_path = row[0]
             if clip_path:
                 try:
                     resolved = Path(clip_path).resolve()

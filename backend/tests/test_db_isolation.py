@@ -88,12 +88,14 @@ class TestCreateDrop:
         name = "fcl_probe_gw1"
         url = _create_worker_database(base_url, name)
         try:
-            sync_url = url.replace("+asyncpg", "")
+            # psycopg2 named explicitly: SQLAlchemy 2.1 reads a bare
+            # "postgresql://" as psycopg 3, which is not installed.
+            sync_url = url.replace("+asyncpg", "+psycopg2")
             eng = create_engine(sync_url)
             with eng.begin() as conn:
                 conn.execute(text("CREATE TABLE fcl_probe (x int)"))
                 conn.execute(text("INSERT INTO fcl_probe VALUES (1)"))
-            base_eng = create_engine(base_url.replace("+asyncpg", ""))
+            base_eng = create_engine(base_url.replace("+asyncpg", "+psycopg2"))
             with base_eng.begin() as conn:
                 exists = conn.execute(
                     text("SELECT 1 FROM information_schema.tables WHERE table_name='fcl_probe'")

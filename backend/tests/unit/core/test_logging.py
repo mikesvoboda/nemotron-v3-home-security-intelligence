@@ -322,8 +322,13 @@ class TestSQLiteHandlerGetSession:
                 session = handler._get_session()
 
             assert session is mock_session
+            # The sync URL must name its driver: SQLAlchemy 2.1 points a bare
+            # "postgresql://" at psycopg 3, which is not installed -- the
+            # resulting ModuleNotFoundError is an ImportError, so DB logging
+            # would silently turn itself off. _get_session normalizes both
+            # accepted async spellings to psycopg2.
             mock_create_engine.assert_called_once_with(
-                "postgresql://postgres:postgres@localhost:5432/security"
+                "postgresql+psycopg2://postgres:postgres@localhost:5432/security"
             )
             assert handler._engine is mock_engine
             assert handler._session_factory is mock_factory

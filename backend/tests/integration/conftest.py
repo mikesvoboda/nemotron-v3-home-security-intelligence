@@ -823,7 +823,10 @@ def _ensure_worker_schema(worker_db_url: str) -> str:
     from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
     from backend.models.camera import Base as ModelsBase
 
-    sync_url = worker_db_url.replace("postgresql+asyncpg://", "postgresql://")
+    # Name the driver: SQLAlchemy 2.1 resolves a bare "postgresql://" to psycopg
+    # 3, which this project does not ship (only psycopg2-binary). 2.0 resolved the
+    # same string to psycopg2, which is why the omission was invisible until now.
+    sync_url = worker_db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
 
     # Same lock key derivation as the pre-Task-4 integration_db block.
     _lock_namespace = "home_security_intelligence.integration_test_schema"
