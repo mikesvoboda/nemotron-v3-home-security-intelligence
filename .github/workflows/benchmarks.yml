@@ -112,7 +112,7 @@ jobs:
 
       - name: Download baseline benchmark results
         if: steps.options.outputs.compare == 'true'
-        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
         id: benchmark-cache
         with:
           path: .benchmarks
