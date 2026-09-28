@@ -11779,3 +11779,86 @@ repro (cwd=mutants, MUTANT_UNDER_TEST=stats, PY_IGNORE_IMPORTMISMATCH=1):
 **2854 passed, 2 skipped, rc=0** in 85 s (/tmp/wp-b28/statsrepro3.log).
 Batteries synced into mutants/ + pyproject synced; `copy_also_copy_files`
 verified dirs_exist_ok copytree → new entries honored on next generation.
+
+## 2026-09-28 — MILESTONE 2 PUBLISHES: 65.45381499940281% completed=true (+1.1302 pts) — tier 65 reached; campaign #4 `pipeline_workers` CLOSES at 98.00228310502284%; the run also re-decided main's VLM-Phase-1 blast radius honestly
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: full widened set, `uv run mutmut run --max-children 14` via
+`MUTMAX=14 ./scripts/mutation-run.sh` with NO positionals, START
+2026-09-27T21:05:22Z, **EXIT rc=0 2026-09-28T00:10:44Z**, log
+/tmp/wp-b28/fullrun-pwclose.log; snapshot /tmp/wp-b28/score-published.json,
+score txt /tmp/wp-b28/score-published.txt — note the score tool takes NO
+`--json` flag, first waiter invocation rc=2 on that, stdout-redirect is the
+snapshot path):** killed 58,089 + timeout 2,192 = **60,281** of **92,097**
+in-denominator keys → **score 65.45381499940281%**, survived 31,788,
+no_tests 28, suspicious 0, unchecked 0, torn 0, **`completed=true`**,
+**229 modules scored of 269 targets**. History run[4] appended through the
+CI's own append path (runs=5, dates 09-19/09-24/09-25/09-27/09-28, new
+entry carries 229 module rows). Verdict map VERDICT_CODES
+scripts/mutation-score.py:56-69; completed gate
+scripts/mutation-score.py:246-250; append cap HISTORY_MAX_RUNS=60
+scripts/mutation-score.py:260-273.
+
+**THE STRICT-> GATE AND THE TIER LADDER.** 65.45381499940281 >
+64.32356979924418 — publish lawful on the directive's own test. Tier 65 on
+THIS denominator = 0.65 × 92,097 = 59,863 kt; we hold 60,281, margin
+**+418 kt**. Tier 72 gate = kt ≥ 66,310 (+6,029 from here; survivor pool
+31,788 caps it).
+
+**CAMPAIGN #4 CLOSE ROW (`pipeline_workers`, the number that paid for the
+milestone):** post-close module row from the SAME score output: killed
+1,714 + timeout 3 = 1,717 of **1,752** keys = **98.00228310502284%**,
+survived **35**, no_tests 0. vs baseline-module row 544 kt / 1,648 =
+33.01% → **+1,173 kt** (measured per-module delta table, this session,
+score-prerun.json vs score-post1.json module rows). The 35 survivors are
+accounted 12 = the manifest-upheld EQUIVALENT set (batch-28 close section)
+
+- 23 = rebase-introduced batch-29 scope (drain_queues 8,
+  broadcast_worker_event 7, process_analysis_item tail 4, get_pending_count
+  3, reset_state 1, process_detection_item 1) — batch-29 shrinks 145 → 23.
+
+**THE −784 kt SCARE, RESOLVED BEFORE PUBLISH (the reason this score needed
+a full forensic, ledger'd in /tmp/wp-b28/STATE.md 22:07Z section):** the
+mid-flight snapshot at 21:04Z read 55,896 kt = 62.858% — BELOW baseline —
+decomposing to pw +1,173 against −1,958 spread over 15 modules (ep −941,
+reid −345, osnet 161 …). Every one of the 15 was touched by exactly ONE
+commit: `4bfd6fa4 feat(vlm): Phase 1` (origin/main, via the user-ordered
+rebase), which landed AFTER run[3] banked at 06:31Z. Generation re-hashed
+the new functions (reid: 7/17 hash-changed) and correctly reset their
+verdicts to None — old kills no longer described the new source. NOT
+destruction; the full run re-decided them and they came back net POSITIVE
+(re-decided existing modules +391 kt: face_recognition_service +126,
+osnet_loader +93, enrichment_pipeline +59, household_matcher +40, reid
++30, rest +43).
+
+**THE DENOMINATOR MOVED (88,117 → 92,097, +3,980) AND THAT IS main'S
+MOVEMENT, NOT A WIDENING:** the target list is byte-identical
+(`target_modules` set diff both directions = ∅, 269 targets, was 262 at
+the 06:31 bank — the 7 added are 4bfd6fa4's own new modules). 7 brand-new
+modules now have metas (were in the 47-missing set, which is now exactly
+40 = 47 − 7): face_recognizer_loader 754 keys, vlm_specialists 794,
+vlm_analyzer 730, vlm_client 649, routes/face_recognition 199,
+key_frame_selector 37, pipeline_factory 10 — together **2,037 kt of 3,173
+keys = 64.20%**; excluding them the score is 65.4986% (58,244/88,924), so
+main's fresh code slightly DILUTES our number; we still publish above the
+bar with them in.
+
+**THE ADMISSIBILITY GATE (three numbers, per the completed=true-taint
+rule):** modules 229 (no map-collapse signature); total 92,097 in the
+healthy band + main's new modules (no −29% shrink); **no_tests 28** — the
+baseline's same four singletons PLUS 24 in reid_service, measured as ONE
+function: `_history_partition_keys` mutmut_1..24, introduced by 4bfd6fa4
+(`git log -S` verified), zero references anywhere under backend/tests/
+(`grep -rl … ; rc=1`), so 24 mutants with NO covering test — counted in
+the denominator as not-killed, i.e. they COST us score; the honest
+conservative reading holds. not_checked 0 / torn 0 → fully-checked cache.
+
+**NEXT MOVES (queued, nothing started):** campaign #6 `detector_client`
+install-ready — 13 battery files staged + md5-verified in /tmp/lane-dc
+(dc02 = 7ff34b5fda66c56e140b01879f8068d0), all 13 groups replay-proven
+(≈996 killed / 1 provable-equivalence dc02-m20), module row today 534 kt /
+1,274 = 41.92%, close worth ≈ +740 kt; then gpu_monitor 582/1,650 =
+35.27% (1,068 survivors, gm batteries in lanes), then the batch-29 23-key
+tail, then campaigns #2/#3 remainder (enrichment_client survivor pool
+1,195 — biggest single lever left).
