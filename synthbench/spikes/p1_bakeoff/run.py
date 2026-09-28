@@ -3,10 +3,11 @@
     uv run python -m synthbench.generate.window run -- \
         uv run python -m synthbench.spikes.p1_bakeoff.run all
 
-Resumable (finished outputs are skipped). One row per job goes to
-<root>/records.jsonl; one row per model group (seconds, peak VRAM) to
-<root>/groups.jsonl. A failed job is recorded, never fatal: "model X cannot
-render Y" is a bake-off result.
+Resumable (finished outputs are skipped; outputs are written atomically). One
+row per job goes to <root>/records.jsonl (with `cold` for the job that loaded
+the model); one row per model group (seconds, peak VRAM, how /free settled and
+the VRAM baseline after it) to <root>/groups.jsonl. A failed job is recorded,
+never fatal: "model X cannot render Y" is a bake-off result.
 """
 
 from __future__ import annotations
@@ -21,23 +22,35 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from synthbench.generate.comfy import graphs, serve
 from synthbench.generate.comfy.client import ComfyClient, Graph
 from synthbench.generate.window import raise_on_sigterm
 from synthbench.spikes.p1_bakeoff.plan import Job, clip_jobs, image_jobs, pending
 
-# ComfyUI's /free unloads asynchronously: wait until VRAM stops moving before sampling.
+# ComfyUI's /free returns before its worker unloads anything (PF19b): see settle_vram.
 SETTLE_POLL_S = 0.5
 SETTLE_TOLERANCE_MIB = 256
-SETTLE_TIMEOUT_S = 30.0
+SETTLE_GRACE_S = 15.0
+SETTLE_TIMEOUT_S = 60.0
+
+# How often a job polls ComfyUI's history: a coarse poll would pad every job's seconds.
+JOB_POLL_S = 0.1
 
 # What a failed VRAM reading raises: nvidia-smi missing, exiting non-zero or hanging, or bad output.
 _READ_ERRORS = (OSError, subprocess.SubprocessError, ValueError)
+
+SettleStatus = Literal["dropped", "no_drop", "timeout", "unreadable"]
+
+
+@dataclass(frozen=True)
+class Settle:
+    status: SettleStatus
+    last_mib: int | None  # the last reading: the group's baseline VRAM; None when unreadable
 
 
 class Client(Protocol):
@@ -45,7 +58,7 @@ class Client(Protocol):
 
     def upload_image(self, path: Path) -> str: ...
 
-    def run(self, graph: Graph, *, timeout_s: float) -> list[bytes]: ...
+    def run(self, graph: Graph, *, timeout_s: float, poll_s: float) -> list[bytes]: ...
 
 
 def parse_used_mib(text: str) -> int:
@@ -63,42 +76,64 @@ def _query_used_mib() -> int:
     return parse_used_mib(out)
 
 
+def _read_vram() -> int | None:
+    try:
+        return _query_used_mib()
+    except _READ_ERRORS:
+        return None
+
+
 def _warn(message: str) -> None:
     sys.stderr.write(f"[p1-bakeoff] warning: {message}\n")
 
 
 def settle_vram(
+    before_mib: int | None,
     *,
     read: Callable[[], int] | None = None,
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.monotonic,
-) -> bool:
-    """Wait out /free's asynchronous unload, so a group's peak is not the previous model's.
+) -> Settle:
+    """Wait until /free's unload has visibly freed VRAM, from `before_mib` read before /free.
 
-    Reads memory.used (the sampler's query by default) every SETTLE_POLL_S until two
-    consecutive readings differ by at most SETTLE_TOLERANCE_MIB, and returns True. After
-    SETTLE_TIMEOUT_S, or when VRAM cannot be read, it writes one warning line and returns
-    False; the caller proceeds either way.
+    Steady readings alone prove nothing: under the native caching allocator memory.used
+    stays flat while weights copy out and drops only at empty_cache. So, polling the
+    sampler's query (by default) every SETTLE_POLL_S:
+      - "dropped": a reading fell more than SETTLE_TOLERANCE_MIB below `before_mib`, then
+        two consecutive readings agreed within it;
+      - "no_drop": nothing fell within SETTLE_GRACE_S (the first group; nothing resident);
+      - "timeout": SETTLE_TIMEOUT_S passed after a drop that never held (one warning line);
+      - "unreadable": VRAM could not be read (one warning line, no waiting).
+    The caller proceeds whatever the status, and records it with `last_mib`.
     """
+    if before_mib is None:
+        _warn("cannot read VRAM before /free; not waiting for it to settle")
+        return Settle("unreadable", None)
     query = _query_used_mib if read is None else read
-    deadline = clock() + SETTLE_TIMEOUT_S
+    start = clock()
+    dropped_to: int | None = None  # the latest reading since VRAM fell below before_mib
     try:
-        previous = query()
         while True:
             sleep(SETTLE_POLL_S)
             current = query()
-            if abs(current - previous) <= SETTLE_TOLERANCE_MIB:
-                return True
-            if clock() >= deadline:
+            if dropped_to is None:
+                if current < before_mib - SETTLE_TOLERANCE_MIB:
+                    dropped_to = current
+                elif clock() - start >= SETTLE_GRACE_S:
+                    return Settle("no_drop", current)
+            elif abs(current - dropped_to) <= SETTLE_TOLERANCE_MIB:
+                return Settle("dropped", current)
+            else:
+                dropped_to = current
+            if clock() - start >= SETTLE_TIMEOUT_S:
                 _warn(
-                    f"VRAM still changing {SETTLE_TIMEOUT_S:.0f}s after /free "
-                    f"({previous} -> {current} MiB); this group's peak may include the last model"
+                    f"VRAM still changing {SETTLE_TIMEOUT_S:.0f}s after /free ({before_mib} MiB "
+                    f"before, {current} now); this group's peak may include the previous model"
                 )
-                return False
-            previous = current
+                return Settle("timeout", current)
     except _READ_ERRORS as exc:
         _warn(f"cannot read VRAM ({type(exc).__name__}: {exc}); not waiting for /free to settle")
-        return False
+        return Settle("unreadable", None)
 
 
 class VramSampler:
@@ -114,11 +149,9 @@ class VramSampler:
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
     def _sample(self) -> None:
-        try:
-            used = _query_used_mib()
-        except _READ_ERRORS:
-            return
-        self.peak_mib = used if self.peak_mib is None else max(self.peak_mib, used)
+        used = _read_vram()
+        if used is not None:
+            self.peak_mib = used if self.peak_mib is None else max(self.peak_mib, used)
 
     def _loop(self) -> None:
         while not self._stop.wait(self._interval):
@@ -142,6 +175,20 @@ def _append(path: Path, row: dict[str, Any]) -> None:
         fh.write(json.dumps(row) + "\n")
 
 
+def _write_atomic(path: Path, data: bytes) -> None:
+    """Write a temp file beside `path`, then rename it over `path`.
+
+    An interrupted write never leaves a partial file at `path`, which `pending` would take
+    as done and later jobs (identity edits, clips) would read as their input.
+    """
+    part = path.with_name(f"{path.name}.part")
+    try:
+        part.write_bytes(data)
+        part.replace(path)  # os.replace: atomic within one filesystem
+    finally:
+        part.unlink(missing_ok=True)
+
+
 def _graph(job: Job, names: list[str]) -> Graph:
     if job.kind == "t2i":
         return graphs.T2I_BUILDERS[job.model](
@@ -161,23 +208,29 @@ def _graph(job: Job, names: list[str]) -> Graph:
     )
 
 
-def run_job(job: Job, client: Client, root: Path) -> dict[str, Any]:
+def run_job(job: Job, client: Client, root: Path, *, cold: bool = False) -> dict[str, Any]:
+    """`cold`: the first job of its model group, whose seconds include loading the model."""
     started = time.monotonic()
     # inputs as a list: the JSONL row must read back equal to the returned record
     record: dict[str, Any] = asdict(job) | {
         "inputs": list(job.inputs),
+        "cold": cold,
         "ok": False,
         "error": None,
         "seconds": None,
     }
     try:
         names = [client.upload_image(root / p) for p in job.inputs]
-        blobs = client.run(_graph(job, names), timeout_s=1800.0 if job.kind == "i2v" else 600.0)
+        blobs = client.run(
+            _graph(job, names),
+            timeout_s=1800.0 if job.kind == "i2v" else 600.0,
+            poll_s=JOB_POLL_S,
+        )
         if not blobs:
             raise RuntimeError("the graph produced no output file")
         out = root / job.output
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_bytes(blobs[0])
+        _write_atomic(out, blobs[0])
         record["ok"] = True
     except Exception as exc:  # a failure is a bake-off result, never fatal
         record["error"] = f"{type(exc).__name__}: {exc}"[:500]
@@ -192,12 +245,13 @@ def execute(jobs: list[Job], client: Client, root: Path) -> None:
         group = list(group_iter)
         # ComfyUI keeps earlier groups' models resident; unload them so that
         # this group's peak VRAM is its own model's (spec §3.7).
+        before_mib = _read_vram()
         client.free()
-        settle_vram()  # /free returns before the unload finishes (PF19)
+        settle = settle_vram(before_mib)  # /free returns before the unload happens (PF19b)
         started = time.monotonic()
         with VramSampler() as vram:
-            for job in group:
-                run_job(job, client, root)
+            for index, job in enumerate(group):
+                run_job(job, client, root, cold=index == 0)
         _append(
             root / "groups.jsonl",
             {
@@ -205,6 +259,8 @@ def execute(jobs: list[Job], client: Client, root: Path) -> None:
                 "jobs": len(group),
                 "seconds": round(time.monotonic() - started, 1),
                 "peak_vram_mib": vram.peak_mib,
+                "settle": settle.status,
+                "baseline_vram_mib": settle.last_mib,
             },
         )
 

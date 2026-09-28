@@ -134,11 +134,12 @@ class ComfyClient:
         graph: Graph,
         *,
         timeout_s: float,
+        poll_s: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> list[bytes]:
         prompt_id = self.queue(graph)
         try:
-            entry = self.wait(prompt_id, timeout_s=timeout_s, sleep=sleep)
+            entry = self.wait(prompt_id, timeout_s=timeout_s, poll_s=poll_s, sleep=sleep)
         except TimeoutError:
             # A prompt left on the server would delay, and time out, every later job.
             self._http.post("/interrupt")

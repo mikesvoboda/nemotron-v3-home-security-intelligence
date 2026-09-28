@@ -110,6 +110,18 @@ class TestComfyClient:
         assert fake.queued[0]["prompt"] == GRAPH
         assert fake.history_polls == 3
 
+    def test_run_polls_history_at_poll_s_which_defaults_to_one_second(self) -> None:
+        default: list[float] = []
+        _client(httpx.MockTransport(FakeComfy(history_after=2))).run(
+            GRAPH, timeout_s=10, sleep=default.append
+        )
+        fine: list[float] = []
+        _client(httpx.MockTransport(FakeComfy(history_after=2))).run(
+            GRAPH, timeout_s=10, poll_s=0.1, sleep=fine.append
+        )
+        assert default == [1.0, 1.0]
+        assert fine == [0.1, 0.1]
+
     def test_outputs_collect_images_and_videos(self) -> None:
         entry = {
             "outputs": {
