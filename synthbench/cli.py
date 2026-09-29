@@ -22,6 +22,7 @@ from synthbench.commands import (
     replay,
     report,
     sample,
+    score,
     triage,
 )
 from synthbench.commands.common import (
@@ -50,6 +51,7 @@ COMMANDS: tuple[ModuleType, ...] = (
     export,
     audit,
     replay,
+    score,
 )
 
 

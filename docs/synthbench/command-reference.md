@@ -284,6 +284,35 @@ already be served: `replay` never starts, stops or reconfigures a model server.
 - **Exit 1:** the export has no sets.
 - **Exit 2:** a check failed, or a set did not import for a reason other than "already imported".
 
+## `score`
+
+Owner only. Scores one or more replays together, for P5a
+(`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §5): S2 and S3 through
+`backend/evaluation/s_metrics.py`, refusals, the verdict mix, the risk band, slices, the audit's
+truth error, and, with two or more replays, the comparison between models.
+
+| Option          | Default  | Meaning                                                        |
+| --------------- | -------- | -------------------------------------------------------------- |
+| `--replay <id>` | required | a replay id under `runs/replays/`; repeat it to compare models |
+
+- **Reads:** each replay's `run.json`, its results in the eval store, the export it names, and
+  `$SYNTHBENCH_ROOT/audits/<version>/audit.jsonl` if it exists. Labels and S3 floors come from the
+  eval store; facts and stills from the export.
+- **Audit:** an event whose scene the owner answered no is a generation error: it leaves every
+  metric. The headline is reported twice: on every scored item, and on the audited stills whose
+  scene the owner confirmed.
+- **Writes:** `$SYNTHBENCH_ROOT/runs/scores/<score_id>/`: `results.jsonl` (one row per item per
+  model), `metrics.json` (with the run identity: commits, builds, weights, export and audit
+  digests), `report.md` (aggregate only, for committing) and `report.html` (the failure gallery:
+  incidents scored below their level and benign scenes scored medium or above, with the VLM's
+  reasoning).
+- **Cells:** rate, 95% Wilson interval and n; under n = 10 a cell reads "insufficient".
+- **Prints:** the audit's progress, each model's S2, S3 and refusals, and the path of `report.md`.
+- **Exit 1:** a replay id is unknown, two replays are of the same model, or the replays name
+  different eval stores or exports.
+- **Exit 2:** a replay's `run.json` does not read, its eval store is missing or holds none of its
+  results, or it scored items the export does not hold.
+
 ## `corpus snapshot`
 
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots
