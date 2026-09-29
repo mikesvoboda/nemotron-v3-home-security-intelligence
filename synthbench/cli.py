@@ -10,7 +10,7 @@ import os
 from collections.abc import Mapping, Sequence
 from types import ModuleType
 
-from synthbench.commands import camera, check, render, sample
+from synthbench.commands import camera, check, render, sample, triage
 from synthbench.commands.common import (
     ASK_OWNER,
     EXIT_ASK,
@@ -25,7 +25,7 @@ from synthbench.commands.common import (
 __all__ = ["COMMANDS", "EXIT_ASK", "EXIT_ERROR", "EXIT_OK", "build_parser", "main"]
 
 # In help order. Each module has add_parser(commands) and run(args, env).
-COMMANDS: tuple[ModuleType, ...] = (sample, check, render, camera)
+COMMANDS: tuple[ModuleType, ...] = (sample, check, render, camera, triage)
 
 
 def build_parser() -> Parser:
