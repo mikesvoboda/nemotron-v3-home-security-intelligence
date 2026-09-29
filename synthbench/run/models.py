@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, Literal
 
 
 @dataclass(frozen=True)
@@ -12,6 +13,9 @@ class Model:
 
     `served_id` is the identity the endpoint must report before a replay trusts it: for `ai-vlm`
     (llama.cpp) the model file's stem from `/props`, for vLLM an id from `/v1/models`.
+    `request_extra` holds top-level fields merged into every chat-completions body the replay
+    sends a vLLM model (the served model's own switches, never the shipped prompt or schema);
+    `run.json` records it.
     """
 
     name: str
@@ -19,6 +23,7 @@ class Model:
     served_id: str
     url_env: str
     default_url: str
+    request_extra: Mapping[str, Any] = field(default_factory=dict, hash=False)
 
 
 MODELS: dict[str, Model] = {
@@ -55,12 +60,16 @@ MODELS: dict[str, Model] = {
             "SYNTHBENCH_COSMOS_URL",
             "http://127.0.0.1:8099",
         ),
+        # The flagship thinks before it answers, and spent the shipped 1024-token budget thinking
+        # (Task 1 Step 7: empty content, finish_reason length); with thinking off it answered
+        # schema-valid in 187 tokens. It is measured in its non-thinking mode.
         Model(
             "flagship",
             "vllm",
             "claude-flagship",
             "SYNTHBENCH_FLAGSHIP_URL",
             "http://127.0.0.1:8000",
+            request_extra={"chat_template_kwargs": {"enable_thinking": False}},
         ),
     )
 }

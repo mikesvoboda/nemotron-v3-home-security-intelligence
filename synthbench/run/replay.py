@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -60,23 +60,37 @@ class Deps:
 
 
 class ModelField(httpx.AsyncBaseTransport):
-    """Names the served model in each chat request: vLLM's OpenAI server routes by `model`."""
+    """Names the served model in each chat request (vLLM's OpenAI server routes by `model`) and
+    merges in the model's `request_extra`."""
 
-    def __init__(self, model: str, inner: httpx.AsyncBaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        inner: httpx.AsyncBaseTransport | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ) -> None:
         self._model = model
         self._inner = inner or httpx.AsyncHTTPTransport()
+        self._extra = dict(extra or {})
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         if request.method == "POST" and request.url.path.endswith("/v1/chat/completions"):
             body = json.loads(request.content)
+            body |= self._extra
             body["model"] = self._model
             headers = [
                 (key, value)
                 for key, value in request.headers.multi_items()
                 if key.lower() != "content-length"
             ]
+            # The extensions carry the client's timeouts (httpcore reads them there): without
+            # them a vLLM request has no limit, and not the budget ai-vlm requests have.
             request = httpx.Request(
-                "POST", request.url, headers=headers, content=json.dumps(body).encode()
+                "POST",
+                request.url,
+                headers=headers,
+                content=json.dumps(body).encode(),
+                extensions=request.extensions,
             )
         return await self._inner.handle_async_request(request)
 
@@ -151,7 +165,7 @@ def client_factory(
                 "vlm_model_id": model.served_id,
                 "nemotron_verification_engine": "vllm",
             }
-            transport = ModelField(model.served_id, inner)
+            transport = ModelField(model.served_id, inner, model.request_extra)
         settings = get_settings().model_copy(update=update)
         return VlmClient(settings=settings, base_url=url, transport=transport)
 
@@ -171,6 +185,28 @@ def import_export(store: EvalStore, export: Path) -> tuple[int, int]:
     return len(rows) - len(already), len(already)
 
 
+def check_stills(store: EvalStore, export: Path) -> None:
+    """Refuse unless every stored item's stills lie under the export. The store is per version
+    and the replay replays every item in it, while the client reads no image outside its capture
+    root (the export, P5a-R9): a still stored from another export, or as a relative path, would
+    come back refused on every item, and items are immutable, so re-importing cannot mend it."""
+    root = export.resolve()
+    outside = [
+        (item.item_id, path)
+        for item in store.iter_items(with_media_only=True)
+        for path in item.media_paths
+        if not (Path(path).is_absolute() and Path(path).resolve().is_relative_to(root))
+    ]
+    if outside:
+        items = len({item_id for item_id, _ in outside})
+        item_id, path = outside[0]
+        raise ReplayRefused(
+            f"the eval store holds {items} item(s) whose stills lie outside the export {root} "
+            f"(first: {item_id}: {path}); replay with the export the store was imported from, "
+            "or move the eval store aside"
+        )
+
+
 @dataclass(frozen=True)
 class ReplayResult:
     replay_id: str
@@ -188,12 +224,15 @@ def execute(
     deps: Deps,
 ) -> ReplayResult:
     """Check, import, replay, and record the run under `runs_dir/<replay_id>/run.json`."""
+    # Resolved before the import: the importer stores media paths as joined from the export.
+    export = export.resolve()
     build = check(model, url, deps)
     started = deps.now()
     replay_id = f"{started:%Y%m%dT%H%M%SZ}-{model.name}"
     store_path.parent.mkdir(parents=True, exist_ok=True)
     with EvalStore(store_path) as store:
         new, already = import_export(store, export)
+        check_stills(store, export)
         candidate = f"{model.served_id}@{model.transport}" + (f":{build}" if build else "")
         report = asyncio.run(
             run_replay(
@@ -214,6 +253,7 @@ def execute(
         "url": url,
         "build": build,
         "enforcement_probe": model.transport == "ai-vlm",
+        "request_extra": dict(model.request_extra),
         "export": str(export),
         "store": str(store_path),
         "eval_run_id": report["run_id"],

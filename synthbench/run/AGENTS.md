@@ -24,5 +24,9 @@ The command is `synthbench/commands/replay.py` (`python -m synthbench replay`); 
 - Replay never starts, stops or reconfigures a model server, and refuses while the renderer runs.
 - The client is the shipped `VlmClient`; only its settings and transport differ per model (plan
   ruling P5a-R2). Its capture root is the export directory: `VlmClient` refuses any image outside
-  `foscam_base_path`.
-- Each replay gets a new eval run id; its `run.json` names the endpoint, build and commit.
+  `foscam_base_path`. The export is resolved before the import (the importer stores paths as
+  joined from it), and a store holding stills outside the export is refused before the replay.
+- `ModelField` keeps the request's extensions (the client's timeouts) and merges a vLLM model's
+  `request_extra` into each chat body; only `flagship` sets one (thinking off).
+- Each replay gets a new eval run id; its `run.json` names the endpoint, build, request extra and
+  commit.

@@ -271,14 +271,18 @@ already be served: `replay` never starts, stops or reconfigures a model server.
 - **Checks, before the first item:** the endpoint answers; the renderer is stopped
   (`synthbench-renderer` is not active and no `synthbench-comfyui` container runs); the endpoint
   serves the named model (for `ai-vlm`, the model file stem `/props` reports; for vLLM, an id in
-  `/v1/models`).
+  `/v1/models`); after the import, every item in the eval store has its stills under the export
+  (a relative `--export` is resolved first).
 - **Client:** the shipped `VlmClient`, reading stills from the export. vLLM models run it with the
-  enforcement probe off (vLLM has no `/props`) and the served model's name added to each request.
+  enforcement probe off (vLLM has no `/props`), the served model's name added to each request, and
+  the model's own request fields: `flagship` runs with thinking off
+  (`chat_template_kwargs: {"enable_thinking": false}`), since thinking spent the shipped
+  1024-token budget before it answered.
 - **Reads:** the export's sets.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
   already imported is skipped), then the replay's results there under a new eval run id, and
-  `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/run.json`: the model, endpoint, build, eval run id,
-  commit and the replay's report.
+  `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/run.json`: the model, endpoint, build, the request
+  fields the replay added, eval run id, commit and the replay's report.
 - **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals, and the path
   of `run.json`.
 - **Exit 1:** the export has no sets.

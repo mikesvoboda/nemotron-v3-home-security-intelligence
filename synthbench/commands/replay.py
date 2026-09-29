@@ -52,6 +52,7 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     model = MODELS[args.model]
     url: str = args.url or env.get(model.url_env, model.default_url)
     export: Path = args.export if args.export is not None else export_dir(tax.version, env)
+    export = export.resolve()  # the importer stores media paths as joined from the export
     if not any(export.glob("*/*/expected_labels.json")):
         raise RequestError(f"no exported sets under {export}; run `export vss` first")
     root = Path(env.get("SYNTHBENCH_ROOT", str(DEFAULT_SYNTHBENCH_ROOT)))
