@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 from synthbench import cli
+from synthbench.commands.audit import audit_log
 from synthbench.export import vss
 from synthbench.score.metrics import MIN_N, Item, band_position, outcome, score_models
 from synthbench.score.report import markdown
@@ -231,18 +232,30 @@ def _world(root: Path, scores: dict[str, dict[str, int | None]]) -> list[str]:
 
 def test_score_writes_results_metrics_and_both_reports(tmp_path: Path) -> None:
     ids = _world(tmp_path, {"qwen3-vl-8b": {"B-t-000": 20}, "flagship": {"B-b-000": 70}})
+    # All 15 sets are sampled (only 3 threats and 12 benigns exist), so B-t-000 is in the audit
+    # sample. The owner says its scene never happened: a generation error, excluded everywhere.
+    log = audit_log(h.VERSION, h.env(tmp_path))
+    log.parent.mkdir(parents=True)
+    answer = {
+        "event_id": "B-t-000",
+        "question": "scene",
+        "answer": "n",
+        "time": "2026-09-30T09:00:00+00:00",
+    }
+    log.write_text(json.dumps(answer) + "\n", encoding="utf-8")
     argv = [a for replay_id in ids for a in ("--replay", replay_id)]
     assert h.run(tmp_path, "score", *argv) == cli.EXIT_OK
     [out] = (tmp_path / "runs" / "scores").iterdir()
     results = [json.loads(line) for line in (out / "results.jsonl").read_text().splitlines()]
     assert len(results) == 2 * 15
     metrics = json.loads((out / "metrics.json").read_text())
-    assert metrics["models"]["qwen3-vl-8b"]["all"]["s3"]["all"]["miss"] == 1
+    assert metrics["models"]["qwen3-vl-8b"]["excluded"] == 1
+    assert metrics["models"]["qwen3-vl-8b"]["all"]["s3"]["all"]["miss"] == 0
     assert metrics["identity"]["replays"][0]["build"] == "b7972"
     assert "qwen3-vl-8b" in (out / "report.md").read_text()
     html = (out / "report.html").read_text()
     sources = re.findall(r'<img src="([^"]+)"', html)
-    assert len(sources) == 2  # the one miss and the one false alarm
+    assert len(sources) == 1  # the false alarm only; B-t-000's miss is a generation error
     assert not [src for src in sources if Path(src).is_absolute()]  # the tree moves as one
     assert all((out / src).resolve().is_file() for src in sources)
 
