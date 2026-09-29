@@ -27,6 +27,8 @@ The command is `synthbench/commands/replay.py` (`python -m synthbench replay`); 
   `foscam_base_path`. The export is resolved before the import (the importer stores paths as
   joined from it), and a store holding stills outside the export is refused before the replay.
 - `ModelField` keeps the request's extensions (the client's timeouts) and merges a vLLM model's
-  `request_extra` into each chat body; only `flagship` sets one (thinking off).
-- Each replay gets a new eval run id; its `run.json` names the endpoint, build, request extra and
-  commit.
+  `request_extra` into each chat body; a model's `read_timeout` replaces the client's
+  `ai_vlm_read_timeout`. Only the vLLM models set either: `flagship` thinking off;
+  `cosmos-reason2-8b` `max_tokens` 4096 and 120 s.
+- Each replay gets a new eval run id; its `run.json` names the endpoint, build, request extra,
+  read timeout and commit.

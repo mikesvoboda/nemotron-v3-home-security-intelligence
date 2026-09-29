@@ -158,6 +158,9 @@ def client_factory(
         # camera_timezone=None as vlm_replay.client_factory pins it: the prompt shows the stored
         # timestamp verbatim. The capture root is the export: the client refuses images elsewhere.
         update: dict[str, Any] = {"camera_timezone": None, "foscam_base_path": str(export)}
+        if model.read_timeout is not None:
+            # VlmClient builds its httpx timeout from this setting on first use.
+            update["ai_vlm_read_timeout"] = model.read_timeout
         transport = inner
         if model.transport == "vllm":
             update |= {
@@ -254,6 +257,7 @@ def execute(
         "build": build,
         "enforcement_probe": model.transport == "ai-vlm",
         "request_extra": dict(model.request_extra),
+        "read_timeout": model.read_timeout,
         "export": str(export),
         "store": str(store_path),
         "eval_run_id": report["run_id"],

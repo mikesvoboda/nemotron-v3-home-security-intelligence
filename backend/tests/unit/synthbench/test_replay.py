@@ -33,6 +33,7 @@ from backend.tests.unit.synthbench import helpers as h
 
 QWEN = MODELS["qwen3-vl-8b"]
 FLAGSHIP = MODELS["flagship"]
+COSMOS = MODELS["cosmos-reason2-8b"]
 URL = "http://fake-vlm:8098"
 
 
@@ -76,7 +77,9 @@ def _run(renderer: str = "inactive") -> Any:
     return run
 
 
-def _get(props: dict[str, Any] | None = None, status: int = 200) -> Any:
+def _get(
+    props: dict[str, Any] | None = None, status: int = 200, served: str = "claude-flagship"
+) -> Any:
     props = props or {
         "model_path": "/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf",
         "build_info": "b7972",
@@ -86,7 +89,7 @@ def _get(props: dict[str, Any] | None = None, status: int = 200) -> Any:
         if url.endswith("/props"):
             return httpx.Response(200, json=props)
         if url.endswith("/v1/models"):
-            return httpx.Response(200, json={"data": [{"id": "claude-flagship"}]})
+            return httpx.Response(200, json={"data": [{"id": served}]})
         return httpx.Response(status)
 
     return get
@@ -144,6 +147,7 @@ def test_a_replay_reads_the_exports_stills_and_records_the_run(tmp_path: Path) -
     assert record["build"] == "b7972"
     assert record["enforcement_probe"] is True
     assert record["request_extra"] == {}
+    assert record["read_timeout"] is None
     with EvalStore(tmp_path / "eval" / "eval.sqlite") as store:
         rows = store.replay(record["eval_run_id"])
     assert [row["risk_score"] for row in rows] == [50, 50]  # the fake's schema-filled verdict
@@ -201,17 +205,47 @@ def test_a_vllm_model_gets_its_name_the_schema_and_no_probe(tmp_path: Path) -> N
     # thinking (Task 1 Step 7): it runs with thinking off, at the shipped budget.
     assert seen[0]["chat_template_kwargs"]["enable_thinking"] is False
     assert seen[0]["max_tokens"] == 1024
-    # Only the flagship adds a field; Cosmos and the ai-vlm models send the shipped body.
+
+
+def test_cosmos_gets_the_budget_its_long_evidence_needs(tmp_path: Path) -> None:
+    """Cosmos does not think, but one evidence string alone ran past the shipped 1024 tokens
+    (Task 1 Step 8); with 4096 it finished in 1326 tokens, in about 17 s."""
+    export = _export(tmp_path, n=1)
+    seen: list[dict[str, Any]] = []
+
+    def vllm(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return _vllm_reply()
+
+    verdict = _assess_first_still(
+        client_factory(COSMOS, URL, export, httpx.MockTransport(vllm))(), export
+    )
+    assert verdict.provenance.model_id == "nvidia/Cosmos-Reason2-8B"
+    assert seen[0]["model"] == "nvidia/Cosmos-Reason2-8B"
+    assert seen[0]["max_tokens"] == 4096  # over the client's shipped 1024
+    assert seen[0]["response_format"]["type"] == "json_schema"
+    assert "chat_template_kwargs" not in seen[0]
+
+
+def test_only_the_vllm_comparison_models_change_the_shipped_request() -> None:
+    """The ai-vlm models send the shipped body at the shipped timeout (P5a-R2)."""
     extras = {name: dict(model.request_extra) for name, model in MODELS.items()}
     assert {name: extra for name, extra in extras.items() if extra} == {
-        "flagship": {"chat_template_kwargs": {"enable_thinking": False}}
+        "flagship": {"chat_template_kwargs": {"enable_thinking": False}},
+        "cosmos-reason2-8b": {"max_tokens": 4096},
+    }
+    timeouts = {name: model.read_timeout for name, model in MODELS.items()}
+    assert {name: t for name, t in timeouts.items() if t is not None} == {
+        "cosmos-reason2-8b": 120.0
     }
 
 
-def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["flagship", "cosmos-reason2-8b"])
+def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path, name: str) -> None:
     """`ModelField` rebuilds the chat request; httpcore reads the client's timeouts from the
     request's extensions, so a rebuild that drops them sends vLLM requests with no limit at all,
-    and off the per-attempt budget `ai-vlm` requests are held to (P5a-R2)."""
+    and off the per-attempt budget `ai-vlm` requests are held to (P5a-R2). Cosmos's longer
+    answers get their own read timeout; the flagship keeps the shipped one."""
     export = _export(tmp_path, n=1)
     timeouts: list[Any] = []
 
@@ -219,26 +253,40 @@ def test_a_vllm_request_keeps_the_clients_timeouts(tmp_path: Path) -> None:
         timeouts.append(request.extensions.get("timeout"))
         return _vllm_reply()
 
-    _assess_first_still(client_factory(FLAGSHIP, URL, export, httpx.MockTransport(vllm))(), export)
+    model = MODELS[name]
+    _assess_first_still(client_factory(model, URL, export, httpx.MockTransport(vllm))(), export)
     settings = get_settings()
-    read = settings.ai_vlm_read_timeout
+    read = settings.ai_vlm_read_timeout if name == "flagship" else 120.0
     assert timeouts == [
         {"connect": settings.ai_connect_timeout, "read": read, "write": read, "pool": read}
     ]
 
 
-def test_a_vllm_replay_records_the_fields_it_adds(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("name", "extra", "read_timeout"),
+    [
+        ("flagship", {"chat_template_kwargs": {"enable_thinking": False}}, None),
+        ("cosmos-reason2-8b", {"max_tokens": 4096}, 120.0),
+    ],
+)
+def test_a_vllm_replay_records_the_fields_it_adds(
+    tmp_path: Path, name: str, extra: dict[str, Any], read_timeout: float | None
+) -> None:
+    model = MODELS[name]
     export = _export(tmp_path, n=1)
     deps = Deps(
-        get=_get(), run=_run(), inner_transport=httpx.MockTransport(lambda _: _vllm_reply())
+        get=_get(served=model.served_id),
+        run=_run(),
+        inner_transport=httpx.MockTransport(lambda _: _vllm_reply()),
     )
     result = execute(
-        FLAGSHIP, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
+        model, URL, export, tmp_path / "eval" / "eval.sqlite", tmp_path / "runs", None, deps
     )
     assert result.report["s5"]["refusals"] == 0
     record = json.loads((result.run_dir / "run.json").read_text(encoding="utf-8"))
     assert record["enforcement_probe"] is False
-    assert record["request_extra"] == {"chat_template_kwargs": {"enable_thinking": False}}
+    assert record["request_extra"] == extra
+    assert record["read_timeout"] == read_timeout
 
 
 def test_a_relative_export_is_resolved_before_the_import(

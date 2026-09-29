@@ -275,14 +275,16 @@ already be served: `replay` never starts, stops or reconfigures a model server.
   (a relative `--export` is resolved first).
 - **Client:** the shipped `VlmClient`, reading stills from the export. vLLM models run it with the
   enforcement probe off (vLLM has no `/props`), the served model's name added to each request, and
-  the model's own request fields: `flagship` runs with thinking off
+  the model's own request fields and timeout. `flagship` runs with thinking off
   (`chat_template_kwargs: {"enable_thinking": false}`), since thinking spent the shipped
-  1024-token budget before it answered.
+  1024-token budget before it answered. `cosmos-reason2-8b` gets `max_tokens` 4096 and a 120 s
+  read timeout: its long evidence strings run past 1024 tokens, and past 25 s at 4096. Every
+  other model keeps the shipped budget and timeout (`AI_VLM_READ_TIMEOUT`, 25 s by default).
 - **Reads:** the export's sets.
 - **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
   already imported is skipped), then the replay's results there under a new eval run id, and
   `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/run.json`: the model, endpoint, build, the request
-  fields the replay added, eval run id, commit and the replay's report.
+  fields and read timeout the replay set, eval run id, commit and the replay's report.
 - **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals, and the path
   of `run.json`.
 - **Exit 1:** the export has no sets.
