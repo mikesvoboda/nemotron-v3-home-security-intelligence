@@ -91,6 +91,9 @@ def create_mock_settings(
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
     mock.enrichment_url = enrichment_url if enrichment_url else None
+    # These endpoint tests assert the nemotron row: PIPELINE_MODE=legacy (the
+    # vlm-mode table is TestAIServicesHealthByPipelineMode).
+    mock.pipeline_mode = "legacy"
     return mock
 
 

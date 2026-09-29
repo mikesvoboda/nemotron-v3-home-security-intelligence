@@ -1355,7 +1355,22 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
 # ============================================================================
 
 
+@pytest.fixture
+def legacy_pipeline_mode():
+    """These tests assert the `nemotron` key, which only PIPELINE_MODE=legacy
+    reports (vlm mode is covered by the *_vlm_mode_* tests below)."""
+    from backend.core.config import Settings
+
+    with patch(
+        "backend.services.system_broadcaster.get_settings",
+        autospec=True,
+        return_value=Settings(_env_file=None, pipeline_mode="legacy"),
+    ):
+        yield
+
+
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("legacy_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_both_healthy():
     """Test _check_ai_health when both AI services respond with 200."""
     broadcaster = SystemBroadcaster()
@@ -1379,6 +1394,7 @@ async def test_system_broadcaster_check_ai_health_both_healthy():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("legacy_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_both_unhealthy():
     """Test _check_ai_health when both AI services fail."""
     broadcaster = SystemBroadcaster()
@@ -1400,6 +1416,7 @@ async def test_system_broadcaster_check_ai_health_both_unhealthy():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("legacy_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_non_200_status():
     """Test _check_ai_health when services return non-200 status codes."""
     broadcaster = SystemBroadcaster()
@@ -1424,6 +1441,7 @@ async def test_system_broadcaster_check_ai_health_non_200_status():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("legacy_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_timeout():
     """Test _check_ai_health handles timeouts gracefully."""
     import httpx as real_httpx
@@ -1584,6 +1602,123 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
     assert status["data"]["ai"]["nemotron"] == "unhealthy"
     # Overall health should be degraded (DB/Redis healthy, but AI is down)
     assert status["data"]["health"] == "degraded"
+
+
+# ============================================================================
+# PIPELINE_MODE: the broadcast `ai` block follows the verdict engine
+# ============================================================================
+#
+# The dashboard's system_status broadcast probed nemotron unconditionally, so
+# in PIPELINE_MODE=vlm (legacy LLM retired, spec rev 5; connection-refused on
+# the A5500 box) every broadcast said health "degraded" / nemotron
+# "unhealthy" for a working pipeline. vlm mode reports ai-vlm (settings
+# .ai_vlm_url) instead and never probes nemotron; legacy (unsupported until
+# R8) keeps today's block. Driven at the HTTP boundary: an unrouted base URL
+# is connection-refused, like the retired ai-llm:8091.
+
+_MODE_URLS = {
+    "yolo26_url": "http://ai-gateway:8090/yolo26",
+    "nemotron_url": "http://ai-llm:8091",
+    "ai_vlm_url": "http://ai-vlm:8098",
+}
+
+
+async def _ai_health_for_mode(mode: str, up: set[str], *, system_status: bool = False):
+    """Run _check_ai_health (or _get_system_status) with every url attr in
+    ``up`` answering /health 200 and the rest refused. Returns (result, probed)."""
+    import httpx
+
+    from backend.core.config import Settings
+
+    broadcaster = SystemBroadcaster()
+    healthy_bases = {_MODE_URLS[attr] for attr in up}
+    probed: list[str] = []
+
+    async def _route(url: str, *args: object, **kwargs: object) -> httpx.Response:
+        probed.append(url)
+        request = httpx.Request("GET", url)
+        if url.removesuffix("/health") in healthy_bases:
+            return httpx.Response(200, request=request)
+        raise httpx.ConnectError("connection refused", request=request)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch(
+            "backend.services.system_broadcaster.get_settings",
+            autospec=True,
+            return_value=Settings(_env_file=None, pipeline_mode=mode, **_MODE_URLS),
+        ),
+        patch("backend.services.system_broadcaster.httpx.AsyncClient", autospec=True) as client,
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(
+            broadcaster,
+            "_get_queue_stats",
+            return_value={"pending": 0, "processing": 0},
+            autospec=True,
+        ),
+        patch.object(broadcaster, "_check_redis_health", return_value=True, autospec=True),
+    ):
+        client.return_value.__aenter__.return_value.get = AsyncMock(side_effect=_route)
+        if system_status:
+            result = await broadcaster._get_system_status()
+        else:
+            result = await broadcaster._check_ai_health()
+    return result, probed
+
+
+@pytest.mark.asyncio
+async def test_check_ai_health_vlm_mode_probes_ai_vlm_not_nemotron():
+    result, probed = await _ai_health_for_mode("vlm", up={"yolo26_url", "ai_vlm_url"})
+
+    assert result == {"yolo26": True, "ai-vlm": True, "any_healthy": True, "all_healthy": True}
+    assert f"{_MODE_URLS['ai_vlm_url']}/health" in probed
+    assert not [u for u in probed if u.startswith(_MODE_URLS["nemotron_url"])], probed
+
+
+@pytest.mark.asyncio
+async def test_system_status_vlm_mode_is_healthy_with_nemotron_gone():
+    """The incident: nemotron refuses, YOLO26 + ai-vlm are up."""
+    status, _ = await _ai_health_for_mode(
+        "vlm", up={"yolo26_url", "ai_vlm_url"}, system_status=True
+    )
+
+    assert status["data"]["ai"] == {"status": "healthy", "yolo26": "healthy", "ai-vlm": "healthy"}
+    assert status["data"]["health"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_system_status_vlm_mode_ai_vlm_down_is_degraded():
+    status, _ = await _ai_health_for_mode("vlm", up={"yolo26_url"}, system_status=True)
+
+    assert status["data"]["ai"] == {
+        "status": "degraded",
+        "yolo26": "healthy",
+        "ai-vlm": "unhealthy",
+    }
+    assert status["data"]["health"] == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_system_status_legacy_mode_block_unchanged():
+    """Pin of today's legacy block (nemotron refused)."""
+    status, probed = await _ai_health_for_mode("legacy", up={"yolo26_url"}, system_status=True)
+
+    assert status["data"]["ai"] == {
+        "status": "degraded",
+        "yolo26": "healthy",
+        "nemotron": "unhealthy",
+    }
+    assert status["data"]["health"] == "degraded"
+    assert not [u for u in probed if u.startswith(_MODE_URLS["ai_vlm_url"])], probed
 
 
 # ============================================================================
@@ -2033,6 +2168,7 @@ async def test_system_broadcaster_get_camera_stats_deprecated_method():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("legacy_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_gather_error():
     """Test _check_ai_health handles asyncio.gather errors (line 856-857)."""
     broadcaster = SystemBroadcaster()

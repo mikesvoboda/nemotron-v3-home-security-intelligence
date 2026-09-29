@@ -66,6 +66,7 @@ def mock_ai_health_settings():
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings, autospec=True):
         yield mock_settings
@@ -1372,6 +1373,7 @@ async def test_get_health_all_healthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1421,6 +1423,7 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1464,6 +1467,7 @@ async def test_get_health_unhealthy_when_database_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1506,6 +1510,7 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1548,6 +1553,7 @@ async def test_get_health_redis_none() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Patch AI health check to avoid network calls
     with (
@@ -2873,6 +2879,7 @@ async def test_check_ai_services_health_both_healthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2905,6 +2912,7 @@ async def test_check_ai_services_health_yolo26_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2940,6 +2948,7 @@ async def test_check_ai_services_health_nemotron_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2975,6 +2984,7 @@ async def test_check_ai_services_health_both_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -3016,6 +3026,7 @@ async def test_check_ai_services_health_returns_details() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
+    mock_settings.pipeline_mode = "legacy"
 
     # Both services down should still populate details
     with (
@@ -3064,6 +3075,7 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
     ):
         mock_settings.return_value.yolo26_url = "http://custom-yolo26:9000"
         mock_settings.return_value.nemotron_url = "http://custom-nemotron:9001"
+        mock_settings.return_value.pipeline_mode = "legacy"
 
         await system_routes.check_ai_services_health()
 
@@ -4117,6 +4129,7 @@ async def test_check_ai_services_health_uses_bounded_checks() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8090"
     mock_settings.nemotron_url = "http://localhost:8091"
+    mock_settings.pipeline_mode = "legacy"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),

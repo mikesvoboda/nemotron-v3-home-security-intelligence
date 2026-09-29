@@ -11,6 +11,19 @@ import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_shell_pipeline_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deploy reads PIPELINE_MODE from the shell too; keep these tests hermetic."""
+    monkeypatch.delenv("PIPELINE_MODE", raising=False)
+
+
+def _compose_args(mock_compose: MagicMock) -> list[tuple[str, ...]]:
+    """The compose argv of every compose_run call (config argument dropped)."""
+    return [tuple(c.args[1:]) for c in mock_compose.call_args_list]
+
 
 class TestPhaseStop:
     """Tests for phase_stop() function."""
@@ -160,6 +173,40 @@ class TestPhaseStop:
             assert result.success is False
             assert "ports" in result.message.lower()
 
+    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
+    def test_down_and_rm_reach_every_deploy_profile(self, tmp_path: Path, mode: str) -> None:
+        """Stop tears down BOTH model servers, whatever this deploy's mode.
+
+        compose down/rm only act on services whose profile is active, so a
+        plain `down` would leave an ai-llm started by a pre-profile deploy
+        running on the GPU ai-vlm shares with it (both use GPU_LLM).
+        """
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_stop
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"POSTGRES_PORT": "5432", "REDIS_PORT": "6379", "PIPELINE_MODE": mode},
+        )
+
+        with (
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+            patch("setup_lib.deploy_phases._ensure_rootless_storage", autospec=True),
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True),
+            patch("setup_lib.deploy_phases.check_port_available", return_value=True, autospec=True),
+            patch("time.sleep", autospec=True),
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+
+            phase_stop(config)
+
+        profiles = ("--profile", "vlm", "--profile", "legacy")
+        assert _compose_args(mock_compose) == [(*profiles, "down"), (*profiles, "rm", "-f")]
+
 
 class TestPhaseBuild:
     """Tests for phase_build() function."""
@@ -180,15 +227,25 @@ class TestPhaseBuild:
         assert result.success is True
         assert "skip" in result.message.lower()
 
-    def test_builds_base_then_app_then_llm(self, tmp_path: Path) -> None:
-        """Should build base image, then app services, then ai-llm in order."""
+    @pytest.mark.parametrize(
+        ("env", "server", "tag"),
+        [
+            ({"CUDA_ARCHITECTURES": "86"}, "ai-vlm", "vlm"),
+            ({"CUDA_ARCHITECTURES": "86", "PIPELINE_MODE": "legacy"}, "ai-llm", "llm"),
+        ],
+        ids=["vlm-default", "legacy"],
+    )
+    def test_builds_base_then_app_then_model_server(
+        self, tmp_path: Path, env: dict[str, str], server: str, tag: str
+    ) -> None:
+        """Should build base image, then app services, then the mode's model server."""
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
 
         config = DeployConfig(
             project_root=tmp_path,
             compose_cmd=["podman", "compose"],
-            env={"CUDA_ARCHITECTURES": "86"},
+            env=env,
         )
 
         call_order = []
@@ -204,6 +261,8 @@ class TestPhaseBuild:
                 call_order.append("app")
             elif "ai-llm" in args:
                 call_order.append("llm")
+            elif "ai-vlm" in args:
+                call_order.append("vlm")
             return True
 
         with (
@@ -215,7 +274,126 @@ class TestPhaseBuild:
             result = phase_build(config)
 
             assert result.success is True
-            assert call_order == ["base", "app", "llm"]
+            assert call_order == ["base", "app", tag]
+
+    def test_vlm_mode_builds_ai_vlm_and_never_ai_llm(self, tmp_path: Path) -> None:
+        """vlm (the default): ai-vlm is built from its profile, cached, for the GPU's arch.
+
+        --profile vlm rides on the call because podman-compose drops a service
+        whose profile is inactive BEFORE it resolves command-line targets, so
+        naming ai-vlm alone is not enough there.
+        """
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_build
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"CUDA_ARCHITECTURES": "86"},
+        )
+
+        with (
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="built\n", stderr=""
+            )
+            mock_compose.return_value = True
+
+            result = phase_build(config)
+
+        assert result.success is True
+        calls = _compose_args(mock_compose)
+        assert not any("ai-llm" in args for args in calls), "vlm mode must never build ai-llm"
+        vlm_calls = [args for args in calls if "ai-vlm" in args]
+        assert vlm_calls == [
+            ("--profile", "vlm", "build", "--build-arg", "CUDA_ARCHITECTURES=86", "ai-vlm")
+        ]
+
+    def test_vlm_mode_builds_ai_vlm_for_detected_arch(self, tmp_path: Path) -> None:
+        """No CUDA_ARCHITECTURES in .env: ai-vlm gets the nvidia-smi-detected one."""
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_build
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={},
+        )
+
+        def mock_subprocess_run(cmd, **kwargs):
+            stdout = "8.6\n" if "nvidia-smi" in cmd else "built\n"
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout=stdout, stderr="")
+
+        with (
+            patch("subprocess.run", side_effect=mock_subprocess_run, autospec=True),
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+        ):
+            mock_compose.return_value = True
+
+            phase_build(config)
+
+        vlm_calls = [args for args in _compose_args(mock_compose) if "ai-vlm" in args]
+        assert len(vlm_calls) == 1
+        assert "CUDA_ARCHITECTURES=86" in vlm_calls[0]
+
+    def test_legacy_mode_builds_ai_llm_behind_its_profile(self, tmp_path: Path) -> None:
+        """legacy: ai-llm is still built, now through --profile legacy (58163f23f)."""
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_build
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"CUDA_ARCHITECTURES": "86", "PIPELINE_MODE": "legacy"},
+        )
+
+        with (
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="built\n", stderr=""
+            )
+            mock_compose.return_value = True
+
+            result = phase_build(config)
+
+        assert result.success is True
+        calls = _compose_args(mock_compose)
+        assert not any("ai-vlm" in args for args in calls)
+        assert [args for args in calls if "ai-llm" in args] == [
+            ("--profile", "legacy", "build", "--build-arg", "CUDA_ARCHITECTURES=86", "ai-llm")
+        ]
+
+    def test_fails_when_model_server_build_fails(self, tmp_path: Path) -> None:
+        """A failed ai-vlm build fails the phase and names the service."""
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_build
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"CUDA_ARCHITECTURES": "86"},
+        )
+
+        with (
+            patch("subprocess.run", autospec=True) as mock_run,
+            patch(
+                "setup_lib.deploy_phases.compose_run",
+                side_effect=lambda _cfg, *args, **_kw: "ai-vlm" not in args,
+                autospec=True,
+            ),
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="built\n", stderr=""
+            )
+
+            result = phase_build(config)
+
+        assert result.success is False
+        assert result.message == "ai-vlm build failed"
 
     def test_app_services_use_no_cache(self, tmp_path: Path) -> None:
         """Should use --no-cache for backend/frontend/ai-gateway builds."""
@@ -245,14 +423,14 @@ class TestPhaseBuild:
             assert "--no-cache" in str(app_calls[0])
 
     def test_ai_llm_uses_cache(self, tmp_path: Path) -> None:
-        """Should NOT use --no-cache for ai-llm build."""
+        """Should NOT use --no-cache for ai-llm build (legacy mode)."""
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
 
         config = DeployConfig(
             project_root=tmp_path,
             compose_cmd=["podman", "compose"],
-            env={},
+            env={"PIPELINE_MODE": "legacy"},
         )
 
         with (
@@ -755,6 +933,320 @@ class TestPhaseHealthCheck:
 
             assert result.success is False
             assert "degraded" in result.message
+
+    @pytest.mark.parametrize(
+        ("env", "polled", "not_polled"),
+        [
+            # vlm (default): ai-vlm's loopback port; AI_VLM_PORT unset -> compose's 8098
+            ({"LLM_PORT": "8091"}, ("http://localhost:8098/health", 120), "8091"),
+            (
+                {"LLM_PORT": "8091", "AI_VLM_PORT": "18098"},
+                ("http://localhost:18098/health", 120),
+                "8091",
+            ),
+            # legacy keeps today's LLM poll
+            (
+                {"LLM_PORT": "8091", "PIPELINE_MODE": "legacy"},
+                ("http://localhost:8091/health", 180),
+                "8098",
+            ),
+        ],
+        ids=["vlm-default-port", "vlm-env-port", "legacy"],
+    )
+    def test_polls_the_modes_model_server(
+        self,
+        tmp_path: Path,
+        env: dict[str, str],
+        polled: tuple[str, int],
+        not_polled: str,
+    ) -> None:
+        """vlm mode polls ai-vlm (120s = its start_period), never the retired 30B."""
+        import urllib.error
+
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_health_check
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"API_PORT": "8000", "AI_GATEWAY_PORT": "8090", **env},
+        )
+
+        with (
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=urllib.error.URLError("skip"),
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.poll_endpoint", return_value=False, autospec=True
+            ) as poll,
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as mock_run,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+
+            phase_health_check(config)
+
+        polls = [(c.args[0], c.kwargs["timeout"]) for c in poll.call_args_list]
+        assert polled in polls
+        assert not any(f":{not_polled}/" in url for url, _ in polls)
+
+
+class TestRecoverCreatedContainers:
+    """_recover_created_containers() restarts containers stuck in 'created'."""
+
+    def _recover(self, tmp_path: Path, env: dict[str, str], names: list[str]) -> MagicMock:
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import _recover_created_containers
+
+        config = DeployConfig(project_root=tmp_path, compose_cmd=["podman", "compose"], env=env)
+        stdout = "".join(f"{name}\n" for name in names)
+        with (
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True) as cr,
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as mock_run,
+            patch(
+                "setup_lib.deploy_phases._wait_container_running", return_value=True, autospec=True
+            ),
+            patch("setup_lib.deploy_phases.time.sleep", autospec=True),
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout=stdout, stderr=""
+            )
+            _recover_created_containers(config)
+        return cr
+
+    def test_restarts_created_ai_vlm_through_its_profile(self, tmp_path: Path) -> None:
+        """A created ai-vlm is restarted with --profile vlm (it is profiled)."""
+        cr = self._recover(tmp_path, {}, [f"{tmp_path.name}-ai-vlm-1"])
+
+        assert _compose_args(cr) == [("--profile", "vlm", "up", "-d", "--no-build", "ai-vlm")]
+
+    def test_never_starts_ai_llm_in_vlm_mode(self, tmp_path: Path) -> None:
+        """A leftover created ai-llm is left alone in vlm mode; others still recover."""
+        cr = self._recover(
+            tmp_path, {}, [f"{tmp_path.name}-ai-llm-1", f"{tmp_path.name}-backend-1"]
+        )
+
+        calls = _compose_args(cr)
+        assert not any("ai-llm" in args for args in calls)
+        assert ("--profile", "vlm", "up", "-d", "--no-build", "backend") in calls
+
+    def test_legacy_mode_still_recovers_ai_llm(self, tmp_path: Path) -> None:
+        """legacy: a created ai-llm is restarted through --profile legacy."""
+        cr = self._recover(tmp_path, {"PIPELINE_MODE": "legacy"}, [f"{tmp_path.name}-ai-llm-1"])
+
+        assert _compose_args(cr) == [("--profile", "legacy", "up", "-d", "--no-build", "ai-llm")]
+
+
+# ---------------------------------------------------------------------------
+# SELinux camera root (A5500 box, 2026-09-28): an enforcing host + a usr_t
+# camera root + a /cameras mount without :z = the backend can READ uploads but
+# its inotify WATCH is denied, and the file watcher went blind. Deploy checks
+# before (the shared setup_lib/selinux_check preflight) and after (the
+# backend's own watch_mode on /api/system/pipeline). Warn-only: deploy never
+# relabels a host path, it prints the command.
+# ---------------------------------------------------------------------------
+
+USR_T = "system_u:object_r:usr_t:s0"
+BACKEND_CAMERA_COMPOSE = """\
+services:
+  backend:
+    volumes:
+      - ${{FOSCAM_BASE_PATH:-/export/foscam}}:/cameras{opts}
+"""
+
+
+class TestSelinuxCameraRootPreflight:
+    """_preflight_selinux_camera_root(): the shared host check, run by deploy."""
+
+    @staticmethod
+    def _config(
+        tmp_path: Path, env: dict[str, str] | None = None, compose: dict[str, str] | None = None
+    ):
+        """DeployConfig on tmp_path; ``compose`` = {file name: backend /cameras opts}."""
+        from setup_lib.deploy import DeployConfig
+
+        for name, opts in (compose or {}).items():
+            (tmp_path / name).write_text(BACKEND_CAMERA_COMPOSE.format(opts=opts))
+        return DeployConfig(
+            project_root=tmp_path,
+            compose_file="docker-compose.prod.yml",
+            compose_cmd=["podman", "compose"],
+            env=env or {},
+        )
+
+    def test_warns_with_the_fix_and_changes_nothing_on_the_host(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        config = self._config(
+            tmp_path, {"FOSCAM_BASE_PATH": "/srv/cams"}, {"docker-compose.prod.yml": ""}
+        )
+        with (
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as sudo,
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as run,
+        ):
+            verdict = _preflight_selinux_camera_root(
+                config, selinux_enforcing=lambda: True, selinux_label=lambda _path: USR_T
+            )
+
+        out = capsys.readouterr().out
+        assert verdict.verdict == "WARN"
+        assert "WARNING" in out
+        assert "docker-compose.prod.yml: ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras" in out
+        assert "sudo semanage fcontext -a -t container_file_t '/srv/cams(/.*)?'" in out
+        assert "sudo restorecon -R /srv/cams" in out
+        sudo.assert_not_called()
+        run.assert_not_called()
+
+    def test_reads_the_compose_file_deploy_uses(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        # prod relabels; a bare ghcr file next to it is not what deploy runs.
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        config = self._config(
+            tmp_path, compose={"docker-compose.prod.yml": ":z", "docker-compose.ghcr.yml": ":ro"}
+        )
+        verdict = _preflight_selinux_camera_root(
+            config, selinux_enforcing=lambda: True, selinux_label=lambda _path: USR_T
+        )
+
+        out = capsys.readouterr().out
+        assert verdict.verdict == "PASS"
+        assert "WARNING" not in out
+        assert "ghcr" not in out
+
+    @pytest.mark.parametrize(
+        ("env", "root"),
+        [({}, "/export/foscam"), ({"FOSCAM_BASE_PATH": "/srv/cams"}, "/srv/cams")],
+    )
+    def test_the_label_is_read_from_foscam_base_path(
+        self, tmp_path: Path, env: dict[str, str], root: str
+    ) -> None:
+        from setup_lib.deploy_phases import _preflight_selinux_camera_root
+
+        asked: list[str] = []
+        config = self._config(tmp_path, env, {"docker-compose.prod.yml": ""})
+        _preflight_selinux_camera_root(
+            config,
+            selinux_enforcing=lambda: True,
+            selinux_label=lambda path: asked.append(path) or USR_T,
+        )
+        assert asked == [root]
+
+    def test_phase_infrastructure_runs_it_and_a_warn_never_fails_the_deploy(
+        self, tmp_path: Path
+    ) -> None:
+        from setup_lib.deploy_phases import phase_infrastructure
+        from setup_lib.selinux_check import CameraRootVerdict
+
+        cams = tmp_path / "cams"
+        cams.mkdir()
+        config = self._config(tmp_path, {"FOSCAM_BASE_PATH": str(cams)})
+        with (
+            patch(
+                "setup_lib.deploy_phases._preflight_selinux_camera_root",
+                return_value=CameraRootVerdict("WARN", "would be denied"),
+                autospec=True,
+            ) as preflight,
+            patch("setup_lib.deploy_phases.compose_run", return_value=True, autospec=True),
+            patch(
+                "setup_lib.deploy_phases._is_service_installed", return_value=False, autospec=True
+            ),
+            patch("setup_lib.deploy_phases._run_sudo", autospec=True) as sudo,
+            patch("time.sleep", autospec=True),
+        ):
+            sudo.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+            result = phase_infrastructure(config)
+
+        preflight.assert_called_once_with(config)
+        assert result.success is True
+
+
+class TestFileWatcherPostDeploy:
+    """phase_health_check() reads the backend's own watch_mode: a refused
+    inotify watch shows as polling-fallback on ANY host, whatever the compose."""
+
+    @staticmethod
+    def _health(
+        tmp_path: Path, pipeline: dict | None, backend_ready: bool = True
+    ) -> tuple[object, list[str]]:
+        import urllib.error
+
+        from setup_lib.deploy import DeployConfig
+        from setup_lib.deploy_phases import phase_health_check
+
+        config = DeployConfig(
+            project_root=tmp_path,
+            compose_cmd=["podman", "compose"],
+            env={"API_PORT": "8000", "FOSCAM_BASE_PATH": "/srv/cams"},
+        )
+        probed: list[str] = []
+
+        def fake_health(name: str, url: str, timeout: int = 60) -> dict:
+            probed.append(url)
+            data = pipeline if url.endswith("/api/system/pipeline") else {"status": "ok"}
+            return {"name": name, "status": "healthy", "response_time_ms": 5, "data": data}
+
+        with (
+            patch(
+                "setup_lib.deploy_phases.urllib.request.urlopen",
+                side_effect=urllib.error.URLError("no network in unit tests"),
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.poll_endpoint",
+                side_effect=lambda url, **_kw: backend_ready or "/api/" not in url,
+                autospec=True,
+            ),
+            patch(
+                "setup_lib.deploy_phases.check_service_health",
+                side_effect=fake_health,
+                autospec=True,
+            ),
+            patch("setup_lib.deploy_phases.subprocess.run", autospec=True) as mock_run,
+        ):
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            )
+            result = phase_health_check(config)
+        return result, probed
+
+    @staticmethod
+    def _pipeline(mode: str, reason: str | None = None) -> dict:
+        return {"file_watcher": {"watch_mode": mode, "watch_fallback_reason": reason}}
+
+    def test_polling_fallback_is_warned_with_the_reason(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        result, probed = self._health(tmp_path, self._pipeline("polling-fallback", "EACCES"))
+
+        out = capsys.readouterr().out
+        assert "http://localhost:8000/api/system/pipeline" in probed
+        assert "WARNING" in out
+        assert "polling-fallback" in out
+        assert "EACCES" in out
+        assert "sudo restorecon -R /srv/cams" in out
+        # a warning, not a failed health check
+        assert result.success is True
+
+    def test_a_native_watch_prints_the_mode_and_no_warning(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        self._health(tmp_path, self._pipeline("native"))
+
+        out = capsys.readouterr().out
+        assert "File watcher: native" in out
+        assert "WARNING" not in out
+
+    def test_the_pipeline_is_not_probed_when_the_backend_is_not_ready(self, tmp_path: Path) -> None:
+        _result, probed = self._health(tmp_path, None, backend_ready=False)
+
+        assert not any(url.endswith("/api/system/pipeline") for url in probed)
 
 
 class TestDeployPhasesRegistry:

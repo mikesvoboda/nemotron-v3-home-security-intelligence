@@ -800,7 +800,8 @@ class OrphanedFileCleanup:
             event_query = select(Event.clip_path).where(Event.clip_path.isnot(None))
             result = await session.execute(event_query)
 
-            for (clip_path,) in result.all():
+            for row in result.all():
+                clip_path = row[0]
                 if clip_path:
                     abs_path = str(Path(clip_path).resolve())
                     referenced.add(abs_path)

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -2058,6 +2058,24 @@ class FileWatcherStatusResponse(BaseModel):
         ...,
         description="Type of filesystem observer (native or polling)",
     )
+    watch_mode: Literal["native", "polling", "polling-fallback"] | None = Field(
+        None,
+        description=(
+            "How uploads are detected: 'native' (the kernel accepted the "
+            "filesystem watch), 'polling' (configured), or 'polling-fallback' "
+            "(the native watch was REFUSED at startup - see "
+            "watch_fallback_reason - so the watcher scans instead)"
+        ),
+    )
+    watch_fallback_reason: str | None = Field(
+        None,
+        description=(
+            "errno name of the refused native watch when watch_mode is "
+            "'polling-fallback' (EACCES/EPERM: permissions or SELinux/LSM, "
+            "ENOSPC: fs.inotify.max_user_watches, EMFILE: "
+            "fs.inotify.max_user_instances); null otherwise"
+        ),
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -2066,6 +2084,8 @@ class FileWatcherStatusResponse(BaseModel):
                 "camera_root": "/export/foscam",
                 "pending_tasks": 3,
                 "observer_type": "native",
+                "watch_mode": "native",
+                "watch_fallback_reason": None,
             }
         }
     )

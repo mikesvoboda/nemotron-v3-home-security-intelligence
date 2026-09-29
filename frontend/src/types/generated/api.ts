@@ -11216,6 +11216,8 @@ export interface paths {
          *     - camera_root: Directory being watched
          *     - pending_tasks: Files waiting for debounce completion
          *     - observer_type: Filesystem observer type (native/polling)
+         *     - watch_mode: native / polling (configured) / polling-fallback (the kernel
+         *       refused the native watch at startup; watch_fallback_reason = errno name)
          *
          *     **BatchAggregator**: Groups detections into time-based batches
          *     - active_batches: Number of batches being aggregated
@@ -26210,7 +26212,8 @@ export interface components {
          *       "camera_root": "/export/foscam",
          *       "observer_type": "native",
          *       "pending_tasks": 3,
-         *       "running": true
+         *       "running": true,
+         *       "watch_mode": "native"
          *     }
          */
         FileWatcherStatusResponse: {
@@ -26234,6 +26237,16 @@ export interface components {
              * @description Whether the file watcher is currently running
              */
             running: boolean;
+            /**
+             * Watch Fallback Reason
+             * @description errno name of the refused native watch when watch_mode is 'polling-fallback' (EACCES/EPERM: permissions or SELinux/LSM, ENOSPC: fs.inotify.max_user_watches, EMFILE: fs.inotify.max_user_instances); null otherwise
+             */
+            watch_fallback_reason?: string | null;
+            /**
+             * Watch Mode
+             * @description How uploads are detected: 'native' (the kernel accepted the filesystem watch), 'polling' (configured), or 'polling-fallback' (the native watch was REFUSED at startup - see watch_fallback_reason - so the watcher scans instead)
+             */
+            watch_mode?: ("native" | "polling" | "polling-fallback") | null;
         };
         /**
          * FlushQueuesResponse

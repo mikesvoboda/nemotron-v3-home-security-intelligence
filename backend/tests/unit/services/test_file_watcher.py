@@ -47,11 +47,14 @@ Notes:
 """
 
 import asyncio
+import errno
+import logging
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from PIL import Image
+from watchdog.observers.polling import PollingObserver
 
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
@@ -64,6 +67,7 @@ from backend.services.file_watcher import (
     is_valid_image,
     is_valid_image_async,
 )
+from backend.services.inotify_probe import InotifyWatchProbe
 
 
 # Helper function to create valid test images above minimum size
@@ -2243,3 +2247,173 @@ async def test_stability_check_file_grows_then_stabilizes(file_watcher, temp_cam
         result = await file_watcher._wait_for_file_stability(str(file_path), stability_time=0.5)
 
     assert result is True
+
+
+# =============================================================================
+# Startup watch self-check (A5500 box, 2026-09-28)
+#
+# SELinux enforcing, backend as container_t, camera root usr_t mounted without
+# :z: reading uploads worked, inotify_add_watch was denied, and watchdog
+# SWALLOWS that EACCES - the native Observer started "successfully", its
+# emitter was alive, and no upload was ever ingested. The watcher must now ask
+# the kernel itself, say so LOUDLY when refused, and keep ingesting by polling.
+# =============================================================================
+
+
+def _probe_answering(probe: InotifyWatchProbe):
+    calls: list[str] = []
+
+    def fake_probe(path: str) -> InotifyWatchProbe:
+        calls.append(path)
+        return probe
+
+    fake_probe.calls = calls  # type: ignore[attr-defined]
+    return fake_probe
+
+
+@pytest.mark.asyncio
+async def test_refused_native_watch_falls_back_to_polling_and_says_why(
+    temp_camera_root, mock_redis_client, caplog
+):
+    probe = _probe_answering(InotifyWatchProbe(supported=True, error=errno.EACCES))
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        use_polling=False,
+        watch_probe=probe,
+    )
+    with caplog.at_level(logging.INFO):
+        await watcher.start()
+    try:
+        assert probe.calls == [str(temp_camera_root)]
+        assert isinstance(watcher.observer, PollingObserver)
+        assert watcher.observer.is_alive()
+        assert watcher.running is True
+        assert watcher.watch_mode == "polling-fallback"
+        assert watcher.watch_fallback_reason == "EACCES"
+        errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(errors) == 1, errors
+        assert str(temp_camera_root) in errors[0]
+        assert "EACCES" in errors[0]
+        for fix in (":z", "container_file_t", "avc: denied { watch }"):
+            assert fix in errors[0], f"fallback ERROR lacks the fix hint {fix!r}"
+        assert not any("started successfully" in r.getMessage() for r in caplog.records), (
+            "a native watch the kernel refused must never read as a successful start"
+        )
+    finally:
+        await watcher.stop()
+
+
+@pytest.mark.asyncio
+async def test_established_native_watch_keeps_the_native_observer_quietly(
+    temp_camera_root, mock_redis_client, caplog
+):
+    from watchdog.observers import Observer
+
+    probe = _probe_answering(InotifyWatchProbe(supported=True))
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        use_polling=False,
+        watch_probe=probe,
+    )
+    with caplog.at_level(logging.INFO):
+        await watcher.start()
+    try:
+        assert probe.calls == [str(temp_camera_root)]
+        assert isinstance(watcher.observer, Observer)
+        assert not isinstance(watcher.observer, PollingObserver)
+        assert watcher.watch_mode == "native"
+        assert watcher.watch_fallback_reason is None
+        assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert any("started successfully" in r.getMessage() for r in caplog.records)
+    finally:
+        await watcher.stop()
+
+
+@pytest.mark.asyncio
+async def test_no_inotify_on_this_platform_is_not_a_failure(temp_camera_root, mock_redis_client):
+    # macOS dev: watchdog picks FSEvents; the probe has nothing to ask.
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        use_polling=False,
+        watch_probe=_probe_answering(InotifyWatchProbe(supported=False)),
+    )
+    with patch.object(watcher.observer, "start", autospec=True) as native_start:
+        await watcher.start()
+    native_start.assert_called_once()
+    assert not isinstance(watcher.observer, PollingObserver)
+    assert watcher.watch_mode == "native"
+    assert watcher.watch_fallback_reason is None
+
+
+@pytest.mark.asyncio
+async def test_configured_polling_needs_no_watch_and_is_not_probed(
+    temp_camera_root, mock_redis_client
+):
+    probe = _probe_answering(InotifyWatchProbe(supported=True, error=errno.EACCES))
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        use_polling=True,
+        watch_probe=probe,
+    )
+    with patch.object(watcher.observer, "start", autospec=True):
+        await watcher.start()
+    assert probe.calls == []
+    assert watcher.watch_mode == "polling"
+    assert watcher.watch_fallback_reason is None
+
+
+@pytest.mark.asyncio
+async def test_watch_limit_raised_by_watchdog_also_falls_back(
+    temp_camera_root, mock_redis_client, caplog
+):
+    # The root probe can pass while watchdog's RECURSIVE walk exhausts
+    # max_user_watches; watchdog raises that one (it only swallows EACCES), and
+    # an exception out of start() would take the whole pipeline startup down.
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        use_polling=False,
+        watch_probe=_probe_answering(InotifyWatchProbe(supported=True)),
+    )
+    with (
+        patch.object(
+            watcher.observer,
+            "start",
+            autospec=True,
+            side_effect=OSError(errno.ENOSPC, "inotify watch limit reached"),
+        ),
+        caplog.at_level(logging.INFO),
+    ):
+        await watcher.start()
+    try:
+        assert isinstance(watcher.observer, PollingObserver)
+        assert watcher.observer.is_alive()
+        assert watcher.watch_mode == "polling-fallback"
+        assert watcher.watch_fallback_reason == "ENOSPC"
+        errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+        assert len(errors) == 1, errors
+        assert "max_user_watches" in errors[0]
+    finally:
+        await watcher.stop()
+
+
+@pytest.mark.asyncio
+async def test_the_real_kernel_probe_is_the_default(temp_camera_root, mock_redis_client):
+    refused = InotifyWatchProbe(supported=True, error=errno.EPERM)
+    with patch(
+        "backend.services.file_watcher.probe_inotify_watch", autospec=True, return_value=refused
+    ) as real_probe:
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root), redis_client=mock_redis_client, use_polling=False
+        )
+        await watcher.start()
+    try:
+        real_probe.assert_called_once_with(str(temp_camera_root))
+        assert watcher.watch_mode == "polling-fallback"
+        assert watcher.watch_fallback_reason == "EPERM"
+    finally:
+        await watcher.stop()

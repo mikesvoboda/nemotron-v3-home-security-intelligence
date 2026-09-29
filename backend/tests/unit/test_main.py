@@ -382,3 +382,108 @@ class TestSelectPreloadCandidates:
         assert "if cfg.enabled and not cfg.available" not in src, (
             "the old availability-shaped predicate is still in the sweep"
         )
+
+
+class TestAiServiceHealthMonitorConfigs:
+    """PIPELINE_MODE=vlm must never monitor or restart the retired Nemotron LLM.
+
+    Observed on the A5500 box (2026-09-28, PIPELINE_MODE=vlm): the backend's
+    ServiceHealthMonitor probed `nemotron`, found it down (it is retired - spec
+    rev 5), and ran "Attempting restart (attempt 1/3)" against `ai-llm`. The
+    restart failed ONLY because the podman socket was unreachable; with that
+    access the backend would have started the 30B LLM on the same 24 GB GPU
+    ai-vlm needs. In vlm mode the monitor's list must not carry nemotron at
+    all, in every restart branch (docker / shell scripts / restart disabled).
+    Legacy keeps today's two entries exactly - it is unsupported but its code
+    stays until R8, and this change must not alter it.
+
+    ai-vlm stays OUT of this probe-poll monitor on purpose: ledger 1.3 chose
+    breaker-push health for it (see the registration comment in main.py and
+    test_vlm_client's source pin), so vlm mode monitors YOLO26 only.
+    """
+
+    @staticmethod
+    def _settings(mode: str, restart: str):
+        from backend.core.config import OrchestratorSettings, Settings
+
+        branches = {
+            # (orchestrator.enabled, ai_restart_enabled)
+            "docker": (True, True),
+            "shell": (False, True),
+            "disabled": (True, False),
+        }
+        orchestrator_enabled, restart_enabled = branches[restart]
+        return Settings(
+            _env_file=None,
+            pipeline_mode=mode,
+            orchestrator=OrchestratorSettings(enabled=orchestrator_enabled),
+            ai_restart_enabled=restart_enabled,
+            use_ai_gateway=True,
+            ai_gateway_url="http://ai-gateway:8090",
+            yolo26_url="http://ai-gateway:8090/yolo26",
+            nemotron_url="http://ai-llm:8091",
+        )
+
+    @pytest.mark.parametrize("restart", ["docker", "shell", "disabled"])
+    def test_vlm_mode_never_monitors_or_restarts_nemotron(self, restart: str) -> None:
+        from backend.main import build_ai_service_health_configs
+
+        configs = build_ai_service_health_configs(self._settings("vlm", restart))
+
+        assert [c.name for c in configs] == ["yolo26"], (
+            "vlm mode must monitor YOLO26 only - no nemotron (retired), and no "
+            "ai-vlm (breaker-push health by the ledger 1.3 choice)"
+        )
+        for cfg in configs:
+            assert "ai-llm" not in (cfg.restart_cmd or ""), cfg
+            assert "start_llm" not in (cfg.restart_cmd or ""), cfg
+            assert "8091" not in cfg.health_url, cfg
+
+    @pytest.mark.parametrize(
+        ("restart", "yolo26_cmd", "nemotron_cmd"),
+        [
+            ("docker", "docker restart ai-gateway", "docker restart ai-llm"),
+            ("shell", "ai/start_detector.sh", "ai/start_llm.sh"),
+            ("disabled", None, None),
+        ],
+    )
+    def test_legacy_mode_keeps_todays_yolo26_and_nemotron_entries(
+        self, restart: str, yolo26_cmd: str | None, nemotron_cmd: str | None
+    ) -> None:
+        """Byte-for-byte pin of the pre-fix list for the unsupported legacy path."""
+        from backend.main import build_ai_service_health_configs
+        from backend.services.service_managers import ServiceConfig
+
+        configs = build_ai_service_health_configs(self._settings("legacy", restart))
+
+        assert configs == [
+            ServiceConfig(
+                name="yolo26",
+                health_url="http://ai-gateway:8090/health",
+                restart_cmd=yolo26_cmd,
+                health_timeout=5.0,
+                max_retries=3,
+                backoff_base=5.0,
+            ),
+            ServiceConfig(
+                name="nemotron",
+                health_url="http://ai-llm:8091/health",
+                restart_cmd=nemotron_cmd,
+                health_timeout=5.0,
+                max_retries=3,
+                backoff_base=5.0,
+            ),
+        ]
+
+    def test_lifespan_builds_the_monitor_from_the_helper(self) -> None:
+        """The helper is the single place the monitor's list is decided; the
+        lifespan must use it rather than keep an inline nemotron entry."""
+        from pathlib import Path
+
+        src = Path("backend/main.py").read_text()
+        assert "build_ai_service_health_configs(settings)" in src, (
+            "lifespan does not build the monitor list through the mode-aware helper"
+        )
+        assert src.count('name="nemotron"') == 1, (
+            "a second inline nemotron ServiceConfig bypasses the vlm-mode gate"
+        )

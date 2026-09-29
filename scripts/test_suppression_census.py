@@ -498,6 +498,12 @@ def test_real_tree_matches_spec_baselines():
     environment, one todo weights-gate) via regenerated registry + baseline
     raised the same commit — the increase path exercised exactly as designed;
     every CI env takes all three skips, every GPU box runs the real thing.
+    pytest_skip_imperative 99→101 (2026-09-28): this PR's TestComposeSELinuxLabels
+    block, test_docker_compose_security.py:348/358 — the camera-root precheck
+    skips when git is unavailable or the tree isn't a git checkout. Adjudicated
+    environment via HOST_JUSTIFIED + registry/baseline raised the same commit
+    (ea79a858); the mirror here lagged one commit, which is exactly the drift
+    this test exists to catch — caught on this PR, not on main.
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -509,7 +515,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 99,
+        "pytest_skip_imperative": 101,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,

@@ -18372,7 +18372,8 @@
           "camera_root": "/export/foscam",
           "observer_type": "native",
           "pending_tasks": 3,
-          "running": true
+          "running": true,
+          "watch_mode": "native"
         },
         "properties": {
           "camera_root": {
@@ -18395,6 +18396,35 @@
             "description": "Whether the file watcher is currently running",
             "title": "Running",
             "type": "boolean"
+          },
+          "watch_fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "errno name of the refused native watch when watch_mode is 'polling-fallback' (EACCES/EPERM: permissions or SELinux/LSM, ENOSPC: fs.inotify.max_user_watches, EMFILE: fs.inotify.max_user_instances); null otherwise",
+            "title": "Watch Fallback Reason"
+          },
+          "watch_mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "native",
+                  "polling",
+                  "polling-fallback"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How uploads are detected: 'native' (the kernel accepted the filesystem watch), 'polling' (configured), or 'polling-fallback' (the native watch was REFUSED at startup - see watch_fallback_reason - so the watcher scans instead)",
+            "title": "Watch Mode"
           }
         },
         "required": [
@@ -64846,7 +64876,7 @@
     },
     "/api/system/pipeline": {
       "get": {
-        "description": "Get combined status of all pipeline operations.\n\nReturns real-time visibility into the AI processing pipeline:\n\n**FileWatcher**: Monitors camera directories for new uploads\n- running: Whether the watcher is active\n- camera_root: Directory being watched\n- pending_tasks: Files waiting for debounce completion\n- observer_type: Filesystem observer type (native/polling)\n\n**BatchAggregator**: Groups detections into time-based batches\n- active_batches: Number of batches being aggregated\n- batches: Details of each active batch\n- batch_window_seconds: Configured window timeout\n- idle_timeout_seconds: Configured idle timeout\n\n**DegradationManager**: Handles graceful degradation\n- mode: Current degradation mode (normal/degraded/minimal/offline)\n- is_degraded: Whether system is in any degraded state\n- services: Health status of registered services\n- available_features: Features available in current mode\n\nReturns:\n    PipelineStatusResponse with status of all pipeline services",
+        "description": "Get combined status of all pipeline operations.\n\nReturns real-time visibility into the AI processing pipeline:\n\n**FileWatcher**: Monitors camera directories for new uploads\n- running: Whether the watcher is active\n- camera_root: Directory being watched\n- pending_tasks: Files waiting for debounce completion\n- observer_type: Filesystem observer type (native/polling)\n- watch_mode: native / polling (configured) / polling-fallback (the kernel\n  refused the native watch at startup; watch_fallback_reason = errno name)\n\n**BatchAggregator**: Groups detections into time-based batches\n- active_batches: Number of batches being aggregated\n- batches: Details of each active batch\n- batch_window_seconds: Configured window timeout\n- idle_timeout_seconds: Configured idle timeout\n\n**DegradationManager**: Handles graceful degradation\n- mode: Current degradation mode (normal/degraded/minimal/offline)\n- is_degraded: Whether system is in any degraded state\n- services: Health status of registered services\n- available_features: Features available in current mode\n\nReturns:\n    PipelineStatusResponse with status of all pipeline services",
         "operationId": "system_get_pipeline_status",
         "responses": {
           "200": {

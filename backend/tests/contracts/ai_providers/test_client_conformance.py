@@ -1822,9 +1822,16 @@ async def test_vlm_client_assess_round_trips_the_generated_verdict(
     # The generator the fake's handler ran on THESE bytes (the chat body has
     # no image_paths key, so the walk shape answers, seeded op+profile).
     served = json.loads(json.dumps(_gen("vlm_assess", chat, "gateway")))
-    assert verdict.model_dump() == served, (
-        "client parse diverged from the contract body the fake served"
-    )
+    # Provenance is the client's stamp of the served identity, never the
+    # model's copy (A5500 2026-09-28: the model wrote the camera id there).
+    # No /props here, so the stamp is the configured label and model id.
+    parsed = verdict.model_dump()
+    assert parsed.pop("provenance") == {
+        "engine": settings.nemotron_verification_engine,
+        "model_id": settings.vlm_model_id,
+    }, "provenance must be stamped by the client, not parsed from the reply"
+    served.pop("provenance")
+    assert parsed == served, "client parse diverged from the contract body the fake served"
 
 
 # ---------------------------------------------------------------------------

@@ -81,7 +81,7 @@ jobs:
           skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants'
 
       - name: Upload Trivy filesystem results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always()
         with:
           sarif_file: 'trivy-fs.sarif'
@@ -123,7 +123,7 @@ jobs:
           skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants,tests'
 
       - name: Upload Trivy config results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always()
         with:
           sarif_file: 'trivy-config.sarif'
@@ -224,9 +224,9 @@ jobs:
       - name: Free up disk space
         # Backend image includes heavy ML dependencies (PyTorch, transformers)
         # which require more disk space than default GitHub runners provide
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
-          tool-cache: true
+          preinstalled-runtimes: true
           android: true
           dotnet: true
           haskell: true
@@ -357,7 +357,7 @@ jobs:
           trivyignores: '.trivyignore'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always() && steps.build.outcome == 'success'
         with:
           sarif_file: 'trivy-frontend.sarif'

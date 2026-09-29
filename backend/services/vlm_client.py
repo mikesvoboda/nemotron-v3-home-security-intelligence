@@ -40,10 +40,12 @@ import asyncio
 import base64
 import json
 import logging
+import math
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 import httpx
+from PIL import Image
 from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
@@ -66,7 +68,7 @@ from backend.services.nemotron_analyzer import (
     build_probe_schema,
 )
 from backend.services.token_counter import get_token_counter
-from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
+from backend.services.vlm_verdict import VlmAssessRequest, VlmProvenance, VlmVerdict
 
 # backend/ai_contract/schemas/vlm_assess.response.json - the same generated
 # file the fake serves (fake/generators.py SCHEMA_DIR) and the golden payload
@@ -83,12 +85,16 @@ BREAKER_NAME = "ai-vlm"
 CHAT_PATH = "/v1/chat/completions"
 PROPS_PATH = "/props"
 
-# The probe's budget: same S-2 lesson as _probe_completion's 400 - a budget
-# that truncates mid-object FABRICATES an IGNORED verdict (the const can
-# sort last in the grammar).
-_PROBE_MAX_TOKENS = 400
-# Real verdict budget: the verdict object plus a criterion or two.
-_ASSESS_MAX_TOKENS = 700
+# Real verdict budget: the verdict object plus a criterion per row and frame.
+# 700 cut off the shipped 8B's longest verdict (852 tokens, a two-image item;
+# A5500 2026-09-28) - a truncated reply is S5-unparseable, and S5's bar is 0.
+_ASSESS_MAX_TOKENS = 1024
+# The probe's budget: a budget that truncates mid-object FABRICATES an IGNORED
+# verdict (the const can sort last in the grammar), so the probe object - the
+# verdict object plus one const - must get MORE room than a verdict does. The
+# old fixed 400 was below the shipped 8B's 427-429-token probe reply (A5500,
+# 2026-09-28): every probe went INCONCLUSIVE and every verdict failed closed.
+_PROBE_MAX_TOKENS = _ASSESS_MAX_TOKENS + 64
 
 # Upper bound for the IMAGE half of one slot, from the same arithmetic that
 # sized the slot (spec §2, echoed in the ai-vlm compose block's comment):
@@ -99,6 +105,14 @@ _ASSESS_MAX_TOKENS = 700
 # conservative in the direction that matters (a prompt approved here cannot
 # overflow the slot on account of its images).
 _IMAGE_TOKENS_PER_FRAME = 1280
+
+# The fit counts text with the repo's counter, but the SLOT is filled by the
+# served tokenizer - and Qwen splits every digit, while detection rows are
+# mostly digits. Measured on one fitted prompt (A5500, 2026-09-28): 10,237 by
+# the counter, 13,785 by the engine's /tokenize (1.35x). The fit budgets each
+# counted token at this many served ones; deterministic, so the stored prompt
+# is still the sent prompt (a /tokenize call could not promise that).
+_SERVED_TOKENS_PER_COUNTED = 1.5
 
 
 class VlmClientError(RuntimeError):
@@ -127,6 +141,15 @@ class VlmTruncatedError(VlmSchemaError):
     again at the SAME max_tokens, so re-asking cannot close the object."""
 
 
+class VlmContextOverflowError(VlmClientError):
+    """The served slot refused the request as larger than its context (HTTP
+    400 `exceed_context_size_error`): OUR fit under-estimated it, the engine
+    is fine. Named apart from VlmTransportError because the retry calculus
+    differs - the §6 retry would re-send the same bytes for the same 400 -
+    and because a budget must not feed the service breaker. Still a
+    VlmClientError, so the analyzer still answers verification_failed."""
+
+
 class VlmUnavailableError(VlmClientError):
     """Breaker OPEN: refuse fast, no I/O (house breaker contract,
     detector_client's DetectorUnavailableError pattern). Pushes
@@ -138,6 +161,21 @@ class VlmImageError(VlmClientError):
     capture root. Refused BEFORE any I/O: the paths come from a database
     row, and a poisoned row must not turn the backend into a reader of
     /etc. (Privacy rule, spec §6.)"""
+
+
+def _context_overflow_of(resp: httpx.Response) -> dict[str, Any] | None:
+    """llama-server's own over-context refusal (HTTP 400, error.type
+    `exceed_context_size_error`, with n_prompt_tokens / n_ctx), else None.
+    Keyed on the structured type, never the message prose."""
+    if resp.status_code != 400:
+        return None
+    try:
+        error = resp.json().get("error")
+    except ValueError:
+        return None
+    if isinstance(error, dict) and error.get("type") == "exceed_context_size_error":
+        return {k: error.get(k) for k in ("n_prompt_tokens", "n_ctx")}
+    return None
 
 
 def _strip_grammar_unsafe(node: Any) -> Any:
@@ -201,11 +239,27 @@ class VlmClient:
         # cached verdict, S-1: a transient INCONCLUSIVE must not ossify).
         self._enforced: bool | None = None
         self._build_info: str = ""
+        # The served model's own identity (/props model_path stem), read with
+        # the build pin; "" until the probe has read /props.
+        self._served_model_id: str = ""
         self._wire: dict[str, Any] | None = None
         self._probe_lock = asyncio.Lock()
         self._breaker: CircuitBreaker = get_circuit_breaker(
             BREAKER_NAME,
             CircuitBreakerConfig(failure_threshold=5, recovery_timeout=60.0),
+        )
+
+    def _served_provenance(self) -> VlmProvenance:
+        """Who answered, as the CLIENT knows it - never the model's copy. The
+        verdict schema makes the model emit provenance, but it cannot know its
+        own identity and the grammar forces it to write something (the A5500
+        M1 chain stored the camera id as engine and model_id). The engine is
+        the configured label plus the /props build string when read; the
+        model id is the served file's stem, else the configured VLM_MODEL_ID."""
+        label = self._settings.nemotron_verification_engine
+        return VlmProvenance(
+            engine=f"{label}@{self._build_info}" if self._build_info else label,
+            model_id=self._served_model_id or self._settings.vlm_model_id,
         )
 
     async def _http(self) -> httpx.AsyncClient:
@@ -257,7 +311,9 @@ class VlmClient:
             try:
                 http = await self._http()
                 props = await http.get(PROPS_PATH)
-                self._build_info = (props.json() or {}).get("build_info", "")
+                payload = props.json() or {}
+                self._build_info = payload.get("build_info", "")
+                self._served_model_id = Path(payload.get("model_path") or "").stem
             except Exception as exc:
                 await self._note_failure("vlm_probe_props_unreachable")
                 raise ConstrainedDecodingNotEnforced(
@@ -468,6 +524,16 @@ class VlmClient:
             # its arrival and would contradict it. Drop it from the rendered
             # copy only - the snapshot rows keep it.
             rows = [{k: v for k, v in row.items() if k != "detected_at"} for row in rows]
+        if request.frame_detection_ids is not None:
+            # Rendered copy only: each row names the attached frame it is on
+            # (1-based), null when its still is not attached (A5500 M1).
+            frame_of: dict[Any, int] = {
+                det_id: i
+                for i, ids in enumerate(request.frame_detection_ids, start=1)
+                for det_id in ids
+            }
+            rows = [{**row, "frame": frame_of.get(row.get("id"))} for row in rows]
+        rows = self._grounded_boxes(rows, request)
         return (
             "You are the verification expert. The detections below were produced "
             "by an object detector on the attached frame(s). Decide whether the "
@@ -480,10 +546,121 @@ class VlmClient:
             f"Camera: {ctx.camera_id}\n"
             f"Time: {render_prompt_time(ctx.timestamp, self._settings.camera_timezone)}\n"
             f"Zones: {', '.join(ctx.zones) or 'none'} (crossing: {ctx.zone_crossing})\n"
+            f"{self._box_guidance(rows, request)}"
             f"Detections: {json.dumps(rows, ensure_ascii=False)}\n"
             f"Household context: {json.dumps(ctx.household, ensure_ascii=False)}\n"
             f"Specialist outputs (faces/plates/re-ID; these are detector evidence, "
             f"not yours to invent): {specialist}\n"
+        )
+
+    @staticmethod
+    def _frame_dims(request: VlmAssessRequest) -> list[tuple[int, int] | None]:
+        """(width, height) of each attached frame, in order, read from the
+        image header only; None for a frame that cannot be read - never
+        guessed."""
+        dims: list[tuple[int, int] | None] = []
+        for path in request.image_paths:
+            try:
+                with Image.open(path) as im:
+                    dims.append((im.width, im.height))
+            except OSError, ValueError:
+                dims.append(None)
+        return dims
+
+    @classmethod
+    def _frame_sizes(cls, request: VlmAssessRequest) -> list[str]:
+        """Pixel sizes of the readable attached frames ("WxH", distinct, in
+        order)."""
+        sizes: list[str] = []
+        for dim in cls._frame_dims(request):
+            if dim is not None and (size := f"{dim[0]}x{dim[1]}") not in sizes:
+                sizes.append(size)
+        return sizes
+
+    def _grounded_boxes(
+        self, rows: list[dict[str, Any]], request: VlmAssessRequest
+    ) -> list[dict[str, Any]]:
+        """Rendered copy only: a row whose frame size is known carries
+        bbox_2d = [x1, y1, x2, y2] on a 0-1000 scale of that frame - Qwen3-VL's
+        own grounding format - in place of the snapshot's pixel [x, y, w, h].
+        With the pixel convention stated and the frame size named, the 8B
+        still read [369, 183, 419, 513] its own way (a sliver) and rejected a
+        correct person box as "too small" (A5500 M1, event 617). The scale is
+        the row's linked frame, else the one size every attached frame
+        shares; with neither, the row keeps its pixels (never a guessed
+        scale)."""
+        dims = self._frame_dims(request)
+        known = set(dims)
+        shared = dims[0] if len(known) == 1 else None  # None when unreadable too
+        grounded: list[dict[str, Any]] = []
+        for row in rows:
+            bbox = row.get("bbox")
+            k = row.get("frame")
+            wh = dims[k - 1] if isinstance(k, int) and 1 <= k <= len(dims) else shared
+            if wh is None or not self._is_box(bbox):
+                grounded.append(row)
+                continue
+            x, y, w, h = bbox
+            fw, fh = wh
+            corners = [
+                min(1000, max(0, round(v * 1000 / f)))
+                for v, f in ((x, fw), (y, fh), (x + w, fw), (y + h, fh))
+            ]
+            grounded.append(
+                {
+                    ("bbox_2d" if key == "bbox" else key): (corners if key == "bbox" else value)
+                    for key, value in row.items()
+                }
+            )
+        return grounded
+
+    @staticmethod
+    def _is_box(bbox: Any) -> TypeGuard[list[float]]:
+        """Four real numbers (the analyzer can hand over [None]*4 for a row
+        stored without a box)."""
+        return (
+            isinstance(bbox, (list, tuple))
+            and len(bbox) == 4
+            and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in bbox)
+        )
+
+    def _box_guidance(self, rows: list[dict[str, Any]], request: VlmAssessRequest) -> str:
+        """How to read the rows' boxes - only when there are rows. The A5500
+        M1 chain showed the 8B reading bare [x, y, w, h] numbers as corners,
+        then (with the convention stated but no frame size) rejecting a
+        correct person box as "positioned incorrectly": it cannot place pixel
+        numbers without the frame, and it treated box arithmetic as evidence
+        of a false detection. Rows are grounded in the model's own bbox_2d
+        format where the frame size is known (_grounded_boxes); the pixel
+        sentence covers the rows that are not. With no rows the prompt is
+        unchanged."""
+        if not rows:
+            return ""
+        convention = ""
+        if any("bbox_2d" in row for row in rows):
+            convention += (
+                "A row's bbox_2d is [x1, y1, x2, y2]: its top-left and bottom-right "
+                "corners on a 0-1000 scale of its frame (your own grounding format). "
+            )
+        if any("bbox_2d" not in row for row in rows):
+            sizes = self._frame_sizes(request)
+            frame = f"its {' or '.join(sizes)} source frame" if sizes else "its source frame"
+            convention += (
+                f"A row's bbox is [x, y, width, height] in pixels of {frame}: "
+                "the top-left corner, then the box size. "
+            )
+        return (
+            f"{convention}The boxes are the detector's "
+            "localization aids: judge each candidate from what the frame(s) show, "
+            "and never reject a detection because of its box numbers alone.\n"
+            + (
+                "Each row's frame is the 1-based index of the attached frame it was "
+                "detected on; null means its frame is not attached - such a row is "
+                "the same camera's detection on another still, not a box on the "
+                "frames you see.\n"
+                if request.frame_detection_ids is not None
+                else ""
+            )
         )
 
     @staticmethod
@@ -528,9 +705,13 @@ class VlmClient:
             - self._image_token_reservation(request)
         )
         counter = get_token_counter()
+
+        def served(prompt: str) -> int:
+            return math.ceil(counter.count_tokens(prompt) * _SERVED_TOKENS_PER_COUNTED)
+
         rows = list(ctx.detections)
         text = self._render_prompt(rows, request)
-        if counter.count_tokens(text) <= budget:
+        if served(text) <= budget:
             return text, False
 
         # Strongest-first, then binary-search the largest list that fits.
@@ -553,7 +734,7 @@ class VlmClient:
         lo, hi = 0, len(ranked)
         while lo < hi:
             mid = (lo + hi + 1) // 2
-            if counter.count_tokens(fitted(mid)) <= budget:
+            if served(fitted(mid)) <= budget:
                 lo = mid
             else:
                 hi = mid - 1
@@ -634,6 +815,16 @@ class VlmClient:
                     "vlm transport error (attempt %d)", attempt + 1, extra={"error": str(exc)}
                 )
                 continue
+            if overflow := _context_overflow_of(resp):
+                # A5500 2026-09-28: filed as transport, this cost two breaker
+                # failures per batch (the retry re-sent the same bytes).
+                await self._note_budget_exhausted("vlm_context_overflow")
+                logger.warning("vlm request exceeded the served slot", extra=overflow)
+                raise VlmContextOverflowError(
+                    f"vlm request ({overflow.get('n_prompt_tokens')} tokens) exceeds the "
+                    f"served slot ({overflow.get('n_ctx')} tokens); the prompt fit "
+                    "under-estimated it - verdict UNMEASURED, the engine is fine"
+                )
             if resp.status_code != 200:
                 last_error = VlmTransportError(f"vlm HTTP {resp.status_code}: {resp.text[:200]}")
                 await self._note_failure("vlm_http_error")
@@ -682,7 +873,7 @@ class VlmClient:
                 continue
             await self._breaker.record_success_async()
             await self._push_healthy()
-            return verdict
+            return verdict.model_copy(update={"provenance": self._served_provenance()})
 
         raise last_error if last_error else VlmClientError("vlm assess failed")
 

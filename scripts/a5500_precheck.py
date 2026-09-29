@@ -25,7 +25,13 @@ rows rather than accreting alongside them):
                          checklist forbids deploying it)
      vlm image           can the scanned compose files build/serve ai-vlm at
                          all, or is that path image-only / absent?
-  4. Test traps          TMPDIR in .env (false-reddens the four
+     SELinux camera root SELinux enforcing + camera root not container_file_t
+                         + a backend /cameras mount without :z = the file
+                         watcher's inotify watch is denied (reads the HOST:
+                         /sys/fs/selinux/enforce and the root's xattr). The
+                         check is setup_lib/selinux_check.py, shared with
+                         setup.py deploy's preflight and loaded here by path
+  4. Test traps         TMPDIR in .env (false-reddens the four
                          write_runtime_env tests); stale __pycache__ dirs
                          for deleted modules (false-reddens deletion guards)
   5. Health              owner-run: /platform-healthcheck + root AGENTS.md
@@ -43,14 +49,37 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from types import ModuleType
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _load_selinux_check() -> ModuleType:
+    """setup_lib/selinux_check.py, loaded BY PATH.
+
+    ``import setup_lib.selinux_check`` would run setup_lib/__init__.py (the
+    whole setup toolchain); this script must stay stdlib-only and run with no
+    venv, and the shared module is stdlib-only by contract.
+    """
+    path = REPO_ROOT / "setup_lib" / "selinux_check.py"
+    spec = importlib.util.spec_from_file_location("_a5500_selinux_check", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load the shared SELinux check from {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_selinux = _load_selinux_check()
 
 PASS = "PASS"
 WARN = "WARN"
@@ -87,6 +116,12 @@ WORST_CASE_SLOT_TOKENS = 12_200
 # VLM_GPU_LAYERS=999 (full offload) is the big-model config; the A5500 shape
 # is auto (llama.cpp --fit picks layers by free VRAM).
 FULL_OFFLOAD_LAYERS = "999"
+
+# SELinux (A5500 box, 2026-09-28): the backend runs as container_t, which may
+# READ a usr_t camera root but not inotify-WATCH it. The check and its two
+# host readers live in setup_lib/selinux_check.py (shared with setup.py deploy).
+read_selinux_enforcing = _selinux.read_selinux_enforcing
+read_selinux_label = _selinux.read_selinux_label
 
 # Shortest host path wins so a ``${VAR:-/export/ai_models}`` default - whose
 # own ``:-`` contains a colon - does not split the mount at the wrong place.
@@ -533,6 +568,27 @@ def _check_vlm_image(compose_paths: list[Path]) -> Check:
     )
 
 
+def _check_selinux_camera_root(
+    env: dict[str, str],
+    compose_paths: list[Path],
+    selinux_enforcing: Callable[[], bool | None],
+    selinux_label: Callable[[str], str | None],
+) -> Check:
+    """Can the backend (container_t) inotify-WATCH the camera root?
+
+    The shared setup_lib/selinux_check.py verdict (setup.py deploy runs the
+    same check as a preflight) against the BACKEND's /cameras mounts in the
+    scanned compose files.
+    """
+    verdict = _selinux.check_camera_root(
+        _selinux.camera_root(env),
+        _selinux.service_camera_mounts(compose_paths, "backend"),
+        selinux_enforcing=selinux_enforcing,
+        selinux_label=selinux_label,
+    )
+    return Check("selinux_camera_root", verdict.verdict, verdict.detail)
+
+
 def _check_tmpdir(env: dict[str, str]) -> Check:
     if "TMPDIR" in env:
         return Check(
@@ -571,8 +627,19 @@ def _check_health() -> Check:
     )
 
 
-def run_precheck(env_path: Path, compose_paths: list[Path], repo_root: Path) -> list[Check]:
-    """Every checklist verdict for one (env file, compose files, tree) triple."""
+def run_precheck(
+    env_path: Path,
+    compose_paths: list[Path],
+    repo_root: Path,
+    *,
+    selinux_enforcing: Callable[[], bool | None] = read_selinux_enforcing,
+    selinux_label: Callable[[str], str | None] = read_selinux_label,
+) -> list[Check]:
+    """Every checklist verdict for one (env file, compose files, tree) triple.
+
+    The two ``selinux_*`` readers are the only HOST state the precheck reads;
+    they are injectable so tests never depend on the machine running them.
+    """
     env = parse_env(_read(env_path)) if env_path.exists() else {}
     checks = [
         _check_gpu_assignment(env),
@@ -584,6 +651,7 @@ def run_precheck(env_path: Path, compose_paths: list[Path], repo_root: Path) -> 
         _check_vlm_ctx_budget(env),
         _check_legacy_llm(compose_paths),
         _check_vlm_image(compose_paths),
+        _check_selinux_camera_root(env, compose_paths, selinux_enforcing, selinux_label),
         _check_tmpdir(env),
         _check_pycache(repo_root),
         _check_health(),
@@ -985,6 +1053,7 @@ def render_checklist(checks: list[Check], date_str: str) -> str:
         "env this box actually renders with, the weights fetched and "
         "verified, and what the first precheck run means when it says NOT "
         "READY. Read this section first if you have never run the bring-up.",
+        f"- repo verdict: {v('selinux_camera_root')}",
     ]
     lines += [f"- {a}" for a in AMENDMENTS["Environment and first run"]]
     lines += [

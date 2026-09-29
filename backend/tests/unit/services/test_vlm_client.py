@@ -24,6 +24,7 @@ reader for /etc.
 from __future__ import annotations
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any, ClassVar
@@ -93,13 +94,15 @@ class RecordingTransport(httpx.AsyncBaseTransport):
         return response
 
 
-def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> FastAPI:
+def make_fake_llama(
+    mode: str = "strict", build_info: str = _BUILD_INFO, model_path: str | None = None
+) -> FastAPI:
     app = FastAPI()
     app.state.calls = []  # every chat request body, in order (wake tests read this directly)
 
     @app.get("/props")
     async def props() -> dict:
-        return {"build_info": build_info}
+        return {"build_info": build_info, **({"model_path": model_path} if model_path else {})}
 
     @app.post("/v1/chat/completions")
     async def chat(request: Request) -> JSONResponse:
@@ -107,6 +110,22 @@ def make_fake_llama(mode: str = "strict", build_info: str = _BUILD_INFO) -> Fast
         app.state.calls.append(body)
         if mode == "down":
             return JSONResponse({"error": "gone"}, status_code=503)
+        if mode == "context_overflow":
+            # llama-server b7972's own body, captured on the A5500 (2026-09-28)
+            # for a fitted prompt the slot could not hold.
+            return JSONResponse(
+                {
+                    "error": {
+                        "code": 400,
+                        "message": "request (22293 tokens) exceeds the available context "
+                        "size (16384 tokens), try increasing it",
+                        "type": "exceed_context_size_error",
+                        "n_prompt_tokens": 22293,
+                        "n_ctx": 16384,
+                    }
+                },
+                status_code=400,
+            )
         if mode == "schema-invalid":
             # 200 + content that VIOLATES VlmVerdict: the float risk_score
             # from the spec's own bad example (int ge/le fails). Post-
@@ -434,9 +453,22 @@ class TestPromptBudget:
         text = client.prompt_text(self._big_request())
         counter = get_token_counter()
         reserved = client._image_token_reservation(self._big_request())
-        used = counter.count_tokens(text) + reserved + vc._ASSESS_MAX_TOKENS
+        served_text = math.ceil(counter.count_tokens(text) * vc._SERVED_TOKENS_PER_COUNTED)
+        used = served_text + reserved + vc._ASSESS_MAX_TOKENS
         assert used <= settings.vlm_context_window, (
             f"{used} tokens into a {settings.vlm_context_window}-token slot"
+        )
+
+    # A5500, 2026-09-28: the same fitted prompt, counted twice - 10,237 by the
+    # repo's counter, 13,785 by the served engine's /tokenize (Qwen splits
+    # every digit, and detection rows are mostly digits). The fit passed a
+    # prompt that, with its stills, was 22,293 tokens for a 16,384 slot.
+    _MEASURED_SERVED_RATIO = 13_785 / 10_237
+
+    def test_the_fit_counts_text_the_way_the_served_tokenizer_does(self) -> None:
+        assert vc._SERVED_TOKENS_PER_COUNTED >= self._MEASURED_SERVED_RATIO * 1.1, (
+            f"margin {vc._SERVED_TOKENS_PER_COUNTED} leaves under 10% over the "
+            f"measured {self._MEASURED_SERVED_RATIO:.2f}x tokenizer gap"
         )
 
     def test_truncation_is_visible_and_counted(self) -> None:
@@ -557,6 +589,17 @@ class TestPromptBudget:
 
 
 class TestEnforcementProbe:
+    def test_the_probe_budget_never_binds_before_the_verdict_budget(self) -> None:
+        """A5500, 2026-09-28: the shipped 8B needs 427-429 tokens for the probe
+        object (verdict + const, no image, finish=stop) and the budget was 400,
+        so every in-client probe came back INCONCLUSIVE and every verdict failed
+        closed - on a server the CLI gate measured ENFORCED 8/8. `probe_const`
+        can sort last, so the probe object is the verdict object plus one const:
+        a verdict that fits its own call must never be unmeasurable here."""
+        assert vc._PROBE_MAX_TOKENS > vc._ASSESS_MAX_TOKENS, (
+            f"probe budget {vc._PROBE_MAX_TOKENS} <= verdict budget {vc._ASSESS_MAX_TOKENS}"
+        )
+
     async def test_enforced_echoes_const_then_caches(self, image_dir) -> None:
         client = make_client("strict")
         req = _request([str(image_dir / "front_door/a.jpg")])
@@ -729,7 +772,7 @@ class TestFailureLadder:
 class TestAssessTruncation:
     """Ledger finding A's sibling on the ASSESS leg (see TestEnforcementProbe
     for the probe leg). The assess call sends the verdict schema at
-    _ASSESS_MAX_TOKENS=700; the schema's required prose fields mean a rich
+    _ASSESS_MAX_TOKENS; the schema's required prose fields mean a rich
     scene can run out of budget before the object closes - the SAME truncation
     hazard finding A named for the probe. The shape's meaning is different
     though: a truncated verdict is a BUDGET artifact, not a model that emits
@@ -747,6 +790,19 @@ class TestAssessTruncation:
     truncated verdict still raises a VlmClientError subclass, so the analyzer
     still maps it to verification_failed with a NULL score. The ladder is
     neutral; only the diagnosis sharpens."""
+
+    # A5500, 2026-09-28: the shipped 8B's longest verdict on the 38-item
+    # detections set, from llama-server's own eval-token count (run 2ea4b96f,
+    # a two-image item). At 700 that reply and two others were cut off - S5
+    # counts a truncated reply as unparseable, and its bar is 0.
+    _MEASURED_8B_LONGEST_VERDICT = 852
+
+    def test_the_verdict_budget_covers_the_8bs_longest_measured_reply(self) -> None:
+        headroom = vc._ASSESS_MAX_TOKENS / self._MEASURED_8B_LONGEST_VERDICT
+        assert headroom >= 1.2, (
+            f"_ASSESS_MAX_TOKENS={vc._ASSESS_MAX_TOKENS} leaves {headroom:.2f}x the "
+            f"8B's measured {self._MEASURED_8B_LONGEST_VERDICT}-token verdict"
+        )
 
     async def test_truncated_assess_reply_raises_truncated_not_schema_error(
         self, image_dir
@@ -1100,3 +1156,257 @@ class TestPromptTime:
         assert request.context.detections == [self._row()], (
             "only the rendered copy drops detected_at; the snapshot is untouched"
         )
+
+
+class TestProvenanceIsStampedNotTrusted:
+    """A5500 M1 chain, 2026-09-28: the verdict schema asked the MODEL for its
+    own provenance ("copy the values from the served model's own reported
+    identity") - which it cannot know, and the grammar forces it to write
+    something: event 613's row stored engine = model_id = the camera id.
+    Provenance is who answered; the client knows that from /props and its own
+    settings, so it stamps it and never trusts the model's copy (here the
+    strict fake writes "ok" into every string)."""
+
+    @staticmethod
+    def _client(model_path: str | None) -> vc.VlmClient:
+        settings = vc.get_settings().model_copy(update={"vlm_enforcement_probe_enabled": True})
+        return vc.VlmClient(
+            base_url="http://fake-vlm:8098",
+            transport=RecordingTransport(make_fake_llama("strict", model_path=model_path)),
+            settings=settings,
+        )
+
+    async def test_the_served_identity_replaces_the_models_copy(self, image_dir) -> None:
+        client = self._client("/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf")
+        verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        label = client._settings.nemotron_verification_engine
+        assert verdict.provenance.engine == f"{label}@{_BUILD_INFO}"
+        assert verdict.provenance.model_id == "Qwen3VL-8B-Instruct-Q4_K_M"
+
+    async def test_the_configured_identity_when_the_server_does_not_say(self, image_dir) -> None:
+        client = self._client(None)
+        verdict = await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert verdict.provenance.model_id == client._settings.vlm_model_id
+        assert verdict.provenance.engine.endswith(f"@{_BUILD_INFO}")
+
+
+class TestBboxConventionIsStated:
+    """A5500 M1 chain, 2026-09-28: detection rows carry bbox as the store's
+    [x, y, width, height], rendered as a bare list. The 8B read it as corners
+    ("width of 272 - 511 = -239, which is impossible"), called three 0.94
+    person detections erroneous and scored the event 0/low. The prompt must
+    say what the four numbers are. Since the native-grounding fix (below) this
+    is the FALLBACK: a frame whose size cannot be read (these fixture stills
+    are not decodable) keeps the snapshot's pixel numbers, and says so."""
+
+    def test_the_prompt_names_the_bbox_convention(self, image_dir) -> None:
+        det = {"id": 1, "object_type": "person", "confidence": 0.94, "bbox": [511, 242, 272, 456]}
+        text = make_client().prompt_text(
+            _request([str(image_dir / "front_door/a.jpg")], detections=[det])
+        )
+        assert "[x, y, width, height]" in text
+        assert "[511, 242, 272, 456]" in text, "the rendered numbers stay the snapshot's"
+
+
+class TestBoxesAreGroundedInTheFrame:
+    """A5500 M1 re-run, 2026-09-28: with the [x, y, width, height] convention
+    stated, the 8B still called a tight, correct person box on a 1280x704
+    still "too small or positioned incorrectly" and scored a hooded figure
+    at the door at night uncertain/0 - it cannot place pixel numbers without
+    the frame size, and it treated box arithmetic as evidence of a false
+    detection. The prompt now names the frame size and says the boxes are
+    localization aids, not a verdict input. Owner ruling 2026-09-28."""
+
+    @staticmethod
+    def _still(root: Path, name: str, size: tuple[int, int]) -> str:
+        from PIL import Image
+
+        path = root / "front_door" / name
+        Image.new("RGB", size, (40, 40, 40)).save(path, "JPEG")
+        return str(path)
+
+    _DET: ClassVar = {
+        "id": 1,
+        "object_type": "person",
+        "confidence": 0.93,
+        "bbox": [551, 217, 180, 477],
+    }
+
+    def test_pixel_boxes_name_their_frame_sizes(self, image_dir) -> None:
+        # Two sizes and no row-to-frame link: no single frame to scale by, so
+        # the rows keep pixels and the prompt names the sizes they are in.
+        big = self._still(image_dir, "big.jpg", (1280, 704))
+        small = self._still(image_dir, "small.jpg", (640, 480))
+        text = make_client().prompt_text(_request([big, small], detections=[self._DET]))
+        assert "[x, y, width, height]" in text
+        assert "1280x704 or 640x480" in text
+
+    def test_boxes_are_localization_aids_not_verdict_evidence(self, image_dir) -> None:
+        still = self._still(image_dir, "sized.jpg", (1280, 704))
+        text = make_client().prompt_text(_request([still], detections=[self._DET]))
+        assert "never reject a detection because of its box numbers" in text
+
+    def test_no_detections_means_no_box_guidance(self, image_dir) -> None:
+        text = make_client().prompt_text(
+            _request([str(image_dir / "front_door/a.jpg")], detections=[])
+        )
+        assert "bbox" not in text, "an item with no boxes keeps the pre-fix prompt"
+
+
+class TestRowsNameTheirFrame:
+    """A5500 M1 re-run, 2026-09-28: three person detections from three stills,
+    one still attached. The model: "a single individual ... no evidence of
+    multiple people ... the bounding boxes appear to be misaligned" - it read
+    all three boxes as boxes on the one frame it could see. When the request
+    links rows to attached frames, each rendered row says which frame it is
+    on (null = a frame not attached); without the link, rows render exactly
+    as before (replays of the existing corpus stay byte-identical)."""
+
+    @staticmethod
+    def _rows() -> list[dict[str, Any]]:
+        return [
+            {"id": i, "object_type": "person", "confidence": 0.9, "bbox": [10, 20, 30, 40]}
+            for i in (1, 2, 3)
+        ]
+
+    @staticmethod
+    def _rendered_rows(text: str) -> list[dict[str, Any]]:
+        line = next(ln for ln in text.splitlines() if ln.startswith("Detections: "))
+        return json.loads(line.removeprefix("Detections: "))
+
+    def test_each_row_names_its_attached_frame(self, image_dir) -> None:
+        base = _request([str(image_dir / "front_door/a.jpg")], detections=self._rows())
+        request = VlmAssessRequest(
+            image_paths=base.image_paths, context=base.context, frame_detection_ids=[[2]]
+        )
+        text = make_client().prompt_text(request)
+        assert {r["id"]: r["frame"] for r in self._rendered_rows(text)} == {1: None, 2: 1, 3: None}
+        assert "not attached" in text
+
+    def test_without_frame_links_rows_render_unchanged(self, image_dir) -> None:
+        request = _request([str(image_dir / "front_door/a.jpg")], detections=self._rows())
+        assert all(
+            "frame" not in r for r in self._rendered_rows(make_client().prompt_text(request))
+        )
+
+
+class TestBoxesUseTheModelsOwnGrounding:
+    """A5500, 2026-09-28: with the pixel convention stated, the frame size
+    named and each row's frame linked, the 8B still rejected a correct
+    419x513 person box on a 1280x704 still as "too small" (M1 event 617).
+    Qwen3-VL's own grounding format is bbox_2d = [x1, y1, x2, y2] on a 0-1000
+    scale of the frame - read that way, [369, 183, 419, 513] IS a sliver. On
+    the 38-item detections set (run a4e42603 vs d7d1e7fb) sending the model
+    its own format moved the verdict mix from 9 confirmed / 21 uncertain to
+    33 / 2. The rendered copy only: the snapshot keeps its pixels (the eval
+    corpus and the stored rows stay comparable). Owner ruling 2026-09-28."""
+
+    @staticmethod
+    def _still(root: Path, name: str, size: tuple[int, int]) -> str:
+        from PIL import Image
+
+        path = root / "front_door" / name
+        Image.new("RGB", size, (40, 40, 40)).save(path, "JPEG")
+        return str(path)
+
+    @staticmethod
+    def _rendered_rows(text: str) -> list[dict[str, Any]]:
+        line = next(ln for ln in text.splitlines() if ln.startswith("Detections: "))
+        return json.loads(line.removeprefix("Detections: "))
+
+    @staticmethod
+    def _det(det_id: int, bbox: list[int]) -> dict[str, Any]:
+        return {"id": det_id, "object_type": "person", "confidence": 0.95, "bbox": bbox}
+
+    def test_a_sized_frame_sends_corners_on_the_0_1000_scale(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        text = make_client().prompt_text(
+            _request([still], detections=[self._det(1, [369, 183, 419, 513])])
+        )
+        (row,) = self._rendered_rows(text)
+        # x1 = 369/1280, y1 = 183/704, x2 = (369+419)/1280, y2 = (183+513)/704
+        assert row["bbox_2d"] == [288, 260, 616, 989]
+        assert "bbox" not in row, "one box per row - never both conventions at once"
+        assert "[x1, y1, x2, y2]" in text
+        assert "0-1000" in text
+        assert "[x, y, width, height]" not in text
+
+    def test_the_snapshot_keeps_its_pixels(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        request = _request([still], detections=[self._det(1, [369, 183, 419, 513])])
+        make_client().prompt_text(request)
+        assert request.context.detections[0]["bbox"] == [369, 183, 419, 513]
+
+    def test_each_linked_row_scales_by_its_own_frame(self, image_dir) -> None:
+        big = self._still(image_dir, "big.jpg", (1000, 500))
+        small = self._still(image_dir, "small.jpg", (500, 250))
+        base = _request(
+            [big, small],
+            detections=[self._det(1, [100, 100, 100, 100]), self._det(2, [100, 100, 100, 100])],
+        )
+        request = VlmAssessRequest(
+            image_paths=base.image_paths, context=base.context, frame_detection_ids=[[1], [2]]
+        )
+        rows = {r["id"]: r for r in self._rendered_rows(make_client().prompt_text(request))}
+        assert rows[1]["bbox_2d"] == [100, 200, 200, 400]
+        assert rows[2]["bbox_2d"] == [200, 400, 400, 800]
+
+    def test_a_box_past_the_edge_is_clamped_to_the_frame(self, image_dir) -> None:
+        still = self._still(image_dir, "edge.jpg", (1000, 1000))
+        text = make_client().prompt_text(
+            _request([still], detections=[self._det(1, [900, 950, 300, 300])])
+        )
+        (row,) = self._rendered_rows(text)
+        assert row["bbox_2d"] == [900, 950, 1000, 1000]
+
+    def test_a_row_without_a_box_renders_unchanged(self, image_dir) -> None:
+        still = self._still(image_dir, "m1.jpg", (1280, 704))
+        det = {"id": 1, "object_type": "person", "confidence": 0.9}
+        (row,) = self._rendered_rows(make_client().prompt_text(_request([still], detections=[det])))
+        assert "bbox_2d" not in row
+
+
+class TestContextOverflowIsABudget:
+    """A5500, 2026-09-28: a fitted prompt the slot could not hold came back
+    HTTP 400 `exceed_context_size_error` - and the client filed it as a
+    TRANSPORT error: one breaker failure, then the §6 retry re-sent the same
+    bytes for a second 400 and a second failure. Five such batches open
+    `ai-vlm` for every camera over a number WE mis-estimated. Like a
+    truncated verdict, it is a budget: raised once, named, counted under its
+    own cause, never fed to the breaker - and still verification_failed."""
+
+    async def test_it_raises_its_own_cause_once(self, image_dir) -> None:
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmContextOverflowError) as caught:
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        assert len(client._app_calls()) == 1, "the same bytes cannot fit on a retry"
+        assert "22293" in str(caught.value) and "16384" in str(caught.value)
+        assert not isinstance(caught.value, vc.VlmTransportError)
+        await client.close()
+
+    async def test_it_is_counted_under_its_own_cause(
+        self, image_dir, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        recorded: list[str] = []
+        monkeypatch.setattr(vc, "record_pipeline_error", lambda reason: recorded.append(reason))
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmContextOverflowError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert recorded == ["vlm_context_overflow"], recorded
+
+    async def test_it_never_opens_the_breaker(self, image_dir) -> None:
+        from backend.services.circuit_breaker import get_circuit_breaker
+
+        client = make_client("context_overflow", vlm_enforcement_probe_enabled=False)
+        for _ in range(10):  # well past the breaker's 5-failure threshold
+            with pytest.raises(vc.VlmContextOverflowError):
+                await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()
+        assert not get_circuit_breaker("ai-vlm").is_open, "a budget must not open a service breaker"
+
+    async def test_any_other_400_is_still_a_transport_error(self, image_dir) -> None:
+        client = make_client("down", vlm_enforcement_probe_enabled=False)
+        with pytest.raises(vc.VlmTransportError):
+            await client.assess(_request([str(image_dir / "front_door/a.jpg")]))
+        await client.close()

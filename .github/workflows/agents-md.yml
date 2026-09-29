@@ -16,19 +16,29 @@ concurrency:
 jobs:
   validate-agents-md:
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # No job-level continue-on-error. It was added in the same commit (#4015)
+    # that introduced the Sync-to-Linear step below - and that step's
+    # `pip install pyyaml` never installed the httpx that
+    # scripts/agents_md_linear_sync.py imports, so the Linear doc-drift task
+    # has failed on EVERY push to main since, invisible behind the mask.
+    # An advisory job that cannot fail is how a whole feature died quietly;
+    # this workflow gates nothing in ci-gate, so a real red here is signal,
+    # not noise.
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97    # v7.0.0
         with:
           python-version: '3.11'
 
       - name: Install dependencies
         run: |
-          pip install pyyaml
+          # pyyaml for agents_md_validator.py, httpx for
+          # agents_md_linear_sync.py - the script has imported httpx since
+          # the day it was added; the install line never caught up.
+          pip install pyyaml httpx
 
       - name: Run AGENTS.md validator
         run: |
@@ -37,7 +47,7 @@ jobs:
             --format json
 
       - name: Upload report artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: agents-md-report
