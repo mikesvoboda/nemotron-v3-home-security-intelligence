@@ -675,13 +675,14 @@ def select_preload_candidates(model_zoo: dict[str, Any], *, preload_enabled: boo
 def build_ai_service_health_configs(settings: Settings) -> list[ServiceConfig]:
     """The AI services the ServiceHealthMonitor probes - and may restart.
 
-    PIPELINE_MODE=vlm (spec rev 5, the shipped default) carries NO nemotron
-    entry: the legacy LLM is retired there, so a probe could only ever fail and
-    the monitor's answer to a failure is to restart it - i.e. to start the
-    30B LLM on the same GPU ai-vlm occupies. ai-vlm is not added in its place:
-    its health is breaker-push by the ledger 1.3 choice (see the degradation
-    manager registration in the lifespan). ``legacy`` (unsupported, code kept
-    until R8) keeps the YOLO26 + Nemotron pair exactly as before.
+    The list carries NO nemotron entry: the legacy LLM is retired, so a probe
+    could only ever fail, and the monitor's answer to a failure is to restart
+    it - i.e. to start the 30B LLM on the same GPU ai-vlm occupies. ai-vlm is
+    not added in its place: its health is breaker-push by the ledger 1.3
+    choice (see the degradation manager registration in the lifespan). R8
+    (2026-09-29) deleted the legacy arm that used to return the YOLO26 +
+    Nemotron pair; PIPELINE_MODE has one value now, so there is no mode under
+    which that pair is the right answer.
 
     Args:
         settings: Application settings
@@ -706,21 +707,21 @@ def build_ai_service_health_configs(settings: Settings) -> list[ServiceConfig]:
         # so yolo26 restarts always target ai-gateway — the only container
         # that can host the detector.
         yolo26_restart_cmd = "docker restart ai-gateway"
-        nemotron_restart_cmd = "docker restart ai-llm"
     elif settings.ai_restart_enabled:
         # Local development: use shell scripts (relative paths from project root)
         yolo26_restart_cmd = "ai/start_detector.sh"
-        nemotron_restart_cmd = "ai/start_llm.sh"
     else:
         # Restart disabled: health monitoring only, no restart capability
         yolo26_restart_cmd = None
-        nemotron_restart_cmd = None
 
     # When using ai-gateway, check the gateway's aggregated /health endpoint
     # instead of the nonexistent standalone ai-yolo26:8095/health.
     yolo26_health_url = f"{gateway_url}/health" if use_gateway else f"{settings.yolo26_url}/health"
 
-    configs = [
+    # R8 (2026-09-29): no nemotron/ai-llm entry. The legacy LLM engine is
+    # retired, its container is gone from compose, and the monitor would
+    # otherwise report a permanently-down service on every boot.
+    return [
         ServiceConfig(
             name="yolo26",
             health_url=yolo26_health_url,
@@ -730,18 +731,6 @@ def build_ai_service_health_configs(settings: Settings) -> list[ServiceConfig]:
             backoff_base=5.0,
         ),
     ]
-    if settings.pipeline_mode == "legacy":
-        configs.append(
-            ServiceConfig(
-                name="nemotron",
-                health_url=f"{settings.nemotron_url}/health",
-                restart_cmd=nemotron_restart_cmd,
-                health_timeout=5.0,
-                max_retries=3,
-                backoff_base=5.0,
-            )
-        )
-    return configs
 
 
 async def run_constrained_startup_check(container: Any) -> str:
@@ -1101,8 +1090,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         lifespan_logger.info("Summary job scheduler started (60-minute interval)")
 
     # Initialize service health monitor for auto-recovery of AI services
-    # Note: This monitors YOLO26 (plus Nemotron in PIPELINE_MODE=legacy only)
-    # for health and can trigger restarts - see build_ai_service_health_configs
+    # Note: This monitors YOLO26 only - the retired Nemotron LLM is never in
+    # the list (R8), see build_ai_service_health_configs
     # Redis is excluded since the application handles Redis failures gracefully already
     # Restart capability can be disabled via AI_RESTART_ENABLED=false for containerized deployments
     # where the restart scripts are not available inside the backend container
@@ -1130,21 +1119,18 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         )
         await service_health_monitor.start()
 
-        # Log restart configuration details
-        legacy_llm = settings.pipeline_mode == "legacy"
+        # Log restart configuration details. R8 (2026-09-29): the legacy LLM
+        # branch is gone, so the monitored set and the restart target are the
+        # vlm-mode ones unconditionally — naming ai-llm or Nemotron here would
+        # describe a container that no longer exists in compose.
         if use_docker_restart:
-            restart_status = (
-                "enabled (Docker containers: ai-gateway, ai-llm)"
-                if legacy_llm
-                else "enabled (Docker containers: ai-gateway)"
-            )
+            restart_status = "enabled (Docker containers: ai-gateway)"
         elif settings.ai_restart_enabled:
             restart_status = "enabled (shell scripts)"
         else:
             restart_status = "disabled (AI_RESTART_ENABLED=false)"
-        monitored = "YOLO26, Nemotron" if legacy_llm else "YOLO26"
         lifespan_logger.info(
-            f"Service health monitor initialized ({monitored}) - restart: {restart_status}"
+            f"Service health monitor initialized (YOLO26) - restart: {restart_status}"
         )
 
     # Phase 1.3 (spec §6 step 4): register ai-vlm on the degradation

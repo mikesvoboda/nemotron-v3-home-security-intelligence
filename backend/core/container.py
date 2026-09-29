@@ -494,23 +494,18 @@ async def wire_services(container: Container) -> None:
 
     container.register_async_singleton("enrichment_pipeline", pipeline_factory)
 
-    # The per-event analyzer - async singleton (1.5: mode-built). The
-    # class choice lives ONLY in pipeline_factory (the seam source-scan
-    # forbids constructing it here); this factory only prepares the
-    # legacy mode's extra collaborators, which the vlm analyzer does not
-    # take — so they are built only when something will receive them.
+    # The per-event analyzer - async singleton. The class choice lives ONLY
+    # in pipeline_factory (the seam source-scan forbids constructing it
+    # here). R8 S1 (2026-09-29) removed the legacy branch that prepared
+    # context_enricher / enrichment_pipeline as extra collaborators: the
+    # vlm analyzer never took them, and the mode that requested them now
+    # raises at boot. S2 retires the enrichment tier those two registrations
+    # feed.
     async def analyzer_factory() -> Any:
-        from backend.core.config import get_settings
         from backend.services.pipeline_factory import build_pipeline_analyzer
 
         redis = await container.get_async("redis_client")
-        kwargs: dict[str, Any] = {}
-        if get_settings().pipeline_mode == "legacy":
-            kwargs = {
-                "context_enricher": container.get("context_enricher"),
-                "enrichment_pipeline": await container.get_async("enrichment_pipeline"),
-            }
-        return build_pipeline_analyzer(redis_client=redis, **kwargs)
+        return build_pipeline_analyzer(redis_client=redis)
 
     container.register_async_singleton("nemotron_analyzer", analyzer_factory)
 

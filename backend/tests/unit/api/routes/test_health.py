@@ -68,6 +68,7 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 def create_mock_settings(
     yolo26_url: str = "http://ai-yolo26:8095",
     nemotron_url: str = "http://llm-analyzer:8080",
+    ai_vlm_url: str = "http://ai-vlm:8098",
     florence_url: str = "http://florence-service:8091",
     clip_url: str = "http://clip-service:8092",
     enrichment_url: str = "http://enrichment-service:8093",
@@ -76,7 +77,9 @@ def create_mock_settings(
 
     Args:
         yolo26_url: URL for YOLO26 service (empty string for unconfigured)
-        nemotron_url: URL for Nemotron service
+        nemotron_url: URL for the retired Nemotron LLM (kept only so tests can
+            prove the endpoint never probes it)
+        ai_vlm_url: URL for the VLM verdict service (empty for unconfigured)
         florence_url: URL for Florence service
         clip_url: URL for CLIP service
         enrichment_url: URL for Enrichment service
@@ -88,12 +91,13 @@ def create_mock_settings(
     # Handle empty strings as None for "unconfigured" behavior
     mock.yolo26_url = yolo26_url if yolo26_url else None
     mock.nemotron_url = nemotron_url if nemotron_url else None
+    mock.ai_vlm_url = ai_vlm_url if ai_vlm_url else None
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
     mock.enrichment_url = enrichment_url if enrichment_url else None
-    # These endpoint tests assert the nemotron row: PIPELINE_MODE=legacy (the
-    # vlm-mode table is TestAIServicesHealthByPipelineMode).
-    mock.pipeline_mode = "legacy"
+    # No `pipeline_mode` on the mock (R8 left one mode) and ai_vlm_url spelled:
+    # the shipped table's verdict-engine row reads settings.ai_vlm_url, so a
+    # bare MagicMock attr would leak a mock object into AIServiceHealthDetail.url.
     return mock
 
 
@@ -573,7 +577,11 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
-        """Test endpoint includes all 5 AI services."""
+        """Test endpoint includes all 5 services of the SHIPPED table.
+
+        The retired LLM's row is swapped for ai-vlm unconditionally (R8), so
+        this asserts the shipped five and proves nemotron is absent.
+        """
         mock_settings = create_mock_settings()
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
@@ -607,7 +615,8 @@ class TestAIServicesHealthEndpoint:
                     data = response.json()
                     services = data["services"]
                     assert "yolo26" in services
-                    assert "nemotron" in services
+                    assert "ai-vlm" in services
+                    assert "nemotron" not in services
                     assert "florence" in services
                     assert "clip" in services
                     assert "enrichment" in services

@@ -1058,38 +1058,42 @@ class Settings(BaseSettings):
     )
 
     # Pipeline selector (spec §2:81-84, rev 5): "vlm" is the default and
-    # the ONLY supported per-event path. "legacy" parses only because its
-    # code stays in the repo until R8 deletes it — it is not deployed, not
-    # measured, and not a rollback target; the validator logs it LOUDLY so
-    # a boot with the unsupported path can never look like a normal boot.
-    # An unknown value RAISES rather than falling back: a typo must not
-    # silently pick a pipeline, least of all the unsupported one.
+    # the ONLY supported per-event path. R8 (2026-09-29) retired "legacy"
+    # outright — owner rulings: "we do not have to support backwards
+    # compatability" and "we should hard raise". Until S1 the validator
+    # ACCEPTED legacy and only warned, so a stale PIPELINE_MODE=legacy in a
+    # deployment's .env booted the unsupported pipeline; a warning is not a
+    # guard. It now raises, as does every unknown value — the
+    # never-silently-fallback rule from spec §2:81-84.
     pipeline_mode: str = Field(
         default="vlm",
-        description="Per-event analysis pipeline: 'vlm' (default, supported) or 'legacy' (UNSUPPORTED, kept only until R8 deletes it).",
+        description="Per-event analysis pipeline. Only 'vlm' is supported; the legacy pipeline was retired 2026-09-29 and selecting it raises at boot.",
     )
 
     @field_validator("pipeline_mode", mode="before")
     @classmethod
     def validate_pipeline_mode(cls, v: Any) -> str:
-        """`legacy` parses (its code stays until R8) but is LOUD; anything
-        else than the two spellings raises — the never-silently-fallback
-        rule from spec §2:81-84. The warning is the startup loudness the
-        owner ruling asks for; the 1.5 ledger row carries the rest."""
-        import logging
+        """Only 'vlm' parses. An unset mode defaults to it; anything else
+        raises rather than falling back (spec §2:81-84, R8 owner ruling
+        2026-09-29).
 
+        One message, no branch on the retired spelling. That is deliberate:
+        the deletion guard (test_no_legacy_pipeline_branches.py) forbids
+        shipped code from COMPARING against "legacy", so a validator written
+        `if value == "legacy"` would be the one branch the gate exists to
+        prevent. The word still appears — as message text, which is what
+        tells an operator with a stale .env what happened.
+        """
         if v is None:
             return "vlm"
         value = str(v).lower().strip()
-        if value not in ("vlm", "legacy"):
-            raise ValueError(f"Invalid pipeline_mode '{v}'. Must be 'vlm' or 'legacy'.")
-        if value == "legacy":
-            logging.getLogger("backend.core.config").warning(
-                "PIPELINE_MODE=legacy selects the UNSUPPORTED pipeline — "
-                "it is not deployed, not measured, and not a rollback "
-                "target (spec rev 5); its code stays only until R8 deletes it."
-            )
-        return value
+        if value == "vlm":
+            return value
+        raise ValueError(
+            f"Invalid pipeline_mode '{v}'. Only 'vlm' is supported. The legacy "
+            "pipeline was retired on 2026-09-29 (R8) and its code is gone, so "
+            "PIPELINE_MODE=legacy can no longer be selected."
+        )
 
     # AI service authentication
     # Security: API keys for authenticating with AI services

@@ -1856,12 +1856,13 @@ class TestCheckRedisHealthFunction:
 
 
 class TestCheckAIServicesHealth:
-    """Tests for check_ai_services_health function (PIPELINE_MODE=legacy: these
-    patch the Nemotron check; vlm mode is TestCheckAIServicesHealthByPipelineMode)."""
+    """Tests for check_ai_services_health's happy/degraded paths.
 
-    @pytest.fixture(autouse=True)
-    def _legacy_mode(self, mock_settings: Settings) -> None:
-        mock_settings.pipeline_mode = "legacy"
+    R8 retired the legacy body: the verdict-engine check to mock is ai-vlm, and
+    there is no mode to force here — the fixture's Settings default IS the
+    shipped mode. (These used to patch the Nemotron check and pin
+    PIPELINE_MODE=legacy.)
+    """
 
     @pytest.mark.asyncio
     async def test_ai_services_health_all_healthy(self, mock_settings: Settings) -> None:
@@ -1875,7 +1876,7 @@ class TestCheckAIServicesHealth:
                 new=AsyncMock(return_value=(True, None)),
             ),
             patch(
-                "backend.api.routes.system._check_nemotron_health_with_circuit_breaker",
+                "backend.api.routes.system._check_ai_vlm_health_with_circuit_breaker",
                 new=AsyncMock(return_value=(True, None)),
             ),
         ):
@@ -1888,14 +1889,14 @@ class TestCheckAIServicesHealth:
         """Test AI services health when one service is unhealthy."""
         from backend.api.routes.system import check_ai_services_health
 
-        # Mock the circuit breaker checks - YOLO26 healthy, Nemotron unhealthy
+        # Mock the circuit breaker checks - YOLO26 healthy, ai-vlm unhealthy
         with (
             patch(
                 "backend.api.routes.system._check_yolo26_health_with_circuit_breaker",
                 new=AsyncMock(return_value=(True, None)),
             ),
             patch(
-                "backend.api.routes.system._check_nemotron_health_with_circuit_breaker",
+                "backend.api.routes.system._check_ai_vlm_health_with_circuit_breaker",
                 new=AsyncMock(return_value=(False, "Connection refused")),
             ),
         ):
@@ -1903,19 +1904,20 @@ class TestCheckAIServicesHealth:
 
             # When one service is down, status is "degraded" not "unhealthy"
             assert result.status == "degraded"
-            assert "nemotron" in result.message.lower()
+            assert "ai-vlm" in result.message.lower()
 
 
-class TestCheckAIServicesHealthByPipelineMode:
-    """The system-health `ai` block follows PIPELINE_MODE (spec rev 5).
+class TestCheckAIServicesHealthRetiredLlm:
+    """The system-health `ai` block reports ai-vlm, never the retired LLM.
 
     Observed on the A5500 box with PIPELINE_MODE=vlm: GET /api/system/health
     answered `"ai": {"status": "degraded", "message": "Nemotron service
     unavailable, YOLO26 operational"}` - a retired service reported as an
-    outage while the pipeline was fine. In vlm mode the block reports YOLO26 +
-    ai-vlm (llama-server `/health`: 200 ready, 503 loading - a probe that never
-    wakes a sleeping server, spec §6) and never probes nemotron. Legacy
-    (unsupported until R8) keeps today's YOLO26 + Nemotron answer exactly.
+    outage while the pipeline was fine. The block reports YOLO26 + ai-vlm
+    (llama-server `/health`: 200 ready, 503 loading - a probe that never wakes a
+    sleeping server, spec §6) and never probes nemotron. R8 left PIPELINE_MODE
+    one value, so this is the only answer there is; the legacy pins these
+    replaced are gone rather than adapted.
 
     Driven at the HTTP boundary: a stand-in AsyncClient answers GET
     `<base>/health` per base URL; an unrouted base is connection-refused, the
@@ -1934,16 +1936,16 @@ class TestCheckAIServicesHealthByPipelineMode:
 
         monkeypatch.setattr(system_routes, "_health_circuit_breaker", CircuitBreaker())
 
-    def _settings(self, mode: str) -> Settings:
+    def _settings(self) -> Settings:
+        # No pipeline_mode kwarg: the default IS the shipped mode.
         return Settings(
             _env_file=None,
-            pipeline_mode=mode,
             yolo26_url=self.YOLO26,
             nemotron_url=self.NEMOTRON,
             ai_vlm_url=self.AI_VLM,
         )
 
-    async def _run(self, mode: str, answers: dict[str, int | Exception]):
+    async def _run(self, answers: dict[str, int | Exception]):
         """Run check_ai_services_health against per-base-URL answers.
 
         Returns (result, probed_urls)."""
@@ -1967,7 +1969,7 @@ class TestCheckAIServicesHealthByPipelineMode:
             patch(
                 "backend.api.routes.system.get_settings",
                 autospec=True,
-                return_value=self._settings(mode),
+                return_value=self._settings(),
             ),
             patch("backend.api.routes.system.httpx.AsyncClient", autospec=True) as client_cls,
         ):
@@ -1976,20 +1978,20 @@ class TestCheckAIServicesHealthByPipelineMode:
         return result, probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_is_healthy_with_nemotron_gone(self) -> None:
+    async def test_is_healthy_with_nemotron_gone(self) -> None:
         """The incident: nemotron refuses (retired), YOLO26 + ai-vlm are up."""
-        result, probed = await self._run("vlm", {self.YOLO26: 200, self.AI_VLM: 200})
+        result, probed = await self._run({self.YOLO26: 200, self.AI_VLM: 200})
 
         assert result.status == "healthy", result
         assert result.details == {"yolo26": "healthy", "ai-vlm": "healthy"}
         assert f"{self.AI_VLM}/health" in probed
         assert not [u for u in probed if u.startswith(self.NEMOTRON)], (
-            f"vlm mode probed the retired nemotron: {probed}"
+            f"probed the retired nemotron: {probed}"
         )
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_degraded_when_ai_vlm_is_down(self) -> None:
-        result, _ = await self._run("vlm", {self.YOLO26: 200})
+    async def test_degraded_when_ai_vlm_is_down(self) -> None:
+        result, _ = await self._run({self.YOLO26: 200})
 
         assert result.status == "degraded"
         assert result.message == "ai-vlm service unavailable, YOLO26 operational"
@@ -1998,43 +2000,22 @@ class TestCheckAIServicesHealthByPipelineMode:
         assert result.details["ai-vlm"] == "ai-vlm service connection refused"
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_loading_503_is_not_ready(self) -> None:
+    async def test_loading_503_is_not_ready(self) -> None:
         """llama-server answers /health 503 while it loads the model: up, but
         not yet able to serve a verdict - degraded, and the detail says why."""
-        result, _ = await self._run("vlm", {self.YOLO26: 200, self.AI_VLM: 503})
+        result, _ = await self._run({self.YOLO26: 200, self.AI_VLM: 503})
 
         assert result.status == "degraded"
         assert "loading" in result.details["ai-vlm"].lower()
         assert "503" in result.details["ai-vlm"]
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_unhealthy_when_yolo26_and_ai_vlm_are_down(self) -> None:
-        result, _ = await self._run("vlm", {})
+    async def test_unhealthy_when_yolo26_and_ai_vlm_are_down(self) -> None:
+        result, _ = await self._run({})
 
         assert result.status == "unhealthy"
         assert result.message == "All AI services unavailable"
         assert set(result.details) == {"yolo26", "ai-vlm"}
-
-    @pytest.mark.asyncio
-    async def test_legacy_mode_keeps_todays_nemotron_answer(self) -> None:
-        """Byte-for-byte pin of the pre-fix answer for the unsupported path."""
-        result, probed = await self._run("legacy", {self.YOLO26: 200})
-
-        assert result.status == "degraded"
-        assert result.message == "Nemotron service unavailable, YOLO26 operational"
-        assert result.details == {
-            "yolo26": "healthy",
-            "nemotron": "Nemotron service connection refused",
-        }
-        assert not [u for u in probed if u.startswith(self.AI_VLM)], probed
-
-    @pytest.mark.asyncio
-    async def test_legacy_mode_healthy_answer_unchanged(self) -> None:
-        result, _ = await self._run("legacy", {self.YOLO26: 200, self.NEMOTRON: 200})
-
-        assert result.status == "healthy"
-        assert result.message == "AI services operational"
-        assert result.details == {"yolo26": "healthy", "nemotron": "healthy"}
 
 
 class TestCircuitBreakerState:

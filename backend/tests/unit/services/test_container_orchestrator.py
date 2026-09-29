@@ -2116,18 +2116,23 @@ class TestWp44ControlPathArgsAndMessages:
 # =============================================================================
 
 
-class TestRetiredLlmContainersInVlmMode:
-    """PIPELINE_MODE=vlm must never let the orchestrator start/restart the LLM.
+class TestRetiredLlmContainers:
+    """The orchestrator must never start/restart the retired LLM engines.
 
-    Discovery lists containers with ``all=True`` - a STOPPED ai-llm (the A5500
-    runbook stops it before ``--profile vlm up``) is discovered, registered,
-    and handed to ``LifecycleManager.handle_stopped``, which starts it. On
-    2026-09-28 only a podman-socket PermissionError kept the backend from
-    doing that: it would have put the retired 30B LLM on the GPU ai-vlm
-    occupies. In vlm mode neither legacy LLM engine (ai-llm, and ai-llm-vllm -
-    the same Nemotron on the same GPU_LLM) is registered, so nothing - health
-    loop, lifecycle, or the services API - can start or restart it. Legacy
-    (unsupported until R8) registers them exactly as before.
+    Discovery lists containers with ``all=True`` - a STOPPED ai-llm (the runbook
+    stops it before ``--profile vlm up``) is discovered, registered, and handed
+    to ``LifecycleManager.handle_stopped``, which starts it. On 2026-09-28 only
+    a podman-socket PermissionError kept the backend from doing that: it would
+    have put the retired 30B LLM on the GPU ai-vlm occupies. Neither legacy LLM
+    engine (ai-llm, and ai-llm-vllm - the same Nemotron on the same GPU_LLM) is
+    registered, so nothing - health loop, lifecycle, or the services API - can
+    start or restart it.
+
+    R8 retired the mode: the skip is unconditional, so there is no mode to
+    monkeypatch here. The earlier form of this class gated the skip on
+    PIPELINE_MODE and pinned that legacy still registered both containers -
+    which is precisely the "start the retired engine on the VLM's GPU" behavior
+    the owner ruled out, so the pin is gone rather than adapted.
     """
 
     @staticmethod
@@ -2153,26 +2158,12 @@ class TestRetiredLlmContainersInVlmMode:
             self._discovered("ai-llm-vllm", "vllm0001"),
         ]
 
-    @staticmethod
-    def _use_mode(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
-        from backend.core.config import Settings
-        from backend.services import container_orchestrator as co
-
-        monkeypatch.setattr(
-            co,
-            "_settings_for_mode",
-            lambda: Settings(_env_file=None, pipeline_mode=mode),
-            raising=False,
-        )
-
     @pytest.mark.asyncio
-    async def test_vlm_mode_never_registers_the_retired_llm_containers(
+    async def test_never_registers_the_retired_llm_containers(
         self,
         orchestrator: ContainerOrchestrator,
         mock_docker_client: AsyncMock,
-        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        self._use_mode(monkeypatch, "vlm")
         with patch.object(
             orchestrator._discovery_service,
             "discover_all",
@@ -2182,7 +2173,7 @@ class TestRetiredLlmContainersInVlmMode:
             await orchestrator.start()
 
         assert {s.name for s in orchestrator.get_all_services()} == {"ai-gateway"}, (
-            "vlm mode registered a retired LLM container - the orchestrator can start it"
+            "registered a retired LLM container - the orchestrator can start it"
         )
         for name in ("ai-llm", "ai-llm-vllm"):
             assert await orchestrator.start_service(name) is False
@@ -2193,24 +2184,14 @@ class TestRetiredLlmContainersInVlmMode:
         ):
             assert call.args[0] not in ("llm0001", "vllm0001"), call
 
-    @pytest.mark.asyncio
-    async def test_legacy_mode_still_registers_every_discovered_ai_container(
-        self,
-        orchestrator: ContainerOrchestrator,
-        mock_docker_client: AsyncMock,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        self._use_mode(monkeypatch, "legacy")
-        with patch.object(
-            orchestrator._discovery_service,
-            "discover_all",
-            return_value=self._all_ai(),
-            autospec=True,
-        ):
-            await orchestrator.start()
+    def test_the_skip_does_not_read_settings(self) -> None:
+        """The retired-name check is unconditional, so it cannot be turned off
+        by a settings value - no settings helper survives here, and the module
+        source must not read the mode at all."""
+        import inspect
 
-        assert {s.name for s in orchestrator.get_all_services()} == {
-            "ai-gateway",
-            "ai-llm",
-            "ai-llm-vllm",
-        }
+        from backend.services import container_orchestrator as co
+
+        assert not hasattr(co, "_settings_for_mode")
+        assert "pipeline_mode" not in inspect.getsource(co)
+        assert frozenset({"ai-llm", "ai-llm-vllm"}) == co.RETIRED_LLM_SERVICES

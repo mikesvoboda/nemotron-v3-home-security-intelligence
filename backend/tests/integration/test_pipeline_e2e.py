@@ -1068,7 +1068,6 @@ async def test_batch_timeout_closes_batch(
 
 @pytest.mark.asyncio
 async def test_fast_path_high_priority_detection(
-    legacy_wire,
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
@@ -1091,6 +1090,18 @@ async def test_fast_path_high_priority_detection(
     vlm fast path routes the single detection through the batch gate,
     which marks nothing). legacy_wire first so the aggregator's lazy
     factory actually hands out the legacy analyzer the stub speaks to.
+
+    R8 rewrote the subject (2026-09-29). The mode pin that fixture used to
+    apply is gone — PIPELINE_MODE hard-raises on the retired spelling and
+    build_pipeline_analyzer hands out VlmAnalyzer unconditionally — so the
+    analyzer is injected explicitly here instead of routed to. What survives,
+    honestly, is what actually lives in batch_aggregator: the fast-path GATE
+    (threshold + object types) and the `fast_path_<id>` batch id. The
+    `is_fast_path=True` column is NOT asserted: only nemotron's own fast path
+    wrote it, and that path retired with the mode. A shipped fast-path
+    verdict routes the single detection through the batch gate and marks
+    nothing, so this now asserts the shipped truth — the gate fired and no
+    is_fast_path event appeared.
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id
@@ -1125,45 +1136,45 @@ async def test_fast_path_high_priority_detection(
             assert len(detections) == 1
             detection_id = detections[0].id
 
-    # Create aggregator with mocked analyzer for fast path
-    mock_llm_response = create_mock_llm_response(
-        risk_score=90, risk_level="critical", summary="High confidence person detected"
+    # The analyzer is INJECTED, not routed to. R8 removed the mode branch the
+    # aggregator's lazy builder used to consult, and _process_fast_path
+    # swallows analyzer errors — so a recording stub, asserted below, is what
+    # makes "the gate fired" mean something rather than "no exception".
+    fast_path_calls: list[tuple[str, int]] = []
+
+    class _RecordingAnalyzer:
+        async def analyze_detection_fast_path(self, camera_id: str, detection_id: int) -> None:
+            fast_path_calls.append((camera_id, detection_id))
+
+    aggregator = BatchAggregator(redis_client=mock_redis, analyzer=_RecordingAnalyzer())
+    # Ship defaults disable fast path (threshold 2.0, types []); opt the
+    # instance into the gate to exercise it (R-T9-PIPELINE-E2E).
+    aggregator._fast_path_threshold = 0.90
+    aggregator._fast_path_types = ["person"]
+    batch_id = await aggregator.add_detection(
+        camera_id=camera_id,
+        detection_id=str(detection_id),
+        _file_path=str(image_path),
+        confidence=0.95,
+        object_type="person",
     )
 
-    with patch(
-        "backend.services.nemotron_analyzer.httpx.AsyncClient", autospec=True
-    ) as mock_client:
-        mock_response = create_mock_httpx_response(mock_llm_response)
+    # Should be fast path
+    assert batch_id.startswith("fast_path_")
+    assert fast_path_calls == [(camera_id, int(detection_id))], (
+        "the gate fired but the analyzer was not handed the detection"
+    )
 
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        aggregator = BatchAggregator(redis_client=mock_redis)
-        # Ship defaults disable fast path (threshold 2.0, types []); opt the
-        # instance into the legacy gate to exercise it (R-T9-PIPELINE-E2E).
-        aggregator._fast_path_threshold = 0.90
-        aggregator._fast_path_types = ["person"]
-        batch_id = await aggregator.add_detection(
-            camera_id=camera_id,
-            detection_id=str(detection_id),
-            _file_path=str(image_path),
-            confidence=0.95,
-            object_type="person",
-        )
-
-        # Should be fast path
-        assert batch_id.startswith("fast_path_")
-
-    # Verify fast path event was created
+    # The shipped fast path marks nothing: is_fast_path was nemotron-only.
     async with get_session() as session:
         result = await session.execute(
             select(Event).where(Event.camera_id == camera_id).where(Event.is_fast_path == True)  # noqa: E712
         )
         fast_path_events = list(result.scalars().all())
-        assert len(fast_path_events) == 1
-        assert fast_path_events[0].is_fast_path is True
+        assert fast_path_events == [], (
+            "the shipped (vlm) fast path routes through the batch gate and "
+            "must not write nemotron's is_fast_path column"
+        )
 
 
 @pytest.mark.asyncio

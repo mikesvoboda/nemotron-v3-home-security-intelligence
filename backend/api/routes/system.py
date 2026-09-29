@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.routes.health_ai_services import ai_services_config_for_mode
+from backend.api.routes.health_ai_services import shipped_ai_services_config
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -1098,11 +1098,12 @@ async def _bounded_health_check(
         return (False, "Health check timed out waiting for available slot")
 
 
-async def _check_vlm_mode_ai_services_health(settings: Settings) -> HealthCheckServiceStatus:
-    """The `ai` block for PIPELINE_MODE=vlm: YOLO26 + ai-vlm, never nemotron.
+async def _check_shipped_ai_services_health(settings: Settings) -> HealthCheckServiceStatus:
+    """The `ai` block: YOLO26 + ai-vlm, never nemotron.
 
-    The legacy LLM is retired in vlm mode (spec rev 5); probing it could only
-    ever report a healthy pipeline as degraded. Same status rules as legacy:
+    The legacy LLM is retired (spec rev 5, R8); probing it could only ever
+    report a healthy pipeline as degraded, and R8 removed the branch that
+    used to make this vlm-mode-only. Same status rules as the retired path:
     both up = healthy, one up = degraded, none up = unhealthy.
     """
     yolo26_result, vlm_result = await asyncio.gather(
@@ -1145,11 +1146,11 @@ async def _check_vlm_mode_ai_services_health(settings: Settings) -> HealthCheckS
 async def check_ai_services_health() -> HealthCheckServiceStatus:
     """Check AI services health by pinging YOLO26 and the verdict engine.
 
-    The verdict engine follows PIPELINE_MODE: ai-vlm in ``vlm`` (the shipped
-    default - see _check_vlm_mode_ai_services_health), Nemotron only in
-    ``legacy``. Legacy performs concurrent health checks on:
-    - YOLO26 (object detection): GET {yolo26_url}/health
-    - Nemotron (LLM reasoning): GET {nemotron_url}/health
+    The verdict engine is ai-vlm (see _check_shipped_ai_services_health).
+    R8 (2026-09-29) removed the legacy body that pinged the retired
+    Nemotron LLM: PIPELINE_MODE now raises on that spelling, so the branch
+    was unreachable, and reporting a container that is absent from compose
+    would make /health read as degraded on every healthy boot.
 
     Health checks are bounded by MAX_CONCURRENT_HEALTH_CHECKS semaphore
     to prevent thundering herd when multiple clients check simultaneously.
@@ -1160,57 +1161,7 @@ async def check_ai_services_health() -> HealthCheckServiceStatus:
         - degraded: At least one service is down but some AI capability remains
         - unhealthy: Both services are down (no AI capability)
     """
-    settings = get_settings()
-    if settings.pipeline_mode != "legacy":
-        return await _check_vlm_mode_ai_services_health(settings)
-    yolo26_url = settings.yolo26_url
-    nemotron_url = settings.nemotron_url
-
-    # Check both services concurrently with circuit breaker protection
-    # Each check is bounded by the semaphore to limit total concurrent checks
-    yolo26_result, nemotron_result = await asyncio.gather(
-        _bounded_health_check(
-            _check_yolo26_health_with_circuit_breaker, yolo26_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS
-        ),
-        _bounded_health_check(
-            _check_nemotron_health_with_circuit_breaker,
-            nemotron_url,
-            AI_HEALTH_CHECK_TIMEOUT_SECONDS,
-        ),
-    )
-
-    yolo26_healthy, yolo26_error = yolo26_result
-    nemotron_healthy, nemotron_error = nemotron_result
-
-    # Build details dict with individual service status
-    details: dict[str, str] = {
-        "yolo26": "healthy" if yolo26_healthy else (yolo26_error or "unhealthy"),
-        "nemotron": "healthy" if nemotron_healthy else (nemotron_error or "unhealthy"),
-    }
-
-    # Determine overall AI status
-    if yolo26_healthy and nemotron_healthy:
-        return HealthCheckServiceStatus(
-            status="healthy",
-            message="AI services operational",
-            details=details,
-        )
-    elif yolo26_healthy or nemotron_healthy:
-        # At least one service is up - degraded but partially functional
-        working_service = "YOLO26" if yolo26_healthy else "Nemotron"
-        failed_service = "Nemotron" if yolo26_healthy else "YOLO26"
-        return HealthCheckServiceStatus(
-            status="degraded",
-            message=f"{failed_service} service unavailable, {working_service} operational",
-            details=details,
-        )
-    else:
-        # Both services are down
-        return HealthCheckServiceStatus(
-            status="unhealthy",
-            message="All AI services unavailable",
-            details=details,
-        )
+    return await _check_shipped_ai_services_health(get_settings())
 
 
 async def _emit_health_status_changes(
@@ -5664,9 +5615,10 @@ async def get_full_health(
 ) -> FullHealthResponse:
     """Get comprehensive health status for all system components."""
     settings = get_settings()
-    # PIPELINE_MODE=vlm swaps the (critical) nemotron row for ai-vlm - the
-    # legacy LLM is retired there and must not read as a critical outage.
-    ai_services_config = ai_services_config_for_mode(settings, AI_SERVICES_CONFIG)
+    # The (critical) nemotron row is swapped for ai-vlm: the legacy LLM is
+    # retired, and reporting a container that is absent from compose would
+    # read as a critical outage on every healthy boot (R8, 2026-09-29).
+    ai_services_config = shipped_ai_services_config(AI_SERVICES_CONFIG)
 
     postgres_task = _check_postgres_health_full(db)
     redis_task = _check_redis_health_full(redis)

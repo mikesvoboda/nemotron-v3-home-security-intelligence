@@ -1259,26 +1259,28 @@ def mock_vlm_enforces_grammar():
 
 @pytest.fixture
 def legacy_wire(monkeypatch):
-    """Per-test LEGACY pin - for tests that are ABOUT the legacy path
-    (F4-approved: byte-identical behind the flag). Use it when the test
-    asserts pre-P0.3 wire semantics - the 50/medium fallback on LLM
-    failure, the guided_json payload. Everything else runs the shipped
-    default (see mock_llm_enforces_grammar).
+    """Per-test pin of the LEGACY NEMOTRON WIRE - for tests that construct
+    NemotronAnalyzer directly and assert its pre-P0.3 wire semantics: the
+    50/medium fallback on LLM failure, the guided_json payload. Everything
+    else runs the shipped default (see mock_llm_enforces_grammar).
 
-    1.5 broadened the pin from the wire to the MODE: PIPELINE_MODE=legacy
-    makes the pipeline factory itself hand out the legacy analyzer, so a
-    test whose subject reaches a seam (the aggregator's lazy fast-path
-    builder, the container, the API dependency) actually exercises the
-    legacy path instead of a vlm analyzer built against legacy stubs.
-    Tests that construct NemotronAnalyzer directly are unaffected either
-    way - the mode line only decides factory routing.
+    R8 (2026-09-29) narrowed this back to WIRE ONLY. 1.5 had broadened it to
+    set PIPELINE_MODE=legacy so a test whose subject reached a seam (the
+    aggregator's lazy fast-path builder, the container, the API dependency)
+    would route to nemotron. That broadening is gone on two counts: the flag
+    hard-raises now (owner ruling, no back-compat), so setting it in the env
+    would fail every consumer's `Settings()` build; and there is no mode
+    branch left to route - build_pipeline_analyzer hands out VlmAnalyzer
+    unconditionally. So this fixture toggles the constrained-decoding wire
+    for tests that name their analyzer directly, and any test that depended
+    on seam routing to the legacy analyzer was deleted rather than adapted
+    (its subject was the branch, not the behavior).
 
     Env-based so real get_settings() consumers pick it up; cache_clear on
     both sides so the analyzer built inside the test sees the pin and
     later tests rebuild without it.
     """
     monkeypatch.setenv("NEMOTRON_CONSTRAINED_DECODING_ENABLED", "false")
-    monkeypatch.setenv("PIPELINE_MODE", "legacy")
     from backend.core.config import get_settings
 
     get_settings.cache_clear()

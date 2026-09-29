@@ -69,6 +69,7 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 def create_mock_settings(
     yolo26_url: str = "http://ai-yolo26:8095",
     nemotron_url: str = "http://llm-analyzer:8080",
+    ai_vlm_url: str = "http://ai-vlm:8098",
     florence_url: str = "http://florence-service:8091",
     clip_url: str = "http://clip-service:8092",
     enrichment_url: str = "http://enrichment-service:8093",
@@ -77,7 +78,9 @@ def create_mock_settings(
 
     Args:
         yolo26_url: URL for YOLO26 service (empty string for unconfigured)
-        nemotron_url: URL for Nemotron service
+        nemotron_url: URL for the retired Nemotron LLM (kept only so tests can
+            prove the endpoint never probes it)
+        ai_vlm_url: URL for the VLM verdict service (empty for unconfigured)
         florence_url: URL for Florence service
         clip_url: URL for CLIP service
         enrichment_url: URL for Enrichment service
@@ -89,12 +92,14 @@ def create_mock_settings(
     # Handle empty strings as None for "unconfigured" behavior
     mock.yolo26_url = yolo26_url if yolo26_url else None
     mock.nemotron_url = nemotron_url if nemotron_url else None
+    mock.ai_vlm_url = ai_vlm_url if ai_vlm_url else None
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
     mock.enrichment_url = enrichment_url if enrichment_url else None
-    # These endpoint tests assert the nemotron row: PIPELINE_MODE=legacy (the
-    # vlm-mode table is TestAIServicesHealthByPipelineMode).
-    mock.pipeline_mode = "legacy"
+    # No `pipeline_mode` on the mock: R8 left one mode, and the mock's job is
+    # the URL attrs. ai_vlm_url must be spelled anyway — a MagicMock attr
+    # would leak a mock object into AIServiceHealthDetail.url, which pydantic
+    # validates as a string.
     return mock
 
 
@@ -791,7 +796,11 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
-        """Test endpoint includes all 5 AI services."""
+        """Test endpoint includes all 5 services of the SHIPPED table.
+
+        The retired LLM's row is swapped for ai-vlm unconditionally (R8), so
+        this asserts the shipped five, not the legacy five.
+        """
         mock_settings = create_mock_settings()
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
@@ -825,7 +834,8 @@ class TestAIServicesHealthEndpoint:
                     data = response.json()
                     services = data["services"]
                     assert "yolo26" in services
-                    assert "nemotron" in services
+                    assert "ai-vlm" in services
+                    assert "nemotron" not in services
                     assert "florence" in services
                     assert "clip" in services
                     assert "enrichment" in services
@@ -939,19 +949,25 @@ class TestAIServicesConfig:
 
 
 # =============================================================================
-# PIPELINE_MODE: the verdict-engine row follows the mode
+# The retired LLM row: never probed, never critical (R8 — one mode, no branch)
 # =============================================================================
 
 
-class TestAIServicesHealthByPipelineMode:
+class TestRetiredLlmRow:
     """/api/health/ai-services must not call a healthy vlm deployment CRITICAL.
 
-    The table marks nemotron CRITICAL, so in PIPELINE_MODE=vlm - where the
-    legacy LLM is retired (spec rev 5) and connection-refused on the A5500 box
-    - the endpoint answered 503 "critical" for a working pipeline. In vlm mode
-    the nemotron row is replaced by ai-vlm (settings.ai_vlm_url), which is
-    non-critical like its degradation-manager registration: ai-vlm down is
-    DEGRADED. Legacy (unsupported until R8) keeps today's table and answer.
+    The base table marks nemotron CRITICAL, so on a vlm deployment - where the
+    legacy LLM is retired (spec rev 5) and refuses connections - the endpoint
+    answered 503 "critical" for a working pipeline. nemotron's row is now
+    replaced by ai-vlm (settings.ai_vlm_url) UNCONDITIONALLY: R8 left
+    PIPELINE_MODE with one value, so there is no mode to branch on and no
+    deployment for which probing a retired engine is the right answer. ai-vlm
+    is non-critical like its degradation-manager registration, so ai-vlm down
+    is DEGRADED.
+
+    Settings still carries ``nemotron_url`` (its removal is S3's, with its own
+    ledger row), which is why the base table still holds the row these tests
+    prove is never used.
     """
 
     URLS: ClassVar[dict[str, str]] = {
@@ -963,12 +979,14 @@ class TestAIServicesHealthByPipelineMode:
         "enrichment_url": "http://enrichment:8094",
     }
 
-    async def _get(self, async_client: AsyncClient, mode: str, down: set[str]):
+    async def _get(self, async_client: AsyncClient, down: set[str]):
         """GET the endpoint; every service answers /health 200 except the
         url attrs in ``down`` (connection refused). Returns (response, probed)."""
         from backend.core.config import Settings
 
-        settings = Settings(_env_file=None, pipeline_mode=mode, **self.URLS)
+        # No pipeline_mode kwarg: the default IS the shipped mode, so this
+        # exercises the same path a deployment with the var unset takes.
+        settings = Settings(_env_file=None, **self.URLS)
         refused = {self.URLS[attr] for attr in down}
         probed: list[str] = []
 
@@ -996,11 +1014,9 @@ class TestAIServicesHealthByPipelineMode:
         return response, probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_retired_nemotron_is_not_critical(
-        self, async_client: AsyncClient
-    ) -> None:
-        """The incident: nemotron refuses, everything the vlm pipeline uses is up."""
-        response, probed = await self._get(async_client, "vlm", down={"nemotron_url"})
+    async def test_retired_nemotron_is_not_critical(self, async_client: AsyncClient) -> None:
+        """The incident: nemotron refuses, everything the shipped pipeline uses is up."""
+        response, probed = await self._get(async_client, down={"nemotron_url"})
 
         assert response.status_code == 200, response.json()
         data = response.json()
@@ -1011,8 +1027,8 @@ class TestAIServicesHealthByPipelineMode:
         assert not [u for u in probed if u.startswith(self.URLS["nemotron_url"])], probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_ai_vlm_down_is_degraded(self, async_client: AsyncClient) -> None:
-        response, _ = await self._get(async_client, "vlm", down={"ai_vlm_url"})
+    async def test_ai_vlm_down_is_degraded(self, async_client: AsyncClient) -> None:
+        response, _ = await self._get(async_client, down={"ai_vlm_url"})
 
         assert response.status_code == 200
         data = response.json()
@@ -1020,14 +1036,17 @@ class TestAIServicesHealthByPipelineMode:
         assert data["services"]["ai-vlm"]["status"] == "unhealthy"
 
     @pytest.mark.asyncio
-    async def test_legacy_mode_nemotron_down_is_still_critical(
+    async def test_the_swap_replaces_exactly_the_retired_row(
         self, async_client: AsyncClient
     ) -> None:
-        """Pin of today's legacy answer."""
-        response, probed = await self._get(async_client, "legacy", down={"nemotron_url"})
+        """The shipped table is the base table with nemotron's slot taken by
+        ai-vlm — same count, same critical set minus nothing, same everything
+        else. Pinning the whole key set is what stops a future edit from
+        swapping a second row (or dropping one) behind this class's back."""
+        from backend.api.routes.health_ai_services import shipped_ai_services_config
 
-        assert response.status_code == 503
-        data = response.json()
-        assert data["overall_status"] == "critical"
-        assert set(data["services"]) == {"yolo26", "nemotron", "florence", "clip", "enrichment"}
-        assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed
+        swapped = shipped_ai_services_config()
+        names = [cfg["name"] for cfg in swapped]
+
+        assert names == ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
+        assert {c["name"] for c in swapped if c["critical"]} == {"yolo26"}

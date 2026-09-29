@@ -517,18 +517,20 @@ async def test_check_ai_service_health_no_url_payload_contract() -> None:
 
 
 # =============================================================================
-# PIPELINE_MODE: the verdict-engine row follows the mode
+# The retired LLM row: the full-health table drops it (R8 — one mode)
 # =============================================================================
 
 
-class TestFullHealthByPipelineMode:
+class TestFullHealthRetiredLlmRow:
     """GET /api/system/health/full must not call a healthy vlm deployment down.
 
-    Its table marks nemotron CRITICAL, so in PIPELINE_MODE=vlm - legacy LLM
-    retired (spec rev 5), connection-refused on the A5500 box - the endpoint
-    answered 503 "Critical services unhealthy: nemotron". In vlm mode the
-    nemotron row is replaced by ai-vlm (non-critical: down = DEGRADED); legacy
-    (unsupported until R8) keeps today's table and answer.
+    Its base table marks nemotron CRITICAL, so on a deployment where the legacy
+    LLM is retired (spec rev 5) and refuses connections, the endpoint answered
+    503 "Critical services unhealthy: nemotron". The nemotron row is now
+    replaced by ai-vlm UNCONDITIONALLY (non-critical: down = DEGRADED) — R8 left
+    PIPELINE_MODE one value, so there is no mode to parameterize and no
+    deployment for which a connection-refused retired engine is the right
+    answer. These run on the default Settings, which IS the shipped mode.
     """
 
     URLS: ClassVar[dict[str, str]] = {
@@ -540,13 +542,14 @@ class TestFullHealthByPipelineMode:
         "enrichment_url": "http://enrichment:8094",
     }
 
-    async def _full_health(self, mode: str, down: set[str]):
+    async def _full_health(self, down: set[str]):
         """Call get_full_health with db/redis healthy; every AI service answers
         /health 200 except the url attrs in ``down`` (connection refused).
         Returns (result, http_status, probed_urls)."""
         from starlette.responses import Response
 
-        settings = Settings(_env_file=None, pipeline_mode=mode, **self.URLS)
+        # No pipeline_mode kwarg: the default IS the shipped mode.
+        settings = Settings(_env_file=None, **self.URLS)
         refused = {self.URLS[attr] for attr in down}
         probed: list[str] = []
 
@@ -578,9 +581,9 @@ class TestFullHealthByPipelineMode:
         return result, response.status_code, probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_retired_nemotron_is_not_a_critical_outage(self) -> None:
-        """The incident: nemotron refuses, everything the vlm pipeline uses is up."""
-        result, http_status, probed = await self._full_health("vlm", down={"nemotron_url"})
+    async def test_retired_nemotron_is_not_a_critical_outage(self) -> None:
+        """The incident: nemotron refuses, everything the shipped pipeline uses is up."""
+        result, http_status, probed = await self._full_health(down={"nemotron_url"})
 
         assert result.status == ServiceHealthState.HEALTHY, result.message
         assert http_status == 200
@@ -591,27 +594,10 @@ class TestFullHealthByPipelineMode:
         assert not [u for u in probed if u.startswith(self.URLS["nemotron_url"])], probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_ai_vlm_down_is_degraded(self) -> None:
-        result, http_status, _ = await self._full_health("vlm", down={"ai_vlm_url"})
+    async def test_ai_vlm_down_is_degraded(self) -> None:
+        result, http_status, _ = await self._full_health(down={"ai_vlm_url"})
 
         assert result.status == ServiceHealthState.DEGRADED
         assert result.ready is True
         assert result.message == "Degraded: ai-vlm unavailable"
         assert http_status == 200
-
-    @pytest.mark.asyncio
-    async def test_legacy_mode_nemotron_down_is_still_critical(self) -> None:
-        """Pin of today's legacy answer."""
-        result, http_status, probed = await self._full_health("legacy", down={"nemotron_url"})
-
-        assert result.status == ServiceHealthState.UNHEALTHY
-        assert result.message == "Critical services unhealthy: nemotron"
-        assert http_status == 503
-        assert [s.name for s in result.ai_services] == [
-            "yolo26",
-            "nemotron",
-            "florence",
-            "clip",
-            "enrichment",
-        ]
-        assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed

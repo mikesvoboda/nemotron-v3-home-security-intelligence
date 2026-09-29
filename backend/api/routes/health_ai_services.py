@@ -98,18 +98,20 @@ AI_VLM_SERVICE_CONFIG: dict[str, Any] = {
 }
 
 
-def ai_services_config_for_mode(
-    settings: Settings, table: list[dict[str, Any]] = AI_SERVICES_CONFIG
+def shipped_ai_services_config(
+    table: list[dict[str, Any]] = AI_SERVICES_CONFIG,
 ) -> list[dict[str, Any]]:
-    """The AI service table for the configured pipeline mode.
+    """The AI service table the shipped pipeline reports.
 
-    ``legacy`` (unsupported, code kept until R8): ``table`` unchanged. ``vlm``
-    (the shipped default): the nemotron row replaced by AI_VLM_SERVICE_CONFIG,
-    so a retired LLM is never probed or reported. Shared with the
-    /api/system/health/full table in system.py.
+    The nemotron row is replaced by AI_VLM_SERVICE_CONFIG so a retired LLM is
+    never probed or reported. Shared with the /api/system/health/full table in
+    system.py. R8 (2026-09-29) removed the mode branch that returned the table
+    unchanged, and with it the `settings` argument that branch read:
+    PIPELINE_MODE has one value and the retired row is never right, so the
+    swap is unconditional. The name dropped "_for_mode" for the same reason
+    R8's whole purpose gives — a future reader should not have to wonder
+    which mode the answer depends on.
     """
-    if settings.pipeline_mode == "legacy":
-        return table
     return [AI_VLM_SERVICE_CONFIG if cfg["name"] == "nemotron" else cfg for cfg in table]
 
 
@@ -410,12 +412,14 @@ error rates, latency metrics, and queue depths.
 
 The response includes:
 - **overall_status**: healthy/degraded/critical based on service availability
-- **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)
+- **services**: Individual health status for each shipped AI service (yolo26,
+  ai-vlm, florence, clip, enrichment). The retired Nemotron LLM is not probed
+  or reported (R8, 2026-09-29).
 - **queues**: Current depth of detection and analysis queues with DLQ counts
 
 HTTP Status Codes:
 - **200**: All services operational or system is degraded but functional
-- **503**: Critical services (yolo26, nemotron) are unhealthy
+- **503**: Critical services (yolo26) are unhealthy
 """,
 )
 async def get_ai_services_health(
@@ -424,7 +428,7 @@ async def get_ai_services_health(
 ) -> AIServicesHealthResponse:
     """Get unified AI services health status."""
     settings = get_settings()
-    services_config = ai_services_config_for_mode(settings)
+    services_config = shipped_ai_services_config()
 
     # Check all AI services in parallel
     health_tasks = [_check_ai_service_health(config, settings) for config in services_config]

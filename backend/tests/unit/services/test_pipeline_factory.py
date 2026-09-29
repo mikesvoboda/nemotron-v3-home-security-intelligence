@@ -1,18 +1,18 @@
-"""1.5: PIPELINE_MODE selects the analyzer at ONE factory, default vlm.
+"""1.5: the analyzer is built at ONE factory; R8 retired the mode branch.
 
-Spec §2:81-84 (rev 5): ``vlm`` is the default and the only supported mode;
-``legacy`` parses only because its code stays until R8 deletes it — never
-deployed, never measured, never a rollback target. That ruling shapes
-every pin here:
+Spec §2:81-84 (rev 5) made ``vlm`` the default and the only supported mode.
+R8 (2026-09-29) retired ``legacy`` outright — owner rulings: "we do not have
+to support backwards compatability" and "we should hard raise" — so the
+rulings that shaped these pins now read:
 
-* the default is ``vlm`` — a deployment that sets nothing runs the VLM
-  path (the shipped default, not a sandbox-only setting);
-* ``legacy`` parses (the code stays) but is LOUD at startup, and an
-  unknown value RAISES — a typo must never fall back to either mode,
-  least of all to the unsupported one;
-* the analyzer is branched at ONE factory, and every production
-  construction site goes through it, so no path silently runs a stale
-  analyzer (the plan's binding rule: all three seams + container);
+* the default is ``vlm`` — a deployment that sets nothing runs the VLM path
+  (the shipped default, not a sandbox-only setting);
+* ``legacy`` RAISES rather than parsing with a warning, and so does any
+  typo — a config mistake must never pick a pipeline silently;
+* the analyzer is built at ONE factory and every production construction
+  site goes through it, so no path runs a stale analyzer (the plan's binding
+  rule: all three seams + container). The branch is gone; the seam and its
+  source-scan pin are not;
 * the vlm adapter's streaming surface answers the SAME update vocabulary
   the SSE route serializes — and for a ``verification_failed`` event
   (NULL score, D11) it must answer HONESTLY. nemotron's streaming path
@@ -47,16 +47,16 @@ class TestPipelineModeSetting:
         default, not a sandbox-only setting."""
         assert _settings().pipeline_mode == "vlm"
 
-    def test_legacy_parses_but_warns_loud(self, caplog) -> None:
-        """The code stays until R8, so `legacy` must still parse — and
-        must be LOUD about it (owner: not deployed, not a rollback)."""
-        with caplog.at_level("WARNING"):
-            s = _settings(pipeline_mode="legacy")
-        assert s.pipeline_mode == "legacy"
-        assert any(
-            "unsupported" in r.message.lower() or "legacy" in r.message.lower()
-            for r in caplog.records
-        ), "choosing legacy must be loud at startup, not silent"
+    def test_legacy_raises_not_warns(self) -> None:
+        """R8 (2026-09-29): the owner ruling is "hard raise", so `legacy`
+        no longer parses — it raises. It used to parse with a loud warning,
+        which let a stale .env boot the unsupported pipeline; the raise is
+        the guard the warning was not. Full coverage in
+        test_config_pipeline_mode_hard_raise.py."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            _settings(pipeline_mode="legacy")
 
     def test_unknown_value_raises_never_falls_back(self) -> None:
         """A typo raises. Falling back — to either mode — would make a
@@ -79,10 +79,14 @@ class TestPipelineModeSetting:
 
 
 class TestPipelineAnalyzerFactory:
-    def test_vlm_mode_builds_the_vlm_analyzer(self, monkeypatch) -> None:
+    def test_the_factory_builds_the_vlm_analyzer(self) -> None:
+        """R8 S1: the factory reads no mode — there is one analyzer, so it
+        is built without settings and without a patch. What this pin still
+        protects is the seam itself: every construction site goes through
+        HERE, and the source-scan test below fails a site that hand-rolls
+        its own analyzer."""
         from backend.services import pipeline_factory as pf
 
-        monkeypatch.setattr(pf, "_settings_for_mode", lambda: _settings(pipeline_mode="vlm"))
         built = pf.build_pipeline_analyzer(redis_client=AsyncMock())
         from backend.services.vlm_analyzer import VlmAnalyzer
 
@@ -91,13 +95,16 @@ class TestPipelineAnalyzerFactory:
         for name in ("analyze_batch", "analyze_detection_fast_path", "analyze_batch_streaming"):
             assert callable(getattr(built, name)), f"seam surface missing {name}"
 
-    def test_legacy_mode_builds_the_nemotron_analyzer(self, monkeypatch) -> None:
-        from backend.services import pipeline_factory as pf
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+    def test_the_factory_no_longer_reads_settings(self) -> None:
+        """The mode-reading helper is gone with the branch. Pinned because
+        a future edit that reintroduces `get_settings()` here would put a
+        second pipeline decision back into the codebase."""
+        import inspect
 
-        monkeypatch.setattr(pf, "_settings_for_mode", lambda: _settings(pipeline_mode="legacy"))
-        built = pf.build_pipeline_analyzer(redis_client=AsyncMock())
-        assert isinstance(built, NemotronAnalyzer)
+        from backend.services import pipeline_factory as pf
+
+        assert not hasattr(pf, "_settings_for_mode")
+        assert "get_settings" not in inspect.getsource(pf)
 
 
 # ---------------------------------------------------------------------------

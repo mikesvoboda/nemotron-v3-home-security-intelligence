@@ -66,7 +66,10 @@ def mock_ai_health_settings():
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings, autospec=True):
         yield mock_settings
@@ -1373,7 +1376,10 @@ async def test_get_health_all_healthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1386,7 +1392,7 @@ async def test_get_health_all_healthy() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -1423,7 +1429,10 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1436,7 +1445,7 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -1467,7 +1476,10 @@ async def test_get_health_unhealthy_when_database_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1480,7 +1492,7 @@ async def test_get_health_unhealthy_when_database_down() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -1510,7 +1522,10 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1523,7 +1538,7 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -1553,7 +1568,10 @@ async def test_get_health_redis_none() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Patch AI health check to avoid network calls
     with (
@@ -1566,7 +1584,7 @@ async def test_get_health_redis_none() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -2293,7 +2311,7 @@ async def test_check_ai_services_health() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -2879,7 +2897,10 @@ async def test_check_ai_services_health_both_healthy() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2891,7 +2912,7 @@ async def test_check_ai_services_health_both_healthy() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -2902,17 +2923,20 @@ async def test_check_ai_services_health_both_healthy() -> None:
         assert status.message == "AI services operational"
         assert status.details is not None
         assert status.details["yolo26"] == "healthy"
-        assert status.details["nemotron"] == "healthy"
+        assert status.details["ai-vlm"] == "healthy"
 
 
 @pytest.mark.asyncio
 async def test_check_ai_services_health_yolo26_down() -> None:
-    """Test AI services health check when YOLO26 is down but Nemotron is up."""
+    """Test AI services health check when YOLO26 is down but ai-vlm is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2924,7 +2948,7 @@ async def test_check_ai_services_health_yolo26_down() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
@@ -2934,21 +2958,24 @@ async def test_check_ai_services_health_yolo26_down() -> None:
         assert status.status == "degraded"
         assert "YOLO26" in status.message
         assert "unavailable" in status.message
-        assert "Nemotron" in status.message
+        assert "ai-vlm" in status.message
         assert "operational" in status.message
         assert status.details is not None
         assert "500" in status.details["yolo26"]
-        assert status.details["nemotron"] == "healthy"
+        assert status.details["ai-vlm"] == "healthy"
 
 
 @pytest.mark.asyncio
-async def test_check_ai_services_health_nemotron_down() -> None:
-    """Test AI services health check when Nemotron is down but YOLO26 is up."""
+async def test_check_ai_services_health_ai_vlm_down() -> None:
+    """Test AI services health check when ai-vlm is down but YOLO26 is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2960,21 +2987,21 @@ async def test_check_ai_services_health_nemotron_down() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
-            return_value=(False, "Nemotron service returned HTTP 500"),
+            "_check_ai_vlm_health_with_circuit_breaker",
+            return_value=(False, "ai-vlm service returned HTTP 500"),
             autospec=True,
         ),
     ):
         status = await system_routes.check_ai_services_health()
 
         assert status.status == "degraded"
-        assert "Nemotron" in status.message
+        assert "ai-vlm" in status.message
         assert "unavailable" in status.message
         assert "YOLO26" in status.message
         assert "operational" in status.message
         assert status.details is not None
         assert status.details["yolo26"] == "healthy"
-        assert "500" in status.details["nemotron"]
+        assert "500" in status.details["ai-vlm"]
 
 
 @pytest.mark.asyncio
@@ -2984,7 +3011,10 @@ async def test_check_ai_services_health_both_down() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -2996,8 +3026,8 @@ async def test_check_ai_services_health_both_down() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
-            return_value=(False, "Nemotron service returned HTTP 503"),
+            "_check_ai_vlm_health_with_circuit_breaker",
+            return_value=(False, "ai-vlm service returned HTTP 503"),
             autospec=True,
         ),
     ):
@@ -3007,7 +3037,7 @@ async def test_check_ai_services_health_both_down() -> None:
         assert status.message == "All AI services unavailable"
         assert status.details is not None
         assert "500" in status.details["yolo26"]
-        assert "503" in status.details["nemotron"]
+        assert "503" in status.details["ai-vlm"]
 
 
 @pytest.mark.asyncio
@@ -3026,7 +3056,10 @@ async def test_check_ai_services_health_returns_details() -> None:
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
-    mock_settings.pipeline_mode = "legacy"
+    # R8: the shipped table's verdict-engine row reads settings.ai_vlm_url, and
+    # a spec'd mock will not invent it. nemotron_url stays set so the tests can
+    # prove the retired engine is never probed.
+    mock_settings.ai_vlm_url = "http://localhost:8003"
 
     # Both services down should still populate details
     with (
@@ -3039,8 +3072,8 @@ async def test_check_ai_services_health_returns_details() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
-            return_value=(False, "Nemotron connection refused"),
+            "_check_ai_vlm_health_with_circuit_breaker",
+            return_value=(False, "ai-vlm connection refused"),
             autospec=True,
         ),
     ):
@@ -3048,7 +3081,7 @@ async def test_check_ai_services_health_returns_details() -> None:
 
         assert status.details is not None
         assert "yolo26" in status.details
-        assert "nemotron" in status.details
+        assert "ai-vlm" in status.details
 
 
 @pytest.mark.asyncio
@@ -3068,23 +3101,23 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
         ) as mock_yolo26,
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
-        ) as mock_nemotron,
+        ) as mock_ai_vlm,
     ):
         mock_settings.return_value.yolo26_url = "http://custom-yolo26:9000"
-        mock_settings.return_value.nemotron_url = "http://custom-nemotron:9001"
-        mock_settings.return_value.pipeline_mode = "legacy"
+        mock_settings.return_value.ai_vlm_url = "http://custom-ai-vlm:9002"
 
         await system_routes.check_ai_services_health()
 
         # Verify the circuit breaker health check functions were called
         mock_yolo26.assert_called_once()
-        mock_nemotron.assert_called_once()
-        # Verify the config URLs were passed
+        mock_ai_vlm.assert_called_once()
+        # Verify the config URLs were passed - the shipped table's verdict
+        # engine is ai-vlm, so settings.nemotron_url is never handed to a probe.
         assert mock_yolo26.call_args[0][0] == "http://custom-yolo26:9000"
-        assert mock_nemotron.call_args[0][0] == "http://custom-nemotron:9001"
+        assert mock_ai_vlm.call_args[0][0] == "http://custom-ai-vlm:9002"
 
 
 # =============================================================================
@@ -4128,8 +4161,7 @@ async def test_check_ai_services_health_uses_bounded_checks() -> None:
     # Verify the semaphore is being used by checking that both checks complete
     mock_settings = create_autospec(Settings, instance=True)
     mock_settings.yolo26_url = "http://localhost:8090"
-    mock_settings.nemotron_url = "http://localhost:8091"
-    mock_settings.pipeline_mode = "legacy"
+    mock_settings.ai_vlm_url = "http://localhost:8091"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
@@ -4141,7 +4173,7 @@ async def test_check_ai_services_health_uses_bounded_checks() -> None:
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health_with_circuit_breaker",
+            "_check_ai_vlm_health_with_circuit_breaker",
             return_value=(True, None),
             autospec=True,
         ),
