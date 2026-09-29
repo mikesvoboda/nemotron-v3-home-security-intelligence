@@ -46,20 +46,21 @@ benchmark run (P5). They follow the parent spec unchanged.
 
 All on maui (GB300), 2026-09-28, unless noted.
 
-| Fact                                                                          | Value                                                                                                                                      | Tag |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --- |
-| Flagship after the KV change                                                  | 2,200,824 tokens (8.40× at 262,144); 183.3 GiB at boot, 186.6 GiB after traffic; ~63 GiB free                                              | [V] |
-| Flagship KV use, 14 days at 70 GiB                                            | p50 4.3%, p99 60.4%, max 99.9% (one burst, 2026-09-24/25); footprint flat under load (Prometheus)                                          | [V] |
-| FLUX.2 [dev] beside the flagship                                              | fully resident (`full load: True`); peak 56.2 GiB over the flagship; 50.1 GiB resident between jobs; 7.0 GiB min free (`--reserve-vram 4`) | [V] |
-| Render time vs size, flagship at its normal load (median 11 running requests) | 1920×1088: 23.3 s; **1280×720: 8.2-8.5 s**; 960×544: 4.7 s (3 images each)                                                                 | [V] |
-| Flagship decode while FLUX renders                                            | 164 → 68 tok/s (−59%); 197 tok/s beside an idle but loaded renderer                                                                        | [V] |
-| Plate legibility                                                              | `8KXR-417` readable at all three sizes (visual check, 1 image each)                                                                        | [V] |
-| FLUX draws a fake timestamp bar                                               | at 1280×720 and 960×544 when prompted as security-camera footage                                                                           | [V] |
-| Real Foscam stills                                                            | 1920×1080 on all 5 cameras (header read, 541 files); median JPEG 120-260 KiB                                                               | [V] |
-| ZFS delegation on `primary/export/synthbench`                                 | `msvoboda`: snapshot, diff, destroy, mount; child dataset `…/corpus` exists; snapshot, diff, destroy tested                                | [V] |
-| systemd user lingering                                                        | `Linger=yes`                                                                                                                               | [V] |
-| A sandbox reaches host loopback ports                                         | at `host.docker.internal:<port>` (measured 2026-09, the same path that lets sandboxes bypass LiteLLM)                                      | [A] |
-| The sandbox agent's image reads reach Qwen vision                             | through LiteLLM's `/v1/messages` translation                                                                                               | [A] |
+| Fact                                                                          | Value                                                                                                                                                                   | Tag |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| Flagship after the KV change                                                  | 2,200,824 tokens (8.40× at 262,144); 183.3 GiB at boot, 186.6 GiB after traffic; ~63 GiB free                                                                           | [V] |
+| Flagship KV use, 14 days at 70 GiB                                            | p50 4.3%, p99 60.4%, max 99.9% (one burst, 2026-09-24/25); footprint flat under load (Prometheus)                                                                       | [V] |
+| FLUX.2 [dev] beside the flagship                                              | fully resident (`full load: True`); peak 56.2 GiB over the flagship; 50.1 GiB resident between jobs; 7.0 GiB min free (`--reserve-vram 4`)                              | [V] |
+| Render time vs size, flagship at its normal load (median 11 running requests) | 1920×1088: 23.3 s; **1280×720: 8.2-8.5 s**; 960×544: 4.7 s (3 images each)                                                                                              | [V] |
+| Flagship decode while FLUX renders                                            | 164 → 68 tok/s (−59%); 197 tok/s beside an idle but loaded renderer                                                                                                     | [V] |
+| Plate legibility                                                              | `8KXR-417` readable at all three sizes (visual check, 1 image each)                                                                                                     | [V] |
+| FLUX draws a fake timestamp bar                                               | at 1280×720 and 960×544 when prompted as security-camera footage                                                                                                        | [V] |
+| Real Foscam stills                                                            | 1920×1080 on all 5 cameras (header read, 541 files); median JPEG 120-260 KiB                                                                                            | [V] |
+| ZFS delegation on `primary/export/synthbench`                                 | `msvoboda`: snapshot, diff, destroy, mount; child dataset `…/corpus` exists; snapshot, diff, destroy tested                                                             | [V] |
+| systemd user lingering                                                        | `Linger=yes`                                                                                                                                                            | [V] |
+| A sandbox reaches host loopback ports                                         | `http://host.docker.internal:8188` answered from a fresh sandbox; `127.0.0.1:8188` did not (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)            | [V] |
+| The sandbox agent's image reads reach Qwen vision                             | through LiteLLM's `/v1/messages` translation: a known word read back exactly (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)                          | [V] |
+| Sandbox mounts under `/export`                                                | fail at `sbx create` (`policybind` cannot stat `/mnt/host/export/…`); the dataset now mounts at `/synthbench`, with `/synthbench` a host symlink (P3 probe, 2026-09-28) | [V] |
 
 ## §1 Architecture
 
@@ -67,16 +68,16 @@ All on maui (GB300), 2026-09-28, unless noted.
 
 | Piece                                     | Role                                                                                                                                                                                                                               |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `synthbench-guard` (systemd user unit)    | Always on. Every 5 s writes `/export/synthbench/status/flagship.json` (`time`, `healthy`, `running`, `waiting`). After 3 failed flagship health checks in a row it stops the renderer. It never stops or starts the flagship.      |
+| `synthbench-guard` (systemd user unit)    | Always on. Every 5 s writes `/synthbench/status/flagship.json` (`time`, `healthy`, `running`, `waiting`). After 3 failed flagship health checks in a row it stops the renderer. It never stops or starts the flagship.             |
 | `synthbench-renderer` (systemd user unit) | Requires the guard. Starts ComfyUI (`127.0.0.1:8188`, `--reserve-vram 4`) only when the flagship is healthy and its util gate is ≤ 0.76 (§5.3), then renders one warm-up image so FLUX.2 is resident before the agent's first job. |
 | `synthbench-snapshot.timer`               | Every 6 h: snapshot the corpus dataset, then prune by the rule in §6.                                                                                                                                                              |
-| Corpus dataset                            | `primary/export/synthbench/corpus` at `/export/synthbench/corpus`.                                                                                                                                                                 |
+| Corpus dataset                            | `primary/export/synthbench/corpus` at `/synthbench/corpus`.                                                                                                                                                                        |
 
 **Sandbox.** The agent runs on `claude-flagship`. `agent-dgx` creates the sandbox with:
 
 - its workspace: a clone of this repo on a working branch, where it runs `uv run synthbench …`;
-- `--mount /export/synthbench/corpus:rw`: the images it writes and views;
-- `--mount /export/synthbench/status:ro`: the flagship status file;
+- `--mount /synthbench/corpus:rw`: the images it writes and views;
+- `--mount /synthbench/status:ro`: the flagship status file;
 - a route to `host.docker.internal:8188`, and nothing else new.
 
 The flagship guard is the only thing that can stop the renderer automatically, and only the owner
@@ -84,7 +85,7 @@ or the stack's `swap.sh` restarts the flagship.
 
 ## §2 Corpus layout and the append-only rule
 
-The parent layout (§2.6) under `/export/synthbench/corpus/<version>/` gains a batch directory.
+The parent layout (§2.6) under `/synthbench/corpus/<version>/` gains a batch directory.
 Tier B v0 is version `tierb-v0`.
 
 ```
@@ -222,13 +223,13 @@ and refuses to start above 0.76.
 
 The owner resolves a hold in one of two ways:
 
-- copy the files back from `/export/synthbench/corpus/.zfs/snapshot/<name>/`; or
+- copy the files back from `/synthbench/corpus/.zfs/snapshot/<name>/`; or
 - accept the loss and `zfs destroy` the snapshot.
 
 Snapshots accumulate beyond 5 until then. The append-only rule keeps them cheap.
 
 **Known gap.** A file created and deleted within the same 6 h is in no snapshot. ComfyUI's own
-copy in `/export/synthbench/comfy-out` is the fallback for renders.
+copy in `/synthbench/comfy-out` is the fallback for renders.
 
 ## §7 Render size and the camera stage
 
