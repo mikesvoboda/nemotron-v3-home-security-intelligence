@@ -911,6 +911,19 @@ also_copy = [
     # (432MB), and no other unit test reads a docs/ path that exists
     # (measured census: the REPO_ROOT-docs reader is this test alone).
     "docs/vss-integration/",
+    # 2026-09-29 pre-run gate (eleventh member of this family, caught by the
+    # ladder doc's added-file protocol BEFORE any run): merge #6715 added
+    # backend/tests/unit/synthbench/test_command_reference.py, whose
+    # REPO_ROOT = Path(__file__).parents[4] path-reads docs/synthbench/
+    # command-reference.md + agent-handoff.md -- absent in the mutant home
+    # -> read red under -x -> coverage-gather truncation family (the fill#2/
+    # fill#3 mass-strip mechanism). This supersedes the tenth member's census
+    # line ("the REPO_ROOT-docs reader is this test alone" -- true against
+    # the 09-29 tree, no longer against #6715). docs/synthbench/ sits OUTSIDE
+    # source_paths (generates ZERO mutants -- the copy is inert), 41K, 4
+    # files; the sibling reader test_cli_doctor.py reads REPO_ROOT only as a
+    # subprocess cwd, satisfied by the existing synthbench/ + backend/ copies.
+    "docs/synthbench/",
 ]
 
 # =============================================================================
