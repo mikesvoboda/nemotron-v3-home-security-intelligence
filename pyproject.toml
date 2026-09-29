@@ -716,6 +716,12 @@ exclude = [
     # DESIGN, vulture's 100%-confidence 'unreachable after raise' is the
     # generator-maker yield, not dead logic.
     "backend/tests/unit/services/test_enrichment_pipeline_batch26_00.py",
+    # campaign-#5 batch-31 c2a battery: `async def boom(*args, **kwargs)`
+    # stubs _send_to_all_clients — the mock signature must ACCEPT the kwargs
+    # the production call site passes while the raising body ignores them
+    # (same batch-25 mock-signature class; renaming would rewrite a
+    # sweep-verified banked battery for zero behavior change).
+    "backend/tests/unit/services/test_event_broadcaster_batch31_c2a.py",
 ]
 
 # =============================================================================
