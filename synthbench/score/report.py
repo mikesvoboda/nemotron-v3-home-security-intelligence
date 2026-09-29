@@ -10,9 +10,11 @@ from typing import Any
 
 CONDITIONS = (
     "**Conditions.** The truth is declared by the sampler and unverified; the owner's audit below "
-    "gives its error rate. Stills only: the VLM gets no detector or specialist context, which is "
-    "harder than production. Accuracy only: the GB300 is shared, so no latency or memory figure "
-    "here stands for a deployment. Ambiguous events are not scored."
+    "gives its error rate. Stills with an ideal detector: the VLM gets each event's declared "
+    "subjects and props as detections (object type and confidence 1.0, no box) and no specialist "
+    "context; a real detector misses some of them, so this is optimistic. Accuracy only: the "
+    "GB300 is shared, so no latency or memory figure here stands for a deployment. Ambiguous "
+    "events are not scored."
 )
 CELLS = (
     'Each cell reads rate [95% Wilson interval] (n); under n = 10 it reads "insufficient". '

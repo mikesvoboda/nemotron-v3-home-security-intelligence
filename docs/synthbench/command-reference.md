@@ -220,8 +220,9 @@ and never writes it.
 - **Categories:** benign and hard_negative go to `normal/`, suspicious to `suspicious/`, threat to
   `threats/`. Ambiguous events are not exported: S2 and S3 count neither label.
 - **`expected_labels.json`:** `category`, `risk` (the risk band), `timestamp` (the scene time on
-  2026-04-15, or 2026-01-15 for snow, in America/New_York) and a `synthbench` block with the
-  event's facts.
+  2026-04-15, or 2026-01-15 for snow, in America/New_York), `detections` (the event's declared
+  subjects and props as an ideal detector reports them: object type and confidence 1.0, no box)
+  and a `synthbench` block with the event's facts.
 - **Prints:** how many sets were written and how many were unchanged, and how many events were not
   exported, by reason.
 - **Exit 1:** the corpus has no events.

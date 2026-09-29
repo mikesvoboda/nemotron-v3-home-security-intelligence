@@ -61,6 +61,20 @@ def scene_timestamp(scene_time: str, weather: str) -> str:
     return moment.isoformat()
 
 
+def declared_detections(spec: Spec) -> list[dict[str, Any]]:
+    """The event's declared subjects and props, as an ideal detector would report them.
+
+    One row per declared subject, then one per declared prop, in the spec's order:
+    object type and confidence 1.0, nothing else (no box, id, role, attribute or held_by — a
+    detector reports a class, not intent). In production the VLM runs only after the detector
+    fires; a stills-only prompt gets an empty `Detections: []` and refuses to judge (Task 1's
+    live probe), so replay stands in for the detector with the event's own declared objects.
+    """
+    subjects = [{"object_type": subject.cls, "confidence": 1.0} for subject in spec.subjects]
+    props = [{"object_type": prop.cls, "confidence": 1.0} for prop in spec.props]
+    return subjects + props
+
+
 def labels_document(spec: Spec, still_sha256: str) -> dict[str, Any]:
     """`expected_labels.json`: the keys the importer reads, plus the event's facts for scoring."""
     category = CATEGORY[spec.cell.group]
@@ -69,6 +83,7 @@ def labels_document(spec: Spec, still_sha256: str) -> dict[str, Any]:
         "category": category,
         "risk": {"min_score": lo, "max_score": hi},
         "timestamp": scene_timestamp(spec.scene_time, spec.cell.weather),
+        "detections": declared_detections(spec),
         "synthbench": {
             "event_id": spec.event_id,
             "corpus_version": spec.corpus_version,

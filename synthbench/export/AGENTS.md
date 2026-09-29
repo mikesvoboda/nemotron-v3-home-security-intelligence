@@ -8,9 +8,9 @@ VSS eval store's import layout, which `synthbench replay` imports and replays.
 
 ## Files
 
-| File     | What                                                                                                                                  |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `vss.py` | the category map, the scene-timestamp rule, `expected_labels.json`, the attribution sidecar, writing a set once and reading sets back |
+| File     | What                                                                                                                                                                                                                  |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vss.py` | the category map, the scene-timestamp rule, `expected_labels.json` (including the declared subjects and props as an ideal detector's `detections`), the attribution sidecar, writing a set once and reading sets back |
 
 The command is `synthbench/commands/export.py` (`python -m synthbench export vss`).
 

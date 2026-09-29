@@ -154,6 +154,30 @@ def test_the_category_vocabulary_is_the_importers() -> None:
     assert set(vss.CATEGORY) | {"ambiguous"} == {s.group for s in h.TAX.scenarios}
 
 
+def test_declared_detections_are_the_subjects_then_the_props(tmp_path: Path) -> None:
+    specs = _ready_batch(tmp_path, MIXED, 8)
+    armed = next(spec for spec in specs if spec.cell.scenario == "knife_visible")
+    assert vss.declared_detections(armed) == [
+        {"object_type": "person", "confidence": 1.0},
+        {"object_type": "knife", "confidence": 1.0},
+    ]
+    empty = armed.updated(subjects=(), props=())
+    assert vss.declared_detections(empty) == []
+
+
+def test_the_labels_document_carries_declared_detections(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    specs = _ready_batch(tmp_path, MIXED, 8)
+    _export(tmp_path, capsys)
+    for spec in specs:
+        category = vss.CATEGORY[spec.cell.group]
+        set_dir = _out(tmp_path) / category / spec.event_id
+        labels = json.loads((set_dir / "expected_labels.json").read_text(encoding="utf-8"))
+        assert labels["detections"] == vss.declared_detections(spec)
+        assert all(set(row) == {"object_type", "confidence"} for row in labels["detections"])
+
+
 def test_the_export_round_trips_through_the_importer(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -175,4 +199,5 @@ def test_the_export_round_trips_through_the_importer(
             assert item.expected_risk_score == (spec.risk_band[0] + spec.risk_band[1]) // 2
             assert item.snapshot.timestamp == exported.labels["timestamp"]
             assert item.snapshot.specialist_outputs == {}
+            assert item.snapshot.detections == exported.labels["detections"]
             assert item.media_paths == [str(exported.still)]
