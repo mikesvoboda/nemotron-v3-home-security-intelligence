@@ -162,6 +162,46 @@ replaces them.
 - **Exit 1:** no batch `<b>` (run `sample` first).
 - **Exit 2:** a corpus file cannot be read or written.
 
+## `corpus coverage`
+
+Shows how the corpus is spread across the taxonomy, what the next n events will add, and what a
+draft taxonomy would change (owner request, 2026-09-29). Read-only: it writes nothing. The model
+behind the numbers, `synthbench/taxonomy/coverage.py`, is the sampler's own distribution, and a
+test checks it against real draws.
+
+| Option             | Default        | Meaning                                                                 |
+| ------------------ | -------------- | ----------------------------------------------------------------------- |
+| `--n <n>`          | 400            | the next n events to plan, 1-100000                                     |
+| `--only <ids>`     | every scenario | draw the next n from these scenarios only, as `sample --only`           |
+| `--against <file>` | none           | compare a draft taxonomy YAML with the committed one; not with `--only` |
+
+- **Reads:** the committed taxonomy, `corpus.json`, `index.jsonl`, every `events/B/<id>/spec.json`
+  and, with `--against`, that one file.
+- **Writes:** nothing. A draft is never installed.
+- **Prints**, for every declared value of the scenario axis and then property, zone, camera,
+  lighting and weather:
+  - `p`: each value's long-run chance per event;
+  - `to 30`: how many more events 30 of the value would take, by chance, counting every drawn
+    event that has not failed (`never` if no scenario can show the value);
+  - `expect` (`share` for scenarios), `drawn` and `ready`: what the corpus holds against what
+    `p` predicts;
+  - `next <n>`: what the next n events would add. The scenarios come from the same allocation
+    `sample` makes, so the next n include the catch-up after a `--only` batch.
+- **Also prints:**
+  - for each design space: how many rows it has (a designed quota's size), how many are drawn
+    now and after the next n, and the events a random draw needs to touch 90% and 95% of the
+    rows;
+  - every value with `p` under 2%: how many scenarios can show it, counted by label (none
+    benign means no false-alarm rate for that value), and the three likeliest to.
+- **With `--against`:** the count of scenarios, properties, zones, cameras, cells and design-space
+  rows on each side, and every value whose `p` moves (`none` if none does). A value only one side
+  declares is marked `(new)` or `(dropped)`. A draft that keeps the committed `version` gets a
+  warning: installed like that, it would make every command exit 2.
+- **Exit 1:** a bad `--n`, an unknown scenario in `--only`, `--only` with `--against`, or a
+  draft that does not load.
+- **Exit 2:** the committed taxonomy does not load or no longer matches `corpus.json`, or a
+  corpus file cannot be read.
+
 ## `corpus snapshot`
 
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots

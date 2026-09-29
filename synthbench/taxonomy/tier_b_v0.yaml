@@ -1,14 +1,19 @@
 # Tier B v0 taxonomy slice (spec §1.2; agent-driven design §3).
 #
 # The sampler draws every ground-truth fact from this file. P3's `synthbench check` requires a
-# prompt to use one term from the list of each subject's and prop's class. Editing this file
+# prompt to use one term from the list of each subject's and prop's class. Changing a value here
 # changes its sha256, and `python -m synthbench sample` then refuses to add batches to a corpus
-# version built from the old file: a changed taxonomy needs a new corpus version.
+# version built from the old file: a changed taxonomy needs a new corpus version. Comments and
+# layout do not move the hash (`taxonomy_sha256` hashes the validated model as canonical JSON,
+# owner ruling P3-R2), so annotating this file is safe; changing a term, weight or band is not.
 #
-# OWNER REVIEW: the scenario list, labels, risk bands and weights below are a v0 draft (plan
-# ruling P2-R4). The spec's label set is incident / benign / ambiguous (§1.3), so suspicious
-# scenarios are labeled incident with lower risk bands, and hard negatives are benign by
-# definition. Left out of v0: assault (hard to show without injury detail, §3.8) and camera
+# SIGNED OFF by the owner on 2026-09-29, after pilot-1 (10 events) and batch-1 (50 events) were
+# both rendered from it with 0 failed events. tierb-v0 is the taxonomy those 60 events rest on.
+#
+# ORIGINAL OWNER REVIEW NOTE: the scenario list, labels, risk bands and weights below were a v0
+# draft (plan ruling P2-R4). The spec's label set is incident / benign / ambiguous (§1.3), so
+# suspicious scenarios are labeled incident with lower risk bands, and hard negatives are benign
+# by definition. Left out of v0: assault (hard to show without injury detail, §3.8) and camera
 # tampering (it needs the tampered camera's own view).
 #
 # Times are quoted: YAML 1.1 reads an unquoted 16:30 as the base-60 integer 990.
