@@ -2,6 +2,17 @@
 
 ## Start here
 
+> **Currency — 2026-09-29 [V].** The sentence below ("**Nothing is implemented yet.**") was true
+> when written and is now **false** — `4bfd6fa4` made the VLM path the shipped default on
+> 2026-09-27 (`docker-compose.prod.yml:578`), and ledger items 38-41 are a real A5500 run against
+> it. It survived this long because no CI gate reads these status lines. **For "what has actually
+> run?", do not route by this page — route to the ledger**,
+> [`2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md); this
+> directory stays the research record. M1 is still open — the run's close pointer says the
+> notification link is unwired (ledger `:415`) and S3 sits below its bar in every arm measured
+> (`10/20` at `:401` against `S3_MIN = 90%` at `:221`) — so "implemented" is not "accepted". The
+> sentence stays as the record of 2026-09-23.
+
 This directory is the **research record** behind an approved design for running a VSS-style AI tier
 on one consumer-class GPU. **Nothing is implemented yet.** Pick your branch:
 
