@@ -41,6 +41,7 @@ Unit tests for `synthbench/generate/` (the durable generation stack: pinned weig
 | `test_command_reference.py`   | `docs/synthbench/command-reference.md` and `agent-handoff.md` against argparse                 |
 | `test_export_vss.py`          | `python -m synthbench export vss`: categories, ready-only, reruns, the importer round trip     |
 | `test_audit.py`               | `synthbench/audit/`: the stratified sample, the questions, the page's handler and answer log   |
+| `test_replay.py`              | `python -m synthbench replay`: the pre-run checks, the import gate, both client paths          |
 
 ## Running Tests
 

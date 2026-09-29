@@ -19,6 +19,7 @@ from synthbench.commands import (
     doctor,
     export,
     render,
+    replay,
     report,
     sample,
     triage,
@@ -48,6 +49,7 @@ COMMANDS: tuple[ModuleType, ...] = (
     doctor,
     export,
     audit,
+    replay,
 )
 
 

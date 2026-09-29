@@ -251,6 +251,39 @@ values, drawn with a fixed seed. It runs until Ctrl-C.
   `http://127.0.0.1:8765/`.
 - **Exit 1:** the export has no sets, or the port cannot be opened.
 
+## `replay`
+
+Owner only. Replays one served VLM over the exported items through the shipped replay
+(`backend/evaluation/vlm_replay.py`), for P5a
+(`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §3). The model must
+already be served: `replay` never starts, stops or reconfigures a model server.
+
+| Option           | Default                                  | Meaning                                                                            |
+| ---------------- | ---------------------------------------- | ---------------------------------------------------------------------------------- |
+| `--model <name>` | required                                 | `qwen3-vl-8b`, `qwen3-vl-4b`, `nemotron-12b-vl`, `cosmos-reason2-8b` or `flagship` |
+| `--url <url>`    | per model (below)                        | the model's endpoint                                                               |
+| `--limit <n>`    | every item                               | replay only the first n items                                                      |
+| `--export <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory                                                                   |
+
+- **Endpoints:** the three `ai-vlm` models at `$AI_VLM_URL`, else `http://127.0.0.1:8098`;
+  `cosmos-reason2-8b` at `$SYNTHBENCH_COSMOS_URL`, else `http://127.0.0.1:8099`; `flagship` at
+  `$SYNTHBENCH_FLAGSHIP_URL`, else `http://127.0.0.1:8000`.
+- **Checks, before the first item:** the endpoint answers; the renderer is stopped
+  (`synthbench-renderer` is not active and no `synthbench-comfyui` container runs); the endpoint
+  serves the named model (for `ai-vlm`, the model file stem `/props` reports; for vLLM, an id in
+  `/v1/models`).
+- **Client:** the shipped `VlmClient`, reading stills from the export. vLLM models run it with the
+  enforcement probe off (vLLM has no `/props`) and the served model's name added to each request.
+- **Reads:** the export's sets.
+- **Writes:** imports the export into `$SYNTHBENCH_ROOT/eval/<version>/eval.sqlite` (a set
+  already imported is skipped), then the replay's results there under a new eval run id, and
+  `$SYNTHBENCH_ROOT/runs/replays/<replay_id>/run.json`: the model, endpoint, build, eval run id,
+  commit and the replay's report.
+- **Prints:** the items replayed, S2 false alarms, S3 incidents at level, refusals, and the path
+  of `run.json`.
+- **Exit 1:** the export has no sets.
+- **Exit 2:** a check failed, or a set did not import for a reason other than "already imported".
+
 ## `corpus snapshot`
 
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots
