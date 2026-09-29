@@ -103,11 +103,13 @@ def build(run: Runner = subprocess.run) -> None:
     run(build_args(), check=True, env=podman_env())
 
 
-def run_args(cfg: ServeConfig) -> list[str]:
+def run_args(cfg: ServeConfig, *, detach: bool = True, extra: Sequence[str] = ()) -> list[str]:
+    """podman run arguments. The renderer unit runs it in the foreground (detach=False) so the
+    unit's state is the container's; `extra` goes after the image, to ComfyUI's main.py."""
     return [
         *podman_argv(),
         "run",
-        "-d",
+        *(["-d"] if detach else []),
         "--rm",
         "--name",
         CONTAINER,
@@ -130,6 +132,7 @@ def run_args(cfg: ServeConfig) -> list[str]:
         "-v",
         f"{cfg.cache_dir}:/root/.cache",
         IMAGE,
+        *extra,
     ]
 
 

@@ -280,6 +280,14 @@ class TestFailuresSurface:
         assert timeouts == [30]
 
 
+def test_the_renderer_unit_runs_comfyui_in_the_foreground_with_extra_arguments() -> None:
+    cfg = serve.ServeConfig.from_env({})
+    argv = serve.run_args(cfg, detach=False, extra=("--reserve-vram", "4"))
+    assert "-d" not in argv
+    assert argv[-3:] == [serve.IMAGE, "--reserve-vram", "4"]
+    assert "-d" in serve.run_args(cfg)
+
+
 def _containerfile() -> str:
     return (serve.CONTAINERFILE_DIR / "Containerfile").read_text()
 
