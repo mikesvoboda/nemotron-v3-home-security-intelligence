@@ -20,7 +20,7 @@ When an item is picked up, move it into its own spec and mark it here with the d
 | R5  | Per-camera plain-language rules on stills                                        | Go-live holds                                                                         | [`10`](10-audit-feature-inventory.md) §7 item 3, E26                                         |
 | R6  | Text-prompt detection with YOLO-World                                            | Any time after M1                                                                     | [`10`](10-audit-feature-inventory.md) §7 item 8                                              |
 | R7  | Audio understanding                                                              | An audio-capable model under ~20 GB exists                                            | [`10`](10-audit-feature-inventory.md) §3B                                                    |
-| R8  | Delete retired enrichment code, tables and panels, and the legacy LLM path       | Go-live holds 14 days                                                                 | Design §4, [`06`](06-repo-a-readiness.md) §2, §2a                                            |
+| R8  | Delete retired enrichment code, tables and panels, and the legacy LLM path       | **Picked up 2026-09-29 [O]** — trigger reversed by owner instruction                  | **§R8 (own spec, dated there)**, Design §4, [`06`](06-repo-a-readiness.md) §2, §2a           |
 | R9  | Upstream contributions to VSS                                                    | M4 evidence exists and the VSS team has been asked which "not on the roadmap" applies | §R9, [`08`](08-audit-profile-anatomy.md) §1.7, §9                                            |
 | R10 | Final model choices: reasoning LLM and VLM                                       | The owner selects (the VLM at M2)                                                     | §R10                                                                                         |
 | R11 | Product support for tiers beyond 24 GB (halo 32 GB, volume 12-16 GB, entry 8 GB) | The Brev measurements (design step 2.3) are in                                        | [`05`](05-hardware-profiles.md), E1-E3                                                       |
@@ -106,6 +106,15 @@ Glass break, alarms and raised voices are valuable signals. The smallest VSS aud
 30B-A3B) needs ~29 GB and fits no consumer card. First confirm whether Foscam clips carry audio.
 
 ## R8. Post-go-live deletion
+
+> **Picked up — 2026-09-29 [O].** R8 left the deferred index by owner instruction and has its own
+> spec: [`2026-09-28-r8-legacy-retirement-design.md`](../superpowers/specs/2026-09-28-r8-legacy-retirement-design.md).
+> Its trigger here ("Go-live holds 14 days") was **reversed**, not met — the owner opened it early,
+> ruled that backwards compatibility is not required and that `PIPELINE_MODE=legacy` must **raise**,
+> and ruled out the A5500 for this work. That spec, plus the measured scope at
+> [`2026-09-28-r8-legacy-retirement-scope.md`](../plans/2026-09-28-r8-legacy-retirement-scope.md),
+> is now the authority on what goes; the text below stays as the 2026-09-23 record and is where
+> §2a's parked question and the `__pycache__` trap are still explained.
 
 **What goes:** retire Florence-2, the heavy enrichment models, the in-process loaders the VLM path
 no longer calls, the pose/demographics/clothing child tables, and their frontend panels (the
