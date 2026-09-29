@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from types import ModuleType
 
 from synthbench.commands import (
+    audit,
     camera,
     check,
     corpus,
@@ -46,6 +47,7 @@ COMMANDS: tuple[ModuleType, ...] = (
     corpus,
     doctor,
     export,
+    audit,
 )
 
 

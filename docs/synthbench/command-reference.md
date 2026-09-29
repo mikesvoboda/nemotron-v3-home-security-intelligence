@@ -229,6 +229,28 @@ and never writes it.
   event has no still, an event's label disagrees with its group, or a corpus file cannot be read
   or written.
 
+## `audit`
+
+Owner only. Serves the owner's audit page on `127.0.0.1` for the P5a replay's truth check
+(`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §4): 60 exported stills,
+20 threat, 10 suspicious, 15 hard negative and 15 benign, each stratum spread across its lighting
+values, drawn with a fixed seed. It runs until Ctrl-C.
+
+| Option           | Default                                  | Meaning          |
+| ---------------- | ---------------------------------------- | ---------------- |
+| `--port <n>`     | 8765                                     | loopback port    |
+| `--export <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory |
+
+- **Reads:** the export's sets (never the corpus) and the answer log.
+- **Writes:** appends one line per answer to `$SYNTHBENCH_ROOT/audits/<version>/audit.jsonl`
+  (`event_id`, `question`, `answer`, `time`). The latest answer per question wins, so the owner can
+  stop and resume, and change an answer.
+- **Questions** (`y` yes, `n` no, `u` unclear): scene ("Does this show …?"), prop (threat scenes:
+  "Is the … visible?"), people ("Exactly N person(s)?") and conditions (lighting and weather).
+- **From another machine:** `ssh -L 8765:127.0.0.1:8765 <this host>`, then open
+  `http://127.0.0.1:8765/`.
+- **Exit 1:** the export has no sets, or the port cannot be opened.
+
 ## `corpus snapshot`
 
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots

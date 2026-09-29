@@ -40,6 +40,7 @@ Unit tests for `synthbench/generate/` (the durable generation stack: pinned weig
 | `test_cli_doctor.py`          | `python -m synthbench doctor`: each check's ok/FAIL/WAIT line, exit codes, the cv2 lazy import |
 | `test_command_reference.py`   | `docs/synthbench/command-reference.md` and `agent-handoff.md` against argparse                 |
 | `test_export_vss.py`          | `python -m synthbench export vss`: categories, ready-only, reruns, the importer round trip     |
+| `test_audit.py`               | `synthbench/audit/`: the stratified sample, the questions, the page's handler and answer log   |
 
 ## Running Tests
 

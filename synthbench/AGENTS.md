@@ -19,6 +19,7 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 | `cli.py` + `__main__.py`                      | `python -m synthbench <command>`; exit 0 done, 1 error, 2 stop and ask the owner                  |
 | `commands/`                                   | one module per command, all listed in `docs/synthbench/command-reference.md`; `cli.py` dispatches |
 | `export/`                                     | exports of corpus events for other tools: `vss.py`, the VSS eval store's import layout (P5a)      |
+| `audit/`                                      | the owner's audit: the stratified 60-still sample, its questions and the loopback page (P5a)      |
 | `prompt/`                                     | the prompt rules and the content blocklist that `check` enforces                                  |
 | `status.py`                                   | the host status files (`status/flagship.json`, `status/snapshots.json`)                           |
 | `generate/render.py`                          | ComfyUI discovery, yield to the flagship, the per-attempt FLUX.2 graph                            |
