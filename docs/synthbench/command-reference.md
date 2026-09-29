@@ -202,6 +202,33 @@ test checks it against real draws.
 - **Exit 2:** the committed taxonomy does not load or no longer matches `corpus.json`, or a
   corpus file cannot be read.
 
+## `export vss`
+
+Owner only. Writes every ready Tier B event in the layout the VSS eval store imports
+(`import_generated_items` in `backend/evaluation/label_import.py`), for P5a's replay
+(`docs/superpowers/specs/2026-09-29-synthbench-p5a-vlm-replay-design.md` §2). It reads the corpus
+and never writes it.
+
+| Option        | Default                                  | Meaning          |
+| ------------- | ---------------------------------------- | ---------------- |
+| `--out <dir>` | `$SYNTHBENCH_ROOT/exports/<version>/vss` | export directory |
+
+- **Reads:** `corpus.json`, `index.jsonl`, and each ready event's `spec.json`, `provenance.json`
+  and still.
+- **Writes:** `<out>/<category>/<id>/` holding `expected_labels.json`, `still.jpg` and
+  `still.json` (its attribution). Each set is written once; a re-export skips an identical set.
+- **Categories:** benign and hard_negative go to `normal/`, suspicious to `suspicious/`, threat to
+  `threats/`. Ambiguous events are not exported: S2 and S3 count neither label.
+- **`expected_labels.json`:** `category`, `risk` (the risk band), `timestamp` (the scene time on
+  2026-04-15, or 2026-01-15 for snow, in America/New_York) and a `synthbench` block with the
+  event's facts.
+- **Prints:** how many sets were written and how many were unchanged, and how many events were not
+  exported, by reason.
+- **Exit 1:** the corpus has no events.
+- **Exit 2:** a set on disk differs from the corpus, a still no longer matches its sha256, a ready
+  event has no still, an event's label disagrees with its group, or a corpus file cannot be read
+  or written.
+
 ## `corpus snapshot`
 
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots

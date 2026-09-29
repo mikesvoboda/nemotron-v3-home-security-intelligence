@@ -11,7 +11,17 @@ import os
 from collections.abc import Mapping, Sequence
 from types import ModuleType
 
-from synthbench.commands import camera, check, corpus, doctor, render, report, sample, triage
+from synthbench.commands import (
+    camera,
+    check,
+    corpus,
+    doctor,
+    export,
+    render,
+    report,
+    sample,
+    triage,
+)
 from synthbench.commands.common import (
     ASK_OWNER,
     EXIT_ASK,
@@ -35,6 +45,7 @@ COMMANDS: tuple[ModuleType, ...] = (
     report,
     corpus,
     doctor,
+    export,
 )
 
 
