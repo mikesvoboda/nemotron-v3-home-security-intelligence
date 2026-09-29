@@ -287,6 +287,13 @@ jobs:
         env:
           VERSION: ${{ needs.analyze.outputs.next_version }}
         run: |
+          # Annotated tags record a tagger identity, and the runner image
+          # ships no git user ("Committer identity unknown", exit 128).
+          # Until #6711 these two config lines lived in the removed
+          # "Commit version bump" step - the tag step silently depended on
+          # them. Same identity the v0.1.0 tag object carries.
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "$VERSION"
 
