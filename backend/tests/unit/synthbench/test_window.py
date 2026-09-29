@@ -121,7 +121,7 @@ class TestWindowPaths:
             tmp_path / "state/window.lock",
         )
         monkeypatch.delenv("SYNTHBENCH_ROOT")
-        assert gw.WindowPaths.from_env().state_dir == Path("/export/synthbench/state")
+        assert gw.WindowPaths.from_env().state_dir == Path("/synthbench/state")
 
 
 class TestGpuWindow:
