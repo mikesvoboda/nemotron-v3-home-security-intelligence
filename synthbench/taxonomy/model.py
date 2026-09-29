@@ -7,6 +7,7 @@ and P3's `synthbench check` requires a prompt to mention one term from each.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Self
@@ -144,7 +145,18 @@ def load_taxonomy(path: Path = DEFAULT_TAXONOMY) -> Taxonomy:
 
 
 def taxonomy_sha256(path: Path = DEFAULT_TAXONOMY) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """sha256 of the validated taxonomy as canonical JSON (owner ruling P3-R2, 2026-09-28).
+
+    Comments, key order, quoting and layout in the YAML do not change it; any value does,
+    including a default the model fills in.
+    """
+    canonical = json.dumps(
+        load_taxonomy(path).model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _duplicates(ids: Sequence[str]) -> list[str]:

@@ -225,6 +225,16 @@ def test_bad_requests_exit_1(
     assert not (tmp_path / "corpus" / "tierb-v0" / "corpus.json").exists()
 
 
+def test_a_rerun_accepts_specs_whose_prompt_is_frozen(tmp_path: Path) -> None:
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_OK
+    store = _store(tmp_path)
+    path = store.spec_file("B-pilot-1-001")
+    frozen = store.read(path, Spec).with_prompt("a person waits at the door", "the suffix")
+    store.replace_json(path, frozen)
+    assert _run(tmp_path, "--batch", "pilot-1", "--n", "3") == cli.EXIT_OK
+    assert store.read(path, Spec) == frozen
+
+
 def test_python_dash_m_synthbench_runs() -> None:
     done = subprocess.run(  # intentional - tests the real python -m entry point
         [sys.executable, "-m", "synthbench", "sample", "--help"],

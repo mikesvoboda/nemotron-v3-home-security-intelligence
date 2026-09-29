@@ -74,7 +74,7 @@ class ServeConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ServeConfig:
         e = os.environ if env is None else env
-        root = Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench"))
+        root = Path(e.get("SYNTHBENCH_ROOT", "/synthbench"))
         return cls(
             port=int(e.get("SYNTHBENCH_COMFYUI_PORT", "8188")),
             models_root=Path(e.get("HF_HOME", "/export/models")),
@@ -103,11 +103,13 @@ def build(run: Runner = subprocess.run) -> None:
     run(build_args(), check=True, env=podman_env())
 
 
-def run_args(cfg: ServeConfig) -> list[str]:
+def run_args(cfg: ServeConfig, *, detach: bool = True, extra: Sequence[str] = ()) -> list[str]:
+    """podman run arguments. The renderer unit runs it in the foreground (detach=False) so the
+    unit's state is the container's; `extra` goes after the image, to ComfyUI's main.py."""
     return [
         *podman_argv(),
         "run",
-        "-d",
+        *(["-d"] if detach else []),
         "--rm",
         "--name",
         CONTAINER,
@@ -130,10 +132,16 @@ def run_args(cfg: ServeConfig) -> list[str]:
         "-v",
         f"{cfg.cache_dir}:/root/.cache",
         IMAGE,
+        *extra,
     ]
 
 
-def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
+def prepare(cfg: ServeConfig) -> None:
+    """The renderer's directories, and the farm the image was built for.
+
+    Raises ServeError if HF_HOME does not hold the farm the image loads models from
+    (`host.renderer.prepare` wraps this into a problem list instead of raising).
+    """
     farm, baked = cfg.models_root / "comfyui", baked_farm_root()
     if farm != baked:
         raise ServeError(
@@ -143,6 +151,10 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
     cfg.cache_dir.mkdir(parents=True, exist_ok=True)
     cfg.log_file.parent.mkdir(parents=True, exist_ok=True)
+
+
+def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
+    prepare(cfg)
     try:
         run(run_args(cfg), check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
@@ -152,12 +164,16 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
 
 
 def stop(run: Runner = subprocess.run) -> None:
-    """Stop the renderer; a missing one is fine (--ignore), a failed stop is logged."""
+    """Stop the renderer; a missing one is fine (--ignore), a failed stop is logged.
+
+    A podman that hangs raises TimeoutExpired after 90 s, so it cannot block the guard forever.
+    """
     done = run(
         [*podman_argv(), "stop", "--ignore", "--time", "30", CONTAINER],
         check=False,
         capture_output=True,
         text=True,
+        timeout=90,
     )
     if done.returncode != 0:
         _warn(f"podman stop {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")
@@ -180,6 +196,78 @@ def container_alive(run: Runner = subprocess.run) -> bool:
     except subprocess.TimeoutExpired:
         return True
     return done.returncode != 1
+
+
+def container_running(run: Runner = subprocess.run) -> bool:
+    """True while the renderer container exists and podman reports it actually running.
+
+    A container that exists but is not running (podman's stuck Removing state; a crash) is not
+    "running" (False), unlike `container_alive`. Composes with `container_alive` for the
+    exists/gone split, since `podman container exists` already tells a genuinely missing
+    container from a podman problem cleanly by exit code: a missing container means False. Once
+    it exists, `podman container inspect -f '{{.State.Running}}'` says whether it runs; any
+    other failure there (a hang, or an error once existence is confirmed) is a podman problem,
+    not evidence it stopped, so this stays conservative and reports True.
+    """
+    if not container_alive(run):
+        return False
+    try:
+        done = run(
+            [*podman_argv(), "container", "inspect", "-f", "{{.State.Running}}", CONTAINER],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return True
+    if done.returncode != 0:
+        return True
+    return done.stdout.strip() == "true"
+
+
+def force_remove(run: Runner = subprocess.run) -> None:
+    """Force-remove a leftover container; a missing one is fine (--ignore), a failed removal is
+    logged. Used once a stop leaves a container that exists but is not running: `stop` has
+    nothing left to signal, so this clears it directly (the podman generate systemd pattern)."""
+    done = run(
+        [*podman_argv(), "rm", "-f", "--ignore", CONTAINER],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if done.returncode != 0:
+        _warn(f"podman rm -f {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")
+
+
+def cleanup(run: Runner = subprocess.run) -> None:
+    """The renderer unit's ExecStopPost (host/units.py): force-remove a stopped leftover, but
+    never touch a container that is still running.
+
+    ExecStopPost runs after every stop, but systemd also runs it after a failed
+    ExecStartPre/ExecStart/ExecStartPost — including the renderer's own pre-start refusal, which
+    fires exactly when a synthbench-comfyui container already exists. That can be a renderer
+    started by hand (`serve up`), or an owner GPU window's ComfyUI reusing the same container
+    name: an unconditional `rm -f` there would kill it right after the refusal. So this checks
+    `container_running` first and leaves a running container alone.
+
+    Never raises and never signals failure (`main` always returns 0 for this command): systemd
+    would mark the unit failed if ExecStopPost exited non-zero, which would leave the renderer
+    refusing to start even though the stop itself succeeded.
+    """
+    try:
+        running = container_running(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        _warn(f"podman container inspect {CONTAINER} failed: {error}")
+        running = True  # conservative: leave it alone rather than remove blind
+    if running:
+        _warn(f"a running {CONTAINER} container is left alone")
+        return
+    try:
+        force_remove(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        _warn(f"podman rm -f {CONTAINER} failed: {error}")
 
 
 def wait_ready(
@@ -217,7 +305,7 @@ def wait_ready(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m synthbench.generate.comfy.serve")
-    parser.add_argument("command", choices=["build", "up", "down"])
+    parser.add_argument("command", choices=["build", "up", "down", "cleanup"])
     args = parser.parse_args(argv)
     cfg = ServeConfig.from_env()
     if args.command == "build":
@@ -227,6 +315,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         start(cfg)
         stats = wait_ready(cfg.base_url, alive=container_alive, log_file=cfg.log_file)
         sys.stdout.write(json.dumps(stats, indent=1) + "\n")
+        return 0
+    if args.command == "cleanup":
+        cleanup()
         return 0
     stop()
     return 0

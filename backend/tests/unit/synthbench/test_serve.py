@@ -43,8 +43,8 @@ class TestConfig:
         cfg = serve.ServeConfig.from_env({})
         assert cfg.port == 8188
         assert cfg.models_root == Path("/export/models")
-        assert cfg.out_dir == Path("/export/synthbench/comfy-out")
-        assert cfg.cache_dir == Path("/export/synthbench/cache")
+        assert cfg.out_dir == Path("/synthbench/comfy-out")
+        assert cfg.cache_dir == Path("/synthbench/cache")
         assert cfg.base_url == "http://127.0.0.1:8188"
 
     def test_env_overrides(self) -> None:
@@ -70,6 +70,20 @@ class TestRunArgs:
         assert args[-1] == serve.IMAGE == "localhost/synthbench-comfyui:v0.37.0"
 
 
+class TestPrepare:
+    """start()'s pre-start block, factored out so host.renderer.prepare can reuse it."""
+
+    def test_a_farm_mismatch_raises(self, tmp_path: Path) -> None:
+        cfg = serve.ServeConfig(18188, Path("/data/hf"), tmp_path / "out", tmp_path / "cache")
+        with pytest.raises(serve.ServeError, match=r"/data/hf/comfyui.*/export/models/comfyui"):
+            serve.prepare(cfg)
+
+    def test_on_success_the_directories_exist(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        serve.prepare(cfg)
+        assert cfg.out_dir.is_dir() and cfg.cache_dir.is_dir() and cfg.log_file.parent.is_dir()
+
+
 class TestStartStop:
     def test_start_creates_dirs_and_runs(self, tmp_path: Path) -> None:
         run = FakeRunner()
@@ -90,6 +104,16 @@ class TestStartStop:
         serve.stop(run=run)
         err = capsys.readouterr().err
         assert "125" in err and "container is locked" in err
+
+    def test_stop_is_bounded_so_a_hung_podman_cannot_block_the_guard(self) -> None:
+        timeouts: list[float | None] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            timeouts.append(kw.get("timeout"))
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        serve.stop(run=run)
+        assert timeouts == [90]
 
     def test_start_refuses_a_farm_the_image_does_not_load(self, tmp_path: Path) -> None:
         # The image's extra_model_paths.yaml loads from /export/models/comfyui; another
@@ -159,7 +183,7 @@ class TestWaitReady:
 
 
 class TestMain:
-    def test_dispatches_build_up_and_down(
+    def test_dispatches_build_up_down_and_cleanup(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         calls: list[str] = []
@@ -175,8 +199,9 @@ class TestMain:
         monkeypatch.setattr(serve, "start", lambda cfg: calls.append(f"start {cfg.port}"))
         monkeypatch.setattr(serve, "wait_ready", fake_wait)
         monkeypatch.setattr(serve, "stop", lambda: calls.append("stop"))
-        assert [serve.main([c]) for c in ("build", "up", "down")] == [0, 0, 0]
-        assert calls == ["build", "start 18188", "stop"]
+        monkeypatch.setattr(serve, "cleanup", lambda: calls.append("cleanup"))
+        assert [serve.main([c]) for c in ("build", "up", "down", "cleanup")] == [0, 0, 0, 0]
+        assert calls == ["build", "start 18188", "stop", "cleanup"]
         assert json.loads(capsys.readouterr().out) == {"url": "http://127.0.0.1:18188"}
         # `up` stops waiting as soon as the container is gone, and points at its log.
         assert waited == {
@@ -193,9 +218,7 @@ class TestFailuresSurface:
     """A dead renderer or a podman error surfaces at once, with its cause."""
 
     def test_the_log_file_lives_under_synthbench_root(self) -> None:
-        assert serve.ServeConfig.from_env({}).log_file == Path(
-            "/export/synthbench/logs/comfyui.log"
-        )
+        assert serve.ServeConfig.from_env({}).log_file == Path("/synthbench/logs/comfyui.log")
         assert serve.ServeConfig.from_env({"SYNTHBENCH_ROOT": "/r"}).log_file == Path(
             "/r/logs/comfyui.log"
         )
@@ -278,6 +301,121 @@ class TestFailuresSurface:
 
         assert serve.container_alive(run=run) is True
         assert timeouts == [30]
+
+    def test_container_running_is_false_once_the_container_is_gone(self) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            assert kw["check"] is False
+            return subprocess.CompletedProcess(argv, 1, "", "")  # "exists": gone
+
+        assert serve.container_running(run=run) is False
+        # Missing: container_running stops at the exists check, never runs inspect.
+        assert calls == [[*podman_argv(), "container", "exists", serve.CONTAINER]]
+
+    @pytest.mark.parametrize(
+        ("stdout", "running"), [("true\n", True), ("false\n", False)], ids=["running", "stopped"]
+    )
+    def test_container_running_reads_podmans_state(self, stdout: str, running: bool) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+        assert serve.container_running(run=run) is running
+        assert calls[-1] == [
+            *podman_argv(),
+            "container",
+            "inspect",
+            "-f",
+            "{{.State.Running}}",
+            serve.CONTAINER,
+        ]
+
+    def test_container_running_stays_conservative_about_an_inspect_failure(self) -> None:
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 125, "", "Error: internal podman error\n")
+
+        assert serve.container_running(run=run) is True
+
+    def test_container_running_is_bounded_and_a_hung_inspect_counts_as_running(self) -> None:
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            raise subprocess.TimeoutExpired(argv, kw["timeout"])
+
+        assert serve.container_running(run=run) is True
+
+    def test_force_remove_ignores_a_missing_container(self) -> None:
+        run = FakeRunner()
+        serve.force_remove(run=run)
+        assert run.calls == [[*podman_argv(), "rm", "-f", "--ignore", serve.CONTAINER]]
+
+    def test_force_remove_logs_a_failed_removal(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(argv, 125, "", "Error: container is locked\n")
+
+        serve.force_remove(run=run)
+        err = capsys.readouterr().err
+        assert "125" in err and "container is locked" in err
+
+    def test_cleanup_force_removes_a_stopped_container(self) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            if argv[-5:] == ["container", "inspect", "-f", "{{.State.Running}}", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "false\n", "")  # not running
+            return subprocess.CompletedProcess(argv, 0, "", "")  # rm -f
+
+        serve.cleanup(run=run)
+        assert calls[-1] == [*podman_argv(), "rm", "-f", "--ignore", serve.CONTAINER]
+
+    def test_cleanup_leaves_a_running_container_alone(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """ExecStopPost also runs after a failed ExecStartPre, which is exactly when the
+        renderer's precheck refuses because a synthbench-comfyui container already exists —
+        possibly a renderer started by hand, or an owner GPU window's ComfyUI. cleanup must not
+        kill it."""
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 0, "true\n", "")  # running
+
+        serve.cleanup(run=run)
+        assert len(calls) == 2  # exists, inspect - rm -f never runs
+        assert "a running synthbench-comfyui container is left alone" in capsys.readouterr().err
+
+    def test_cleanup_swallows_errors(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            if argv[-5:] == ["container", "inspect", "-f", "{{.State.Running}}", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "false\n", "")  # not running
+            raise OSError("podman: too many open files")  # the rm -f itself is broken
+
+        serve.cleanup(run=run)  # must not raise
+        assert "too many open files" in capsys.readouterr().err
+
+
+def test_the_renderer_unit_runs_comfyui_in_the_foreground_with_extra_arguments() -> None:
+    cfg = serve.ServeConfig.from_env({})
+    argv = serve.run_args(cfg, detach=False, extra=("--reserve-vram", "4"))
+    assert "-d" not in argv
+    assert argv[-3:] == [serve.IMAGE, "--reserve-vram", "4"]
+    assert "-d" in serve.run_args(cfg)
 
 
 def _containerfile() -> str:

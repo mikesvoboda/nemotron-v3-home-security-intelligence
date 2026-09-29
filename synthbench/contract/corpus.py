@@ -7,11 +7,12 @@ from typing import Literal, Self
 from pydantic import Field, model_validator
 
 from synthbench.contract.common import SLUG, ContractModel, Label, Sha256
+from synthbench.contract.provenance import Triage, TriageReason
 
 # Agent-driven design G7: Tier B renders at 1280x720; the camera stage makes the 1920x1080 still.
 TIER_B_RENDER_SIZE = (1280, 720)
 
-EventStatus = Literal["sampled", "prompted", "rendered", "failed"]
+EventStatus = Literal["sampled", "prompted", "rendered", "ready", "rerolled", "failed"]
 
 
 class CorpusManifest(ContractModel):
@@ -64,3 +65,28 @@ class IndexRow(ContractModel):
     label: Label
     status: EventStatus
     time: str
+
+
+class PromptRow(ContractModel):
+    """One prompts.jsonl row, written by the agent (design §3 step 2)."""
+
+    event_id: str
+    prompt: str
+
+
+class TriageRow(ContractModel):
+    """One triage.jsonl row: the agent's verdict on attempt k's still (design §3 step 6)."""
+
+    event_id: str
+    k: int = Field(ge=1)
+    verdict: Literal["ok", "reroll"]
+    reason: TriageReason | None = None
+
+    @model_validator(mode="after")
+    def _reason_matches_verdict(self) -> Self:
+        if (self.verdict == "reroll") != (self.reason is not None):
+            raise ValueError("a reroll needs a reason from the list; an ok verdict has none")
+        return self
+
+    def triage(self) -> Triage:
+        return Triage(verdict=self.verdict, reason=self.reason)

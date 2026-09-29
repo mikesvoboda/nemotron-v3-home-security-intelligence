@@ -1,0 +1,61 @@
+# A tiny taxonomy for the sampler's golden-hash test. Do not edit: the digest pinned in
+# test_sampler.py depends on every value here.
+version: tiny-v0
+
+zones: [porch, yard, kitchen]
+
+lighting:
+  - { id: day, hours: [['08:00', '16:59']], weight: 3 }
+  - { id: ir_night, hours: [['21:00', '04:59']], weight: 1 }
+  - { id: porch_lit_night, hours: [['21:00', '04:59']], weight: 1, outdoor_only: true }
+
+weather:
+  - { id: clear, weight: 3 }
+  - { id: rain, weight: 1 }
+
+artifacts:
+  - { id: lens_droplets, probability: 0.5, weather: [rain], outdoor_only: true }
+  - { id: motion_blur, probability: 0.2 }
+
+cameras:
+  - { id: doorbell, zones: [porch] }
+  - { id: eave, zones: [porch, yard] }
+  - { id: corner, zones: [kitchen], indoor: true }
+
+properties:
+  - { id: house, zones: [porch, yard, kitchen] }
+  - { id: cabin, zones: [porch, yard] }
+
+colors: [black, red]
+garments: [hoodie, coat]
+clothed: [person]
+
+terms:
+  person: [person, man, woman]
+  dog: [dog]
+  package: [package, parcel]
+  knife: [knife]
+
+scenarios:
+  - id: delivery
+    group: benign
+    label: benign
+    risk_band: [0, 20]
+    weight: 2
+    zones: [porch]
+    lighting: [day]
+    subjects: [{ one_of: [person], role: courier }]
+    props: [{ one_of: [package], held_by: 0 }]
+  - id: dog_in_yard
+    group: benign
+    label: benign
+    risk_band: [0, 10]
+    zones: [yard]
+    subjects: [{ one_of: [dog], role: pet }]
+  - id: knife_in_kitchen
+    group: threat
+    label: incident
+    risk_band: [70, 95]
+    zones: [kitchen, porch]
+    subjects: [{ one_of: [person], role: intruder }]
+    props: [{ one_of: [knife], held_by: 0 }]
