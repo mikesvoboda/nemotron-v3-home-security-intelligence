@@ -437,6 +437,19 @@ ignore = [
     "E402", "UP031", "PLW0603", "SIM115", "S108", "C408",
     "ARG005", "S102", "RUF012", "B905", "PLR0911",
 ]
+# campaign-#4 prompts.py batteries (batch-30, 9 files, 2026-09-29): same
+# doctrine — these bytes are single-process trampoline-sweep-verified
+# (752/845 survivor keys RED in the owner sweeps), so the gate adapts to the
+# file. Codes are the MEASURED `ruff check` census on the 9 files:
+# PTH109/PTH113/PTH118 = the frag-era sys.path shim (os.getcwd/isfile/join at
+# module top of a/c/d/e/g; inert in-repo — backend/ is importable there
+# without the shim — and its sibling PTH110/PTH123 are already ignored
+# repo-wide), RUF012 = the @dataclass field defaults in battery i (plain
+# dict= {} defaults on fake-builder classes; every test instantiates its own
+# object and nothing mutates a default in place).
+"backend/tests/unit/services/test_prompts_batch30_*.py" = [
+    "PTH109", "PTH113", "PTH118", "RUF012",
+]
 "backend/tests/unit/services/_b25_dead052_h.py" = [
     "E402", "UP031", "PLW0603", "SIM115", "S108", "C408",
     "ARG005", "S102", "RUF012", "B905", "PLR0911",
