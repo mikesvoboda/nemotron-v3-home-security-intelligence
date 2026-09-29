@@ -48,6 +48,20 @@ restart the guard only while the renderer is stopped.
   exits 2, and it asks you.
 - **Why it refused to start:** `journalctl --user -u synthbench-renderer -n 50` names every
   reason.
+- **"A synthbench-comfyui container is already running" but the unit is not:** check
+  `systemctl --user is-active synthbench-renderer`. If it says `inactive`, the container is
+  probably stuck in podman's `Removing` state (a stop raced the unit's own `ExecStop`; the
+  guard's `stop_renderer` no longer causes this, but a hand-stopped container still can). Clear
+  it with:
+
+  ```bash
+  podman --root /export/models/containers/storage --runroot /run/user/1000/synthbench-containers \
+    rm -f synthbench-comfyui
+  ```
+
+  `--root`/`--runroot` must match `serve.podman_argv()` on this host; confirm with
+  `.venv/bin/python -m synthbench.generate.podman` from the host checkout.
+
 - **ComfyUI's own log:** `/synthbench/logs/comfyui.log`.
 - **Never enable it at boot.** It holds about 50 GiB beside the flagship, and each render slows
   the flagship's decode by about 59%.

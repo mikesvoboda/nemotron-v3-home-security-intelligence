@@ -45,6 +45,20 @@ def test_the_report_counts_states_reasons_and_timing(tmp_path: Path) -> None:
     assert f"| {specs[1].event_id} | {specs[1].cell.scenario} | no_person |" in text
 
 
+def test_p90_uses_nearest_rank_not_a_floor_index(tmp_path: Path) -> None:
+    """Nearest-rank p90 (ceil(0.9 * n)-th smallest) of [5.0, 5.0, 8.3] is 8.3, not the floor
+    index's 5.0."""
+    specs = h.frozen_batch(tmp_path, n=3)
+    store = h.store(tmp_path)
+    for spec, seconds in zip(specs, [5.0, 5.0, 8.3], strict=True):
+        path = store.provenance_file(spec.event_id)
+        prov = store.read(path, Provenance)
+        attempt = prov.attempts[-1]
+        store.replace_json(path, prov.updated(attempts=(attempt.updated(render_seconds=seconds),)))
+    text = _report(tmp_path)
+    assert "3 image(s) rendered: median 5.0 s, p90 8.3 s" in text
+
+
 def test_the_sheet_links_each_still(tmp_path: Path) -> None:
     specs = h.stilled_batch(tmp_path, n=2)
     _report(tmp_path)

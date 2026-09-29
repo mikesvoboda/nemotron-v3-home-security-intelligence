@@ -77,11 +77,20 @@ def probe(url: str, get: Callable[..., httpx.Response]) -> tuple[bool, int | Non
 
 
 def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = _say) -> None:
-    """Stop the renderer unit, then any renderer container started by hand.
+    """Stop the renderer unit; run serve.stop as a fallback only when something is still up.
 
-    Never raises: a stuck or missing systemctl, or a podman failure in the serve.stop
-    fallback, is logged through `say` instead, so a bad stop never crashes the guard.
+    The unit's ExecStop already runs `serve down` (podman stop --rm removes the container), so
+    a second, unconditional podman stop on the same dying container raced it: podman exited 125
+    ("container state improper") and left the container stuck in the Removing state, refusing
+    the next start. serve.stop now runs only when systemctl did not already clear the container:
+    systemctl failed (raised, timed out or exited non-zero), or the container is still alive
+    afterward (one started by hand, outside the unit).
+
+    Never raises: a stuck or missing systemctl, a failed alive check, or a podman failure in
+    the serve.stop fallback, is logged through `say` instead, so a bad stop never crashes the
+    guard.
     """
+    systemctl_ok = False
     try:
         done = run(
             ["systemctl", "--user", "stop", RENDERER_UNIT],
@@ -98,6 +107,17 @@ def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = 
                 f"systemctl --user stop {RENDERER_UNIT} exited {done.returncode}: "
                 f"{(done.stderr or '').strip()}"
             )
+        else:
+            systemctl_ok = True
+
+    needs_fallback = True
+    if systemctl_ok:
+        try:
+            needs_fallback = serve.container_alive(run)
+        except (subprocess.SubprocessError, OSError) as error:
+            say(f"podman container exists {serve.CONTAINER} failed: {error}")
+    if not needs_fallback:
+        return
     try:
         serve.stop(run)
     except (subprocess.SubprocessError, OSError) as error:

@@ -55,6 +55,18 @@ def test_one_failing_prompt_freezes_nothing(
     assert not any(store.provenance_file(s.event_id).exists() for s in specs)
 
 
+def test_a_clock_time_also_fails_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    specs = h.sample(tmp_path, n=3)
+    prompts = {spec.event_id: h.good_prompt(spec) for spec in specs}
+    prompts[specs[1].event_id] += " It happened at 4:40 in the morning."
+    h.write_prompts(tmp_path, "pilot-1", prompts)
+    assert _check(tmp_path) == cli.EXIT_ERROR
+    assert (
+        f'{specs[1].event_id}: rule 4: no clock times ("4:40"): describe the light instead '
+        "(dawn, midday, late evening); the camera stage draws the time"
+    ) in capsys.readouterr().err
+
+
 def test_bad_lines_and_missing_rows_are_the_agents_to_fix(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

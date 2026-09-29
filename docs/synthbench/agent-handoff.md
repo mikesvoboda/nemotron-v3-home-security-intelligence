@@ -114,7 +114,9 @@ Use the spec's facts, and add no person, animal or weapon that is not in it.
    and their plurals (rule 4 of `synthbench/prompt/blocklist.yaml`): `security camera`,
    `cctv`, `surveillance`, `footage`, `camera view`, `timestamp`, `time stamp`, `date stamp`,
    `watermark`, `caption`, `on screen text`, `text overlay`, `subtitle`, `logo`,
-   `wide angle lens`, `fisheye`.
+   `wide angle lens`, `fisheye`. No clock times: write the light (before dawn, midday), never
+   `4:40` or `9 pm` — FLUX draws a clock time into the image as fake text, and the camera stage
+   already draws the real one.
 
 What the spec's fields mean:
 

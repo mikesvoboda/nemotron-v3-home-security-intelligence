@@ -110,16 +110,35 @@ def test_a_bad_answer_counts_as_unhealthy(
     assert (status.healthy, status.running, status.failures) == (False, None, 1)
 
 
-def test_stop_renderer_stops_the_unit_then_any_hand_started_container() -> None:
+def test_stop_renderer_skips_serve_stop_once_systemctl_removed_the_container() -> None:
+    """ExecStop already ran `serve down` (podman stop --rm removed it): a second podman stop on
+    the same dying container exited 125 live, and stuck it in podman's Removing state."""
     calls: list[list[str]] = []
 
     def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
+        if argv[-3:] == ["container", "exists", "synthbench-comfyui"]:
+            return subprocess.CompletedProcess(argv, 1, "", "")  # gone
         return subprocess.CompletedProcess(argv, 0, "", "")
 
     stop_renderer(run)
     assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
-    assert calls[1][-4:] == ["--ignore", "--time", "30", "synthbench-comfyui"]
+    assert calls[1][-3:] == ["container", "exists", "synthbench-comfyui"]
+    assert len(calls) == 2  # serve.stop never ran: nothing left to stop
+
+
+def test_stop_renderer_runs_serve_stop_when_the_container_survives_the_unit() -> None:
+    """A renderer container started by hand, outside the unit, still gets stopped."""
+    calls: list[list[str]] = []
+
+    def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")  # "exists": 0 means still there
+
+    stop_renderer(run)
+    assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
+    assert calls[1][-3:] == ["container", "exists", "synthbench-comfyui"]
+    assert calls[2][-4:] == ["--ignore", "--time", "30", "synthbench-comfyui"]
 
 
 def test_stop_renderer_logs_a_non_zero_systemctl_exit_instead_of_dropping_it() -> None:

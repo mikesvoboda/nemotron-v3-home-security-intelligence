@@ -202,6 +202,18 @@ def test_corpus_version_mismatch_fails(tmp_path: Path, capsys: pytest.CaptureFix
     ) in out
 
 
+def test_a_corrupt_corpus_json_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _corpus(tmp_path)
+    h.flagship(tmp_path)
+    store = h.store(tmp_path)
+    store.manifest_file.parent.mkdir(parents=True, exist_ok=True)
+    store.manifest_file.write_text("not valid json", encoding="utf-8")
+    with pytest.raises(AskOwner, match="1 problem"):
+        doctor.execute(h.env(tmp_path), _deps())
+    out = capsys.readouterr().out
+    assert f"FAIL corpus version: cannot read {store.manifest_file}" in out
+
+
 def test_every_check_runs_even_when_several_fail(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

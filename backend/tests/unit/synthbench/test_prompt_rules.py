@@ -74,6 +74,40 @@ def test_blocklisted_phrases_break_rules_2_and_4(phrase: str, rule: str) -> None
     assert any(p.startswith(rule) and f"'{phrase.lower()}'" in p for p in found), found
 
 
+_CURLY_APOSTROPHE = chr(0x2019)  # avoids an ambiguous-unicode literal in source, RUF001
+
+
+@pytest.mark.parametrize(
+    ("text", "match"),
+    [
+        ("4:40", "4:40"),
+        ("14:05", "14:05"),
+        ("9pm", "9pm"),
+        ("9 pm", "9 pm"),
+        ("9am", "9am"),
+        ("9 am", "9 am"),
+        ("9p.m.", "9p.m."),
+        ("9 p.m.", "9 p.m."),
+        ("9a.m.", "9a.m."),
+        ("9 a.m.", "9 a.m."),
+        ("nine o'clock", "o'clock"),
+        (f"nine o{_CURLY_APOSTROPHE}clock", f"o{_CURLY_APOSTROPHE}clock"),
+    ],
+)
+def test_rule_4_rejects_clock_times(text: str, match: str) -> None:
+    found = rules.problems(_spec(), f"{GOOD} It is {text} outside.", TAX)
+    assert any(p.startswith(f'rule 4: no clock times ("{match}")') for p in found), found
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["late evening", "before dawn", "two men", "3 steps"],
+)
+def test_rule_4_does_not_flag_ordinary_light_or_numbers(text: str) -> None:
+    found = rules.problems(_spec(), f"{GOOD} {text}.", TAX)
+    assert not any("no clock times" in p for p in found), found
+
+
 def test_phrases_match_in_order_only() -> None:
     assert rules.contains_phrase("a dead body on the lawn", "dead body")
     assert not rules.contains_phrase("a dead leaf on the body of the car", "dead body")

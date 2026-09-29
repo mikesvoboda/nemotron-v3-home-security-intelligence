@@ -35,6 +35,17 @@ CAMERA_SUFFIX = (
 # 33, and English scene text measured 4.6-4.9 characters per token.
 MAX_PROMPT_CHARS = 1200
 
+# Rule 4, continued: a clock time gets drawn as fake text by FLUX (measured 2026-09-28, "at 4:40
+# in the morning" -> a "4:40" reroll). H:MM/HH:MM, "<n> am/pm/a.m./p.m.", or "o'clock" (straight
+# or curly apostrophe; chr(0x2019) avoids an ambiguous-unicode literal in source, RUF001).
+_APOSTROPHES = "'" + chr(0x2019)
+_CLOCK_TIME = re.compile(
+    r"\b\d{1,2}:\d{2}\b"
+    r"|\b\d{1,2}\s?(?:a\.m\.|p\.m\.|am|pm)(?!\w)"
+    rf"|\bo[{_APOSTROPHES}]clock\b",
+    re.IGNORECASE,
+)
+
 
 def words(text: str) -> list[str]:
     """Lowercase alphanumeric words: "ground-floor" -> ["ground", "floor"]."""
@@ -66,6 +77,16 @@ def contains_phrase(text: str, phrase: str) -> bool:
         tokens[i : i + size - 1] == target[:-1] and tokens[i + size - 1] in _forms(target[-1])
         for i in range(len(tokens) - size + 1)
     )
+
+
+def clock_times(text: str) -> list[str]:
+    """Rule 4: every distinct clock-time-shaped match in the prompt, in first-seen order."""
+    seen: list[str] = []
+    for match in _CLOCK_TIME.finditer(text):
+        found = match.group(0)
+        if found not in seen:
+            seen.append(found)
+    return seen
 
 
 @cache
@@ -105,6 +126,11 @@ def problems(spec: Spec, prompt: str, tax: Taxonomy) -> list[str]:
         for phrase in phrases:
             if contains_phrase(prompt, phrase):
                 found.append(f"rule {RULE_OF_CATEGORY[category]}: remove '{phrase}' ({category})")
+    for clock in clock_times(prompt):
+        found.append(
+            f'rule 4: no clock times ("{clock}"): describe the light instead (dawn, midday, '
+            "late evening); the camera stage draws the time"
+        )
     if len(prompt) > MAX_PROMPT_CHARS:
         found.append(f"rule 3: {len(prompt)} characters; at most {MAX_PROMPT_CHARS}")
     return found

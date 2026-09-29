@@ -8,6 +8,7 @@ the host. Both are views: every run replaces them.
 from __future__ import annotations
 
 import argparse
+import math
 import statistics
 import sys
 from collections import Counter
@@ -179,7 +180,9 @@ def markdown(record: BatchRecord, events: Sequence[Event], snapshots: str, gener
         lines.append("None.")
     lines += ["", "## Render timing", ""]
     if seconds:
-        p90 = seconds[int(0.9 * (len(seconds) - 1))]
+        # Nearest rank: the ceil(0.9 * n)-th smallest, not a floor index (that understates p90
+        # for small n, e.g. it gave 5.0 s instead of 8.3 s for [5.0, 5.0, 8.3]).
+        p90 = seconds[math.ceil(0.9 * len(seconds)) - 1]
         lines.append(
             f"{len(seconds)} image(s) rendered: median {statistics.median(seconds):.1f} s, "
             f"p90 {p90:.1f} s, total {sum(seconds) / 60:.1f} min."
