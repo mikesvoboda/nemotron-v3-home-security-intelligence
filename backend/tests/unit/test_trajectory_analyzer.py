@@ -1,14 +1,14 @@
 """Tests for backend.services.trajectory_analyzer (NEM-5532).
 
 Tests movement pattern classification, zone transition detection,
-speed estimation, and the format_trajectory_context prompt function.
+and speed estimation. (R8 S2: the format_trajectory_context prompt
+formatter retired with the Nemotron analyzer and its tests went with it.)
 """
 
 from __future__ import annotations
 
 import pytest
 
-from backend.services.prompts import format_trajectory_context
 from backend.services.trajectory_analyzer import (
     TrajectoryAnalysis,
     TrajectoryAnalyzer,
@@ -399,64 +399,6 @@ class TestAnalyzeTrajectory:
         )
         assert result.zone_transitions == []
         assert result.is_approaching_entry is False
-
-
-# ===========================================================================
-# format_trajectory_context (prompt formatting)
-# ===========================================================================
-
-
-class TestFormatTrajectoryContext:
-    def test_none(self):
-        result = format_trajectory_context(None)
-        assert "not available" in result.lower() or "no track" in result.lower()
-
-    def test_empty(self):
-        result = format_trajectory_context({})
-        assert "not available" in result.lower() or "no track" in result.lower()
-
-    def test_single_analysis(self):
-        analysis = TrajectoryAnalysis(
-            track_id=42,
-            dwell_seconds=45.0,
-            movement_pattern="stationary",
-            speed_estimate=2.1,
-            zone_transitions=["entered Front Porch"],
-            is_approaching_entry=False,
-            trajectory_summary="Person #42: stationary for 45s. Speed: stationary. Zone activity: entered Front Porch.",
-        )
-        result = format_trajectory_context({42: analysis})
-        assert "Person #42" in result
-        assert "stationary" in result
-        assert "Front Porch" in result
-
-    def test_approaching_entry_warning(self):
-        analysis = TrajectoryAnalysis(
-            track_id=7,
-            dwell_seconds=10.0,
-            movement_pattern="approaching",
-            speed_estimate=30.0,
-            is_approaching_entry=True,
-            trajectory_summary="Person #7: approaching for 10s. Speed: slow (walking pace).",
-        )
-        result = format_trajectory_context({7: analysis})
-        assert "APPROACHING" in result
-        assert "entry point" in result
-
-    def test_multiple_analyses_sorted(self):
-        a1 = TrajectoryAnalysis(
-            track_id=10,
-            trajectory_summary="Person #10: wandering for 20s.",
-        )
-        a2 = TrajectoryAnalysis(
-            track_id=5,
-            trajectory_summary="Car #5: departing for 8s.",
-        )
-        result = format_trajectory_context({10: a1, 5: a2})
-        # Track 5 should appear before track 10 (sorted by track_id)
-        idx_5 = result.index("Car #5")
-        idx_10 = result.index("Person #10")
-        assert idx_5 < idx_10
 
 
 # ===========================================================================

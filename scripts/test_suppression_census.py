@@ -504,6 +504,24 @@ def test_real_tree_matches_spec_baselines():
     environment via HOST_JUSTIFIED + registry/baseline raised the same commit
     (ea79a858); the mirror here lagged one commit, which is exactly the drift
     this test exists to catch — caught on this PR, not on main.
+    pytest_skip_imperative 101→99 (2026-09-29, R8 S2): two imperative skips
+    died with backend/tests/unit/services/
+    test_nemotron_analyzer_batch25_dead-10-2.py (the red-check battery retired
+    with the analyzer tier — owner ruling: no backwards compatibility). The
+    11 SURVIVING imperative sites in conftest.py / test_gpu_pipeline.py did
+    NOT change kind; they line-SHIFTED with the same commit's deletions, so
+    their HOST_JUSTIFIED keys and registry rows were re-armed at the new
+    census ids (doctrine: the written verdict rides the move; a canary
+    re-arms, it does not relax). Baseline lowered the same commit via the
+    sanctioned ratchet-check --update path; the mirror follows in this diff.
+    unspecced_patch 142→88 (2026-09-29, R8 S2): the fall is the deletion —
+    54 unspecced mock.patch sites lived in files R8 S2 removed with the
+    legacy LLM tier (test_nemotron_analyzer*, test_llm_analysis_pipeline,
+    test_prompt_replay, chaos/nemotron, the gpu-pipeline LLM legs,
+    smoke_fire_loader). Nothing re-specced: an unspecced patch whose FILE is
+    gone is not a converted suppression, it is gone. Baseline lowered the
+    same commit; the registry rows died with their sites (ratchet: entries
+    must not outlive what they license).
     A drift here means either the tree gained a hatch (ratchet territory) or
     the spec baseline went stale — WP1.1's MEASURE step adjudicates which.
     """
@@ -515,7 +533,7 @@ def test_real_tree_matches_spec_baselines():
         "pytest_skip": 32,
         "pytest_skipif": 56,
         "pytest_xfail": 4,
-        "pytest_skip_imperative": 101,
+        "pytest_skip_imperative": 99,
         "frontend_skip": 54,
         "excluded_test_trees": 4,
         "coverage_omit": 5,

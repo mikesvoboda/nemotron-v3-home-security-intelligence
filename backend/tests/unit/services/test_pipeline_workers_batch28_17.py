@@ -119,8 +119,7 @@ Discipline
   the pristine module dict - see ``live_globals``).
 * Module globals and the manager constructor are patched through the LIVE
   name-resolution dict of the function under test (``live_globals``), the
-  three-worlds-safe pattern proven in
-  ``test_enrichment_pipeline_batch26_{11,20}.py``.
+  three-worlds-safe pattern this file's ``live_globals`` helper implements.
 """
 
 from __future__ import annotations
@@ -391,7 +390,7 @@ def clean_pipeline_manager_globals() -> Iterator[None]:
 
 
 def analysis_worker() -> Any:
-    """AnalysisQueueWorker with an injected analyzer (no real NemotronAnalyzer)."""
+    """AnalysisQueueWorker with an injected analyzer (no real VlmAnalyzer)."""
     return M.AnalysisQueueWorker(
         redis_client=MagicMock(name="redis-client"),
         analyzer=MagicMock(name="analyzer"),

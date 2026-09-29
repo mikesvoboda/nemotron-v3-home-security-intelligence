@@ -2,13 +2,14 @@
 
 Tests cover:
 - Tracer initialization in pipeline_workers
-- Tracer initialization in nemotron_analyzer
 - Telemetry function imports
 - Code structure verification for span creation
-- LLM inference span creation and attributes
 
 Note: Integration tests for actual span creation require database setup.
 These unit tests verify the instrumentation code is in place.
+
+R8 (2026-09-29) retired nemotron_analyzer, so the analyzer-side tracer and
+LLM-inference pins went with it — the module no longer exists to instrument.
 """
 
 import inspect
@@ -96,41 +97,6 @@ class TestAnalysisProcessingSpan:
         assert "record_exception" in source
 
 
-# =============================================================================
-# Nemotron Analyzer Tracing Tests
-# =============================================================================
-
-
-class TestNemotronAnalyzerTracerInitialization:
-    """Test tracer initialization in nemotron_analyzer module."""
-
-    def test_tracer_is_initialized(self):
-        """Test that the tracer is initialized at module level."""
-        from backend.services import nemotron_analyzer
-
-        assert hasattr(nemotron_analyzer, "tracer")
-        assert nemotron_analyzer.tracer is not None
-
-
-class TestLLMInferenceSpan:
-    """Test OpenTelemetry span creation for LLM inference."""
-
-    def test_llm_inference_tracer_available(self):
-        """Test that LLM inference module has tracer available for future use.
-
-        Note: Full span wrapping of LLM calls is deferred to future work.
-        This test verifies the tracer is initialized and available.
-        """
-        from backend.services import nemotron_analyzer
-
-        # Verify tracer is available at module level
-        assert hasattr(nemotron_analyzer, "tracer")
-        assert nemotron_analyzer.tracer is not None
-
-        # Verify tracer has expected interface
-        assert hasattr(nemotron_analyzer.tracer, "start_as_current_span")
-
-
 class TestTelemetryImports:
     """Test that telemetry functions are properly imported."""
 
@@ -142,11 +108,3 @@ class TestTelemetryImports:
         assert hasattr(pipeline_workers, "get_tracer")
         assert hasattr(pipeline_workers, "record_exception")
         assert hasattr(pipeline_workers, "tracer")
-
-    def test_nemotron_analyzer_imports_telemetry(self):
-        """Test that nemotron_analyzer imports telemetry functions."""
-        from backend.services import nemotron_analyzer
-
-        # Verify tracer is initialized (get_tracer was called at import time)
-        assert hasattr(nemotron_analyzer, "tracer")
-        assert nemotron_analyzer.tracer is not None

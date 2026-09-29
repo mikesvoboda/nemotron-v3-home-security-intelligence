@@ -217,7 +217,6 @@ def estimate_pull_size(images: list[str]) -> str:
         "backend": 2000,
         "frontend": 200,
         "ai-yolo26": 8000,
-        "ai-llm": 5000,
         "ai-florence": 6000,
         "ai-clip": 6000,
         "ai-enrichment": 6000,

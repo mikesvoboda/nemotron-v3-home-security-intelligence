@@ -241,13 +241,6 @@ class OrchestratorSettings(BaseSettings):
         validation_alias="AI_GATEWAY_PORT",
         description="AI Gateway container service port for health checks.",
     )
-    nemotron_port: int = Field(
-        8091,
-        ge=1,
-        le=65535,
-        validation_alias="LLM_PORT",
-        description="Nemotron (ai-llm) container service port for health checks.",
-    )
     vllm_port: int = Field(
         8097,
         ge=1,
@@ -1044,12 +1037,6 @@ class Settings(BaseSettings):
         default="http://ai-gateway:8090/yolo26",
         description="URL of the YOLO26 detection service",
     )
-    # Development: http://localhost:8091 (local dev)
-    # Docker: http://ai-llm:8091 (container network)
-    nemotron_url: str = Field(
-        default="http://localhost:8091",
-        description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
-    )
     # Development: http://localhost:8098 (local dev)
     # Docker: http://ai-vlm:8098 (compose profile `vlm`, container PORT fixed at 8098)
     ai_vlm_url: str = Field(
@@ -1058,48 +1045,48 @@ class Settings(BaseSettings):
     )
 
     # Pipeline selector (spec §2:81-84, rev 5): "vlm" is the default and
-    # the ONLY supported per-event path. "legacy" parses only because its
-    # code stays in the repo until R8 deletes it — it is not deployed, not
-    # measured, and not a rollback target; the validator logs it LOUDLY so
-    # a boot with the unsupported path can never look like a normal boot.
-    # An unknown value RAISES rather than falling back: a typo must not
-    # silently pick a pipeline, least of all the unsupported one.
+    # the ONLY supported per-event path. R8 (2026-09-29) retired "legacy"
+    # outright — owner rulings: "we do not have to support backwards
+    # compatability" and "we should hard raise". Until S1 the validator
+    # ACCEPTED legacy and only warned, so a stale PIPELINE_MODE=legacy in a
+    # deployment's .env booted the unsupported pipeline; a warning is not a
+    # guard. It now raises, as does every unknown value — the
+    # never-silently-fallback rule from spec §2:81-84.
     pipeline_mode: str = Field(
         default="vlm",
-        description="Per-event analysis pipeline: 'vlm' (default, supported) or 'legacy' (UNSUPPORTED, kept only until R8 deletes it).",
+        description="Per-event analysis pipeline. Only 'vlm' is supported; the legacy pipeline was retired 2026-09-29 and selecting it raises at boot.",
     )
 
     @field_validator("pipeline_mode", mode="before")
     @classmethod
     def validate_pipeline_mode(cls, v: Any) -> str:
-        """`legacy` parses (its code stays until R8) but is LOUD; anything
-        else than the two spellings raises — the never-silently-fallback
-        rule from spec §2:81-84. The warning is the startup loudness the
-        owner ruling asks for; the 1.5 ledger row carries the rest."""
-        import logging
+        """Only 'vlm' parses. An unset mode defaults to it; anything else
+        raises rather than falling back (spec §2:81-84, R8 owner ruling
+        2026-09-29).
 
+        One message, no branch on the retired spelling. That is deliberate:
+        the deletion guard (test_no_legacy_pipeline_branches.py) forbids
+        shipped code from COMPARING against "legacy", so a validator written
+        `if value == "legacy"` would be the one branch the gate exists to
+        prevent. The word still appears — as message text, which is what
+        tells an operator with a stale .env what happened.
+        """
         if v is None:
             return "vlm"
         value = str(v).lower().strip()
-        if value not in ("vlm", "legacy"):
-            raise ValueError(f"Invalid pipeline_mode '{v}'. Must be 'vlm' or 'legacy'.")
-        if value == "legacy":
-            logging.getLogger("backend.core.config").warning(
-                "PIPELINE_MODE=legacy selects the UNSUPPORTED pipeline — "
-                "it is not deployed, not measured, and not a rollback "
-                "target (spec rev 5); its code stays only until R8 deletes it."
-            )
-        return value
+        if value == "vlm":
+            return value
+        raise ValueError(
+            f"Invalid pipeline_mode '{v}'. Only 'vlm' is supported. The legacy "
+            "pipeline was retired on 2026-09-29 (R8) and its code is gone, so "
+            "PIPELINE_MODE=legacy can no longer be selected."
+        )
 
     # AI service authentication
     # Security: API keys for authenticating with AI services
     yolo26_api_key: SecretStr | None = Field(
         default=None,
         description="Optional API key for YOLO26 service authentication",
-    )
-    nemotron_api_key: SecretStr | None = Field(
-        default=None,
-        description="API key for Nemotron service authentication (optional, sent via X-API-Key header)",
     )
 
     # AI service timeout settings
@@ -1126,12 +1113,6 @@ class Settings(BaseSettings):
         ge=0.0,
         le=1.0,
         description="YOLO26 detection confidence threshold",
-    )
-    nemotron_read_timeout: float = Field(
-        default=120.0,
-        ge=30.0,
-        le=600.0,
-        description="Maximum time (seconds) to wait for Nemotron LLM response",
     )
     ai_vlm_read_timeout: float = Field(
         default=25.0,
@@ -1224,13 +1205,6 @@ class Settings(BaseSettings):
         description="Maximum retry attempts for YOLO26 detector on transient failures. "
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
-    nemotron_max_retries: int = Field(
-        default=3,
-        ge=1,
-        le=10,
-        description="Maximum retry attempts for Nemotron LLM on transient failures. "
-        "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
-    )
 
     # llama.cpp `--parallel` (compose: PARALLEL, default 8) — number of inference
     # slots sharing one CTX_SIZE context pool.  Declared before
@@ -1282,7 +1256,9 @@ class Settings(BaseSettings):
         ge=1000,
         le=262144,
         validation_alias="CTX_SIZE",
-        description="Per-request Nemotron context budget in tokens. "
+        description="Per-request LLM context budget in tokens (feeds the token "
+        "counter's default; the shipped engine is ai-vlm, whose own budget is "
+        "vlm_context_window). "
         "Reads from CTX_SIZE (the llama.cpp --ctx-size total pool) divided by "
         "llama_slot_count, because llama.cpp splits one context pool across PARALLEL "
         "slots and each request only gets one slot. "
@@ -1315,62 +1291,11 @@ class Settings(BaseSettings):
         default=1536,
         ge=100,
         le=8192,
-        description="Maximum tokens reserved for Nemotron LLM output. "
+        description="Maximum tokens reserved for LLM output. "
         "Input prompts are validated against (context_window - max_output_tokens). "
         "Default: 1536 tokens.",
     )
 
-    # Nemotron Structured Generation Settings (NEM-3726)
-    # NVIDIA NIM's guided_json parameter enforces valid JSON output
-    nemotron_use_guided_json: bool = Field(
-        default=True,
-        description="Enable NVIDIA NIM structured generation via guided_json parameter. "
-        "When enabled and the endpoint supports it, the LLM response will be constrained "
-        "to the RISK_ANALYSIS_JSON_SCHEMA, ensuring valid JSON output. "
-        "If the endpoint doesn't support guided_json, falls back to regex parsing.",
-    )
-    nemotron_guided_json_fallback: bool = Field(
-        default=True,
-        description="Enable fallback to regex parsing when guided_json is not supported "
-        "by the endpoint or when guided_json request fails. "
-        "When disabled and guided_json fails, the request will raise an error.",
-    )
-
-    # P0.3 Constrained verdict on the legacy path (spec §3/§6, F4-approved).
-    # The native json_schema response parameter (S-1/S-2-proven ENFORCED at
-    # the pinned llama.cpp build) replaces nvext.guided_json, which S-1
-    # proved is SILENTLY IGNORED there (E5).
-    #
-    # R8 says "keep code paths, ADD THE NEW DEFAULT": the new default is ON.
-    # The legacy route stays reachable and byte-identical - set
-    # NEMOTRON_CONSTRAINED_DECODING_ENABLED=false and the analyzer sends the
-    # pre-0.3 payload, probes nothing, and falls back to 50/medium exactly as
-    # it does today. Nothing is retired here; deletion waits for R8.
-    nemotron_constrained_decoding_enabled: bool = Field(
-        default=True,
-        description="P0.3: send the native json_schema response parameter on the "
-        "legacy /completion route (single schema source shared with the parser), "
-        "gated behind the once-per-endpoint enforcement probe. This is the new "
-        "default; False restores the pre-0.3 prose+regex route byte-identically "
-        "(R8: the old route is kept behind this flip).",
-    )
-    nemotron_constrained_fail_closed: bool = Field(
-        default=True,
-        description="P0.3: under constrained decoding, an unparseable or failed "
-        "verdict becomes a verification_failed event with NULL score/level - "
-        "never a default 50 (S5). Half-measures are off by default once 0.3 is on.",
-    )
-    nemotron_constrained_probe_enabled: bool = Field(
-        default=True,
-        description="P0.3: run the S-1 nonce-const enforcement probe once per "
-        "endpoint before the first constrained call. NOT-ENFORCED fails closed.",
-    )
-    nemotron_constrained_probe_required_build: str | None = Field(
-        default=None,
-        description="P0.3: build_info substring the probe asserts against "
-        "/props (e.g. 'b7972'). None skips the build assertion (the S-2 lesson: "
-        "enforcement is per-model AND per-build - set this in production).",
-    )
     # The same P0.3 doctrine on the VLM chat shape (spec §3, Phase 1.3):
     # images and grammar are independent variables whose INTERSECTION the
     # pin must prove, so vlm_assess runs its own nonce-const probe - once
@@ -1460,12 +1385,6 @@ class Settings(BaseSettings):
         default="llama.cpp",
         description="P0.3/P0.4: engine label written to event_verifications.engine.",
     )
-    nemotron_model_id: str = Field(
-        default="Nemotron-3-Nano-30B-A3B-Q4_K_M",
-        description="P0.3/P0.4: model label written to event_verifications.model_id "
-        "(matches the shipped LLM_MODEL_PATH GGUF identity; override when serving "
-        "a different quant).",
-    )
     vlm_model_id: str = Field(
         default="Qwen3VL-8B-Instruct-Q4_K_M",
         description="Phase 1.3: degraded-path model label for "
@@ -1531,12 +1450,8 @@ class Settings(BaseSettings):
         "Cold models may have slower first inference due to GPU memory paging. "
         "Default: 300 seconds (5 minutes).",
     )
-    nemotron_warmup_prompt: str = Field(
-        default="Hello, please respond with 'ready' to confirm you are operational.",
-        description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
-    )
 
-    @field_validator("yolo26_url", "nemotron_url", "ai_vlm_url", mode="before")
+    @field_validator("yolo26_url", "ai_vlm_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
         """Validate AI service URLs using Pydantic's AnyHttpUrl validator.

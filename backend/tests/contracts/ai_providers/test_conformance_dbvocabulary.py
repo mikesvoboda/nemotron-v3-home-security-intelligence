@@ -11,10 +11,23 @@ assertions"; the draft harness under /tmp showed only 3 reds because four AST
 legs read REPO_ROOT-relative files that only resolve in-tree — the in-tree
 count IS the finding the header predicts). Per the goal rule (branch stays
 GREEN; a RULING-blocked finding is pinned as a characterization, never left
-red) the seven subset assertions now pin the EXACT illegal sets as DATA —
+red) the subset assertions now pin the EXACT illegal sets as DATA —
 each names the parked alignment ruling and flips red the day behavior
 changes, which is the tripwire, not a defect escaping. NO xfail / skip /
 importorskip anywhere (goal rule).
+
+R8 S2 (2026-09-29, legacy-tier retirement) cut this module from SEVEN subset
+assertions to SIX and dropped the is_minor section entirely: three of its
+subjects were emitters in the retired tier — backend/services/vitpose_loader.py
+(the `lying` near-miss spelling), backend/services/enrichment_pipeline.py and
+backend/services/age_classifier_loader.py (the three is_minor spellings and the
+pipeline/server bucket-intersection hazard they encoded). Those files are
+deleted, so their AST legs were DELETED rather than weakened: no surviving code
+emits those alphabets, and an assertion about a dead emitter is a claim about
+nothing. What is left all reads surviving emitters (the two ai/enrichment*
+threat/pose/demographics servers, ai/yolo26/pose_estimation.py, ai/enrichment/
+vitpose.py, backend/models/* CHECKs). The DB CHECKs themselves stay — the
+columns are live and the remaining emitters still have to satisfy them.
 
 ===========================================================================
 CITE-CORRECTION NOTES (plan line numbers drifted; corrected cites verified
@@ -32,13 +45,15 @@ against this tree; executed-DB evidence already in L at 88215286..a8c25c5e):
   3. The `ai/gateway` cite from the WP8.3 draft note is n/a here — this
      module compares ai/ enrichment servers against backend/models/ only;
      no gateway adapter vocabulary participates.
-  4. Plan says "Four will fail" (one per vocabulary row). This module finds
-     SEVEN failing subset assertions — 4 pose emitters (the plan names one
-     table) x 1 age + 2 threat maps — and those are a *floor*: AST
-     extraction of the
-     other pose classifiers in the tree (F1/F2 below) shows a much larger
-     illegal alphabet (crawling / reaching_up / aggressive / fallen /
-     lying) than the plan's vitpose-only example. That is a finding.
+  4. Plan says "Four will fail" (one per vocabulary row). This module found
+     SEVEN failing subset assertions at first contact — 4 pose emitters (the
+     plan names one table) x 1 age + 2 threat maps — and those were a *floor*:
+     AST extraction of the other pose classifiers in the tree (F1/F2 below)
+     showed a much larger illegal alphabet (crawling / reaching_up /
+     aggressive / fallen / lying) than the plan's vitpose-only example. That
+     is still the finding; SIX of the seven survive here. The seventh (the
+     backend-side vitpose_loader table, whose illegal alphabet was
+     `lying`/`running`) retired with its emitter in R8 S2.
 
 DB-TOUCHING TEST — CHOICE (stated per plan bullet 4): this module does NOT
 connect to Postgres. The executed-INSERT evidence the plan asks for is
@@ -57,7 +72,10 @@ halt; ai/conftest.py triton slot hygiene does NOT apply to a /tmp path):
   ai.enrichment.models.threat_detector -> importable
   ai/enrichment-light/**             -> NOT importable (hyphenated dir, not a package)
                                         -> AST literals for the light twin
-  backend.services.vitpose_loader / age_classifier_loader / models.*  -> importable
+  backend.models.*                   -> importable
+  (R8 S2: backend.services.vitpose_loader and age_classifier_loader were the
+   two retired loader modules this survey covered; they are deleted, so no
+   backend loader is imported or AST-read here any more.)
 """
 
 from __future__ import annotations
@@ -160,58 +178,17 @@ def _ast_assign(path: Path, name: str) -> Any:
     raise AssertionError(f"{name} not found as a module-level literal in {path}")
 
 
-def _ast_in_membership(path: Path, var_endswith: str) -> tuple[str, ...]:
-    """Extract the literal tuple of the first `X in (<str>, <str>, ...)`
-    Compare whose LEFT side ends with `var_endswith` (e.g. 'age_range in')."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Compare):
-            continue
-        if not (
-            len(node.ops) == 1
-            and isinstance(node.ops[0], ast.In)
-            and isinstance(node.comparators[0], ast.Tuple)
-        ):
-            continue
-        left = ast.unparse(node.left)
-        if not left.endswith(var_endswith):
-            continue
-        elts = node.comparators[0].elts
-        if all(isinstance(e, ast.Constant) and isinstance(e.value, str) for e in elts):
-            return tuple(e.value for e in elts)  # type: ignore[union-attr]
-    raise AssertionError(f"no `... {var_endswith} in (<literals>)` in {path}")
-
-
-def _ast_dict_keys_within(path: Path, var: str, func: str) -> frozenset[str]:
-    """String keys of the dict literal assigned to `var` inside `func` —
-    vitpose_loader's winning-label return is dict-INDEXED (`best_pose[0]`,
-    L417), so the candidate table IS its output alphabet."""
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == func]:
-        for node in ast.walk(fn):
-            targets: list[ast.expr] = []
-            if isinstance(node, ast.Assign):
-                targets = list(node.targets)
-            elif isinstance(node, ast.AnnAssign) and node.value is not None:
-                targets = [node.target]
-            if any(isinstance(t, ast.Name) and t.id == var for t in targets) and isinstance(
-                getattr(node, "value", None), ast.Dict
-            ):
-                keys = [
-                    k.value
-                    for k in node.value.keys
-                    if isinstance(k, ast.Constant) and isinstance(k.value, str)
-                ]
-                if keys:
-                    return frozenset(keys)
-    raise AssertionError(f"dict literal {var} not found in {func} of {path}")
+# R8 S2 deleted two AST readers from this module: _ast_in_membership (whose
+# only callers extracted the three is_minor membership tuples from
+# enrichment_pipeline.py / age_classifier_loader.py) and _ast_dict_keys_within
+# (whose only caller extracted vitpose_loader's pose_scores table). Both
+# emitters are retired; re-add a reader with a live subject.
 
 
 def _ast_return_literals(path: Path, func: str) -> frozenset[str]:
     """All string literals appearing in `return` statements of top-level or
-    method `func` — literals only (a dict-indexed return like vitpose_loader's
-    `best_pose[0]` is NOT captured; that emitter is pinned via its pose_scores
-    table separately). Captures tuple and ternary returns."""
+    method `func` — literals only (a dict-indexed return is NOT captured).
+    Captures tuple and ternary returns."""
 
     def parts(n: ast.AST) -> list[str]:
         if isinstance(n, ast.Constant) and isinstance(n.value, str):
@@ -272,25 +249,25 @@ THREAT_INT_LIGHT = _ast_assign(
     REPO_ROOT / "ai/enrichment-light/models/threat_detector.py", "THREAT_CLASSES"
 )
 
-# is_minor — the THREE spellings (AST-extracted safety predicate literals)
-PIPELINE = REPO_ROOT / "backend/services/enrichment_pipeline.py"
-AGE_LOADER = REPO_ROOT / "backend/services/age_classifier_loader.py"
-IS_MINOR_PIPELINE_3868 = _ast_in_membership(PIPELINE, "demographics.age_range")
-IS_MINOR_PIPELINE_5324 = _ast_in_membership(PIPELINE, "remote_result.age_range")
-IS_MINOR_LOADER_94 = _ast_in_membership(AGE_LOADER, "self.age_group")
+# (R8 S2) The is_minor section — the THREE literal spellings of the
+# child-safety predicate — was AST-extracted from enrichment_pipeline.py:3868,
+# :5324 and age_classifier_loader.py:94. All three files are retired, and no
+# surviving backend module computes an is_minor membership (grep over
+# backend/ + ai/ outside tests: zero hits). The section is deleted with its
+# subjects; the DB_AGE CHECK above stays because the demographics server still
+# writes that column.
 
 # Pose classifier alphabets beyond the plan's single vitpose example (F1/F2)
 ENRICH_PE = REPO_ROOT / "ai/enrichment/models/pose_estimator.py"
 ENRICH_LT_PE = REPO_ROOT / "ai/enrichment-light/models/pose_estimator.py"
 YOLO26_POSE = REPO_ROOT / "ai/yolo26/pose_estimation.py"
-VITPOSE_LOADER = REPO_ROOT / "backend/services/vitpose_loader.py"
 
 PE_RETURNS_HEAVY = _ast_return_literals(ENRICH_PE, "_classify_pose")
 PE_RETURNS_LIGHT = _ast_return_literals(ENRICH_LT_PE, "_classify_pose")
 YOLO26_RETURNS = _ast_return_literals(YOLO26_POSE, "classify_pose")
-VITPOSE_LOADER_TABLE = _ast_dict_keys_within(VITPOSE_LOADER, "pose_scores", "classify_pose") | {
-    "unknown"
-}
+# (R8 S2) VITPOSE_LOADER_TABLE — the backend-side pose_scores alphabet, whose
+# near-miss `lying` spelling was the sharpest finding here — came out of
+# backend/services/vitpose_loader.py, which is deleted.
 
 EXPECTED_RED_MARK = "WP8.5 discovery red — RULING parked"
 
@@ -298,8 +275,9 @@ EXPECTED_RED_MARK = "WP8.5 discovery red — RULING parked"
 # ===========================================================================
 # 1. STATIC CROSS-CHECK (plan bullet 1) — every server emitter vs its DB
 #    CHECK. The 7 subset assertions ALL failed at first contact (plan
-#    predicted 4; the 7-vs-4 delta is a finding, module docstring note 4)
-#    and each now pins its EXACT illegal set as DATA — shipped-behavior
+#    predicted 4; the 7-vs-4 delta is a finding, module docstring note 4);
+#    SIX survive the R8 S2 emitters (the seventh read a deleted loader) and
+#    each pins its EXACT illegal set as DATA — shipped-behavior
 #    characterizations, each naming the parked WP8.5-vocab-alignment ruling.
 # ===========================================================================
 
@@ -395,22 +373,13 @@ class TestStaticSubset:
             "the WP8.5-vocab-alignment ruling landed; rewrite to the new shape"
         )
 
-    def test_pose_vitpose_loader_table_subset_of_db_check(self) -> None:
-        """WP8.5 discovery red — RULING parked (F1): widen CHECK vs normalize at client boundary.
-
-        backend/services/vitpose_loader.py:354-360 pose_scores table:
-        standing/crouching/running/sitting/`lying` (+ 'unknown' early return,
-        L299/L415). `lying` ≠ legal `lying_down` — a near-miss spelling, the
-        kind that survives a rename refactor. (Its winning-label return is
-        dict-indexed, so the table literal is the pin.)
-
-        LANDED AS CHARACTERIZATION (goal rule; RULING `WP8.5-vocab-alignment`
-        parked): pins the exact illegal table set as shipped.
-        """
-        assert frozenset({"lying", "running"}) == VITPOSE_LOADER_TABLE - DB_POSE, (
-            f"vitpose_loader delta moved to {sorted(VITPOSE_LOADER_TABLE - DB_POSE)} — "
-            "the WP8.5-vocab-alignment ruling landed; rewrite to the new shape"
-        )
+    # test_pose_vitpose_loader_table_subset_of_db_check DELETED at R8 S2: its
+    # subject was backend/services/vitpose_loader.py's pose_scores table
+    # (standing/crouching/running/sitting/`lying`), a near-miss spelling of the
+    # legal `lying_down`. The loader is retired, so nothing emits `lying` any
+    # more — deleting the emitter deletes the claim. The three surviving pose
+    # emitters (heavy/light enrichment + yolo26) stay pinned above, and the
+    # CHECK itself stays, so a future backend pose emitter is still caught.
 
     def test_age_ranges_server_subset_of_db_check(self) -> None:
         """WP8.5 discovery red — RULING parked (L1035): widen CHECK vs normalize at client boundary.
@@ -514,30 +483,14 @@ class TestCharacterization:
         assert set(GENDER_LABELS_SERVER) <= DB_GENDER
         assert DB_GENDER - set(GENDER_LABELS_SERVER) == frozenset({"unknown"})
 
-    def test_is_minor_three_spellings_pinned(self) -> None:
-        """The child-safety predicate exists in THREE literal spellings
-        (plan missed the third). Equality pins on the AST-extracted tuples —
-        any edit of any spelling reddens this and forces the owner to look."""
-        assert IS_MINOR_PIPELINE_3868 == ("0-10", "11-20", "child", "teenager")
-        assert IS_MINOR_PIPELINE_5324 == ("0-10", "11-20", "child", "teenager")
-        assert IS_MINOR_LOADER_94 == ("infant", "child", "teenager")
-
-    def test_is_minor_safety_property_characterized(self) -> None:
-        """SAFETY characterization: the loader alphabet and the pipeline
-        alphabets share only {child, teenager} — and a server emitting
-        AGE_RANGES-style buckets (the ONLY thing enrichment_pipeline feeds
-        them: pipeline :3875 `age_group=unified.demographics.age_range`) can
-        intersect the child set only at '0-10'/'11-20'. Loader spelling +
-        server bucket ⇒ is_minor False for EVERY child — asserted as the
-        membership expression itself."""
-        assert set(IS_MINOR_LOADER_94) & set(AGE_RANGES_SERVER) == frozenset()
-        assert set(IS_MINOR_PIPELINE_3868) & set(AGE_RANGES_SERVER) == frozenset({"0-10", "11-20"})
-        for server_bucket in AGE_RANGES_SERVER:
-            # loader spelling: False for EVERY server-emitted value, child
-            # buckets included — the full false-negative hazard:
-            assert server_bucket not in IS_MINOR_LOADER_94
-            # pipeline spelling: True only at the two numeric child buckets:
-            assert (server_bucket in IS_MINOR_PIPELINE_3868) == (server_bucket in {"0-10", "11-20"})
+    # test_is_minor_three_spellings_pinned +
+    # test_is_minor_safety_property_characterized DELETED at R8 S2. Both read
+    # the child-safety predicate out of enrichment_pipeline.py (:3868/:5324)
+    # and age_classifier_loader.py (:94); those emitters are retired and no
+    # surviving code computes is_minor from an age_range membership, so the
+    # cross-spelling hazard they pinned has no live site to occur at. Deleting
+    # the emitters deleted the predicate's subjects — keeping a membership test
+    # over literals transcribed into this file would assert only the test.
 
     def test_schema_parity_mirrors_exist(self) -> None:
         """backend/api/schemas/alerts.py carries a hand-maintained PARITY COPY
@@ -550,8 +503,9 @@ class TestCharacterization:
 
 
 # ===========================================================================
-# 3. MISSING INVARIANTS (plan bullet 3: is_minor membership [above],
-#    embedding dimensionality + unit norm, risk_score integrality).
+# 3. MISSING INVARIANTS (plan bullet 3: embedding dimensionality + unit norm,
+#    risk_score integrality — the bullet's is_minor membership leg was the
+#    section deleted at R8 S2, see TestCharacterization above).
 #    The first unit-norm assertion anywhere is N1a in
 #    backend/tests/contracts/ai_providers/test_conformance_numeric.py:434
 #    (WP8.3 N1b: zero unit-norm asserts existed before it). This is the
@@ -704,11 +658,12 @@ class TestMissingInvariants:
         assert int(74.9) == 74 and int(-0.5) == 0
 
 
-# NOTE: expected-red roster for the serial lane (7, all TestStaticSubset):
+# NOTE: expected-red roster for the serial lane (7 at first contact, all
+# TestStaticSubset; SIX still here after R8 S2):
 #   test_pose_vitpose_labels_subset_of_db_check            (walking, running)
 #   test_pose_enrichment_estimator_classifier_subset_of_db_check (crawling, reaching_up, running)
 #   test_pose_yolo26_classifier_subset_of_db_check         (fallen, reaching_up, aggressive)
-#   test_pose_vitpose_loader_table_subset_of_db_check      (lying, running)
+#   test_pose_vitpose_loader_table_subset_of_db_check      (lying, running)  <-- DELETED at R8 S2 (emitter retired)
 #   test_age_ranges_server_subset_of_db_check              (21-35, 36-50, 51-65, 65+)
 #   test_threat_by_name_subset_of_db_check                 (9 of 12)
 #   test_threat_int_classes_subset_of_db_check             (rifle, pistol, bat, crowbar)

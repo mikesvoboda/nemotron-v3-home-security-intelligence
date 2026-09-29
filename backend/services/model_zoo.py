@@ -12,30 +12,20 @@ Models:
     - yolo11-license-plate: License plate detection on vehicles (legacy, 300MB)
     - yolo11-face: Face detection on persons
     - paddleocr: OCR text extraction from detected plates (legacy, 100MB)
-    - siglip2-base-patch16-224: SigLIP 2 Base embeddings for scene baseline / zero-shot (person re-ID moved to osnet-ain-x1-0, ledger 20)
-    - florence-2-large: Vision-language queries for attribute extraction
-    - yolo-world-s: Open-vocabulary zero-shot detection
-    - vitpose-small: Human pose keypoint detection (17 COCO keypoints)
-    - depth-anything-v2-tiny: Monocular depth estimation for distance context (3x faster than Small)
-    - violence-detection: Binary violence classification on full frame
-    - weather-classification: Weather condition classification (5 classes)
-    - segformer-b2-clothes: Clothing segmentation on person detections
-    - stgcn-plus-plus: Skeleton-based action recognition from pose keypoints
-    - fashion-clip: Zero-shot clothing classification for security context
-    - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
-    - vehicle-segment-classification: Detailed vehicle type classification (11 types)
-    - pet-classifier: Cat/dog classification for false positive reduction
     - osnet-ain-x1-0: OSNet-AIN x1.0 for person re-identification embeddings (~100MB)
-    - threat-detection-yolov8n: Weapon/threat detection (~300MB)
-    - vit-age-classifier: Age estimation from face/person crops (~200MB)
-    - vit-gender-classifier: Gender classification from face/person crops (~200MB)
-    - yolov8n-pose: Alternative pose estimation model (~200MB)
-    - zero-dce-plus-plus: Low-light image enhancement preprocessing (~5MB)
+    - yolov8n-pose: Pose estimation model (~200MB)
+
+    R8 S2 (2026-09-29) retired the rest with the enrichment tier: the
+    attribute/classification zoo (SigLIP 2, Florence-2-large, YOLO-World,
+    ViTPose, Depth-Anything, violence, weather, SegFormer, ST-GCN++,
+    FashionCLIP, BRISQUE, vehicle segment/damage, pet, age, gender,
+    zero-DCE++) re-perceived what the shipped VLM already sees from the same
+    key frames (design spec §2). The survivors are lookups against stores the
+    pixels cannot reach: plates, faces, registered-person embeddings.
 
 VRAM Budget:
-    - Nemotron LLM: 21,700 MB (always loaded)
+    - ai-vlm LLM: the always-loaded perception model (VLM_MODEL_SLOTS)
     - YOLO26v2: 650 MB (always loaded)
-    - Available for Model Zoo: ~1,650 MB
     - Models load sequentially, never concurrently
 """
 
@@ -54,31 +44,12 @@ import yaml
 
 from backend.core.logging import get_logger
 from backend.core.metrics import record_model_restart, set_model_load_duration
-from backend.services.age_classifier_loader import load_age_classifier_model
-from backend.services.clip_loader import load_clip_model
-from backend.services.depth_anything_loader import load_depth_model
 from backend.services.face_recognizer_loader import (
     load_face_detector,
     load_face_recognizer,
 )
-from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.fast_alpr_loader import load_fast_alpr
-from backend.services.florence_loader import load_florence_model
-from backend.services.gender_classifier_loader import load_gender_classifier_model
-from backend.services.image_quality_loader import load_brisque_model
 from backend.services.osnet_loader import load_osnet_model
-from backend.services.pet_classifier_loader import load_pet_classifier_model
-from backend.services.segformer_loader import load_segformer_model
-from backend.services.smoke_fire_loader import load_smoke_fire_model
-from backend.services.stgcn_loader import load_stgcn_model
-from backend.services.threat_detection_loader import load_threat_detection_model
-from backend.services.vehicle_classifier_loader import load_vehicle_classifier
-from backend.services.vehicle_damage_loader import load_vehicle_damage_model
-from backend.services.violence_loader import load_violence_model
-from backend.services.vitpose_loader import load_vitpose_model
-from backend.services.weather_loader import load_weather_model
-from backend.services.yolo_world_loader import load_yolo_world_model
-from backend.services.zero_dce_loader import load_zero_dce_model
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -364,40 +335,21 @@ _LOADER_MAP: dict[str, Callable[..., Awaitable[Any]]] = {
     "yolo11-face": load_yolo_model,
     "yolo11-license-plate": load_yolo_model,
     "yolov8n-pose": load_yolo_model,
-    "threat-detection-yolov8n": load_threat_detection_model,
-    "smoke-fire-yolov8n": load_smoke_fire_model,
-    "yolo-world-s": load_yolo_world_model,
-    "vehicle-damage-detection": load_vehicle_damage_model,
     "yolo26-general": load_yolo_model,
     # Classification
-    "vehicle-segment-classification": load_vehicle_classifier,
-    "pet-classifier": load_pet_classifier_model,
-    "fashion-clip": load_fashion_clip_model,
-    "violence-detection": load_violence_model,
-    "weather-classification": load_weather_model,
-    "vit-age-classifier": load_age_classifier_model,
-    "vit-gender-classifier": load_gender_classifier_model,
     # Segmentation
-    "segformer-b2-clothes": load_segformer_model,
     # Embedding / Re-ID
-    "siglip2-base-patch16-224": load_clip_model,
     "osnet-ain-x1-0": load_osnet_model,
     # Face leg (F12): the two buffalo_l ONNX files on CPU onnxruntime,
     # sha256-pinned in their models.yml rows (bound via functools.partial).
     "face-detector-scrfd": load_face_detector,
     "face-recognizer": load_face_recognizer,
     # Pose
-    "vitpose-small": load_vitpose_model,
     # Depth
-    "depth-anything-v2-tiny": load_depth_model,
     # Action recognition
-    "stgcn-plus-plus": load_stgcn_model,
     # Vision-language
-    "florence-2-large": load_florence_model,
     # Preprocessing
-    "zero-dce-plus-plus": load_zero_dce_model,
     # Quality assessment
-    "brisque-quality": load_brisque_model,
     # OCR / ALPR
     "paddleocr": load_paddle_ocr,
     "fast-alpr": load_fast_alpr,

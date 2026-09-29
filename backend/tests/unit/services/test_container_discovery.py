@@ -138,13 +138,18 @@ class TestPreConfiguredServices:
         assert config.health_cmd == "redis-cli ping"
 
     def test_ai_configs_contains_all_ai_services(self) -> None:
-        """Test that AI_CONFIGS contains all expected AI services."""
+        """Test that AI_CONFIGS contains all expected AI services.
+
+        R8 S2 deleted the "ai-llm" ServiceConfig row (the ai-llm-vllm row stays
+        — what remains is the live compose AI set); the exact-key assertion
+        below is what catches either a re-appearance or a further deletion.
+        """
         # Ports from .env.example (source of truth)
         expected_services = {
             "ai-gateway": ("AI Gateway", 8090, 120),
-            "ai-llm": ("Nemotron", 8091, 120),
             "ai-llm-vllm": ("LLM vLLM", 8097, 120),
         }
+        assert set(expected_services) == set(AI_CONFIGS)
 
         for name, (display_name, port, grace_period) in expected_services.items():
             assert name in AI_CONFIGS, f"Missing AI config: {name}"
@@ -393,9 +398,15 @@ class TestContainerDiscoveryService:
         service = ContainerDiscoveryService(mock_docker_client)
         discovered = await service.discover_by_category(ServiceCategory.AI)
 
-        assert len(discovered) == 3
+        # R8 S2 deleted the "ai-llm" ServiceConfig row, so that container is now
+        # an unrecognized one: the row's absence is the pin, and "ai-llm-vllm"
+        # (which the longer-match rule still resolves) proves the AI set did not
+        # collapse to just the gateway.
+        assert service.match_container_name("security-ai-llm-1") is None
+        assert service.get_config("ai-llm") is None
+        assert len(discovered) == 2
         names = {s.name for s in discovered}
-        assert names == {"ai-gateway", "ai-llm", "ai-llm-vllm"}
+        assert names == {"ai-gateway", "ai-llm-vllm"}
         for s in discovered:
             assert s.category == ServiceCategory.AI
 
@@ -485,11 +496,16 @@ class TestContainerDiscoveryService:
     async def test_discover_uses_image_tags_from_container(
         self, mock_docker_client: MagicMock
     ) -> None:
-        """Test discovered services include correct image from container."""
+        """Test discovered services include correct image from container.
+
+        R8 S2 repointed the leg from the deleted "ai-llm" container to the
+        surviving "ai-llm-vllm" one — the image passthrough is the subject, not
+        the service name.
+        """
         mock_container = create_mock_container(
-            name="security-ai-llm-1",
+            name="security-ai-llm-vllm-1",
             container_id="llm123",
-            image_tags=["ghcr.io/myorg/nemotron:v1.2.3"],
+            image_tags=["ghcr.io/myorg/vllm:v1.2.3"],
         )
         mock_docker_client.list_containers = AsyncMock(return_value=[mock_container])
 
@@ -497,7 +513,8 @@ class TestContainerDiscoveryService:
         discovered = await service.discover_all()
 
         assert len(discovered) == 1
-        assert discovered[0].image == "ghcr.io/myorg/nemotron:v1.2.3"
+        assert discovered[0].name == "ai-llm-vllm"
+        assert discovered[0].image == "ghcr.io/myorg/vllm:v1.2.3"
 
     @pytest.mark.asyncio
     async def test_discover_handles_container_without_image_tags(
@@ -741,7 +758,8 @@ class TestCategoryPriorityOrdering:
 # Golden table for build_service_configs(settings=None): the .env.example default
 # ports plus the hardcoded probe/grace/backoff policy. Values verified against
 # shipped source on 2026-09-18 (wave-57 dossier's independently derived table
-# agrees, 21/21 services on the post-tempo/live-set rebuild).
+# agrees, 21/21 services on the post-tempo/live-set rebuild); 20 rows since R8
+# S2 deleted the "ai-llm" service.
 # (display_name, category, port, health_endpoint, health_cmd,
 #  startup_grace_period, max_failures, restart_backoff_base, restart_backoff_max)
 EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
@@ -770,8 +788,9 @@ EXPECTED_BUILDER_TABLE: dict[str, tuple] = {
     ),
     "go2rtc": ("go2rtc", "INFRASTRUCTURE", 1984, "/api", None, 15, 10, 2.0, 60.0),
     "frontend": ("Frontend", "INFRASTRUCTURE", 8080, "/health", None, 30, 10, 2.0, 60.0),
+    # R8 S2: the "ai-llm" row (and its settings-fed nemotron_port) is gone —
+    # set(configs) == set(EXPECTED_BUILDER_TABLE) below locks the deletion.
     "ai-gateway": ("AI Gateway", "AI", 8090, "/health", None, 120, 5, 5.0, 300.0),
-    "ai-llm": ("Nemotron", "AI", 8091, "/health", None, 120, 5, 5.0, 300.0),
     "ai-llm-vllm": ("LLM vLLM", "AI", 8097, "/health", None, 120, 5, 5.0, 300.0),
     "prometheus": ("Prometheus", "MONITORING", 9090, "/-/healthy", None, 30, 5, 10.0, 120.0),
     "grafana": ("Grafana", "MONITORING", 3002, "/api/health", None, 30, 5, 10.0, 120.0),
@@ -806,7 +825,8 @@ ALL_PORTS = {
     "backend_port": 18000,
     "go2rtc_port": 19841,
     "ai_gateway_port": 18090,
-    "nemotron_port": 18091,
+    # nemotron_port left Settings with R8 S2 (the ai-llm ServiceConfig row went
+    # with it), so the fake settings object no longer carries it either.
     "vllm_port": 18097,
     "prometheus_port": 19090,
     "grafana_port": 13002,
@@ -830,7 +850,8 @@ _KEY_TO_PORT_ATTR = {  # config key -> settings attribute feeding its port
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
     "ai-gateway": "ai_gateway_port",
-    "ai-llm": "nemotron_port",
+    # R8 S2: "ai-llm" -> "nemotron_port" went with that ServiceConfig row — a
+    # leftover row here would KeyError out of the settings-driven builder.
     "ai-llm-vllm": "vllm_port",
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",

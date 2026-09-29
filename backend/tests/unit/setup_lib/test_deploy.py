@@ -52,12 +52,19 @@ class TestDeployConfig:
 
 
 class TestPipelineMode:
-    """DeployConfig.pipeline_mode - the ONE place deploy decides vlm vs legacy.
+    """DeployConfig.pipeline_mode - the ONE place deploy decides the mode.
 
     It must resolve exactly as the backend container will: compose interpolates
     backend's PIPELINE_MODE=${PIPELINE_MODE:-vlm} from the env compose_run hands
     it ({**os.environ, **config.env}), and Settings.pipeline_mode lower/strips
-    it, defaults to vlm and rejects anything but vlm/legacy.
+    it, defaults to vlm and REJECTS everything else.
+
+    R8 S2b: "vlm vs legacy" is retired -- the deployer's legacy branch is gone
+    with the ai-llm compose services it brought up, so the mode is vlm and
+    anything else raises. The shape of the resolution is still what is pinned
+    (shell-then-env precedence, lower/strip, the empty default), because a
+    deploy that decided the mode differently would start a stack the backend
+    then refuses to boot.
     """
 
     def test_defaults_to_vlm_when_unset(
@@ -80,38 +87,80 @@ class TestPipelineMode:
 
         assert config.pipeline_mode == "vlm"
 
-    def test_reads_legacy_from_env_file(
+    def test_legacy_in_env_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """PIPELINE_MODE=legacy in .env selects the legacy (unsupported) path."""
+        """PIPELINE_MODE=legacy left in .env fails the deploy instead of picking a path.
+
+        R8 S2b retired the deployer's legacy branch: it named the ai-llm compose
+        services that no longer exist, so a deploy that accepted the value would
+        have stopped the stack and then failed to bring the LLM back. The pin is
+        the same fact the backend's boot-time validator carries
+        (backend/tests/unit/core/test_config_pipeline_mode_hard_raise.py), read
+        from the side that has to decide what to start -- and like the backend's,
+        it RAISES rather than warn: a warning is not a guard.
+        """
         from setup_lib.deploy import DeployConfig
 
         monkeypatch.delenv("PIPELINE_MODE", raising=False)
         config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "legacy"})
 
-        assert config.pipeline_mode == "legacy"
+        with pytest.raises(ValueError, match="legacy"):
+            _ = config.pipeline_mode
+
+    def test_the_raise_text_names_the_value_and_offers_no_retired_choice(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The operator sees only the message: it must say what was rejected, name
+        vlm as the one accepted mode, and must not still read as if legacy were a
+        choice (the wording S1's backend raise retired, kept in the same words here).
+        """
+        from setup_lib.deploy import DeployConfig
+
+        monkeypatch.delenv("PIPELINE_MODE", raising=False)
+        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "legacy"})
+
+        with pytest.raises(ValueError) as excinfo:
+            _ = config.pipeline_mode
+        text = str(excinfo.value)
+        assert "legacy" in text.lower()
+        assert "vlm" in text.lower()
+        assert "'vlm' or 'legacy'" not in text
+        assert "retired" in text.lower()
 
     def test_normalizes_case_and_whitespace(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """' Legacy ' is legacy - the backend validator lower()/strip()s it too."""
+        """' VLM ' is vlm, and ' LEGACY ' is still legacy - lower()/strip() must not
+        become a way to smuggle either value past the check.
+        """
         from setup_lib.deploy import DeployConfig
 
         monkeypatch.delenv("PIPELINE_MODE", raising=False)
-        config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": " Legacy "})
+        normalized = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": " VLM "})
 
-        assert config.pipeline_mode == "legacy"
+        assert normalized.pipeline_mode == "vlm"
+
+        sneaked = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": " LEGACY "})
+
+        with pytest.raises(ValueError, match="legacy"):
+            _ = sneaked.pipeline_mode
 
     def test_shell_env_used_when_env_file_is_silent(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """setup.py never writes PIPELINE_MODE, so a shell export reaches compose."""
+        """setup.py never writes PIPELINE_MODE, so a shell export reaches compose --
+        and a shell `export PIPELINE_MODE=legacy` must raise here, not be read as a
+        mode. Precedence is the fact under test: the .env wins over the shell, so
+        pin the raise through both sources.
+        """
         from setup_lib.deploy import DeployConfig
 
         monkeypatch.setenv("PIPELINE_MODE", "legacy")
         config = DeployConfig(project_root=tmp_path, env={})
 
-        assert config.pipeline_mode == "legacy"
+        with pytest.raises(ValueError, match="legacy"):
+            _ = config.pipeline_mode
 
     def test_env_file_wins_over_shell(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -121,6 +170,45 @@ class TestPipelineMode:
 
         monkeypatch.setenv("PIPELINE_MODE", "legacy")
         config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": "vlm"})
+
+        assert config.pipeline_mode == "vlm"
+
+    @pytest.mark.parametrize(
+        ("source", "value"),
+        [
+            pytest.param("env", "vlm", id="env-plain"),
+            pytest.param("env", "VLM", id="env-upper"),
+            pytest.param("env", " vlm ", id="env-padded"),
+            pytest.param("env", "Vlm", id="env-mixed"),
+            pytest.param("shell", "vlm", id="shell-plain"),
+            pytest.param("shell", "VLM", id="shell-upper"),
+            pytest.param("shell", " vlm ", id="shell-padded"),
+            pytest.param("shell", "Vlm", id="shell-mixed"),
+        ],
+    )
+    def test_vlm_spellings_are_accepted_from_either_source(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        source: str,
+        value: str,
+    ) -> None:
+        """Every spelling of the one real mode resolves to it from either source.
+
+        S2b left exactly one plan in setup_lib/deploy_phases.py's _MODE_PLANS, so
+        this is no longer a two-way check -- it is the positive half of the raise.
+        Without it, a normalization bug would look identical to the hard raise
+        (both are a ValueError), and a .env written by hand as PIPELINE_MODE=VLM
+        would fail a deploy that works.
+        """
+        from setup_lib.deploy import DeployConfig
+
+        if source == "shell":
+            monkeypatch.setenv("PIPELINE_MODE", value)
+            config = DeployConfig(project_root=tmp_path)
+        else:
+            monkeypatch.delenv("PIPELINE_MODE", raising=False)
+            config = DeployConfig(project_root=tmp_path, env={"PIPELINE_MODE": value})
 
         assert config.pipeline_mode == "vlm"
 

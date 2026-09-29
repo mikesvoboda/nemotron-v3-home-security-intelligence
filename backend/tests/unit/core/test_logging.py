@@ -1108,17 +1108,34 @@ class TestRedactSensitiveValue:
         result = redact_sensitive_value("yolo26_api_key", "yolo26-key-123")
         assert result == "[REDACTED]"
 
-    def test_nemotron_api_key_redacted(self):
-        """Test that nemotron_api_key is fully redacted."""
-        result = redact_sensitive_value("nemotron_api_key", "nemotron-key-abc")
+    def test_jwt_secret_redacted(self):
+        """Test that jwt_secret is fully redacted (NEM-5307).
+
+        This case used to pin ``nemotron_api_key``. R8 slice S2b deleted the legacy
+        ai-llm (Nemotron) tier, so that field no longer exists on Settings and the
+        name left ``SENSITIVE_FIELD_NAMES`` with it; the redaction behaviour this
+        test exists to pin (a named Settings secret lands as ``[REDACTED]``) moved
+        to ``jwt_secret``, which is a live SecretStr secret with no other pin here.
+        """
+        result = redact_sensitive_value("jwt_secret", "jwt-signing-secret")
         assert result == "[REDACTED]"
 
 
 class TestSensitiveFieldNames:
-    """Tests for SENSITIVE_FIELD_NAMES constant."""
+    """Tests for SENSITIVE_FIELD_NAMES constant.
+
+    The equality pin below is deliberate: a redaction set that silently loses a
+    member is a leak, not a typo, so this class pins both directions -- what must
+    be present and what must stay retired.
+    """
 
     def test_contains_expected_fields(self):
-        """Test that SENSITIVE_FIELD_NAMES contains all expected fields."""
+        """Test that SENSITIVE_FIELD_NAMES contains all expected fields.
+
+        ``nemotron_api_key`` was dropped here in R8 slice S2b together with the
+        ai-llm tier and the Settings field it named (see
+        ``test_retired_names_are_absent`` for the other half of that change).
+        """
         expected_fields = {
             "password",
             "secret",
@@ -1129,12 +1146,48 @@ class TestSensitiveFieldNames:
             "api_keys",
             "admin_api_key",
             "yolo26_api_key",
-            "nemotron_api_key",
             "smtp_password",
             "database_url",
             "redis_url",
         }
         assert expected_fields == SENSITIVE_FIELD_NAMES
+
+    def test_retired_names_are_absent(self):
+        """Retired field names must not come back into the set.
+
+        R8 slice S2b deleted the legacy LLM tier (backend/services/nemotron_analyzer.py
+        and friends), so ``nemotron_api_key`` is no longer a Settings field and has no
+        reason to live in a redaction set. Pinning its absence keeps a re-add honest --
+        if a future secret appears, it has to be added here *and* be a real field, which
+        ``test_every_secretstr_setting_is_redacted`` below checks.
+        """
+        assert "nemotron_api_key" not in SENSITIVE_FIELD_NAMES
+
+    def test_every_secretstr_setting_is_redacted(self):
+        """Every SecretStr Settings field must actually redact.
+
+        This is the general half of the member-loss pin: ``SENSITIVE_FIELD_NAMES``
+        is only one of the two mechanisms ``redact_sensitive_value`` uses (the other
+        is the substring patterns), so an equality pin alone cannot notice a new
+        SecretStr field that neither name appears in the set nor matches a pattern.
+        Iterating the live model catches that, and it is why the ai-vlm survivors
+        need no entry of their own: ``ai_vlm_url`` and ``ai_vlm_read_timeout`` are a
+        URL and a duration, not secrets, so ai-vlm contributes no SecretStr field to
+        redact -- inventing a name for it would be the bug, not the fix.
+        """
+        from backend.core.config import Settings
+
+        secret_fields = [
+            name
+            for name, field in Settings.model_fields.items()
+            if "SecretStr" in str(field.annotation)
+        ]
+        assert secret_fields, "Settings lost every SecretStr field -- pin is vacuous"
+
+        for name in secret_fields:
+            redacted = redact_sensitive_value(name, "sentinel-secret-value")
+            assert redacted not in ("sentinel-secret-value", ["sentinel-secret-value"])
+            assert "sentinel-secret-value" not in str(redacted)
 
     def test_is_frozenset(self):
         """Test that SENSITIVE_FIELD_NAMES is immutable."""

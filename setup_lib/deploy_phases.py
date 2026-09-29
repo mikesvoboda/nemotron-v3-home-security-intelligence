@@ -67,11 +67,15 @@ class _ModePlan:
     """The per-PIPELINE_MODE facts deploy needs (the mode itself is decided
     once, by ``DeployConfig.pipeline_mode``).
 
-    Each mode's GPU model server lives behind a compose profile (ai-vlm:
-    `vlm`; ai-llm: `legacy` since the 30B was retired), so every compose call
-    that names it carries ``--profile``: podman-compose drops a service whose
-    profile is inactive before it resolves command-line targets, so naming
-    the service alone is not enough there.
+    The GPU model server lives behind a compose profile (ai-vlm: `vlm`), so
+    every compose call that names it carries ``--profile``: podman-compose
+    drops a service whose profile is inactive before it resolves command-line
+    targets, so naming the service alone is not enough there.
+
+    R8 S2 retired the legacy pipeline: this dict has ONE plan now. The shape
+    (a dict keyed by mode) survives because DeployConfig.pipeline_mode can
+    still only be "vlm", and a keyed lookup beats a re-derived branch; the
+    day a second mode exists it gets a second entry, not a refactor.
     """
 
     model_server: str
@@ -92,7 +96,8 @@ class _ModePlan:
         return ("--profile", self.profile)
 
 
-# vlm is the shipped mode (spec rev 5 / F10); legacy parses but is unsupported.
+# vlm is the ONLY mode (spec rev 5 / F10; R8 S2 deleted the legacy plan with
+# the ai-llm services it named — DeployConfig.pipeline_mode raises on "legacy").
 _MODE_PLANS: dict[str, _ModePlan] = {
     # ai-vlm LAST: a leaf - nothing depends_on it (backend reaches it by URL),
     # so it only has to come up, not first. 180s: ai-vlm's healthy-or-unhealthy
@@ -107,18 +112,6 @@ _MODE_PLANS: dict[str, _ModePlan] = {
         port_var="AI_VLM_PORT",
         default_port="8098",
         health_timeout=120,
-    ),
-    # ai-llm FIRST: backend waits on it via service_healthy; 300s = the 30B's
-    # start_period (NEM-5512). Unchanged from before the 30B was retired.
-    "legacy": _ModePlan(
-        model_server="ai-llm",
-        profile="legacy",
-        app_services=("ai-llm", "ai-gateway", "backend", "frontend"),
-        wait_timeout=300,
-        health_label="LLM",
-        port_var="LLM_PORT",
-        default_port="8091",
-        health_timeout=180,
     ),
 }
 
@@ -169,9 +162,10 @@ def phase_stop(config: DeployConfig) -> DeployResult:
     project_name = config.project_root.name
 
     # Compose down + rm (short timeout — can hang if storage locked). Every
-    # mode's profile is active here: down/rm skip services whose profile is
-    # not, and a leftover model server of EITHER mode (e.g. an ai-llm started
-    # before it was profiled) must not keep holding the GPU both share.
+    # plan's profile is active here: down/rm skip services whose profile is
+    # not, and a leftover model server from before a profiling change (e.g. an
+    # ai-vlm or an ai-llm from before R8's deletion) must not keep holding the
+    # GPU.
     all_profiles = [arg for plan in _MODE_PLANS.values() for arg in plan.profile_args]
     compose_run(config, *all_profiles, "down", capture=True, timeout=60)
     compose_run(config, *all_profiles, "rm", "-f", capture=True, timeout=60)
@@ -548,7 +542,7 @@ def phase_build(config: DeployConfig) -> DeployResult:
         return DeployResult(False, "Application service build failed")
 
     # Build the mode's model server WITH cache (llama.cpp at a pinned tag, no
-    # app code): ai-vlm in vlm mode, ai-llm only in legacy mode.
+    # app code): ai-vlm, the only model server there is.
     plan = _mode_plan(config)
     print(f"  Building {plan.model_server} (cached)...")
     ok = compose_run(
@@ -868,9 +862,8 @@ def phase_application(config: DeployConfig) -> DeployResult:
     """Start all remaining services (backend, frontend, AI).
 
     Starts the pipeline mode's app services (see _MODE_PLANS) through the
-    model server's compose profile, with --wait sized for that server's load:
-    ai-vlm in vlm mode (the retired ai-llm is never named, so never started),
-    ai-llm first in legacy mode (backend depends on it: service_healthy).
+    model server's compose profile, with --wait sized for that server's load
+    (ai-vlm; R8 S2 deleted the legacy plan that started ai-llm first).
     Only targets the app services to avoid re-triggering alloy (handled in phase 4).
     """
     plan = _mode_plan(config)
@@ -984,8 +977,10 @@ def _recover_created_containers(config: DeployConfig) -> None:
         return
 
     plan = _mode_plan(config)
-    # The OTHER mode's model server (e.g. a leftover ai-llm in vlm mode) must
-    # never be started here: compose starts a profiled service it is asked by name.
+    # A model server that is NOT this plan's must never be started here:
+    # compose starts a profiled service it is asked by name. With one plan
+    # the set is empty by construction; it stays as the guard so any future
+    # second plan inherits the protection instead of re-discovering it.
     other_servers = {p.model_server for p in _MODE_PLANS.values()} - {plan.model_server}
 
     stuck = result.stdout.strip().splitlines()

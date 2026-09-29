@@ -38,10 +38,7 @@ Usage Examples:
         quantization_config=config
     )
 
-Supported Models for INT8:
-    - vit-age-classifier (~200MB -> ~50MB)
-    - vit-gender-classifier (~200MB -> ~50MB)
-    - pet-classifier (~200MB -> ~50MB)
+Supported Models for INT8 (R8 S2 pruned the retired attribute classifiers):
     - osnet-ain-x1-0 (~100MB -> ~25MB)
     - threat-detection-yolov8n (~300MB -> ~75MB)
 
@@ -546,24 +543,6 @@ async def apply_int8_quantization_async(
 # Maps model names to recommended quantization settings
 QUANTIZATION_RECOMMENDATIONS: dict[str, dict[str, Any]] = {
     # Low-priority classification models - good candidates for INT8
-    "vit-age-classifier": {
-        "type": QuantizationType.INT8,
-        "method": "dynamic",
-        "expected_compression": 3.5,
-        "accuracy_impact": "minimal (<1%)",
-    },
-    "vit-gender-classifier": {
-        "type": QuantizationType.INT8,
-        "method": "dynamic",
-        "expected_compression": 3.5,
-        "accuracy_impact": "minimal (<1%)",
-    },
-    "pet-classifier": {
-        "type": QuantizationType.INT8,
-        "method": "dynamic",
-        "expected_compression": 3.0,
-        "accuracy_impact": "minimal (<1%)",
-    },
     "osnet-ain-x1-0": {
         "type": QuantizationType.INT8,
         "method": "dynamic",
@@ -584,18 +563,6 @@ QUANTIZATION_RECOMMENDATIONS: dict[str, dict[str, Any]] = {
         "accuracy_impact": "low (<5% perplexity)",
     },
     # Medium priority models - FP16 for GPU, INT8 optional
-    "violence-detection": {
-        "type": QuantizationType.FP16,
-        "method": "native",
-        "expected_compression": 2.0,
-        "accuracy_impact": "none",
-    },
-    "weather-classification": {
-        "type": QuantizationType.FP16,
-        "method": "native",
-        "expected_compression": 2.0,
-        "accuracy_impact": "none",
-    },
 }
 
 
@@ -609,7 +576,7 @@ def get_quantization_recommendation(model_name: str) -> dict[str, Any] | None:
         Dictionary with recommended settings, or None if not found
 
     Example:
-        rec = get_quantization_recommendation("vit-age-classifier")
+        rec = get_quantization_recommendation("osnet-ain-x1-0")
         if rec and rec["type"] == QuantizationType.INT8:
             model = apply_dynamic_int8_quantization(model)
     """

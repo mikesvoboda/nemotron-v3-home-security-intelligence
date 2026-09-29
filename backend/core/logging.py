@@ -160,7 +160,6 @@ SENSITIVE_FIELD_NAMES = frozenset(
         "api_keys",
         "admin_api_key",
         "yolo26_api_key",
-        "nemotron_api_key",
         "smtp_password",
         "database_url",
         "redis_url",

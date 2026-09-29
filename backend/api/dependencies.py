@@ -343,10 +343,10 @@ if TYPE_CHECKING:
     from backend.services.baseline import BaselineService
     from backend.services.clip_generator import ClipGenerator
     from backend.services.container_orchestrator import ContainerOrchestrator
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
     from backend.services.onvif_service import OnvifService
     from backend.services.thumbnail_generator import ThumbnailGenerator
     from backend.services.video_processor import VideoProcessor
+    from backend.services.vlm_analyzer import VlmAnalyzer
 
 
 # =============================================================================
@@ -946,13 +946,14 @@ def get_video_processor_dep() -> VideoProcessor:
 
 async def get_nemotron_analyzer_dep(
     redis: RedisClient = Depends(get_redis),
-) -> AsyncGenerator[NemotronAnalyzer]:
+) -> AsyncGenerator[VlmAnalyzer]:
     """FastAPI dependency for the per-event analyzer (NEM-2032, 1.5).
 
-    Built through the pipeline factory: the name and type alias stay (the
-    route surface is unchanged) but what arrives depends on PIPELINE_MODE
-    — vlm mode gets the VlmAnalyzer, whose streaming surface answers the
-    same update vocabulary this route serializes.
+    Built through the pipeline factory. R8 S2 retired the legacy class the
+    dep name spells: what arrives is the shipped VlmAnalyzer, whose
+    streaming surface answers the same update vocabulary this route
+    serializes. The NAME stays - the route surface is unchanged, and the
+    string is wiring, not a claim about a class.
     """
     from backend.services.pipeline_factory import build_pipeline_analyzer
 
@@ -1041,22 +1042,6 @@ def get_ocr_service_dep() -> OCRService:
 
     container = get_container()
     return cast("OCRService", container.get("ocr_service"))
-
-
-def get_yolo_world_service_dep() -> YOLOWorldService:
-    """FastAPI dependency for YOLOWorldService (NEM-2003).
-
-    Returns the YOLOWorldService singleton from the DI container.
-    This service wraps YOLO-World open-vocabulary detection functionality
-    for detecting custom object classes via text prompts.
-
-    Returns:
-        YOLOWorldService singleton instance from DI container
-    """
-    from backend.core.container import get_container
-
-    container = get_container()
-    return cast("YOLOWorldService", container.get("yolo_world_service"))
 
 
 def get_job_service_dep(
@@ -1208,7 +1193,6 @@ if TYPE_CHECKING:
         FaceDetectorService,
         OCRService,
         PlateDetectorService,
-        YOLOWorldService,
     )
     from backend.services.export_service import ExportService
     from backend.services.health_event_emitter import HealthEventEmitter
@@ -1426,8 +1410,8 @@ ThumbnailGeneratorDep = Annotated["ThumbnailGenerator", Depends(get_thumbnail_ge
 #: Video processor dependency for video file operations.
 VideoProcessorDep = Annotated["VideoProcessor", Depends(get_video_processor_dep)]
 
-#: Nemotron analyzer dependency for LLM-based analysis.
-NemotronAnalyzerDep = Annotated["NemotronAnalyzer", Depends(get_nemotron_analyzer_dep)]
+#: Per-event analyzer dependency (the shipped mode's VlmAnalyzer).
+NemotronAnalyzerDep = Annotated["VlmAnalyzer", Depends(get_nemotron_analyzer_dep)]
 
 #: Job tracker dependency for async job management.
 JobTrackerDep = Annotated["JobTracker", Depends(get_job_tracker_dep)]

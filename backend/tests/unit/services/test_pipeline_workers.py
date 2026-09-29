@@ -22,7 +22,6 @@ import pytest
 
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.pipeline_workers import (
     AnalysisQueueWorker,
     BatchTimeoutWorker,
@@ -35,6 +34,7 @@ from backend.services.pipeline_workers import (
     get_pipeline_manager,
     stop_pipeline_manager,
 )
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 # =============================================================================
 # Test Helpers for Event-Based Waiting
@@ -234,8 +234,8 @@ def mock_batch_aggregator():
 
 @pytest.fixture
 def mock_analyzer():
-    """Create a mock Nemotron analyzer."""
-    analyzer = MagicMock(spec=NemotronAnalyzer)
+    """Create a mock VLM analyzer."""
+    analyzer = MagicMock(spec=VlmAnalyzer)
     event = MagicMock()
     event.id = 1
     event.risk_score = 50

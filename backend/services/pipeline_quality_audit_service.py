@@ -24,7 +24,7 @@ from backend.models.event_audit import EventAudit
 
 if TYPE_CHECKING:
     from backend.services.context_enricher import EnrichedContext
-    from backend.services.enrichment_pipeline import EnrichmentResult
+    from backend.services.prompts import EnrichmentResultLike
 
 logger = get_logger(__name__)
 
@@ -133,7 +133,8 @@ class PipelineQualityAuditService:
     def __init__(self) -> None:
         # Lazy load settings to avoid module-level database URL requirement
         settings = get_settings()
-        self._llm_url = settings.nemotron_url
+        # R8 S2 re-home: audits evaluate against the shipped ai-vlm engine.
+        self._llm_url = settings.ai_vlm_url
         self._timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
 
     def create_partial_audit(
@@ -141,7 +142,7 @@ class PipelineQualityAuditService:
         event_id: int,
         llm_prompt: str | None,
         enriched_context: EnrichedContext | None,
-        enrichment_result: EnrichmentResult | None,
+        enrichment_result: EnrichmentResultLike | None,
     ) -> EventAudit:
         """Create a partial audit record with model contribution flags.
 
@@ -190,32 +191,32 @@ class PipelineQualityAuditService:
         logger.debug(f"Persisted audit {audit.id} for event {audit.event_id}")
         return audit
 
-    def _has_florence(self, result: EnrichmentResult | None) -> bool:
+    def _has_florence(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.has_vision_extraction
 
-    def _has_clip(self, result: EnrichmentResult | None) -> bool:
+    def _has_clip(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and bool(
             result.person_reid_matches or result.vehicle_reid_matches
         )
 
-    def _has_violence(self, result: EnrichmentResult | None) -> bool:
+    def _has_violence(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.has_violence
 
-    def _has_clothing(self, result: EnrichmentResult | None) -> bool:
+    def _has_clothing(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.has_clothing_classifications
 
-    def _has_vehicle(self, result: EnrichmentResult | None) -> bool:
+    def _has_vehicle(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and (
             result.has_vehicle_classifications or result.has_vehicle_damage
         )
 
-    def _has_pet(self, result: EnrichmentResult | None) -> bool:
+    def _has_pet(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.has_pet_classifications
 
-    def _has_weather(self, result: EnrichmentResult | None) -> bool:
+    def _has_weather(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.weather_classification is not None
 
-    def _has_image_quality(self, result: EnrichmentResult | None) -> bool:
+    def _has_image_quality(self, result: EnrichmentResultLike | None) -> bool:
         return result is not None and result.has_image_quality
 
     def _has_zones(self, context: EnrichedContext | None) -> bool:
@@ -236,7 +237,7 @@ class PipelineQualityAuditService:
     def _calc_utilization(
         self,
         context: EnrichedContext | None,
-        result: EnrichmentResult | None,
+        result: EnrichmentResultLike | None,
     ) -> float:
         """Calculate enrichment utilization (0-1)."""
         total = 12  # Total possible enrichments

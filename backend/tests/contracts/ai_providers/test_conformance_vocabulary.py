@@ -650,31 +650,29 @@ class TestV3ThreeNames:
                 assert d["label"] == "person"
                 assert "class" not in d, f"{path} item smuggled a 'class' key: {sorted(d)}"
 
-    def test_V3_enrichment_threat_precedence_split_is_pinned(self) -> None:
-        """V3 enrichment side: the SAME file reads the one concept with
-        OPPOSITE precedence twice —
-          backend/services/enrichment_pipeline.py:3942  type -> class_name
-          backend/services/enrichment_pipeline.py:5196  class_name -> type
-        A threat dict carrying both keys resolves to DIFFERENT values on
-        the two paths. Characterization (the split is a documented hazard
-        with a parked RULING, plan §3.4) — pinned by regex so the line
-        drifts redden here.
-        Sources: dossier V3 (:3942 EXACT, :5196 bonus find), re-verified.
-        Predicted GREEN (source regex). UNVERIFIED."""
-        src = (REPO_ROOT / "backend/services/enrichment_pipeline.py").read_text(encoding="utf-8")
-        lines = src.splitlines()
-        # Re-keyed 2026-09-26 by the re-ID full swap's enrichment_pipeline
-        # edits (:3942 -> :3955, :5196 -> :5214), re-keyed again the same day
-        # by the swap's Slice B/C producer+leg edits (:3955 -> :3961,
-        # :5214 -> :5220) — the split itself is unchanged. Same precedent as
-        # the eval_store 295 -> 300 re-key (ledger item 14): a canary that
-        # fired on drift re-arms at its new line, it does not relax.
-        assert re.search(
-            r"threat_class = t\.get\([\"']type[\"'], t\.get\([\"']class_name[\"']", lines[3960]
-        ), f":3961 drifted: {lines[3960]!r}"
-        assert re.search(
-            r"threat_class = t\.get\([\"']class_name[\"'], t\.get\([\"']type[\"']", lines[5219]
-        ), f":5220 drifted: {lines[5219]!r}"
+    def test_V3_enrichment_precedence_split_died_with_the_tier(self) -> None:
+        """V3 enrichment side, TOMBSTONED by R8 S2 (2026-09-29).
+
+        The characterization this test used to pin: the SAME file read the one
+        concept with OPPOSITE precedence twice —
+          backend/services/enrichment_pipeline.py:3961  type -> class_name
+          backend/services/enrichment_pipeline.py:5220  class_name -> type
+        (cites as re-keyed 2026-09-26 by the re-ID swap; dossier V3 first
+        logged :3942/:5196). A threat dict carrying both keys resolved to
+        DIFFERENT values on the two paths — a documented hazard with a parked
+        RULING (plan §3.4), pinned by regex so line drift reddened here.
+
+        The split was DELETED, not fixed: enrichment_pipeline.py went with the
+        legacy enrichment tier and no shipped code reads a threat dict's
+        type/class_name precedence anymore (verified: zero `threat_class`
+        sites under backend/ outside tests). A pin against deleted text cannot
+        retarget — there is no surviving text — so it dies HERE, with the
+        hazard spelled out, instead of becoming a skip. If anyone re-grows a
+        threat-dict precedence chain in shipped code, THIS docstring is the
+        paragraph they must read first; the provider-side V3 pins in this
+        class (wire key spellings differ per provider) carry the live half of
+        the concept."""
+        assert not (REPO_ROOT / "backend/services/enrichment_pipeline.py").exists()
 
     async def test_V3_threat_rows_carry_no_canonical_name_at_all(self, fake_client) -> None:
         """V3 consequence, drivable: the fake's threat rows

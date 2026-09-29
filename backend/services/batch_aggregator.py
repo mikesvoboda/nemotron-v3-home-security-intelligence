@@ -187,7 +187,8 @@ class BatchAggregator:
 
         Args:
             redis_client: Redis client instance. If None, will be injected via dependency.
-            analyzer: NemotronAnalyzer instance for fast path analysis. If None, will be created.
+            analyzer: analyzer instance for fast path analysis (the shipped
+                mode's is VlmAnalyzer). If None, will be created.
         """
         self._redis = redis_client
         self._analyzer = analyzer

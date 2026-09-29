@@ -97,12 +97,12 @@ from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_fil
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
 from backend.services.clip_generator import ClipGenerator
 from backend.services.event_service import get_event_service
-from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.search import SearchFilters, search_events
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 # Type aliases for dependency injection
 ClipGeneratorDep = ClipGenerator
-NemotronAnalyzerDep = NemotronAnalyzer
+NemotronAnalyzerDep = VlmAnalyzer
 
 logger = get_logger(__name__)
 router = APIRouter(
@@ -2598,7 +2598,7 @@ async def analyze_batch_streaming(
         batch_id: Batch identifier to analyze
         camera_id: Optional camera ID (uses Redis lookup if not provided)
         detection_ids: Optional comma-separated detection IDs
-        analyzer: NemotronAnalyzer injected via Depends()
+        analyzer: the shipped analyzer (VlmAnalyzer) injected via Depends()
 
     Returns:
         StreamingResponse with SSE event stream (text/event-stream)

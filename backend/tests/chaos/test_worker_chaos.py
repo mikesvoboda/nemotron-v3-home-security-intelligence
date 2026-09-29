@@ -33,7 +33,6 @@ from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient
-from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.pipeline_workers import (
     AnalysisQueueWorker,
     BatchTimeoutWorker,
@@ -43,6 +42,7 @@ from backend.services.pipeline_workers import (
 )
 from backend.services.retry_handler import RetryConfig, RetryHandler, RetryResult
 from backend.services.video_processor import VideoProcessor
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.chaos]
 
@@ -196,9 +196,9 @@ def mock_retry_handler() -> RetryHandler:
 
 
 @pytest.fixture
-def mock_nemotron_analyzer() -> NemotronAnalyzer:
-    """Create a mock Nemotron analyzer for testing."""
-    mock = AsyncMock(spec=NemotronAnalyzer)
+def mock_vlm_analyzer() -> VlmAnalyzer:
+    """Create a mock VLM analyzer for testing."""
+    mock = AsyncMock(spec=VlmAnalyzer)
     mock.analyze_batch = AsyncMock(return_value={"risk_score": 50, "explanation": "Test analysis"})
     return mock
 
@@ -230,12 +230,12 @@ async def detection_worker(
 @pytest.fixture
 async def analysis_worker(
     mock_redis: RedisClient,
-    mock_nemotron_analyzer: NemotronAnalyzer,
+    mock_vlm_analyzer: VlmAnalyzer,
 ) -> AnalysisQueueWorker:
     """Create an AnalysisQueueWorker for testing."""
     worker = AnalysisQueueWorker(
         redis_client=mock_redis,
-        analyzer=mock_nemotron_analyzer,
+        analyzer=mock_vlm_analyzer,
         poll_timeout=0.5,  # Short timeout for faster tests
         stop_timeout=2.0,  # Short stop timeout
     )
@@ -353,7 +353,7 @@ class TestWorkerCrashMidTask:
         self,
         analysis_worker: AnalysisQueueWorker,
         mock_redis: RedisClient,
-        mock_nemotron_analyzer: NemotronAnalyzer,
+        mock_vlm_analyzer: VlmAnalyzer,
     ) -> None:
         """Test analysis worker handles crash during batch analysis.
 
@@ -373,7 +373,7 @@ class TestWorkerCrashMidTask:
         await mock_redis.add_to_queue(ANALYSIS_QUEUE, analysis_payload)
 
         # Configure analyzer to raise exception
-        mock_nemotron_analyzer.analyze_batch.side_effect = RuntimeError("Simulated analyzer crash")
+        mock_vlm_analyzer.analyze_batch.side_effect = RuntimeError("Simulated analyzer crash")
 
         # Act: Start worker and let it process
         await analysis_worker.start()
@@ -497,7 +497,7 @@ class TestWorkerTimeoutScenarios:
         self,
         analysis_worker: AnalysisQueueWorker,
         mock_redis: RedisClient,
-        mock_nemotron_analyzer: NemotronAnalyzer,
+        mock_vlm_analyzer: VlmAnalyzer,
     ) -> None:
         """Test analysis worker handles analyzer service timeouts.
 
@@ -517,7 +517,7 @@ class TestWorkerTimeoutScenarios:
         await mock_redis.add_to_queue(ANALYSIS_QUEUE, analysis_payload)
 
         # Configure analyzer to timeout
-        mock_nemotron_analyzer.analyze_batch.side_effect = TimeoutError("Analyzer timeout")
+        mock_vlm_analyzer.analyze_batch.side_effect = TimeoutError("Analyzer timeout")
 
         # Act: Start worker and let it process
         await analysis_worker.start()
@@ -1090,7 +1090,7 @@ class TestPipelineWorkerManagerChaos:
         mock_redis: RedisClient,
         mock_detector_client: DetectorClient,
         mock_batch_aggregator: BatchAggregator,
-        mock_nemotron_analyzer: NemotronAnalyzer,
+        mock_vlm_analyzer: VlmAnalyzer,
     ) -> None:
         """Test manager handles individual worker crashes gracefully.
 
@@ -1124,7 +1124,7 @@ class TestPipelineWorkerManagerChaos:
             manager = PipelineWorkerManager(
                 redis_client=mock_redis,
                 detector_client=mock_detector_client,
-                analyzer=mock_nemotron_analyzer,
+                analyzer=mock_vlm_analyzer,
                 worker_stop_timeout=2.0,
             )
 
@@ -1173,7 +1173,7 @@ class TestPipelineWorkerManagerChaos:
         mock_redis: RedisClient,
         mock_detector_client: DetectorClient,
         mock_batch_aggregator: BatchAggregator,
-        mock_nemotron_analyzer: NemotronAnalyzer,
+        mock_vlm_analyzer: VlmAnalyzer,
     ) -> None:
         """Test manager shuts down gracefully with pending jobs in queue.
 
@@ -1189,7 +1189,7 @@ class TestPipelineWorkerManagerChaos:
         manager = PipelineWorkerManager(
             redis_client=mock_redis,
             detector_client=mock_detector_client,
-            analyzer=mock_nemotron_analyzer,
+            analyzer=mock_vlm_analyzer,
             worker_stop_timeout=2.0,
         )
 

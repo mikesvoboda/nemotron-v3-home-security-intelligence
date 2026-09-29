@@ -20,7 +20,7 @@ def clean_env(monkeypatch):
         "DATABASE_URL",
         "REDIS_URL",
         "YOLO26_URL",
-        "NEMOTRON_URL",
+        "AI_VLM_URL",
         "FOSCAM_BASE_PATH",
         "API_PORT",
         "SMTP_PORT",
@@ -168,11 +168,12 @@ class TestValidateConfig:
         # Status should be ok, info (localhost), or warning - not error
         assert yolo26_item.status in ("ok", "warning", "info")
 
-        # Find nemotron_url validation item
-        nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
-        assert nemotron_item is not None
+        # Find ai_vlm_url validation item (R8 S2: this is the member
+        # config_validation reports now that nemotron_url is deleted)
+        ai_vlm_item = next((item for item in result.items if item.name == "ai_vlm_url"), None)
+        assert ai_vlm_item is not None
         # Status should be ok, info (localhost), or warning - not error
-        assert nemotron_item.status in ("ok", "warning", "info")
+        assert ai_vlm_item.status in ("ok", "warning", "info")
 
     def test_validate_config_checks_port_ranges(self, clean_env):
         """Test that validate_config validates port numbers are in valid range."""
@@ -344,7 +345,7 @@ class TestConfigValidationIntegration:
             "database_url",
             "redis_url",
             "yolo26_url",
-            "nemotron_url",
+            "ai_vlm_url",
             "api_port",
             "foscam_base_path",
         }
@@ -446,20 +447,20 @@ class TestEdgeCases:
 
         # Localhost URLs should be valid
         yolo26_item = next((item for item in result.items if item.name == "yolo26_url"), None)
-        nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
+        ai_vlm_item = next((item for item in result.items if item.name == "ai_vlm_url"), None)
 
         assert yolo26_item is not None
-        assert nemotron_item is not None
+        assert ai_vlm_item is not None
         # Should be ok or warning (not error) for localhost
         assert yolo26_item.status in ("ok", "warning", "info")
-        assert nemotron_item.status in ("ok", "warning", "info")
+        assert ai_vlm_item.status in ("ok", "warning", "info")
 
     def test_validate_config_with_https_ai_services(self, clean_env):
         """Test validation with HTTPS AI service URLs (production setup)."""
         from backend.core.config_validation import validate_config
 
         clean_env.setenv("YOLO26_URL", "https://yolo26.example.com:8090")
-        clean_env.setenv("NEMOTRON_URL", "https://nemotron.example.com:8091")
+        clean_env.setenv("AI_VLM_URL", "https://ai-vlm.example.com:8098")
         get_settings.cache_clear()
 
         settings = Settings()
@@ -467,9 +468,12 @@ class TestEdgeCases:
 
         # HTTPS URLs should be valid
         yolo26_item = next((item for item in result.items if item.name == "yolo26_url"), None)
-        nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
+        ai_vlm_item = next((item for item in result.items if item.name == "ai_vlm_url"), None)
 
         assert yolo26_item is not None
-        assert nemotron_item is not None
+        assert ai_vlm_item is not None
         assert yolo26_item.status in ("ok", "warning", "info")
-        assert nemotron_item.status in ("ok", "warning", "info")
+        assert ai_vlm_item.status in ("ok", "warning", "info")
+        # The override actually landed — a stale nemotron_* alias would leave
+        # this at the localhost default while the test still passed.
+        assert settings.ai_vlm_url == "https://ai-vlm.example.com:8098"

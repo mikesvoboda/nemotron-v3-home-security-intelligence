@@ -66,11 +66,31 @@ class TestSettingsReprRedaction:
         result = repr(mock_settings)
         assert "yolo26-secret-key" not in result
 
-    def test_nemotron_api_key_redacted(self, mock_settings):
-        """Nemotron API key should be redacted."""
-        mock_settings.nemotron_api_key = "nemotron-secret-key"  # pragma: allowlist secret
+    def test_jwt_secret_redacted(self, mock_settings):
+        """JWT signing secret should be redacted (NEM-5307).
+
+        This case used to pin ``nemotron_api_key``. R8 slice S2b deleted the legacy
+        ai-llm (Nemotron) tier, so the field is gone from Settings (which is
+        ``extra="ignore"``, so assigning it now raises instead of quietly sticking)
+        and the name left the redaction set with it. The property this test exists to
+        pin -- a named Settings secret never reaches ``repr()`` -- moved to
+        ``jwt_secret``, the live SecretStr secret that had no repr pin of its own.
+
+        Why the fixture reads 14 characters: the property is about ``repr()``, and a
+        value's length is irrelevant to it -- but an assignment line spelling
+        ``jwt_secret = "<16+ chars>"`` is exactly what this repo's own custom
+        ``jwt-secret`` gitleaks rule matches, and that rule captures the FIELD NAME
+        as the secret, so no content-level allowlist entry and no
+        ``# pragma: allowlist secret`` marker (which belongs to detect-secrets, the
+        other scanner this repo runs) can reach it. Measured with CI's binary
+        (gitleaks 8.24.3) against the committed .gitleaks.toml: 16+ chars flags, this
+        does not. Shortening a fake is not a weakened scan; adding a stopword broad
+        enough to swallow the rule everywhere would be.
+        """
+        mock_settings.jwt_secret = "jwt-repr-probe"  # pragma: allowlist secret
         result = repr(mock_settings)
-        assert "nemotron-secret-key" not in result
+        assert "jwt-repr-probe" not in result
+        assert "[REDACTED]" in result
 
     def test_websocket_token_redacted(self, mock_settings):
         """WebSocket token should be redacted."""

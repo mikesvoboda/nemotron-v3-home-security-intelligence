@@ -1,7 +1,8 @@
-"""Integration tests for entity persistence in the enrichment pipeline.
+"""Integration tests for entity persistence in the re-id write path.
 
-Tests verify that entities are written to PostgreSQL when the enrichment
-pipeline processes detections with re-identification enabled.
+Tests verify that entities are written to PostgreSQL when re-identification
+processes detections (the clustering service, the hybrid Redis/Postgres
+storage and the repository behind them).
 
 Related to NEM-2453: Verify and Update Enrichment Pipeline to Write Entities to PostgreSQL.
 
@@ -309,29 +310,17 @@ class TestHybridEntityStorageIntegration:
         assert "lobby" in entity.entity_metadata.get("cameras_seen", [])
 
 
-class TestEnrichmentPipelineWithSession:
-    """Integration tests for get_enrichment_pipeline_with_session.
+class TestReidHybridStoragePersistence:
+    """Integration tests for the re-id -> hybrid storage -> Postgres write.
 
     Verifies NEM-2453 requirement: Entity appears in API after detection processed.
+
+    R8 S2b: the sibling test here drove the retired
+    get_enrichment_pipeline_with_session factory and is gone with it. What
+    stays builds the same wiring (EntityRepository -> EntityClusteringService
+    -> HybridEntityStorage -> ReIdentificationService) directly, so the
+    NEM-2453 persistence contract is still pinned without the dead pipeline.
     """
-
-    async def test_pipeline_factory_creates_hybrid_storage(
-        self,
-        db_session: AsyncSession,
-        mock_redis,
-    ):
-        """Test that get_enrichment_pipeline_with_session configures hybrid storage."""
-        from backend.services.enrichment_pipeline import get_enrichment_pipeline_with_session
-
-        # Act
-        pipeline = await get_enrichment_pipeline_with_session(
-            session=db_session,
-            redis_client=mock_redis,
-        )
-
-        # Assert: Pipeline has reid_service with hybrid_storage
-        assert pipeline._reid_service is not None
-        assert pipeline._reid_service.hybrid_storage is not None
 
     async def test_reid_service_persists_to_postgres(
         self,
@@ -447,15 +436,15 @@ class TestEntityRepositoryGetOrCreate:
         assert entity2.detection_count == initial_count + 1
 
 
-class TestEntityStatsAfterPipeline:
-    """Tests verifying entity statistics after pipeline processing."""
+class TestEntityStatsAfterDetections:
+    """Tests verifying entity statistics after detections are stored."""
 
     async def test_entity_stats_reflect_detections(
         self,
         db_session: AsyncSession,
         mock_redis,
     ):
-        """Test that entity stats API returns correct counts after pipeline."""
+        """Test that entity stats API returns correct counts after storage."""
         # Configure mock_redis to behave like Redis for get/set operations
         mock_redis.get.return_value = None  # No existing key
         mock_redis.set.return_value = True

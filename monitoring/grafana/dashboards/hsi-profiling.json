@@ -151,7 +151,7 @@
       },
       "id": 102,
       "panels": [],
-      "title": "Nemotron LLM (Primary - ai-llm)",
+      "title": "VLM Engine (Primary - ai-vlm)",
       "type": "row"
     },
     {
@@ -159,7 +159,7 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Nemotron LLM inference profiling - the most critical service for performance analysis. Profiled via eBPF for minimal overhead. Shows CPU time spent in model.generate(), tokenizer operations, and batch processing. Key hotspots: HuggingFace Transformers inference (~60-70% CPU), tokenization (~20-30%), and response formatting. Service name: ai-llm",
+      "description": "VLM engine (llama.cpp) inference profiling - the most critical service for performance analysis. Profiled via eBPF for minimal overhead. R8 S2 re-pointed this panel from the retired ai-llm to the shipped ai-vlm service.",
       "gridPos": {
         "h": 14,
         "w": 24,
@@ -181,14 +181,14 @@
             "uid": "pyroscope"
           },
           "groupBy": [],
-          "labelSelector": "{service_name=\"ai-llm\"}",
+          "labelSelector": "{service_name=\"ai-vlm\"}",
           "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
           "queryType": "profile",
           "refId": "A",
           "spanSelector": []
         }
       ],
-      "title": "ai-llm (Nemotron LLM) - CPU Flame Graph",
+      "title": "ai-vlm (VLM engine) - CPU Flame Graph",
       "type": "flamegraph"
     },
     {
@@ -1356,15 +1356,15 @@
       {
         "current": {
           "selected": true,
-          "text": ["ai-llm"],
-          "value": ["ai-llm"]
+          "text": ["ai-vlm"],
+          "value": ["ai-vlm"]
         },
         "datasource": {
           "type": "grafana-pyroscope-datasource",
           "uid": "pyroscope"
         },
         "definition": "label_values(service_name)",
-        "description": "Select service(s) to profile. Multi-select enabled for comparison. Live Pyroscope apps: ai-llm (Nemotron), nemotron-backend. Standalone ai-yolo26/ai-clip/ai-florence/ai-enrichment(-light) containers are retired — those models now run inside ai-gateway.",
+        "description": "Select service(s) to profile. Multi-select enabled for comparison. Live Pyroscope apps: ai-vlm (VLM engine), nemotron-backend. Standalone ai-yolo26/ai-clip/ai-florence/ai-enrichment(-light) and the legacy ai-llm containers are retired — vision models run inside ai-gateway, the LLM path is ai-vlm.",
         "hide": 0,
         "includeAll": true,
         "label": "Service",

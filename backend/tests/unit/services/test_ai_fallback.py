@@ -63,14 +63,6 @@ def mock_detector_client():
 
 
 @pytest.fixture
-def mock_nemotron_analyzer():
-    """Create a mock Nemotron analyzer."""
-    analyzer = MagicMock()
-    analyzer.health_check = AsyncMock(return_value=True)
-    return analyzer
-
-
-@pytest.fixture
 def mock_florence_client():
     """Create a mock Florence-2 client."""
     client = MagicMock()
@@ -89,14 +81,12 @@ def mock_clip_client():
 @pytest.fixture
 def fallback_service(
     mock_detector_client,
-    mock_nemotron_analyzer,
     mock_florence_client,
     mock_clip_client,
 ):
     """Create an AIFallbackService with mock clients."""
     return AIFallbackService(
         detector_client=mock_detector_client,
-        nemotron_analyzer=mock_nemotron_analyzer,
         florence_client=mock_florence_client,
         clip_client=mock_clip_client,
         health_check_interval=0.05,  # Fast for testing
@@ -114,13 +104,17 @@ class TestAIServiceEnum:
     def test_service_enum_values(self) -> None:
         """Test that AIService enum has expected values."""
         assert AIService.YOLO26.value == "yolo26"
-        assert AIService.NEMOTRON.value == "nemotron"
         assert AIService.FLORENCE.value == "florence"
         assert AIService.CLIP.value == "clip"
 
     def test_service_enum_count(self) -> None:
-        """Test that AIService has exactly 4 services."""
-        assert len(list(AIService)) == 4
+        """Test that AIService has exactly the three surviving services.
+
+        R8 S2b deleted the legacy analyzer, so its enum member is gone: the
+        count IS the census - the detector, the gateway Florence-2 client and
+        the CLIP client.
+        """
+        assert {s.value for s in AIService} == {"yolo26", "florence", "clip"}
 
 
 class TestDegradationLevelEnum:
@@ -167,7 +161,7 @@ class TestServiceState:
         """Test ServiceState with custom values."""
         now = datetime.now(UTC)
         state = ServiceState(
-            service=AIService.NEMOTRON,
+            service=AIService.CLIP,
             status=ServiceStatus.DEGRADED,
             circuit_state=CircuitState.HALF_OPEN,
             last_success=now,
@@ -175,7 +169,7 @@ class TestServiceState:
             error_message="Timeout error",
             last_check=now,
         )
-        assert state.service == AIService.NEMOTRON
+        assert state.service == AIService.CLIP
         assert state.status == ServiceStatus.DEGRADED
         assert state.circuit_state == CircuitState.HALF_OPEN
         assert state.last_success == now
@@ -340,7 +334,7 @@ class TestAIFallbackServiceInit:
         service = AIFallbackService()
 
         assert service._detector_client is None
-        assert service._nemotron_analyzer is None
+        assert service._analyzer is None
         assert service._florence_client is None
         assert service._clip_client is None
         assert service._health_check_interval == 15.0
@@ -349,17 +343,16 @@ class TestAIFallbackServiceInit:
     def test_initialization_with_all_clients(self, fallback_service) -> None:
         """Test initialization with all clients."""
         assert fallback_service._detector_client is not None
-        assert fallback_service._nemotron_analyzer is not None
         assert fallback_service._florence_client is not None
         assert fallback_service._clip_client is not None
 
     def test_initialization_creates_service_states(self, fallback_service) -> None:
         """Test that initialization creates states for all services."""
-        assert len(fallback_service._service_states) == 4
-        assert AIService.YOLO26 in fallback_service._service_states
-        assert AIService.NEMOTRON in fallback_service._service_states
-        assert AIService.FLORENCE in fallback_service._service_states
-        assert AIService.CLIP in fallback_service._service_states
+        assert set(fallback_service._service_states) == {
+            AIService.YOLO26,
+            AIService.FLORENCE,
+            AIService.CLIP,
+        }
 
     def test_initialization_creates_risk_cache(self, fallback_service) -> None:
         """Test that initialization creates risk cache."""
@@ -368,7 +361,7 @@ class TestAIFallbackServiceInit:
 
     def test_initialization_creates_empty_circuit_breakers(self, fallback_service) -> None:
         """Test that initialization creates empty circuit breaker dict."""
-        assert len(fallback_service._circuit_breakers) == 4
+        assert len(fallback_service._circuit_breakers) == 3
         assert all(v is None for v in fallback_service._circuit_breakers.values())
 
     def test_custom_health_check_interval(self) -> None:
@@ -395,13 +388,13 @@ class TestCircuitBreakerRegistration:
     def test_register_multiple_circuit_breakers(self, fallback_service) -> None:
         """Test registering circuit breakers for multiple services."""
         cb_yolo26 = CircuitBreaker(name="yolo26", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
-        cb_nemotron = CircuitBreaker(name="nemotron", config=DEFAULT_CB_CONFIGS[AIService.NEMOTRON])
+        cb_florence = CircuitBreaker(name="florence", config=DEFAULT_CB_CONFIGS[AIService.FLORENCE])
 
         fallback_service.register_circuit_breaker(AIService.YOLO26, cb_yolo26)
-        fallback_service.register_circuit_breaker(AIService.NEMOTRON, cb_nemotron)
+        fallback_service.register_circuit_breaker(AIService.FLORENCE, cb_florence)
 
         assert fallback_service._circuit_breakers[AIService.YOLO26] is cb_yolo26
-        assert fallback_service._circuit_breakers[AIService.NEMOTRON] is cb_nemotron
+        assert fallback_service._circuit_breakers[AIService.FLORENCE] is cb_florence
 
 
 # =============================================================================
@@ -626,12 +619,6 @@ class TestHealthChecks:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_perform_health_check_nemotron(self, fallback_service) -> None:
-        """Test performing health check for Nemotron."""
-        result = await fallback_service._perform_health_check(AIService.NEMOTRON)
-        assert result is True
-
-    @pytest.mark.asyncio
     async def test_perform_health_check_florence(self, fallback_service) -> None:
         """Test performing health check for Florence-2."""
         result = await fallback_service._perform_health_check(AIService.FLORENCE)
@@ -702,8 +689,8 @@ class TestServiceAvailability:
 
     def test_is_service_available_string_parameter(self, fallback_service) -> None:
         """Test availability with string parameter."""
-        fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.HEALTHY
-        assert fallback_service.is_service_available("nemotron") is True
+        fallback_service._service_states[AIService.CLIP].status = ServiceStatus.HEALTHY
+        assert fallback_service.is_service_available("clip") is True
 
 
 # =============================================================================
@@ -744,24 +731,19 @@ class TestDegradationLevel:
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.DEGRADED
 
-    def test_degradation_level_one_critical_down(self, fallback_service) -> None:
-        """Test degradation level when one critical service is down."""
-        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
-        level = fallback_service.get_degradation_level()
-        assert level == DegradationLevel.MINIMAL
-
     def test_degradation_level_all_critical_down(self, fallback_service) -> None:
         """Test degradation level when all critical services are down."""
         fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
-        fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.OFFLINE
 
     def test_critical_services_constant(self) -> None:
         """Test that CRITICAL_SERVICES contains expected services."""
         assert AIService.YOLO26 in CRITICAL_SERVICES
-        assert AIService.NEMOTRON in CRITICAL_SERVICES
-        assert len(CRITICAL_SERVICES) == 2
+        # R8 S2b: the analyzer's membership left with its enum member, leaving
+        # a singleton - which is why 'one critical down' and 'all critical
+        # down' are now the same scenario and only the latter is pinned.
+        assert {AIService.YOLO26} == CRITICAL_SERVICES
 
 
 # =============================================================================
@@ -778,8 +760,6 @@ class TestAvailableFeatures:
 
         assert "object_detection" in features
         assert "detection_alerts" in features
-        assert "risk_analysis" in features
-        assert "llm_reasoning" in features
         assert "image_captioning" in features
         assert "ocr" in features
         assert "entity_tracking" in features
@@ -796,14 +776,6 @@ class TestAvailableFeatures:
         assert "object_detection" not in features
         assert "detection_alerts" not in features
         assert "event_history" in features  # Basic features always available
-
-    def test_get_available_features_nemotron_down(self, fallback_service) -> None:
-        """Test available features when Nemotron is down."""
-        fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
-        features = fallback_service.get_available_features()
-
-        assert "risk_analysis" not in features
-        assert "llm_reasoning" not in features
 
     def test_get_available_features_florence_down(self, fallback_service) -> None:
         """Test available features when Florence-2 is down."""
@@ -844,14 +816,13 @@ class TestDegradationStatus:
         status = fallback_service.get_degradation_status()
 
         assert status["degradation_mode"] == "normal"
-        assert len(status["services"]) == 4
+        assert len(status["services"]) == 3
 
     def test_get_degradation_status_service_details(self, fallback_service) -> None:
         """Test that service details are included in status."""
         status = fallback_service.get_degradation_status()
 
         assert "yolo26" in status["services"]
-        assert "nemotron" in status["services"]
         assert "florence" in status["services"]
         assert "clip" in status["services"]
 
@@ -982,14 +953,6 @@ class TestShouldSkipMethods:
         fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.HEALTHY
         assert fallback_service.should_skip_detection() is False
 
-    def test_should_use_default_risk(self, fallback_service) -> None:
-        """Test should_use_default_risk method."""
-        fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
-        assert fallback_service.should_use_default_risk() is True
-
-        fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.HEALTHY
-        assert fallback_service.should_use_default_risk() is False
-
     def test_should_skip_captions(self, fallback_service) -> None:
         """Test should_skip_captions method."""
         fallback_service._service_states[AIService.FLORENCE].status = ServiceStatus.UNAVAILABLE
@@ -1035,7 +998,7 @@ class TestGlobalInstance:
         service = get_ai_fallback_service()
 
         assert isinstance(service, AIFallbackService)
-        assert len(service._service_states) == 4
+        assert len(service._service_states) == 3
 
 
 # =============================================================================
@@ -1049,7 +1012,6 @@ class TestDefaultConfigs:
     def test_default_cb_configs_has_all_services(self) -> None:
         """Test that DEFAULT_CB_CONFIGS has configs for all services."""
         assert AIService.YOLO26 in DEFAULT_CB_CONFIGS
-        assert AIService.NEMOTRON in DEFAULT_CB_CONFIGS
         assert AIService.FLORENCE in DEFAULT_CB_CONFIGS
         assert AIService.CLIP in DEFAULT_CB_CONFIGS
 
@@ -1058,9 +1020,3 @@ class TestDefaultConfigs:
         config = DEFAULT_CB_CONFIGS[AIService.YOLO26]
         assert config.failure_threshold == 3
         assert config.recovery_timeout == 60.0
-
-    def test_nemotron_config(self) -> None:
-        """Test Nemotron circuit breaker config."""
-        config = DEFAULT_CB_CONFIGS[AIService.NEMOTRON]
-        assert config.failure_threshold == 5
-        assert config.recovery_timeout == 90.0
