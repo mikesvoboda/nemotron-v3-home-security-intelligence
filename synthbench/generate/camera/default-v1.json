@@ -1,0 +1,22 @@
+{
+  "id": "default-v1",
+  "size": [1920, 1080],
+  "jpeg_quality": 80,
+  "distortion": {
+    "doorbell_fisheye": 0.35,
+    "eave_wide": 0.12,
+    "garage_mounted": 0.08,
+    "pole_lot": 0.05,
+    "indoor_corner": 0.12
+  },
+  "noise_sigma": {
+    "day": 2.0,
+    "golden_hour": 2.5,
+    "dusk": 4.0,
+    "ir_night": 6.0,
+    "porch_lit_night": 5.0
+  },
+  "ir_lighting": ["ir_night"],
+  "bloom": { "threshold": 215, "radius": 9, "strength": 0.35 },
+  "overlay": { "font_px": 34, "x": 24, "y": 20, "stroke_px": 2 }
+}

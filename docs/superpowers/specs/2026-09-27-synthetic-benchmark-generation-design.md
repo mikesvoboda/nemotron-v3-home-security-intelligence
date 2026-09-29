@@ -95,6 +95,10 @@ The taxonomy lives in committed YAML. The scenario list starts from the 17 exist
 
 All three are pydantic models in `synthbench/contract/`, each with a `schema_version`.
 
+**Rev 3 (P3):** `provenance.json` is schema version 2. Each attempt adds `render_failures` and
+`overlay_time`. No version-1 file was ever written (the corpus was empty on 2026-09-28), so
+nothing migrates.
+
 ### §2.2 Truth stores facts, never expected model outputs
 
 `truth.json` says "stranger `S3`, handgun in right hand, face 38 px tall". It never says "the face
@@ -576,16 +580,16 @@ TDD throughout. CI never needs a GPU.
 
 Each phase gets its own plan and PR. The implementing agent writes one phase's plan at a time.
 
-| Phase | Deliverable                                                                                                  | GPU                 |
-| ----- | ------------------------------------------------------------------------------------------------------------ | ------------------- |
-| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                                   | no                  |
-| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec                    | window              |
-| P2    | Contract, taxonomy, sampler, `expectations()`                                                                | no                  |
-| P3    | Agent-driven Tier B generation beside the flagship (rev 3; text-to-image + camera model, calibrated per D13) | beside the flagship |
-| P4    | Verifier and audit page                                                                                      | window              |
-| P5    | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0        | beside the flagship |
-| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                                 | window              |
-| P7    | Burst mode, `compare`, VSS eval-store export and retirement of the 408 items (D14), then scale to v1 sizes   | mixed               |
+| Phase | Deliverable                                                                                                                                                                    | GPU                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                                                                                                     | no                  |
+| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec                                                                                      | window              |
+| P2    | Contract, taxonomy, sampler, `expectations()`                                                                                                                                  | no                  |
+| P3    | Agent-driven Tier B generation beside the flagship (rev 3; text-to-image + camera model, calibrated per D13); camera calibration (D13) is a follow-up plan (owner, 2026-09-28) | beside the flagship |
+| P4    | Verifier and audit page                                                                                                                                                        | window              |
+| P5    | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0                                                                          | beside the flagship |
+| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                                                                                                   | window              |
+| P7    | Burst mode, `compare`, VSS eval-store export and retirement of the 408 items (D14), then scale to v1 sizes                                                                     | mixed               |
 
 ## §8 Relationship to existing work
 

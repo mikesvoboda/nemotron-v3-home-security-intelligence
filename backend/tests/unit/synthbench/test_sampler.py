@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import random
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -140,3 +142,17 @@ def test_the_default_seed_is_stable_across_runs() -> None:
 def test_specs_survive_a_json_round_trip() -> None:
     for spec in _specs(n=40):
         assert Spec.model_validate_json(spec.model_dump_json(exclude_none=True)) == spec
+
+
+TINY = load_taxonomy(Path(__file__).with_name("fixtures") / "tiny_taxonomy.yaml")
+# Pinned 2026-09-28 (P3 plan, Task 2) from the P2 sampler. A different digest means the draw
+# order, a draw or the quota method changed, so every seed now makes different specs: that
+# needs an owner ruling and a new corpus version, never a new digest pasted in here.
+# pragma: allowlist nextline secret
+GOLDEN_FACTS_SHA256 = "146178f00404ab49db3ab9f47e43a94817e5b5cf854f9a76118aab439e23adb7"
+
+
+def test_the_sampler_draws_are_pinned() -> None:
+    specs = sample_specs(TINY, version="tiny-v0", batch="golden", n=40, seed=12345)
+    blob = json.dumps([spec.facts() for spec in specs], sort_keys=True)
+    assert hashlib.sha256(blob.encode()).hexdigest() == GOLDEN_FACTS_SHA256
