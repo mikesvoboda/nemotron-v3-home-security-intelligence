@@ -88,7 +88,9 @@ CONFIDENCE_TS_SRC = REPO_ROOT / "frontend" / "src" / "utils" / "confidence.ts"
 # The S5 pins read its FROZEN copy instead: retired_providers.py carries the
 # pattern defs + both strip sites verbatim from commit 0ba90d5f (see the
 # provenance header there for why the copy exists and why not a skip/delete).
-RETIRED_ANALYZER_SRC = REPO_ROOT / "backend" / "tests" / "contracts" / "ai_providers" / "retired_providers.py"
+RETIRED_ANALYZER_SRC = (
+    REPO_ROOT / "backend" / "tests" / "contracts" / "ai_providers" / "retired_providers.py"
+)
 GATEWAY_ENRICH_SRC = REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment.py"
 
 # --- registry constants (verified live 2026-09-19) --------------------------

@@ -108,7 +108,6 @@ def extract_reasoning_and_response(text: str) -> tuple[str, str]:
     return "", text.strip()
 
 
-
 # The analyzer's SECOND strip site (nemotron_analyzer.py:4663-4675, inside its
 # risk-response parse method), verbatim but dedented by 8 and wrapped in a
 # module-level function so it is legal at this scope. Same _THINK_PATTERN

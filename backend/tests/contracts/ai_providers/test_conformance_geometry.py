@@ -513,9 +513,7 @@ class TestG4FourthSpelling:
         # ONE) with it. The fourth spelling's surviving backend home is the
         # florence client's as_dict() — same corners-dict shape, same
         # backend-internal side, same rarity: exactly one shipped literal.
-        fl_src = (REPO_ROOT / "backend/services/florence_client.py").read_text(
-            encoding="utf-8"
-        )
+        fl_src = (REPO_ROOT / "backend/services/florence_client.py").read_text(encoding="utf-8")
         assert fl_src.count('"x1":') == 1
         # source: backend/services/florence_client.py:94 — BoundingBox.as_dict
         # returns the four-corner dict; the ONLY such literal in the file.
