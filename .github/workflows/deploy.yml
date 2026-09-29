@@ -65,7 +65,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051    # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302    # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
           tags: |
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@8c1e8f8e5bf845ba3773a14f3967965548a2341e # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
@@ -92,7 +92,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: digests-${{ matrix.image.name }}-${{ matrix.platform.suffix }}
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -155,7 +155,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051    # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302    # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
           tags: |
@@ -165,7 +165,7 @@ jobs:
       # Build and push AI image (amd64 only - NVIDIA CUDA)
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83    # v6.18.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc    # v7.4.0
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
@@ -182,7 +182,7 @@ jobs:
           touch "/tmp/digests/${{ matrix.image.name }}/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: digests-${{ matrix.image.name }}-amd64
           path: /tmp/digests/${{ matrix.image.name }}/*
@@ -222,7 +222,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051    # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302    # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
           tags: |
@@ -272,7 +272,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051    # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302    # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}
           tags: |
@@ -510,7 +510,7 @@ jobs:
           output-file: sbom-${{ matrix.image }}.spdx.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
@@ -605,7 +605,7 @@ jobs:
           echo "  FRONTEND_URL=http://staging:5173 npm test -- --project=chromium"
 
       - name: Document staging validation
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: staging-deployment-guide
           path: docs/DEPLOYMENT_VERIFICATION_CHECKLIST.md
@@ -707,7 +707,7 @@ jobs:
           cat canary-readiness.txt
 
       - name: Create deployment documentation artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: deployment-readiness
           path: canary-readiness.txt
