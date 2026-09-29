@@ -102,6 +102,57 @@ def _shipped_python() -> list[Path]:
     return out
 
 
+# The three node kinds a name can be LIVE through. A docstring, a comment, or a
+# string literal naming a retired class is a true sentence, not a reference --
+# which is why this is an AST scan and not a grep.
+_LIVE_NAME_NODES = (ast.Name, ast.Attribute, ast.ImportFrom)
+
+
+def _live_names(node: ast.AST) -> set[str]:
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Attribute):
+        return {node.attr}
+    if isinstance(node, ast.ImportFrom):
+        return {a.name for a in node.names}
+    return set()
+
+
+def _reference_hits(name: str, files: list[Path]) -> list[tuple[Path, int]]:
+    """(file, line) for every LIVE reference to `name` in `files`.
+
+    Byte-substring prefiltered, and that is sound rather than merely fast: each
+    name collected above is an identifier token spelled verbatim in the source,
+    so a file lacking the substring cannot contain a hit. Prose mentions DO
+    contain the substring and are still parsed and then discarded by the node
+    kinds -- the filter skips work, it does not skip judgement. The class below
+    named ``TestReferenceScannerIsNotBlind`` pins exactly that, because a
+    prefilter that was wrong would fail silently: the orphan pin would report a
+    clean tree while a live producer sat unparsed in it.
+
+    Bytes (not text) for the filter: ``ast.parse`` takes bytes itself, so files
+    that get skipped never need decoding at all.
+    """
+    needle = name.encode("utf-8")
+    hits: list[tuple[Path, int]] = []
+    for path in files:
+        data = path.read_bytes()
+        if needle not in data:
+            continue
+        for node in ast.walk(ast.parse(data)):
+            if isinstance(node, _LIVE_NAME_NODES) and name in _live_names(node):
+                hits.append((path, node.lineno))
+    return hits
+
+
+def _rel(path: Path) -> str:
+    """Repo-relative display, for the fixture files a pin may live outside it."""
+    try:
+        return str(path.relative_to(_REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 class TestNewHomeExists:
     def test_module_imports_and_carries_the_vocabulary(self) -> None:
         """The block's names, from the new home."""
@@ -276,6 +327,93 @@ class TestProbeContractShape:
         assert "stop_type" in src and "stop_reason" in src
 
 
+class TestReferenceScannerIsNotBlind:
+    """The prefilter's own evidence, kept next to the pin that uses it.
+
+    ``_reference_hits`` skips ``ast.parse`` for any file whose text does not
+    contain the name as a substring. That is sound only for one reason (see the
+    helper): the three node kinds it inspects all spell the name verbatim. A
+    prefilter that is WRONG fails silently -- the orphan pin would report "no
+    shipped references" while a live producer sat unparsed in the tree, which
+    is precisely the fabricated all-clear this slice keeps getting caught
+    making. So the negative-space claim ("absence of hits means absence of
+    references") is only credible alongside the positive claim ("a reference is
+    FOUND"), and the positive claim needs a fixture that actually has one.
+
+    Every case is a tmp_path file, not a repo file: the repo genuinely contains
+    no shipped reference, so the positive arms have to be manufactured, and the
+    prose arms have to be provably prose.
+    """
+
+    @pytest.mark.parametrize(
+        ("source", "why"),
+        [
+            ("from x import VerificationRowOutcome\n", "ImportFrom alias"),
+            ("x = VerificationRowOutcome()\n", "bare Name use"),
+            ("y = obj.VerificationRowOutcome\n", "Attribute access"),
+            ("def f(a: VerificationRowOutcome) -> None: ...\n", "annotation Name"),
+            ("VERIFIED = VerificationRowOutcome.__bases__\n", "Name in an expression"),
+        ],
+    )
+    def test_a_live_reference_is_found(self, tmp_path: Path, source: str, why: str) -> None:
+        f = tmp_path / "live.py"
+        f.write_text(source, encoding="utf-8")
+        hits = _reference_hits("VerificationRowOutcome", [f])
+        assert hits, f"the scanner missed a live reference ({why}): {source!r}"
+        assert hits[0] == (f, 1), hits
+
+    @pytest.mark.parametrize(
+        ("source", "why"),
+        [
+            ('"""VerificationRowOutcome used to feed the producer."""\n', "module docstring"),
+            ("def f() -> None:\n    'VerificationRowOutcome fed it'\n", "function docstring"),
+            ("# VerificationRowOutcome was deleted in S4\n", "comment"),
+            ("SAID = 'VerificationRowOutcome is dead'\n", "string literal"),
+            ("x = UnrelatedName()\n", "no occurrence at all"),
+        ],
+    )
+    def test_prose_is_not_a_reference(self, tmp_path: Path, source: str, why: str) -> None:
+        f = tmp_path / "prose.py"
+        f.write_text(source, encoding="utf-8")
+        assert not _reference_hits("VerificationRowOutcome", [f]), (
+            f"the scanner reported prose as a live reference ({why}): {source!r}"
+        )
+
+    def test_the_prefilter_does_not_skip_a_file_it_should_parse(self, tmp_path: Path) -> None:
+        """The exact regression the substring guard could introduce.
+
+        A name that reaches the AST only as a *spelled* token is caught with or
+        without the prefilter; the dangerous shape is one where text and AST
+        disagree. This pins that the substring test is a superset of the parse,
+        by checking the two paths agree on the same fixture corpus.
+        """
+        corpus = {
+            "live.py": "from x import VerificationRowOutcome\n",
+            "prose.py": "# VerificationRowOutcome is dead\n",
+            "quiet.py": "x = 1\n",
+        }
+        for name, src in corpus.items():
+            (tmp_path / name).write_text(src, encoding="utf-8")
+        files = [tmp_path / n for n in corpus]
+
+        # The prefiltered scan and a brute-force scan over EVERY file (no
+        # substring guard) must report the identical set -- that is the
+        # soundness property, stated as an equality rather than as a comment
+        # claiming it. A prefilter that skipped a file with a hit in it breaks
+        # this equality; a prefilter that is merely slower-breaking is not a
+        # soundness problem and is not what this arms.
+        filtered = set(_reference_hits("VerificationRowOutcome", files))
+        brute: set[tuple[Path, int]] = set()
+        for path in files:
+            for node in ast.walk(ast.parse(path.read_bytes())):
+                if isinstance(node, _LIVE_NAME_NODES) and "VerificationRowOutcome" in _live_names(
+                    node
+                ):
+                    brute.add((path, node.lineno))
+        assert filtered == brute, f"{filtered=} {brute=}"
+        assert len(filtered) == 1, "the corpus must contain exactly one live reference"
+
+
 class TestVerificationRowOutcomeIsOrphaned:
     """S2b's delete left this NamedTuple with NO shipped consumer, and the
     honest record of that is a pin rather than a silent keep.
@@ -292,24 +430,26 @@ class TestVerificationRowOutcomeIsOrphaned:
     into: prose is allowed to name the dead. A docstring saying
     "VerificationRowOutcome used to feed the producer" is a TRUE sentence and
     must not be reported as a live reference.
+
+    The scan itself is ``_reference_hits`` and carries its own evidence there
+    (import / bare use / attribute / prose-only / comment-only) because the
+    first CI run of this pin took 4.03s against the 4.0s unit limit
+    (``ci.yml:2651``; local 2.00s -- CI runners measure ~2x, and WP1.3 grants
+    a baseline downgrade only to test-ids the baseline corpus has SEEN, so a
+    brand-new pin's first breach bites with no forgiveness). The parse is now
+    substring-prefiltered, which is why the helper-level pins below matter:
+    the speedup must not have bought itself a blind spot.
     """
 
     def test_no_shipped_module_references_it(self) -> None:
         own = _REPO_ROOT / MODULE
-        hits: list[str] = []
-        for path in _shipped_python():
-            if path == own:
-                continue
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-                names = set()
-                if isinstance(node, ast.Name):
-                    names.add(node.id)
-                elif isinstance(node, ast.Attribute):
-                    names.add(node.attr)
-                elif isinstance(node, ast.ImportFrom):
-                    names.update(a.name for a in node.names)
-                if "VerificationRowOutcome" in names:
-                    hits.append(f"{path.relative_to(_REPO_ROOT)}:{node.lineno}")
+        hits = [
+            f"{_rel(p)}:{line}"
+            for p, line in _reference_hits(
+                "VerificationRowOutcome",
+                [p for p in _shipped_python() if p != own],
+            )
+        ]
 
         assert not hits, (
             f"VerificationRowOutcome has shipped references again: {hits}. If a "
