@@ -455,6 +455,14 @@ ignore = [
     "PLR1711", "PLW0603", "RUF002", "RUF005", "RUF012", "RUF023", "RUF043",
     "RUF100", "S108", "SIM300", "UP017", "UP037", "UP041",
 ]
+# Campaign #3 (enrichment_client) mutation-kill batteries, batch-27. S610 is a
+# false positive: the rule targets Django QuerySet.extra(), but it fires on the
+# tests' own _Records.extra(msg, key) log-record helper — no SQL. RUF005 (prefer
+# unpacking over list concat) is generated-code style in the metric-journal
+# builders. Scoped to these three files only, per the batch26 precedent.
+"backend/tests/unit/services/test_enrichment_client_batch27*.py" = [
+    "S610", "RUF005",
+]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
     "T201",   # print() ok in examples for demonstration output
@@ -851,6 +859,32 @@ also_copy = [
     "frontend/docker-entrypoint.sh",
     "frontend/package.json",
     "frontend/Dockerfile",
+    # 2026-09-27 stats-abort repair (pw re-bank 18:34Z): test_levels.py reads
+    # frontend/src/utils/risk.ts, test_check_test_coverage_gate.py resolves
+    # frontend/src/hooks/*.test.tsx, test_person_vector_provenance.py reads
+    # docs/api/migrations/*.sql — all path-reads relative to the mutant-home
+    # root; missing -> -x aborts stats (also_copy abort family).
+    "frontend/src/",
+    "docs/api/migrations/",
+    # 2026-09-28 stats-abort repair (ec re-bank 06:37Z, eighth member of this
+    # family): test_nvidia_detect.py:675 (main merge #6683) reads
+    # Path("setup.py").read_text() RELATIVE TO CWD -- which under mutmut is
+    # the mutant home -- absent -> red under -x aborts the incremental
+    # "Found 74 new tests" stats re-run ("runner returned 1").  setup.py sits
+    # outside source_paths (generates ZERO mutants -- the copy is inert), and
+    # like every also_copy entry it must exist BEFORE any test path-reads it.
+    "setup.py",
+    # 2026-09-28 stats-abort repair (trio recovery run 21:49Z, ninth member of
+    # this family): main merge #6703 added backend/tests/unit/synthbench/*,
+    # which import the synthbench/ package at the REPO ROOT. backend/tests has
+    # an __init__.py chain up to backend/, so pytest's package-root insertion
+    # puts the repo root on sys.path -- in the mutant home that root carries no
+    # synthbench/ copy -> ModuleNotFoundError: No module named 'synthbench' at
+    # collection of test_p1_graphs.py -> red under -x aborts stats ("runner
+    # returned 1"). synthbench/ sits OUTSIDE source_paths (generates ZERO
+    # mutants -- the copy is inert), 74K, and the package needs no deps beyond
+    # what the tests already import.
+    "synthbench/",
 ]
 
 # =============================================================================

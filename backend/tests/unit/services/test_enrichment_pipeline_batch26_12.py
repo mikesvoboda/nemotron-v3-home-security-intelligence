@@ -18,9 +18,11 @@ monkeypatched at module level:
   mutated metric label is visible without patching;
 * log records are captured through a handler attached to the live logger
   object, so ``extra=``/``msg=``/``exc_info=`` mutations are observable;
-* ``time.perf_counter`` is scripted for the whole session (module-scoped
-  autouse) so ``duration_ms`` is exactly 1250 and no mutant can produce a
-  negative elapsed time;
+* ``time.perf_counter`` is scripted per test (function-scoped autouse, restored
+  unconditionally in the fixture's ``finally``) so ``duration_ms`` is exactly
+  1250 and no mutant can produce a negative elapsed time — and so the stepped
+  clock never survives into another file's tests when an interleaved runner
+  (mutmut's stats rerun) schedules ids from several files in one process;
 * ``_crop_to_bbox``/``_load_image`` run for real on a 640x480 PIL image - the
   only stub is an out-of-bounds bbox, which shipped code turns into ``None``.
 
@@ -58,9 +60,9 @@ _UNEXP_PET = "Pet classification unexpected error for 7: boom [REDACTED]"
 
 
 # ---------------------------------------------------------------- clock ----
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def scripted_clock():
-    """time.perf_counter() walks 1000.0, 1001.25, 1002.5 ... for this module.
+    """time.perf_counter() walks 1000.0, 1001.25, 1002.5 ... for ONE test.
 
     MEASURED 2026-09-26: scope="session" was a cross-module poisoner. Any
     same-process run with a test from THIS module before a hypothesis
@@ -68,10 +70,22 @@ def scripted_clock():
     DeadlineExceeded "Test took 1250.00ms, deadline 1000.00ms" (CI shard 4
     run 36251321470: 94 failures, ALL on gw0, 52%->99%, onset right after
     this module's last test; same signature killed the mutmut stats phase).
-    Module scope keeps the patch alive across every ep_plugin variant run of
-    this module's tests (variants exec inside these tests, so visibility is
-    the same — the patch is on the shared time module, not the module dict)
-    while restoring the real clock before the next module executes.
+    975a3f29 narrowed that to module scope, which fixed FILE-GROUPED runs only:
+    a module-scope teardown lands after this module's LAST test, so under the
+    interleaved id order mutmut's stats rerun uses, any file whose tests land
+    between two of ours ran the whole time on the stepped clock — the same
+    poisoner, just with a different hole.
+
+    Function scope closes the hole and preserves the property the module scope
+    was protecting: an ep_plugin variant exec's INSIDE the test body (the
+    autouse _ep_mutant fixture wraps the same test and the patch is on the
+    shared ``time`` module, not the module dict), so a function-scoped patch is
+    visible to the variant exactly as a module-scoped one was, while the real
+    clock is back in place before ANY other test — ours or theirs — runs.
+    Every duration assertion here is a difference of consecutive ticks, so it
+    is invariant to where the per-test clock starts (verified: the whole file is
+    green with function scope, and the ``duration_ms == 1250`` / metric-count
+    pins are unchanged).
     """
     import time
 
@@ -86,6 +100,8 @@ def scripted_clock():
     try:
         yield
     finally:
+        # unconditional restore: a test that raises (or a fixture that errors
+        # downstream) must still leave the process clock real.
         time.perf_counter = real
 
 
