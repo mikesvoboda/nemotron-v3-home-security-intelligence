@@ -23,7 +23,7 @@ Phase plans live in `docs/superpowers/plans/*-synthbench-*.md`.
 
 - Only `synthbench/score/` and `synthbench/run/` may import `backend` (spec §7.1; test: `backend/tests/unit/synthbench/test_import_rule.py`).
 - Tests live in `backend/tests/unit/synthbench/` (CI runs only `backend/tests/unit/`); no GPU in tests.
-- Storage: weights in `HF_HOME=/export/models`, outputs in `SYNTHBENCH_ROOT=/export/synthbench`; never the root fs.
+- Storage: weights in `HF_HOME=/export/models`, outputs in `SYNTHBENCH_ROOT=/synthbench`; never the root fs.
 - Only `uv run python -m synthbench.generate.window run -- ...` may stop the flagship; never `docker compose up` on the dgx-inference stack.
 - Our containers are podman, in a dedicated store under `SYNTHBENCH_PODMAN_ROOT` (default `/export/models/containers`), never the default one. Code builds podman argv from `podman_argv()`; shell commands use `$(uv run python -m synthbench.generate.podman) ...`. The flagship is rootful docker.
 - The corpus lives at `$SYNTHBENCH_ROOT/corpus` (the ZFS dataset `primary/export/synthbench/corpus`) and is append-only; tests write only under `tmp_path`.

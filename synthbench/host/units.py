@@ -1,6 +1,6 @@
 """systemd user units for the host side (agent-driven design §1; plan ruling P3-R8).
 
-    /export/synthbench/host-checkout/.venv/bin/python -m synthbench.host.units install
+    /synthbench/host-checkout/.venv/bin/python -m synthbench.host.units install
 
 writes them for the checkout it runs from, with that checkout's python. The guard and the
 snapshot timer are enabled at boot; the renderer has no [Install] section, so the owner starts
@@ -49,7 +49,7 @@ class UnitContext:
             checkout=Path(__file__).resolve().parents[2],
             python=Path(sys.executable),
             podman=Path(shutil.which("podman") or "/usr/bin/podman"),
-            root=Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench")),
+            root=Path(e.get("SYNTHBENCH_ROOT", "/synthbench")),
             hf_home=Path(e.get("HF_HOME", "/export/models")),
             podman_root=podman_root(e),
         )

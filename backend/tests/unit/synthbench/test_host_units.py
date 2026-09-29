@@ -16,13 +16,13 @@ from synthbench.host.units import (
     render_units,
 )
 
-CHECKOUT = Path("/export/synthbench/host-checkout")
+CHECKOUT = Path("/synthbench/host-checkout")
 PYTHON = CHECKOUT / ".venv" / "bin" / "python"
 CTX = UnitContext(
     checkout=CHECKOUT,
     python=PYTHON,
     podman=Path("/usr/bin/podman"),
-    root=Path("/export/synthbench"),
+    root=Path("/synthbench"),
     hf_home=Path("/export/models"),
     podman_root=Path("/export/models/containers"),
 )
@@ -49,7 +49,7 @@ def test_the_guard_always_runs_from_the_checkout() -> None:
     assert "Restart=always" in text
     assert "WantedBy=default.target" in text
     # pragma: allowlist nextline secret
-    assert "Environment=SYNTHBENCH_ROOT=/export/synthbench" in text
+    assert "Environment=SYNTHBENCH_ROOT=/synthbench" in text
 
 
 def test_the_timer_snapshots_every_six_hours_utc() -> None:

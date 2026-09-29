@@ -74,7 +74,7 @@ class ServeConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ServeConfig:
         e = os.environ if env is None else env
-        root = Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench"))
+        root = Path(e.get("SYNTHBENCH_ROOT", "/synthbench"))
         return cls(
             port=int(e.get("SYNTHBENCH_COMFYUI_PORT", "8188")),
             models_root=Path(e.get("HF_HOME", "/export/models")),

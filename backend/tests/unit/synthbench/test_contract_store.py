@@ -38,7 +38,7 @@ def _row(event_id: str, status: str = "sampled") -> IndexRow:
 
 def test_the_corpus_lives_under_synthbench_root(tmp_path: Path) -> None:
     default = CorpusStore.from_env("tierb-v0", {})
-    assert default.version_dir == Path("/export/synthbench/corpus/tierb-v0")
+    assert default.version_dir == Path("/synthbench/corpus/tierb-v0")
     custom = CorpusStore.from_env("tierb-v0", {"SYNTHBENCH_ROOT": str(tmp_path)})
     assert custom.version_dir == tmp_path / "corpus" / "tierb-v0"
 

@@ -69,7 +69,7 @@ def test_the_sheet_escapes_prompts(tmp_path: Path) -> None:
 def test_the_report_shows_a_snapshot_hold_and_can_be_rewritten(tmp_path: Path) -> None:
     h.stilled_batch(tmp_path, n=1)
     name = "primary/export/synthbench/corpus@synthbench-20260928T000000Z"
-    hold = SnapshotHold(snapshot=name, count=2, paths=("/export/synthbench/corpus/x.png",))
+    hold = SnapshotHold(snapshot=name, count=2, paths=("/synthbench/corpus/x.png",))
     write_status(
         snapshots_file(h.env(tmp_path)), SnapshotStatus(time=h.NOW, snapshots=6, hold=hold)
     )

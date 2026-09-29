@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
             f"unknown --only key(s): {', '.join(sorted(unknown))}; "
             f"valid keys: {', '.join(sorted(known))}"
         )
-    out_dir = Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "smoke"
+    out_dir = Path(os.environ.get("SYNTHBENCH_ROOT", "/synthbench")) / "smoke"
     out_dir.mkdir(parents=True, exist_ok=True)
     client = ComfyClient(ServeConfig.from_env().base_url)
     failures = 0

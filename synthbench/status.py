@@ -50,7 +50,7 @@ class FlagshipUnknown(RuntimeError):
 
 def status_dir(env: Mapping[str, str] | None = None) -> Path:
     e = os.environ if env is None else env
-    return Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "status"
+    return Path(e.get("SYNTHBENCH_ROOT", "/synthbench")) / "status"
 
 
 def flagship_file(env: Mapping[str, str] | None = None) -> Path:

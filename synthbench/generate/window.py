@@ -113,7 +113,7 @@ class WindowPaths:
 
     @classmethod
     def from_env(cls) -> WindowPaths:
-        return cls(Path(os.environ.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "state")
+        return cls(Path(os.environ.get("SYNTHBENCH_ROOT", "/synthbench")) / "state")
 
 
 def _say(message: str) -> None:

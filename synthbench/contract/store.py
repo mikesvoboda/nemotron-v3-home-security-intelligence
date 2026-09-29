@@ -22,7 +22,7 @@ from synthbench.contract.corpus import IndexRow
 
 M = TypeVar("M", bound=ContractModel)
 
-DEFAULT_SYNTHBENCH_ROOT = Path("/export/synthbench")
+DEFAULT_SYNTHBENCH_ROOT = Path("/synthbench")
 # A tier letter, then no path separators or dot segments: the id never leaves version_dir.
 _EVENT_ID = re.compile(r"[AB]-[A-Za-z0-9][A-Za-z0-9_-]*")
 _FILE_MODE = 0o644

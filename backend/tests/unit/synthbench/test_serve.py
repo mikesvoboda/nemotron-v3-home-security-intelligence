@@ -43,8 +43,8 @@ class TestConfig:
         cfg = serve.ServeConfig.from_env({})
         assert cfg.port == 8188
         assert cfg.models_root == Path("/export/models")
-        assert cfg.out_dir == Path("/export/synthbench/comfy-out")
-        assert cfg.cache_dir == Path("/export/synthbench/cache")
+        assert cfg.out_dir == Path("/synthbench/comfy-out")
+        assert cfg.cache_dir == Path("/synthbench/cache")
         assert cfg.base_url == "http://127.0.0.1:8188"
 
     def test_env_overrides(self) -> None:
@@ -207,9 +207,7 @@ class TestFailuresSurface:
     """A dead renderer or a podman error surfaces at once, with its cause."""
 
     def test_the_log_file_lives_under_synthbench_root(self) -> None:
-        assert serve.ServeConfig.from_env({}).log_file == Path(
-            "/export/synthbench/logs/comfyui.log"
-        )
+        assert serve.ServeConfig.from_env({}).log_file == Path("/synthbench/logs/comfyui.log")
         assert serve.ServeConfig.from_env({"SYNTHBENCH_ROOT": "/r"}).log_file == Path(
             "/r/logs/comfyui.log"
         )
