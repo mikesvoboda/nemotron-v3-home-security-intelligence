@@ -190,6 +190,7 @@ repos:
           - fastapi==0.141.1
           - redis==8.1.0
           - types-PyYAML
+          - numpy==2.5.3
         args: [--ignore-missing-imports]
         files: ^(backend|synthbench)/
 
