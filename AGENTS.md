@@ -203,6 +203,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 | `.gitignore`        | Git ignore rules (node_modules, .venv, .env, .db files, AI model weights, coverage) |
 | `.gitattributes`    | Git attributes                                                                      |
 | `.gitleaks.toml`    | Gitleaks secret scanning configuration                                              |
+| `.gitleaksignore`   | Gitleaks fingerprint allowlist (one measured false positive per line)               |
 | `.semgrepignore`    | Semgrep ignore patterns                                                             |
 | `.trivyignore`      | Trivy security scanner ignore patterns (with CVE review dates)                      |
 | `.bandit.yml`       | Bandit Python security linter configuration                                         |

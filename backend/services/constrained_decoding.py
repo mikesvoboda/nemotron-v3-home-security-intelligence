@@ -15,7 +15,8 @@ measurement belongs to whoever serves verdicts - which, since R8, is only
 the VLM path. One home, one vocabulary: a second definition of
 ``ConstrainedDecodingNotEnforced`` or a drifted copy of the stop-word set is
 exactly the fabrication class the probe exists to catch, and is pinned away
-by ``tests/unit/services/test_constrained_decoding_hoist.py``.
+by ``tests/unit/services/test_constrained_decoding.py`` (which also records
+that ``VerificationRowOutcome`` outlived its only producer).
 """
 
 from __future__ import annotations

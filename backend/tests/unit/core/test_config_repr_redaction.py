@@ -75,10 +75,21 @@ class TestSettingsReprRedaction:
         and the name left the redaction set with it. The property this test exists to
         pin -- a named Settings secret never reaches ``repr()`` -- moved to
         ``jwt_secret``, the live SecretStr secret that had no repr pin of its own.
+
+        Why the fixture reads 14 characters: the property is about ``repr()``, and a
+        value's length is irrelevant to it -- but an assignment line spelling
+        ``jwt_secret = "<16+ chars>"`` is exactly what this repo's own custom
+        ``jwt-secret`` gitleaks rule matches, and that rule captures the FIELD NAME
+        as the secret, so no content-level allowlist entry and no
+        ``# pragma: allowlist secret`` marker (which belongs to detect-secrets, the
+        other scanner this repo runs) can reach it. Measured with CI's binary
+        (gitleaks 8.24.3) against the committed .gitleaks.toml: 16+ chars flags, this
+        does not. Shortening a fake is not a weakened scan; adding a stopword broad
+        enough to swallow the rule everywhere would be.
         """
-        mock_settings.jwt_secret = "jwt-signing-secret-value"  # pragma: allowlist secret
+        mock_settings.jwt_secret = "jwt-repr-probe"  # pragma: allowlist secret
         result = repr(mock_settings)
-        assert "jwt-signing-secret-value" not in result
+        assert "jwt-repr-probe" not in result
         assert "[REDACTED]" in result
 
     def test_websocket_token_redacted(self, mock_settings):

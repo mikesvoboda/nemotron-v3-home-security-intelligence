@@ -1,0 +1,28 @@
+# Gitleaks fingerprint allowlist -- measured false positives, one line each.
+#
+# House rule this file exists to keep: a secret finding is dismissed at its
+# narrowest address, never by widening a rule. The fingerprint is
+# `commit:file:ruleID:line`, so an entry here cannot cover a different line, a
+# different rule, or a future commit -- unlike `.gitleaks.toml`'s `commits =`
+# list (used at 38b26dd2 for the same rule), which silences EVERY finding in a
+# commit. Use that form only when a whole commit is a known-generated artifact.
+#
+# Why gitleaks needs an entry at all when the code is already fixed:
+# `gitleaks-action` scans the PR's commit range patch-by-patch, so a line that
+# introduced a match keeps reporting it after a later commit shortens it. The
+# entry below is the record of that, not a shield for the current tree --
+# the value in the file was shortened in 97a2ab59 precisely so the shipped tree
+# does not depend on this entry.
+#
+# 6266c96d (R8 slice S2b, 2026-09-29) -- rule `jwt-secret`, one finding, at
+# backend/tests/unit/core/test_config_repr_redaction.py:79: a 24-character
+# FAKE used to prove that a named Settings secret never reaches `repr()`. The
+# repo's custom rule captures the FIELD NAME as the secret and fires at 16+
+# characters; verified with CI's binary (gitleaks 8.24.3) against the committed
+# .gitleaks.toml, then used as a probe: the rule's content-level allowlist and
+# `# pragma: allowlist secret` (which belongs to detect-secrets, the other
+# scanner this repo runs) can neither of them reach it, because the captured
+# group is `jwt_secret`, not the value. No credential exists at this address or
+# ever did -- the assertion is that the value must NOT appear in the repr.
+# Ruled a false positive by measurement, not by familiarity.
+6266c96dae4194ae457318427ad4bf3c0c29c9b8:backend/tests/unit/core/test_config_repr_redaction.py:jwt-secret:79
