@@ -8,23 +8,24 @@ and the append-only store.
 
 ## Files
 
-| File            | What                                                                                                                                           |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `common.py`     | `ContractModel` base (frozen, no extra keys, JSON uses aliases such as `class`), labels, validated `Box`, `HHMM`, `RiskBand`, `Sha256`, `SLUG` |
-| `spec.py`       | `Spec`, `Cell`, `Subject`, `Prop`; the sampler writes facts, P3 freezes `prompt` + `camera_suffix` together                                    |
-| `truth.py`      | `Truth` and its parts, exactly parent spec §2.3's shape                                                                                        |
-| `provenance.py` | `Provenance`, `Attempt`, `Triage` (verdict plus a `TriageReason`, one of the 7 reroll reasons), `MAX_ATTEMPTS = 3`                             |
-| `corpus.py`     | `CorpusManifest` (corpus.json), `BatchRecord` (batch.json), `IndexRow` (index.jsonl), `TIER_B_RENDER_SIZE`                                     |
-| `store.py`      | `CorpusStore`: paths under `$SYNTHBENCH_ROOT/corpus/<version>/`, `write_new` (atomic, never replaces), the index                               |
+| File            | What                                                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `common.py`     | `ContractModel` base (frozen, no extra keys, JSON uses aliases such as `class`), labels, validated `Box`, `HHMM`, `RiskBand`, `Sha256`, `SLUG`          |
+| `spec.py`       | `Spec`, `Cell`, `Subject`, `Prop`; the sampler writes facts, P3 freezes `prompt` + `camera_suffix` together                                             |
+| `truth.py`      | `Truth` and its parts, exactly parent spec §2.3's shape                                                                                                 |
+| `provenance.py` | `Provenance` (schema 2), `Attempt` (render failures, overlay time), `Triage`, `attempt_seed`, `render_name`/`still_name`, `MAX_ATTEMPTS = 3`            |
+| `corpus.py`     | `CorpusManifest` (corpus.json), `BatchRecord` (batch.json), `IndexRow` (index.jsonl), `TIER_B_RENDER_SIZE`, `PromptRow`, `TriageRow` (the agent's rows) |
+| `store.py`      | `CorpusStore`: paths under `$SYNTHBENCH_ROOT/corpus/<version>/`, `write_new` (atomic, never replaces), the index                                        |
 
 ## Rules
 
 - The corpus is append-only (agent-driven design §2): no command deletes, moves or overwrites
-  an image or a clip. P2 creates files only through `CorpusStore.write_new`, which raises
-  `FileExistsError` rather than replace, and appends rows to `index.jsonl` only through
-  `CorpusStore.append_index`. The in-place JSON updates the design allows (a prompt
-  frozen into `spec.json`, attempts added to `provenance.json`) arrive with P3 and go through
-  the store too.
+  an image or a clip. Files are created only through `CorpusStore.write_new` /
+  `write_new_bytes`, which raise `FileExistsError` rather than replace; JSON files and the
+  batch views change only through `replace_text` / `replace_json` (atomic); `index.jsonl`
+  grows only through `append_index`. Every write stays inside the version directory.
+- `ContractModel.updated(...)` is the only way to change a model: `model_copy(update=...)`
+  skips the validators.
 - `CorpusStore.event_dir` accepts only `A-`/`B-` ids of ASCII letters, digits, `_` and `-`, so
   no event path can leave the version directory.
 - Truth stores facts, never expected model outputs (spec §2.2).

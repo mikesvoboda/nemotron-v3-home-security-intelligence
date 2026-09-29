@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import errno
+import hashlib
 import json
+import os
+import stat
 from pathlib import Path
 
 import pytest
 from synthbench.contract.corpus import CorpusManifest, IndexRow
 from synthbench.contract.spec import Cell, Spec, Subject
-from synthbench.contract.store import CorpusStore, to_json
+from synthbench.contract.store import CorpusStore, sha256_file, to_json
 
 WHEN = "2026-09-28T00:00:00+00:00"
 
@@ -120,3 +124,88 @@ def test_an_absent_index_is_empty_and_appending_nothing_writes_nothing(tmp_path:
     assert store.latest_index() == {}
     store.append_index([])
     assert not store.index_file.exists()
+
+
+def test_written_files_are_world_readable(tmp_path: Path) -> None:
+    store = CorpusStore(tmp_path, "tierb-v0")
+    store.write_new(store.manifest_file, _manifest())
+    store.append_index([_row("B-pilot-1-000")])
+    store.replace_text(store.spec_file("B-pilot-1-000"), "{}\n")
+    for path in (store.manifest_file, store.index_file, store.spec_file("B-pilot-1-000")):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o644, path
+
+
+def test_write_new_bytes_stores_exact_bytes_and_never_replaces(tmp_path: Path) -> None:
+    store = CorpusStore(tmp_path, "tierb-v0")
+    path = store.event_dir("B-pilot-1-000") / "renders" / "a1-s5.png"
+    store.write_new_bytes(path, b"\x89PNG first")
+    with pytest.raises(FileExistsError):
+        store.write_new_bytes(path, b"\x89PNG second")
+    assert path.read_bytes() == b"\x89PNG first"
+    assert sha256_file(path) == hashlib.sha256(b"\x89PNG first").hexdigest()
+    assert [p.name for p in path.parent.iterdir()] == ["a1-s5.png"]
+
+
+def test_write_new_falls_back_where_hard_links_are_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(self: Path, _target: Path) -> None:
+        raise PermissionError(errno.EPERM, "Operation not permitted", str(self))
+
+    monkeypatch.setattr(Path, "hardlink_to", refuse)
+    store = CorpusStore(tmp_path, "tierb-v0")
+    store.write_new(store.manifest_file, _manifest())
+    assert store.read(store.manifest_file, CorpusManifest) == _manifest()
+    with pytest.raises(FileExistsError):
+        store.write_new(store.manifest_file, _manifest(created="2026-09-29T00:00:00+00:00"))
+    assert [p.name for p in store.version_dir.iterdir()] == ["corpus.json"]
+
+
+def test_other_link_failures_propagate_and_leave_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(self: Path, _target: Path) -> None:
+        raise OSError(errno.EIO, "Input/output error", str(self))
+
+    monkeypatch.setattr(Path, "hardlink_to", broken)
+    store = CorpusStore(tmp_path, "tierb-v0")
+    with pytest.raises(OSError, match="Input/output error"):
+        store.write_new(store.manifest_file, _manifest())
+    assert list(store.version_dir.iterdir()) == []
+
+
+def test_nothing_is_written_outside_the_version(tmp_path: Path) -> None:
+    store = CorpusStore(tmp_path / "corpus", "tierb-v0")
+    with pytest.raises(ValueError, match="outside corpus version"):
+        store.write_new_bytes(tmp_path / "elsewhere.png", b"x")
+    with pytest.raises(ValueError, match="outside corpus version"):
+        store.replace_text(store.version_dir / ".." / "other-v0" / "x.json", "{}\n")
+
+
+def test_replace_text_swaps_json_and_views_atomically(tmp_path: Path) -> None:
+    store = CorpusStore(tmp_path, "tierb-v0")
+    path = store.spec_file("B-pilot-1-000")
+    store.replace_text(path, '{"a": 1}\n')
+    store.replace_text(path, '{"a": 2}\n')
+    assert path.read_text(encoding="utf-8") == '{"a": 2}\n'
+    assert [p.name for p in path.parent.iterdir()] == ["spec.json"]
+    view = store.batch_dir("pilot-1") / "report.md"
+    store.replace_text(view, "# report\n")
+    assert view.read_text(encoding="utf-8") == "# report\n"
+    with pytest.raises(ValueError, match="change in place"):
+        store.replace_text(path.with_name("a1.png"), "x")
+
+
+def test_an_index_append_is_one_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    sizes: list[int] = []
+    real_write = os.write
+
+    def counting(fd: int, data: bytes) -> int:
+        sizes.append(len(data))
+        return real_write(fd, data)
+
+    monkeypatch.setattr(os, "write", counting)
+    store = CorpusStore(tmp_path, "tierb-v0")
+    store.append_index([_row("B-pilot-1-000"), _row("B-pilot-1-001"), _row("B-pilot-1-002")])
+    assert len(sizes) == 1
+    assert len(store.latest_index()) == 3

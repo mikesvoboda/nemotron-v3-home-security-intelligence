@@ -231,7 +231,7 @@ def _sample(
         if not path.exists():
             _write(store, path, spec)
             written += 1
-        elif _read(store, path, Spec) != spec:
+        elif _read(store, path, Spec).facts() != spec.facts():
             return _fail(
                 EXIT_ASK,
                 f"{path} is not what the sampler produces for batch {batch}: the corpus was "

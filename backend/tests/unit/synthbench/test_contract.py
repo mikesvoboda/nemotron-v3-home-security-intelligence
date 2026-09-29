@@ -6,13 +6,17 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from synthbench.contract.corpus import BatchRecord, CorpusManifest, IndexRow
+from synthbench.contract.corpus import BatchRecord, CorpusManifest, IndexRow, PromptRow, TriageRow
 from synthbench.contract.provenance import (
     MAX_ATTEMPTS,
     Attempt,
     OutputFile,
     Provenance,
+    RenderFailure,
     Triage,
+    attempt_seed,
+    render_name,
+    still_name,
 )
 from synthbench.contract.spec import Cell, Prop, Spec, Subject
 from synthbench.contract.truth import Truth, TruthObject
@@ -206,11 +210,87 @@ def test_attempts_are_numbered_and_capped() -> None:
         Provenance(event_id="B-pilot-1-000", attempts=tuple(_attempt(k) for k in range(1, 5)))
 
 
-@pytest.mark.parametrize("path", ["/abs/a1.png", "../a1.png", ""])
+@pytest.mark.parametrize(
+    "path", ["/abs/a1.png", "../a1.png", "", ".", "./a1.png", "renders//a1.png", "renders/"]
+)
 def test_output_paths_stay_inside_the_event_directory(path: str) -> None:
     assert OutputFile(path="renders/a1-s7.png", sha256=SHA).path == "renders/a1-s7.png"
     with pytest.raises(ValidationError, match="relative to the event directory"):
         OutputFile(path=path, sha256=SHA)
+
+
+def test_updated_revalidates() -> None:
+    spec = _spec()
+    assert spec.updated(scene_time="23:59").scene_time == "23:59"
+    with pytest.raises(ValidationError, match="HH:MM"):
+        spec.updated(scene_time="24:00")
+
+
+def test_facts_leave_out_the_frozen_prompt() -> None:
+    spec = _spec()
+    frozen = spec.with_prompt("a person at the door", "the suffix")
+    assert frozen.frozen
+    assert not spec.frozen
+    assert frozen.facts() == spec.facts()
+    assert "prompt" not in spec.facts()
+    assert "camera_suffix" not in spec.facts()
+    with pytest.raises(ValueError, match="already has a frozen prompt"):
+        frozen.with_prompt("another prompt", "the suffix")
+
+
+def test_provenance_is_schema_version_2() -> None:
+    failure = RenderFailure(time="2026-09-28T00:00:00+00:00", error="TimeoutError: slow")
+    attempt = Attempt(k=1, seed=5, prompt_sha256=SHA, render_failures=(failure,))
+    prov = Provenance(event_id="B-pilot-1-000", attempts=(attempt,))
+    assert prov.schema_version == 2
+    assert Provenance.model_validate_json(prov.model_dump_json()) == prov
+    data = prov.model_dump(mode="json")
+    data["schema_version"] = 1
+    with pytest.raises(ValidationError):
+        Provenance.model_validate(data)
+
+
+def test_a_still_needs_its_render_params_and_overlay_time() -> None:
+    render = OutputFile(path="renders/a1-s5.png", sha256=SHA)
+    still = OutputFile(path="stills/a1-s5.jpg", sha256=SHA)
+    done = Attempt(
+        k=1,
+        seed=5,
+        prompt_sha256=SHA,
+        render=render,
+        still=still,
+        camera_params="default-v1",
+        overlay_time="2026-03-04 20:15:09",
+    )
+    assert done.still == still
+    with pytest.raises(ValidationError, match="a still needs"):
+        Attempt(k=1, seed=5, prompt_sha256=SHA, render=render, still=still)
+    with pytest.raises(ValidationError, match="overlay_time"):
+        done.updated(overlay_time="2026-03-04T20:15:09")
+    with pytest.raises(ValidationError, match="triage needs a still"):
+        Attempt(k=1, seed=5, prompt_sha256=SHA, triage=Triage(verdict="ok"))
+
+
+def test_attempt_seeds_and_file_names_are_stable() -> None:
+    first = attempt_seed("B-pilot-1-000", 1)
+    assert first == attempt_seed("B-pilot-1-000", 1)
+    assert first != attempt_seed("B-pilot-1-000", 2)
+    assert 0 <= first < 2**32
+    assert render_name(2, 77) == "renders/a2-s77.png"
+    assert still_name(2, 77) == "stills/a2-s77.jpg"
+
+
+def test_agent_rows_validate() -> None:
+    row = PromptRow.model_validate_json('{"event_id": "B-pilot-1-000", "prompt": "a man"}')
+    assert row.prompt == "a man"
+    verdict = TriageRow(event_id="B-pilot-1-000", k=1, verdict="reroll", reason="blank")
+    assert verdict.triage() == Triage(verdict="reroll", reason="blank")
+    with pytest.raises(ValidationError, match="needs a reason"):
+        TriageRow(event_id="B-pilot-1-000", k=1, verdict="reroll")
+    with pytest.raises(ValidationError):
+        TriageRow.model_validate(
+            {"event_id": "B-pilot-1-000", "k": 1, "verdict": "ok", "note": "looks fine"}
+        )
 
 
 @pytest.mark.parametrize("digest", ["ABC", "0" * 63, "g" * 64])

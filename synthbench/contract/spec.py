@@ -7,7 +7,7 @@ added later, together and once, before rendering (agent-driven design §3.1).
 from __future__ import annotations
 
 import re
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -20,6 +20,8 @@ from synthbench.contract.common import (
     ScenarioGroup,
     Tier,
 )
+
+PROMPT_FIELDS = frozenset({"prompt", "camera_suffix"})
 
 
 class Cell(ContractModel):
@@ -87,3 +89,19 @@ class Spec(ContractModel):
         if (self.prompt is None) != (self.camera_suffix is None):
             raise ValueError("prompt and camera_suffix are frozen together")
         return self
+
+    @property
+    def frozen(self) -> bool:
+        return self.prompt is not None
+
+    def facts(self) -> dict[str, Any]:
+        """Everything the sampler fixed: the spec without its frozen prompt (design G4)."""
+        return self.model_dump(mode="json", exclude=set(PROMPT_FIELDS))
+
+    def with_prompt(self, prompt: str, camera_suffix: str) -> Spec:
+        """Freeze the agent's prompt and the fixed suffix in (design §3.1), validated."""
+        if self.frozen:
+            raise ValueError(
+                f"{self.event_id} already has a frozen prompt; a new prompt is a new event"
+            )
+        return self.updated(prompt=prompt, camera_suffix=camera_suffix)

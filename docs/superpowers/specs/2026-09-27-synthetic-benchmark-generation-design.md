@@ -95,6 +95,10 @@ The taxonomy lives in committed YAML. The scenario list starts from the 17 exist
 
 All three are pydantic models in `synthbench/contract/`, each with a `schema_version`.
 
+**Rev 3 (P3):** `provenance.json` is schema version 2. Each attempt adds `render_failures` and
+`overlay_time`. No version-1 file was ever written (the corpus was empty on 2026-09-28), so
+nothing migrates.
+
 ### §2.2 Truth stores facts, never expected model outputs
 
 `truth.json` says "stranger `S3`, handgun in right hand, face 38 px tall". It never says "the face

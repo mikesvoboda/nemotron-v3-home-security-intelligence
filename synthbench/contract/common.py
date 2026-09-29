@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import AfterValidator, BaseModel, ConfigDict
 
@@ -31,6 +31,13 @@ class ContractModel(BaseModel):
         validate_by_alias=True,
         serialize_by_alias=True,
     )
+
+    def updated(self, **changes: Any) -> Self:
+        """A validated copy with changes applied; model_copy(update=...) skips validators.
+
+        Changes use field names, never an aliased field such as `cls`.
+        """
+        return self.model_validate({**self.model_dump(), **changes})
 
 
 def _check_box(value: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
