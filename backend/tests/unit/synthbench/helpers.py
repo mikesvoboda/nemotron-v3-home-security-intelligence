@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,7 @@ from synthbench.contract.corpus import BatchRecord
 from synthbench.contract.provenance import OutputFile, Provenance, render_name, still_name
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
+from synthbench.status import FlagshipStatus, flagship_file, write_status
 from synthbench.taxonomy.model import load_taxonomy
 
 TAX = load_taxonomy()  # at import: collection pays for the load, not a timed test
@@ -99,6 +101,30 @@ def rendered_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]
     for spec in specs:
         record_output(root, spec, render=png())
     return specs
+
+
+NOW = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
+
+
+def flagship(root: Path, *, healthy: bool = True, waiting: int = 0, time: datetime = NOW) -> None:
+    """Write status/flagship.json as the guard does."""
+    status = FlagshipStatus(time=time, healthy=healthy, running=1, waiting=waiting)
+    write_status(flagship_file(env(root)), status)
+
+
+class FakeClock:
+    """A monotonic clock that only fake sleeps and fake work move."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.sleeps: list[float] = []
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.sleeps.append(seconds)
+        self.now += seconds
 
 
 def stilled_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
