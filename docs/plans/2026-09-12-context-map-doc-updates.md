@@ -11428,3 +11428,912 @@ After removal: not_checked 0, completed=true.
 
 **NEXT:** campaign #2 enrichment_pipeline lane red-check shards (tag
 ep0, load-balanced 6 lanes, GO-EP0 now).
+
+## 2026-09-27 — MILESTONE 1 PUBLISHES: 64.32356979924418% completed=true (+4.3065 pts over the 60.0171% baseline) — the third `completed=true` taint (cached exit-33s) closed; first tier gate 65 is one campaign away
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-27`, rc=0; run
+"full3", launched 07:30Z 2026-09-27 as `MUTMAX=14
+./scripts/mutation-run.sh` with NO positional args, exited 0 code 0 at
+10:31:16Z, log /tmp/wp-ep/rebank-full3.log):** killed 54,515 + timeout
+2,165 = **56,680** of **88,117** in-denominator keys → **score
+64.32356979924418%**, survived 31,433, **no_tests 4**, suspicious 0,
+unchecked 0, torn 0, **`completed=true`** (progress gate
+scripts/mutation-score.py:246-250), **222 modules scored of 262 targets**
+(`target_modules` len 262 in the same output; module set IDENTICAL to the
+baseline entry, 0 added / 0 removed). History run[3] appended (runs=4)
+through the CI's own append path. Verdict map: VERDICT_CODES
+scripts/mutation-score.py:56-69 (1/3 killed, 0 survived, -24/36/255
+timeout, 5/33 no_tests).
+
+**THE ADMISSIBILITY GATE PASSED (three numbers, per the
+completed=true-taint rule):** modules 222 (not 186 = map-collapse
+signature); total 88,117 vs the ~86.6–88.1k healthy band (not 61,613 =
+−29% shrink); **no_tests 4** — and measured, the 4 are the SAME FOUR keys
+as the published baseline (event_service 1, fast_alpr_loader 1,
+health_monitor_orchestrator 1, polygon_zone_service 1, `identical set:
+True`), i.e. the 7,353-mutant `no_tests` STORM is gone rather than merely
+relabelled. `not_checked` 0 and `torn_metas` 0 hold, so `completed=true`
+is backed by a fully-checked cache.
+
+**WHAT full3 REPAIRED (third symptom of the taint family, in one line).**
+full2 rebuilt the stats map to 2,811 fns / 222 modules / 0 gap yet still
+reported no_tests 7,353 byte-identically, because mutmut skips any key
+that already carries a verdict (`__main__.py:1019 if not mutant_names and
+result is not None: continue`) — the cached 33s were never re-issued
+tests. Targeted repair: back up metas+stats
+(/tmp/full2-done-20260927T072640Z/), then strip EXACTLY the 7,353
+exit-33 entries from the 22 metas holding them (per-file arithmetic
+asserted, list /tmp/wp-pw/no_tests_metas.json: performance_collector
+1300, partition_manager 733, pipeline_quality_audit 722, onvif 603 …,
+and note the 22nd-group of four 1-entry metas IS the baseline's own four
+no_tests files), rerun with NO positionals so cached real verdicts skip
+and only the stripped keys recheck. Result measured in the log's own
+counter line: 🫥 7,353 → **4** while 🎉 went 49,719 → 54,515. YIELD
+DECOMPOSED (full2 console line vs full3 score, osnet_loader's 12
+generation-dropped keys netted out so the residue is the strip's own):
+**kills +4,800, timeouts +3, survived +2,546, no_tests −7,349 = 7,349
+re-verdicted**; the 4 that came BACK exit-33 are exactly the baseline's
+4 (event_service / fast_alpr_loader / health_monitor_orchestrator /
+polygon_zone_service) — genuinely covering-test-free, not residue. full2's
+console-line score was 51,881/88,129 = 58.8694% BELOW the bar; the repair
+is worth +5.45 pts, and 65.4% of the rechecked mutants killed ⇒ the
+collapsed map was hiding ~4,800 real kills, not padding a score.
+
+**THE NUMBER IS SOURCE-TRUE.** HEAD 202dc61d (2026-09-26T16:46:24-04:00)
+is the batch-27 test commit; `git show --stat` for it lists ONLY test
+files + pyproject (+3,066/−34, no `backend/**.py` source), working tree
+clean at score time, and `git log --since 2026-09-25 -- backend/services
+{enrichment_pipeline,enrichment_client,osnet_loader,stream_manager,
+zone_anomaly_service,prompts}.py` returns NOTHING — so no source moved
+between the tree's generation and this rescore. `mutants/` is gitignored
+(.gitignore:162) so cache state is not part of the commit.
+
+**DENOMINATOR SHIFT IS DISCLOSED, NOT HIDDEN (3 modules, +1,520 keys
+net).** total moved 86,597 → 88,117 because full1/2/3 re-derived
+generation under the REPAIRED map over 2 commits that added tests:
+enrichment_pipeline 4,831→6,268 (+1,437), enrichment_client
+2,589→2,684 (+95), osnet_loader 374→362 (−12). Three independent
+checks say the milestone is not a denominator artefact: (a) **module-
+scoped apples-to-apples** over the 219 modules whose totals did NOT move:
+baseline 48,407/78,803 = 61.4279% → full3 49,122/78,803 = 62.3352%,
+**+0.91 pts with the denominator pinned exactly**; (b) new kills over the
+OLD total: 56,680/86,597 = 65.4526%; (c) 19 modules gained k+t, 3 lost —
+the gains are named and attributed (below), the losses are stale-cache
+under-kills (below). Per the STOP-AND-ASK boundary: the DENOMINATOR
+DEFINITION is unchanged (same 262-module [tool.mutmut] target set, same
+gitignored 222-module cache, no continue-on-error/break flip, no
+quarantine) — what moved is mutant counts regenerated by installed tests,
+so no ruling is required to publish; recorded here for audit anyway.
+
+**ATTRIBUTION (kills gained vs the published baseline, per module).**
+enrichment_pipeline **+3,907** (40.72% → 93.71%, 5,046k+828t/6,268) =
+batch-26's 24 batteries + the +1,437 regenerated keys; prompts **+433**;
+pipeline_quality_audit_service **+137**; enrichment_client **+89**
+(54.07% → 55.48%, 1,282k+207t/2,684) = batch-27's 193 tests (53/53
+real-mutant + 247/247 injection kills audited); prompt_auto_tuner +72;
+token_counter +25; webhook_service +21; transcode_cache +10;
+pipeline_workers +6; 10 more modules +1..+5.
+
+**THE 3 REGRESSIONS ARE STALE-CACHE UNDER-KILLS, NOT CODE MOVES
+(measured).** stream_manager −7 (baseline 104k+7t=111 → 96k+8t=104) and
+zone_anomaly_service −1 (238→237): their metas are BYTE-IDENTICAL between
+the pre-strip backup and the live cache (exit-code histograms equal,
+`keys dropped: 0 verdict flips: 0`), so the loss entered at full1's
+fresh generation UNDER THE COLLAPSED map — a mutant whose selection lost
+its killing test survives, and mutmut's cache-skip then preserves that
+verdict forever. osnet_loader −4 is the −12 keys that generation dropped
+(374→362). Direction matters: stale cache COSTS kills, it cannot
+fabricate them, so the published score is conservative by ~8 keys.
+DECIDE: bundle those 3 metas into the next targeted strip (with the
+batch-28-era re-bank) to re-derive them under the healthy map; NOT worth
+a standalone run.
+
+**CAMPAIGN STATE, HONESTLY COUNTED.** Campaign #2
+enrichment_pipeline: 4,764k+828t/6,268 = **93.71%**, but the residual
+**394 survivors are NOT yet dispositioned** — the ep6 run exited
+completed=false (score-ep6.json: 45.6317%, total 68,573, 168 modules), so
+no ep manifest exists (measured: no ep manifest/survivor-delta files
+anywhere under /tmp). The module is therefore NOT closed under the
+zero-undispositioned rule and no campaign-close claim is made for it;
+its +3,907 still counts toward the badge, and the 394-survivor inventory
+is the next dispositioning job. Campaign #3 enrichment_client: batch-27
+batteries are in and banked (+89); its residual 1,195 survivors are
+likewise pre-manifest. Campaign #4 pipeline_workers: batch-28 authoring
+in flight (12 of 18 groups proven on disk; 3 lanes recovering 358 keys),
+module row 534k+10t/1,648 = 33.01%.
+
+**NEXT:** (1) batch-28 recovery lanes land → mutant-home gate (mutmut's
+exact args, serial, -x, synced tree) → commit via pre-commit →
+pipeline_workers re-bank → module close; (2) gpu_monitor batch (audited
+manifest, 1,068 survivors) and detector_client (740); (3) disposition the
+enrichment_pipeline 394 + enrichment_client 1,195 residuals to close
+campaigns #2/#3 on paper; (4) the 8-key stale-cache strip above. Tier
+gate 65 needs 57,277 k+t against 56,680 banked = **597 kills** — well
+inside the audited 2,701-killable campaign-#4 inventory (pipeline_workers
+959 + gpu_monitor 1,068 + detector_client 740 survivors, manifest-verified
+zero-undispositioned).
+
+## 2026-09-27 — REBASE onto origin/main (user request): `--onto a27b5ba8` surgical replay, zero conflicts; VLM Phase 1 lands — blast radius measured per campaign
+
+**TRIGGER**: user — "can we rebase our branch from origin/main?" main had advanced
+9260b7c5 (PR #6680 squash-merge) + 4bfd6fa4 (PR #6681 VLM Phase 1) past our
+merge-base f5b398f6.
+
+**KEY MEASUREMENT** (made before touching history): `git diff --stat 9260b7c5
+a27b5ba8` = EMPTY — main's squash of our branch is BYTE-IDENTICAL in tree to our
+old head a27b5ba8. A plain `git rebase origin/main` therefore replays 25
+already-squashed commits over their own squashed result (first attempt:
+instant conflicts in mutation-history.json + L; aborted). Correct replay set =
+`a27b5ba8..HEAD` = exactly 2 commits (202dc61d batch-27 batteries, 83632911
+MILESTONE 1). `git rebase --onto origin/main a27b5ba8 mutation-testing-s3` →
+**clean, zero conflicts**. New heads: 05b50f5a, **a5307982**. Backup ref
+`backup/pre-rebase-83632911` (local). Pushed `--force-with-lease` (PR #6680
+merged 2026-09-26T18:44:39Z per `gh pr view`; branch now carries successor work).
+
+**INTEGRITY CHECKS before push** (all measured): `git merge-base --is-ancestor
+origin/main HEAD` = YES; ahead count 2; history file 4 entries (ours last);
+pyproject.toml carries BOTH main's `face` extra (L198) and our batch-27 ruff
+scoping (L449); `git diff --stat origin/main HEAD` = exactly our 10 files.
+Lanes re-synced: lane-b28→05b50f5a, lane-gm→a5307982; untracked batteries
+survived (15/17 files); gpu_monitor.py md5 2f122c85… unchanged → in-flight
+replay proofs stay valid. New worktree /tmp/lane-dc (branch lane-dc @ a5307982)
+for campaign #6; detector_client.py md5 294c938a… matches workspace.
+
+**4bfd6fa4 BLAST RADIUS (measured per campaign module,
+`git diff 83632911 HEAD -- <module>.py | wc -l`)**: enrichment_pipeline.py
+**503 diff-lines (232+/161−)**; enrichment_client.py 0; gpu_monitor.py 0;
+detector_client.py 0; pipeline_workers.py 5 (import + analyzer default flip).
+(1) **pipeline_workers**: survivor bank hit = 1 key of 959
+(`AnalysisQueueWorker__init__ mutmut_8` — L799 `NemotronAnalyzer(...)` → L802
+`build_pipeline_analyzer(...)`, VLM 1.5 mode-built flip). `_14.py` m8 test
+re-pinned to NEW shipped behavior (builder kwargs + `worker._analyzer is
+builder.return_value`), 40/40 green. `_00`/`_00b` failed ONLY on stale log
+line-coordinates (+3 band): re-pinned by two subagents, every `where=` verified
+against the live statement, 103+~50 docstring citations machine-audited
+byte-identical, zero assertion edits — **\_00: 14/14, \_00b: 16/16 green**
+(multi-seed random order, ruff clean). `_02`'s 14 failures reproduce on OLD
+source → recovery-lane defect, NOT rebase damage.
+(2) **enrichment_pipeline**: despite the 393-line rewrite, ALL 1,407 installed
+tests (24 batch-26 batteries + base file) PASS on the new source (15.82s,
+`-p no:randomly -o addopts=`). The ep6 re-bank that completed at ~19:31Z ran
+against the OLD source — its survivor inventory is stale for new code paths;
+ep's 394-survivor disposition pass MUST be re-derived post-rebase (DECIDE:
+re-bank enrichment_pipeline after batch-28 installs, do not reuse the pre-VLM
+survivors.json for disposition).
+(3) **gpu_monitor / detector_client / enrichment_client**: byte-identical
+sources → all manifests, keys files, and splice reports remain valid.
+
+**INCIDENT (self-caught, disclosed)**: during a 99%-disk emergency I deleted
+/tmp/lane-sym-lane09 believing it orphaned; it was LIVE (owner argv
+`lane09_redcheck.py` didn't match my `pgrep -f lane-sym-lane09` guard) — the
+runner logged one FileNotFoundError and was restarted by its lane agent at
+~12:13Z; no verdicts lost (re-run owns the whole window). Janitor armed
+(pid 49495, PID-suffix + fuser double-guard) sweeps only dead-PID shadows.
+Disk 99%→78%: stale wp25-cov (3-day-old coverage shards, unique artifacts
+preserved to /tmp/wp-b28/preserved-batteries/wp25-cov-artifacts) + uv/pre-commit
+caches.
+
+**STATE AFTER**: tier-65 gap unchanged (597 kills). adv00 adversarial replay of
+the g00+g01 battery: **134 KILLED / 0 SURVIVED** (replay_rows.json 134 keys,
+`grep -cE "^g0[01] .*KILLED"` = 134).
+group_11 gpu prove retry: **31/31 killed** (replay_11c.json). Campaign #6
+detector_client fanout LAUNCHED (wf_7f0e33dd, 13 groups / 733 killable + 7 EQ,
+5-file wave structure + coherence audit).
+
+---
+
+## 2026-09-27 batch-28 (pipeline_workers) CLOSE — 18 batteries, 305 tests, 959-key bank 947 KILLED / 12 EQUIVALENT / 0 REAL_GAP
+
+**WHAT LANDED** (this commit): 18 files
+`backend/tests/unit/services/test_pipeline_workers_batch28_{00,00b,02,03,04,05,06,07,08,09,09b,10,12,13,14,15,16,17}.py`,
+**305 tests** (measured: `cd /agents/agent-veranda3/workspace &&
+.venv/bin/python -m pytest backend/tests/unit/services/test_pipeline_workers_batch28_*.py
+-q -p no:randomly -o addopts=` → `305 passed` in 15.97s; seeded
+`-p randomly --randomly-seed=90210` → 305 passed; `-n 8 --dist=worksteal
+--randomly-seed=20260927` → 305 passed; `ruff check` "All checks passed!" +
+`ruff format --check` clean; `scripts/check-mock-spec.py` rc=0). Source module
+md5 `d6e3c91fc85bfaea19f0d907491eefbf` verified before AND after every mutating
+step; the batteries never write the module.
+
+**DECIDE: disposition = 947 KILLED / 12 EQUIVALENT / 0 REAL_GAP / 0 UNPROVEN of
+the 959-key survivor bank.** Command: `python3 /tmp/wp-b28/dispo-pw.py` →
+`KILLED 947  EQUIVALENT 12  REAL_GAP 0  UNPROVEN 0  (total 959)`; per-key JSON
+`/tmp/wp-b28/dispo-pw.json`. Evidence = per-key replay JSONs
+(/tmp/wp-pw/pipeline*workers/replay*\*.json + /tmp/wp-b28/safe/): g00g01_merged
+134/134, g02g10 101/102, pg34 128/128, pg56 125/125, pg78 110/111, pg911
+121/122, pg1213 107/107, pg1417 77/78, g10 45/46, g15g16_final 42/52, plus
+targeted proofs replay_drift3.json (2 keys) and replay_drain17.json (1 key).
+Every KILLED carries a NAMED FAILED test (collection errors don't count); every
+key with occurrence twins was reddened at EVERY candidate position except where
+the bank line disambiguated the true mutant.
+
+**DECIDE: `QueueMetricsWorker.stop__mutmut_12` is KILLABLE, not EQUIVALENT.**
+The manifest upheld it EQUIVALENT (dead `_task` write); replay_pg1417.json
+measures occ 0/1 at L1450 (`self._task = ""`) RED with named killer
+`test_metrics_stop_uses_the_worker_then_cancels`. Measurement supersedes the
+claim → the count is 947 KILLED / 12 EQUIVALENT (manifest's split was
+946/13). The 12 upheld EQ: the four `_task` dead-init (`AnalysisQueueWorker.__init__`
+m16, `BatchTimeoutWorker.__init__` m11, `DetectionQueueWorker.__init__` m50,
+`QueueMetricsWorker.__init__` m8), five dropped RetryConfig literals m34–m38
+(== dataclass defaults, retry_handler.py:68-72), `_process_video_detection` m27,
+and both `_run_loop` m3.
+
+**THREE HARNESS ROOT CAUSES fixed this session in /tmp/wp-b28/replay_lib.py**
+(each measured, each invalidated earlier "unkillable" claims):
+
+1. PATH POISON — `prove --test <absolute path>` made pytest rootdir-resolve to
+   the lane, so the child imported the PRISTINE module and every mutant ran
+   green (g02g10 read 0/102; the same splice with a RELATIVE path reddened 2
+   named tests). Guard now raises SystemExit on absolute test paths.
+2. OFF-BY-ONE bank-line disambiguation — the 0-based `_line_map` output was
+   compared to a 1-based line count, so the twin keep-set was always empty and
+   occurrence-twin sets never collapsed (false unkills). Fixed to compare
+   0-based to 0-based; the 20 previously-unkilled g00g01 keys then went 20/20.
+3. SPLICE DEFECTS — multi-line splices double-indented the first line
+   (IndentationError faked an unkillable mutant, dc01 m47), and mutmut's `@N@`
+   name placeholder in signature diffs matched nothing (both `drain_queues`
+   m1 keys). Both fixed and proven: replay_drift3.json + replay_drain17.json
+   each RED with a named failing test.
+
+**BANK TRUTH (measured, DECIDE for batch-29)**: the live bank is the 06:31 full
+re-bank — `pipeline_workers.py.meta` holds 1,104 exit-code-0 survivors: all 959
+campaign-bank keys (batteries were uncommitted) PLUS **145 new survivors the
+rebase's VLM-Phase-1 code introduced** (drain_queues 44, \_run_loop 38,
+\_process_video_detection 16, \_process_detection_item 11, broadcast_worker_event
+11, stop_accepting 8, get_pipeline_manager 7, \_process_analysis_item 6,
+get_pending_count 3, reset_state 1). Batch-29 scope = those 145.
+
+**GATES**: faithful mutant-home gate `bash /tmp/wp-b28/pw-gate.sh` → `GATE rc=0`
+(/tmp/wp-b28/gate-pw-131959.log, 18 files, cwd=mutants — the place mutmut's
+stats rerun executes). Neighborhood co-run: `pytest backend/tests/unit/services/
+-k pipeline_worker` → 449 passed. Full unit suite `-n 8 --dist=worksteal
+--randomly-seed=20260927`: with my files 12 failed/31,030 passed vs baseline
+(files stashed) 11 failed/30,727 passed — the 11 pre-exist and are sandbox-only
+(`test_check_api_breaking_changes` spawns `'python'`, absent from PATH here;
+with `.venv/bin` on PATH it is 11 passed). The 12th is the repo's DOCUMENTED
+leaked-singleton flake family (`test_clip_client.py::test_reset_clip_client_when_none`,
+RuntimeError 'Event loop is closed' closing a proxy-pooled connection bound to
+a dead loop — root cause recorded verbatim at
+`backend/tests/unit/services/test_http_connection_pooling.py:477`, which
+defends itself with a discard-first line; `test_florence_client.py`'s autouse
+fixture hits the identical error at the SAME seed on BASELINE, proving the
+family is pre-existing, not induced). DECIDE: no production/fixture bend in
+this commit; the victim-side hardening (discard-before-reset per the house
+pattern) is filed as follow-up, not silently mixed into a campaign commit.
+
+**METAS BACKED UP before the re-bank**: 262 metas + mutmut-stats.json →
+/tmp/wp-b28/backup-metas-132413/ (all-metas.tgz 258 +
+orchestrator-metas.tgz 4 = 262, counted).
+
+## Batch-28 closeout, step 2 — the pw re-bank stats-abort (18:34Z), the recovery, and the two-part fix
+
+**Timeline (all `date -u`)**: commit c4ba5d4e (batteries + L row) → pre-run
+score measured 64.32356979924418% (killed 54515 timeout 2165 survived 31433
+total 88117 no_tests 4 unchecked 0 modules 222/269) — command
+`uv run python scripts/mutation-score.py` — identical to the published
+baseline, i.e. the cache was honest at launch →
+`MUTMAX=14 ./scripts/mutation-run.sh pipeline_workers` started 18:26:02Z
+(log /tmp/wp-b28/rebank-pw.log) → generation OK (269 files, 172s) →
+`Found 830 new tests, rerunning stats collection` → **`failed to collect
+stats. runner returned 1`** at 18:34:18Z, rc=1. The aborted run had ALREADY
+rewritten the live metas (pw meta 548,284 B → 375,579 B) — the coverage pass
+in the same generation aborted under the same -x, so `mutate_only_covered_lines`
+collapsed mutation to covered-line keys. Measured collapse:
+score-tool read 112 modules / 10,011 keys / 313 unchecked.
+
+**Recovery = the backup-before-any-run directive.** Restored from
+`/tmp/wp-b28/backup-metas-132413/` (all-metas.tgz 258 + orchestrator-metas.tgz
+4 + pipeline_workers.py.meta + mutmut-stats.json), then re-measured:
+`score 64.32356979924418% killed 54515 timeout 2165 survived 31433 total
+88117 no_tests 4 unchecked 0 modules 222` — baseline byte-honest again. No
+verdicts lost.
+
+**Root cause (two independent members of the known abort-under-`-x` family;
+memory `mutants-tree-missing-also-copy-abort-family` predicted this trap and
+its pre-check recipe — I gated against a RAW mutants copy instead of the
+instrumented one, which is why 13:19's gate passed):**
+
+1. **SEVENTH member, new shape: absolute-lineno log pins in a battery.**
+   `_00/_00b`'s `pin_record` asserted `r.lineno == where` with the PRISTINE
+   workspace line. In mutmut's mutant home the imported module is the
+   INSTRUMENTED trampoline file: every mutated function is duplicated (orig +
+   one copy per mutant) — pw is 2,271 lines shipped vs 3,042 instrumented — so
+   a shipped call legitimately fires at a shifted line. The stats rerun
+   executes the originals and still saw shifted linenos: 11 tests red
+   (`assert 1544 == 1001`, `assert 1569 == 1026`, …) → -x aborts stats AND
+   coverage. Measured by faithful repro (mutants/ cwd, mutmut's exact args,
+   the 830-test new-set reconstructed via
+   `find backend/tests/unit -name 'test_*.py' -newermt '2026-09-27 06:00'`
+   → 75 files): **14 failed, 2840 passed** (/tmp/wp-b28/statsrepro.log).
+   Blast radius measured: 86 of the 959 bank keys name one of the 11 tests in
+   their replay proof (/tmp/wp-b28/lineno-dependent-keys.json) — their
+   pristine-world kills stand; the fix keeps them honest in both worlds.
+   **FIX (semantics-preserving): world-aware re-anchor.** `pin_record` now
+   asserts `r.lineno in _shipped_linenos(where)` where `_shipped_linenos`
+   re-anchors the SHIPPED logger-call block (exact stripped line-tuple,
+   transcribed for the 6 pinned call sites L1001/1026/1044/1081/1089/1094,
+   each verified unique in the pristine source) against
+   `inspect.getsource(M)` — whichever file M was loaded from. One hit in the
+   pristine world (identical assertion strength: the shipped call fired at the
+   shipped block); one hit per trampoline copy in the mutant home. A mutation
+   that moves/rewords/reshapes the call breaks the block match at the executed
+   line and still reddens; a transcription that drifts fails LOUD (the anchor
+   asserts non-empty). The msg/level/args/exc_info/extras pins are untouched.
+2. **THIRD-member recurrence (path-reads) for three rebase-introduced tests**:
+   `test_levels.py` reads `frontend/src/utils/risk.ts`,
+   `test_check_test_coverage_gate.py` resolves `frontend/src/hooks/useTopEventsQuery.test.tsx`,
+   `test_person_vector_provenance.py` reads
+   `docs/api/migrations/2026-09-26-person-vector-provenance-model-id.sql` —
+   none reachable in the mutant home. **FIX: also_copy += `frontend/src/`
+   (3.0 MB hooks + 327 KB utils, whole dir 14 MB — measured) +
+   `docs/api/migrations/`** (29 KB). also_copy is NOT in
+   `config_fingerprint()` (verified in the installed package: groups are
+   test_execution/test_selection/timeout/type_check) → verdict-safe.
+
+**Gate after the fix (the memory's own recipe, run honestly this time):**
+`_00+_00b` in the instrumented mutant home with mutmut's exact args:
+**30 passed** (cwd=mutants, cwd-relative nodeids, `-m "not gpu" -p no:randomly
+-p no:benchmark -o addopts= --timeout=120`); full 830-test new-set faithful
+repro (cwd=mutants, MUTANT_UNDER_TEST=stats, PY_IGNORE_IMPORTMISMATCH=1):
+**2854 passed, 2 skipped, rc=0** in 85 s (/tmp/wp-b28/statsrepro3.log).
+Batteries synced into mutants/ + pyproject synced; `copy_also_copy_files`
+verified dirs_exist_ok copytree → new entries honored on next generation.
+
+## 2026-09-28 — MILESTONE 2 PUBLISHES: 65.45381499940281% completed=true (+1.1302 pts) — tier 65 reached; campaign #4 `pipeline_workers` CLOSES at 98.00228310502284%; the run also re-decided main's VLM-Phase-1 blast radius honestly
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: full widened set, `uv run mutmut run --max-children 14` via
+`MUTMAX=14 ./scripts/mutation-run.sh` with NO positionals, START
+2026-09-27T21:05:22Z, **EXIT rc=0 2026-09-28T00:10:44Z**, log
+/tmp/wp-b28/fullrun-pwclose.log; snapshot /tmp/wp-b28/score-published.json,
+score txt /tmp/wp-b28/score-published.txt — note the score tool takes NO
+`--json` flag, first waiter invocation rc=2 on that, stdout-redirect is the
+snapshot path):** killed 58,089 + timeout 2,192 = **60,281** of **92,097**
+in-denominator keys → **score 65.45381499940281%**, survived 31,788,
+no_tests 28, suspicious 0, unchecked 0, torn 0, **`completed=true`**,
+**229 modules scored of 269 targets**. History run[4] appended through the
+CI's own append path (runs=5, dates 09-19/09-24/09-25/09-27/09-28, new
+entry carries 229 module rows). Verdict map VERDICT_CODES
+scripts/mutation-score.py:56-69; completed gate
+scripts/mutation-score.py:246-250; append cap HISTORY_MAX_RUNS=60
+scripts/mutation-score.py:260-273.
+
+**THE STRICT-> GATE AND THE TIER LADDER.** 65.45381499940281 >
+64.32356979924418 — publish lawful on the directive's own test. Tier 65 on
+THIS denominator = 0.65 × 92,097 = 59,863 kt; we hold 60,281, margin
+**+418 kt**. Tier 72 gate = kt ≥ 66,310 (+6,029 from here; survivor pool
+31,788 caps it).
+
+**CAMPAIGN #4 CLOSE ROW (`pipeline_workers`, the number that paid for the
+milestone):** post-close module row from the SAME score output: killed
+1,714 + timeout 3 = 1,717 of **1,752** keys = **98.00228310502284%**,
+survived **35**, no_tests 0. vs baseline-module row 544 kt / 1,648 =
+33.01% → **+1,173 kt** (measured per-module delta table, this session,
+score-prerun.json vs score-post1.json module rows). The 35 survivors are
+accounted 12 = the manifest-upheld EQUIVALENT set (batch-28 close section)
+
+- 23 = rebase-introduced batch-29 scope (drain_queues 8,
+  broadcast_worker_event 7, process_analysis_item tail 4, get_pending_count
+  3, reset_state 1, process_detection_item 1) — batch-29 shrinks 145 → 23.
+
+**THE −784 kt SCARE, RESOLVED BEFORE PUBLISH (the reason this score needed
+a full forensic, ledger'd in /tmp/wp-b28/STATE.md 22:07Z section):** the
+mid-flight snapshot at 21:04Z read 55,896 kt = 62.858% — BELOW baseline —
+decomposing to pw +1,173 against −1,958 spread over 15 modules (ep −941,
+reid −345, osnet 161 …). Every one of the 15 was touched by exactly ONE
+commit: `4bfd6fa4 feat(vlm): Phase 1` (origin/main, via the user-ordered
+rebase), which landed AFTER run[3] banked at 06:31Z. Generation re-hashed
+the new functions (reid: 7/17 hash-changed) and correctly reset their
+verdicts to None — old kills no longer described the new source. NOT
+destruction; the full run re-decided them and they came back net POSITIVE
+(re-decided existing modules +391 kt: face_recognition_service +126,
+osnet_loader +93, enrichment_pipeline +59, household_matcher +40, reid
++30, rest +43).
+
+**THE DENOMINATOR MOVED (88,117 → 92,097, +3,980) AND THAT IS main'S
+MOVEMENT, NOT A WIDENING:** the target list is byte-identical
+(`target_modules` set diff both directions = ∅, 269 targets, was 262 at
+the 06:31 bank — the 7 added are 4bfd6fa4's own new modules). 7 brand-new
+modules now have metas (were in the 47-missing set, which is now exactly
+40 = 47 − 7): face_recognizer_loader 754 keys, vlm_specialists 794,
+vlm_analyzer 730, vlm_client 649, routes/face_recognition 199,
+key_frame_selector 37, pipeline_factory 10 — together **2,037 kt of 3,173
+keys = 64.20%**; excluding them the score is 65.4986% (58,244/88,924), so
+main's fresh code slightly DILUTES our number; we still publish above the
+bar with them in.
+
+**THE ADMISSIBILITY GATE (three numbers, per the completed=true-taint
+rule):** modules 229 (no map-collapse signature); total 92,097 in the
+healthy band + main's new modules (no −29% shrink); **no_tests 28** — the
+baseline's same four singletons PLUS 24 in reid_service, measured as ONE
+function: `_history_partition_keys` mutmut_1..24, introduced by 4bfd6fa4
+(`git log -S` verified), zero references anywhere under backend/tests/
+(`grep -rl … ; rc=1`), so 24 mutants with NO covering test — counted in
+the denominator as not-killed, i.e. they COST us score; the honest
+conservative reading holds. not_checked 0 / torn 0 → fully-checked cache.
+
+**NEXT MOVES (queued, nothing started):** campaign #6 `detector_client`
+install-ready — 13 battery files staged + md5-verified in /tmp/lane-dc
+(dc02 = 7ff34b5fda66c56e140b01879f8068d0), all 13 groups replay-proven
+(≈996 killed / 1 provable-equivalence dc02-m20), module row today 534 kt /
+1,274 = 41.92%, close worth ≈ +740 kt; then gpu_monitor 582/1,650 =
+35.27% (1,068 survivors, gm batteries in lanes), then the batch-29 23-key
+tail, then campaigns #2/#3 remainder (enrichment_client survivor pool
+1,195 — biggest single lever left).
+
+## 2026-09-28 — MILESTONE 3 PUBLISHES: 66.31923376961082% completed=true (+0.8654 pts) — campaign #6 `detector_client` CLOSES at 99.32111337406653%; zero collateral movement anywhere else
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: `MUTMAX=14 ./scripts/mutation-run.sh detector_client`, START
+2026-09-28T00:36:01Z, **EXIT rc=0 02:36:58Z**, log /tmp/wp-dc/rebank-dc.log;
+snapshot /tmp/wp-dc/score-postdc.json):** killed 59,016 + timeout 2,194 =
+**61,210** of **92,296** → **score 66.31923376961082%**, survived 31,058,
+no_tests 28, unchecked 0, torn 0, **completed=true**, 229/269 modules.
+History run[5] appended through the CI's own append path (runs=6).
+
+**CAMPAIGN #6 CLOSE ROW (`detector_client`):** killed 1,280 + timeout 183
+= **1,463** of **1,473** keys = **99.32111337406653%**, survived **10**,
+no_tests 0 (meta: {'1':1272,'-24':183,'3':8,'0':10}; the eight exit-3s are
+killed-class per VERDICT_CODES scripts/mutation-score.py:56-69). Pre-close
+row 534 kt / 1,274 = 41.92% → **+929 kt** on +199 keys (the batteries
+covered 199 previously-uncovered mutants which the same run decided).
+Per-module delta vs the 65.4538 snapshot: `detector_client` is the ONLY
+module that moved — SUM Δkt across all 229 rows = 929 = the dc Δ exactly;
+zero collateral.
+
+**THE 10 SURVIVORS (measured from the post meta,
+mutants/backend/services/detector_client.py.meta exit_code_by_key==0):**
+`__init__` m20 (the dc02-m20 **provable equivalence** — a dropped value-
+equal-default kwarg consumed only through an `is True` getattr gate;
+False/None indistinguishable, matches audit C7, upheld NOT to author a
+test for it); model_readiness_probe m4/m7/m12/m14/m21 (five,
+group-03-lineage candidates on the readiness probe);
+\_send_detection_request m1 + m331; detect_objects m198 + m567 — the last
+four are candidates of groups whose replay proofs stand at 44/45 and
+45/45 (dc02 full45, dc01 manual m47): this run's fresh keys born from new
+coverage. All 10 are the module's batch-29 tail, ledger'd for the batch-
+29 scope (with pw's 23).
+
+**STRICT-> GATE + LADDER.** 66.31923376961082 > 65.45381499940281 (the
+run[4] milestone) and > 64.32356979924418 (baseline) — lawful publish,
+tier 66 territory: the +1.9955 pts over
+baseline so far cover 26% of the 7.676-pt run[3]-to-72 climb; tier-72 bar on
+THIS denominator = kt ≥ 0.72×92,296 = 66,453 → +5,243 kt to go; the
+remaining survivor pools: prompts 855 (73.48% today), gpu_monitor 1,068
+(35.27%), enrichment_client 1,195 (55.48%), event_broadcaster 723,
+batch_aggregator 644, clip_client 559, ep 420 (93.39% — nearly closed).
+
+**INSTALL REPAIR LEDGERED ELSEWHERE, SUMMARIZED (full detail
+/tmp/wp-b28/STATE.md 00:40Z section):** seventh abort-family member hit
+AT SOURCE — the 13 committed batteries (67806950, 359 tests) pinned 45
+absolute logger-call linenos valid ONLY in the raw-copy replay world; the
+instrumented pre-commit gate (cwd=mutants) went 172/359 red and the fix —
+ast-exacted shipped-call-block re-anchor, all 48 blocks textually
+distinct, pristine path derived by stripping `mutants/` from `M.__file__`
+— re-verified 359/359 in BOTH worlds before install. Gates: pristine 359P,
+instrumented 359P, neighbor co-run 112P, semgrep clean, ruff clean.
+
+**NEXT:** campaign #5 `gpu_monitor` (582 kt / 1,650 = 35.27%, 1,068
+survivors — the single biggest killable pool; its 23 staged batteries
+carry the SAME frozenset absolute pins — the re-anchor recipe applies at
+install, instrumented gate mandatory), then batch-29 (pw 23 + dc 10),
+then `enrichment_client` survivors, then `prompts`.
+
+## 2026-09-28 — MILESTONE 4 PUBLISHES: 67.43042239483464% completed=true (+1.1112 pts) — campaign #5 `gpu_monitor` CLOSES at 97.23058398555088%; zero collateral movement anywhere else
+
+**THE NUMBER (measured, `uv run python scripts/mutation-score.py
+--history .github/mutation-history.json --date 2026-09-28`, rc=0; the
+publish run: `MUTMAX=14 ./scripts/mutation-run.sh gpu_monitor` wrapper PID
+1325181, START 2026-09-27T22:48:43Z, wrapper EXIT 2026-09-28T04:34:44Z, log
+/tmp/wp-b28/rebank-gm.log; snapshot /tmp/wp-b28/score-postgm.json):** killed
+60,049 + timeout 2,194 = **62,243** of **92,307** → **score
+67.43042239483464%**, survived 30,036, no_tests 28, unchecked 0, torn 0,
+**completed=true**, 229/269 module rows. History run[6] appended through the
+CI's own append path (runs=7). Denominator 92,296 → 92,307: +11 keys born
+inside gpu_monitor from the new coverage, all 11 decided killed (meta
+durations confirm) — no widened-set change (pw M2 precedent +103/-50).
+
+**CAMPAIGN #5 CLOSE ROW (`gpu_monitor`):** killed 1,615 + timeout 0 =
+**1,615** of **1,661** keys = **97.23058398555088%**, survived **46**,
+no_tests 0. Pre-close row 582 kt / 1,650 = 35.27% → **+1,033 kt** on +11
+keys. Per-module delta vs the 66.3192 snapshot (post-snapshot
+/tmp/wp-dc/score-postdc.json): `gpu_monitor` is the ONLY module that moved
+— Δkt = +1,033 = the tree Δkt exactly; zero collateral across all 229 rows;
+no module appeared/disappeared (229 → 229).
+
+**INSTALL (commit 7f074017, pushed):** 22 battery files
+test*gpu_monitor_batch28_00..22 (no 09 — merged into 08 in-lane), 299 tests.
+Gates, all THIS session: pristine 299 passed
+(`uv run pytest backend/tests/unit/services/test_gpu_monitor_batch28*\*.py
+-q -m "not gpu" -p no:randomly -p no:benchmark -o addopts= --timeout=180`);
+instrumented gate in the bank tree
+(`cd mutants; PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python -m pytest
+…same args`) initially 3 FAILED / 296 passed → after the world-aware fix 299
+passed; neighbor co-run with test_gpu_monitor.py 405 passed; ruff clean;
+semgrep clean after two `# nosemgrep: path-traversal-open`pragmas on gm22's`M.**file**` reads (dc convention). Pre-bank backup
+/tmp/wp-b28/backup-metas-prebanc-gm-224843.tgz (269 metas, 0 stale, test
+trees synced DIFFCOUNT=0).
+
+**NEW ABORT-ADJACENT FAMILY FOUND AND NEUTRALIZED AT INSTALL (not a
+stats-abort member — a false-kill machine):** three batteries pinned
+"shipped comment verbatim in the imported source, EXACTLY ONCE" (gm10/gm11
+`text_pins`, gm12 `COMMENT_WINDOW_LINE`). In the instrumented world every
+shipped comment appears once per mutant copy (L677/L682/L693/L715 206×,
+L993 24×), so the pin is permanent-red in the bank and would have credited a
+false "killed" to EVERY key whose selection set reaches the module. Fix:
+`_shipped_source()` — the imported module's path minus the `mutants/`
+component (the instrumented file is generated verbatim from it), i.e. the
+proven detector_client `_PRISTINE` recipe. Kill-credit audit BEFORE fixing:
+replay artifacts (/tmp/wp-pw/gm/replay_gm10.json, replay_gm11.json,
+replayF_R19/R22b) show **0 keys solely owned** by the three tests; all 18
+co-owned kills stand on the value-oracle rows → zero measured kt lost.
+gm22's two `in`-check comment pins verified green in BOTH worlds (text
+appears ≥1× even under 206 copies) — left pristine-read, inert in the bank.
+
+**THE 46 SURVIVORS (all 46 pre-bank exit 0 — zero regressions; every diff
+extracted by construction, mutant-def vs shipped-def ast text, /tmp/
+wp-b28/gm-survivor-diffs.json; survivor list /tmp/wp-b28/gm-survivors-
+postbank.txt):**
+_EQUIVALENT ×6 (upheld by construction):_ `__init__` m15/m16/m17/m18 —
+`self._gpu_available = None/True` and `self._nvml_initialized = None/True`
+(L173/L174) are DEAD STORES: `__init__` calls `self._initialize_nvml()` at
+L191 before its first read at L194, and `_initialize_nvml` assigns both
+attributes on ALL FOUR exits (L223/L227-228/L231-232 plus the True path in
+the success leg) — no input distinguishes the initial value. fps m19/m20 —
+`count / 60.0 if count >= 0 else 0.0` (L999) → `> 0` / `>= 1`: the three
+predicates differ only at count == 0 (count is a non-negative int per L998
+`result.scalar() or 0`), and at 0 shipped already computes
+`count / 60.0 == 0.0` — value-identical on every input; the else-arm is
+unreachable under all three predicates.
+_KILLABLE ×40 (true-gap → batch-29):_ the nvidia-smi parser poison-pill
+family, sync `_get_gpu_stats_nvidia_smi` (L309/314/319/324/329 × 8 mutants:
+m41/44/48/49/52/55/59/60/63/66/70/71/74/78/82/83/86/90/94/95) and async
+`_get_gpu_stats_nvidia_smi_async` (L419/424/429/434/439 × 20:
+m45/48/52/53/56/59/63/64/67/70/74/75/78/82/86/87/90/94/98/99). Three shapes
+per field, `and`→`or`, drop-guard `… or True`, and sentinel
+wrap/case (`"[N/A]"` → `"XX[N/A]XX"`/`"[n/a]"`): all three take the
+`float(parts[i])`/`int(float(parts[i]))` path on inputs where shipped yields
+None (`"[N/A]"`/`"[n/a]"`/other-sentinel field text) — under the shipped
+gate those parse-raise NEVER run, so one nvidia-smi row per field carrying
+`"[N/A]"`-shaped poison reddens every one of the 40 (ValueError vs shipped
+None-per-field). They survived because the lane's gm01 battery proof (groups
+3/4 nvidia-smi stats, task #47 "replay 40/46 + 6 manual") was never
+confirmed — same not-yet-proven lineage as dc's batch-29 five. Zero replay
+artifacts claimed any of the 46 (cross-referenced replay*/coh*/classify\*.json,
+0/46 hits) — nothing re-credited, nothing lost.
+
+**STRICT-> GATE + LADDER.** 67.43042239483464 > 66.31923376961082 (run[5]
+milestone) > 65.45381499940281 (run[4]) > 64.32356979924418 (baseline) —
+lawful publish. The +3.1069 pts over the run[3] baseline now cover **40.5%**
+of the 7.6764-pt run[3]-to-72 climb; tier-72 bar on THIS denominator = kt ≥
+0.72×92,307 = **66,461** → **+4,218 kt** to go. Remaining survivor pools
+(post-snapshot): enrichment_client 1,195 (55.48%), gpu_monitor 46 (closed,
+40 batch-29), prompts 855 (73.48%), event_broadcaster 723 (43.78%),
+batch_aggregator 644 (44.24%), clip_client 559 (46.51%), ep 420 (93.39% —
+nearly closed), plus pw 23 + dc 10 batch-29 tails.
+
+**NEXT:** batch-29 consolidated scope = pw 23 + dc 10 + gm 40 (poison-pill
+rows + the two never-proven lane batteries) ≈ 73 keys, then campaign #3
+`enrichment_client` (1,195 survivors), then `prompts`.
+
+## 2026-09-28 — LEDGER CORRECTION (M4 addendum): the 40 gm nvidia-smi-parser "KILLABLE" survivors re-disposed **EQUIVALENT by construction probe** — batch-29 scope shrinks to pw 23 + dc ≤10
+
+The M4 row above disposed the 40 parser survivors (sync m41..m95, async
+m45..m99) as "KILLABLE — poison-pill rows" from the DIFF SHAPE alone. That
+claim was asserted without the by-construction sweep mine (h) demands — and
+the sweep refutes it. **Correction, measured:**
+`/tmp/wp-b28/gm-equiv-probe.py` run INSIDE the bank tree
+(`cd mutants; env PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python …`, plain
+script — no pytest, no meta/stats writes; per-call
+`MUTANT_UNDER_TEST=backend.services.gpu_monitor.xǁGPUMonitorǁ<key>`, exactly
+the trampoline's `get_mutant_under_test()` contract): **40/40 keys, 0
+behavior differences over a 71-case sweep** (valid row; every field ∈
+{"[N/A]", "", "[n/a]", "XX[N/A]XX", "abc"}; every field ∈ {nan, inf, -inf,
+1e999, "39.", ".", 0x21, "39_5"}; short4; multigpu; 5-field; empty-stdout;
+rc=1), comparing the full returned dict (minus recorded_at) AND the raised
+exception type per case.
+
+**Why they are equivalent (shipped source):** every one of the 40 sits inside
+a per-field `try: … except ValueError: <field> = None` block (sync
+backend/services/gpu_monitor.py L307-331, async L417-441). All three mutant
+shapes (`and`→`or`, drop-guard `… or True`, sentinel wrap/case) only flip the
+GUARD branch for inputs where shipped yields None (`""` or the sentinel text);
+the mutant then takes the parse path, whose failure the SAME `except
+ValueError` coerces to `None` — shipped's own outcome — and whose success
+returns the identical float/int. `int(float("inf"))` raises `OverflowError`
+(not caught) in BOTH worlds identically. No input distinguishes shipped from
+any of the 40.
+
+**What stands / what changes:** module close numbers UNCHANGED (1,615/1,661 =
+97.23058398555088%, survived 46 — no kill was ever credited to these keys, no
+test was written against them, the badge is untouched). gm module is now
+dispositioned **1,615 KILLED + 46 EQUIVALENT (6 upheld at M4 + 40 by this
+probe) + 0 true-gap = 1,661, zero undispositioned**. **Batch-29 scope
+corrected: pw 23 + dc ≤10** (the gm 40 leave the scope; dc's count stays as
+rowed pending the same construction probe on its 9 non-EQ survivors — the
+probe decides killable-vs-equivalent by measurement, not by diff-shape
+reading, before any battery is authored).
+
+## 2026-09-28 — LEDGER CORRECTION (batch-29/dc): the 10 detector_client survivors dispositioned BY CONSTRUCTION PROBE — 8 EQUIVALENT, 2 KILLABLE; batch-29 dc tail shrinks to 2 keys
+
+**THE MEASUREMENT (this session).** Construction sweep
+`/tmp/wp-b28/dc-equiv-probe.py`, run in the bank tree
+(`cd mutants; PY_IGNORE_IMPORTMISMATCH=1 ../.venv/bin/python …`, plain
+script — no pytest, no meta/stats writes, safe next to the live re-bank),
+rc=0. Contract identical to gm-equiv-probe: per key
+`MUTANT_UNDER_TEST=backend.services.detector_client.xǁDetectorClientǁ<fn>__mutmut_<N>`
+exactly as the trampoline reads it (`get_mutant_under_test()`, env-wins,
+re-read per call — mutmut/mutation/trampoline.py:47-58), driving the REAL
+instrumented functions over case sweeps and comparing shipped-vs-mutant:
+`send`=9 cases (ConnectError/OSError/500-exhausted legs digest exception
+type + `original_error` type + `__context__` type; 400-json-fail legs with
+`response.text` of 600/60/0 chars digest the ValueError message length and
+head/tail; 404; malformed-JSON; success payload repr), `probe`=1 case ×3
+reps (real `model_readiness_probe` with `_send_detection_request` captured
+→ probe bool + sha256 + byte-length of the ENCODED JPEG handed downstream
+— the probe's only observable output), `init`=3 legs (settings
+use_ai_gateway present-True/present-False/attribute-missing → `_detector_url`),
+`unexp`=3 legs (real `detect_objects`, `_send` raising RuntimeError/OSError
+with path+token-bearing messages → DetectorUnavailableError message text +
+`original_error` type; ValueError leg), `video`=2 legs (success image-arm +
+video-arm → Detection media_type/video_width/video_height/duration/file_path).
+Image paths fixed to `/tmp/wp-b28/dc-probe-img.jpg` (random tempdirs faked
+a det198 diff on the first run — caught and killed before it was rowed).
+**POSITIVE CONTROL inside the sweep:** `model_readiness_probe__mutmut_10`
+(NOT a survivor; `(32,32)`→`(33,32)`) MUST and DOES redden
+(643→651 bytes, sha `37ef58f0…`→`be3b2db1…`) — if the probe ever reports
+control-EQUIVALENT the probe is broken, not the code.
+
+**DISPOSITIONS (all 10, from the same rc=0 run):**
+
+- **KILLABLE (2)** — `send331` =
+  `xǁDetectorClientǁ_send_detection_request__mutmut_331`
+  (`e.response.text[:500]`→`[:501]`, shipped site
+  backend/services/detector_client.py:827): 400 leg with 600-char text →
+  ValueError message **len 527 vs 528** (diff pair IS the test body:
+  `httpx.HTTPStatusError(400)` whose `response.json` raises and
+  `response.text` is 501+ chars, assert the raised message length).
+  `det567` = `xǁDetectorClientǁdetect_objects__mutmut_567`
+  (`sanitize_error(e)`→`sanitize_error(None)`, site :1441): RuntimeError
+  and OSError legs both → shipped `"…detection: IO boom …/tok=abc"`
+  vs mutant `"…detection: None"` — a 2-case test (message != contains
+  "None", and the sanitized path/credential text is present).
+- **EQUIVALENT (8)** — `init20` (`getattr(…,"use_ai_gateway",False)`→
+  `None`, site :284, consumed only by `is True`; upheld, matches audit
+  C7); `send1` (`last_exception: Exception | None = None`→`""`, site
+  :632; the var is reassigned by every handler that can reach the truthy
+  read at :915, and `""` vs `None` both fall to the bare
+  `DetectorUnavailableError` — 0/9 diffs); `det198`
+  (`is_video = False`→`None`, site :1182; read only via `if is_video and
+video_metadata:` :1296 — 0/2 diffs); readiness-probe m4/m7/m12/m14/m21
+  (`color=(0,0,0)`→`None`/omitted/`(1,0,0)`/`(0,0,1)`, site :520, and
+  `format="JPEG"`→`"jpeg"`, site :524) — **all five produce a
+  byte-IDENTICAL JPEG payload**: measured on this PIL (12.3.0), black,
+  (1,0,0), (0,0,1) and the uninitialized `color=None` buffer all encode
+  to the same 643-byte stream (sha `37ef58f0f757645e`; near-black colors
+  fall inside the JPEG quantization cell of black), `color` default is
+  0, and PIL normalizes the save-format key case. The bytes handed to
+  `_send_detection_request` are the probe's ONLY output, and they are
+  equal → no input distinguishes shipped from mutant.
+
+**What stands / what changes:** module close numbers UNCHANGED (1,463/1,473
+= 99.32111337406653%, survived 10 — no kill credited, no badge movement).
+dc is now dispositioned **1,463 KILLED + 8 EQUIVALENT + 2 KILLABLE
+(test-to-author) = 1,473, zero undispositioned**. **Batch-29 scope: pw 23 +
+dc 2** (`send331`, `det567`); the 8 leave the scope permanently. Probe
+artifacts: /tmp/wp-b28/dc-equiv-probe.py (exit 0), stderr
+/tmp/wp-b28/dc-probe.err.
+
+## 2026-09-28 — LEDGER CORRECTION (batch-29/pw): the 23 pipeline_workers survivors dispositioned BY CONSTRUCTION PROBE — 18 KILLABLE / 5 EQUIVALENT; battery authored + red-checked 18/18 (commit 5454d0c0); batch-29 CLOSES disposition-wise
+
+**THE MEASUREMENT (this session).** Construction sweep
+`/home/agent/runs/pw-equiv-probe.py`, run read-only in the bank tree
+(`cd mutants; MUTANT_UNDER_TEST=<key> ..` per key on the REAL trampolines;
+plain script, no pytest, no meta/stats writes — safe next to a live runner).
+Six driver groups (bcast/reset/pend/drain/det/an) with the shipped half
+rehearsed FIRST and mandatory positive controls alive; shipped-world capture
+counts this run: bcast 1396 / reset 104 / pend 895 / drain 5481 / det 5021 /
+an 9812 comparisons. Per-key env form exactly what the trampoline reads
+(`get_mutant_under_test()`, env-wins, re-read per call —
+mutmut/mutation/trampoline.py:47-58). Full report:
+`/home/agent/runs/pw-sweep-full.txt` — **18 KILLABLE / 5 EQUIVALENT of 23**;
+every `ship=`/`mut=` diff-pair printed there became a battery leg.
+
+**THREE PROBE CORRECTIONS, in BOTH failure directions (the lesson is
+[[survivor-disposition-requires-sweep-not-diffshape]] +
+[[log-context-filter-fakes-extra-kwarg-mutants]]):**
+(1) FALSE-KILLABLE ×4 — an early pass STUBBED `log_context`, so the analysis
+`extra={"batch_id": …}` mutants (m219/m221/m271/m273) showed diffs. Production
+truth: the shipped body runs inside
+`log_context(batch_id=batch_id, camera_id=…, operation="analysis")`
+(pipeline_workers.py:1013-1016) and the `ContextFilter` attached by
+`get_logger` (backend/core/logging.py:484-485, 1127-1129) merges those fields
+into EVERY in-scope record — drop the explicit extra and the filter re-injects
+the identical `record.batch_id`. Unobservable; re-dispositioned EQUIVALENT,
+matching their survival of the real bank run. `worker_name`/`worker_type`
+(bcast m33-m39) are in NO `log_context` and NO filter key (audited) — those
+kills stand.
+(2) FALSE-EQUIVALENT ×2 — det m107 needed a leg that EXECUTES the mutated
+generic `except Exception` (L540): `DetectorUnavailableError` takes the DLQ arm
+and never reaches it, which is why every 0-starting bank leg missed it; added
+plain-`RuntimeError` legs G0/G2/G5 + a PRE-WARMED error count (2→3 shipped vs
+1 mutant is the only discriminating input). drain m57 (post-log reset) needed
+a progress-then-hold leg (D7) to exist at all.
+(3) CLOCK EPOCH DRIFT — bcast/det/pend captures initially not re-zeroed per
+capture; `T[0]=1000.0` added at capture top or ordering manufactures diffs.
+
+**DISPOSITIONS:** KILLABLE (18) — bcast m19/m33/m35/m36/m37/m38/m39, reset m1,
+det m107, drain m21/m23/m51/m52/m53/m54/m57, pend m2/m4. EQUIVALENT (5) —
+drain m55 (`stall_time >= threshold`→`>`): `stall_time` only reaches the 5.0
+region on the IEEE ladder 0.0+0.1\*n — measured THIS session:
+`4.999999999999998 → 5.099999999999998`, no reachable value equals 5.0 exactly,
+so `>=`/`>` never disagree (0 diffs over every probe leg + ladder simulation);
+
+- analysis m219/m221/m271/m273 per correction (1).
+
+**THE BATTERY + RED-CHECK (kill proof).**
+`backend/tests/unit/services/test_pipeline_workers_batch29_00.py`, 12 tests,
+commit **5454d0c0** (every pre-commit hook PASSED — semgrep env repaired after
+the sandbox restart, [[sandbox-restart-pre-commit-python312]]; no skips).
+Pristine 12/12 in 2.18s; co-run green in the mutant home (2.72s). The drain
+legs replay the shipped poll loop under a scripted clock (`time.time` autospec
+0.1-step + `asyncio.sleep` autospec no-op) with a 3.0s WALL guard, so elapsed
+time is exact and every leg terminates on the shipped timeout arm in
+microseconds. Per-key trampoline red-check
+(`/home/agent/runs/pw29-redcheck.sh`, no source mutated, serialized):
+**18/18 keys RED**, each naming its killer test
+(`/home/agent/runs/pw-sweep-redcheck2`).
+
+**What stands / what changes:** NO badge movement — the repair runs fill holes
+only and never re-decide, so these 18 keys keep their survived verdicts in the
+bank until the next FULL re-bank; the kill credit lands then. pw is now
+dispositioned **1,716 KILLED + 5 EQUIVALENT (this row) + 11 batch-28
+EQUIVALENT (upheld) + remaining tail = dispositioned at bank row 1,713+3 kt /
+1,750 / survived 34 (score-repair.json), zero undispositioned in the 23-key
+batch-29 tail**. **Batch-29 CLOSED disposition-wise: pw 23 = 18 killed
+(batteried) + 5 EQUIVALENT; dc 10 = 2 killed (commit 29fa2dab) + 8 EQUIVALENT
+(09-28 dc row).** Next campaign scope: prompts (845 survivors / 3,192 keys).
+
+## 2026-09-28 — MILESTONE 5 PUBLISHES: 68.01666756859137% completed=true (+0.5862 pts vs M4) — campaign #3 `enrichment_client` CLOSES at 93.59165424739196% (+1,023 kt vs M4); the 1,447-key main-merge hole bank fully closed by two sanctioned full-set runs, zero re-decides (the trio 713-key fill regressed to sticky no_tests — disclosed below, with recovery plan)
+
+**THE NUMBER (measured THIS session, `uv run python scripts/mutation-score.py`
+rc=0; campaign publish run `MUTMAX=14 ./scripts/mutation-run.sh
+enrichment_client`; repair runs `MUTMAX=14 ./scripts/mutation-run.sh` — no
+module arg = documented full-set hole-fill mode; per mutmut `_run()` a run
+re-executes ONLY keys with no stored result, so nothing was re-decided; logs
+/home/agent/runs/repair.log (run 1) + repair2.log (run 2); snapshots
+/home/agent/runs/score-postgm.json + score-postrestart.json +
+score-repair.json + score-repair2.json):** killed 60,506 + timeout
+2,338 = **62,844** of **92,395** → **score 68.01666756859137%**,
+survived 28,810, no_tests 741, unchecked
+0, torn 0, **completed=True**,
+230 module rows (M4: 229). M4 was 62,243/92,307 =
+67.43042239483462%. **STRICT-> holds** (68.01666756859137 > 67.43042239483462).
+
+**DENOMINATOR DISCLOSURE (measured per-module, NO policy change):** M4 checked
+92,307 → this run's total 92,395 (Δ+88).
+The delta is re-enumeration, not widened-set policy (source_paths and
+mutate_only_covered_lines untouched), measured row-by-row: `capture_time`
+(new file merged in main #6683) +59, `pipeline_workers` +10, `vlm_analyzer`
++11, `vlm_client` +8 — ΣΔ+88. Key-set sizes of every other module are
+unchanged. The publish math clears M4 on EVERY candidate denominator: at the
+M4-era total 92,307 the same kills give 68.08151061132959%; at this
+run's 92,395 → 68.01666756859137%. Both printed here honestly; the published
+entry is the fresh score's own total.
+
+**TRIO DISCLOSURE — 500 kt REGRESSED TO STICKY `no_tests` (measured
+end-to-end, not papered over; recovery item for the next campaign):** rows
+`calibration_monitor.py` / `session_service.py` / `trajectory_analyzer.py` held real M4
+verdicts (kt 114, 47, 339 of
+201, 60, 452 keys). Timeline measured
+from the meta backups: all-`None` (holes) in the 11:20Z backup
+(backup-metas-prerelaunch.tgz — the 713 are within the 1,447 census by
+arithmetic 675 rowed + 59 capture_time + 713 = 1,447); EMPTY
+`exit_code_by_key` dicts in the 14:28Z pre-repair#2 backup
+(backup-metas-repair2.tgz — why the trio rows are absent from both the
+damaged-bank and repair#1 snapshots: 226 rows there); repair#2's generation
+re-enumerated their key-sets, and the run loop then classified EVERY key
+`no_tests` (exit 33) — R2 rows: kt 0, no_tests
+201, 60, 452 (713 of this run's
+741; remainder `reid_service` 24 + 4 singletons). Mechanism
+measured to the data, trigger NOT guessed: `tests_by_mangled_function_name`
+(2,887 fns, stamped git_commit 202dc61d) has ZERO entries for the trio's
+functions while their tests DID run at collection (`duration_by_test` carries
+their 123 node IDs) — dependency edges lost, never rebuilt; the map is
+BYTE-IDENTICAL between the 11:20Z backup and now, and enrichment_client/
+vlm_analyzer fns ARE in it. The trio's test files collect green in BOTH trees
+TODAY (`pytest --collect-only` → 122, rc=0), so the edge-loss state is in the
+stats cache, not the tests. The 33s are STICKY: per `__main__.py` `_run()`
+(L1029-1030: `if not mutant_names and result is not None: continue`; the 33
+written by L1032-1034) a full-set run skips any key with a stored verdict —
+repair runs will never re-decide them; only a module-scoped run (explicit
+mutant_names bypass the skip) can, AND that needs the map edges back first.
+RECOVERY PLAN (first task of the next campaign): force a stats re-collection,
+verify trio fns appear in the map, then module-scoped
+`MUTMAX=14 ./scripts/mutation-run.sh` on each trio module re-decides their
+713 keys; restore worth ≈+0.5412 pts
+(63,344/92,395 = 68.55782239298664% counterfactual).
+Impact IS in the published number (713 keys stay in the denominator as
+no_tests while their 500 kills left the numerator) — M5 clears M4
+anyway, both denominators.
+
+**ROW-LEVEL NO-REDECIDE AUDIT (re-run THIS publish, stricter than the original
+gate):** /home/agent/runs/verify-repair2.py at repair#2 completion passed its
+gate-2 VACUOUSLY (its M4-row input score-postgm.json had modules=[] — stub
+totals only); the independent KEY-level proof (every non-None verdict in
+pre-repair#2 metas vs current, 90,946 keys, 0 violations) was the real
+evidence and stands. This publish rebuilt score-postgm.json from the committed
+history M4 entry (229 rows) and re-ran the gate: it fires on EXACTLY 9 field
+changes = the trio's 6 (disclosed above) + enrichment_client's 3 (killed/
+timeout/survived — that module was module-scoped RE-RUN by campaign #3's
+publish command, its re-decides are the campaign), and the other **226
+M4-decided rows are field-identical** (total/killed/timeout/survived). No
+unexplained drift anywhere.
+
+**CAMPAIGN #3 CLOSE ROW (`enrichment_client`):** killed 2161 +
+timeout 351 = **2512** of **2684** keys =
+**93.59165424739196%**, survived **172**, no_tests 0. M4 row 1,489 kt → **+1,023
+kt** at constant 2,684 keys (the interim score-postrestart.json
+snapshot already carries the campaign fills — its 2,512 = the final 2,512 —
+which is why it is the M4 row that states the campaign delta).
+`enrichment_client` is the ONLY campaign-motivated mover; every other Δkt
+mover below is a repaired-hole module, the new `capture_time` row (new file
+merged in main #6683), or the disclosed trio regression.
+
+**THE HOLES — FULL HONEST CHAIN (1,447 → 884+563 → 0):** the post-ec bank
+carried unchecked=1,447 across 11 modules, attributed by per-meta key-pattern
+forensics to main merges #6683/#6684 (new `capture_time` 59; merge-reset trio
+452+201+60 — banked at M4, reset by the merges, disclosed below; VLM-Phase-1
+blast radius `vlm_analyzer` 461 / `vlm_client` 33;
+contiguous appended key ranges in `osnet_loader`/`prompts`; stragglers
+auth/auth_service/pw). SEPARATELY DISCLOSED: an accidental SECOND `mutmut run`
+overlapped the campaign run's generation ~7 seconds (relaunch on a misread
+signal; killed before stats) — a one-runner-rule violation banked as a
+standing census requirement, forensically NOT the cause of these holes.
+**Repair #1** (started 15:33Z, log repair.log) re-executed only no-result keys,
+closed 884 of the 1,447, then DIED at mutmut's clean-test gate ~12 min in with
+NO failed test anywhere in the log. ROOT CAUSE (proven this session): the
+sandbox restart wiped apt package `systemd`; the shipped `phase_build` calls
+`_ensure_podman_socket` (setup_lib/deploy_phases.py:379) which shells out to
+`systemctl` unconditionally, and
+`backend/tests/unit/setup_lib/test_deploy_phases.py::TestPhaseBuild::test_skips_when_skip_build`
+— file 87 of 852 in gate ordering — never mocks subprocess →
+`FileNotFoundError: systemctl` → red in BOTH trees → `-x` aborted the gate
+child → `os._exit(1)`; the child's buffered pytest output died with it
+(structural: workers/isolation.py:129 `run_in_fork` + CatchOutput pre-fork
+redirect + in-process `pytest.main`; memory `mutmut-clean-gate-silent-death`).
+After `sudo -n apt-get install -y systemd` the faithful forkserver repro of the
+gate — same child body, all 16,506 cached node IDs, workspace venv,
+/home/agent/runs/cleangate-forkserver.py — ran **exit 0 in 639.5s**. kt across
+the death is BYTE-IDENTICAL to repair #1's measured 62,361 (the gate sits
+before any mutant execution; every moved row kept exactly its own fills; the
+563 surviving holes untouched). **Repair #2** closed the remaining 563
+(`vlm_analyzer.py` 461, `vlm_client.py` 33, `osnet_loader.py` 10),
+verified by /home/agent/runs/verify-repair2.py (no-re-decide gate on every
+PRE-decided row + hole-row kt monotone + completed=true).
+
+**Δkt MOVERS vs M4:**
+
+`backend/services/calibration_monitor.py`: 114 → 0 Δ-114 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/capture_time.py`: 0 → 47 Δ+47 (repair fill)
+`backend/services/enrichment_client.py`: 1,489 → 2,512 Δ+1,023 (campaign #3 close)
+`backend/services/pipeline_workers.py`: 1,717 → 1,727 Δ+10 (repair fill)
+`backend/services/session_service.py`: 47 → 0 Δ-47 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/trajectory_analyzer.py`: 339 → 0 Δ-339 (TRIO REGRESSION — disclosed above (coverage-map loss))
+`backend/services/vlm_analyzer.py`: 469 → 482 Δ+13 (repair fill)
+`backend/services/vlm_client.py`: 348 → 356 Δ+8 (repair fill)
+
+**BATCH-29 (NOT counted in this badge, rowed separately):** pw tail
+dispositioned 18 KILLABLE / 5 EQUIVALENT by construction probe and kill-
+batteried (commit 5454d0c0, red-check 18/18); dc tail 2 KILLABLE batteried
+(29fa2dab) + 8 EQUIVALENT; gm 40 re-disposed EQUIVALENT (48f379a2 addendum).
+These keys keep their bank survived verdicts — repair runs only fill holes —
+kill credit lands at the next full re-bank.
+
+**NOT PUBLISHED FROM:** red-check counts, extrapolation, or any damaged-bank
+snapshot (/home/agent/runs/score-postrestart.json completed=false unchecked
+1447; score-repair.json completed=false unchecked 563). Command +
+snapshots above; all numbers measured THIS session.
