@@ -13,6 +13,7 @@ from synthbench.host.snapshot import (
     DATASET,
     classify,
     destroy_snapshot,
+    list_snapshots,
     parse_diff,
     prune,
 )
@@ -118,13 +119,45 @@ def test_a_hold_stops_pruning_and_nothing_past_it_is_destroyed() -> None:
     assert hold == SnapshotHold(snapshot=snaps[1], count=1, paths=("/c/v/e/renders/a1-s1.png",))
 
 
-@pytest.mark.parametrize("name", [DATASET, f"{DATASET}@manual", "primary/export@synthbench-1"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        DATASET,
+        f"{DATASET}@manual",
+        "primary/export@synthbench-1",
+        f"{DATASET}@synthbench-1%",  # a zfs range: synthbench-1 through the newest snapshot
+        f"{DATASET}@synthbench-1,manual",  # a zfs list
+    ],
+)
 def test_destroy_refuses_anything_but_a_synthbench_snapshot_of_the_dataset(name: str) -> None:
     def never(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         raise AssertionError(f"ran {argv}")
 
     with pytest.raises(ValueError, match="refusing"):
         destroy_snapshot(name, DATASET, never)
+
+
+def test_destroy_accepts_the_exact_name_take_snapshot_produces() -> None:
+    name = f"{DATASET}@synthbench-20260928T120000Z"
+    calls: list[list[str]] = []
+
+    def record(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    destroy_snapshot(name, DATASET, record)
+    assert calls == [["zfs", "destroy", name]]
+
+
+def test_list_snapshots_keeps_a_name_with_a_space_intact() -> None:
+    """`.split()` would break a spaced name into fragments; one of them (the part before the
+    space) still starts with the dataset/prefix and would slip through as a corrupted name."""
+    weird = f"{DATASET}@synthbench-20260928T120000Z odd"
+
+    def fake_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 0, f"{weird}\n", "")
+
+    assert list_snapshots(DATASET, fake_run) == [weird]
 
 
 class FakeZfs:
@@ -167,3 +200,17 @@ def test_a_hold_is_written_and_asks_the_owner(tmp_path: Path) -> None:
     assert status.hold is not None
     assert status.hold.snapshot == snaps[0]
     assert status.snapshots == 6
+
+
+def test_a_zfs_failure_asks_the_owner_and_destroys_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def failing_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if argv[1] == "destroy":
+            raise AssertionError(f"destroyed {argv[2]}")
+        if argv[1] == "snapshot":
+            raise subprocess.CalledProcessError(1, argv, stderr="zfs: out of space")
+        raise AssertionError(f"unexpected zfs call: {argv}")
+
+    monkeypatch.setattr(subprocess, "run", failing_run)
+    assert cli.main(["corpus", "snapshot"], env=h.env(tmp_path)) == cli.EXIT_ASK

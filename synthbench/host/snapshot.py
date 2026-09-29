@@ -12,6 +12,7 @@ Only the oldest is ever destroyed, so no deletion slips through a gap.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -144,7 +145,9 @@ def list_snapshots(dataset: str, run: Runner) -> list[str]:
         text=True,
         timeout=120,
     )
-    return [name for name in done.stdout.split() if name.startswith(f"{dataset}@{PREFIX}")]
+    lines = (line.strip() for line in done.stdout.splitlines())
+    names = (line for line in lines if line)
+    return [name for name in names if name.startswith(f"{dataset}@{PREFIX}")]
 
 
 def zfs_diff(older: str, newer: str, run: Runner) -> str:
@@ -159,7 +162,14 @@ def zfs_diff(older: str, newer: str, run: Runner) -> str:
 
 
 def destroy_snapshot(name: str, dataset: str, run: Runner) -> None:
-    if not name.startswith(f"{dataset}@{PREFIX}"):
+    """Refuse anything but the exact name `take_snapshot` produces.
+
+    zfs reads more into a name than a prefix shows: `…@synthbench-1%` is a range (destroys from
+    `synthbench-1` through the newest snapshot) and `…@synthbench-1,manual` is a list. A full
+    match on the timestamp format `take_snapshot` writes closes both holes.
+    """
+    pattern = rf"{re.escape(dataset)}@{re.escape(PREFIX)}\d{{8}}T\d{{6}}Z"
+    if re.fullmatch(pattern, name) is None:
         raise ValueError(f"refusing to destroy {name!r}: not a {PREFIX} snapshot of {dataset}")
     run(["zfs", "destroy", name], check=True, capture_output=True, text=True, timeout=600)
 
