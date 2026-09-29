@@ -61,8 +61,8 @@ binding constraint is campaign labor, not policy.
 > `prompts.py` (−89% of its lines) and `api/routes/system.py` are
 > do-not-start. The M6-snapshot table below PREDATES the shield — its rows
 > 4–6, 8, 13 are void; the impact doc carries the post-teardown order. Before
-> ANY campaign: `git diff --name-only origin/main...<r8-branch> --
-backend/services backend/api/routes` and skip everything it deletes.
+> ANY campaign, diff the r8 branch over `backend/services` and
+> `backend/api/routes` and skip everything it deletes.
 
 At each campaign start, re-census survivors from the latest published
 score JSON (`scripts/mutation-score.py` snapshot) and take the **largest

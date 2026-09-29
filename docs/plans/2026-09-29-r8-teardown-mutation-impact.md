@@ -121,10 +121,10 @@ high-scoring already), the STARTING POINT moves back to ~64.5%.
    kills. Recommended: record the post-merge re-bank as a disclosed
    **baseline-reset row** in `mutation-history.json` (denominator event, like
    the 09-28 disclosures — NOT a campaign milestone), then resume strict->
-   from the new baseline. Alternative: publish nothing until event_broadcaster
-   - batch_aggregator + clip_client closes carry the score back over 68.95%.
-     Either way every interim number is rowed row-by-row with the −17,966-key
-     disclosure.
+   from the new baseline. Alternative: publish nothing until the
+   `event_broadcaster`, `batch_aggregator`, `clip_client` closes carry the
+   score back over 68.95%. Either way every interim number is rowed
+   row-by-row with the −17,966-key disclosure.
 
 ## Standing rule for future R8 slices
 
