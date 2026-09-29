@@ -15,7 +15,6 @@ import math
 import random
 from pathlib import Path
 
-import cv2
 import numpy as np
 from numpy.typing import NDArray
 from PIL import Image, ImageDraw, ImageFont
@@ -70,6 +69,8 @@ def distort(pixels: Pixels, k: float) -> Pixels:
     """Barrel distortion: the corners stay put and the centre is magnified by 1 + k."""
     if k == 0:
         return pixels
+    import cv2  # lazy: a sandbox without OpenCV's system libraries can still run every command
+
     height, width = pixels.shape[:2]
     ys, xs = np.indices((height, width), dtype=np.float32)
     cx, cy = (width - 1) / 2, (height - 1) / 2
@@ -86,6 +87,8 @@ def distort(pixels: Pixels, k: float) -> Pixels:
 
 def infrared(pixels: Pixels, bloom: Bloom) -> Pixels:
     """IR night: grey from luma, with a glow around the brightest areas."""
+    import cv2  # lazy: a sandbox without OpenCV's system libraries can still run every command
+
     luma = pixels @ _LUMA
     bright = np.clip(luma - bloom.threshold, 0, None)
     glow = np.asarray(cv2.GaussianBlur(bright, (0, 0), bloom.radius), dtype=np.float32)

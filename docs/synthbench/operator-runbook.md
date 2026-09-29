@@ -138,6 +138,8 @@ After it is created, prepare the sandbox (`agent-synthbench-gen`, workspace
      'cd /agents/agent-synthbench-gen/workspace && uv run python -c "import synthbench.cli"'
    ```
 
+4. `sbx exec agent-synthbench-gen bash -lc 'cd /agents/agent-synthbench-gen/workspace && uv run python -m synthbench doctor'`: every line ok, or a FAIL line naming what to fix. The owner can also run `doctor` from the host checkout.
+
 Then tell the agent: "Read docs/synthbench/agent-handoff.md and follow it", with the batches you
 want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
 

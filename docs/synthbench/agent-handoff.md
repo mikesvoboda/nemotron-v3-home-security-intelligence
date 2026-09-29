@@ -36,6 +36,9 @@ You cannot, and must not try to:
 
 - First, once: run `uv sync --frozen` from the repository root, with a Bash timeout of
   600000 ms (10 minutes). The first sync takes several minutes.
+- **Step 0:** run `uv run python -m synthbench doctor`. On exit 2, send the owner its FAIL
+  lines and wait; the owner may say to go ahead with prompt work only (`sample` and `check`)
+  while the renderer is down.
 - Run every command from the repository root: `uv run python -m synthbench <command> --batch <name>`.
 - Give `render` a Bash timeout of 600000 ms (10 minutes). It stops starting images after
   480 s, prints `N still to render`, and you run it again until N is 0.

@@ -173,3 +173,23 @@ No options.
 
 - **Exit 2:** a hold (the oldest snapshot holds the only copy of a removed or changed file), or
   a zfs failure.
+
+## `doctor`
+
+Checks that this machine has everything a batch needs, and prints a one-sentence fix for each
+gap (owner request, 2026-09-28). It runs in the agent's sandbox and on the host, as the
+handoff's step 0. Read-only: it touches nothing in the corpus except one temporary probe file,
+created and removed at once, to prove the corpus mount is writable.
+
+No options.
+
+- **Checks, in order:** OpenCV imports; `$SYNTHBENCH_ROOT/corpus` exists and is writable; the
+  guard's `status/flagship.json` exists, parses and is fresh; the fresh status says the
+  flagship is healthy (otherwise a `WAIT` line, which does not change the exit code); the
+  renderer answers (`synthbench.generate.render.comfy_url`); any existing corpus version's
+  `corpus.json` was sampled from the committed taxonomy.
+- **Writes:** nothing, except the temporary probe file (created and removed at once).
+- **Prints:** one line per check, `ok   <what>` or `FAIL <what>: <fix>`, then a summary line.
+- **Exit 0:** every check passed or only waited on the flagship: `ready for every command`.
+- **Exit 2:** one or more checks failed: `N problem(s); tell the owner the FAIL lines and
+wait`.

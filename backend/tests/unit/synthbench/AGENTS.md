@@ -6,38 +6,39 @@ Unit tests for `synthbench/generate/` (the durable generation stack: pinned weig
 
 ## Directory Structure
 
-| Test file                     | Under test                                                                                |
-| ----------------------------- | ----------------------------------------------------------------------------------------- |
-| `test_weights.py`             | `synthbench/generate/weights.py`: manifest, sha256 fetch, symlink farm, the HF_HOME guard |
-| `test_window.py`              | `synthbench/generate/window.py`: the GPU window always restores the flagship              |
-| `test_podman.py`              | `synthbench/generate/podman.py`: the dedicated podman store                               |
-| `test_serve.py`               | `synthbench/generate/comfy/serve.py`: podman arguments, readiness, the baked farm path    |
-| `test_comfy_client.py`        | `synthbench/generate/comfy/client.py` against a fake ComfyUI (`httpx.MockTransport`)      |
-| `test_validate.py`            | `synthbench/generate/comfy/validate.py`: the offline graph validator                      |
-| `test_graphs.py`              | `synthbench/generate/comfy/graphs.py`: every builder against the captured `/object_info`  |
-| `test_snapshot.py`            | `synthbench/generate/comfy/snapshot.py`                                                   |
-| `test_smoke.py`               | `synthbench/generate/comfy/smoke.py`                                                      |
-| `test_import_rule.py`         | spec §7.1: only `synthbench/score/` and `synthbench/run/` may import `backend`            |
-| `test_contract.py`            | `synthbench/contract/` models: §2.3 round-trip, validation, `class` alias                 |
-| `test_contract_store.py`      | `synthbench/contract/store.py`: layout, atomic create-never-replace, index                |
-| `test_taxonomy.py`            | `synthbench/taxonomy/model.py` + the committed YAML: coherence rules                      |
-| `test_sampler.py`             | `synthbench/taxonomy/sampler.py`: determinism, quota coverage, legal cells, midnight wrap |
-| `test_cli_sample.py`          | `python -m synthbench sample`: writes, reruns, refusals, exit codes                       |
-| `helpers.py`                  | shared test helpers, including `stilled_batch` (a batch with stand-in still bytes)        |
-| `fixtures/tiny_taxonomy.yaml` | a small taxonomy fixture for fast tests                                                   |
-| `test_cli_main.py`            | `synthbench.cli`: `build_parser()`, `main()`, exit-code dispatch                          |
-| `test_prompt_rules.py`        | `synthbench/prompt/`: the prompt rules and the content blocklist                          |
-| `test_cli_check.py`           | `python -m synthbench check`: validation, freezing, exit codes                            |
-| `test_render.py`              | `synthbench/generate/render.py`: ComfyUI discovery, yield, the per-attempt graph          |
-| `test_camera.py`              | `synthbench/generate/camera/`: the camera stage on real parameters, where feasible        |
-| `test_cli_camera.py`          | `python -m synthbench camera`: writes, exit codes                                         |
-| `test_cli_triage.py`          | `python -m synthbench triage`: verdicts, reroll scheduling, the cap                       |
-| `test_cli_report.py`          | `python -m synthbench report`: `report.md` and `sheet.html`                               |
-| `test_host_guard.py`          | `synthbench/host/guard.py`: the guard loop, `window.open` deference                       |
-| `test_host_renderer.py`       | `synthbench/host/`: the renderer unit's pre-start checks                                  |
-| `test_host_units.py`          | `synthbench/host/units.py`: unit-file rendering and install                               |
-| `test_corpus_snapshot.py`     | `python -m synthbench corpus snapshot`: the prune rule, holds                             |
-| `test_command_reference.py`   | `docs/synthbench/command-reference.md` and `agent-handoff.md` against argparse            |
+| Test file                     | Under test                                                                                     |
+| ----------------------------- | ---------------------------------------------------------------------------------------------- |
+| `test_weights.py`             | `synthbench/generate/weights.py`: manifest, sha256 fetch, symlink farm, the HF_HOME guard      |
+| `test_window.py`              | `synthbench/generate/window.py`: the GPU window always restores the flagship                   |
+| `test_podman.py`              | `synthbench/generate/podman.py`: the dedicated podman store                                    |
+| `test_serve.py`               | `synthbench/generate/comfy/serve.py`: podman arguments, readiness, the baked farm path         |
+| `test_comfy_client.py`        | `synthbench/generate/comfy/client.py` against a fake ComfyUI (`httpx.MockTransport`)           |
+| `test_validate.py`            | `synthbench/generate/comfy/validate.py`: the offline graph validator                           |
+| `test_graphs.py`              | `synthbench/generate/comfy/graphs.py`: every builder against the captured `/object_info`       |
+| `test_snapshot.py`            | `synthbench/generate/comfy/snapshot.py`                                                        |
+| `test_smoke.py`               | `synthbench/generate/comfy/smoke.py`                                                           |
+| `test_import_rule.py`         | spec §7.1: only `synthbench/score/` and `synthbench/run/` may import `backend`                 |
+| `test_contract.py`            | `synthbench/contract/` models: §2.3 round-trip, validation, `class` alias                      |
+| `test_contract_store.py`      | `synthbench/contract/store.py`: layout, atomic create-never-replace, index                     |
+| `test_taxonomy.py`            | `synthbench/taxonomy/model.py` + the committed YAML: coherence rules                           |
+| `test_sampler.py`             | `synthbench/taxonomy/sampler.py`: determinism, quota coverage, legal cells, midnight wrap      |
+| `test_cli_sample.py`          | `python -m synthbench sample`: writes, reruns, refusals, exit codes                            |
+| `helpers.py`                  | shared test helpers, including `stilled_batch` (a batch with stand-in still bytes)             |
+| `fixtures/tiny_taxonomy.yaml` | a small taxonomy fixture for fast tests                                                        |
+| `test_cli_main.py`            | `synthbench.cli`: `build_parser()`, `main()`, exit-code dispatch                               |
+| `test_prompt_rules.py`        | `synthbench/prompt/`: the prompt rules and the content blocklist                               |
+| `test_cli_check.py`           | `python -m synthbench check`: validation, freezing, exit codes                                 |
+| `test_render.py`              | `synthbench/generate/render.py`: ComfyUI discovery, yield, the per-attempt graph               |
+| `test_camera.py`              | `synthbench/generate/camera/`: the camera stage on real parameters, where feasible             |
+| `test_cli_camera.py`          | `python -m synthbench camera`: writes, exit codes                                              |
+| `test_cli_triage.py`          | `python -m synthbench triage`: verdicts, reroll scheduling, the cap                            |
+| `test_cli_report.py`          | `python -m synthbench report`: `report.md` and `sheet.html`                                    |
+| `test_host_guard.py`          | `synthbench/host/guard.py`: the guard loop, `window.open` deference                            |
+| `test_host_renderer.py`       | `synthbench/host/`: the renderer unit's pre-start checks                                       |
+| `test_host_units.py`          | `synthbench/host/units.py`: unit-file rendering and install                                    |
+| `test_corpus_snapshot.py`     | `python -m synthbench corpus snapshot`: the prune rule, holds                                  |
+| `test_cli_doctor.py`          | `python -m synthbench doctor`: each check's ok/FAIL/WAIT line, exit codes, the cv2 lazy import |
+| `test_command_reference.py`   | `docs/synthbench/command-reference.md` and `agent-handoff.md` against argparse                 |
 
 ## Running Tests
 
