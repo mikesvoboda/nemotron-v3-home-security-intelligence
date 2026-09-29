@@ -188,6 +188,14 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
+          # v4 requires the webhook kind as an input; v1 inferred it from the
+          # presence of SLACK_WEBHOOK_URL. The URL itself still resolves from
+          # that env var (dist/index.js: getInput("webhook") || env.SLACK_WEBHOOK_URL),
+          # so only the discriminator is new. Without it v4 throws
+          # "Missing input! The webhook type must be 'incoming-webhook' or
+          # 'webhook-trigger'." — and this is a channel webhook, not a
+          # Workflow Builder trigger.
+          webhook-type: incoming-webhook
           payload: |
             {
               "text": "📊 Weekly Test Report Generated",
