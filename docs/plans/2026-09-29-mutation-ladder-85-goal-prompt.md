@@ -188,34 +188,63 @@ numbers**; each real milestone carries its own measured L row.
 - One source-mutating job at a time; `pgrep` patterns bracketed near live
   runners.
 
-## The /goal prompt (paste verbatim — this doc is the plan of record)
+## The /goal prompt (paste verbatim; <4,000 chars; v2 2026-09-29 adds the R8 shield + campaign #5)
 
 ```text
-MUTATION LADDER TO 85% — branch mutation-testing-s3. READ
-docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md FIRST — plan of record
-(ordering rule, protocol, guards). GOAL: mutmut badge
-(killed+timeout)/total from 68.9482506662082% (M6) to 85% by per-module
-campaigns. L=docs/plans/2026-09-12-context-map-doc-updates.md: every
-DECIDE/number rowed in L AND the commit body, measured THIS session.
-NEXT: re-census survivors from the published score JSON; BEFORE picking a
-module, read docs/plans/2026-09-29-r8-teardown-mutation-impact.md (R8 legacy
-teardown deletes 33 bank rows — never battery a module on its shield list;
-death list = DEAD_MODULES/DEAD_LOADERS in
-backend/tests/unit/test_r8_s2b_nemotron_deletion.py on the r8 branch); run
-the largest pool
-scoring <80% (doc order at M6: event_broadcaster, batch_aggregator,
-clip_client, florence_client, vision_extractor, enrichment_pipeline, baseline,
-file_watcher, redis_json; then descending; 12-module tail bundles; ONE FULL
-RE-BANK interlude ~campaign 4). Each campaign closes as a milestone:
-completed=true score STRICTLY > last + mutation-history append + L row +
-commit + refresh guard-restore.tgz. Per-campaign protocol per doc: inventory
--> trampoline disposition sweep -> vulture-gated batteries ->
-MUTMAX=14 ./scripts/mutation-run.sh <module> -> sanctioned fill ->
-audit-redecide clean -> publish. NEVER: lower a floor; --no-verify or SKIP;
-raw mutmut; badge claims from red-check counts; bend production. Guards
-key-floor 78,000 + kill-line 5,500 alive on every run; after any merge
-touching backend/tests audit ADDED test files for REPO_ROOT path-reads
-(also_copy family) before running. STOP AND ASK: denominator/widened-set
-policy changes; continue-on-error or break flips; bulk quarantine;
-pg/redis/GPU. If 85% demonstrably needs a policy change, stop and ask.
+MUTATION LADDER TO 85% — branch mutation-testing-s3. READ FIRST
+docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md (plan of record:
+ordering rule, per-campaign protocol, guards) AND
+docs/plans/2026-09-29-r8-teardown-mutation-impact.md (R8 shield). GOAL: mutmut
+badge (killed+timeout)/total from M6 68.9482506662082% (64,166 kt / 93,064) to
+85% by per-module campaigns. L=docs/plans/2026-09-12-context-map-doc-updates.md:
+every DECIDE and every number rowed in L AND the commit body, measured THIS
+session; numbers without measurement are inadmissible.
+
+NOW: campaign #5 = backend/services/event_broadcaster.py (723 survivors;
+563 kt / 1,286 = 43.8%). After each close, re-census the published score JSON
+and take the largest survivor pool scoring <80% that the R8 shield does NOT
+cover. Queue at M6: batch_aggregator 644, clip_client 559, florence_client 394,
+baseline 368, file_watcher 339, redis_json 338, cleanup_service 337,
+vlm_specialists 336, onvif_service 312; then descending, 12-module tail
+bundles. ONE FULL RE-BANK interlude (sticky-713 trio recovery) inside the
+first 5 closes.
+
+R8 SHIELD (hard): chore/r8-s2-nemotron-teardown deletes 33 bank rows (17,966
+keys / 14,295 kt; post-merge badge ~64.5%). NEVER author batteries for anything
+it deletes — authoritative death list = DEAD_MODULES/DEAD_LOADERS in
+backend/tests/unit/test_r8_s2b_nemotron_deletion.py on that branch.
+Do-not-start: prompts.py, api/routes/system.py, summary_generator, model_zoo,
+ai_fallback, health_ai_services, quantization. Before ANY campaign: git diff
+--name-only origin/main...<r8 branch> -- backend/services backend/api/routes
+and skip everything it deletes.
+
+PER-CAMPAIGN PROTOCOL (batch-30 proven): inventory survivor keys per function
+-> single-process trampoline disposition sweep (NEVER pytest-per-key in the
+mutant home: 6m40s collect) separating KILLABLE from EQUIVALENT, with
+shipped-green / foreign-GREEN / known-KILLED controls -> batteries gated at
+authoring (vulture rc=0, WP4.2 autospec=True at every patch.object, mypy, ruff)
+-> MUTMAX=14 ./scripts/mutation-run.sh <module> ONLY (no raw mutmut; no-arg run
+= sanctioned hole-fill repair) -> audit-redecide clean -> reconcile sweep vs
+bank (bank verdicts are the score's source of truth) -> close.
+
+CLOSE = completed=true score STRICTLY > last milestone + mutation-history
+append (--history .github/mutation-history.json --date <today>) + L row with
+row-by-row denominator disclosure + commit + push + refresh guard-restore.tgz
+(tar from INSIDE mutants/). One milestone per close.
+
+GUARDS: guard.sh alive on every run (key-floor 78,000, kill-line 5,500; attach
+to the live mutmut pid, launch it separately). After ANY merge touching
+backend/tests, audit ADDED test files for REPO_ROOT/parents[N] path-reads and
+add read targets to also_copy BEFORE running — the coverage gather ignores
+pytest's rc, so one red silently prunes the bank (11-member strip family).
+prettier "Passed" is not proof of an innocent rewrite: diff its non-table
+changes. One source-mutating job at a time. The ~1h post-generation collect
+grind is pyc + sentinel rebuild, not a hang.
+
+NEVER: lower a floor; --no-verify or SKIP; raw mutmut; badge claims from
+red-check counts; bend production; edit tests to accept mutants.
+STOP AND ASK: denominator/widened-set policy changes; continue-on-error or
+break flips; bulk quarantine; pg/redis/GPU. 85% = ~14,938 more kills and is
+reachable by battery kills alone — if it ever demonstrably needs a policy
+change, stop and ask.
 ```
