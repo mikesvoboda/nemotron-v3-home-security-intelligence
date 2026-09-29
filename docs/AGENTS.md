@@ -6,21 +6,22 @@ This directory contains all project documentation organized into role-based hubs
 
 ## Quick Navigation
 
-| Directory          | Purpose                                    | Entry Point                            |
-| ------------------ | ------------------------------------------ | -------------------------------------- |
-| `ai/`              | AI model zoo and pipeline architecture     | [AGENTS.md](ai/AGENTS.md)              |
-| `archive/`         | Archived working documents (historical)    | [AGENTS.md](archive/AGENTS.md)         |
-| `getting-started/` | Installation and first-run setup           | [README](getting-started/README.md)    |
-| `developer/`       | Architecture, API, patterns, contributing  | [README](developer/README.md)          |
-| `guides/`          | Feature guides (video analytics, zones)    | [AGENTS.md](guides/AGENTS.md)          |
-| `operations/`      | Operational runbooks for production        | [AGENTS.md](operations/AGENTS.md)      |
-| `operator/`        | Deployment, monitoring, administration     | [README](operator/README.md)           |
-| `templates/`       | Document templates (AGENTS.md, etc.)       | [AGENTS.md](templates/AGENTS.md)       |
-| `user/`            | End-user dashboard documentation           | [README](user/README.md)               |
-| `reference/`       | Env vars, glossary, troubleshooting        | [README](reference/README.md)          |
-| `deployment/`      | Container orchestration documentation      | [AGENTS.md](deployment/AGENTS.md)      |
-| `style-guides/`    | Documentation style guides                 | [AGENTS.md](style-guides/AGENTS.md)    |
-| `vss-integration/` | NVIDIA VSS pipeline research (in progress) | [AGENTS.md](vss-integration/AGENTS.md) |
+| Directory          | Purpose                                                                   | Entry Point                            |
+| ------------------ | ------------------------------------------------------------------------- | -------------------------------------- |
+| `ai/`              | AI model zoo and pipeline architecture                                    | [AGENTS.md](ai/AGENTS.md)              |
+| `archive/`         | Archived working documents (historical)                                   | [AGENTS.md](archive/AGENTS.md)         |
+| `getting-started/` | Installation and first-run setup                                          | [README](getting-started/README.md)    |
+| `developer/`       | Architecture, API, patterns, contributing                                 | [README](developer/README.md)          |
+| `guides/`          | Feature guides (video analytics, zones)                                   | [AGENTS.md](guides/AGENTS.md)          |
+| `operations/`      | Operational runbooks for production                                       | [AGENTS.md](operations/AGENTS.md)      |
+| `operator/`        | Deployment, monitoring, administration                                    | [README](operator/README.md)           |
+| `templates/`       | Document templates (AGENTS.md, etc.)                                      | [AGENTS.md](templates/AGENTS.md)       |
+| `user/`            | End-user dashboard documentation                                          | [README](user/README.md)               |
+| `reference/`       | Env vars, glossary, troubleshooting                                       | [README](reference/README.md)          |
+| `deployment/`      | Container orchestration documentation                                     | [AGENTS.md](deployment/AGENTS.md)      |
+| `style-guides/`    | Documentation style guides                                                | [AGENTS.md](style-guides/AGENTS.md)    |
+| `vss-integration/` | NVIDIA VSS pipeline research (in progress)                                | [AGENTS.md](vss-integration/AGENTS.md) |
+| `synthbench/`      | Synthbench generation: agent handoff, command reference, operator runbook | [AGENTS.md](synthbench/AGENTS.md)      |
 
 ## Directory Structure
 
@@ -208,38 +209,39 @@ docs/
 
 Each major directory has its own AGENTS.md:
 
-| Path                                  | Purpose                        |
-| ------------------------------------- | ------------------------------ |
-| `docs/AGENTS.md`                      | This file - documentation root |
-| `archive/AGENTS.md`                   | Archived working documents     |
-| `ai/AGENTS.md`                        | AI model zoo documentation     |
-| `api/AGENTS.md`                       | API governance documentation   |
-| `guides/AGENTS.md`                    | Feature guides documentation   |
-| `architecture/AGENTS.md`              | System design documents        |
-| `benchmarks/AGENTS.md`                | Performance benchmarks         |
-| `decisions/AGENTS.md`                 | Architectural Decision Records |
-| `deployment/AGENTS.md`                | Container orchestration docs   |
-| `developer/AGENTS.md`                 | Developer documentation        |
-| `developer/api/AGENTS.md`             | API endpoint documentation     |
-| `developer/architecture/AGENTS.md`    | Developer architecture guides  |
-| `developer/contributing/AGENTS.md`    | Contribution guidelines        |
-| `developer/patterns/AGENTS.md`        | Code and testing patterns      |
-| `getting-started/AGENTS.md`           | Installation navigation        |
-| `images/AGENTS.md`                    | Visual assets                  |
-| `operations/AGENTS.md`                | Operational runbooks           |
-| `operator/AGENTS.md`                  | Operator documentation         |
-| `operator/admin/AGENTS.md`            | Administration guides          |
-| `operator/deployment/AGENTS.md`       | Deployment guides              |
-| `operator/monitoring/AGENTS.md`       | Monitoring guides              |
-| `performance/AGENTS.md`               | Performance documentation      |
-| `reference/AGENTS.md`                 | Reference material             |
-| `reference/config/AGENTS.md`          | Configuration reference        |
-| `reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
-| `ui/AGENTS.md`                        | UI page documentation          |
-| `user/AGENTS.md`                      | End-user documentation         |
-| `style-guides/AGENTS.md`              | Documentation style guides     |
-| `templates/AGENTS.md`                 | Document templates             |
-| `vss-integration/AGENTS.md`           | NVIDIA VSS pipeline research   |
+| Path                                  | Purpose                         |
+| ------------------------------------- | ------------------------------- |
+| `docs/AGENTS.md`                      | This file - documentation root  |
+| `archive/AGENTS.md`                   | Archived working documents      |
+| `ai/AGENTS.md`                        | AI model zoo documentation      |
+| `api/AGENTS.md`                       | API governance documentation    |
+| `guides/AGENTS.md`                    | Feature guides documentation    |
+| `architecture/AGENTS.md`              | System design documents         |
+| `benchmarks/AGENTS.md`                | Performance benchmarks          |
+| `decisions/AGENTS.md`                 | Architectural Decision Records  |
+| `deployment/AGENTS.md`                | Container orchestration docs    |
+| `developer/AGENTS.md`                 | Developer documentation         |
+| `developer/api/AGENTS.md`             | API endpoint documentation      |
+| `developer/architecture/AGENTS.md`    | Developer architecture guides   |
+| `developer/contributing/AGENTS.md`    | Contribution guidelines         |
+| `developer/patterns/AGENTS.md`        | Code and testing patterns       |
+| `getting-started/AGENTS.md`           | Installation navigation         |
+| `images/AGENTS.md`                    | Visual assets                   |
+| `operations/AGENTS.md`                | Operational runbooks            |
+| `operator/AGENTS.md`                  | Operator documentation          |
+| `operator/admin/AGENTS.md`            | Administration guides           |
+| `operator/deployment/AGENTS.md`       | Deployment guides               |
+| `operator/monitoring/AGENTS.md`       | Monitoring guides               |
+| `performance/AGENTS.md`               | Performance documentation       |
+| `reference/AGENTS.md`                 | Reference material              |
+| `reference/config/AGENTS.md`          | Configuration reference         |
+| `reference/troubleshooting/AGENTS.md` | Troubleshooting guides          |
+| `ui/AGENTS.md`                        | UI page documentation           |
+| `user/AGENTS.md`                      | End-user documentation          |
+| `style-guides/AGENTS.md`              | Documentation style guides      |
+| `templates/AGENTS.md`                 | Document templates              |
+| `vss-integration/AGENTS.md`           | NVIDIA VSS pipeline research    |
+| `synthbench/AGENTS.md`                | Synthbench generation documents |
 
 ## Visual Assets
 

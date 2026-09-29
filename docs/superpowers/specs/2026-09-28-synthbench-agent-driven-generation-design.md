@@ -108,16 +108,16 @@ modified or missing image as well (§3).
 
 ## §3 The agent's batch loop
 
-| Step | Command                                                    | What it does                                                                                                                                                                                                                                                                                                      |
-| ---- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | `synthbench sample --batch <b> --n <n> [--cells <filter>]` | Writes `n` specs with the facts only (taxonomy cell, camera, conditions, subjects, props, label) and `batch.json`. Same seed, same specs.                                                                                                                                                                         |
-| 2    | the agent writes `prompts.jsonl`                           | One row per event: the scene in the agent's words, built from that event's facts.                                                                                                                                                                                                                                 |
-| 3    | `synthbench check --batch <b>`                             | Validates every prompt and lists each failure with its rule; the agent fixes those rows and runs it again. When all pass, it freezes each prompt into `spec.json` as `prompt` plus the fixed `camera_suffix` (§3.1). A frozen prompt never changes; a different prompt is a new event.                            |
-| 4    | `synthbench render --batch <b>`                            | Renders every event whose current attempt has no image, at 1280×720, through ComfyUI. Yields to the flagship (§5.2). Resumes where it stopped.                                                                                                                                                                    |
-| 5    | `synthbench camera --batch <b>`                            | Turns each new render into a 1920×1080 Foscam still (§7).                                                                                                                                                                                                                                                         |
-| 6    | the agent looks, writes `triage.jsonl`                     | Opens every still. One row per event: `ok`, or `reroll` plus one reason from §4.                                                                                                                                                                                                                                  |
-| 7    | `synthbench triage --batch <b>`                            | Validates verdicts, enforces the limits (§4), records them in `provenance.json`, and schedules the next attempt for each allowed reroll. Attempt `k` of an event always uses the seed derived from the event id and `k`, so a rerun renders the same images. The agent then runs steps 4-7 again for the rerolls. |
-| 8    | `synthbench report --batch <b>`                            | Writes `report.md` (counts, rerolls by reason, failed events, timings, snapshot holds from `status/snapshots.json`) and `sheet.html` (a contact sheet for the owner).                                                                                                                                             |
+| Step | Command                                                         | What it does                                                                                                                                                                                                                                                                                                      |
+| ---- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `synthbench sample --batch <b> --n <n> [--only <scenario ids>]` | Writes `n` specs with the facts only (taxonomy cell, camera, conditions, subjects, props, label) and `batch.json`. Same seed, same specs.                                                                                                                                                                         |
+| 2    | the agent writes `prompts.jsonl`                                | One row per event: the scene in the agent's words, built from that event's facts.                                                                                                                                                                                                                                 |
+| 3    | `synthbench check --batch <b>`                                  | Validates every prompt and lists each failure with its rule; the agent fixes those rows and runs it again. When all pass, it freezes each prompt into `spec.json` as `prompt` plus the fixed `camera_suffix` (§3.1). A frozen prompt never changes; a different prompt is a new event.                            |
+| 4    | `synthbench render --batch <b>`                                 | Renders every event whose current attempt has no image, at 1280×720, through ComfyUI. Yields to the flagship (§5.2). Resumes where it stopped.                                                                                                                                                                    |
+| 5    | `synthbench camera --batch <b>`                                 | Turns each new render into a 1920×1080 Foscam still (§7).                                                                                                                                                                                                                                                         |
+| 6    | the agent looks, writes `triage.jsonl`                          | Opens every still. One row per event: `ok`, or `reroll` plus one reason from §4.                                                                                                                                                                                                                                  |
+| 7    | `synthbench triage --batch <b>`                                 | Validates verdicts, enforces the limits (§4), records them in `provenance.json`, and schedules the next attempt for each allowed reroll. Attempt `k` of an event always uses the seed derived from the event id and `k`, so a rerun renders the same images. The agent then runs steps 4-7 again for the rerolls. |
+| 8    | `synthbench report --batch <b>`                                 | Writes `report.md` (counts, rerolls by reason, failed events, timings, snapshot holds from `status/snapshots.json`) and `sheet.html` (a contact sheet for the owner).                                                                                                                                             |
 
 Every command exits 0 when done, 1 on an error, and **2 when the agent must stop and ask the
 owner**: the renderer is unreachable, the status file is stale, or the batch passed its reroll
@@ -136,8 +136,8 @@ tune its wording, then full batches of 50.
    references to real or famous people. Tier B people are anonymous (parent §1.1), so the handoff
    tells the agent to describe people generically. A blocklist cannot catch every name; the
    owner's audit is the backstop.
-3. **Length.** At most the text encoder's configured maximum; the plan pins the number from the
-   FLUX.2 workflow.
+3. **Length.** At most the text encoder's configured maximum (1,200 characters; P3 plan ruling
+   P3-R4); the plan pins the number from the FLUX.2 workflow.
 4. **No overlay text.** The agent does not write camera styling. `check` appends a fixed
    `camera_suffix` that describes the camera look and ends "no on-screen text, no timestamp, no
    watermark". This follows from the measured fake timestamp bar: the camera stage adds the
@@ -245,7 +245,8 @@ Render at **1280×720**. It is exact 16:9 and a 1.5× scale to the camera's 1920
 
 `synthbench camera calibrate` runs on the host, by the owner: it reads the real footage, which no
 sandbox mounts. Until it fits these to that footage (parent D13), the stage uses
-default parameters committed with it. Each still records which parameter set produced it.
+default parameters committed with it. Calibration is a follow-up plan (owner ruling 2026-09-28,
+P3-R3). Each still records which parameter set produced it.
 
 **960×544 is rejected for now.** It was 5× faster, and its plate was readable in one image. It is
 revisited only if the pilots show faces and small props surviving at 1280×720 with margin to
