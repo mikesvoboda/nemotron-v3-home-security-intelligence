@@ -2,6 +2,20 @@
 
 > **Errata (2026-09-23):** E2, E3 in [`11-errata-2026-09-23.md`](11-errata-2026-09-23.md) correct claims in this document. The original text is kept as the record; read those entries before relying on it. Current design: [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
 
+> **Currency — 2026-09-29 [V].** The **Status:** line below ("Research in progress") is the record
+> of 2026-09-18 and is **stale**: the research it describes concluded in an approved design,
+> [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md),
+> and that design's VLM path is now the shipped default — `4bfd6fa4` flipped
+> `docker-compose.prod.yml:578` to `PIPELINE_MODE=${PIPELINE_MODE:-vlm}` on 2026-09-27. The "we
+> might replace this project's AI pipeline with VSS's" framing at §"The three-step plan under
+> evaluation" is likewise settled: we adopt VSS's verification **pattern** and none of its services
+> (see [`README.md`](README.md)). "Nothing here is a commitment" still holds — the commitment lives
+> in the spec, and what has actually run lives in the ledger,
+> [`2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md). This
+> sentence is the correction; the line below stays as the record. Note it is **not** the Errata
+> banner above: that one corrects other claims in this doc, and an unrelated dated banner is not a
+> correction of this one.
+
 **Status:** Research in progress. Nothing here is a commitment or a plan.
 **Started:** 2026-09-18
 
