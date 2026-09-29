@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import importlib.util
 import inspect
 import re
 from pathlib import Path
@@ -198,6 +199,89 @@ class TestDeadModulesAreGone:
                 }:
                     offenders.append(f"{path.relative_to(BACKEND)}:{node.lineno} {node.id}")
         assert not offenders, "live annotations name retired classes:\n" + "\n".join(offenders)
+
+
+class TestNoTestFileStillImportsASymbolS2bDeleted:
+    """S2b deleted 4,052 lines from `prompts.py` -- symbols inside a module that
+    SURVIVES. Every pin above is module-level, so a shrinking module passes them
+    all; this is the arm that sees a symbol-level delete.
+
+    The shape it exists for is not hypothetical. After S2b, `main` landed
+    `568390d4` ("mutmut batch-30: 9 files / 334 tests kill 757 of 845
+    survivors"), a mutation battery written against prompts.py's enrichment and
+    attribute-zoo helpers -- exactly the family S2b deletes. CI checks out the
+    PR MERGE ref, so on the merge those 9 files imported 60 names that no longer
+    existed, and `Collection Sanity` (whose `test_flaky_marker_governance.py`
+    runs a real `pytest --collect-only` over the unit tier) went red at every
+    head of this PR. My local `scripts/check-test-collection.py` said all was
+    well: it is a STATIC scan of tracked files and never asks pytest.
+
+    Asserted on the live module (`hasattr` after `import_module`) rather than by
+    re-deriving the deleted-name list, because the honest invariant is "what the
+    tests import is what ships" -- a maintained list would itself drift, and the
+    drift is the bug. General over `backend/services/*` rather than prompts.py
+    only: the next symbol-level delete collides the same way.
+    """
+
+    @pytest.mark.timeout(
+        120
+    )  # full-tree sweep: reads every tracked test file (measured 5.1s local)
+    def test_no_test_module_imports_a_name_that_no_longer_exists(self) -> None:
+        missing: list[str] = []
+        # Every tracked test file under backend/tests, AST-parsed (source text,
+        # not imports -- the same reason the guards above parse: a file whose
+        # import line is broken is precisely the thing being detected, so it
+        # cannot be required to import cleanly first). The substring prefilter is
+        # load-bearing for the runtime: 1,087 files read, 448 parsed.
+        for path in sorted((BACKEND / "tests").rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            src = path.read_text(encoding="utf-8")
+            if "backend.services" not in src:
+                continue
+            tree = ast.parse(src)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom) or not node.module:
+                    continue
+                if not node.module.startswith("backend.services"):
+                    continue
+                try:
+                    mod = importlib.import_module(node.module)
+                except ModuleNotFoundError:
+                    # The dead-MODULE case, already pinned by
+                    # TestDeadModulesAreGone.test_unimportable. Naming it here
+                    # too would double-report one defect from two classes.
+                    continue
+                for alias in node.names:
+                    if alias.name == "*":
+                        continue
+                    if hasattr(mod, alias.name):
+                        continue
+                    # Not an attribute -- but `from pkg import name` ALSO succeeds
+                    # when `name` is a SUBMODULE the package has not imported yet
+                    # (the import system falls back to loading it). A bare hasattr
+                    # would report `from backend.services import scene_baseline` --
+                    # a live, passing import -- as missing, and a guard with a false
+                    # positive in it gets ignored like every other noisy alarm.
+                    # find_spec asks the same question the interpreter asks,
+                    # WITHOUT executing the submodule.
+                    try:
+                        sub = importlib.util.find_spec(f"{node.module}.{alias.name}")
+                    except ImportError, ValueError:
+                        sub = None
+                    if sub is not None:
+                        continue
+                    missing.append(
+                        f"{path.relative_to(BACKEND)}:{node.lineno} "
+                        f"from {node.module} import {alias.name}"
+                    )
+
+        assert not missing, (
+            "test files import symbols that shipped code no longer defines "
+            "(pytest raises ImportError at COLLECTION, so `pytest "
+            "backend/tests/unit` aborts -- and a scan that only reads file "
+            "lists will never notice):\n" + "\n".join(missing)
+        )
 
 
 class TestVlmPathSurvives:
