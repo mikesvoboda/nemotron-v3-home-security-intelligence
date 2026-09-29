@@ -761,70 +761,72 @@ pytest_skip:
     expires: '2026-12-31'
     reason: 'NEM-3197: Not yet implemented'
 pytest_skip_imperative:
-  - id: backend/tests/conftest.py:2617
+  - id: backend/tests/conftest.py:2580
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: pandas not installed (required for synthetic scenarios)
-  - id: backend/tests/conftest.py:2621
-    kind: todo
+  - id: backend/tests/conftest.py:2584
+    kind: environment
     owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
+    tracking: null
+    expires: null
     reason: Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py
-  - id: backend/tests/conftest.py:2642
-    kind: todo
+    host_justification: scenarios.parquet is pipeline-generated data, not a repo file
+  - id: backend/tests/conftest.py:2605
+    kind: environment
     owner: mikesvoboda
-    tracking: UNTRACKED:GENERAL
-    expires: '2026-12-31'
+    tracking: null
+    expires: null
     reason: Synthetic scenarios not available
-  - id: backend/tests/e2e/test_gpu_pipeline.py:432
+    host_justification: same scenarios.parquet chain (fixture None)
+  - id: backend/tests/e2e/test_gpu_pipeline.py:519
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: YOLO26 service not available
-  - id: backend/tests/e2e/test_gpu_pipeline.py:435
+  - id: backend/tests/e2e/test_gpu_pipeline.py:522
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
-    reason: Nemotron service not available
-  - id: backend/tests/e2e/test_gpu_pipeline.py:446
+    reason: ai-vlm service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:533
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: YOLO26 service returned error
     host_justification: DetectorUnavailableError — YOLO26 service process absent
-  - id: backend/tests/e2e/test_gpu_pipeline.py:483
+  - id: backend/tests/e2e/test_gpu_pipeline.py:570
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: null
     host_justification: service-connectivity probe failed — backing service absent
-  - id: backend/tests/e2e/test_gpu_pipeline.py:531
+  - id: backend/tests/e2e/test_gpu_pipeline.py:623
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: YOLO26 service not available
-  - id: backend/tests/e2e/test_gpu_pipeline.py:544
+  - id: backend/tests/e2e/test_gpu_pipeline.py:636
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
     reason: YOLO26 service returned error
     host_justification: DetectorUnavailableError — YOLO26 service process absent
-  - id: backend/tests/e2e/test_gpu_pipeline.py:599
+  - id: backend/tests/e2e/test_gpu_pipeline.py:694
     kind: environment
     owner: mikesvoboda
     tracking: null
     expires: null
-    reason: Nemotron service not available
-  - id: backend/tests/e2e/test_gpu_pipeline.py:612
+    reason: ai-vlm service not available
+  - id: backend/tests/e2e/test_gpu_pipeline.py:707
     kind: environment
     owner: mikesvoboda
     tracking: null
@@ -1346,24 +1348,6 @@ pytest_skip_imperative:
     tracking: UNTRACKED:AUTH-ROUTE-IMPLEMENTATION
     expires: '2026-12-31'
     reason: Auth router not implemented yet (expected in TDD RED phase)
-  - id: backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1170
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: null
-    host_justification:
-      red-check evidence log /tmp/wp-batch25/redcheck_dead102b.log is a campaign-runner artifact,
-      not a repo file
-  - id: backend/tests/unit/services/test_nemotron_analyzer_batch25_dead-10-2.py:1178
-    kind: environment
-    owner: mikesvoboda
-    tracking: null
-    expires: null
-    reason: null
-    host_justification:
-      red-check evidence log /tmp/wp-batch25/redcheck_dead102c.log is a campaign-runner artifact,
-      not a repo file
   - id: backend/tests/unit/services/test_osnet_loader.py:1360
     kind: environment
     owner: mikesvoboda
@@ -1824,84 +1808,18 @@ unspecced_patch:
     tracking: nightly-full-gate.yml
     expires: null
     reason: null
-  - id: backend/tests/chaos/test_nemotron_failures.py::TestNemotronConnectionError.test_connection_error_handled_gracefully::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/chaos/test_nemotron_failures.py::TestNemotronHealthMonitoring.test_health_check_5xx_returns_false::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/chaos/test_nemotron_failures.py::TestNemotronHealthMonitoring.test_health_check_success::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/chaos/test_nemotron_failures.py::TestNemotronTimeout.test_health_check_returns_false_on_timeout::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/e2e/test_gpu_pipeline.py::test_batch_aggregation_and_handoff::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/e2e/test_gpu_pipeline.py::test_fast_path_analysis::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/e2e/test_gpu_pipeline.py::test_full_pipeline_integration_mocked::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/e2e/test_gpu_pipeline.py::test_nemotron_analyzer_integration_mocked::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
-  - id: backend/tests/e2e/test_gpu_pipeline.py::test_nemotron_llm_failure_fallback::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: null
   - id: backend/tests/e2e/test_pipeline_integration.py::test_complete_pipeline_flow_with_mocked_services::k1
     kind: scoped
     owner: mikesvoboda
     tracking: nightly-full-gate.yml
     expires: null
     reason: 'Step 1: Mock detector client'
-  - id: backend/tests/e2e/test_pipeline_integration.py::test_complete_pipeline_flow_with_mocked_services::k2
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: 'Step 5: Mock Nemotron analysis'
   - id: backend/tests/e2e/test_pipeline_integration.py::test_pipeline_handles_detector_failure_gracefully::k1
     kind: scoped
     owner: mikesvoboda
     tracking: nightly-full-gate.yml
     expires: null
     reason: Mock detector to raise connection error
-  - id: backend/tests/e2e/test_pipeline_integration.py::test_pipeline_handles_nemotron_failure_gracefully::k1
-    kind: scoped
-    owner: mikesvoboda
-    tracking: nightly-full-gate.yml
-    expires: null
-    reason: Mock Nemotron to fail
   - id: backend/tests/e2e/test_pipeline_integration.py::test_pipeline_with_low_confidence_filtering::k1
     kind: scoped
     owner: mikesvoboda
@@ -2076,60 +1994,6 @@ unspecced_patch:
     tracking: R-WP4.1-SWEEP-RESIDUAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestAnalyzeBatchWithEnrichment.test_analyze_batch_produces_non_fallback_results::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestAnalyzeBatchWithEnrichment.test_analyze_batch_with_enrichment_multiple_scenarios::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestAnalyzeBatchWithEnrichment.test_analyze_batch_with_model_zoo_enrichment_no_exceptions::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: Mock the enrichment pipeline to return realistic data
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestAnalyzeDetectionFastPathWithEnrichment.test_fast_path_produces_non_fallback_results::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestAnalyzeDetectionFastPathWithEnrichment.test_fast_path_with_model_zoo_enrichment_no_exceptions::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestEnrichmentPipelineIntegration.test_enrichment_errors_dont_prevent_analysis::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestEnrichmentPipelineIntegration.test_enrichment_pipeline_called_with_correct_inputs::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestPromptFormattingWithEnrichment.test_prompt_formatting_includes_all_model_zoo_fields::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_llm_analysis_pipeline.py::TestPromptFormattingWithEnrichment.test_prompt_formatting_without_enrichment_no_exceptions::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: Mock enrichment pipeline returning empty/None result
   - id: backend/tests/integration/test_monitoring_stack_integration.py::test_monitoring_health_endpoint_reports_prometheus_unreachable::k1
     kind: todo
     owner: mikesvoboda
@@ -2173,138 +2037,6 @@ unspecced_patch:
     expires: '2026-12-31'
     reason: null
   - id: backend/tests/integration/test_monitoring_stack_integration.py::test_validator_health_check_with_warnings::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_camera_not_found::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_llm_failure_uses_fallback::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: Mock LLM call to fail
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_mixed_int_and_string_detection_ids::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_string_detection_ids_converted_to_int::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_success::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_batch_with_direct_detection_ids_parameter::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_detection_fast_path_broadcast_called::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_detection_fast_path_detection_ids_format::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_detection_fast_path_llm_failure::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: Mock LLM call to fail
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_detection_fast_path_single_detection_time::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_analyze_detection_fast_path_success::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer.py::test_duplicate_batch_id_prevented_by_unique_constraint::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestAnalyzeBatchCreatesEvent.test_analyze_batch_creates_event::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestAnalyzeBatchCreatesEvent.test_analyze_batch_links_detections_to_event::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestAnalyzeBatchCreatesEvent.test_analyze_batch_sets_risk_score::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestAnalyzeBatchCreatesEvent.test_analyze_batch_sets_time_window::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestAnalyzeDetectionFastPath.test_analyze_detection_fast_path::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestLLMResponseParsing.test_analyze_batch_handles_json_in_text_response::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestLLMResponseParsing.test_analyze_batch_normalizes_invalid_risk_level::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestLLMResponseParsing.test_analyze_batch_validates_risk_score_bounds::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestWebSocketBroadcast.test_broadcast_event_failure_does_not_fail_analysis::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_nemotron_analyzer_integration.py::TestWebSocketBroadcast.test_broadcast_event_success::k1
     kind: todo
     owner: mikesvoboda
     tracking: R-WP4.1-SWEEP-RESIDUAL
@@ -2358,36 +2090,6 @@ unspecced_patch:
     tracking: R-WP4.1-SWEEP-RESIDUAL
     expires: '2026-12-31'
     reason: Patch the settings to use our temp directory
-  - id: backend/tests/integration/test_prompt_replay.py::TestEdgeCasesHighRisk.test_loitering_unknown_person_maintains_elevated_score::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_prompt_replay.py::TestEdgeCasesHighRisk.test_nighttime_activity_maintains_context_awareness::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_prompt_replay.py::TestEdgeCasesHighRisk.test_weapon_detection_maintains_high_score::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_prompt_replay.py::TestReplayMechanism.test_replay_preserves_detection_association::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/integration/test_prompt_replay.py::TestReplayMechanism.test_replay_single_event_through_analyzer::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
   - id: backend/tests/integration/test_queues_api.py::get_patches::k1
     kind: todo
     owner: mikesvoboda
@@ -2424,6 +2126,12 @@ unspecced_patch:
     tracking: R-WP4.1-SWEEP-RESIDUAL
     expires: '2026-12-31'
     reason: inapplicable to targets that are not ordinary callables).
+  - id: backend/tests/unit/routes/test_system_routes.py::test_check_ai_services_health_ai_vlm_down::k1
+    kind: todo
+    owner: mikesvoboda
+    tracking: R-WP4.1-SWEEP-RESIDUAL
+    expires: '2026-12-31'
+    reason: null
   - id: backend/tests/unit/routes/test_system_routes.py::test_check_ai_services_health_both_down::k1
     kind: todo
     owner: mikesvoboda
@@ -2431,12 +2139,6 @@ unspecced_patch:
     expires: '2026-12-31'
     reason: null
   - id: backend/tests/unit/routes/test_system_routes.py::test_check_ai_services_health_both_healthy::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/routes/test_system_routes.py::test_check_ai_services_health_nemotron_down::k1
     kind: todo
     owner: mikesvoboda
     tracking: R-WP4.1-SWEEP-RESIDUAL
@@ -2616,45 +2318,3 @@ unspecced_patch:
     tracking: R-WP4.1-SWEEP-RESIDUAL
     expires: '2026-12-31'
     reason: null
-  - id: backend/tests/unit/services/test_nemotron_analyzer.py::test_enqueue_for_evaluation_disabled::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: (see test_enqueue_for_evaluation_success); nested autospec is refused.
-  - id: backend/tests/unit/services/test_nemotron_analyzer.py::test_enqueue_for_evaluation_handles_failure::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: 'No autospec: already patched by the analyzer fixture (see above).'
-  - id: backend/tests/unit/services/test_nemotron_analyzer.py::test_enqueue_for_evaluation_success::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: only swaps the return_value for this call.
-  - id: backend/tests/unit/services/test_smoke_fire_loader.py::TestLoadSmokeFireModel.test_load_model_from_correct_path::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/services/test_smoke_fire_loader.py::TestLoadSmokeFireModel.test_load_model_pre_fuses_for_thread_safety::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/services/test_smoke_fire_loader.py::TestLoadSmokeFireModel.test_load_model_raises_runtime_error_on_failure::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: null
-  - id: backend/tests/unit/services/test_smoke_fire_loader.py::TestLoadSmokeFireModel.test_load_model_returns_model_instance::k1
-    kind: todo
-    owner: mikesvoboda
-    tracking: R-WP4.1-SWEEP-RESIDUAL
-    expires: '2026-12-31'
-    reason: stand-in.

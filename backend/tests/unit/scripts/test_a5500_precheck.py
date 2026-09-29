@@ -15,6 +15,11 @@ VLM_MMPROJ_PATH, the /vlm volume mount, the VLM ctx budget), plus a
 legacy_llm check that answers the checklist's "no legacy LLM deployed" item
 and a vlm_image check that says plainly whether the ghcr image path can run
 the shipped mode at all.
+
+AMENDED 2026-09-29 (R8 S2b): the ai-llm service was deleted from every compose
+file, so the legacy_llm row now PASSes when read against the REAL tree (the
+gate stays for a re-added, ungated ai-llm - pinned on synthetic compose text in
+TestLegacyLlmNotDeployed). The LEGACY_COMPOSE fixture is synthetic from here on.
 """
 
 from __future__ import annotations
@@ -88,8 +93,11 @@ services:
       - PARALLEL=${VLM_PARALLEL:-2}
 """
 
-# A compose that also carries the legacy serving service (prod.yml's shape:
-# ai-llm with NO profile, so it starts whether or not the vlm profile is on).
+# A compose that also carries the legacy serving service. SYNTHETIC since R8
+# S2b deleted ai-llm from every compose file; the shape it reproduces is
+# prod.yml's PRE-delete one (ai-llm with NO profile, so it started whether or
+# not the vlm profile was on), which is exactly the regression the legacy_llm
+# gate still has teeth for.
 LEGACY_COMPOSE = (
     GREEN_COMPOSE
     + """\
@@ -481,8 +489,12 @@ class TestLegacyLlmNotDeployed:
         assert "llm" in c.detail
 
     def test_unprofiled_ai_llm_warns_that_it_starts_alongside_ai_vlm(self, tmp_path: Path) -> None:
-        # prod.yml's shipped shape: ai-llm has NO profiles block, so a
-        # `--profile vlm` up brings BOTH serving services on one GPU.
+        # The gate's live teeth, on synthetic text: the shape is prod.yml's
+        # PRE-S2b one (ai-llm with NO profiles block, so a `--profile vlm` up
+        # brought BOTH serving services on one GPU). The service is gone from the
+        # tree, but if it comes back ungated the single A5500 cannot serve both,
+        # so the WARN still has to fire - which is why the check was not deleted
+        # along with the service.
         checks = run_precheck(
             env_path=_write(tmp_path, "green.env", GREEN_ENV),
             compose_paths=[_write(tmp_path, "prod.yml", LEGACY_COMPOSE)],
@@ -1090,11 +1102,18 @@ class TestRealTreePrepReview:
         assert by_id["vlm_image"].verdict == WARN
         assert "ghcr" in by_id["vlm_image"].detail
 
-    def test_legacy_ai_llm_is_unprofiled_in_prod_compose(self, real_checks) -> None:
+    def test_legacy_ai_llm_is_gone_from_the_shipped_compose(self, real_checks) -> None:
+        # [V 2026-09-27] row's successor: the spec :482-500 item was "no legacy
+        # LLM deployed", and pre-R8 the honest answer was WARN (prod.yml carried
+        # an unprofiled ai-llm). R8 S2b deleted ai-llm from every compose file, so
+        # the real tree now proves the stronger fact: the check PASSes by absence.
+        # The WARN teeth for a re-added ai-llm stay pinned against synthetic
+        # compose text in TestLegacyLlmNotDeployed - the gate is unchanged, only
+        # the tree it is read against moved.
         by_id = _by_id(real_checks)
         c = by_id["legacy_llm"]
-        assert c.verdict == WARN
-        assert "ai-llm" in c.detail
+        assert c.verdict == PASS
+        assert "no ai-llm service" in c.detail
 
     def test_example_tmpdir_trap_read(self, real_checks) -> None:
         assert _by_id(real_checks)["tmpdir_trap"].verdict == WARN

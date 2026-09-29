@@ -508,13 +508,18 @@ class TestG4FourthSpelling:
         assert json.dumps(d) == '{"x1": 10.0, "y1": 20.0, "x2": 30.0, "y2": 40.0}'
         assert d["x2"] - d["x1"] == 20.0  # keys are corners, not x/width
 
-        enrich_src = (REPO_ROOT / "backend/services/enrichment_client.py").read_text(
+        # R8 S2 (2026-09-29): enrichment_client.py was deleted with the tier,
+        # taking its single request-payload literal (dossier corrected count:
+        # ONE) with it. The fourth spelling's surviving backend home is the
+        # florence client's as_dict() — same corners-dict shape, same
+        # backend-internal side, same rarity: exactly one shipped literal.
+        fl_src = (REPO_ROOT / "backend/services/florence_client.py").read_text(
             encoding="utf-8"
         )
-        assert enrich_src.count('"x1":') == 1
-        # source: backend/services/enrichment_client.py:3161-3166 (unified-enrichment
-        # request payload `"bbox": {"x1": bbox[0], ...}`; the ONLY such literal in
-        # the file — dossier G4 corrected count). Predicted GREEN. UNVERIFIED.
+        assert fl_src.count('"x1":') == 1
+        # source: backend/services/florence_client.py:94 — BoundingBox.as_dict
+        # returns the four-corner dict; the ONLY such literal in the file.
+        # Predicted GREEN. UNVERIFIED.
         ai_tree = REPO_ROOT / "ai"
         x1_in_ai = sum(
             p.read_text(encoding="utf-8").count('"x1":')
@@ -619,12 +624,16 @@ class TestG5BboxValidationFalseInvariant:
         # backend/services/enrichment_client.py:1965
         # `if not is_valid_bbox(bbox, allow_negative=True):` — both grepped
         # present. Predicted GREEN. UNVERIFIED.
+        #
+        # R8 S2 (2026-09-29): enrichment_client.py was deleted with the tier,
+        # and it was the validator's ONLY other shipped caller — reid_service
+        # is now the single one (verified by grep over backend/services +
+        # backend/api). The claim holds on the surviving cite; the second
+        # half is pinned as a tombstone so a re-added enrichment caller
+        # reddens here instead of silently restoring the dossier's shape.
         reid_src = (REPO_ROOT / "backend/services/reid_service.py").read_text(encoding="utf-8")
         assert "is_valid_bbox(bbox_float, allow_negative=True)" in reid_src
-        enrich_src = (REPO_ROOT / "backend/services/enrichment_client.py").read_text(
-            encoding="utf-8"
-        )
-        assert "is_valid_bbox(bbox, allow_negative=True)" in enrich_src
+        assert not (REPO_ROOT / "backend/services/enrichment_client.py").exists()
 
     async def test_g5_provider_shapes_are_indistinguishable_to_the_validator(
         self, fake_client

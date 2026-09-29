@@ -133,47 +133,75 @@ EXPECTED_DEPLOYED = {
     ProviderId.RTVI_VLM: False,
 }
 
-# Sentinel (NOT-WIRED) literals — dossier O3/F8 + live import. per_model_http
-# is 8, not the dossier-note's 6: llm_completion / llm_chat_completion are
-# per_model_server=True with client_methods=[] (the bound LLM path belongs to
-# the llamacpp provider, not per_model_http), so _bound_or_reject sentinels
-# them too (backend/ai_contract/providers.py:77-85). Pinned from live output
-# 2026-09-19; UNVERIFIED at pytest level.
-# 6 since ADDENDUM 2 A7.2 deleted DetectorClient.segment_image (the
-# third state grows when a client binding leaves, route intact); the
-# op LEFT the contract for the deleted-route case, see DELETED_REGISTRY_OPS:
-# yolo26_segment OPERATION stays (deployed gateway route,
-# adapters/yolo26.py:447) but its client_methods binding dropped, so it
-# enters the not-wired third state alongside the others.
-SENTINELS_GATEWAY = {
+# Sentinel (NOT-WIRED) literals — dossier O3/F8 + live import. Pinned from
+# live output 2026-09-29 (R8 S2); UNVERIFIED at pytest level.
+# How the third state grew here: the pre-A7.2 baseline was 3/3/8 (the three
+# enrich_lt ops on every slot that serves them, plus the LLM/unload/mstatus
+# extras on per_model). ADDENDUM 2 A7.2 then added yolo26_segment to the
+# gateway set (client binding deleted, route deployed) — see the
+# DELETED_REGISTRY_OPS note below. R8 S2 (2026-09-29) retired EnrichmentClient,
+# NemotronAnalyzer and nemotron_streaming with the legacy tier, and
+# operations.py emptied every client_methods list that named one — a client
+# binding leaving, route intact, is precisely the third-state transition A7.2
+# established, so the census EXPLODES rather than shrinks: the 8 remaining
+# enrich ops join gateway and per_model, and the two enrich_lt lookups that
+# EnrichmentClient used to bind (person_reid, threat_detect) join every slot
+# that serves them. The LLM ops stay unbound on per_model for the same reason
+# they always were — the bound LLM path belongs to the llamacpp provider
+# (providers.py:77-85 _bound_or_reject) — except that llm_completion /
+# llm_chat_completion / model_status / model_preload / object_distance are now
+# joined by their former client's other paths.
+# Still NOT in any set: florence_analyze_scene — it left the CONTRACT (not just
+# its client binding) under A7.2, and a deleted op is ABSENT from every column,
+# never not-wired (test_ai_contract_registry.py DELETED_REGISTRY_OPS guards its
+# return). Same rule keeps yolo26_segment off per_model: gateway-only
+# (per_model_server: False), so there it is ABSENT (absent-guarded via ABSENT_*
+# above), not not-wired.
+# vlm_assess stays out too: 1.1 entered it unbound, 1.3's vlm_client bound it
+# (client_methods=["VlmClient.assess"], CLIENT_OP_MAP), so it leaves the third
+# state in every provider sharing this column — including the subset VLM
+# providers, whose callable is now the live client method (pinned in
+# test_conformance_vlm.py).
+_ENRICH_LT_UNBOUND = {
     "enrich_lt_depth_estimate",
+    "enrich_lt_person_reid",
     "enrich_lt_pet_classify",
     "enrich_lt_pose_analyze",
-    # florence_analyze_scene left the CONTRACT (not just its client binding)
-    # under A7.2 - a deleted op is ABSENT from every column, not not-wired;
-    # test_ai_contract_registry.py DELETED_REGISTRY_OPS guards its return.
-    "yolo26_detect_batch",
-    "yolo26_segment",
+    "enrich_lt_threat_detect",
 }
-SENTINELS_LIGHT = {
-    "enrich_lt_depth_estimate",
-    "enrich_lt_pet_classify",
-    "enrich_lt_pose_analyze",
+_ENRICH_HEAVY_UNBOUND = {
+    "enrichment_action_classify",
+    "enrichment_clothing_classify",
+    "enrichment_demographics",
+    "enrichment_depth_estimate",
+    "enrichment_enrich",
+    "enrichment_pet_classify",
+    "enrichment_pose_analyze",
+    "enrichment_vehicle_classify",
 }
-# yolo26_segment is gateway-only (per_model_server: False) - on per_model it
-# is ABSENT (absent-guarded via ABSENT_* above), not not-wired, so the A7.2
-# gateway addition must NOT carry into this set (unlike the pre-A7.2 gateway
-# literals, which all happened to be served on both slots).
-SENTINELS_PER_MODEL = (SENTINELS_GATEWAY - {"yolo26_segment"}) | {
-    "llm_completion",
-    "llm_chat_completion",
-    "model_unload",
-    # 1.1 entered vlm_assess here unbound; 1.3's vlm_client binds it
-    # (client_methods=["VlmClient.assess"], CLIENT_OP_MAP) so it LEAVES the
-    # third state in every provider sharing this column - including the
-    # subset VLM providers, whose callable is now the live client method
-    # (pinned in test_conformance_vlm.py).
-}
+SENTINELS_GATEWAY = (
+    _ENRICH_LT_UNBOUND
+    | _ENRICH_HEAVY_UNBOUND
+    | {
+        "yolo26_detect_batch",
+        "yolo26_segment",
+    }
+)
+SENTINELS_LIGHT = set(_ENRICH_LT_UNBOUND)
+SENTINELS_PER_MODEL = (
+    _ENRICH_LT_UNBOUND
+    | _ENRICH_HEAVY_UNBOUND
+    | {
+        "llm_completion",
+        "llm_chat_completion",
+        "model_status",
+        "model_preload",
+        "model_unload",
+        "object_distance",
+        "yolo26_detect_batch",
+        # yolo26_segment deliberately absent — gateway-only column, see above.
+    }
+)
 SENTINELS_BY_PROVIDER: dict[ProviderId, set[str]] = {
     ProviderId.GATEWAY: SENTINELS_GATEWAY,
     ProviderId.GATEWAY_LIGHT: SENTINELS_LIGHT,
@@ -609,12 +637,17 @@ class TestMatrixNotWiredSentinels:
     def test_not_wired_set_exact(self, pid: ProviderId) -> None:
         """Structural census: registered ops whose registry
         client_methods == [] AND whose callable qualname carries '_not_wired'
-        == the literals above (6/3/8 — gateway gains yolo26_segment under
-        ADDENDUM 2 A7.2 (client binding deleted, route stays deployed);
-        per_model's 8 includes the two LLM ops and model_unload, and NOT
-        yolo26_segment, which that slot does not serve at all; the dossier
-        NOTE's 'plus model_unload' count of 6 is stale vs live output;
-        pinned from live import 2026-09-19).
+        == the literals above (15/5/20 since R8 S2 — was 6/3/8: retiring
+        EnrichmentClient emptied every client_methods list that named one, so
+        the eight enrich-heavy ops joined gateway+per_model and the two
+        enrich_lt lookups (person_reid, threat_detect) joined every slot that
+        serves them. gateway gains yolo26_segment under ADDENDUM 2 A7.2
+        (client binding deleted, route stays deployed); per_model carries the
+        five lifecycle/LLM/distance extras (llm_completion,
+        llm_chat_completion, model_status, model_preload, model_unload,
+        object_distance — bound paths belong to the llamacpp provider, not
+        per_model_http) but NOT yolo26_segment, which that slot does not serve
+        at all; pinned from live import 2026-09-29).
         PREDICTED-GREEN. UNVERIFIED at pytest level."""
         ops = _provider_ops(pid)
         unbound = {o for o in ops if not OPERATIONS[o].client_methods}
@@ -622,7 +655,7 @@ class TestMatrixNotWiredSentinels:
         # census note: per_model's count moved 7 -> 8 on 2026-09-25 (1.1
         # added vlm_assess to the per_model_server column unbound), then
         # 8 -> 7 the same day (1.3's vlm_client binds it - see the
-        # SENTINELS_PER_MODEL comment).
+        # SENTINELS_PER_MODEL comment), then 7 -> 20 on 2026-09-29 (R8 S2).
         assert unbound == SENTINELS_BY_PROVIDER[pid]
         assert sentinels == SENTINELS_BY_PROVIDER[pid]
         assert unbound == sentinels  # source: providers.py:70-85 (_bound_or_reject).
@@ -639,7 +672,8 @@ class TestMatrixNotWiredSentinels:
         NotImplementedError naming the op AND pointing at the FakeProvider
         ('drive it through the FakeProvider (WP8.2) or a live server' —
         providers.py:80-83; message observed live). Hermetic: raises before
-        any network. PREDICTED-GREEN for all 16 (provider, op) params.
+        any network. PREDICTED-GREEN for all 40 (provider, op) params
+        (15 gateway + 5 light + 20 per_model since R8 S2; was 16).
         UNVERIFIED at pytest level."""
         fn = registered_providers()[provider].operations()[op_id]
         with pytest.raises(NotImplementedError) as excinfo:
@@ -652,7 +686,9 @@ class TestMatrixNotWiredSentinels:
         """THE third-state guard (prompt (c)): 'client_methods == []' is NOT
         the sentinel predicate across all providers. llamacpp's two ops have
         client_methods == [] yet ARE wired — payload-passthrough _post
-        closures to settings.nemotron_url (providers.py:109-131), which we
+        closures to settings.ai_vlm_url (providers.py:109-131; the
+        _llamacpp_callable was re-homed off the retired nemotron_url in
+        R8 S2 — same llama.cpp /completion contract, new field), which we
         must NOT call (real network; matrix-guard only). Verified live
         qualnames: '_llamacpp_callable.<locals>._post'. A refactor that
         collapses 'unbound' into 'sentinel' reddens this. PREDICTED-GREEN.
@@ -695,7 +731,7 @@ class TestO1ActionClassifyMultiFrame:
             "per_model_server": True,
             "fake": True,
         }
-        assert op.client_methods == ["EnrichmentClient.classify_action"]
+        assert op.client_methods == []  # EnrichmentClient retired with R8 S2
 
     def test_action_classify_only_temporal_frame_sequence(self) -> None:
         """O1/F1 correction as DATA, not prose: the multi-image op set is

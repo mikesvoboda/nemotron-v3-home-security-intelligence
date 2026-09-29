@@ -66,11 +66,20 @@ class TestSettingsReprRedaction:
         result = repr(mock_settings)
         assert "yolo26-secret-key" not in result
 
-    def test_nemotron_api_key_redacted(self, mock_settings):
-        """Nemotron API key should be redacted."""
-        mock_settings.nemotron_api_key = "nemotron-secret-key"  # pragma: allowlist secret
+    def test_jwt_secret_redacted(self, mock_settings):
+        """JWT signing secret should be redacted (NEM-5307).
+
+        This case used to pin ``nemotron_api_key``. R8 slice S2b deleted the legacy
+        ai-llm (Nemotron) tier, so the field is gone from Settings (which is
+        ``extra="ignore"``, so assigning it now raises instead of quietly sticking)
+        and the name left the redaction set with it. The property this test exists to
+        pin -- a named Settings secret never reaches ``repr()`` -- moved to
+        ``jwt_secret``, the live SecretStr secret that had no repr pin of its own.
+        """
+        mock_settings.jwt_secret = "jwt-signing-secret-value"  # pragma: allowlist secret
         result = repr(mock_settings)
-        assert "nemotron-secret-key" not in result
+        assert "jwt-signing-secret-value" not in result
+        assert "[REDACTED]" in result
 
     def test_websocket_token_redacted(self, mock_settings):
         """WebSocket token should be redacted."""

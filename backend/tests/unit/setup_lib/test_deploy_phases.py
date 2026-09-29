@@ -173,13 +173,19 @@ class TestPhaseStop:
             assert result.success is False
             assert "ports" in result.message.lower()
 
-    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
-    def test_down_and_rm_reach_every_deploy_profile(self, tmp_path: Path, mode: str) -> None:
-        """Stop tears down BOTH model servers, whatever this deploy's mode.
+    def test_down_and_rm_reach_every_deploy_profile(self, tmp_path: Path) -> None:
+        """Stop tears down the model server behind EVERY profile deploy knows.
 
         compose down/rm only act on services whose profile is active, so a
-        plain `down` would leave an ai-llm started by a pre-profile deploy
-        running on the GPU ai-vlm shares with it (both use GPU_LLM).
+        plain `down` would leave the GPU model server started by a pre-profile
+        deploy holding the GPU. The profile list is walked off _MODE_PLANS (not
+        hard-coded) so a future second plan is torn down too without anyone
+        re-deriving the argument.
+
+        R8 S2b retired the second member of that list: legacy's ai-llm (which
+        shared GPU_LLM with ai-vlm) is gone, so today the walk yields exactly
+        one profile -- pinned here, and it fails the moment a plan is added
+        without its profile reaching down/rm.
         """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_stop
@@ -187,7 +193,7 @@ class TestPhaseStop:
         config = DeployConfig(
             project_root=tmp_path,
             compose_cmd=["podman", "compose"],
-            env={"POSTGRES_PORT": "5432", "REDIS_PORT": "6379", "PIPELINE_MODE": mode},
+            env={"POSTGRES_PORT": "5432", "REDIS_PORT": "6379"},
         )
 
         with (
@@ -204,7 +210,12 @@ class TestPhaseStop:
 
             phase_stop(config)
 
-        profiles = ("--profile", "vlm", "--profile", "legacy")
+        from setup_lib.deploy_phases import _MODE_PLANS
+
+        profiles = tuple(
+            arg for plan in _MODE_PLANS.values() for arg in ("--profile", plan.profile)
+        )
+        assert profiles == ("--profile", "vlm"), "the deploy profiles are one-per-plan"
         assert _compose_args(mock_compose) == [(*profiles, "down"), (*profiles, "rm", "-f")]
 
 
@@ -212,7 +223,15 @@ class TestPhaseBuild:
     """Tests for phase_build() function."""
 
     def test_skips_when_skip_build(self, tmp_path: Path) -> None:
-        """Should return immediate success when skip_build=True."""
+        """--skip-build returns immediately: no base build, no compose build.
+
+        The socket probe IS still run -- deliberately, before this return: the
+        docker-compose plugin needs podman.socket for the later infrastructure /
+        application phases too, so skipping the build must not skip it. It is
+        stubbed here because the probe shells out to `systemctl --user` on a host
+        this test does not own (the rest of this class patches subprocess for the
+        same reason); the pin is that it happens and that nothing builds.
+        """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
 
@@ -222,30 +241,35 @@ class TestPhaseBuild:
             skip_build=True,
         )
 
-        result = phase_build(config)
+        with (
+            patch("setup_lib.deploy_phases._ensure_podman_socket", autospec=True) as socket_probe,
+            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
+        ):
+            result = phase_build(config)
 
         assert result.success is True
         assert "skip" in result.message.lower()
+        socket_probe.assert_called_once_with(config)
+        mock_compose.assert_not_called()
 
-    @pytest.mark.parametrize(
-        ("env", "server", "tag"),
-        [
-            ({"CUDA_ARCHITECTURES": "86"}, "ai-vlm", "vlm"),
-            ({"CUDA_ARCHITECTURES": "86", "PIPELINE_MODE": "legacy"}, "ai-llm", "llm"),
-        ],
-        ids=["vlm-default", "legacy"],
-    )
-    def test_builds_base_then_app_then_model_server(
-        self, tmp_path: Path, env: dict[str, str], server: str, tag: str
-    ) -> None:
-        """Should build base image, then app services, then the mode's model server."""
+    def test_builds_base_then_app_then_model_server(self, tmp_path: Path) -> None:
+        """Build order: base image, then app services, then the mode's model server.
+
+        The order is the whole point -- backend's image FROM's the base, and the
+        model server is the cached build last because nothing depends on it.
+
+        R8 S2b: this was parametrized [vlm-default]/[legacy], where legacy walked
+        the same order onto ai-llm. The legacy plan is deleted with the ai-llm
+        services it named, so there is ONE plan and the ordering pin applies to it
+        alone; a second mode adds a row back, it does not re-derive the order.
+        """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
 
         config = DeployConfig(
             project_root=tmp_path,
             compose_cmd=["podman", "compose"],
-            env=env,
+            env={"CUDA_ARCHITECTURES": "86"},
         )
 
         call_order = []
@@ -259,10 +283,10 @@ class TestPhaseBuild:
         def mock_compose_run(cfg, *args, **kwargs):
             if "backend" in args:
                 call_order.append("app")
-            elif "ai-llm" in args:
-                call_order.append("llm")
             elif "ai-vlm" in args:
                 call_order.append("vlm")
+            elif "ai-llm" in args:
+                call_order.append("retired-llm")
             return True
 
         with (
@@ -274,7 +298,7 @@ class TestPhaseBuild:
             result = phase_build(config)
 
             assert result.success is True
-            assert call_order == ["base", "app", tag]
+            assert call_order == ["base", "app", "vlm"]
 
     def test_vlm_mode_builds_ai_vlm_and_never_ai_llm(self, tmp_path: Path) -> None:
         """vlm (the default): ai-vlm is built from its profile, cached, for the GPU's arch.
@@ -338,34 +362,12 @@ class TestPhaseBuild:
         assert len(vlm_calls) == 1
         assert "CUDA_ARCHITECTURES=86" in vlm_calls[0]
 
-    def test_legacy_mode_builds_ai_llm_behind_its_profile(self, tmp_path: Path) -> None:
-        """legacy: ai-llm is still built, now through --profile legacy (58163f23f)."""
-        from setup_lib.deploy import DeployConfig
-        from setup_lib.deploy_phases import phase_build
-
-        config = DeployConfig(
-            project_root=tmp_path,
-            compose_cmd=["podman", "compose"],
-            env={"CUDA_ARCHITECTURES": "86", "PIPELINE_MODE": "legacy"},
-        )
-
-        with (
-            patch("subprocess.run", autospec=True) as mock_run,
-            patch("setup_lib.deploy_phases.compose_run", autospec=True) as mock_compose,
-        ):
-            mock_run.return_value = subprocess.CompletedProcess(
-                args=[], returncode=0, stdout="built\n", stderr=""
-            )
-            mock_compose.return_value = True
-
-            result = phase_build(config)
-
-        assert result.success is True
-        calls = _compose_args(mock_compose)
-        assert not any("ai-vlm" in args for args in calls)
-        assert [args for args in calls if "ai-llm" in args] == [
-            ("--profile", "legacy", "build", "--build-arg", "CUDA_ARCHITECTURES=86", "ai-llm")
-        ]
+    # test_legacy_mode_builds_ai_llm_behind_its_profile is gone: its subject was
+    # phase_build's legacy plan (--profile legacy build ai-llm, 58163f23f), and R8 S2b
+    # deleted that plan with the ai-llm build context. The vlm-side twin of its exact
+    # shape -- the model server build's full argv under its profile -- is
+    # test_vlm_mode_builds_ai_vlm_and_never_ai_llm below, which also keeps the
+    # "never builds the other model server" half as a negative.
 
     def test_fails_when_model_server_build_fails(self, tmp_path: Path) -> None:
         """A failed ai-vlm build fails the phase and names the service."""
@@ -422,16 +424,20 @@ class TestPhaseBuild:
             assert len(app_calls) == 1
             assert "--no-cache" in str(app_calls[0])
 
-    def test_ai_llm_uses_cache(self, tmp_path: Path) -> None:
-        """Should NOT use --no-cache for ai-llm build (legacy mode)."""
+    def test_model_server_build_is_cached(self, tmp_path: Path) -> None:
+        """The model server build is WITH cache; the app service builds are not.
+
+        Retargeted at R8 S2b: this was test_ai_llm_uses_cache (the same property
+        read off legacy's ai-llm). The property is the plan's, not the service's
+        -- phase_build builds backend/frontend/ai-gateway --no-cache and the model
+        server without it, because the model server is llama.cpp/llama-style at a
+        pinned tag with no app code in it, so a cache-busting rebuild is pure
+        minutes. ai-vlm is the model server now.
+        """
         from setup_lib.deploy import DeployConfig
         from setup_lib.deploy_phases import phase_build
 
-        config = DeployConfig(
-            project_root=tmp_path,
-            compose_cmd=["podman", "compose"],
-            env={"PIPELINE_MODE": "legacy"},
-        )
+        config = DeployConfig(project_root=tmp_path, compose_cmd=["podman", "compose"], env={})
 
         with (
             patch("subprocess.run", autospec=True) as mock_run,
@@ -444,14 +450,11 @@ class TestPhaseBuild:
 
             phase_build(config)
 
-            # Find the call that builds ai-llm
-            llm_calls = [
-                c
-                for c in mock_compose.call_args_list
-                if "ai-llm" in str(c) and "backend" not in str(c)
-            ]
-            assert len(llm_calls) == 1
-            assert "--no-cache" not in str(llm_calls[0])
+            app_calls = [args for args in _compose_args(mock_compose) if "backend" in args]
+            vlm_calls = [args for args in _compose_args(mock_compose) if "ai-vlm" in args]
+            assert app_calls and "--no-cache" in app_calls[0]
+            assert len(vlm_calls) == 1
+            assert "--no-cache" not in vlm_calls[0]
 
     def test_fails_on_base_build_error(self, tmp_path: Path) -> None:
         """Should return failure when base image build fails."""
@@ -944,14 +947,8 @@ class TestPhaseHealthCheck:
                 ("http://localhost:18098/health", 120),
                 "8091",
             ),
-            # legacy keeps today's LLM poll
-            (
-                {"LLM_PORT": "8091", "PIPELINE_MODE": "legacy"},
-                ("http://localhost:8091/health", 180),
-                "8098",
-            ),
         ],
-        ids=["vlm-default-port", "vlm-env-port", "legacy"],
+        ids=["vlm-default-port", "vlm-env-port"],
     )
     def test_polls_the_modes_model_server(
         self,
@@ -960,7 +957,13 @@ class TestPhaseHealthCheck:
         polled: tuple[str, int],
         not_polled: str,
     ) -> None:
-        """vlm mode polls ai-vlm (120s = its start_period), never the retired 30B."""
+        """vlm mode polls ai-vlm (120s = its start_period), never the retired 30B.
+
+        The third row (PIPELINE_MODE=legacy -> LLM_PORT:8091 on a 180s budget)
+        is dropped at R8 S2b: the legacy plan is deleted, so that poll no longer
+        exists to point at. The `not_polled` half of the assertion keeps its
+        teeth -- the retired engine's port is still the thing asserted absent.
+        """
         import urllib.error
 
         from setup_lib.deploy import DeployConfig
@@ -1023,21 +1026,73 @@ class TestRecoverCreatedContainers:
 
         assert _compose_args(cr) == [("--profile", "vlm", "up", "-d", "--no-build", "ai-vlm")]
 
-    def test_never_starts_ai_llm_in_vlm_mode(self, tmp_path: Path) -> None:
-        """A leftover created ai-llm is left alone in vlm mode; others still recover."""
+    def test_never_starts_a_model_server_that_is_not_the_plans(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The guard that keeps another plan's model server down still fires.
+
+        Retargeted at R8 S2b (was test_never_starts_ai_llm_in_vlm_mode). The
+        intent -- a GPU model server this deploy did not choose is never started
+        by the recovery pass -- is still worth a pin, but the shipped guard is
+        `other_servers = {p.model_server for p in _MODE_PLANS.values()} -
+        {plan.model_server}`, and with the legacy plan deleted that set is EMPTY
+        by construction: with one plan there is no other server to skip, so the
+        old test's assertion was no longer testing the guard at all.
+
+        So the guard is exercised the way the S2b author meant it to be read: a
+        second plan is installed (ai-llm under --profile legacy, i.e. exactly the
+        plan R8 deleted, used here as the stand-in the guard exists for) and the
+        pass must skip it while everything else still recovers. When a real second
+        mode lands, this is the row that proves it inherits the protection.
+
+        What actually keeps the retired ai-llm from coming back today is compose
+        itself (no such service survives in docker-compose.prod.yml) plus
+        backend/services/container_orchestrator.py's RETIRED_LLM_SERVICES, which
+        refuses to manage a leftover container even when it is running.
+        """
+        from dataclasses import replace
+
+        from setup_lib.deploy_phases import _MODE_PLANS
+
+        monkeypatch.setitem(
+            _MODE_PLANS,
+            "hypothetical",
+            replace(_MODE_PLANS["vlm"], model_server="ai-llm", profile="legacy"),
+        )
+
         cr = self._recover(
             tmp_path, {}, [f"{tmp_path.name}-ai-llm-1", f"{tmp_path.name}-backend-1"]
         )
 
         calls = _compose_args(cr)
-        assert not any("ai-llm" in args for args in calls)
+        assert not any("ai-llm" in args for args in calls), "another plan's server must stay down"
         assert ("--profile", "vlm", "up", "-d", "--no-build", "backend") in calls
 
-    def test_legacy_mode_still_recovers_ai_llm(self, tmp_path: Path) -> None:
-        """legacy: a created ai-llm is restarted through --profile legacy."""
-        cr = self._recover(tmp_path, {"PIPELINE_MODE": "legacy"}, [f"{tmp_path.name}-ai-llm-1"])
+    def test_never_names_a_model_server_other_than_the_plan(self, tmp_path: Path) -> None:
+        """No `--profile legacy` argv can come out of this pass any more.
 
-        assert _compose_args(cr) == [("--profile", "legacy", "up", "-d", "--no-build", "ai-llm")]
+        The literal R8 S2b reality the deleted legacy row used to pin: with one
+        plan there is one profile to pass, so the pass reaches every stuck
+        container -- including a pre-R8 ai-llm, named like any other service --
+        and compose (which has no ai-llm service left) is what keeps the retired
+        engine down, not this loop. Stable if a second plan ever lands: then
+        ai-llm is skipped by the guard above and every call still carries the
+        plan's own profile, so nothing here can emit --profile legacy.
+        """
+        cr = self._recover(tmp_path, {}, [f"{tmp_path.name}-ai-llm-1", f"{tmp_path.name}-ai-vlm-1"])
+
+        calls = _compose_args(cr)
+        assert all(
+            "--profile" in args and args[args.index("--profile") + 1] == "vlm" for args in calls
+        )
+        assert not any("legacy" in args for args in calls)
+
+    # test_legacy_mode_still_recovers_ai_llm is gone: its subject was the legacy plan
+    # (a created ai-llm restarted through --profile legacy), and R8 S2b deleted that
+    # plan -- DeployConfig.pipeline_mode now raises on "legacy", so the mode the test
+    # constructed cannot be expressed. The recovery shape it exercised for a plan's own
+    # model server stays pinned by test_restarts_created_ai_vlm_through_its_profile,
+    # and "the plan I did not choose stays down" by the test above.
 
 
 # ---------------------------------------------------------------------------

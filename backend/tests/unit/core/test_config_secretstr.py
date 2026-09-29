@@ -35,11 +35,18 @@ class TestSecretStrFields:
         assert field_info is not None
         assert "SecretStr" in str(field_info.annotation)
 
-    def test_nemotron_api_key_is_secretstr(self):
-        """Test that nemotron_api_key field is SecretStr type."""
+    def test_jwt_secret_is_secretstr(self):
+        """Test that jwt_secret field is SecretStr type (NEM-5307).
+
+        R8 slice S2b deleted the legacy ai-llm (Nemotron) tier, which took the
+        ``nemotron_api_key`` field this case used to pin with it, so the subject moved
+        to ``jwt_secret``. The family still needs every member covered: this class is
+        one test per SecretStr Settings field, and ``jwt_secret`` -- the field behind
+        every signed token the API hands out -- was the only member with no pin here.
+        """
         from backend.core.config import Settings
 
-        field_info = Settings.model_fields.get("nemotron_api_key")
+        field_info = Settings.model_fields.get("jwt_secret")
         assert field_info is not None
         assert "SecretStr" in str(field_info.annotation)
 
