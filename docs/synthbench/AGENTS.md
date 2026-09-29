@@ -16,7 +16,7 @@ in `synthbench/`.
 
 ## Rules
 
-- `command-reference.md` must list exactly each command's options: its `## \`<command>\``sections are checked against argparse by`backend/tests/unit/synthbench/test_command_reference.py`.
+- `command-reference.md` must list exactly each command's options: the options table under each command's heading is checked against argparse by `backend/tests/unit/synthbench/test_command_reference.py`.
   Change the document with the parser.
 - `agent-handoff.md` names only the six agent commands (same test). It never describes GPU
   windows or host units (design G11); those belong in `operator-runbook.md`.
