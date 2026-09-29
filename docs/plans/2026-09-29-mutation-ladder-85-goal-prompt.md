@@ -48,6 +48,22 @@ binding constraint is campaign labor, not policy.
 
 ## Ordering rule (the ladder is a RULE, not a frozen list)
 
+> **⛔ R8 SHIELD (2026-09-29): READ
+> `docs/plans/2026-09-29-r8-teardown-mutation-impact.md` BEFORE picking a
+> module.** `chore/r8-s2-nemotron-teardown` deletes 33 bank rows (14,295 kt,
+> 15.4% of the denominator; post-merge badge ≈ 64.5%). **NEVER author
+> batteries for the dead:** `enrichment_pipeline`, `vision_extractor`,
+> `vitpose_loader`, `florence_extractor`, `pose_analysis_service`,
+> `package_tracking_service`, `prompt_auto_tuner`, `analyzer_facade`,
+> `ai_services`, and the 16 `*_loader` modules on its list — the
+> authoritative death list is `DEAD_MODULES`/`DEAD_LOADERS` in
+> `backend/tests/unit/test_r8_s2b_nemotron_deletion.py` on that branch.
+> `prompts.py` (−89% of its lines) and `api/routes/system.py` are
+> do-not-start. The M6-snapshot table below PREDATES the shield — its rows
+> 4–6, 8, 13 are void; the impact doc carries the post-teardown order. Before
+> ANY campaign: `git diff --name-only origin/main...<r8-branch> --
+backend/services backend/api/routes` and skip everything it deletes.
+
 At each campaign start, re-census survivors from the latest published
 score JSON (`scripts/mutation-score.py` snapshot) and take the **largest
 survivor pool whose score is < ~80%** as the next module; the estimate order
@@ -181,7 +197,12 @@ docs/plans/2026-09-29-mutation-ladder-85-goal-prompt.md FIRST — plan of record
 (killed+timeout)/total from 68.9482506662082% (M6) to 85% by per-module
 campaigns. L=docs/plans/2026-09-12-context-map-doc-updates.md: every
 DECIDE/number rowed in L AND the commit body, measured THIS session.
-NEXT: re-census survivors from the published score JSON; run the largest pool
+NEXT: re-census survivors from the published score JSON; BEFORE picking a
+module, read docs/plans/2026-09-29-r8-teardown-mutation-impact.md (R8 legacy
+teardown deletes 33 bank rows — never battery a module on its shield list;
+death list = DEAD_MODULES/DEAD_LOADERS in
+backend/tests/unit/test_r8_s2b_nemotron_deletion.py on the r8 branch); run
+the largest pool
 scoring <80% (doc order at M6: event_broadcaster, batch_aggregator,
 clip_client, florence_client, vision_extractor, enrichment_pipeline, baseline,
 file_watcher, redis_json; then descending; 12-module tail bundles; ONE FULL
