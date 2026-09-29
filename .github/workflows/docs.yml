@@ -62,7 +62,7 @@ jobs:
           "
 
       - name: Upload OpenAPI spec
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openapi-spec
           path: docs-output/api/openapi.json
@@ -109,7 +109,7 @@ jobs:
             --excludeInternal
 
       - name: Upload TypeDoc output
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: typedoc-output
           path: docs-output/typescript/
@@ -148,7 +148,7 @@ jobs:
             --title "Home Security Intelligence API Documentation"
 
       - name: Upload Redoc output
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: redoc-html
           path: docs-output/api-html/
@@ -207,7 +207,7 @@ jobs:
           cp -r docs-output/api-html/* docs-site/api-docs/ 2>/dev/null || true
 
       - name: Upload documentation site
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: docs-site
           path: docs-site/
@@ -280,14 +280,14 @@ jobs:
           cat lychee.toml
 
       - name: Check markdown links
-        uses: lycheeverse/lychee-action@v1
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: --verbose --config lychee.toml './docs/**/*.md'
           fail: true
         continue-on-error: true
 
       - name: Check HTML links
-        uses: lycheeverse/lychee-action@v1
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: --verbose --config lychee.toml './docs-site/**/*.html'
           fail: true
@@ -356,7 +356,7 @@ jobs:
           echo "Created OpenAPI archive: openapi-${TIMESTAMP}-${SHORT_SHA}.json"
 
       - name: Upload versioned OpenAPI
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: openapi-versioned-${{ github.sha }}
           path: openapi-versions/
