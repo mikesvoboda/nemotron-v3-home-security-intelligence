@@ -109,6 +109,20 @@ def test_a_set_that_differs_from_the_corpus_exits_2(
     assert "differs from the corpus" in capsys.readouterr().err
 
 
+def test_a_label_its_group_disagrees_with_exits_2(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The label authority is the directory (the importer's rule), so a threat labeled benign
+    would import as an incident: the taxonomy disagreeing with itself stops the export."""
+    specs = _ready_batch(tmp_path, MIXED, 4)
+    threat = next(spec for spec in specs if spec.cell.group == "threat")
+    spec_file = h.store(tmp_path).spec_file(threat.event_id)
+    document = json.loads(spec_file.read_text(encoding="utf-8"))
+    spec_file.write_text(json.dumps(document | {"label": "benign"}), encoding="utf-8")
+    assert h.run(tmp_path, "export", "vss") == cli.EXIT_ASK
+    assert f"{threat.event_id} is labeled benign" in capsys.readouterr().err
+
+
 def test_a_still_that_no_longer_matches_its_sha256_exits_2(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
