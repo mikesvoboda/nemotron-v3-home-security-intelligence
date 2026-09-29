@@ -11,7 +11,7 @@
 # `gitleaks-action` scans the PR's commit range patch-by-patch, so a line that
 # introduced a match keeps reporting it after a later commit shortens it. The
 # entry below is the record of that, not a shield for the current tree --
-# the value in the file was shortened in 97a2ab59 precisely so the shipped tree
+# the value in the file was shortened in 96b11d2b precisely so the shipped tree
 # does not depend on this entry.
 #
 # 6266c96d (R8 slice S2b, 2026-09-29) -- rule `jwt-secret`, one finding, at
