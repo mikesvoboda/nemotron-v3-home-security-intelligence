@@ -677,7 +677,7 @@ strategy:
 ### Artifact Upload
 
 ```yaml
-- uses: actions/upload-artifact@v6
+- uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
   with:
     name: benchmark-results
     path: gpu-benchmark.json
