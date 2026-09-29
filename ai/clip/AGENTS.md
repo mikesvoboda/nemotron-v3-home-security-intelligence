@@ -70,7 +70,7 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB limit
 
 Container build configuration:
 
-- **Base image**: `nvcr.io/nvidia/tensorrt:26.01-py3`
+- **Base image**: `nvcr.io/nvidia/tensorrt:26.09-py3`
 - **Non-root user**: `clip` for security
 - **Health check**: 60s start period
 - **HuggingFace cache**: `/cache/huggingface`
