@@ -105,6 +105,16 @@ class TestStartStop:
         err = capsys.readouterr().err
         assert "125" in err and "container is locked" in err
 
+    def test_stop_is_bounded_so_a_hung_podman_cannot_block_the_guard(self) -> None:
+        timeouts: list[float | None] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            timeouts.append(kw.get("timeout"))
+            return subprocess.CompletedProcess(argv, 0, "", "")
+
+        serve.stop(run=run)
+        assert timeouts == [90]
+
     def test_start_refuses_a_farm_the_image_does_not_load(self, tmp_path: Path) -> None:
         # The image's extra_model_paths.yaml loads from /export/models/comfyui; another
         # HF_HOME would mount a farm that ComfyUI never reads.

@@ -3,8 +3,9 @@
 The agent runs it after writing prompts.jsonl. When every prompt passes, it freezes each one
 into spec.json with the fixed camera suffix and opens provenance.json with attempt 1. It also
 verifies what the batch already holds: the facts against the sampler, every frozen prompt
-against the rules, and every recorded image against its sha256. The owner runs the same command
-on the host to confirm a batch before relying on it.
+against the rules, every recorded image against its sha256, and the triage limits against
+provenance and triage.jsonl. The owner runs the same command on the host to confirm a batch
+before relying on it.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from synthbench.commands.common import (
     taxonomy,
     write_new,
 )
+from synthbench.commands.triage import is_reroll, reroll_allowance, rerolls_scheduled, triage_rows
 from synthbench.contract.corpus import BatchRecord, IndexRow, PromptRow
 from synthbench.contract.provenance import (
     Attempt,
@@ -80,8 +82,10 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         else:
             fix.extend(f"{spec.event_id}: {problem}" for problem in rules.problems(spec, row, tax))
             pending[spec.event_id] = row
-    output_problems, verified = _output_problems(store, specs)
+    provs = _provenances(store, specs)
+    output_problems, verified = _output_problems(store, specs, provs)
     ask.extend(output_problems)
+    ask.extend(_triage_problems(store, record, provs))
     if ask:
         raise AskOwner(
             f"batch {record.name} is not in the state check expects:\n  " + "\n  ".join(ask) + "\n"
@@ -91,12 +95,14 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
             f"{len(fix)} problem(s) in batch {record.name}; fix prompts.jsonl and run check "
             "again:\n  " + "\n  ".join(fix)
         )
-    frozen_now = _freeze(store, record, specs, pending)
+    index = read_index(store)
+    frozen_now = _freeze(store, record, specs, pending, index)
     sys.stdout.write(
         f"check {record.name}: {len(specs)} events, {frozen_now} frozen now, every prompt "
         f"frozen; {verified} recorded output file(s) verified\n"
-        f"Next: render --batch {record.name}\n"
     )
+    if _awaiting_render(specs, provs, index):
+        sys.stdout.write(f"Next: render --batch {record.name}\n")
     return EXIT_OK
 
 
@@ -172,15 +178,25 @@ def _frozen_problems(spec: Spec, tax: Taxonomy) -> list[str]:
     return found
 
 
-def _output_problems(store: CorpusStore, specs: Sequence[Spec]) -> tuple[list[str], int]:
+def _provenances(store: CorpusStore, specs: Sequence[Spec]) -> dict[str, Provenance]:
+    """provenance.json of every frozen event that has one, by event id."""
+    return {
+        spec.event_id: read(store, store.provenance_file(spec.event_id), Provenance)
+        for spec in specs
+        if spec.frozen and store.provenance_file(spec.event_id).exists()
+    }
+
+
+def _output_problems(
+    store: CorpusStore, specs: Sequence[Spec], provs: Mapping[str, Provenance]
+) -> tuple[list[str], int]:
     """Every recorded image against its sha256, and no image provenance does not name (§2)."""
     problems: list[str] = []
     verified = 0
     for spec in specs:
-        path = store.provenance_file(spec.event_id)
-        if not spec.frozen or not path.exists():
+        prov = provs.get(spec.event_id)
+        if prov is None:
             continue
-        prov = read(store, path, Provenance)
         event_dir = store.event_dir(spec.event_id)
         want = rules.prompt_sha256(spec)
         expected: set[str] = set()
@@ -217,16 +233,77 @@ def _output_problems(store: CorpusStore, specs: Sequence[Spec]) -> tuple[list[st
     return problems, verified
 
 
+def _triage_problems(
+    store: CorpusStore, record: BatchRecord, provs: Mapping[str, Provenance]
+) -> list[str]:
+    """The triage limits (design §4, P3-R11), which an edited clone could have got past (R4)."""
+    rows = triage_rows(store, record)
+    problems: list[str] = []
+    total = 0
+    rerolled: list[str] = []
+    for event_id, prov in provs.items():
+        problems.extend(
+            f"{event_id}: attempt {attempt.k + 1} exists, but attempt {attempt.k} has no reroll "
+            "verdict"
+            for attempt in prov.attempts[:-1]
+            if not is_reroll(attempt)
+        )
+        if scheduled := rerolls_scheduled(prov):
+            total += scheduled
+            rerolled.append(event_id)
+        if scheduled > 1:
+            problems.append(
+                f"{event_id}: {scheduled} triage rerolls scheduled; one is allowed per event"
+            )
+        for attempt in prov.attempts:
+            if attempt.triage is None:
+                continue
+            row = rows.get((event_id, attempt.k))
+            if row is None:
+                problems.append(
+                    f"{event_id}: attempt {attempt.k}'s recorded verdict has no row in triage.jsonl"
+                )
+            elif row.triage() != attempt.triage:
+                problems.append(
+                    f"{event_id}: attempt {attempt.k}'s recorded verdict differs from its "
+                    "triage.jsonl row"
+                )
+    allowance = reroll_allowance(record.n)
+    if total > allowance:
+        problems.append(
+            f"batch {record.name} scheduled {total} triage reroll(s), {allowance} allowed: "
+            + ", ".join(rerolled)
+        )
+    return problems
+
+
+def _awaiting_render(
+    specs: Sequence[Spec], provs: Mapping[str, Provenance], index: Mapping[str, IndexRow]
+) -> bool:
+    """Some event's current attempt awaits a render, once _freeze has opened every attempt 1."""
+    for spec in specs:
+        prov = provs.get(spec.event_id)
+        if prov is None:  # _freeze opened its attempt 1 just now
+            return True
+        row = index.get(spec.event_id)
+        if prov.attempts[-1].render is None and (row is None or row.status != "failed"):
+            return True
+    return False
+
+
 def _store_temp(name: str) -> bool:
     """CorpusStore's temporary files (`.<name>.<random>.tmp`), left only by a crash."""
     return name.startswith(".") and name.endswith(".tmp")
 
 
 def _freeze(
-    store: CorpusStore, record: BatchRecord, specs: Sequence[Spec], pending: Mapping[str, str]
+    store: CorpusStore,
+    record: BatchRecord,
+    specs: Sequence[Spec],
+    pending: Mapping[str, str],
+    index: Mapping[str, IndexRow],
 ) -> int:
     """Freeze each pending prompt, then open provenance for every frozen spec that lacks it."""
-    index = read_index(store)
     rows: list[IndexRow] = []
     frozen_now = 0
     for spec in specs:

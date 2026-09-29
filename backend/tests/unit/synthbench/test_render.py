@@ -18,6 +18,7 @@ from synthbench.contract.provenance import (
     Attempt,
     OutputFile,
     Provenance,
+    RenderFailure,
     Triage,
     attempt_seed,
     render_name,
@@ -148,7 +149,7 @@ def test_a_second_run_renders_nothing(tmp_path: Path, capsys: pytest.CaptureFixt
     again = FakeComfy(clock)
     assert _render(tmp_path, _deps(clock, again)) == cli.EXIT_OK
     assert again.graphs == []
-    assert "nothing to render" in capsys.readouterr().out
+    assert "0 still to render. Next: camera --batch pilot-1" in capsys.readouterr().out
 
 
 def test_render_waits_while_the_flagship_has_requests_waiting(tmp_path: Path) -> None:
@@ -227,16 +228,17 @@ def test_render_starts_no_image_after_its_budget(
 
 
 def test_a_budget_over_the_max_exits_1(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """render.MAX_BUDGET_S (500) plus RENDER_TIMEOUT_S (90) stays under the Bash tool's 600 s
-    per-call cap (P3-R10): a longer budget could let a hung image outlive the call."""
+    """render.MAX_BUDGET_S (480, the default) plus RENDER_TIMEOUT_S (90) is 570 s, under the Bash
+    tool's 600 s per-call cap (P3-R10): a longer budget could let a hung image outlive the call."""
+    assert render.MAX_BUDGET_S == render.DEFAULT_BUDGET_S == 480
     try:  # argparse raises SystemExit for usage errors; the command returns its code
         code = cli.main(
-            ["render", "--batch", "pilot-1", "--budget-seconds", "501"], env=h.env(tmp_path)
+            ["render", "--batch", "pilot-1", "--budget-seconds", "481"], env=h.env(tmp_path)
         )
     except SystemExit as stop:
         code = int(stop.code or 0)
     assert code == cli.EXIT_ERROR
-    assert f"30..{render.MAX_BUDGET_S} seconds, got 501" in capsys.readouterr().err
+    assert f"30..{render.MAX_BUDGET_S} seconds, got 481" in capsys.readouterr().err
 
 
 def test_a_failed_job_is_recorded_and_retried_next_run(tmp_path: Path) -> None:
@@ -250,12 +252,81 @@ def test_a_failed_job_is_recorded_and_retried_next_run(tmp_path: Path) -> None:
     assert _attempt(tmp_path, specs[0]).render is not None
 
 
-def test_three_failed_jobs_stop_and_ask(tmp_path: Path) -> None:
-    _specs, clock = _ready(tmp_path, 1)
+def _failed_rows(root: Path, spec: Spec) -> int:
+    lines = h.store(root).index_file.read_text(encoding="utf-8").splitlines()
+    return sum(spec.event_id in line and '"failed"' in line for line in lines)
+
+
+def _fail_three_jobs(root: Path) -> tuple[Spec, h.FakeClock]:
+    """A 1-event batch whose attempt 1 fails its job on three runs: the third run stops."""
+    (spec,), clock = _ready(root, 1)
     for _ in range(2):
-        assert _render(tmp_path, _deps(clock, FakeComfy(clock, fail=frozenset({1})))) == 0
+        assert _render(root, _deps(clock, FakeComfy(clock, fail=frozenset({1})))) == 0
     with pytest.raises(AskOwner, match="failed to render 3 times"):
-        _render(tmp_path, _deps(clock, FakeComfy(clock, fail=frozenset({1}))))
+        _render(root, _deps(clock, FakeComfy(clock, fail=frozenset({1}))))
+    return spec, clock
+
+
+def test_a_third_failed_job_fails_the_event_and_stops_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """I2: the third failed job appends a `failed` index row the moment it happens, render still
+    renders the rest of the batch, and only then exits 2."""
+    specs, clock = _ready(tmp_path, 2)
+    for _ in range(2):  # both events fail twice
+        both = FakeComfy(clock, fail=frozenset({1, 2}))
+        assert _render(tmp_path, _deps(clock, both)) == cli.EXIT_OK
+    comfy = FakeComfy(clock, fail=frozenset({1}))  # specs[0] fails a third time
+    stuck = rf"failed to render 3 times: {specs[0].event_id}\. This event is now failed"
+    with pytest.raises(AskOwner, match=stuck) as stop:
+        _render(tmp_path, _deps(clock, comfy))
+    assert "sample replacements" in str(stop.value)
+    assert len(comfy.graphs) == 2
+    assert _attempt(tmp_path, specs[1]).render is not None
+    assert h.store(tmp_path).latest_index()[specs[0].event_id].status == "failed"
+    assert _failed_rows(tmp_path, specs[0]) == 1
+    assert "0 still to render" in capsys.readouterr().out
+
+
+def test_a_failed_event_is_skipped_by_the_next_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec, clock = _fail_three_jobs(tmp_path)
+    capsys.readouterr()
+    again = FakeComfy(clock)
+    assert _render(tmp_path, _deps(clock, again)) == cli.EXIT_OK
+    assert again.graphs == []
+    assert "0 still to render" in capsys.readouterr().out
+    assert _failed_rows(tmp_path, spec) == 1
+    assert _attempt(tmp_path, spec).render is None
+
+
+def test_the_report_shows_a_render_failed_event_as_failed(tmp_path: Path) -> None:
+    _fail_three_jobs(tmp_path)
+    assert h.run(tmp_path, "report", "--batch", "pilot-1") == cli.EXIT_OK
+    text = (h.store(tmp_path).batch_dir("pilot-1") / "report.md").read_text(encoding="utf-8")
+    assert "| failed | 1 |" in text
+    assert "| awaiting render | 0 |" in text
+
+
+def test_an_attempt_already_over_the_limit_is_marked_failed_at_the_start(tmp_path: Path) -> None:
+    """An attempt with three failed jobs but no `failed` row (a crash between the provenance
+    write and the index append) is marked failed when the next run starts; the rest renders."""
+    specs, clock = _ready(tmp_path, 2)
+    store = h.store(tmp_path)
+    path = store.provenance_file(specs[0].event_id)
+    prov = store.read(path, Provenance)
+    job = RenderFailure(time="2026-09-28T00:00:00+00:00", error="ComfyError: out of memory")
+    store.replace_json(
+        path, prov.updated(attempts=(prov.attempts[0].updated(render_failures=(job,) * 3),))
+    )
+    comfy = FakeComfy(clock)
+    with pytest.raises(AskOwner, match=rf"{specs[0].event_id}\. This event is now failed"):
+        _render(tmp_path, _deps(clock, comfy))
+    assert len(comfy.graphs) == 1
+    assert _attempt(tmp_path, specs[1]).render is not None
+    assert store.latest_index()[specs[0].event_id].status == "failed"
+    assert _failed_rows(tmp_path, specs[0]) == 1
 
 
 def test_a_renderer_that_stops_answering_stops_render(tmp_path: Path) -> None:
@@ -272,6 +343,27 @@ def test_a_renderer_that_stops_answering_stops_render(tmp_path: Path) -> None:
     attempt = _attempt(tmp_path, specs[0])
     assert attempt.render is None
     assert len(attempt.render_failures) == 1
+
+
+def test_an_unreachable_renderer_is_recorded_but_does_not_count(tmp_path: Path) -> None:
+    """I2: a renderer that stops answering already stops the run for the owner (the guard may
+    have stopped it), so its failure is `unreachable` and does not count toward the three."""
+    (spec,), clock = _ready(tmp_path, 1)
+    for _ in range(2):
+        assert _render(tmp_path, _deps(clock, FakeComfy(clock, fail=frozenset({1})))) == 0
+    comfy = FakeComfy(clock)
+
+    def refused(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/prompt":
+            raise httpx.ConnectError("connection refused", request=request)
+        return comfy(request)
+
+    with pytest.raises(AskOwner, match="stopped answering"):
+        _render(tmp_path, _deps(clock, refused))
+    kinds = [failure.kind for failure in _attempt(tmp_path, spec).render_failures]
+    assert kinds == ["job", "job", "unreachable"]
+    assert _render(tmp_path, _deps(clock, FakeComfy(clock))) == cli.EXIT_OK
+    assert _attempt(tmp_path, spec).render is not None
 
 
 def test_no_renderer_is_a_stop(tmp_path: Path) -> None:

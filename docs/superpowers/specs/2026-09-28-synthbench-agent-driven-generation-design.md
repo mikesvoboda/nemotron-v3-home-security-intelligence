@@ -46,21 +46,21 @@ benchmark run (P5). They follow the parent spec unchanged.
 
 All on maui (GB300), 2026-09-28, unless noted.
 
-| Fact                                                                          | Value                                                                                                                                                                   | Tag |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
-| Flagship after the KV change                                                  | 2,200,824 tokens (8.40× at 262,144); 183.3 GiB at boot, 186.6 GiB after traffic; ~63 GiB free                                                                           | [V] |
-| Flagship KV use, 14 days at 70 GiB                                            | p50 4.3%, p99 60.4%, max 99.9% (one burst, 2026-09-24/25); footprint flat under load (Prometheus)                                                                       | [V] |
-| FLUX.2 [dev] beside the flagship                                              | fully resident (`full load: True`); peak 56.2 GiB over the flagship; 50.1 GiB resident between jobs; 7.0 GiB min free (`--reserve-vram 4`)                              | [V] |
-| Render time vs size, flagship at its normal load (median 11 running requests) | 1920×1088: 23.3 s; **1280×720: 8.2-8.5 s**; 960×544: 4.7 s (3 images each)                                                                                              | [V] |
-| Flagship decode while FLUX renders                                            | 164 → 68 tok/s (−59%); 197 tok/s beside an idle but loaded renderer                                                                                                     | [V] |
-| Plate legibility                                                              | `8KXR-417` readable at all three sizes (visual check, 1 image each)                                                                                                     | [V] |
-| FLUX draws a fake timestamp bar                                               | at 1280×720 and 960×544 when prompted as security-camera footage                                                                                                        | [V] |
-| Real Foscam stills                                                            | 1920×1080 on all 5 cameras (header read, 541 files); median JPEG 120-260 KiB                                                                                            | [V] |
-| ZFS delegation on `primary/export/synthbench`                                 | `msvoboda`: snapshot, diff, destroy, mount; child dataset `…/corpus` exists; snapshot, diff, destroy tested                                                             | [V] |
-| systemd user lingering                                                        | `Linger=yes`                                                                                                                                                            | [V] |
-| A sandbox reaches host loopback ports                                         | `http://host.docker.internal:8188` answered from a fresh sandbox; `127.0.0.1:8188` did not (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)            | [V] |
-| The sandbox agent's image reads reach Qwen vision                             | through LiteLLM's `/v1/messages` translation: a known word read back exactly (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)                          | [V] |
-| Sandbox mounts under `/export`                                                | fail at `sbx create` (`policybind` cannot stat `/mnt/host/export/…`); the dataset now mounts at `/synthbench`, with `/synthbench` a host symlink (P3 probe, 2026-09-28) | [V] |
+| Fact                                                                          | Value                                                                                                                                                                                        | Tag |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| Flagship after the KV change                                                  | 2,200,824 tokens (8.40× at 262,144); 183.3 GiB at boot, 186.6 GiB after traffic; ~63 GiB free                                                                                                | [V] |
+| Flagship KV use, 14 days at 70 GiB                                            | p50 4.3%, p99 60.4%, max 99.9% (one burst, 2026-09-24/25); footprint flat under load (Prometheus)                                                                                            | [V] |
+| FLUX.2 [dev] beside the flagship                                              | fully resident (`full load: True`); peak 56.2 GiB over the flagship; 50.1 GiB resident between jobs; 7.0 GiB min free (`--reserve-vram 4`)                                                   | [V] |
+| Render time vs size, flagship at its normal load (median 11 running requests) | 1920×1088: 23.3 s; **1280×720: 8.2-8.5 s**; 960×544: 4.7 s (3 images each)                                                                                                                   | [V] |
+| Flagship decode while FLUX renders                                            | 164 → 68 tok/s (−59%); 197 tok/s beside an idle but loaded renderer                                                                                                                          | [V] |
+| Plate legibility                                                              | `8KXR-417` readable at all three sizes (visual check, 1 image each)                                                                                                                          | [V] |
+| FLUX draws a fake timestamp bar                                               | at 1280×720 and 960×544 when prompted as security-camera footage                                                                                                                             | [V] |
+| Real Foscam stills                                                            | 1920×1080 on all 5 cameras (header read, 541 files); median JPEG 120-260 KiB                                                                                                                 | [V] |
+| ZFS delegation on `primary/export/synthbench`                                 | `msvoboda`: snapshot, diff, destroy, mount; child dataset `…/corpus` exists; snapshot, diff, destroy tested                                                                                  | [V] |
+| systemd user lingering                                                        | `Linger=yes`                                                                                                                                                                                 | [V] |
+| A sandbox reaches host loopback ports                                         | `http://host.docker.internal:8188` answered from a fresh sandbox; `127.0.0.1:8188` did not (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)                                 | [V] |
+| The sandbox agent's image reads reach Qwen vision                             | through LiteLLM's `/v1/messages` translation: a known word read back exactly (P3 probe, 2026-09-28, `docs/benchmarks/synthbench/p3-probes.md`)                                               | [V] |
+| Sandbox mounts under `/export`                                                | fail at `sbx create` (`policybind` cannot stat `/mnt/host/export/…`); the dataset's mountpoint is now `/synthbench`, and `/export/synthbench` is a host symlink to it (P3 probe, 2026-09-28) | [V] |
 
 ## §1 Architecture
 
@@ -221,12 +221,17 @@ and refuses to start above 0.76.
 3. Never skip past a held snapshot. Only the oldest is ever destroyed, so no deletion can slip
    through a gap.
 
-The owner resolves a hold in one of two ways:
+The prune rule diffs two snapshots that never change, so a hold clears only when the owner
+destroys the held snapshot. Copying files back alone never clears it. The owner either:
 
-- copy the files back from `/synthbench/corpus/.zfs/snapshot/<name>/`; or
-- accept the loss and `zfs destroy` the snapshot.
+- keeps the files: copies them back from `/synthbench/corpus/.zfs/snapshot/<name>/` into the
+  live corpus first, then runs `zfs destroy` on the held snapshot; or
+- accepts the loss: just runs `zfs destroy` on it.
 
-Snapshots accumulate beyond 5 until then. The append-only rule keeps them cheap.
+Restoring a modified image is itself a modification, so the next snapshot then holds the only
+copy of the modified version: expect one more hold, check it, and destroy it the same way.
+
+Snapshots accumulate beyond 5 until the hold clears. The append-only rule keeps them cheap.
 
 **Known gap.** A file created and deleted within the same 6 h is in no snapshot. ComfyUI's own
 copy in `/synthbench/comfy-out` is the fallback for renders.

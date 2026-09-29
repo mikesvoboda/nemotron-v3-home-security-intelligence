@@ -34,6 +34,8 @@ You cannot, and must not try to:
 
 ## How to run the commands
 
+- First, once: run `uv sync --frozen` from the repository root, with a Bash timeout of
+  600000 ms (10 minutes). The first sync takes several minutes.
 - Run every command from the repository root: `uv run python -m synthbench <command> --batch <name>`.
 - Give `render` a Bash timeout of 600000 ms (10 minutes). It stops starting images after
   480 s, prints `N still to render`, and you run it again until N is 0.
@@ -41,6 +43,8 @@ You cannot, and must not try to:
   the message, fix it, and run the command again.
 - Exit `2` means **stop and ask the owner**. Do not retry it and do not work around it. Tell
   the owner the command and its full message, and wait.
+- A message that starts `unexpected error`, or a Python traceback, is also a stop-and-ask,
+  whatever the exit code. It is never yours to fix in the library code.
 
 ## The loop for one batch
 
@@ -85,7 +89,7 @@ Every command resumes where it stopped. If you were interrupted, run the same st
 
 Describe the scene in plain, concrete words:
 
-- the place, and the viewpoint of the spec's camera;
+- the place, as seen from the spec's camera position (see `cell.camera` below);
 - the time of day, the light and the weather;
 - each person or animal: what they wear and what they do;
 - each object.
@@ -101,20 +105,28 @@ Use the spec's facts, and add no person, animal or weapon that is not in it.
    - Every person is anonymous. Describe people generically ("a man in a gray hoodie"); never
      name or suggest a real or famous person.
 3. **Length:** at most 1,200 characters.
-4. **No camera styling.** Do not write "security camera", "CCTV", "footage", "timestamp",
-   "watermark" or the like. `check` adds a fixed camera description to every prompt, and the
-   camera stage draws the real timestamp.
+4. **No camera words.** Describe what the camera position sees, never the camera or its lens.
+   `check` adds the camera look to every prompt itself, and the camera stage draws the real
+   timestamp. `check` rejects these words and phrases in any case, with or without hyphens,
+   and their plurals (rule 4 of `synthbench/prompt/blocklist.yaml`): `security camera`,
+   `cctv`, `surveillance`, `footage`, `camera view`, `timestamp`, `time stamp`, `date stamp`,
+   `watermark`, `caption`, `on screen text`, `text overlay`, `subtitle`, `logo`,
+   `wide angle lens`, `fisheye`.
 
 What the spec's fields mean:
 
-| Field                                          | Meaning                                                                               |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `cell.property_type`, `cell.zone`              | the place                                                                             |
-| `cell.camera`                                  | the viewpoint: doorbell_fisheye, eave_wide, garage_mounted, pole_lot or indoor_corner |
-| `cell.lighting`                                | day, golden_hour, dusk, ir_night or porch_lit_night                                   |
-| `cell.weather`, `cell.artifacts`, `scene_time` | weather, lens effects, and the time (HH:MM)                                           |
-| `subjects[].attributes.clothing`               | what a person wears                                                                   |
-| `props[].held_by`                              | which subject holds the prop                                                          |
+| Field                                          | Meaning                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `cell.property_type`, `cell.zone`              | the place                                                                                   |
+| `cell.camera`                                  | the camera position: doorbell_fisheye, eave_wide, garage_mounted, pole_lot or indoor_corner |
+| `cell.lighting`                                | day, golden_hour, dusk, ir_night or porch_lit_night                                         |
+| `cell.weather`, `cell.artifacts`, `scene_time` | weather, lens effects, and the time (HH:MM)                                                 |
+| `subjects[].attributes.clothing`               | what a person wears                                                                         |
+| `props[].held_by`                              | which subject holds the prop                                                                |
+
+For `cell.camera`, describe what that position sees: a close view of the front step from
+beside the door, or a driveway from above the garage. Never name the lens: `fisheye` and
+`wide angle lens` break rule 4.
 
 For `ir_night`, write a night scene; the camera stage turns it into infrared grey.
 
@@ -159,7 +171,7 @@ After `report`, write a short message with:
 
 ## Stop and ask the owner when
 
-- any command exits 2;
+- any command exits 2, or prints `unexpected error` or a Python traceback;
 - `check` reports a problem that is not in your own prompt rows (for example, a spec whose
   facts differ);
 - you are unsure whether a prompt meets the content rules;

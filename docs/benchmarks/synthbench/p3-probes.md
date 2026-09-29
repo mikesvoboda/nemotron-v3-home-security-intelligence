@@ -44,6 +44,19 @@ ln -s /synthbench /export/synthbench                            # host paths kee
 The dataset names are unchanged (`primary/export/synthbench/corpus`). To revert, remove the
 symlink and run `sudo zfs inherit mountpoint primary/export/synthbench`.
 
+## Sandbox image
+
+The sandbox image lacks the X11 and GL libraries that the locked `opencv-python` wheel links.
+`import cv2` fails with `libxcb.so.1` missing, and every synthbench command imports OpenCV at
+start-up, `sample` included (verified 2026-09-28). The fix, once per sandbox:
+
+```bash
+sbx exec agent-<name> sudo apt-get install -y libxcb1 libgl1 libglib2.0-0
+```
+
+The operator runbook's "Create the agent's sandbox" runs it, then `uv sync --frozen` and
+`uv run python -c "import synthbench.cli"` to confirm.
+
 ## ZFS (host, same day)
 
 A replace shows as `-` and `+` on the same path in `zfs diff -FH`. An in-place write or an

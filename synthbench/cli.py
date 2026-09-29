@@ -1,7 +1,8 @@
 """`python -m synthbench <command>`: the synthbench command line (agent-driven design §3).
 
 Every command exits 0 when done, 1 on an error (fix the request and retry), and 2 when the
-agent must stop and ask the owner. Each command lives in synthbench/commands/.
+agent must stop and ask the owner. Any other exception is a bug or a corpus state no command
+expects, so it exits 2 too, never 1. Each command lives in synthbench/commands/.
 """
 
 from __future__ import annotations
@@ -52,4 +53,6 @@ def main(argv: Sequence[str] | None = None, env: Mapping[str, str] | None = None
         return fail(EXIT_ERROR, str(error))
     except AskOwner as error:
         return fail(EXIT_ASK, f"{error} {ASK_OWNER}")
+    except Exception as error:  # not SystemExit or KeyboardInterrupt: those are BaseException
+        return fail(EXIT_ASK, f"unexpected error: {type(error).__name__}: {error}. {ASK_OWNER}")
     return code

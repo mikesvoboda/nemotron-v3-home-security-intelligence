@@ -164,12 +164,16 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
 
 
 def stop(run: Runner = subprocess.run) -> None:
-    """Stop the renderer; a missing one is fine (--ignore), a failed stop is logged."""
+    """Stop the renderer; a missing one is fine (--ignore), a failed stop is logged.
+
+    A podman that hangs raises TimeoutExpired after 90 s, so it cannot block the guard forever.
+    """
     done = run(
         [*podman_argv(), "stop", "--ignore", "--time", "30", CONTAINER],
         check=False,
         capture_output=True,
         text=True,
+        timeout=90,
     )
     if done.returncode != 0:
         _warn(f"podman stop {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")

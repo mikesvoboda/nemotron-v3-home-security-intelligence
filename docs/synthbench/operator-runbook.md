@@ -30,11 +30,15 @@ cd /synthbench/host-checkout && uv sync --frozen
 mkdir -p /synthbench/status
 .venv/bin/python -m synthbench.host.units install
 systemctl --user enable --now synthbench-guard.service synthbench-snapshot.timer
-systemctl --user restart synthbench-guard.service                          # after an update
+systemctl --user restart synthbench-guard.service       # after an update, renderer stopped
 ```
 
 `units install` writes `~/.config/systemd/user/synthbench-*` for the checkout it runs from, and
 reloads systemd when a file changed. `units show` prints them.
+
+The renderer unit is bound to the guard (`BindsTo=`), so restarting the guard also restarts a
+running renderer: an in-flight render fails, and a new warm-up runs. Update the checkout and
+restart the guard only while the renderer is stopped.
 
 ## The renderer
 
@@ -76,10 +80,18 @@ report shows it, `status/snapshots.json` names it, and the timer's last run exit
    zfs diff -FH <held snapshot> <the next snapshot>
    ```
 
-2. Either copy the files back from `/synthbench/corpus/.zfs/snapshot/<name>/…` to the
-   same paths, or accept the loss with `zfs destroy <held snapshot>`.
+2. Destroy the held snapshot. The prune rule diffs two snapshots that never change, so a hold
+   clears only when the held snapshot is destroyed; copying files back alone never clears it.
+   - **To keep the files:** first copy them back from
+     `/synthbench/corpus/.zfs/snapshot/<held>/…` (`<held>` is the snapshot's name after the
+     `@`) to the same paths in the live corpus. Then `zfs destroy <held snapshot>`. The live
+     corpus holds the files again, and the next snapshot keeps them.
+   - **To accept the loss:** just `zfs destroy <held snapshot>`.
 3. Run `systemctl --user start synthbench-snapshot.service`. `status/snapshots.json` shows
    `"hold": null` once pruning gets through.
+4. If you restored a modified image, expect one more hold. The restore is itself a
+   modification, so the next snapshot now holds the only copy of the modified version. Check it
+   with `zfs diff -FH` as in step 1, then destroy it the same way.
 
 Snapshots accumulate past 5 until you resolve the hold. A file created and deleted within the
 same 6 h is in no snapshot. ComfyUI keeps its own copy of every render under
@@ -90,11 +102,41 @@ same 6 h is in no snapshot. ComfyUI keeps its own copy of every render under
 Run this from the repository checkout at the commit the agent should use. Its workspace is a
 clone of that checkout.
 
+That commit must be the host checkout's commit. The owner's host `check` re-applies the host's
+own `synthbench/prompt/` (the rules, the blocklist, the camera suffix) and
+`synthbench/taxonomy/` (the taxonomy and the sampler) to the batch. If they differ from the
+agent's, the host `check` exits 2 on every frozen prompt. The first command below checks it.
+
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence
+test "$(git rev-parse HEAD)" = "$(git -C /synthbench/host-checkout rev-parse HEAD)" && echo same
 agent-dgx run synthbench-gen --agent claude --endpoint dgx \
   --mount /synthbench/corpus:rw --mount /synthbench/status:ro
 ```
+
+After it is created, prepare the sandbox (`agent-synthbench-gen`, workspace
+`/agents/agent-synthbench-gen/workspace`):
+
+1. Install the libraries OpenCV needs. The sandbox image lacks them, and `import cv2` fails
+   with `libxcb.so.1` missing (verified 2026-09-28; `docs/benchmarks/synthbench/p3-probes.md`):
+
+   ```bash
+   sbx exec agent-synthbench-gen sudo apt-get install -y libxcb1 libgl1 libglib2.0-0
+   ```
+
+2. Sync the dependencies. The first sync is long:
+
+   ```bash
+   sbx exec agent-synthbench-gen bash -lc \
+     'cd /agents/agent-synthbench-gen/workspace && uv sync --frozen'
+   ```
+
+3. Confirm that the commands import:
+
+   ```bash
+   sbx exec agent-synthbench-gen bash -lc \
+     'cd /agents/agent-synthbench-gen/workspace && uv run python -c "import synthbench.cli"'
+   ```
 
 Then tell the agent: "Read docs/synthbench/agent-handoff.md and follow it", with the batches you
 want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
@@ -116,16 +158,39 @@ want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
 2. Open `<corpus>/batches/<b>/sheet.html` in a browser on the host.
 3. Confirm the batch from the host checkout: `cd /synthbench/host-checkout &&
 .venv/bin/python -m synthbench check --batch <b>` must exit 0. It re-checks every fact
-   against the sampler, every frozen prompt against the rules, and every image against its
-   sha256. The agent's own clone could have been edited; this checkout was not.
+   against the sampler, every frozen prompt against the rules, every image against its
+   sha256, and the triage limits (one reroll per event, the batch's 10% cap, each verdict
+   equal to its `triage.jsonl` row). The agent's own clone could have been edited; this
+   checkout was not.
+4. Diff the agent's workspace against the commit the sandbox was created from, which is the
+   host checkout's commit:
+
+   ```bash
+   diff -rq -x __pycache__ /synthbench/host-checkout/synthbench \
+     /agents/agent-synthbench-gen/workspace/synthbench
+   diff -rq /synthbench/host-checkout/docs/synthbench \
+     /agents/agent-synthbench-gen/workspace/docs/synthbench
+   ```
+
+   Any difference under `synthbench/` or `docs/synthbench/` is a stop: review it before you
+   accept the batch. `diff` compares the files themselves, committed or not. Do not run `git`
+   in the agent's workspace on the host: its `.git/config` is the agent's to write, and some
+   settings there (`core.fsmonitor`) run commands.
 
 ## The agent's stop-and-ask questions
 
-| The agent reports                          | You                                                                                    |
-| ------------------------------------------ | -------------------------------------------------------------------------------------- |
-| the renderer is unreachable or stopped     | read the guard's journal; start the renderer once the flagship is healthy              |
-| the status file is stale or missing        | `systemctl --user restart synthbench-guard.service`                                    |
-| the reroll cap                             | look at the failed stills; sample a replacement batch if the scenario needs the events |
-| an attempt failed to render 3 times        | read its `render_failures` in `provenance.json` and ComfyUI's log                      |
-| the taxonomy changed                       | a changed taxonomy needs a new corpus version: edit `version:` in the YAML             |
-| a spec, prompt or image is not as expected | find out who changed it (`zfs diff` against the last snapshot) before going on         |
+| The agent reports                          | You                                                                                     |
+| ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| the renderer is unreachable or stopped     | read the guard's journal; start the renderer once the flagship is healthy               |
+| the status file is stale or missing        | `systemctl --user restart synthbench-guard.service`; it restarts a running renderer too |
+| the reroll cap                             | look at the failed stills; sample a replacement batch if the scenario needs the events  |
+| an attempt failed to render 3 times        | the event is now failed; see below                                                      |
+| the taxonomy changed                       | a changed taxonomy needs a new corpus version: edit `version:` in the YAML              |
+| a spec, prompt or image is not as expected | find out who changed it (`zfs diff` against the last snapshot) before going on          |
+
+**An attempt failed to render 3 times.** Its event is now `failed` in `index.jsonl`, a
+terminal state: later `render` runs skip it, and the batch finishes without it. Read its
+`render_failures` in `provenance.json` and ComfyUI's log (`/synthbench/logs/comfyui.log`), and
+fix the cause before the agent renders more. A failure recorded while the renderer was
+unreachable is marked `unreachable` and does not count toward the 3. Whether to sample
+replacements is your decision.

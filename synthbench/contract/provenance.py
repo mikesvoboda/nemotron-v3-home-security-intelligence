@@ -29,6 +29,10 @@ TriageReason = Literal[
     "text_overlay",
 ]
 
+# A render failure's kind. Three failed `job`s fail the event; an `unreachable` renderer does
+# not count, since it already stops the run for the owner.
+FailureKind = Literal["job", "unreachable"]
+
 _OVERLAY_TIME = re.compile(
     r"\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):[0-5]\d:[0-5]\d"
 )
@@ -81,6 +85,7 @@ class RenderFailure(ContractModel):
 
     time: str
     error: str = Field(min_length=1, max_length=500)
+    kind: FailureKind = "job"
 
 
 class Attempt(ContractModel):

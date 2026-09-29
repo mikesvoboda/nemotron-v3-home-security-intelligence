@@ -43,6 +43,16 @@ def reroll_allowance(n: int) -> int:
     return math.floor(n * REROLL_SHARE + 1e-9)
 
 
+def is_reroll(attempt: Attempt) -> bool:
+    """Triage recorded a reroll verdict on the attempt."""
+    return attempt.triage is not None and attempt.triage.verdict == "reroll"
+
+
+def rerolls_scheduled(prov: Provenance) -> int:
+    """Triage rerolls the event has scheduled: its earlier attempts with a reroll verdict."""
+    return sum(1 for attempt in prov.attempts[:-1] if is_reroll(attempt))
+
+
 def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
     parser = commands.add_parser(
         "triage",
@@ -62,10 +72,10 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         for e in record.event_ids
         if store.provenance_file(e).exists()
     }
-    rows = _rows(store, record)
+    rows = triage_rows(store, record)
     _validate(rows, provs)
     allowance = reroll_allowance(record.n)
-    scheduled = sum(1 for prov in provs.values() if _rerolled_before(prov))
+    scheduled = sum(rerolls_scheduled(prov) for prov in provs.values())
     counts: Counter[str] = Counter()
     over_cap: list[str] = []
     index_rows: list[IndexRow] = []
@@ -82,7 +92,7 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         status: EventStatus
         if verdict.verdict == "ok":
             status = "ready"
-        elif _rerolled_before(prov) or len(prov.attempts) >= MAX_ATTEMPTS:
+        elif rerolls_scheduled(prov) or len(prov.attempts) >= MAX_ATTEMPTS:
             status = "failed"
         elif scheduled >= allowance:
             status = "failed"
@@ -130,12 +140,8 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     return EXIT_OK
 
 
-def _rerolled_before(prov: Provenance) -> bool:
-    """Triage already rerolled this event: an earlier attempt has a reroll verdict."""
-    return any(a.triage is not None and a.triage.verdict == "reroll" for a in prov.attempts[:-1])
-
-
-def _rows(store: CorpusStore, record: BatchRecord) -> Rows:
+def triage_rows(store: CorpusStore, record: BatchRecord) -> Rows:
+    """The batch's triage.jsonl by (event id, attempt); exit 1 on a malformed or unknown row."""
     path = store.batch_dir(record.name) / "triage.jsonl"
     if not path.exists():
         return {}

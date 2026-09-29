@@ -15,7 +15,7 @@ from synthbench.taxonomy.model import Taxonomy
 ARGV = ["sample", "--batch", "pilot-1", "--n", "1"]
 
 
-def _raising(error: Exception) -> Callable[[argparse.Namespace, Mapping[str, str]], int]:
+def _raising(error: BaseException) -> Callable[[argparse.Namespace, Mapping[str, str]], int]:
     def run(_args: argparse.Namespace, _env: Mapping[str, str]) -> int:
         raise error
 
@@ -44,6 +44,23 @@ def test_stop_kinds_map_to_exit_codes(
     monkeypatch.setattr(sample, "run", _raising(error))
     assert cli.main(ARGV, env={"SYNTHBENCH_ROOT": str(tmp_path)}) == code
     assert text in capsys.readouterr().err
+
+
+def test_an_unexpected_error_is_a_stop_not_a_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A bug or a hand-edited file must not exit 1, which tells the agent to fix its request
+    (and invites it to edit library code); only an interrupt still propagates."""
+    env = {"SYNTHBENCH_ROOT": str(tmp_path)}
+    monkeypatch.setattr(sample, "run", _raising(IndexError("tuple index out of range")))
+    assert cli.main(ARGV, env=env) == cli.EXIT_ASK
+    assert capsys.readouterr().err == (
+        "synthbench: unexpected error: IndexError: tuple index out of range. "
+        "Stop and ask the owner.\n"
+    )
+    monkeypatch.setattr(sample, "run", _raising(KeyboardInterrupt()))
+    with pytest.raises(KeyboardInterrupt):
+        cli.main(ARGV, env=env)
 
 
 def test_a_taxonomy_that_does_not_load_stops_every_command(

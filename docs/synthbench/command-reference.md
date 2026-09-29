@@ -8,6 +8,9 @@ Every command runs from the repository root as `uv run python -m synthbench <com
 | `1`       | the request or one of your files needs fixing |
 | `2`       | stop and ask the owner                        |
 
+An unexpected error (a bug, or a corpus file no command expects) also exits 2, with
+`unexpected error: <type>: <message>`.
+
 Paths below are relative to the corpus version directory,
 `$SYNTHBENCH_ROOT/corpus/<version>/` (today `/synthbench/corpus/tierb-v0/`). `<b>` is a
 batch name and `<id>` an event id.
@@ -42,24 +45,36 @@ same specs, and running it again finishes a batch that was only partly written.
 
 Validates `batches/<b>/prompts.jsonl` and freezes the prompts when every one passes (design §3
 step 3, rules in §3.1). It also verifies the whole batch: facts against the sampler, frozen
-prompts against the rules, and every recorded image against its sha256. The owner runs it on
-the host to confirm a batch.
+prompts against the rules, every recorded image against its sha256, and the triage limits
+(design §4). The owner runs it on the host to confirm a batch.
 
 | Option        | Default  | Meaning    |
 | ------------- | -------- | ---------- |
 | `--batch <b>` | required | batch name |
 
-- **Reads:** the batch's specs, `prompts.jsonl`, each `provenance.json`, and the images it
-  names.
+- **Reads:** the batch's specs, `prompts.jsonl`, `triage.jsonl`, each `provenance.json`, and
+  the images it names.
 - **Writes (only when every prompt passes):**
   - `spec.json` with `prompt` and `camera_suffix` frozen;
   - `provenance.json` with attempt 1;
   - `index.jsonl` rows with status `prompted`.
-- **Exit 1:** a prompt breaks a rule (`<id>: rule N: …`); a row is missing, malformed, unknown
-  or duplicated; a row differs from its frozen prompt; or specs were never written (it prints
-  the `sample` command that finishes the batch).
-- **Exit 2:** a spec's facts differ from the sampler's; a frozen prompt now breaks a rule; the
-  camera suffix changed; or an image is missing, modified, or not named by provenance.
+- **Prints:** `Next: render --batch <b>` while some event's current attempt awaits a render.
+- **Exit 1:**
+  - a prompt breaks a rule (`<id>: rule N: …`);
+  - a `prompts.jsonl` row is missing, malformed, unknown or duplicated, or differs from its
+    frozen prompt;
+  - a `triage.jsonl` row is malformed, unknown or duplicated;
+  - specs were never written (it prints the `sample` command that finishes the batch);
+  - no batch `<b>` (run `sample` first).
+- **Exit 2:**
+  - a spec's facts differ from the sampler's;
+  - a frozen prompt now breaks a rule, or the camera suffix changed;
+  - an attempt's seed or `prompt_sha256` is not the one its event, attempt number and frozen
+    prompt give;
+  - an image is missing, modified, or not named by provenance;
+  - a triage limit is broken: an attempt follows one without a reroll verdict, an event was
+    rerolled twice, the batch rerolled more than its 10% allows, or a recorded verdict is not
+    its `triage.jsonl` row.
 
 ## `render`
 
@@ -70,19 +85,25 @@ Before every image it reads `/synthbench/status/flagship.json`, and waits, polli
 | Option                 | Default  | Meaning                                             |
 | ---------------------- | -------- | --------------------------------------------------- |
 | `--batch <b>`          | required | batch name                                          |
-| `--budget-seconds <s>` | 480      | start no new image after this many seconds (30-500) |
+| `--budget-seconds <s>` | 480      | start no new image after this many seconds (30-480) |
 
-- **Reads:** specs, `provenance.json`, the status file.
+- **Reads:** specs, `provenance.json`, `index.jsonl`, the status file.
 - **Writes:**
   - `events/B/<id>/renders/a<k>-s<seed>.png`;
-  - `provenance.json` (the render's sha256, seconds and model hashes, or a failed job);
-  - `index.jsonl` rows with status `rendered`.
-- **Prints:** `N rendered now, M still to render`. Run it again until M is 0.
-- **Exit 1:** an event has no frozen prompt (run `check` first).
+  - `provenance.json` (the render's sha256, seconds and model hashes, or a failure: a failed
+    `job`, or `unreachable` when the renderer stopped answering);
+  - `index.jsonl` rows with status `rendered`, or `failed` for an event whose attempt failed its
+    third job.
+- **Prints:** `N rendered now, M still to render`. Run it again until M is 0; with nothing
+  left it prints `0 still to render`.
+- **Exit 1:** an event has no frozen prompt (run `check` first); no batch `<b>` (run `sample`
+  first).
 - **Exit 2:**
-  - the renderer is unreachable, or stops answering mid-run;
+  - the renderer is unreachable, or stops answering mid-run (recorded as `unreachable`, which
+    does not count as a failed job);
   - the status file is missing or older than 30 s;
-  - one attempt failed to render 3 times;
+  - an attempt failed its third job. Its event is now `failed`: render marks it in
+    `index.jsonl`, renders the rest, and exits 2 once. Later runs skip the event;
   - an unrecorded file is in the way.
 
 ## `camera`
@@ -97,6 +118,7 @@ lens distortion, IR grey at night, sensor noise, the timestamp, JPEG.
 - **Reads:** each render and its sha256.
 - **Writes:** `events/B/<id>/stills/a<k>-s<seed>.jpg`, and `provenance.json` (the still's
   sha256, the parameter set, and the drawn timestamp).
+- **Exit 1:** no batch `<b>` (run `sample` first).
 - **Exit 2:** a render no longer matches its sha256; an unrecorded still differs; or the stage
   fails.
 
@@ -115,7 +137,8 @@ step 7, §4). Each row is `{"event_id": …, "k": <attempt>, "verdict": "ok"}` o
 - **Exit 1:**
   - a malformed, unknown or duplicated row;
   - an attempt that does not exist or has no still;
-  - a changed verdict (verdicts are final).
+  - a changed verdict (verdicts are final);
+  - no batch `<b>` (run `sample` first).
 - **Exit 2:** a reroll past the batch's 10% cap. That event is marked failed; its verdict is
   recorded.
 
@@ -136,6 +159,7 @@ replaces them.
   - snapshot holds from `/synthbench/status/snapshots.json`;
   - one row per event.
 - **sheet.html:** a contact sheet of every event's current still.
+- **Exit 1:** no batch `<b>` (run `sample` first).
 - **Exit 2:** a corpus file cannot be read or written.
 
 ## `corpus snapshot`

@@ -2,8 +2,10 @@
 
 Agent-driven design §3 step 4. It yields to the flagship before every image (§5.2) and starts
 no new image once its time budget is spent (plan ruling P3-R10); each run resumes where the last
-one stopped. A failed job is recorded and retried on the next run; three failures on one
-attempt, a renderer that stops answering, or an unknown flagship state stop the run (exit 2).
+one stopped. A failed job is recorded and retried on the next run. The third failed job on one
+attempt fails its event: render marks it `failed` in the index, renders the rest, and exits 2
+once; later runs skip it. A renderer that stops answering, or an unknown flagship state, stops
+the run (exit 2); an unreachable renderer is recorded but does not count as a failed job.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ import argparse
 import hashlib
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -29,12 +31,20 @@ from synthbench.commands.common import (
     open_batch,
     read,
     read_bytes,
+    read_index,
     replace_json,
     taxonomy,
     write_new_bytes,
 )
 from synthbench.contract.corpus import BatchRecord, IndexRow
-from synthbench.contract.provenance import OutputFile, Provenance, RenderFailure, render_name
+from synthbench.contract.provenance import (
+    Attempt,
+    FailureKind,
+    OutputFile,
+    Provenance,
+    RenderFailure,
+    render_name,
+)
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
 from synthbench.generate.comfy.client import ComfyClient, ComfyError
@@ -49,9 +59,10 @@ from synthbench.generate.render import (
 from synthbench.status import FlagshipUnknown, flagship_file
 
 DEFAULT_BUDGET_S = 480
-# MAX_BUDGET_S + RENDER_TIMEOUT_S = 590 s, under the Bash tool's 600 s per-call cap (P3-R10):
-# one hung image must not be able to outlive the call the agent renders it in.
-MAX_BUDGET_S = 500
+# MAX_BUDGET_S + RENDER_TIMEOUT_S = 480 + 90 = 570 s, under the Bash tool's 600 s per-call cap
+# (P3-R10): one hung image must not be able to outlive the call the agent renders it in. The
+# margin covers start-up, the renderer probe and the last download, which the budget leaves out.
+MAX_BUDGET_S = 480
 MAX_RENDER_FAILURES = 3
 RENDER_TIMEOUT_S = 90.0
 
@@ -105,15 +116,20 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
 def execute(batch: str, budget_s: float, env: Mapping[str, str], deps: Deps) -> int:
     tax = taxonomy()
     store, record = open_batch(tax, env, batch)
-    pending = [(s, p) for s, p in _frozen_events(store, record) if p.attempts[-1].render is None]
-    stuck = [
-        s.event_id for s, p in pending if len(p.attempts[-1].render_failures) >= MAX_RENDER_FAILURES
+    failed = {event for event, row in read_index(store).items() if row.status == "failed"}
+    pending = [
+        (s, p)
+        for s, p in _frozen_events(store, record)
+        if p.attempts[-1].render is None and s.event_id not in failed
     ]
-    todo = [(s, p) for s, p in pending if s.event_id not in stuck]
+    # Over the limit but not marked yet: a run that stopped between provenance and the index.
+    stuck = [s for s, p in pending if _job_failures(p.attempts[-1]) >= MAX_RENDER_FAILURES]
+    _mark_failed(store, stuck)
+    todo = [(s, p) for s, p in pending if _job_failures(p.attempts[-1]) < MAX_RENDER_FAILURES]
     if not todo:
         if stuck:
             raise AskOwner(_stuck_message(stuck))
-        sys.stdout.write(f"render {batch}: nothing to render. Next: camera --batch {batch}\n")
+        sys.stdout.write(f"render {batch}: 0 still to render. Next: camera --batch {batch}\n")
         return EXIT_OK
     try:
         url = comfy_url(env, deps.get)
@@ -141,10 +157,11 @@ def execute(batch: str, budget_s: float, env: Mapping[str, str], deps: Deps) -> 
             else:
                 failed_jobs += 1
                 if failures >= MAX_RENDER_FAILURES:
-                    stuck.append(spec.event_id)
+                    _mark_failed(store, [spec])
+                    stuck.append(spec)
     finally:
         client.close()
-    left = len(pending) - rendered
+    left = len(pending) - len(stuck) - rendered
     sys.stdout.write(
         f"render {batch}: {rendered} rendered now, {left} still to render, {failed_jobs} failed "
         f"job(s) this run (ComfyUI at {url})\n"
@@ -155,10 +172,34 @@ def execute(batch: str, budget_s: float, env: Mapping[str, str], deps: Deps) -> 
     return EXIT_OK
 
 
-def _stuck_message(stuck: list[str]) -> str:
+def _job_failures(attempt: Attempt) -> int:
+    """Failed jobs on the attempt. An unreachable renderer is the owner's, not the job's."""
+    return sum(1 for failure in attempt.render_failures if failure.kind == "job")
+
+
+def _mark_failed(store: CorpusStore, stuck: Sequence[Spec]) -> None:
+    append_index(
+        store,
+        [
+            IndexRow(
+                event_id=spec.event_id,
+                batch=spec.batch,
+                scenario=spec.cell.scenario,
+                label=spec.label,
+                status="failed",
+                time=now_iso(),
+            )
+            for spec in stuck
+        ],
+    )
+
+
+def _stuck_message(stuck: Sequence[Spec]) -> str:
+    these = "This event is" if len(stuck) == 1 else "These events are"
     return (
         f"{len(stuck)} attempt(s) failed to render {MAX_RENDER_FAILURES} times: "
-        f"{', '.join(stuck)}. Their errors are in provenance.json."
+        f"{', '.join(spec.event_id for spec in stuck)}. {these} now failed, and later runs skip "
+        "them; the errors are in provenance.json. The owner may sample replacements."
     )
 
 
@@ -184,7 +225,7 @@ def _frozen_events(store: CorpusStore, record: BatchRecord) -> list[tuple[Spec, 
 def _render_one(
     store: CorpusStore, spec: Spec, prov: Provenance, client: ComfyClient, deps: Deps
 ) -> tuple[bool, int]:
-    """Render the event's current attempt. Returns (rendered, failures recorded for it)."""
+    """Render the event's current attempt. Returns (rendered, its failed jobs)."""
     attempt = prov.attempts[-1]
     name = render_name(attempt.k, attempt.seed)
     path = store.event_dir(spec.event_id) / name
@@ -208,13 +249,13 @@ def _render_one(
             data = images[0]
             check_png(data)
         except httpx.TransportError as error:
-            _record_failure(store, prov, error)
+            _record_failure(store, prov, error, "unreachable")
             raise AskOwner(
                 f"the renderer stopped answering ({type(error).__name__}: {error}); the guard may "
                 "have stopped it."
             ) from error
         except (ComfyError, TimeoutError, httpx.HTTPStatusError, KeyError, ValueError) as error:
-            return False, _record_failure(store, prov, error)
+            return False, _record_failure(store, prov, error, "job")
         seconds = round(deps.clock() - started, 1)
         write_new_bytes(store, path, data)
     done = attempt.updated(
@@ -240,17 +281,21 @@ def _render_one(
             )
         ],
     )
-    return True, len(attempt.render_failures)
+    return True, _job_failures(attempt)
 
 
-def _record_failure(store: CorpusStore, prov: Provenance, error: Exception) -> int:
-    """Record a failed job on the current attempt; returns how many it has now."""
+def _record_failure(
+    store: CorpusStore, prov: Provenance, error: Exception, kind: FailureKind
+) -> int:
+    """Record a failure on the current attempt; returns how many failed jobs it has now."""
+    failure = RenderFailure(
+        time=now_iso(), error=f"{type(error).__name__}: {error}"[:500], kind=kind
+    )
     attempt = prov.attempts[-1]
-    failure = RenderFailure(time=now_iso(), error=f"{type(error).__name__}: {error}"[:500])
-    failures = (*attempt.render_failures, failure)
+    failed = attempt.updated(render_failures=(*attempt.render_failures, failure))
     replace_json(
         store,
         store.provenance_file(prov.event_id),
-        prov.updated(attempts=(*prov.attempts[:-1], attempt.updated(render_failures=failures))),
+        prov.updated(attempts=(*prov.attempts[:-1], failed)),
     )
-    return len(failures)
+    return _job_failures(failed)
