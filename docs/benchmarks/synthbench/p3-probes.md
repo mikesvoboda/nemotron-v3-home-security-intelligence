@@ -114,3 +114,21 @@ removes them.
     outlives it.
 - **First snapshot.** `corpus snapshot: 1 kept, no hold`, and
   `primary/export/synthbench/corpus@synthbench-20260929T033843Z` exists.
+
+## First agent pilot and the renderer teardown fix (2026-09-29)
+
+- **Pilot `pilot-1`.** An agent in a fresh sandbox (`agent-synthbench-gen`) ran it from
+  `docs/synthbench/agent-handoff.md`. Its clone was at ed2b72b2.
+  - All 10 events ended `ready`, with 1 reroll (`text_overlay`, inside the cap of 1).
+  - 11 images, median 8.3 s, p90 9.1 s, 0 failed jobs.
+  - The owner's host `check` verified 22 files and exited 0. Snapshots: no hold.
+- **The stuck container's cause, confirmed.** With the old unit and no guard involved,
+  `systemctl --user stop synthbench-renderer` alone left `synthbench-comfyui` in `Removing`:
+  podman logged "Found incomplete layer … deleting it", then "layer not known". systemd's
+  default `KillMode=control-group` killed podman's `--rm` cleanup partway through, and the
+  guard's second stop had only observed the result.
+- **The fix, verified.** Host checkout at 3cedc385, with units reinstalled: `KillMode=mixed`,
+  and `ExecStopPost=… serve cleanup`, which removes a stopped leftover and leaves a running
+  container alone. `start` took a 48.2 s warm-up; after `stop`, the container was gone at
+  t+0, t+2 and t+5 s. The renderer restarted with a 24.1 s warm-up. `python -m synthbench
+doctor` on the host: six `ok` lines, exit 0.
