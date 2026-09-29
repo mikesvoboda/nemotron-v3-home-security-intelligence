@@ -3,6 +3,19 @@
 Research and design for bringing NVIDIA's **Video Search and Summarization (VSS)** blueprint's
 approach to this project on **consumer gaming GPUs**, a market VSS does not serve.
 
+> **Currency — 2026-09-29 [V].** The status line below ("design approved, nothing implemented yet")
+> was true when written and is now **false.** The
+> VLM path is implemented and is the shipped default: `4bfd6fa4` ("Phase 1 - the VLM path runs end
+> to end and ships as the default", #6681, 2026-09-27) flipped `docker-compose.prod.yml:578` to
+> `PIPELINE_MODE=${PIPELINE_MODE:-vlm}`, and the A5500 qualification run is ledger items 38-41.
+> What has _not_ happened is M1-M4 closure. M1 stays open — the run's own close pointer says so
+> ("the notification link is unwired", ledger `:415`) — and M2 stays open because the VLM pick is
+> still the owner's, listed as deferred at [`12`](12-postponed-roadmap.md) R10. S3 fails its bar in
+> every arm measured (`10/20` at `:401` against `S3_MIN = 90%`, the ruling at `:221`). Read "shipped
+> as the default" as "shipping", not as "accepted". The status line is kept as the record of what was
+> decided on 2026-09-23. Current state: the ledger,
+> [`2026-09-23-vss-gaming-gpu-ledger.md`](../plans/2026-09-23-vss-gaming-gpu-ledger.md).
+
 > **Status (2026-09-23): design approved, nothing implemented yet.**
 > The plan is the design spec:
 > [`2026-09-23-vss-gaming-gpu-profile-design.md`](../superpowers/specs/2026-09-23-vss-gaming-gpu-profile-design.md).
