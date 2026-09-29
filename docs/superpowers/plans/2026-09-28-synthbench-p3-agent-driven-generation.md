@@ -35,6 +35,11 @@ extends.
 Its PR targets `main`. To change a PR's base, use `gh api -X PATCH` (`gh pr edit` fails silently
 in this repo).
 
+**Paths (2026-09-28, Task 1):** sbx sandboxes cannot mount paths under `/export`, so the
+`primary/export/synthbench` dataset now mounts at `/synthbench` (the corpus at `/synthbench/corpus`),
+and `/export/synthbench` is a host symlink to it. Dataset names are unchanged. See
+`docs/benchmarks/synthbench/p3-probes.md`.
+
 ## Rulings made while planning (the executor does not revisit these)
 
 - **P3-R1: the CLI is `python -m synthbench <command>`** (P2-R2 stands). The design's
@@ -76,7 +81,7 @@ in this repo).
   - A modified `.json`, `.jsonl`, `.md` or `.html` file is **churn**.
 - **P3-R7: attempt seeds** are `int(sha256(f"{event_id}:{k}")[:8 hex], 16)`
   (`attempt_seed`). Output names are `renders/a<k>-s<seed>.png` and `stills/a<k>-s<seed>.jpg`.
-- **P3-R8: host units run from a dedicated worktree**, `/export/synthbench/host-checkout`
+- **P3-R8: host units run from a dedicated worktree**, `/synthbench/host-checkout`
   (detached HEAD, its own `.venv`), not from the owner's working clone. The guard is a safety
   component, and the working clone switches branches. The root filesystem is 96% full, so the
   worktree goes on `/export`. `python -m synthbench.host.units install` renders the unit files
@@ -202,20 +207,20 @@ plan and ask the owner** before writing any code.
 - [ ] **Step 1: Prepare the host side**
 
 ```bash
-mkdir -p /export/synthbench/status /export/synthbench/tmp/p3-probe/stub
-echo '{"stub": true}' > /export/synthbench/tmp/p3-probe/stub/system_stats
+mkdir -p /synthbench/status /synthbench/tmp/p3-probe/stub
+echo '{"stub": true}' > /synthbench/tmp/p3-probe/stub/system_stats
 WORD="$(uv run python -c 'import secrets, string; print("".join(secrets.choice(string.ascii_uppercase) for _ in range(4)) + "-" + str(1000 + secrets.randbelow(9000)))')"
-echo "$WORD" > /export/synthbench/tmp/p3-probe/word.txt
+echo "$WORD" > /synthbench/tmp/p3-probe/word.txt
 uv run python - "$WORD" <<'EOF'
 import sys
 from PIL import Image, ImageDraw, ImageFont
 image = Image.new("RGB", (900, 300), "white")
 ImageDraw.Draw(image).text((40, 90), sys.argv[1], fill="black", font=ImageFont.load_default(size=110))
-image.save("/export/synthbench/status/probe-word.png")
+image.save("/synthbench/status/probe-word.png")
 EOF
 ```
 
-Write `/export/synthbench/status/p3-probe.py`. The sandbox mounts `status/` read-only, so it can
+Write `/synthbench/status/p3-probe.py`. The sandbox mounts `status/` read-only, so it can
 run this file but not change it:
 
 ```python
@@ -242,7 +247,7 @@ for url in ("http://127.0.0.1:8188", "http://host.docker.internal:8188"):
     except httpx.HTTPError as error:
         result[url] = f"FAILED {type(error).__name__}: {error}"
 
-probe = Path("/export/synthbench/corpus/.p3probe-sbx")
+probe = Path("/synthbench/corpus/.p3probe-sbx")
 probe.mkdir(exist_ok=True)
 fd, tmp = tempfile.mkstemp(dir=probe, prefix=".linked.json.", suffix=".tmp")
 os.write(fd, b"{}\n")
@@ -281,7 +286,7 @@ print(json.dumps(result, indent=1))
 Start the stub renderer. Use `run_in_background`, because it serves until you stop it:
 
 ```bash
-python3 -m http.server 8188 --bind 127.0.0.1 --directory /export/synthbench/tmp/p3-probe/stub
+python3 -m http.server 8188 --bind 127.0.0.1 --directory /synthbench/tmp/p3-probe/stub
 ```
 
 Check it: `curl -sS 127.0.0.1:8188/system_stats` prints `{"stub": true}`.
@@ -294,17 +299,17 @@ clone of the current checkout.
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence
 agent-dgx run p3probe --agent claude --endpoint dgx \
-  --mount /export/synthbench/corpus:rw --mount /export/synthbench/status:ro
+  --mount /synthbench/corpus:rw --mount /synthbench/status:ro
 ```
 
 If the launch asks for `--profile`, add the host's governance profile. In the Claude session,
 the owner types:
 
-> Read /export/synthbench/status/probe-word.png and reply with only the text it shows.
+> Read /synthbench/status/probe-word.png and reply with only the text it shows.
 
 The owner records the reply, then leaves the session with `/exit`.
 
-**Pass:** the reply equals `/export/synthbench/tmp/p3-probe/word.txt`.
+**Pass:** the reply equals `/synthbench/tmp/p3-probe/word.txt`.
 
 **Fail** (a refusal, a description, or a wrong word): the image did not reach Qwen's vision
 input through LiteLLM (design R1). **Stop the plan and ask the owner.**
@@ -312,8 +317,8 @@ input through LiteLLM (design R1). **Stop the plan and ask the owner.**
 - [ ] **Step 3: Run the route and mount probe inside the sandbox**
 
 ```bash
-sbx exec agent-p3probe bash -lc 'cd /agents/agent-p3probe/workspace && uv sync --frozen -q && uv run python /export/synthbench/status/p3-probe.py'
-stat -c '%U:%G %a %n' /export/synthbench/corpus/.p3probe-sbx/*
+sbx exec agent-p3probe bash -lc 'cd /agents/agent-p3probe/workspace && uv sync --frozen -q && uv run python /synthbench/status/p3-probe.py'
+stat -c '%U:%G %a %n' /synthbench/corpus/.p3probe-sbx/*
 ```
 
 Decide:
@@ -330,8 +335,8 @@ Decide:
 - [ ] **Step 4: Clean up**
 
 ```bash
-rm -rf /export/synthbench/corpus/.p3probe-sbx /export/synthbench/tmp/p3-probe
-rm -f /export/synthbench/status/probe-word.png /export/synthbench/status/p3-probe.py
+rm -rf /synthbench/corpus/.p3probe-sbx /synthbench/tmp/p3-probe
+rm -f /synthbench/status/probe-word.png /synthbench/status/p3-probe.py
 ```
 
 Stop the background `http.server`. The owner removes the sandbox:
@@ -339,7 +344,7 @@ Stop the background `http.server`. The owner removes the sandbox:
 empty and has no snapshots:
 
 ```bash
-ls -A /export/synthbench/corpus
+ls -A /synthbench/corpus
 zfs list -t snapshot -r primary/export/synthbench
 ```
 
@@ -353,8 +358,8 @@ The first prints nothing, and the second prints `no datasets available`.
 # Synthbench P3 probes (2026-09-28)
 
 Evidence for the agent-driven design's two **[A]** assumptions and for the corpus mount, from a
-fresh `agent-dgx` sandbox (`p3probe`) with `/export/synthbench/corpus:rw` and
-`/export/synthbench/status:ro`. Plan: `docs/superpowers/plans/2026-09-28-synthbench-p3-agent-driven-generation.md`, Task 1.
+fresh `agent-dgx` sandbox (`p3probe`) with `/synthbench/corpus:rw` and
+`/synthbench/status:ro`. Plan: `docs/superpowers/plans/2026-09-28-synthbench-p3-agent-driven-generation.md`, Task 1.
 
 | Question                                            | Result                                           |
 | --------------------------------------------------- | ------------------------------------------------ |
@@ -995,7 +1000,7 @@ from synthbench.contract.corpus import IndexRow
 
 M = TypeVar("M", bound=ContractModel)
 
-DEFAULT_SYNTHBENCH_ROOT = Path("/export/synthbench")
+DEFAULT_SYNTHBENCH_ROOT = Path("/synthbench")
 # A tier letter, then no path separators or dot segments: the id never leaves version_dir.
 _EVENT_ID = re.compile(r"[AB]-[A-Za-z0-9][A-Za-z0-9_-]*")
 _FILE_MODE = 0o644
@@ -3194,7 +3199,7 @@ class FlagshipUnknown(RuntimeError):
 
 def status_dir(env: Mapping[str, str] | None = None) -> Path:
     e = os.environ if env is None else env
-    return Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench")) / "status"
+    return Path(e.get("SYNTHBENCH_ROOT", "/synthbench")) / "status"
 
 
 def flagship_file(env: Mapping[str, str] | None = None) -> Path:
@@ -4668,7 +4673,7 @@ def test_the_sheet_escapes_prompts(tmp_path: Path) -> None:
 def test_the_report_shows_a_snapshot_hold_and_can_be_rewritten(tmp_path: Path) -> None:
     h.stilled_batch(tmp_path, n=1)
     name = "primary/export/synthbench/corpus@synthbench-20260928T000000Z"
-    hold = SnapshotHold(snapshot=name, count=2, paths=("/export/synthbench/corpus/x.png",))
+    hold = SnapshotHold(snapshot=name, count=2, paths=("/synthbench/corpus/x.png",))
     write_status(
         snapshots_file(h.env(tmp_path)), SnapshotStatus(time=h.NOW, snapshots=6, hold=hold)
     )
@@ -5268,13 +5273,13 @@ from synthbench.host.units import (
     render_units,
 )
 
-CHECKOUT = Path("/export/synthbench/host-checkout")
+CHECKOUT = Path("/synthbench/host-checkout")
 PYTHON = CHECKOUT / ".venv" / "bin" / "python"
 CTX = UnitContext(
     checkout=CHECKOUT,
     python=PYTHON,
     podman=Path("/usr/bin/podman"),
-    root=Path("/export/synthbench"),
+    root=Path("/synthbench"),
     hf_home=Path("/export/models"),
     podman_root=Path("/export/models/containers"),
 )
@@ -5301,7 +5306,7 @@ def test_the_guard_always_runs_from_the_checkout() -> None:
     assert "Restart=always" in text
     assert "WantedBy=default.target" in text
     # pragma: allowlist nextline secret
-    assert "Environment=SYNTHBENCH_ROOT=/export/synthbench" in text
+    assert "Environment=SYNTHBENCH_ROOT=/synthbench" in text
 
 
 def test_the_timer_snapshots_every_six_hours_utc() -> None:
@@ -5711,7 +5716,7 @@ if __name__ == "__main__":
 ```python
 """systemd user units for the host side (agent-driven design §1; plan ruling P3-R8).
 
-    /export/synthbench/host-checkout/.venv/bin/python -m synthbench.host.units install
+    /synthbench/host-checkout/.venv/bin/python -m synthbench.host.units install
 
 writes them for the checkout it runs from, with that checkout's python. The guard and the
 snapshot timer are enabled at boot; the renderer has no [Install] section, so the owner starts
@@ -5759,7 +5764,7 @@ class UnitContext:
             checkout=Path(__file__).resolve().parents[2],
             python=Path(sys.executable),
             podman=Path(shutil.which("podman") or "/usr/bin/podman"),
-            root=Path(e.get("SYNTHBENCH_ROOT", "/export/synthbench")),
+            root=Path(e.get("SYNTHBENCH_ROOT", "/synthbench")),
             hf_home=Path(e.get("HF_HOME", "/export/models")),
             podman_root=podman_root(e),
         )
@@ -5938,7 +5943,7 @@ from synthbench.status import SnapshotHold, SnapshotStatus, read_status, snapsho
 
 from backend.tests.unit.synthbench import helpers as h
 
-BASE = "/export/synthbench/corpus/.p3probe"
+BASE = "/synthbench/corpus/.p3probe"
 # Recorded on maui 2026-09-28 with `zfs diff -FH` across: a replace (rename over), an in-place
 # write, a deletion, an append, a rename, a temp file left by a crash, and write_new's link.
 PROBE = "".join(
@@ -6503,13 +6508,13 @@ You can:
 - run `uv run python -m synthbench <command>` from the root of your repository clone;
 - write two files per batch in the corpus: `prompts.jsonl` and `triage.jsonl`;
 - open any image the commands made, to look at it;
-- read `/export/synthbench/status/`.
+- read `/synthbench/status/`.
 
 You cannot, and must not try to:
 
 - start, stop or restart the renderer, the model server, docker, podman, or anything on the
   GPU;
-- delete, move, rename or edit any other file in `/export/synthbench/corpus/`. The corpus is
+- delete, move, rename or edit any other file in `/synthbench/corpus/`. The corpus is
   append-only, and `check` detects a changed image;
 - change the library code to get past a rule. The owner runs `check` again on the host.
 
@@ -6527,7 +6532,7 @@ You cannot, and must not try to:
 
 Batch names are lowercase letters, digits and hyphens, and each one is new: `pilot-1`,
 `batch-1`, `batch-2`. The corpus version is in each spec as `corpus_version` (`tierb-v0` today).
-Below, `<corpus>` is `/export/synthbench/corpus/<version>`.
+Below, `<corpus>` is `/synthbench/corpus/<version>`.
 
 1. **Sample.** `uv run python -m synthbench sample --batch <b> --n <n>`. It prints where the
    specs are: `<corpus>/events/B/<event id>/spec.json`.
@@ -6673,7 +6678,7 @@ Every command runs from the repository root as `uv run python -m synthbench <com
 | `2`       | stop and ask the owner                        |
 
 Paths below are relative to the corpus version directory,
-`$SYNTHBENCH_ROOT/corpus/<version>/` (today `/export/synthbench/corpus/tierb-v0/`). `<b>` is a
+`$SYNTHBENCH_ROOT/corpus/<version>/` (today `/synthbench/corpus/tierb-v0/`). `<b>` is a
 batch name and `<id>` an event id.
 
 Each section's options table lists exactly the command's options; a test compares it with
@@ -6728,7 +6733,7 @@ the host to confirm a batch.
 ## `render`
 
 Renders each frozen event's pending attempt at 1280x720 through ComfyUI (design §3 step 4).
-Before every image it reads `/export/synthbench/status/flagship.json`, and waits, polling every
+Before every image it reads `/synthbench/status/flagship.json`, and waits, polling every
 5 s, while the flagship is unhealthy or has requests waiting.
 
 | Option                 | Default  | Meaning                                              |
@@ -6797,7 +6802,7 @@ replaces them.
   - rerolls by reason;
   - failed events, and failures by scenario;
   - render timing (median, p90, total) and failed jobs;
-  - snapshot holds from `/export/synthbench/status/snapshots.json`;
+  - snapshot holds from `/synthbench/status/snapshots.json`;
   - one row per event.
 - **sheet.html:** a contact sheet of every event's current still.
 - **Exit 2:** a corpus file cannot be read or written.
@@ -6807,7 +6812,7 @@ replaces them.
 Host only; the owner's `synthbench-snapshot.timer` runs it every 6 h (design §6). It snapshots
 `primary/export/synthbench/corpus` as `@synthbench-<UTC time>` and prunes to the newest 5,
 destroying only the oldest, and only when it holds no only copy. It writes
-`/export/synthbench/status/snapshots.json`.
+`/synthbench/status/snapshots.json`.
 
 No options.
 
@@ -6827,12 +6832,12 @@ own document is `agent-handoff.md`.
 
 ## The pieces
 
-| Piece                              | What it does                                                                                                                                               | How it runs                |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `synthbench-guard.service`         | Every 5 s writes `status/flagship.json`. After 3 failed flagship health checks in a row it stops the renderer. It never stops or starts the flagship.      | user unit, enabled at boot |
-| `synthbench-renderer.service`      | ComfyUI with FLUX.2 [dev] on `127.0.0.1:8188`, `--reserve-vram 4`, bound to the guard. The pre-start check is listed below. One warm-up image after start. | user unit, started by hand |
-| `synthbench-snapshot.timer`        | Every 6 h (UTC): snapshot `primary/export/synthbench/corpus`, prune by design §6, write `status/snapshots.json`.                                           | user unit, enabled at boot |
-| `/export/synthbench/host-checkout` | a detached worktree with its own `.venv`; the units run its code                                                                                           | updated by the owner       |
+| Piece                         | What it does                                                                                                                                               | How it runs                |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `synthbench-guard.service`    | Every 5 s writes `status/flagship.json`. After 3 failed flagship health checks in a row it stops the renderer. It never stops or starts the flagship.      | user unit, enabled at boot |
+| `synthbench-renderer.service` | ComfyUI with FLUX.2 [dev] on `127.0.0.1:8188`, `--reserve-vram 4`, bound to the guard. The pre-start check is listed below. One warm-up image after start. | user unit, started by hand |
+| `synthbench-snapshot.timer`   | Every 6 h (UTC): snapshot `primary/export/synthbench/corpus`, prune by design §6, write `status/snapshots.json`.                                           | user unit, enabled at boot |
+| `/synthbench/host-checkout`   | a detached worktree with its own `.venv`; the units run its code                                                                                           | updated by the owner       |
 
 The renderer's pre-start check requires:
 
@@ -6844,10 +6849,10 @@ The renderer's pre-start check requires:
 
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence && git fetch origin
-git worktree add --detach /export/synthbench/host-checkout origin/main     # the first time
-git -C /export/synthbench/host-checkout checkout --detach origin/main      # to update
-cd /export/synthbench/host-checkout && uv sync --frozen
-mkdir -p /export/synthbench/status
+git worktree add --detach /synthbench/host-checkout origin/main     # the first time
+git -C /synthbench/host-checkout checkout --detach origin/main      # to update
+cd /synthbench/host-checkout && uv sync --frozen
+mkdir -p /synthbench/status
 .venv/bin/python -m synthbench.host.units install
 systemctl --user enable --now synthbench-guard.service synthbench-snapshot.timer
 systemctl --user restart synthbench-guard.service                          # after an update
@@ -6864,7 +6869,7 @@ reloads systemd when a file changed. `units show` prints them.
   exits 2, and it asks you.
 - **Why it refused to start:** `journalctl --user -u synthbench-renderer -n 50` names every
   reason.
-- **ComfyUI's own log:** `/export/synthbench/logs/comfyui.log`.
+- **ComfyUI's own log:** `/synthbench/logs/comfyui.log`.
 - **Never enable it at boot.** It holds about 50 GiB beside the flagship, and each render slows
   the flagship's decode by about 59%.
 - **Before an owner-only GPU window** (parent spec §3.6), stop the renderer unit. The window
@@ -6873,7 +6878,7 @@ reloads systemd when a file changed. `units show` prints them.
 
 ## Read the guard
 
-- `cat /export/synthbench/status/flagship.json` shows the time (UTC), `healthy`, `running`,
+- `cat /synthbench/status/flagship.json` shows the time (UTC), `healthy`, `running`,
   `waiting` and consecutive `failures`.
 - `journalctl --user -u synthbench-guard -n 50` shows "stopping the renderer" when it acted.
 - After the guard stops the renderer, the renderer stays stopped. Check the flagship first
@@ -6893,14 +6898,14 @@ report shows it, `status/snapshots.json` names it, and the timer's last run exit
    zfs diff -FH <held snapshot> <the next snapshot>
    ```
 
-2. Either copy the files back from `/export/synthbench/corpus/.zfs/snapshot/<name>/…` to the
+2. Either copy the files back from `/synthbench/corpus/.zfs/snapshot/<name>/…` to the
    same paths, or accept the loss with `zfs destroy <held snapshot>`.
 3. Run `systemctl --user start synthbench-snapshot.service`. `status/snapshots.json` shows
    `"hold": null` once pruning gets through.
 
 Snapshots accumulate past 5 until you resolve the hold. A file created and deleted within the
 same 6 h is in no snapshot. ComfyUI keeps its own copy of every render under
-`/export/synthbench/comfy-out/synthbench/<version>/<event id>/`.
+`/synthbench/comfy-out/synthbench/<version>/<event id>/`.
 
 ## Create the agent's sandbox
 
@@ -6910,7 +6915,7 @@ clone of that checkout.
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence
 agent-dgx run synthbench-gen --agent claude --endpoint dgx \
-  --mount /export/synthbench/corpus:rw --mount /export/synthbench/status:ro
+  --mount /synthbench/corpus:rw --mount /synthbench/status:ro
 ```
 
 Then tell the agent: "Read docs/synthbench/agent-handoff.md and follow it", with the batches you
@@ -6927,7 +6932,7 @@ want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
 
 1. Read the agent's report and `<corpus>/batches/<b>/report.md`.
 2. Open `<corpus>/batches/<b>/sheet.html` in a browser on the host.
-3. Confirm the batch from the host checkout: `cd /export/synthbench/host-checkout &&
+3. Confirm the batch from the host checkout: `cd /synthbench/host-checkout &&
 .venv/bin/python -m synthbench check --batch <b>` must exit 0. It re-checks every fact
    against the sampler, every frozen prompt against the rules, and every image against its
    sha256. The agent's own clone could have been edited; this checkout was not.
@@ -6961,7 +6966,7 @@ want (for example: a 10-event pilot `pilot-1`, then a 50-event `batch-1`).
   | `host/`              | host-only: the guard, the renderer unit's checks, the unit files, snapshots and pruning                           |
 
   Add a Rules bullet: "`synthbench/host/` runs only on the host, under systemd, from
-  `/export/synthbench/host-checkout`; the sandbox agent never runs it. The agent's document is
+  `/synthbench/host-checkout`; the sandbox agent never runs it. The agent's document is
   `docs/synthbench/agent-handoff.md`."
 
 - `backend/tests/unit/synthbench/AGENTS.md`: add a row to the Directory Structure table for
@@ -7043,7 +7048,7 @@ a temporary worktree, and follow that repository's own `AGENTS.md`/`CLAUDE.md` f
 ```bash
 cd ~/gitlab/dgx-station-inference-stack && git fetch origin
 git merge-base --is-ancestor c4e7040 origin/main && echo "MR !7 merged: base origin/main" || echo "MR !7 open: base origin/perf/flagship-kv-55gib"
-git worktree add -b perf/flagship-util-076 /export/synthbench/tmp/stack-util-076 <the base printed above>
+git worktree add -b perf/flagship-util-076 /synthbench/tmp/stack-util-076 <the base printed above>
 ```
 
 - [ ] **Step 2: Lower the util gate**
@@ -7094,7 +7099,7 @@ Replace "through the address recorded in the probe" with the address Task 1 reco
 - [ ] **Step 4: Commit and push; the owner opens the MR**
 
 ```bash
-cd /export/synthbench/tmp/stack-util-076
+cd /synthbench/tmp/stack-util-076
 git add stack/profiles/vllm/qwen38-flash-next.env docs/operations/agent-dgx-sessions.md
 git commit -m "Lower the flagship's util gate to 0.76 for a resident synthbench renderer; document port 8188"
 git push -u origin perf/flagship-util-076
@@ -7102,7 +7107,7 @@ git push -u origin perf/flagship-util-076
 
 GitLab is reached through the owner's laptop. If the push fails for SSH reasons, stop and hand
 it to the owner. The owner opens the MR against the base from Step 1 and merges it. Then remove
-the worktree: `git -C ~/gitlab/dgx-station-inference-stack worktree remove /export/synthbench/tmp/stack-util-076`.
+the worktree: `git -C ~/gitlab/dgx-station-inference-stack worktree remove /synthbench/tmp/stack-util-076`.
 
 - [ ] **Step 5 (owner): Apply it and add the sbx rule**
 
@@ -7142,12 +7147,12 @@ agrees to start the renderer beside the flagship.
 
 ```bash
 cd ~/github/nemotron-v3-home-security-intelligence && git fetch origin
-git worktree add --detach /export/synthbench/host-checkout origin/feat/synthbench-p3
-cd /export/synthbench/host-checkout && uv sync --frozen
-mkdir -p /export/synthbench/status
+git worktree add --detach /synthbench/host-checkout origin/feat/synthbench-p3
+cd /synthbench/host-checkout && uv sync --frozen
+mkdir -p /synthbench/status
 .venv/bin/python -m synthbench.host.units install
 systemctl --user enable --now synthbench-guard.service synthbench-snapshot.timer
-sleep 6; cat /export/synthbench/status/flagship.json
+sleep 6; cat /synthbench/status/flagship.json
 journalctl --user -u synthbench-guard -n 5 --no-pager
 ```
 
@@ -7181,9 +7186,9 @@ If the pre-start check refused, the journal lists each reason. Fix them, or stop
 - [ ] **Step 3: A live smoke on a scratch root, not the corpus**
 
 ```bash
-export SYNTHBENCH_ROOT=/export/synthbench/tmp/p3-smoke
-mkdir -p "$SYNTHBENCH_ROOT" && ln -s /export/synthbench/status "$SYNTHBENCH_ROOT/status"
-cd /export/synthbench/host-checkout
+export SYNTHBENCH_ROOT=/synthbench/tmp/p3-smoke
+mkdir -p "$SYNTHBENCH_ROOT" && ln -s /synthbench/status "$SYNTHBENCH_ROOT/status"
+cd /synthbench/host-checkout
 .venv/bin/python -m synthbench sample --batch smoke --n 3
 ```
 
@@ -7213,7 +7218,7 @@ Expected:
 - the final `check` verifies 6 files.
 
 Record the render seconds and anything that looked wrong. Then
-`rm -rf /export/synthbench/tmp/p3-smoke && unset SYNTHBENCH_ROOT`.
+`rm -rf /synthbench/tmp/p3-smoke && unset SYNTHBENCH_ROOT`.
 
 - [ ] **Step 4 (owner approves): The guard's stop path, live**
 
@@ -7221,11 +7226,11 @@ The owner approves this step: it really stops the renderer. It points a second g
 port, with its own status file:
 
 ```bash
-cd /export/synthbench/host-checkout
-.venv/bin/python -m synthbench.host.guard --flagship-url http://127.0.0.1:9 --status-file /export/synthbench/tmp/guard-test.json --ticks 3
+cd /synthbench/host-checkout
+.venv/bin/python -m synthbench.host.guard --flagship-url http://127.0.0.1:9 --status-file /synthbench/tmp/guard-test.json --ticks 3
 systemctl --user is-active synthbench-renderer.service
-cat /export/synthbench/status/flagship.json
-rm -f /export/synthbench/tmp/guard-test.json
+cat /synthbench/status/flagship.json
+rm -f /synthbench/tmp/guard-test.json
 systemctl --user start synthbench-renderer.service
 ```
 
@@ -7241,7 +7246,7 @@ Expected:
 ```bash
 systemctl --user start synthbench-snapshot.service
 systemctl --user status synthbench-snapshot.service --no-pager | tail -3
-cat /export/synthbench/status/snapshots.json
+cat /synthbench/status/snapshots.json
 zfs list -t snapshot -r primary/export/synthbench/corpus
 ```
 
@@ -7288,7 +7293,7 @@ completes a 10-event pilot and then a 50-event batch.
 cd ~/github/nemotron-v3-home-security-intelligence
 git switch feat/synthbench-p3 && git pull --ff-only
 agent-dgx run synthbench-gen --agent claude --endpoint dgx \
-  --mount /export/synthbench/corpus:rw --mount /export/synthbench/status:ro
+  --mount /synthbench/corpus:rw --mount /synthbench/status:ro
 ```
 
 The owner's only instruction:
@@ -7305,7 +7310,7 @@ agent asked and every nudge.
 Every hour or so, and after each report:
 
 ```bash
-cat /export/synthbench/status/flagship.json
+cat /synthbench/status/flagship.json
 journalctl --user -u synthbench-guard --since "-2h" --no-pager | grep -c "stopping the renderer"
 curl -s -o /dev/null -w '%{http_code}\n' 127.0.0.1:8000/health
 ```
@@ -7315,7 +7320,7 @@ Expected: healthy, `0` stops, and `200`.
 - [ ] **Step 3: Confirm both batches on the host**
 
 ```bash
-cd /export/synthbench/host-checkout && git fetch origin && git checkout --detach origin/feat/synthbench-p3
+cd /synthbench/host-checkout && git fetch origin && git checkout --detach origin/feat/synthbench-p3
 .venv/bin/python -m synthbench check --batch pilot-1
 .venv/bin/python -m synthbench check --batch batch-1
 ```
