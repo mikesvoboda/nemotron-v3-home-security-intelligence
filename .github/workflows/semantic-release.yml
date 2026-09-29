@@ -13,8 +13,18 @@
 #   1. Analyzes commits since last release
 #   2. Determines next version based on commit types
 #   3. Generates changelog from commit messages
-#   4. Creates GitHub release with changelog
-#   5. Updates version in package files
+#   4. Tags main at the analyzed SHA and creates the GitHub release
+#
+# The tag is the ONLY version artifact. An earlier revision also committed
+# "chore(release): vX.Y.Z" bumping frontend/package.json and pushed it to
+# main - impossible under this repo's branch protection: strict mode
+# requires "CI Gate (Required Checks)" to have PASSED on the pushed commit,
+# and a bot commit that CI never ran can never satisfy that (GH006). Every
+# release push failed for it. Dropping the bump is provably inert: the ONLY
+# reader of frontend/package.json's version field was this workflow's own
+# jq line - the version-consistency gate checks that file's `engines`, not
+# its version; no build or test stamps it (no npm_package_version/define);
+# git describe / the tag carry the release identity.
 #
 # Manual Release:
 #   You can also trigger this workflow manually with a specific version:
@@ -170,10 +180,10 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020    # v7.0.0
-        with:
-          node-version: '24'
+      # No setup-node: it existed only to serve the (removed) package.json
+      # bump machinery. Everything left in this job is bash + git, and
+      # softprops/action-gh-release declares node24 in its action.yml - the
+      # runner supplies that runtime itself.
 
       - name: Get previous tag
         id: prev_tag
@@ -262,33 +272,28 @@ jobs:
 
           cat CHANGELOG_RELEASE.md
 
-      - name: Update version in package.json
-        env:
-          VERSION: ${{ needs.analyze.outputs.next_version }}
-        run: |
-          VERSION_NUM=$(echo "$VERSION" | sed 's/^v//')
-
-          # Update frontend/package.json
-          if [ -f "frontend/package.json" ]; then
-            jq ".version = \"$VERSION_NUM\"" frontend/package.json > tmp.json && mv tmp.json frontend/package.json
-            echo "Updated frontend/package.json to $VERSION_NUM"
-          fi
-
-      - name: Commit version bump
-        env:
-          VERSION: ${{ needs.analyze.outputs.next_version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add frontend/package.json || true
-          git diff --staged --quiet || git commit -m "chore(release): $VERSION"
-          git push
+      # No "Update version in package.json" + "Commit version bump" + push.
+      # Those three steps (the old tail of this job) committed
+      # "chore(release): vX.Y.Z" and pushed it to main, which branch
+      # protection can never accept: strict mode requires CI Gate to have
+      # passed on the pushed commit, impossible for a bot commit CI never
+      # saw (GH006, the reason every release push failed since protection
+      # went strict). Tagging the analyzed SHA below is unaffected - tag
+      # refs are not branch refs - and HEAD here IS the analyzed SHA, so
+      # the tag lands exactly where main does. See header comment for why
+      # no consumer lost anything.
 
       - name: Create tag
         env:
           VERSION: ${{ needs.analyze.outputs.next_version }}
         run: |
+          # Annotated tags record a tagger identity, and the runner image
+          # ships no git user ("Committer identity unknown", exit 128).
+          # Until #6711 these two config lines lived in the removed
+          # "Commit version bump" step - the tag step silently depended on
+          # them. Same identity the v0.1.0 tag object carries.
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$VERSION" -m "Release $VERSION"
           git push origin "$VERSION"
 

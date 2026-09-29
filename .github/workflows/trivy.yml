@@ -81,7 +81,7 @@ jobs:
           skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants'
 
       - name: Upload Trivy filesystem results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always()
         with:
           sarif_file: 'trivy-fs.sarif'
@@ -123,7 +123,7 @@ jobs:
           skip-dirs: 'node_modules,.venv,coverage,dist,build,mutants,tests'
 
       - name: Upload Trivy config results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always()
         with:
           sarif_file: 'trivy-config.sarif'
@@ -357,7 +357,7 @@ jobs:
           trivyignores: '.trivyignore'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         if: always() && steps.build.outcome == 'success'
         with:
           sarif_file: 'trivy-frontend.sarif'
