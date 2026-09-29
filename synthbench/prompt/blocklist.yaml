@@ -1,0 +1,65 @@
+# Prompt content blocklist for `python -m synthbench check` (agent-driven design §3.1 rules 2
+# and 4; parent spec §3.8). A phrase matches as whole words, in order; its last word may be
+# plural (s/es). No fact term of the taxonomy may appear here (test_prompt_rules.py).
+#
+# OWNER REVIEW: a v0 draft. A blocklist cannot catch every real person's name; the owner's
+# audit is the backstop (design §3.1).
+
+# rule 2: realistic, never graphic
+injury:
+  - blood
+  - bloody
+  - bleeding
+  - gore
+  - gory
+  - wound
+  - wounded
+  - corpse
+  - dead body
+  - severed
+  - dismembered
+  - decapitated
+  - mutilated
+  - entrails
+  - gunshot
+  - stabbed
+  - open fracture
+
+# rule 2: every Tier B person is anonymous (parent spec §1.1)
+real_people:
+  - celebrity
+  - celebrities
+  - famous
+  - lookalike
+  - look alike
+  - president
+  - senator
+  - politician
+  - prince
+  - princess
+  - actor
+  - actress
+  - singer
+  - rapper
+  - athlete
+  - influencer
+  - portrait of
+
+# rule 4: the agent writes the scene; check adds the camera look, the camera stage the overlay
+styling:
+  - security camera
+  - cctv
+  - surveillance
+  - footage
+  - camera view
+  - timestamp
+  - time stamp
+  - date stamp
+  - watermark
+  - caption
+  - on screen text
+  - text overlay
+  - subtitle
+  - logo
+  - wide angle lens
+  - fisheye
