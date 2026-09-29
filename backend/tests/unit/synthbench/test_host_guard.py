@@ -110,39 +110,75 @@ def test_a_bad_answer_counts_as_unhealthy(
     assert (status.healthy, status.running, status.failures) == (False, None, 1)
 
 
-def test_stop_renderer_skips_serve_stop_once_systemctl_removed_the_container() -> None:
-    """ExecStop already ran `serve down` (podman stop --rm removed it): a second podman stop on
-    the same dying container exited 125 live, and stuck it in podman's Removing state."""
+_EXISTS = ["container", "exists", "synthbench-comfyui"]
+_INSPECT = ["container", "inspect", "-f", "{{.State.Running}}", "synthbench-comfyui"]
+_STOP = ["--ignore", "--time", "30", "synthbench-comfyui"]
+_RM = ["rm", "-f", "--ignore", "synthbench-comfyui"]
+
+
+def test_stop_renderer_force_removes_a_leftover_that_is_not_running() -> None:
+    """Systemctl succeeded but the container survived, not running (podman's Removing state:
+    systemd's SIGTERM interrupted podman run --rm's own cleanup). `stop` has nothing left to
+    signal, so the fallback force-removes it directly instead of racing another stop."""
     calls: list[list[str]] = []
 
     def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
-        if argv[-3:] == ["container", "exists", "synthbench-comfyui"]:
-            return subprocess.CompletedProcess(argv, 1, "", "")  # gone
+        if argv[-3:] == _EXISTS:
+            return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+        if argv[-5:] == _INSPECT:
+            return subprocess.CompletedProcess(argv, 0, "false\n", "")  # not running
         return subprocess.CompletedProcess(argv, 0, "", "")
 
     stop_renderer(run)
     assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
-    assert calls[1][-3:] == ["container", "exists", "synthbench-comfyui"]
-    assert len(calls) == 2  # serve.stop never ran: nothing left to stop
+    assert calls[1][-3:] == _EXISTS
+    assert calls[2][-5:] == _INSPECT
+    assert calls[3][-4:] == _RM
+    assert len(calls) == 4  # serve.stop never ran: nothing left to stop
 
 
-def test_stop_renderer_runs_serve_stop_when_the_container_survives_the_unit() -> None:
-    """A renderer container started by hand, outside the unit, still gets stopped."""
+def test_stop_renderer_stops_a_container_still_running_after_systemctl() -> None:
+    """A renderer container started by hand, outside the unit, still gets a graceful stop."""
     calls: list[list[str]] = []
 
     def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
-        return subprocess.CompletedProcess(argv, 0, "", "")  # "exists": 0 means still there
+        if argv[-3:] == _EXISTS:
+            return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+        if argv[-5:] == _INSPECT:
+            return subprocess.CompletedProcess(argv, 0, "true\n", "")  # still running
+        return subprocess.CompletedProcess(argv, 0, "", "")
 
     stop_renderer(run)
     assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
-    assert calls[1][-3:] == ["container", "exists", "synthbench-comfyui"]
-    assert calls[2][-4:] == ["--ignore", "--time", "30", "synthbench-comfyui"]
+    assert calls[1][-3:] == _EXISTS
+    assert calls[2][-5:] == _INSPECT
+    assert calls[3][-4:] == _STOP
+
+
+def test_stop_renderer_stops_conservatively_when_the_running_check_fails() -> None:
+    """systemctl succeeded but podman's own inspect call is broken: stay conservative (assume it
+    might still be running) and fall back to a graceful stop rather than force-removing blind."""
+    calls: list[list[str]] = []
+
+    def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if argv[-3:] == _EXISTS:
+            return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+        raise OSError("podman: too many open files")
+
+    messages: list[str] = []
+    stop_renderer(run, say=messages.append)  # must not raise
+    assert calls[-1][-4:] == _STOP
+    assert any("too many open files" in message for message in messages)
 
 
 def test_stop_renderer_logs_a_non_zero_systemctl_exit_instead_of_dropping_it() -> None:
+    calls: list[list[str]] = []
+
     def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
         if argv[0] == "systemctl":
             return subprocess.CompletedProcess(argv, 1, "", "Unit not loaded.\n")
         return subprocess.CompletedProcess(argv, 0, "", "")
@@ -150,6 +186,7 @@ def test_stop_renderer_logs_a_non_zero_systemctl_exit_instead_of_dropping_it() -
     messages: list[str] = []
     stop_renderer(run, say=messages.append)
     assert any("Unit not loaded" in message for message in messages)
+    assert calls[1][-4:] == _STOP  # a failed systemctl still falls back to serve.stop
 
 
 def test_stop_renderer_survives_a_systemctl_timeout_and_still_runs_serve_stop() -> None:

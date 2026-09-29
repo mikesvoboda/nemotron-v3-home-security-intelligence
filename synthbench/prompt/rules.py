@@ -5,7 +5,8 @@
 2. No blocklisted injury or real-person phrase (parent spec §3.8).
 3. At most MAX_PROMPT_CHARS characters (plan ruling P3-R4).
 4. No camera styling or overlay words: check appends CAMERA_SUFFIX, and the camera stage draws
-   the real timestamp.
+   the real timestamp. This also bars clock times (H:MM, "<n> am/pm", "o'clock"): the camera
+   stage draws the real one, and FLUX draws a stated one into the image as fake text.
 """
 
 from __future__ import annotations
@@ -36,12 +37,16 @@ CAMERA_SUFFIX = (
 MAX_PROMPT_CHARS = 1200
 
 # Rule 4, continued: a clock time gets drawn as fake text by FLUX (measured 2026-09-28, "at 4:40
-# in the morning" -> a "4:40" reroll). H:MM/HH:MM, "<n> am/pm/a.m./p.m.", or "o'clock" (straight
-# or curly apostrophe; chr(0x2019) avoids an ambiguous-unicode literal in source, RUF001).
+# in the morning" -> a "4:40" reroll). H:MM/HH:MM (with an optional am/pm suffix folded in, so
+# "12:30pm" is quoted whole rather than matching "30pm" as its own am/pm form), "<n>
+# am/pm/a.m/a.m./p.m/p.m." (the final dot is optional: "9 a.m" is a clock time too), or
+# "o'clock" (straight or curly apostrophe; chr(0x2019) avoids an ambiguous-unicode literal in
+# source, RUF001).
 _APOSTROPHES = "'" + chr(0x2019)
+_AMPM = r"(?:a\.?m\.?|p\.?m\.?)"
 _CLOCK_TIME = re.compile(
-    r"\b\d{1,2}:\d{2}\b"
-    r"|\b\d{1,2}\s?(?:a\.m\.|p\.m\.|am|pm)(?!\w)"
+    rf"\b\d{{1,2}}:\d{{2}}(?:\s?{_AMPM})?(?!\w)"
+    rf"|\b\d{{1,2}}\s?{_AMPM}(?!\w)"
     rf"|\bo[{_APOSTROPHES}]clock\b",
     re.IGNORECASE,
 )

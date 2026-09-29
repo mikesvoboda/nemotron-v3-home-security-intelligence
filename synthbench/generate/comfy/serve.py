@@ -198,6 +198,49 @@ def container_alive(run: Runner = subprocess.run) -> bool:
     return done.returncode != 1
 
 
+def container_running(run: Runner = subprocess.run) -> bool:
+    """True while the renderer container exists and podman reports it actually running.
+
+    A container that exists but is not running (podman's stuck Removing state; a crash) is not
+    "running" (False), unlike `container_alive`. Composes with `container_alive` for the
+    exists/gone split, since `podman container exists` already tells a genuinely missing
+    container from a podman problem cleanly by exit code: a missing container means False. Once
+    it exists, `podman container inspect -f '{{.State.Running}}'` says whether it runs; any
+    other failure there (a hang, or an error once existence is confirmed) is a podman problem,
+    not evidence it stopped, so this stays conservative and reports True.
+    """
+    if not container_alive(run):
+        return False
+    try:
+        done = run(
+            [*podman_argv(), "container", "inspect", "-f", "{{.State.Running}}", CONTAINER],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        return True
+    if done.returncode != 0:
+        return True
+    return done.stdout.strip() == "true"
+
+
+def force_remove(run: Runner = subprocess.run) -> None:
+    """Force-remove a leftover container; a missing one is fine (--ignore), a failed removal is
+    logged. Used once a stop leaves a container that exists but is not running: `stop` has
+    nothing left to signal, so this clears it directly (the podman generate systemd pattern)."""
+    done = run(
+        [*podman_argv(), "rm", "-f", "--ignore", CONTAINER],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if done.returncode != 0:
+        _warn(f"podman rm -f {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")
+
+
 def wait_ready(
     base_url: str,
     *,

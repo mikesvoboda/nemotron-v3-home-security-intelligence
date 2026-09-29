@@ -42,6 +42,19 @@ def test_the_renderer_runs_comfyui_in_the_foreground_bound_to_the_guard() -> Non
     assert "[Install]" not in text  # started by hand, never at boot
 
 
+def test_the_renderer_clears_a_stuck_container_after_stop() -> None:
+    """KillMode=mixed lets podman's own --rm cleanup finish instead of being SIGTERM'd mid-way
+    (systemd's default control-group kill sent that signal to podman run's cleanup, not just its
+    main process, and left the container stuck in podman's Removing state). ExecStopPost then
+    force-removes any leftover, the same podman generate systemd pattern ExecStart's argv uses."""
+    text = render_units(CTX)[RENDERER]
+    assert "KillMode=mixed" in text
+    exec_stop_post = next(line for line in text.splitlines() if line.startswith("ExecStopPost="))
+    argv = shlex.split(exec_stop_post.removeprefix("ExecStopPost="))
+    assert argv[0] == "/usr/bin/podman"
+    assert argv[-4:] == ["rm", "-f", "--ignore", "synthbench-comfyui"]
+
+
 def test_the_guard_always_runs_from_the_checkout() -> None:
     text = render_units(CTX)[GUARD]
     assert f"WorkingDirectory={CHECKOUT}" in text

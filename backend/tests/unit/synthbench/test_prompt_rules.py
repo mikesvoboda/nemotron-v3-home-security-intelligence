@@ -92,6 +92,8 @@ _CURLY_APOSTROPHE = chr(0x2019)  # avoids an ambiguous-unicode literal in source
         ("9 a.m.", "9 a.m."),
         ("nine o'clock", "o'clock"),
         (f"nine o{_CURLY_APOSTROPHE}clock", f"o{_CURLY_APOSTROPHE}clock"),
+        ("12:30pm", "12:30pm"),  # quoted whole: the am/pm suffix folds into the H:MM alternative
+        ("9 a.m", "9 a.m"),  # the final dot is optional
     ],
 )
 def test_rule_4_rejects_clock_times(text: str, match: str) -> None:

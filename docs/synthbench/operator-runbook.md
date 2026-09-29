@@ -48,11 +48,13 @@ restart the guard only while the renderer is stopped.
   exits 2, and it asks you.
 - **Why it refused to start:** `journalctl --user -u synthbench-renderer -n 50` names every
   reason.
-- **"A synthbench-comfyui container is already running" but the unit is not:** check
-  `systemctl --user is-active synthbench-renderer`. If it says `inactive`, the container is
-  probably stuck in podman's `Removing` state (a stop raced the unit's own `ExecStop`; the
-  guard's `stop_renderer` no longer causes this, but a hand-stopped container still can). Clear
-  it with:
+- **"A synthbench-comfyui container is already running" but
+  `systemctl --user is-active synthbench-renderer` prints anything but `active`** (a pre-check
+  failure leaves the unit `failed`, not `inactive`): the container is probably stuck in podman's
+  `Removing` state — systemd's default `KillMode` sent SIGTERM to podman run's own `--rm`
+  cleanup partway through, not just its main process. The unit's `ExecStopPost` now force-removes
+  a leftover on every stop, and the guard's fallback does too once it sees the container is not
+  running, so this should be rare; the command below is the manual fallback:
 
   ```bash
   podman --root /export/models/containers/storage --runroot /run/user/1000/synthbench-containers \

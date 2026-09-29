@@ -93,7 +93,7 @@ Every command resumes where it stopped. If you were interrupted, run the same st
 Describe the scene in plain, concrete words:
 
 - the place, as seen from the spec's camera position (see `cell.camera` below);
-- the time of day, the light and the weather;
+- the time of day as light (before dawn, midday), never a clock time, and the weather;
 - each person or animal: what they wear and what they do;
 - each object.
 
@@ -125,7 +125,7 @@ What the spec's fields mean:
 | `cell.property_type`, `cell.zone`              | the place                                                                                   |
 | `cell.camera`                                  | the camera position: doorbell_fisheye, eave_wide, garage_mounted, pole_lot or indoor_corner |
 | `cell.lighting`                                | day, golden_hour, dusk, ir_night or porch_lit_night                                         |
-| `cell.weather`, `cell.artifacts`, `scene_time` | weather, lens effects, and the time (HH:MM)                                                 |
+| `cell.weather`, `cell.artifacts`, `scene_time` | weather, lens effects, and the time (HH:MM): write it as light, never as a clock time       |
 | `subjects[].attributes.clothing`               | what a person wears                                                                         |
 | `props[].held_by`                              | which subject holds the prop                                                                |
 

@@ -19,8 +19,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from synthbench.generate.comfy.serve import ServeConfig, run_args
-from synthbench.generate.podman import podman_root
+from synthbench.generate.comfy.serve import CONTAINER, ServeConfig, run_args
+from synthbench.generate.podman import podman_argv, podman_root
 from synthbench.host.guard import RENDERER_UNIT
 from synthbench.host.renderer import RESERVE_VRAM_ARGS
 
@@ -72,6 +72,10 @@ def render_units(ctx: UnitContext) -> dict[str, str]:
     )
     podman = run_args(cfg, detach=False, extra=RESERVE_VRAM_ARGS)
     podman[0] = str(ctx.podman)
+    # The same argv prefix ExecStart uses (podman generate systemd's own pattern), so
+    # ExecStopPost can clear a container KillMode=mixed's SIGTERM left in podman's Removing
+    # state without going through the CLI wrapper ExecStop uses.
+    podman_prefix = [str(ctx.podman), *podman_argv()[1:]]
     docs = f"Documentation=file://{ctx.checkout}/docs/synthbench/operator-runbook.md\n"
     service = f"WorkingDirectory={ctx.checkout}\n{env}"
     py = f"{ctx.python} -m"
@@ -95,7 +99,8 @@ def render_units(ctx: UnitContext) -> dict[str, str]:
             f"ExecStart={shlex.join(podman)}\n"
             f"ExecStartPost={py} synthbench.host.renderer warmup\n"
             f"ExecStop={py} synthbench.generate.comfy.serve down\n"
-            "TimeoutStartSec=1200\nTimeoutStopSec=90\nRestart=no\n"
+            f"ExecStopPost={shlex.join([*podman_prefix, 'rm', '-f', '--ignore', CONTAINER])}\n"
+            "TimeoutStartSec=1200\nTimeoutStopSec=90\nRestart=no\nKillMode=mixed\n"
         ),
         SNAPSHOT: (
             "[Unit]\nDescription=synthbench corpus snapshot and prune (design §6)\n"

@@ -301,6 +301,69 @@ class TestFailuresSurface:
         assert serve.container_alive(run=run) is True
         assert timeouts == [30]
 
+    def test_container_running_is_false_once_the_container_is_gone(self) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            assert kw["check"] is False
+            return subprocess.CompletedProcess(argv, 1, "", "")  # "exists": gone
+
+        assert serve.container_running(run=run) is False
+        # Missing: container_running stops at the exists check, never runs inspect.
+        assert calls == [[*podman_argv(), "container", "exists", serve.CONTAINER]]
+
+    @pytest.mark.parametrize(
+        ("stdout", "running"), [("true\n", True), ("false\n", False)], ids=["running", "stopped"]
+    )
+    def test_container_running_reads_podmans_state(self, stdout: str, running: bool) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 0, stdout, "")
+
+        assert serve.container_running(run=run) is running
+        assert calls[-1] == [
+            *podman_argv(),
+            "container",
+            "inspect",
+            "-f",
+            "{{.State.Running}}",
+            serve.CONTAINER,
+        ]
+
+    def test_container_running_stays_conservative_about_an_inspect_failure(self) -> None:
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 125, "", "Error: internal podman error\n")
+
+        assert serve.container_running(run=run) is True
+
+    def test_container_running_is_bounded_and_a_hung_inspect_counts_as_running(self) -> None:
+        def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            raise subprocess.TimeoutExpired(argv, kw["timeout"])
+
+        assert serve.container_running(run=run) is True
+
+    def test_force_remove_ignores_a_missing_container(self) -> None:
+        run = FakeRunner()
+        serve.force_remove(run=run)
+        assert run.calls == [[*podman_argv(), "rm", "-f", "--ignore", serve.CONTAINER]]
+
+    def test_force_remove_logs_a_failed_removal(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            return subprocess.CompletedProcess(argv, 125, "", "Error: container is locked\n")
+
+        serve.force_remove(run=run)
+        err = capsys.readouterr().err
+        assert "125" in err and "container is locked" in err
+
 
 def test_the_renderer_unit_runs_comfyui_in_the_foreground_with_extra_arguments() -> None:
     cfg = serve.ServeConfig.from_env({})

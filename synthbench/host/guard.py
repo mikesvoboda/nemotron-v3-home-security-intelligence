@@ -77,18 +77,27 @@ def probe(url: str, get: Callable[..., httpx.Response]) -> tuple[bool, int | Non
 
 
 def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = _say) -> None:
-    """Stop the renderer unit; run serve.stop as a fallback only when something is still up.
+    """Stop the renderer unit; clear whatever it leaves behind, without racing its own cleanup.
 
-    The unit's ExecStop already runs `serve down` (podman stop --rm removes the container), so
-    a second, unconditional podman stop on the same dying container raced it: podman exited 125
-    ("container state improper") and left the container stuck in the Removing state, refusing
-    the next start. serve.stop now runs only when systemctl did not already clear the container:
-    systemctl failed (raised, timed out or exited non-zero), or the container is still alive
-    afterward (one started by hand, outside the unit).
+    `container_alive` (mere existence) is not enough to gate a second `podman stop`: it is True
+    for a container stuck in podman's Removing state too, and a stop there is what exited 125
+    live and got it stuck (the unit's own ExecStopPost now force-removes a leftover; this is the
+    guard's own fallback, e.g. a renderer started by hand, outside the unit). So this keys on
+    `serve.container_running` instead:
 
-    Never raises: a stuck or missing systemctl, a failed alive check, or a podman failure in
-    the serve.stop fallback, is logged through `say` instead, so a bad stop never crashes the
-    guard.
+    - systemctl failed (raised, timed out or exited non-zero): fall back to `serve.stop`, as
+      before this container-state distinction — a bad systemctl gives no information about the
+      container.
+    - systemctl succeeded and the container is running (started by hand, or the running check
+      itself could not tell and stayed conservative): `serve.stop` can still signal it.
+    - systemctl succeeded and the container exists but is not running (podman's Removing state
+      — systemd's default SIGTERM interrupted podman run --rm's own cleanup partway through — or
+      a leftover from a crash): `stop` has nothing left to signal, so `serve.force_remove`
+      (`podman rm -f --ignore`) clears it directly instead.
+
+    Never raises: a stuck or missing systemctl, a failed running check, or a podman failure in
+    the stop or force-remove fallback, is logged through `say` instead, so a bad stop never
+    crashes the guard.
     """
     systemctl_ok = False
     try:
@@ -110,18 +119,30 @@ def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = 
         else:
             systemctl_ok = True
 
-    needs_fallback = True
-    if systemctl_ok:
+    if not systemctl_ok:
         try:
-            needs_fallback = serve.container_alive(run)
+            serve.stop(run)
         except (subprocess.SubprocessError, OSError) as error:
-            say(f"podman container exists {serve.CONTAINER} failed: {error}")
-    if not needs_fallback:
+            say(f"podman stop {serve.CONTAINER} failed: {error}")
         return
+
     try:
-        serve.stop(run)
+        running = serve.container_running(run)
     except (subprocess.SubprocessError, OSError) as error:
-        say(f"podman stop {serve.CONTAINER} failed: {error}")
+        say(f"podman container inspect {serve.CONTAINER} failed: {error}")
+        running = True  # conservative: assume it still needs a graceful stop
+
+    if running:
+        try:
+            serve.stop(run)
+        except (subprocess.SubprocessError, OSError) as error:
+            say(f"podman stop {serve.CONTAINER} failed: {error}")
+        return
+
+    try:
+        serve.force_remove(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        say(f"podman rm -f {serve.CONTAINER} failed: {error}")
 
 
 class Guard:
