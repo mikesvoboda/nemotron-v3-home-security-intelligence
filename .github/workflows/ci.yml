@@ -473,7 +473,7 @@ jobs:
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: test-results-unit-shard-${{ matrix.shard }}-py${{ matrix.python-version }}
           path: |
@@ -483,7 +483,7 @@ jobs:
 
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           # WP5.1: carries the pytest-cov DATA file (via COVERAGE_FILE, named
           # non-hidden .dat) alongside the per-shard XML. The merge job combines
@@ -629,7 +629,7 @@ jobs:
       # main's real merged number without re-running the suite on base.
       - name: Publish coverage baseline (main)
         if: steps.combine.outputs.merged == 'true' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: coverage-baseline
           path: coverage-baseline.json
@@ -856,7 +856,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: test-results-integration-websocket-py${{ matrix.python-version }}
           path: |
@@ -866,7 +866,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-websocket-py${{ matrix.python-version }}
@@ -984,7 +984,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: test-results-integration-services-py${{ matrix.python-version }}
           path: |
@@ -994,7 +994,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-services-py${{ matrix.python-version }}
@@ -1105,7 +1105,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: test-results-integration-models-py${{ matrix.python-version }}
           path: test-results-integration-models.xml
@@ -1113,7 +1113,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           # WP5.1: DATA file rides with the XML for the merge combine
           name: coverage-integration-models-py${{ matrix.python-version }}
@@ -1369,7 +1369,7 @@ jobs:
 
       - name: Upload contract test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: test-results-contracts
           path: test-results-contracts.xml
@@ -1798,7 +1798,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: frontend-coverage-shard-${{ matrix.shard }}-of-8-node-${{ env.NODE_VERSION }}
           path: frontend/coverage/
@@ -2096,7 +2096,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: playwright-report-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/playwright-report/
@@ -2104,7 +2104,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: playwright-test-results-chromium-${{ strategy.job-index }}-node-${{ env.NODE_VERSION }}
           path: frontend/test-results/
@@ -2235,7 +2235,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: playwright-report-${{ matrix.browser }}
           path: frontend/playwright-report/
@@ -2243,7 +2243,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: playwright-test-results-${{ matrix.browser }}
           path: frontend/test-results/
@@ -2778,7 +2778,7 @@ jobs:
 
       - name: Upload flaky test report
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f    # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a    # v7.0.1
         with:
           name: flaky-test-report-${{ github.run_id }}
           path: flaky-test-report.json
