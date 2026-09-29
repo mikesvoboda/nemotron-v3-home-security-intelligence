@@ -1166,73 +1166,11 @@ async def integration_db(
 
 
 @pytest.fixture(scope="session", autouse=True)
-def mock_llm_enforces_grammar():
-    """The integration tier's mock LLM ENFORCES the constrained grammar.
-
-    Owner ruling (PR #6678 review): the tier exercises the SHIPPED default -
-    constrained wire on, enforcement probe passing - and the legacy wire is
-    pinned only inside tests that are ABOUT legacy (see `legacy_wire`).
-
-    Why this seam: integration tests patch `httpx.AsyncClient.post`
-    themselves, so an httpx-layer fake would be shadowed inside each test;
-    `_probe_completion` is the analyzer's single probe transport - the same
-    helper scripts/vlm_probes/enforcement.py drives - and patching it leaves
-    the analyzer's whole gate logic live for real: status handling, JSON
-    parse, nonce-const comparison, per-endpoint caching all execute
-    unmodified. Only the wire is stood in for.
-
-    The stand-in is strict by design: it verifies the nonce-const contract
-    rides the schema it was handed and, on any mismatch, answers with PROSE
-    - the analyzer's own IGNORED evidence, which raises. A lenient fake
-    would let probe-shape drift pass silently; that is exactly the
-    assumption P0.3 exists to eliminate. Real enforcement is evidenced by
-    the live agent-gpu probe (ledger Task 3 box 4); probe semantics are
-    pinned in unit/services/test_p03_constrained_verdict.py.
-    """
-    import json
-
-    from backend.services import nemotron_analyzer as na
-
-    async def enforcing_probe(client, base_url, headers, prompt_text, schema):
-        spec = (schema.get("properties") or {}).get("probe_const") or {}
-        nonce = spec.get("const")
-        # `_probe_completion` returns (status, content, stop_reason) - the
-        # third element is finding A's triage signal. A mock that ENFORCED
-        # finished its object, so it reports a natural stop rather than
-        # leaving the field unset (an unset field is "the server did not
-        # say", which is neither evidence for nor against truncation).
-        if (
-            isinstance(nonce, str)
-            and spec.get("type") == "string"
-            and "probe_const" in (schema.get("required") or [])
-        ):
-            return (
-                200,
-                json.dumps(
-                    {
-                        "probe_const": nonce,
-                        "risk_score": 10,
-                        "risk_level": "low",
-                        "summary": "mock endpoint enforces the grammar",
-                        "reasoning": "probe echo",
-                    }
-                ),
-                "eos",
-            )
-        # Malformed probe request: BE the IGNORED endpoint (prose back),
-        # never fake a pass the schema didn't earn.
-        return 200, "prose - grammar not enforced on this schema (mock verdict)", "eos"
-
-    with patch.object(na, "_probe_completion", enforcing_probe):
-        yield
-
-
-@pytest.fixture(scope="session", autouse=True)
 def mock_vlm_enforces_grammar():
     """The integration tier's mock ai-vlm ENFORCES the constrained grammar.
 
-    1.5's binding rule 5, mirroring `mock_llm_enforces_grammar` for the
-    VLM path (which since 1.5 IS the shipped default): the tier exercises
+    1.5's binding rule 5; R8 S2b deleted its legacy twin (it patched the
+    retired analyzer module): the VLM path IS the shipped default: the tier exercises
     the mode the product ships. `VlmClient._probe_enforcement` is the
     client's single probe entry — patching it leaves every consumer's
     client live (the build-pin check, the caching, the breaker semantics
@@ -1255,37 +1193,6 @@ def mock_vlm_enforces_grammar():
 
     with patch.object(_vc.VlmClient, "_probe_enforcement", _enforcing_probe):
         yield
-
-
-@pytest.fixture
-def legacy_wire(monkeypatch):
-    """Per-test pin of the LEGACY NEMOTRON WIRE - for tests that construct
-    NemotronAnalyzer directly and assert its pre-P0.3 wire semantics: the
-    50/medium fallback on LLM failure, the guided_json payload. Everything
-    else runs the shipped default (see mock_llm_enforces_grammar).
-
-    R8 (2026-09-29) narrowed this back to WIRE ONLY. 1.5 had broadened it to
-    set PIPELINE_MODE=legacy so a test whose subject reached a seam (the
-    aggregator's lazy fast-path builder, the container, the API dependency)
-    would route to nemotron. That broadening is gone on two counts: the flag
-    hard-raises now (owner ruling, no back-compat), so setting it in the env
-    would fail every consumer's `Settings()` build; and there is no mode
-    branch left to route - build_pipeline_analyzer hands out VlmAnalyzer
-    unconditionally. So this fixture toggles the constrained-decoding wire
-    for tests that name their analyzer directly, and any test that depended
-    on seam routing to the legacy analyzer was deleted rather than adapted
-    (its subject was the branch, not the behavior).
-
-    Env-based so real get_settings() consumers pick it up; cache_clear on
-    both sides so the analyzer built inside the test sees the pin and
-    later tests rebuild without it.
-    """
-    monkeypatch.setenv("NEMOTRON_CONSTRAINED_DECODING_ENABLED", "false")
-    from backend.core.config import get_settings
-
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
 
 
 @pytest.fixture(scope="session", autouse=True)

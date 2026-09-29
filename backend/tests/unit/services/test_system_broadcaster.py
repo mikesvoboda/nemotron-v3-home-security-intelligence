@@ -1152,7 +1152,7 @@ async def test_system_broadcaster_get_system_status_uses_single_session():
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1257,7 +1257,7 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1339,7 +1339,7 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1496,7 +1496,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
             "_check_ai_health",
             return_value={
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
                 "all_healthy": True,
                 "any_healthy": True,
             },
@@ -1509,7 +1509,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
     assert "ai" in status["data"]
     assert status["data"]["ai"]["status"] == "healthy"
     assert status["data"]["ai"]["yolo26"] == "healthy"
-    assert status["data"]["ai"]["nemotron"] == "healthy"
+    assert status["data"]["ai"]["ai-vlm"] == "healthy"
     # Overall health should be healthy when all services are healthy
     assert status["data"]["health"] == "healthy"
 
@@ -1621,9 +1621,13 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
 
 _MODE_URLS = {
     "yolo26_url": "http://ai-gateway:8090/yolo26",
-    "nemotron_url": "http://ai-llm:8091",
     "ai_vlm_url": "http://ai-vlm:8098",
 }
+
+# R8 S2 deleted the nemotron_url setting, so the retired base URL is a bare
+# constant rather than a Settings kwarg: its only remaining job is to let the
+# pins below assert the broadcast never reaches the dead host.
+_RETIRED_LLM_URL = "http://ai-llm:8091"
 
 
 async def _ai_health_broadcast(up: set[str], *, system_status: bool = False):
@@ -1684,12 +1688,14 @@ async def test_check_ai_health_probes_ai_vlm_not_nemotron():
 
     assert result == {"yolo26": True, "ai-vlm": True, "any_healthy": True, "all_healthy": True}
     assert f"{_MODE_URLS['ai_vlm_url']}/health" in probed
-    assert not [u for u in probed if u.startswith(_MODE_URLS["nemotron_url"])], probed
+    assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
 
 
 @pytest.mark.asyncio
 async def test_system_status_is_healthy_with_nemotron_gone():
-    """The incident: nemotron refuses, YOLO26 + ai-vlm are up."""
+    """The incident, corrected: YOLO26 + ai-vlm are up and the broadcast is
+    healthy. The retired engine has no URL to refuse with any more — R8 S2
+    deleted the setting, so a stale probe is now impossible, not merely down."""
     status, _ = await _ai_health_broadcast({"yolo26_url", "ai_vlm_url"}, system_status=True)
 
     assert status["data"]["ai"] == {"status": "healthy", "yolo26": "healthy", "ai-vlm": "healthy"}
@@ -1710,14 +1716,15 @@ async def test_system_status_ai_vlm_down_is_degraded():
 
 @pytest.mark.asyncio
 async def test_system_status_never_reports_the_retired_engine():
-    """nemotron is refused here, exactly as the legacy arm reported it. The
-    shipped block names ai-vlm and carries no nemotron key at all, and the
-    retired URL is never probed."""
+    """The retired engine stays unsaid. The shipped block names ai-vlm, carries
+    no nemotron key at all, and the dead ai-llm base URL is never probed — it is
+    no longer even a Settings field, so only a stale hardcoded probe could
+    reach it."""
     status, probed = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
 
     assert "nemotron" not in status["data"]["ai"]
     assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
-    assert not [u for u in probed if u.startswith(_MODE_URLS["nemotron_url"])], probed
+    assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
 
 
 # ============================================================================

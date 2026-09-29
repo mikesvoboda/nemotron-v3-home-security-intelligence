@@ -344,125 +344,11 @@ class TestFlorenceClientConnectionPooling:
 
 
 # =============================================================================
-# EnrichmentClient Connection Pooling Tests
-# =============================================================================
-
-
-class TestEnrichmentClientConnectionPooling:
-    """Tests for EnrichmentClient HTTP connection pooling."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings for EnrichmentClient."""
-        settings = MagicMock()
-        settings.enrichment_url = "http://test-enrichment:8094"
-        settings.ai_connect_timeout = 10.0
-        settings.ai_health_timeout = 5.0
-        settings.enrichment_cb_failure_threshold = 5
-        settings.enrichment_cb_recovery_timeout = 60.0
-        settings.enrichment_cb_half_open_max_calls = 3
-        # Retry configuration (NEM-1732)
-        settings.enrichment_max_retries = 3
-        # Read timeout configuration (NEM-2524)
-        settings.enrichment_read_timeout = 120.0
-        return settings
-
-    @pytest.fixture
-    def sample_image(self):
-        """Create a sample PIL image for testing."""
-        return Image.new("RGB", (100, 100), color="green")
-
-    def test_init_creates_http_client(self, mock_settings):
-        """Test that __init__ creates a persistent httpx.AsyncClient."""
-        with patch(
-            "backend.services.enrichment_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.enrichment_client import EnrichmentClient
-
-            client = EnrichmentClient()
-
-            # Should have a persistent HTTP client
-            assert hasattr(client, "_http_client")
-            assert isinstance(client._http_client, httpx.AsyncClient)
-
-    def test_init_configures_connection_limits(self, mock_settings):
-        """Test that __init__ configures proper connection limits."""
-        with patch(
-            "backend.services.enrichment_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.enrichment_client import EnrichmentClient
-
-            client = EnrichmentClient()
-
-            # Should have configured limits (stored in transport pool)
-            pool = client._http_client._transport._pool
-            assert pool._max_connections == 10
-            assert pool._max_keepalive_connections == 5
-
-    @pytest.mark.asyncio
-    async def test_close_method_exists_and_works(self, mock_settings):
-        """Test that close() method properly closes the HTTP client."""
-        with patch(
-            "backend.services.enrichment_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.enrichment_client import EnrichmentClient
-
-            client = EnrichmentClient()
-
-            # Should have close method
-            assert hasattr(client, "close")
-            assert inspect.iscoroutinefunction(client.close)
-
-            # Should be able to close without error
-            await client.close()
-
-            # Client should be closed
-            assert client._http_client.is_closed
-
-    @pytest.mark.asyncio
-    async def test_classify_vehicle_reuses_http_client(self, mock_settings, sample_image):
-        """Test that classify_vehicle() reuses the persistent HTTP client."""
-        with patch(
-            "backend.services.enrichment_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ):
-            from backend.services.enrichment_client import EnrichmentClient
-
-            client = EnrichmentClient()
-
-            # Mock the HTTP client's post method
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.raise_for_status = MagicMock()
-            mock_response.json.return_value = {
-                "vehicle_type": "sedan",
-                "display_name": "Sedan",
-                "confidence": 0.95,
-                "is_commercial": False,
-                "all_scores": {"sedan": 0.95},
-                "inference_time_ms": 50.0,
-            }
-
-            with patch.object(
-                client._http_client, "post", new_callable=AsyncMock, return_value=mock_response
-            ):
-                await client.classify_vehicle(sample_image)
-
-                # Should use the persistent client
-                client._http_client.post.assert_called_once()
-
-            await client.close()
-
-
-# =============================================================================
 # Global Client Instance Cleanup Tests
+#
+# R8 (2026-09-29) retired the enrichment tier, so EnrichmentClient's pooling
+# and cleanup pins died with backend/services/enrichment_client.py; the
+# surviving clients (Detector/CLIP/Florence) keep their pins below.
 # =============================================================================
 
 
@@ -541,44 +427,6 @@ class TestGlobalClientCleanup:
 
             # Reset should close the HTTP client
             await reset_florence_client()
-
-            # The HTTP client should be closed
-            assert http_client_ref.is_closed
-
-    @pytest.mark.asyncio
-    async def test_enrichment_client_cleanup_on_reset(self):
-        """Test that reset_enrichment_client properly cleans up resources."""
-        import backend.services.enrichment_client as enrichment_mod
-
-        # Same leaked-singleton discard as the CLIP cleanup test above.
-        enrichment_mod._enrichment_client = None
-
-        with patch(
-            "backend.services.enrichment_client.get_settings", autospec=True
-        ) as mock_get_settings:
-            mock_get_settings.return_value = MagicMock(
-                enrichment_url="http://test:8094",
-                ai_connect_timeout=10.0,
-                ai_health_timeout=5.0,
-                enrichment_cb_failure_threshold=5,
-                enrichment_cb_recovery_timeout=60.0,
-                enrichment_cb_half_open_max_calls=3,
-            )
-
-            from backend.services.enrichment_client import (
-                get_enrichment_client,
-                reset_enrichment_client,
-            )
-
-            # Get a client instance
-            client = get_enrichment_client()
-            assert not client._http_client.is_closed
-
-            # Store reference before reset
-            http_client_ref = client._http_client
-
-            # Reset should close the HTTP client
-            await reset_enrichment_client()
 
             # The HTTP client should be closed
             assert http_client_ref.is_closed

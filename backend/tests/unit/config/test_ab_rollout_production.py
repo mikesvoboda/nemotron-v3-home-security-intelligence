@@ -491,12 +491,20 @@ class TestExperimentStatusReporting:
 
 
 # =============================================================================
-# Test: Integration with NemotronAnalyzer
+# Test: Prompt-version assignment by the production manager
 # =============================================================================
 
 
-class TestIntegrationWithNemotronAnalyzer:
-    """Tests for integration between production config and NemotronAnalyzer."""
+class TestProductionManagerPromptAssignment:
+    """Prompt-version assignment driven by the production rollout manager.
+
+    This class was `TestIntegrationWithNemotronAnalyzer`: its second test
+    (`test_analyzer_can_use_production_manager`) drove a bare MagicMock's
+    auto-created `set_rollout_manager` — no production symbol behind it, so
+    it proved nothing about any analyzer and died with NemotronAnalyzer in
+    R8 S2. What survives here is the manager's own group assignment, which
+    is live code (`backend/config/prompt_ab_rollout.py`).
+    """
 
     @pytest.fixture(autouse=True)
     def setup_manager(self):
@@ -506,22 +514,6 @@ class TestIntegrationWithNemotronAnalyzer:
         reset_rollout_manager()
         yield
         reset_rollout_manager()
-
-    def test_analyzer_can_use_production_manager(self):
-        """Test NemotronAnalyzer can be configured with production manager."""
-        from unittest.mock import MagicMock
-
-        from backend.config.ab_rollout_production import (
-            start_production_ab_rollout,
-        )
-
-        manager = start_production_ab_rollout()
-
-        # Create a mock analyzer and verify it can accept the manager
-        mock_analyzer = MagicMock()
-        mock_analyzer.set_rollout_manager(manager)
-
-        mock_analyzer.set_rollout_manager.assert_called_once_with(manager)
 
     def test_production_manager_assigns_correct_prompt_version(self):
         """Test production manager assigns V1/V2 correctly based on group."""

@@ -37,7 +37,7 @@ class ConstrainedDecodingNotEnforced(RuntimeError):
     """P0.3 fail-closed (spec §3): the endpoint was asked to enforce a JSON
     grammar and did not prove it (S-1's IGNORED / INCONCLUSIVE verdicts).
 
-    With ``nemotron_constrained_decoding_enabled`` on this RAISES instead of
+    With ``vlm_enforcement_probe_enabled`` on this RAISES instead of
     degrading to prose - the whole 0.3 premise is that enforcement is
     verified, not assumed (S-2's per-build lesson). Legacy configs
     (flag off) never reach this class.

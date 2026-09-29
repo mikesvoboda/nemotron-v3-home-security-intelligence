@@ -1925,8 +1925,10 @@ class TestCheckAIServicesHealthRetiredLlm:
     """
 
     YOLO26 = "http://ai-gateway:8090/yolo26"
-    NEMOTRON = "http://ai-llm:8091"
     AI_VLM = "http://ai-vlm:8098"
+    # No NEMOTRON constant: settings.nemotron_url is DELETED (R8 S2), so no
+    # Settings built here can route to the retired LLM. The guard is the exact
+    # probe-set assertion in test_is_healthy_with_nemotron_gone.
 
     @pytest.fixture(autouse=True)
     def _fresh_health_breaker(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1937,11 +1939,12 @@ class TestCheckAIServicesHealthRetiredLlm:
         monkeypatch.setattr(system_routes, "_health_circuit_breaker", CircuitBreaker())
 
     def _settings(self) -> Settings:
-        # No pipeline_mode kwarg: the default IS the shipped mode.
+        # No pipeline_mode kwarg: the default IS the shipped mode. nemotron_url is
+        # DELETED from Settings (R8 S2), so the retired LLM is not merely unused
+        # here — it can no longer be configured at all.
         return Settings(
             _env_file=None,
             yolo26_url=self.YOLO26,
-            nemotron_url=self.NEMOTRON,
             ai_vlm_url=self.AI_VLM,
         )
 
@@ -1984,10 +1987,14 @@ class TestCheckAIServicesHealthRetiredLlm:
 
         assert result.status == "healthy", result
         assert result.details == {"yolo26": "healthy", "ai-vlm": "healthy"}
-        assert f"{self.AI_VLM}/health" in probed
-        assert not [u for u in probed if u.startswith(self.NEMOTRON)], (
-            f"probed the retired nemotron: {probed}"
+        # R8 S2 retargets the old "no ai-llm probe" filter, which could no longer
+        # be falsified: settings.nemotron_url is DELETED, so there is no URL left
+        # to filter on. Two pins replace it — the field is really gone, and the
+        # probe set is exactly the two survivors (a third row fails here).
+        assert not hasattr(self._settings(), "nemotron_url"), (
+            "Settings regained the deleted nemotron_url field"
         )
+        assert set(probed) == {f"{self.YOLO26}/health", f"{self.AI_VLM}/health"}
 
     @pytest.mark.asyncio
     async def test_degraded_when_ai_vlm_is_down(self) -> None:
@@ -2492,7 +2499,7 @@ class TestWp44DegradationPayloadContract:
             "memory_queue_size": 7,
             "fallback_queues": {"events": 3, "videos": 4},
             "services": {
-                "nemotron": {
+                "ai-vlm": {
                     "status": "unhealthy",
                     "last_check": 1712345678.5,
                     "consecutive_failures": 2,
@@ -2516,7 +2523,7 @@ class TestWp44DegradationPayloadContract:
         assert result.fallback_queues == {"events": 3, "videos": 4}
         assert result.available_features == ["detect", "watch"]
         (svc,) = result.services
-        assert svc.name == "nemotron"
+        assert svc.name == "ai-vlm"
         assert svc.status == "unhealthy"
         assert svc.last_check == 1712345678.5
         assert svc.consecutive_failures == 2

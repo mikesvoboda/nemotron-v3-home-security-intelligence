@@ -56,11 +56,17 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
         "critical": True,
     },
     {
-        "name": "nemotron",
-        "display_name": "Nemotron LLM Risk Analysis",
-        "url_attr": "nemotron_url",
-        "circuit_breaker_name": "nemotron",
-        "critical": True,
+        # R8 S2: the retired Nemotron LLM's row is replaced IN THE DATA by
+        # ai-vlm (the verdict engine) - critical False, matching the
+        # degradation posture main.py registers. The S1 swap filter that used
+        # to do this substitution at read time retires with it: the setting
+        # the old row read (nemotron_url) is deleted, so the row could only
+        # ever report UNKNOWN.
+        "name": "ai-vlm",
+        "display_name": "VLM Verdict Service",
+        "url_attr": "ai_vlm_url",
+        "circuit_breaker_name": "ai-vlm",
+        "critical": False,
     },
     {
         "name": "florence",
@@ -84,35 +90,6 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
         "critical": False,
     },
 ]
-
-# PIPELINE_MODE=vlm (spec rev 5): ai-vlm is the verdict engine and the legacy
-# Nemotron LLM is retired, so its row is swapped for this one. Non-critical,
-# like ai-vlm's degradation-manager registration in main.py: ai-vlm down is
-# DEGRADED, not an outage of the whole AI subsystem.
-AI_VLM_SERVICE_CONFIG: dict[str, Any] = {
-    "name": "ai-vlm",
-    "display_name": "VLM Verdict Service",
-    "url_attr": "ai_vlm_url",
-    "circuit_breaker_name": "ai-vlm",
-    "critical": False,
-}
-
-
-def shipped_ai_services_config(
-    table: list[dict[str, Any]] = AI_SERVICES_CONFIG,
-) -> list[dict[str, Any]]:
-    """The AI service table the shipped pipeline reports.
-
-    The nemotron row is replaced by AI_VLM_SERVICE_CONFIG so a retired LLM is
-    never probed or reported. Shared with the /api/system/health/full table in
-    system.py. R8 (2026-09-29) removed the mode branch that returned the table
-    unchanged, and with it the `settings` argument that branch read:
-    PIPELINE_MODE has one value and the retired row is never right, so the
-    swap is unconditional. The name dropped "_for_mode" for the same reason
-    R8's whole purpose gives — a future reader should not have to wonder
-    which mode the answer depends on.
-    """
-    return [AI_VLM_SERVICE_CONFIG if cfg["name"] == "nemotron" else cfg for cfg in table]
 
 
 def _get_circuit_breaker_state(service_name: str) -> AIServiceCircuitState:
@@ -428,7 +405,7 @@ async def get_ai_services_health(
 ) -> AIServicesHealthResponse:
     """Get unified AI services health status."""
     settings = get_settings()
-    services_config = shipped_ai_services_config()
+    services_config = AI_SERVICES_CONFIG
 
     # Check all AI services in parallel
     health_tasks = [_check_ai_service_health(config, settings) for config in services_config]

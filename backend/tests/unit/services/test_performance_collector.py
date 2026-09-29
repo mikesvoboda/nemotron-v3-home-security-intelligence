@@ -623,7 +623,7 @@ class TestCollectContainerHealth:
             mock_settings.return_value = MagicMock(
                 frontend_url="http://frontend:8080",
                 yolo26_url="http://ai-yolo26:8095",
-                nemotron_url="http://ai-llm:8091",
+                ai_vlm_url="http://ai-vlm:8098",
             )
 
             collector = PerformanceCollector()
@@ -978,7 +978,12 @@ class TestCollectYolo26Metrics:
 
 
 class TestCollectNemotronMetrics:
-    """Tests for collect_nemotron_metrics method."""
+    """Tests for collect_nemotron_metrics method.
+
+    R8 S2 re-home: the method name is API surface that stayed, but the slot
+    probe now reads settings.ai_vlm_url (the shipped llama.cpp server), so the
+    settings stub below stands in for ai_vlm_url, not the retired nemotron_url.
+    """
 
     @pytest.mark.asyncio
     async def test_collect_nemotron_metrics_healthy(self) -> None:
@@ -986,7 +991,7 @@ class TestCollectNemotronMetrics:
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
+            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
 
             collector = PerformanceCollector()
 
@@ -1017,7 +1022,7 @@ class TestCollectNemotronMetrics:
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
+            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
 
             collector = PerformanceCollector()
 
@@ -1046,7 +1051,7 @@ class TestCollectNemotronMetrics:
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
+            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
 
             collector = PerformanceCollector()
 
@@ -1073,7 +1078,7 @@ class TestCollectNemotronMetrics:
         with patch(
             "backend.services.performance_collector.get_settings", autospec=True
         ) as mock_settings:
-            mock_settings.return_value = MagicMock(nemotron_url="http://ai-llm:8091")
+            mock_settings.return_value = MagicMock(ai_vlm_url="http://ai-vlm:8098")
 
             collector = PerformanceCollector()
 

@@ -747,7 +747,7 @@ class TestAnalyzeBatchVerificationFailed:
         assert session.added[1].verdict == "verification_failed"
 
     async def test_enforcement_probe_failure_maps_too(self, monkeypatch):
-        from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+        from backend.services.constrained_decoding import ConstrainedDecodingNotEnforced
 
         event, session, _ = await self._fails(
             monkeypatch, [ConstrainedDecodingNotEnforced("ignored")]

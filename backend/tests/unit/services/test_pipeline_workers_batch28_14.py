@@ -165,7 +165,8 @@ Discipline
 * Mocks of real attributes are autospec'd (WP4.2 fast path) and passed through
   ``new=`` whenever the leg must read the double's call records AFTER the patch
   window: the injected ``Settings``, the four worker CLASSES in the manager factory,
-  ``BatchAggregator`` / ``NemotronAnalyzer`` / ``RetryHandler`` in the fallback legs,
+  ``BatchAggregator`` / ``build_pipeline_analyzer`` / ``RetryHandler`` in the fallback
+  legs,
   ``record_stage_latency`` in the batch-loop leg, ``asyncio.wait_for`` /
   ``asyncio.create_task`` / ``asyncio.get_running_loop`` in the spy legs,
   ``time_module.time`` / ``time.time`` in the clocked legs and the ``WorkerSupervisor``

@@ -1,4 +1,4 @@
-"""WP8.4 — drive the six real backend AI clients through the FakeProvider.
+"""WP8.4 — drive the real backend AI clients through the FakeProvider.
 
 INTEGRATED (2026-09-19): drafted under /tmp with a draft-only conftest (not
 carried over — the repo tier gets ENVIRONMENT=test from
@@ -14,6 +14,18 @@ in-tree run has since confirmed or reframed; each names its own status.
 There is **no xfail, no skip, no importorskip anywhere in this file** (goal
 rule). Never respx: every hop is ``httpx.ASGITransport`` (goal rule; the fake
 IS an app — backend/ai_contract/fake/app.py).
+
+DRIVEN HERE SINCE R8 S2 (2026-09-29): DetectorClient, FlorenceClient,
+CLIPClient, VlmClient — the four AI clients that survived the legacy-tier
+deletion. ``EnrichmentClient``, ``NemotronAnalyzer`` and
+``nemotron_streaming`` were deleted with the tier, so the legs that drove them
+went with them; where the driven BEHAVIOR survived in shipped code it was
+re-pointed rather than dropped (the ``/completion`` client-BYPASS legs now run
+against ``SummaryGenerator``, one of the three surviving sites). The
+``enrich*`` ops those clients spoke for are still IN the registry (deployed
+gateway surface) and stay under contract in the gateway-side classes below —
+they are simply no longer reachable through a backend client, which is exactly
+what ``test_conformance_ops.py``'s NOT-WIRED census now pins.
 
 Plan: docs/superpowers/plans/2026-09-19-swap-readiness-72h.md §WP8.4
 (lines 1001-1026). WP8.3 (test_conformance_geometry.py et al.) tested
@@ -31,8 +43,8 @@ SEAMS USED PER CLIENT (point a client at the fake with ZERO production change)
 =============================================================================
 Every client builds its OWN persistent ``httpx.AsyncClient`` inside
 ``__init__`` (detector_client.py:321/:325, florence_client.py:368,
-clip_client.py:152, enrichment_client.py:917/:919, nemotron_analyzer.py:404)
-against a DNS name that does not exist here — so the seam is always
+clip_client.py:152) against a DNS name that does not exist here — so the seam
+is always
 (a) get the right base_url in (constructor kwarg where one exists, else patch
 the *module-level* ``get_settings`` name the client imported — patching
 backend.core.config.get_settings would hit none of them; same trap as the
@@ -48,46 +60,40 @@ backend/tests/contracts/ai_providers/test_conformance_geometry.py:68-70) and
   ``_http_client`` (:368).
 * CLIPClient            — ctor base_url (clip_client.py:99/:111) + swap
   ``_http_client`` (:152).
-* EnrichmentClient      — ctor base_url/light_base_url (enrichment_client.py
-  :838/:855/:865) are NOT sufficient: per-model ops resolve through
-  ``_get_service_for_model`` (:928-943) → ``settings.get_enrichment_url_for_model``
-  (backend/core/config.py:1432-1453), and ``self._settings`` is captured at
-  ctor (:847). Seam: patch ``backend.services.enrichment_client.get_settings``
-  with a Settings whose enrichment_url/enrichment_light_url are fake prefixes.
-* NemotronAnalyzer      — no base_url kwarg; ``self._llm_url =
-  settings.nemotron_url`` (nemotron_analyzer.py:336). Seam: patch
-  ``backend.services.nemotron_analyzer.get_settings`` + swap pools.
+* VlmClient             — takes its transport in ``__init__`` (no pool swap);
+  dedicated leg in section 7.
 * SceneOCRService (client-BYPASS site, plan :1011) — real ctor url kwarg
-  (backend/services/scene_ocr_service.py:381) + LAZY pool (:387/:397-402):
+  (backend/services/scene_ocr_service.py:381) + LAZY pool (:412):
   pre-seed ``svc._client`` with an ASGITransport client.
-* nemotron_streaming.call_llm_streaming (client-BYPASS site, plan :1012) —
-  builds its own client INSIDE the function (nemotron_streaming.py:96,
-  ``httpx`` imported at module level :14). Seam: rebind the name ``httpx`` ON
-  THE STREAMING MODULE (monkeypatch, auto-restored) to a shim that injects the
-  transport. The real httpx module is never patched.
+* SummaryGenerator._call_nemotron (client-BYPASS family, plan :1012's
+  successor) — builds its own client INSIDE the method
+  (summary_generator.py:441, ``httpx`` imported at module level :27) and posts
+  ``{settings.ai_vlm_url}/completion`` (:443). Seam: rebind the name ``httpx``
+  ON THE SERVICE MODULE (monkeypatch, auto-restored) to a shim that injects the
+  transport. The real httpx module is never patched. The same shape is used by
+  prompt_service.py:938 and pipeline_quality_audit_service.py:390.
 
 =============================================================================
 CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 =============================================================================
-* The fake mounts EXACTLY the 37 registry paths with no prefix
-  (fake/app.py) — and the registry paths ALREADY carry the service prefixes
+* The fake mounts one route per registry op with no prefix (fake/app.py) —
+  and the registry paths ALREADY carry the service prefixes
   (/florence/extract, /clip/embed, /enrichment/vehicle-classify,
   /enrich-lt/person-reid, /models/status, /object-distance, /completion,
   /yolo26/segment). The gateway mounts its five adapter routers under THE SAME
   prefixes (ai/gateway/main.py:181-185), so one base_url works against either
   app — that is what makes every gateway-vs-fake pair below legible.
-* Service defaults (config.py:1373-1408): pose/threat/reid/pet/depth → LIGHT,
-  vehicle/clothing/action/demographics → HEAVY. So per-model client legs hit
-  /enrich-lt/* and the expected bodies are the LIGHT ops (their values DIFFER
-  from the heavy ops — both were dumped).
+* Service defaults (config.py:1642-1663): pose/threat/reid/pet/depth → LIGHT,
+  vehicle/clothing/action/demographics → HEAVY — the split that decided which
+  prefix the retired EnrichmentClient resolved per model; the settings fields
+  still drive ai/gateway routing reports (model_management.py:157-168).
 * The fake performs NO request validation (it parses the body only to echo
   model_name) and always answers 200 on registry paths → it can never 422.
   Every 422/404 pin therefore drives the real gateway adapter routers, and the
   fake side of those tests pins the 200. The asymmetry IS the finding.
 * The fake serves NO /health route (no registry op has one): every client
-  health probe 404s against the bare fake (characterized for
-  DetectorClient; for EnrichmentClient a /health shim route is added — see
-  ``_health_aware_fake``).
+  health probe 404s against the bare fake (characterized for DetectorClient,
+  FlorenceClient and CLIPClient in section 4).
 * Deterministic fake values were dumped at draft time via
   ``backend.ai_contract.fake.generate(op_id)`` (profile "gateway"); the
   literals below are those dumps. A change to the generator seed logic reddens
@@ -95,18 +101,16 @@ CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 
 Cites relied on (re-verify any that a rebase moves):
   plan §WP8.4 :1001-1026; Tier A table :769-800
-  backend/ai_contract/operations.py (37 ops; availability flags; client_methods)
+  backend/ai_contract/operations.py (38 ops; availability flags; client_methods)
   backend/ai_contract/fake/{__init__.py,app.py,generators.py} (generate/snapshot)
   backend/services/detector_client.py:73,103,262,287,321,325,415,993,1054,1169,1187,1208-1213,1286,1301 (re-spaced -123 by the A7.2 segment_image deletion; 981/1032 died with it)
   backend/services/florence_client.py:73(BoundingBox),309,321,368,561,582,727,749-752,881,980,998,1083,1102-1104,1189,1299,1411,1432-1434,1524,1543-1563
   backend/services/clip_client.py:54,99,111,152,332,352-366,488-493,512,680,700-701,830,983,1005
-  backend/services/enrichment_client.py:838,847,855,865,917,928-943,1085-1133,1136-1149,1203,1216,1407,1613-1621,1626,1806,1945-1956,2013,2226-2241,2320,2443-2448,2620-2623,2782-2786,2944-2948,3048-3116,3161-3200,3253-3260,3285-3300
-  backend/services/nemotron_analyzer.py:336,404,1003-1065,4257,4348
-  backend/services/nemotron_streaming.py:14,83-92,96,99,104-116
-  backend/services/scene_ocr_service.py:59,367,381,387,397-402,508-571,600-700
-  backend/services/enrichment_pipeline.py:554(BoundingBox),1954-1974(DetectionInput)
+  backend/services/summary_generator.py:87,441,443-447,452 (R8 S2 re-home)
+  backend/services/prompt_service.py:681,938-947; backend/services/pipeline_quality_audit_service.py:137,390-398
+  backend/services/scene_ocr_service.py:57-66(DetectionLike),381,412,526,547-557,634,663-668
   backend/models/detection.py:29,54-67
-  backend/api/routes/model_management.py:186,486,560,639,646
+  backend/api/routes/model_management.py:157-168,186,486,560,639,646
   ai/gateway/main.py:181-185
   ai/gateway/adapters/enrichment.py:292-296(BBoxRequest),360-364(EnrichRequest),902-977(enrich handler)
   ai/gateway/adapters/enrichment_light.py:43-68(ImageRequest/BBoxRequest alias+list),326(pose route)
@@ -115,6 +119,7 @@ Cites relied on (re-verify any that a rebase moves):
   ai/enrichment/model.py:2694(object-distance),3552(POST /models/unload query-param)
   backend/tests/contracts/ai_providers/test_conformance_geometry.py:68-70,121-215
 """
+
 
 from __future__ import annotations
 
@@ -314,22 +319,22 @@ def settings_factory():
             "yolo26_url": f"{FAKE_BASE}/yolo26",
             "florence_url": f"{FAKE_BASE}/florence",
             "clip_url": f"{FAKE_BASE}/clip",
+            # heavy/light prefixes: no backend client resolves them any more
+            # (EnrichmentClient was deleted in R8 S2), but the fields are live
+            # settings read by the gateway-routing report (model_management.py
+            # :157-168), so the fixture still pins them off-box.
             "enrichment_url": f"{FAKE_BASE}/enrichment",  # heavy
             "enrichment_light_url": f"{FAKE_BASE}/enrich-lt",  # light
-            "nemotron_url": FAKE_BASE,  # registry op is bare /completion
+            # The /completion endpoint (registry op is bare /completion):
+            # R8 S2 re-homed every consumer of the retired nemotron_url onto
+            # ai_vlm_url (summary_generator.py:87, prompt_service.py:681,
+            # pipeline_quality_audit_service.py:137, providers.py
+            # _llamacpp_callable), so this is the survivor's field.
+            "ai_vlm_url": FAKE_BASE,
             "use_ai_gateway": False,
             "ai_gateway_url": None,
             "detector_max_retries": 1,
             "enrichment_max_retries": 1,
-            "nemotron_max_retries": 1,
-            "nemotron_use_guided_json": False,  # skip the NIM guided-JSON probe
-            # P0.3: conformance pins the LEGACY wire contract (the /completion
-            # body keys and content reading). Constrained decoding would
-            # prepend the enforcement probe and add json_schema to the body -
-            # that surface is pinned in the unit tier instead
-            # (test_p03_constrained_verdict.py). The flip is exactly the R8
-            # settings change that keeps this route byte-identical.
-            "nemotron_constrained_decoding_enabled": False,
         }
         base.update(overrides)
         # _env_file=None so the sandbox .env cannot bleed prod values into
@@ -366,32 +371,6 @@ def clip_client(fake_app):
     client = CLIPClient(base_url=f"{FAKE_BASE}/clip")  # ctor seam :111
     _point_at(client, fake_app)
     yield client
-
-
-@pytest.fixture
-def enrichment_client(fake_app, monkeypatch, settings_factory):
-    _patch_settings(monkeypatch, "backend.services.enrichment_client", settings_factory())
-    from backend.services.enrichment_client import EnrichmentClient
-
-    client = EnrichmentClient()  # heavy/light from patched settings (:855/:865)
-    _point_at(client, fake_app)
-    yield client
-
-
-@pytest.fixture
-def nemotron_analyzer(fake_app, monkeypatch, settings_factory):
-    _patch_settings(monkeypatch, "backend.services.nemotron_analyzer", settings_factory())
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-    analyzer = NemotronAnalyzer(
-        redis_client=object(),  # never touched by the legs driven here
-        use_enriched_context=False,
-        use_enrichment_pipeline=False,
-        max_retries=1,
-        service_facade=MagicMock(),  # don't build the real facade at ctor
-    )
-    _point_at(analyzer, fake_app)
-    yield analyzer
 
 
 @pytest.fixture(scope="module")
@@ -463,8 +442,13 @@ async def gateway_client(gateway_app):
 # THE CLIENT PARSE SURFACE AS DATA. Values are the deterministic fake bodies
 # dumped at draft time (generate(op_id)); expected PARSED shapes come from the
 # client dataclasses (fields dumped too). "op" is the registry op the client is
-# ROUTED to under default settings — asserting store path == OPERATIONS[op].path
-# pins the settings→service routing (config.py:1373-1408) as well as the parse.
+# ROUTED to — asserting store path == OPERATIONS[op].path pins the client's URL
+# composition as well as the parse. Since R8 S2 the table holds only the
+# surviving FlorenceClient/CLIPClient rows: the EnrichmentClient block that
+# used to sit here (8 heavy/light routing rows) went with its client, and the
+# heavy/light routing it pinned is no longer a CLIENT behavior — the ops stay
+# in the registry and stay contracted gateway-side (see the tier-A gateway
+# classes below and test_conformance_ops.py's NOT-WIRED census).
 # ---------------------------------------------------------------------------
 
 _EXPECTED_CLIENT_OUTPUTS: dict[str, dict[str, Any]] = {

@@ -37,12 +37,10 @@ class TestInitCircuitBreakers:
 
         breaker_names = init_circuit_breakers()
 
-        # Should return all 4 known services
-        assert len(breaker_names) == 4
-        assert "yolo26" in breaker_names
-        assert "nemotron" in breaker_names
-        assert "postgresql" in breaker_names
-        assert "redis" in breaker_names
+        # Should return all 3 known services. R8 S2b (2026-09-29) deleted the
+        # Nemotron analyzer, so its breaker row is gone with it.
+        assert len(breaker_names) == 3
+        assert sorted(breaker_names) == ["postgresql", "redis", "yolo26"]
 
     def test_circuit_breakers_appear_in_registry(self) -> None:
         """Test that circuit breakers are registered in global registry."""
@@ -54,12 +52,20 @@ class TestInitCircuitBreakers:
         all_status = registry.get_all_status()
 
         assert "yolo26" in all_status
-        assert "nemotron" in all_status
         assert "postgresql" in all_status
         assert "redis" in all_status
 
     def test_ai_service_config_has_lower_threshold(self) -> None:
-        """Test that AI services have more aggressive (lower) failure threshold."""
+        """Test that the AI service has a more aggressive (lower) threshold.
+
+        Retargeted on R8 S2b (2026-09-29): this class used to assert the pair
+        yolo26 + nemotron shared the AI-service threshold, and nemotron's row
+        was deleted with the analyzer. The intent - an AI-service breaker trips
+        faster than the tolerant infrastructure config - is still what
+        init_circuit_breakers() does, so it is now asserted as the relationship
+        between yolo26 and the infrastructure rows rather than as two rows of
+        one config.
+        """
         from backend.main import init_circuit_breakers
 
         init_circuit_breakers()
@@ -67,11 +73,16 @@ class TestInitCircuitBreakers:
         registry = _get_registry()
         all_status = registry.get_all_status()
 
-        # AI services should have failure_threshold=5
+        # The AI service uses the aggressive config: failure_threshold=5
         yolo26_config = all_status["yolo26"]["config"]
-        nemotron_config = all_status["nemotron"]["config"]
         assert yolo26_config["failure_threshold"] == 5
-        assert nemotron_config["failure_threshold"] == 5
+
+        # ...and strictly lower than the generic infrastructure config
+        for infra_name in ("postgresql", "redis"):
+            infra_config = all_status[infra_name]["config"]
+            assert yolo26_config["failure_threshold"] < infra_config["failure_threshold"], (
+                f"{infra_name} must not trip faster than the AI service"
+            )
 
     def test_infrastructure_service_config_has_higher_threshold(self) -> None:
         """Test that infrastructure services have higher failure threshold."""
@@ -111,10 +122,11 @@ class TestInitCircuitBreakers:
         # Should return same names
         assert first_result == second_result
 
-        # Registry should still have exactly 4 circuit breakers
+        # Registry should still have exactly 3 circuit breakers (R8 S2b took
+        # the nemotron row down from 4)
         registry = _get_registry()
         all_status = registry.get_all_status()
-        assert len(all_status) == 4
+        assert len(all_status) == 3
 
 
 @pytest.fixture
@@ -421,7 +433,12 @@ class TestAiServiceHealthMonitorConfigs:
             use_ai_gateway=True,
             ai_gateway_url="http://ai-gateway:8090",
             yolo26_url="http://ai-gateway:8090/yolo26",
-            nemotron_url="http://ai-llm:8091",
+            # R8 S2b: nemotron_url is DELETED from Settings (extra="ignore", so
+            # passing it was silently dropped - a vacuous pin). The monitor's
+            # one survivor endpoint is ai-vlm, so the list is now built with the
+            # real successor URL and the assertions below still have to prove the
+            # monitor probes/restarts neither it nor port 8091.
+            ai_vlm_url="http://ai-vlm:8098",
         )
 
     @pytest.mark.parametrize("restart", ["docker", "shell", "disabled"])
@@ -438,6 +455,10 @@ class TestAiServiceHealthMonitorConfigs:
             assert "ai-llm" not in (cfg.restart_cmd or ""), cfg
             assert "start_llm" not in (cfg.restart_cmd or ""), cfg
             assert "8091" not in cfg.health_url, cfg
+            # The ai-vlm URL this settings object now carries must not leak into
+            # the probe list either: ai-vlm is breaker-push, not monitored.
+            assert "ai-vlm" not in cfg.health_url, cfg
+            assert "8098" not in cfg.health_url, cfg
 
     @pytest.mark.parametrize(
         ("restart", "yolo26_cmd"),

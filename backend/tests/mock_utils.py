@@ -290,43 +290,6 @@ def create_mock_detector_client(
     return mock_client
 
 
-def create_mock_nemotron_client(
-    health_status: str = "healthy",
-    analyze_response: dict[str, Any] | None = None,
-) -> AsyncMock:
-    """Create a mock Nemotron LLM client.
-
-    Args:
-        health_status: Health check status
-        analyze_response: Analysis result to return
-
-    Returns:
-        AsyncMock configured as NemotronClient
-
-    Example:
-        mock_client = create_mock_nemotron_client(
-            analyze_response={
-                "risk_score": 75,
-                "risk_level": "high",
-                "summary": "Person detected at entry point",
-                "reasoning": "High risk activity",
-            }
-        )
-    """
-    mock_client = AsyncMock()
-    mock_client.check_health.return_value = {"status": health_status}
-
-    if analyze_response:
-        mock_client.analyze.return_value = analyze_response
-
-    return mock_client
-
-
-# =============================================================================
-# Context Manager Helpers
-# =============================================================================
-
-
 def create_mock_async_context(mock_instance: AsyncMock) -> AsyncMock:
     """Configure a mock to work as an async context manager.
 

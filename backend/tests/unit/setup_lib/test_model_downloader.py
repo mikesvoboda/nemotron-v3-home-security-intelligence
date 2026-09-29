@@ -38,9 +38,11 @@ class TestModelSpecConstants:
         from setup_lib.model_downloader import REQUIRED_MODELS
 
         model_names = [m.name for m in REQUIRED_MODELS]
-        # Florence-2 and CLIP are essential for the AI pipeline
+        # The three phase-0 required rows in models.yml: the LLM, primary object
+        # detection, and the vision-language model.
+        assert "nemotron-3-nano-30b-a3b-q4km" in model_names
+        assert "yolo26" in model_names
         assert "florence-2-base" in model_names
-        assert "siglip2-base-patch16-224" in model_names
 
     def test_phase1_models_exists(self) -> None:
         """PHASE1_MODELS should be a list."""
@@ -75,13 +77,13 @@ class TestModelSpecConstants:
         for model in PHASE2_MODELS:
             assert model.phase == 2, f"Model {model.name} should have phase=2"
 
-    def test_phase2_models_contain_enrichment_models(self) -> None:
-        """PHASE2_MODELS should contain demographics and action recognition models."""
-        from setup_lib.model_downloader import PHASE2_MODELS
+    def test_downloadable_models_have_no_phase2_tier(self) -> None:
+        """No downloadable model carries phase 2 — R8 S2b retired the demographics /
+        action-recognition tier, so models.yml has no download_phase: 2 rows left."""
+        from setup_lib.model_downloader import build_model_specs
 
-        model_names = [m.name for m in PHASE2_MODELS]
-        # Phase 2 contains demographics and action recognition models
-        assert "vit-age-classifier" in model_names or "stgcn-plus-plus" in model_names
+        phases = {m.phase for m in build_model_specs()}
+        assert 2 not in phases, "a phase-2 row reappeared — retarget this pin"
 
     def test_phase3_models_exists(self) -> None:
         """PHASE3_MODELS should be a list."""
@@ -388,7 +390,7 @@ class TestDownloadHfModel:
 
         model = ModelSpec(
             name="test-model",
-            hf_repo="microsoft/Florence-2-large",
+            hf_repo="microsoft/Florence-2-base",
             phase=1,
             size_mb=1200,
             description="Test",
@@ -405,7 +407,7 @@ class TestDownloadHfModel:
 
             mock_download.assert_called_once()
             call_kwargs = mock_download.call_args[1]
-            assert call_kwargs["repo_id"] == "microsoft/Florence-2-large"
+            assert call_kwargs["repo_id"] == "microsoft/Florence-2-base"
             # huggingface_hub 1.x removed local_dir_use_symlinks (local_dir always
             # copies), so passing it would raise TypeError at runtime.
             assert "local_dir_use_symlinks" not in call_kwargs
@@ -681,6 +683,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -705,9 +710,11 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Function auto-downloads all missing models; required HF models must be present
+            # Function auto-downloads all missing models; every models.yml row that
+            # carries an hf_repo must reach download_hf_model — phase 0 (required)
+            # and phase 1 (optional core enrichment) alike.
             assert "florence-2-base" in downloaded_models
-            assert "siglip2-base-patch16-224" in downloaded_models
+            assert "threat-detection-yolov8n" in downloaded_models
 
     def test_uses_default_path_when_not_provided(self) -> None:
         """Should use default ai_models_path when not in config."""
@@ -776,6 +783,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -891,6 +901,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -935,10 +948,6 @@ class TestPromptAndDownloadModels:
             "yolo26",
             "yolov8n-pose",
             "osnet-ain-x1-0",
-            "stgcn-plus-plus",
-            "yolo-world-s",
-            "marqo-fashionSigLIP",
-            "fashion-clip",  # hf_cache method → download_marqo_fashionsiglip
         }
 
         with (
@@ -970,6 +979,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -1000,13 +1012,21 @@ class TestPromptAndDownloadModels:
             hf_models = [
                 m.name
                 for m in all_specs
-                if m.hf_repo and m.name not in special_models and m.download_method != "hf_cache"
+                if m.phase <= 1
+                and m.hf_repo
+                and m.name not in special_models
+                and m.download_method != "hf_cache"
             ]
+            assert hf_models, "no phase 0/1 HF rows left — retarget this test"
             for name in hf_models:
                 assert name in downloaded_models, f"Expected model {name} to be downloaded"
 
-    def test_downloads_all_phases_including_phase2_and_phase3(self) -> None:
-        """Should download models from all phases including phase 2 and 3."""
+    def test_downloads_all_phases_including_phase3(self) -> None:
+        """Should download models from all phases including phase 3.
+
+        (Phase 2 — the demographics / action-recognition tier — was retired with
+        R8 slice S2b; test_downloadable_models_have_no_phase2_tier pins its absence.)
+        """
         from setup_lib.model_downloader import build_model_specs, prompt_and_download_models
 
         downloaded_models: list[str] = []
@@ -1021,10 +1041,6 @@ class TestPromptAndDownloadModels:
             "yolo26",
             "yolov8n-pose",
             "osnet-ain-x1-0",
-            "stgcn-plus-plus",
-            "yolo-world-s",
-            "marqo-fashionSigLIP",
-            "fashion-clip",  # hf_cache method → download_marqo_fashionsiglip
         }
 
         with (
@@ -1056,6 +1072,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -1086,8 +1105,12 @@ class TestPromptAndDownloadModels:
             hf_models = [
                 m.name
                 for m in all_specs
-                if m.hf_repo and m.name not in special_models and m.download_method != "hf_cache"
+                if m.phase >= 2
+                and m.hf_repo
+                and m.name not in special_models
+                and m.download_method != "hf_cache"
             ]
+            assert hf_models, "no phase-3 HF rows left — retarget this test"
             for name in hf_models:
                 assert name in downloaded_models, f"Expected model {name} to be downloaded"
 
@@ -1136,6 +1159,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -1202,6 +1228,9 @@ class TestPromptAndDownloadModels:
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
             ),
+            # Live alternative-download handlers: unreachable while models.yml has no
+            # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
+            # never reach the network from a unit test.
             patch("setup_lib.model_downloader.download_stgcnpp", return_value=True, autospec=True),
             patch(
                 "setup_lib.model_downloader.download_yolo_world", return_value=True, autospec=True
@@ -1227,9 +1256,10 @@ class TestPromptAndDownloadModels:
             # No input mock needed - function no longer prompts for options
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should download all required models automatically
+            # Should download all required models automatically, and the optional
+            # phase-1 HF row alongside them.
             assert "florence-2-base" in downloaded_models
-            assert "siglip2-base-patch16-224" in downloaded_models
+            assert "yolo11-face" in downloaded_models
 
 
 class TestHfHubAvailability:

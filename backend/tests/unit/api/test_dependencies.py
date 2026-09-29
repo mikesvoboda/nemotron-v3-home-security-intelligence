@@ -12,7 +12,8 @@ Test cases cover:
 - get_audit_log_or_404: Audit log lookup
 - get_or_404_factory: Generic factory for entity lookups (with optional UUID validation)
 - AI service dependencies (NEM-2003): FaceDetectorService, PlateDetectorService,
-  OCRService, YOLOWorldService via DI container
+  OCRService via DI container (YOLOWorldService's dependency went with the
+  service in R8 S2)
 - NullCache: Graceful degradation pattern (NEM-2538)
 - Cache availability tracking
 - Service dependency injection functions
@@ -593,29 +594,6 @@ class TestAIServiceDependencies:
 
         assert result == mock_service
         mock_container.get.assert_called_once_with("ocr_service")
-
-    @pytest.mark.asyncio
-    async def test_get_yolo_world_service_dep_uses_container(self) -> None:
-        """Test that get_yolo_world_service_dep retrieves from DI container."""
-
-        from backend.api.dependencies import get_yolo_world_service_dep
-
-        mock_service = MagicMock()
-        mock_service.name = "yolo_world"
-
-        mock_container = MagicMock()
-        mock_container.get.return_value = mock_service
-
-        # Patch at the module where get_container is defined (backend.core.container)
-        with patch(
-            "backend.core.container.get_container",
-            return_value=mock_container,
-            autospec=True,
-        ):
-            result = get_yolo_world_service_dep()
-
-        assert result == mock_service
-        mock_container.get.assert_called_once_with("yolo_world_service")
 
 
 class TestValidateUuid:

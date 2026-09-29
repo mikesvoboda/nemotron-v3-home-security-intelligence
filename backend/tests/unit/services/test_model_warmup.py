@@ -1,7 +1,14 @@
 """Unit tests for AI model cold start detection and warm-up strategy.
 
 These tests cover the model readiness probing, warm-up logic, and cold start
-tracking for both NemotronAnalyzer and DetectorClient services.
+tracking for the DetectorClient service, plus the Prometheus warmup metrics
+and the health-monitor/system-API warming-state surface.
+
+The NemotronAnalyzer half of this suite retired with R8 (2026-09-29): the
+module is gone, so the analyzer-side probe/warm/cold pins went with it. The
+VLM path has no warmup surface (``VlmAnalyzer`` defines neither
+``model_readiness_probe`` nor ``warmup``/``is_cold``), so there is nothing to
+repoint those pins to.
 
 NEM-1670: Add AI Model Cold Start Detection and Warm-up Strategy
 """
@@ -10,220 +17,10 @@ import time
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import httpx
 import pytest
 
 # Mark all tests in this file as unit tests
 pytestmark = pytest.mark.unit
-
-
-# ==============================================================================
-# NemotronAnalyzer Cold Start / Warmup Tests
-# ==============================================================================
-
-
-class TestNemotronAnalyzerWarmup:
-    """Tests for NemotronAnalyzer model warmup and cold start detection."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings for NemotronAnalyzer."""
-        from backend.core.config import Settings
-
-        mock = MagicMock(spec=Settings)
-        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
-        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
-        mock.nemotron_constrained_decoding_enabled = False
-        mock.nemotron_constrained_fail_closed = True
-        mock.nemotron_constrained_probe_enabled = True
-        mock.nemotron_constrained_probe_required_build = None
-        mock.nemotron_verification_engine = "llama.cpp"
-        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
-        mock.nemotron_url = "http://localhost:8091"
-        mock.nemotron_api_key = None
-        mock.ai_connect_timeout = 10.0
-        mock.nemotron_read_timeout = 120.0
-        mock.ai_health_timeout = 5.0
-        mock.nemotron_max_retries = 1
-        mock.severity_low_max = 29
-        mock.severity_medium_max = 59
-        mock.severity_high_max = 84
-        mock.nemotron_context_window = 4096
-        mock.nemotron_max_output_tokens = 1536
-        mock.context_utilization_warning_threshold = 0.80
-        mock.context_truncation_enabled = True
-        mock.llm_tokenizer_encoding = "cl100k_base"
-        mock.image_quality_enabled = False
-        # Guided JSON settings (NEM-3726)
-        mock.nemotron_use_guided_json = False
-        mock.nemotron_guided_json_fallback = True
-        # Warmup-specific settings (NEM-1670)
-        mock.ai_warmup_enabled = True
-        mock.ai_cold_start_threshold_seconds = 300.0  # 5 minutes
-        mock.nemotron_warmup_prompt = "Hello, please respond with 'ready'."
-        # Phase 5 batch coalescing settings
-        mock.batch_coalescing_enabled = False
-        mock.batch_coalescing_max_size = 10
-        mock.batch_coalescing_time_window = 0.5
-        mock.priority_queue_enabled = False
-        mock.priority_high_labels = ["person", "weapon"]
-        mock.priority_medium_labels = ["vehicle", "animal"]
-        return mock
-
-    @pytest.fixture
-    def mock_redis_client(self):
-        """Mock Redis client."""
-        from backend.core.redis import RedisClient
-
-        mock_client = MagicMock(spec=RedisClient)
-        mock_client.get = AsyncMock(return_value=None)
-        mock_client.set = AsyncMock(return_value=True)
-        mock_client.delete = AsyncMock(return_value=1)
-        mock_client.publish = AsyncMock(return_value=1)
-        return mock_client
-
-    @pytest.fixture
-    def analyzer(self, mock_redis_client, mock_settings):
-        """Create NemotronAnalyzer instance with mocked dependencies."""
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
-        ):
-            from backend.services.nemotron_analyzer import NemotronAnalyzer
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-            yield NemotronAnalyzer(redis_client=mock_redis_client)
-            reset_severity_service()
-            reset_token_counter()
-
-    @pytest.mark.asyncio
-    async def test_model_readiness_probe_success(self, analyzer):
-        """Test that model_readiness_probe returns True when inference succeeds."""
-        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
-            mock_response = MagicMock(spec=httpx.Response)
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"content": "ready"}
-            mock_response.raise_for_status = MagicMock()
-            mock_post.return_value = mock_response
-
-            result = await analyzer.model_readiness_probe()
-
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_model_readiness_probe_failure_connection_error(self, analyzer):
-        """Test that model_readiness_probe returns False on connection error."""
-        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
-            mock_post.side_effect = httpx.ConnectError("Connection refused")
-
-            result = await analyzer.model_readiness_probe()
-
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_model_readiness_probe_failure_timeout(self, analyzer):
-        """Test that model_readiness_probe returns False on timeout."""
-        with patch("httpx.AsyncClient.post", autospec=True) as mock_post:
-            mock_post.side_effect = httpx.TimeoutException("Request timeout")
-
-            result = await analyzer.model_readiness_probe()
-
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_warmup_on_startup_success(self, analyzer):
-        """Test that warmup sends a test prompt and records warmup duration."""
-        with patch.object(analyzer, "model_readiness_probe", new_callable=AsyncMock) as mock_probe:
-            mock_probe.return_value = True
-
-            result = await analyzer.warmup()
-
-        assert result is True
-        mock_probe.assert_called_once()
-        # Should track the warmup completion time
-        assert analyzer._last_inference_time is not None
-
-    @pytest.mark.asyncio
-    async def test_warmup_on_startup_failure(self, analyzer):
-        """Test that warmup returns False when model is not ready."""
-        with patch.object(analyzer, "model_readiness_probe", new_callable=AsyncMock) as mock_probe:
-            mock_probe.return_value = False
-
-            result = await analyzer.warmup()
-
-        assert result is False
-
-    def test_is_cold_when_never_used(self, analyzer):
-        """Test that model is considered cold when never used."""
-        # Ensure _last_inference_time is None (never used)
-        analyzer._last_inference_time = None
-
-        assert analyzer.is_cold() is True
-
-    def test_is_cold_after_threshold_exceeded(self, analyzer, mock_settings):
-        """Test that model is cold after cold_start_threshold_seconds."""
-        # Set last inference time to 10 minutes ago (threshold is 5 minutes)
-        analyzer._last_inference_time = time.monotonic() - 600
-
-        assert analyzer.is_cold() is True
-
-    def test_is_warm_within_threshold(self, analyzer):
-        """Test that model is warm within cold_start_threshold_seconds."""
-        # Set last inference time to 1 minute ago
-        analyzer._last_inference_time = time.monotonic() - 60
-
-        assert analyzer.is_cold() is False
-
-    def test_get_warmth_state_cold(self, analyzer):
-        """Test get_warmth_state returns 'cold' when model is cold."""
-        analyzer._last_inference_time = None
-
-        state = analyzer.get_warmth_state()
-
-        assert state["state"] == "cold"
-        assert state["last_inference_seconds_ago"] is None
-
-    def test_get_warmth_state_warm(self, analyzer):
-        """Test get_warmth_state returns 'warm' when model is warm."""
-        analyzer._last_inference_time = time.monotonic() - 30
-
-        state = analyzer.get_warmth_state()
-
-        assert state["state"] == "warm"
-        assert state["last_inference_seconds_ago"] is not None
-        assert state["last_inference_seconds_ago"] < 60
-
-    def test_get_warmth_state_warming(self, analyzer):
-        """Test get_warmth_state returns 'warming' during warmup."""
-        analyzer._is_warming = True
-        analyzer._last_inference_time = None
-
-        state = analyzer.get_warmth_state()
-
-        assert state["state"] == "warming"
-
-    def test_track_inference_updates_last_inference_time(self, analyzer):
-        """Test that _track_inference updates the last inference timestamp."""
-        assert analyzer._last_inference_time is None
-
-        analyzer._track_inference()
-
-        assert analyzer._last_inference_time is not None
 
 
 # ==============================================================================
@@ -240,14 +37,13 @@ class TestDetectorClientWarmup:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
-        # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
-        # are not in dir(Settings), so a spec'd mock must pin them explicitly)
-        mock.nemotron_constrained_decoding_enabled = False
-        mock.nemotron_constrained_fail_closed = True
-        mock.nemotron_constrained_probe_enabled = True
-        mock.nemotron_constrained_probe_required_build = None
-        mock.nemotron_verification_engine = "llama.cpp"
-        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
+        # pydantic v2 field names are not in dir(Settings), so a spec'd mock only
+        # exposes what is pinned explicitly — the list below is exactly what
+        # DetectorClient's __init__ reads (detector_client.py:287-351). The
+        # P0.3 constrained-decoding flags, nemotron_model_id and
+        # nemotron_verification_engine assignments this fixture used to carry
+        # went with the NemotronAnalyzer half of the file: DetectorClient reads
+        # no AI-LLM setting (surviving or deleted), so nothing here replaces them.
         mock.yolo26_url = "http://localhost:8090"
         mock.yolo26_api_key = None
         mock.ai_connect_timeout = 10.0
@@ -388,19 +184,25 @@ class TestWarmupMetrics:
         assert MODEL_COLD_START_TOTAL._name == "hsi_model_cold_start"
 
     def test_record_warmup_duration(self):
-        """Test recording warmup duration in histogram."""
+        """Test recording warmup duration in histogram.
+
+        Labels are the live ones: "yolo26" (detector_client.py:577) and "ai-vlm"
+        — the retired "nemotron" label went with the analyzer, and the VLM path
+        stamps the breaker name (vlm_client.BREAKER_NAME == "ai-vlm").
+        """
         from backend.core.metrics import observe_model_warmup_duration
 
         # Should not raise
-        observe_model_warmup_duration("nemotron", 2.5)
+        observe_model_warmup_duration("ai-vlm", 2.5)
         observe_model_warmup_duration("yolo26", 1.2)
 
     def test_record_cold_start(self):
-        """Test recording cold start in counter."""
+        """Test recording cold start in counter (same live labels as above;
+        vlm_client.py:973 records the cold start under "ai-vlm")."""
         from backend.core.metrics import record_model_cold_start
 
         # Should not raise
-        record_model_cold_start("nemotron")
+        record_model_cold_start("ai-vlm")
         record_model_cold_start("yolo26")
 
 
@@ -431,13 +233,17 @@ class TestHealthMonitorOrchestratorWarmingState:
                 health_endpoint="/health",
             )
         )
+        # The "ai-nemotron" row re-homed to the shipped AI-service label: R8 S2
+        # deleted the nemotron container's ServiceConfig row and relabelled the
+        # health surface "ai-vlm" (routes/system.py:1061 — the two AI services
+        # the health endpoint reports are "yolo26" and "ai-vlm").
         registry.register(
             ManagedService(
-                name="ai-nemotron",
-                display_name="AI Nemotron",
+                name="ai-vlm",
+                display_name="AI VLM",
                 container_id="def456",
-                image="nemotron:latest",
-                port=8091,
+                image="ai-vlm:latest",
+                port=8098,
                 category=ServiceCategory.AI,
                 health_endpoint="/health",
             )
@@ -471,12 +277,12 @@ class TestHealthMonitorOrchestratorWarmingState:
     def test_registry_get_ai_services_warmth(self, mock_registry):
         """Test getting warmth state for all AI services."""
         mock_registry.update_warmth_state("ai-yolo26", "warm")
-        mock_registry.update_warmth_state("ai-nemotron", "cold")
+        mock_registry.update_warmth_state("ai-vlm", "cold")
 
         warmth_states = mock_registry.get_ai_warmth_states()
 
         assert warmth_states["ai-yolo26"] == "warm"
-        assert warmth_states["ai-nemotron"] == "cold"
+        assert warmth_states["ai-vlm"] == "cold"
 
 
 # ==============================================================================
@@ -492,20 +298,22 @@ class TestSystemAPIWarmingState:
         """Test that health response includes AI model warming states."""
         from backend.api.schemas.system import HealthCheckServiceStatus
 
-        # Verify schema supports warming state in AI details
+        # Verify schema supports warming state in AI details. The detail keys are
+        # the two AI services the health endpoint actually reports
+        # (routes/system.py:1060-1061): "yolo26" and "ai-vlm".
         ai_status = HealthCheckServiceStatus(
             status="healthy",
             message="AI services operational",
             details={
                 "yolo26": "healthy",
-                "nemotron": "healthy",
+                "ai-vlm": "healthy",
                 "yolo26_warmth": "warm",
-                "nemotron_warmth": "cold",
+                "ai-vlm_warmth": "cold",
             },
         )
 
         assert ai_status.details["yolo26_warmth"] == "warm"
-        assert ai_status.details["nemotron_warmth"] == "cold"
+        assert ai_status.details["ai-vlm_warmth"] == "cold"
 
     @pytest.mark.asyncio
     async def test_readiness_response_considers_warming_state(self):
@@ -522,7 +330,9 @@ class TestSystemAPIWarmingState:
             timestamp=datetime.now(UTC),
             ai_warmth_status={
                 "yolo26": "warming",
-                "nemotron": "warm",
+                # The retired analyzer's model key re-homed to the deployed VLM
+                # service label (same rename as the ai-vlm health row above).
+                "ai-vlm": "warm",
             },
         )
 

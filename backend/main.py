@@ -292,7 +292,6 @@ def init_circuit_breakers() -> list[str]:
 
     Pre-registered circuit breakers:
     - yolo26: YOLO26 object detection service
-    - nemotron: Nemotron LLM risk analysis service
     - postgresql: Database connection pool
     - redis: Redis cache and queue service
 
@@ -321,9 +320,6 @@ def init_circuit_breakers() -> list[str]:
     # AI services
     get_circuit_breaker("yolo26", ai_service_config)
     breaker_names.append("yolo26")
-
-    get_circuit_breaker("nemotron", ai_service_config)
-    breaker_names.append("nemotron")
 
     # Infrastructure services
     get_circuit_breaker("postgresql", infrastructure_config)
@@ -765,15 +761,13 @@ async def run_constrained_startup_check(container: Any) -> str:
 
     try:
         analyzer = await container.get_async("nemotron_analyzer")
-        if hasattr(analyzer, "_constrained_enabled"):  # the legacy analyzer
-            if not analyzer._constrained_enabled:
-                return "disabled"
-            await analyzer._ensure_constrained_enforcement()
-        else:  # VlmAnalyzer (the shipped default): the gate moved to the client
-            client = analyzer._get_client()
-            if not client._settings.vlm_enforcement_probe_enabled:
-                return "disabled"
-            await client._probe_enforcement([])
+        # VlmAnalyzer (the only analyzer there is): the gate lives on the
+        # client. R8 S2 deleted the legacy analyzer's enforcement-flag arm
+        # with the class - an arm whose true side no longer exists.
+        client = analyzer._get_client()
+        if not client._settings.vlm_enforcement_probe_enabled:
+            return "disabled"
+        await client._probe_enforcement([])
     except ConstrainedDecodingNotEnforced as e:
         return "not_enforced" if getattr(e, "verdict", "ignored") == "ignored" else "inconclusive"
     except Exception:

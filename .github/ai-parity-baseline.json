@@ -2,24 +2,6 @@
   "tool": "check-ai-provider-parity",
   "divergences": [
     {
-      "id": "AI-PARITY-CLAIM-GW404-model_preload",
-      "kind": "CLAIM-GW404",
-      "op": "model_preload",
-      "detail": "op model_preload declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/services/enrichment_client.py:3277 EnrichmentClient.preload_model builds /enrichment/models/preload \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:3277 EnrichmentClient.preload_model builds /enrichment/models/preload \u2014 use_ai_gateway -> /enrichment \u2014 grep over ai/gateway/adapters returns 0 route hits for /models/preload"
-    },
-    {
-      "id": "AI-PARITY-CLAIM-GW404-model_status",
-      "kind": "CLAIM-GW404",
-      "op": "model_status",
-      "detail": "op model_status declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/services/enrichment_client.py:3249 EnrichmentClient.get_model_status builds /enrichment/models/status \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:3249 EnrichmentClient.get_model_status builds /enrichment/models/status \u2014 use_ai_gateway -> /enrichment \u2014 grep over ai/gateway/adapters returns 0 route hits for /models/status"
-    },
-    {
-      "id": "AI-PARITY-CLAIM-GW404-object_distance",
-      "kind": "CLAIM-GW404",
-      "op": "object_distance",
-      "detail": "op object_distance declares gateway:False (per_model_server:True) but backend callers build URLs that resolve, as deployed, to a surface where nothing serves it: backend/services/enrichment_client.py:1917 EnrichmentClient.estimate_object_distance builds /enrich-lt/object-distance \u2014 settings:enrichment_light_url -> /enrich-lt (compose rewrite); backend/services/enrichment_client.py:1917 EnrichmentClient.estimate_object_distance builds /enrich-lt/object-distance \u2014 use_ai_gateway -> /enrich-lt; backend/services/enrichment_client.py:1917 EnrichmentClient.estimate_object_distance builds /enrichment/object-distance \u2014 settings:enrichment_url -> /enrichment (compose rewrite); backend/services/enrichment_client.py:1917 EnrichmentClient.estimate_object_distance builds /enrichment/object-distance \u2014 use_ai_gateway -> /enrichment \u2014 grep over ai/gateway/adapters returns 0 route hits for /object-distance"
-    },
-    {
       "id": "AI-PARITY-GUARD-clip_batch_similarity-texts",
       "kind": "GUARD",
       "op": "clip_batch_similarity",
@@ -44,18 +26,6 @@
       "detail": "enrich_lt_pose_analyze: response key sets differ \u2014 gateway-only ['num_people'] / native-only [] (ai/gateway/adapters/enrichment_light.py [POST /enrich-lt/pose-analyze] vs ai/enrichment-light/model.py [POST /enrich-lt/pose-analyze])"
     },
     {
-      "id": "AI-PARITY-KEY-enrichment_action_classify-labels",
-      "kind": "KEY",
-      "op": "enrichment_action_classify",
-      "detail": "enrichment_action_classify: backend/services/enrichment_client.py EnrichmentClient.classify_action sends ['labels'] that ai/gateway/adapters/enrichment.py [POST /enrichment/action-classify] schema does not define (a provider renamed/dropped the key)"
-    },
-    {
-      "id": "AI-PARITY-KEY-enrichment_enrich-frames,options",
-      "kind": "KEY",
-      "op": "enrichment_enrich",
-      "detail": "enrichment_enrich: backend/services/enrichment_client.py EnrichmentClient.enrich_detection sends ['frames', 'options'] that ai/gateway/adapters/enrichment.py [POST /enrichment/enrich] schema does not define (a provider renamed/dropped the key)"
-    },
-    {
       "id": "AI-PARITY-KEY-enrichment_enrich-response",
       "kind": "KEY",
       "op": "enrichment_enrich",
@@ -66,12 +36,6 @@
       "kind": "KEY",
       "op": "enrichment_pet_classify",
       "detail": "enrichment_pet_classify: response key sets differ \u2014 gateway-only ['cat_score', 'dog_score'] / native-only [] (ai/gateway/adapters/enrichment.py [POST /enrichment/pet-classify] vs ai/enrichment/model.py [POST /enrichment/pet-classify])"
-    },
-    {
-      "id": "AI-PARITY-KEY-enrichment_pose_analyze-min_confidence",
-      "kind": "KEY",
-      "op": "enrichment_pose_analyze",
-      "detail": "enrichment_pose_analyze: backend/services/enrichment_client.py EnrichmentClient.analyze_pose sends ['min_confidence'] that ai/gateway/adapters/enrichment.py [POST /enrichment/pose-analyze] schema does not define (a provider renamed/dropped the key)"
     },
     {
       "id": "AI-PARITY-KEY-enrichment_pose_analyze-response",

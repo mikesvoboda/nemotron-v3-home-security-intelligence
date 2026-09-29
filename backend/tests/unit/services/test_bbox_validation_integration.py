@@ -1,17 +1,21 @@
 """Integration tests for bounding box validation in services.
 
 Tests verify that bbox validation is properly integrated into:
-- EnrichmentClient.estimate_object_distance (NEM-1102)
 - ReIdentificationService.generate_embedding (NEM-1073)
 - Detection pipeline bbox clamping (NEM-1122)
 
 These tests ensure that invalid bounding boxes are handled gracefully
 without crashing the services.
+
+R8 S2 removed the third section this file had — the NEM-1102 pins on
+EnrichmentClient.estimate_object_distance — because enrichment_client is
+deleted and no shipped code calls estimate_object_distance any more. The
+NEM-1073 and NEM-1122 subjects are live and stay.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from PIL import Image
@@ -20,225 +24,6 @@ from backend.services.bbox_validation import (
     InvalidBoundingBoxError,
     validate_and_clamp_bbox,
 )
-from backend.services.enrichment_client import (
-    EnrichmentClient,
-)
-
-# =============================================================================
-# Test Fixtures
-# =============================================================================
-
-
-@pytest.fixture
-def mock_settings() -> MagicMock:
-    """Create mock settings for testing."""
-    settings = MagicMock()
-    settings.enrichment_url = "http://test-enrichment:8094"
-    settings.enrichment_light_url = "http://test-enrichment-light:8096"
-    settings.ai_connect_timeout = 10.0
-    settings.ai_health_timeout = 5.0
-    settings.enrichment_read_timeout = 60.0
-    # Circuit breaker settings
-    settings.enrichment_cb_failure_threshold = 3
-    settings.enrichment_cb_recovery_timeout = 30.0
-    settings.enrichment_cb_half_open_max_calls = 2
-    # Retry settings (NEM-1732)
-    settings.enrichment_max_retries = 3
-    # Config-driven model routing - all models default to heavy service for tests
-    settings.get_enrichment_url_for_model = MagicMock(return_value="http://test-enrichment:8094")
-    return settings
-
-
-@pytest.fixture
-def sample_image() -> Image.Image:
-    """Create a sample PIL Image for testing."""
-    return Image.new("RGB", (640, 480), color="red")
-
-
-@pytest.fixture
-def enrichment_client(mock_settings: MagicMock) -> EnrichmentClient:
-    """Create an EnrichmentClient with mocked settings and persistent HTTP clients."""
-    mock_http_client = AsyncMock()
-    mock_http_client.aclose = AsyncMock()
-    mock_health_client = AsyncMock()
-    mock_health_client.aclose = AsyncMock()
-
-    with (
-        patch(
-            "backend.services.enrichment_client.get_settings",
-            return_value=mock_settings,
-            autospec=True,
-        ),
-        patch(
-            "httpx.AsyncClient", side_effect=[mock_http_client, mock_health_client], autospec=True
-        ),
-    ):
-        client = EnrichmentClient()
-        # Ensure the mocked clients are properly attached
-        client._http_client = mock_http_client
-        client._health_http_client = mock_health_client
-        return client
-
-
-# =============================================================================
-# NEM-1102: estimate_object_distance bbox validation tests
-# =============================================================================
-
-
-class TestEstimateObjectDistanceBboxValidation:
-    """Tests for bounding box validation in estimate_object_distance.
-
-    NEM-1102: Add comprehensive bounding box validation in estimate_object_distance
-    """
-
-    @pytest.mark.asyncio
-    async def test_valid_bbox_passes_through(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that valid bounding boxes are processed normally."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "estimated_distance_m": 3.5,
-            "relative_depth": 0.35,
-            "proximity_label": "medium",
-            "inference_time_ms": 58.0,
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        # Mock the persistent HTTP client's post method
-        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
-
-        # Valid bbox within image bounds
-        result = await enrichment_client.estimate_object_distance(
-            sample_image, bbox=(100.0, 100.0, 300.0, 300.0)
-        )
-
-        assert result is not None
-        assert result.estimated_distance_m == 3.5
-
-    @pytest.mark.asyncio
-    async def test_zero_width_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that zero-width bounding boxes return None (NEM-1102)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image,
-            bbox=(100.0, 100.0, 100.0, 200.0),  # Zero width
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_zero_height_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that zero-height bounding boxes return None (NEM-1102)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image,
-            bbox=(100.0, 100.0, 200.0, 100.0),  # Zero height
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_inverted_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that inverted (x2 < x1) bounding boxes return None (NEM-1102)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image,
-            bbox=(200.0, 100.0, 100.0, 200.0),  # x2 < x1
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_nan_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that bounding boxes with NaN values return None (NEM-1102)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image, bbox=(float("nan"), 100.0, 200.0, 200.0)
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_infinite_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that bounding boxes with infinite values return None (NEM-1102)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image, bbox=(float("inf"), 100.0, 200.0, 200.0)
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_bbox_exceeding_image_is_clamped(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that bboxes exceeding image bounds are clamped (NEM-1122)."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "estimated_distance_m": 2.5,
-            "relative_depth": 0.25,
-            "proximity_label": "close",
-            "inference_time_ms": 55.0,
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        # Mock the persistent HTTP client's post method
-        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
-
-        # Bbox exceeds image bounds (640x480)
-        result = await enrichment_client.estimate_object_distance(
-            sample_image, bbox=(500.0, 400.0, 700.0, 500.0)
-        )
-
-        assert result is not None
-        # Verify the bbox was clamped in the request
-        call_args = enrichment_client._http_client.post.call_args
-        sent_bbox = call_args.kwargs["json"]["bbox"]
-        # After clamping: (500, 400, 640, 480)
-        assert sent_bbox[2] <= 640
-        assert sent_bbox[3] <= 480
-
-    @pytest.mark.asyncio
-    async def test_completely_outside_bbox_returns_none(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that bboxes completely outside image return None (NEM-1122)."""
-        result = await enrichment_client.estimate_object_distance(
-            sample_image,
-            bbox=(700.0, 500.0, 800.0, 600.0),  # Outside 640x480
-        )
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_negative_bbox_coordinates_are_clamped(
-        self, enrichment_client: EnrichmentClient, sample_image: Image.Image
-    ) -> None:
-        """Test that negative bbox coordinates are clamped to 0 (NEM-1102)."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "estimated_distance_m": 4.0,
-            "relative_depth": 0.40,
-            "proximity_label": "medium",
-            "inference_time_ms": 60.0,
-        }
-        mock_response.raise_for_status = MagicMock()
-
-        # Mock the persistent HTTP client's post method
-        enrichment_client._http_client.post = AsyncMock(return_value=mock_response)
-
-        # Negative coordinates
-        result = await enrichment_client.estimate_object_distance(
-            sample_image, bbox=(-50.0, -50.0, 200.0, 200.0)
-        )
-
-        assert result is not None
-        # Verify the bbox was clamped in the request
-        call_args = enrichment_client._http_client.post.call_args
-        sent_bbox = call_args.kwargs["json"]["bbox"]
-        assert sent_bbox[0] >= 0
-        assert sent_bbox[1] >= 0
-
 
 # =============================================================================
 # NEM-1073: ReIdentificationService bbox validation tests

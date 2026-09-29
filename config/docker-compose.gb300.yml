@@ -37,9 +37,11 @@ services:
 
   backend:
     # Single-GPU host (GB300, spec §3.2): the GPU-serving deps are trimmed so
-    # `up backend` does not drag the model stack along. ai-llm and ai-gateway are
-    # dropped from this list — both still exist in `config --services`, so the
-    # amd64/full-stack path is provably intact; they are started explicitly.
+    # `up backend` does not drag the model stack along. ai-gateway is dropped
+    # from this list — it still exists in `config --services`, so the
+    # amd64/full-stack path is provably intact; it is started explicitly.
+    # (The legacy ai-llm dependency this line used to name was deleted with
+    # the service in R8 S2.)
     depends_on: !override
       foscam-init:
         condition: service_completed_successfully

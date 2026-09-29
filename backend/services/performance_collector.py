@@ -208,10 +208,16 @@ class PerformanceCollector:
         return AiModelMetrics(status="unreachable", vram_gb=0, model="yolo26", device="unknown")
 
     async def collect_nemotron_metrics(self) -> NemotronMetrics | None:
-        """Collect Nemotron LLM metrics."""
+        """Collect LLM metrics from the shipped engine.
+
+        R8 S2 re-home: the slot probe follows the surviving llama.cpp server
+        (ai-vlm - same /slots contract). The method and the NemotronMetrics
+        schema names are API surface the frontend and the websocket payload
+        resolve; renaming them is its own decision, not drift from this one.
+        """
         try:
             client = await self._get_http_client()
-            resp = await client.get(f"{self._settings.nemotron_url}/slots")
+            resp = await client.get(f"{self._settings.ai_vlm_url}/slots")
             if resp.status_code == 200:
                 slots = resp.json()
                 active = sum(1 for s in slots if s.get("state", 0) != 0)
@@ -470,9 +476,10 @@ class PerformanceCollector:
         )
         results.append(detector_health)
 
-        # AI LLM (Nemotron): Use configurable nemotron_url
+        # AI LLM: the shipped engine (ai-vlm), re-homed in R8 S2 from the
+        # retired ai-llm service.
         llm_health = await self._check_service_health(
-            client, "ai-llm", f"{self._settings.nemotron_url}/health"
+            client, "ai-vlm", f"{self._settings.ai_vlm_url}/health"
         )
         results.append(llm_health)
 

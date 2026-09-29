@@ -24,10 +24,18 @@ pins the MOVE -- same objects, one home, shipped importers repointed. It
 asserts identity (``is``), not copies: a second definition of
 ``ConstrainedDecodingNotEnforced`` that drifts from the first is exactly the
 P0.3 fabrication this class exists to prevent.
+
+S2b update: the analyzer is deleted, so the identity pins below stand on the
+importers that outlived it -- ``vlm_client`` (which re-exports
+``build_probe_schema`` and raises the class) and ``vlm_analyzer`` (whose
+``_DEGRADABLE_ERRORS`` catches it) -- plus the CI probe CLI, which is the
+other half of the "CI and runtime probe the same contract" property the
+analyzer used to sit in the middle of.
 """
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -39,6 +47,22 @@ SHIPPED_IMPORTERS = [
     "backend/evaluation/vlm_replay.py",
     "backend/main.py",
 ]
+# Direct consumers that survived 2b; both re-export the vocabulary, so they
+# are where a drifted second definition would show up.
+VOCABULARY_CONSUMERS = [
+    "backend/services/vlm_client.py",
+    "backend/services/vlm_analyzer.py",
+]
+_ENFORCEMENT_CLI = Path(__file__).resolve().parents[4] / "scripts/vlm_probes/enforcement.py"
+
+
+def _load_enforcement_cli():
+    """The CI probe CLI by path: scripts/ is not an importable package, and a
+    copy of the CLI on sys.path is exactly the drift this pin forbids."""
+    spec = importlib.util.spec_from_file_location("vss_enforcement_cli_hoist", _ENFORCEMENT_CLI)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class TestNewHomeExists:
@@ -89,25 +113,39 @@ class TestShippedImportersRepointed:
 
 
 class TestSingleDefinition:
-    def test_the_analyzer_reuses_the_hoisted_objects_and_does_not_redefine(self) -> None:
+    @pytest.mark.parametrize("relpath", VOCABULARY_CONSUMERS)
+    def test_surviving_consumers_reuse_the_hoisted_objects_and_do_not_redefine(
+        self, relpath: str
+    ) -> None:
         """Identity, not equality. Two definitions of the fail-closed class
         mean an `except ConstrainedDecodingNotEnforced` in one layer misses
-        a raise from the other - a fabricated 'enforced'."""
+        a raise from the other - a fabricated 'enforced'.
+
+        The analyzer used to be the third name checked here; it is deleted,
+        so the property stands on the two importers that survived it. Each
+        one imports the vocabulary (pinned by TestShippedImportersRepointed)
+        and must not carry its own copy of it.
+        """
         from backend.services import constrained_decoding as cd
 
         assert cd.ConstrainedDecodingNotEnforced.__module__ == (
             "backend.services.constrained_decoding"
         )
-        src = Path("backend/services/nemotron_analyzer.py").read_text()
+        src = Path(relpath).read_text()
         assert "class ConstrainedDecodingNotEnforced" not in src
         assert "def build_probe_schema" not in src
         assert "def _probe_completion" not in src
-        # The analyzer still USES the vocabulary (its own runtime gate) - it
-        # just no longer owns it.
-        assert "from backend.services.constrained_decoding import" in src
 
     def test_the_probe_contract_is_the_same_object_the_ci_cli_builds(self) -> None:
-        from backend.services import constrained_decoding as cd
-        from backend.services.nemotron_analyzer import build_probe_schema as analyzer_build
+        """Runtime gate and CI CLI must build the probe from one function.
 
-        assert analyzer_build is cd.build_probe_schema
+        The analyzer is gone; the two ends that remain are vlm_client (the
+        runtime gate that raises ConstrainedDecodingNotEnforced) and the CI
+        probe CLI. A copy in either turns a CI pass into a proof about a
+        probe the runtime never sends.
+        """
+        from backend.services import constrained_decoding as cd
+        from backend.services import vlm_client
+
+        assert vlm_client.build_probe_schema is cd.build_probe_schema
+        assert _load_enforcement_cli().build_probe_schema is cd.build_probe_schema

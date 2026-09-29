@@ -38,7 +38,8 @@ logger = get_logger(__name__)
 
 # Default configuration values
 DEFAULT_INTERVAL_MINUTES = 60
-# Timeout must be longer than max LLM timeout (nemotron_read_timeout=120s + ai_connect_timeout=10s)
+# Timeout bounds the whole job; the LLM call itself is budgeted by
+# ai_vlm_read_timeout + ai_connect_timeout inside summary_generator (R8 S2 re-home)
 # Set to 180s (3 minutes) to allow for LLM inference + DB queries + broadcasting overhead
 DEFAULT_TIMEOUT_SECONDS = 180
 

@@ -442,13 +442,13 @@ async def wire_services(container: Container) -> None:
     This function registers all services with their dependencies:
     - RedisClient (async singleton)
     - ContextEnricher (singleton)
-    - EnrichmentPipeline (async singleton, depends on Redis)
-    - NemotronAnalyzer (async singleton, depends on Redis, ContextEnricher, EnrichmentPipeline)
+    - the per-event analyzer (async singleton, depends on Redis; the class
+      choice lives ONLY in pipeline_factory, under the registry name the DI
+      consumers resolve - see the registration below)
     - DetectorClient (singleton)
     - FaceDetectorService (singleton) - AI service for face detection
     - PlateDetectorService (singleton) - AI service for license plate detection
     - OCRService (singleton) - AI service for plate text recognition
-    - YOLOWorldService (singleton) - AI service for open-vocabulary detection
     - HealthServiceRegistry (singleton) - Health monitoring service registry (NEM-2611)
     - HealthEventEmitter (singleton) - WebSocket health event emitter (NEM-2611)
 
@@ -460,11 +460,9 @@ async def wire_services(container: Container) -> None:
         FaceDetectorService,
         OCRService,
         PlateDetectorService,
-        YOLOWorldService,
     )
     from backend.services.context_enricher import ContextEnricher
     from backend.services.detector_client import DetectorClient
-    from backend.services.enrichment_pipeline import EnrichmentPipeline
     from backend.services.health_event_emitter import HealthEventEmitter
     from backend.services.health_service_registry import HealthServiceRegistry
 
@@ -487,20 +485,15 @@ async def wire_services(container: Container) -> None:
     # ContextEnricher - sync singleton (no dependencies)
     container.register_singleton("context_enricher", ContextEnricher)
 
-    # EnrichmentPipeline - async singleton (depends on Redis)
-    async def pipeline_factory() -> EnrichmentPipeline:
-        redis = await container.get_async("redis_client")
-        return EnrichmentPipeline(redis_client=redis)
-
-    container.register_async_singleton("enrichment_pipeline", pipeline_factory)
-
     # The per-event analyzer - async singleton. The class choice lives ONLY
     # in pipeline_factory (the seam source-scan forbids constructing it
     # here). R8 S1 (2026-09-29) removed the legacy branch that prepared
-    # context_enricher / enrichment_pipeline as extra collaborators: the
-    # vlm analyzer never took them, and the mode that requested them now
-    # raises at boot. S2 retires the enrichment tier those two registrations
-    # feed.
+    # context_enricher / enrichment_pipeline as extra collaborators; R8 S2
+    # (2026-09-29) deleted the enrichment registration itself - the tier was
+    # unreachable the moment the mode that wired it started raising. The
+    # analyzer keeps the registry NAME "nemotron_analyzer": it is the string
+    # the startup gate and core/dependencies resolve, and renaming wiring is
+    # a decision of its own, not drift from this deletion.
     async def analyzer_factory() -> Any:
         from backend.services.pipeline_factory import build_pipeline_analyzer
 
@@ -524,8 +517,5 @@ async def wire_services(container: Container) -> None:
 
     # OCRService - wraps PaddleOCR plate text recognition
     container.register_singleton("ocr_service", OCRService)
-
-    # YOLOWorldService - wraps YOLO-World open-vocabulary detection
-    container.register_singleton("yolo_world_service", YOLOWorldService)
 
     logger.info("All services wired in container")

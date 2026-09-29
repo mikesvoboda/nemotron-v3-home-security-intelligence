@@ -17,9 +17,15 @@ Test Categories:
 - Edge cases: Multiple weapons, unknown threat types, etc.
 
 Related Files:
-- backend/services/threat_detection_loader.py: HIGH_PRIORITY_THREATS constant
+- backend/services/threat_monitor_service.py: THREAT_SEVERITY_MAPPING + service
 - backend/models/alert.py: AlertSeverity enum
 - backend/models/enrichment.py: ThreatDetection model
+
+R8 S2: threat_detection_loader (and its HIGH_PRIORITY_THREATS constant) is
+deleted, so the one test that cross-checked the shipped mapping against that
+constant went with it — the constant is no second operand any more. The
+mapping's own three tests below still pin every entry, and the loader's own
+detection loop has no shipped caller left.
 """
 
 from __future__ import annotations
@@ -34,7 +40,6 @@ import pytest
 # The tests should fail with ImportError initially
 from backend.models import Alert, AlertSeverity, AlertStatus, Detection, Event
 from backend.models.enrichment import ThreatDetection
-from backend.services.threat_detection_loader import HIGH_PRIORITY_THREATS
 
 # This import will fail - the service doesn't exist yet
 # from backend.services.threat_monitor_service import (
@@ -762,15 +767,6 @@ class TestThreatMonitorServiceAlertEngineIntegration:
 
 class TestThreatSeverityMappingConstant:
     """Tests for THREAT_SEVERITY_MAPPING constant."""
-
-    def test_mapping_includes_all_high_priority_threats(self) -> None:
-        """Test that severity mapping includes all HIGH_PRIORITY_THREATS."""
-        from backend.services.threat_monitor_service import THREAT_SEVERITY_MAPPING
-
-        for threat in HIGH_PRIORITY_THREATS:
-            assert threat.lower() in THREAT_SEVERITY_MAPPING, (
-                f"HIGH_PRIORITY_THREAT '{threat}' not in THREAT_SEVERITY_MAPPING"
-            )
 
     def test_all_firearms_are_critical(self) -> None:
         """Test that all firearm types map to CRITICAL severity."""

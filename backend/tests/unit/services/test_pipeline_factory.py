@@ -15,10 +15,10 @@ rulings that shaped these pins now read:
   source-scan pin are not;
 * the vlm adapter's streaming surface answers the SAME update vocabulary
   the SSE route serializes — and for a ``verification_failed`` event
-  (NULL score, D11) it must answer HONESTLY. nemotron's streaming path
-  papers over a NULL score with ``risk_score or 50`` + ``"medium"`` —
-  exactly the "default score" lie S5 forbids; the adapter answers an
-  error update instead, never a fabricated 50/medium complete.
+  (NULL score, D11) it must answer HONESTLY. The retired nemotron
+  streaming path papered over a NULL score with ``risk_score or 50`` +
+  ``"medium"`` — exactly the "default score" lie S5 forbids; the adapter
+  answers an error update instead, never a fabricated 50/medium complete.
 """
 
 from __future__ import annotations
@@ -35,8 +35,9 @@ pytestmark = pytest.mark.unit
 
 
 def _settings(**kw) -> Settings:
-    """Settings built like the nemotron_* tests do: explicit kwargs, never
-    the cached singleton, never a mutated global."""
+    """Settings built with explicit kwargs, never the cached singleton,
+    never a mutated global (the discipline the retired nemotron_* tests
+    pioneered and this suite keeps)."""
     return Settings(_env_file=None, **kw)
 
 
@@ -156,10 +157,10 @@ class TestVlmSeamSurface:
 
     async def test_streaming_verification_failed_never_lies_50_medium(self, monkeypatch) -> None:
         """S5/D11: a failed verification carries NULL score/level. The
-        legacy streaming path defaults them to 50/"medium" — the exact
-        default-score lie rev 5 retired. The vlm side answers an error
-        update naming the failure instead. (The analyzer's failure arm
-        raises nothing, so the adapter sees the NULL-scored Event.)"""
+        retired legacy streaming path defaulted them to 50/"medium" — the
+        exact default-score lie rev 5 retired. The vlm side answers an
+        error update naming the failure instead. (The analyzer's failure
+        arm raises nothing, so the adapter sees the NULL-scored Event.)"""
         from backend.services.vlm_analyzer import VlmAnalyzer
 
         analyzer = VlmAnalyzer(redis_client=AsyncMock())
@@ -179,11 +180,12 @@ class TestVlmSeamSurface:
 
 
 class TestSeamsGoThroughTheFactory:
-    """No production path constructs NemotronAnalyzer directly — each
-    seam asks the factory, so the mode decision is made once and nowhere
-    else. Pinned structurally (source scan): a future fifth seam that
-    imports NemotronAnalyzer directly trips this, and the plan's list of
-    seam files is the scan's scope."""
+    """No production path constructs the analyzer directly — each seam
+    asks the factory, so there is exactly one construction site. Pinned
+    structurally (source scan), R8 edition: the scanned call is
+    `VlmAnalyzer(`, the class the factory builds — a future fifth seam
+    that hand-rolls it trips this, and the plan's list of seam files is
+    the scan's scope."""
 
     SEAM_FILES: ClassVar[list[str]] = [
         "backend/services/pipeline_workers.py",
@@ -192,24 +194,24 @@ class TestSeamsGoThroughTheFactory:
         "backend/core/container.py",
     ]
 
-    def test_no_seam_constructs_nemotron_directly(self) -> None:
+    def test_no_seam_constructs_the_analyzer_directly(self) -> None:
         from pathlib import Path
 
         repo = Path(__file__).resolve().parents[4]
         for rel in self.SEAM_FILES:
             text = (repo / rel).read_text()
-            # `NemotronAnalyzer(` as a CALL must not appear; type
-            # annotations naming the class are fine (they name the union).
+            # `VlmAnalyzer(` as a CALL must not appear; type annotations
+            # naming the class are fine (they name the seam's type).
             call_lines = [
                 ln.strip()
                 for ln in text.splitlines()
-                if "NemotronAnalyzer(" in ln and not ln.strip().startswith(("#", ">>>"))
+                if "VlmAnalyzer(" in ln and not ln.strip().startswith(("#", ">>>"))
             ]
             assert not call_lines, f"{rel} still constructs the analyzer directly: {call_lines}"
 
     def test_analysis_worker_default_analyzer_is_mode_built(self) -> None:
         """The worker's `analyzer or ...` default line runs the factory,
-        not NemotronAnalyzer — vlm mode gets the vlm analyzer even when
+        not a hand-built analyzer — the vlm analyzer arrives even when
         main.py passed no explicit instance."""
         from unittest.mock import patch
 

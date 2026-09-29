@@ -143,7 +143,7 @@ loki.write "local" {
 // ============================================
 // EBPF PROFILING PIPELINE (Native AI Services)
 // ============================================
-// Profiles native (C/C++) applications like llama.cpp (ai-llm) using eBPF.
+// Profiles native (C/C++) applications like llama.cpp (ai-vlm) using eBPF.
 // Python services use SDK-based profiling via init_profiling() instead.
 //
 // Requirements (configured in docker-compose.prod.yml):
@@ -200,7 +200,7 @@ discovery.relabel "ebpf_targets" {
 }
 
 // eBPF profiler for native applications (C/C++, Rust, Go)
-// Profiles ai-llm (llama.cpp), ai-yolo26 (TensorRT), and other native services
+// Profiles ai-vlm (llama.cpp) and other native services
 pyroscope.ebpf "native_profiling" {
   forward_to = [pyroscope.write.default.receiver]
   targets    = discovery.relabel.ebpf_targets.output

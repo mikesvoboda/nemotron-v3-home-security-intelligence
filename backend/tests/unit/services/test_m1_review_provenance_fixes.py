@@ -13,9 +13,14 @@ Fixes covered:
 - F-A entities.py:708           /entities/matches/{id} dropped the query's belt
 - F-E face_recognition_service  match_face scored rows without reading model_id
 - F-F face_recognition.py:1257  client-vector match trusted an unnamed space
-- F-C enrichment_pipeline:6001  _run_household_matching passed no model_id
 - F-D household_matcher:290     SIMILARITY_THRESHOLD stuck at the CLIP-era 0.85
 - F-B face_recognition.py:534   enrollment ignored detection.bbox_*
+
+F-C (the enrichment tier's _run_household_matching reader, which passed no
+model_id) is not covered here any more: R8 S2 deleted enrichment_pipeline
+outright, so that reader has no code to guard. The F11 rule it enforced is
+still pinned on the live readers — the household matcher suite and
+test_person_vector_provenance.py.
 """
 
 from __future__ import annotations
@@ -325,57 +330,6 @@ def _async_value(value: Any) -> Any:
         return value
 
     return _get
-
-
-# ---------------------------------------------------------------------------
-# F-C - the household reader takes its belt from the cached enrichment payload
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_run_household_matching_threads_the_cached_belt() -> None:
-    """The batch path (match_detections) threads model_id; this one must too.
-
-    Two readers of one guard, one guarded and one not - and the probe's belt
-    is cached beside its bytes (slice A6), so reading it here is free.
-    """
-    import backend.core.database as db
-    import backend.services.enrichment_pipeline as ep
-
-    captured: dict[str, Any] = {}
-
-    class _Matcher:
-        async def match_person(self, embedding: Any, session: Any, **kw: Any) -> None:
-            captured.update(kw)
-
-    probe = _unit([1.0, 0.0, 0.0, 0.0])
-    result = SimpleNamespace(
-        person_embeddings={"7": SimpleNamespace(embedding=probe, model_id=BELT)},
-        person_household_matches={},
-        has_readable_plates=False,
-        license_plates=[],
-        vehicle_household_matches={},
-    )
-    detections = [SimpleNamespace(class_name="person", id=7)]
-
-    class _Session:
-        async def __aenter__(self) -> Any:
-            return self
-
-        async def __aexit__(self, *exc: object) -> None:
-            return None
-
-    original_session = db.get_session
-    original_matcher = ep.get_household_matcher
-    db.get_session = lambda: _Session()
-    ep.get_household_matcher = lambda: _Matcher()
-    try:
-        await ep.EnrichmentPipeline._run_household_matching(SimpleNamespace(), detections, result)
-    finally:
-        db.get_session = original_session
-        ep.get_household_matcher = original_matcher
-
-    assert captured.get("model_id") == BELT
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 """AI service fallback strategies for graceful degradation.
 
-This module provides fallback behavior when AI services (YOLO26v2, Nemotron,
-Florence-2, CLIP) become unavailable. It integrates with circuit breakers
+This module provides fallback behavior when AI services (YOLO26v2, the VLM
+analyzer, Florence-2, CLIP) become unavailable. It integrates with circuit breakers
 and the degradation manager to provide seamless degradation.
 
 Features:
@@ -15,8 +15,8 @@ Usage:
     fallback = get_ai_fallback_service()
 
     # Check service availability
-    if fallback.is_service_available("nemotron"):
-        result = await analyzer.analyze(detection)
+    if fallback.is_service_available(AIService.YOLO26):
+        result = await detector.detect(detection)
     else:
         result = await fallback.get_fallback_risk_analysis(detection)
 
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from backend.services.clip_client import CLIPClient
     from backend.services.detector_client import DetectorClient
     from backend.services.florence_client import FlorenceClient
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
+    from backend.services.vlm_analyzer import VlmAnalyzer
 
 logger = get_logger(__name__)
 
@@ -53,7 +53,6 @@ class AIService(StrEnum):
     """AI service identifiers."""
 
     YOLO26 = "yolo26"
-    NEMOTRON = "nemotron"
     FLORENCE = "florence"
     CLIP = "clip"
 
@@ -112,7 +111,7 @@ class ServiceState:
 
 @dataclass(slots=True)
 class FallbackRiskAnalysis:
-    """Fallback risk analysis result when Nemotron is unavailable.
+    """Fallback risk analysis result when the analyzer is unavailable.
 
     Attributes:
         risk_score: Default or cached risk score (0-100)
@@ -191,12 +190,6 @@ DEFAULT_CB_CONFIGS: dict[AIService, CircuitBreakerConfig] = {
         half_open_max_calls=2,
         success_threshold=2,
     ),
-    AIService.NEMOTRON: CircuitBreakerConfig(
-        failure_threshold=5,
-        recovery_timeout=90.0,
-        half_open_max_calls=3,
-        success_threshold=2,
-    ),
     AIService.FLORENCE: CircuitBreakerConfig(
         failure_threshold=5,
         recovery_timeout=60.0,
@@ -212,7 +205,7 @@ DEFAULT_CB_CONFIGS: dict[AIService, CircuitBreakerConfig] = {
 }
 
 # Critical services that affect degradation level more severely
-CRITICAL_SERVICES = {AIService.YOLO26, AIService.NEMOTRON}
+CRITICAL_SERVICES = {AIService.YOLO26}
 
 
 class AIFallbackService:
@@ -226,16 +219,14 @@ class AIFallbackService:
         await service.start()
 
         # Check availability before calling
-        if service.is_service_available(AIService.NEMOTRON):
-            result = await analyzer.analyze(...)
-        else:
-            result = service.get_fallback_risk_analysis(...)
+        if service.is_service_available(AIService.YOLO26):
+            result = await detector.detect(...)
     """
 
     def __init__(
         self,
         detector_client: DetectorClient | None = None,
-        nemotron_analyzer: NemotronAnalyzer | None = None,
+        analyzer: VlmAnalyzer | None = None,
         florence_client: FlorenceClient | None = None,
         clip_client: CLIPClient | None = None,
         health_check_interval: float = 15.0,
@@ -244,13 +235,13 @@ class AIFallbackService:
 
         Args:
             detector_client: YOLO26v2 client (optional, for health checks)
-            nemotron_analyzer: Nemotron analyzer (optional, for health checks)
+            analyzer: the shipped VLM analyzer (optional, for health checks)
             florence_client: Florence-2 client (optional, for health checks)
             clip_client: CLIP client (optional, for health checks)
             health_check_interval: Interval between health checks in seconds
         """
         self._detector_client = detector_client
-        self._nemotron_analyzer = nemotron_analyzer
+        self._analyzer = analyzer
         self._florence_client = florence_client
         self._clip_client = clip_client
         self._health_check_interval = health_check_interval
@@ -430,8 +421,6 @@ class AIFallbackService:
         """
         if service == AIService.YOLO26 and self._detector_client:
             return await self._detector_client.health_check()
-        elif service == AIService.NEMOTRON and self._nemotron_analyzer:
-            return await self._nemotron_analyzer.health_check()
         elif service == AIService.FLORENCE and self._florence_client:
             return await self._florence_client.check_health()
         elif service == AIService.CLIP and self._clip_client:
@@ -516,10 +505,6 @@ class AIFallbackService:
         if self.is_service_available(AIService.YOLO26):
             features.extend(["object_detection", "detection_alerts"])
 
-        # Risk analysis features (requires Nemotron)
-        if self.is_service_available(AIService.NEMOTRON):
-            features.extend(["risk_analysis", "llm_reasoning"])
-
         # Caption features (requires Florence-2)
         if self.is_service_available(AIService.FLORENCE):
             features.extend(["image_captioning", "ocr", "dense_captioning"])
@@ -557,7 +542,7 @@ class AIFallbackService:
         camera_name: str | None = None,
         object_types: list[str] | None = None,
     ) -> FallbackRiskAnalysis:
-        """Get fallback risk analysis when Nemotron is unavailable.
+        """Get fallback risk analysis when the analyzer is unavailable.
 
         Uses cached values or object-type based defaults.
 
@@ -576,7 +561,7 @@ class AIFallbackService:
                     risk_score=cached,
                     reasoning=(
                         f"Using cached risk score from camera '{camera_name}'. "
-                        "Nemotron analyzer is currently unavailable."
+                        "VLM analyzer is currently unavailable."
                     ),
                     source="cache",
                 )
@@ -590,7 +575,7 @@ class AIFallbackService:
                 risk_score=avg_score,
                 reasoning=(
                     f"Estimated risk score based on detected objects: {', '.join(object_types)}. "
-                    "Nemotron analyzer is currently unavailable."
+                    "VLM analyzer is currently unavailable."
                 ),
                 source="object_type_estimate",
             )
@@ -600,7 +585,7 @@ class AIFallbackService:
             risk_score=50,
             reasoning=(
                 "Using default medium risk score. "
-                "Nemotron analyzer is currently unavailable for detailed analysis."
+                "VLM analyzer is currently unavailable for detailed analysis."
             ),
             source="default",
         )
@@ -658,14 +643,6 @@ class AIFallbackService:
             True if detection should be skipped
         """
         return not self.is_service_available(AIService.YOLO26)
-
-    def should_use_default_risk(self) -> bool:
-        """Check if default risk score should be used.
-
-        Returns:
-            True if Nemotron is unavailable
-        """
-        return not self.is_service_available(AIService.NEMOTRON)
 
     def should_skip_captions(self) -> bool:
         """Check if caption generation should be skipped.

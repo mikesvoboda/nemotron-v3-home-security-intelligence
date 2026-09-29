@@ -85,15 +85,17 @@ scrape_configs:
   # - llama_requests_processing: Currently processing requests
   #
   # Calculate tokens per second: rate(llama_tokens_predicted_total[1m])
-  - job_name: 'ai-llm-metrics'
+  # R8 S2: the retired ai-llm (llama.cpp 30B) job retargeted to the shipped
+  # llama.cpp server - same /metrics shape (llama_* series), new address.
+  - job_name: 'ai-vlm-metrics'
     metrics_path: /metrics
     scrape_interval: 15s
     scrape_timeout: 10s
     static_configs:
       - targets:
-          - 'ai-llm:8091'
+          - 'ai-vlm:8098'
         labels:
-          service: nemotron
+          service: ai-vlm
           model_type: llm
     # Handle case where container is not running
     honor_labels: true
@@ -407,7 +409,7 @@ scrape_configs:
     scrape_timeout: 5s
     static_configs:
       - targets:
-          - http://ai-llm:8091/health
+          - http://ai-vlm:8098/health
         labels:
           probe_type: availability
           service_type: ai

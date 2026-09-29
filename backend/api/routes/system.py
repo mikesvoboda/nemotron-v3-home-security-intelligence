@@ -34,7 +34,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_baseline_service_dep, get_cache_service_dep
 from backend.api.middleware import RateLimiter, RateLimitTier
-from backend.api.routes.health_ai_services import shipped_ai_services_config
 from backend.api.schemas.baseline import (
     AnomalyConfig,
     AnomalyConfigUpdate,
@@ -90,9 +89,6 @@ from backend.api.schemas.system import (
     ModelZooStatusResponse,
     MonitoringHealthResponse,
     MonitoringTargetsResponse,
-    NemotronLatencyOptimizerResponse,
-    NemotronLatencyStatsResponse,
-    NemotronOptimizerConfigResponse,
     OrphanedFileCleanupResponse,
     PipelineLatencies,
     PipelineLatencyHistoryResponse,
@@ -911,32 +907,6 @@ async def _check_yolo26_health(yolo26_url: str, timeout: float) -> tuple[bool, s
         return False, f"YOLO26 service error: {e!s}"
 
 
-async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[bool, str | None]:
-    """Check Nemotron LLM service health.
-
-    Args:
-        nemotron_url: Base URL for Nemotron service (llama.cpp server)
-        timeout: Request timeout in seconds
-
-    Returns:
-        Tuple of (is_healthy, error_message)
-    """
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(f"{nemotron_url}/health")
-            response.raise_for_status()
-            return True, None
-    except httpx.ConnectError:
-        return False, "Nemotron service connection refused"
-    except httpx.TimeoutException:
-        return False, "Nemotron service request timed out"
-    except httpx.HTTPStatusError as e:
-        return False, f"Nemotron service returned HTTP {e.response.status_code}"
-    except (OSError, RuntimeError) as e:
-        # Network-level failures
-        return False, f"Nemotron service error: {e!s}"
-
-
 async def _check_ai_vlm_health(ai_vlm_url: str, timeout: float) -> tuple[bool, str | None]:
     """Check ai-vlm (llama-server + mmproj, the PIPELINE_MODE=vlm verdict engine).
 
@@ -1003,41 +973,6 @@ async def _check_yolo26_health_with_circuit_breaker(
 
     # Circuit is closed, perform actual health check
     is_healthy, error_msg = await _check_yolo26_health(yolo26_url, timeout)
-
-    # Record result in circuit breaker
-    if is_healthy:
-        _health_circuit_breaker.record_success(service_name)
-    else:
-        _health_circuit_breaker.record_failure(service_name, error_msg)
-
-    return is_healthy, error_msg
-
-
-async def _check_nemotron_health_with_circuit_breaker(
-    nemotron_url: str, timeout: float
-) -> tuple[bool, str | None]:
-    """Check Nemotron health with circuit breaker protection.
-
-    If the circuit is open (service repeatedly failing), returns cached error
-    immediately without making network call. Otherwise performs health check
-    and records result in circuit breaker.
-
-    Args:
-        nemotron_url: Base URL for Nemotron service
-        timeout: Request timeout in seconds
-
-    Returns:
-        Tuple of (is_healthy, error_message)
-    """
-    service_name = "nemotron"
-
-    # Check if circuit is open (service is down, skip the check)
-    if _health_circuit_breaker.is_open(service_name):
-        cached_error = _health_circuit_breaker.get_cached_error(service_name)
-        return False, cached_error or "Nemotron service unavailable (circuit open)"
-
-    # Circuit is closed, perform actual health check
-    is_healthy, error_msg = await _check_nemotron_health(nemotron_url, timeout)
 
     # Record result in circuit breaker
     if is_healthy:
@@ -4283,88 +4218,6 @@ async def get_pipeline_status(
 
 
 # =============================================================================
-# Nemotron Latency Optimizer Endpoints (NEM-4522)
-# =============================================================================
-
-
-@router.get("/nemotron-optimizer", response_model=NemotronLatencyOptimizerResponse)
-async def get_nemotron_optimizer_status() -> NemotronLatencyOptimizerResponse:
-    """Get Nemotron latency optimizer status.
-
-    Returns the current state of the latency optimizer including:
-    - Circuit breaker state (closed, open, half_open)
-    - Pending request count (queue depth)
-    - Rolling latency statistics (average, p95, sample count)
-    - Shed request count and circuit trip count
-    - Current configuration settings
-
-    The latency optimizer implements adaptive strategies to reduce pipeline
-    latency from 39.6s to <10s target:
-    - Latency-based circuit breaker: Opens when average latency exceeds threshold
-    - Semaphore acquire timeout: Prevents queue backlog by timing out waiting requests
-    - Adaptive timeout: Reduces LLM timeout when queue depth is high
-    - Request shedding: Drops requests when system is overloaded
-
-    Returns:
-        NemotronLatencyOptimizerResponse with optimizer status and statistics
-    """
-    from backend.services.nemotron_latency_optimizer import get_nemotron_optimizer
-
-    optimizer = get_nemotron_optimizer()
-    status = optimizer.get_status()
-
-    return NemotronLatencyOptimizerResponse(
-        circuit_state=status["circuit_state"],
-        pending_requests=status["pending_requests"],
-        consecutive_high_latency=status["consecutive_high_latency"],
-        latency_stats=NemotronLatencyStatsResponse(
-            rolling_average_seconds=status["latency_stats"]["rolling_average_seconds"],
-            p95_latency_seconds=status["latency_stats"]["p95_latency_seconds"],
-            last_latency_seconds=status["latency_stats"]["last_latency_seconds"],
-            sample_count=status["latency_stats"]["sample_count"],
-            total_requests=status["latency_stats"]["total_requests"],
-            shed_requests=status["latency_stats"]["shed_requests"],
-            circuit_trips=status["latency_stats"]["circuit_trips"],
-        ),
-        config=NemotronOptimizerConfigResponse(
-            target_latency_seconds=status["config"]["target_latency_seconds"],
-            max_acceptable_latency_seconds=status["config"]["max_acceptable_latency_seconds"],
-            max_queue_depth=status["config"]["max_queue_depth"],
-            semaphore_acquire_timeout=status["config"]["semaphore_acquire_timeout"],
-        ),
-        timestamp=datetime.now(UTC),
-    )
-
-
-@router.post("/nemotron-optimizer/reset")
-async def reset_nemotron_optimizer_circuit() -> dict[str, str]:
-    """Reset the Nemotron latency optimizer circuit breaker.
-
-    Manually resets the circuit breaker to the closed state, allowing
-    requests to proceed even if the circuit was previously open due to
-    high latency. Use this after resolving underlying performance issues.
-
-    Returns:
-        Success message confirming circuit reset
-    """
-    from backend.services.nemotron_latency_optimizer import get_nemotron_optimizer
-
-    optimizer = get_nemotron_optimizer()
-    previous_state = optimizer.circuit_state.value
-    optimizer.reset_circuit()
-
-    logger.info(
-        "Nemotron latency optimizer circuit reset",
-        extra={"previous_state": previous_state},
-    )
-
-    return {
-        "message": f"Circuit breaker reset from {previous_state} to closed",
-        "previous_state": previous_state,
-    }
-
-
-# =============================================================================
 # Worker Supervisor Endpoints (NEM-2457)
 # =============================================================================
 
@@ -4782,10 +4635,6 @@ def _get_model_display_name(name: str) -> str:
         "yolo11-face": "YOLO11 Face Detection",
         "paddleocr": "PaddleOCR",
         "yolo26-general": "YOLO26 General Detection",
-        "clip_embedder": "CLIP ViT-L/14",
-        "yolo-world-s": "YOLO-World Small",
-        "depth-anything-v2-tiny": "Depth Anything V2 Tiny",
-        "vitpose-small": "ViTPose Small",
     }
 
     if name in display_names:
@@ -4932,33 +4781,23 @@ async def get_model(model_name: str) -> ModelStatusResponse:
 # =============================================================================
 
 # Model category mapping for dropdown grouping
+# R8 S2 (2026-09-29): the attribute/classification tier retired with the
+# enrichment pipeline, so its rows left models.yml and these groupings shrank
+# to the zoo that remains. Categories that lost every member are gone - an
+# empty dropdown group is worse than an absent one.
 MODEL_CATEGORIES: dict[str, list[str]] = {
     "Detection": [
         "yolo11-license-plate",
         "yolo11-face",
-        "yolo-world-s",
-        "vehicle-damage-detection",
         "threat-detection-yolov8n",
     ],
-    "Classification": [
-        "violence-detection",
-        "weather-classification",
-        "fashion-clip",
-        "vehicle-segment-classification",
-        "pet-classifier",
-        "vit-age-classifier",
-        "vit-gender-classifier",
-    ],
-    "Segmentation": ["segformer-b2-clothes"],
-    "Pose": ["vitpose-small", "yolov8n-pose"],
-    "Depth": ["depth-anything-v2-tiny"],
-    "Embedding": ["siglip2-base-patch16-224", "osnet-ain-x1-0"],
+    "Pose": ["yolov8n-pose"],
+    "Embedding": ["osnet-ain-x1-0"],
     "OCR": ["paddleocr"],
-    "Action Recognition": ["stgcn-plus-plus"],
 }
 
 # Disabled models that should appear at the bottom of the dropdown
-DISABLED_MODELS = ["florence-2-large", "brisque-quality", "yolo26-general"]
+DISABLED_MODELS = ["yolo26-general"]
 
 # Redis key prefix for model zoo latency data
 MODEL_ZOO_LATENCY_KEY_PREFIX = "model_zoo:latency:"
@@ -4967,19 +4806,19 @@ MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
 # Mapping from EventAudit model flags to Model Zoo model names
 # EventAudit tracks which models contributed to each event analysis
 # This mapping allows us to derive "last used" timestamps from audit data
+# R8 S2: the EventAudit has_* flags for the retired tier still exist on old
+# rows (S4 owns the table), but they map to no Model Zoo model any more -
+# the models those enrichment stages loaded were deleted with the tier.
 AUDIT_MODEL_TO_ZOO_MODELS: dict[str, list[str]] = {
     "yolo26": [],  # YOLO26v2 is not in Model Zoo (always loaded separately)
-    "florence": ["florence-2-large"],
-    "clip": [
-        "siglip2-base-patch16-224",
-        "osnet-ain-x1-0",
-    ],  # SigLIP 2 embeddings and OSNet-AIN re-id
-    "violence": ["violence-detection"],
-    "clothing": ["segformer-b2-clothes", "fashion-clip"],
-    "vehicle": ["vehicle-segment-classification", "vehicle-damage-detection"],
-    "pet": ["pet-classifier"],
-    "weather": ["weather-classification"],
-    "image_quality": ["brisque-quality"],
+    "florence": [],  # florence-2-large row retired with the enrichment tier
+    "clip": ["osnet-ain-x1-0"],  # OSNet-AIN re-id (SigLIP 2 embeddings retired)
+    "violence": [],  # violence-detection retired with the enrichment tier
+    "clothing": [],  # clothing models retired with the enrichment tier
+    "vehicle": [],  # vehicle classifiers retired with the enrichment tier
+    "pet": [],  # pet-classifier retired with the enrichment tier
+    "weather": [],  # weather-classification retired with the enrichment tier
+    "image_quality": [],  # brisque-quality retired with the enrichment tier
     "zones": [],  # Zone analysis is a context enrichment, not a Model Zoo model
     "baseline": [],  # Baseline comparison is a context enrichment, not a Model Zoo model
     "cross_camera": [],  # Cross-camera correlation is a context enrichment, not a Model Zoo model
@@ -5272,11 +5111,13 @@ AI_SERVICES_CONFIG = [
         "critical": True,
     },
     {
-        "name": "nemotron",
-        "display_name": "Nemotron LLM Risk Analysis",
-        "url_attr": "nemotron_url",
-        "circuit_breaker_name": "nemotron",
-        "critical": True,
+        # R8 S2: ai-vlm replaces the retired Nemotron row IN THE DATA, same
+        # posture as backend/api/routes/health_ai_services.py's table.
+        "name": "ai-vlm",
+        "display_name": "VLM Verdict Service",
+        "url_attr": "ai_vlm_url",
+        "circuit_breaker_name": "ai-vlm",
+        "critical": False,
     },
     {
         "name": "florence",
@@ -5618,7 +5459,7 @@ async def get_full_health(
     # The (critical) nemotron row is swapped for ai-vlm: the legacy LLM is
     # retired, and reporting a container that is absent from compose would
     # read as a critical outage on every healthy boot (R8, 2026-09-29).
-    ai_services_config = shipped_ai_services_config(AI_SERVICES_CONFIG)
+    ai_services_config = AI_SERVICES_CONFIG
 
     postgres_task = _check_postgres_health_full(db)
     redis_task = _check_redis_health_full(redis)

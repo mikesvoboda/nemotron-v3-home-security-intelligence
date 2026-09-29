@@ -501,7 +501,7 @@ def analysis_worker(broadcaster: Any = None) -> Any:
     """AnalysisQueueWorker with an injected analyzer and optional broadcaster.
 
     Nothing real is constructed: ``analyzer`` is a MagicMock so the shipped
-    ``analyzer or NemotronAnalyzer(...)`` arm never runs, and ``_broadcaster`` is
+    ``analyzer or build_pipeline_analyzer(...)`` arm never runs, and ``_broadcaster`` is
     pre-seeded so the shipped ``_get_broadcaster`` returns it without touching its
     factory (the broadcaster double is this file's object, never a patched real one).
     """

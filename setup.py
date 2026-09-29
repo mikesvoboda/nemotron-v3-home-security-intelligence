@@ -144,7 +144,6 @@ def get_default_ports() -> dict[str, int]:
         # Retired standalone AI containers (yolo26/florence/clip/enrichment/
         # enrichment_light) no longer get host ports — those models are served
         # by ai-gateway at AI_GATEWAY_PORT (see generate_env_content below).
-        "nemotron": "LLM_PORT",
         "grafana": "GRAFANA_PORT",
         "prometheus": "PROMETHEUS_PORT",
         "alertmanager": "ALERTMANAGER_PORT",
@@ -169,7 +168,6 @@ def get_default_ports() -> dict[str, int]:
         "redis": 6379,
         "go2rtc_api": 1984,
         "go2rtc_webrtc": 8555,
-        "nemotron": 8091,
         "grafana": 3002,
         "prometheus": 9090,
         "alertmanager": 9093,
@@ -215,7 +213,6 @@ def build_services_dict() -> dict[str, ServiceInfo]:
         # are retired (models served by ai-gateway at AI_GATEWAY_PORT=8090,
         # which setup.py does not port-probe; the gateway URL lines below are
         # fixed at the .env.example default).
-        "nemotron": {"category": "AI", "desc": "Nemotron LLM reasoning"},
         # Monitoring Services
         "grafana": {"category": "Monitoring", "desc": "Grafana dashboards"},
         "prometheus": {"category": "Monitoring", "desc": "Prometheus metrics"},
@@ -428,10 +425,11 @@ def generate_env_content(config: dict) -> str:
         "",
         "# -- Service URLs " + "-" * 43,
         # Standalone AI containers are retired; the gateway serves these models
-        # at route prefixes (mirrors the docker-compose backend env verbatim:
-        # prod :466-470 gateway routes + :454 ai-llm, same in ghcr).
+        # at route prefixes (mirrors the docker-compose backend env gateway
+        # routes). The legacy ai-llm's NEMOTRON_URL line died with the service
+        # in R8 S2 - the shipped engine's URL is AI_VLM_URL, defaulted by
+        # compose interpolation (and .env.example).
         "YOLO26_URL=http://ai-gateway:8090/yolo26",
-        f"NEMOTRON_URL=http://ai-llm:{ports.get('nemotron', 8091)}",
         "FLORENCE_URL=http://ai-gateway:8090/florence",
         "CLIP_URL=http://ai-gateway:8090/clip",
         "ENRICHMENT_URL=http://ai-gateway:8090/enrichment",
@@ -467,7 +465,7 @@ def generate_env_content(config: dict) -> str:
         "",
         "# -- CUDA Build Optimization " + "-" * 31,
         "# Detected GPU compute capability for optimized CUDA builds",
-        "# Reduces ai-llm build time by ~6x by only compiling for detected GPU",
+        "# Reduces CUDA build time by ~6x by only compiling for detected GPU",
         "# Format: XY (e.g., 89 = compute capability 8.9)",
         "# Leave empty to build for all common architectures (slower)",
         f"CUDA_ARCHITECTURES={config.get('cuda_architectures', '')}",
@@ -484,7 +482,6 @@ def generate_env_content(config: dict) -> str:
         # containers are retired — those models are served by ai-gateway at
         # AI_GATEWAY_PORT (8090); see .env.example for the legacy reference
         # ports (not provisioned here).
-        f"LLM_PORT={ports.get('nemotron', 8091)}",
         "",
         "# -- Monitoring Service Ports " + "-" * 31,
         f"PROMETHEUS_PORT={ports.get('prometheus', 9090)}",
@@ -1454,7 +1451,7 @@ def main() -> None:
             print()
             if driver_was_upgraded:
                 print("  The NVIDIA driver was upgraded and the new driver will")
-                print("  not load until after a reboot. GPU containers (ai-llm,")
+                print("  not load until after a reboot. GPU containers (ai-vlm,")
                 print("  ai-gateway) cannot start without /dev/nvidia* devices.")
             if optimizer_reboot:
                 print("  Kernel parameters were changed that require a reboot.")

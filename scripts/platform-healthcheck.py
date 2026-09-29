@@ -167,9 +167,9 @@ def check_ai_services() -> list[str]:
     lines = []
     lines.append(_header("AI SERVICE HEALTH"))
 
-    # ai-llm (Nemotron)
-    lines.append(_sub("  Nemotron LLM (ai-llm):"))
-    health = _curl_json("http://127.0.0.1:8091/health")
+    # ai-vlm (the shipped llama.cpp engine; R8 S2 retired ai-llm)
+    lines.append(_sub("  VLM engine (ai-vlm):"))
+    health = _curl_json("http://127.0.0.1:8098/health")
     if health and health.get("status") == "ok":
         lines.append(f"    {_ok('Health: OK')}")
     else:
@@ -400,10 +400,10 @@ def check_nemotron_inference() -> list[str]:
 
     # Get recent completion stats from backend logs
     rc, out = _run(
-        "podman logs --since 120s nemotron-v3-home-security-intelligence_ai-llm_1 2>&1"
+        "podman logs --since 120s nemotron-v3-home-security-intelligence_ai-vlm_1 2>&1"
     )
     if rc != 0:
-        lines.append(_warn("Cannot read ai-llm logs"))
+        lines.append(_warn("Cannot read ai-vlm logs"))
         return lines
 
     prompt_rates = []

@@ -61,29 +61,29 @@ HEAVY_ROUTER_URL = "http://ai-enrichment:8094/enrichment"
 LIGHT_ROUTER_URL = "http://ai-enrichment-light:8096/enrich-lt"
 GATEWAY_ROOT_URL = "http://ai-enrichment:8094"
 
-# Heavy lane models (gateway /enrichment router)
+# Heavy lane models (gateway /enrichment router). R8 S2b: shipped HEAVY_MODELS
+# is now EMPTY — the heavy router's whole attribute/classification zoo retired
+# with the enrichment tier, so lane 0 is every registry name that is not
+# light-tier. The exemplars are models.yml survivors pinning that fall-through
+# rule (the retired names they replace no longer exist in the catalogue).
+# yolov8n-pose is deliberately NOT exemplified either lane: its Triton model is
+# only ever reported by the /enrich-lt payload yet S2b moved it out of the light
+# set, so its lane is unpinned until S3 rules.
 HEAVY_MODELS = frozenset(
     {
-        "vehicle-segment-classification",
-        "fashion-clip",
-        "segformer-b2-clothes",
-        "yolo-world-s",
-        "vitpose-small",
-        "vehicle-damage-detection",
-        "violence-detection",
-        "vit-age-classifier",
-        "vit-gender-classifier",
+        "florence-2-base",
+        "face-recognizer",
+        "yolo11-license-plate",
+        "fast-alpr",
     }
 )
 
-# Light lane models (gateway /enrich-lt router)
+# Light lane models (gateway /enrich-lt router) — mirrors shipped LIGHT_MODELS
+# post R8 S2b: depth/pet/pose left with the enrichment tier, threat + reid stay.
 LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
         "osnet-ain-x1-0",
-        "depth-anything-v2-tiny",
-        "pet-classifier",
-        "yolov8n-pose",
     }
 )
 
@@ -838,18 +838,20 @@ class TestVramSummary:
         assert gpu0.used_mb == 2000
         assert gpu0.available_mb == 4800
 
-        # osnet's Triton model (reid) is not ready; weather has no Triton model
+        # R8 S2b: the light lane's only registry members are threat + osnet
+        # (pose/pet/depth retired with the enrichment tier), and osnet's Triton
+        # model (reid) is not ready — so threat alone is loaded on lane 1.
         gpu1 = next(g for g in result.gpus if g.gpu_id == 1)
         assert gpu1.service == "ai-enrichment-light"
         assert gpu1.budget_mb == 1200
-        assert gpu1.loaded_models == ["threat-detection-yolov8n", "yolov8n-pose"]
-        assert gpu1.used_mb == 500
-        assert gpu1.available_mb == 700
+        assert gpu1.loaded_models == ["threat-detection-yolov8n"]
+        assert gpu1.used_mb == 300
+        assert gpu1.available_mb == 900
 
         assert result.totals.budget_mb == 8000
-        assert result.totals.used_mb == 2500
-        assert result.totals.available_mb == 5500
-        assert result.totals.model_count == 4
+        assert result.totals.used_mb == 2300
+        assert result.totals.available_mb == 5700
+        assert result.totals.model_count == 3
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_vram_summary_with_routers_down(

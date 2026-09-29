@@ -9,7 +9,7 @@ from redis.asyncio import Redis
 
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy, RedisClient
 from backend.services.batch_aggregator import BatchAggregator, generate_batch_id
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 # ===========================================================================
 # Test: generate_batch_id() function
@@ -905,7 +905,7 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
     file_path = "/export/foscam/front_door/image_001.jpg"
 
     # Mock analyzer
-    mock_analyzer = AsyncMock(spec=NemotronAnalyzer)
+    mock_analyzer = AsyncMock(spec=VlmAnalyzer)
     mock_analyzer.analyze_detection_fast_path = AsyncMock()
     batch_aggregator._analyzer = mock_analyzer
 
@@ -983,7 +983,7 @@ async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_i
     with patch(
         "backend.services.pipeline_factory.build_pipeline_analyzer", autospec=True
     ) as MockBuilder:
-        mock_analyzer_instance = AsyncMock(spec=NemotronAnalyzer)
+        mock_analyzer_instance = AsyncMock(spec=VlmAnalyzer)
         mock_analyzer_instance.analyze_detection_fast_path = AsyncMock()
         MockBuilder.return_value = mock_analyzer_instance
 
@@ -1009,7 +1009,7 @@ async def test_process_fast_path_handles_error(batch_aggregator, mock_redis_inst
     detection_id = 789  # Use integer detection ID (matches database model)
 
     # Mock analyzer that raises error
-    mock_analyzer = AsyncMock(spec=NemotronAnalyzer)
+    mock_analyzer = AsyncMock(spec=VlmAnalyzer)
     mock_analyzer.analyze_detection_fast_path = AsyncMock(side_effect=Exception("Analysis failed"))
     batch_aggregator._analyzer = mock_analyzer
 

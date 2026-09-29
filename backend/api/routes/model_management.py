@@ -104,19 +104,9 @@ router = APIRouter(prefix="/api/system/models", tags=["model-management"])
 _MODELS_YML = Path(__file__).resolve().parents[3] / "models.yml"
 
 # Heavy lane: gateway /enrichment router (models.yml enrichment_*_service=heavy)
-HEAVY_MODELS = frozenset(
-    {
-        "vehicle-segment-classification",
-        "fashion-clip",
-        "segformer-b2-clothes",
-        "yolo-world-s",
-        "vitpose-small",
-        "vehicle-damage-detection",
-        "violence-detection",
-        "vit-age-classifier",
-        "vit-gender-classifier",
-    }
-)
+# R8 S2: every heavy-router model retired with the enrichment tier; the
+# heavy lane has no backend-side member until S3 retires the provider.
+HEAVY_MODELS: frozenset[str] = frozenset()
 
 # Light lane: gateway /enrich-lt router. This mirrors the gateway reality —
 # the /enrich-lt health payload reports readiness for pose/threat/reid/pet/
@@ -126,9 +116,6 @@ LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
         "osnet-ain-x1-0",
-        "depth-anything-v2-tiny",
-        "pet-classifier",
-        "yolov8n-pose",
     }
 )
 
