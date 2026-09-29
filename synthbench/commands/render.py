@@ -49,8 +49,11 @@ from synthbench.generate.render import (
 from synthbench.status import FlagshipUnknown, flagship_file
 
 DEFAULT_BUDGET_S = 480
+# MAX_BUDGET_S + RENDER_TIMEOUT_S = 590 s, under the Bash tool's 600 s per-call cap (P3-R10):
+# one hung image must not be able to outlive the call the agent renders it in.
+MAX_BUDGET_S = 500
 MAX_RENDER_FAILURES = 3
-RENDER_TIMEOUT_S = 600.0
+RENDER_TIMEOUT_S = 90.0
 
 
 def _utc_now() -> datetime:
@@ -73,8 +76,8 @@ def _budget(text: str) -> int:
         value = int(text)
     except ValueError:
         raise argparse.ArgumentTypeError(f"budget must be whole seconds: {text!r}") from None
-    if not 30 <= value <= 3600:
-        raise argparse.ArgumentTypeError(f"budget must be 30..3600 seconds, got {value}")
+    if not 30 <= value <= MAX_BUDGET_S:
+        raise argparse.ArgumentTypeError(f"budget must be 30..{MAX_BUDGET_S} seconds, got {value}")
     return value
 
 

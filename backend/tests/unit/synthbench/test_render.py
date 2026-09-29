@@ -161,6 +161,33 @@ def test_render_waits_while_the_flagship_has_requests_waiting(tmp_path: Path) ->
     assert len(comfy.graphs) == 1
 
 
+def test_render_yields_before_every_image_not_only_the_first(tmp_path: Path) -> None:
+    """§5.2: the yield check runs before EACH image. A flagship that goes busy only after
+    image 1 must still stall image 2 - a yield hoisted above the per-image loop would miss it."""
+    specs, clock = _ready(tmp_path, 2)
+    comfy = FakeComfy(clock)
+    order: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/prompt":
+            order.append(f"prompt-{len(comfy.graphs) + 1}")
+        response = comfy(request)
+        if request.url.path == "/prompt" and len(comfy.graphs) == 1:
+            h.flagship(tmp_path, waiting=3)  # busy only once image 1's job is queued
+        return response
+
+    def on_sleep() -> None:
+        order.append("sleep")
+        h.flagship(tmp_path, waiting=0)
+
+    deps = _deps(clock, handler, on_sleep=on_sleep)
+    assert _render(tmp_path, deps) == cli.EXIT_OK
+    assert order == ["prompt-1", "sleep", "prompt-2"]
+    assert len(comfy.graphs) == 2
+    assert _attempt(tmp_path, specs[0]).render is not None
+    assert _attempt(tmp_path, specs[1]).render is not None
+
+
 def test_an_unhealthy_flagship_holds_every_image_until_the_budget_ends(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -197,6 +224,19 @@ def test_render_starts_no_image_after_its_budget(
     rest = FakeComfy(clock)
     assert _render(tmp_path, _deps(clock, rest), budget=300) == cli.EXIT_OK
     assert len(rest.graphs) == 1
+
+
+def test_a_budget_over_the_max_exits_1(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """render.MAX_BUDGET_S (500) plus RENDER_TIMEOUT_S (90) stays under the Bash tool's 600 s
+    per-call cap (P3-R10): a longer budget could let a hung image outlive the call."""
+    try:  # argparse raises SystemExit for usage errors; the command returns its code
+        code = cli.main(
+            ["render", "--batch", "pilot-1", "--budget-seconds", "501"], env=h.env(tmp_path)
+        )
+    except SystemExit as stop:
+        code = int(stop.code or 0)
+    assert code == cli.EXIT_ERROR
+    assert f"30..{render.MAX_BUDGET_S} seconds, got 501" in capsys.readouterr().err
 
 
 def test_a_failed_job_is_recorded_and_retried_next_run(tmp_path: Path) -> None:
