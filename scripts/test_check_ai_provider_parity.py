@@ -708,10 +708,12 @@ REAL_TIER_A_IDS = {
     "AI-PARITY-SHAPE-enrichment_demographics-bbox",  # pragma: allowlist secret
     "AI-PARITY-SHAPE-enrichment_pet_classify-bbox",  # pragma: allowlist secret
     "AI-PARITY-SHAPE-enrichment_pose_analyze-bbox",  # pragma: allowlist secret
-    # D2: gateway:False ops whose deployed caller URLs land on the gateway
-    "AI-PARITY-CLAIM-GW404-model_status",
-    "AI-PARITY-CLAIM-GW404-model_preload",
-    "AI-PARITY-CLAIM-GW404-object_distance",  # pragma: allowlist secret
+    # D2 (gateway:False ops whose deployed caller URLs landed on the gateway):
+    # EMPTIED by R8 S2 (2026-09-29). The three callers that produced those
+    # ids lived in enrichment_client / package_tracking_service, both deleted
+    # with the enrichment tier - the drift cannot recur because the calling
+    # surface is gone. If a future slice re-introduces a caller for these
+    # ops, the checker re-raises the ids and this set has to grow back.
     # D3 (phantom path /models/{model_name}/unload vs POST /models/unload) and
     # the model_unload half of D2: RESOLVED by the gateway-consolidation
     # model-management rework (2026-09-22, PR #6645). The load/unload/reload
@@ -729,11 +731,8 @@ REAL_TIER_A_IDS = {
     "AI-PARITY-KEY-enrich_lt_person_reid-response",
     "AI-PARITY-KEY-enrich_lt_pet_classify-response",
     "AI-PARITY-KEY-enrich_lt_pose_analyze-response",
-    "AI-PARITY-KEY-enrichment_action_classify-labels",
-    "AI-PARITY-KEY-enrichment_enrich-frames,options",
     "AI-PARITY-KEY-enrichment_enrich-response",
     "AI-PARITY-KEY-enrichment_pet_classify-response",
-    "AI-PARITY-KEY-enrichment_pose_analyze-min_confidence",
     "AI-PARITY-KEY-enrichment_pose_analyze-response",
 }
 

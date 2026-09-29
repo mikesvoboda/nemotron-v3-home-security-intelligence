@@ -11,7 +11,7 @@
 # Services (docker-compose.prod.yml live set — standalone YOLO26/Florence/CLIP/
 # Enrichment containers retired; ai-gateway serves those models since bc7d6101):
 #   Core:       postgres, redis, backend, frontend
-#   AI:         ai-gateway, ai-llm (ai-llm-vllm is opt-in via --profile vllm)
+#   AI:         ai-gateway, ai-vlm (ai-llm-vllm is opt-in via --profile vllm)
 #   Monitoring: prometheus, grafana, redis-exporter, json-exporter
 #
 
@@ -36,7 +36,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Service groups
 CORE_SERVICES="postgres redis backend frontend"
-AI_SERVICES="ai-gateway ai-llm"
+AI_SERVICES="ai-gateway ai-vlm"
 MONITORING_SERVICES="prometheus grafana redis-exporter json-exporter"
 ALL_SERVICES="$CORE_SERVICES $AI_SERVICES $MONITORING_SERVICES"
 

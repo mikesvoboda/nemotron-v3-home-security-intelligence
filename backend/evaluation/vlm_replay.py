@@ -53,7 +53,9 @@ from backend.evaluation.s_metrics import (
     s5_refusals,
     uncertain_rate,
 )
-from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
+    ConstrainedDecodingNotEnforced,
+)
 from backend.services.vlm_client import VlmClient, VlmClientError
 from backend.services.vlm_verdict import VlmAssessContext, VlmAssessRequest, VlmVerdict
 

@@ -67,16 +67,19 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 
 def create_mock_settings(
     yolo26_url: str = "http://ai-yolo26:8095",
-    nemotron_url: str = "http://llm-analyzer:8080",
+    ai_vlm_url: str = "http://ai-vlm:8098",
     florence_url: str = "http://florence-service:8091",
     clip_url: str = "http://clip-service:8092",
     enrichment_url: str = "http://enrichment-service:8093",
 ) -> MagicMock:
     """Create mock settings with AI service URLs.
 
+    One url attr per row of the shipped table — there is no ``nemotron_url``
+    arg because R8 S2 deleted that setting along with the retired LLM's row.
+
     Args:
         yolo26_url: URL for YOLO26 service (empty string for unconfigured)
-        nemotron_url: URL for Nemotron service
+        ai_vlm_url: URL for the VLM verdict service (empty for unconfigured)
         florence_url: URL for Florence service
         clip_url: URL for CLIP service
         enrichment_url: URL for Enrichment service
@@ -87,13 +90,13 @@ def create_mock_settings(
     mock = MagicMock()
     # Handle empty strings as None for "unconfigured" behavior
     mock.yolo26_url = yolo26_url if yolo26_url else None
-    mock.nemotron_url = nemotron_url if nemotron_url else None
+    mock.ai_vlm_url = ai_vlm_url if ai_vlm_url else None
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
     mock.enrichment_url = enrichment_url if enrichment_url else None
-    # These endpoint tests assert the nemotron row: PIPELINE_MODE=legacy (the
-    # vlm-mode table is TestAIServicesHealthByPipelineMode).
-    mock.pipeline_mode = "legacy"
+    # No `pipeline_mode` on the mock (R8 left one mode) and ai_vlm_url spelled:
+    # the shipped table's verdict-engine row reads settings.ai_vlm_url, so a
+    # bare MagicMock attr would leak a mock object into AIServiceHealthDetail.url.
     return mock
 
 
@@ -432,11 +435,14 @@ class TestQueueDepths:
 class TestOverallStatusCalculation:
     """Tests for overall status calculation."""
 
+    # The five keys below are the SHIPPED table's names (R8 S2: ai-vlm took the
+    # retired Nemotron row), and yolo26 is the only critical one — so the
+    # CRITICAL cases pin yolo26 and the DEGRADED cases pin a non-critical row.
     def test_all_healthy(self) -> None:
         """Test overall status is healthy when all services are healthy."""
         services = {
             "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -448,7 +454,7 @@ class TestOverallStatusCalculation:
         """Test overall status is critical when critical service is unhealthy."""
         services = {
             "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -459,8 +465,8 @@ class TestOverallStatusCalculation:
     def test_critical_service_unknown(self) -> None:
         """Test overall status is critical when critical service is unknown."""
         services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "nemotron": AIServiceHealthDetail(status=AIServiceStatus.UNKNOWN),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNKNOWN),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -472,8 +478,21 @@ class TestOverallStatusCalculation:
         """Test overall status is degraded when non-critical service is unhealthy."""
         services = {
             "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
+            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+        }
+
+        assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
+
+    def test_ai_vlm_down_is_degraded_not_critical(self) -> None:
+        """ai-vlm is the table's non-critical verdict-engine row: down alone
+        costs a DEGRADED badge, never the 503 a critical row earns (R8 S2)."""
+        services = {
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
+            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
         }
@@ -484,7 +503,7 @@ class TestOverallStatusCalculation:
         """Test overall status is degraded when non-critical service is degraded."""
         services = {
             "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "enrichment": AIServiceHealthDetail(status=AIServiceStatus.DEGRADED),
@@ -573,7 +592,11 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
-        """Test endpoint includes all 5 AI services."""
+        """Test endpoint includes all 5 services of the SHIPPED table.
+
+        ai-vlm is a row of AI_SERVICES_CONFIG itself (R8 S2), so this asserts
+        the shipped five and proves nemotron is absent.
+        """
         mock_settings = create_mock_settings()
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
@@ -607,7 +630,8 @@ class TestAIServicesHealthEndpoint:
                     data = response.json()
                     services = data["services"]
                     assert "yolo26" in services
-                    assert "nemotron" in services
+                    assert "ai-vlm" in services
+                    assert "nemotron" not in services
                     assert "florence" in services
                     assert "clip" in services
                     assert "enrichment" in services
@@ -617,7 +641,7 @@ class TestAIServicesHealthEndpoint:
         """Test endpoint includes queue depth information."""
         mock_settings = create_mock_settings(
             yolo26_url="",
-            nemotron_url="",
+            ai_vlm_url="",
             florence_url="",
             clip_url="",
             enrichment_url="",

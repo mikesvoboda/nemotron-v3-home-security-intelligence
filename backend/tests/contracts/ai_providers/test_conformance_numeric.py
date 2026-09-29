@@ -515,7 +515,16 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
     literal, rewrite against the NEW canonical literal"). The property is
     unchanged: 0.1*sqrt(512) = 2.263 ≠ 1, so N1a's unit-norm provider still
     contradicts the fixture corpus. (Scene-baseline/fashion fixtures keep
-    their real CLIP-768 dims — CLIP is not retired, only as re-ID producer.)"""
+    their real CLIP-768 dims — CLIP is not retired, only as re-ID producer.
+
+    RE-ARMED AGAIN 2026-09-29 by R8 S2: backend/tests/integration/
+    test_enrichment_pipeline.py was deleted with the enrichment tier, and the
+    canonical B5 fixture pair moved to its surviving home —
+    backend/tests/unit/api/test_household.py:738-742 (mock_embedding =
+    [0.1] * 512 feeding the (vector, "osnet-test@weights@abc123") AsyncMock
+    return — the same B5 producer tuple, spelled across the mock's
+    return_value instead of one line). Same escape hatch as always: fix the
+    literal and this reddens by name.)"""
 
     # no provider (characterization). fake n/a, gateway n/a. Predicted GREEN
     # (pure math + file read). UNVERIFIED under pytest.
@@ -529,16 +538,17 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
             "contradicting the fixture corpus and this anti-pin must be "
             "rewritten against the NEW canonical literal."
         )
-        # cite-pinned drift guard: the canonical embedding fixture line must
-        # still sit where the swap left it (line churn = the census claim
-        # needs re-running against the new corpus).
+        # cite-pinned drift guard: the canonical embedding fixture pair must
+        # still sit where R8 S2 left it (line churn = the census claim needs
+        # re-running against the new corpus).
         lines = (
-            (REPO_ROOT / "backend/tests/integration/test_enrichment_pipeline.py")
+            (REPO_ROOT / "backend/tests/unit/api/test_household.py")
             .read_text(encoding="utf-8")
             .splitlines()
         )
-        assert "[0.1] * 512" in lines[384] and "osnet-test@weights@abc123" in lines[384], (
-            f"test_enrichment_pipeline.py:385 drifted: {lines[384]!r}"
+        assert "[0.1] * 512" in lines[737], f"test_household.py:738 drifted: {lines[737]!r}"
+        assert "osnet-test@weights@abc123" in lines[741], (
+            f"test_household.py:742 drifted: {lines[741]!r}"
         )
 
 

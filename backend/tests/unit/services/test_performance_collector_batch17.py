@@ -672,14 +672,15 @@ class TestAiModelMetricShapes:
             }
 
     async def test_nemotron_slot_state_semantics(self) -> None:
-        collector = _collector(nemotron_url="http://ai-llm:8091")
+        # R8 S2: the method name stayed, the probe moved to settings.ai_vlm_url.
+        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
         # A slot with no "state" key counts as idle; the *first* slot supplies
         # context_size (4096 default when it carries no "n_ctx").
         client = _http_client([{"n_ctx": 8192}, {"state": 0, "n_ctx": 4096}])
         with patch.object(collector, "_get_http_client", autospec=True) as get_client:
             get_client.return_value = client
             result = await collector.collect_nemotron_metrics()
-        assert client.get.call_args == (("http://ai-llm:8091/slots",), {})
+        assert client.get.call_args == (("http://ai-vlm:8098/slots",), {})
         assert result.model_dump() == {
             "status": "healthy",
             "slots_active": 0,
@@ -710,7 +711,7 @@ class TestAiModelMetricShapes:
         }
 
     async def test_nemotron_empty_and_mixed_slots(self) -> None:
-        collector = _collector(nemotron_url="http://ai-llm:8091")
+        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
         empty = _http_client([])
         with patch.object(collector, "_get_http_client", autospec=True) as get_client:
             get_client.return_value = empty
@@ -734,7 +735,7 @@ class TestAiModelMetricShapes:
         }
 
     async def test_nemotron_unreachable_literal(self) -> None:
-        collector = _collector(nemotron_url="http://ai-llm:8091")
+        collector = _collector(ai_vlm_url="http://ai-vlm:8098")
         for client in (_http_client([], status=503), _http_client(exc=Exception("refused"))):
             with patch.object(collector, "_get_http_client", autospec=True) as get_client:
                 get_client.return_value = client
@@ -825,7 +826,7 @@ class TestContainerHealthWiring:
         collector = _collector(
             frontend_url="http://frontend:8080/",
             yolo26_url="http://ai-yolo26:8095",
-            nemotron_url="http://ai-llm:8091",
+            ai_vlm_url="http://ai-vlm:8098",
         )
         sentinel = object()
         with (
@@ -848,7 +849,9 @@ class TestContainerHealthWiring:
         assert [call.args for call in service.call_args_list] == [
             (sentinel, "frontend", "http://frontend:8080/health"),
             (sentinel, "ai-yolo26", "http://ai-yolo26:8095/health"),
-            (sentinel, "ai-llm", "http://ai-llm:8091/health"),
+            # R8 S2: the LLM health row re-homed to the shipped engine — the
+            # label is "ai-vlm" and the url attr is ai_vlm_url.
+            (sentinel, "ai-vlm", "http://ai-vlm:8098/health"),
         ]
         assert [call.kwargs for call in service.call_args_list] == [{}, {}, {}]
         assert postgres.call_count == 1

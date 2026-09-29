@@ -9,8 +9,10 @@ contract), 19 are EQUIVALENT bit-identical kwarg deletions (BSD-J 4, BSD-M
 14, I1 1 — output-identical per the cdfeefa5 census), and 1 (C1: compose
 fallback ``logger.warning`` message -> None) is killed ONLY by this file's
 verbatim warning-text asserts. This battery is therefore primarily a
-REDUNDANCY LOCK: an independent 21-service x 9-field full-table readback of
-the same contract, so a future regression trips in either file.
+REDUNDANCY LOCK: an independent 20-service x 9-field full-table readback of
+the same contract, so a future regression trips in either file. (20, not 21:
+R8 S2 deleted the ``ai-llm`` row along with the whole legacy LLM tier, so the
+table below is the post-R8 one — see the note on ``EXPECTED_DEFAULTS``.)
 
 The frozen wp44 feed has no per-mutant diff file for this module, so the 746
 single-hunk shapes were re-extracted mechanically from the fresh generate
@@ -20,7 +22,7 @@ in the mutant copy — that is an EXTRACTION-scope limit, not a survivor
 claim: the meta-era class-method survivors are 35, all dispositioned above.
 
 ``build_service_configs`` is a pure data function: ONE full-table readback of
-all 21 services (display_name, category, port, health endpoint/cmd,
+all 20 services (display_name, category, port, health endpoint/cmd,
 grace/max_failures/backoff) kills every kwarg-None / kwarg-deleted / off-by-
 one / XX-wrap / case-flip shape, and the settings-ports readback kills both
 ternary directions (`and False` falls to defaults; `or True` crashes on None).
@@ -42,6 +44,18 @@ from backend.services.orchestrator import ServiceCategory, ServiceConfig
 
 # (display_name, category, port, health_endpoint, health_cmd,
 #  startup_grace_period, max_failures, restart_backoff_base, restart_backoff_max)
+#
+# R8 S2 (602379e2) deleted the "ai-llm" row — the Nemotron service left every
+# compose file and the legacy LLM tier went with it, so the table below is the
+# post-R8 one and the exact readback now pins its ABSENCE: a re-added row trips
+# set(configs) == set(EXPECTED_DEFAULTS) in every test in the class. The guard
+# that still keeps a stale pre-R8 container unmanaged is the orchestrator's
+# RETIRED_LLM_SERVICES frozenset ({"ai-llm", "ai-llm-vllm"}), pinned in
+# test_container_orchestrator.py, not here — discovery itself no longer carries
+# an ai-llm pattern to match. The shipped engine ai-vlm is deliberately NOT a
+# member of the table either: its health is breaker-push from vlm_client (same
+# reason main.py's build_ai_service_health_configs omits it), so the orchestrator
+# has nothing to poll-and-restart for it.
 EXPECTED_DEFAULTS: dict[str, tuple] = {
     "postgres": (
         "PostgreSQL",
@@ -99,7 +113,6 @@ EXPECTED_DEFAULTS: dict[str, tuple] = {
         5.0,
         300.0,
     ),
-    "ai-llm": ("Nemotron", ServiceCategory.AI, 8091, "/health", None, 120, 5, 5.0, 300.0),
     "ai-llm-vllm": (
         "LLM vLLM",
         ServiceCategory.AI,
@@ -242,7 +255,9 @@ _SETTINGS_PORTS = {
     "backend_port": 18000,
     "go2rtc_port": 11984,
     "ai_gateway_port": 18090,
-    "nemotron_port": 18091,
+    # nemotron_port left OrchestratorSettings with R8 S2 (the "ai-llm" row in
+    # _PORT_ATTR went with it), so the fake settings object no longer carries it
+    # either — keeping it here would silently re-legitimise a deleted field.
     "vllm_port": 18097,
     "prometheus_port": 19090,
     "grafana_port": 13002,
@@ -268,7 +283,8 @@ _PORT_ATTR = {
     "go2rtc": "go2rtc_port",
     "frontend": "frontend_port",
     "ai-gateway": "ai_gateway_port",
-    "ai-llm": "nemotron_port",
+    # R8 S2: "ai-llm" -> "nemotron_port" went with that ServiceConfig row; a
+    # leftover entry here would KeyError out of the settings-driven readback.
     "ai-llm-vllm": "vllm_port",
     "prometheus": "prometheus_port",
     "grafana": "grafana_port",

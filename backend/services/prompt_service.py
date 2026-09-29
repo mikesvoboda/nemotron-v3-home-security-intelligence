@@ -676,7 +676,9 @@ class PromptService:
     def __init__(self) -> None:
         """Initialize the prompt service."""
         settings = get_settings()
-        self._llm_url = settings.nemotron_url
+        # R8 S2 re-home: prompt testing POSTs /completion to the shipped
+        # llama.cpp engine (ai-vlm), the retired ai-llm service's successor.
+        self._llm_url = settings.ai_vlm_url
         self._timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
 
     async def get_all_prompts(

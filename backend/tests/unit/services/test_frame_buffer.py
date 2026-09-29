@@ -1,11 +1,11 @@
 """Unit tests for frame buffer service.
 
-Tests for the FrameBuffer service that stores recent frames per camera
-for temporal action recognition with X-CLIP.
+Tests for the FrameBuffer service that stores recent frames per camera for
+the temporal-action path (see backend/services/frame_buffer.py for who
+consumes the buffer now).
 """
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
 import pytest
 
@@ -567,41 +567,3 @@ class TestFrameBufferSingleton:
         assert buffer1 is not buffer2
         assert buffer2.buffer_size == 32
         reset_frame_buffer()
-
-
-class TestEnrichmentPipelineFrameBufferIntegration:
-    """Tests for EnrichmentPipeline frame buffer integration."""
-
-    def test_enrichment_pipeline_accepts_frame_buffer(self) -> None:
-        """EnrichmentPipeline should accept a frame_buffer parameter."""
-        from backend.services.enrichment_pipeline import EnrichmentPipeline
-        from backend.services.frame_buffer import FrameBuffer
-
-        buffer = FrameBuffer()
-
-        # Should not raise
-        with patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True):
-            with patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True):
-                with patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True):
-                    with patch(
-                        "backend.services.enrichment_pipeline.get_scene_change_detector",
-                        autospec=True,
-                    ):
-                        pipeline = EnrichmentPipeline(frame_buffer=buffer)
-
-        assert pipeline._frame_buffer is buffer
-
-    def test_enrichment_pipeline_none_frame_buffer_is_default(self) -> None:
-        """EnrichmentPipeline should have None frame_buffer by default."""
-        from backend.services.enrichment_pipeline import EnrichmentPipeline
-
-        with patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True):
-            with patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True):
-                with patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True):
-                    with patch(
-                        "backend.services.enrichment_pipeline.get_scene_change_detector",
-                        autospec=True,
-                    ):
-                        pipeline = EnrichmentPipeline()
-
-        assert pipeline._frame_buffer is None

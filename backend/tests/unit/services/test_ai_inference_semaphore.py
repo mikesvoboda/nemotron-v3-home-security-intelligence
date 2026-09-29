@@ -1,7 +1,13 @@
 """Unit tests for AI inference concurrency limits (NEM-1463).
 
 These tests verify that asyncio.Semaphore properly limits concurrent
-AI inference operations for both YOLO26 detection and Nemotron analysis.
+AI inference operations for YOLO26 detection, plus the semaphore module's
+own singleton and queueing behaviour.
+
+The NemotronAnalyzer concurrency half retired with R8 (2026-09-29): the
+analyzer and the analyzer facade are gone, and the shipped VLM client
+(``backend.services.vlm_client``) does not take the inference semaphore, so
+there is no live analyzer-side caller left to pin.
 """
 
 import asyncio
@@ -283,183 +289,6 @@ class TestDetectorClientConcurrencyLimits:
                 pytest.raises(DetectorUnavailableError),
             ):
                 await client.detect_objects("/img.jpg", "camera1", mock_session)
-
-            # Verify semaphore is released despite error
-            assert semaphore._value == initial_value
-
-
-class TestNemotronAnalyzerConcurrencyLimits:
-    """Tests for NemotronAnalyzer concurrency limiting."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings with semaphore config."""
-        mock = MagicMock()
-        mock.nemotron_url = "http://localhost:8091"
-        mock.nemotron_api_key = None
-        mock.ai_connect_timeout = 10.0
-        mock.nemotron_read_timeout = 120.0
-        mock.ai_health_timeout = 5.0
-        mock.nemotron_max_retries = 1
-        mock.ai_max_concurrent_inferences = 2  # Limit to 2 concurrent
-        mock.severity_low_max = 29
-        mock.severity_medium_max = 59
-        mock.severity_high_max = 84
-        mock.background_evaluation_enabled = False
-        # LLM context window settings (NEM-1666)
-        mock.nemotron_context_window = 4096
-        mock.nemotron_max_output_tokens = 1536
-        mock.context_utilization_warning_threshold = 0.80
-        mock.context_truncation_enabled = True
-        mock.llm_tokenizer_encoding = "cl100k_base"
-        # P0.3 constrained decoding: legacy values (a plain MagicMock
-        # auto-truthies every attribute - the flags must be pinned False)
-        mock.nemotron_constrained_decoding_enabled = False
-        mock.nemotron_constrained_fail_closed = True
-        mock.nemotron_constrained_probe_enabled = True
-        mock.nemotron_constrained_probe_required_build = None
-        mock.nemotron_verification_engine = "llama.cpp"
-        mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
-        return mock
-
-    @pytest.mark.asyncio
-    async def test_call_llm_respects_semaphore_limit(self, mock_settings):
-        """Test that _call_llm respects the semaphore concurrency limit."""
-        from backend.services.analyzer_facade import reset_analyzer_facade
-        from backend.services.inference_semaphore import reset_inference_semaphore
-        from backend.services.severity import reset_severity_service
-        from backend.services.token_counter import reset_token_counter
-
-        # Reset services before test (facade caches semaphore, must reset both)
-        reset_analyzer_facade()
-        reset_inference_semaphore()
-        reset_severity_service()
-        reset_token_counter()
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.inference_semaphore.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch("backend.core.config.get_settings", return_value=mock_settings, autospec=True),
-        ):
-            from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-            # Create analyzer with mocked Redis
-            mock_redis = MagicMock()
-            analyzer = NemotronAnalyzer(redis_client=mock_redis, max_retries=1)
-
-            # Track concurrent requests
-            concurrent_count = 0
-            max_concurrent = 0
-            lock = asyncio.Lock()
-
-            async def mock_post(*args, **kwargs):
-                nonlocal concurrent_count, max_concurrent
-                async with lock:
-                    concurrent_count += 1
-                    max_concurrent = max(max_concurrent, concurrent_count)
-
-                # Simulate LLM processing time
-                await asyncio.sleep(0.1)
-
-                async with lock:
-                    concurrent_count -= 1
-
-                response = MagicMock(spec=httpx.Response)
-                response.status_code = 200
-                response.json.return_value = {
-                    "content": '{"risk_score": 50, "risk_level": "medium", "summary": "test", "reasoning": "test"}'
-                }
-                return response
-
-            with patch("httpx.AsyncClient.post", side_effect=mock_post, autospec=True):
-                # Launch 5 concurrent LLM calls
-                tasks = [
-                    analyzer._call_llm(
-                        camera_name="test_camera",
-                        start_time="2025-01-01T00:00:00",
-                        end_time="2025-01-01T00:01:00",
-                        detections_list="1. person",
-                    )
-                    for _ in range(5)
-                ]
-
-                await asyncio.gather(*tasks)
-
-                # Verify max concurrent never exceeded the limit
-                assert max_concurrent <= 2, (
-                    f"Max concurrent requests ({max_concurrent}) exceeded limit (2)"
-                )
-
-    @pytest.mark.asyncio
-    async def test_call_llm_releases_semaphore_on_error(self, mock_settings):
-        """Test that _call_llm releases semaphore even when error occurs."""
-        from backend.services.analyzer_facade import reset_analyzer_facade
-        from backend.services.inference_semaphore import reset_inference_semaphore
-        from backend.services.severity import reset_severity_service
-
-        # Reset services before test (facade caches semaphore, must reset both)
-        reset_analyzer_facade()
-        reset_inference_semaphore()
-        reset_severity_service()
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.inference_semaphore.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings", return_value=mock_settings, autospec=True
-            ),
-        ):
-            from backend.services.inference_semaphore import get_inference_semaphore
-            from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-            # Create analyzer with mocked Redis
-            mock_redis = MagicMock()
-            analyzer = NemotronAnalyzer(redis_client=mock_redis, max_retries=1)
-            semaphore = get_inference_semaphore()
-
-            # Check initial semaphore value
-            initial_value = semaphore._value
-
-            from backend.core.exceptions import AnalyzerUnavailableError
-
-            with (
-                patch(
-                    "httpx.AsyncClient.post",
-                    side_effect=httpx.ConnectError("Connection refused"),
-                    autospec=True,
-                ),
-                pytest.raises(AnalyzerUnavailableError),
-            ):
-                await analyzer._call_llm(
-                    camera_name="test_camera",
-                    start_time="2025-01-01T00:00:00",
-                    end_time="2025-01-01T00:01:00",
-                    detections_list="1. person",
-                )
 
             # Verify semaphore is released despite error
             assert semaphore._value == initial_value

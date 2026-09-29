@@ -10,7 +10,7 @@ Test Strategy:
 - Integration with FastAPI Depends()
 - Database session management
 - Redis client resolution
-- Service dependencies (AI services, enrichment, etc.)
+- Service dependencies (AI services, etc.)
 """
 
 from collections.abc import AsyncGenerator
@@ -84,34 +84,17 @@ class TestContextEnricherDependency:
             mock_container.get.assert_called_once_with("context_enricher")
 
 
-class TestEnrichmentPipelineDependency:
-    """Tests for get_enrichment_pipeline_dependency."""
-
-    @pytest.mark.asyncio
-    async def test_enrichment_pipeline_dependency_returns_service(self) -> None:
-        """Enrichment pipeline dependency should yield EnrichmentPipeline from container."""
-        from backend.core.dependencies import get_enrichment_pipeline_dependency
-
-        mock_pipeline = AsyncMock()
-        mock_container = MagicMock(spec=Container)
-        mock_container.get_async = AsyncMock(return_value=mock_pipeline)
-
-        with patch(
-            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
-        ):
-            gen = get_enrichment_pipeline_dependency()
-            pipeline = await gen.__anext__()
-
-            assert pipeline is mock_pipeline
-            mock_container.get_async.assert_called_once_with("enrichment_pipeline")
-
-
 class TestNemotronAnalyzerDependency:
-    """Tests for get_nemotron_analyzer_dependency."""
+    """Tests for get_nemotron_analyzer_dependency.
+
+    The function name and the container key keep the retired spelling on
+    purpose (R8 S2 kept the wiring string; core/dependencies.py says why).
+    What the dependency yields is the shipped VlmAnalyzer.
+    """
 
     @pytest.mark.asyncio
     async def test_nemotron_analyzer_dependency_returns_service(self) -> None:
-        """Nemotron analyzer dependency should yield NemotronAnalyzer from container."""
+        """Analyzer dependency should yield the analyzer from the container key."""
         from backend.core.dependencies import get_nemotron_analyzer_dependency
 
         mock_analyzer = AsyncMock()
@@ -151,7 +134,7 @@ class TestDetectorDependency:
 
 
 class TestAIServiceDependencies:
-    """Tests for AI service dependencies (face, plate, OCR, YOLO-World)."""
+    """Tests for AI service dependencies (face, plate, OCR)."""
 
     @pytest.mark.asyncio
     async def test_face_detector_service_dependency_returns_service(self) -> None:
@@ -206,24 +189,6 @@ class TestAIServiceDependencies:
 
             assert service is mock_service
             mock_container.get.assert_called_once_with("ocr_service")
-
-    @pytest.mark.asyncio
-    async def test_yolo_world_service_dependency_returns_service(self) -> None:
-        """YOLO-World service dependency should yield YOLOWorldService from container."""
-        from backend.core.dependencies import get_yolo_world_service_dependency
-
-        mock_service = MagicMock()
-        mock_container = MagicMock(spec=Container)
-        mock_container.get = MagicMock(return_value=mock_service)
-
-        with patch(
-            "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
-        ):
-            gen = get_yolo_world_service_dependency()
-            service = await gen.__anext__()
-
-            assert service is mock_service
-            mock_container.get.assert_called_once_with("yolo_world_service")
 
 
 class TestEntityRepositoryDependency:

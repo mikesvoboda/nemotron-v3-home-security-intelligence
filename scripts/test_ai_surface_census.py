@@ -167,7 +167,11 @@ class TestRealTree:
 
     def test_all_services_modules_classified(self, real: dict) -> None:
         mods = real["modules"]
-        assert len(mods) >= 200, f"only {len(mods)} modules — census scope too narrow"
+        # 212 at the WP5.5 measurement; R8 S2 (2026-09-29) deleted the nemotron
+        # analyzer, the enrichment tier and 19 loaders, taking it to 182. The
+        # floor is a scope canary, not a count to defend - it moves WITH an
+        # authorized retirement, never under an unexplained one.
+        assert len(mods) >= 170, f"only {len(mods)} modules — census scope too narrow"
         for name, m in mods.items():
             assert m["bucket"] in {"HTTP-AI", "INPROC-AI", "DOMAIN", "DEAD"}, name
 
@@ -189,9 +193,20 @@ class TestRealTree:
     def test_loaders_are_inproc(self, real: dict) -> None:
         mods = real["modules"]
         loaders = {n: m for n, m in mods.items() if n.endswith("_loader")}
-        assert len(loaders) == 22, f"anchor says 22 loaders, census sees {len(loaders)}"
+        # 22 at the WP5.5 measurement. R8 S2 retired 19 of them (spec §2: the
+        # attribute zoo re-perceives what the VLM already sees); the survivors
+        # are exactly the three lookup specialists whose data lives in a DB the
+        # pixels cannot reach (`model_loader_base` stays too - it is their
+        # shared base class, it just does not end in `_loader` so the census
+        # name-filter does not see it).
+        assert len(loaders) == 3, f"R8 S2 leaves 3 *_loader modules, census sees {len(loaders)}"
+        assert set(loaders) == {
+            "face_recognizer_loader",
+            "osnet_loader",
+            "fast_alpr_loader",
+        }, sorted(loaders)
         inproc = sum(1 for m in loaders.values() if m["bucket"] == "INPROC-AI")
-        assert inproc >= 20, f"anchor says 21 loaders import heavy libs, got {inproc}"
+        assert inproc >= 2, f"surviving loaders still import heavy libs in-proc, got {inproc}"
 
     def test_known_dead_land_dead(self, real: dict) -> None:
         mods = real["modules"]
@@ -207,11 +222,16 @@ class TestRealTree:
 
     def test_known_http_surface(self, real: dict) -> None:
         mods = real["modules"]
-        # the five gateway-facing clients + the documented bypass sites
+        # the gateway-facing HTTP clients that survive R8 S2
         for name in ("detector_client", "florence_client", "clip_client"):
             assert mods[name]["bucket"] == "HTTP-AI", name
-        assert mods["scene_ocr_service"]["bucket"] == "HTTP-AI"
-        assert mods["nemotron_streaming"]["bucket"] == "HTTP-AI"
+        # R8 S2 deleted nemotron_streaming outright, and scene_ocr_service's
+        # ONLY consumer was enrichment_pipeline - so the census now (honestly)
+        # buckets the still-present module DEAD. Absence-of-consumer, not
+        # absence-of-file: the module and its PaddleOCR loader stay for the
+        # day OCR is re-wired to the shipped path.
+        assert "nemotron_streaming" not in mods, "R8 S2 deleted it; reappeared?"
+        assert mods["scene_ocr_service"]["bucket"] == "DEAD"
 
     def test_json_totals_shape(self, real: dict) -> None:
         t = real["totals"]

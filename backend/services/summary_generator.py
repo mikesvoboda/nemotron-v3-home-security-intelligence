@@ -75,14 +75,17 @@ class SummaryGenerator:
         """Initialize the summary generator.
 
         Args:
-            llm_url: Override URL for Nemotron server. If not provided,
-                uses NEMOTRON_URL from settings.
-            api_key: Override API key. If not provided, uses settings.
+            llm_url: Override URL for the LLM server. If not provided,
+                uses AI_VLM_URL from settings (R8 S2 re-home: the summaries
+                run against the shipped ai-vlm engine - same llama.cpp
+                /completion contract, no user-facing loss).
+            api_key: Override API key. The shipped engine needs none; the
+                parameter stays for callers pointing at a keyed endpoint.
             timeout: Override timeout in seconds. Default is 60s.
         """
         settings = get_settings()
-        self._llm_url = llm_url or settings.nemotron_url
-        self._api_key = api_key if api_key is not None else settings.nemotron_api_key
+        self._llm_url = llm_url or settings.ai_vlm_url
+        self._api_key = api_key
         self._timeout = httpx.Timeout(
             connect=SUMMARY_LLM_CONNECT_TIMEOUT,
             read=timeout or SUMMARY_LLM_TIMEOUT,
@@ -432,7 +435,7 @@ class SummaryGenerator:
         }
 
         settings = get_settings()
-        explicit_timeout = settings.nemotron_read_timeout + settings.ai_connect_timeout
+        explicit_timeout = settings.ai_vlm_read_timeout + settings.ai_connect_timeout
 
         async with asyncio.timeout(explicit_timeout):
             async with httpx.AsyncClient(timeout=self._timeout) as client:

@@ -635,12 +635,18 @@ class TestModelZooStatusEndpoint:
 
     @pytest.mark.asyncio
     async def test_model_zoo_status_shows_loaded_models(self) -> None:
-        """Test that loaded models show 'loaded' status in compact view."""
+        """Test that loaded models show 'loaded' status in compact view.
+
+        R8 S2b: the fixture names a model the endpoint actually reports. The
+        threat-detection loader died with the enrichment tier, so that row left
+        models.yml's registry and the status sweep never emits it any more - the
+        yolo11-license-plate row (same 300 MB) is a live survivor.
+        """
         # Mock ModelManager with a loaded model (this endpoint uses OLD ModelManager)
         mock_manager = MagicMock()
-        mock_manager.loaded_models = ["threat-detection-yolov8n"]
+        mock_manager.loaded_models = ["yolo11-license-plate"]
         mock_manager.total_loaded_vram = 300
-        mock_manager._load_counts = {"threat-detection-yolov8n": 1}
+        mock_manager._load_counts = {"yolo11-license-plate": 1}
 
         with patch(
             "backend.api.routes.system.get_model_manager",
@@ -656,7 +662,7 @@ class TestModelZooStatusEndpoint:
         # Find the loaded model
         loaded_model = None
         for model in data["models"]:
-            if model["name"] == "threat-detection-yolov8n":
+            if model["name"] == "yolo11-license-plate":
                 loaded_model = model
                 break
 
@@ -723,7 +729,13 @@ class TestModelZooStatusEndpoint:
 
 
 class TestModelZooLatencyHistoryEndpoint:
-    """Tests for GET /api/system/model-zoo/latency/history endpoint (OLD system.py endpoint)."""
+    """Tests for GET /api/system/model-zoo/latency/history endpoint (OLD system.py endpoint).
+
+    R8 S2b: the requests name `yolo11-license-plate`, a live registry row. The
+    threat-detection-yolov8n id these used to name died with the enrichment tier
+    (its loader left `model_zoo._LOADER_MAP`, so its models.yml row never reaches
+    the registry) and the endpoint's `get_model_config` guard 404s on it.
+    """
 
     @pytest.mark.asyncio
     async def test_get_latency_history_requires_model_param(self) -> None:
@@ -742,14 +754,14 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "threat-detection-yolov8n"},
+                params={"model": "yolo11-license-plate"},
             )
 
         assert response.status_code == 200
         data = response.json()
 
         # Verify response structure
-        assert data["model_name"] == "threat-detection-yolov8n"
+        assert data["model_name"] == "yolo11-license-plate"
         assert "display_name" in data
         assert "snapshots" in data
         assert "window_minutes" in data
@@ -778,7 +790,7 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "threat-detection-yolov8n", "since": 30},
+                params={"model": "yolo11-license-plate", "since": 30},
             )
 
         assert response.status_code == 200
@@ -791,7 +803,7 @@ class TestModelZooLatencyHistoryEndpoint:
         async with authenticated_async_client() as client:
             response = await client.get(
                 "/api/system/model-zoo/latency/history",
-                params={"model": "threat-detection-yolov8n", "bucket_seconds": 120},
+                params={"model": "yolo11-license-plate", "bucket_seconds": 120},
             )
 
         assert response.status_code == 200
@@ -805,9 +817,9 @@ class TestModelZooLatencyHistoryEndpoint:
 
         # Create a tracker with some data
         mock_tracker = ModelLatencyTracker(max_samples=100)
-        mock_tracker.record_model_latency("threat-detection-yolov8n", 45.0)
-        mock_tracker.record_model_latency("threat-detection-yolov8n", 50.0)
-        mock_tracker.record_model_latency("threat-detection-yolov8n", 55.0)
+        mock_tracker.record_model_latency("yolo11-license-plate", 45.0)
+        mock_tracker.record_model_latency("yolo11-license-plate", 50.0)
+        mock_tracker.record_model_latency("yolo11-license-plate", 55.0)
 
         with patch(
             "backend.core.metrics.get_model_latency_tracker",
@@ -817,7 +829,7 @@ class TestModelZooLatencyHistoryEndpoint:
             async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
-                    params={"model": "threat-detection-yolov8n"},
+                    params={"model": "yolo11-license-plate"},
                 )
 
         assert response.status_code == 200
@@ -856,7 +868,7 @@ class TestModelZooLatencyHistoryEndpoint:
             async with authenticated_async_client() as client:
                 response = await client.get(
                     "/api/system/model-zoo/latency/history",
-                    params={"model": "threat-detection-yolov8n"},
+                    params={"model": "yolo11-license-plate"},
                 )
 
         assert response.status_code == 200
@@ -946,10 +958,14 @@ class TestModelLatencyTracker:
         ("yolo11-face", "YOLO11 Face Detection"),
         ("paddleocr", "PaddleOCR"),
         ("yolo26-general", "YOLO26 General Detection"),
-        ("clip_embedder", "CLIP ViT-L/14"),
-        ("yolo-world-s", "YOLO-World Small"),
-        ("depth-anything-v2-tiny", "Depth Anything V2 Tiny"),
-        ("vitpose-small", "ViTPose Small"),
+        # R8 S2b: the clip_embedder / yolo-world-s / vitpose-small /
+        # depth-anything-v2-tiny rows are gone. Those ids left models.yml with the
+        # enrichment tier, and _get_model_display_name's map holds only the four
+        # entries above now (the first three used to be map hits, the fourth a
+        # fallback hit for a name nothing registers any more). The fallback path
+        # stays pinned below by a live registry id plus the synthetic separator
+        # pair that kills the "-" -> "_" mutation independently.
+        ("fast-alpr", "Fast Alpr"),
         # unmapped names go through the "-"/"_" -> space, title-cased fallback
         ("foo-bar-baz", "Foo Bar Baz"),
         ("my_model_v2", "My Model V2"),

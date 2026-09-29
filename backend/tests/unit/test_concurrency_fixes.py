@@ -27,31 +27,13 @@ class TestEventDetectionRaceCondition:
         assert "event_id" in pk_columns
         assert "detection_id" in pk_columns
 
-    def test_nemotron_analyzer_uses_on_conflict(self):
-        """Verify nemotron_analyzer.py contains ON CONFLICT DO NOTHING pattern."""
-        import inspect
-
-        from backend.services import nemotron_analyzer
-
-        source = inspect.getsource(nemotron_analyzer)
-
-        # Verify the NEM-1998 fix is present
-        assert "NEM-1998" in source
-        assert "on_conflict_do_nothing" in source
-        assert "pg_insert" in source
-
-    def test_nemotron_streaming_uses_on_conflict(self):
-        """Verify nemotron_streaming.py contains ON CONFLICT DO NOTHING pattern (NEM-2012)."""
-        import inspect
-
-        from backend.services import nemotron_streaming
-
-        source = inspect.getsource(nemotron_streaming)
-
-        # Verify the NEM-2012 fix is present
-        assert "NEM-2012" in source
-        assert "on_conflict_do_nothing" in source
-        assert "pg_insert" in source
+    # test_nemotron_analyzer_uses_on_conflict and test_nemotron_streaming_uses_on_conflict
+    # were deleted with R8 slice S2b: they source-grepped backend.services.nemotron_analyzer
+    # and backend.services.nemotron_streaming for the NEM-1998/NEM-2012 upsert, and both
+    # modules are gone (pinned unimportable by test_r8_s2b_nemotron_deletion.py). The
+    # ON CONFLICT DO NOTHING pattern they checked is still exercised here at the table and
+    # statement level below, and the surviving upsert call sites (vlm_analyzer,
+    # bulk_detection_service, repositories.base, admin) carry their own pins.
 
     def test_pg_insert_on_conflict_pattern(self):
         """Verify pg_insert with on_conflict_do_nothing compiles correctly."""

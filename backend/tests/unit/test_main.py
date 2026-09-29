@@ -37,12 +37,10 @@ class TestInitCircuitBreakers:
 
         breaker_names = init_circuit_breakers()
 
-        # Should return all 4 known services
-        assert len(breaker_names) == 4
-        assert "yolo26" in breaker_names
-        assert "nemotron" in breaker_names
-        assert "postgresql" in breaker_names
-        assert "redis" in breaker_names
+        # Should return all 3 known services. R8 S2b (2026-09-29) deleted the
+        # Nemotron analyzer, so its breaker row is gone with it.
+        assert len(breaker_names) == 3
+        assert sorted(breaker_names) == ["postgresql", "redis", "yolo26"]
 
     def test_circuit_breakers_appear_in_registry(self) -> None:
         """Test that circuit breakers are registered in global registry."""
@@ -54,12 +52,20 @@ class TestInitCircuitBreakers:
         all_status = registry.get_all_status()
 
         assert "yolo26" in all_status
-        assert "nemotron" in all_status
         assert "postgresql" in all_status
         assert "redis" in all_status
 
     def test_ai_service_config_has_lower_threshold(self) -> None:
-        """Test that AI services have more aggressive (lower) failure threshold."""
+        """Test that the AI service has a more aggressive (lower) threshold.
+
+        Retargeted on R8 S2b (2026-09-29): this class used to assert the pair
+        yolo26 + nemotron shared the AI-service threshold, and nemotron's row
+        was deleted with the analyzer. The intent - an AI-service breaker trips
+        faster than the tolerant infrastructure config - is still what
+        init_circuit_breakers() does, so it is now asserted as the relationship
+        between yolo26 and the infrastructure rows rather than as two rows of
+        one config.
+        """
         from backend.main import init_circuit_breakers
 
         init_circuit_breakers()
@@ -67,11 +73,16 @@ class TestInitCircuitBreakers:
         registry = _get_registry()
         all_status = registry.get_all_status()
 
-        # AI services should have failure_threshold=5
+        # The AI service uses the aggressive config: failure_threshold=5
         yolo26_config = all_status["yolo26"]["config"]
-        nemotron_config = all_status["nemotron"]["config"]
         assert yolo26_config["failure_threshold"] == 5
-        assert nemotron_config["failure_threshold"] == 5
+
+        # ...and strictly lower than the generic infrastructure config
+        for infra_name in ("postgresql", "redis"):
+            infra_config = all_status[infra_name]["config"]
+            assert yolo26_config["failure_threshold"] < infra_config["failure_threshold"], (
+                f"{infra_name} must not trip faster than the AI service"
+            )
 
     def test_infrastructure_service_config_has_higher_threshold(self) -> None:
         """Test that infrastructure services have higher failure threshold."""
@@ -111,10 +122,11 @@ class TestInitCircuitBreakers:
         # Should return same names
         assert first_result == second_result
 
-        # Registry should still have exactly 4 circuit breakers
+        # Registry should still have exactly 3 circuit breakers (R8 S2b took
+        # the nemotron row down from 4)
         registry = _get_registry()
         all_status = registry.get_all_status()
-        assert len(all_status) == 4
+        assert len(all_status) == 3
 
 
 @pytest.fixture
@@ -385,25 +397,25 @@ class TestSelectPreloadCandidates:
 
 
 class TestAiServiceHealthMonitorConfigs:
-    """PIPELINE_MODE=vlm must never monitor or restart the retired Nemotron LLM.
+    """The monitor must never probe or restart the retired Nemotron LLM.
 
-    Observed on the A5500 box (2026-09-28, PIPELINE_MODE=vlm): the backend's
-    ServiceHealthMonitor probed `nemotron`, found it down (it is retired - spec
-    rev 5), and ran "Attempting restart (attempt 1/3)" against `ai-llm`. The
-    restart failed ONLY because the podman socket was unreachable; with that
-    access the backend would have started the 30B LLM on the same 24 GB GPU
-    ai-vlm needs. In vlm mode the monitor's list must not carry nemotron at
-    all, in every restart branch (docker / shell scripts / restart disabled).
-    Legacy keeps today's two entries exactly - it is unsupported but its code
-    stays until R8, and this change must not alter it.
+    Observed on the A5500 box (2026-09-28): the backend's ServiceHealthMonitor
+    probed `nemotron`, found it down (it is retired - spec rev 5), and ran
+    "Attempting restart (attempt 1/3)" against `ai-llm`. The restart failed
+    ONLY because the podman socket was unreachable; with that access the
+    backend would have started the 30B LLM on the same 24 GB GPU ai-vlm needs.
+    The monitor's list carries no nemotron at all, in every restart branch
+    (docker / shell scripts / restart disabled). R8 (2026-09-29) removed the
+    legacy arm the earlier form of this class pinned byte-for-byte: one mode
+    now, and the pair it pinned was the incident.
 
     ai-vlm stays OUT of this probe-poll monitor on purpose: ledger 1.3 chose
     breaker-push health for it (see the registration comment in main.py and
-    test_vlm_client's source pin), so vlm mode monitors YOLO26 only.
+    test_vlm_client's source pin), so the monitor lists YOLO26 only.
     """
 
     @staticmethod
-    def _settings(mode: str, restart: str):
+    def _settings(restart: str):
         from backend.core.config import OrchestratorSettings, Settings
 
         branches = {
@@ -413,48 +425,56 @@ class TestAiServiceHealthMonitorConfigs:
             "disabled": (True, False),
         }
         orchestrator_enabled, restart_enabled = branches[restart]
+        # No pipeline_mode kwarg: the default IS the shipped mode.
         return Settings(
             _env_file=None,
-            pipeline_mode=mode,
             orchestrator=OrchestratorSettings(enabled=orchestrator_enabled),
             ai_restart_enabled=restart_enabled,
             use_ai_gateway=True,
             ai_gateway_url="http://ai-gateway:8090",
             yolo26_url="http://ai-gateway:8090/yolo26",
-            nemotron_url="http://ai-llm:8091",
+            # R8 S2b: nemotron_url is DELETED from Settings (extra="ignore", so
+            # passing it was silently dropped - a vacuous pin). The monitor's
+            # one survivor endpoint is ai-vlm, so the list is now built with the
+            # real successor URL and the assertions below still have to prove the
+            # monitor probes/restarts neither it nor port 8091.
+            ai_vlm_url="http://ai-vlm:8098",
         )
 
     @pytest.mark.parametrize("restart", ["docker", "shell", "disabled"])
-    def test_vlm_mode_never_monitors_or_restarts_nemotron(self, restart: str) -> None:
+    def test_never_monitors_or_restarts_nemotron(self, restart: str) -> None:
         from backend.main import build_ai_service_health_configs
 
-        configs = build_ai_service_health_configs(self._settings("vlm", restart))
+        configs = build_ai_service_health_configs(self._settings(restart))
 
         assert [c.name for c in configs] == ["yolo26"], (
-            "vlm mode must monitor YOLO26 only - no nemotron (retired), and no "
+            "must monitor YOLO26 only - no nemotron (retired), and no "
             "ai-vlm (breaker-push health by the ledger 1.3 choice)"
         )
         for cfg in configs:
             assert "ai-llm" not in (cfg.restart_cmd or ""), cfg
             assert "start_llm" not in (cfg.restart_cmd or ""), cfg
             assert "8091" not in cfg.health_url, cfg
+            # The ai-vlm URL this settings object now carries must not leak into
+            # the probe list either: ai-vlm is breaker-push, not monitored.
+            assert "ai-vlm" not in cfg.health_url, cfg
+            assert "8098" not in cfg.health_url, cfg
 
     @pytest.mark.parametrize(
-        ("restart", "yolo26_cmd", "nemotron_cmd"),
+        ("restart", "yolo26_cmd"),
         [
-            ("docker", "docker restart ai-gateway", "docker restart ai-llm"),
-            ("shell", "ai/start_detector.sh", "ai/start_llm.sh"),
-            ("disabled", None, None),
+            ("docker", "docker restart ai-gateway"),
+            ("shell", "ai/start_detector.sh"),
+            ("disabled", None),
         ],
     )
-    def test_legacy_mode_keeps_todays_yolo26_and_nemotron_entries(
-        self, restart: str, yolo26_cmd: str | None, nemotron_cmd: str | None
-    ) -> None:
-        """Byte-for-byte pin of the pre-fix list for the unsupported legacy path."""
+    def test_the_yolo26_entry_is_byte_stable(self, restart: str, yolo26_cmd: str | None) -> None:
+        """The one entry this list keeps, pinned byte-for-byte per restart
+        branch — the retire must not disturb the surviving service."""
         from backend.main import build_ai_service_health_configs
         from backend.services.service_managers import ServiceConfig
 
-        configs = build_ai_service_health_configs(self._settings("legacy", restart))
+        configs = build_ai_service_health_configs(self._settings(restart))
 
         assert configs == [
             ServiceConfig(
@@ -465,25 +485,19 @@ class TestAiServiceHealthMonitorConfigs:
                 max_retries=3,
                 backoff_base=5.0,
             ),
-            ServiceConfig(
-                name="nemotron",
-                health_url="http://ai-llm:8091/health",
-                restart_cmd=nemotron_cmd,
-                health_timeout=5.0,
-                max_retries=3,
-                backoff_base=5.0,
-            ),
         ]
 
     def test_lifespan_builds_the_monitor_from_the_helper(self) -> None:
         """The helper is the single place the monitor's list is decided; the
-        lifespan must use it rather than keep an inline nemotron entry."""
+        lifespan must use it, and no inline nemotron ServiceConfig may come
+        back to bypass the retired-engine rule."""
         from pathlib import Path
 
         src = Path("backend/main.py").read_text()
         assert "build_ai_service_health_configs(settings)" in src, (
-            "lifespan does not build the monitor list through the mode-aware helper"
+            "lifespan does not build the monitor list through the helper"
         )
-        assert src.count('name="nemotron"') == 1, (
-            "a second inline nemotron ServiceConfig bypasses the vlm-mode gate"
+        assert src.count('name="nemotron"') == 0, (
+            "an inline nemotron ServiceConfig is back - the retired engine "
+            "would be probed and restarted again"
         )

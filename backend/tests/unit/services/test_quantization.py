@@ -708,19 +708,29 @@ def test_quantization_recommendations_defined():
     assert len(QUANTIZATION_RECOMMENDATIONS) > 0
 
 
-def test_quantization_recommendations_low_priority_models():
-    """Test low-priority models have INT8 recommendations."""
-    low_priority_models = [
-        "vit-age-classifier",
-        "vit-gender-classifier",
-        "pet-classifier",
-        "osnet-ain-x1-0",
-    ]
+# R8 S2b retired the attribute/classification zoo the INT8 tier used to cover
+# (vit-age-classifier, vit-gender-classifier, pet-classifier and the rest of the
+# 19 deleted loaders), so the INT8 set is exactly the two surviving rows in
+# models.yml that the module still recommends. Pinned as a set: a recommendation
+# for a retired model, or a survivor silently dropped, both fail here.
+INT8_RECOMMENDED_MODELS = {"osnet-ain-x1-0", "threat-detection-yolov8n"}
 
-    for model_name in low_priority_models:
-        assert model_name in QUANTIZATION_RECOMMENDATIONS
+
+def test_quantization_recommendations_low_priority_models():
+    """Test the surviving auxiliary models are exactly the INT8 recommendations."""
+    int8_models = {
+        name
+        for name, rec in QUANTIZATION_RECOMMENDATIONS.items()
+        if rec["type"] == QuantizationType.INT8
+    }
+
+    # Two-way: every survivor is covered, and no retired model crept back in
+    # under INT8. (A retired name added under another type is caught by
+    # test_low_priority_models_in_recommendations' models.yml cross-check.)
+    assert int8_models == INT8_RECOMMENDED_MODELS
+    for model_name in INT8_RECOMMENDED_MODELS:
         rec = QUANTIZATION_RECOMMENDATIONS[model_name]
-        assert rec["type"] == QuantizationType.INT8
+        assert rec["method"] in ("dynamic", "static")
 
 
 def test_quantization_recommendations_llm_models():
@@ -754,7 +764,8 @@ def test_quantization_recommendations_compression_ratios():
 
 def test_get_quantization_recommendation_found():
     """Test get_quantization_recommendation returns recommendation."""
-    rec = get_quantization_recommendation("vit-age-classifier")
+    # osnet-ain-x1-0 is a survivor of the R8 S2b loader purge.
+    rec = get_quantization_recommendation("osnet-ain-x1-0")
 
     assert rec is not None
     assert rec["type"] == QuantizationType.INT8
@@ -781,7 +792,10 @@ def test_get_quantization_recommendation_all_models():
 
 def test_is_quantization_supported_true():
     """Test is_quantization_supported returns True for supported model."""
-    assert is_quantization_supported("vit-age-classifier") is True
+    # The two INT8 survivors plus the LLM; the attribute classifiers this used
+    # to name were deleted with the enrichment tier in R8 S2b.
+    assert is_quantization_supported("osnet-ain-x1-0") is True
+    assert is_quantization_supported("threat-detection-yolov8n") is True
     assert is_quantization_supported("nemotron") is True
 
 
@@ -1183,35 +1197,50 @@ async def test_apply_int8_quantization_async_static_calibration_called():
 
 
 def test_quantization_recommendations_match_model_zoo():
-    """Test quantization recommendations include models from Model Zoo."""
-    from backend.services.model_zoo import get_model_zoo
+    """Test quantization recommendations name models the system actually ships.
 
-    zoo = get_model_zoo()
+    Cross-checked against models.yml, not the runtime backend registry: a row can
+    be gateway-served (threat-detection-yolov8n has a Triton model but no backend
+    loader after R8 S2b) and therefore legitimately absent from the backend zoo.
+    """
+    from pathlib import Path
 
-    # Check that recommended models exist in Model Zoo
+    import yaml
+
+    models_yml = Path(__file__).resolve().parents[4] / "models.yml"
+    rows = {m["name"] for m in yaml.safe_load(models_yml.read_text())["models"]}
+
     for model_name in QUANTIZATION_RECOMMENDATIONS:
         # nemotron is handled separately (not in backend Model Zoo)
         if model_name == "nemotron":
             continue
         # Check model name format matches
         assert "-" in model_name or model_name.isalpha(), f"Invalid model name: {model_name}"
+        assert model_name in rows, f"Recommended model has no models.yml row: {model_name}"
 
 
 def test_low_priority_models_in_recommendations():
-    """Test that low-priority/auxiliary models are included."""
-    # These models are explicitly mentioned as good candidates for INT8
-    expected_models = [
-        "vit-age-classifier",
-        "vit-gender-classifier",
-        "pet-classifier",
-        "osnet-ain-x1-0",
-        "threat-detection-yolov8n",
-    ]
+    """Test that low-priority/auxiliary models are included.
+
+    R8 S2b deleted the vit/pet attribute loaders, so the auxiliary list is the
+    module's own INT8 tier (osnet-ain-x1-0, threat-detection-yolov8n) — and each
+    entry is cross-checked against models.yml so a recommendation cannot name a
+    model that no longer has a row.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    models_yml = Path(__file__).resolve().parents[4] / "models.yml"
+    rows = {m["name"] for m in yaml.safe_load(models_yml.read_text())["models"]}
+
+    expected_models = ["osnet-ain-x1-0", "threat-detection-yolov8n"]
 
     for model_name in expected_models:
         assert model_name in QUANTIZATION_RECOMMENDATIONS, (
             f"{model_name} should have quantization recommendation"
         )
+        assert model_name in rows, f"{model_name} is recommended but has no models.yml row"
 
 
 # =============================================================================

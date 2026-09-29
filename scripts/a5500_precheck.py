@@ -20,9 +20,9 @@ rows rather than accreting alongside them):
                          a legacy LLM dir; MODEL_PATH/MMPROJ_PATH stay
                          env-derived; the per-slot ctx covers a worst-case
                          vlm_assess
-     No legacy LLM       is ai-llm profile-gated, or does it start next to
-                         ai-vlm on the one GPU? (F10 keeps the service; the
-                         checklist forbids deploying it)
+     No legacy LLM       does any scanned compose still carry an ai-llm
+                         service? (R8 S2 deleted it from the compose files;
+                         an unprofiled one would still be fatal)
      vlm image           can the scanned compose files build/serve ai-vlm at
                          all, or is that path image-only / absent?
      SELinux camera root SELinux enforcing + camera root not container_file_t
@@ -405,8 +405,8 @@ def _check_ai_vlm_mount(compose_paths: list[Path]) -> Check:
 def _check_vlm_env_passthrough(compose_paths: list[Path]) -> Check:
     """MODEL_PATH/MMPROJ_PATH inside ai-vlm must derive from the VLM_* vars.
 
-    Only ai-vlm's own env lines count (block scope): ai-llm derives its
-    MODEL_PATH from LLM_MODEL_PATH and that is the retired path's business.
+    Only ai-vlm's own env lines count (block scope) - the ai-llm service
+    that derived MODEL_PATH from LLM_MODEL_PATH is retired (R8 S2).
     """
     hardcoded: list[str] = []
     for fname, lines in _merge_service_lines(compose_paths, "ai-vlm").items():
@@ -483,10 +483,14 @@ def _check_vlm_ctx_budget(env: dict[str, str]) -> Check:
 def _check_legacy_llm(compose_paths: list[Path]) -> Check:
     """"no legacy LLM deployed" (spec :482-500, rev 5 / F10), machine-checked.
 
-    F10 says build empty states, not deletions - ai-llm STAYS in the compose
-    (its tests keep passing), so the honest check is whether a `--profile vlm`
-    up would START it. Unprofiled = it starts on every up, alongside ai-vlm,
-    asking for VRAM a single A5500 cannot give twice.
+    R8 S2 deleted the ai-llm service from every compose file, so today this
+    check passes by absence. The gate stays: a re-added ai-llm WITHOUT a
+    profiles: block would start on every up alongside ai-vlm, asking for VRAM
+    a single A5500 cannot give twice - that is still fatal, so presence
+    without gating still FAILs. (The dated [V] amendment rows below predate
+    the delete and are kept verbatim as the record of why the bring-up had to
+    name its services; the checklist's "keep it out of the up set" instruction
+    became moot when the service left the compose.)
     """
     unprofiled: list[str] = []
     gated: list[str] = []

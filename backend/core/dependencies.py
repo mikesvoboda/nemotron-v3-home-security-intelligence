@@ -24,7 +24,6 @@ __all__ = [
     "PaginationLimits",
     "get_context_enricher_dependency",
     "get_detector_dependency",
-    "get_enrichment_pipeline_dependency",
     "get_entity_clustering_service",
     "get_entity_repository",
     "get_face_detector_service_dependency",
@@ -35,7 +34,6 @@ __all__ = [
     "get_plate_detector_service_dependency",
     "get_redis_dependency",
     "get_reid_service_dependency",
-    "get_yolo_world_service_dependency",
 ]
 
 from collections.abc import AsyncGenerator
@@ -50,15 +48,13 @@ if TYPE_CHECKING:
         FaceDetectorService,
         OCRService,
         PlateDetectorService,
-        YOLOWorldService,
     )
     from backend.services.context_enricher import ContextEnricher
     from backend.services.detector_client import DetectorClient
-    from backend.services.enrichment_pipeline import EnrichmentPipeline
     from backend.services.entity_clustering_service import EntityClusteringService
     from backend.services.hybrid_entity_storage import HybridEntityStorage
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
     from backend.services.reid_service import ReIdentificationService
+    from backend.services.vlm_analyzer import VlmAnalyzer
 
 
 async def get_redis_dependency() -> AsyncGenerator[RedisClient]:
@@ -86,22 +82,14 @@ async def get_context_enricher_dependency() -> AsyncGenerator[ContextEnricher]:
     yield enricher
 
 
-async def get_enrichment_pipeline_dependency() -> AsyncGenerator[EnrichmentPipeline]:
-    """FastAPI dependency for EnrichmentPipeline.
+async def get_nemotron_analyzer_dependency() -> AsyncGenerator[VlmAnalyzer]:
+    """FastAPI dependency for the per-event analyzer (the shipped VlmAnalyzer).
+
+    The function NAME mirrors the container key, load-bearing wiring - see
+    the registration in container.py for why R8 S2 kept the retired spelling.
 
     Yields:
-        EnrichmentPipeline instance from the container
-    """
-    container = get_container()
-    pipeline = await container.get_async("enrichment_pipeline")
-    yield pipeline
-
-
-async def get_nemotron_analyzer_dependency() -> AsyncGenerator[NemotronAnalyzer]:
-    """FastAPI dependency for NemotronAnalyzer.
-
-    Yields:
-        NemotronAnalyzer instance from the container
+        the analyzer instance from the container
     """
     container = get_container()
     analyzer = await container.get_async("nemotron_analyzer")
@@ -158,20 +146,6 @@ async def get_ocr_service_dependency() -> AsyncGenerator[OCRService]:
     """
     container = get_container()
     service = container.get("ocr_service")
-    yield service
-
-
-async def get_yolo_world_service_dependency() -> AsyncGenerator[YOLOWorldService]:
-    """FastAPI dependency for YOLOWorldService.
-
-    This provides the YOLOWorldService from the DI container for open-vocabulary
-    object detection using text prompts.
-
-    Yields:
-        YOLOWorldService instance from the container
-    """
-    container = get_container()
-    service = container.get("yolo_world_service")
     yield service
 
 

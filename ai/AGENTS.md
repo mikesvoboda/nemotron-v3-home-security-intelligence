@@ -7,7 +7,6 @@ runs in production (`docker-compose.prod.yml` builds exactly two AI images):
 
 | Compose service | Port                 | What it is                                                                                                                                                                  |
 | --------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai-llm`        | 8091                 | Nemotron LLM via llama.cpp (this directory's `nemotron/Dockerfile`)                                                                                                         |
 | `ai-gateway`    | 8090 (+8002 metrics) | FastAPI facade over Triton in one container; serves the legacy YOLO26 / CLIP / Florence-2 / enrichment / enrichment-light HTTP APIs through Triton (`ai/gateway/AGENTS.md`) |
 
 The remaining capability modules are standalone FastAPI servers you can run
@@ -57,13 +56,6 @@ ai/
 ├── yolo26/                # Pure-leaf contract for backend prompts + host-run dev server
 │                          #   (GPU image retired 2026-09-23; prod: Triton /yolo26 via ai-gateway
 │                          #    - see yolo26/AGENTS.md)
-├── nemotron/              # Nemotron LLM container build (compose service ai-llm)
-│   ├── AGENTS.md          # Nemotron documentation
-│   ├── Dockerfile         # Multi-stage build for llama.cpp
-│   ├── Dockerfile.hf      # Optional HF-transformers variant (model_hf.py)
-│   ├── model_hf.py        # Transformers-based server (alternative to llama.cpp)
-│   ├── config.json        # llama.cpp config reference
-│   └── .gitkeep           # Placeholder (GGUF models downloaded at runtime)
 ├── clip/                  # CLIP embedding server
 │   ├── AGENTS.md          # CLIP documentation
 │   ├── Dockerfile         # Container build
@@ -95,9 +87,9 @@ ai/
 ├── triton/                # Triton client + model repository (NEM-3769)
 ├── tests/                 # AI-level optimization tests (cuda streams, etc.)
 ├── download_models.sh     # Download AI models
-├── start_detector.sh      # HOST-RUN YOLO26 dev stand-in (YOLO26_PORT, default 8090; the GPU image was retired 2026-09-23 — prod serves via ai-gateway)
-├── start_llm.sh           # Start Nemotron 4B (port 8091)
-└── start_nemotron.sh      # Start Nemotron 30B with auto-recovery
+└── start_detector.sh      # HOST-RUN YOLO26 dev stand-in (YOLO26_PORT, default 8090; the GPU image was retired 2026-09-23 — prod serves via ai-gateway)
+                           #   (start_llm.sh/start_nemotron.sh were deleted with the
+                           #    retired LLM path - R8 S2, 2026-09-29)
 ```
 
 ## Model Zoo Overview

@@ -10,9 +10,11 @@ Tests cover:
 - Metric definitions and registration
 - Helper functions for recording metrics
 - Instrumentation in florence_client.py
-- Instrumentation in enrichment_pipeline.py
-- Instrumentation in nemotron_analyzer.py
 - Instrumentation in events.py
+
+R8 (2026-09-29) retired enrichment_pipeline and nemotron_analyzer; the classes
+that pinned THEIR call sites went with them. The metric definitions themselves
+survive (they live in backend.core.metrics), so the definition/helper pins stay.
 """
 
 from __future__ import annotations
@@ -318,60 +320,6 @@ class TestFlorenceClientInstrumentation:
 
 
 # =============================================================================
-# Enrichment Pipeline Instrumentation Tests
-# =============================================================================
-
-
-class TestEnrichmentPipelineInstrumentation:
-    """Test that enrichment_pipeline.py records model call metrics."""
-
-    @pytest.mark.asyncio
-    async def test_violence_detection_records_metric(self) -> None:
-        """Violence detection should record 'violence' model call."""
-        from backend.services.enrichment_pipeline import EnrichmentPipeline
-
-        with (
-            patch(
-                "backend.services.enrichment_pipeline.record_enrichment_model_call", autospec=True
-            ) as mock_record,
-            patch.object(EnrichmentPipeline, "_detect_violence", autospec=True) as mock_detect,
-        ):
-            # Set up the mock to call record_enrichment_model_call
-            async def side_effect(*args, **kwargs):
-                from backend.services.violence_loader import ViolenceDetectionResult
-
-                mock_record("violence")
-                return ViolenceDetectionResult(is_violent=False, confidence=0.1)
-
-            mock_detect.side_effect = side_effect
-
-            # Create pipeline to verify it initializes correctly with violence enabled
-            _ = EnrichmentPipeline(
-                violence_detection_enabled=True,
-                clothing_classification_enabled=False,
-                vehicle_classification_enabled=False,
-                pet_classification_enabled=False,
-                image_quality_enabled=False,
-                license_plate_enabled=False,
-                face_detection_enabled=False,
-                vision_extraction_enabled=False,
-                reid_enabled=False,
-                scene_change_enabled=False,
-                clothing_segmentation_enabled=False,
-                vehicle_damage_detection_enabled=False,
-            )
-            # Can't easily test full integration without mocking many dependencies
-            # So we verify the metric function exists and can be called
-            mock_record.assert_not_called()
-
-    def test_record_enrichment_model_call_exists(self) -> None:
-        """Verify record_enrichment_model_call is importable from metrics."""
-        from backend.core.metrics import record_enrichment_model_call
-
-        assert callable(record_enrichment_model_call)
-
-
-# =============================================================================
 # Events Route Instrumentation Tests
 # =============================================================================
 
@@ -394,20 +342,3 @@ class TestEventsRouteInstrumentation:
         # Verify the function can be called
         record_event_reviewed()
         # Full integration testing with the route would require more setup
-
-
-# =============================================================================
-# Nemotron Analyzer Instrumentation Tests
-# =============================================================================
-
-
-class TestNemotronAnalyzerInstrumentation:
-    """Test that nemotron_analyzer.py records events by camera metric."""
-
-    def test_record_event_by_camera_callable(self) -> None:
-        """Verify record_event_by_camera is importable and callable."""
-        from backend.core.metrics import record_event_by_camera
-
-        assert callable(record_event_by_camera)
-        # Verify it can be called without error
-        record_event_by_camera("test-camera", "Test Camera")

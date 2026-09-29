@@ -30,11 +30,21 @@ class TestDockerComposeSecurityHardening:
     # Note: individual per-model services (ai-yolo26, ai-florence, ai-clip,
     # ai-enrichment, ai-enrichment-light) were consolidated into ai-gateway
     # (Triton Inference Server + FastAPI gateway)
+    #
+    # R8 slice S2b (2026-09-29) removed `ai-llm` from this list because the
+    # SERVICE is gone from docker-compose.prod.yml — the legacy LLM tier it ran
+    # was deleted, not renamed. Leaving it here would have kept four green pins
+    # asserting the existence of a container that no longer ships (this class
+    # went red in CI precisely because the delete was real and the list was not).
+    #
+    # `ai-llm-vllm` is deliberately NOT added to this list; see
+    # TestRetiredLlmServiceIsGone.test_the_surviving_vllm_engine_diverges_on_purpose
+    # for what it actually carries and who owns closing that.
     AI_SERVICES: ClassVar[list[str]] = [
-        "ai-llm",
         "ai-gateway",
-        # Phase 1.2: same posture as ai-llm (identical security_opt/cap_drop —
-        # the consistency test below pins that they STAY identical).
+        # Phase 1.2: both survivors carry an identical posture (same
+        # security_opt/cap_drop — the consistency test below pins that they
+        # STAY identical).
         "ai-vlm",
     ]
 
@@ -305,6 +315,186 @@ def _camera_mounts(compose_text: str) -> list[tuple[str, str, set[str]]]:
             if target.rstrip("/") == "/cameras" or "FOSCAM_BASE_PATH" in source:
                 out.append((name, str(volume), opts))
     return out
+
+
+def _services(fname: str) -> dict:
+    """Service map of a tracked compose file, merge tags included.
+
+    Plain `yaml.safe_load` RAISES on config/docker-compose.gb300.yml: it uses
+    compose's own `!override` tag on `depends_on`, and a ConstructorError is not
+    the same thing as "the retired service is absent" -- it would fail this
+    file's absence pin for a reason that has nothing to do with ai-llm.
+    `_ComposeLoader` (defined below, for the camera-mount sweep) reads those tags
+    as plain mappings, so every compose pin in this module parses one same way.
+    """
+    return (yaml.load((REPO_ROOT / fname).read_text(), Loader=_ComposeLoader) or {}).get(  # noqa: S506  # nosemgrep: unsafe-yaml-load
+        "services"
+    ) or {}
+
+
+class TestRetiredLlmServiceIsGone:
+    """R8's compose-side DONE item: the legacy `ai-llm` service is gone from
+    EVERY tracked compose file, not just the prod one.
+
+    S2b deleted the service out of `docker-compose.prod.yml`, and this class went
+    red in CI because its `AI_SERVICES` list still named it -- four green pins
+    ("has no-new-privileges", "drops ALL", "not privileged", "no SYS_ADMIN")
+    silently degenerating into `{}.get(...) == []` readings over an absent
+    service. `test_ai_service_has_no_new_privileges` cannot tell "hardened" from
+    "missing" on its own; that gap is what
+    `test_no_evidence_is_admitted_to_the_hardened_list_by_absence` closes, and
+    it is the general lesson: a parametrized security pin whose subject is
+    deleted reports success, not absence.
+
+    The absence pins are file-set-wide and exact-keyed. What is deliberately NOT
+    duplicated here: `backend/tests/unit/core/test_ai_vlm_compose_service.py`
+    already owns the prod-only absence, the `profiles == ["vllm"]` opt-in, and
+    backend's depends_on shape; what is new is (a) every tracked compose file,
+    (b) the prefix-vs-exact-key distinction, and (c) the list-vacuity guard.
+    """
+
+    @pytest.mark.parametrize("fname", TRACKED_COMPOSE_FILES)
+    def test_no_compose_file_defines_the_retired_service(self, fname: str) -> None:
+        """Exact-key absence: `ai-llm` as a service key appears nowhere.
+
+        Asserted on parsed service keys, not by grepping the raw text, and that
+        choice is measured rather than stylistic: `grep -c ai-llm` over this file
+        set (2026-09-29) returns three hits -- two sentences of retirement prose
+        (config/docker-compose.gb300.yml:43, docker-compose.ghcr.yml:241) and
+        the live prefixed key `ai-llm-vllm:` (docker-compose.prod.yml:278). A
+        text grep would call all three ghosts. The parsed keys say what a file
+        actually defines, and
+        `test_the_retired_name_survives_only_as_prose_or_the_prefixed_key`
+        pins the three hits so the prose allowance cannot widen silently.
+        """
+        services = _services(fname)
+        assert services, f"{fname} parsed to zero services -- the loader moved"
+        assert "ai-llm" not in services, (
+            f"{fname} defines the retired `ai-llm` service. R8 S2 deleted the "
+            "legacy LLM tier (602379e2) and container_orchestrator.py:66 keeps "
+            "REFUSE re-adding it; a compose file that ships it anyway is the "
+            "disagreement to resolve, not a test to relax"
+        )
+
+    def test_the_absence_pin_is_not_a_prefix_match(self) -> None:
+        """Non-vacuity for the test above.
+
+        `ai-llm-vllm` exists and is alive (profile-gated), and its name starts
+        with the retired one. A detection written as a substring scan would
+        report it as the ghost; a test written the other way (assert
+        `"ai-llm" not in str(services)`) would pass only by accident of the
+        prefixed key NOT being spelled exactly. This pins the concrete
+        distinction: the exact key is gone, the prefixed key is deliberately
+        still there.
+        """
+        services = _services("docker-compose.prod.yml")
+        assert "ai-llm" not in services
+        assert "ai-llm-vllm" in services, (
+            "ai-llm-vllm left docker-compose.prod.yml without this class being "
+            "updated -- if it is gone for good, that is a real retirement and "
+            "the name in RETIRED_LLM_SERVICES plus the opt-in pin in "
+            "test_ai_vlm_compose_service.py die with it"
+        )
+
+    def test_no_evidence_is_admitted_to_the_hardened_list_by_absence(self) -> None:
+        """The guard the S2b CI failure actually taught.
+
+        `AI_SERVICES` carried `ai-llm` AFTER the service was deleted, so four
+        security pins passed over nothing (verified red-first on this tree:
+        restoring the name to the list fails this pin, and the CI message is
+        the vacuous-green `[] in []` shape rephrased). A list-driven pin must
+        assert its subjects are real containers, or deleting a service reads as
+        hardening it.
+        """
+        services = _services("docker-compose.prod.yml")
+        hardened = TestDockerComposeSecurityHardening.AI_SERVICES
+        assert hardened, (
+            "AI_SERVICES is empty: every parametrized pin in "
+            "TestDockerComposeSecurityHardening is vacuously green, including "
+            "this guard"
+        )
+        ghosts = [name for name in hardened if name not in services]
+        assert not ghosts, (
+            f"AI_SERVICES names containers that do not exist: {ghosts} -- the "
+            "hardening pins for those names are vacuous (service.get() on a "
+            "missing service reads {} and every assertion passes)"
+        )
+
+    def test_the_surviving_vllm_engine_diverges_on_purpose(self) -> None:
+        """`ai-llm-vllm` carries a DIFFERENT posture from the two hardened
+        services, and is deliberately not in `AI_SERVICES`.
+
+        It was not swept into the list by the same edit that dropped `ai-llm`,
+        because sweeping it in would be one of two unowned moves dressed as a
+        test fix: either (a) add `label=disable` to a production compose file --
+        a runtime config change to a serving stack, not S2b's scope (S2b deletes
+        code, it does not relabel containers), or (b) edit the consistency test
+        to tolerate a difference, which is the "widen the quarantine" reflex the
+        goal prompt forbids. So it stays outside the list and this test names the
+        drift (measured 2026-09-29: ai-vlm and ai-gateway both
+        `[no-new-privileges:true, label=disable]`, the engine only
+        `[no-new-privileges:true]`, all three `cap_drop: [ALL]`) instead of
+        hiding it.
+
+        Who owns closing it: whoever opts the engine in for real -- the same
+        standing decision that keeps it hidden (`profiles: [vllm]`, pinned by
+        test_ai_vlm_compose_service.py::test_the_surviving_engine_stays_opt_in;
+        `container_orchestrator.py:66 RETIRED_LLM_SERVICES` refuses both
+        spellings at :531). Until then the divergence is visible, owned, and
+        pinned.
+        """
+        services = _services("docker-compose.prod.yml")
+        assert "ai-llm-vllm" not in TestDockerComposeSecurityHardening.AI_SERVICES, (
+            "ai-llm-vllm joined AI_SERVICES; if its posture was actually "
+            "aligned with ai-vlm/ai-gateway, update this test with the diff "
+            "that proves it -- the list membership and the drift pin move together"
+        )
+        engine = services["ai-llm-vllm"]
+        hardened = services["ai-vlm"]
+        # cap_drop already agrees; the drift is one option in security_opt.
+        assert engine.get("cap_drop") == hardened.get("cap_drop") == ["ALL"]
+        drift = set(hardened.get("security_opt", [])) - set(engine.get("security_opt", []))
+        assert drift == {"label=disable"}, (
+            f"the drift between ai-vlm and ai-llm-vllm security_opt changed "
+            f"shape: {drift}. This test exists to notice; decide which way to "
+            "close it (align the compose file, or explain the new difference) "
+            "rather than dropping the pin"
+        )
+        # ...and the option it lacks is not the one that keeps it off the GPU.
+        assert engine.get("profiles") == ["vllm"], (
+            "ai-llm-vllm is no longer profile-gated -- that is the control that "
+            "keeps a second model off the VLM's GPU, and it outranks the "
+            "security_opt drift recorded above"
+        )
+
+    def test_the_retired_name_survives_only_as_prose_or_the_prefixed_key(self) -> None:
+        """The complement of the parsed-key pin, and the reason it is allowed to
+        parse instead of grep: `ai-llm` is still WRITTEN in this file set, three
+        times, and each time for a reason someone chose.
+
+        gb300:43 and ghcr:241 are comments explaining that a deleted
+        depends_on entry and a CTX_SIZE note pointed at the service R8 S2
+        retired (prose about a retirement has to be able to name what retired --
+        same rule `TestDeadModulesAreGone.test_no_survivor_imports_the_dead`
+        states for docstrings), and prod:278 is the live `ai-llm-vllm:` key that
+        shares the prefix. Anything else is a new tenant in the retired slot:
+        uncommenting a deleted service, or a rename landing the dead name on a
+        live container.
+        """
+        strays: list[str] = []
+        for fname in TRACKED_COMPOSE_FILES:
+            for lineno, line in enumerate((REPO_ROOT / fname).read_text().splitlines(), start=1):
+                if "ai-llm" not in line:
+                    continue
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    continue  # retirement prose
+                if stripped == "ai-llm-vllm:":
+                    continue  # the live prefixed key (prod only, today)
+                strays.append(f"{fname}:{lineno}: {stripped}")
+        assert not strays, "the retired service name reappeared as code, not prose:\n" + "\n".join(
+            strays
+        )
 
 
 class TestCameraMountIsWatchableUnderSELinux:

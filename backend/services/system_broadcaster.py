@@ -1012,22 +1012,21 @@ class SystemBroadcaster:
 
         Performs concurrent health checks on both AI services to minimize
         latency in the broadcast loop. Uses a short timeout to avoid blocking.
-        The verdict engine follows PIPELINE_MODE: ai-vlm in ``vlm`` (the legacy
-        LLM is retired there, spec rev 5), Nemotron only in ``legacy``.
+        The verdict engine is ai-vlm (spec rev 5; R8 retired the mode branch
+        that could select the legacy LLM).
 
         Returns:
             Dictionary with:
             - yolo26: True if YOLO26v2 is healthy
-            - nemotron (legacy) / ai-vlm (vlm): True if the engine is healthy
+            - ai-vlm: True if the engine is healthy
             - any_healthy: True if at least one AI service is healthy
             - all_healthy: True if all AI services are healthy
         """
         settings = get_settings()
         yolo26_healthy = False
         engine_healthy = False
-        legacy = settings.pipeline_mode == "legacy"
-        engine_key = "nemotron" if legacy else "ai-vlm"
-        engine_url = settings.nemotron_url if legacy else settings.ai_vlm_url
+        engine_key = "ai-vlm"
+        engine_url = settings.ai_vlm_url
 
         async def check_yolo26() -> bool:
             try:

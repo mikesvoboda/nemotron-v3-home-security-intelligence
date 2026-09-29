@@ -136,6 +136,68 @@ class TestPromptServiceSingleton:
         assert service1 is not service2
 
 
+class TestPromptServiceLlmUrlReHome:
+    """R8 S2b: prompt testing POSTs /completion to settings.ai_vlm_url.
+
+    The retired ``settings.nemotron_url`` is deleted from Settings, so a
+    ``MagicMock(spec=Settings)`` that does not declare ``ai_vlm_url`` raises
+    AttributeError the moment the constructor reaches for a stale name - which
+    is the point of the spec'd double here (a real Settings, with
+    ``extra="ignore"``, would swallow a leftover ``nemotron_url`` kwarg).
+    """
+
+    def test_llm_url_comes_from_ai_vlm_url(self):
+        """The service's completion endpoint is the shipped ai-vlm engine."""
+        from unittest.mock import MagicMock, patch
+
+        from backend.core.config import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.ai_vlm_url = "http://ai-vlm:8098"
+
+        with patch(
+            "backend.services.prompt_service.get_settings",
+            return_value=settings,
+            autospec=True,
+        ):
+            service = PromptService()
+
+        assert service._llm_url == "http://ai-vlm:8098"
+
+    @pytest.mark.asyncio
+    async def test_prompt_test_posts_to_the_ai_vlm_completion_endpoint(self):
+        """Same contract on the wire: _run_llm_test POSTs to {ai_vlm_url}/completion."""
+        from unittest.mock import MagicMock, patch
+
+        from backend.core.config import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.ai_vlm_url = "http://ai-vlm:8098"
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": '{"risk_score": 70}'}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch(
+                "backend.services.prompt_service.get_settings",
+                return_value=settings,
+                autospec=True,
+            ),
+            patch("httpx.AsyncClient", return_value=mock_client, autospec=True),
+        ):
+            service = PromptService()
+            result = await service._run_llm_test("System prompt", "User context")
+
+        assert result == {"risk_score": 70}
+        assert mock_client.post.call_args.args[0] == "http://ai-vlm:8098/completion"
+
+
 class TestPromptService:
     """Tests for PromptService methods."""
 

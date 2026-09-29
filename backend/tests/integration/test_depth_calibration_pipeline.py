@@ -1,12 +1,11 @@
-"""Integration tests for depth-to-distance calibration pipeline.
+"""Integration tests for depth-to-distance calibration.
 
-Tests the end-to-end flow from:
-1. Detection with depth estimation
-2. Calibrated distance conversion
-3. Distance appearing in LLM prompt context
-
-These tests are written in RED phase - they should FAIL until
-the depth calibration system is fully implemented.
+R8 S2b scope note: the depth ESTIMATOR (depth_anything_loader) is retired with
+the legacy enrichment pipeline, so this file no longer drives a depth map into
+an analysis step. What survives here is the calibration arithmetic and its
+carrier - the Camera.calibration_data contract, the depth-to-feet mapping, the
+proximity-label fallback, the prompt-context formatter, and the service's
+DB load/cache/degradation behaviour.
 
 NEM-5283: Phase 2 - Depth Distance Conversion
 """
@@ -14,10 +13,8 @@ NEM-5283: Phase 2 - Depth Distance Conversion
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import numpy as np
 import pytest
 
 # Mark as integration tests
@@ -57,239 +54,6 @@ def mock_camera_with_calibration() -> MagicMock:
         "image_height": 1080,
     }
     return camera
-
-
-@pytest.fixture
-def mock_camera_without_calibration() -> MagicMock:
-    """Create a mock camera without calibration data."""
-    camera = MagicMock()
-    camera.id = "back_yard"
-    camera.name = "Back Yard"
-    camera.calibration_data = None
-    return camera
-
-
-@pytest.fixture
-def sample_depth_map() -> np.ndarray:
-    """Create a sample depth map for testing."""
-    # Create a gradient depth map (close at top, far at bottom)
-    depth_map = np.zeros((480, 640), dtype=np.float32)
-    for y in range(480):
-        depth_map[y, :] = y / 480.0  # Normalized 0-1
-    return depth_map
-
-
-@pytest.fixture
-def sample_detections() -> list[dict[str, Any]]:
-    """Create sample detections for testing."""
-    return [
-        {
-            "detection_id": "det_1",
-            "class_name": "person",
-            "confidence": 0.95,
-            "bbox": (300, 100, 400, 300),  # Near top = close
-            "camera_id": "front_door",
-        },
-        {
-            "detection_id": "det_2",
-            "class_name": "car",
-            "confidence": 0.89,
-            "bbox": (100, 350, 300, 450),  # Near bottom = far
-            "camera_id": "front_door",
-        },
-    ]
-
-
-# =============================================================================
-# End-to-End Pipeline Tests
-# =============================================================================
-
-
-class TestDepthCalibrationPipeline:
-    """Integration tests for the complete depth calibration pipeline."""
-
-    @pytest.mark.asyncio
-    async def test_detection_to_calibrated_distance_flow(
-        self,
-        mock_camera_with_calibration: MagicMock,
-        sample_depth_map: np.ndarray,
-        sample_detections: list[dict[str, Any]],
-    ) -> None:
-        """Test complete flow from detection through calibrated distance.
-
-        This test verifies:
-        1. Depth estimation extracts depth values for detections
-        2. Depth values are converted to feet using calibration
-        3. Calibrated distances are available in detection results
-        """
-        # These imports will fail until implementation
-        from backend.services.depth_anything_loader import (
-            analyze_depth,
-        )
-        from backend.services.depth_calibration_service import (
-            get_depth_calibration_service,
-        )
-
-        # Setup mock depth pipeline
-        mock_pipeline = MagicMock()
-        mock_pipeline.return_value = {"depth": sample_depth_map}
-
-        mock_image = MagicMock()
-
-        # Get calibration service and register camera calibration
-        calibration_service = get_depth_calibration_service()
-
-        # Parse calibration data from camera
-        from backend.services.depth_calibration_service import (
-            CalibrationData,
-            CalibrationPoint,
-        )
-
-        calibration_data = CalibrationData(
-            camera_id=mock_camera_with_calibration.id,
-            calibration_points=[
-                CalibrationPoint(**point)
-                for point in mock_camera_with_calibration.calibration_data["calibration_points"]
-            ],
-            image_width=mock_camera_with_calibration.calibration_data.get("image_width"),
-            image_height=mock_camera_with_calibration.calibration_data.get("image_height"),
-        )
-        calibration_service.register_calibration(calibration_data)
-
-        # Run depth analysis with calibration
-        result = await analyze_depth(
-            mock_pipeline,
-            mock_image,
-            sample_detections,
-            calibration_data=mock_camera_with_calibration.calibration_data,
-        )
-
-        # Verify results
-        assert result.has_detections
-        assert result.detection_count == 2
-
-        # Person detection (near top of frame = close)
-        person_depth = result.detection_depths["det_1"]
-        assert person_depth.distance_feet is not None
-        assert person_depth.distance_feet < 20.0  # Should be relatively close
-
-        # Car detection (near bottom of frame = far)
-        car_depth = result.detection_depths["det_2"]
-        assert car_depth.distance_feet is not None
-        assert car_depth.distance_feet > person_depth.distance_feet  # Car should be farther
-
-    @pytest.mark.asyncio
-    async def test_calibrated_distance_in_prompt_context(
-        self,
-        mock_camera_with_calibration: MagicMock,
-        sample_depth_map: np.ndarray,
-        sample_detections: list[dict[str, Any]],
-    ) -> None:
-        """Test that calibrated distances appear in LLM prompt context.
-
-        This test verifies the complete integration from depth analysis
-        through context enricher to the formatted prompt string.
-        """
-        from backend.services.depth_anything_loader import analyze_depth
-        from backend.services.depth_calibration_service import (
-            CalibrationData,
-            CalibrationPoint,
-            format_distance_context,
-            get_depth_calibration_service,
-        )
-
-        # Setup
-        mock_pipeline = MagicMock()
-        mock_pipeline.return_value = {"depth": sample_depth_map}
-        mock_image = MagicMock()
-
-        calibration_service = get_depth_calibration_service()
-
-        calibration_data = CalibrationData(
-            camera_id=mock_camera_with_calibration.id,
-            calibration_points=[
-                CalibrationPoint(**point)
-                for point in mock_camera_with_calibration.calibration_data["calibration_points"]
-            ],
-        )
-        calibration_service.register_calibration(calibration_data)
-
-        # Analyze depth
-        result = await analyze_depth(
-            mock_pipeline,
-            mock_image,
-            sample_detections,
-            calibration_data=mock_camera_with_calibration.calibration_data,
-        )
-
-        # Format context for LLM
-        context_lines = []
-        for det_id, depth_info in result.detection_depths.items():
-            context = format_distance_context(
-                class_name=depth_info.class_name,
-                distance_feet=depth_info.distance_feet,
-                location_name=mock_camera_with_calibration.name,
-            )
-            context_lines.append(context)
-
-        full_context = "\n".join(context_lines)
-
-        # Verify context contains distance information
-        assert "feet" in full_context.lower()
-        assert "person" in full_context.lower() or "Person" in full_context
-        assert "front door" in full_context.lower() or "Front Door" in full_context
-
-    @pytest.mark.asyncio
-    async def test_uncalibrated_camera_fallback(
-        self,
-        mock_camera_without_calibration: MagicMock,
-        sample_depth_map: np.ndarray,
-    ) -> None:
-        """Test that uncalibrated cameras fall back to proximity labels.
-
-        When no calibration data is available, the system should gracefully
-        fall back to using relative proximity labels (very close, close, etc.)
-        """
-        from backend.services.depth_anything_loader import analyze_depth
-        from backend.services.depth_calibration_service import format_distance_context
-
-        mock_pipeline = MagicMock()
-        mock_pipeline.return_value = {"depth": sample_depth_map}
-        mock_image = MagicMock()
-
-        detections = [
-            {
-                "detection_id": "det_1",
-                "class_name": "person",
-                "bbox": (300, 50, 400, 200),  # Close
-                "camera_id": "back_yard",
-            },
-        ]
-
-        # Analyze depth without calibration
-        result = await analyze_depth(
-            mock_pipeline,
-            mock_image,
-            detections,
-            calibration_data=None,
-        )
-
-        # Verify distance_feet is None
-        person_depth = result.detection_depths["det_1"]
-        assert person_depth.distance_feet is None
-        assert person_depth.proximity_label is not None
-
-        # Format context should use proximity label
-        context = format_distance_context(
-            class_name=person_depth.class_name,
-            distance_feet=person_depth.distance_feet,
-            location_name="Back Yard",
-            proximity_label=person_depth.proximity_label,
-        )
-
-        # Should contain proximity label, not feet
-        assert person_depth.proximity_label in context.lower() or "close" in context.lower()
-        assert "feet" not in context.lower()
 
 
 # =============================================================================
@@ -382,72 +146,30 @@ class TestContextEnricherDepthIntegration:
             )
 
         # The enriched context should have depth information available
-        # This will be used when building the final LLM prompt
+        # This will be used when building the final analysis prompt
         assert context is not None
         assert context.camera_id == "front_door"
 
-    @pytest.mark.asyncio
-    async def test_depth_context_string_format(self) -> None:
-        """Test the depth context string format for LLM prompts.
-
-        Verify the formatted string is suitable for LLM consumption
-        with clear, natural language descriptions.
-        """
-        from backend.services.depth_anything_loader import (
-            DepthAnalysisResult,
-            DetectionDepth,
-        )
-
-        detection_depths = {
-            "det_1": DetectionDepth(
-                detection_id="det_1",
-                class_name="person",
-                depth_value=0.2,
-                proximity_label="close",
-                distance_feet=7.0,
-            ),
-            "det_2": DetectionDepth(
-                detection_id="det_2",
-                class_name="delivery_truck",
-                depth_value=0.5,
-                proximity_label="moderate distance",
-                distance_feet=18.0,
-            ),
-        }
-
-        result = DepthAnalysisResult(
-            detection_depths=detection_depths,
-            closest_detection_id="det_1",
-            has_close_objects=True,
-            average_depth=0.35,
-            depth_variance=0.045,
-        )
-
-        context_string = result.to_context_string()
-
-        # Should be readable by LLM
-        assert "person" in context_string.lower() or "Person" in context_string
-        assert "7" in context_string  # Distance
-        assert "delivery" in context_string.lower() or "truck" in context_string.lower()
-        assert "18" in context_string  # Distance
-
 
 # =============================================================================
-# Nemotron Prompt Integration Tests
+# Prompt Context Integration Tests
 # =============================================================================
 
 
-class TestNemotronPromptIntegration:
-    """Tests for depth distance integration in Nemotron prompts."""
+class TestPromptContextIntegration:
+    """Tests for depth distance integration in the analysis prompt.
+
+    R8 S2b: renamed from TestNemotronPromptIntegration. Nothing here ever
+    touched the retired analyzer - both tests drive
+    depth_calibration_service.format_distance_context, which is the live
+    prompt-context formatter.
+    """
 
     @pytest.mark.asyncio
-    async def test_nemotron_prompt_includes_distance_context(
-        self,
-        mock_camera_with_calibration: MagicMock,
-    ) -> None:
-        """Test that Nemotron prompts include calibrated distance information.
+    async def test_prompt_context_includes_distance_context(self) -> None:
+        """Test that the prompt context includes calibrated distance information.
 
-        The final prompt sent to Nemotron for risk analysis should
+        The context handed to the analyzer for risk analysis should
         include human-readable distance information like:
         "Person is approximately 5 feet from front door"
         """
@@ -474,17 +196,17 @@ class TestNemotronPromptIntegration:
 
         full_context = "\n".join(context_parts)
 
-        # Verify context is suitable for Nemotron
+        # Verify context is suitable for the analyzer
         assert "Person" in full_context or "person" in full_context
         assert "5 feet" in full_context or "approximately 5" in full_context.lower()
         assert "front door" in full_context.lower()
         assert "35 feet" in full_context or "approximately 35" in full_context.lower()
 
     @pytest.mark.asyncio
-    async def test_nemotron_prompt_with_mixed_calibration(self) -> None:
-        """Test Nemotron prompt with some calibrated and some uncalibrated cameras.
+    async def test_prompt_context_with_mixed_calibration(self) -> None:
+        """Test the context with some calibrated and some uncalibrated cameras.
 
-        When processing detections from multiple cameras, the prompt
+        When processing detections from multiple cameras, the context
         should include distances for calibrated cameras and proximity
         labels for uncalibrated cameras.
         """
