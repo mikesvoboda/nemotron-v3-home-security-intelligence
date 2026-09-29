@@ -95,9 +95,9 @@ def clean_vqa_output(text: str | None) -> str | None:
     VQA prefixes and location tokens. Use this when you want to salvage content
     from responses that may contain artifacts (e.g., in format_entity_match).
 
-    Note: For validation that rejects garbage outputs entirely, use
-    `validate_and_clean_vqa_output` from `backend.services.vision_extractor`
-    which returns None for any output containing location tokens (NEM-3304).
+    Note: R8 S2 deleted `vision_extractor.py` (Florence-2 extraction, legacy
+    tier) along with the `validate_and_clean_vqa_output` helper it owned -
+    this local cleaner is now the only VQA-artifact scrubber (NEM-3304).
 
     Florence-2 VQA responses may contain artifacts like:
     - VQA> prefix followed by the query text

@@ -423,23 +423,7 @@ class TestSmokeFireResultSerialization:
         assert data["confidence"] == 0.88
         assert data["consecutive_count"] == 2
 
-    def test_from_detection_class_method(self) -> None:
-        """Test creating from a SmokeFireDetection dataclass."""
-        from backend.models.smoke_fire_result import SmokeFireResult
-        from backend.services.smoke_fire_loader import SmokeFireDetection
-
-        detection = SmokeFireDetection(
-            detection_type="fire",
-            confidence=0.90,
-            bbox=(10, 20, 100, 150),
-        )
-
-        result = SmokeFireResult.from_detection(
-            detection=detection,
-            detection_id=456,
-            camera_id="backyard",
-        )
-
-        assert result.detection_id == 456
-        assert result.camera_id == "backyard"
-        assert result.confidence == 0.90
+    # R8 S2 removed SmokeFireResult.from_detection along with the
+    # smoke_fire_loader whose SmokeFireDetection dataclass was its only
+    # argument type. The row shape itself (above) and to_dict survive, so
+    # the class stays; the factory's assertions went with the factory.

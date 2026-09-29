@@ -55,7 +55,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 # Same contract the runtime gate builds - importing keeps CI and runtime
 # from drifting apart (a CI pass must be proof about the runtime probe).
 from backend.api.schemas.llm_response import RISK_ANALYSIS_JSON_SCHEMA
-from backend.services.nemotron_analyzer import (
+from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
     PROBE_PROMPT,
     _is_length_truncated,
     _probe_completion,

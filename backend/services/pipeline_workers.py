@@ -22,7 +22,7 @@ Queue Flow:
        - Calls BatchAggregator.check_batch_timeouts()
        - Closed batches are pushed to analysis_queue
     4. AnalysisQueueWorker consumes from analysis_queue
-       - Calls NemotronAnalyzer.analyze_batch()
+       - Calls VlmAnalyzer.analyze_batch()
        - Creates Event records and broadcasts via WebSocket
 """
 
@@ -64,7 +64,6 @@ from backend.core.telemetry_ai_conventions import set_pipeline_context_attribute
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.frame_buffer import FrameBuffer, get_frame_buffer
-from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.pipeline_factory import build_pipeline_analyzer
 from backend.services.redis_streams import (
     AnalysisStreamService,
@@ -74,6 +73,7 @@ from backend.services.redis_streams import (
 )
 from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
+from backend.services.vlm_analyzer import VlmAnalyzer
 from backend.services.websocket_emitter import WebSocketEmitterService
 
 logger = get_logger(__name__)
@@ -767,7 +767,7 @@ class AnalysisQueueWorker:
 
     This worker:
     1. Pops items from analysis_queue (Redis BLPOP with timeout)
-    2. Runs Nemotron LLM analysis via NemotronAnalyzer
+    2. Runs VLM analysis via VlmAnalyzer
     3. Creates Event records with risk scores
     4. Broadcasts events via WebSocket
     5. Broadcasts batch analysis status events (NEM-3607)
@@ -778,7 +778,7 @@ class AnalysisQueueWorker:
     def __init__(
         self,
         redis_client: RedisClient,
-        analyzer: NemotronAnalyzer | None = None,
+        analyzer: VlmAnalyzer | None = None,
         queue_name: str = ANALYSIS_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 30.0,
@@ -789,7 +789,7 @@ class AnalysisQueueWorker:
 
         Args:
             redis_client: Redis client for queue operations
-            analyzer: NemotronAnalyzer instance. If None, will be created.
+            analyzer: VlmAnalyzer instance. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP
             stop_timeout: Timeout in seconds for graceful stop before force cancel
@@ -1511,7 +1511,7 @@ class PipelineWorkerManager:
         self,
         redis_client: RedisClient,
         detector_client: DetectorClient | None = None,
-        analyzer: NemotronAnalyzer | None = None,
+        analyzer: VlmAnalyzer | None = None,
         frame_buffer: FrameBuffer | None = None,
         enable_detection_worker: bool = True,
         enable_analysis_worker: bool = True,
@@ -1527,7 +1527,7 @@ class PipelineWorkerManager:
         Args:
             redis_client: Redis client for queue operations
             detector_client: Optional DetectorClient instance
-            analyzer: Optional NemotronAnalyzer instance
+            analyzer: Optional VlmAnalyzer instance
             frame_buffer: FrameBuffer for accumulating frames for temporal action
                 recognition (ST-GCN++ path). If None, workers will use the global singleton.
             enable_detection_worker: Whether to start detection queue worker

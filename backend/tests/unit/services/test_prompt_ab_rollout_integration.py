@@ -1,20 +1,38 @@
-"""Unit tests for Prompt A/B Rollout Integration with NemotronAnalyzer (NEM-3338).
+"""Unit tests for Prompt A/B Rollout Integration (NEM-3338), analyzer half removed by R8 S2b.
 
-Phase 7.2: A/B Testing for Prompt Rollout.
+Phase 7.2 wired the A/B rollout to the per-event analyzer: the analyzer held
+an ABRolloutManager, assigned each camera its experiment group, recorded its
+own analysis metrics into that group, asked for the rollback check on a timer
+and mapped the group to a prompt version. R8 S2 deletes NemotronAnalyzer and
+those six wrapper methods (set_rollout_manager / get_rollout_manager /
+get_experiment_group / record_rollout_analysis / check_rollout_rollback /
+execute_rollout_rollback / get_rollout_summary / get_prompt_version_for_rollout
+exist in no shipped module any more -- grep finds only the config-level
+originals they delegated to). So this file's analyzer-driven classes went:
 
-These tests cover:
-1. Integration of ABRolloutManager with NemotronAnalyzer
-2. Automatic group assignment during analysis
-3. Metrics recording based on group assignment
-4. Feedback recording for experiment groups
-5. Rollback check triggering during analysis pipeline
-
-TDD: Write tests first (RED), then implement to make them GREEN.
+- ENDED: TestNemotronAnalyzerABRolloutIntegration (manager hand-off, group
+  assignment, per-analysis metric routing -- all through the deleted wrapper)
+  and TestRollbackTriggerDuringAnalysis (the periodic check inside the
+  analysis path). The rollback LOGIC they reached through the analyzer is live
+  and pinned where it lives: backend/config/prompt_ab_rollout.py's
+  check_rollback_needed in tests/unit/config/test_prompt_ab_rollout.py
+  ::TestRollbackCheckLogic, and the production wrapper check_and_handle_rollback
+  (which stops the experiment) in test_ab_rollout_production.py
+  ::TestRollbackDetection.
+- STILL SHIPPED, repointed to that code rather than deleted, because the
+  behavior is real and was pinned nowhere else: the metrics summary's
+  ``experiment`` section (now asserted on ABRolloutManager.get_metrics_summary
+  directly -- the analyzer's get_rollout_summary was a pass-through) and the
+  group -> prompt-version mapping (now asserted on ab_rollout_production's
+  live get_camera_assignment, which is what a caller uses instead of the
+  analyzer's get_prompt_version_for_rollout).
+- KEPT AS-IS: TestFeedbackRecordingForExperiment -- it drives the config
+  singleton's feedback recording, never the analyzer.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -25,65 +43,6 @@ pytestmark = pytest.mark.unit
 # =============================================================================
 # Test Fixtures
 # =============================================================================
-
-
-@pytest.fixture
-def mock_redis_client():
-    """Mock Redis client."""
-    from backend.core.redis import RedisClient
-
-    mock_client = MagicMock(spec=RedisClient)
-    mock_client.get = AsyncMock(return_value=None)
-    mock_client.set = AsyncMock(return_value=True)
-    mock_client.delete = AsyncMock(return_value=1)
-    return mock_client
-
-
-@pytest.fixture
-def mock_settings():
-    """Create mock settings for NemotronAnalyzer."""
-    from backend.core.config import Settings
-
-    mock = MagicMock(spec=Settings)
-    # P0.3 constrained-decoding flags, legacy values (pydantic v2 field names
-    # are not in dir(Settings), so a spec'd mock must pin them explicitly)
-    mock.nemotron_constrained_decoding_enabled = False
-    mock.nemotron_constrained_fail_closed = True
-    mock.nemotron_constrained_probe_enabled = True
-    mock.nemotron_constrained_probe_required_build = None
-    mock.nemotron_verification_engine = "llama.cpp"
-    mock.nemotron_model_id = "Nemotron-3-Nano-30B-A3B-Q4_K_M"
-    mock.nemotron_url = "http://localhost:8091"
-    mock.nemotron_api_key = None
-    mock.ai_connect_timeout = 10.0
-    mock.nemotron_read_timeout = 120.0
-    mock.ai_health_timeout = 5.0
-    mock.nemotron_max_retries = 1
-    mock.severity_low_max = 29
-    mock.severity_medium_max = 59
-    mock.severity_high_max = 84
-    mock.nemotron_context_window = 4096
-    mock.nemotron_max_output_tokens = 1536
-    mock.context_utilization_warning_threshold = 0.80
-    mock.context_truncation_enabled = True
-    mock.llm_tokenizer_encoding = "cl100k_base"
-    mock.image_quality_enabled = False
-    mock.ai_warmup_enabled = False
-    mock.ai_cold_start_threshold_seconds = 300.0
-    mock.nemotron_warmup_prompt = "Test warmup prompt"
-    mock.prompt_ab_testing_enabled = True
-    mock.prompt_shadow_mode_enabled = False
-    # Guided JSON settings (NEM-3726)
-    mock.nemotron_use_guided_json = False
-    mock.nemotron_guided_json_fallback = True
-    # Phase 5 batch coalescing settings
-    mock.batch_coalescing_enabled = False
-    mock.batch_coalescing_max_size = 10
-    mock.batch_coalescing_time_window = 0.5
-    mock.priority_queue_enabled = False
-    mock.priority_high_labels = ["person", "weapon"]
-    mock.priority_medium_labels = ["vehicle", "animal"]
-    return mock
 
 
 @pytest.fixture
@@ -115,177 +74,22 @@ def rollout_manager():
     return manager
 
 
-# =============================================================================
-# Test: NemotronAnalyzer Integration
-# =============================================================================
+@pytest.fixture
+def global_manager():
+    """A live production manager on the module singleton, torn down after.
 
+    Replaces the analyzer the deleted tests here used to hold: the shipped
+    callers reach the experiment through the singleton (get_rollout_manager /
+    get_camera_assignment), not through a per-analyzer attribute.
+    """
+    from backend.config.ab_rollout_production import start_production_ab_rollout
+    from backend.config.prompt_ab_rollout import reset_rollout_manager
 
-class TestNemotronAnalyzerABRolloutIntegration:
-    """Tests for A/B rollout integration in NemotronAnalyzer."""
-
-    @pytest.mark.asyncio
-    async def test_analyzer_accepts_rollout_manager(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
-        """Test NemotronAnalyzer can be configured with ABRolloutManager."""
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-
-            # Set rollout manager
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Verify it's set
-            assert analyzer.get_rollout_manager() is rollout_manager
-
-    @pytest.mark.asyncio
-    async def test_analyzer_uses_rollout_manager_for_group_assignment(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
-        """Test analyzer uses rollout manager to determine experiment group."""
-        from backend.config.prompt_ab_rollout import ExperimentGroup
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Get experiment group for a camera
-            camera_id = "front_door"
-            group = analyzer.get_experiment_group(camera_id)
-
-            # Should be one of the valid groups
-            assert group in (ExperimentGroup.CONTROL, ExperimentGroup.TREATMENT)
-
-            # Same camera should get same group
-            for _ in range(10):
-                assert analyzer.get_experiment_group(camera_id) == group
-
-    @pytest.mark.asyncio
-    async def test_analyzer_records_metrics_to_correct_group(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
-        """Test analyzer records metrics to the correct experiment group."""
-        from backend.config.prompt_ab_rollout import ExperimentGroup
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Find cameras for each group
-            control_camera = None
-            treatment_camera = None
-
-            for i in range(100):
-                camera_id = f"camera_{i}"
-                group = analyzer.get_experiment_group(camera_id)
-                if group == ExperimentGroup.CONTROL and control_camera is None:
-                    control_camera = camera_id
-                elif group == ExperimentGroup.TREATMENT and treatment_camera is None:
-                    treatment_camera = camera_id
-                if control_camera and treatment_camera:
-                    break
-
-            # Record analysis for control camera
-            analyzer.record_rollout_analysis(
-                camera_id=control_camera,
-                latency_ms=100.0,
-                risk_score=50,
-            )
-
-            # Record analysis for treatment camera
-            analyzer.record_rollout_analysis(
-                camera_id=treatment_camera,
-                latency_ms=150.0,
-                risk_score=40,
-            )
-
-            # Verify metrics were recorded to correct groups
-            assert rollout_manager.control_metrics.total_analyses == 1
-            assert rollout_manager.treatment_metrics.total_analyses == 1
+    reset_rollout_manager()
+    try:
+        yield start_production_ab_rollout()
+    finally:
+        reset_rollout_manager()
 
 
 # =============================================================================
@@ -356,128 +160,6 @@ class TestFeedbackRecordingForExperiment:
 
 
 # =============================================================================
-# Test: Rollback Trigger During Analysis
-# =============================================================================
-
-
-class TestRollbackTriggerDuringAnalysis:
-    """Tests for rollback condition checking during analysis pipeline."""
-
-    @pytest.mark.asyncio
-    async def test_rollback_check_called_periodically(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
-        """Test rollback check is called during analysis pipeline."""
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Check rollback result
-            result = analyzer.check_rollout_rollback()
-
-            # Should have a valid result
-            assert hasattr(result, "should_rollback")
-            assert hasattr(result, "reason")
-
-    @pytest.mark.asyncio
-    async def test_rollback_triggers_experiment_stop(self, mock_redis_client, mock_settings):
-        """Test rollback trigger stops the experiment."""
-        from backend.config.prompt_ab_rollout import (
-            ABRolloutConfig,
-            ABRolloutManager,
-            AutoRollbackConfig,
-        )
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            # Create manager with low threshold for testing
-            rollout_config = ABRolloutConfig(treatment_percentage=0.5)
-            rollback_config = AutoRollbackConfig(
-                max_fp_rate_increase=0.05,
-                min_samples=5,
-                enabled=True,
-            )
-            manager = ABRolloutManager(rollout_config, rollback_config)
-            manager.start()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(manager)
-
-            # Simulate bad treatment performance
-            for _ in range(10):
-                manager.record_control_feedback(is_false_positive=False)
-            for _ in range(10):
-                manager.record_treatment_feedback(is_false_positive=True)  # 100% FP
-
-            # Check rollback
-            result = analyzer.check_rollout_rollback()
-
-            assert result.should_rollback is True
-
-            # Execute rollback
-            analyzer.execute_rollout_rollback()
-
-            # Experiment should be stopped
-            assert manager.is_active is False
-
-
-# =============================================================================
 # Test: Metrics Summary
 # =============================================================================
 
@@ -485,60 +167,30 @@ class TestRollbackTriggerDuringAnalysis:
 class TestExperimentMetricsSummary:
     """Tests for getting experiment metrics summary."""
 
-    @pytest.mark.asyncio
-    async def test_get_experiment_summary(self, mock_redis_client, mock_settings, rollout_manager):
-        """Test getting experiment metrics summary."""
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+    def test_get_experiment_summary(self, rollout_manager):
+        """Test getting experiment metrics summary from the manager itself.
 
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
+        R8 S2b repoint: the analyzer's get_rollout_summary was a pass-through
+        to ABRolloutManager.get_metrics_summary, so the assertions are
+        unchanged -- only the (deleted) middleman is gone. The ``experiment``
+        section below is the only pin on that part of the summary shape.
+        """
+        for _ in range(5):
+            rollout_manager.record_control_feedback(is_false_positive=False)
+            rollout_manager.record_control_analysis(latency_ms=100.0, risk_score=50)
 
-            reset_severity_service()
-            reset_token_counter()
+        for _ in range(5):
+            rollout_manager.record_treatment_feedback(is_false_positive=False)
+            rollout_manager.record_treatment_analysis(latency_ms=120.0, risk_score=40)
 
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
+        summary = rollout_manager.get_metrics_summary()
 
-            # Record some data
-            for _ in range(5):
-                rollout_manager.record_control_feedback(is_false_positive=False)
-                rollout_manager.record_control_analysis(latency_ms=100.0, risk_score=50)
+        assert "control" in summary
+        assert "treatment" in summary
+        assert "experiment" in summary
 
-            for _ in range(5):
-                rollout_manager.record_treatment_feedback(is_false_positive=False)
-                rollout_manager.record_treatment_analysis(latency_ms=120.0, risk_score=40)
-
-            # Get summary through analyzer
-            summary = analyzer.get_rollout_summary()
-
-            assert "control" in summary
-            assert "treatment" in summary
-            assert "experiment" in summary
-
-            assert summary["control"]["sample_count"] == 5
-            assert summary["treatment"]["sample_count"] == 5
+        assert summary["control"]["sample_count"] == 5
+        assert summary["treatment"]["sample_count"] == 5
 
 
 # =============================================================================
@@ -547,102 +199,41 @@ class TestExperimentMetricsSummary:
 
 
 class TestPromptVersionSelection:
-    """Tests for selecting prompt version based on experiment group."""
+    """Tests for selecting prompt version based on experiment group.
 
-    @pytest.mark.asyncio
-    async def test_control_group_uses_v1_prompt(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
+    R8 S2b repoint: ``get_camera_assignment`` in ab_rollout_production is the
+    shipped answer to the question the deleted analyzer wrapper answered --
+    which prompt version does this camera's experiment group get? The mapping
+    was asserted nowhere else, so it moves here rather than dying with the
+    wrapper.
+    """
+
+    def test_control_group_uses_v1_prompt(self, global_manager):
         """Test control group uses V1 (original) prompt."""
+        from backend.config.ab_rollout_production import get_camera_assignment
         from backend.config.prompt_ab_rollout import ExperimentGroup
         from backend.config.prompt_experiment import PromptVersion
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
 
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
+        for i in range(100):
+            camera_id = f"camera_{i}"
+            if global_manager.get_group_for_camera(camera_id) == ExperimentGroup.CONTROL:
+                assignment = get_camera_assignment(camera_id)
+                assert assignment["group"] == ExperimentGroup.CONTROL.value
+                assert assignment["prompt_version"] == PromptVersion.V1_ORIGINAL.value
+                return
+        pytest.fail("no control-group camera found in 100 cameras at a 50% split")
 
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Find a control camera
-            for i in range(100):
-                camera_id = f"camera_{i}"
-                if rollout_manager.get_group_for_camera(camera_id) == ExperimentGroup.CONTROL:
-                    # Get prompt version for control camera
-                    version = analyzer.get_prompt_version_for_rollout(camera_id)
-                    assert version == PromptVersion.V1_ORIGINAL
-                    break
-
-    @pytest.mark.asyncio
-    async def test_treatment_group_uses_v2_prompt(
-        self, mock_redis_client, mock_settings, rollout_manager
-    ):
+    def test_treatment_group_uses_v2_prompt(self, global_manager):
         """Test treatment group uses V2 (calibrated) prompt."""
+        from backend.config.ab_rollout_production import get_camera_assignment
         from backend.config.prompt_ab_rollout import ExperimentGroup
         from backend.config.prompt_experiment import PromptVersion
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
 
-        with (
-            patch(
-                "backend.services.nemotron_analyzer.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.severity.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.services.token_counter.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-            patch(
-                "backend.core.config.get_settings",
-                return_value=mock_settings,
-                autospec=True,
-            ),
-        ):
-            from backend.services.severity import reset_severity_service
-            from backend.services.token_counter import reset_token_counter
-
-            reset_severity_service()
-            reset_token_counter()
-
-            analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-            analyzer.set_rollout_manager(rollout_manager)
-
-            # Find a treatment camera
-            for i in range(100):
-                camera_id = f"camera_{i}"
-                if rollout_manager.get_group_for_camera(camera_id) == ExperimentGroup.TREATMENT:
-                    # Get prompt version for treatment camera
-                    version = analyzer.get_prompt_version_for_rollout(camera_id)
-                    assert version == PromptVersion.V2_CALIBRATED
-                    break
+        for i in range(100):
+            camera_id = f"camera_{i}"
+            if global_manager.get_group_for_camera(camera_id) == ExperimentGroup.TREATMENT:
+                assignment = get_camera_assignment(camera_id)
+                assert assignment["group"] == ExperimentGroup.TREATMENT.value
+                assert assignment["prompt_version"] == PromptVersion.V2_CALIBRATED.value
+                return
+        pytest.fail("no treatment-group camera found in 100 cameras at a 50% split")

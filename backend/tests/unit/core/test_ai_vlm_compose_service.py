@@ -133,8 +133,12 @@ class TestComposeServiceShape:
         assert build["args"]["CUDA_ARCHITECTURES"] == "${CUDA_ARCHITECTURES:-}"
 
     def test_gpu_device_interpolation_matches_ai_llm_convention(self, vlm_service: dict) -> None:
-        # vlm mode REPLACES the legacy LLM on the GPU (spec VRAM table);
-        # same host var, and the stop-ai-llm-first note lives with the service
+        # vlm mode REPLACES the legacy LLM on the GPU (spec VRAM table): the same
+        # host var the deleted ai-llm used, so an operator's GPU_LLM= keeps
+        # naming the inference GPU across the R8 S2b deletion (602379e2). The
+        # stop-ai-llm-first note that used to live with the service retired with
+        # it — the ai-vlm header comment now says the same thing in the
+        # affirmative ("this is the GPU's only LLM").
         assert vlm_service["devices"] == ["nvidia.com/gpu=${GPU_LLM:-0}"]
 
     def test_healthcheck_targets_8098(self, vlm_service: dict) -> None:
@@ -307,18 +311,56 @@ class TestRetiredLlmIsOptIn:
     drag it in. Ledger item 36 left it unprofiled only because gating it
     broke plain `up`; `required: false` on the dependency removes that.
     Owner ruling 2026-09-28 (A5500 run): disable it from starting.
+
+    R8 S2b (602379e2) answered that ruling one step past the profile: the
+    ai-llm service (with its `profiles: [legacy]` gate and its ai/nemotron
+    build context) and backend's `depends_on: ai-llm` entry are DELETED from
+    docker-compose.prod.yml. The two pins that used to sit here therefore
+    lost the subject they read — you cannot assert a profiles: block on a
+    service that is not in the file. The class survives because the guarantee
+    it was written for still has a subject, in a stronger form: nothing named
+    ai-llm exists to start or to depend on, and the one engine that did
+    survive beside ai-vlm (ai-llm-vllm, NEM-5441 benchmarking) keeps the
+    opt-in posture the ruling asked for.
     """
 
-    def test_ai_llm_only_starts_under_the_legacy_profile(self, compose: dict) -> None:
-        assert compose["services"]["ai-llm"].get("profiles") == ["legacy"]
-
-    def test_backend_dependency_on_ai_llm_is_optional(self, compose: dict) -> None:
-        dep = compose["services"]["backend"]["depends_on"]["ai-llm"]
-        assert dep.get("required") is False, (
-            "without required: false, compose refuses a plain `up` whose backend "
-            "depends on a service in an inactive profile"
+    def test_ai_llm_is_gone_from_the_file_rather_than_profile_gated(self, compose: dict) -> None:
+        """Was `profiles == ["legacy"]` on the service. A profile gate is one
+        `--profile legacy` away from putting a 30B on the GPU ai-vlm serves
+        on, which is exactly what the A5500 ruling refused; the deletion makes
+        the refusal absolute, and the pin has to name that or it reads as a
+        green test over an empty subject."""
+        assert "ai-llm" not in compose["services"], (
+            "ai-llm came back to docker-compose.prod.yml. R8 S2 deleted the "
+            "legacy serving path (602379e2); if it is genuinely returning, it "
+            "needs a profile gate AND the owner ruling about the VLM's GPU, not "
+            "a relaxed test"
         )
-        assert dep.get("condition") == "service_healthy", "legacy mode keeps its wait"
+
+    def test_the_surviving_engine_stays_opt_in(self, compose: dict) -> None:
+        """The other half of the guarantee, still live: ai-llm-vllm is the only
+        engine left in the file beside ai-vlm, and it hides behind profile
+        `vllm` — so neither a plain `up` nor a `--profile vlm` up (which is how
+        ai-vlm is actually started) can land a second model on the GPU."""
+        assert compose["services"]["ai-llm-vllm"].get("profiles") == ["vllm"]
+
+    def test_backend_depends_on_no_llm_engine(self, compose: dict) -> None:
+        """Retargeted from the `required: false` pin. That flag existed only so
+        a plain `up` would not refuse a backend whose dependency sits in an
+        inactive profile; with the dependency deleted outright, the honest
+        version of the same guarantee is that no LLM engine appears in
+        backend's depends_on at all — that is what keeps `up backend` from
+        dragging one up next to ai-vlm (and ai-vlm itself stays dependency-free
+        in TestComposeServiceShape)."""
+        deps = compose["services"]["backend"].get("depends_on", {})
+        names = deps if isinstance(deps, (list, dict)) else {}
+        engine_deps = sorted(n for n in names if n.startswith("ai-llm"))
+        assert not engine_deps, (
+            f"backend depends_on {engine_deps}: a hard dependency on an engine "
+            "in an inactive profile makes compose refuse the plain `up`, and one "
+            "in an ACTIVE profile puts a second model on the VLM's GPU (the "
+            "owner ruling 2026-09-28, still in force after R8 S2)"
+        )
 
 
 class TestSpecialistResidencyReachesTheBackend:
@@ -550,9 +592,11 @@ class TestDockerfileFlagWiring:
 
 
 class TestSecurityHardeningParity:
-    """ai-vlm joins the hardened set the existing security/resource tests
-    sweep (their AI_SERVICES lists carry the rest). Asserted here directly
-    so this file is self-contained, too."""
+    """ai-vlm joins the hardened set the existing security/resource tests sweep
+    (tests/security/test_docker_compose_security.py, plus
+    test_ai_service_resource_limits.py - which since R8 S2b derives the tier it
+    sweeps from compose rather than curating a list beside it). Asserted here
+    directly so this file is self-contained, too."""
 
     HARDENED: ClassVar = ("cap_drop", "security_opt", "tmpfs")
 

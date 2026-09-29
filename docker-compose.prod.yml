@@ -117,98 +117,6 @@ services:
           cpus: '2'
           memory: 1G
 
-  ai-llm:
-    # RETIRED serving path (spec rev 5 / F10): opt-in only, so neither a plain
-    # `up` nor `--profile vlm` starts a 30B on the GPU ai-vlm needs. Legacy mode
-    # (unsupported) runs with `--profile legacy`; backend's dependency on this
-    # service is `required: false` below so every other `up` still works.
-    profiles:
-      - legacy
-    # NOTE: read_only not set — nvidia-cdi-hook needs write access for GPU passthrough
-    security_opt:
-      - no-new-privileges:true
-      - label=disable
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-llm'
-    build:
-      context: ./ai/nemotron
-      dockerfile: Dockerfile
-      args:
-        CUDA_ARCHITECTURES: ${CUDA_ARCHITECTURES:-}
-    # Podman CDI device passthrough (rootless GPU access)
-    devices:
-      - nvidia.com/gpu=${GPU_LLM:-0}
-    # NEM-4486: Bind to localhost only - AI services are internal
-    ports:
-      - '127.0.0.1:${LLM_PORT:-8091}:8091'
-    volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
-      # Persistent CUDA kernel cache (llama.cpp compilation cache)
-      - llama-cache:/home/llama/.cache
-      # Persistent NVIDIA compute cache (CUDA JIT kernels)
-      - llama-nv-cache:/home/llama/.nv
-    environment:
-      # Pyroscope continuous profiling for LLM inference analysis
-      - SERVICE_NAME=ai-llm
-      # GPU assignment - LLM stays on GPU 0 (A5500)
-      - CUDA_VISIBLE_DEVICES=${GPU_LLM:-0}
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      # NEM-5528: Model path configurable via .env to swap quantizations without rebuild
-      - MODEL_PATH=${LLM_MODEL_PATH:-/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf}
-      # All layers on GPU - other AI services moved to GPU 1 (A400) to free up A5500 for LLM
-      # auto = llama.cpp --fit determines optimal layer count based on free VRAM
-      - GPU_LAYERS=${GPU_LAYERS:-auto}
-      # Context window: 8 parallel slots for high-throughput inference
-      # 262144 tokens = 8 slots × 32768 tokens each (~24K words per request)
-      # Enables complex multi-event analysis with extensive context
-      - CTX_SIZE=${CTX_SIZE:-262144}
-      # 8 parallel slots for concurrent batch processing
-      - PARALLEL=${PARALLEL:-8}
-      # Thread count for CPU-offloaded layers
-      - THREADS=${LLM_THREADS:-4}
-      # Batch sizes for prompt processing
-      - BATCH_SIZE=${LLM_BATCH_SIZE:-2048}
-      - UBATCH_SIZE=${LLM_UBATCH_SIZE:-512}
-      # KV cache quantization (Q8_0 saves ~50% KV memory, negligible quality loss)
-      - CACHE_TYPE_K=${LLM_CACHE_TYPE_K:-q8_0}
-      - CACHE_TYPE_V=${LLM_CACHE_TYPE_V:-q8_0}
-      # MoE expert offloading pattern (empty = disabled, set to regex matching expert FFN weights)
-      - MOE_OFFLOAD_PATTERN=${LLM_MOE_OFFLOAD_PATTERN:-}
-      # NEM-5369: Enable flash attention to reduce VRAM usage with minimal performance impact
-      - FLASH_ATTENTION=${FLASH_ATTENTION:-true}
-      # CUDA Graph optimization: fuses repeated kernel launches into a single graph replay
-      # Up to 35% TPS improvement for autoregressive decoding (eliminates kernel launch overhead)
-      - GGML_CUDA_GRAPH_OPT=${GGML_CUDA_GRAPH_OPT:-1}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      # NEM-5512: 31B parameter model requires ~5 minutes to load tensors to GPU
-      start_period: 300s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 12G
-        reservations:
-          memory: 8G
-          devices:
-            # Specific GPU assignment for podman-compose compatibility
-            - driver: nvidia
-              device_ids: ['${GPU_LLM:-0}']
-              capabilities: [gpu]
-
   # =============================================================================
   # VLM Server (vision-language verification; spec §2, Phase 1.2)
   # =============================================================================
@@ -219,9 +127,8 @@ services:
   # `up` never starts it, and the backend NEVER hard-depends_on it (a
   # profiled service in depends_on breaks the default `up`) - degradation
   # is the §6 ladder's job in vlm_analyzer (1.3), not a compose edge.
-  # vlm mode REPLACES the legacy LLM on the GPU (spec VRAM table): bring
-  # this up with --profile vlm only when ai-llm is stopped; both interpolate
-  # the same GPU_LLM host var on purpose.
+  # vlm mode REPLACED the legacy LLM on the GPU (spec VRAM table); R8 S2
+  # deleted that serving path, so this is the GPU's only LLM.
   #
   # To enable: docker compose -f docker-compose.prod.yml --profile vlm up -d
   ai-vlm:
@@ -258,7 +165,8 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/vlm:/models:ro
       # Persistent CUDA kernel cache (llama.cpp compilation cache) - same
-      # named volumes as ai-llm: same binary, content-addressed caches.
+      # named volumes shared with the llama.cpp profiling story: same
+      # binary shape, content-addressed caches.
       - llama-cache:/home/llama/.cache
       - llama-nv-cache:/home/llama/.nv
     environment:
@@ -267,7 +175,7 @@ services:
       # Container-side listen port; see the ports block above.
       - PORT=8098
       # Weights are host-mounted (never baked); names live in .env.example.
-      # prod.yml ai-llm:158 style - ${VAR:-default}, no hardcoded literals.
+      # prod.yml style - ${VAR:-default}, no hardcoded literals.
       - MODEL_PATH=${VLM_MODEL_PATH:-/models/Qwen3VL-8B-Instruct-Q4_K_M.gguf}
       - MMPROJ_PATH=${VLM_MMPROJ_PATH:-/models/mmproj-Qwen3VL-8B-Instruct-Q8_0.gguf}
       - MODEL_ALIAS=${VLM_MODEL_ALIAS:-Qwen3VL-8B}
@@ -299,8 +207,8 @@ services:
       - THREADS=${VLM_THREADS:-4}
       - BATCH_SIZE=${VLM_BATCH_SIZE:-2048}
       - UBATCH_SIZE=${VLM_UBATCH_SIZE:-512}
-      # KV quantization halves the 32K-pool footprint - same trade the ai-llm
-      # block documents. The pool is a function of the ARCHITECTURE and the
+      # KV quantization halves the 32K-pool footprint. The pool is a function
+      # of the ARCHITECTURE and the
       # ctx/slot numbers above, not of the weights' size: the 4B and the 8B
       # share block_count 36 / head_count 32 (GGUF headers, ledger item 34),
       # so shipping the 8B bought no KV relief and this line's arithmetic is
@@ -363,8 +271,6 @@ services:
   # Used for performance comparison benchmarks (NEM-5441 Phase 4).
   #
   # To enable: docker compose -f docker-compose.prod.yml --profile vllm up -d
-  # Note: Cannot run simultaneously with ai-llm on same GPU - stop ai-llm first.
-  #
   # vLLM requires HuggingFace format models (not GGUF). Model options:
   #   - /models/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 (default, 4-bit quantized)
   #   - nvidia/Nemotron-Mini-4B-Instruct (smaller model for testing)
@@ -632,7 +538,6 @@ services:
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       # Memory allocation profiling (alloc_objects, alloc_space) for leak detection
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
-      - NEMOTRON_URL=http://ai-llm:8091
       # ── vlm_assess client wire (Phase 1.5, M1 review fix) ──────────────────
       # PIPELINE_MODE=vlm (above) makes the backend dial the profiled ai-vlm
       # service, but the SERVER half of that wire was all compose carried: no
@@ -675,12 +580,13 @@ services:
       # the ai-vlm block byte for byte (test_ai_vlm_compose_service pins it).
       - VLM_CTX_SIZE=${VLM_CTX_SIZE:-32768}
       - VLM_PARALLEL=${VLM_PARALLEL:-2}
-      # LLM context budget — must mirror the ai-llm service above so the backend's
-      # per-request token budget matches the slot it is actually served from.
-      # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count
-      # (--parallel).  The backend divides the two itself (config.py
-      # nemotron_context_window), so 262144 / 8 = 32768 tokens per request.
-      # Defaults here are identical to the ai-llm block's.
+      # LLM context budget for the token counter's defaults (config.py
+      # nemotron_context_window = CTX_SIZE // PARALLEL). The legacy 30B's own
+      # llama.cpp server is gone; the shipped verdict engine budgets its slots
+      # through VLM_CTX_SIZE/VLM_PARALLEL above, which mirror the ai-vlm
+      # service byte for byte (test_ai_vlm_compose_service pins that pair).
+      # These two keep the token counter's legacy-size defaults and the
+      # ai-gateway-side sizing knobs they fed; they no longer size ai-vlm.
       - CTX_SIZE=${CTX_SIZE:-262144}
       - PARALLEL=${PARALLEL:-8}
       # AI Gateway routes — all enrichment models served via Triton through ai-gateway
@@ -735,12 +641,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # Retired LLM (legacy profile only): waited on when that profile is
-      # active, skipped otherwise - the vlm path's VLM (ai-vlm) is profiled
-      # too and deliberately not a hard dependency (see the ai-vlm block).
-      ai-llm:
-        condition: service_healthy
-        required: false
       # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
       ai-gateway:
         condition: service_healthy
@@ -1509,7 +1409,7 @@ services:
 
   # Alloy for log collection and eBPF profiling (NEM-3093, NEM-3922, NEM-4499)
   # - Collects container logs from Podman and forwards to Loki
-  # - Profiles native C/C++ services (ai-llm/llama.cpp) via eBPF and sends to Pyroscope
+  # - Profiles native C/C++ services (ai-vlm/llama.cpp) via eBPF and sends to Pyroscope
   alloy:
     image: docker.io/grafana/alloy:v1.9.2
     container_name: alloy
@@ -1616,11 +1516,11 @@ volumes:
   # Triton TensorRT temporary compilation artifacts
   triton-tmp-cache:
     driver: local
-  # llama.cpp CUDA kernel cache (ai-llm service)
+  # llama.cpp CUDA kernel cache (ai-vlm service)
   # Persists llama.cpp compilation cache across redeploys
   llama-cache:
     driver: local
-  # NVIDIA CUDA JIT kernel cache for ai-llm
+  # NVIDIA CUDA JIT kernel cache for ai-vlm
   llama-nv-cache:
     driver: local
 

@@ -492,7 +492,7 @@ def make_worker(run: Run) -> Any:
 
     redis.get_from_queue.side_effect = get_from_queue
     worker._redis = redis
-    worker._analyzer = create_autospec(M.NemotronAnalyzer).return_value
+    worker._analyzer = create_autospec(M.VlmAnalyzer).return_value
     worker._queue_name = run.queue_name
     worker._poll_timeout = run.poll_timeout
     worker._stop_timeout = 30.0

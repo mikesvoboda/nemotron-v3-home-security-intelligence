@@ -1202,29 +1202,35 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
 
-# End-to-End Pipeline Tests: NemotronAnalyzer -> Redis -> EventBroadcaster -> WebSocket
+# End-to-End Pipeline Tests: VlmAnalyzer -> Redis -> EventBroadcaster -> WebSocket
 
 
 class TestEventBroadcastPipeline:
     """Tests for the end-to-end event broadcast pipeline.
 
     This test class verifies that:
-    1. NemotronAnalyzer publishes to the canonical 'security_events' Redis channel
+    1. VlmAnalyzer publishes to the canonical 'security_events' Redis channel
     2. EventBroadcaster subscribes to the same channel
     3. Messages have the correct envelope format: {"type": "event", "data": {...}}
     4. WebSocket clients receive events properly formatted
+
+    R8 S2b: the analyzer here is the shipped VlmAnalyzer - these tests pin
+    the CHANNEL and ENVELOPE the broadcaster carries, which survive the
+    legacy analyzer's retirement. The verification payload argument is
+    stood in for with None (the P0.4 key is excluded when None, so the
+    published shape is the one these assertions read).
     """
 
     @pytest.mark.asyncio
     async def test_channel_alignment(self, integration_env):
-        """Verify NemotronAnalyzer and EventBroadcaster use the same Redis channel.
+        """Verify VlmAnalyzer and EventBroadcaster use the same Redis channel.
 
         This is the critical test that ensures the channel mismatch bug is fixed.
         """
         from unittest.mock import AsyncMock, MagicMock, patch
 
         from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.services.vlm_analyzer import VlmAnalyzer
 
         # Reset global broadcaster state to ensure clean test
         reset_broadcaster_state()
@@ -1235,10 +1241,11 @@ class TestEventBroadcastPipeline:
 
         # Create both services with explicit channel name
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
-        analyzer = NemotronAnalyzer(mock_redis)
+        analyzer = VlmAnalyzer(redis_client=mock_redis)
 
         # The channel names should be the same
-        # NemotronAnalyzer now imports EventBroadcaster.CHANNEL_NAME
+        # VlmAnalyzer broadcasts THROUGH the broadcaster, so the channel
+        # is the broadcaster's by construction.
         assert broadcaster.CHANNEL_NAME == "security_events"
 
         # Test that both use the same channel
@@ -1260,7 +1267,7 @@ class TestEventBroadcastPipeline:
         # Reset mock
         mock_redis.publish.reset_mock()
 
-        # Broadcast through NemotronAnalyzer - mock get_broadcaster to use our broadcaster
+        # Broadcast through VlmAnalyzer - mock get_broadcaster to use our broadcaster
         from datetime import datetime
 
         from backend.models.event import Event
@@ -1282,7 +1289,7 @@ class TestEventBroadcastPipeline:
             "backend.services.event_broadcaster.get_broadcaster",
             AsyncMock(return_value=broadcaster),
         ):
-            await analyzer._broadcast_event(test_event)
+            await analyzer._broadcast(test_event, None)
 
         analyzer_channel = mock_redis.publish.call_args[0][0]
 
@@ -1292,7 +1299,7 @@ class TestEventBroadcastPipeline:
 
     @pytest.mark.asyncio
     async def test_message_envelope_format(self, integration_env):
-        """Verify NemotronAnalyzer sends messages in the correct envelope format.
+        """Verify VlmAnalyzer sends messages in the correct envelope format.
 
         The canonical format is: {"type": "event", "data": {...}}
         """
@@ -1301,7 +1308,7 @@ class TestEventBroadcastPipeline:
 
         from backend.models.event import Event
         from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.services.vlm_analyzer import VlmAnalyzer
 
         # Reset global broadcaster state to ensure clean test
         reset_broadcaster_state()
@@ -1311,7 +1318,7 @@ class TestEventBroadcastPipeline:
         mock_redis.publish = AsyncMock(return_value=1)
 
         # Create analyzer and a mock broadcaster
-        analyzer = NemotronAnalyzer(mock_redis)
+        analyzer = VlmAnalyzer(redis_client=mock_redis)
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
 
         # Create test event
@@ -1332,7 +1339,7 @@ class TestEventBroadcastPipeline:
             "backend.services.event_broadcaster.get_broadcaster",
             AsyncMock(return_value=broadcaster),
         ):
-            await analyzer._broadcast_event(test_event)
+            await analyzer._broadcast(test_event, None)
 
         # Verify the message format
         call_args = mock_redis.publish.call_args
@@ -1402,7 +1409,7 @@ class TestEventBroadcastPipeline:
         """Verify messages published flow through to WebSocket clients.
 
         This tests the complete pipeline:
-        1. NemotronAnalyzer publishes event to Redis
+        1. VlmAnalyzer publishes event to Redis
         2. EventBroadcaster receives event from Redis pub/sub
         3. EventBroadcaster sends to all connected WebSocket clients
         """
@@ -1412,7 +1419,7 @@ class TestEventBroadcastPipeline:
 
         from backend.models.event import Event
         from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.services.vlm_analyzer import VlmAnalyzer
 
         # Reset global broadcaster state to ensure clean test
         reset_broadcaster_state()
@@ -1455,12 +1462,12 @@ class TestEventBroadcastPipeline:
 
         # Create services with explicit channel name
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
-        analyzer = NemotronAnalyzer(mock_redis)
+        analyzer = VlmAnalyzer(redis_client=mock_redis)
 
         # Add WebSocket connection to broadcaster
         broadcaster._connections.add(mock_ws)
 
-        # Create and broadcast test event via NemotronAnalyzer
+        # Create and broadcast test event via VlmAnalyzer
         camera_id = unique_id("e2e_test_camera")
         test_event = Event(
             id=99,
@@ -1478,7 +1485,7 @@ class TestEventBroadcastPipeline:
             "backend.services.event_broadcaster.get_broadcaster",
             AsyncMock(return_value=broadcaster),
         ):
-            await analyzer._broadcast_event(test_event)
+            await analyzer._broadcast(test_event, None)
 
         # Verify message was published to correct channel
         assert len(published_messages) == 1
@@ -1531,16 +1538,16 @@ class TestWebSocketEventMessageContract:
     """Contract tests to ensure WebSocket message schema stays in sync.
 
     These tests validate that:
-    1. NemotronAnalyzer._broadcast_event() produces messages matching the schema
+    1. VlmAnalyzer._broadcast() produces messages matching the schema
     2. The schema in websocket.py matches the documented format
     3. Any drift between documentation and implementation is detected
     """
 
     @pytest.mark.asyncio
     async def test_broadcast_event_matches_schema(self, integration_env):
-        """Verify NemotronAnalyzer._broadcast_event produces messages matching WebSocketEventMessage schema.
+        """Verify VlmAnalyzer._broadcast produces messages matching WebSocketEventMessage schema.
 
-        This is the critical contract test - if _broadcast_event() changes its output format,
+        This is the critical contract test - if _broadcast() changes its output format,
         this test will fail, alerting developers to update the schema.
         """
         from datetime import datetime
@@ -1551,7 +1558,7 @@ class TestWebSocketEventMessageContract:
         from backend.api.schemas.websocket import WebSocketEventMessage
         from backend.models.event import Event
         from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.services.vlm_analyzer import VlmAnalyzer
 
         # Reset global broadcaster state to ensure clean test
         reset_broadcaster_state()
@@ -1568,7 +1575,7 @@ class TestWebSocketEventMessageContract:
         mock_redis.publish = AsyncMock(side_effect=capture_publish)
 
         # Create analyzer and broadcaster
-        analyzer = NemotronAnalyzer(mock_redis)
+        analyzer = VlmAnalyzer(redis_client=mock_redis)
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         camera_id = unique_id("contract_test_camera")
         test_event = Event(
@@ -1587,7 +1594,7 @@ class TestWebSocketEventMessageContract:
             "backend.services.event_broadcaster.get_broadcaster",
             AsyncMock(return_value=broadcaster),
         ):
-            await analyzer._broadcast_event(test_event)
+            await analyzer._broadcast(test_event, None)
 
         # Verify a message was published
         assert published_message is not None, "No message was published"
@@ -1669,7 +1676,7 @@ class TestWebSocketEventMessageContract:
         from backend.api.schemas.websocket import WebSocketEventMessage
         from backend.models.event import Event
         from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.services.vlm_analyzer import VlmAnalyzer
 
         # Reset global broadcaster state to ensure clean test
         reset_broadcaster_state()
@@ -1684,7 +1691,7 @@ class TestWebSocketEventMessageContract:
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(side_effect=capture_publish)
 
-        analyzer = NemotronAnalyzer(mock_redis)
+        analyzer = VlmAnalyzer(redis_client=mock_redis)
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         camera_id = unique_id("test_camera")
         test_event = Event(
@@ -1703,7 +1710,7 @@ class TestWebSocketEventMessageContract:
             "backend.services.event_broadcaster.get_broadcaster",
             AsyncMock(return_value=broadcaster),
         ):
-            await analyzer._broadcast_event(test_event)
+            await analyzer._broadcast(test_event, None)
 
         # Should still validate - started_at is optional in schema
         validated = WebSocketEventMessage.model_validate(published_message)

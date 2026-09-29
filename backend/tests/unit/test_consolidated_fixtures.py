@@ -185,37 +185,8 @@ class TestMockDetectorClient:
         assert result[0].object_type == "person"
 
 
-class TestMockNemotronClient:
-    """Tests for the mock_nemotron_client fixture."""
-
-    @pytest.mark.asyncio
-    async def test_analyze_default(self, mock_nemotron_client: AsyncMock) -> None:
-        """Test default analyze returns low risk assessment."""
-        result = await mock_nemotron_client.analyze([])
-
-        assert result["risk_score"] == 25
-        assert result["risk_level"] == "low"
-
-    @pytest.mark.asyncio
-    async def test_health_check_default(self, mock_nemotron_client: AsyncMock) -> None:
-        """Test default health_check returns True."""
-        result = await mock_nemotron_client.health_check()
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_can_configure_analysis(self, mock_nemotron_client: AsyncMock) -> None:
-        """Test that analysis can be configured."""
-        mock_nemotron_client.analyze.return_value = {
-            "risk_score": 85,
-            "risk_level": "high",
-            "summary": "Suspicious activity",
-            "reasoning": "High risk patterns detected",
-        }
-
-        result = await mock_nemotron_client.analyze([])
-
-        assert result["risk_score"] == 85
-        assert result["risk_level"] == "high"
+# R8 S2: conftest's mock_nemotron_client fixture went with the analyzer it
+# mocked, so the suite validating it had no subject left and went too.
 
 
 class TestMockRedisClient:

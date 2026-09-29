@@ -4,9 +4,9 @@ Tests the full pipeline flow:
 1. FileWatcher detects new image in camera folder
 2. DetectorClient sends image to YOLO26 and stores detections
 3. BatchAggregator groups detections into batches
-4. NemotronAnalyzer analyzes batch and creates Event
+4. VlmAnalyzer assesses the batch and creates Event
 
-External services (YOLO26, Nemotron) are mocked to avoid real HTTP calls.
+External services (YOLO26, the VLM) are mocked to avoid real HTTP calls.
 
 NOTE: These tests are marked as slow because they test complex multi-step
 pipelines that require database setup and multiple service interactions.
@@ -18,7 +18,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -29,10 +29,14 @@ from backend.core.database import get_session
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models import Camera, Detection, Event
 from backend.models.event_detection import EventDetection
+from backend.models.event_verification import EventVerification
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.file_watcher import FileWatcher
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.severity import get_severity_service
+from backend.services.vlm_analyzer import VlmAnalyzer
+from backend.services.vlm_client import VlmTransportError
+from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
 from backend.tests.conftest import unique_id
 
 # Mark all tests in this module as slow (get 30s timeout instead of 5s)
@@ -465,20 +469,65 @@ def create_mock_detector_response(detections: list[dict[str, Any]] | None = None
     return {"detections": detections}
 
 
-def create_mock_llm_response(
-    risk_score: int = 75, risk_level: str = "high", summary: str = "Person detected"
-) -> dict[str, Any]:
-    """Create a mock Nemotron LLM response."""
-    return {
-        "content": json.dumps(
-            {
-                "risk_score": risk_score,
-                "risk_level": risk_level,
-                "summary": summary,
-                "reasoning": "Test reasoning for detected objects",
-            }
-        )
-    }
+class ScriptedVlmClient:
+    """The e2e tier's stand-in for the VLM transport.
+
+    R8 S2b: this file used to stub the retired analyzer's `_call_llm` (a
+    free-form JSON completion). The shipped analyzer speaks a typed
+    contract instead - `prompt_text` + `assess` -> VlmVerdict + `close` -
+    so the stub stands in for THAT, and nothing more: the analyzer's own
+    §6 verdict invariants, event writes and verification row are pinned in
+    tests/integration/test_vlm_analyzer.py. Here the client only stands in
+    for the network so the FILE -> DETECT -> BATCH -> EVENT flow can run.
+
+    `verdict` may be a VlmVerdict (returned) or an Exception (raised), and
+    the last entry repeats for further calls.
+    """
+
+    def __init__(self, script: list[Any]) -> None:
+        self.script = list(script)
+        self.closed = False
+        self.assess_calls = 0
+
+    def prompt_text(self, request: VlmAssessRequest) -> str:
+        return f"ASSESS camera={request.context.camera_id} PATHS {request.image_paths}"
+
+    async def assess(self, request: VlmAssessRequest) -> VlmVerdict:
+        self.assess_calls += 1
+        outcome = self.script.pop(0) if len(self.script) > 1 else self.script[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def make_verdict(
+    *,
+    risk_score: int = 75,
+    summary: str = "Person detected",
+    reasoning: str = "Test reasoning for detected objects",
+    verdict: str = "confirmed",
+) -> VlmVerdict:
+    """A scripted VLM verdict.
+
+    NOTE: `risk_level` is deliberately NOT part of this payload. The model
+    never emits a level - SeverityService derives it from the score (spec §3
+    Derived row), which is why the analyzer's callers assert the DERIVED
+    level rather than an echoed one.
+    """
+    return VlmVerdict.model_validate(
+        {
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "summary": summary,
+            "reasoning": reasoning,
+            "description": "Scripted e2e scene.",
+            "criteria": [{"name": "person_present", "passed": True, "evidence": "full frame"}],
+            "provenance": {"engine": "llama.cpp", "model_id": "e2e-scripted-model"},
+        }
+    )
 
 
 def create_mock_httpx_response(json_data: dict[str, Any], status_code: int = 200) -> MagicMock:
@@ -560,34 +609,26 @@ async def test_full_pipeline_single_image(
     assert batch_summary["camera_id"] == camera_id
     assert batch_summary["detection_count"] == 1
 
-    # Step 3: NemotronAnalyzer analyzes the batch
+    # Step 3: VlmAnalyzer analyzes the batch
     # Pass camera_id and detection_ids directly (as queue worker does after fix)
     # This tests the fixed handoff where close_batch deletes Redis keys but
-    # the queue payload contains all needed data
-    # Disable enrichment pipeline to avoid loading YOLO models in CI
-    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
+    # the queue payload contains all needed data.
+    # The VLM transport is a scripted client (no HTTP, no model load).
+    analyzer = VlmAnalyzer(vlm_client=ScriptedVlmClient([make_verdict(risk_score=75)]))
 
-    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
-    async def mock_call_llm(*args, **kwargs):
-        return {
-            "risk_score": 75,
-            "risk_level": "high",
-            "summary": "Person detected",
-            "reasoning": "Test reasoning for detected objects",
-        }
+    event = await analyzer.analyze_batch(
+        batch_id=batch_id,
+        camera_id=camera_id,
+        detection_ids=[detection_id],
+    )
 
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
-        event = await analyzer.analyze_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=[detection_id],
-        )
-
-        assert event is not None
-        assert event.camera_id == camera_id
-        assert event.risk_score == 75
-        assert event.risk_level == "high"
-        assert event.batch_id == batch_id
+    assert event is not None
+    assert event.camera_id == camera_id
+    assert event.risk_score == 75
+    # The level is DERIVED by SeverityService from the score (75 -> high on
+    # the shipped bands), never echoed from the model.
+    assert event.risk_level == get_severity_service().risk_score_to_severity(75).value
+    assert event.batch_id == batch_id
 
     # Verify event was stored in database
     async with get_session() as session:
@@ -676,40 +717,29 @@ async def test_full_pipeline_multiple_images_same_camera(
     assert batch_summary["detection_count"] == 3
 
     # Analyze batch - pass camera_id and detection_ids directly (as queue worker does after fix)
-    # Disable enrichment pipeline to avoid loading YOLO models in CI
-    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
+    analyzer = VlmAnalyzer(vlm_client=ScriptedVlmClient([make_verdict(risk_score=65)]))
 
-    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
-    async def mock_call_llm(*args, **kwargs):
-        return {
-            "risk_score": 65,
-            "risk_level": "medium",
-            "summary": "Multiple objects detected: car",
-            "reasoning": "Test reasoning for detected objects",
-        }
+    event = await analyzer.analyze_batch(
+        batch_id=batch_id,
+        camera_id=camera_id,
+        detection_ids=detection_ids,
+    )
 
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
-        event = await analyzer.analyze_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=detection_ids,
+    assert event is not None
+    assert event.camera_id == camera_id
+    assert event.risk_score == 65
+    assert event.risk_level == get_severity_service().risk_score_to_severity(65).value
+
+    # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
+    async with get_session() as session:
+        result = await session.execute(
+            select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
         )
+        stored_detection_ids = [row[0] for row in result.fetchall()]
 
-        assert event is not None
-        assert event.camera_id == camera_id
-        assert event.risk_score == 65
-        assert event.risk_level == "medium"
-
-        # Verify detection IDs via junction table (query within session to avoid DetachedInstanceError)
-        async with get_session() as session:
-            result = await session.execute(
-                select(EventDetection.detection_id).where(EventDetection.event_id == event.id)
-            )
-            stored_detection_ids = [row[0] for row in result.fetchall()]
-
-        assert len(stored_detection_ids) == 3
-        for det_id in detection_ids:
-            assert det_id in stored_detection_ids
+    assert len(stored_detection_ids) == 3
+    for det_id in detection_ids:
+        assert det_id in stored_detection_ids
 
 
 @pytest.mark.asyncio
@@ -879,22 +909,23 @@ async def test_pipeline_low_confidence_filtering(
 
 
 @pytest.mark.asyncio
-async def test_pipeline_llm_failure_fallback(
-    legacy_wire,
+async def test_pipeline_vlm_failure_fallback(
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
 ) -> None:
-    """Test that LLM failures result in fallback risk assessment.
+    """Test that a failed VLM call still produces an event, with NULL scores.
 
     Verifies that:
-    1. Event is still created when LLM fails
-    2. Fallback risk values are used (score=50, level=medium)
+    1. Event is still created when the assess call fails
+    2. Score and level are NULL - not a fabricated 50/medium
 
-    LEGACY-wire subject (P0.3, F4): an unreachable LLM scores 50/medium only
-    behind the flag; the shipped default fails closed to NULL +
-    verification_failed. legacy_wire first: the analyzer below is built
-    with get_settings() at construction.
+    R8 S2b: this test asserted the legacy fallback (score=50, level=medium,
+    "LLM service error" in the summary) behind a now-deleted `legacy_wire`
+    pin. That default-score paper-over is explicitly NOT imported across the
+    seam (D11/S5): the shipped §6 rule is verification_failed + NULL, so the
+    honest rewrite asserts NULL. The event row still exists so the UI can
+    show "needs review".
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id
@@ -920,29 +951,35 @@ async def test_pipeline_llm_failure_fallback(
             assert len(detections) == 1
             detection_id = detections[0].id
 
-    # Analyze batch with LLM failure - pass camera_id and detection_ids directly
+    # Analyze batch with the transport failing - pass camera_id and
+    # detection_ids directly. VlmClientError is what the client's own single
+    # retry leaves behind when the call still fails.
     batch_id = unique_id("test_batch_llm_failure")
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    analyzer = VlmAnalyzer(
+        redis_client=mock_redis,
+        vlm_client=ScriptedVlmClient([VlmTransportError("VLM service unavailable")]),
+    )
 
-    with patch(
-        "backend.services.nemotron_analyzer.httpx.AsyncClient", autospec=True
-    ) as mock_client:
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(side_effect=httpx.ConnectError("LLM service unavailable"))
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+    event = await analyzer.analyze_batch(
+        batch_id=batch_id,
+        camera_id=camera_id,
+        detection_ids=[detection_id],
+    )
 
-        event = await analyzer.analyze_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=[detection_id],
+    # Event should still be created - with NULL score/level by design.
+    assert event is not None
+    assert event.risk_score is None
+    assert event.risk_level is None
+    assert "needs review" in event.summary
+
+    # And the degradation is recorded on the verification row, not hidden.
+    async with get_session() as session:
+        rows = await session.execute(
+            select(EventVerification).where(EventVerification.event_id == event.id)
         )
-
-        # Event should still be created with fallback values
-        assert event is not None
-        assert event.risk_score == 50
-        assert event.risk_level == "medium"
-        assert "LLM service error" in event.summary
+        verification = rows.scalars().first()
+        assert verification is not None
+        assert verification.verdict == "verification_failed"
 
 
 @pytest.mark.asyncio
@@ -1068,7 +1105,6 @@ async def test_batch_timeout_closes_batch(
 
 @pytest.mark.asyncio
 async def test_fast_path_high_priority_detection(
-    legacy_wire,
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: tuple[Camera, Path],
@@ -1085,12 +1121,21 @@ async def test_fast_path_high_priority_detection(
     explicitly overridden to the legacy 0.90/person values, then the fast
     path must fire.
 
-    LEGACY-wire subject (1.5, rule 5): the stub below is
-    `nemotron_analyzer.httpx.AsyncClient` and the assertion is
-    `is_fast_path=True` — a column only nemotron's fast path writes (the
-    vlm fast path routes the single detection through the batch gate,
-    which marks nothing). legacy_wire first so the aggregator's lazy
-    factory actually hands out the legacy analyzer the stub speaks to.
+    This used to be a LEGACY-wire subject (1.5, rule 5): it stubbed
+    `nemotron_analyzer.httpx.AsyncClient` and asserted `is_fast_path=True` —
+    a column only nemotron's fast path wrote.
+
+    R8 rewrote the subject (2026-09-29). The mode pin that fixture used to
+    apply is gone — PIPELINE_MODE hard-raises on the retired spelling and
+    build_pipeline_analyzer hands out VlmAnalyzer unconditionally — so the
+    analyzer is injected explicitly here instead of routed to. What survives,
+    honestly, is what actually lives in batch_aggregator: the fast-path GATE
+    (threshold + object types) and the `fast_path_<id>` batch id. The
+    `is_fast_path=True` column is NOT asserted: only nemotron's own fast path
+    wrote it, and that path retired with the mode. A shipped fast-path
+    verdict routes the single detection through the batch gate and marks
+    nothing, so this now asserts the shipped truth — the gate fired and no
+    is_fast_path event appeared.
     """
     camera, temp_camera_dir = test_camera
     camera_id = camera.id
@@ -1125,45 +1170,45 @@ async def test_fast_path_high_priority_detection(
             assert len(detections) == 1
             detection_id = detections[0].id
 
-    # Create aggregator with mocked analyzer for fast path
-    mock_llm_response = create_mock_llm_response(
-        risk_score=90, risk_level="critical", summary="High confidence person detected"
+    # The analyzer is INJECTED, not routed to. R8 removed the mode branch the
+    # aggregator's lazy builder used to consult, and _process_fast_path
+    # swallows analyzer errors — so a recording stub, asserted below, is what
+    # makes "the gate fired" mean something rather than "no exception".
+    fast_path_calls: list[tuple[str, int]] = []
+
+    class _RecordingAnalyzer:
+        async def analyze_detection_fast_path(self, camera_id: str, detection_id: int) -> None:
+            fast_path_calls.append((camera_id, detection_id))
+
+    aggregator = BatchAggregator(redis_client=mock_redis, analyzer=_RecordingAnalyzer())
+    # Ship defaults disable fast path (threshold 2.0, types []); opt the
+    # instance into the gate to exercise it (R-T9-PIPELINE-E2E).
+    aggregator._fast_path_threshold = 0.90
+    aggregator._fast_path_types = ["person"]
+    batch_id = await aggregator.add_detection(
+        camera_id=camera_id,
+        detection_id=str(detection_id),
+        _file_path=str(image_path),
+        confidence=0.95,
+        object_type="person",
     )
 
-    with patch(
-        "backend.services.nemotron_analyzer.httpx.AsyncClient", autospec=True
-    ) as mock_client:
-        mock_response = create_mock_httpx_response(mock_llm_response)
+    # Should be fast path
+    assert batch_id.startswith("fast_path_")
+    assert fast_path_calls == [(camera_id, int(detection_id))], (
+        "the gate fired but the analyzer was not handed the detection"
+    )
 
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        aggregator = BatchAggregator(redis_client=mock_redis)
-        # Ship defaults disable fast path (threshold 2.0, types []); opt the
-        # instance into the legacy gate to exercise it (R-T9-PIPELINE-E2E).
-        aggregator._fast_path_threshold = 0.90
-        aggregator._fast_path_types = ["person"]
-        batch_id = await aggregator.add_detection(
-            camera_id=camera_id,
-            detection_id=str(detection_id),
-            _file_path=str(image_path),
-            confidence=0.95,
-            object_type="person",
-        )
-
-        # Should be fast path
-        assert batch_id.startswith("fast_path_")
-
-    # Verify fast path event was created
+    # The shipped fast path marks nothing: is_fast_path was nemotron-only.
     async with get_session() as session:
         result = await session.execute(
             select(Event).where(Event.camera_id == camera_id).where(Event.is_fast_path == True)  # noqa: E712
         )
         fast_path_events = list(result.scalars().all())
-        assert len(fast_path_events) == 1
-        assert fast_path_events[0].is_fast_path is True
+        assert fast_path_events == [], (
+            "the shipped (vlm) fast path routes through the batch gate and "
+            "must not write nemotron's is_fast_path column"
+        )
 
 
 @pytest.mark.asyncio
@@ -1177,7 +1222,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     This is a critical integration test that verifies the fix for the batch handoff bug:
     - BatchAggregator.close_batch() deletes Redis keys after enqueuing
     - AnalysisQueueWorker passes camera_id and detection_ids from queue payload
-    - NemotronAnalyzer.analyze_batch() uses provided values instead of reading Redis
+    - VlmAnalyzer.analyze_batch() uses provided values instead of reading Redis
 
     Verifies that:
     1. Batch is created and detection is added
@@ -1277,33 +1322,26 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
     # This is exactly what the fixed worker does: pass camera_id and detection_ids
     # from the queue item instead of reading from Redis
-    # Disable enrichment pipeline to avoid loading YOLO models in CI
-    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
-
-    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
-    async def mock_call_llm(*args, **kwargs):
-        return {
-            "risk_score": 55,
-            "risk_level": "medium",
-            "summary": "Car detected - handoff test",
-            "reasoning": "Test reasoning for detected objects",
-        }
-
-    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm, autospec=True):
-        # Call analyze_batch with queue payload data (not from Redis)
-        event = await analyzer.analyze_batch(
-            batch_id=queue_item["batch_id"],
-            camera_id=queue_item["camera_id"],
-            detection_ids=queue_item["detection_ids"],
+    analyzer = VlmAnalyzer(
+        vlm_client=ScriptedVlmClient(
+            [make_verdict(risk_score=55, summary="Car detected - handoff test")]
         )
+    )
 
-        # Step 6: Verify event was created correctly
-        assert event is not None
-        assert event.batch_id == batch_id
-        assert event.camera_id == camera_id
-        assert event.risk_score == 55
-        assert event.risk_level == "medium"
-        assert "Car detected" in event.summary
+    # Call analyze_batch with queue payload data (not from Redis)
+    event = await analyzer.analyze_batch(
+        batch_id=queue_item["batch_id"],
+        camera_id=queue_item["camera_id"],
+        detection_ids=queue_item["detection_ids"],
+    )
+
+    # Step 6: Verify event was created correctly
+    assert event is not None
+    assert event.batch_id == batch_id
+    assert event.camera_id == camera_id
+    assert event.risk_score == 55
+    assert event.risk_level == get_severity_service().risk_score_to_severity(55).value
+    assert "Car detected" in event.summary
 
     # Step 7: Verify event is persisted in database
     async with get_session() as session:

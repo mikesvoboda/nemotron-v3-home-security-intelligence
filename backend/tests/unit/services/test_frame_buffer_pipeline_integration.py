@@ -4,11 +4,14 @@ Tests for NEM-3334: Pipeline Integration for Frame Buffering.
 
 This module tests that:
 1. DetectorClient buffers frames during detection processing
-2. The frame buffer is accessible from the enrichment pipeline
+2. The pipeline worker (and the detector it builds) share one frame buffer
 3. Frames are properly buffered with camera_id and timestamp
 
-The FrameBuffer service is used for X-CLIP temporal action recognition,
-which requires sequences of frames (typically 8) to recognize actions.
+The FrameBuffer service feeds the temporal-action path, which requires
+sequences of frames (typically 8) to recognize actions. R8 (2026-09-29)
+retired the enrichment tier, so the pins that read the buffer through
+EnrichmentPipeline went with it; the buffer-sharing behaviour is pinned
+here through the surviving consumer, DetectionQueueWorker.
 """
 
 from datetime import UTC, datetime
@@ -364,46 +367,6 @@ class TestDetectorClientFrameBufferIntegration:
         assert mock_frame_buffer.camera_count == 3
 
 
-class TestEnrichmentPipelineFrameBufferAccess:
-    """Tests for enrichment pipeline access to frame buffer."""
-
-    @pytest.mark.anyio
-    async def test_enrichment_pipeline_can_access_buffered_frames(self):
-        """EnrichmentPipeline should be able to access frames buffered by DetectorClient."""
-        from backend.services.enrichment_pipeline import EnrichmentPipeline
-        from backend.services.frame_buffer import FrameBuffer
-
-        # Create shared buffer
-        buffer = FrameBuffer(buffer_size=16, max_age_seconds=30.0)
-
-        # Simulate frames being added by detector (as would happen in real pipeline)
-        camera_id = "front_door"
-        now = datetime.now(UTC)
-        for i in range(8):
-            await buffer.add_frame(
-                camera_id,
-                f"frame_{i}".encode(),
-                now,
-            )
-
-        # Create enrichment pipeline with the same buffer
-        with (
-            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-        ):
-            pipeline = EnrichmentPipeline(frame_buffer=buffer)
-
-        # Pipeline should be able to get frame sequence
-        assert pipeline._frame_buffer is not None
-        assert pipeline._frame_buffer.has_enough_frames(camera_id, min_frames=8)
-
-        frames = pipeline._frame_buffer.get_sequence(camera_id, num_frames=8)
-        assert frames is not None
-        assert len(frames) == 8
-
-
 class TestFrameBufferSingletonIntegration:
     """Tests for singleton frame buffer integration."""
 
@@ -424,42 +387,6 @@ class TestFrameBufferSingletonIntegration:
         buffer2 = get_frame_buffer()
 
         assert buffer1 is buffer2
-
-    @pytest.mark.anyio
-    async def test_detector_and_enrichment_can_share_singleton_buffer(self):
-        """DetectorClient and EnrichmentPipeline should be able to share the singleton buffer."""
-        from backend.services.detector_client import DetectorClient
-        from backend.services.enrichment_pipeline import EnrichmentPipeline
-        from backend.services.frame_buffer import get_frame_buffer
-
-        # Get singleton buffer
-        shared_buffer = get_frame_buffer()
-
-        # Create detector with shared buffer
-        detector = DetectorClient(frame_buffer=shared_buffer)
-
-        # Create enrichment pipeline with same buffer
-        with (
-            patch("backend.services.enrichment_pipeline.get_model_manager", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_vision_extractor", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_reid_service", autospec=True),
-            patch("backend.services.enrichment_pipeline.get_scene_change_detector", autospec=True),
-        ):
-            pipeline = EnrichmentPipeline(frame_buffer=shared_buffer)
-
-        # Both should reference the same buffer
-        assert detector._frame_buffer is shared_buffer
-        assert pipeline._frame_buffer is shared_buffer
-
-        # Verify they can see each other's data
-        camera_id = "test_camera"
-        now = datetime.now(UTC)
-
-        # Simulate detector buffering a frame
-        await shared_buffer.add_frame(camera_id, b"test_frame", now)
-
-        # Pipeline should see the frame
-        assert pipeline._frame_buffer.frame_count(camera_id) == 1
 
 
 class TestDetectionQueueWorkerFrameBufferIntegration:

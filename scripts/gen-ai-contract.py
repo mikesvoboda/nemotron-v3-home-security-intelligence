@@ -10,7 +10,7 @@ Ground truth sources, in plan priority order:
      EnrichmentClient - the plan's "six clients" counting the enrichment
      heavy/light split that one class fronts via config). Client-method ->
      operation mapping lives in CLIENT_OP_MAP below, evidence-cited.
-  3. The llama.cpp / ai-llm wire shape (LLM_OPS below): the seven independent
+  3. The llama.cpp / ai-vlm wire shape (LLM_OPS below): the independent
      POST {llm_url}/completion sites, ai/nemotron/model_hf.py routes, and the
      llama.cpp-only /slots scrape. model_hf.py is NOT imported (torch/
      transformers at import time); its wire shape is transcribed with file:line
@@ -94,7 +94,7 @@ LLM_OPS: dict[str, dict[str, Any]] = {
             "title": "LlmCompletionRequest",
             "description": (
                 "Wire shape assembled independently at 7 backend sites "
-                "(nemotron_analyzer.py:465,1046,3978; summary_generator.py:440; "
+                "(nemotron_analyzer.py:465,1046,3978 - retired in R8 S2; summary_generator.py:440; "
                 "nemotron_streaming.py:99; prompt_service.py:938; "
                 "pipeline_quality_audit_service.py:391; evaluation/harness.py:549). "
                 "Consolidation is a recorded WP7.1 follow-on (decision: follow-on)."
@@ -424,27 +424,17 @@ CLIENT_OP_MAP: dict[str, str | None] = {
     "FlorenceClient.describe_regions": "florence_describe_region",
     "FlorenceClient.phrase_grounding": "florence_phrase_grounding",
     "FlorenceClient.detect_security_objects": "florence_detect_security_objects",
-    # EnrichmentClient (fronts heavy /enrichment AND light /enrich-lt per config)
-    "EnrichmentClient.close": None,
-    "EnrichmentClient.get_circuit_breaker_state": None,
-    "EnrichmentClient.get_all_circuit_breaker_states": None,
-    "EnrichmentClient.is_circuit_open": None,
-    "EnrichmentClient.reset_circuit_breaker": None,
-    "EnrichmentClient.check_health": None,
-    "EnrichmentClient.is_healthy": None,
-    "EnrichmentClient.classify_vehicle": "enrichment_vehicle_classify",
-    "EnrichmentClient.classify_pet": "enrichment_pet_classify",
-    "EnrichmentClient.classify_clothing": "enrichment_clothing_classify",
-    "EnrichmentClient.estimate_depth": "enrichment_depth_estimate",
-    "EnrichmentClient.estimate_object_distance": "object_distance",
-    "EnrichmentClient.analyze_pose": "enrichment_pose_analyze",
-    "EnrichmentClient.classify_action": "enrichment_action_classify",
-    "EnrichmentClient.detect_threats": "enrich_lt_threat_detect",
-    "EnrichmentClient.analyze_demographics": "enrichment_demographics",
-    "EnrichmentClient.compute_reid_embedding": "enrich_lt_person_reid",
-    "EnrichmentClient.enrich_detection": "enrichment_enrich",
-    "EnrichmentClient.get_model_status": "model_status",
-    "EnrichmentClient.preload_model": "model_preload",
+    # R8 S2 (2026-09-29): EnrichmentClient retired with the legacy tier.
+    # The map entries are GONE (the drift gate at :737 proves every mapped op
+    # still exists - it never proves the class still does, so entries naming a
+    # deleted client would be a registry pointing at nothing). The enrichment
+    # OPERATIONS stay: ai/gateway/adapters/enrichment*.py are deployed surface
+    # until their own provider slice, and the precedent is already in this
+    # file's history - DetectorClient.detect_objects_batch and
+    # DetectorClient.segment_image were deleted the same way (WP7.3 / A7.2):
+    # "the OPERATION stays - the gateway route is deployed surface." The ops
+    # land in the registry's third state, NOT-WIRED (client_methods==[] ->
+    # the _not_wired sentinel), which is what that state is for.
     # VlmClient (1.3: vlm_assess leaves the not-wired third state - the
     # client dials the real wire POST /v1/chat/completions; the registry
     # path stays the /vlm/ contract handle, see VLM_OPS below)

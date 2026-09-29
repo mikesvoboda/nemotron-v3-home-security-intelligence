@@ -1,4 +1,4 @@
-"""WP8.4 — drive the six real backend AI clients through the FakeProvider.
+"""WP8.4 — drive the real backend AI clients through the FakeProvider.
 
 INTEGRATED (2026-09-19): drafted under /tmp with a draft-only conftest (not
 carried over — the repo tier gets ENVIRONMENT=test from
@@ -7,13 +7,25 @@ every test, so the autouse cache-clear below is redundant but harmless).
 First in-tree pytest contact: 82 passed / 1 failed — the single failure was
 the ONE predicted-red leg (pose keypoint shape), exactly the draft's
 predicted-red list. Per the goal rule (branch stays GREEN; a RULING-blocked
-finding is pinned as a characterization, never left red) that leg now
-characterizes the shipped raise, so the module is 83/83 green in-tree.
+finding is pinned as a characterization, never left red) that leg pinned the
+shipped raise — until R8 S2 deleted its subject with the tier (below).
 Residual ``# UNVERIFIED:`` tags below mark claims the draft guessed that the
 in-tree run has since confirmed or reframed; each names its own status.
 There is **no xfail, no skip, no importorskip anywhere in this file** (goal
 rule). Never respx: every hop is ``httpx.ASGITransport`` (goal rule; the fake
 IS an app — backend/ai_contract/fake/app.py).
+
+DRIVEN HERE SINCE R8 S2 (2026-09-29): DetectorClient, FlorenceClient,
+CLIPClient, VlmClient — the four AI clients that survived the legacy-tier
+deletion. ``EnrichmentClient``, ``NemotronAnalyzer`` and
+``nemotron_streaming`` were deleted with the tier, so the legs that drove them
+went with them; where the driven BEHAVIOR survived in shipped code it was
+re-pointed rather than dropped (the ``/completion`` client-BYPASS legs now run
+against ``SummaryGenerator``, one of the three surviving sites). The
+``enrich*`` ops those clients spoke for are still IN the registry (deployed
+gateway surface) and stay under contract in the gateway-side classes below —
+they are simply no longer reachable through a backend client, which is exactly
+what ``test_conformance_ops.py``'s NOT-WIRED census now pins.
 
 Plan: docs/superpowers/plans/2026-09-19-swap-readiness-72h.md §WP8.4
 (lines 1001-1026). WP8.3 (test_conformance_geometry.py et al.) tested
@@ -31,8 +43,8 @@ SEAMS USED PER CLIENT (point a client at the fake with ZERO production change)
 =============================================================================
 Every client builds its OWN persistent ``httpx.AsyncClient`` inside
 ``__init__`` (detector_client.py:321/:325, florence_client.py:368,
-clip_client.py:152, enrichment_client.py:917/:919, nemotron_analyzer.py:404)
-against a DNS name that does not exist here — so the seam is always
+clip_client.py:152) against a DNS name that does not exist here — so the seam
+is always
 (a) get the right base_url in (constructor kwarg where one exists, else patch
 the *module-level* ``get_settings`` name the client imported — patching
 backend.core.config.get_settings would hit none of them; same trap as the
@@ -48,46 +60,40 @@ backend/tests/contracts/ai_providers/test_conformance_geometry.py:68-70) and
   ``_http_client`` (:368).
 * CLIPClient            — ctor base_url (clip_client.py:99/:111) + swap
   ``_http_client`` (:152).
-* EnrichmentClient      — ctor base_url/light_base_url (enrichment_client.py
-  :838/:855/:865) are NOT sufficient: per-model ops resolve through
-  ``_get_service_for_model`` (:928-943) → ``settings.get_enrichment_url_for_model``
-  (backend/core/config.py:1432-1453), and ``self._settings`` is captured at
-  ctor (:847). Seam: patch ``backend.services.enrichment_client.get_settings``
-  with a Settings whose enrichment_url/enrichment_light_url are fake prefixes.
-* NemotronAnalyzer      — no base_url kwarg; ``self._llm_url =
-  settings.nemotron_url`` (nemotron_analyzer.py:336). Seam: patch
-  ``backend.services.nemotron_analyzer.get_settings`` + swap pools.
+* VlmClient             — takes its transport in ``__init__`` (no pool swap);
+  dedicated leg in section 7.
 * SceneOCRService (client-BYPASS site, plan :1011) — real ctor url kwarg
-  (backend/services/scene_ocr_service.py:381) + LAZY pool (:387/:397-402):
+  (backend/services/scene_ocr_service.py:381) + LAZY pool (:412):
   pre-seed ``svc._client`` with an ASGITransport client.
-* nemotron_streaming.call_llm_streaming (client-BYPASS site, plan :1012) —
-  builds its own client INSIDE the function (nemotron_streaming.py:96,
-  ``httpx`` imported at module level :14). Seam: rebind the name ``httpx`` ON
-  THE STREAMING MODULE (monkeypatch, auto-restored) to a shim that injects the
-  transport. The real httpx module is never patched.
+* SummaryGenerator._call_nemotron (client-BYPASS family, plan :1012's
+  successor) — builds its own client INSIDE the method
+  (summary_generator.py:441, ``httpx`` imported at module level :27) and posts
+  ``{settings.ai_vlm_url}/completion`` (:443). Seam: rebind the name ``httpx``
+  ON THE SERVICE MODULE (monkeypatch, auto-restored) to a shim that injects the
+  transport. The real httpx module is never patched. The same shape is used by
+  prompt_service.py:938 and pipeline_quality_audit_service.py:390.
 
 =============================================================================
 CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 =============================================================================
-* The fake mounts EXACTLY the 37 registry paths with no prefix
-  (fake/app.py) — and the registry paths ALREADY carry the service prefixes
+* The fake mounts one route per registry op with no prefix (fake/app.py) —
+  and the registry paths ALREADY carry the service prefixes
   (/florence/extract, /clip/embed, /enrichment/vehicle-classify,
   /enrich-lt/person-reid, /models/status, /object-distance, /completion,
   /yolo26/segment). The gateway mounts its five adapter routers under THE SAME
   prefixes (ai/gateway/main.py:181-185), so one base_url works against either
   app — that is what makes every gateway-vs-fake pair below legible.
-* Service defaults (config.py:1373-1408): pose/threat/reid/pet/depth → LIGHT,
-  vehicle/clothing/action/demographics → HEAVY. So per-model client legs hit
-  /enrich-lt/* and the expected bodies are the LIGHT ops (their values DIFFER
-  from the heavy ops — both were dumped).
+* Service defaults (config.py:1642-1663): pose/threat/reid/pet/depth → LIGHT,
+  vehicle/clothing/action/demographics → HEAVY — the split that decided which
+  prefix the retired EnrichmentClient resolved per model; the settings fields
+  still drive ai/gateway routing reports (model_management.py:157-168).
 * The fake performs NO request validation (it parses the body only to echo
   model_name) and always answers 200 on registry paths → it can never 422.
   Every 422/404 pin therefore drives the real gateway adapter routers, and the
   fake side of those tests pins the 200. The asymmetry IS the finding.
 * The fake serves NO /health route (no registry op has one): every client
-  health probe 404s against the bare fake (characterized for
-  DetectorClient; for EnrichmentClient a /health shim route is added — see
-  ``_health_aware_fake``).
+  health probe 404s against the bare fake (characterized for DetectorClient,
+  FlorenceClient and CLIPClient in section 4).
 * Deterministic fake values were dumped at draft time via
   ``backend.ai_contract.fake.generate(op_id)`` (profile "gateway"); the
   literals below are those dumps. A change to the generator seed logic reddens
@@ -95,18 +101,16 @@ CONTRACT FACTS THIS FILE RELIES ON (all read from the tree at HEAD a8c25c5e)
 
 Cites relied on (re-verify any that a rebase moves):
   plan §WP8.4 :1001-1026; Tier A table :769-800
-  backend/ai_contract/operations.py (37 ops; availability flags; client_methods)
+  backend/ai_contract/operations.py (38 ops; availability flags; client_methods)
   backend/ai_contract/fake/{__init__.py,app.py,generators.py} (generate/snapshot)
   backend/services/detector_client.py:73,103,262,287,321,325,415,993,1054,1169,1187,1208-1213,1286,1301 (re-spaced -123 by the A7.2 segment_image deletion; 981/1032 died with it)
   backend/services/florence_client.py:73(BoundingBox),309,321,368,561,582,727,749-752,881,980,998,1083,1102-1104,1189,1299,1411,1432-1434,1524,1543-1563
   backend/services/clip_client.py:54,99,111,152,332,352-366,488-493,512,680,700-701,830,983,1005
-  backend/services/enrichment_client.py:838,847,855,865,917,928-943,1085-1133,1136-1149,1203,1216,1407,1613-1621,1626,1806,1945-1956,2013,2226-2241,2320,2443-2448,2620-2623,2782-2786,2944-2948,3048-3116,3161-3200,3253-3260,3285-3300
-  backend/services/nemotron_analyzer.py:336,404,1003-1065,4257,4348
-  backend/services/nemotron_streaming.py:14,83-92,96,99,104-116
-  backend/services/scene_ocr_service.py:59,367,381,387,397-402,508-571,600-700
-  backend/services/enrichment_pipeline.py:554(BoundingBox),1954-1974(DetectionInput)
+  backend/services/summary_generator.py:87,441,443-447,452 (R8 S2 re-home)
+  backend/services/prompt_service.py:681,938-947; backend/services/pipeline_quality_audit_service.py:137,390-398
+  backend/services/scene_ocr_service.py:57-66(DetectionLike),381,412,526,547-557,634,663-668
   backend/models/detection.py:29,54-67
-  backend/api/routes/model_management.py:186,486,560,639,646
+  backend/api/routes/model_management.py:152-169(get_router_urls),306-338(_fetch_router_health) (R8 S2 re-home; the :186/:486 EnrichmentClient call sites died with it — lifecycle routes are 501)
   ai/gateway/main.py:181-185
   ai/gateway/adapters/enrichment.py:292-296(BBoxRequest),360-364(EnrichRequest),902-977(enrich handler)
   ai/gateway/adapters/enrichment_light.py:43-68(ImageRequest/BBoxRequest alias+list),326(pose route)
@@ -314,22 +318,22 @@ def settings_factory():
             "yolo26_url": f"{FAKE_BASE}/yolo26",
             "florence_url": f"{FAKE_BASE}/florence",
             "clip_url": f"{FAKE_BASE}/clip",
+            # heavy/light prefixes: no backend client resolves them any more
+            # (EnrichmentClient was deleted in R8 S2), but the fields are live
+            # settings read by the gateway-routing report (model_management.py
+            # :157-168), so the fixture still pins them off-box.
             "enrichment_url": f"{FAKE_BASE}/enrichment",  # heavy
             "enrichment_light_url": f"{FAKE_BASE}/enrich-lt",  # light
-            "nemotron_url": FAKE_BASE,  # registry op is bare /completion
+            # The /completion endpoint (registry op is bare /completion):
+            # R8 S2 re-homed every consumer of the retired nemotron_url onto
+            # ai_vlm_url (summary_generator.py:87, prompt_service.py:681,
+            # pipeline_quality_audit_service.py:137, providers.py
+            # _llamacpp_callable), so this is the survivor's field.
+            "ai_vlm_url": FAKE_BASE,
             "use_ai_gateway": False,
             "ai_gateway_url": None,
             "detector_max_retries": 1,
             "enrichment_max_retries": 1,
-            "nemotron_max_retries": 1,
-            "nemotron_use_guided_json": False,  # skip the NIM guided-JSON probe
-            # P0.3: conformance pins the LEGACY wire contract (the /completion
-            # body keys and content reading). Constrained decoding would
-            # prepend the enforcement probe and add json_schema to the body -
-            # that surface is pinned in the unit tier instead
-            # (test_p03_constrained_verdict.py). The flip is exactly the R8
-            # settings change that keeps this route byte-identical.
-            "nemotron_constrained_decoding_enabled": False,
         }
         base.update(overrides)
         # _env_file=None so the sandbox .env cannot bleed prod values into
@@ -366,32 +370,6 @@ def clip_client(fake_app):
     client = CLIPClient(base_url=f"{FAKE_BASE}/clip")  # ctor seam :111
     _point_at(client, fake_app)
     yield client
-
-
-@pytest.fixture
-def enrichment_client(fake_app, monkeypatch, settings_factory):
-    _patch_settings(monkeypatch, "backend.services.enrichment_client", settings_factory())
-    from backend.services.enrichment_client import EnrichmentClient
-
-    client = EnrichmentClient()  # heavy/light from patched settings (:855/:865)
-    _point_at(client, fake_app)
-    yield client
-
-
-@pytest.fixture
-def nemotron_analyzer(fake_app, monkeypatch, settings_factory):
-    _patch_settings(monkeypatch, "backend.services.nemotron_analyzer", settings_factory())
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-    analyzer = NemotronAnalyzer(
-        redis_client=object(),  # never touched by the legs driven here
-        use_enriched_context=False,
-        use_enrichment_pipeline=False,
-        max_retries=1,
-        service_facade=MagicMock(),  # don't build the real facade at ctor
-    )
-    _point_at(analyzer, fake_app)
-    yield analyzer
 
 
 @pytest.fixture(scope="module")
@@ -463,8 +441,13 @@ async def gateway_client(gateway_app):
 # THE CLIENT PARSE SURFACE AS DATA. Values are the deterministic fake bodies
 # dumped at draft time (generate(op_id)); expected PARSED shapes come from the
 # client dataclasses (fields dumped too). "op" is the registry op the client is
-# ROUTED to under default settings — asserting store path == OPERATIONS[op].path
-# pins the settings→service routing (config.py:1373-1408) as well as the parse.
+# ROUTED to — asserting store path == OPERATIONS[op].path pins the client's URL
+# composition as well as the parse. Since R8 S2 the table holds only the
+# surviving FlorenceClient/CLIPClient rows: the EnrichmentClient block that
+# used to sit here (8 heavy/light routing rows) went with its client, and the
+# heavy/light routing it pinned is no longer a CLIENT behavior — the ops stay
+# in the registry and stay contracted gateway-side (see the tier-A gateway
+# classes below and test_conformance_ops.py's NOT-WIRED census).
 # ---------------------------------------------------------------------------
 
 _EXPECTED_CLIENT_OUTPUTS: dict[str, dict[str, Any]] = {
@@ -565,111 +548,10 @@ _EXPECTED_CLIENT_OUTPUTS: dict[str, dict[str, Any]] = {
         "value": {"tuple": (0.2454, 0.5448)},
         "op": "clip_anomaly_score",
     },
-    # ---- EnrichmentClient (routing defaults decide heavy/light per model) ----
-    "enrichment.classify_vehicle": {
-        "call": lambda c, d: c.classify_vehicle(d["image"]),
-        "value": {
-            "vehicle_type": "vehicle_type_508",
-            "display_name": "display_name_657",
-            "confidence": 0.8946,
-            "is_commercial": True,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrichment_vehicle_classify",  # heavy default (config.py:1393+)
-    },
-    "enrichment.classify_pet": {
-        "call": lambda c, d: c.classify_pet(d["image"]),
-        # LIGHT op values (pet defaults to light → /enrich-lt/pet-classify)
-        "value": {
-            "pet_type": "pet_type_878",
-            "breed": "breed_486",
-            "confidence": 0.8803,
-            "is_household_pet": False,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrich_lt_pet_classify",
-    },
-    "enrichment.classify_clothing": {
-        "call": lambda c, d: c.classify_clothing(d["image"]),
-        "value": {
-            "clothing_type": "clothing_type_487",
-            "color": "color_375",
-            "style": "style_214",
-            "confidence": 0.3179,
-            "top_category": "top_category_741",
-            "description": "description_261",
-            "is_suspicious": True,
-            "is_service_uniform": True,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrichment_clothing_classify",  # heavy default
-    },
-    "enrichment.analyze_demographics": {
-        "call": lambda c, d: c.analyze_demographics(d["image"]),
-        # .get() defaults are "unknown"/0.0 (:2782-2786) — a rename degrades
-        # SILENTLY in production; value equality is what catches it here.
-        "value": {
-            "age_range": "age_range_835",
-            "age_confidence": 0.3432,
-            "gender": "gender_967",
-            "gender_confidence": 0.7296,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrichment_demographics",  # heavy default
-    },
-    "enrichment.detect_threats": {
-        "call": lambda c, d: c.detect_threats(d["image"]),
-        # threats_detected is a LIST of dicts on the wire (:2620 default [])
-        "value": {
-            "threats_detected_len": 2,
-            "is_threat": False,
-            "max_confidence": 0.4489,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrich_lt_threat_detect",  # light default
-    },
-    "enrichment.compute_reid_embedding": {
-        "call": lambda c, d: c.compute_reid_embedding(d["image"]),
-        # CONTRACT key is ``embedding_dimension`` (fake/enrich_lt_person_reid)
-        # but the client reads ``embedding_dim`` with default len(embedding)
-        # (:2944-2948) — a rename there is MASKED because the default equals
-        # the true length; see test_reid_key_drift_masked_by_len_default.
-        "value": {"embedding_len": 512, "embedding_dim": 512, "inference_time_ms": 12.5},
-        "op": "enrich_lt_person_reid",  # light default
-    },
-    "enrichment.estimate_depth": {
-        "call": lambda c, d: c.estimate_depth(d["image"]),
-        # LIGHT default → /enrich-lt/depth-estimate (its own seeded values)
-        "value": {
-            "depth_map_base64": "depth_map_base64_290",
-            "min_depth": 0.3497,
-            "max_depth": 0.446,
-            "mean_depth": 0.128,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrich_lt_depth_estimate",
-    },
-    "enrichment.classify_action": {
-        "call": lambda c, d: c.classify_action([d["image"]]),
-        "value": {
-            "action": "action_709",
-            "confidence": 0.2032,
-            "is_suspicious": True,
-            "risk_weight": 0.5599,
-            "inference_time_ms": 12.5,
-        },
-        "op": "enrichment_action_classify",  # heavy default
-    },
-}
-
-# Methods whose fake-vs-client shape makes a GREEN happy path impossible TODAY.
-# NOT skips — each is its own explicit characterization test in section 5.
-_REDACTED_METHODS = {
-    "enrichment.analyze_pose": "pose keypoints have no name/x/y/confidence on the contract",
-    "enrichment.enrich_detection": "no /enrich response carries the keys _parse_unified_response reads",
-    "enrichment.estimate_object_distance": "client composes {light}/object-distance; registry is bare",
-    "enrichment.get_model_status": "client composes {heavy}/models/status; registry is bare",
-    "enrichment.preload_model": "client composes {heavy}/models/preload; registry is bare",
+    # The EnrichmentClient block that used to continue this table (8
+    # heavy/light routing rows) and the _REDACTED_METHODS dict below it went
+    # with the client in R8 S2 — see the module docstring; their registry
+    # residue is census-pinned in test_conformance_ops.py.
 }
 
 
@@ -702,7 +584,8 @@ def _check(name: str, got: Any, exp: Any, raw: Any) -> None:
         if "obj_rows" in exp or "count" in exp:  # row shapes -> shared helper
             _check_rows(name, got, exp, raw)
             return
-        if "len" in exp and "embedding_dim" not in exp:  # list[float] return
+        if "len" in exp:  # list[float] return (the retired reid row's
+            # ``embedding_dim`` guard went with it — ``len`` alone is exact now)
             assert isinstance(got, list) and len(got) == exp["len"], (
                 f"{name}: embedding length {len(got) if isinstance(got, list) else got} != {exp['len']}"
             )
@@ -976,14 +859,10 @@ _RENAME_CASES = [
     ("clip.batch_similarity", "similarities"),
     ("clip.anomaly_score", "anomaly_score"),
     ("clip.anomaly_score", "similarity_to_baseline"),
-    ("enrichment.classify_vehicle", "vehicle_type"),
-    ("enrichment.classify_pet", "pet_type"),
-    ("enrichment.classify_clothing", "clothing_type"),
-    ("enrichment.analyze_demographics", "age_range"),
-    ("enrichment.detect_threats", "max_confidence"),
-    ("enrichment.compute_reid_embedding", "embedding"),
-    ("enrichment.estimate_depth", "depth_map_base64"),
-    ("enrichment.classify_action", "action"),
+    # The 8 enrichment.* rows went with EnrichmentClient in R8 S2 (the
+    # fake-vs-client sensitivity they proved needs a client to be sensitive);
+    # the ops' key sets stay contract-pinned by test_schema_snapshots.py and
+    # test_conformance_ops.py on the gateway side.
 ]
 
 
@@ -1040,22 +919,20 @@ def _mutate(resp: dict[str, Any], path: str) -> dict[str, Any]:
     return out
 
 
-def test_reid_key_drift_masked_by_len_default() -> None:
-    """A rename the CURRENT client does NOT see (documented blind spot, not a
-    skip): the contract/fake declares ``embedding_dimension``
-    (enrich_lt_person_reid body) but EnrichmentClient.compute_reid_embedding
-    reads ``embedding_dim`` with default ``len(embedding)`` (:2944-2948), so
-    deleting the contract key changes nothing observable — the default
-    coincidentally equals 512. Pinned so whoever aligns the client key (or the
-    contract key) reddens this test and revisits the table row.
-    PREDICTED-GREEN."""
+def test_person_reid_contract_still_declares_embedding_dimension() -> None:
+    """Re-homed in R8 S2 from test_reid_key_drift_masked_by_len_default: the
+    blind spot that test pinned lived in EnrichmentClient.compute_reid_
+    embedding's ``embedding_dim``-with-default-len(embedding) read, and the
+    client was deleted with the tier — the client half cannot be re-pointed
+    (no survivor reads this op through a client; it is NOT-WIRED, census in
+    test_conformance_ops.py). The CONTRACT half stays pinned: the fake's body
+    carries ``embedding_dimension`` (never ``embedding_dim``), so a contract
+    rename still trips a witness here and a future client that reads the key
+    gets a red test, not a silent default. PREDICTED-GREEN."""
     raw = _fake_body("enrich_lt_person_reid")
-    assert "embedding_dimension" in raw, "contract key renamed — align client at :2947"
+    assert "embedding_dimension" in raw, "contract key renamed — revisit any re-wiring"
     assert "embedding_dim" not in raw
-    mutated = _mutate(raw, "embedding_dimension")
-    embedding = mutated.get("embedding", [])
-    # emulate the client's read: the default masks the rename
-    assert mutated.get("embedding_dim", len(embedding)) == len(embedding) == 512
+    assert len(raw["embedding"]) == 512
 
 
 # ---------------------------------------------------------------------------
@@ -1066,10 +943,15 @@ def test_reid_key_drift_masked_by_len_default() -> None:
 
 class TestTierABboxShape422:
     """Tier A row 1: heavy gateway types bbox ``dict[str,float]``
-    (ai/gateway/adapters/enrichment.py:292-296) while EnrichmentClient sends
-    ``list(bbox)`` (:1203,:1583). vehicle/clothing default to heavy
+    (ai/gateway/adapters/enrichment.py:292-296) while the legacy client sent
+    ``list(bbox)`` (EnrichmentClient.py:1203,:1583 — cites frozen; the client
+    was deleted in R8 S2). vehicle/clothing default to heavy
     (config.py:1373-1408) → the production call 422s. ASGI proof: gateway 422
-    vs fake 200; the client-side wire shape pinned from the recording."""
+    vs fake 200. The client-wire leg that completed this pair is gone with
+    its client (R8 S2); since no shipped caller speaks the list shape any
+    more, the two gateway legs stay as a deployed-surface guard — a fix that
+    widens the adapter's bbox acceptance reddens the pin and its message
+    says what to delete."""
 
     @pytest.mark.timeout(20)  # adapter import cost
     @pytest.mark.parametrize(
@@ -1098,18 +980,8 @@ class TestTierABboxShape422:
         )
         assert r.status_code != 422, r.text[:200]
 
-    @_aio
-    async def test_client_sends_a_list_on_the_wire(
-        self, enrichment_client, fake_app, pil_image, captured
-    ) -> None:
-        """The client half of the same defect, proven on the wire."""
-        _point_at(enrichment_client, fake_app, captured)
-        await enrichment_client.classify_vehicle(pil_image, bbox=(10.0, 20.0, 100.0, 200.0))
-        sent = json.loads(captured[-1]["body"])
-        assert isinstance(sent["bbox"], list), (
-            f"client now sends {type(sent['bbox'])} — Tier A row 1 may be fixed; re-verify"
-        )
-        assert OPERATIONS["enrichment_vehicle_classify"].availability["gateway"] is True
+    # test_client_sends_a_list_on_the_wire deleted with R8 S2: its subject was
+    # EnrichmentClient's wire shape, and that client is gone.
 
     @pytest.mark.timeout(20)
     def test_light_gateway_accepts_both_shapes(self) -> None:
@@ -1129,10 +1001,12 @@ class TestTierABboxShape422:
 class TestTierAMissingPaths:
     """Tier A row 2: ``models/status``, ``models/preload``, ``models/unload``
     and ``object-distance`` exist on NEITHER gateway prefix (registry says
-    gateway=False; grep over ai/gateway/adapters/ returns nothing) yet
-    EnrichmentClient.get_model_status/.preload_model and
-    backend/api/routes/model_management.py:186,:486 call them against
-    gateway-shaped base URLs."""
+    gateway=False; grep over ai/gateway/adapters/ returns nothing). The
+    backend callers that made that absence a DEFECT — EnrichmentClient
+    .get_model_status/.preload_model — were deleted in R8 S2, and
+    model_management.py's surviving router calls target ``{router}/health``
+    (a real gateway surface), so what stays here is the pure topology guard:
+    absent on the gateway adapters, served bare on the registry/fake."""
 
     @pytest.mark.timeout(20)
     @pytest.mark.parametrize(
@@ -1174,37 +1048,82 @@ class TestTierAMissingPaths:
 
     @pytest.mark.timeout(20)
     @_aio
-    async def test_client_model_status_404s_on_gateway_prefix_and_works_bare(
-        self, monkeypatch, settings_factory, fake_app
+    @pytest.mark.timeout(20)
+    @_aio
+    async def test_registry_paths_unreachable_on_gateway_but_live_on_fake(
+        self, gateway_client, fake_app
     ) -> None:
-        """End-to-end form: with a gateway-shaped enrichment base URL,
-        get_model_status() swallows the 404 into {"error": "HTTP 404",
-        "loaded_models": []} (:3259-3260) and preload_model() returns False
-        (:3292-3295) — the backend believes "no models loaded" while the
-        endpoint simply is not there. Against the base URL the registry
-        declares (bare), both succeed. PREDICTED-GREEN (characterization of a
-        live gap)."""
-        from importlib import import_module
+        """The E2E half of this row, re-homed in R8 S2 from
+        EnrichmentClient.get_model_status/.preload_model (that client drove
+        the same composition through real client code). ``{router}/models/
+        status`` is exactly the shape a settings-fed base URL composes for
+        the registry's bare ``/models/status`` op — still gateway=False
+        (the adapter routers expose /health + the registry ops; the
+        :1121 adapter /health is NOT a registry op and not a models path),
+        while the bare registry path serves 200 on the fake. The op is
+        NOT-WIRED (no backend client speaks it since the deletion), so this
+        pins the topology the moment anything re-wires it."""
+        for client_path in ("/enrichment/models/status", "/enrich-lt/models/status"):
+            r = await gateway_client.get(client_path)
+            assert r.status_code == 404, (
+                f"{client_path} returned {r.status_code} on the gateway app — "
+                "the absence moved; re-verify Tier A row 2"
+            )
+        op = OPERATIONS["model_status"]
+        r2 = await _one_shot(fake_app, op.method, op.path, **_request_kwargs("model_status"))
+        assert r2.status_code == 200, f"bare {op.path} not served: {r2.status_code}"
 
-        from backend.services.enrichment_client import EnrichmentClient
+    @pytest.mark.timeout(20)
+    @_aio
+    async def test_router_health_probe_resolves_off_settings_and_reads_a_router_health(
+        self, gateway_client, fake_app, monkeypatch, settings_factory
+    ) -> None:
+        """The surviving-backend-caller fact (re-homed in R8 S2): the legacy
+        clients died, but model_management's readiness surface still derives
+        its probe URLs from settings — get_router_urls (:152-169) reads the
+        SAME enrichment_url / enrichment_light_url fields the deleted
+        EnrichmentClient resolved, and gateway mode composes
+        ``{root}/enrichment`` + ``{root}/enrich-lt`` from ai_gateway_url.
+        Pinned: (a) that composition; (b) ``{router}/health`` IS a live
+        gateway surface on BOTH routers (adapters/enrichment.py:1121 and the
+        light adapter's twin answer {status, models} — the Tier A row 2
+        absence is about the models/status PRELOAD surface probed above, not
+        about /health) and _fetch_router_health (:306-338) reads it through
+        the same helper the readiness report uses; (c) on a non-200 the
+        helper swallows to None — probed against a fake-based router URL
+        (the fake serves NO /health, section 4) — so a missing surface reads
+        as "router unavailable", never as "route missing": the silent-degrade
+        shape this file keeps watching. gateway_client's five
+        get_triton_client patches make the adapter handlers hermetic
+        (is_model_ready → True → "healthy")."""
+        from backend.api.routes import model_management as mm
 
-        gw = FastAPI()
-        for prefix, module in GATEWAY_MOUNTS:
-            gw.include_router(import_module(module).router, prefix=prefix)
-        _patch_settings(monkeypatch, "backend.services.enrichment_client", settings_factory())
-        client = EnrichmentClient()
-        _point_at(client, gw)
-        status = await client.get_model_status()
-        assert status.get("error") == "HTTP 404", status
-        assert status.get("loaded_models") == [], status
-        assert await client.preload_model("pose") is False
-
-        bare = EnrichmentClient(base_url=FAKE_BASE, light_base_url=FAKE_BASE)
-        _point_at(bare, fake_app)
-        ok = await bare.get_model_status()
-        assert "error" not in ok, ok
-        assert ok["status"] == "healthy", ok
-        assert await bare.preload_model("pose") is True
+        _patch_settings(
+            monkeypatch,
+            "backend.api.routes.model_management",
+            settings_factory(
+                ai_gateway_url=FAKE_BASE,
+                use_ai_gateway=True,
+                enrichment_url=f"{FAKE_BASE}/enrichment",
+                enrichment_light_url=f"{FAKE_BASE}/enrich-lt",
+            ),
+        )
+        heavy, light = mm.get_router_urls()
+        assert (heavy, light) == (f"{FAKE_BASE}/enrichment", f"{FAKE_BASE}/enrich-lt"), (
+            "get_router_urls' gateway-mode composition changed — re-read "
+            "model_management.py:152-169 before trusting either probe leg"
+        )
+        for url in (heavy, light):
+            payload = await mm._fetch_router_health(gateway_client, url)
+            assert payload is not None and payload["status"] == "healthy", (url, payload)
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=fake_app), base_url=FAKE_BASE
+        ) as probe:
+            assert await mm._fetch_router_health(probe, f"{FAKE_BASE}/enrich-lt") is None, (
+                "a /health appeared for this base on the fake — either a registry "
+                "op grew one (revisit every health pin in this file) or the "
+                "helper's swallow-to-None broke"
+            )
 
 
 class TestTierAUnloadPathMismatch:
@@ -1297,217 +1216,68 @@ class TestTierACLIPDivergences:
 
 
 # ---------------------------------------------------------------------------
-# 4. is_healthy probes ONLY the heavy base URL (plan :1022-1024):
-#    enrichment_client.py:1099-1101 is the sole health URL; :1149 maps
-#    ("healthy","degraded") → True. A dead LIGHT service reads healthy.
+# 4. is_healthy/check_health characterization (plan :1022-1024's surviving
+#    half). The defect the plan pinned — "is_healthy probes ONLY the heavy
+#    base URL, a dead LIGHT service reads healthy" — was an
+#    EnrichmentClient property; the client died with R8 S2 and took the defect
+#    with it: there is no heavy/light client-side split left to probe. What
+#    survives is the surrounding fact the plan's recon depended on: the fake
+#    serves NO /health (no registry op has one), and every surviving client
+#    maps a failed health probe to "down" rather than surfacing it.
 # ---------------------------------------------------------------------------
-
-
-def _health_aware_fake() -> FastAPI:
-    """The fake + a /enrichment/health 200 route (the fake serves NO /health —
-    no registry op has one). A light URL under a non-registry prefix 404s,
-    standing in for a dead LIGHT service."""
-    app = _fake_app()
-    from fastapi.responses import JSONResponse
-
-    @app.get("/enrichment/health")
-    async def _heavy_health() -> JSONResponse:
-        return JSONResponse({"status": "healthy"})
-
-    return app
-
-
-@_aio
-async def test_dead_light_service_still_reads_healthy(monkeypatch, settings_factory) -> None:
-    """Executed proof: heavy /health says healthy, light URL pointed at a
-    prefix the fake 404s (a dead service), yet is_healthy() → True and the
-    probe store shows the ONLY health call was the heavy one. The light-model
-    call (classify_pet) fails (→ None via the client's 4xx map).
-    PREDICTED-GREEN (characterization of the defect the plan names)."""
-    from backend.services.enrichment_client import EnrichmentClient
-
-    app = _health_aware_fake()
-    store: list[dict[str, Any]] = []
-    _patch_settings(
-        monkeypatch,
-        "backend.services.enrichment_client",
-        settings_factory(enrichment_light_url=f"{FAKE_BASE}/dead"),
-    )
-    client = EnrichmentClient()
-    _point_at(client, app, store)
-
-    assert await client.is_healthy() is True, (
-        "is_healthy() no longer True from the heavy URL alone — the "
-        "dead-light-reads-healthy defect (plan :1022-1024) is FIXED"
-    )
-    pet = await client.classify_pet(Image.new("RGB", (8, 8)))
-    assert pet is None, f"a dead light service still produced {pet!r}"
-    health_calls = [c["path"] for c in store if c["path"].endswith("/health")]
-    assert health_calls == ["/enrichment/health"], (
-        f"health probes were {health_calls} — if a light /health probe was added, delete this pin"
-    )
 
 
 @_aio
 async def test_every_client_health_probe_reads_down_against_the_fake(
     fake_app, monkeypatch, settings_factory
 ) -> None:
-    """Characterization (no plan line): the fake serves NO /health (no registry
-    op has one — a rollout to a gateway that also has no per-service /health
-    would look EXACTLY like this), and every client maps a 404 health probe to
-    "down" rather than surfacing it: DetectorClient.health_check() → False
-    (:436-443 catches HTTPStatusError — the WP7.3 recon note claiming it
-    ESCAPED was checked against the source at :415-448 and corrected),
-    EnrichmentClient.check_health() → {"status": "error"} (:1117-1123) and
-    is_healthy() → False (:1149). PREDICTED-GREEN. If a future /health op
-    enters the registry, this test reddens and the health pins across the file
-    should be revisited."""
+    """Characterization (re-homed in R8 S2 from the Detector+Enrichment pair
+    to the three surviving pooled clients): the fake serves NO /health (no
+    registry op has one — a rollout to a gateway that also has no per-service
+    /health would look EXACTLY like this), and every client maps a failed
+    health probe to "down" rather than surfacing it:
+    DetectorClient.health_check() → False (detector_client.py:436-443 catches
+    HTTPStatusError — the WP7.3 recon note claiming it ESCAPED was checked
+    against the source at :415-448 and corrected), and
+    FlorenceClient.check_health() / CLIPClient.check_health() → False
+    (each posts ``{base}/health`` — a path NOT in the registry, so the bare
+    fake 404s — catches HTTPStatusError, logs, returns False;
+    florence_client.py:~490-510, clip_client.py:~270-290). The retired
+    EnrichmentClient's {"status": "error"} leg went with its client.
+    PREDICTED-GREEN. If a future /health op enters the registry, this test
+    reddens and the health pins across the file should be revisited."""
     from backend.services import detector_client as dcmod
-    from backend.services.enrichment_client import EnrichmentClient
+    from backend.services.clip_client import CLIPClient
+    from backend.services.florence_client import FlorenceClient
 
     _patch_settings(monkeypatch, "backend.services.detector_client", settings_factory())
     det = dcmod.DetectorClient(max_retries=1)
     _point_at(det, fake_app)
     assert await det.health_check() is False
 
-    enr_store: list[dict[str, Any]] = []
-    _patch_settings(monkeypatch, "backend.services.enrichment_client", settings_factory())
-    enr = EnrichmentClient()
-    _point_at(enr, fake_app, enr_store)
-    health = await enr.check_health()
-    assert health["status"] == "error", health
-    assert await enr.is_healthy() is False
-    assert all(c["path"] == "/enrichment/health" for c in enr_store) and len(enr_store) >= 1, (
-        enr_store
-    )
+    # The house _point_at swaps _http_client AND _health_http_client, so both
+    # probe pools speak to the fake; ctor base_url is the same seam the
+    # dedicated fixtures use.
+    flo = FlorenceClient(base_url=f"{FAKE_BASE}/florence")
+    _point_at(flo, fake_app)
+    assert await flo.check_health() is False
+
+    clip = CLIPClient(base_url=f"{FAKE_BASE}/clip")
+    _point_at(clip, fake_app)
+    assert await clip.check_health() is False
 
 
 # ---------------------------------------------------------------------------
-# 5. THE RED / CHARACTERIZATION LEGS the plan expects to stay red until fixed.
+# 5. THE RED / CHARACTERIZATION LEGS the plan expected to stay red until fixed.
+#    EMPTY as of R8 S2: all five legs (pose keypoint shape, /enrich parse-away,
+#    object-distance 404 path, gateway-prefix models/status, dead-light-reads-
+#    healthy) characterized ENRICHMENTCLIENT behavior, and that client was
+#    deleted with the legacy tier. Their contract-side residuals — the ops are
+#    still registry entries with gateway routes, still unreachable through any
+#    backend client — are now pinned by test_conformance_ops.py's NOT-WIRED
+#    census (SENTINELS_BY_PROVIDER), not here. The section number stays so the
+#    header cites in the rename table above keep resolving.
 # ---------------------------------------------------------------------------
-
-
-@_aio
-async def test_pose_analyze_raises_on_the_nameless_contract_shape(
-    enrichment_client, fake_app, pil_image, captured
-) -> None:
-    """CHARACTERIZATION of CURRENT shipped behavior (pinned GREEN; a future
-    pose-shape ruling changes the behavior, then this flips to red — this
-    docstring says so). The plan drafted this leg predicted-RED; under the
-    goal rule a RULING-blocked finding is pinned as a characterization of
-    what ships, never left red on the branch.
-
-    What ships: under the LIGHT default the client hits
-    /enrich-lt/pose-analyze, whose fake body carries posture+alerts and
-    keypoints of shape {alpha, bravo} (an additionalProperties bag — the
-    committed heavy snapshot
-    backend/ai_contract/schemas/enrichment_pose_analyze.response.json has NO
-    name/x/y/confidence either). EnrichmentClient.analyze_pose reads
-    kp["name"] first (:2226), the KeyError lands in the catch-all that logs
-    "Unexpected error during pose analysis" (:2331) and re-raises
-    EnrichmentUnavailableError whose message embeds the missing key repr —
-    the observed chain at first in-tree contact:
-    KeyError('name') -> EnrichmentUnavailableError("Unexpected error during
-    pose analysis: 'name'"). So the DEPLOYED contract for pose-analyze, as
-    the shipped client can actually consume it, is: nameless keypoints make
-    the op UNAVAILABLE, not degraded and not partially parsed.
-
-    RULING parked (pose keypoint shape: contract gains name/x/y/confidence,
-    or the client stops requiring them): when that lands, this test goes red
-    by construction and must be rewritten to the ruling's shape — that red
-    is the tripwire, not a defect escaping."""
-    from backend.core.exceptions import EnrichmentUnavailableError
-
-    _point_at(enrichment_client, fake_app, captured)
-    with pytest.raises(EnrichmentUnavailableError) as excinfo:
-        await enrichment_client.analyze_pose(pil_image, bbox=(0.0, 0.0, 40.0, 40.0))
-    # The KeyError's repr rides in the message: the ONLY way the client can
-    # fail on this body is the missing keypoint key — pin that it is 'name'
-    # (the first deref at :2226), so a future shape change that renames or
-    # reorders fields trips here instead of masking itself.
-    assert "'name'" in str(excinfo.value), str(excinfo.value)
-
-
-@_aio
-async def test_enrich_detection_parses_everything_away(
-    enrichment_client, fake_app, pil_image, captured
-) -> None:
-    """/enrich characterization (PREDICTED-GREEN, documents a real hole):
-    EnrichmentClient.enrich_detection posts
-    {image, detection_type, bbox{x1,y1,x2,y2}, frames, options}
-    (:3161-3174) and _parse_unified_response (:3048-3116) reads
-    models_loaded/pose/clothing/demographics/vehicle/pet/threat/reid_embedding/
-    action/depth — but NO /enrich responder emits any of those keys: the fake
-    body is {detection_type, enrichments, inference_time_ms} and the gateway's
-    EnrichmentResponse (adapters/enrichment.py:366-369) is the same shape. So
-    every SUCCESSFUL unified call parses to an all-empty result (only
-    inference_time_ms survives). If a future response starts carrying "pose",
-    this test reddens and demands real parsing. NOTE: the plan's Tier A row 3
-    claim that the gateway /enrich handler dereferences request.bbox was NOT
-    reproducible at HEAD (the handler at :902-977 never touches bbox for
-    person/vehicle) — recorded as a plan-cite correction, UNVERIFIED."""
-    from backend.services.enrichment_client import UnifiedEnrichmentResult
-
-    _point_at(enrichment_client, fake_app, captured)
-    result = await enrichment_client.enrich_detection(
-        b"fake-image-bytes", detection_type="person", bbox=(0.0, 0.0, 40.0, 40.0)
-    )
-    assert captured[-1]["path"] == "/enrichment/enrich", captured[-1]["path"]
-    sent = json.loads(captured[-1]["body"])
-    assert set(sent) == {"image", "detection_type", "bbox", "frames", "options"}, sent
-    assert isinstance(result, UnifiedEnrichmentResult)
-    for field in (
-        "pose",
-        "clothing",
-        "demographics",
-        "vehicle",
-        "pet",
-        "threat",
-        "reid_embedding",
-        "action",
-        "depth",
-    ):
-        assert getattr(result, field) is None, (
-            f"/enrich now populates {field} — update this characterization"
-        )
-    assert result.inference_time_ms == pytest.approx(12.5)
-    assert result.models_loaded is None
-
-
-@_aio
-async def test_object_distance_404s_through_the_client_paths(
-    monkeypatch, settings_factory, fake_app, pil_image
-) -> None:
-    """Client-leg of Tier A row 2's object-distance half: the client composes
-    ``{light_service}/object-distance`` (:1945-1956,:2013 — the depth model's
-    URL, i.e. /enrich-lt) and the registry op is BARE ``/object-distance`` on
-    the per-model server only → the composed path 404s and the client's 4xx
-    branch returns None, while the bare registry path answers 200
-    (estimated_distance_m 3.49). PREDICTED-GREEN. UNVERIFIED: the 404 branch's
-    exact shape (None vs raise); the composed-path assertion is the
-    load-bearing one."""
-    from backend.services.enrichment_client import EnrichmentClient
-
-    _patch_settings(monkeypatch, "backend.services.enrichment_client", settings_factory())
-    client = EnrichmentClient()
-    store: list[dict[str, Any]] = []
-    _point_at(client, fake_app, store)
-    try:
-        result = await client.estimate_object_distance(pil_image, bbox=(0.0, 0.0, 40.0, 40.0))
-    except httpx.HTTPStatusError:
-        result = None  # the raise-branch of the same defect
-    sent = [c for c in store if c["method"] == "POST"]
-    assert sent, store
-    assert sent[-1]["path"] == "/enrich-lt/object-distance", sent[-1]["path"]
-    assert result is None, f"unexpected {result!r} from a 404 path"
-    bare = await _one_shot(
-        fake_app,
-        "POST",
-        "/object-distance",
-        json={"image": "aGVsbG8=", "bbox": {"x": 1, "y": 2, "width": 3, "height": 4}},
-    )
-    assert bare.status_code == 200
-    assert bare.json()["estimated_distance_m"] == pytest.approx(3.49)
 
 
 # ---------------------------------------------------------------------------
@@ -1544,20 +1314,34 @@ class TestSceneOCRClientBypass:
     async def test_crop_bypass_offsets_crop_coords(self, fake_app) -> None:
         """The crop leg (:600-700) OFFSETS crop-local coords by the crop origin
         (:663-668) — the full-frame leg above cannot catch a dropped offset.
-        DetectionInput per enrichment_pipeline.py:1954-1974 with BoundingBox
-        from :554. class_name "person" passes the ocr-class filter (:599).
-        PREDICTED-GREEN."""
-        from backend.services.enrichment_pipeline import BoundingBox, DetectionInput
+        R8 S2 re-home: the crop path's nominal input type
+        ``enrichment_pipeline.DetectionInput`` retired with the tier; the
+        service now reads a structural ``DetectionLike`` protocol (.id /
+        .class_name / .bbox, scene_ocr_service.py:52-66) whose bbox contract
+        is ``to_int_tuple()`` — so the witnesses here are florence_client's
+        BoundingBox (:75, it carries to_int_tuple) and a local stand-in for
+        the detection row itself. class_name "person" passes the ocr-class
+        filter (:599). PREDICTED-GREEN."""
+        from dataclasses import dataclass
+
+        from backend.services.florence_client import BoundingBox
         from backend.services.scene_ocr_service import SceneOCRService
+
+        @dataclass
+        class _Det:
+            """DetectionLike witness — .id/.class_name/.bbox, nothing else."""
+
+            id: int | None
+            class_name: str
+            bbox: BoundingBox
 
         image = Image.new("RGB", (200, 200), (9, 9, 9))
         svc = SceneOCRService(florence_url=f"{FAKE_BASE}/florence", timeout=5.0)
         svc._client = httpx.AsyncClient(transport=ASGITransport(app=fake_app), base_url=FAKE_BASE)
-        det = DetectionInput(
+        det = _Det(
             class_name="person",
-            confidence=0.9,
-            bbox=BoundingBox(x1=100.0, y1=100.0, x2=150.0, y2=150.0),
             id=7,
+            bbox=BoundingBox(x1=100.0, y1=100.0, x2=150.0, y2=150.0),
         )
         out = await svc._run_crop_ocr(image, [det])
         assert set(out) == {"7"}, out
@@ -1571,27 +1355,32 @@ class TestSceneOCRClientBypass:
         assert rows[0].source == "crop" and rows[0].detection_id == "7"
 
 
-class TestNemotronStreamingBypass:
-    """nemotron_streaming.call_llm_streaming builds its own client (:96) and
-    POSTs the SSE-flagged payload to ``{analyzer._llm_url}/completion`` (:99).
-    The fake's llm_completion body is ``{"content": "the quick brown fox",
-    "tokens_predicted": 9}`` — NOT SSE — and the parser consumes only
-    ``data: ``-prefixed lines (:104-116), so the bypass yields NOTHING from a
-    non-SSE provider. Pinned: this is the class of bug WP8.4 exists to expose."""
+class TestSummaryGeneratorCompletionBypass:
+    """The /completion client-BYPASS family (plan :1012's successor — its
+    original subject nemotron_streaming was deleted in R8 S2, and the shipped
+    code this leg now drives is one of the three surviving {ai_vlm_url}/
+    completion sites). SummaryGenerator._call_nemotron builds its own client
+    INSIDE the method (summary_generator.py:441, ``httpx`` imported at module
+    level :27) and posts {settings.ai_vlm_url}/completion (:443-447) — no
+    pooled client to swap, so the seam is the module-local ``httpx`` rebind
+    (monkeypatched HERE, auto-restored) to a shim that injects the transport;
+    the real httpx module is never patched. Same shape covers
+    prompt_service.py:938 and pipeline_quality_audit_service.py:390."""
 
     @_aio
-    async def test_streaming_leg_posts_the_registry_completion_path_and_yields_nothing(
-        self, nemotron_analyzer, fake_app, monkeypatch
+    async def test_completion_leg_posts_the_registry_path_and_reads_content(
+        self, fake_app, monkeypatch, settings_factory
     ) -> None:
-        import backend.services.nemotron_streaming as streammod
-        from backend.services.nemotron_streaming import call_llm_streaming
+        from datetime import UTC, datetime
+
+        import backend.services.summary_generator as sgmod
 
         store: list[dict[str, Any]] = []
         real_client = httpx.AsyncClient
 
         def _client(*args: Any, **kwargs: Any) -> httpx.AsyncClient:
-            # nemotron_streaming.py:96 calls httpx.AsyncClient(analyzer._timeout)
-            # — positional; normalize before injecting the transport.
+            # summary_generator.py:441 calls httpx.AsyncClient(timeout=...) —
+            # keyword; normalize anyway before injecting the transport.
             kwargs = dict(kwargs)
             if args:
                 kwargs.setdefault("timeout", args[0])
@@ -1599,8 +1388,7 @@ class TestNemotronStreamingBypass:
             return real_client(**kwargs)
 
         class _HttpxShim:
-            """Module-local ``httpx`` rebind — the real httpx module is never
-            patched (monkeypatch restores the streaming module's attribute)."""
+            """Module-local ``httpx`` rebind — the real module is untouched."""
 
             AsyncClient = _client
             Timeout = httpx.Timeout
@@ -1608,113 +1396,44 @@ class TestNemotronStreamingBypass:
             TimeoutException = httpx.TimeoutException
             HTTPError = httpx.HTTPError
 
-        monkeypatch.setattr(streammod, "httpx", _HttpxShim())
+        _patch_settings(monkeypatch, "backend.services.summary_generator", settings_factory())
+        monkeypatch.setattr(sgmod, "httpx", _HttpxShim())
 
-        chunks = [
-            c
-            async for c in call_llm_streaming(
-                nemotron_analyzer,
-                camera_name="porch",
-                start_time="2026-09-19T00:00:00+00:00",
-                end_time="2026-09-19T00:01:00+00:00",
-                detections_list="a person at the door",
-            )
-        ]
-        assert store, "streaming bypass sent no request"
+        svc = sgmod.SummaryGenerator()
+        assert svc._llm_url == FAKE_BASE, (
+            "the re-home broke: _llm_url must default to settings.ai_vlm_url "
+            "(summary_generator.py:87) — the fake's /completion route hangs "
+            "off exactly that base"
+        )
+        out = await svc._call_nemotron(
+            datetime(2026, 9, 29, tzinfo=UTC),
+            datetime(2026, 9, 29, 1, tzinfo=UTC),
+            "hour",
+            [],
+        )
+        assert store, "the /completion bypass sent no request at all"
         assert store[-1]["path"] == OPERATIONS["llm_completion"].path, store[-1]["path"]
         payload = json.loads(store[-1]["body"])
-        assert payload["stream"] is True, payload
+        # The service's OWN payload contract (:429-436) + the ChatML prompt it
+        # is built from; no "stream" key — the SSE-flagged variant died with
+        # nemotron_streaming, and this site never set it.
         assert {"prompt", "temperature", "top_p", "max_tokens", "stop"} <= set(payload), payload
-        assert chunks == [], (
-            f"the streaming parser yielded {chunks!r} from a NON-SSE body — the "
-            "parser is no longer SSE-only; re-read nemotron_streaming.py:104-116"
-        )
+        assert "stream" not in payload, payload
+        assert "<|im_start|>" in payload["prompt"], "ChatML framing lost from the prompt"
+        # The fake's llm_completion body is {"content": "the quick brown fox",
+        # "tokens_predicted": 9} — the client reads ``content`` verbatim
+        # (:452), so a contract rename of that key would raise ValueError
+        # ("Empty completion from LLM") and redden this leg.
+        assert out == "the quick brown fox", out
 
 
 # ---------------------------------------------------------------------------
-# 7. NemotronAnalyzer client legs (llm_completion contract).
+# 7. VlmClient legs (llm/vlm contract) — the NemotronAnalyzer legs that used
+#    to sit in this section went with the analyzer in R8 S2; the /completion
+#    payload+content pins they carried re-homed to
+#    TestSummaryGeneratorCompletionBypass above, and the risk-JSON parse leg
+#    had no survivor (no shipped code parses that JSON any more).
 # ---------------------------------------------------------------------------
-
-
-@_aio
-async def test_nemotron_posts_the_contract_payload_and_reads_content(
-    nemotron_analyzer, fake_app, captured
-) -> None:
-    """NemotronAnalyzer._call_llm_with_version (:1003-1065) posts
-    {prompt, temperature, top_p, max_tokens, stop} to ``{llm_url}/completion``
-    (:1045-1049) and reads ``content`` (:1054) before parse (:1059→:4257) and
-    risk validation (:1062→:4348). The contract's own body has prose in
-    ``content`` ("the quick brown fox"), so the honest contract-level pins are:
-    path, payload keys, and that the client RAISES (ValueError) when there is
-    no parsable risk JSON — i.e. ``content`` is load-bearing. PREDICTED-GREEN.
-    UNVERIFIED: the exact ValueError message text; matched loosely. NOTE the
-    facade-free path: _call_llm (:3811) needs
-    get_inference_semaphore()/the service facade, so this leg drives
-    _call_llm_with_version directly, which is what _call_llm delegates to."""
-    _point_at(nemotron_analyzer, fake_app, captured)
-    with pytest.raises(ValueError):
-        await nemotron_analyzer._call_llm_with_version("a person at the door")
-    assert captured[-1]["path"] == "/completion", captured[-1]["path"]
-    sent = json.loads(captured[-1]["body"])
-    assert {"prompt", "temperature", "top_p", "max_tokens", "stop"} <= set(sent), sent
-
-
-def _risk_json() -> str:
-    return json.dumps(
-        {
-            "risk_score": 82,
-            "risk_level": "high",
-            "summary": "person testing the door handle",
-            "reasoning": "repeated loitering with deliberate interaction",
-        }
-    )
-
-
-@_aio
-async def test_nemotron_parses_a_contract_shaped_risk_json(monkeypatch, settings_factory) -> None:
-    """The positive form: with ``content`` carrying risk JSON (the fake's seeded
-    default is prose), the client's chain yields those exact values. Done by
-    wrapping ONLY /completion on the fake — zero production change.
-    PREDICTED-GREEN. UNVERIFIED: _parse_llm_response's tolerance for extra /
-    missing optional keys and whether risk validation rewrites any of the four
-    values (:4348 region) — the four-key assertion is what the prompt schema
-    promises."""
-    inner = _fake_app()
-
-    async def llm_json_app(scope, receive, send):  # ASGI callable
-        if scope["type"] != "http" or scope["path"] != "/completion":
-            await inner(scope, receive, send)
-            return
-        body = json.dumps({"content": _risk_json(), "tokens_predicted": 9}).encode()
-        await send(
-            {
-                "type": "http.response.start",
-                "status": 200,
-                "headers": [
-                    (b"content-type", b"application/json"),
-                    (b"content-length", str(len(body)).encode()),
-                ],
-            }
-        )
-        await send({"type": "http.response.body", "body": body})
-
-    _patch_settings(monkeypatch, "backend.services.nemotron_analyzer", settings_factory())
-    from backend.services.nemotron_analyzer import NemotronAnalyzer
-
-    analyzer = NemotronAnalyzer(
-        redis_client=object(),
-        use_enriched_context=False,
-        use_enrichment_pipeline=False,
-        max_retries=1,
-        service_facade=MagicMock(),
-    )
-    analyzer._http_client = httpx.AsyncClient(
-        transport=ASGITransport(app=llm_json_app), timeout=analyzer._timeout
-    )
-    risk = await analyzer._call_llm_with_version("a person at the door")
-    assert risk["risk_score"] == 82, risk
-    assert risk["risk_level"] == "high", risk
-    assert risk["summary"] == "person testing the door handle", risk
 
 
 @_aio
@@ -1856,24 +1575,11 @@ _COVERAGE = {
             "CLIPClient.similarity",
             "CLIPClient.batch_similarity",
             "CLIPClient.anomaly_score",
-            "EnrichmentClient.classify_vehicle",
-            "EnrichmentClient.classify_pet",
-            "EnrichmentClient.classify_clothing",
-            "EnrichmentClient.analyze_demographics",
-            "EnrichmentClient.detect_threats",
-            "EnrichmentClient.compute_reid_embedding",
-            "EnrichmentClient.estimate_depth",
-            "EnrichmentClient.classify_action",
         ),
         "test_client_parsed_output_matches_the_contract",
     ),
     "FlorenceClient.batch_extract": "test_florence_batch_extract_parses_per_row_fields",
     "DetectorClient.detect_objects": "test_detector_client_detect_objects_parses_the_shipped_bbox_dict",
-    "EnrichmentClient.analyze_pose": "test_pose_analyze_raises_on_the_nameless_contract_shape",
-    "EnrichmentClient.enrich_detection": "test_enrich_detection_parses_everything_away",
-    "EnrichmentClient.estimate_object_distance": "test_object_distance_404s_through_the_client_paths",
-    "EnrichmentClient.get_model_status": "TestTierAMissingPaths.test_client_model_status_404s_on_gateway_prefix_and_works_bare",
-    "EnrichmentClient.preload_model": "TestTierAMissingPaths.test_client_model_status_404s_on_gateway_prefix_and_works_bare",
     "VlmClient.assess": "test_vlm_client_assess_round_trips_the_generated_verdict",
 }
 
@@ -1881,10 +1587,11 @@ _COVERAGE = {
 def test_every_registry_declared_client_method_is_driven() -> None:
     """MEASURE hook (plan :1024): ``client_methods`` is a registry CLAIM that
     the client speaks the op; every claim must be covered here, and this
-    module may not claim methods the registry retired. 29 declared methods
-    map above (28 after DetectorClient.segment_image left the claim set with
-    its ADDENDUM 2 A7.2 deletion; VlmClient.assess joined with 1.3's
-    vlm_client)."""
+    module may not claim methods the registry retired. 16 declared methods
+    map above (the 29-row pre-R8-S2 set lost its 13 EnrichmentClient entries
+    when operations.py emptied every client_methods list that named the
+    deleted client — the ops stay contracted gateway-side, see
+    test_conformance_ops.py's NOT-WIRED census)."""
     declared = {m for op in OPERATIONS.values() for m in op.client_methods}
     missing = sorted(declared - set(_COVERAGE))
     extra = sorted(set(_COVERAGE) - declared)
@@ -1898,9 +1605,9 @@ def test_every_registry_declared_client_method_is_driven() -> None:
 # * FlorenceClient's legacy ``<region:>`` bbox prompt protocol
 #   (florence_client.py ~:600-640) — prompt-echo contract, owned by WP8.3's
 #   numeric/geometry suites; the fake echoes the snapshot, not the prompt.
-# * EnrichmentPipeline / NemotronAnalyzer full ``analyze()`` legs need DB +
-#   Redis + the real facade; the repo's own unit suites own that wiring. WP8.4's
-#   stated scope is the CLIENT layer against the fake.
+# * (R8 S2) The EnrichmentPipeline / NemotronAnalyzer full ``analyze()``
+#   scope-note retired with its subjects — both modules were deleted with the
+#   legacy tier, so there is no analyze()-with-DB+Redis leg left to defer.
 # * /v1/chat/completions (llm_chat_completion) and /slots (llm_slots): no
 #   backend client method declares them (registry client_methods is empty for
 #   those ops) — nothing in this tier to drive; the coverage guard above

@@ -200,7 +200,7 @@ def _load_env_and_fix_database_url() -> None:
 # /clip, /enrichment, /enrich-lt route prefixes on AI_GATEWAY_PORT (8090).
 _SERVICE_PORT_MAPPINGS = {
     "ai-gateway": (8090, int(os.environ.get("AI_GATEWAY_PORT", "8090"))),
-    "ai-llm": (8091, int(os.environ.get("LLM_PORT", "8091"))),
+    "ai-vlm": (8098, int(os.environ.get("AI_VLM_PORT", "8098"))),
     "backend": (8000, int(os.environ.get("API_PORT", "8000"))),
 }
 
@@ -5778,7 +5778,7 @@ async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
         },
     ]
 
-    instances = ["ai-gateway:8090", "ai-llm:8091", "ai-florence:8092", "backend:8000"]
+    instances = ["ai-gateway:8090", "ai-vlm:8098", "ai-florence:8092", "backend:8000"]
     services = ["yolo26", "nemotron", "florence", "clip", "backend"]
     cameras = ["front_door", "backyard", "garage", "driveway"]
 

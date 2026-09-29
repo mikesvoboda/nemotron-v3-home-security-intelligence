@@ -278,92 +278,45 @@ class TestContextEnricherIntegration:
             assert enricher is mock_instance
 
 
-class TestEnrichmentPipelineIntegration:
-    """Tests for EnrichmentPipeline registration and retrieval."""
+class TestAnalyzerIntegration:
+    """Tests for the per-event analyzer registration and retrieval (R8 S2).
+
+    The registry NAME "nemotron_analyzer" survives the class deletion on
+    purpose (it is the string core/dependencies and the startup gate
+    resolve — see test_r8_s2b_nemotron_deletion.py), and the class behind it
+    is VlmAnalyzer. R8 S1 dropped the context_enricher/enrichment_pipeline
+    collaborators; redis_client is the only dependency left to resolve, so
+    that is the whole of what this seam has to prove.
+    """
 
     @pytest.mark.asyncio
-    async def test_enrichment_pipeline_depends_on_redis(self) -> None:
-        """EnrichmentPipeline should be wired with RedisClient dependency."""
-        from backend.core.container import Container
-
-        container = Container()
-
-        # Mock Redis
-        mock_redis = AsyncMock()
-
-        async def redis_factory() -> AsyncMock:
-            return mock_redis
-
-        container.register_async_singleton("redis_client", redis_factory)
-
-        # Mock EnrichmentPipeline that depends on Redis
-        with patch(
-            "backend.services.enrichment_pipeline.EnrichmentPipeline", autospec=True
-        ) as MockPipeline:
-            mock_pipeline = MagicMock()
-            MockPipeline.return_value = mock_pipeline
-
-            async def pipeline_factory() -> MagicMock:
-                redis = await container.get_async("redis_client")
-                return MockPipeline(redis_client=redis)
-
-            container.register_async_singleton("enrichment_pipeline", pipeline_factory)
-
-            _pipeline = await container.get_async("enrichment_pipeline")
-            MockPipeline.assert_called_once_with(redis_client=mock_redis)
-
-
-class TestNemotronAnalyzerIntegration:
-    """Tests for NemotronAnalyzer registration and retrieval."""
-
-    @pytest.mark.asyncio
-    async def test_nemotron_analyzer_depends_on_multiple_services(self) -> None:
-        """NemotronAnalyzer should be wired with all its dependencies."""
+    async def test_analyzer_depends_on_redis(self) -> None:
+        """The analyzer is built with the RedisClient dependency resolved first."""
         from backend.core.container import Container
 
         container = Container()
 
         # Mock dependencies
         mock_redis = AsyncMock()
-        mock_enricher = MagicMock()
-        mock_pipeline = MagicMock()
 
         async def redis_factory() -> AsyncMock:
             return mock_redis
 
         container.register_async_singleton("redis_client", redis_factory)
-        container.register_singleton("context_enricher", lambda: mock_enricher)
 
-        async def pipeline_factory() -> MagicMock:
-            return mock_pipeline
-
-        container.register_async_singleton("enrichment_pipeline", pipeline_factory)
-
-        # Mock NemotronAnalyzer
-        with patch(
-            "backend.services.nemotron_analyzer.NemotronAnalyzer", autospec=True
-        ) as MockAnalyzer:
+        with patch("backend.services.vlm_analyzer.VlmAnalyzer", autospec=True) as MockAnalyzer:
             mock_analyzer = MagicMock()
             MockAnalyzer.return_value = mock_analyzer
 
             async def analyzer_factory() -> MagicMock:
                 redis = await container.get_async("redis_client")
-                enricher = container.get("context_enricher")
-                pipeline = await container.get_async("enrichment_pipeline")
-                return MockAnalyzer(
-                    redis_client=redis,
-                    context_enricher=enricher,
-                    enrichment_pipeline=pipeline,
-                )
+                return MockAnalyzer(redis_client=redis)
 
             container.register_async_singleton("nemotron_analyzer", analyzer_factory)
 
-            _analyzer = await container.get_async("nemotron_analyzer")
-            MockAnalyzer.assert_called_once_with(
-                redis_client=mock_redis,
-                context_enricher=mock_enricher,
-                enrichment_pipeline=mock_pipeline,
-            )
+            analyzer = await container.get_async("nemotron_analyzer")
+            assert analyzer is mock_analyzer
+            MockAnalyzer.assert_called_once_with(redis_client=mock_redis)
 
 
 class TestDetectorClientIntegration:

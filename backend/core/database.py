@@ -275,8 +275,9 @@ async def init_db() -> None:
     #
     # IMPORTANT: idle_in_transaction_session_timeout must be longer than the
     # maximum expected external call duration (e.g., LLM inference timeout).
-    # The default nemotron_read_timeout is 120s, so we set idle_in_transaction
-    # to 180s (3 minutes) to allow for buffering.
+    # The shipped LLM call paths budget at most ~70s (summary LLM 60s read +
+    # 10s connect; the vlm verdict path is far shorter), so we set
+    # idle_in_transaction to 180s (3 minutes) to allow for buffering.
     #
     # If transactions idle longer than this, PostgreSQL terminates the connection
     # with "FATAL: terminating connection due to idle-in-transaction timeout".

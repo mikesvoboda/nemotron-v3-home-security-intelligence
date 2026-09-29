@@ -493,7 +493,7 @@ groups:
       # Warning: Core Prometheus targets down
       # Only alerts on essential infrastructure services that should always be running:
       # - backend, prometheus, alertmanager, json-exporter, blackbox-exporter, redis
-      # Excludes optional AI services (ai-llm, ai-gateway/triton) and optional
+      # Excludes optional AI services (ai-vlm, ai-gateway/triton) and optional
       # exporters (node-exporter, cadvisor, dcgm-exporter, pyroscope)
       - alert: PrometheusTargetsUnhealthy
         expr: |
@@ -518,7 +518,7 @@ groups:
       # always be running, so this is informational only.
       - alert: PrometheusAITargetsDown
         expr: |
-          count(up{job=~"ai-llm-metrics|ai-gateway-metrics|triton-metrics"} == 0) > 0
+          count(up{job=~"ai-vlm-metrics|ai-gateway-metrics|triton-metrics"} == 0) > 0
         for: 10m
         labels:
           severity: info
@@ -1065,7 +1065,7 @@ groups:
   # =============================================================================
   # Monitor Pyroscope server health and profiling data ingestion.
   # Live profiling sources since the gateway consolidation: the backend (Python
-  # SDK, backend/core/telemetry.py init_profiling) and the ai-llm/Llama.cpp
+  # SDK, backend/core/telemetry.py init_profiling) and the ai-vlm/Llama.cpp
   # container (pyroscope.profile=true label -> Alloy eBPF profiling,
   # monitoring/alloy/config.alloy). The retired standalone AI containers
   # (ai-yolo26, ai-florence, ai-clip, ai-enrichment*) used to profile via SDK

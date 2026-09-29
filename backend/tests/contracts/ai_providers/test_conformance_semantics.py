@@ -78,11 +78,19 @@ ENRICHMENT_MODEL_SRC = REPO_ROOT / "backend" / "models" / "enrichment.py"
 POSE_EST_SRC = REPO_ROOT / "ai" / "yolo26" / "pose_estimation.py"
 PIPELINE_SRC = REPO_ROOT / "backend" / "services" / "enrichment_pipeline.py"
 ENTITY_SRC = REPO_ROOT / "backend" / "models" / "entity.py"
-VISION_EXTRACTOR_SRC = REPO_ROOT / "backend" / "services" / "vision_extractor.py"
+# vision_extractor.py retired with the enrichment tier (R8 S2); the client leg
+# of the control-token pin reads its surviving consumer instead.
+FLORENCE_CLIENT_SRC = REPO_ROOT / "backend" / "services" / "florence_client.py"
 GATEWAY_FLORENCE_SRC = REPO_ROOT / "ai" / "gateway" / "adapters" / "florence.py"
 SEVERITY_TS_SRC = REPO_ROOT / "frontend" / "src" / "utils" / "severityCalculator.ts"
 CONFIDENCE_TS_SRC = REPO_ROOT / "frontend" / "src" / "utils" / "confidence.ts"
-ANALYZER_SRC = REPO_ROOT / "backend" / "services" / "nemotron_analyzer.py"
+# nemotron_analyzer.py was deleted with the legacy LLM tier (R8 S2, 2026-09-29).
+# The S5 pins read its FROZEN copy instead: retired_providers.py carries the
+# pattern defs + both strip sites verbatim from commit 0ba90d5f (see the
+# provenance header there for why the copy exists and why not a skip/delete).
+RETIRED_ANALYZER_SRC = (
+    REPO_ROOT / "backend" / "tests" / "contracts" / "ai_providers" / "retired_providers.py"
+)
 GATEWAY_ENRICH_SRC = REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment.py"
 
 # --- registry constants (verified live 2026-09-19) --------------------------
@@ -369,12 +377,17 @@ class TestS1PoseKeypointsArePositional:
         at characterization time (source-characterization; the native pose
         server cannot boot here); the third — enrichment_transformers.py:441
         coco_keypoint_order — left with the WP3.4 A6 dead-twin deletion, and
-        this leg now locks its ABSENCE. Surviving reads:
-        ai/yolo26/pose_estimation.py:58 KEYPOINT_NAMES (+ :79 indices);
-        enrichment_pipeline.py:1472 keypoint_names
-        -> positional re-emit :1493-1501, returned :1505. Positional trust:
-        pose_estimation.py:208 `x, y, conf = keypoints[idx]` (+ :851-855
-        `name=KEYPOINT_NAMES[i]`) — name and value joined ONLY by integer i.
+        this leg now locks its ABSENCE. Surviving read:
+        ai/yolo26/pose_estimation.py:58 KEYPOINT_NAMES (+ :79 indices).
+        Positional trust: pose_estimation.py:208
+        `x, y, conf = keypoints[idx]` (+ :851-855 `name=KEYPOINT_NAMES[i]`) —
+        name and value joined ONLY by integer i.
+        (R8 S2 removed this leg's third consumer, enrichment_pipeline.py's
+        keypoint_names -> positional re-emit, with the module; the backend
+        consumer that replaced it is the VLM path, which carries FRAME refs
+        rather than re-emitting COCO triples, so there is no third literal to
+        read. Two live pins on the order remain — the table and the positional
+        read — and s1d drives the order end to end through the gateway.)
         The plan names only enrichment.py:53 for S1; these consumers are what
         hold the contract. PREDICTED-GREEN (text + AST). UNVERIFIED."""
         pose_src = POSE_EST_SRC.read_text(encoding="utf-8")
@@ -405,9 +418,6 @@ class TestS1PoseKeypointsArePositional:
             "s1c triple read belonged to the dead twin, re-home the table to "
             "a live consumer before restoring this test's third leg"
         )
-
-        pipe_src = PIPELINE_SRC.read_text(encoding="utf-8")
-        assert '"keypoints": keypoints,' in pipe_src  # positional re-emit at :1504
 
     async def test_s1d_gateway_pose_emits_names_the_db_column_strips(
         self, gateway_app, png_b64
@@ -571,15 +581,20 @@ class TestS2EmbeddingSpaceTag:
 # ---------------------------------------------------------------------------
 class TestS3FlorenceControlTokenPrompts:
     def test_s3a_control_tokens_flow_client_to_backend_verbatim(self) -> None:
-        """Source pin (plan cite vision_extractor.py:673 EXACT — CAPTION_TASK
-        = "<CAPTION>"): prompt built :1010, shipped :1013 via
-        `_florence_client.extract(image, prompt)`; gateway florence.py:55
-        default "<CAPTION>", :219 literal UTF-8 passthrough — no natural-
-        language layer anywhere. PREDICTED-GREEN (source pin).  UNVERIFIED at pytest."""
-        ve = VISION_EXTRACTOR_SRC.read_text(encoding="utf-8")
-        assert 'CAPTION_TASK = "<CAPTION>"' in ve
-        assert 'prompt = f"{task}{text_input}" if task == VQA_TASK and text_input else task' in ve
-        assert "await self._florence_client.extract(image, prompt)" in ve
+        """Source pin, BOTH ends live. Client (repointed at R8 S2): the plan
+        read this off vision_extractor.py's CAPTION_TASK literal and its
+        `_florence_client.extract(image, prompt)` call site — that module is
+        retired, so the leg now reads the SURVIVING Florence consumer,
+        FlorenceClient.extract, which is what the shipped pipeline actually
+        drives (test_client_conformance's florence.extract row). It ships the
+        task token untouched — `"prompt": prompt` in the payload, and its only
+        interpretation of the string is a Florence control-token parse
+        (`prompt.strip("<>").split(">")[0]`), never a natural-language layer.
+        Gateway: florence.py Field default "<CAPTION>" + literal UTF-8
+        passthrough to triton. PREDICTED-GREEN (source pin). UNVERIFIED at pytest."""
+        fc = FLORENCE_CLIENT_SRC.read_text(encoding="utf-8")
+        assert '"prompt": prompt,' in fc  # no template/whitespace rewriting en route
+        assert 'prompt.strip("<>").split(">")[0]' in fc  # token syntax, not prose
         gf = GATEWAY_FLORENCE_SRC.read_text(encoding="utf-8")
         assert 'prompt: str = Field(default="<CAPTION>", description="Florence-2 prompt")' in gf
         assert 'prompt_input = np.array([prompt.encode("utf-8")], dtype=object)' in gf
@@ -706,8 +721,13 @@ class TestS5ThinkTagStripping:
         to :4281): _THINK_PATTERN at :154, capture-group twin at :155.
         <reasoning>, reasoning_content and Harmony channels match NEITHER.
         PREDICTED-GREEN; fake/gateway N/A (analyzer is a consumer).
-        UNVERIFIED at pytest."""
-        src = ANALYZER_SRC.read_text(encoding="utf-8")
+        UNVERIFIED at pytest.
+
+        R8 S2 (2026-09-29): nemotron_analyzer.py was deleted with the legacy
+        tier; the pin reads its frozen verbatim copy (retired_providers.py,
+        patterns at source :164-165 - the :154/:155 cite had already drifted,
+        the copy preserves BOTH historical cites in its header)."""
+        src = RETIRED_ANALYZER_SRC.read_text(encoding="utf-8")
         assert 're.compile(r"<think>.*?</think>", re.DOTALL)' in src
         assert 're.compile(r"<think>(.*?)</think>", re.DOTALL)' in src
         assert "reasoning_content" not in src  # no OpenAI reasoning channel
@@ -720,8 +740,14 @@ class TestS5ThinkTagStripping:
         verdict); '<reasoning>CoT</reasoning>{...}' -> unchanged, foreign CoT
         INVISIBLE to the regex. _parse_risk_response (:4281+) then
         brace-scans, so the first brace inside leaked CoT BECOMES the payload
-        boundary. PREDICTED-GREEN; fake/gateway N/A. UNVERIFIED at pytest."""
-        from backend.services.nemotron_analyzer import extract_reasoning_and_response
+        boundary. PREDICTED-GREEN; fake/gateway N/A. UNVERIFIED at pytest.
+
+        R8 S2 (2026-09-29): the function now executes from the frozen copy,
+        not the deleted analyzer - byte-identical body, so the behavior claim
+        is pinned against the same code that made it true."""
+        from backend.tests.contracts.ai_providers.retired_providers import (
+            extract_reasoning_and_response,
+        )
 
         closed = '<think>Analyzing the scene...</think>{"risk_score": 25}'
         reasoning, response = extract_reasoning_and_response(closed)
@@ -739,10 +765,15 @@ class TestS5ThinkTagStripping:
     def test_s5c_second_consumer_repeats_the_same_regex(self) -> None:
         """Two strip sites, one regex object — pin so a partial fix (one site
         patched for a new tag) cannot pass unnoticed. Sources:
-        nemotron_analyzer.py:260 and :4281. PREDICTED-GREEN.  UNVERIFIED at pytest."""
+        nemotron_analyzer.py:260 and :4281. PREDICTED-GREEN.  UNVERIFIED at pytest.
+
+        R8 S2 (2026-09-29): counts against the frozen copy, whose header
+        records the sites' real positions at the deletion boundary (:270 and
+        :4664 — these cites had drifted from :260/:4281 long before the
+        delete)."""
         import re as _re
 
-        src = ANALYZER_SRC.read_text(encoding="utf-8")
+        src = RETIRED_ANALYZER_SRC.read_text(encoding="utf-8")
         hits = [m.start() for m in _re.finditer(r"_THINK_PATTERN\.sub\(", src)]
         assert len(hits) == 2, hits
 
@@ -1065,7 +1096,15 @@ class TestS9CompositeEnrich:
         demographics (gather :914-918); the docstring (:904-908) also
         advertises pose but shipped code never gathers it: the composite's
         contract is its ACTUAL fan-out (a target defined by a lying
-        docstring is the S3 disease again). PREDICTED-GREEN.  UNVERIFIED at pytest."""
+        docstring is the S3 disease again). PREDICTED-GREEN.  UNVERIFIED at pytest.
+
+        R8 S2 (2026-09-29): client_methods went NOT-WIRED ([]). The op STAYS in
+        the registry — the gateway adapter is deployed surface (s9b drives it
+        live) and the fake + per-model servers still serve the path — but the
+        backend CLIENT that called it (EnrichmentClient) was deleted with the
+        enrichment tier, so nothing in shipped backend code binds this op
+        anymore. Same not-wired shape as the WP7.3/A7.2 client deletions: the
+        surface is declared, the caller is gone."""
         op = OPERATIONS[ENRICH_OP]
         assert op.method == "POST" and op.path == "/enrichment/enrich"
         assert op.availability == {
@@ -1074,7 +1113,7 @@ class TestS9CompositeEnrich:
             "per_model_server": True,
             "fake": True,
         }
-        assert op.client_methods == ["EnrichmentClient.enrich_detection"]
+        assert op.client_methods == []
         src = GATEWAY_ENRICH_SRC.read_text(encoding="utf-8")
         assert '@router.post("/enrich", response_model=EnrichmentResponse)' in src
         # shipped person fan-out = clothing + demographics, concurrently:

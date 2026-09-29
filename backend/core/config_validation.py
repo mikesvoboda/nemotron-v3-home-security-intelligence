@@ -359,7 +359,7 @@ def validate_config(settings: Settings) -> ConfigValidationResult:
         errors,
     )
     _collect_item(
-        _validate_ai_service_url("nemotron_url", settings.nemotron_url),
+        _validate_ai_service_url("ai_vlm_url", settings.ai_vlm_url),
         items,
         warnings,
         errors,

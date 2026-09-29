@@ -41,20 +41,25 @@ class DeployConfig:
 
     @property
     def pipeline_mode(self) -> str:
-        """The per-event pipeline this deploy brings up: ``vlm`` or ``legacy``.
+        """The per-event pipeline this deploy brings up: ``vlm``, full stop.
 
         The ONE place deploy decides it. Resolved exactly as the backend
         container will see it: compose interpolates backend's
         ``PIPELINE_MODE=${PIPELINE_MODE:-vlm}`` from the env compose_run hands
         it (``.env`` over the shell), and ``Settings.pipeline_mode`` lower/strips
-        it. Unset or empty is ``vlm`` (the shipped, only supported mode);
-        anything but the two spellings raises - a typo must never silently
-        pick a pipeline (same rule as the backend validator).
+        it. Unset or empty is ``vlm``; anything else - ``legacy`` included -
+        RAISES (R8 S2: the legacy pipeline hard-raises at boot and its compose
+        services are deleted, so a deploy could no longer bring it up even if
+        the backend let it boot; the raise text must not offer a valid
+        alternative the deploy no longer has).
         """
         raw = {**os.environ, **self.env}.get("PIPELINE_MODE", "")
         mode = raw.strip().lower() or "vlm"
-        if mode not in ("vlm", "legacy"):
-            raise ValueError(f"Invalid PIPELINE_MODE '{raw}'. Must be 'vlm' or 'legacy'.")
+        if mode != "vlm":
+            raise ValueError(
+                f"Invalid PIPELINE_MODE '{raw}'. Only 'vlm' is supported "
+                "(R8 retired the legacy pipeline)."
+            )
         return mode
 
 

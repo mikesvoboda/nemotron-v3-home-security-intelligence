@@ -306,7 +306,7 @@ def test_get_circuit_breaker_summary_all_closed() -> None:
     with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
             "yolo26": {"state": "closed", "failure_count": 0},
-            "nemotron": {"state": "closed", "failure_count": 0},
+            "ai-vlm": {"state": "closed", "failure_count": 0},
             "florence": {"state": "closed", "failure_count": 0},
         }
 
@@ -324,7 +324,7 @@ def test_get_circuit_breaker_summary_with_open() -> None:
     with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
             "yolo26": {"state": "open", "failure_count": 5},
-            "nemotron": {"state": "closed", "failure_count": 0},
+            "ai-vlm": {"state": "closed", "failure_count": 0},
             "florence": {"state": "half_open", "failure_count": 2},
         }
 
@@ -335,7 +335,7 @@ def test_get_circuit_breaker_summary_with_open() -> None:
     assert result.open == 1
     assert result.half_open == 1
     assert result.breakers["yolo26"] == CircuitState.OPEN
-    assert result.breakers["nemotron"] == CircuitState.CLOSED
+    assert result.breakers["ai-vlm"] == CircuitState.CLOSED
     assert result.breakers["florence"] == CircuitState.HALF_OPEN
 
 
@@ -407,8 +407,9 @@ def test_ai_services_config_critical_services() -> None:
     critical_services = [s for s in AI_SERVICES_CONFIG if s["critical"]]
     critical_names = [s["name"] for s in critical_services]
 
-    assert "yolo26" in critical_names
-    assert "nemotron" in critical_names
+    # yolo26 is the only critical row: ai-vlm took the retired LLM's slot as a
+    # non-critical row (R8 S2), matching main.py's degradation registration.
+    assert critical_names == ["yolo26"]
 
     # Non-critical should not be marked critical
     assert "florence" not in critical_names
@@ -418,11 +419,33 @@ def test_ai_services_config_critical_services() -> None:
 
 def test_ai_services_config_all_services_present() -> None:
     """Test that all expected AI services are configured."""
-    expected_services = ["yolo26", "nemotron", "florence", "clip", "enrichment"]
+    expected_services = ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
     actual_services = [s["name"] for s in AI_SERVICES_CONFIG]
 
     for service in expected_services:
         assert service in actual_services, f"Missing service: {service}"
+    # The retired LLM is gone from the table, and every row reads a setting that
+    # still exists (S2 deleted nemotron_url).
+    assert "nemotron" not in actual_services
+    url_attrs = {s["url_attr"] for s in AI_SERVICES_CONFIG}
+    assert "nemotron_url" not in url_attrs
+    assert url_attrs == {"yolo26_url", "ai_vlm_url", "florence_url", "clip_url", "enrichment_url"}
+
+
+def test_ai_services_config_matches_the_ai_services_health_table() -> None:
+    """The two shipped copies of the table must not drift.
+
+    system.py keeps its OWN list (it says so) and health_ai_services.py keeps
+    the other; R8 S2 edited the ai-vlm row in BOTH, and S2 deleted the
+    swap/filter helper that used to keep them honest at read time. This is the
+    remaining guard: same rows, same order, same criticality, or the two health
+    surfaces disagree about which engine is up.
+    """
+    from backend.api.routes.health_ai_services import (
+        AI_SERVICES_CONFIG as AI_SERVICES_HEALTH_CONFIG,
+    )
+
+    assert AI_SERVICES_CONFIG == AI_SERVICES_HEALTH_CONFIG
 
 
 # =============================================================================
@@ -517,36 +540,40 @@ async def test_check_ai_service_health_no_url_payload_contract() -> None:
 
 
 # =============================================================================
-# PIPELINE_MODE: the verdict-engine row follows the mode
+# The retired LLM row: the full-health table drops it (R8 — one mode)
 # =============================================================================
 
 
-class TestFullHealthByPipelineMode:
+class TestFullHealthRetiredLlmRow:
     """GET /api/system/health/full must not call a healthy vlm deployment down.
 
-    Its table marks nemotron CRITICAL, so in PIPELINE_MODE=vlm - legacy LLM
-    retired (spec rev 5), connection-refused on the A5500 box - the endpoint
-    answered 503 "Critical services unhealthy: nemotron". In vlm mode the
-    nemotron row is replaced by ai-vlm (non-critical: down = DEGRADED); legacy
-    (unsupported until R8) keeps today's table and answer.
+    The pre-R8 table marked the Nemotron row CRITICAL, so on a deployment where
+    the legacy LLM is retired (spec rev 5) and refuses connections, the endpoint
+    answered 503 "Critical services unhealthy: nemotron". That row is now ai-vlm
+    (settings.ai_vlm_url, non-critical: down = DEGRADED), and R8 S2 deleted
+    ``Settings.nemotron_url`` itself — there is no setting left for a retired
+    engine to be derived from. The address below is a literal, not a setting; the
+    surviving pin is that no request is ever sent to it and no AI service is ever
+    named for it.
     """
 
     URLS: ClassVar[dict[str, str]] = {
         "yolo26_url": "http://ai-gateway:8090/yolo26",
-        "nemotron_url": "http://ai-llm:8091",
         "ai_vlm_url": "http://ai-vlm:8098",
         "florence_url": "http://florence:8092",
         "clip_url": "http://clip:8093",
         "enrichment_url": "http://enrichment:8094",
     }
+    RETIRED_LLM_URL: ClassVar[str] = "http://ai-llm:8091"
 
-    async def _full_health(self, mode: str, down: set[str]):
+    async def _full_health(self, down: set[str]):
         """Call get_full_health with db/redis healthy; every AI service answers
         /health 200 except the url attrs in ``down`` (connection refused).
         Returns (result, http_status, probed_urls)."""
         from starlette.responses import Response
 
-        settings = Settings(_env_file=None, pipeline_mode=mode, **self.URLS)
+        # No pipeline_mode kwarg: the default IS the shipped mode.
+        settings = Settings(_env_file=None, **self.URLS)
         refused = {self.URLS[attr] for attr in down}
         probed: list[str] = []
 
@@ -578,9 +605,10 @@ class TestFullHealthByPipelineMode:
         return result, response.status_code, probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_retired_nemotron_is_not_a_critical_outage(self) -> None:
-        """The incident: nemotron refuses, everything the vlm pipeline uses is up."""
-        result, http_status, probed = await self._full_health("vlm", down={"nemotron_url"})
+    async def test_retired_llm_is_never_probed_or_reported(self) -> None:
+        """The incident, in its surviving form: a fully healthy shipped pipeline
+        reports HEALTHY, and the retired engine is neither probed nor named."""
+        result, http_status, probed = await self._full_health(down=set())
 
         assert result.status == ServiceHealthState.HEALTHY, result.message
         assert http_status == 200
@@ -588,30 +616,13 @@ class TestFullHealthByPipelineMode:
         assert names == ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
         vlm = next(s for s in result.ai_services if s.name == "ai-vlm")
         assert vlm.url == self.URLS["ai_vlm_url"]
-        assert not [u for u in probed if u.startswith(self.URLS["nemotron_url"])], probed
+        assert not [u for u in probed if u.startswith(self.RETIRED_LLM_URL)], probed
 
     @pytest.mark.asyncio
-    async def test_vlm_mode_ai_vlm_down_is_degraded(self) -> None:
-        result, http_status, _ = await self._full_health("vlm", down={"ai_vlm_url"})
+    async def test_ai_vlm_down_is_degraded(self) -> None:
+        result, http_status, _ = await self._full_health(down={"ai_vlm_url"})
 
         assert result.status == ServiceHealthState.DEGRADED
         assert result.ready is True
         assert result.message == "Degraded: ai-vlm unavailable"
         assert http_status == 200
-
-    @pytest.mark.asyncio
-    async def test_legacy_mode_nemotron_down_is_still_critical(self) -> None:
-        """Pin of today's legacy answer."""
-        result, http_status, probed = await self._full_health("legacy", down={"nemotron_url"})
-
-        assert result.status == ServiceHealthState.UNHEALTHY
-        assert result.message == "Critical services unhealthy: nemotron"
-        assert http_status == 503
-        assert [s.name for s in result.ai_services] == [
-            "yolo26",
-            "nemotron",
-            "florence",
-            "clip",
-            "enrichment",
-        ]
-        assert not [u for u in probed if u.startswith(self.URLS["ai_vlm_url"])], probed

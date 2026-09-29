@@ -24,7 +24,7 @@
 #   for use in .env to enable expert offloading via --override-tensor.
 #
 # Prerequisites:
-#   - ai-llm container must be running (or use --local with a llama-server binary)
+#   - ai-vlm container must be running (or use --local with a llama-server binary)
 #   - Model GGUF file mounted at /models/ inside the container
 
 set -euo pipefail
@@ -40,7 +40,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default settings
-CONTAINER_NAME="ai-llm"
+CONTAINER_NAME="ai-vlm"
 MODEL_PATH="/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf"
 SHOW_ALL=false
 USE_LOCAL=false
@@ -59,7 +59,7 @@ usage() {
     echo "  -h, --help             Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                                          # Inspect via ai-llm container"
+    echo "  $0                                          # Inspect via ai-vlm container"
     echo "  $0 --all                                    # Show all tensors"
     echo "  $0 --local /usr/local/bin/llama-server      # Use local binary"
     echo "  $0 --model /models/custom-model.gguf        # Custom model path"
@@ -122,8 +122,8 @@ else
         FOUND_CONTAINER=$(podman ps --format '{{.Names}}' 2>/dev/null | grep "${CONTAINER_NAME}" | head -1) || true
         if [ -z "$FOUND_CONTAINER" ]; then
             echo -e "${RED}Error: Container '${CONTAINER_NAME}' is not running.${NC}" >&2
-            echo -e "${YELLOW}Hint: Start the ai-llm container first:${NC}" >&2
-            echo -e "${YELLOW}  podman compose -f docker-compose.prod.yml up -d ai-llm${NC}" >&2
+            echo -e "${YELLOW}Hint: Start the ai-vlm container first:${NC}" >&2
+            echo -e "${YELLOW}  podman compose -f docker-compose.prod.yml --profile vlm up -d ai-vlm${NC}" >&2
             echo -e ""
             echo -e "${YELLOW}Or use --local to run with a local llama-server binary.${NC}" >&2
             exit 1

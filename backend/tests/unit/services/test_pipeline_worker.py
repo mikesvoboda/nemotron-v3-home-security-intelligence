@@ -12,7 +12,7 @@ The pipeline worker is not a single file but rather an orchestration of:
 - FileWatcher (produces to detection_queue)
 - DetectorClient (consumes from detection_queue, processes detections)
 - BatchAggregator (groups detections, pushes to analysis_queue)
-- NemotronAnalyzer (consumes from analysis_queue)
+- VlmAnalyzer (consumes from analysis_queue)
 - ServiceHealthMonitor (reports health status)
 
 Run with:
@@ -33,8 +33,8 @@ fakeredis = pytest.importorskip("fakeredis")
 from backend.core.redis import QueueAddResult, RedisClient  # noqa: E402
 from backend.services.batch_aggregator import BatchAggregator  # noqa: E402
 from backend.services.health_monitor import ServiceHealthMonitor  # noqa: E402
-from backend.services.nemotron_analyzer import NemotronAnalyzer  # noqa: E402
 from backend.services.service_managers import ServiceConfig, ShellServiceManager  # noqa: E402
+from backend.services.vlm_analyzer import VlmAnalyzer  # noqa: E402
 
 # =============================================================================
 # Fixtures
@@ -130,12 +130,12 @@ def mock_detector():
 
 @pytest.fixture
 def mock_analyzer(mock_redis_client):
-    """Create a mock NemotronAnalyzer.
+    """Create a mock VlmAnalyzer.
 
     Returns:
-        AsyncMock: Mocked NemotronAnalyzer
+        AsyncMock: Mocked VlmAnalyzer
     """
-    analyzer = AsyncMock(spec=NemotronAnalyzer)
+    analyzer = AsyncMock(spec=VlmAnalyzer)
     analyzer.analyze_batch = AsyncMock(return_value=None)
     analyzer.analyze_detection_fast_path = AsyncMock(return_value=None)
     analyzer.health_check = AsyncMock(return_value=True)
@@ -605,33 +605,6 @@ class TestErrorHandling:
             await mock_detector.detect_objects("/path/to/image.jpg", "camera1", None)
         except Exception as e:
             assert "YOLO26 service unavailable" in str(e)
-
-    @pytest.mark.asyncio
-    async def test_nemotron_fallback_risk_data_on_error(self, mock_redis_client):
-        """Test NemotronAnalyzer uses fallback risk data on LLM error."""
-        # Setup: Create analyzer with mock redis
-        batch_id = "test_batch"
-        camera_id = "test_cam"
-
-        async def mock_get(key):
-            if key == f"batch:{batch_id}:camera_id":
-                return camera_id
-            elif key == f"batch:{batch_id}:detections":
-                return json.dumps(["det_1"])
-            return None
-
-        mock_redis_client.get = AsyncMock(side_effect=mock_get)
-
-        # The actual analyzer would fall back to default risk score (50, medium)
-        # when LLM is unavailable - this is the expected behavior
-        fallback_event = {
-            "risk_score": 50,
-            "risk_level": "medium",
-            "summary": "Analysis unavailable - LLM service error",
-        }
-
-        assert fallback_event["risk_score"] == 50
-        assert fallback_event["risk_level"] == "medium"
 
     @pytest.mark.asyncio
     async def test_batch_aggregator_handles_redis_error_gracefully(

@@ -49,7 +49,10 @@ from backend.ai_contract.provider import (
 _CLIENT_MODULES = {
     "DetectorClient": "backend.services.detector_client",
     "CLIPClient": "backend.services.clip_client",
-    "EnrichmentClient": "backend.services.enrichment_client",
+    # R8 S2 (2026-09-29): EnrichmentClient retired with the legacy tier.
+    # Its operations stay in the registry (deployed gateway surface until
+    # their provider slice) and resolve through the NOT-WIRED sentinel;
+    # a module entry for a deleted class would be a pointer at nothing.
     "FlorenceClient": "backend.services.florence_client",
     "VlmClient": "backend.services.vlm_client",
 }
@@ -120,8 +123,11 @@ def _llamacpp_required() -> set[str]:
 
 
 def _llamacpp_callable(op_id: str) -> Any:
-    """Payload passthrough POST to settings.nemotron_url (the llama.cpp
-    serve endpoint; NemotronAnalyzer's own URL for the same app). No bound
+    """Payload passthrough POST to settings.ai_vlm_url (R8 S2 re-home: the
+    ai-llm container is deleted; ai-vlm is the deployed llama.cpp server and
+    speaks the same /completion contract). This provider's own retirement is
+    S3's one-provider-per-slice decision - the callable just must not name a
+    setting that no longer exists. No bound
     client_methods: the analyzer's payloads are prompt-shaped and its
     public surface is risk analysis, not raw completion - so completion
     conformance is dispatch, not a client method. Live path; the suite's
@@ -134,10 +140,10 @@ def _llamacpp_callable(op_id: str) -> Any:
 
         path = OPERATIONS[op_id].path
         timeout = httpx.Timeout(
-            connect=get_settings().ai_connect_timeout, read=get_settings().nemotron_read_timeout
+            connect=get_settings().ai_connect_timeout, read=get_settings().ai_vlm_read_timeout
         )
         async with httpx.AsyncClient(timeout=timeout) as client:
-            r = await client.post(f"{get_settings().nemotron_url.rstrip('/')}{path}", json=payload)
+            r = await client.post(f"{get_settings().ai_vlm_url.rstrip('/')}{path}", json=payload)
             r.raise_for_status()
             return r.json()
 
