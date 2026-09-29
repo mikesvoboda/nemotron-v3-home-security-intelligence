@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -34,9 +34,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.time_utils import utc_now
 
 from .camera import Base
-
-if TYPE_CHECKING:
-    from backend.services.smoke_fire_loader import SmokeFireDetection
 
 
 class SmokeFireType(StrEnum):
@@ -196,50 +193,3 @@ class SmokeFireResult(Base):
             ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
-
-    @classmethod
-    def from_detection(
-        cls,
-        detection: SmokeFireDetection,
-        detection_id: int,
-        camera_id: str | None = None,
-        zone_id: int | None = None,
-        consecutive_count: int = 1,
-        detection_timestamp: datetime | None = None,
-    ) -> SmokeFireResult:
-        """Create a SmokeFireResult from a SmokeFireDetection dataclass.
-
-        Args:
-            detection: SmokeFireDetection dataclass instance
-            detection_id: Database detection ID to link to
-            camera_id: Camera identifier
-            zone_id: Optional zone identifier
-            consecutive_count: Number of consecutive detections
-            detection_timestamp: When the detection occurred
-
-        Returns:
-            New SmokeFireResult instance
-        """
-        # Extract bbox coordinates
-        bbox = detection.bbox
-        bbox_x1 = float(bbox[0]) if bbox else None
-        bbox_y1 = float(bbox[1]) if bbox else None
-        bbox_x2 = float(bbox[2]) if bbox else None
-        bbox_y2 = float(bbox[3]) if bbox else None
-
-        # Map detection_type string to enum
-        detection_type_enum = SmokeFireType(detection.detection_type)
-
-        return cls(
-            detection_id=detection_id,
-            camera_id=camera_id,
-            zone_id=zone_id,
-            detection_type=detection_type_enum,
-            confidence=detection.confidence,
-            consecutive_count=consecutive_count,
-            bbox_x1=bbox_x1,
-            bbox_y1=bbox_y1,
-            bbox_x2=bbox_x2,
-            bbox_y2=bbox_y2,
-            detection_timestamp=detection_timestamp or utc_now(),
-        )

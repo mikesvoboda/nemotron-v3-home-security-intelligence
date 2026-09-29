@@ -23,7 +23,6 @@ from backend.tests.mock_utils import (
     create_mock_db_session,
     create_mock_detector_client,
     create_mock_http_client,
-    create_mock_nemotron_client,
     create_mock_query_result,
     create_mock_redis,
     create_mock_redis_pubsub,
@@ -301,26 +300,9 @@ class TestCreateMockDetectorClient:
         assert client.detect.return_value == detections
 
 
-class TestCreateMockNemotronClient:
-    """Tests for create_mock_nemotron_client factory."""
-
-    def test_default_client(self) -> None:
-        """Test default Nemotron client."""
-        client = create_mock_nemotron_client()
-
-        assert client.check_health.return_value == {"status": "healthy"}
-
-    def test_analyze_response(self) -> None:
-        """Test analyze response configuration."""
-        analysis = {
-            "risk_score": 75,
-            "risk_level": "high",
-            "summary": "Person detected at entry point",
-            "reasoning": "Suspicious activity",
-        }
-        client = create_mock_nemotron_client(analyze_response=analysis)
-
-        assert client.analyze.return_value == analysis
+# R8 S2: create_mock_nemotron_client left mock_utils.py with the analyzer it
+# stood in for, so the suite over it went too. The detector-client factory
+# above is the remaining AI-service mock.
 
 
 # =============================================================================

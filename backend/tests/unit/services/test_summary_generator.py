@@ -138,7 +138,7 @@ class TestHourlySummaryGeneration:
         mock_summary: MagicMock,
     ) -> None:
         """Test generating hourly summary with high/critical events."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -185,7 +185,7 @@ class TestHourlySummaryGeneration:
         mock_summary: MagicMock,
     ) -> None:
         """Test generating hourly summary with no high/critical events (all clear)."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -236,7 +236,7 @@ class TestHourlySummaryGeneration:
         mock_summary: MagicMock,
     ) -> None:
         """Test that low-risk events are filtered out of summaries."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -284,7 +284,7 @@ class TestDailySummaryGeneration:
         mock_summary: MagicMock,
     ) -> None:
         """Test generating daily summary with multiple events."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -334,7 +334,7 @@ class TestDailySummaryGeneration:
         mock_summary: MagicMock,
     ) -> None:
         """Test that daily summary uses correct time window (midnight to now)."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         captured_start = None
         captured_end = None
@@ -391,7 +391,7 @@ class TestGenerateAllSummaries:
         mock_summary: MagicMock,
     ) -> None:
         """Test generating both hourly and daily summaries in one call."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         daily_summary = MagicMock(spec=Summary)
         daily_summary.id = 2
@@ -445,7 +445,7 @@ class TestFallbackBehavior:
         mock_summary: MagicMock,
     ) -> None:
         """Test fallback message when Nemotron times out."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -484,7 +484,7 @@ class TestFallbackBehavior:
         mock_summary: MagicMock,
     ) -> None:
         """Test fallback message when Nemotron connection fails."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -522,7 +522,7 @@ class TestFallbackBehavior:
         mock_summary: MagicMock,
     ) -> None:
         """Test fallback message when no events and Nemotron fails."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         with (
             patch(
@@ -670,7 +670,7 @@ class TestNemotronCall:
     @pytest.mark.asyncio
     async def test_call_nemotron_formats_prompt_correctly(self) -> None:
         """Test that _call_nemotron formats the prompt with ChatML."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"content": "Generated summary text here."}
@@ -710,7 +710,7 @@ class TestNemotronCall:
     @pytest.mark.asyncio
     async def test_call_nemotron_raises_on_empty_response(self) -> None:
         """Test that empty LLM response raises ValueError."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_response = MagicMock()
         mock_response.json.return_value = {"content": ""}
@@ -734,7 +734,7 @@ class TestNemotronCall:
     @pytest.mark.asyncio
     async def test_call_nemotron_strips_think_tags(self) -> None:
         """Test that think tags are removed from LLM response."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -762,6 +762,112 @@ class TestNemotronCall:
             assert "Clean summary text." in result
 
 
+# Tests: Settings Re-Home (R8 S2b)
+
+
+class TestSettingsReHome:
+    """R8 S2b re-homed the summary LLM endpoint onto the shipped ai-vlm engine.
+
+    ``nemotron_url`` and ``nemotron_api_key`` are DELETED from Settings, so the
+    two defaults this class pins are the whole re-home contract:
+    ``_llm_url`` falls back to ``settings.ai_vlm_url``, and ``_api_key`` falls
+    back to nothing - only the explicit constructor argument can set it.
+
+    The settings double is ``MagicMock(spec=Settings)``: a spec'd mock raises
+    AttributeError for a name Settings no longer declares, so these tests fail
+    loudly if the constructor reaches for the retired field again. (A real
+    ``Settings`` could not catch that - ``extra="ignore"`` means a stale
+    ``nemotron_url=`` kwarg is silently dropped.)
+    """
+
+    @staticmethod
+    def _settings() -> MagicMock:
+        from backend.core.config import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.ai_vlm_url = "http://ai-vlm:8098"
+        return settings
+
+    def test_llm_url_defaults_to_ai_vlm_url(self) -> None:
+        """No llm_url argument -> the generator points at settings.ai_vlm_url."""
+        with patch(
+            "backend.services.summary_generator.get_settings",
+            return_value=self._settings(),
+            autospec=True,
+        ):
+            generator = SummaryGenerator()
+
+        assert generator._llm_url == "http://ai-vlm:8098"
+
+    def test_explicit_llm_url_still_wins(self) -> None:
+        """The override argument keeps precedence over the re-homed default."""
+        with patch(
+            "backend.services.summary_generator.get_settings",
+            return_value=self._settings(),
+            autospec=True,
+        ):
+            generator = SummaryGenerator(llm_url="http://localhost:8099")
+
+        assert generator._llm_url == "http://localhost:8099"
+
+    def test_api_key_is_none_without_an_explicit_argument(self) -> None:
+        """The settings-derived API-key default is gone with nemotron_api_key."""
+        with patch(
+            "backend.services.summary_generator.get_settings",
+            return_value=self._settings(),
+            autospec=True,
+        ):
+            generator = SummaryGenerator()
+
+        assert generator._api_key is None
+        assert "X-API-Key" not in generator._get_auth_headers()
+        # The surviving route to a key is the constructor argument, pinned by
+        # TestAuthenticationHeaders below.
+
+    @pytest.mark.asyncio
+    async def test_call_reads_the_survivor_timeout_fields(self) -> None:
+        """The call's asyncio.timeout budget is ai_vlm_read_timeout +
+        ai_connect_timeout (was nemotron_read_timeout), and the POST goes to
+        the ai-vlm /completion endpoint.
+
+        The double declares only the survivors, so a read of the deleted
+        nemotron_read_timeout raises AttributeError inside the call and this
+        test fails; the URL is asserted on the wire.
+        """
+        settings = self._settings()
+        settings.ai_vlm_read_timeout = 25.0
+        settings.ai_connect_timeout = 10.0
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": "Summary."}
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch(
+                "backend.services.summary_generator.get_settings",
+                return_value=settings,
+                autospec=True,
+            ),
+            patch("httpx.AsyncClient", autospec=True) as mock_client_cls,
+        ):
+            mock_client = AsyncMock()
+            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock()
+            mock_client_cls.return_value = mock_client
+
+            generator = SummaryGenerator()
+            result = await generator._call_nemotron(
+                window_start=datetime(2026, 1, 18, 13, 0, 0, tzinfo=UTC),
+                window_end=datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC),
+                period_type="hour",
+                events=[],
+            )
+
+        assert result == "Summary."
+        assert mock_client.post.call_args.args[0] == "http://ai-vlm:8098/completion"
+
+
 # Tests: Authentication Headers
 
 
@@ -770,7 +876,7 @@ class TestAuthenticationHeaders:
 
     def test_get_auth_headers_without_api_key(self) -> None:
         """Test that headers are generated without API key."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key=None)
+        generator = SummaryGenerator(llm_url="http://localhost:8098", api_key=None)
 
         headers = generator._get_auth_headers()
 
@@ -780,7 +886,7 @@ class TestAuthenticationHeaders:
 
     def test_get_auth_headers_with_string_api_key(self) -> None:
         """Test that headers include API key when provided as string."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key="test-api-key-123")
+        generator = SummaryGenerator(llm_url="http://localhost:8098", api_key="test-api-key-123")
 
         headers = generator._get_auth_headers()
 
@@ -793,7 +899,7 @@ class TestAuthenticationHeaders:
         from pydantic import SecretStr
 
         secret_key = SecretStr("secret-api-key-456")
-        generator = SummaryGenerator(llm_url="http://localhost:8091", api_key=secret_key)
+        generator = SummaryGenerator(llm_url="http://localhost:8098", api_key=secret_key)
 
         headers = generator._get_auth_headers()
 
@@ -811,7 +917,7 @@ class TestSessionManagement:
     @pytest.mark.asyncio
     async def test_generate_hourly_summary_without_session(self) -> None:
         """Test generating hourly summary without providing a session."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_summary = MagicMock(spec=Summary)
         mock_summary.id = 1
@@ -857,7 +963,7 @@ class TestSessionManagement:
     @pytest.mark.asyncio
     async def test_generate_daily_summary_without_session(self) -> None:
         """Test generating daily summary without providing a session."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_summary = MagicMock(spec=Summary)
         mock_summary.id = 2
@@ -903,7 +1009,7 @@ class TestSessionManagement:
     @pytest.mark.asyncio
     async def test_generate_all_summaries_without_session(self) -> None:
         """Test generating all summaries without providing a session."""
-        generator = SummaryGenerator(llm_url="http://localhost:8091")
+        generator = SummaryGenerator(llm_url="http://localhost:8098")
 
         mock_hourly_summary = MagicMock(spec=Summary)
         mock_hourly_summary.id = 1

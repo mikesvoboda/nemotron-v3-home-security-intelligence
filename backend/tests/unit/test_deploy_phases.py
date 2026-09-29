@@ -303,15 +303,14 @@ class TestApplicationPhaseServiceRetry:
             "ai-vlm",
         )
 
-    def test_legacy_app_services_start_with_ai_llm(self, mock_config: DeployConfig) -> None:
-        """legacy: ai-llm first - backend waits on it via service_healthy."""
-        mock_config.env["PIPELINE_MODE"] = "legacy"
-        assert _mode_plan(mock_config).app_services == (
-            "ai-llm",
-            "ai-gateway",
-            "backend",
-            "frontend",
-        )
+    # test_legacy_app_services_start_with_ai_llm is gone: its subject was the legacy
+    # plan's dependency order (ai-llm first, because backend waits on it via
+    # service_healthy). R8 S2b deleted that plan -- setup_lib/deploy_phases.py's
+    # _MODE_PLANS has the one "vlm" entry and DeployConfig.pipeline_mode raises on
+    # "legacy" -- so the tuple this test asserted cannot be constructed any more.
+    # The property it expresses ("app_services are in the order the retry loop must
+    # walk them") stays pinned for the surviving plan by
+    # test_vlm_app_services_start_ai_vlm_last above.
 
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_vlm_wait_call_starts_ai_vlm_through_its_profile_and_never_ai_llm(
@@ -344,33 +343,13 @@ class TestApplicationPhaseServiceRetry:
             "ai-vlm",
         )
 
-    @patch("setup_lib.deploy_phases.compose_run", autospec=True)
-    def test_legacy_wait_call_keeps_the_30b_budget_under_profile_legacy(
-        self,
-        mock_compose_run: Mock,
-        mock_config: DeployConfig,
-    ) -> None:
-        """legacy keeps today's shape (ai-llm first, 300s), now via --profile legacy."""
-        mock_config.env["PIPELINE_MODE"] = "legacy"
-        mock_compose_run.return_value = True
-
-        phase_application(mock_config)
-
-        (wait_call,) = [c for c in mock_compose_run.call_args_list if "--wait" in c.args]
-        assert wait_call.args[1:] == (
-            "--profile",
-            "legacy",
-            "up",
-            "-d",
-            "--no-build",
-            "--wait",
-            "--wait-timeout",
-            "300",
-            "ai-llm",
-            "ai-gateway",
-            "backend",
-            "frontend",
-        )
+    # test_legacy_wait_call_keeps_the_30b_budget_under_profile_legacy is gone: it pinned
+    # legacy's `up --wait` argv (--profile legacy, 300s for the 30B to load, ai-llm
+    # first). R8 S2b deleted the plan that produced it, so no call like that can be
+    # emitted. Its property -- "the one --wait call is named exactly, profile first,
+    # budget and service order verbatim" -- has a vlm twin already
+    # (test_vlm_wait_call_starts_ai_vlm_through_its_profile_and_never_ai_llm above), so
+    # nothing is lost but the 300s/ai-llm row.
 
     @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
@@ -512,9 +491,7 @@ class TestApplicationPhaseServiceRetry:
         expected_services = set(_mode_plan(mock_config).app_services)
         assert retried_services == expected_services
 
-    @pytest.mark.parametrize(
-        ("mode", "server"), [("vlm", "ai-vlm"), ("legacy", "ai-llm")], ids=["vlm", "legacy"]
-    )
+    @pytest.mark.parametrize("mode", list(_MODE_PLANS))
     @patch("setup_lib.deploy_phases._wait_container_running", autospec=True)
     @patch("setup_lib.deploy_phases.compose_run", autospec=True)
     def test_application_phase_reports_stuck_services(
@@ -523,9 +500,14 @@ class TestApplicationPhaseServiceRetry:
         mock_wait_running: Mock,
         mock_config: DeployConfig,
         mode: str,
-        server: str,
     ) -> None:
-        """Test that a stuck model server is reported but phase still succeeds."""
+        """Test that a stuck model server is reported but phase still succeeds.
+
+        R8 S2b: this walked ["vlm" -> ai-vlm, "legacy" -> ai-llm]; the legacy row
+        is gone with its plan, so the server under test is read from the plan
+        itself and any future plan is covered by the same row-generation.
+        """
+        server = _MODE_PLANS[mode].model_server
 
         def compose_run_side_effect(config, *args, **kwargs):
             return "--wait" not in args
@@ -985,17 +967,30 @@ class TestModePlansMatchCompose:
     silently strand deploy (a renamed profile would make every `--profile`
     call start nothing; a moved start_period would desync the budgets)."""
 
-    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
+    @pytest.mark.parametrize("mode", list(_MODE_PLANS))
     def test_model_server_sits_behind_the_profile_deploy_passes(
         self, services: dict, mode: str
     ) -> None:
+        """Every plan's model server must be profiled exactly as deploy claims.
+
+        Parametrized off ``_MODE_PLANS`` itself rather than a written-out list:
+        the drift this catches is a plan whose profile the compose file no longer
+        carries (every ``--profile`` call then starts nothing) and a new plan with
+        no compose row at all, and a hard-coded ["vlm", "legacy"] would have kept
+        asserting against R8 S2b's deleted legacy plan instead of pointing at the
+        plan that was missing.
+        """
         plan = _MODE_PLANS[mode]
         assert services[plan.model_server].get("profiles") == [plan.profile]
 
-    @pytest.mark.parametrize("mode", ["vlm", "legacy"])
+    @pytest.mark.parametrize("mode", list(_MODE_PLANS))
     def test_app_services_exist_and_only_the_model_server_is_profiled(
         self, services: dict, mode: str
     ) -> None:
+        """Same read from the other side: everything deploy names by hand exists,
+        and nothing but the model server is hidden behind a profile (an unprofiled
+        service named alongside a profile is fine; a profiled one it forgot to pass
+        would silently be skipped)."""
         plan = _MODE_PLANS[mode]
         for svc in plan.app_services:
             assert svc in services, f"{svc} missing from docker-compose.prod.yml"
@@ -1010,6 +1005,9 @@ class TestModePlansMatchCompose:
         assert plan.health_timeout == start
         assert plan.wait_timeout >= start + interval * hc["retries"]
 
-    def test_legacy_wait_is_ai_llm_start_period(self, services: dict) -> None:
-        start = services["ai-llm"]["healthcheck"]["start_period"]
-        assert _MODE_PLANS["legacy"].wait_timeout == int(start.rstrip("s"))
+    # test_legacy_wait_is_ai_llm_start_period is gone: it cross-checked legacy's
+    # wait_timeout against ai-llm's compose start_period (300s), and both sides of
+    # that equality were deleted at R8 S2b -- the plan with it, the service behind
+    # it. The budget-vs-compose cross-check it was one half of is the vlm-shaped
+    # test above, which pins ai-vlm's health poll to start_period and the --wait
+    # budget to start_period + interval x retries.

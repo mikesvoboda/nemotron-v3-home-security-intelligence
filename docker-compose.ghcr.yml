@@ -22,10 +22,10 @@
 #   - FOSCAM_BASE_PATH: Camera recordings path (default: /export/foscam)
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8444)
 #   - GPU_AI_SERVICES: GPU for AI Gateway / Triton (default: 1)
-#   - CTX_SIZE: llama.cpp TOTAL context pool for ai-llm; backend divides it by
-#     PARALLEL for its per-request budget (default: 4096)
-#   - PARALLEL: llama.cpp slot count used for the backend's per-request context
-#     budget; default 2 matches the PARALLEL baked into the ghcr ai-llm image
+#   - CTX_SIZE: llama.cpp TOTAL context pool the backend divides by PARALLEL
+#     for its token-counter budget (default: 4096). The ai-vlm engine sizes
+#     its own slots through VLM_CTX_SIZE/VLM_PARALLEL.
+#   - PARALLEL: slot count for that budget (default: 2)
 #
 # Quick Start:
 #   1. Copy .env.example to .env and configure POSTGRES_PASSWORD
@@ -150,45 +150,6 @@ services:
   # AI Services (GHCR Images - x86_64 only, requires NVIDIA GPU)
   # =============================================================================
 
-  ai-llm:
-    tmpfs:
-      - /tmp
-      - /home/llama/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-llm'
-    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/ai-llm:${IMAGE_TAG:-latest}
-    ports:
-      - '127.0.0.1:8091:8091'
-    volumes:
-      # Using Q2_K_L (20.9GB VRAM) for single-GPU deployment
-      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/quantization-benchmarks:/models:ro
-    environment:
-      - SERVICE_NAME=ai-llm
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-10}
-      # Q2_K_L quantization for single-GPU deployment (20.9GB VRAM)
-      - MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q2_K_L.gguf
-      - GPU_LAYERS=${GPU_LAYERS:-999}
-      - CTX_SIZE=${CTX_SIZE:-4096}
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
   # AI Gateway (Triton + FastAPI) — serves YOLO26, Florence-2, CLIP and
   # enrichment models through a single service (replaces the retired
   # per-model ai-yolo26 / ai-florence / ai-clip / ai-enrichment containers)
@@ -275,16 +236,10 @@ services:
       - PYROSCOPE_URL=http://pyroscope:4040
       - PYROSCOPE_SAMPLE_RATE=${PYROSCOPE_SAMPLE_RATE:-100}
       - PYROSCOPE_MEMORY_ENABLED=${PYROSCOPE_MEMORY_ENABLED:-true}
-      - NEMOTRON_URL=http://ai-llm:8091
-      # LLM context budget — must mirror the ai-llm service above so the backend's
-      # per-request token budget matches the slot it is actually served from.
-      # CTX_SIZE is llama.cpp's TOTAL pool (--ctx-size); PARALLEL is the slot count
-      # (--parallel).  The backend divides the two itself (config.py
-      # nemotron_context_window).  Defaults mirror this file's ai-llm pool: CTX_SIZE
-      # 4096 from the ai-llm block above, and 2 slots because the ghcr ai-llm image
-      # bakes PARALLEL=2 (ai/nemotron/Dockerfile) and this file's ai-llm service
-      # passes no override — 4096 / 2 = 2048 tokens per request.  Set PARALLEL in
-      # .env (and pass it to ai-llm too) if you raise the slot count.
+      # LLM context budget for the token counter's defaults (config.py
+      # nemotron_context_window = CTX_SIZE // PARALLEL). R8 S2 deleted this
+      # file's ai-llm service - the shipped verdict engine is ai-vlm, which
+      # sizes its own slots through VLM_CTX_SIZE/VLM_PARALLEL below.
       - CTX_SIZE=${CTX_SIZE:-4096}
       - PARALLEL=${PARALLEL:-2}
       # AI Gateway routes — all enrichment models served via Triton through ai-gateway
@@ -315,8 +270,6 @@ services:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ai-llm:
         condition: service_healthy
       # AI gateway — YOLO26 and enrichment models; backend health checks yolo26 via gateway
       ai-gateway:

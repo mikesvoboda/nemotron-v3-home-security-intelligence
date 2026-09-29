@@ -21,7 +21,6 @@ Root Fixtures (backend/tests/conftest.py - THIS FILE):
         - mock_http_client: HTTP client mock with all methods
         - mock_http_response: HTTP response mock
         - mock_detector_client: YOLO26 detector service mock
-        - mock_nemotron_client: Nemotron LLM service mock
         - mock_baseline_service: Baseline service mock
         - mock_websocket_client: Comprehensive WebSocket client mock
         - mock_settings: Application settings mock
@@ -2210,42 +2209,6 @@ def mock_detector_client() -> AsyncMock:
     client.health_check = AsyncMock(return_value=True)
     client.check_health = AsyncMock(return_value={"status": "healthy"})
     client._validate_image_for_detection_async = AsyncMock(return_value=True)
-    return client
-
-
-@pytest.fixture
-def mock_nemotron_client() -> AsyncMock:
-    """Create a mock Nemotron LLM client.
-
-    Returns an AsyncMock configured as NemotronAnalyzer with:
-    - analyze: Returns default risk assessment
-    - health_check: Returns True
-    - check_health: Returns {"status": "healthy"}
-
-    Usage:
-        @pytest.mark.asyncio
-        async def test_risk_analysis(mock_nemotron_client):
-            mock_nemotron_client.analyze.return_value = {
-                "risk_score": 75,
-                "risk_level": "high",
-                "summary": "Person detected at entry point",
-                "reasoning": "High risk due to proximity to entry",
-            }
-
-            with patch("backend.services.nemotron_analyzer.NemotronAnalyzer", return_value=mock_nemotron_client):
-                result = await analyze_detections(detections)
-    """
-    client = AsyncMock()
-    client.analyze = AsyncMock(
-        return_value={
-            "risk_score": 25,
-            "risk_level": "low",
-            "summary": "Normal activity detected",
-            "reasoning": "No concerning patterns observed",
-        }
-    )
-    client.health_check = AsyncMock(return_value=True)
-    client.check_health = AsyncMock(return_value={"status": "healthy"})
     return client
 
 

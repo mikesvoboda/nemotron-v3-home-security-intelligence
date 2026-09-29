@@ -1152,7 +1152,7 @@ async def test_system_broadcaster_get_system_status_uses_single_session():
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1257,7 +1257,7 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1339,7 +1339,7 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
                 "all_healthy": True,
                 "any_healthy": True,
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
             },
             autospec=True,
         ),
@@ -1356,21 +1356,23 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
 
 
 @pytest.fixture
-def legacy_pipeline_mode():
-    """These tests assert the `nemotron` key, which only PIPELINE_MODE=legacy
-    reports (vlm mode is covered by the *_vlm_mode_* tests below)."""
+def shipped_pipeline_mode():
+    """_check_ai_health reports the shipped block (yolo26 + ai-vlm). These
+    tests are about the method's error handling, not the engine identity, so
+    they just need the real default Settings — R8 left one mode, and a patch
+    that constructed a legacy Settings now raises at boot (which is the point)."""
     from backend.core.config import Settings
 
     with patch(
         "backend.services.system_broadcaster.get_settings",
         autospec=True,
-        return_value=Settings(_env_file=None, pipeline_mode="legacy"),
+        return_value=Settings(_env_file=None),
     ):
         yield
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("legacy_pipeline_mode")
+@pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_both_healthy():
     """Test _check_ai_health when both AI services respond with 200."""
     broadcaster = SystemBroadcaster()
@@ -1388,13 +1390,13 @@ async def test_system_broadcaster_check_ai_health_both_healthy():
         result = await broadcaster._check_ai_health()
 
     assert result["yolo26"] is True
-    assert result["nemotron"] is True
+    assert result["ai-vlm"] is True
     assert result["all_healthy"] is True
     assert result["any_healthy"] is True
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("legacy_pipeline_mode")
+@pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_both_unhealthy():
     """Test _check_ai_health when both AI services fail."""
     broadcaster = SystemBroadcaster()
@@ -1410,13 +1412,13 @@ async def test_system_broadcaster_check_ai_health_both_unhealthy():
         result = await broadcaster._check_ai_health()
 
     assert result["yolo26"] is False
-    assert result["nemotron"] is False
+    assert result["ai-vlm"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("legacy_pipeline_mode")
+@pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_non_200_status():
     """Test _check_ai_health when services return non-200 status codes."""
     broadcaster = SystemBroadcaster()
@@ -1435,13 +1437,13 @@ async def test_system_broadcaster_check_ai_health_non_200_status():
 
     # Non-200 status should be treated as unhealthy
     assert result["yolo26"] is False
-    assert result["nemotron"] is False
+    assert result["ai-vlm"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("legacy_pipeline_mode")
+@pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_timeout():
     """Test _check_ai_health handles timeouts gracefully."""
     import httpx as real_httpx
@@ -1460,7 +1462,7 @@ async def test_system_broadcaster_check_ai_health_timeout():
 
     # Timeout should be treated as unhealthy
     assert result["yolo26"] is False
-    assert result["nemotron"] is False
+    assert result["ai-vlm"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
 
@@ -1494,7 +1496,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
             "_check_ai_health",
             return_value={
                 "yolo26": True,
-                "nemotron": True,
+                "ai-vlm": True,
                 "all_healthy": True,
                 "any_healthy": True,
             },
@@ -1507,7 +1509,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
     assert "ai" in status["data"]
     assert status["data"]["ai"]["status"] == "healthy"
     assert status["data"]["ai"]["yolo26"] == "healthy"
-    assert status["data"]["ai"]["nemotron"] == "healthy"
+    assert status["data"]["ai"]["ai-vlm"] == "healthy"
     # Overall health should be healthy when all services are healthy
     assert status["data"]["health"] == "healthy"
 
@@ -1541,7 +1543,7 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
             "_check_ai_health",
             return_value={
                 "yolo26": True,
-                "nemotron": False,  # Nemotron unhealthy - LLM service error scenario
+                "ai-vlm": False,  # verdict engine unhealthy - service error scenario
                 "all_healthy": False,
                 "any_healthy": True,
             },
@@ -1553,7 +1555,7 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
     # AI status should show degraded when one service is unhealthy
     assert status["data"]["ai"]["status"] == "degraded"
     assert status["data"]["ai"]["yolo26"] == "healthy"
-    assert status["data"]["ai"]["nemotron"] == "unhealthy"
+    assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
     # Overall health should be degraded when AI is not all healthy
     assert status["data"]["health"] == "degraded"
 
@@ -1587,7 +1589,7 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
             "_check_ai_health",
             return_value={
                 "yolo26": False,
-                "nemotron": False,
+                "ai-vlm": False,
                 "all_healthy": False,
                 "any_healthy": False,
             },
@@ -1599,31 +1601,36 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
     # AI status should show unhealthy when all services are down
     assert status["data"]["ai"]["status"] == "unhealthy"
     assert status["data"]["ai"]["yolo26"] == "unhealthy"
-    assert status["data"]["ai"]["nemotron"] == "unhealthy"
+    assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
     # Overall health should be degraded (DB/Redis healthy, but AI is down)
     assert status["data"]["health"] == "degraded"
 
 
 # ============================================================================
-# PIPELINE_MODE: the broadcast `ai` block follows the verdict engine
+# The broadcast `ai` block: ai-vlm, never the retired LLM (R8 — one mode)
 # ============================================================================
 #
 # The dashboard's system_status broadcast probed nemotron unconditionally, so
-# in PIPELINE_MODE=vlm (legacy LLM retired, spec rev 5; connection-refused on
+# on a vlm deployment (legacy LLM retired, spec rev 5; connection-refused on
 # the A5500 box) every broadcast said health "degraded" / nemotron
-# "unhealthy" for a working pipeline. vlm mode reports ai-vlm (settings
-# .ai_vlm_url) instead and never probes nemotron; legacy (unsupported until
-# R8) keeps today's block. Driven at the HTTP boundary: an unrouted base URL
+# "unhealthy" for a working pipeline. The broadcast reports ai-vlm (settings
+# .ai_vlm_url) and never probes nemotron. R8 left PIPELINE_MODE one value, so
+# there is no mode to parameterize here — these run on the default Settings,
+# which IS the shipped mode. Driven at the HTTP boundary: an unrouted base URL
 # is connection-refused, like the retired ai-llm:8091.
 
 _MODE_URLS = {
     "yolo26_url": "http://ai-gateway:8090/yolo26",
-    "nemotron_url": "http://ai-llm:8091",
     "ai_vlm_url": "http://ai-vlm:8098",
 }
 
+# R8 S2 deleted the nemotron_url setting, so the retired base URL is a bare
+# constant rather than a Settings kwarg: its only remaining job is to let the
+# pins below assert the broadcast never reaches the dead host.
+_RETIRED_LLM_URL = "http://ai-llm:8091"
 
-async def _ai_health_for_mode(mode: str, up: set[str], *, system_status: bool = False):
+
+async def _ai_health_broadcast(up: set[str], *, system_status: bool = False):
     """Run _check_ai_health (or _get_system_status) with every url attr in
     ``up`` answering /health 200 and the rest refused. Returns (result, probed)."""
     import httpx
@@ -1655,7 +1662,7 @@ async def _ai_health_for_mode(mode: str, up: set[str], *, system_status: bool = 
         patch(
             "backend.services.system_broadcaster.get_settings",
             autospec=True,
-            return_value=Settings(_env_file=None, pipeline_mode=mode, **_MODE_URLS),
+            return_value=Settings(_env_file=None, **_MODE_URLS),
         ),
         patch("backend.services.system_broadcaster.httpx.AsyncClient", autospec=True) as client,
         patch("backend.services.system_broadcaster.get_session", mock_get_session),
@@ -1676,28 +1683,28 @@ async def _ai_health_for_mode(mode: str, up: set[str], *, system_status: bool = 
 
 
 @pytest.mark.asyncio
-async def test_check_ai_health_vlm_mode_probes_ai_vlm_not_nemotron():
-    result, probed = await _ai_health_for_mode("vlm", up={"yolo26_url", "ai_vlm_url"})
+async def test_check_ai_health_probes_ai_vlm_not_nemotron():
+    result, probed = await _ai_health_broadcast({"yolo26_url", "ai_vlm_url"})
 
     assert result == {"yolo26": True, "ai-vlm": True, "any_healthy": True, "all_healthy": True}
     assert f"{_MODE_URLS['ai_vlm_url']}/health" in probed
-    assert not [u for u in probed if u.startswith(_MODE_URLS["nemotron_url"])], probed
+    assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
 
 
 @pytest.mark.asyncio
-async def test_system_status_vlm_mode_is_healthy_with_nemotron_gone():
-    """The incident: nemotron refuses, YOLO26 + ai-vlm are up."""
-    status, _ = await _ai_health_for_mode(
-        "vlm", up={"yolo26_url", "ai_vlm_url"}, system_status=True
-    )
+async def test_system_status_is_healthy_with_nemotron_gone():
+    """The incident, corrected: YOLO26 + ai-vlm are up and the broadcast is
+    healthy. The retired engine has no URL to refuse with any more — R8 S2
+    deleted the setting, so a stale probe is now impossible, not merely down."""
+    status, _ = await _ai_health_broadcast({"yolo26_url", "ai_vlm_url"}, system_status=True)
 
     assert status["data"]["ai"] == {"status": "healthy", "yolo26": "healthy", "ai-vlm": "healthy"}
     assert status["data"]["health"] == "healthy"
 
 
 @pytest.mark.asyncio
-async def test_system_status_vlm_mode_ai_vlm_down_is_degraded():
-    status, _ = await _ai_health_for_mode("vlm", up={"yolo26_url"}, system_status=True)
+async def test_system_status_ai_vlm_down_is_degraded():
+    status, _ = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
 
     assert status["data"]["ai"] == {
         "status": "degraded",
@@ -1708,17 +1715,16 @@ async def test_system_status_vlm_mode_ai_vlm_down_is_degraded():
 
 
 @pytest.mark.asyncio
-async def test_system_status_legacy_mode_block_unchanged():
-    """Pin of today's legacy block (nemotron refused)."""
-    status, probed = await _ai_health_for_mode("legacy", up={"yolo26_url"}, system_status=True)
+async def test_system_status_never_reports_the_retired_engine():
+    """The retired engine stays unsaid. The shipped block names ai-vlm, carries
+    no nemotron key at all, and the dead ai-llm base URL is never probed — it is
+    no longer even a Settings field, so only a stale hardcoded probe could
+    reach it."""
+    status, probed = await _ai_health_broadcast({"yolo26_url"}, system_status=True)
 
-    assert status["data"]["ai"] == {
-        "status": "degraded",
-        "yolo26": "healthy",
-        "nemotron": "unhealthy",
-    }
-    assert status["data"]["health"] == "degraded"
-    assert not [u for u in probed if u.startswith(_MODE_URLS["ai_vlm_url"])], probed
+    assert "nemotron" not in status["data"]["ai"]
+    assert status["data"]["ai"]["ai-vlm"] == "unhealthy"
+    assert not [u for u in probed if u.startswith(_RETIRED_LLM_URL)], probed
 
 
 # ============================================================================
@@ -2168,7 +2174,7 @@ async def test_system_broadcaster_get_camera_stats_deprecated_method():
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("legacy_pipeline_mode")
+@pytest.mark.usefixtures("shipped_pipeline_mode")
 async def test_system_broadcaster_check_ai_health_gather_error():
     """Test _check_ai_health handles asyncio.gather errors (line 856-857)."""
     broadcaster = SystemBroadcaster()
@@ -2183,7 +2189,7 @@ async def test_system_broadcaster_check_ai_health_gather_error():
 
     # Should return all False on error
     assert result["yolo26"] is False
-    assert result["nemotron"] is False
+    assert result["ai-vlm"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
 

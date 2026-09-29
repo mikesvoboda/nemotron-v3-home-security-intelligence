@@ -94,7 +94,7 @@ compose bind-mounts it read-only; nothing templates or substitutes into it at st
 | Job Name             | Target                                          | Path/Module          | Interval |
 | -------------------- | ----------------------------------------------- | -------------------- | -------- |
 | hsi-backend-metrics  | backend:8000                                    | /api/metrics         | 15s      |
-| ai-llm-metrics       | ai-llm:8091 (llama.cpp `--metrics`)             | /metrics             | 15s      |
+| ai-vlm-metrics       | ai-vlm:8098 (llama.cpp `--metrics`)             | /metrics             | 15s      |
 | triton-metrics       | ai-gateway:8002 (Triton native)                 | /metrics             | 15s      |
 | ai-gateway-metrics   | ai-gateway:8090 (FastAPI layer; `nv_*` dropped) | /metrics             | 15s      |
 | hsi-health           | backend /api/system/health via json-exporter    | /probe (health)      | 10s      |
@@ -120,7 +120,7 @@ compose bind-mounts it read-only; nothing templates or substitutes into it at st
 
 ```
 Backend /api/metrics ─────────────────────────────┐
-ai-llm (llama.cpp) / triton / ai-gateway /metrics ─┤
+ai-vlm (llama.cpp) / triton / ai-gateway /metrics ─┤
 json-exporter (backend health/telemetry/stats/gpu) ┼──> Prometheus ──> Grafana
 blackbox-exporter (http/tcp probes) ────────────────┤         │
 cadvisor / dcgm-exporter / node / redis ──────────┘         └──> Alertmanager

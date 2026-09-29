@@ -47,21 +47,21 @@ groups:
       # ai-gateway-metrics is the one AI job that truly exposes
       # process_cpu_seconds_total: the FastAPI gateway serves
       # prometheus_client's default REGISTRY, which registers ProcessCollector
-      # (ai/gateway/main.py). NOTE: ai-llm-metrics currently yields EMPTY for
+      # (ai/gateway/main.py). NOTE: ai-vlm-metrics currently yields EMPTY for
       # this selector — compose runs llama-server --metrics (C++ binary whose
-      # /metrics carries llama_* series only; ai/nemotron/Dockerfile CMD), so
-      # the prometheus_client process_* lines that ai/nemotron/model_hf.py
-      # would export are not what the live container serves. The rule is kept
+      # /metrics carries llama_* series only; ai/vlm's CMD), so the
+      # prometheus_client process_* lines a Python server would export are
+      # not what the live container serves. The rule is kept
       # (zero consumers, harmless) as the ready-made home for a rewire onto
       # llama_* series or a sidecar exporter. Triton's own CPU signal, if
       # present, is an nvmetric gauge (nv_*, not process_*) and is not part of
       # this chain; see docs/reference/nvidia-technology-inventory.md for the
       # nv_* series actually scraped by the triton-metrics job.
-      - record: job:ai_llm_cpu_seconds:rate5m
+      - record: job:ai_vlm_cpu_seconds:rate5m
         expr: |
-          sum(rate(process_cpu_seconds_total{job="ai-llm-metrics"}[5m]))
+          sum(rate(process_cpu_seconds_total{job="ai-vlm-metrics"}[5m]))
         labels:
-          service: ai-llm
+          service: ai-vlm
 
       - record: job:ai_gateway_cpu_seconds:rate5m
         expr: |

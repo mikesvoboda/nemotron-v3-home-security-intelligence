@@ -39,7 +39,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from backend.services import vlm_client as vc
-from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+from backend.services.constrained_decoding import ConstrainedDecodingNotEnforced
 from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
 
 

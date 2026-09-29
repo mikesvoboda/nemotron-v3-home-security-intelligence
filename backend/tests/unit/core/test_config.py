@@ -31,6 +31,11 @@ def clean_env(monkeypatch):
         "BATCH_WINDOW_SECONDS",
         "BATCH_IDLE_TIMEOUT_SECONDS",
         "YOLO26_URL",
+        "AI_VLM_URL",
+        # NEMOTRON_URL is read by NO Settings field any more (R8 S2 deleted the
+        # whole nemotron_* family), but backend/evaluation/harness.py still
+        # os.getenv()s it, so delete it here rather than let a stale runtime
+        # value drift into anything this file constructs.
         "NEMOTRON_URL",
         "ENVIRONMENT",
         "CTX_SIZE",
@@ -68,7 +73,7 @@ def clean_env(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("DEBUG", "false")
     monkeypatch.setenv("YOLO26_URL", "http://localhost:8090")
-    monkeypatch.setenv("NEMOTRON_URL", "http://localhost:8091")
+    monkeypatch.setenv("AI_VLM_URL", "http://localhost:8098")
     monkeypatch.setenv("CORS_ORIGINS", '["https://localhost:8444"]')
     monkeypatch.setenv("API_HOST", "0.0.0.0")  # noqa: S104
     monkeypatch.setenv("API_PORT", "8000")
@@ -159,7 +164,10 @@ class TestSettingsDefaults:
         settings = Settings()
         # URLs should NOT have trailing slashes to avoid //health issues
         assert settings.yolo26_url == "http://localhost:8090"
-        assert settings.nemotron_url == "http://localhost:8091"
+        assert settings.ai_vlm_url == "http://localhost:8098"
+        # The fixture supplies AI_VLM_URL, so pin the DECLARED default too — it
+        # is the ai-vlm container's fixed port, and .env.example must agree.
+        assert Settings.model_fields["ai_vlm_url"].default == "http://localhost:8098"
 
 
 class TestEnvironmentOverrides:
@@ -407,20 +415,42 @@ class TestAIServiceConfiguration:
         assert settings.yolo26_url == "http://localhost:8090"
         assert not settings.yolo26_url.endswith("/")
 
-    def test_nemotron_url_removes_trailing_slash(self, clean_env):
-        """Test Nemotron URL strips trailing slash."""
-        clean_env.setenv("NEMOTRON_URL", "http://localhost:8091/")
+    def test_ai_vlm_url_removes_trailing_slash(self, clean_env):
+        """Test the ai-vlm URL strips trailing slash.
+
+        R8 S2 re-homed this member onto the shared AI-service URL validator
+        (validate_ai_service_urls covers yolo26_url + ai_vlm_url); nemotron_url
+        is deleted, so the surviving member takes the pin.
+        """
+        clean_env.setenv("AI_VLM_URL", "http://localhost:8098/")
         settings = Settings()
-        assert settings.nemotron_url == "http://localhost:8091"
-        assert not settings.nemotron_url.endswith("/")
+        assert settings.ai_vlm_url == "http://localhost:8098"
+        assert not settings.ai_vlm_url.endswith("/")
 
     def test_ai_service_urls_accept_custom_ports(self, clean_env):
         """Test AI service URLs work with non-standard ports."""
         clean_env.setenv("YOLO26_URL", "http://ai-server:9000")
-        clean_env.setenv("NEMOTRON_URL", "http://ai-server:9001")
+        clean_env.setenv("AI_VLM_URL", "http://ai-server:9001")
         settings = Settings()
         assert settings.yolo26_url == "http://ai-server:9000"
-        assert settings.nemotron_url == "http://ai-server:9001"
+        assert settings.ai_vlm_url == "http://ai-server:9001"
+
+    def test_nemotron_url_field_is_retired(self, clean_env):
+        """R8 S2 deleted the nemotron_url field; the deletion must stick.
+
+        The three surviving nemotron_* settings keep their names because their
+        behavior survived (CTX_SIZE derivation, output budget, engine label) —
+        nemotron_url did not: ai_vlm_url is the endpoint every re-homed consumer
+        now reads. Because Settings is extra="ignore", a deployment .env that
+        still carries NEMOTRON_URL is inert instead of fatal, so pin both halves
+        of that: the field is gone from the model, and the stale env var cannot
+        resurrect it or steer the ai-vlm endpoint.
+        """
+        clean_env.setenv("NEMOTRON_URL", "http://ai-llm:8091")
+        settings = Settings()
+        assert "nemotron_url" not in Settings.model_fields
+        assert not hasattr(settings, "nemotron_url")
+        assert settings.ai_vlm_url == "http://localhost:8098"
 
 
 class TestOrchestratorSettings:

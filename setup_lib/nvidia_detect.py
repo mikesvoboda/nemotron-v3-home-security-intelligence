@@ -34,7 +34,7 @@ _APT_ENV = {**os.environ, "DEBIAN_FRONTEND": "noninteractive"}
 _SUDO = ["env", "DEBIAN_FRONTEND=noninteractive", "sudo", "-E"]
 
 # Minimum driver version for CUDA 13.1 compatibility
-# CUDA 13.x requires driver 580+ (ai-llm container uses CUDA 13.1.1)
+# CUDA 13.x requires driver 580+ (ai-vlm container uses CUDA 13.1.1)
 MINIMUM_DRIVER_VERSION = 580
 
 
@@ -562,7 +562,7 @@ def _warn_driver_upgrade_failed(version: str | None) -> None:
     """Print warning when driver upgrade did not meet requirements."""
     print(
         f"  WARNING: Driver version still {version or 'unknown'} "
-        f"(>= {MINIMUM_DRIVER_VERSION} required). Reboot may be needed, or use CUDA 12.x in ai-llm."
+        f"(>= {MINIMUM_DRIVER_VERSION} required). Reboot may be needed, or use CUDA 12.x in ai-vlm."
     )
 
 

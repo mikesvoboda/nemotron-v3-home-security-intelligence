@@ -58,19 +58,12 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 # The legacy LLM engines (ai-llm = llama.cpp Nemotron, ai-llm-vllm = the same
-# Nemotron under vLLM). Both sit on GPU_LLM - the GPU ai-vlm takes in
-# PIPELINE_MODE=vlm (spec rev 5) - so in vlm mode the orchestrator must never
-# start or restart them. It only acts on what it registers, and discovery lists
-# STOPPED containers too, so they are simply never registered in vlm mode.
-VLM_MODE_UNMANAGED_SERVICES: frozenset[str] = frozenset({"ai-llm", "ai-llm-vllm"})
-
-
-def _settings_for_mode() -> Any:
-    """The pipeline mode's single source of truth, wrapped so tests patch ONE
-    name (the pipeline_factory precedent) instead of the settings singleton."""
-    from backend.core.config import get_settings
-
-    return get_settings()
+# Nemotron under vLLM). Both sit on GPU_LLM - the GPU ai-vlm takes (spec rev 5)
+# - so the orchestrator must never start or restart them. It only acts on what
+# it registers, and discovery lists STOPPED containers too, so they are simply
+# never registered. R8 (2026-09-29) retired the mode-conditional form: there is
+# one pipeline now, and the guard does not consult settings.
+RETIRED_LLM_SERVICES: frozenset[str] = frozenset({"ai-llm", "ai-llm-vllm"})
 
 
 def create_service_status_event(
@@ -530,16 +523,15 @@ class ContainerOrchestrator:
         # 3. Register discovered services in our registry
         # ContainerDiscoveryService now returns ManagedService directly
         # (from the shared orchestrator module), no conversion needed.
-        # PIPELINE_MODE=vlm: the retired LLM engines are left unregistered so
-        # nothing here can ever start/restart them (VLM_MODE_UNMANAGED_SERVICES).
-        unmanaged: frozenset[str] = frozenset()
-        if _settings_for_mode().pipeline_mode != "legacy":
-            unmanaged = VLM_MODE_UNMANAGED_SERVICES
+        # The retired LLM engines are left unregistered unconditionally so
+        # nothing here can ever start/restart them. R8 S1 (2026-09-29) dropped
+        # the mode check that gated this: PIPELINE_MODE has one value now, and
+        # a container this list names is retired whatever the settings say.
         for svc in discovered:
-            if svc.name in unmanaged:
+            if svc.name in RETIRED_LLM_SERVICES:
                 logger.info(
-                    f"Not managing {svc.name}: the legacy LLM is retired in "
-                    "PIPELINE_MODE=vlm and must never be started or restarted"
+                    f"Not managing {svc.name}: the legacy LLM is retired and "
+                    "must never be started or restarted"
                 )
                 continue
             # Set initial status to RUNNING since we discovered it

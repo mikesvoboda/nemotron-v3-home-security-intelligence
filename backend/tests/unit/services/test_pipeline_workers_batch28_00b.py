@@ -182,7 +182,7 @@ import pytest
 
 from backend.services import pipeline_workers as M
 from backend.services.event_broadcaster import EventBroadcaster
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
@@ -763,7 +763,7 @@ def completed_payload(broadcaster: Any, *, call_no: int = 0) -> CompletedRisk:
 
 def analysis_worker(broadcaster: Any = "auto", event: Any = None, redis: Any = None) -> Any:
     """AnalysisQueueWorker with every collaborator injected (no real clients)."""
-    analyzer = create_autospec(NemotronAnalyzer, instance=True)
+    analyzer = create_autospec(VlmAnalyzer, instance=True)
     analyzer.analyze_batch.return_value = event if event is not None else event_double()
     worker = M.AnalysisQueueWorker(
         redis_client=redis if redis is not None else MagicMock(name="redis-client"),

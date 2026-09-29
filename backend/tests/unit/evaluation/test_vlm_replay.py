@@ -569,6 +569,6 @@ class TestModuleHygiene:
         names to the analyzer's; this names the one class whose absence would
         crash a bake-off run where production degrades."""
         from backend.evaluation.vlm_replay import _DEGRADABLE_ERRORS
-        from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+        from backend.services.constrained_decoding import ConstrainedDecodingNotEnforced
 
         assert ConstrainedDecodingNotEnforced in _DEGRADABLE_ERRORS

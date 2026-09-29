@@ -1,8 +1,9 @@
 """Tests for AI service registration in DI container (NEM-2030).
 
 This module tests that AI services (FaceDetectorService, PlateDetectorService,
-OCRService, YOLOWorldService) are properly registered in the DI container
-and can be retrieved via dependency injection.
+OCRService) are properly registered in the DI container and can be retrieved
+via dependency injection. R8 S2 dropped YOLOWorldService from this list — its
+loader was retired, so the service and its registration are gone.
 
 TDD Phase: RED - Tests written before implementation.
 
@@ -187,62 +188,6 @@ class TestOCRServiceRegistration:
             assert hasattr(service, "read_plates")
 
 
-class TestYOLOWorldServiceRegistration:
-    """Tests for YOLOWorldService registration in DI container."""
-
-    @pytest.mark.asyncio
-    async def test_yolo_world_service_registered_as_singleton(self) -> None:
-        """YOLOWorldService should be available as a singleton."""
-        from backend.core.container import Container, wire_services
-
-        container = Container()
-        await wire_services(container)
-
-        assert "yolo_world_service" in container.registered_services
-
-    @pytest.mark.asyncio
-    async def test_yolo_world_service_returns_same_instance(self) -> None:
-        """Getting YOLOWorldService multiple times returns same instance."""
-        from backend.core.container import Container, wire_services
-
-        container = Container()
-        await wire_services(container)
-
-        service1 = container.get("yolo_world_service")
-        service2 = container.get("yolo_world_service")
-        assert service1 is service2
-
-    @pytest.mark.asyncio
-    async def test_yolo_world_service_can_be_overridden(self) -> None:
-        """YOLOWorldService should support override for testing."""
-        from backend.core.container import Container, wire_services
-
-        container = Container()
-        await wire_services(container)
-
-        mock_service = MagicMock()
-        mock_service.name = "mock_yolo_world"
-        container.override("yolo_world_service", mock_service)
-
-        service = container.get("yolo_world_service")
-        assert service.name == "mock_yolo_world"
-
-    @pytest.mark.asyncio
-    async def test_yolo_world_service_fastapi_dependency(self) -> None:
-        """YOLOWorldService should work with FastAPI Depends()."""
-        from backend.core.container import Container, wire_services
-
-        container = Container()
-        await wire_services(container)
-
-        dep_factory = container.get_dependency("yolo_world_service")
-
-        async for service in dep_factory():
-            assert service is not None
-            # Service should have detect_with_prompts method
-            assert hasattr(service, "detect_with_prompts")
-
-
 class TestAIServicesIntegration:
     """Integration tests for all AI services in DI container."""
 
@@ -258,7 +203,6 @@ class TestAIServicesIntegration:
             "face_detector_service",
             "plate_detector_service",
             "ocr_service",
-            "yolo_world_service",
         ]
 
         for service_name in expected_services:
@@ -278,12 +222,11 @@ class TestAIServicesIntegration:
         face_detector = container.get("face_detector_service")
         plate_detector = container.get("plate_detector_service")
         ocr_service = container.get("ocr_service")
-        yolo_world = container.get("yolo_world_service")
 
         # All should be distinct objects
         assert face_detector is not plate_detector
         assert plate_detector is not ocr_service
-        assert ocr_service is not yolo_world
+        assert ocr_service is not face_detector
 
     @pytest.mark.asyncio
     async def test_wire_services_idempotent(self) -> None:

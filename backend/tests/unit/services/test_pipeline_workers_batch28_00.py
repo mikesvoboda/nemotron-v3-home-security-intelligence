@@ -132,7 +132,7 @@ Discipline (batch28_17 / batch28_06 pattern)
   ``extra=`` payloads are read as RAW record attributes.
 * Every collaborator the shipped def reaches as ``self._*`` (the analyzer, the
   broadcaster, the redis client) is a constructor- or instance-injected double: the
-  analyzer from ``create_autospec(NemotronAnalyzer, instance=True)``, so a mutated
+  analyzer from ``create_autospec(VlmAnalyzer, instance=True)``, so a mutated
   ``analyze_batch`` kwarg is a ``TypeError`` inside the shipped body, and the broadcaster
   from ``create_autospec(EventBroadcaster, instance=True)``, so its publishes are
   signature-enforcing AsyncMocks.
@@ -163,7 +163,7 @@ import pytest
 from backend.api.schemas.queue import validate_analysis_payload as REAL_VALIDATE
 from backend.services import pipeline_workers as M
 from backend.services.event_broadcaster import EventBroadcaster
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.vlm_analyzer import VlmAnalyzer
 
 LOG_NAME = M.logger.name  # "backend.services.pipeline_workers" (get_logger(__name__))
 
@@ -755,7 +755,7 @@ def analysis_worker(broadcaster: Any = "auto", event: Any = None) -> Any:
     ``_get_broadcaster`` (L824: a warm ``_broadcaster`` is returned untouched).  Pass
     ``None`` for the shipped no-broadcaster state.
     """
-    analyzer = create_autospec(NemotronAnalyzer, instance=True)
+    analyzer = create_autospec(VlmAnalyzer, instance=True)
     analyzer.analyze_batch.return_value = event if event is not None else event_double()
     worker = M.AnalysisQueueWorker(
         redis_client=MagicMock(name="redis-client"),

@@ -29,7 +29,7 @@ import base64
 import io
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any, Protocol
 
 import httpx
 from PIL import Image
@@ -48,10 +48,25 @@ from backend.services.service_provider_matcher import (
     get_service_provider_matcher,
 )
 
-if TYPE_CHECKING:
-    from backend.services.enrichment_pipeline import DetectionInput
-
 logger = get_logger(__name__)
+
+
+class DetectionLike(Protocol):
+    """The crop-OCR path's minimal detection surface (R8 S2).
+
+    `enrichment_pipeline.DetectionInput` was the nominal type; it retired
+    with the tier. This structural stand-in names ONLY what this module
+    reads - `.id`, `.class_name` (the OCR-class filter) and `.bbox`
+    (carried as `Any`; the crop path calls `.to_int_tuple()` on it, which
+    is BoundingBox's contract, not something this module re-checks) -
+    which is exactly how the deleted class was consumed here (no
+    isinstance, no construction).
+    """
+
+    id: int | None
+    class_name: str
+    bbox: Any
+
 
 # Confidence thresholds for OCR results
 CONFIDENCE_HIGH = 0.80  # Include in context, high weight
@@ -411,7 +426,7 @@ class SceneOCRService:
     async def process_frame(
         self,
         image: Image.Image,
-        detections: list[DetectionInput],
+        detections: list[DetectionLike],
     ) -> SceneOCRResult:
         """Run full-frame and crop OCR, deduplicate, and match providers.
 
@@ -582,7 +597,7 @@ class SceneOCRService:
     async def _run_crop_ocr(
         self,
         image: Image.Image,
-        detections: list[DetectionInput],
+        detections: list[DetectionLike],
     ) -> dict[str, list[RawOCRResult]]:
         """Run PaddleOCR on detection crops.
 
@@ -608,7 +623,7 @@ class SceneOCRService:
         # Process crops in parallel with semaphore to limit concurrency
         semaphore = asyncio.Semaphore(4)  # Max 4 concurrent OCR requests
 
-        async def process_crop(detection: DetectionInput) -> tuple[str, list[RawOCRResult]]:
+        async def process_crop(detection: DetectionLike) -> tuple[str, list[RawOCRResult]]:
             async with semaphore:
                 det_id = str(detection.id) if detection.id else f"det_{id(detection)}"
                 # Record request metric for each crop
@@ -703,7 +718,7 @@ class SceneOCRService:
         self,
         frame_results: list[RawOCRResult],
         crop_results: dict[str, list[RawOCRResult]],
-        detections: list[DetectionInput],
+        detections: list[DetectionLike],
     ) -> SceneOCRResult:
         """Deduplicate and associate text with detections.
 

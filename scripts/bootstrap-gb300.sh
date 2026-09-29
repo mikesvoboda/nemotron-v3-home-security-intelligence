@@ -56,7 +56,7 @@ NO_HEALTHCHECK_SERVICES=(redis-exporter json-exporter)
 # - BACKEND-DEPENDENT: flip UP when backend arrives (task-6 table). DOWN is normal
 #   pre-phase-b (reported as info), but down-with-backend-running is a hard FAIL.
 # Any other down job = FAIL.
-TARGETS_DOWN_ALLOWLIST="ai-llm-metrics triton-metrics cadvisor dcgm-exporter hsi-health"
+TARGETS_DOWN_ALLOWLIST="ai-vlm-metrics triton-metrics cadvisor dcgm-exporter hsi-health"
 BACKEND_DEPENDENT_TARGETS="hsi-backend-metrics hsi-gpu hsi-stats hsi-telemetry"
 
 BACKEND_CONTAINER="${PROJECT_NAME}-backend-1"

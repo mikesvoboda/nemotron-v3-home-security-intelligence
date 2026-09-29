@@ -4,13 +4,13 @@ This file is the project's **single root instruction file** (owner ruling 2026-0
 
 ## Purpose
 
-This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and Nemotron for contextual risk assessment.
+This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through YOLO26 for object detection and the local `ai-vlm` llama.cpp engine (VLMAnalyzer) for contextual risk assessment. (R8 S2, 2026-09-29: this line named Nemotron until the legacy LLM path was deleted - see ledger row 44 and commit `602379e2`.)
 
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Tailwind + Tremor
 - **Backend:** Python FastAPI + PostgreSQL + Redis
-- **AI:** YOLO26 (object detection) + Nemotron via llama.cpp (risk reasoning)
+- **AI:** YOLO26 (object detection) + the `ai-vlm` llama.cpp engine (VLMAnalyzer; risk reasoning — model identity is config, ledger D5. R8 S2 retired the Nemotron path, 2026-09-29)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
 
@@ -203,6 +203,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 | `.gitignore`        | Git ignore rules (node_modules, .venv, .env, .db files, AI model weights, coverage) |
 | `.gitattributes`    | Git attributes                                                                      |
 | `.gitleaks.toml`    | Gitleaks secret scanning configuration                                              |
+| `.gitleaksignore`   | Gitleaks fingerprint allowlist (one measured false positive per line)               |
 | `.semgrepignore`    | Semgrep ignore patterns                                                             |
 | `.trivyignore`      | Trivy security scanner ignore patterns (with CVE review dates)                      |
 | `.bandit.yml`       | Bandit Python security linter configuration                                         |
@@ -216,7 +217,7 @@ Everything binds `127.0.0.1` except the frontend nginx (intentionally `0.0.0.0` 
 /
 ├── ai/                   # AI model scripts and configs
 │   ├── yolo26/           # YOLO26 detection code (prod: ai-gateway router /yolo26)
-│   ├── nemotron/         # Nemotron LLM (llama.cpp container, port 8091)
+│   ├── vlm/              # The shipped LLM engine: llama.cpp `ai-vlm` container, port 8098 (R8 S2)
 │   ├── florence/         # Florence-2 dense captioning (prod: ai-gateway router /florence)
 │   ├── clip/             # CLIP embeddings (prod: ai-gateway router /clip)
 │   ├── enrichment/       # Heavy enrichment models (prod: ai-gateway router /enrichment)

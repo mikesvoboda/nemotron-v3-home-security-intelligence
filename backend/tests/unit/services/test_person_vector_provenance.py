@@ -369,35 +369,12 @@ class TestCachedPayloadBelt:
         assert model_id != LEGACY_MODEL_ID  # reader does not launder; the
         # pure compare_person_vectors treats the None probe as re-enroll.
 
-    def test_to_storage_dict_copies_the_belt(self) -> None:
-        """The cached payload the matcher reads is built by to_storage_dict —
-        the belt must ride from person_embeddings into embeddings, for BOTH
-        source shapes (dict payload, PersonEmbeddingResult object), and a
-        source without a belt must NOT gain one (absence stays honest)."""
-        from backend.services.enrichment_pipeline import EnrichmentResult
-
-        r = EnrichmentResult()
-        r.person_embeddings["7"] = {
-            "embedding": [0.1] * 512,
-            "embedding_dim": 512,
-            "detection_id": "7",
-            "model_id": OSNET_ID,
-        }
-
-        class _Result:  # the object shape (PersonEmbeddingResult-like)
-            embedding = [0.2] * 512
-            model_id = OTHER_ID
-
-        r.person_embeddings["8"] = _Result()
-        r.person_embeddings["9"] = {  # belt-less source: payload stays bare
-            "embedding": [0.3],
-            "embedding_dim": 1,
-            "detection_id": "9",
-        }
-
-        assert r.to_storage_dict(7)["embeddings"]["model_id"] == OSNET_ID
-        assert r.to_storage_dict(8)["embeddings"]["model_id"] == OTHER_ID
-        assert "model_id" not in r.to_storage_dict(9)["embeddings"]
+    # R8 S2 deleted EnrichmentResult.to_storage_dict along with
+    # enrichment_pipeline, so the WRITER half of this pin (the belt riding
+    # from person_embeddings into the stored embeddings payload) went with
+    # it. What is left here is the reader half — the payload contract the
+    # live matcher still honours — plus the batch matcher's own belt
+    # threading below.
 
     def test_match_detections_threads_the_belt(self) -> None:
         """match_person must be called WITH the payload's belt, not bare."""
@@ -417,31 +394,14 @@ class TestCachedPayloadBelt:
         assert matcher.match_person.await_args.kwargs.get("model_id") == OSNET_ID
 
 
-class TestProducerBeltSingleSource:
-    """B5b: 'one space' is mechanical — every person-vector producer labels
-    with osnet_model_id(), never its own literal."""
-
-    def test_pipeline_payload_sites_use_the_helper(self) -> None:
-        """The three producer payload sites carry a model_id derived from
-        osnet_model_id(): safe-extract dict, unified map, remote service
-        (the Triton reid leg loads the SAME pinned weights, so it stamps
-        the same string)."""
-        import inspect
-
-        import backend.services.enrichment_pipeline as ep
-
-        src = inspect.getsource(ep)
-        assert src.count("osnet_model_id") >= 2, (
-            "producer payload sites must label via osnet_model_id()"
-        )
-
-    def test_remote_result_carries_the_helper_belt(self) -> None:
-        import inspect
-
-        import backend.services.enrichment_pipeline as ep
-
-        src = inspect.getsource(ep.EnrichmentPipeline._compute_reid_via_service)
-        assert "osnet_model_id" in src
+# B5b ("every person-vector producer labels with osnet_model_id(), never its
+# own literal") had two source-scan tests here aimed at
+# enrichment_pipeline's producer payload sites. R8 S2 deleted that module, so
+# both scans lost their subject and went with it — a scan of a dead module
+# proves nothing about the live producers. The surviving producers
+# (entity_repository, entity_clustering_service, the osnet handle below) are
+# pinned by their own suites, and TestGenerateEmbeddingProducer keeps the
+# "handle's belt, not the catalog's claim" rule alive here.
 
 
 class TestGenerateEmbeddingProducer:

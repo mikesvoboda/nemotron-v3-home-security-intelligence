@@ -12,9 +12,12 @@ Key Components:
 
 Pre-configured Service Categories:
 - INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis, Backend, go2rtc, Frontend (aggressive restart)
-- AI_CONFIGS: ai-gateway, ai-llm, ai-llm-vllm (standard backoff). Since bc7d6101 the
+- AI_CONFIGS: ai-gateway, ai-llm-vllm (standard backoff). Since bc7d6101 the
   standalone YOLO26/Florence/CLIP/Enrichment containers are retired — those models
   are served by ai-gateway. ai-llm-vllm is behind the optional "vllm" compose profile.
+  ai-llm is gone entirely (R8 S2): the service left every compose file, and the
+  orchestrator's RETIRED_LLM_SERVICES guard still refuses to manage one if a
+  stale container from a pre-R8 deployment survives on the host.
 - MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Loki, Pyroscope, Alloy, Tempo,
   Redis/JSON/Blackbox/Node/DCGM Exporters, cAdvisor (lenient, per CATEGORY_DEFAULTS).
   Jaeger/Elasticsearch were retired in favour of Tempo (NEM-5545) and their
@@ -118,7 +121,6 @@ def build_service_configs(
     go2rtc_port = settings.go2rtc_port if settings else 1984
     ai_gateway_port = settings.ai_gateway_port if settings else 8090
     vllm_port = settings.vllm_port if settings else 8097
-    nemotron_port = settings.nemotron_port if settings else 8091
     prometheus_port = settings.prometheus_port if settings else 9090
     grafana_port = settings.grafana_port if settings else 3002
     redis_exporter_port = settings.redis_exporter_port if settings else 9121
@@ -195,13 +197,6 @@ def build_service_configs(
             display_name="AI Gateway",
             category=ServiceCategory.AI,
             port=ai_gateway_port,
-            health_endpoint="/health",
-            startup_grace_period=120,
-        ),
-        "ai-llm": ServiceConfig(
-            display_name="Nemotron",
-            category=ServiceCategory.AI,
-            port=nemotron_port,
             health_endpoint="/health",
             startup_grace_period=120,
         ),
@@ -423,13 +418,6 @@ AI_CONFIGS: dict[str, ServiceConfig] = {
         display_name="AI Gateway",
         category=ServiceCategory.AI,
         port=8090,
-        health_endpoint="/health",
-        startup_grace_period=120,
-    ),
-    "ai-llm": ServiceConfig(
-        display_name="Nemotron",
-        category=ServiceCategory.AI,
-        port=8091,
         health_endpoint="/health",
         startup_grace_period=120,
     ),

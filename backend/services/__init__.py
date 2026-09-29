@@ -4,15 +4,9 @@ from .ai_services import (
     FaceDetectorService,
     OCRService,
     PlateDetectorService,
-    YOLOWorldService,
 )
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
-from .analyzer_facade import (
-    AnalyzerServiceFacade,
-    get_analyzer_facade,
-    reset_analyzer_facade,
-)
 from .audit import (
     AuditService,
     audit_service,
@@ -52,7 +46,6 @@ from .clip_generator import (
     get_clip_generator,
     reset_clip_generator,
 )
-from .clip_loader import load_clip_model
 from .context_enricher import (
     BaselineContext,
     ContextEnricher,
@@ -92,16 +85,6 @@ from .degradation_manager import (
 )
 from .detector_client import DetectorClient, DetectorUnavailableError
 from .dwell_time_service import DwellTimeService, get_dwell_time_service
-from .enrichment_pipeline import (
-    BoundingBox,
-    DetectionInput,
-    EnrichmentPipeline,
-    EnrichmentResult,
-    FaceResult,
-    LicensePlateResult,
-    get_enrichment_pipeline,
-    reset_enrichment_pipeline,
-)
 from .evaluation_queue import (
     EvaluationQueue,
     get_evaluation_queue,
@@ -133,16 +116,6 @@ from .file_watcher import (
     is_image_file,
     is_valid_image,
 )
-from .florence_extractor import (
-    EnvironmentContext,
-    FlorenceExtractor,
-    PersonAttributes,
-    SceneAnalysis,
-    VehicleAttributes,
-    get_florence_extractor,
-    reset_florence_extractor,
-)
-from .florence_loader import load_florence_model
 from .frame_extractor import FrameExtractor
 from .gpu_config_service import GpuAssignment, GpuConfigService
 from .gpu_detection_service import (
@@ -241,15 +214,6 @@ from .monitoring_stack_validator import (
     PrometheusStatus,
     ScrapeTarget,
     ScrapeTargetHealth,
-)
-from .nemotron_analyzer import NemotronAnalyzer
-from .nemotron_latency_optimizer import (
-    LatencyOptimizerConfig,
-    LatencyStats,
-    NemotronLatencyOptimizer,
-    SemaphoreAcquireTimeout,
-    get_nemotron_optimizer,
-    reset_nemotron_optimizer,
 )
 from .notification import (
     DeliveryResult,
@@ -415,9 +379,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceDetectorService",
     "OCRService",
     "PlateDetectorService",
-    "YOLOWorldService",
     # Classes - Facades
-    "AnalyzerServiceFacade",
     # Classes
     "PipelineQualityAuditService",
     "AlertDeduplicationService",
@@ -427,7 +389,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "BaselineContext",
     "BaselineService",
     "BatchAggregator",
-    "BoundingBox",
     "BroadcastCallback",
     "CacheKeys",
     "CacheService",
@@ -459,16 +420,12 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DegradationManager",
     "DegradationMode",
     "DeliveryResult",
-    "DetectionInput",
     "DetectorClient",
     "DetectorUnavailableError",
     "DwellTimeService",
     "EnrichedContext",
-    "EnrichmentPipeline",
-    "EnrichmentResult",
     "EntityEmbedding",
     "EntityMatch",
-    "EnvironmentContext",
     "EvaluationQueue",
     "EvaluationResult",
     "EventBroadcaster",
@@ -476,9 +433,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FileDeletionJob",
     "FileService",
     "FaceDetection",
-    "FaceResult",
     "FileWatcher",
-    "FlorenceExtractor",
     "FrameExtractor",
     "GpuAssignment",
     "GpuConfigService",
@@ -500,17 +455,10 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "JobStatusService",
     "JobTimeoutService",
     "JobTracker",
-    "LicensePlateResult",
     "LineZoneService",
     "PolygonZoneService",
     "ModelConfig",
     "ModelManager",
-    "NemotronAnalyzer",
-    # Nemotron Latency Optimizer (NEM-4522)
-    "LatencyOptimizerConfig",
-    "LatencyStats",
-    "NemotronLatencyOptimizer",
-    "SemaphoreAcquireTimeout",
     "NotificationChannel",
     "NotificationDelivery",
     "NotificationService",
@@ -520,7 +468,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "PgNotifyChannel",
     "PgNotifyListener",
     "PgNotifyPayload",
-    "PersonAttributes",
     "PersonDetection",
     "PlateDetection",
     "PlateText",
@@ -532,7 +479,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "RetryResult",
     "TimeoutConfig",
     "TimeoutResult",
-    "SceneAnalysis",
     "SceneChangeDetector",
     "SceneChangeResult",
     "SearchFilters",
@@ -555,7 +501,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceEntityAssociation",
     "UnifiedEmbeddingService",
     "UnifiedPersonContext",
-    "VehicleAttributes",
     "VehicleDetection",
     "ZoneContext",
     # Monitoring Stack Validator
@@ -585,7 +530,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "detect_plates",
     "detection_in_zone",
     "get_alert_engine",
-    "get_analyzer_facade",
     "get_available_models",
     "get_background_evaluator",
     "get_baseline_service",
@@ -600,11 +544,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_degradation_manager",
     "get_dwell_time_service",
     "get_enabled_models",
-    "get_enrichment_pipeline",
     "get_evaluation_queue",
     "get_event_service",
     "get_file_service",
-    "get_florence_extractor",
     "get_gpu_detection_service",
     "get_guided_choice_config",
     "get_guided_regex_config",
@@ -619,7 +561,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_model_config",
     "get_model_manager",
     "get_model_zoo",
-    "get_nemotron_optimizer",
     "get_notification_service",
     "get_pg_notify_listener",
     "get_reid_service",
@@ -638,13 +579,10 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "is_person_class",
     "is_valid_image",
     "is_vehicle_class",
-    "load_clip_model",
-    "load_florence_model",
     "point_in_zone",
     "read_plates",
     "read_single_plate",
     "refresh_event_search_vector",
-    "reset_analyzer_facade",
     "reset_background_evaluator",
     "reset_baseline_service",
     "reset_cache_service",
@@ -657,11 +595,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_db_audit_service",
     "reset_dedupe_service",
     "reset_degradation_manager",
-    "reset_enrichment_pipeline",
     "reset_evaluation_queue",
     "reset_event_service",
     "reset_file_service",
-    "reset_florence_extractor",
     "reset_gpu_detection_service",
     "reset_household_matcher",
     "reset_job_status_service",
@@ -669,7 +605,6 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_job_tracker",
     "reset_model_manager",
     "reset_model_zoo",
-    "reset_nemotron_optimizer",
     "reset_notification_service",
     "reset_reid_service",
     "reset_retry_handler",

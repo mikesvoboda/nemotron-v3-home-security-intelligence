@@ -56,11 +56,17 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
         "critical": True,
     },
     {
-        "name": "nemotron",
-        "display_name": "Nemotron LLM Risk Analysis",
-        "url_attr": "nemotron_url",
-        "circuit_breaker_name": "nemotron",
-        "critical": True,
+        # R8 S2: the retired Nemotron LLM's row is replaced IN THE DATA by
+        # ai-vlm (the verdict engine) - critical False, matching the
+        # degradation posture main.py registers. The S1 swap filter that used
+        # to do this substitution at read time retires with it: the setting
+        # the old row read (nemotron_url) is deleted, so the row could only
+        # ever report UNKNOWN.
+        "name": "ai-vlm",
+        "display_name": "VLM Verdict Service",
+        "url_attr": "ai_vlm_url",
+        "circuit_breaker_name": "ai-vlm",
+        "critical": False,
     },
     {
         "name": "florence",
@@ -84,33 +90,6 @@ AI_SERVICES_CONFIG: list[dict[str, Any]] = [
         "critical": False,
     },
 ]
-
-# PIPELINE_MODE=vlm (spec rev 5): ai-vlm is the verdict engine and the legacy
-# Nemotron LLM is retired, so its row is swapped for this one. Non-critical,
-# like ai-vlm's degradation-manager registration in main.py: ai-vlm down is
-# DEGRADED, not an outage of the whole AI subsystem.
-AI_VLM_SERVICE_CONFIG: dict[str, Any] = {
-    "name": "ai-vlm",
-    "display_name": "VLM Verdict Service",
-    "url_attr": "ai_vlm_url",
-    "circuit_breaker_name": "ai-vlm",
-    "critical": False,
-}
-
-
-def ai_services_config_for_mode(
-    settings: Settings, table: list[dict[str, Any]] = AI_SERVICES_CONFIG
-) -> list[dict[str, Any]]:
-    """The AI service table for the configured pipeline mode.
-
-    ``legacy`` (unsupported, code kept until R8): ``table`` unchanged. ``vlm``
-    (the shipped default): the nemotron row replaced by AI_VLM_SERVICE_CONFIG,
-    so a retired LLM is never probed or reported. Shared with the
-    /api/system/health/full table in system.py.
-    """
-    if settings.pipeline_mode == "legacy":
-        return table
-    return [AI_VLM_SERVICE_CONFIG if cfg["name"] == "nemotron" else cfg for cfg in table]
 
 
 def _get_circuit_breaker_state(service_name: str) -> AIServiceCircuitState:
@@ -410,12 +389,14 @@ error rates, latency metrics, and queue depths.
 
 The response includes:
 - **overall_status**: healthy/degraded/critical based on service availability
-- **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)
+- **services**: Individual health status for each shipped AI service (yolo26,
+  ai-vlm, florence, clip, enrichment). The retired Nemotron LLM is not probed
+  or reported (R8, 2026-09-29).
 - **queues**: Current depth of detection and analysis queues with DLQ counts
 
 HTTP Status Codes:
 - **200**: All services operational or system is degraded but functional
-- **503**: Critical services (yolo26, nemotron) are unhealthy
+- **503**: Critical services (yolo26) are unhealthy
 """,
 )
 async def get_ai_services_health(
@@ -424,7 +405,7 @@ async def get_ai_services_health(
 ) -> AIServicesHealthResponse:
     """Get unified AI services health status."""
     settings = get_settings()
-    services_config = ai_services_config_for_mode(settings)
+    services_config = AI_SERVICES_CONFIG
 
     # Check all AI services in parallel
     health_tasks = [_check_ai_service_health(config, settings) for config in services_config]

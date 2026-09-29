@@ -634,6 +634,61 @@ class TestRunFullEvaluation:
 # =============================================================================
 
 
+class TestLlmUrlReHome:
+    """R8 S2b: audits evaluate against settings.ai_vlm_url, not the deleted
+    settings.nemotron_url.
+
+    The double is ``MagicMock(spec=Settings)``: it raises AttributeError for a
+    name Settings no longer declares, so a constructor still reaching for
+    ``nemotron_url`` fails here instead of passing vacuously the way a real
+    ``Settings(extra="ignore")`` would. The URL is also asserted end-to-end on
+    the posted request below, so the re-home is pinned at both the field and
+    the wire.
+    """
+
+    def test_service_llm_url_is_ai_vlm_url(self) -> None:
+        from backend.core.config import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.ai_vlm_url = "http://ai-vlm:8098"
+
+        with patch(
+            "backend.services.pipeline_quality_audit_service.get_settings",
+            return_value=settings,
+            autospec=True,
+        ):
+            service = PipelineQualityAuditService()
+
+        assert service._llm_url == "http://ai-vlm:8098"
+
+    @pytest.mark.asyncio
+    async def test_call_llm_posts_to_the_ai_vlm_completion_endpoint(self) -> None:
+        from backend.core.config import Settings
+
+        settings = MagicMock(spec=Settings)
+        settings.ai_vlm_url = "http://ai-vlm:8098"
+
+        with (
+            patch(
+                "backend.services.pipeline_quality_audit_service.get_settings",
+                return_value=settings,
+                autospec=True,
+            ),
+            patch("httpx.AsyncClient.post", autospec=True) as mock_post,
+        ):
+            service = PipelineQualityAuditService()
+            mock_resp = MagicMock(spec=httpx.Response)
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = {"content": "ok"}
+            mock_resp.raise_for_status = MagicMock()
+            mock_post.return_value = mock_resp
+
+            result = await service._call_llm("Test prompt")
+
+        assert result == "ok"
+        assert mock_post.call_args.args[1] == "http://ai-vlm:8098/completion"
+
+
 class TestCallLLM:
     """Tests for _call_llm method."""
 

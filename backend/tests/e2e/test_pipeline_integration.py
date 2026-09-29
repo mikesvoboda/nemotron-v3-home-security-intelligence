@@ -9,7 +9,7 @@ Pipeline Steps Tested:
     2. File Detection: Simulate file appearing in camera folder
     3. Detection Processing: Verify YOLO26 detection (mock if unavailable)
     4. Batch Aggregation: Verify detections are batched
-    5. AI Analysis: Verify Nemotron analysis (mock if unavailable)
+    5. AI Analysis: Verify the shipped VLM analysis (scripted, no socket)
     6. Event Creation: Verify event is created in database
     7. WebSocket Broadcast: Verify event is broadcast
     8. Cleanup: Remove test data
@@ -36,7 +36,10 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.severity import get_severity_service
+from backend.services.vlm_analyzer import VlmAnalyzer
+from backend.services.vlm_client import VlmTransportError
+from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
 
 
 @pytest.fixture
@@ -114,6 +117,13 @@ async def mock_redis_client():
     # Track batch data in memory
     batch_data = {}
     list_data = {}  # For rpush operations
+    stream_data = {}  # For xadd operations (shipped analysis stream)
+
+    # get_analysis_stream_service is first-client-wins; un-cache it so the
+    # stream service binds to THIS mock rather than an earlier test's.
+    import backend.services.redis_streams as _redis_streams
+
+    _redis_streams._analysis_stream_service = None
 
     async def mock_get(key):
         # Check batch_data first (for regular key-value storage)
@@ -239,18 +249,44 @@ async def mock_redis_client():
     mock_redis.publish = AsyncMock(side_effect=mock_publish)
     mock_redis.add_to_queue_safe = AsyncMock(side_effect=mock_add_to_queue_safe)
 
+    # Redis Streams append. use_redis_streams ships True (core/config.py:2437),
+    # so BatchAggregator.close_batch enqueues via AnalysisStreamService.add_batch
+    # -> self._redis._client.xadd rather than the legacy analysis_queue LIST. A
+    # bare MagicMock xadd is not awaitable, so every close_batch call in this
+    # file would die on it; this stores the entries for the assertions below.
+    async def mock_xadd(name, fields, maxlen=None, approximate=False):
+        entries = stream_data.setdefault(name, [])
+        message_id = f"{len(entries) + 1}-0"
+        entries.append(dict(fields))
+        return message_id
+
     # Mock internal _client for batch aggregator operations
     mock_internal_client = MagicMock()
     mock_internal_client.scan_iter = mock_scan_iter
+    mock_internal_client.xadd = AsyncMock(side_effect=mock_xadd)
     mock_internal_client.rpush = AsyncMock(side_effect=mock_rpush)
     mock_internal_client.expire = AsyncMock(side_effect=mock_expire)
     mock_internal_client.lrange = AsyncMock(side_effect=mock_lrange)
     mock_internal_client.llen = AsyncMock(side_effect=mock_llen)
     mock_internal_client.pipeline = mock_pipeline
+
+    # close_batch writes a closing flag through the raw inner client
+    # (`self._redis._client.set(..., ex=...)`, batch_aggregator.py:874) - a bare
+    # MagicMock there is not awaitable, so it needs the same storage the outer
+    # wrapper has.
+    async def mock_internal_set(key, value, ex=None):
+        batch_data[key] = value  # `ex` accepted, TTL not simulated
+        return True
+
+    mock_internal_client.set = AsyncMock(side_effect=mock_internal_set)
+    mock_internal_client.delete = AsyncMock(
+        side_effect=lambda *keys: sum(1 for k in keys if batch_data.pop(k, None) is not None)
+    )
     mock_redis._client = mock_internal_client
 
     # Store batch_data for test verification
     mock_redis._test_data = batch_data
+    mock_redis._test_streams = stream_data
 
     return mock_redis
 
@@ -278,23 +314,54 @@ def mock_detector_response():
     }
 
 
-@pytest.fixture
-def mock_nemotron_response():
-    """Create a mock Nemotron LLM analysis response.
+class ScriptedVlmClient:
+    """Stands in for the ai-vlm transport so a mocked e2e test never opens a socket.
 
-    Returns:
-        dict: Mock LLM response
+    R8 S2b: the retired NemotronAnalyzer was stubbed at `httpx.AsyncClient`;
+    the shipped VlmAnalyzer speaks `prompt_text` / `assess` / `close` around a
+    typed VlmVerdict, so that is the seam stubbed here. The last script entry
+    repeats, so a test can call analyze_batch more than once.
     """
-    return {
-        "content": json.dumps(
-            {
-                "risk_score": 75,
-                "risk_level": "high",
-                "summary": "Person and vehicle detected near entrance",
-                "reasoning": "Multiple detections indicate potential security concern",
-            }
-        )
-    }
+
+    def __init__(self, script: list) -> None:
+        self.script = list(script)
+        self.closed = False
+        self.assess_calls = 0
+
+    def prompt_text(self, request: VlmAssessRequest) -> str:
+        return f"ASSESS camera={request.context.camera_id} PATHS {request.image_paths}"
+
+    async def assess(self, request: VlmAssessRequest) -> VlmVerdict:
+        self.assess_calls += 1
+        outcome = self.script.pop(0) if len(self.script) > 1 else self.script[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def make_verdict(
+    *,
+    risk_score: int = 75,
+    summary: str = "Person detected",
+    reasoning: str = "Test reasoning for detected objects",
+    verdict: str = "confirmed",
+) -> VlmVerdict:
+    """A scripted verdict. There is no `risk_level` field: the model never emits
+    one, SeverityService derives it from the score (spec section 3 Derived)."""
+    return VlmVerdict.model_validate(
+        {
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "summary": summary,
+            "reasoning": reasoning,
+            "description": "Scripted e2e scene.",
+            "criteria": [{"name": "person_present", "passed": True, "evidence": "full frame"}],
+            "provenance": {"engine": "llama.cpp", "model_id": "e2e-scripted-model"},
+        }
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -322,7 +389,6 @@ async def test_complete_pipeline_flow_with_mocked_services(
     test_image_path,
     mock_redis_client,
     mock_detector_response,
-    mock_nemotron_response,
 ):
     """Test the complete E2E pipeline flow with mocked external services.
 
@@ -330,11 +396,11 @@ async def test_complete_pipeline_flow_with_mocked_services(
     - File detection and queuing
     - YOLO26 object detection (mocked)
     - Batch aggregation
-    - Nemotron AI analysis (mocked)
+    - VLM AI analysis (scripted transport)
     - Event creation
     - WebSocket broadcasting
 
-    The test uses mocked external services (YOLO26, Nemotron, Redis)
+    The test uses mocked external services (YOLO26, ai-vlm, Redis)
     so it can run without actual service dependencies.
 
     Timeout Handling (NEM-3155):
@@ -403,44 +469,51 @@ async def test_complete_pipeline_flow_with_mocked_services(
     await asyncio.sleep(0.1)  # Small delay to simulate passage of time
     await aggregator.close_batch(batch_id)
 
-    # Verify batch was queued for analysis
-    analysis_queue_key = "queue:analysis_queue"
-    assert analysis_queue_key in mock_redis_client._test_data
-    assert len(mock_redis_client._test_data[analysis_queue_key]) == 1
+    # Verify the batch reached the analysis stream. use_redis_streams ships
+    # True, so close_batch xadds to "analysis:stream" (detection_ids JSON
+    # encoded) instead of RPUSHing the legacy "analysis_queue" LIST.
+    from backend.services.redis_streams import ANALYSIS_STREAM_KEY
 
-    # Step 5: Mock Nemotron analysis
-    with patch("httpx.AsyncClient") as mock_http_client:
-        mock_response = MagicMock()
-        mock_response.json = MagicMock(return_value=mock_nemotron_response)
-        mock_response.raise_for_status = MagicMock()
+    stream_entries = mock_redis_client._test_streams[ANALYSIS_STREAM_KEY]
+    assert len(stream_entries) == 1
+    assert stream_entries[0]["batch_id"] == batch_id
+    assert [int(d) for d in json.loads(stream_entries[0]["detection_ids"])] == [
+        d.id for d in detections
+    ]
 
-        # Create mock client with async post method
-        mock_client = MagicMock()
-        mock_client.post = AsyncMock(return_value=mock_response)
-        mock_client.aclose = AsyncMock()
+    # Step 5: Scripted VLM analysis (no socket). R8 S2b: this was a
+    # patch("httpx.AsyncClient") seam on the retired NemotronAnalyzer; the
+    # shipped VlmAnalyzer speaks assess()->VlmVerdict, so that is the seam now.
+    detection_ids = [str(d.id) for d in detections]
 
-        # Make the constructor return the mock client directly
-        mock_http_client.return_value = mock_client
+    # Run analyzer - pass camera_id and detection_ids directly (as queue worker does)
+    # This tests the fixed handoff where close_batch deletes Redis keys but
+    # the queue payload contains all needed data
+    analyzer = VlmAnalyzer(
+        redis_client=mock_redis_client,
+        vlm_client=ScriptedVlmClient(
+            [
+                make_verdict(
+                    risk_score=75,
+                    summary="Person and vehicle detected near entrance",
+                    reasoning="Multiple detections indicate potential security concern",
+                )
+            ]
+        ),
+    )
+    event = await analyzer.analyze_batch(
+        batch_id=batch_id,
+        camera_id=camera_id,
+        detection_ids=detection_ids,
+    )
 
-        # Get the detection_ids for analysis
-        detection_ids = [str(d.id) for d in detections]
-
-        # Run analyzer - pass camera_id and detection_ids directly (as queue worker does)
-        # This tests the fixed handoff where close_batch deletes Redis keys but
-        # the queue payload contains all needed data
-        analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=detection_ids,
-        )
-
-    # Step 6: Verify event was created
+    # Step 6: Verify event was created. The score came from the verdict; the
+    # LEVEL came from SeverityService - the model never emits one.
     assert event is not None
     assert event.batch_id == batch_id
     assert event.camera_id == camera_id
     assert event.risk_score == 75
-    assert event.risk_level == "high"
+    assert event.risk_level == get_severity_service().risk_score_to_severity(75).value
     assert "Person and vehicle detected" in event.summary
 
     # Step 7: Verify event in database
@@ -451,12 +524,12 @@ async def test_complete_pipeline_flow_with_mocked_services(
         assert saved_event is not None
         assert saved_event.id == event.id
         assert saved_event.risk_score == 75
-        assert saved_event.risk_level == "high"
+        assert saved_event.risk_level == get_severity_service().risk_score_to_severity(75).value
 
-        # Verify detection IDs are stored
-        stored_detection_ids = json.loads(saved_event.detection_ids)
-        assert len(stored_detection_ids) == 2
-        assert all(str(d.id) in stored_detection_ids for d in detections)
+        # Verify the detections are linked - via the event_detections junction,
+        # which is what the shipped analyzer writes (not the legacy
+        # Event.detection_ids JSON column).
+        assert sorted(saved_event.detection_id_list) == sorted(d.id for d in detections)
 
     # Step 8: Verify WebSocket broadcast was called
     mock_redis_client.publish.assert_called()
@@ -591,9 +664,11 @@ async def test_pipeline_batch_timeout_logic(
     # Batch should be closed due to window timeout
     assert batch_id in closed_batches
 
-    # Verify batch was queued for analysis
-    analysis_queue_key = "queue:analysis_queue"
-    assert analysis_queue_key in mock_redis_client._test_data
+    # Verify the batch reached the analysis stream (use_redis_streams ships True)
+    from backend.services.redis_streams import ANALYSIS_STREAM_KEY
+
+    assert ANALYSIS_STREAM_KEY in mock_redis_client._test_streams
+    assert len(mock_redis_client._test_streams[ANALYSIS_STREAM_KEY]) == 1
 
 
 @pytest.mark.e2e
@@ -698,18 +773,24 @@ async def test_pipeline_handles_detector_failure_gracefully(
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_pipeline_handles_nemotron_failure_gracefully(
+async def test_pipeline_handles_vlm_failure_gracefully(
     isolated_db,
     test_camera,
     test_image_path,
     mock_redis_client,
 ):
-    """Test that pipeline handles Nemotron service failures gracefully.
+    """Test that the pipeline handles ai-vlm failures gracefully.
 
     This test validates:
-    - LLM connection errors are handled
-    - Fallback risk data is used
-    - Event is still created with default values
+    - A transport error does not crash the analysis
+    - The event is still created
+
+    R8 S2b: it used to assert the retired analyzer's fabricated fallback
+    (risk_score=50, risk_level="medium", "Analysis unavailable" in the
+    summary). That default-score paper-over is deliberately NOT imported
+    across the seam (D11/S5): the shipped §6 rule stores a NULL score and
+    level with a verification_failed verdict so the UI can say "needs
+    review" instead of inventing a mid-range risk.
     """
     camera_id = test_camera.id
 
@@ -738,29 +819,22 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
     # Get detection_ids for analysis
     detection_ids = [str(detection.id)]
 
-    # Mock Nemotron to fail
-    with patch("httpx.AsyncClient") as mock_http_client:
-        # Create mock client with async post method that raises
-        mock_client = MagicMock()
-        mock_client.post = AsyncMock(side_effect=Exception("LLM service unavailable"))
-        mock_client.aclose = AsyncMock()
+    # Script the transport to fail (should not crash the analysis)
+    analyzer = VlmAnalyzer(
+        redis_client=mock_redis_client,
+        vlm_client=ScriptedVlmClient([VlmTransportError("ai-vlm unavailable")]),
+    )
+    event = await analyzer.analyze_batch(
+        batch_id=batch_id,
+        camera_id=camera_id,
+        detection_ids=detection_ids,
+    )
 
-        # Make the constructor return the mock client directly
-        mock_http_client.return_value = mock_client
-
-        # Run analyzer (should not crash) - pass camera_id and detection_ids directly
-        analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=detection_ids,
-        )
-
-    # Event should be created with fallback values
+    # Event created, unscored by design
     assert event is not None
-    assert event.risk_score == 50  # Default fallback
-    assert event.risk_level == "medium"  # Default fallback
-    assert "Analysis unavailable" in event.summary
+    assert event.risk_score is None
+    assert event.risk_level is None
+    assert "needs review" in event.summary
 
 
 @pytest.mark.e2e

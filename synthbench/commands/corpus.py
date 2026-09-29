@@ -1,4 +1,4 @@
-"""`corpus snapshot`: host-side corpus maintenance, run by the owner's timer (design §6)."""
+"""`corpus snapshot`, the owner's timer's maintenance (design §6), and `corpus coverage`."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import sys
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 
+from synthbench.commands import coverage
 from synthbench.commands.common import EXIT_OK, AskOwner, Parser
 from synthbench.host.snapshot import snapshot_and_prune
 from synthbench.status import snapshots_file
@@ -18,7 +19,7 @@ Runner = Callable[..., subprocess.CompletedProcess[str]]
 def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
     corpus = commands.add_parser(
         "corpus",
-        help="host-side corpus maintenance (the owner's timer runs it)",
+        help="whole-corpus commands: coverage (read-only) and snapshot (the owner's timer)",
         allow_abbrev=False,
     )
     actions = corpus.add_subparsers(dest="corpus_command", required=True, parser_class=Parser)
@@ -28,6 +29,7 @@ def add_parser(commands: argparse._SubParsersAction[Parser]) -> None:
         allow_abbrev=False,
     )
     snapshot.set_defaults(run=run_snapshot)
+    coverage.add_parser(actions)
 
 
 def run_snapshot(args: argparse.Namespace, env: Mapping[str, str]) -> int:

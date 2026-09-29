@@ -17,16 +17,26 @@ Expected Results (after prompt improvements):
 - Genuine threats should maintain HIGH scores
 
 These tests require real PostgreSQL database access via the isolated_db fixture.
+
+R8 S2b scope note: the analyzer these tests replayed through is now
+VlmAnalyzer, so the transport stub stands in for the typed assess contract
+(prompt_text/assess/close -> VlmVerdict) instead of the retired legacy JSON
+completion. The edge-case suite that used to assert "the NEW prompt keeps a
+weapon/loitering/nighttime scene HIGH" is gone with that prompt: with a
+scripted verdict such an assertion would only restate the script, so it
+pinned nothing (the score->level derivation and the §6 clamps are pinned in
+tests/integration/test_vlm_analyzer.py). What is still honestly pinned here
+is the replay MECHANICS: re-analyzing a historical event's detections
+produces a fresh Event and re-establishes the same detection association.
 """
 
-import json
 import random
 import statistics
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy import select
@@ -36,7 +46,8 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_detection import EventDetection
 from backend.models.experiment_result import ExperimentResult
-from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.vlm_analyzer import VlmAnalyzer
+from backend.services.vlm_verdict import VlmAssessRequest, VlmVerdict
 from backend.tests.conftest import unique_id
 
 # Mark all tests as integration (require real PostgreSQL database)
@@ -184,6 +195,62 @@ def calculate_replay_statistics(results: list[ReplayResult]) -> ReplayStatistics
 
 
 # =============================================================================
+# Scripted VLM transport
+# =============================================================================
+
+
+class ScriptedVlmClient:
+    """Stands in for the VLM transport so a replay never opens a socket.
+
+    The shipped analyzer's seam is `prompt_text` / `assess` / `close` around
+    a typed VlmVerdict - not the retired analyzer's free-form `_call_llm`
+    dict. Scores here are SCRIPTED, so nothing in this file claims what the
+    model would have decided about a scene; the tests read the analyzer's
+    writes (new Event row, detection association, derived level).
+    """
+
+    def __init__(self, script: list[Any]) -> None:
+        self.script = list(script)
+        self.closed = False
+        self.assess_calls = 0
+
+    def prompt_text(self, request: VlmAssessRequest) -> str:
+        return f"ASSESS camera={request.context.camera_id} PATHS {request.image_paths}"
+
+    async def assess(self, request: VlmAssessRequest) -> VlmVerdict:
+        self.assess_calls += 1
+        outcome = self.script.pop(0) if len(self.script) > 1 else self.script[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+def make_verdict(
+    *,
+    risk_score: int = 30,
+    summary: str = "Replayed analysis: benign activity",
+    reasoning: str = "Recalibrated assessment shows low risk",
+    verdict: str = "confirmed",
+) -> VlmVerdict:
+    """A scripted verdict. No `risk_level`: the model never emits one -
+    SeverityService derives it from the score (spec §3 Derived row)."""
+    return VlmVerdict.model_validate(
+        {
+            "verdict": verdict,
+            "risk_score": risk_score,
+            "summary": summary,
+            "reasoning": reasoning,
+            "description": "Scripted replay scene.",
+            "criteria": [{"name": "person_present", "passed": True, "evidence": "full frame"}],
+            "provenance": {"engine": "llama.cpp", "model_id": "replay-scripted-model"},
+        }
+    )
+
+
+# =============================================================================
 # Fixtures
 # =============================================================================
 
@@ -203,8 +270,15 @@ def mock_redis_client():
 
 @pytest.fixture
 def analyzer(mock_redis_client):
-    """Create NemotronAnalyzer instance with mocked Redis."""
-    return NemotronAnalyzer(redis_client=mock_redis_client)
+    """VlmAnalyzer with mocked Redis and a benign scripted verdict.
+
+    Only the HistoricalReplayInfrastructure tests need an analyzer at all
+    (the class stores it and never calls it); the two tests that drive a
+    replay build their own so each can script its own score.
+    """
+    return VlmAnalyzer(
+        redis_client=mock_redis_client, vlm_client=ScriptedVlmClient([make_verdict()])
+    )
 
 
 @pytest.fixture
@@ -396,11 +470,20 @@ class TestEventSelection:
 
 
 class TestReplayMechanism:
-    """Tests for the replay mechanism through new prompt pipeline."""
+    """Tests for the replay mechanism through the shipped analyzer.
+
+    R8 S2b: the transport stub is the typed assess contract now. What these
+    two tests honestly pin is the MECHANICS - re-analyzing a historical
+    event's detection set writes a fresh Event row (idempotency key off a
+    fresh batch id) and the EventDetection junction lands on exactly the
+    same detection ids. The score in the assert is the scripted verdict's
+    score read back through the §6 write path; the claim is "the replay
+    pipeline carries it to the row", not "the model would decide 30".
+    """
 
     @pytest.mark.asyncio
     async def test_replay_single_event_through_analyzer(
-        self, isolated_db, analyzer, mock_redis_client, sample_events_with_detections
+        self, isolated_db, mock_redis_client, sample_events_with_detections
     ):
         """Test replaying a single event through the analyzer."""
         from sqlalchemy.orm import selectinload
@@ -417,53 +500,33 @@ class TestReplayMechanism:
             event = result.scalar_one()
 
             original_score = event.risk_score
-            original_level = event.risk_level
             detection_ids = [d.id for d in event.detections]
             camera_id = event.camera_id
 
-        # Mock LLM response with a different score
-        mock_llm_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 30,  # Lower score to simulate recalibration
-                    "risk_level": "low",
-                    "summary": "Replayed analysis: benign activity",
-                    "reasoning": "Recalibrated assessment shows low risk",
-                }
-            )
-        }
+        # Replay runs through the shipped gate with a benign scripted verdict.
+        replay_analyzer = VlmAnalyzer(
+            redis_client=mock_redis_client,
+            vlm_client=ScriptedVlmClient([make_verdict(risk_score=30)]),
+        )
 
-        # Setup Redis mock
         batch_id = unique_id("replay")
 
-        async def mock_get(key):
-            if "camera_id" in key:
-                return camera_id
-            elif "detections" in key:
-                return json.dumps(detection_ids)
-            elif "started_at" in key:
-                return str(event.started_at.timestamp())
-            return None
-
-        mock_redis_client.get.side_effect = mock_get
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_llm_response
-            mock_post.return_value = mock_resp
-
-            # Run analysis (creates a new event, simulating replay)
-            new_event = await analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=detection_ids,
-            )
+        # Run analysis (creates a new event, simulating replay)
+        new_event = await replay_analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
 
         # Verify replay result
         assert new_event is not None
         assert new_event.risk_score == 30
-        assert new_event.risk_level == "low"
+        # The level is DERIVED (SeverityService), not scripted: 30 is LOW
+        # on the shipped bands (low_max=29 -> 30 lands in medium unless the
+        # test env shifts bands, so compare against the derivation itself).
+        from backend.services.severity import get_severity_service
+
+        assert new_event.risk_level == get_severity_service().risk_score_to_severity(30).value
 
         # Calculate score difference
         score_diff = abs(new_event.risk_score - (original_score or 0))
@@ -471,7 +534,7 @@ class TestReplayMechanism:
 
     @pytest.mark.asyncio
     async def test_replay_preserves_detection_association(
-        self, isolated_db, analyzer, mock_redis_client, sample_events_with_detections
+        self, isolated_db, mock_redis_client, sample_events_with_detections
     ):
         """Test that replay correctly associates the same detections."""
         from sqlalchemy.orm import selectinload
@@ -490,42 +553,18 @@ class TestReplayMechanism:
             original_detection_ids = sorted([d.id for d in original_event.detections])
             camera_id = original_event.camera_id
 
-        # Mock LLM response
-        mock_llm_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 40,
-                    "risk_level": "medium",
-                    "summary": "Replayed event",
-                    "reasoning": "Test",
-                }
-            )
-        }
+        replay_analyzer = VlmAnalyzer(
+            redis_client=mock_redis_client,
+            vlm_client=ScriptedVlmClient([make_verdict(risk_score=40, summary="Replayed event")]),
+        )
 
         batch_id = unique_id("replay_preserve")
 
-        async def mock_get(key):
-            if "camera_id" in key:
-                return camera_id
-            elif "detections" in key:
-                return json.dumps(original_detection_ids)
-            elif "started_at" in key:
-                return str(original_event.started_at.timestamp())
-            return None
-
-        mock_redis_client.get.side_effect = mock_get
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_llm_response
-            mock_post.return_value = mock_resp
-
-            new_event = await analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=original_detection_ids,
-            )
+        new_event = await replay_analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=original_detection_ids,
+        )
 
         # Verify detection associations
         async with get_session() as session:
@@ -683,243 +722,6 @@ class TestScoreComparison:
 # =============================================================================
 # Test: Edge Cases Documentation
 # =============================================================================
-
-
-class TestEdgeCasesHighRisk:
-    """Tests documenting edge cases that should maintain HIGH scores.
-
-    These tests verify that genuine threats are not incorrectly downgraded
-    by the new prompt pipeline. Each test documents a specific scenario
-    that should maintain elevated risk scoring.
-    """
-
-    @pytest.mark.asyncio
-    async def test_weapon_detection_maintains_high_score(
-        self, isolated_db, analyzer, mock_redis_client
-    ):
-        """Weapon detections should always score HIGH or CRITICAL.
-
-        Edge case: A person detected with a weapon-like object should
-        not be downgraded even if the activity appears benign otherwise.
-        """
-        from backend.core.database import get_session
-
-        camera_id = unique_id("camera")
-        detection_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
-        batch_id = unique_id("weapon")
-
-        # Create camera and detection
-        async with get_session() as session:
-            camera = Camera(
-                id=camera_id,
-                name=f"Edge Case Camera {camera_id[-8:]}",
-                folder_path=f"/export/foscam/{camera_id}",
-            )
-            session.add(camera)
-
-            detection = Detection(
-                id=detection_id,
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/weapon_test.jpg",
-                detected_at=datetime.now(UTC),
-                object_type="person",
-                confidence=0.95,
-            )
-            session.add(detection)
-            await session.commit()
-
-        # Mock LLM to return high score (as expected for weapon)
-        mock_llm_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 95,
-                    "risk_level": "critical",
-                    "summary": "Person with potential weapon detected",
-                    "reasoning": "High confidence weapon-like object in frame",
-                }
-            )
-        }
-
-        async def mock_get(key):
-            if "camera_id" in key:
-                return camera_id
-            elif "detections" in key:
-                return json.dumps([detection_id])
-            elif "started_at" in key:
-                return str(datetime.now(UTC).timestamp())
-            return None
-
-        mock_redis_client.get.side_effect = mock_get
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_llm_response
-            mock_post.return_value = mock_resp
-
-            event = await analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=[detection_id],
-            )
-
-        # Weapon detection should remain high/critical
-        assert event.risk_score >= 70, "Weapon detection should score HIGH or CRITICAL"
-        assert event.risk_level in ("high", "critical")
-
-    @pytest.mark.asyncio
-    async def test_loitering_unknown_person_maintains_elevated_score(
-        self, isolated_db, analyzer, mock_redis_client
-    ):
-        """Unknown person loitering should maintain elevated score.
-
-        Edge case: An unknown person detected repeatedly over time
-        (suggesting loitering) should not be downgraded.
-        """
-        from backend.core.database import get_session
-
-        camera_id = unique_id("camera")
-        batch_id = unique_id("loiter")
-
-        # Create multiple detections over time (simulating loitering)
-        detection_ids = []
-        base_id = random.randint(100000, 900000)  # noqa: S311  # nosemgrep: insecure-random
-
-        async with get_session() as session:
-            camera = Camera(
-                id=camera_id,
-                name=f"Loiter Test Camera {camera_id[-8:]}",
-                folder_path=f"/export/foscam/{camera_id}",
-            )
-            session.add(camera)
-
-            base_time = datetime.now(UTC)
-            for i in range(5):
-                det = Detection(
-                    id=base_id + i,
-                    camera_id=camera_id,
-                    file_path=f"/export/foscam/{camera_id}/loiter_{i}.jpg",
-                    detected_at=base_time + timedelta(minutes=i * 5),  # 5-minute intervals
-                    object_type="person",
-                    confidence=0.92,
-                )
-                session.add(det)
-                detection_ids.append(base_id + i)
-
-            await session.commit()
-
-        # Mock LLM response for loitering scenario
-        mock_llm_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 75,
-                    "risk_level": "high",
-                    "summary": "Person loitering detected",
-                    "reasoning": "Same person detected multiple times over extended period",
-                }
-            )
-        }
-
-        async def mock_get(key):
-            if "camera_id" in key:
-                return camera_id
-            elif "detections" in key:
-                return json.dumps(detection_ids)
-            elif "started_at" in key:
-                return str(datetime.now(UTC).timestamp())
-            return None
-
-        mock_redis_client.get.side_effect = mock_get
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_llm_response
-            mock_post.return_value = mock_resp
-
-            event = await analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=detection_ids,
-            )
-
-        # Loitering should maintain elevated score
-        assert event.risk_score >= 60, "Loitering should maintain MEDIUM or higher score"
-
-    @pytest.mark.asyncio
-    async def test_nighttime_activity_maintains_context_awareness(
-        self, isolated_db, analyzer, mock_redis_client
-    ):
-        """Nighttime activity should consider temporal context.
-
-        Edge case: Activity at unusual hours (2-4 AM) should be
-        scored higher than identical activity during daytime.
-        """
-        from backend.core.database import get_session
-
-        camera_id = unique_id("camera")
-        detection_id = random.randint(100000, 999999)  # noqa: S311  # nosemgrep: insecure-random
-        batch_id = unique_id("night")
-
-        # Detection at 3 AM
-        nighttime = datetime.now(UTC).replace(hour=3, minute=0, second=0)
-
-        async with get_session() as session:
-            camera = Camera(
-                id=camera_id,
-                name=f"Night Test Camera {camera_id[-8:]}",
-                folder_path=f"/export/foscam/{camera_id}",
-            )
-            session.add(camera)
-
-            detection = Detection(
-                id=detection_id,
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/night_test.jpg",
-                detected_at=nighttime,
-                object_type="person",
-                confidence=0.88,
-            )
-            session.add(detection)
-            await session.commit()
-
-        # Mock LLM response considering nighttime context
-        mock_llm_response = {
-            "content": json.dumps(
-                {
-                    "risk_score": 65,
-                    "risk_level": "medium",
-                    "summary": "Nighttime activity detected",
-                    "reasoning": "Person detected at unusual hour (3 AM) warrants attention",
-                }
-            )
-        }
-
-        async def mock_get(key):
-            if "camera_id" in key:
-                return camera_id
-            elif "detections" in key:
-                return json.dumps([detection_id])
-            elif "started_at" in key:
-                return str(nighttime.timestamp())
-            return None
-
-        mock_redis_client.get.side_effect = mock_get
-
-        with patch("httpx.AsyncClient.post") as mock_post:
-            mock_resp = MagicMock()
-            mock_resp.status_code = 200
-            mock_resp.json.return_value = mock_llm_response
-            mock_post.return_value = mock_resp
-
-            event = await analyzer.analyze_batch(
-                batch_id=batch_id,
-                camera_id=camera_id,
-                detection_ids=[detection_id],
-            )
-
-        # Nighttime activity should not be scored LOW
-        assert event.risk_score >= 40, "Nighttime activity should score at least MEDIUM"
 
 
 # =============================================================================
@@ -1137,13 +939,13 @@ class HistoricalReplayInfrastructure:
 
     def __init__(
         self,
-        analyzer: NemotronAnalyzer,
+        analyzer: VlmAnalyzer,
         experiment_name: str = "historical_replay",
     ):
         """Initialize replay infrastructure.
 
         Args:
-            analyzer: NemotronAnalyzer instance for replay
+            analyzer: analyzer used for the replay (stored; the infra never calls it)
             experiment_name: Name for experiment tracking
         """
         self.analyzer = analyzer

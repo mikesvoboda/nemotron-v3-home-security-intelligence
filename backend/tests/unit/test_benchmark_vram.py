@@ -42,17 +42,17 @@ class TestBenchmarkResult:
         from benchmark_vram import BenchmarkResult
 
         result = BenchmarkResult(
-            model_name="siglip2-base-patch16-224",
+            model_name="osnet-ain-x1-0",
             category="embedding",
-            estimated_vram_mb=800,
-            actual_vram_mb=750,
+            estimated_vram_mb=100,
+            actual_vram_mb=96,
             loading_time_seconds=2.5,
             unloading_time_seconds=0.1,
             success=True,
         )
 
         assert result.success is True
-        assert result.actual_vram_mb == 750
+        assert result.actual_vram_mb == 96
         assert result.loading_time_seconds == 2.5
         assert result.unloading_time_seconds == 0.1
 
@@ -116,18 +116,18 @@ class TestBenchmarkReport:
             timestamp="2025-12-26T12:00:00Z",
             results=[
                 BenchmarkResult(
-                    model_name="siglip2-base-patch16-224",
+                    model_name="osnet-ain-x1-0",
                     category="embedding",
-                    estimated_vram_mb=800,
-                    actual_vram_mb=750,
+                    estimated_vram_mb=100,
+                    actual_vram_mb=96,
                     loading_time_seconds=2.5,
                     success=True,
                 ),
                 BenchmarkResult(
-                    model_name="florence-2-large",
-                    category="vision-language",
-                    estimated_vram_mb=1200,
-                    actual_vram_mb=1100,
+                    model_name="yolov8n-pose",
+                    category="pose",
+                    estimated_vram_mb=200,
+                    actual_vram_mb=180,
                     loading_time_seconds=5.0,
                     success=True,
                 ),
@@ -149,8 +149,8 @@ class TestBenchmarkReport:
 
         # Check table
         assert "| Model | Category |" in markdown
-        assert "siglip2-base-patch16-224" in markdown
-        assert "florence-2-large" in markdown
+        assert "osnet-ain-x1-0" in markdown
+        assert "yolov8n-pose" in markdown
         assert "unavailable-model" in markdown
 
         # Check summary
@@ -227,27 +227,48 @@ class TestModelZooIntegration:
     """Tests for Model Zoo integration with benchmark."""
 
     def test_model_zoo_available(self):
-        """Test that model zoo can be imported and accessed."""
+        """Test that model zoo can be imported and accessed.
+
+        R8 S2b retired the attribute zoo (siglip2, florence-2-large and the
+        rest) with the enrichment tier, so the backend registry is the lookup
+        survivors: plates, faces, re-ID embeddings, pose, OCR.
+        florence-2-base stays a row in models.yml but is ai-gateway-served, so
+        it is legitimately absent from the BACKEND zoo.
+        """
         from backend.services.model_zoo import get_model_zoo
 
         zoo = get_model_zoo()
 
-        assert "siglip2-base-patch16-224" in zoo
-        assert "florence-2-large" in zoo
+        assert "osnet-ain-x1-0" in zoo
         assert "yolo11-license-plate" in zoo
         assert "paddleocr" in zoo
+        assert "fast-alpr" in zoo
+        # The registry is built from models.yml rows that ALSO have an entry in
+        # _LOADER_MAP, so the yolo26 primary detector — HTTP-called rather than
+        # loaded in-process, with no loader entry — is absent from the zoo even
+        # though it is a service: backend row.
+        assert "yolo26" not in zoo
+        # The retired ids are gone from the registry, not merely disabled.
+        assert "siglip2-base-patch16-224" not in zoo
+        assert "florence-2-large" not in zoo
 
     def test_enabled_models(self):
         """Test that expected models are enabled."""
-        from backend.services.model_zoo import get_enabled_models
+        from backend.services.model_zoo import get_enabled_models, get_model_zoo
 
         enabled = get_enabled_models()
         enabled_names = {m.name for m in enabled}
 
         # These should be enabled by default
-        assert "siglip2-base-patch16-224" in enabled_names
+        assert "osnet-ain-x1-0" in enabled_names
         assert "paddleocr" in enabled_names
-        # Note: florence-2-large now runs as dedicated ai-florence service (disabled in model zoo)
+        assert "yolo11-license-plate" in enabled_names
+        # siglip2-base-patch16-224 was enabled here before R8 S2b deleted its
+        # loader and its models.yml row along with the enrichment tier.
+        assert "siglip2-base-patch16-224" not in enabled_names
+        # A row can be present and still opted out — enabled != present.
+        assert "yolo26-general" in get_model_zoo()
+        assert "yolo26-general" not in enabled_names
 
     def test_model_vram_estimates(self):
         """Test that model VRAM estimates are reasonable."""
@@ -256,20 +277,35 @@ class TestModelZooIntegration:
         zoo = get_model_zoo()
 
         # VRAM estimates should be non-negative and within reasonable bounds
-        # Some models like BRISQUE are CPU-based (vram_mb=0)
+        # Some models like the CPU-onnxruntime face leg are CPU-based (vram_mb=0)
         for name, config in zoo.items():
             assert config.vram_mb >= 0, f"{name} has invalid VRAM estimate"
             assert config.vram_mb < 10000, f"{name} has unreasonably high VRAM estimate"
 
     def test_total_vram_calculation(self):
         """Test total VRAM calculation for multiple models."""
-        from backend.services.model_zoo import get_total_vram_if_loaded
+        from backend.services.model_zoo import (
+            get_enabled_models,
+            get_model_zoo,
+            get_total_vram_if_loaded,
+        )
 
-        # Test with known models
-        total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "florence-2-large"])
+        # Test with known models: yolov8n-pose (200) + yolo11-license-plate (300)
+        total = get_total_vram_if_loaded(["yolov8n-pose", "yolo11-license-plate"])
+        assert total == 500
 
-        # Should be sum of both models (200 + 1200 = 1400)
-        assert total == 1400
+        # Aggregation over every enabled row, pinned as an arithmetic total:
+        # 100 osnet + 0 scrfd + 0 recognizer + 200 pose + 200 yolo11-face
+        # + 300 plate + 28 fast-alpr + 100 paddleocr = 928
+        enabled = get_enabled_models()
+        assert get_total_vram_if_loaded([m.name for m in enabled]) == 928
+
+        # The sum-of-enabled is what excludes the disabled yolo26-general row:
+        # the helper itself sums whatever it is handed (400 when named directly),
+        # so filtering by enabled is the caller's job — 928 proves it happened.
+        assert get_model_zoo()["yolo26-general"].enabled is False
+        assert get_model_zoo()["yolo26-general"].vram_mb == 400
+        assert get_total_vram_if_loaded(["yolo26-general"]) == 400
 
     def test_total_vram_empty_list(self):
         """Test total VRAM calculation with empty list."""
@@ -283,7 +319,7 @@ class TestModelZooIntegration:
         from backend.services.model_zoo import get_total_vram_if_loaded
 
         # Unknown model should be ignored
-        total = get_total_vram_if_loaded(["siglip2-base-patch16-224", "nonexistent-model"])
+        total = get_total_vram_if_loaded(["yolov8n-pose", "nonexistent-model"])
 
-        # Should only count siglip2-base-patch16-224 (200)
+        # Should only count yolov8n-pose (200)
         assert total == 200

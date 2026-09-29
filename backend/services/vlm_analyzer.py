@@ -70,8 +70,10 @@ from backend.models.event import Event
 from backend.models.event_detection import event_detections
 from backend.models.event_verification import EventVerification
 from backend.services.capture_time import camera_tz, resolve_capture_time
+from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
+    ConstrainedDecodingNotEnforced,
+)
 from backend.services.key_frame_selector import FrameRef, select_key_frames
-from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
 from backend.services.severity import SeverityService, get_severity_service
 from backend.services.vlm_client import VlmClient, VlmClientError
 from backend.services.vlm_specialists import collect_specialist_outputs

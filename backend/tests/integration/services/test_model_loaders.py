@@ -1,27 +1,26 @@
-"""Integration tests for AI model loaders.
+"""Integration tests for the AI model loaders R8 slice S2b left standing.
 
-These tests verify that model loaders work correctly with the Model Zoo
-infrastructure, handle loading/unloading, manage VRAM, and integrate properly
-with the enrichment pipeline.
+S2b retired the enrichment tier and 19 of the 22 model loaders with it, so this
+file — which used to drive the CLIP, Florence, pet-classifier, violence, age,
+gender and threat-detection loaders through the registry — shrank to what
+survived: the ModelZoo/ModelManager contract (registry shape, VRAM budgets,
+reference counting, error propagation) and the OSNet person re-ID loader.
 
-HTTP calls to external AI services (YOLO26, Nemotron, Florence, CLIP)
-are mocked to isolate the tests. We're testing the model loader infrastructure,
-not actual AI inference.
+HTTP calls to external AI services are mocked to isolate the tests. We're
+testing the model loader infrastructure, not actual AI inference.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.services.age_classifier_loader import load_age_classifier_model
-from backend.services.clip_loader import CLIPLoader, load_clip_model
-from backend.services.florence_loader import load_florence_model
-from backend.services.gender_classifier_loader import load_gender_classifier_model
-from backend.services.model_zoo import get_model_zoo, reset_model_manager, reset_model_zoo
+from backend.services.model_zoo import (
+    _LOADER_MAP,
+    get_model_zoo,
+    reset_model_manager,
+    reset_model_zoo,
+)
 from backend.services.osnet_loader import load_osnet_model
-from backend.services.pet_classifier_loader import load_pet_classifier_model
-from backend.services.threat_detection_loader import load_threat_detection_model
-from backend.services.violence_loader import load_violence_model
 
 # =============================================================================
 # Fixtures
@@ -30,14 +29,13 @@ from backend.services.violence_loader import load_violence_model
 
 @pytest.fixture
 def mock_transformers(monkeypatch):
-    """Mock transformers library for model loading tests.
+    """Mock torch/transformers so loaders never touch real weights or a GPU.
 
-    cuda.is_available must return True: production loaders (clip_loader,
-    violence_loader, pet_classifier_loader, gender_classifier_loader,
-    age_classifier_loader) fail fast with "requires a CUDA GPU" when it is
-    False (3396d3ef), which short-circuits every load path these tests
-    exercise. The CPU-only host is legitimate; simulating a GPU host is the
-    established pattern (test_clip_loader_unload does the same).
+    Kept under its original name: TestOSNetLoaderIntegration (whose loader
+    survives S2b) uses it, and test_osnet_loader.py re-exports it for the
+    check-integration-tests hook. The cuda.is_available=True setup is retained
+    for OSNet only — the fail-fast CUDA guards that motivated it lived in the
+    retired clip/violence/pet/gender/age loaders.
     """
     import sys
 
@@ -45,26 +43,9 @@ def mock_transformers(monkeypatch):
     mock_torch.cuda.is_available.return_value = True
     mock_torch.cuda.empty_cache = MagicMock()
 
-    mock_processor = MagicMock()
-    mock_model = MagicMock()
-    mock_model.cuda.return_value = mock_model
-    mock_model.cpu.return_value = mock_model
-
-    mock_transformers_lib = MagicMock()
-    mock_transformers_lib.CLIPProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers_lib.CLIPModel.from_pretrained.return_value = mock_model
-    mock_transformers_lib.AutoProcessor.from_pretrained.return_value = mock_processor
-    mock_transformers_lib.AutoModelForVision2Seq.from_pretrained.return_value = mock_model
-    # Production CLIP loader imports AutoModel/AutoProcessor (clip_loader.py);
-    # alias them to the same mocks so side_effects and call-asserts land on
-    # what production actually uses.
-    mock_transformers_lib.AutoModel = mock_transformers_lib.CLIPModel
-    mock_transformers_lib.AutoProcessor = mock_transformers_lib.CLIPProcessor
-
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
-    monkeypatch.setitem(sys.modules, "transformers", mock_transformers_lib)
 
-    return {"torch": mock_torch, "transformers": mock_transformers_lib}
+    return {"torch": mock_torch}
 
 
 @pytest.fixture(autouse=True)
@@ -77,205 +58,15 @@ def reset_singletons():
     reset_model_manager()
 
 
-# =============================================================================
-# Test CLIP Model Loader Integration
-# =============================================================================
+def _stub_load(model_name: str, result: object):
+    """Patch a zoo row's load_fn to return `result`.
 
-
-class TestCLIPLoaderIntegration:
-    """Integration tests for CLIP model loader."""
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_load_success(self, mock_transformers):
-        """Test CLIP model loads successfully."""
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-
-        result = await loader.load(device="cpu")
-
-        assert "model" in result
-        assert "processor" in result
-        assert loader._model is not None
-        mock_transformers["transformers"].CLIPModel.from_pretrained.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_load_with_cuda(self, mock_transformers):
-        """Test CLIP model loads with CUDA device."""
-        mock_transformers["torch"].cuda.is_available.return_value = True
-
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-        result = await loader.load(device="cuda")
-
-        assert "model" in result
-        assert result["model"].cuda.called
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_unload(self, mock_transformers):
-        """Test CLIP model unloads and clears CUDA cache."""
-        # Enable CUDA for this test to verify empty_cache is called
-        mock_transformers["torch"].cuda.is_available.return_value = True
-
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-        await loader.load(device="cpu")
-
-        assert loader._model is not None
-
-        await loader.unload()
-
-        assert loader._model is None
-        # empty_cache should be called when CUDA is available
-        mock_transformers["torch"].cuda.empty_cache.assert_called()
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_properties(self, mock_transformers):
-        """Test CLIP loader properties return correct values."""
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-
-        assert loader.model_name == "siglip2-base-patch16-224"
-        # SigLIP 2 Base FP16 uses ~200MB (vs CLIP ViT-L 800MB) — clip_loader
-        # comment; the 800 figure is the old model, drifted when the loader
-        # switched models (3396d3ef).
-        assert loader.vram_mb == 200
-        assert isinstance(loader.vram_mb, int)
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_missing_weights_error(self, mock_transformers):
-        """Test CLIP loader raises error for missing weights."""
-        mock_transformers["transformers"].CLIPModel.from_pretrained.side_effect = RuntimeError(
-            "Model weights not found"
-        )
-
-        loader = CLIPLoader("/nonexistent/path")
-
-        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
-            await loader.load()
-
-    @pytest.mark.asyncio
-    async def test_load_clip_model_function(self, mock_transformers):
-        """Test standalone load_clip_model function."""
-        result = await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
-
-        assert "model" in result
-        assert "processor" in result
-        mock_transformers["transformers"].CLIPProcessor.from_pretrained.assert_called_once_with(
-            "openai/siglip2-base-patch16-224arge-patch14"
-        )
-
-
-# =============================================================================
-# Test Florence Model Loader Integration
-# =============================================================================
-
-
-class TestFlorenceLoaderIntegration:
-    """Integration tests for Florence-2 model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_load_florence_model_function_success(self, mock_transformers):
-        """Test load_florence_model function loads successfully."""
-        mock_transformers["transformers"].AutoModelForCausalLM = MagicMock()
-        mock_model = MagicMock()
-        mock_model.to = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_transformers[
-            "transformers"
-        ].AutoModelForCausalLM.from_pretrained.return_value = mock_model
-
-        result = await load_florence_model("microsoft/Florence-2-large")
-
-        assert result is not None
-        # Florence returns (model, processor) tuple
-        mock_transformers["transformers"].AutoProcessor.from_pretrained.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_florence_model_missing_weights_error(self, mock_transformers):
-        """Test Florence loader raises error for missing weights."""
-        mock_transformers["transformers"].AutoModelForCausalLM = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForCausalLM.from_pretrained.side_effect = RuntimeError("Model weights not found")
-
-        with pytest.raises(RuntimeError, match="Failed to load Florence"):
-            await load_florence_model("/nonexistent/path")
-
-
-# =============================================================================
-# Test Pet Classifier Loader Integration
-# =============================================================================
-
-
-class TestPetClassifierLoaderIntegration:
-    """Integration tests for pet classifier model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_pet_classifier_load_success(self, mock_transformers):
-        """Test pet classifier model loads successfully."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_model = MagicMock()
-        mock_model.to = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
-        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
-
-        result = await load_pet_classifier_model("/path/to/model")
-
-        assert result is not None
-        assert "model" in result
-        assert "processor" in result
-
-    @pytest.mark.asyncio
-    async def test_pet_classifier_missing_weights_error(self, mock_transformers):
-        """Test pet classifier loader raises error for missing weights."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
-            "Model weights not found"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load pet classifier"):
-            await load_pet_classifier_model("/nonexistent/path")
-
-
-# =============================================================================
-# Test Violence Loader Integration
-# =============================================================================
-
-
-class TestViolenceLoaderIntegration:
-    """Integration tests for violence detection model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_violence_loader_load_success(self, mock_transformers):
-        """Test violence detection model loads successfully."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_model = MagicMock()
-        mock_model.to = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
-        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
-
-        result = await load_violence_model("/path/to/model")
-
-        assert result is not None
-        assert "model" in result
-        assert "processor" in result
-
-    @pytest.mark.asyncio
-    async def test_violence_loader_missing_weights_error(self, mock_transformers):
-        """Test violence loader raises error for missing weights."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
-            "Model weights not found"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load violence"):
-            await load_violence_model("/nonexistent/path")
+    The pre-S2b version of this module drove real loaders through the manager;
+    those modules are gone. The manager contract is loader-agnostic, so the
+    manager tests stub the row's own load_fn and assert the manager behaviour
+    they are actually about.
+    """
+    return patch.object(get_model_zoo()[model_name], "load_fn", AsyncMock(return_value=result))
 
 
 # =============================================================================
@@ -287,13 +78,25 @@ class TestModelZooIntegration:
     """Integration tests for Model Zoo model registry."""
 
     def test_get_model_zoo_returns_registry(self):
-        """Test get_model_zoo returns model configurations."""
+        """Test get_model_zoo returns model configurations.
+
+        The rows asserted here before S2b (siglip2-base-patch16-224,
+        florence-2-large, pet-classifier) were retired with their loaders;
+        these are rows models.yml still ships to the backend.
+        """
         zoo = get_model_zoo()
 
         assert isinstance(zoo, dict)
-        assert "siglip2-base-patch16-224" in zoo
-        assert "florence-2-large" in zoo
-        assert "pet-classifier" in zoo
+        assert "osnet-ain-x1-0" in zoo
+        assert "yolo11-license-plate" in zoo
+        assert "face-recognizer" in zoo
+
+    def test_registry_is_a_subset_of_the_loader_map(self):
+        """A row only reaches the registry if it has a loader, and the loader
+        map points at no row the retired yaml rows left behind."""
+        zoo = get_model_zoo()
+
+        assert set(zoo) <= set(_LOADER_MAP)
 
     def test_model_configs_have_required_fields(self):
         """Test all model configs have required fields."""
@@ -307,18 +110,13 @@ class TestModelZooIntegration:
                 "detection",
                 "ocr",
                 "embedding",
-                "vision-language",
                 "pose",
-                "depth-estimation",
-                "classification",
-                "segmentation",
-                "action-recognition",
-                "quality-assessment",
-                # zero-dce-plus-plus (models.yml: category preprocessing)
-                # and fast-alpr (models.yml:523 category alpr) — categories
-                # flow verbatim from models.yml into ModelConfig (3396d3ef
-                # unified registry).
-                "preprocessing",
+                # fast-alpr (models.yml: category alpr) — categories flow
+                # verbatim from models.yml into ModelConfig (3396d3ef unified
+                # registry). The other categories this list carried
+                # (vision-language, depth-estimation, classification,
+                # segmentation, action-recognition, quality-assessment,
+                # preprocessing) belonged to rows S2b retired.
                 "alpr",
             ]
             assert callable(config.load_fn)
@@ -332,15 +130,25 @@ class TestModelZooIntegration:
         for name, config in zoo.items():
             assert config.vram_mb <= 3000, f"{name} VRAM budget too high: {config.vram_mb}MB"
 
-    def test_clip_model_in_zoo(self):
-        """Test CLIP model is registered correctly."""
-        zoo = get_model_zoo()
-        config = zoo["siglip2-base-patch16-224"]
+    def test_osnet_model_in_zoo(self):
+        """Test the re-ID row is registered correctly.
 
-        assert config.name == "siglip2-base-patch16-224"
+        Replaces test_clip_model_in_zoo (the CLIP row and its loader were
+        retired by S2b). This is the surviving row whose load_fn identity is
+        pinned — and it is pinned *through* the sha256 partial, because
+        models.yml binds the F12 hash into the loader rather than storing the
+        bare function.
+        """
+        import functools
+
+        zoo = get_model_zoo()
+        config = zoo["osnet-ain-x1-0"]
+
+        assert config.name == "osnet-ain-x1-0"
         assert config.category == "embedding"
         assert config.enabled is True
-        assert config.load_fn is load_clip_model
+        assert isinstance(config.load_fn, functools.partial)
+        assert config.load_fn.func is load_osnet_model
 
 
 # =============================================================================
@@ -352,127 +160,125 @@ class TestModelManagerIntegration:
     """Integration tests for ModelManager on-demand loading."""
 
     @pytest.mark.asyncio
-    async def test_model_manager_load_context_manager(self, mock_transformers):
+    async def test_model_manager_load_context_manager(self):
         """Test ModelManager load using async context manager."""
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
+        sentinel = {"model": MagicMock(), "processor": MagicMock()}
 
-        async with manager.load("siglip2-base-patch16-224") as model:
-            assert model is not None
-            assert "model" in model
-            assert "processor" in model
+        with _stub_load("yolo11-license-plate", sentinel):
+            async with manager.load("yolo11-license-plate") as model:
+                assert model is sentinel
 
-        # Model should be unloaded after context exit
-        status = manager.get_status()
-        assert "siglip2-base-patch16-224" not in status["loaded_models"]
+            # Model should be unloaded after context exit
+            status = manager.get_status()
+            assert "yolo11-license-plate" not in status["loaded_models"]
 
     @pytest.mark.asyncio
-    async def test_model_manager_reference_counting(self, mock_transformers):
+    async def test_model_manager_reference_counting(self):
         """Test ModelManager tracks reference counts correctly."""
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
+        sentinel = MagicMock()
 
-        # Load model twice (simulating concurrent use)
-        async with manager.load("siglip2-base-patch16-224") as model1:
-            assert model1 is not None
+        with _stub_load("yolo11-license-plate", sentinel):
+            # Load model twice (simulating concurrent use)
+            async with manager.load("yolo11-license-plate") as model1:
+                assert model1 is sentinel
 
-            async with manager.load("siglip2-base-patch16-224") as model2:
-                # Should return same model instance
-                assert model2 is model1
+                async with manager.load("yolo11-license-plate") as model2:
+                    # Should return same model instance
+                    assert model2 is model1
 
+                    status = manager.get_status()
+                    assert "yolo11-license-plate" in status["loaded_models"]
+                    # Reference count should be 2
+                    assert status["load_counts"]["yolo11-license-plate"] == 2
+
+                # After first release, ref count should be 1
                 status = manager.get_status()
-                assert "siglip2-base-patch16-224" in status["loaded_models"]
-                # Reference count should be 2
-                assert status["load_counts"]["siglip2-base-patch16-224"] == 2
+                assert status["load_counts"]["yolo11-license-plate"] == 1
 
-            # After first release, ref count should be 1
+            # After all releases, model should be unloaded
             status = manager.get_status()
-            assert status["load_counts"]["siglip2-base-patch16-224"] == 1
-
-        # After all releases, model should be unloaded
-        status = manager.get_status()
-        assert "siglip2-base-patch16-224" not in status["loaded_models"]
+            assert "yolo11-license-plate" not in status["loaded_models"]
 
     @pytest.mark.asyncio
-    async def test_model_manager_vram_tracking(self, mock_transformers):
+    async def test_model_manager_vram_tracking(self):
         """Test ModelManager tracks total VRAM usage."""
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
+        plate_vram = get_model_zoo()["yolo11-license-plate"].vram_mb
 
-        async with manager.load("siglip2-base-patch16-224"):
-            status = manager.get_status()
-            assert status["total_loaded_vram_mb"] == 200  # SigLIP 2 VRAM
+        with _stub_load("yolo11-license-plate", MagicMock()):
+            async with manager.load("yolo11-license-plate"):
+                status = manager.get_status()
+                assert status["total_loaded_vram_mb"] == plate_vram  # the row's own budget
 
     @pytest.mark.asyncio
-    async def test_model_manager_concurrent_loads_different_models(self, mock_transformers):
+    async def test_model_manager_concurrent_loads_different_models(self):
         """Test ModelManager handles concurrent loads of different models."""
         from backend.services.model_zoo import get_model_manager
 
-        # Setup AutoImageProcessor for pet classifier
-        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_pet_model = MagicMock()
-        mock_pet_model.to = MagicMock(return_value=mock_pet_model)
-        mock_pet_model.eval = MagicMock(return_value=mock_pet_model)
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.return_value = mock_pet_model
-
+        zoo = get_model_zoo()
         manager = get_model_manager()
 
-        # Load two different models concurrently
-        async with manager.load("siglip2-base-patch16-224") as clip_model:
-            assert clip_model is not None
+        with (
+            _stub_load("yolo11-license-plate", MagicMock()),
+            _stub_load("yolo11-face", MagicMock()),
+        ):
+            async with manager.load("yolo11-license-plate") as plate_model:
+                assert plate_model is not None
 
-            async with manager.load("pet-classifier") as pet_model:
-                assert pet_model is not None
+                async with manager.load("yolo11-face") as face_model:
+                    assert face_model is not None
 
-                status = manager.get_status()
-                # Both models should be loaded
-                assert "siglip2-base-patch16-224" in status["loaded_models"]
-                assert "pet-classifier" in status["loaded_models"]
-                # Total VRAM should be sum of both
-                assert status["total_loaded_vram_mb"] == 200 + 200
+                    status = manager.get_status()
+                    # Both models should be loaded
+                    assert "yolo11-license-plate" in status["loaded_models"]
+                    assert "yolo11-face" in status["loaded_models"]
+                    # Total VRAM should be sum of both
+                    assert status["total_loaded_vram_mb"] == (
+                        zoo["yolo11-license-plate"].vram_mb + zoo["yolo11-face"].vram_mb
+                    )
 
     @pytest.mark.asyncio
-    async def test_model_manager_handles_load_error(self, mock_transformers):
+    async def test_model_manager_handles_load_error(self):
         """Test ModelManager handles model loading errors gracefully."""
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
 
-        # Simulate load failure
-        mock_transformers["transformers"].CLIPModel.from_pretrained.side_effect = RuntimeError(
-            "Model not found"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
-            async with manager.load("siglip2-base-patch16-224"):
-                pass
+        failing = MagicMock(side_effect=RuntimeError("Simulated loader failure"))
+        with patch.object(get_model_zoo()["yolo11-license-plate"], "load_fn", failing):
+            with pytest.raises(RuntimeError, match="Simulated loader failure"):
+                async with manager.load("yolo11-license-plate"):
+                    pass
 
         # Manager should remain in consistent state
         status = manager.get_status()
-        assert "siglip2-base-patch16-224" not in status["loaded_models"]
+        assert "yolo11-license-plate" not in status["loaded_models"]
 
     @pytest.mark.asyncio
-    async def test_model_manager_status_returns_correct_structure(self, mock_transformers):
+    async def test_model_manager_status_returns_correct_structure(self):
         """Test get_status returns properly structured data."""
         from backend.services.model_zoo import get_model_manager
 
         manager = get_model_manager()
 
-        async with manager.load("siglip2-base-patch16-224"):
-            status = manager.get_status()
+        with _stub_load("yolo11-license-plate", MagicMock()):
+            async with manager.load("yolo11-license-plate"):
+                status = manager.get_status()
 
-            assert "loaded_models" in status
-            assert "total_loaded_vram_mb" in status
-            assert "load_counts" in status
-            assert isinstance(status["loaded_models"], list)
-            assert isinstance(status["total_loaded_vram_mb"], int)
-            assert isinstance(status["load_counts"], dict)
+                assert "loaded_models" in status
+                assert "total_loaded_vram_mb" in status
+                assert "load_counts" in status
+                assert isinstance(status["loaded_models"], list)
+                assert isinstance(status["total_loaded_vram_mb"], int)
+                assert isinstance(status["load_counts"], dict)
 
 
 # =============================================================================
@@ -481,224 +287,20 @@ class TestModelManagerIntegration:
 
 
 class TestModelLoaderErrorHandling:
-    """Test error handling for model loaders."""
+    """Test error handling for the surviving loaders."""
 
     @pytest.mark.asyncio
-    async def test_clip_loader_import_error(self, monkeypatch):
-        """Test CLIP loader handles ImportError for missing transformers."""
-        import builtins
-        import sys
-
-        # Hide transformers module
-        modules_to_hide = ["transformers"]
-        hidden_modules = {}
-        for mod in modules_to_hide:
-            for key in list(sys.modules.keys()):
-                if key == mod or key.startswith(f"{mod}."):
-                    hidden_modules[key] = sys.modules.pop(key)
-
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "transformers" or name.startswith("transformers."):
-                raise ImportError(f"No module named '{name}'")
-            return original_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", mock_import)
-
-        try:
-            with pytest.raises(ImportError, match="transformers package required"):
-                await load_clip_model("openai/siglip2-base-patch16-224arge-patch14")
-        finally:
-            sys.modules.update(hidden_modules)
+    async def test_osnet_rejects_path_outside_the_allowlist(self) -> None:
+        """NEM-4501: a path outside the allowed roots is refused before any
+        stat or read, wrapped as the loader's RuntimeError."""
+        with pytest.raises(RuntimeError, match="Invalid model path"):
+            await load_osnet_model("/etc/shadow")
 
     @pytest.mark.asyncio
-    async def test_florence_loader_runtime_error(self, mock_transformers):
-        """Test Florence loader handles RuntimeError during model load."""
-        mock_transformers["transformers"].AutoModelForCausalLM = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForCausalLM.from_pretrained.side_effect = RuntimeError("CUDA out of memory")
-
-        with pytest.raises(RuntimeError, match="Failed to load Florence"):
-            await load_florence_model("microsoft/Florence-2-large")
-
-    @pytest.mark.asyncio
-    async def test_model_loader_with_empty_path(self, mock_transformers):
-        """Test model loader handles empty model path."""
-        mock_transformers["transformers"].CLIPProcessor.from_pretrained.side_effect = ValueError(
-            "Invalid model path"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load SigLIP 2 model"):
-            await load_clip_model("")
-
-
-# =============================================================================
-# Test Model Warmup
-# =============================================================================
-
-
-class TestModelWarmup:
-    """Test model warmup functionality."""
-
-    @pytest.mark.asyncio
-    async def test_clip_loader_model_loads_for_warmup(self, mock_transformers):
-        """Test CLIP model can be loaded for warmup."""
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-
-        result = await loader.load(device="cpu")
-
-        # Model should be loaded and ready for inference
-        assert result is not None
-        assert loader._model is not None
-
-    @pytest.mark.asyncio
-    async def test_florence_loader_model_loads_for_warmup(self, mock_transformers):
-        """Test Florence model can be loaded for warmup."""
-        mock_transformers["transformers"].AutoModelForCausalLM = MagicMock()
-        mock_model = MagicMock()
-        mock_model.to = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_transformers[
-            "transformers"
-        ].AutoModelForCausalLM.from_pretrained.return_value = mock_model
-
-        result = await load_florence_model("microsoft/Florence-2-large")
-
-        assert result is not None
-
-
-# =============================================================================
-# Test Model Inference (Mocked)
-# =============================================================================
-
-
-class TestModelInferenceMocked:
-    """Test model inference with mocked outputs."""
-
-    @pytest.mark.asyncio
-    async def test_clip_model_inference_mock(self, mock_transformers):
-        """Test CLIP model returns inference results (mocked)."""
-        # Mock the model's forward pass
-        mock_model = mock_transformers["transformers"].CLIPModel.from_pretrained.return_value
-        mock_embeddings = MagicMock()
-        mock_embeddings.shape = (1, 768)  # 768-dimensional embeddings
-        mock_model.return_value = MagicMock(image_embeds=mock_embeddings)
-
-        loader = CLIPLoader("openai/siglip2-base-patch16-224arge-patch14")
-        result = await loader.load(device="cpu")
-
-        # Verify model is callable (would perform inference)
-        assert result["model"] is not None
-        assert callable(result["model"])
-
-    @pytest.mark.asyncio
-    async def test_florence_model_inference_mock(self, mock_transformers):
-        """Test Florence model returns inference results (mocked)."""
-        mock_transformers["transformers"].AutoModelForCausalLM = MagicMock()
-        mock_model = MagicMock()
-        mock_model.to = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_output = MagicMock()
-        mock_output.sequences = [[1, 2, 3]]  # Token IDs
-        mock_model.generate.return_value = mock_output
-        mock_transformers[
-            "transformers"
-        ].AutoModelForCausalLM.from_pretrained.return_value = mock_model
-
-        result = await load_florence_model("microsoft/Florence-2-large")
-
-        # Florence returns a tuple (model, processor)
-        assert result is not None
-        # Verify model has generate method (Florence-specific)
-        assert hasattr(mock_model, "generate")
-
-
-# =============================================================================
-# Test Age Classifier Loader Integration
-# =============================================================================
-
-
-class TestAgeClassifierLoaderIntegration:
-    """Integration tests for age classifier model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_age_classifier_load_success(self, mock_transformers):
-        """Test age classifier model loads successfully."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_model = MagicMock()
-        mock_model.cuda = MagicMock(return_value=mock_model)
-        mock_model.half = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_model.config.id2label = {0: "child", 1: "adult", 2: "senior"}
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
-        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
-
-        result = await load_age_classifier_model("/path/to/model")
-
-        assert result is not None
-        assert "model" in result
-        assert "processor" in result
-        assert "labels" in result
-
-    @pytest.mark.asyncio
-    async def test_age_classifier_missing_weights_error(self, mock_transformers):
-        """Test age classifier loader raises error for missing weights."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
-            "Model weights not found"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load age classifier"):
-            await load_age_classifier_model("/nonexistent/path")
-
-
-# =============================================================================
-# Test Gender Classifier Loader Integration
-# =============================================================================
-
-
-class TestGenderClassifierLoaderIntegration:
-    """Integration tests for gender classifier model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_gender_classifier_load_success(self, mock_transformers):
-        """Test gender classifier model loads successfully."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_model = MagicMock()
-        mock_model.cuda = MagicMock(return_value=mock_model)
-        mock_model.half = MagicMock(return_value=mock_model)
-        mock_model.eval = MagicMock(return_value=mock_model)
-        mock_model.config.id2label = {0: "male", 1: "female"}
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
-        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
-
-        result = await load_gender_classifier_model("/path/to/model")
-
-        assert result is not None
-        assert "model" in result
-        assert "processor" in result
-        assert "labels" in result
-
-    @pytest.mark.asyncio
-    async def test_gender_classifier_missing_weights_error(self, mock_transformers):
-        """Test gender classifier loader raises error for missing weights."""
-        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
-        mock_transformers[
-            "transformers"
-        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
-            "Model weights not found"
-        )
-
-        with pytest.raises(RuntimeError, match="Failed to load gender classifier"):
-            await load_gender_classifier_model("/nonexistent/path")
+    async def test_osnet_missing_weights_error(self) -> None:
+        """An allowed directory with no weights raises, not silently degrades."""
+        with pytest.raises(RuntimeError, match="No model weights found"):
+            await load_osnet_model("/tmp/osnet-absent-weights-dir")  # noqa: S108
 
 
 # =============================================================================
@@ -777,82 +379,3 @@ class TestOSNetLoaderIntegration:
             with patch("pathlib.Path.glob", return_value=[], autospec=True):
                 with pytest.raises(RuntimeError, match="Failed to load OSNet"):
                     await load_osnet_model("/nonexistent/path")
-
-
-# =============================================================================
-# Test Threat Detection Loader Integration
-# =============================================================================
-
-
-class TestThreatDetectionLoaderIntegration:
-    """Integration tests for threat detection model loader (functional API)."""
-
-    @pytest.mark.asyncio
-    async def test_threat_detection_load_success(self, mock_transformers, monkeypatch):
-        """Test threat detection model loads successfully."""
-        import sys
-
-        # Mock ultralytics YOLO
-        mock_ultralytics = MagicMock()
-        mock_yolo_model = MagicMock()
-        mock_yolo_model.fuse = MagicMock()
-        mock_yolo_model.model.is_fused = MagicMock(return_value=False)
-        mock_ultralytics.YOLO.return_value = mock_yolo_model
-
-        monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-
-        # Mock Path.exists to return True
-        from unittest.mock import patch
-
-        with patch("pathlib.Path.exists", return_value=True, autospec=True):
-            result = await load_threat_detection_model("/path/to/model")
-
-        assert result is not None
-        # YOLO loader returns the model directly
-        assert mock_yolo_model.fuse.called
-
-    @pytest.mark.asyncio
-    async def test_threat_detection_missing_weights_error(self, monkeypatch):
-        """Test threat detection loader raises error for missing weights."""
-        import sys
-
-        # Mock ultralytics
-        mock_ultralytics = MagicMock()
-        monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
-
-        # Mock Path.glob and exists to return no files
-        from unittest.mock import patch
-
-        with patch("pathlib.Path.exists", return_value=False, autospec=True):
-            with patch("pathlib.Path.glob", return_value=[], autospec=True):
-                with pytest.raises(RuntimeError, match="Failed to load threat detection"):
-                    await load_threat_detection_model("/nonexistent/path")
-
-    @pytest.mark.asyncio
-    async def test_threat_detection_import_error(self, monkeypatch):
-        """Test threat detection loader handles missing ultralytics."""
-        import builtins
-        import sys
-
-        # Hide ultralytics module
-        modules_to_hide = ["ultralytics"]
-        hidden_modules = {}
-        for mod in modules_to_hide:
-            for key in list(sys.modules.keys()):
-                if key == mod or key.startswith(f"{mod}."):
-                    hidden_modules[key] = sys.modules.pop(key)
-
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "ultralytics" or name.startswith("ultralytics."):
-                raise ImportError(f"No module named '{name}'")
-            return original_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", mock_import)
-
-        try:
-            with pytest.raises(ImportError, match="Threat detection requires ultralytics"):
-                await load_threat_detection_model("/path/to/model")
-        finally:
-            sys.modules.update(hidden_modules)
