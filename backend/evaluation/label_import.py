@@ -425,6 +425,27 @@ def _midpoint(risk: Any) -> int:
     return 0
 
 
+# A generated set's capture moment when it declares none: the honest epoch sentinel.
+_EPOCH_SENTINEL = "1970-01-01T00:00:00+00:00"
+
+
+def _declared_timestamp(value: Any) -> tuple[str, str | None]:
+    """A set's optional capture moment (synthbench P5a design §2): an ISO-8601 time with a UTC
+    offset, stored verbatim because the replay prompt shows the stored string. An absent key keeps
+    the epoch sentinel; any other value refuses the set. Returns (timestamp, loud-skip reason)."""
+    if value is None:
+        return _EPOCH_SENTINEL, None
+    if not isinstance(value, str):
+        return "", f"timestamp is {type(value).__name__}, not an ISO-8601 string"
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        return "", f"timestamp {value!r} is not ISO-8601"
+    if moment.utcoffset() is None:
+        return "", f"timestamp {value!r} has no UTC offset"
+    return value, None
+
+
 def import_generated_items(
     *,
     corpus_dir: str | Path,
@@ -517,6 +538,10 @@ def import_generated_items(
         if attribution_reason:
             out.append(_skip(item_id, GENERATED_KIND, reason=attribution_reason))
             continue
+        timestamp, timestamp_reason = _declared_timestamp(labels.get("timestamp"))
+        if timestamp_reason:
+            out.append(_skip(item_id, GENERATED_KIND, reason=timestamp_reason))
+            continue
         score = _midpoint(labels.get("risk"))
         # expected_severity is the S3 demand - it exists for INCIDENTS only;
         # a benign item's bar is S2 (a level ceiling), not a floor, so it
@@ -533,7 +558,7 @@ def import_generated_items(
                 zones=[],
                 zone_crossing=False,
                 household={},
-                timestamp="1970-01-01T00:00:00+00:00",  # honest epoch sentinel
+                timestamp=timestamp,  # the set's declared moment, else the epoch sentinel
                 # Rendered through the SHIPPED renderer, exactly as
                 # load_synthetic_items and load_stock_items do: the replay
                 # sends the stored text verbatim, so a batch that DECLARED a
