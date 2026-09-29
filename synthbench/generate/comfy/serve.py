@@ -241,6 +241,35 @@ def force_remove(run: Runner = subprocess.run) -> None:
         _warn(f"podman rm -f {CONTAINER} exited {done.returncode}: {(done.stderr or '').strip()}")
 
 
+def cleanup(run: Runner = subprocess.run) -> None:
+    """The renderer unit's ExecStopPost (host/units.py): force-remove a stopped leftover, but
+    never touch a container that is still running.
+
+    ExecStopPost runs after every stop, but systemd also runs it after a failed
+    ExecStartPre/ExecStart/ExecStartPost — including the renderer's own pre-start refusal, which
+    fires exactly when a synthbench-comfyui container already exists. That can be a renderer
+    started by hand (`serve up`), or an owner GPU window's ComfyUI reusing the same container
+    name: an unconditional `rm -f` there would kill it right after the refusal. So this checks
+    `container_running` first and leaves a running container alone.
+
+    Never raises and never signals failure (`main` always returns 0 for this command): systemd
+    would mark the unit failed if ExecStopPost exited non-zero, which would leave the renderer
+    refusing to start even though the stop itself succeeded.
+    """
+    try:
+        running = container_running(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        _warn(f"podman container inspect {CONTAINER} failed: {error}")
+        running = True  # conservative: leave it alone rather than remove blind
+    if running:
+        _warn(f"a running {CONTAINER} container is left alone")
+        return
+    try:
+        force_remove(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        _warn(f"podman rm -f {CONTAINER} failed: {error}")
+
+
 def wait_ready(
     base_url: str,
     *,
@@ -276,7 +305,7 @@ def wait_ready(
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m synthbench.generate.comfy.serve")
-    parser.add_argument("command", choices=["build", "up", "down"])
+    parser.add_argument("command", choices=["build", "up", "down", "cleanup"])
     args = parser.parse_args(argv)
     cfg = ServeConfig.from_env()
     if args.command == "build":
@@ -286,6 +315,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         start(cfg)
         stats = wait_ready(cfg.base_url, alive=container_alive, log_file=cfg.log_file)
         sys.stdout.write(json.dumps(stats, indent=1) + "\n")
+        return 0
+    if args.command == "cleanup":
+        cleanup()
         return 0
     stop()
     return 0

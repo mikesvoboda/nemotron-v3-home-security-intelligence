@@ -46,13 +46,12 @@ def test_the_renderer_clears_a_stuck_container_after_stop() -> None:
     """KillMode=mixed lets podman's own --rm cleanup finish instead of being SIGTERM'd mid-way
     (systemd's default control-group kill sent that signal to podman run's cleanup, not just its
     main process, and left the container stuck in podman's Removing state). ExecStopPost then
-    force-removes any leftover, the same podman generate systemd pattern ExecStart's argv uses."""
+    runs `serve cleanup`, which force-removes a stopped leftover but leaves a still-running one
+    alone: systemd also runs ExecStopPost after a failed ExecStartPre, which is exactly when the
+    precheck refuses because a synthbench-comfyui container is already running."""
     text = render_units(CTX)[RENDERER]
     assert "KillMode=mixed" in text
-    exec_stop_post = next(line for line in text.splitlines() if line.startswith("ExecStopPost="))
-    argv = shlex.split(exec_stop_post.removeprefix("ExecStopPost="))
-    assert argv[0] == "/usr/bin/podman"
-    assert argv[-4:] == ["rm", "-f", "--ignore", "synthbench-comfyui"]
+    assert f"ExecStopPost={PYTHON} -m synthbench.generate.comfy.serve cleanup" in text
 
 
 def test_the_guard_always_runs_from_the_checkout() -> None:

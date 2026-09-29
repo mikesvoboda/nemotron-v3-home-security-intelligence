@@ -158,19 +158,28 @@ def test_stop_renderer_stops_a_container_still_running_after_systemctl() -> None
 
 
 def test_stop_renderer_stops_conservatively_when_the_running_check_fails() -> None:
-    """systemctl succeeded but podman's own inspect call is broken: stay conservative (assume it
-    might still be running) and fall back to a graceful stop rather than force-removing blind."""
+    """systemctl succeeded and the container exists, but podman's own inspect call is broken:
+    stay conservative (assume it might still be running) and fall back to a graceful stop
+    rather than force-removing blind."""
     calls: list[list[str]] = []
 
     def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(argv)
+        if argv[0] == "systemctl":
+            return subprocess.CompletedProcess(argv, 0, "", "")  # systemctl succeeds
         if argv[-3:] == _EXISTS:
             return subprocess.CompletedProcess(argv, 0, "", "")  # exists
-        raise OSError("podman: too many open files")
+        if argv[-5:] == _INSPECT:
+            raise OSError("podman: too many open files")  # the running check itself breaks
+        return subprocess.CompletedProcess(argv, 0, "", "")  # the serve.stop fallback succeeds
 
     messages: list[str] = []
     stop_renderer(run, say=messages.append)  # must not raise
-    assert calls[-1][-4:] == _STOP
+    assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
+    assert calls[1][-3:] == _EXISTS
+    assert calls[2][-5:] == _INSPECT
+    assert calls[3][-4:] == _STOP
+    assert len(calls) == 4
     assert any("too many open files" in message for message in messages)
 
 

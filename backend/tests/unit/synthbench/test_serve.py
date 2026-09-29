@@ -183,7 +183,7 @@ class TestWaitReady:
 
 
 class TestMain:
-    def test_dispatches_build_up_and_down(
+    def test_dispatches_build_up_down_and_cleanup(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
         calls: list[str] = []
@@ -199,8 +199,9 @@ class TestMain:
         monkeypatch.setattr(serve, "start", lambda cfg: calls.append(f"start {cfg.port}"))
         monkeypatch.setattr(serve, "wait_ready", fake_wait)
         monkeypatch.setattr(serve, "stop", lambda: calls.append("stop"))
-        assert [serve.main([c]) for c in ("build", "up", "down")] == [0, 0, 0]
-        assert calls == ["build", "start 18188", "stop"]
+        monkeypatch.setattr(serve, "cleanup", lambda: calls.append("cleanup"))
+        assert [serve.main([c]) for c in ("build", "up", "down", "cleanup")] == [0, 0, 0, 0]
+        assert calls == ["build", "start 18188", "stop", "cleanup"]
         assert json.loads(capsys.readouterr().out) == {"url": "http://127.0.0.1:18188"}
         # `up` stops waiting as soon as the container is gone, and points at its log.
         assert waited == {
@@ -363,6 +364,50 @@ class TestFailuresSurface:
         serve.force_remove(run=run)
         err = capsys.readouterr().err
         assert "125" in err and "container is locked" in err
+
+    def test_cleanup_force_removes_a_stopped_container(self) -> None:
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            if argv[-5:] == ["container", "inspect", "-f", "{{.State.Running}}", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "false\n", "")  # not running
+            return subprocess.CompletedProcess(argv, 0, "", "")  # rm -f
+
+        serve.cleanup(run=run)
+        assert calls[-1] == [*podman_argv(), "rm", "-f", "--ignore", serve.CONTAINER]
+
+    def test_cleanup_leaves_a_running_container_alone(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """ExecStopPost also runs after a failed ExecStartPre, which is exactly when the
+        renderer's precheck refuses because a synthbench-comfyui container already exists —
+        possibly a renderer started by hand, or an owner GPU window's ComfyUI. cleanup must not
+        kill it."""
+        calls: list[list[str]] = []
+
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            calls.append(argv)
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            return subprocess.CompletedProcess(argv, 0, "true\n", "")  # running
+
+        serve.cleanup(run=run)
+        assert len(calls) == 2  # exists, inspect - rm -f never runs
+        assert "a running synthbench-comfyui container is left alone" in capsys.readouterr().err
+
+    def test_cleanup_swallows_errors(self, capsys: pytest.CaptureFixture[str]) -> None:
+        def run(argv: list[str], **_kw: Any) -> subprocess.CompletedProcess[str]:
+            if argv[-3:] == ["container", "exists", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "", "")  # exists
+            if argv[-5:] == ["container", "inspect", "-f", "{{.State.Running}}", serve.CONTAINER]:
+                return subprocess.CompletedProcess(argv, 0, "false\n", "")  # not running
+            raise OSError("podman: too many open files")  # the rm -f itself is broken
+
+        serve.cleanup(run=run)  # must not raise
+        assert "too many open files" in capsys.readouterr().err
 
 
 def test_the_renderer_unit_runs_comfyui_in_the_foreground_with_extra_arguments() -> None:
