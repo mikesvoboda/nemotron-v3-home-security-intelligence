@@ -70,6 +70,20 @@ class TestRunArgs:
         assert args[-1] == serve.IMAGE == "localhost/synthbench-comfyui:v0.37.0"
 
 
+class TestPrepare:
+    """start()'s pre-start block, factored out so host.renderer.prepare can reuse it."""
+
+    def test_a_farm_mismatch_raises(self, tmp_path: Path) -> None:
+        cfg = serve.ServeConfig(18188, Path("/data/hf"), tmp_path / "out", tmp_path / "cache")
+        with pytest.raises(serve.ServeError, match=r"/data/hf/comfyui.*/export/models/comfyui"):
+            serve.prepare(cfg)
+
+    def test_on_success_the_directories_exist(self, tmp_path: Path) -> None:
+        cfg = _cfg(tmp_path)
+        serve.prepare(cfg)
+        assert cfg.out_dir.is_dir() and cfg.cache_dir.is_dir() and cfg.log_file.parent.is_dir()
+
+
 class TestStartStop:
     def test_start_creates_dirs_and_runs(self, tmp_path: Path) -> None:
         run = FakeRunner()

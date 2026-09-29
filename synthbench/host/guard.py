@@ -2,7 +2,9 @@
 
 Every 5 s it checks the flagship vLLM and writes status/flagship.json (time, healthy, running,
 waiting). After 3 failed checks in a row it stops the renderer, so a flagship that crashed beside
-it can boot again. It never stops or starts the flagship.
+it can boot again. It never stops or starts the flagship. While an owner GPU window
+(synthbench.generate.window) holds the flagship down on purpose, the guard keeps probing and
+writing status, but never stops the renderer: the window may be running it itself.
 
     python -m synthbench.host.guard            # the synthbench-guard unit
 """
@@ -21,12 +23,13 @@ from pathlib import Path
 import httpx
 
 from synthbench.generate.comfy import serve
+from synthbench.generate.window import WindowPaths
 from synthbench.status import FlagshipStatus, flagship_file, write_status
 
 FLAGSHIP_URL = "http://127.0.0.1:8000"
 INTERVAL_S = 5.0
 FAILURES_TO_STOP = 3
-RENDERER_UNIT = "synthbench-renderer.service"
+RENDERER_UNIT = "synthbench-renderer.service"  # host.units.RENDERER reuses this
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 _METRIC = re.compile(r"^(vllm:num_requests_(?:running|waiting))(?:\{[^}]*\})?\s+(\S+)")
@@ -38,6 +41,11 @@ def _utc_now() -> datetime:
 
 def _say(message: str) -> None:
     sys.stderr.write(f"[synthbench-guard] {message}\n")
+
+
+def _window_open() -> bool:
+    """True while an owner GPU window holds the flagship down on purpose (window.py's marker)."""
+    return WindowPaths.from_env().marker.exists()
 
 
 def parse_metrics(text: str) -> tuple[int, int]:
@@ -68,16 +76,32 @@ def probe(url: str, get: Callable[..., httpx.Response]) -> tuple[bool, int | Non
     return True, running, waiting
 
 
-def stop_renderer(run: Runner = subprocess.run) -> None:
-    """Stop the renderer unit, then any renderer container started by hand."""
-    run(
-        ["systemctl", "--user", "stop", RENDERER_UNIT],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    serve.stop(run)
+def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = _say) -> None:
+    """Stop the renderer unit, then any renderer container started by hand.
+
+    Never raises: a stuck or missing systemctl, or a podman failure in the serve.stop
+    fallback, is logged through `say` instead, so a bad stop never crashes the guard.
+    """
+    try:
+        done = run(
+            ["systemctl", "--user", "stop", RENDERER_UNIT],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (subprocess.SubprocessError, OSError) as error:
+        say(f"systemctl --user stop {RENDERER_UNIT} failed: {error}")
+    else:
+        if done.returncode != 0:
+            say(
+                f"systemctl --user stop {RENDERER_UNIT} exited {done.returncode}: "
+                f"{(done.stderr or '').strip()}"
+            )
+    try:
+        serve.stop(run)
+    except (subprocess.SubprocessError, OSError) as error:
+        say(f"podman stop {serve.CONTAINER} failed: {error}")
 
 
 class Guard:
@@ -88,6 +112,7 @@ class Guard:
         url: str = FLAGSHIP_URL,
         get: Callable[..., httpx.Response] = httpx.get,
         stop_renderer: Callable[[], None] = stop_renderer,
+        window_open: Callable[[], bool] = _window_open,
         now: Callable[[], datetime] = _utc_now,
         say: Callable[[str], None] = _say,
     ) -> None:
@@ -95,10 +120,12 @@ class Guard:
         self.url = url
         self.get = get
         self.stop_renderer = stop_renderer
+        self.window_open = window_open
         self.now = now
         self.say = say
         self.failures = 0
         self.stopped = False
+        self.window_warned = False
 
     def tick(self) -> FlagshipStatus:
         healthy, running, waiting = probe(self.url, self.get)
@@ -110,14 +137,27 @@ class Guard:
             waiting=waiting,
             failures=self.failures,
         )
-        write_status(self.status_file, status)  # before any stop: render yields at once
+        try:
+            write_status(self.status_file, status)  # before any stop: render yields at once
+        except OSError as error:
+            self.say(f"cannot write {self.status_file}: {error}")
         if healthy:
             if self.stopped:
                 self.say(
                     "flagship healthy again; the renderer stays stopped until the owner starts it"
                 )
             self.stopped = False
-        elif self.failures >= FAILURES_TO_STOP and not self.stopped:
+            self.window_warned = False
+            return status
+        if self.window_open():
+            # window.py stopped the flagship on purpose and may run the renderer itself;
+            # the guard still probes and writes status (so `render` yields), but never stops it.
+            if not self.window_warned:
+                self.say("a GPU window is open: the guard leaves the renderer alone")
+                self.window_warned = True
+            return status
+        self.window_warned = False
+        if self.failures >= FAILURES_TO_STOP and not self.stopped:
             self.say(
                 f"flagship failed {self.failures} health checks in a row: stopping the renderer"
             )

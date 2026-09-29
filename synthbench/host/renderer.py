@@ -24,10 +24,11 @@ from synthbench.generate.comfy.graphs import flux2_dev_t2i
 from synthbench.generate.comfy.serve import (
     CONTAINER,
     ServeConfig,
-    baked_farm_root,
+    ServeError,
     container_alive,
     wait_ready,
 )
+from synthbench.generate.comfy.serve import prepare as serve_prepare
 from synthbench.generate.window import FLAGSHIP
 from synthbench.status import FlagshipUnknown, flagship_file, fresh_flagship
 
@@ -81,12 +82,11 @@ def gpu_free_gib(run: Runner = subprocess.run) -> float:
 
 
 def prepare(cfg: ServeConfig) -> list[str]:
-    """The renderer's directories, and the farm the image was built for."""
-    farm, baked = cfg.models_root / "comfyui", baked_farm_root()
-    if farm != baked:
-        return [f"the farm under HF_HOME is {farm}, but the image loads models from {baked}"]
-    for directory in (cfg.out_dir, cfg.cache_dir, cfg.log_file.parent):
-        directory.mkdir(parents=True, exist_ok=True)
+    """The renderer's directories, and the farm the image was built for (serve.prepare)."""
+    try:
+        serve_prepare(cfg)
+    except ServeError as error:
+        return [str(error)]
     return []
 
 

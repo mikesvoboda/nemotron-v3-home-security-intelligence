@@ -21,10 +21,11 @@ from pathlib import Path
 
 from synthbench.generate.comfy.serve import ServeConfig, run_args
 from synthbench.generate.podman import podman_root
+from synthbench.host.guard import RENDERER_UNIT
 from synthbench.host.renderer import RESERVE_VRAM_ARGS
 
 GUARD = "synthbench-guard.service"
-RENDERER = "synthbench-renderer.service"
+RENDERER = RENDERER_UNIT  # the single source is guard.RENDERER_UNIT: the guard stops it by name
 SNAPSHOT = "synthbench-snapshot.service"
 SNAPSHOT_TIMER = "synthbench-snapshot.timer"
 DEFAULT_UNIT_DIR = Path.home() / ".config" / "systemd" / "user"

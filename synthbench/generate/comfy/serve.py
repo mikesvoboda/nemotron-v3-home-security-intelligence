@@ -136,7 +136,12 @@ def run_args(cfg: ServeConfig, *, detach: bool = True, extra: Sequence[str] = ()
     ]
 
 
-def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
+def prepare(cfg: ServeConfig) -> None:
+    """The renderer's directories, and the farm the image was built for.
+
+    Raises ServeError if HF_HOME does not hold the farm the image loads models from
+    (`host.renderer.prepare` wraps this into a problem list instead of raising).
+    """
     farm, baked = cfg.models_root / "comfyui", baked_farm_root()
     if farm != baked:
         raise ServeError(
@@ -146,6 +151,10 @@ def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
     cfg.out_dir.mkdir(parents=True, exist_ok=True)
     cfg.cache_dir.mkdir(parents=True, exist_ok=True)
     cfg.log_file.parent.mkdir(parents=True, exist_ok=True)
+
+
+def start(cfg: ServeConfig, run: Runner = subprocess.run) -> None:
+    prepare(cfg)
     try:
         run(run_args(cfg), check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:

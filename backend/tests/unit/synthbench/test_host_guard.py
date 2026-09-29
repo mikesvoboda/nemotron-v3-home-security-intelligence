@@ -32,13 +32,21 @@ class FakeFlagship:
         return httpx.Response(200, text=METRICS if url.endswith("/metrics") else "")
 
 
-def _guard(tmp_path: Path, flagship: FakeFlagship, stops: list[int]) -> Guard:
+def _guard(
+    tmp_path: Path,
+    flagship: FakeFlagship,
+    stops: list[int],
+    *,
+    window_open: Callable[[], bool] = lambda: False,
+    say: Callable[[str], None] = lambda _message: None,
+) -> Guard:
     return Guard(
         tmp_path / "flagship.json",
         get=flagship.get,
         stop_renderer=lambda: stops.append(1),
+        window_open=window_open,
         now=lambda: h.NOW,
-        say=lambda _message: None,
+        say=say,
     )
 
 
@@ -94,6 +102,7 @@ def test_a_bad_answer_counts_as_unhealthy(
         tmp_path / "flagship.json",
         get=lambda url, **_kw: answer(url),
         stop_renderer=lambda: None,
+        window_open=lambda: False,
         now=lambda: h.NOW,
         say=lambda _message: None,
     )
@@ -111,3 +120,78 @@ def test_stop_renderer_stops_the_unit_then_any_hand_started_container() -> None:
     stop_renderer(run)
     assert calls[0] == ["systemctl", "--user", "stop", "synthbench-renderer.service"]
     assert calls[1][-4:] == ["--ignore", "--time", "30", "synthbench-comfyui"]
+
+
+def test_stop_renderer_logs_a_non_zero_systemctl_exit_instead_of_dropping_it() -> None:
+    def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if argv[0] == "systemctl":
+            return subprocess.CompletedProcess(argv, 1, "", "Unit not loaded.\n")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    messages: list[str] = []
+    stop_renderer(run, say=messages.append)
+    assert any("Unit not loaded" in message for message in messages)
+
+
+def test_stop_renderer_survives_a_systemctl_timeout_and_still_runs_serve_stop() -> None:
+    calls: list[list[str]] = []
+
+    def run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(argv)
+        if argv[0] == "systemctl":
+            raise subprocess.TimeoutExpired(argv, 120)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    messages: list[str] = []
+    stop_renderer(run, say=messages.append)  # must not raise
+    assert calls[0][0] == "systemctl"
+    assert calls[1][-4:] == ["--ignore", "--time", "30", "synthbench-comfyui"]
+    assert any("systemctl" in message for message in messages)
+
+
+def test_a_failed_status_write_does_not_stop_the_guard_from_tripping(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import synthbench.host.guard as guard_module
+
+    def raising_write_status(path: Path, model: FlagshipStatus) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(guard_module, "write_status", raising_write_status)
+    flagship, stops = FakeFlagship(), []
+    flagship.healthy = False
+    messages: list[str] = []
+    guard = _guard(tmp_path, flagship, stops, say=messages.append)
+    guard.tick()
+    guard.tick()
+    status = guard.tick()
+    assert status.failures == 3
+    assert stops == [1]
+    assert any("disk full" in message for message in messages)
+
+
+def test_while_a_gpu_window_is_open_the_guard_leaves_the_renderer_alone(tmp_path: Path) -> None:
+    flagship, stops = FakeFlagship(), []
+    flagship.healthy = False
+    messages: list[str] = []
+    guard = _guard(tmp_path, flagship, stops, window_open=lambda: True, say=messages.append)
+    for _ in range(5):
+        status = guard.tick()
+    assert stops == []
+    assert status.healthy is False
+    assert read_status(tmp_path / "flagship.json", FlagshipStatus).healthy is False
+    # said once, not every tick
+    assert messages.count("a GPU window is open: the guard leaves the renderer alone") == 1
+
+
+def test_the_stop_resumes_once_the_window_closes(tmp_path: Path) -> None:
+    flagship, stops = FakeFlagship(), []
+    flagship.healthy = False
+    window_open = [True]
+    guard = _guard(tmp_path, flagship, stops, window_open=lambda: window_open[0])
+    for _ in range(3):
+        guard.tick()
+    assert stops == []
+    window_open[0] = False
+    guard.tick()
+    assert stops == [1]

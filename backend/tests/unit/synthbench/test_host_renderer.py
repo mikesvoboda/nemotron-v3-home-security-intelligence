@@ -17,6 +17,7 @@ from synthbench.host.renderer import (
     flagship_util,
     gpu_free_gib,
     precheck,
+    prepare,
     warmup,
 )
 from synthbench.status import FlagshipStatus, write_status
@@ -53,6 +54,19 @@ def test_flagship_util_reads_engine_args() -> None:
 
 def test_gpu_free_gib() -> None:
     assert gpu_free_gib(FakeHost(used_mib=191404)) == pytest.approx((256703 - 191404) / 1024)
+
+
+def test_prepare_wraps_a_farm_mismatch_as_one_problem(tmp_path: Path) -> None:
+    cfg = ServeConfig(18188, tmp_path / "not-the-farm", tmp_path / "out", tmp_path / "cache")
+    problems = prepare(cfg)
+    assert len(problems) == 1
+    assert "not-the-farm" in problems[0]
+
+
+def test_prepare_creates_directories_on_success(tmp_path: Path) -> None:
+    cfg = ServeConfig.from_env({"SYNTHBENCH_ROOT": str(tmp_path), "HF_HOME": "/export/models"})
+    assert prepare(cfg) == []
+    assert cfg.out_dir.is_dir() and cfg.cache_dir.is_dir() and cfg.log_file.parent.is_dir()
 
 
 def test_precheck_passes_a_host_ready_for_the_renderer(tmp_path: Path) -> None:
