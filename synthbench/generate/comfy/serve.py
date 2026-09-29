@@ -253,8 +253,8 @@ def cleanup(run: Runner = subprocess.run) -> None:
     `container_running` first and leaves a running container alone.
 
     Never raises and never signals failure (`main` always returns 0 for this command): systemd
-    would mark the unit failed if ExecStopPost exited non-zero, which would leave the renderer
-    refusing to start even though the stop itself succeeded.
+    would mark the unit failed if ExecStopPost exited non-zero, so a clean stop would read as a
+    fault in `systemctl --user is-active` and the runbook's checks.
     """
     try:
         running = container_running(run)

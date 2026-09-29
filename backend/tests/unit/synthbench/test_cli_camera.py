@@ -62,3 +62,18 @@ def test_camera_waits_for_renders(tmp_path: Path, capsys: pytest.CaptureFixture[
     h.frozen_batch(tmp_path, n=2)
     assert _camera(tmp_path) == cli.EXIT_OK
     assert "0 still(s) made now; 2 attempt(s) still await a render" in capsys.readouterr().out
+
+
+def test_a_failed_event_does_not_await_a_render(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An event `render` gave up on (index status `failed`) never gets a render: `camera` must
+    not count it as waiting for one."""
+    specs = h.frozen_batch(tmp_path, n=2)
+    store = h.store(tmp_path)
+    row = store.latest_index()[specs[0].event_id]
+    store.append_index(
+        [row.model_copy(update={"status": "failed", "time": "2026-09-29T10:00:00Z"})]
+    )
+    assert _camera(tmp_path) == cli.EXIT_OK
+    assert "0 still(s) made now; 1 attempt(s) still await a render" in capsys.readouterr().out

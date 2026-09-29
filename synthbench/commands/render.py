@@ -132,6 +132,26 @@ def execute(batch: str, budget_s: float, env: Mapping[str, str], deps: Deps) -> 
         sys.stdout.write(f"render {batch}: 0 still to render. Next: camera --batch {batch}\n")
         return EXIT_OK
     try:
+        return _render_todo(store, batch, pending, todo, stuck, budget_s, env, deps)
+    except AskOwner as error:
+        # Another stop ended the run: it must still name the events failed before it.
+        if stuck and _stuck_message(stuck) not in str(error):
+            raise AskOwner(f"{error} {_stuck_message(stuck)}") from error
+        raise
+
+
+def _render_todo(
+    store: CorpusStore,
+    batch: str,
+    pending: Sequence[tuple[Spec, Provenance]],
+    todo: Sequence[tuple[Spec, Provenance]],
+    stuck: list[Spec],
+    budget_s: float,
+    env: Mapping[str, str],
+    deps: Deps,
+) -> int:
+    """Render `todo` until the budget, appending events that fail for good to `stuck`."""
+    try:
         url = comfy_url(env, deps.get)
     except RendererUnreachable as error:
         raise AskOwner(f"{error}: the renderer is down.") from error

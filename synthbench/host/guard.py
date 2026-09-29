@@ -81,18 +81,18 @@ def stop_renderer(run: Runner = subprocess.run, *, say: Callable[[str], None] = 
 
     `container_alive` (mere existence) is not enough to gate a second `podman stop`: it is True
     for a container stuck in podman's Removing state too, and a stop there is what exited 125
-    live and got it stuck (the unit's own ExecStopPost now force-removes a leftover; this is the
-    guard's own fallback, e.g. a renderer started by hand, outside the unit). So this keys on
-    `serve.container_running` instead:
+    live and got it stuck. The unit's own ExecStopPost (`serve cleanup`) removes a stopped
+    leftover; this is the guard's fallback for the rest, e.g. a renderer started by hand, outside
+    the unit. So this keys on `serve.container_running` instead:
 
     - systemctl failed (raised, timed out or exited non-zero): fall back to `serve.stop`, as
       before this container-state distinction — a bad systemctl gives no information about the
       container.
     - systemctl succeeded and the container is running (started by hand, or the running check
       itself could not tell and stayed conservative): `serve.stop` can still signal it.
-    - systemctl succeeded and the container exists but is not running (podman's Removing state
-      — systemd's default SIGTERM interrupted podman run --rm's own cleanup partway through — or
-      a leftover from a crash): `stop` has nothing left to signal, so `serve.force_remove`
+    - systemctl succeeded and the container exists but is not running (podman's Removing state,
+      which systemd's default KillMode caused before the unit set KillMode=mixed, or a leftover
+      from a crash): `stop` has nothing left to signal, so `serve.force_remove`
       (`podman rm -f --ignore`) clears it directly instead.
 
     Never raises: a stuck or missing systemctl, a failed running check, or a podman failure in

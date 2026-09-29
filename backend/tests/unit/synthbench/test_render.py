@@ -288,6 +288,27 @@ def test_a_third_failed_job_fails_the_event_and_stops_once(
     assert "0 still to render" in capsys.readouterr().out
 
 
+def test_a_later_stop_keeps_the_failed_events_in_its_message(tmp_path: Path) -> None:
+    """An event failed this run must still be named when another stop ends the run: here the
+    renderer stops answering on the next event, after specs[0] failed its third job."""
+    specs, clock = _ready(tmp_path, 2)
+    for _ in range(2):  # both events fail twice
+        both = FakeComfy(clock, fail=frozenset({1, 2}))
+        assert _render(tmp_path, _deps(clock, both)) == cli.EXIT_OK
+    comfy = FakeComfy(clock, fail=frozenset({1}))  # specs[0] fails a third time
+
+    def then_refused(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/prompt" and len(comfy.graphs) == 1:
+            raise httpx.ConnectError("connection refused", request=request)
+        return comfy(request)
+
+    with pytest.raises(AskOwner) as stop:
+        _render(tmp_path, _deps(clock, then_refused))
+    assert "stopped answering" in str(stop.value)
+    assert f"failed to render 3 times: {specs[0].event_id}" in str(stop.value)
+    assert h.store(tmp_path).latest_index()[specs[0].event_id].status == "failed"
+
+
 def test_a_failed_event_is_skipped_by_the_next_run(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
