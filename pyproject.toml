@@ -898,6 +898,19 @@ also_copy = [
     # mutants -- the copy is inert), 74K, and the package needs no deps beyond
     # what the tests already import.
     "synthbench/",
+    # 2026-09-29 stats-abort repair (fill#3 06:41Z, tenth member of this
+    # family): main merge #6714 added backend/tests/unit/scripts/
+    # test_check_vss_docs_currency.py, whose TestRepoItself runs the currency
+    # gate against REPO_ROOT = Path(__file__).parents[4] -- in the mutant home
+    # that root carries no docs/ copy -> the gate exits nonzero on the missing
+    # tree -> red under -x aborts BOTH the coverage gather (partial covered
+    # set -> generation mass-stripped the bank 91,733 -> 12,072 keys) and the
+    # "Found 174 new tests" stats re-run ("runner returned 1").
+    # docs/vss-integration/ sits OUTSIDE source_paths (generates ZERO mutants
+    # -- the copy is inert), 334K, 17 files; docs/ as a whole is NOT copied
+    # (432MB), and no other unit test reads a docs/ path that exists
+    # (measured census: the REPO_ROOT-docs reader is this test alone).
+    "docs/vss-integration/",
 ]
 
 # =============================================================================
