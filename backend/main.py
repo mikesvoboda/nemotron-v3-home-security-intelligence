@@ -759,7 +759,9 @@ async def run_constrained_startup_check(container: Any) -> str:
     chat-shape one the analyzer would run before trusting any verdict —
     running it here just front-loads the visibility).
     """
-    from backend.services.nemotron_analyzer import ConstrainedDecodingNotEnforced
+    from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
+        ConstrainedDecodingNotEnforced,
+    )
 
     try:
         analyzer = await container.get_async("nemotron_analyzer")

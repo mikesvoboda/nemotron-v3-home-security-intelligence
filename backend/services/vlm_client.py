@@ -61,12 +61,12 @@ from backend.services.circuit_breaker import (
     CircuitBreakerConfig,
     get_circuit_breaker,
 )
-from backend.services.key_frame_selector import MAX_KEY_FRAMES
-from backend.services.nemotron_analyzer import (
+from backend.services.constrained_decoding import (  # R8 S2a: hoisted home
     ConstrainedDecodingNotEnforced,
     _is_length_truncated,
     build_probe_schema,
 )
+from backend.services.key_frame_selector import MAX_KEY_FRAMES
 from backend.services.token_counter import get_token_counter
 from backend.services.vlm_verdict import VlmAssessRequest, VlmProvenance, VlmVerdict
 
