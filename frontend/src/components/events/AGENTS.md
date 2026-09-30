@@ -12,8 +12,6 @@ Contains components for displaying, filtering, and interacting with security eve
 | `DeletedEventCard.test.tsx`         | Test suite for DeletedEventCard                |
 | `DetectionFeedback.tsx`             | Detection-level feedback buttons (NEM-3622)    |
 | `DetectionFeedback.test.tsx`        | Test suite for DetectionFeedback               |
-| `EnrichmentPanel.tsx`               | AI enrichment data accordion display           |
-| `EnrichmentPanel.test.tsx`          | Test suite for EnrichmentPanel                 |
 | `EntityTrackingPanel.tsx`           | Panel for entity tracking within events        |
 | `EntityTrackingPanel.test.tsx`      | Test suite for EntityTrackingPanel             |
 | `EventCard.tsx`                     | Compact event display card                     |
@@ -269,39 +267,25 @@ interface Event {
 }
 ```
 
-### EnrichmentPanel.tsx
+### Enrichment display (retired — R8 slice S5, 2026-09-30)
 
-**Purpose:** Displays AI enrichment data for detections in collapsible accordion sections
+`EnrichmentPanel.tsx`, `EnrichmentBadges.tsx` and `EventEnrichmentSummary.tsx`
+are deleted in this slice, along with `EnrichmentViewer.tsx` (whose whole
+directory went with it) and `poseVisualization.ts`. They rendered the pose /
+clothing / demographics / licence-plate attributes of the retired enrichment
+models; the shipped VLM path does not run those models, and the sibling slice
+S4 retires the tables that stored two of the results. The owner ruling of 2026-09-29 made
+slice 1.6's "not analyzed in VLM mode" empty state a deletion too, so
+`EventDetailModal` no longer renders anything for `detection.enrichment_data`.
 
-**Key Features:**
-
-- Accordion sections for each enrichment type present
-- Confidence badges with color-coding (green >0.9, yellow 0.7-0.9, red <0.7)
-- Conditional rendering based on what enrichment data exists
-- Icons for each enrichment type (Car, Dog, User, CreditCard, Cloud, ImageIcon)
-- Clean, readable layout matching existing Tremor/Tailwind styling
-
-**Enrichment Types:**
-
-- **Vehicle:** Type (sedan, SUV, etc.), color, damage, commercial indicator
-- **Pet:** Type (cat/dog), breed
-- **Person:** Clothing, action, carrying items, suspicious attire warning, service uniform indicator
-- **License Plate:** OCR text with confidence
-- **Weather:** Weather condition
-- **Image Quality:** Quality score and detected issues
-
-**Props:**
-
-```typescript
-interface EnrichmentPanelProps {
-  /** Enrichment data to display */
-  enrichment_data?: EnrichmentData | null;
-  /** Additional CSS classes */
-  className?: string;
-}
-```
-
-**EnrichmentData Interface (from types/enrichment.ts):**
+**What stays:** the `EnrichmentData` model itself, in
+`frontend/src/types/enrichment.ts` — the backend still returns the object on
+detections produced by a pipeline that ran the models, and `EventDetailModal`'s
+exported `Detection` interface keeps its optional `enrichment_data` member for
+`EventTimeline`/`AlertsPage`. Also still shipping and NOT part of this
+retirement: `EnrichmentProgressBadge.tsx` and the four enrichment hooks
+(`useDetectionEnrichment`, `useEventEnrichmentsQuery`, `useEnrichmentProgress`,
+`useEventEnrichmentWebSocket`).
 
 ```typescript
 interface EnrichmentData {

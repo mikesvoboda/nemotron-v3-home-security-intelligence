@@ -459,13 +459,13 @@ answers **501** by design (Triton runs `--model-control-mode=none`).
 | `/api/events/search`                    | GET    | `api.ts`                                                                                                                  | Search Events Endpoint       |
 | `/api/events/stats`                     | GET    | `InsightsCharts.tsx`, `api.ts`                                                                                            | Get Event Stats              |
 | `/api/events/timeline-summary`          | GET    | `useTimelineData.ts`                                                                                                      | Get Timeline Summary         |
-| `/api/events/{event_id}`                | DELETE | `EventEnrichmentSummary.tsx`, `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Soft delete a single event   |
-| `/api/events/{event_id}`                | GET    | `EventEnrichmentSummary.tsx`, `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Get Event                    |
-| `/api/events/{event_id}`                | PATCH  | `EventEnrichmentSummary.tsx`, `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Update Event                 |
+| `/api/events/{event_id}`                | DELETE | `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Soft delete a single event   |
+| `/api/events/{event_id}`                | GET    | `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Get Event                    |
+| `/api/events/{event_id}`                | PATCH  | `ExportButton.tsx`, `InsightsCharts.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts` (+1 more) | Update Event                 |
 | `/api/events/{event_id}/clip`           | GET    | `api.ts`                                                                                                                  | Get Event Clip               |
 | `/api/events/{event_id}/clip/generate`  | POST   | `api.ts`                                                                                                                  | Generate Event Clip          |
 | `/api/events/{event_id}/detections`     | GET    | `api.ts`                                                                                                                  | Get Event Detections         |
-| `/api/events/{event_id}/enrichments`    | GET    | `EventEnrichmentSummary.tsx`, `api.ts`, `useEventEnrichmentsQuery.ts`                                                     | Get Event Enrichments        |
+| `/api/events/{event_id}/enrichments`    | GET    | `api.ts`, `useEventEnrichmentsQuery.ts`                                                     | Get Event Enrichments        |
 | `/api/events/{event_id}/restore`        | POST   | `api.ts`                                                                                                                  | Restore a soft-deleted event |
 
 ### Exports
