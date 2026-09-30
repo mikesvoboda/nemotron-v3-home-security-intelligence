@@ -580,16 +580,17 @@ TDD throughout. CI never needs a GPU.
 
 Each phase gets its own plan and PR. The implementing agent writes one phase's plan at a time.
 
-| Phase | Deliverable                                                                                                                                                                    | GPU                 |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
-| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                                                                                                     | no                  |
-| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec                                                                                      | window              |
-| P2    | Contract, taxonomy, sampler, `expectations()`                                                                                                                                  | no                  |
-| P3    | Agent-driven Tier B generation beside the flagship (rev 3; text-to-image + camera model, calibrated per D13); camera calibration (D13) is a follow-up plan (owner, 2026-09-28) | beside the flagship |
-| P4    | Verifier and audit page                                                                                                                                                        | window              |
-| P5    | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0                                                                          | beside the flagship |
-| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                                                                                                   | window              |
-| P7    | Burst mode, `compare`, VSS eval-store export and retirement of the 408 items (D14), then scale to v1 sizes                                                                     | mixed               |
+| Phase | Deliverable                                                                                                                                                                                            | GPU                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| P0    | Capture time from the Foscam filename (backend, TDD; §5.3)                                                                                                                                             | no                  |
+| P1    | Bake-off spike (throwaway): ComfyUI on arm64/sm_103; picks recorded in rev 2 of this spec                                                                                                              | window              |
+| P2    | Contract, taxonomy, sampler, `expectations()`                                                                                                                                                          | no                  |
+| P3    | Agent-driven Tier B generation beside the flagship (rev 3; text-to-image + camera model, calibrated per D13); camera calibration (D13) is a follow-up plan (owner, 2026-09-28)                         | beside the flagship |
+| P4    | Verifier and audit page                                                                                                                                                                                | window              |
+| P5a   | VLM replay scoring (rev 4, owner 2026-09-29): export Tier B to the VSS eval store, replay the product VLM and comparison models, owner audit, score (`2026-09-29-synthbench-p5a-vlm-replay-design.md`) | renderer stopped    |
+| P5b   | Benchmark instance, paced runner, scorer, report → first end-to-end result on a ≈ 500-still Tier B v0                                                                                                  | beside the flagship |
+| P6    | Tier A: sites, cast, compositor, animator, enrollment, clips                                                                                                                                           | window              |
+| P7    | Burst mode, `compare`, VSS eval-store export and retirement of the 408 items (D14), then scale to v1 sizes                                                                                             | mixed               |
 
 ## §8 Relationship to existing work
 
