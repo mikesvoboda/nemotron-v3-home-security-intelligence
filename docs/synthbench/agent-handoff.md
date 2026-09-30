@@ -20,7 +20,8 @@ on. Rendering slows that model, so `render` waits whenever the model has request
 You can:
 
 - run `uv run python -m synthbench <command>` from the root of your repository clone;
-- write two files per batch in the corpus: `prompts.jsonl` and `triage.jsonl`;
+- write two files per batch in the corpus, `prompts.jsonl` and `triage.jsonl`, and, for a clip
+  round, two per round: `rounds/<r>/motions.jsonl` and `rounds/<r>/triage.jsonl`;
 - open any image the commands made, to look at it;
 - read `/synthbench/status/`.
 
@@ -173,6 +174,87 @@ After `report`, write a short message with:
 - what you noticed across the batch, such as a scenario that keeps coming out wrong or wording
   that worked;
 - after a pilot, what you will change in your wording for the full batch.
+
+## Clip rounds
+
+Only when the owner asks for clips. A clip animates one ready still for about 10 seconds with
+MiniMax-H3 turbo (1344x768, 243 frames at 24 fps). Clips are kept for a future video model;
+nothing scores them yet.
+
+- **A round can take every ready still.** `--n` is 1 to 500, and there is no pilot. A full
+  round of the corpus is one clip per `clip render` call, about 5.5 minutes each: roughly two
+  days of calls. Keep going until it is done.
+- **You do not choose the stills.** `clip sample` draws ready stills that have no clip yet,
+  evenly across scenario groups. The round name seeds the draw; `--n` sets its size.
+- **Frame 0 is the still's render,** the clean image before the camera stage, so the clip has
+  no timestamp.
+
+The loop for one round. Round names are new slugs, such as `clips-1` or `clips-2`;
+`<corpus>` is `/synthbench/corpus/<version>`.
+
+1. **Sample.** `uv run python -m synthbench clip sample --round <r> --n <n>`.
+2. **Write motions.** Each clip's `<corpus>/events/C/<clip id>/spec.json` names its `source`
+   still. Open that still: `<corpus>/events/B/<source>/stills/a<k>-s<seed>.jpg`, with `k` from
+   the clip's `source.k` and the seed from the source's `provenance.json`. Write
+   `<corpus>/rounds/<r>/motions.jsonl`, one object per line:
+   `{"event_id": "C-<r>-000", "prompt": "..."}`.
+3. **Check.** `uv run python -m synthbench clip check --round <r>`. Fix the rows it lists and
+   run it again; when all pass it freezes them.
+4. **Render.** `uv run python -m synthbench clip render --round <r>`, with a Bash timeout of
+   600000 ms, repeated until it prints `0 still to render`. The first run of a round may render
+   nothing: switching the renderer to H3 and warming it up can take the whole call.
+5. **Look, and write verdicts.** Open every new strip,
+   `<corpus>/events/C/<clip id>/strips/a<k>-s<seed>.jpg`: six frames, first to last, left to
+   right, top to bottom. Add one line per strip to `<corpus>/rounds/<r>/triage.jsonl`, the same
+   shape as the stills' verdicts, using the clip reasons below.
+6. **Triage.** `uv run python -m synthbench clip triage --round <r>`. If it scheduled rerolls,
+   repeat steps 4-6 for them.
+7. **Report.** `uv run python -m synthbench clip report --round <r>`, then report to the owner
+   as for a batch: counts, rerolls by reason, the median seconds per clip, any renderer switch,
+   and the path of `sheet.html`, where the owner watches the clips.
+
+### Writing motions (what `clip check` enforces)
+
+Frame 0 is the source still, so open it before you write. A motion says only what happens next,
+over about 10 seconds, in one to three plain sentences.
+
+- **Continue, don't re-describe.** The place, light and weather are already in the frame; do not
+  describe them again, and do not change them.
+- **Keep everyone and everything in frame.** Every subject and prop stays visible for the whole
+  clip: nobody walks off, and nothing is put away or pulled out. A knife already in a hand stays
+  in the hand; a package already held is still held or set down in view.
+- **Add nothing:** no passing cars, no new people or animals, no new objects, no light or
+  weather changes.
+
+1. **Name every subject and prop** with a term from its class, as rule 1 for stills.
+2. **Rules 2-4 of stills apply:** realistic and not graphic, at most 1,200 characters, no
+   camera words, no clock times.
+3. **Stay in character.** A benign scene stays benign and a threat stays a threat.
+4. **Rule 5: the camera never moves and the shot never cuts.** `clip check` rejects `pan`,
+   `panning`, `zoom`, `zooming`, `tilt`, `tilting`, `dolly`, `tracking shot`, `camera moves`,
+   `camera follows`, `close up`, `cut to`, `cuts to`, `meanwhile`, `later`, `flashback`,
+   `montage`, `crossfade`, `fade to`, `slow motion`, `time lapse` and `handheld`
+   (`synthbench/prompt/camera_moves.yaml`). It adds a fixed-camera sentence itself.
+
+Every motion in a round must pass `clip check` before any clip in it renders, so a round of 459
+means writing 459 motions first. Rounds of about 50 (`clips-1`, `clips-2`, ...) let lessons from
+one round's clips reach the next round's wording. Follow the owner's request; if it leaves the
+size open, prefer rounds of about 50.
+
+### Triage: when you may reroll a clip
+
+| Reason               | The strip shows                                                   |
+| -------------------- | ----------------------------------------------------------------- |
+| `camera_moved`       | the viewpoint pans, zooms or shakes                               |
+| `subject_lost`       | a declared subject leaves the frame or dissolves                  |
+| `subject_duplicated` | a person or animal appears twice, or a new one appears            |
+| `prop_lost`          | a declared prop disappears or changes into something else         |
+| `morphing`           | bodies, faces or objects melt, merge or change shape unphysically |
+| `scene_cut`          | the scene changes to a different place or shot                    |
+
+Everything else is `ok`, including a dull clip or an action you would not have chosen: triage
+removes only mechanical failures; nothing audits clips yet, and the owner watches them in
+`sheet.html`. A clip may use 3 seeds; a reroll verdict on its third attempt fails it.
 
 ## Stop and ask the owner when
 

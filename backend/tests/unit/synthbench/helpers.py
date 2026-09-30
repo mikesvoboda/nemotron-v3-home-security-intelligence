@@ -11,8 +11,15 @@ from typing import Any
 
 from PIL import Image
 from synthbench import cli
+from synthbench.contract.clip import (
+    ClipProvenance,
+    ClipSpec,
+    RoundRecord,
+    clip_name,
+    strip_name,
+)
 from synthbench.contract.corpus import BatchRecord
-from synthbench.contract.provenance import OutputFile, Provenance, render_name, still_name
+from synthbench.contract.provenance import OutputFile, Provenance, Triage, render_name, still_name
 from synthbench.contract.spec import Spec
 from synthbench.contract.store import CorpusStore
 from synthbench.status import FlagshipStatus, flagship_file, write_status
@@ -134,3 +141,120 @@ def stilled_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
         tag = spec.event_id.encode()
         record_output(root, spec, render=b"png " + tag, still=b"jpeg " + tag)
     return specs
+
+
+def ready_batch(root: Path, batch: str = "pilot-1", n: int = 4) -> list[Spec]:
+    """A batch whose every event is ready, as triage leaves it: a real 1280x720 PNG render, a
+    stand-in still and an ok verdict on attempt 1."""
+    specs = frozen_batch(root, batch, n)
+    s = store(root)
+    for spec in specs:
+        record_output(root, spec, render=png(), still=b"jpeg " + spec.event_id.encode())
+        path = s.provenance_file(spec.event_id)
+        prov = s.read(path, Provenance)
+        last = prov.attempts[-1].updated(triage=Triage(verdict="ok"))
+        s.replace_json(path, prov.updated(attempts=(*prov.attempts[:-1], last)))
+        row = s.latest_index()[spec.event_id]
+        s.append_index([row.model_copy(update={"status": "ready", "time": NOW.isoformat()})])
+    return specs
+
+
+def clip_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A ready batch of n stills, sampled whole into clip round `name`."""
+    ready_batch(root, n=n)
+    assert run(root, "clip", "sample", "--round", name, "--n", str(n)) == cli.EXIT_OK
+    s = store(root)
+    record = s.read(s.round_file(name), RoundRecord)
+    return [s.read(s.spec_file(event), ClipSpec) for event in record.event_ids]
+
+
+def good_motion(spec: ClipSpec) -> str:
+    """A motion that passes every rule: each subject's and prop's first term, no camera words."""
+    nouns = [TAX.terms[item.cls][0] for item in (*spec.subjects, *spec.props)]
+    if not nouns:
+        return "Leaves move a little in the wind."
+    return f"The {', '.join(nouns)} stay in place and move a little."
+
+
+def write_motions(root: Path, name: str, motions: dict[str, str]) -> None:
+    path = store(root).round_dir(name) / "motions.jsonl"
+    rows = [json.dumps({"event_id": event, "prompt": text}) for event, text in motions.items()]
+    path.write_text("".join(f"{row}\n" for row in rows), encoding="utf-8")
+
+
+def frozen_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A clip round whose motions `clip check` has frozen; returns the frozen specs."""
+    specs = clip_round(root, n, name)
+    write_motions(root, name, {spec.event_id: good_motion(spec) for spec in specs})
+    assert run(root, "clip", "check", "--round", name) == cli.EXIT_OK
+    s = store(root)
+    return [s.read(s.spec_file(spec.event_id), ClipSpec) for spec in specs]
+
+
+def record_clip(root: Path, spec: ClipSpec) -> None:
+    """Store and record the current attempt's stand-in clip and strip, as clip render does
+    (clip check verifies sha256s, not video, so stand-in bytes keep tests fast)."""
+    s = store(root)
+    path = s.provenance_file(spec.event_id)
+    prov = s.read(path, ClipProvenance)
+    attempt = prov.attempts[-1]
+    event_dir = s.event_dir(spec.event_id)
+    tag = f"{spec.event_id} a{attempt.k}".encode()
+    clip, sheet = b"mp4 " + tag, b"jpg " + tag
+    clip_file, strip_file = clip_name(attempt.k, attempt.seed), strip_name(attempt.k, attempt.seed)
+    s.write_new_bytes(event_dir / clip_file, clip)
+    s.write_new_bytes(event_dir / strip_file, sheet)
+    done = attempt.updated(
+        input_sha256=hashlib.sha256(b"input").hexdigest(),
+        clip=OutputFile(path=clip_file, sha256=hashlib.sha256(clip).hexdigest()),
+        strip=OutputFile(path=strip_file, sha256=hashlib.sha256(sheet).hexdigest()),
+        render_seconds=150.0,
+    )
+    s.replace_json(path, prov.updated(attempts=(*prov.attempts[:-1], done)))
+    row = s.latest_clip_index()[spec.event_id]
+    s.append_clip_index([row.model_copy(update={"status": "rendered", "time": NOW.isoformat()})])
+
+
+def rendered_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A frozen round whose attempt 1 has a stand-in clip and strip recorded."""
+    specs = frozen_round(root, n, name)
+    for spec in specs:
+        record_clip(root, spec)
+    return specs
+
+
+def write_clip_triage(root: Path, name: str, rows: list[dict[str, Any]]) -> None:
+    path = store(root).round_dir(name) / "triage.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+
+def ready_round(root: Path, n: int = 4, name: str = "clips-pilot-1") -> list[ClipSpec]:
+    """A rendered round whose every clip the agent triaged ok."""
+    specs = rendered_round(root, n, name)
+    write_clip_triage(
+        root, name, [{"event_id": spec.event_id, "k": 1, "verdict": "ok"} for spec in specs]
+    )
+    assert run(root, "clip", "triage", "--round", name) == cli.EXIT_OK
+    return specs
+
+
+def mp4(width: int = 1344, height: int = 768, frames: int = 243, value: int = 90) -> bytes:
+    """A real H.264 mp4 of flat frames at 24 fps. 1344x768x243 encodes in about 0.3 s, so tests
+    build theirs at import."""
+    import av
+    import numpy as np
+
+    out = io.BytesIO()
+    with av.open(out, "w", format="mp4") as container:
+        stream = container.add_stream("libx264", rate=24, options={"preset": "ultrafast"})
+        stream.width = width
+        stream.height = height
+        stream.pix_fmt = "yuv420p"
+        pixels = np.full((height, width, 3), value, np.uint8)
+        for _ in range(frames):
+            frame = av.VideoFrame.from_ndarray(pixels, format="rgb24")
+            for packet in stream.encode(frame):
+                container.mux(packet)
+        for packet in stream.encode():
+            container.mux(packet)
+    return out.getvalue()

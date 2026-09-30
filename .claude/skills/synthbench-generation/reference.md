@@ -17,9 +17,20 @@
 | `events/B/<event_id>/provenance.json`          | `attempts[]`: `k`, `seed`, `prompt_sha256`, `render`, `still`, `render_seconds`, `render_failures[]`, `camera_params`, `overlay_time`, `triage` |
 | `events/B/<event_id>/renders/a<k>-s<seed>.png` | the 1280x720 FLUX.2 render of attempt `k`                                                                                                       |
 | `events/B/<event_id>/stills/a<k>-s<seed>.jpg`  | the 1920x1080 camera-stage still that you triage                                                                                                |
+| `rounds/<r>/round.json`                        | a clip round: `seed`, `n`, `settings`, `allocation`, `event_ids`, `source_event_ids`                                                            |
+| `rounds/<r>/motions.jsonl`                     | your motions, one `{"event_id", "prompt"}` per line                                                                                             |
+| `rounds/<r>/triage.jsonl`                      | your clip verdicts, one `{"event_id", "k", "verdict", "reason"?}` per line                                                                      |
+| `rounds/<r>/switches.jsonl`                    | each time `clip render` switched the renderer to H3                                                                                             |
+| `rounds/<r>/report.md`, `sheet.html`           | the round views that `clip report` rewrites                                                                                                     |
+| `clip-index.jsonl`                             | clip state changes: `event_id`, `round`, `source`, `scenario`, `label`, `status`, `time`                                                        |
+| `events/C/<clip id>/spec.json`                 | `source` (`event_id`, `k`, `render_sha256`), the source still's facts, then `prompt` and `clip_suffix` once frozen                              |
+| `events/C/<clip id>/provenance.json`           | `attempts[]`: `k`, `seed`, `prompt_sha256`, `models`, `input_sha256`, `clip`, `strip`, `render_seconds`, `render_failures[]`, `triage`          |
+| `events/C/<clip id>/clips/a<k>-s<seed>.mp4`    | attempt `k`'s clip: 1344x768, 243 frames at 24 fps, with H3's audio track                                                                       |
+| `events/C/<clip id>/strips/a<k>-s<seed>.jpg`   | its six frames, the image you triage                                                                                                            |
 
 Event ids are `B-<batch>-NNN`. The index statuses run `sampled` → `prompted` → `rendered`, then
-`ready`, `rerolled` or `failed`. Also under `/synthbench/status/` (read-only in the sandbox):
+`ready`, `rerolled` or `failed`. Clip ids are `C-<round>-NNN`, and a clip's statuses follow a
+still's. Also under `/synthbench/status/` (read-only in the sandbox):
 
 - `flagship.json`, the guard's status, which `render` waits on;
 - `snapshots.json`, the snapshot timer's result: any hold is the owner's to resolve.

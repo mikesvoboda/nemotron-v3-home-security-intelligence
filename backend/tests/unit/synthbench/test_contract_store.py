@@ -58,10 +58,10 @@ def test_the_layout_matches_the_design(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    "event_id", ["C-x-000", "B", "b-pilot-1-000", "B-a/../escape", "B-x/y", "B-.."]
+    "event_id", ["D-x-000", "B", "b-pilot-1-000", "B-a/../escape", "B-x/y", "B-.."]
 )
 def test_event_ids_need_a_tier_prefix(tmp_path: Path, event_id: str) -> None:
-    with pytest.raises(ValueError, match="A- or B-"):
+    with pytest.raises(ValueError, match="A-, B- or C-"):
         CorpusStore(tmp_path, "tierb-v0").event_dir(event_id)
 
 
