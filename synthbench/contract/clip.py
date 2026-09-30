@@ -204,7 +204,6 @@ class RoundRecord(ContractModel):
     version: str
     seed: int = Field(ge=0)
     n: int = Field(ge=1, le=500)
-    pilot: bool
     settings: ClipSettings
     allocation: dict[str, dict[str, int]]  # group -> lighting -> clips drawn
     event_ids: tuple[str, ...]

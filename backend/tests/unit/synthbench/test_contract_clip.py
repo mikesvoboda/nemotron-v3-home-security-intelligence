@@ -116,7 +116,6 @@ def _round(n: int = 2, **changes: Any) -> dict[str, Any]:
         "version": "tierb-v0",
         "seed": 1,
         "n": n,
-        "pilot": True,
         "settings": {
             "frames": 243,
             "fps": 24,

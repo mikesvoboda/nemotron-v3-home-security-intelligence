@@ -1,9 +1,8 @@
 """`clip sample --round <r> --n <n>`: draw ready stills into a new clip round (clips design §3.1).
 
-The first round for a set of clip settings is the pilot: at most 20 clips, and no further round
-until the owner's audit has rated it (status/clip-gate.json). The draw is seeded by the round
-name, as a batch's is by its name. Running it again for an existing round finishes writing that
-round and changes nothing else.
+The draw is seeded by the round name, as a batch's is by its name. There is no pilot rule (spec
+C13): a round may take every ready still that has no clip yet. Running it again for an existing
+round finishes writing that round and changes nothing else.
 """
 
 from __future__ import annotations
@@ -11,12 +10,8 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Mapping
-from pathlib import Path
-
-from pydantic import ValidationError
 
 from synthbench.clips import settings as clip_settings
-from synthbench.clips.gate import PILOT_MAX_N, GateRefused, gate_file, read_gate, round_kind
 from synthbench.clips.sample import Candidate, draw
 from synthbench.commands.common import (
     EXIT_OK,
@@ -63,7 +58,7 @@ def _seed(text: str) -> int:
 def add_parser(actions: argparse._SubParsersAction[Parser]) -> None:
     parser = actions.add_parser(
         "sample",
-        help="draw ready stills that have no clip yet into a new clip round (a pilot first)",
+        help="draw ready stills that have no clip yet into a new clip round",
         allow_abbrev=False,
     )
     parser.add_argument(
@@ -74,10 +69,7 @@ def add_parser(actions: argparse._SubParsersAction[Parser]) -> None:
         help="new round name: lowercase letters, digits and hyphens",
     )
     parser.add_argument(
-        "--n",
-        type=_size,
-        required=True,
-        help=f"clips in the round, 1..{MAX_BATCH} (a pilot: at most {PILOT_MAX_N})",
+        "--n", type=_size, required=True, help=f"clips in the round, 1..{MAX_BATCH}"
     )
     parser.add_argument(
         "--seed", type=_seed, default=None, help="draw seed (default: derived from the round name)"
@@ -92,16 +84,15 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
         raise RequestError(f"corpus version {tax.version} has no stills yet")
     check_manifest(store)
     seed: int = args.seed if args.seed is not None else default_seed(args.round_name)
-    record = _round(store, args.round_name, args.n, seed, gate_file(env))
+    record = _round(store, args.round_name, args.n, seed)
     written = _write_specs(store, record)
     groups = ", ".join(
         f"{group} {sum(lights.values())}" for group, lights in sorted(record.allocation.items())
     )
-    kind = "the pilot" if record.pilot else "a volume round"
     first, last = record.event_ids[0], record.event_ids[-1]
     sys.stdout.write(
         f"clip round {record.name} in corpus version {store.version}: {record.n} clips "
-        f"({written} written now), {kind}\n"
+        f"({written} written now)\n"
         f"  groups: {groups}\n"
         f"  specs: {store.event_dir(first).parent}/{first} .. {last}\n"
         f"Next: write {store.round_dir(record.name) / 'motions.jsonl'}, then "
@@ -110,7 +101,7 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     return EXIT_OK
 
 
-def _round(store: CorpusStore, name: str, n: int, seed: int, gate_path: Path) -> RoundRecord:
+def _round(store: CorpusStore, name: str, n: int, seed: int) -> RoundRecord:
     """The round's record: read if the round exists, else drawn now and written once."""
     path = store.round_file(name)
     if path.exists():
@@ -121,18 +112,6 @@ def _round(store: CorpusStore, name: str, n: int, seed: int, gate_path: Path) ->
                 "choose a new round name"
             )
         return record
-    settings = clip_settings.current()
-    try:
-        kind = round_kind(settings, read_gate(gate_path), _rounds(store))
-    except (OSError, UnicodeDecodeError, ValidationError) as error:
-        raise AskOwner(f"cannot read {gate_path} ({type(error).__name__}).") from error
-    except GateRefused as error:
-        raise AskOwner(str(error)) from error
-    if kind == "pilot" and n > PILOT_MAX_N:
-        raise RequestError(
-            f"no pilot has passed for these clip settings, so round {name} is the pilot: "
-            f"--n at most {PILOT_MAX_N}"
-        )
     pool = _pool(store)
     if len(pool) < n:
         raise RequestError(
@@ -150,8 +129,7 @@ def _round(store: CorpusStore, name: str, n: int, seed: int, gate_path: Path) ->
         version=store.version,
         seed=seed,
         n=n,
-        pilot=kind == "pilot",
-        settings=settings,
+        settings=clip_settings.current(),
         allocation=allocation,
         event_ids=tuple(clip_id(name, i) for i in range(n)),
         source_event_ids=tuple(candidate.event_id for candidate in chosen),
@@ -159,13 +137,6 @@ def _round(store: CorpusStore, name: str, n: int, seed: int, gate_path: Path) ->
     )
     write_new(store, path, record)
     return record
-
-
-def _rounds(store: CorpusStore) -> list[RoundRecord]:
-    folder = store.version_dir / "rounds"
-    if not folder.is_dir():
-        return []
-    return [read(store, path, RoundRecord) for path in sorted(folder.glob("*/round.json"))]
 
 
 def _source(store: CorpusStore, event_id: str) -> tuple[Spec, ClipSource]:
