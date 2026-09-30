@@ -1,4 +1,4 @@
-"""The clip settings a pilot gate approves (clips design §5.2), and the weights clips use.
+"""The clip settings each round records, and the weights clips render with (clips design §2.3).
 
 H3 turbo renders on its 768p canvas at 24 fps. Its `length` snaps to a 17k+5 grid (ComfyUI
 v0.37.0 object_info; trained on about 124-362 frames): 243 = 17 x 14 + 5 frames is 10.1 s, the

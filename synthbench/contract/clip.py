@@ -81,7 +81,8 @@ class ClipSource(ContractModel):
 
 
 class ClipSettings(ContractModel):
-    """What makes two rounds the same generator; the pilot gate approves one of these (C10)."""
+    """The generator settings each round records (frames, fps, size, weights, suffix), for
+    provenance."""
 
     frames: int = Field(ge=5)
     fps: int = Field(ge=1)
