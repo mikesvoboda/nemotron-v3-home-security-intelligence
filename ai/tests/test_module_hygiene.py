@@ -129,17 +129,49 @@ def _run_nested(
     )
 
 
-@pytest.mark.timeout(RUN_TIMEOUT + 30)
-def test_enrichment_test_model_collects_alone(tmp_path: Path) -> None:
-    """The double-import + mock blocked collection of this one file.
+def test_enrichment_test_model_collects_alone() -> None:
+    """TOMBSTONE (R8 S3, owner ruling 4). The hazard in full, kept because the
+    hazard is older and worse than this test:
 
-    A file-local failure must not need any other ai/ file fixed first:
-    this passes even while the rest of the tier is still being repaired.
+    ``ai/enrichment/test_model.py`` used to install fake ``ai`` /
+    ``ai.enrichment`` / ``ai.enrichment.vitpose`` ModuleType objects into
+    ``sys.modules`` AT IMPORT TIME. Because pytest imports a test file as its
+    dotted path, that poisoned ``sys.modules["ai"]`` for the remainder of the
+    process and broke 12 of the 19 collection errors in a full ``ai/`` run --
+    a file-local defect with tree-wide blast radius. The same file also bound
+    ``from model import`` flat while the package chain bound it canonical, so
+    model_manager's Prometheus gauges registered twice
+    (``DuplicateTimeseries`` on ``enrichment_vram_usage_bytes``) and the file
+    could not collect even by itself.
+
+    This pin ran that collection in a subprocess and asserted rc == 0. Ruling 4
+    sweeps ``ai/enrichment`` entirely, so there is no file left to collect and
+    no pin here can mean anything except an absence -- which is stated below
+    rather than skipped (a skip is a suppression; the ratchet gate reddens).
+
+    Where each half of the coverage went, both LIVE and stronger than the
+    retired file-local pin -- this is the non-vacuity, and both lines fail if
+    someone "tidies" the guard away:
+      * the POISONING half is asserted over the whole tree by the sibling
+        below (``test_full_ai_collection_leaves_real_ai_package``), which runs
+        every surviving ai/ file through the same probe and requires the
+        verdict CLEAN; and
+      * the COLLECTABILITY half is ``ci.yml``'s ``pytest ai/ --collect-only``
+        step, which is rc-gated over the whole tier.
     """
-    result = _run_nested(tmp_path, REPO_ROOT / "ai" / "enrichment" / "test_model.py")
-    assert result.returncode == 0, (
-        f"ai/enrichment/test_model.py failed to collect (rc={result.returncode}):\n"
-        f"{result.stdout[-4000:]}\n{result.stderr[-2000:]}"
+    assert not (REPO_ROOT / "ai/enrichment/test_model.py").exists(), (
+        "the WP6.1 poisoning site is back -- if ai/enrichment was restored, this "
+        "tombstone must be re-written as the live collection pin it replaced"
+    )
+    here = Path(__file__).read_text(encoding="utf-8")
+    assert '_run_nested(tmp_path, REPO_ROOT / "ai")' in here, (
+        "the tree-wide poison probe is gone: the retired file-local pin would now "
+        "be the only guard, and its file no longer exists"
+    )
+    ci = (REPO_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "pytest ai/ --collect-only" in ci, (
+        "ai/ collectability is no longer rc-gated in CI; this tombstone points at "
+        "a step that is not there"
     )
 
 

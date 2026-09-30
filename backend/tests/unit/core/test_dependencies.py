@@ -84,18 +84,20 @@ class TestContextEnricherDependency:
             mock_container.get.assert_called_once_with("context_enricher")
 
 
-class TestNemotronAnalyzerDependency:
-    """Tests for get_nemotron_analyzer_dependency.
+class TestVlmAnalyzerDependency:
+    """Tests for get_vlm_analyzer_dependency.
 
-    The function name and the container key keep the retired spelling on
-    purpose (R8 S2 kept the wiring string; core/dependencies.py says why).
-    What the dependency yields is the shipped VlmAnalyzer.
+    Both the function name and the container key moved in R8 S3: through S2b
+    they deliberately kept the retired LLM tier's spelling (the class was gone,
+    the wiring string was not), and ledger item 45's close pointer made S3 the
+    slice that carries the rename. What the dependency yields is the shipped
+    VlmAnalyzer either way — the rename is wiring, not a behavior change.
     """
 
     @pytest.mark.asyncio
-    async def test_nemotron_analyzer_dependency_returns_service(self) -> None:
+    async def test_vlm_analyzer_dependency_returns_service(self) -> None:
         """Analyzer dependency should yield the analyzer from the container key."""
-        from backend.core.dependencies import get_nemotron_analyzer_dependency
+        from backend.core.dependencies import get_vlm_analyzer_dependency
 
         mock_analyzer = AsyncMock()
         mock_container = MagicMock(spec=Container)
@@ -104,11 +106,11 @@ class TestNemotronAnalyzerDependency:
         with patch(
             "backend.core.dependencies.get_container", return_value=mock_container, autospec=True
         ):
-            gen = get_nemotron_analyzer_dependency()
+            gen = get_vlm_analyzer_dependency()
             analyzer = await gen.__anext__()
 
             assert analyzer is mock_analyzer
-            mock_container.get_async.assert_called_once_with("nemotron_analyzer")
+            mock_container.get_async.assert_called_once_with("vlm_analyzer")
 
 
 class TestDetectorDependency:

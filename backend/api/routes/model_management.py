@@ -12,24 +12,23 @@ The backend acts as an aggregation layer that combines:
 - Triton readiness from ai-gateway health, unioned across two surfaces keyed
   by the triton_name values in the root models.yml catalogue:
   * router health (GET {router}/health), which reports only the Triton models
-    its own routers serve — /enrichment reports vehicle/fashion_clip/
-    demographics_age/demographics_gender/pet/depth and /enrich-lt reports
-    pose/threat/reid/pet/depth; neither reports clip, clip_text or
-    stgcn_action, and
+    its own router serves — after R8 S3 there is one router, /enrich-lt, and
+    it reports threat/reid, and
   * the gateway root health (GET {root}/health), which iterates the ACTIVE
-    residency set (ai.gateway.residency, rev 6) — in `full` mode that is the
-    full ALL_MODELS registry and it covers every Triton name, and it is the
-    only surface that reports clip/clip_text (serving
-    siglip2-base-patch16-224) and stgcn_action (serving stgcn-plus-plus)
+    residency set (ai.gateway.residency, rev 6) and covers every Triton name
+    the repository still ships — which after the S3 prune is exactly
+    yolo26/reid/threat, so the root is what answers for yolo26 (served
+    through the gateway's own /detections router, so not in any router
+    payload).
   A name is readiness-authoritative in whichever payload reports it; a name
   reported nowhere logs a warning rather than silently reporting not-loaded.
 
-  Residency caveat (rev 6): in a `vlm`-mode gateway the root payload lists
-  only yolo26/reid (+threat when opted in), so the 11 retired Triton names
-  are reported nowhere and this aggregation logs one drift warning per entry
-  per poll — expected noise, not catalogue drift. Task 5/6 follow-up: render
-  retired models with the Task 6 "not analyzed in VLM mode" empty states
-  instead of warning (ledger 1.4).
+  Residency caveat: the gateway no longer has a `full` mode (R8 S3 hard-raises
+  GATEWAY_MODEL_SET on unset/unknown/`full`), so the root payload is always the
+  narrow set. models.yml rows for retired models were DELETED in the same slice,
+  so this aggregation cannot walk a row whose Triton dir is gone — the drift
+  warning is reserved for real catalogue drift (the Task 6 empty-state
+  follow-up in ledger 1.4 is retired with them).
 - In-process load state from the backend ModelManager for models without a
   Triton mapping
 
@@ -41,8 +40,8 @@ former proxy endpoints therefore return 501 with an explanatory detail
 rather than fabricate a no-op success.
 
 VRAM accounting: the retired enrichment services' VRAM manager no longer
-exists, so vram-summary reports, per gateway router, the Triton-ready models
-from router health with the registry's *estimated* vram_mb summed as used_mb
+exists, so vram-summary reports, per mounted gateway router, the Triton-ready
+models from router health with the registry's *estimated* vram_mb summed as used_mb
 (the models.yml estimate is the same basis ModelManager.total_loaded_vram
 uses). Triton does not expose per-model VRAM over HTTP.
 
@@ -103,15 +102,15 @@ router = APIRouter(prefix="/api/system/models", tags=["model-management"])
 # Triton model names that ai-gateway router health payloads are keyed by.
 _MODELS_YML = Path(__file__).resolve().parents[3] / "models.yml"
 
-# Heavy lane: gateway /enrichment router (models.yml enrichment_*_service=heavy)
-# R8 S2: every heavy-router model retired with the enrichment tier; the
-# heavy lane has no backend-side member until S3 retires the provider.
-HEAVY_MODELS: frozenset[str] = frozenset()
+# R8 S3 (2026-09-29): the heavy lane is gone -- HEAVY_MODELS (empty since
+# S2), its router URL and HEAVY_VRAM_BUDGET_MB retired with the gateway router
+# and the ai/enrichment service. An empty membership set for
+# a deleted lane is decorative config, and its budget would fund nothing.
 
-# Light lane: gateway /enrich-lt router. This mirrors the gateway reality —
-# the /enrich-lt health payload reports readiness for pose/threat/reid/pet/
-# depth only (see ai/gateway/adapters/enrichment_light.py); demographics
-# models live on the heavy router.
+# The single remaining lane: gateway /enrich-lt router. This mirrors the
+# gateway reality -- the /enrich-lt health payload reports readiness for
+# threat/reid (see ai/gateway/adapters/enrichment_light.py, which after the
+# prune declares exactly these two models).
 LIGHT_MODELS = frozenset(
     {
         "threat-detection-yolov8n",
@@ -119,8 +118,7 @@ LIGHT_MODELS = frozenset(
     }
 )
 
-# Default VRAM budgets
-HEAVY_VRAM_BUDGET_MB = 6800
+# Default VRAM budget for the one lane
 LIGHT_VRAM_BUDGET_MB = 1200
 
 # HTTP client timeout settings
@@ -144,28 +142,34 @@ _LIFECYCLE_UNSUPPORTED_DETAIL = (
 # Path suffixes that identify a settings URL as a gateway router URL;
 # get_gateway_root_url strips one to recover the gateway root for its /health
 # probe. Derived from the settings-field defaults ("http://ai-gateway:8090/
-# enrichment" ends in "/enrichment") so they track the fields, not the
-# gateway's internal mount table.
-ROUTER_SUFFIXES = ("/enrichment", "/enrich-lt")
+# enrich-lt" ends in "/enrich-lt") so they track the fields, not the
+# gateway's internal mount table. R8 S3: the heavy router's suffix left with
+# the settings field it was derived from.
+ROUTER_SUFFIXES = ("/enrich-lt",)
 
 
-def get_router_urls() -> tuple[str, str]:
-    """Resolve the (heavy, light) gateway router base URLs from settings.
+def get_router_urls() -> tuple[str, ...]:
+    """Resolve the gateway router base URLs the readiness probe fans out to.
 
-    Follows the same resolution order as EnrichmentClient: when AI Gateway
-    mode is enabled, router URLs are built from ai_gateway_url; otherwise the
-    enrichment_url / enrichment_light_url settings fields are used (both
-    already default to the ai-gateway routers post-consolidation).
+    R8 S3 (2026-09-29): one entry. The heavy router's URL came from the
+    enrichment_url settings field, deleted with the heavy router it pointed at
+    -- a second entry here would be a probe of nothing. The tuple shape
+    stays because "which routers does the gateway mount" is a deployment
+    question, and a probe loop over a tuple is the honest expression of it.
+
+    Follows the same resolution order as the gateway clients: when AI Gateway
+    mode is enabled, the router URL is built from ai_gateway_url; otherwise the
+    enrichment_light_url settings field is used (it already defaults to the
+    ai-gateway router post-consolidation).
 
     Returns:
-        Tuple of (heavy router URL, light router URL)
+        Tuple of router base URLs -- the light router, the only one left
     """
     settings = get_settings()
     gateway_url = getattr(settings, "ai_gateway_url", None)
     if getattr(settings, "use_ai_gateway", False) is True and isinstance(gateway_url, str):
-        base = gateway_url.rstrip("/")
-        return f"{base}/enrichment", f"{base}/enrich-lt"
-    return settings.enrichment_url, settings.enrichment_light_url
+        return (f"{gateway_url.rstrip('/')}/enrich-lt",)
+    return (settings.enrichment_light_url,)
 
 
 def get_gateway_root_url() -> str | None:
@@ -173,7 +177,7 @@ def get_gateway_root_url() -> str | None:
 
     The gateway's root /health iterates its full Triton registry, so it is the
     only readiness surface that reports the Triton models served by routers
-    other than /enrichment and /enrich-lt (clip / clip_text / stgcn_action).
+    other than the light router (clip / clip_text / stgcn_action).
     The root URL is recovered by stripping the router suffix from the resolved
     router URLs (the ai_gateway_url base in gateway mode, else the suffixed
     enrichment_url / enrichment_light_url settings fields); a URL that carries
@@ -182,8 +186,8 @@ def get_gateway_root_url() -> str | None:
     Returns:
         Gateway root base URL, or None when it cannot be derived.
     """
-    heavy_url, light_url = get_router_urls()
-    for router_url in (heavy_url, light_url):
+    router_urls = get_router_urls()
+    for router_url in router_urls:
         if not isinstance(router_url, str):
             continue
         base = router_url.rstrip("/")
@@ -191,54 +195,78 @@ def get_gateway_root_url() -> str | None:
             if base.endswith(suffix):
                 return base[: -len(suffix)]
     logger.warning(
-        f"Could not derive the ai-gateway root URL from router URLs {heavy_url!r} / "
-        f"{light_url!r}; root /health readiness probe skipped"
+        f"Could not derive the ai-gateway root URL from router URLs {router_urls!r}; "
+        "root /health readiness probe skipped"
     )
     return None
 
 
-def get_service_for_model(model_name: str) -> str:
-    """Get the gateway router URL for a model.
+def get_service_for_model(model_name: str) -> str:  # noqa: ARG001 - kept for call sites
+    """Get the gateway router URL to probe for a model.
+
+    R8 S3: the light router is the only router, so it is the answer for every
+    model. It is a probe target, not an ownership claim -- a model the light
+    router does not serve is answered by the gateway root /health instead
+    (see _triton_ready), which is exactly how yolo26 was already handled when
+    this function returned the heavy router's URL.
+
+    Same shape as get_gpu_id_for_model below: the parameter stayed because the
+    call site passes it and the signature is a public surface, but with one
+    router there is nothing left to branch on.
 
     Args:
-        model_name: Name of the model
+        model_name: Name of the model (unused -- one router)
 
     Returns:
-        Router base URL (heavy /enrichment or light /enrich-lt router)
+        Router base URL (the light /enrich-lt router)
     """
-    heavy_url, light_url = get_router_urls()
-    return light_url if model_name in LIGHT_MODELS else heavy_url
+    return get_router_urls()[0]
 
 
 def get_service_name_for_model(model_name: str) -> str:
     """Get the logical service name for a model.
 
-    The names are retained as heavy/light router lane labels (the standalone
-    containers they were named after are retired).
+    The names are lane labels (the standalone containers they were named after
+    are retired): "ai-enrichment-light" for the models the /enrich-lt router
+    serves, "ai-gateway" for everything else whose readiness the gateway root
+    answers -- yolo26 (served on the gateway's own /detections router) and the
+    backend-process models.
+
+    R8 S3 (2026-09-29): "ai-enrichment" is not an available answer any more.
+    It named a router the slice unmounted, so a model labelled with it would
+    render a service card permanently stuck on unreachable -- a red assertion
+    about nothing, the mirror of S2b's green-about-nothing compose pin.
+    "ai-gateway" is the label whose health this endpoint actually measured.
 
     Args:
         model_name: Name of the model
 
     Returns:
-        Service label ("ai-enrichment" or "ai-enrichment-light")
+        Service label ("ai-enrichment-light" or "ai-gateway")
     """
     if model_name in LIGHT_MODELS:
         return "ai-enrichment-light"
-    return "ai-enrichment"
+    return "ai-gateway"
 
 
-def get_gpu_id_for_model(model_name: str) -> int:
+# The host GPU the one serving lane sits on. Set by the compose files, not the
+# registry: docker-compose.prod.yml:392 and .ghcr.yml:183 both give ai-gateway
+# (which hosts the only router) CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1}.
+# There is nothing left to branch on -- the heavy lane's device 0 was the other
+# half of the old split.
+_GPU_LANE_ID = 1
+
+
+def get_gpu_id_for_model(model_name: str) -> int:  # noqa: ARG001 - kept for call sites
     """Get the GPU lane ID for a model.
 
     Args:
-        model_name: Name of the model
+        model_name: Name of the model (unused -- one lane, one device)
 
     Returns:
-        Lane ID (0 for heavy lane, 1 for light lane)
+        Lane ID of the single serving lane
     """
-    if model_name in LIGHT_MODELS:
-        return 1
-    return 0
+    return _GPU_LANE_ID
 
 
 @lru_cache(maxsize=1)
@@ -400,19 +428,17 @@ def _triton_ready(
 
     Readiness is unioned across the router /health payloads and the gateway
     root /health payload. A Triton name is authoritative in whichever payload
-    reports it: the serving routers are consulted first (their payloads cover
-    the models their routers serve — pet/depth overlap and are satisfied by
-    either router), and the root payload — which iterates the gateway's
-    ACTIVE residency set (the full ALL_MODELS registry in `full` mode) —
-    answers the names no router reports, namely clip/clip_text (serving
-    siglip2-base-patch16-224) and stgcn_action (serving stgcn-plus-plus).
+    reports it: the light router's payload covers the models it serves, and
+    the root payload — which iterates the gateway's ACTIVE residency set —
+    answers the names no router reports, which after the R8 S3 prune is
+    exactly yolo26 (Triton-backed, but served through the gateway's own
+    detections router so it appears in no router payload).
     When NO payload reports a name at all (the gateway answers but its Triton
     registry no longer matches models.yml) the gap is logged as a warning
     instead of hiding behind a silent permanent not-ready, so catalogue drift
-    is visible. In `vlm` residency mode the 11 retired names are absent from
-    every payload by design, so this warning fires for them on every poll —
-    see the module docstring's residency caveat and the Task 6 empty-state
-    follow-up (ledger 1.4).
+    is visible. R8 S3 retired the residency-mode caveat: there is no wider set
+    left to run, so a name models.yml lists and the gateway does not report is
+    drift, not expected noise.
 
     Args:
         triton_names: Triton model names for the registry entry
@@ -452,9 +478,9 @@ def _build_runtime(
     """Build runtime info for a model from gateway readiness or the backend manager.
 
     Models with a Triton mapping report readiness unioned across the gateway
-    root health and the router health payloads — the routers do not report
-    every Triton name, so the root registry is required for clip/clip_text/
-    stgcn_action (Triton exposes no per-model VRAM/usage over HTTP, so
+    root health and the router health payloads — the light router does not
+    report every Triton name, so the root registry is required for yolo26
+    (Triton exposes no per-model VRAM/usage over HTTP, so
     actual_vram_mb/last_used/load_count are not available). A Triton-mapped
     model is by definition gateway-served and is never answered from the
     backend ModelManager, which cannot hold it. Models without a mapping run
@@ -505,22 +531,25 @@ def _get_service_health(status: dict[str, Any] | None) -> str:
 def _build_gpu_vram_info(
     gpu_id: int,
     service_name: str,
-    light_lane: bool,
     health: dict[str, Any] | None,
     default_budget_mb: int,
     registry: dict[str, Any],
 ) -> VramGpuInfo:
-    """Build VRAM info for a router lane from gateway readiness plus registry estimates.
+    """Build VRAM info for the router lane from gateway readiness plus registry estimates.
 
     Lists the registry models assigned to this lane whose Triton models are
     reported ready by the router health payload and sums their registry
     vram_mb estimates (the retired VRAM-manager accounting no longer exists;
     see module docstring).
 
+    R8 S3 (2026-09-29): the ``light_lane`` selector is gone. It existed to run
+    this builder twice, once per lane; with one lane the selector's False arm
+    would filter to the heavy set -- a set that no longer exists -- so the
+    function keeps its lane membership test (LIGHT_MODELS) and drops the flag.
+
     Args:
-        gpu_id: Lane ID (0 heavy, 1 light)
+        gpu_id: Lane ID of the serving router's GPU
         service_name: Logical service label for the lane
-        light_lane: True to build the light lane, False for heavy
         health: Health payload from the router, or None if unreachable
         default_budget_mb: Configured VRAM budget for this lane
         registry: Model zoo registry (name -> ModelConfig)
@@ -536,7 +565,7 @@ def _build_gpu_vram_info(
     loaded_models: list[str] = []
     used_mb = 0
     for name, config in registry.items():
-        if (name in LIGHT_MODELS) != light_lane:
+        if name not in LIGHT_MODELS:
             continue
         triton_names = triton_map.get(name)
         if not triton_names:
@@ -578,7 +607,7 @@ async def list_models(
     """List all models with registry metadata and runtime state.
 
     Returns models from the registry merged with Triton readiness unioned
-    across the gateway root /health and the two router /health payloads (and
+    across the gateway root /health and the one router /health payload (and
     ModelManager state for backend-process models). If every surface is
     unreachable, Triton-mapped models report runtime.loaded=False.
 
@@ -588,15 +617,15 @@ async def list_models(
     # Get static config from registry
     registry = get_model_zoo()
 
-    # Fetch readiness from the gateway root plus both routers
+    # Fetch readiness from the gateway root plus the one mounted router
     router_urls = get_router_urls()
     root_health, router_payloads = await _fetch_root_and_router_health(http_client, router_urls)
-    heavy_health, light_health = router_payloads
+    light_health = router_payloads[0]
 
     # Build model list
     models = []
     for name, config in registry.items():
-        runtime = _build_runtime(name, config, root_health, heavy_health, light_health)
+        runtime = _build_runtime(name, config, root_health, light_health)
         models.append(
             ModelStatus(
                 name=name,
@@ -609,10 +638,16 @@ async def list_models(
             )
         )
 
-    # Build service status
+    # Build service status: one row per label this endpoint can actually
+    # answer for. The heavy row is gone because the router it probed is
+    # unmounted -- keeping it would pin a card permanently on "unreachable",
+    # and a permanently-red row about a deleted service is as uninformative as
+    # S2b's permanently-green one (R8 S3). "ai-gateway" is the root /health the
+    # aggregation just read, which is what models outside the light lane are
+    # answered by.
     service_status = {
-        "ai-enrichment": _get_service_health(heavy_health),
         "ai-enrichment-light": _get_service_health(light_health),
+        "ai-gateway": _get_service_health(root_health),
     }
 
     return ModelListResponse(models=models, service_status=service_status)
@@ -822,30 +857,23 @@ async def get_vram_summary(
     that previously backed this endpoint was retired with the standalone
     enrichment containers).
 
+    R8 S3: one lane, so one entry in ``gpus``. The heavy lane's row would
+    report a budget of 6800 MB against a router that no longer mounts, which
+    is a number nobody can act on.
+
     Returns:
         Per-lane VRAM breakdown plus aggregate totals
     """
     registry = get_model_zoo()
 
-    # Fetch readiness from both gateway routers
-    heavy_url, light_url = get_router_urls()
-    heavy_health = await _fetch_router_health(http_client, heavy_url)
+    # Fetch readiness from the mounted router
+    light_url = get_router_urls()[0]
     light_health = await _fetch_router_health(http_client, light_url)
 
-    # Build VRAM info for each lane
     gpus = [
         _build_gpu_vram_info(
-            0,
-            "ai-enrichment",
-            False,
-            heavy_health,
-            HEAVY_VRAM_BUDGET_MB,
-            registry,
-        ),
-        _build_gpu_vram_info(
-            1,
+            _GPU_LANE_ID,
             "ai-enrichment-light",
-            True,
             light_health,
             LIGHT_VRAM_BUDGET_MB,
             registry,

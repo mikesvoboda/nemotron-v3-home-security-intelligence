@@ -1,6 +1,7 @@
 """The WP8.2 deterministic FakeProvider.
 
-FastAPI app + seeded generators implementing all 37 registry operations,
+FastAPI app + seeded generators implementing every registry operation
+(the count is the registry's, not a pinned number - R8 S3 moved it 37 -> 9),
 served over httpx.ASGITransport: the reference implementation of the
 declared interface and the fixture source for downstream service tests.
 Byte-deterministic (sha256-seeded, one sort_keys serializer), no weights,

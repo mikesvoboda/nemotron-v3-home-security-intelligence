@@ -96,10 +96,10 @@ services:
       - PYTHON_GIL=0
       - DATABASE_URL=postgresql+asyncpg://security:ci_test_password@postgres:5432/security
       - REDIS_URL=redis://redis:6379
-      # AI services are optional for smoke tests - they will show as degraded
-      - FLORENCE_URL=http://localhost:8092
-      - CLIP_URL=http://localhost:8093
-      - ENRICHMENT_URL=http://localhost:8094
+      # R8 S3 retired the florence/clip/enrichment URLs (their services cannot
+      # boot: the Triton repository prunes to yolo26/reid/threat and
+      # GATEWAY_MODEL_SET hard-raises), so no row is injected for them — a
+      # settings field they'd land on no longer exists.
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       # Disable file watcher in CI (no camera folders)

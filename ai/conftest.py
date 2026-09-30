@@ -11,29 +11,35 @@ second execution re-declares module-scope Prometheus metrics
 (DuplicateTimeseries) — and across services, the bare names ``model`` /
 ``metrics`` are a single global slot that the first importer wins, so a
 file whose directory is not on sys.path yet resolves ``from model import``
-to *another service's* module (full-tree run: ``AUTHORITY_CATEGORIES``
-"missing" from clip's model; ``SECURITY_CLASSES`` missing from enrichment's;
-yolo26's metrics shadowed by enrichment's).
+to *another service's* module (full-tree run, pre-S3: ``AUTHORITY_CATEGORIES``
+"missing" from a sibling's model; ``SECURITY_CLASSES`` missing; yolo26's
+metrics shadowed by another service's).
 
 Root conftest hooks run before each test module is imported, so this file:
 
-1. pins ``ai.enrichment.model_manager`` as the canonical flat
-   ``model_manager`` (WP6.1 — both import styles share one Gauge object);
-2. blocks ``triton`` (WP6.2, below);
-3. for every collected module under a service directory in ``_FLAT_OWNERS``,
+1. blocks ``triton`` (WP6.2, below);
+2. for every collected module under a service directory in ``_FLAT_OWNERS``,
    imports that service's canonical package module once and (re)binds the
    flat name to THAT object — at collection import time (fixes the wrong-
    service ImportError) and again before each test runs (fixes
    string-target patches like ``patch("model.validate_model_path")`` and
-   tests that ``del sys.modules["model"]`` themselves).
+   tests that ``del sys.modules["model"]`` themselves.
 
-``ai/enrichment-light`` is deliberately absent: the hyphen makes it
-unimportable as a package (renaming touches compose build contexts — parked
-as a ruling) and its tests manage their own ``sys.modules["model"]``.
+R8 S3 (2026-09-29, owner rulings 1 and 4) swept the serving directories this
+file used to arbitrate between, so the map is now the surviving lane plus
+nothing: yolo26 is the only remaining package-form service whose tests speak
+the flat style. WP6.1's ``model_manager`` pin went with its module — no
+survivor imports that flat name (checked: the only remaining mentions are a
+parameter name in ``ai/gpu_oom_handler.py`` and the backend-side
+``backend/services/model_zoo.py``, which is not a flat-layout sibling), so
+there is no Gauge to share and nothing left for the pin to protect. Deleting
+the whole file instead would be the wrong sweep: hook 2 still owns the flat
+``model``/``metrics`` slots yolo26's two test trees collide over, and the
+triton block below owns the shadow that made six files error at collection.
 
-Note: importing ``ai.enrichment.model`` at collection time starts the
-pyroscope profiler thread like the flat import always did — the same
-behavior WP6.1's tree already had, just under the package name.
+Note: importing ``ai.yolo26.model`` at collection time starts the pyroscope
+profiler thread like the flat import always did — the same behavior WP6.1's
+tree already had, just under the package name.
 """
 
 from __future__ import annotations
@@ -49,25 +55,17 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-# --- 1. enrichment model_manager: package object owns the flat name ------
-
-_enrichment_dir = Path(__file__).resolve().parent / "enrichment"
-if str(_enrichment_dir) not in sys.path:
-    sys.path.append(str(_enrichment_dir))
-
-_pkg_model_manager = importlib.import_module("ai.enrichment.model_manager")
-sys.modules.setdefault("model_manager", _pkg_model_manager)
-
-# --- 2. WP6.2: block the triton shadow -------------------------------------
+# --- 1. WP6.2: block the triton shadow -------------------------------------
 # The repo has no pip `triton`, but the ai/ directory legitimately appears
-# on sys.path (conftests and the production shim blocks in clip/yolo26/
-# enrichment/nemotron model.py all insert it, matching the flat container
-# layout) and contains ai/triton — the Triton *Inference Server* CLIENT
+# on sys.path (conftests and the production shim blocks in the serving
+# modules insert it, matching the flat container layout — ai/yolo26/model.py
+# still does) and contains ai/triton — the Triton *Inference Server* CLIENT
 # package. `import triton` then silently binds that client, and
 # torch._dynamo.utils — which probes for the triton *compiler* — dies with
 # `module 'triton' has no attribute 'language'` inside transformers' lazy
-# imports (6 whole-file collection errors: clip, enrichment test_model,
-# person_reid, florence x3). Position is irrelevant — append was tested and
+# imports (pre-S3 this was 6 whole-file collection errors across the swept
+# services; ai/vlm and any transformers consumer still depend on the block).
+# Position is irrelevant — append was tested and
 # is a verified non-fix while the real package is absent; and a
 # fixture-scoped conftest fix cannot cover the production shims that insert
 # ai/ at arbitrary points mid-session. Setting the entry to None makes
@@ -79,21 +77,13 @@ sys.modules.setdefault("model_manager", _pkg_model_manager)
 # tritonclient, never bare triton.
 sys.modules["triton"] = None
 
-# --- 3. per-service owners of the colliding flat names ---------------------
+# --- 2. per-service owners of the colliding flat names ---------------------
 
 # directory -> {flat module name -> canonical package module name}
 # Values are LEAF-FIRST ordered tuples: a service's model imports its own
 # flat siblings (``from metrics import ...``) while it executes, so each
 # leaf's flat binding must be in place BEFORE the next import runs.
 _FLAT_OWNERS: dict[Path, tuple[tuple[str, str], ...]] = {
-    _enrichment_dir: (
-        ("model_manager", "ai.enrichment.model_manager"),
-        ("metrics", "ai.enrichment.metrics"),
-        ("vitpose", "ai.enrichment.vitpose"),
-        ("model", "ai.enrichment.model"),
-    ),
-    _ROOT / "ai" / "clip": (("model", "ai.clip.model"),),
-    _ROOT / "ai" / "florence": (("model", "ai.florence.model"),),
     _ROOT / "ai" / "yolo26": (
         ("metrics", "ai.yolo26.metrics"),
         ("model", "ai.yolo26.model"),

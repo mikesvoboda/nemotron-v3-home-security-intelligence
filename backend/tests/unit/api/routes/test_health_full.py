@@ -301,19 +301,33 @@ async def test_check_ai_service_health_skips_when_circuit_open() -> None:
 # =============================================================================
 
 
+#: Three breaker names for the synthetic registry payloads below, all three
+#: breakers the shipped process actually registers: ``yolo26`` (main.py's
+#: startup), ``ai-vlm`` (vlm_client's) and ``redis`` (main.py's infrastructure
+#: group). The summary function counts whatever the registry hands back, so
+#: these keys are only test data — but they used to name florence, a breaker
+#: whose provider R8 S3 retired, and a reader should not have to work out
+#: which of three keys a deployment can still produce.
+_LIVE_BREAKER_NAMES = ("yolo26", "ai-vlm", "redis")
+
+
+def _statuses(states: dict[str, str]) -> dict[str, dict[str, int | str]]:
+    """A synthetic registry payload: one entry per live breaker name."""
+    assert set(states) == set(_LIVE_BREAKER_NAMES), "every live breaker needs a state"
+    return {name: {"state": states[name], "failure_count": 0} for name in _LIVE_BREAKER_NAMES}
+
+
 def test_get_circuit_breaker_summary_all_closed() -> None:
     """Test circuit breaker summary when all circuits are closed."""
     with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
-        mock_registry.return_value.get_all_status.return_value = {
-            "yolo26": {"state": "closed", "failure_count": 0},
-            "ai-vlm": {"state": "closed", "failure_count": 0},
-            "florence": {"state": "closed", "failure_count": 0},
-        }
+        mock_registry.return_value.get_all_status.return_value = _statuses(
+            dict.fromkeys(_LIVE_BREAKER_NAMES, "closed")
+        )
 
         result = _get_circuit_breaker_summary()
 
-    assert result.total == 3
-    assert result.closed == 3
+    assert result.total == len(_LIVE_BREAKER_NAMES)
+    assert result.closed == len(_LIVE_BREAKER_NAMES)
     assert result.open == 0
     assert result.half_open == 0
     assert result.breakers["yolo26"] == CircuitState.CLOSED
@@ -322,21 +336,19 @@ def test_get_circuit_breaker_summary_all_closed() -> None:
 def test_get_circuit_breaker_summary_with_open() -> None:
     """Test circuit breaker summary with some circuits open."""
     with patch("backend.services.circuit_breaker._get_registry", autospec=True) as mock_registry:
-        mock_registry.return_value.get_all_status.return_value = {
-            "yolo26": {"state": "open", "failure_count": 5},
-            "ai-vlm": {"state": "closed", "failure_count": 0},
-            "florence": {"state": "half_open", "failure_count": 2},
-        }
+        mock_registry.return_value.get_all_status.return_value = _statuses(
+            {"yolo26": "open", "ai-vlm": "closed", "redis": "half_open"}
+        )
 
         result = _get_circuit_breaker_summary()
 
-    assert result.total == 3
+    assert result.total == len(_LIVE_BREAKER_NAMES)
     assert result.closed == 1
     assert result.open == 1
     assert result.half_open == 1
     assert result.breakers["yolo26"] == CircuitState.OPEN
     assert result.breakers["ai-vlm"] == CircuitState.CLOSED
-    assert result.breakers["florence"] == CircuitState.HALF_OPEN
+    assert result.breakers["redis"] == CircuitState.HALF_OPEN
 
 
 def test_get_circuit_breaker_summary_empty() -> None:
@@ -411,25 +423,46 @@ def test_ai_services_config_critical_services() -> None:
     # non-critical row (R8 S2), matching main.py's degradation registration.
     assert critical_names == ["yolo26"]
 
-    # Non-critical should not be marked critical
-    assert "florence" not in critical_names
-    assert "clip" not in critical_names
-    assert "enrichment" not in critical_names
+    # Nothing else in the table may be critical. Derived from the table rather
+    # than naming florence/clip/enrichment — R8 S3 retired those three rows
+    # (owner rulings 1 + 5), so the durable form of "non-critical rows are not
+    # marked critical" scans whatever non-critical rows actually ship.
+    non_critical_names = [s["name"] for s in AI_SERVICES_CONFIG if not s["critical"]]
+    assert non_critical_names, "table has no non-critical row: nothing could ever DEGRADE"
+    assert not set(non_critical_names) & set(critical_names)
 
 
 def test_ai_services_config_all_services_present() -> None:
-    """Test that all expected AI services are configured."""
-    expected_services = ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
-    actual_services = [s["name"] for s in AI_SERVICES_CONFIG]
+    """Every row of the shipped table is present, and every row reads a setting
+    that still exists.
 
-    for service in expected_services:
-        assert service in actual_services, f"Missing service: {service}"
-    # The retired LLM is gone from the table, and every row reads a setting that
-    # still exists (S2 deleted nemotron_url).
-    assert "nemotron" not in actual_services
+    The old pin hand-listed five names and the five url_attrs they read. R8 S3
+    (owner rulings 1 + 5) retired florence, clip and enrichment, and the
+    failure that pin would have caught is the one that actually happened: a row
+    left behind whose url_attr names a Settings field that ``extra="ignore"``
+    swallows, so the probe can only ever answer UNKNOWN — permanently green,
+    reporting nothing. So the durable pins are (a) the shipped row set exactly,
+    (b) every url_attr is a live Settings field, and (c) the retired names are
+    absent, non-vacuously, from a table that still has rows.
+    """
+    from backend.core.config import Settings
+
+    actual_services = [s["name"] for s in AI_SERVICES_CONFIG]
     url_attrs = {s["url_attr"] for s in AI_SERVICES_CONFIG}
-    assert "nemotron_url" not in url_attrs
-    assert url_attrs == {"yolo26_url", "ai_vlm_url", "florence_url", "clip_url", "enrichment_url"}
+
+    assert actual_services, "AI_SERVICES_CONFIG is empty"
+    assert actual_services == ["yolo26", "ai-vlm"]
+    assert url_attrs == {"yolo26_url", "ai_vlm_url"}
+
+    # (b) the pin the deleted count==5 was actually standing guard for.
+    dead_attrs = url_attrs - set(Settings.model_fields)
+    assert not dead_attrs, f"health rows probe deleted Settings fields: {sorted(dead_attrs)}"
+
+    # (c) the retirements, each absent from a non-empty table.
+    for retired in ("nemotron", "florence", "clip", "enrichment"):
+        assert retired not in actual_services
+    for retired_attr in ("nemotron_url", "florence_url", "clip_url", "enrichment_url"):
+        assert retired_attr not in url_attrs
 
 
 def test_ai_services_config_matches_the_ai_services_health_table() -> None:
@@ -557,12 +590,14 @@ class TestFullHealthRetiredLlmRow:
     named for it.
     """
 
+    #: One entry per shipped table row. R8 S3 deleted the florence / clip /
+    #: enrichment Settings fields and ``Settings`` runs ``extra="ignore"``, so
+    #: the three retired names here were accepted, dropped on the floor, and
+    #: fed a "refused" fixture no row could ever reach. The live two are what
+    #: makes ``down=`` mean something again.
     URLS: ClassVar[dict[str, str]] = {
         "yolo26_url": "http://ai-gateway:8090/yolo26",
         "ai_vlm_url": "http://ai-vlm:8098",
-        "florence_url": "http://florence:8092",
-        "clip_url": "http://clip:8093",
-        "enrichment_url": "http://enrichment:8094",
     }
     RETIRED_LLM_URL: ClassVar[str] = "http://ai-llm:8091"
 
@@ -571,6 +606,14 @@ class TestFullHealthRetiredLlmRow:
         /health 200 except the url attrs in ``down`` (connection refused).
         Returns (result, http_status, probed_urls)."""
         from starlette.responses import Response
+
+        # Every row the table probes needs a URL here, or the row would report
+        # UNKNOWN and the status pins below would be reading a fixture that
+        # never reached the provider they name.
+        table_attrs = {cfg["url_attr"] for cfg in AI_SERVICES_CONFIG}
+        assert table_attrs <= set(self.URLS), (
+            f"table rows with no fixture URL: {sorted(table_attrs - set(self.URLS))}"
+        )
 
         # No pipeline_mode kwarg: the default IS the shipped mode.
         settings = Settings(_env_file=None, **self.URLS)
@@ -613,7 +656,14 @@ class TestFullHealthRetiredLlmRow:
         assert result.status == ServiceHealthState.HEALTHY, result.message
         assert http_status == 200
         names = [s.name for s in result.ai_services]
-        assert names == ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
+        # One entry per shipped table row, in table order — R8 S3 pruned the
+        # florence/clip/enrichment rows (owner rulings 1 + 5), so the retired
+        # names are pinned absent from a list that still has live rows.
+        assert names == [cfg["name"] for cfg in AI_SERVICES_CONFIG]
+        assert len(names) >= 2, names
+        for retired in ("nemotron", "florence", "clip", "enrichment"):
+            assert retired not in names
+            assert not [u for u in probed if retired in u], probed
         vlm = next(s for s in result.ai_services if s.name == "ai-vlm")
         assert vlm.url == self.URLS["ai_vlm_url"]
         assert not [u for u in probed if u.startswith(self.RETIRED_LLM_URL)], probed

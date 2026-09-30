@@ -290,22 +290,40 @@ class TestModelZooIntegration:
             get_total_vram_if_loaded,
         )
 
-        # Test with known models: yolov8n-pose (200) + yolo11-license-plate (300)
-        total = get_total_vram_if_loaded(["yolov8n-pose", "yolo11-license-plate"])
-        assert total == 500
+        zoo = get_model_zoo()
+
+        # Test with known models: yolo11-face (200) + yolo11-license-plate (300).
+        # yolov8n-pose was in this exemplar pair; R8 S3 deleted its models.yml
+        # row because the `pose` Triton model is pruned and no boot can serve it,
+        # and MODEL_ZOO is built from models.yml rows that also have a _LOADER_MAP
+        # entry — so the name is now absent from the registry, not disabled in it.
+        pair = ["yolo11-face", "yolo11-license-plate"]
+        assert all(n in zoo for n in pair), sorted(zoo)
+        assert get_total_vram_if_loaded(pair) == 500
+        assert "yolov8n-pose" not in zoo, "its models.yml row is deleted (R8 S3)"
 
         # Aggregation over every enabled row, pinned as an arithmetic total:
-        # 100 osnet + 0 scrfd + 0 recognizer + 200 pose + 200 yolo11-face
-        # + 300 plate + 28 fast-alpr + 100 paddleocr = 928
+        # 100 osnet + 0 scrfd + 0 recognizer + 200 yolo11-face + 300 plate
+        # + 28 fast-alpr + 100 paddleocr = 728. (Was 928 while the 200 MB pose
+        # row existed; the total moving is this pin doing its job.)
         enabled = get_enabled_models()
-        assert get_total_vram_if_loaded([m.name for m in enabled]) == 928
+        assert enabled, "no enabled zoo rows — the census below would be vacuous"
+        assert get_total_vram_if_loaded([m.name for m in enabled]) == 728
+        # Recomputed from the rows themselves, so a helper that started counting
+        # disabled or unknown names cannot satisfy both lines.
+        assert get_total_vram_if_loaded([m.name for m in enabled]) == sum(
+            zoo[m.name].vram_mb for m in enabled
+        )
 
         # The sum-of-enabled is what excludes the disabled yolo26-general row:
         # the helper itself sums whatever it is handed (400 when named directly),
-        # so filtering by enabled is the caller's job — 928 proves it happened.
+        # so filtering by enabled is the caller's job.
         assert get_model_zoo()["yolo26-general"].enabled is False
         assert get_model_zoo()["yolo26-general"].vram_mb == 400
         assert get_total_vram_if_loaded(["yolo26-general"]) == 400
+        assert get_total_vram_if_loaded([m.name for m in enabled]) != get_total_vram_if_loaded(
+            list(zoo)
+        ), "enabled sum equals the whole-registry sum: the disabled row leaked in"
 
     def test_total_vram_empty_list(self):
         """Test total VRAM calculation with empty list."""
@@ -315,11 +333,23 @@ class TestModelZooIntegration:
         assert total == 0
 
     def test_total_vram_unknown_model(self):
-        """Test total VRAM calculation ignores unknown models."""
-        from backend.services.model_zoo import get_total_vram_if_loaded
+        """Test total VRAM calculation ignores unknown models.
 
-        # Unknown model should be ignored
-        total = get_total_vram_if_loaded(["yolov8n-pose", "nonexistent-model"])
+        The unknown name used to be the only unknown in the call, and the known
+        one was yolov8n-pose — whose models.yml row R8 S3 deleted, so it became
+        a SECOND unknown and the call summed to 0 for the wrong reason. Both
+        sides are pinned explicitly now: the known row contributes its estimate
+        and the unknown contributes nothing.
+        """
+        from backend.services.model_zoo import get_model_zoo, get_total_vram_if_loaded
 
-        # Should only count yolov8n-pose (200)
-        assert total == 200
+        zoo = get_model_zoo()
+        known = "yolo11-face"
+        assert known in zoo, sorted(zoo)
+        vram = zoo[known].vram_mb
+        assert vram > 0, "a 0 MB row cannot distinguish 'ignored' from 'matched'"
+
+        total = get_total_vram_if_loaded([known, "nonexistent-model"])
+        assert total == vram, "unknown model must be ignored, not counted"
+        # The bogus name really is absent, or the equality above is meaningless.
+        assert "nonexistent-model" not in zoo

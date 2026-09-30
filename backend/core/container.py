@@ -491,16 +491,24 @@ async def wire_services(container: Container) -> None:
     # context_enricher / enrichment_pipeline as extra collaborators; R8 S2
     # (2026-09-29) deleted the enrichment registration itself - the tier was
     # unreachable the moment the mode that wired it started raising. The
-    # analyzer keeps the registry NAME "nemotron_analyzer": it is the string
-    # the startup gate and core/dependencies resolve, and renaming wiring is
-    # a decision of its own, not drift from this deletion.
+    # R8 S3 (2026-09-29, ruled in-session per ledger item 45's close pointer):
+    # the registry NAME is now "vlm_analyzer". Through S2b it deliberately
+    # stayed the retired LLM tier's name (the guard test spells it out; this
+    # comment does not, because test_r8_s3_florence_provider_retirement pins
+    # that no shipped source still carries the old string) -- retiring a class
+    # and renaming a load-bearing wiring string are different risks and one
+    # slice carries one of them. S3
+    # is the slice that carries the rename: the startup gate and
+    # core/dependencies resolve by this string, so all three sites move in this
+    # commit and test_r8_s2b_nemotron_deletion.py::TestDiNameIsDeliberate is
+    # retargeted to the new name, not deleted.
     async def analyzer_factory() -> Any:
         from backend.services.pipeline_factory import build_pipeline_analyzer
 
         redis = await container.get_async("redis_client")
         return build_pipeline_analyzer(redis_client=redis)
 
-    container.register_async_singleton("nemotron_analyzer", analyzer_factory)
+    container.register_async_singleton("vlm_analyzer", analyzer_factory)
 
     # DetectorClient - sync singleton (no dependencies that need injection)
     container.register_singleton("detector_client", DetectorClient)

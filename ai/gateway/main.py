@@ -10,12 +10,10 @@ Architecture:
         -> AI Gateway (port 8090, FastAPI on CPU)
             -> Triton Inference Server (port 8001 gRPC, GPU)
 
-Adapters:
+Adapters (R8 S3: clip/florence/enrichment mounts retired with the Triton
+prune — the shipped set is yolo26 + the two resident light specialists):
     /yolo26/*      - Object detection (TensorRT)
-    /clip/*        - CLIP embeddings (TensorRT vision, optional ONNX text)
-    /florence/*    - Florence-2 vision-language (Python backend)
-    /enrichment/*  - Heavy enrichment models (vehicle, clothing, demographics, etc.)
-    /enrich-lt/*   - Light enrichment models (pose, threat, reid, pet, depth)
+    /enrich-lt/*   - Resident threat + re-ID specialists (TensorRT / ONNX)
 
 Top-level endpoints:
     GET /health    - Aggregated health across all Triton models
@@ -59,7 +57,11 @@ from ai.gateway.residency import FULL_MODEL_SET, resolve_active_set
 
 ALL_MODELS: list[str] = list(FULL_MODEL_SET)
 
-# What THIS gateway instance serves (GATEWAY_MODEL_SET; default `full`).
+# What THIS gateway instance serves. R8 S3 (owner ruling 3) retired the
+# `full` set AND the default: GATEWAY_MODEL_SET must name a set that exists,
+# so an unset or unknown value raises right here at import and the container
+# fails to start instead of serving a footprint nobody configured. Same
+# fail-at-start doctrine as PIPELINE_MODE (S1).
 # /health and startup reporting use this, so a vlm-mode gateway reports the
 # retired models' absence by NOT listing them — listing them as not_loaded
 # forever would be a false alarm by construction.
@@ -103,7 +105,7 @@ except ImportError:
 # Paths that are NOT inference traffic and must stay out of the inference
 # histograms so health-probe/scrape chatter does not skew latency panels:
 # the gateway root and per-adapter health checks, plus Prometheus' own scrape
-# target. Inference endpoints (/yolo26/detect, /clip/embed, ...) are observed.
+# target. Inference endpoints (/yolo26/detect, /enrich-lt/threat-detect) are observed.
 _METRICS_EXCLUDED_PREFIXES = ("/metrics",)
 
 
@@ -118,7 +120,8 @@ def _gateway_labels(scope: Scope) -> tuple[str, str]:
     Labels come from the matched route pattern, not the raw URL: service is
     the adapter prefix the router is mounted under (/yolo26 -> "yolo26",
     /enrich-lt -> "enrich-lt", ...), endpoint is the route path under that
-    prefix with the slash stripped (/clip/embed -> "embed"; a root path
+    prefix with the slash stripped (/enrich-lt/threat-detect ->
+    "threat-detect"; a root path
     like /docs -> "root"). Paths that match no route (404s) get
     ("other", "other") so label cardinality stays bounded by the fixed
     route table even under attacker-crafted URLs.
@@ -260,16 +263,17 @@ app.add_middleware(GatewayMetricsMiddleware)
 # Mount adapter routers
 # ---------------------------------------------------------------------------
 
-from ai.gateway.adapters.clip import router as clip_router
-from ai.gateway.adapters.enrichment import router as enrichment_router
+# R8 S3 (2026-09-29, owner rulings 3+4+5): the clip, florence and heavy
+# enrichment mounts retire with the Triton prune. residency.py now ships
+# {yolo26, reid, threat} only and GATEWAY_MODEL_SET hard-raises, so every
+# route those adapters exposed called a model that cannot boot; a mounted
+# router answering 503 forever is the decorative-surface class gen-ai-contract's
+# phantom check exists to refuse. The light adapter keeps the two resident
+# specialists of the shipped set (threat, reid).
 from ai.gateway.adapters.enrichment_light import router as enrichment_light_router
-from ai.gateway.adapters.florence import router as florence_router
 from ai.gateway.adapters.yolo26 import router as yolo26_router
 
 app.include_router(yolo26_router, prefix="/yolo26", tags=["yolo26"])
-app.include_router(clip_router, prefix="/clip", tags=["clip"])
-app.include_router(florence_router, prefix="/florence", tags=["florence"])
-app.include_router(enrichment_router, prefix="/enrichment", tags=["enrichment"])
 app.include_router(enrichment_light_router, prefix="/enrich-lt", tags=["enrichment-light"])
 
 
