@@ -925,6 +925,21 @@ also_copy = [
     # files; the sibling reader test_cli_doctor.py reads REPO_ROOT only as a
     # subprocess cwd, satisfied by the existing synthbench/ + backend/ copies.
     "docs/synthbench/",
+    # 2026-09-30 stats-abort repair (campaign #8 baseline run 08:28Z, twelfth
+    # member of this family): the PR-6732 synthbench tests entered mutants/ at
+    # this generation ("Found 130 new tests") and the incremental stats re-run
+    # died "runner returned 1" on one red:
+    # backend/tests/unit/synthbench/test_replay.py
+    # ::test_every_bench_env_key_is_one_compose_reads path-reads
+    # Path(cli.__file__).parents[1]/.env.bench -- in the mutant home that root
+    # carries no .env.bench copy -> FileNotFoundError red aborts the -x stats
+    # pass (bank unharmed: stats death banks nothing, generation had
+    # completed with verdicts intact). Full mutant-home scan of all 121
+    # collectible new tests: 1 failed / 120 passed -- this reader is alone.
+    # .env.bench sits OUTSIDE source_paths (generates ZERO mutants -- the
+    # copy is inert), 351 bytes; the sibling .env / .env.example entries
+    # above are the precedent shape.
+    ".env.bench",
 ]
 
 # =============================================================================
