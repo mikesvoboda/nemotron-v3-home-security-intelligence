@@ -400,12 +400,17 @@ describe('FaceRecognitionPage', () => {
       // the tab list, so it rotted the moment the list changed -- the count is
       // now DERIVED from the documented tab names, one copy, same as the
       // sibling "displays all three tabs" case pins them by name.
-      const documentedTabs = ['Known Persons', 'Face Events', 'Person Tracking'];
+      // Regex literals, not `new RegExp(name)`: the repo's lint runs
+      // `eslint --max-warnings 0` and `security/detect-non-literal-regexp`
+      // warns on the constructed form, which fails the Frontend Lint job.
+      // These are the same matchers the sibling "displays all three tabs"
+      // case uses, so the derivations stay semantically identical.
+      const documentedTabs = [/Known Persons/i, /Face Events/i, /Person Tracking/i];
 
       const tabs = screen.getAllByRole('tab');
       expect(tabs).toHaveLength(documentedTabs.length);
       for (const name of documentedTabs) {
-        expect(screen.getByRole('tab', { name: new RegExp(name, 'i') })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name })).toBeInTheDocument();
       }
 
       // Exactly one tab is selected, and it is the first (the page's default).
