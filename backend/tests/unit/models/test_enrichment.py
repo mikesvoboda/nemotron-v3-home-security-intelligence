@@ -14,13 +14,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from backend.models.enrichment import (
-    ActionResult,
-    DemographicsResult,
-    PoseResult,
-    ReIDEmbedding,
-    ThreatDetection,
-)
+from backend.models.enrichment import ActionResult, PoseResult, ThreatDetection
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -43,15 +37,6 @@ threat_types = st.sampled_from(["gun", "knife", "grenade", "explosive", "weapon"
 
 # Strategy for valid severity levels
 severity_levels = st.sampled_from(["critical", "high", "medium", "low"])
-
-# Strategy for valid age ranges
-age_ranges = st.sampled_from(
-    ["0-10", "11-20", "21-30", "31-40", "41-50", "51-60", "61-70", "71-80", "81+", "unknown"]
-)
-
-# Strategy for valid genders
-genders = st.sampled_from(["male", "female", "unknown"])
-
 
 # =============================================================================
 # PoseResult Model Tests
@@ -235,181 +220,11 @@ class TestThreatDetectionModel:
 
 
 # =============================================================================
-# DemographicsResult Model Tests
-# =============================================================================
-
-
-class TestDemographicsResultModel:
-    """Tests for DemographicsResult model."""
-
-    def test_demographics_result_creation_minimal(self):
-        """Test creating a demographics result with minimal fields."""
-        demo = DemographicsResult(detection_id=1)
-        assert demo.detection_id == 1
-        assert demo.age_range is None
-        assert demo.age_confidence is None
-        assert demo.gender is None
-        assert demo.gender_confidence is None
-
-    def test_demographics_result_creation_full(self):
-        """Test creating a demographics result with all fields."""
-        demo = DemographicsResult(
-            detection_id=1,
-            age_range="31-40",
-            age_confidence=0.87,
-            gender="male",
-            gender_confidence=0.92,
-        )
-        assert demo.detection_id == 1
-        assert demo.age_range == "31-40"
-        assert demo.age_confidence == 0.87
-        assert demo.gender == "male"
-        assert demo.gender_confidence == 0.92
-
-    def test_demographics_result_age_only(self):
-        """Test demographics with only age prediction."""
-        demo = DemographicsResult(detection_id=1, age_range="21-30", age_confidence=0.85)
-        assert demo.age_range == "21-30"
-        assert demo.age_confidence == 0.85
-        assert demo.gender is None
-        assert demo.gender_confidence is None
-
-    def test_demographics_result_gender_only(self):
-        """Test demographics with only gender prediction."""
-        demo = DemographicsResult(detection_id=1, gender="female", gender_confidence=0.90)
-        assert demo.age_range is None
-        assert demo.age_confidence is None
-        assert demo.gender == "female"
-        assert demo.gender_confidence == 0.90
-
-    def test_demographics_result_repr(self):
-        """Test DemographicsResult __repr__ method."""
-        demo = DemographicsResult(id=1, detection_id=42, age_range="31-40", gender="male")
-        repr_str = repr(demo)
-        assert "DemographicsResult" in repr_str
-        assert "id=1" in repr_str
-        assert "detection_id=42" in repr_str
-        assert "age_range='31-40'" in repr_str
-        assert "gender='male'" in repr_str
-
-    def test_demographics_result_has_detection_relationship(self):
-        """Test DemographicsResult has detection relationship defined."""
-        demo = DemographicsResult(detection_id=1)
-        assert hasattr(demo, "detection")
-
-    def test_demographics_result_tablename(self):
-        """Test DemographicsResult has correct table name."""
-        assert DemographicsResult.__tablename__ == "demographics_results"
-
-    def test_demographics_result_has_indexes(self):
-        """Test DemographicsResult has expected indexes."""
-        indexes = DemographicsResult.__table_args__
-        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
-        assert "idx_demographics_results_detection_id" in index_names
-        assert "idx_demographics_results_created_at" in index_names
-
-    @given(age_confidence=confidence_scores, gender_confidence=confidence_scores)
-    @settings(max_examples=30)
-    def test_demographics_confidence_roundtrip(
-        self, age_confidence: float, gender_confidence: float
-    ):
-        """Property: Confidence values roundtrip correctly."""
-        demo = DemographicsResult(
-            detection_id=1,
-            age_confidence=age_confidence,
-            gender_confidence=gender_confidence,
-        )
-        assert abs(demo.age_confidence - age_confidence) < 1e-10
-        assert abs(demo.gender_confidence - gender_confidence) < 1e-10
-
-    @given(age_range=age_ranges, gender=genders)
-    @settings(max_examples=20)
-    def test_demographics_values_roundtrip(self, age_range: str, gender: str):
-        """Property: Age range and gender values roundtrip correctly."""
-        demo = DemographicsResult(detection_id=1, age_range=age_range, gender=gender)
-        assert demo.age_range == age_range
-        assert demo.gender == gender
-
-
-# =============================================================================
-# ReIDEmbedding Model Tests
-# =============================================================================
-
-
-class TestReIDEmbeddingModel:
-    """Tests for ReIDEmbedding model."""
-
-    def test_reid_embedding_creation_minimal(self):
-        """Test creating a ReID embedding with minimal fields."""
-        embedding = ReIDEmbedding(detection_id=1)
-        assert embedding.detection_id == 1
-        assert embedding.embedding is None
-        assert embedding.embedding_hash is None
-
-    def test_reid_embedding_creation_full(self):
-        """Test creating a ReID embedding with all fields."""
-        emb_vector = [0.1] * 512  # 512-dimensional vector
-        embedding = ReIDEmbedding(
-            detection_id=1,
-            embedding=emb_vector,
-            embedding_hash="abc123def456",  # pragma: allowlist secret
-        )
-        assert embedding.detection_id == 1
-        assert len(embedding.embedding) == 512
-        assert embedding.embedding_hash == "abc123def456"  # pragma: allowlist secret
-
-    def test_reid_embedding_unique_per_detection(self):
-        """Test detection_id has unique constraint."""
-        # This is tested via the unique=True column definition
-        from sqlalchemy import inspect
-
-        mapper = inspect(ReIDEmbedding)  # pragma: allowlist secret
-        detection_id_col = mapper.columns["detection_id"]
-        assert detection_id_col.unique is True
-
-    def test_reid_embedding_repr(self):
-        """Test ReIDEmbedding __repr__ method."""
-        emb_vector = [0.5, 0.3, 0.8, 0.1]
-        embedding = ReIDEmbedding(id=1, detection_id=42, embedding=emb_vector)
-        repr_str = repr(embedding)
-        assert "ReIDEmbedding" in repr_str
-        assert "id=1" in repr_str
-        assert "detection_id=42" in repr_str
-        assert "[0.5000, ...]" in repr_str
-
-    def test_reid_embedding_repr_empty_embedding(self):
-        """Test __repr__ with empty embedding."""
-        embedding = ReIDEmbedding(id=1, detection_id=42, embedding=[])
-        repr_str = repr(embedding)
-        assert "embedding=None" in repr_str
-
-    def test_reid_embedding_has_detection_relationship(self):
-        """Test ReIDEmbedding has detection relationship defined."""
-        embedding = ReIDEmbedding(detection_id=1)
-        assert hasattr(embedding, "detection")
-
-    def test_reid_embedding_tablename(self):
-        """Test ReIDEmbedding has correct table name."""
-        assert ReIDEmbedding.__tablename__ == "reid_embeddings"
-
-    def test_reid_embedding_has_indexes(self):
-        """Test ReIDEmbedding has expected indexes."""
-        indexes = ReIDEmbedding.__table_args__
-        index_names = [idx.name for idx in indexes if hasattr(idx, "name")]
-        assert "idx_reid_embeddings_detection_id" in index_names
-        assert "idx_reid_embeddings_created_at" in index_names
-
-    def test_reid_embedding_hash_indexed(self):
-        """Test embedding_hash has index via column definition."""
-        from sqlalchemy import inspect
-
-        mapper = inspect(ReIDEmbedding)
-        embedding_hash_col = mapper.columns["embedding_hash"]
-        assert embedding_hash_col.index is True
-
-
-# =============================================================================
 # ActionResult Model Tests
+#
+# (DemographicsResult / ReIDEmbedding model tests retired with their tables in
+# R8 S4 -- see backend/tests/unit/models/
+# test_r8_s4_demographics_reid_retirement.py for the guard.)
 # =============================================================================
 
 

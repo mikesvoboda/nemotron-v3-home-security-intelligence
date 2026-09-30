@@ -15,13 +15,7 @@ from backend.api.schemas.enrichment_data import (
 )
 
 from .camera import Base, Camera
-from .enrichment import (
-    ActionResult,
-    DemographicsResult,
-    PoseResult,
-    ReIDEmbedding,
-    ThreatDetection,
-)
+from .enrichment import ActionResult, PoseResult, ThreatDetection
 from .event_detection import EventDetection
 from .smoke_fire_result import SmokeFireResult
 
@@ -105,20 +99,12 @@ class Detection(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-    demographics_result: Mapped[DemographicsResult | None] = relationship(
-        "DemographicsResult",
-        back_populates="detection",
-        uselist=False,
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-    reid_embedding: Mapped[ReIDEmbedding | None] = relationship(
-        "ReIDEmbedding",
-        back_populates="detection",
-        uselist=False,
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
+    # demographics_result / reid_embedding relationships retired with their
+    # tables (R8 S4, owner ruling 2026-09-30) -- see the module docstring of
+    # enrichment.py and the dated DROP SQL. `reid_embedding` here was the ORM
+    # relationship; the JSONB key detections.enrichment_data["reid_embedding"]
+    # and the Track/RegisteredVehicle.reid_embedding columns are DIFFERENT
+    # things with the same name and stay.
     action_result: Mapped[ActionResult | None] = relationship(
         "ActionResult",
         back_populates="detection",

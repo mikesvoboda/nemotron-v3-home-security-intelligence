@@ -53,6 +53,24 @@ quietly shrunk:
     ``face_recognizer_loader.extract_face_embedding`` — executed with a fake
     session.
 
+R8 S4 (2026-09-30, owner ruling) closed the demographics half of this module
+from the DB side: the ``demographics_results`` and ``reid_embeddings`` tables
+and their ORM classes were DROPPED (zero live readers, zero shipped writers).
+Consequences here, none of them a silent shrink:
+  * ``DB_GENDER`` / ``DB_AGE`` — which this module DERIVED off
+    ``DemographicsResult``'s two CHECKs — are gone with the class. They are not
+    re-typed as literals: a remembered copy of a dropped CHECK's value set is
+    exactly the transcription this file's "read it out of shipped source"
+    discipline exists to prevent, and nothing else shipped can be parsed for it.
+  * The two demographics tombstones in section 3 gain their second half (the
+    storage side, previously asserted LIVE) and keep a non-vacuity leg — the
+    ``scripts/seed-events.py`` alphabets they compared themselves against were
+    pruned by the same slice, so both non-vacuities are retargeted, not deleted.
+  * ``DB_POSE`` / ``DB_THREAT`` / ``DB_SEVERITY`` are untouched: ``pose_results``,
+    ``threat_detections`` and ``action_results`` all survive S4 (the owner kept
+    them with the ``pose_types``/``action_types``/``threat_detection_enabled``
+    rule fields their alert_engine reader feeds).
+
 ===========================================================================
 CITE-CORRECTION NOTES (plan line numbers drifted; corrected cites verified
 against THIS tree):
@@ -119,7 +137,7 @@ from unittest.mock import AsyncMock
 import pytest
 from backend.api.schemas import llm_response as llm_schema
 from backend.models.detection import Detection
-from backend.models.enrichment import DemographicsResult, PoseResult, ThreatDetection
+from backend.models.enrichment import PoseResult, ThreatDetection
 from backend.models.entity import Entity
 from backend.models.event import Event
 
@@ -375,8 +393,12 @@ def _check_values(model: Any, name: str) -> frozenset[str]:
 DB_POSE = _check_values(PoseResult, "ck_pose_results_pose_class")
 DB_THREAT = _check_values(ThreatDetection, "ck_threat_detections_threat_type")
 DB_SEVERITY = _check_values(ThreatDetection, "ck_threat_detections_severity")
-DB_GENDER = _check_values(DemographicsResult, "ck_demographics_results_gender")
-DB_AGE = _check_values(DemographicsResult, "ck_demographics_results_age_range")
+# DB_GENDER / DB_AGE were derived here off ``DemographicsResult``'s two CHECKs.
+# R8 S4 (owner ruling 2026-09-30) dropped the ``demographics_results`` table
+# along with that class, so the two derived sets are gone and the two hazards
+# they mirrored are now TOMBSTONED in TestRetiredEmitterTombstones below (their
+# emitters had already gone in S3; the CHECKs were the last live half, and this
+# module is the last reader they had).
 
 # ---------------------------------------------------------------------------
 # Surviving server emitters (all AST-read, none transcribed)
@@ -414,11 +436,19 @@ THREAT_EMITTED_WITH_FALLBACK = LIGHT_THREAT_EMITTED | {LIGHT_THREAT_FALLBACK.for
 class TestStaticSubset:
     def test_db_checks_parse_as_expected(self) -> None:
         """Spec sanity (GREEN): the CHECK texts parse to the legal sets this
-        module mirrors against. The four alphabets the plan named are pinned as
-        captured live at 88215286..a8c25c5e (Postgres 16.15 pg_constraint); the
-        SEVERITY row is DERIVED off the ORM today rather than remembered,
-        because after R8 S3 it is the only threat-side CHECK with a surviving
-        parity copy to mirror."""
+        module mirrors against. Three alphabets remain: the two the plan named
+        that survive (POSE, THREAT) are pinned as captured live at
+        88215286..a8c25c5e (Postgres 16.15 pg_constraint); the SEVERITY row is
+        DERIVED off the ORM today rather than remembered, because after R8 S3 it
+        is the only threat-side CHECK with a surviving parity copy to mirror.
+
+        R8 S4 took the GENDER and AGE rows with the ``demographics_results``
+        table, and they are NOT re-derivable from anything else — the CHECK
+        object no longer exists, so a remembered copy of its value set here
+        would be a transcription (the failure mode this module's whole "read it
+        out of shipped source" discipline exists to prevent). The retired hazards
+        those two alphabets carried are recorded in
+        TestRetiredEmitterTombstones instead."""
         assert (
             frozenset(
                 {
@@ -434,24 +464,6 @@ class TestStaticSubset:
             == DB_POSE
         )
         assert frozenset({"gun", "knife", "grenade", "explosive", "weapon", "other"}) == DB_THREAT
-        assert frozenset({"male", "female", "unknown"}) == DB_GENDER
-        assert (
-            frozenset(
-                {
-                    "0-10",
-                    "11-20",
-                    "21-30",
-                    "31-40",
-                    "41-50",
-                    "51-60",
-                    "61-70",
-                    "71-80",
-                    "81+",
-                    "unknown",
-                }
-            )
-            == DB_AGE
-        )
         assert frozenset({"critical", "high", "medium", "low"}) == DB_SEVERITY
         # Non-vacuity for the parser itself: a parse that silently returned an
         # empty set would keep every subset assertion below green.
@@ -459,8 +471,6 @@ class TestStaticSubset:
             ("DB_POSE", DB_POSE),
             ("DB_THREAT", DB_THREAT),
             ("DB_SEVERITY", DB_SEVERITY),
-            ("DB_GENDER", DB_GENDER),
-            ("DB_AGE", DB_AGE),
         ):
             assert len(values) >= 3, f"{name} parsed to {sorted(values)}"
 
@@ -824,29 +834,51 @@ class TestRetiredEmitterTombstones:
         """HAZARD IT PINNED: ``ai/enrichment/models/demographics.py:44-51``
         ``AGE_RANGES`` vs ``ck_demographics_results_age_range`` (:197-200).
         FOUR of six server buckets were illegal — ``21-35``, ``36-50``,
-        ``51-65``, ``65+`` — because the DB slices decades (21-30/31-40/…)
+        ``51-65``, ``65+`` — because the DB sliced decades (21-30/31-40/…)
         while the model sliced its own boundaries, and only ``0-10`` /
         ``11-20`` overlapped. All four RAISED live (a8c25c5e). The class of bug
         is the nastiest kind here: both sides are *plausible age buckets*, so
         nothing looks wrong until an INSERT refuses a demographic row for
         every adult over 20.
 
-        NOT RETARGETABLE: no shipped module emits an age vocabulary (derived
-        scan). The CHECK stays live — the column is still written by
-        scripts/seed-events.py, whose own alphabet is the non-vacuity: it is
-        the CHECK's exact legal-minus-unknown set, which is what a surviving
-        writer has to match."""
+        RETIRED IN TWO STEPS, and both halves are asserted. S3 deleted the
+        emitter; R8 S4 (owner ruling 2026-09-30) dropped ``demographics_results``
+        and with it the CHECK — the hazard's other half. This is now the full
+        closure record: no shipped module emits an age vocabulary (derived scan)
+        and nothing shipped can store one. The non-vacuity this record used to
+        carry was ``scripts/seed-events.py``'s own ``age_ranges`` literal
+        measured against the live CHECK; that writer left in the same S4 commit,
+        so the leg is RETARGETED rather than dropped (dropping it is how a
+        tombstone becomes a comment).
+
+        NOT RETARGETABLE as a live subset: nothing shipped holds an age bucket to
+        compare against. The hazard CLASS — two plausible vocabularies for one
+        concept, only one of them storable — is pinned live and asserted one
+        emitter over, on a DIFFERENT concept than the vitpose record beside it:
+        the light adapter's threat table emits ``pistol``/``rifle``/
+        ``threat_object``, none of which ``ck_threat_detections_threat_type``
+        accepts, and that delta is DATA in TestStaticSubset."""
         assert not (REPO_ROOT / "ai/enrichment/models/demographics.py").exists()
         assert not _named_constants(None, "AGE_RANGES"), (
-            "a shipped age-range table came back — the bucket-boundary "
-            "mismatch has a live emitter again and needs the subset assertion"
+            "a shipped age-range table came back — the bucket-boundary mismatch "
+            "has a live emitter again; if a column to store it in came back too, "
+            "restore the subset assertion instead of editing this record"
         )
-        seed = REPO_ROOT / "scripts/seed-events.py"
-        buckets = frozenset(_ast_assign(seed, "age_ranges"))
-        assert buckets == DB_AGE - {"unknown"}, (
-            f"the one surviving writer of age_range ({seed.name}) now emits "
-            f"{sorted(buckets)} vs the CHECK's {sorted(DB_AGE)} — the column "
-            "is live, so a divergent alphabet here still breaks at INSERT"
+        # The storage side went with the table: no shipped constant named
+        # *age_range* survives, so the mismatch cannot silently return as a live
+        # INSERT risk. Same derived-scan discipline as the emitter scan above.
+        stale_age = [(rel, name) for rel, name, _ in _named_constants(None, "age_range")]
+        assert not stale_age, (
+            f"a shipped age_range alphabet is back: {stale_age} — decide whether "
+            "the column it targets is live, then re-derive the CHECK it must "
+            "satisfy rather than widening this tombstone"
+        )
+        # Non-vacuity: the same hazard class has a live, asserted instance, so
+        # this record sits beside real work rather than standing in for it.
+        assert LIGHT_THREAT_EMITTED - DB_THREAT, (
+            "the surviving threat emitter no longer disagrees with its CHECK — "
+            "the two-plausible-vocabularies class would have no live pin, and a "
+            "tombstone would be the only thing left claiming it exists"
         )
 
     def test_demographics_gender_ordering_retired(self) -> None:
@@ -854,30 +886,49 @@ class TestRetiredEmitterTombstones:
         demographics.py:54, consumed POSITIONALLY (``GENDER_LABELS[:num_labels]``,
         the HF id2label convention). Reordering the list INVERTS every
         prediction while remaining fully schema-valid — both orders are
-        subsets of ``ck_demographics_results_gender``, so the CHECK is blind to
-        the only thing that matters. That made it the module's purest
+        subsets of ``ck_demographics_results_gender``, so the CHECK was blind to
+        the only thing that mattered. That made it the module's purest
         "storable and wrong" pin: no constraint can express a class INDEX.
+
+        R8 S4 CLOSED IT: the CHECK went with the table, so the ordering hazard
+        lost even its nominal guard (the label list went first, in S3). The
+        earlier non-vacuity here — ``scripts/seed-events.py``'s ``genders``
+        literal against that CHECK — is retargeted onto the positional shape
+        itself, since the writer left in the same S4 commit.
 
         NOT RETARGETABLE: no shipped module emits a gender label list (derived
         scan), so there is no positional convention left to pin. The hazard
         CLASS survives as a live, asserted shape one emitter over — the threat
         adapter's ``np.argmax`` class id indexes ``THREAT_CLASSES`` the same
-        way, and its delta is pinned in TestStaticSubset."""
+        positional way, and its delta is pinned in TestStaticSubset."""
         assert not (REPO_ROOT / "ai/enrichment/models/demographics.py").exists()
         assert not _named_constants(None, "GENDER_LABELS"), (
             "a shipped gender-label list came back — positional class ids are "
             "back and the ordering pin must be restored (it is the one hazard "
             "no CHECK in this schema can express)"
         )
-        # Non-vacuity 1: the DB-side gender CHECK is still live and still
-        # blind to ordering (both orderings parse to the same set).
-        assert {"male", "female"} <= DB_GENDER
+        # Non-vacuity 1: the class this pin exemplified is still expressed as
+        # ORDERED literals somewhere shipped, so "no CHECK can see an index" is
+        # not a claim about a corner of the tree that no longer exists.
+        ordered = [
+            (rel, name)
+            for rel, name, value in _named_constants(None, "CLASSES")
+            if isinstance(value, list)
+        ]
+        assert ordered, (
+            "no shipped ordered class-name table left — the positional-index "
+            "hazard class has no live instance for this record to sit beside"
+        )
+        # Non-vacuity 2: the live positional emitter is the one the docstring
+        # names, and order still decides what it emits (an argmax reads it).
+        assert isinstance(LIGHT_THREAT_TABLE, list), (
+            "the light adapter's threat table is no longer a positional list — "
+            "check whether its argmax still indexes it before retiring this pin"
+        )
         assert {"male", "female"} == {"female", "male"}, (
             "set equality is what a CHECK expresses — the reason an ORDERED "
             "alphabet can violate nothing while inverting every row"
         )
-        # Non-vacuity 2: the surviving writer's gender alphabet matches.
-        assert frozenset(_ast_assign(REPO_ROOT / "scripts/seed-events.py", "genders")) == DB_GENDER
 
     def test_threat_twin_maps_and_their_twelve_name_map_retired(self) -> None:
         """HAZARD THEY PINNED (three records, one sweep):
@@ -1153,9 +1204,16 @@ class TestMissingInvariants:
 # docstring, absence + non-vacuity asserted):
 #   vitpose POSTURE_LABELS            (walking, running)
 #   enrichment _classify_pose         (crawling, reaching_up, running)
-#   demographics AGE_RANGES           (21-35, 36-50, 51-65, 65+)
+#   demographics AGE_RANGES           (21-35, 36-50, 51-65, 65+)   [S4: +CHECK]
 #   demographics GENDER_LABELS order  (positional id2label inversion, CHECK-blind)
 #   threat twins + BY_NAME            (9 of 12; 4 of 6; twin drift)
+#
+# R8 S4 (owner ruling 2026-09-30) closed the two demographics tombstones from
+# the DB side: it dropped demographics_results/reid_embeddings, so their CHECKs
+# (and the DB_GENDER/DB_AGE derived sets, and seed-events.py's writer of them)
+# went too. Both tombstones now assert the emitter-AND-storage side with a
+# retargeted non-vacuity. pose_results/threat_detections/action_results SURVIVE
+# S4, so DB_POSE/DB_THREAT/DB_SEVERITY and every pin above them are untouched.
 #
 # Still here from R8 S2: no is_minor section (its three spellings were
 # enrichment_pipeline.py / age_classifier_loader.py members; nothing surviving

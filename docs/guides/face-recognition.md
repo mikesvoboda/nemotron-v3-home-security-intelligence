@@ -226,14 +226,17 @@ one response:
 }
 ```
 
-**Age Ranges:** the gateway maps model class indices onto 0-10, 11-20, 21-30,
-31-40, 41-50, 51-60, 61-70, 71+
-(`ai/gateway/adapters/enrichment.py`). The
-`DemographicsResults.age_range` check constraint in
-`backend/models/enrichment.py` additionally accepts `71-80`, `81+` and
-`unknown`. The label list in the legacy `ai/enrichment/models/demographics.py`
-(0-10, 11-20, 21-35, 36-50, 51-65, 65+) is a different vocabulary — that module
-does not run in the gateway deployment.
+**Age Ranges:** the heavy enrichment adapter mapped model class indices onto
+0-10, 11-20, 21-30, 31-40, 41-50, 51-60, 61-70, 71+; that adapter
+(`ai/gateway/adapters/enrichment.py`) and the `POST /enrichment/demographics`
+route above retired with the Triton prune in R8 S3, and the gateway now mounts
+only the light enrichment router under `/enrich-lt`. The `age_range` check constraint on the
+old `demographics_results` table additionally accepted `71-80`, `81+` and
+`unknown`; that table and its constraint were dropped by R8 S4, so the list
+above is now the only vocabulary in the shipped code. The label list in the
+legacy `ai/enrichment/models/demographics.py` (0-10, 11-20, 21-35, 36-50, 51-65,
+65+) is a different vocabulary — that module does not run in the gateway
+deployment.
 
 ### Gender Estimation
 
@@ -496,14 +499,19 @@ zone, with the severity you want.
 
 ### Data Retention
 
-| Data Type                   | Retention           | Where it lives                                  |
-| --------------------------- | ------------------- | ----------------------------------------------- |
-| Events and detections       | `RETENTION_DAYS=30` | Pruned by `backend/services/cleanup_service.py` |
-| Face detections             | 30 days             | Stored on detections, so they age out with them |
-| Per-detection re-ID vectors | 30 days             | `reid_embeddings` table, FK to `detections`     |
-| Demographics results        | 30 days             | `demographics_results` table, per detection     |
-| Redis entity embeddings     | 24 hours            | `EMBEDDING_TTL_SECONDS` in `reid_service.py`    |
-| Member embeddings           | Until deleted       | `PersonEmbedding` rows, removed with the member |
+| Data Type                   | Retention           | Where it lives                                                  |
+| --------------------------- | ------------------- | --------------------------------------------------------------- |
+| Events and detections       | `RETENTION_DAYS=30` | Pruned by `backend/services/cleanup_service.py`                 |
+| Face detections             | 30 days             | Stored on detections, so they age out with them                 |
+| Per-detection re-ID vectors | 30 days             | `detections.enrichment_data` JSONB, ages out with the detection |
+| Redis entity embeddings     | 24 hours            | `EMBEDDING_TTL_SECONDS` in `reid_service.py`                    |
+| Member embeddings           | Until deleted       | `PersonEmbedding` rows, removed with the member                 |
+
+Per-detection demographics are not persisted at all. The two per-detection
+tables this used to describe were dropped by R8 S4 (owner ruling 2026-09-30);
+see `docs/api/migrations/2026-09-30-retire-demographics-reid-tables.sql`. The
+`PersonEmbedding` row above is a different thing and stays — it is the live
+member gallery, not a per-detection table.
 
 The 30-day figure is `RETENTION_DAYS` in `.env`, read as `retention_days` in
 `backend/core/config.py`. Short-term cross-camera linking is the job of
