@@ -875,7 +875,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `is_suspicious` | `Boolean`  | Suspicious pose flag                    |
 | `created_at`    | `DateTime` | Creation timestamp                      |
 
-**Source:** `backend/models/enrichment.py:37-88`
+**Source:** `backend/models/enrichment.py:49-99`
 
 ### Threat Detections
 
@@ -891,37 +891,7 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `bbox`         | `JSONB`    | Bounding box [x1, y1, x2, y2]          |
 | `created_at`   | `DateTime` | Creation timestamp                     |
 
-**Source:** `backend/models/enrichment.py:90-149`
-
-### Demographics Results
-
-**Table Name:** `demographics_results`
-
-| Column              | Type       | Description                  |
-| ------------------- | ---------- | ---------------------------- |
-| `id`                | `Integer`  | Primary key                  |
-| `detection_id`      | `Integer`  | FK to detections.id (unique) |
-| `age_range`         | `String`   | 0-10, 11-20, 21-30, etc.     |
-| `age_confidence`    | `Float`    | Age confidence (0-1)         |
-| `gender`            | `String`   | male, female, unknown        |
-| `gender_confidence` | `Float`    | Gender confidence (0-1)      |
-| `created_at`        | `DateTime` | Creation timestamp           |
-
-**Source:** `backend/models/enrichment.py:151-208`
-
-### ReID Embeddings
-
-**Table Name:** `reid_embeddings`
-
-| Column           | Type       | Description                  |
-| ---------------- | ---------- | ---------------------------- |
-| `id`             | `Integer`  | Primary key                  |
-| `detection_id`   | `Integer`  | FK to detections.id (unique) |
-| `embedding`      | `JSONB`    | 512-dim feature vector       |
-| `embedding_hash` | `String`   | SHA256 hash for quick lookup |
-| `created_at`     | `DateTime` | Creation timestamp           |
-
-**Source:** `backend/models/enrichment.py:210-253`
+**Source:** `backend/models/enrichment.py:102-160`
 
 ### Action Results
 
@@ -937,4 +907,4 @@ CHECK (overall_quality_score IS NULL OR (overall_quality_score >= 1.0 AND overal
 | `all_scores`    | `JSONB`    | Dict of action -> score          |
 | `created_at`    | `DateTime` | Creation timestamp               |
 
-**Source:** `backend/models/enrichment.py:255-301`
+**Source:** `backend/models/enrichment.py:163-209`

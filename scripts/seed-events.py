@@ -298,9 +298,7 @@ from backend.models.detection import Detection  # noqa: E402
 # Phase 3: AI Enrichment imports
 from backend.models.enrichment import (  # noqa: E402
     ActionResult,
-    DemographicsResult,
     PoseResult,
-    ReIDEmbedding,
     ThreatDetection,
 )
 from backend.models.entity import Entity  # noqa: E402
@@ -4430,56 +4428,6 @@ async def seed_zones_spatial_layer(
 # =============================================================================
 
 
-async def seed_demographics_results() -> int:
-    """Create demographic analysis for person detections.
-
-    Only for detections where object_type='person'.
-
-    Returns:
-        Number of demographics results created
-    """
-    detections = await get_detections()
-    person_detections = [d for d in detections if d.object_type == "person"]
-
-    if not person_detections:
-        print("  Warning: No person detections found.")
-        return 0
-
-    created = 0
-    age_ranges = ["0-10", "11-20", "21-30", "31-40", "41-50", "51-60", "61-70", "71-80", "81+"]
-    age_weights = [0.05, 0.15, 0.25, 0.20, 0.15, 0.10, 0.05, 0.03, 0.02]
-    genders = ["male", "female", "unknown"]
-    gender_weights = [0.48, 0.48, 0.04]
-
-    async with get_session() as session:
-        for detection in person_detections:
-            # Check if demographics already exist for this detection
-            result = await session.execute(
-                select(DemographicsResult).where(DemographicsResult.detection_id == detection.id)
-            )
-            if result.scalar_one_or_none():
-                continue
-
-            # Weighted random selection
-            age_range = random.choices(age_ranges, weights=age_weights, k=1)[0]  # noqa: S311
-            gender = random.choices(genders, weights=gender_weights, k=1)[0]  # noqa: S311
-
-            demographics = DemographicsResult(
-                detection_id=detection.id,
-                age_range=age_range,
-                age_confidence=round(random.uniform(0.6, 0.95), 2),  # noqa: S311
-                gender=gender,
-                gender_confidence=round(random.uniform(0.7, 0.98), 2),  # noqa: S311
-            )
-            session.add(demographics)
-            created += 1
-
-        await session.commit()
-
-    print(f"  Created {created} demographics results")
-    return created
-
-
 async def seed_pose_results() -> int:
     """Create pose keypoint data for person detections.
 
@@ -4731,82 +4679,27 @@ async def seed_scene_changes() -> int:
     return created
 
 
-async def seed_reid_embeddings() -> int:
-    """Create re-identification embeddings for tracking across cameras.
-
-    512-dim vectors for person appearance matching.
-
-    Returns:
-        Number of re-id embeddings created
-    """
-    import hashlib
-
-    detections = await get_detections()
-    person_detections = [d for d in detections if d.object_type == "person"]
-
-    if not person_detections:
-        print("  Warning: No person detections found.")
-        return 0
-
-    created = 0
-
-    async with get_session() as session:
-        for detection in person_detections:
-            # Check if embedding already exists
-            result = await session.execute(
-                select(ReIDEmbedding).where(ReIDEmbedding.detection_id == detection.id)
-            )
-            if result.scalar_one_or_none():
-                continue
-
-            # Generate 512-dim random embedding
-            embedding = [round(random.uniform(-1, 1), 6) for _ in range(512)]  # noqa: S311
-
-            # Generate hash for similarity lookups
-            embedding_str = ",".join(f"{v:.6f}" for v in embedding)
-            embedding_hash = hashlib.sha256(embedding_str.encode()).hexdigest()
-
-            reid = ReIDEmbedding(
-                detection_id=detection.id,
-                embedding=embedding,
-                embedding_hash=embedding_hash,
-            )
-            session.add(reid)
-            created += 1
-
-        await session.commit()
-
-    print(f"  Created {created} re-id embeddings")
-    return created
-
-
 async def seed_ai_enrichment_layer() -> dict[str, int]:
     """Seed all AI enrichment layer data (Phase 3).
 
-    Creates demographics, poses, actions, threats, scene changes, and re-id embeddings.
+    Creates poses, actions, threats and scene changes. (Demographics/re-id seeding retired with the R8 S4 table drop -- the demographics_results/reid_embeddings tables no longer exist.)
 
     Returns:
         Dictionary with counts of created items
     """
     counts = {}
 
-    print("\n  Step 1: Creating demographics results...")
-    counts["demographics_results"] = await seed_demographics_results()
-
-    print("\n  Step 2: Creating pose results...")
+    print("\n  Step 1: Creating pose results...")
     counts["pose_results"] = await seed_pose_results()
 
-    print("\n  Step 3: Creating action results...")
+    print("\n  Step 2: Creating action results...")
     counts["action_results"] = await seed_action_results()
 
-    print("\n  Step 4: Creating threat detections...")
+    print("\n  Step 3: Creating threat detections...")
     counts["threat_detections"] = await seed_threat_detections()
 
-    print("\n  Step 5: Creating scene changes...")
+    print("\n  Step 4: Creating scene changes...")
     counts["scene_changes"] = await seed_scene_changes()
-
-    print("\n  Step 6: Creating re-id embeddings...")
-    counts["reid_embeddings"] = await seed_reid_embeddings()
 
     return counts
 
@@ -7440,9 +7333,8 @@ async def clear_all_data() -> None:
         await session.execute(delete(Job))
 
         # Phase 3: AI Enrichment - clear first due to FK dependencies on detections
-        print("  Clearing re-id embeddings...")
-        await session.execute(delete(ReIDEmbedding))
-
+        # (re-id embeddings / demographics results cleared no more: those tables
+        # retired in R8 S4; the DROP SQL is the cleanup for existing DBs.)
         print("  Clearing action results...")
         await session.execute(delete(ActionResult))
 
@@ -7451,9 +7343,6 @@ async def clear_all_data() -> None:
 
         print("  Clearing pose results...")
         await session.execute(delete(PoseResult))
-
-        print("  Clearing demographics results...")
-        await session.execute(delete(DemographicsResult))
 
         print("  Clearing scene changes...")
         await session.execute(delete(SceneChange))
@@ -8253,12 +8142,10 @@ This generates real data including:
         print(f"    - User calibration: {total_created.get('user_calibration', 0)}")
         print(f"    - Zone household configs: {total_created.get('zone_household_configs', 0)}")
         print("  AI Enrichment layer (Phase 3):")
-        print(f"    - Demographics results: {total_created.get('demographics_results', 0)}")
         print(f"    - Pose results: {total_created.get('pose_results', 0)}")
         print(f"    - Action results: {total_created.get('action_results', 0)}")
         print(f"    - Threat detections: {total_created.get('threat_detections', 0)}")
         print(f"    - Scene changes: {total_created.get('scene_changes', 0)}")
-        print(f"    - Re-ID embeddings: {total_created.get('reid_embeddings', 0)}")
         print("  Jobs & Exports layer (Phase 4):")
         print(f"    - Jobs: {total_created.get('jobs', 0)}")
         print(f"    - Job attempts: {total_created.get('job_attempts', 0)}")

@@ -1013,19 +1013,39 @@ class TestG6NormalizedFloatTruncation:
         assert "if bbox_width < 1 or bbox_height < 1:" in det_src
 
     def test_g6_the_lane_that_could_have_been_normalized_is_not(self) -> None:
-        """The other half of "latent, not live": the surviving 512-dim
-        embedding lane — the one float-vector payload left in the contract — is
-        stored as JSONB and as bytes, never through an Integer column, so the
-        class of coordinate the G6 hazard is about cannot reach it. Read from
-        the shipped ORM (the Detection columns above are the INT side)."""
-        from backend.models.enrichment import ReIDEmbedding
+        """The other half of "latent, not live": the surviving embedding lanes —
+        the float-vector payloads left in the contract — are stored as JSONB and
+        as bytes, never through an Integer column, so the class of coordinate the
+        G6 hazard is about cannot reach them. Read from the shipped ORM (the
+        Detection columns above are the INT side).
 
-        cols = {c.name: str(c.type) for c in ReIDEmbedding.__table__.columns}
-        assert cols["embedding"] == "JSONB", cols
-        # Non-vacuity: the contrast is with a real Integer column on the same
-        # ORM base, not with nothing.
-        assert cols["detection_id"] == "INTEGER", cols
-        assert "512-dim" in ReIDEmbedding.__table__.columns["embedding"].comment
+        RETARGETED BY R8 S4 (2026-09-30): this pin used to read the claim off
+        ``ReIDEmbedding.embedding`` (the per-detection 512-dim JSONB column, whose
+        comment spelled the dimensionality). That class, and the
+        ``reid_embeddings`` table, were dropped by owner ruling — zero live
+        readers, zero shipped writers — so the property is now stated over the
+        THREE surviving embedding columns, derived from the ORM rather than
+        remembered, and the claim is the same: not one of them is an Integer."""
+        from backend.models.detection import Detection
+        from backend.models.household import PersonEmbedding, RegisteredVehicle
+        from backend.models.track import Track
+
+        # Derived: every shipped column whose NAME says it carries an embedding
+        # vector, across the three models that still have one. A fourth column
+        # appearing with an Integer type reddens the loop below.
+        embed_cols = {
+            f"{m.__tablename__}.{c.name}": str(c.type)
+            for m in (PersonEmbedding, RegisteredVehicle, Track, Detection)
+            for c in m.__table__.columns
+            if "embed" in c.name or c.name == "enrichment_data"
+        }
+        assert embed_cols, "no surviving embedding column at all — the scan is vacuous"
+        for name, type_ in embed_cols.items():
+            assert type_ in {"JSONB", "BLOB"}, f"{name} is {type_}; a float vector in an INT column"
+        # Non-vacuity: the contrast is with a real Integer column on the same ORM
+        # base — the side G6 is actually about — not with nothing.
+        assert str(Detection.__table__.columns["bbox_x"].type) == "INTEGER"
+        assert str(PersonEmbedding.__table__.columns["member_id"].type) == "INTEGER"
 
     async def test_g6_registered_provider_paths_emit_absolute_pixels(
         self, fake_client, gateway_client
