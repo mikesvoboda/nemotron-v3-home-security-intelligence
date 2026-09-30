@@ -68,7 +68,7 @@ podman-compose -f docker-compose.prod.yml --profile vlm up -d
 | **16GB** | Reduced GPU layers (`VLM_GPU_LAYERS`) | RTX 4080, A4000 |
 | **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
 
-**VRAM budget:** the shipped `ai-vlm` engine's model identity is operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` in `.env`; `.env.example` defaults to `Qwen3VL-8B-Instruct-Q4_K_M`, see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet). The retired 30B Nemotron path's ~14.7GB on-disk / ~21GB resident figures are dead with it. Detection models load on demand through the gateway with LRU eviction. `VLM_GPU_LAYERS` (default `auto`) fits the engine to available VRAM.
+**VRAM budget:** the shipped `ai-vlm` engine's model identity is operator config (`VLM_MODEL_PATH`/`VLM_MMPROJ_PATH` in `.env`; `.env.example` defaults to `Qwen3VL-8B-Instruct-Q4_K_M`, see `.env.example` / the bring-up record — no measured 24 GB-class figure exists yet). The retired 30B Nemotron path's ~14.7GB on-disk / ~21GB resident figures are dead with it. Gateway Triton models are resident (`--model-control-mode=none`); backend-zoo models load lazily and nothing evicts (the zoo has no eviction pass — `priority`/`never_evict` rows are parsed but have no consumer). `VLM_GPU_LAYERS` (default `auto`) fits the engine to available VRAM.
 
 ## AI Models (~763MB downloaded by the setup_lib rule — 5 entries of the 10 live `models.yml` rows)
 

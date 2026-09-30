@@ -15,8 +15,8 @@ only `vlm`.
 ### On-Demand Lookup Models (backend model zoo)
 
 VRAM is from `models.yml` `vram_mb`; the enabled, GPU-resident rows sum to
-~1.0GB under full pressure (evicted in priority order — medium first, the two
-CPU face rows are `low` and cost 0 VRAM):
+~1.0GB when all are loaded (they load lazily on first use and stay resident —
+there is no eviction pass; the two CPU face rows cost 0 VRAM):
 
 | Model                    | VRAM    |
 | ------------------------ | ------- |

@@ -21,7 +21,7 @@ Comprehensive documentation covering:
 - **Architecture Overview** - Detection pipeline and service topology
 - **Always-Loaded Models** - YOLO26 (gateway Triton) and the `ai-vlm` reasoning engine
 - **Lookup Models** - re-ID, threat, face, license-plate (identity lookups against your registrations)
-- **VRAM Management** - On-demand loading with LRU eviction and priority-based ordering
+- **VRAM Management** - On-demand loading; nothing evicts (the zoo has no eviction pass)
 - **API Reference** - Gateway routers and model management APIs
 - **Environment Variables** - Configuration for all AI services
 - **Adding New Models** - Step-by-step guide for extending the model zoo
@@ -55,8 +55,11 @@ Comprehensive documentation covering:
 
 ### Understanding Model Capabilities
 
-1. Read [model-zoo.md](model-zoo.md) for the complete model inventory
-2. Each model section includes:
+1. For what the shipped stack actually runs, read the `models.yml` tables in
+   [README.md](../../README.md) and [docs/reference/models.md](../reference/models.md)
+2. [model-zoo.md](model-zoo.md) is the **pre-R8 historical record** — its
+   service topology and eviction prose are superseded (banner at the top)
+3. Each model section includes:
    - Model source (HuggingFace link)
    - VRAM requirements
    - Input/output formats
@@ -64,10 +67,17 @@ Comprehensive documentation covering:
 
 ### Configuring VRAM Budget
 
-See the "VRAM Management" section in [model-zoo.md](model-zoo.md):
+> [!NOTE]
+> The "VRAM Management" section in [model-zoo.md](model-zoo.md) describes the
+> LRU eviction the retired legacy containers had — the shipped code has none
+> (the bullets below are current; that page carries a dated supersession banner).
 
-- The backend model zoo evicts on-demand models by LRU under VRAM pressure;
-  per-model footprints are the `vram_mb` rows in `models.yml`
+- The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
+  lazily on first use, plus the `enabled: true` + `preload: true` rows at boot
+  (3 today — see `backend/main.py`'s preload note). **It has no unload path and
+  no eviction pass** — loaded models stay resident, and the `never_evict` /
+  `priority` fields in `models.yml` are parsed but have no consumer. Per-model
+  footprints are the `vram_mb` rows in `models.yml`
 - `backend/services/gpu_config_service.py` writes a `VRAM_BUDGET_GB` override
   into a service's environment when a GPU assignment sets one (the legacy
   `ai-enrichment` consumer of that variable retired with R8; the mechanism
@@ -76,7 +86,10 @@ See the "VRAM Management" section in [model-zoo.md](model-zoo.md):
   fits the card)
 
 `ai-gateway` does not read `VRAM_BUDGET_GB`: Triton loads its models at
-container start, so eviction ordering does not apply there.
+container start with `--model-control-mode=none`, so they are resident and
+there is nothing to evict. The HTTP
+`POST /api/system/models/{name}/load|unload` endpoints therefore return **501**
+by design (`backend/api/routes/model_management.py`).
 
 ### Adding New Models
 

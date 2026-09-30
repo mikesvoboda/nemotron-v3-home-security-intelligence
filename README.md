@@ -148,10 +148,12 @@ Three YOLO26 variants ship (`n`/`s`/`m`; `m` is the default). Measured end-to-en
 
 Since R8 the enrichment attribute zoo is retired — what remains answers
 _identity_ questions (who/what is this face, plate, person) against your own
-registrations, plus the weapon/plate detectors that feed the verdict. These
-load when a detection needs them (gateway Triton or the backend model zoo) and
-evict by LRU under VRAM pressure. Complete `models.yml` inventory (VRAM and
-phase from the rows themselves):
+registrations, plus the weapon/plate detectors that feed the verdict. Gateway
+models are Triton-resident; backend-zoo models load lazily on first use (and
+3 rows — the `enabled: true` + `preload: true` ones — load at boot). Nothing
+evicts: the zoo has no eviction pass, so `never_evict`/`priority` rows are
+parsed but have no consumer (see `backend/main.py`'s preload note). Complete
+`models.yml` inventory (VRAM and phase from the rows themselves):
 
 | Model                    | Purpose                               | VRAM              | Phase | Notes                                                              |
 | ------------------------ | ------------------------------------- | ----------------- | ----- | ------------------------------------------------------------------ |
@@ -174,11 +176,17 @@ re-perceiving it with a specialist per attribute.
 
 ### Model Priority System
 
-Every model carries a priority in `models.yml` that sets its eviction order under VRAM pressure:
+Every model carries a `priority` in `models.yml` — the intended eviction order
+for a future VRAM-budget pass. **No eviction pass exists today**, so the field
+is parsed into `ModelConfig` and read by nobody (the contract is documented in
+[docs/reference/models.md](docs/reference/models.md)):
 
-- **CRITICAL**: never evicted if any VRAM can be freed (no shipped `models.yml` row is marked today — the safety model that carried it retired with R8)
-- **HIGH** / **MEDIUM** / **LOW**: evicted in that order; most models ship at **medium** default (the two CPU face rows are `low`)
-- `never_evict: true` pins a model outright (no live row sets it); `preload: true` loads it at startup (osnet + the two face rows)
+- **CRITICAL** / **HIGH** / **MEDIUM** / **LOW**: most rows ship at **medium**
+  (the two CPU face rows are **low**); no row is marked critical — the safety
+  model that carried it retired with R8
+- `never_evict: true` is the intended pin (no live row sets it)
+- `preload: true` **is** honored: it loads the row at startup alongside
+  `enabled: true` — today osnet + the two face rows
 
 ### Downloading Models
 
@@ -204,7 +212,11 @@ gateway's Triton process, and ~1.0GB of lookup-model headroom — the full table
 lives in [VRAM Requirements](docs/_includes/vram-requirements.md). The retired
 30B-LLM tiers this table published died with the legacy path in R8 (2026-09-29).
 
-The on-demand model manager loads and unloads models based on VRAM availability using LRU eviction with priority-based ordering.
+The backend `ModelManager` (`backend/services/model_zoo.py`) loads zoo models
+lazily on first use and at boot per the preload rule. It has no unload path and
+no eviction pass — loaded models stay resident; the HTTP load/unload endpoints
+return 501 because Triton models are resident by design
+(`--model-control-mode=none`).
 
 ### Model Status API
 
@@ -213,15 +225,18 @@ curl http://localhost:8000/api/system/models
 curl http://localhost:8000/api/system/models/<name>/status
 ```
 
-> [!WARNING]
-> Runtime state is **wrong** until the status API is repointed at the gateway. Both routes still read
-> from the retired `ai-enrichment:8094` / `ai-enrichment-light:8096` services, which no longer exist in
-> `docker-compose.prod.yml` (the models now run inside `ai-gateway`, routes `/enrichment` and
-> `/enrich-lt`). The fetch fails soft, so `GET /api/system/models` answers 200 while reporting every
-> model `loaded: false` and both services unhealthy — a phantom "all models unloaded" reading, not an
-> outage. Trust `http://localhost:8090/health` and `http://localhost:8090/metrics` on the gateway
-> instead. Load/unload (`POST /api/system/models/<name>/load` and `/unload`) proxy to those same dead
-> hostnames, so they always fail 503; don't reach for them until the routes are rewired.
+> [!NOTE]
+> Since the ai-serving consolidation (and R8's gateway prune) the status API reads
+> **ai-gateway** health — Triton readiness unioned across the mounted routers
+> (`/yolo26`, `/enrich-lt`) plus in-process state from the backend ModelManager for
+> models without a Triton mapping. The retired `ai-enrichment:8094` /
+> `ai-enrichment-light:8096` hostnames this page once warned about no longer appear
+> anywhere in `docker-compose.prod.yml`. Load/unload
+> (`POST /api/system/models/<name>/load` and `/unload`) return **501 by design**:
+> Triton runs with `--model-control-mode=none`, gateway models are resident, and the
+> gateway exposes no preload/unload surface — see `backend/api/routes/model_management.py`
+> for the full semantics. `vram-summary` sums `models.yml`'s estimated `vram_mb` per
+> router; Triton does not expose per-model VRAM over HTTP.
 
 ---
 
@@ -230,34 +245,41 @@ curl http://localhost:8000/api/system/models/<name>/status
 
 ### Minimum vs Recommended
 
-| Component      | Minimum               | Recommended       | This Project Uses                                                                                           |
-| -------------- | --------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------- |
-| **GPU VRAM**   | 12GB (reduced layers) | 24GB              | RTX A5500 (24GB)                                                                                            |
-| **System RAM** | 32GB                  | 64GB+             | 128GB                                                                                                       |
-| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~33GB per `models.yml` (rule selects 25 entries; script fetches 24, ~32.2GB — xclip row removed 2026-09-23) |
-| **CPU**        | 8 cores               | 16+ cores         | AMD Ryzen 9                                                                                                 |
+| Component      | Minimum                                                                                                                              | Recommended                                    | This Project Uses                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GPU VRAM**   | Whatever fits detection (24GB reference hardware recommended; the VLM offloads to CPU via `VLM_GPU_LAYERS` on smaller cards, slower) | 24GB                                           | RTX A5500 (24GB) — reference hardware, not a requirement                                                                                                                                                                                                                                                                                                                                           |
+| **System RAM** | 32GB                                                                                                                                 | 64GB+                                          | 128GB                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Storage**    | 20GB (weights + DB)                                                                                                                  | 100GB+ (weights + DB + `RETENTION_DAYS` video) | `models.yml` has 10 catalogue rows totalling ~1.4GB of `size_mb` estimates; the shared download rule selects 5 of them (763 MB). `download_models.sh` provisions that 763 MB plus the read-only GGUF pair you mount into `ai-vlm` via `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`, whose size is whatever model you pick. Disk is dominated by recorded video (`RETENTION_DAYS`, default 30), not weights |
+| **CPU**        | 8 cores                                                                                                                              | 16+ cores                                      | AMD Ryzen 9                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### GPU Compatibility
 
-| VRAM     | What You Can Run                                              | Example GPUs                        |
-| -------- | ------------------------------------------------------------- | ----------------------------------- |
-| **24GB** | Full stack, all models loaded                                 | RTX 3090, 4090, A5000, A5500, A6000 |
-| **16GB** | Nemotron (reduced layers) + YOLO26                            | RTX 4080, A4000, Tesla T4           |
-| **12GB** | Nemotron (CPU offload) + YOLO26                               | RTX 3080, 4070 Ti                   |
-| **8GB**  | Nemotron partially offloaded via `GPU_LAYERS` (slow) + YOLO26 | RTX 3070, 4060 Ti                   |
+There is no fixed VRAM tier table any more. GPU residency is dominated by the
+GGUF pair named in `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH`: `VLM_GPU_LAYERS=auto`
+(default) offloads as many layers as the card allows, so a smaller card still
+boots — more of the VLM runs on CPU, slower. The retired Nemotron-layer tiers
+this table published died with the legacy path in R8 (2026-09-29); the gateway's
+resident Triton models (`yolo26`, re-ID, threat) and the lookup `vram_mb` rows
+are itemized in [VRAM Requirements](docs/_includes/vram-requirements.md).
 
 ### Runtime Resource Usage
 
-With all services running on RTX A5500 (24GB):
+> [!NOTE] > **No measured residency figure exists for the post-R8 stack.** The former
+> "~23 GB / 24 GB on an RTX A5500" row was a measurement of the legacy 30B
+> serving stack, and that stack is gone; a number from another card or another
+> era does not transfer here. GPU residency is now config-driven — size the
+> VLM with `VLM_MODEL_PATH` / `VLM_MMPROJ_PATH` and `VLM_GPU_LAYERS`, then
+> measure your own card (`nvidia-smi`, or the gateway's `/metrics`).
 
-| Resource       | Usage                                                                                                          |
-| -------------- | -------------------------------------------------------------------------------------------------------------- |
-| **GPU Memory** | ~23 GB / 24 GB                                                                                                 |
-| **System RAM** | ~49 GB (sum of `deploy.resources.limits.memory` in `docker-compose.prod.yml`; host minimum 32GB)               |
-| **Containers** | 21 (19 run by default — `foscam-init` exits after its chown; `ai-llm-vllm` and `dcgm-exporter` need a profile) |
-| **Open Ports** | 8444/8080 (UI HTTPS/HTTP), 8000 (API), 8090/8091 (AI gateway/Nemotron)                                         |
+| Resource       | Usage                                                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **GPU Memory** | config-driven — see the note above; no fixed figure is published                                                                                     |
+| **System RAM** | 37 GB of `deploy.resources.limits.memory` across the 18 services that start by default (71 GB if every profile is enabled); host minimum 32 GB       |
+| **Containers** | 21 (18 start by default — `ai-vlm`, `ai-llm-vllm` and `dcgm-exporter` need a profile; of the 18, `foscam-init` exits after its chown, so 17 stay up) |
+| **Open Ports** | 8444/8080 (UI HTTPS/HTTP), 8000 (API), 8090 (AI gateway), 8098 (VLM engine) — all AI ports bound to `127.0.0.1`                                      |
 
-> [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
+> [!TIP] > **Tight on VRAM?** `VLM_GPU_LAYERS` is the dial: lower it and more of the VLM
+> runs on CPU RAM, slower but functional. The system degrades gracefully.
 
 </details>
 
@@ -272,7 +294,9 @@ With all services running on RTX A5500 (24GB):
 #    offers to download the models, and ends by deploying the stack
 python setup.py
 
-# 2. Download AI models (~33GB per models.yml; 30-90 min on a fast connection).
+# 2. Download AI models (763 MB — the 5 rows the shared setup_lib rule selects
+#    from models.yml; minutes on a fast connection. The VLM GGUF pair is separate:
+#    you place it at VLM_MODEL_PATH / VLM_MMPROJ_PATH yourself, ledger D5).
 #    Skip if you let setup.py do it. The script reads only the AI_MODELS_PATH shell
 #    variable — not .env — so match what setup.py wrote, and the target directory
 #    must already exist and be writable (setup.py sudo-creates it).
