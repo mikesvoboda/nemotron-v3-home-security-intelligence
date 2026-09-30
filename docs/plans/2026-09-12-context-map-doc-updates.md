@@ -12948,3 +12948,189 @@ module-filtered recovery runs.
 992, before the stale-verdict family was found and closed), the mid-run live
 reads, sweep/red-check counts as badge claims, or any completed=false read.
 Command + snapshots listed; every number measured THIS session.
+
+## 2026-09-30 — MILESTONE 10 PUBLISHES: 68.14246880881021% completed=true (+0.4902027666817601 pts vs M9's 67.65226604212845%) — campaign #8 `baseline` CLOSES at 97.78645833333334%: the 38-test battery H converts 352 of the module's 368 survivors, the 2 new `is_anomalous` keys battery H's own coverage growth created are both killed, the 17 survivors are EXACTLY the pre-registered EQUIVALENT families, UNEXPLAINED 0 after the one renumber transition is content-adjudicated, denominator 71,733 → 71,735 (+2, fully disclosed below) — and the campaign consumed TWO incidents (a twelfth `also_copy` path-read red; a guard-restore ARCHIVE poisoned by its own strip) that added a DELETION-sensing guard
+
+**THE NUMBER** (measured THIS session, `scripts/mutation-score.py` rc=0 from the
+repo root → `/home/agent/runs/b33-score-M10.json`). `totals` row by row:
+killed 48,590 + timeout 292 = kt 48,882; survived 22,070; no_tests 783;
+suspicious 0; skipped 0; not_checked 0; total 71,735;
+score 48,882/71,735 = **68.14246880881021%**. `progress`: total 71,735,
+checked 71,735, not_checked 0, torn_metas 0, **completed=true**. History:
+`scripts/mutation-score.py --history .github/mutation-history.json
+--date 2026-09-30` appended as run #14 (14 entries verified). vs M9:
+kt 48,529 → 48,882 = **+353 kills** (+351 battery-H conversions + 2 new-key
+kills).
+
+**DENOMINATOR DISCLOSURE** (Δ = +2 keys, every one named): the pre-run
+baseline row measured 766 keys (kt 398 / survivors 368, census →
+`/home/agent/runs/b33-c8-keys.txt` + `b33-c8-survivors.json`). The post-run
+row measures 768 (kt 751 / survivors 17). The two additions are
+`xǁBaselineServiceǁis_anomalous__mutmut_93` and `__mutmut_94` —
+`_do_check(session)`/`_do_check(sess)` → `_do_check(None)` argument-drop
+mutants at the function tail that exist ONLY because battery H's tests
+wrote coverage onto lines previously uncovered (`exit_code` 1 both — killed,
+counted in the +353; verified in the bank). No sibling row moved: the
+scoped audit (`/home/agent/runs/b33-c8-audit-scoped.py`) compared all 243
+non-baseline `.py.meta` rows against the pre-run whole-tree snapshot
+(`/home/agent/runs/b33-preC8/`) after the final run and printed
+"non-baseline rows identical: CLEAN" (244 rows both sides). 71,733 →
+71,735; no_tests 783 unchanged; sticky-family keys present again (see
+INCIDENT 2 — they were bank-damage, re-added by the healthy generation, and
+they are `no_tests` in the score, so the 783 figure is stable across the
+two states; the trio recovery runs still decide them).
+
+**THE RUN** (sanctioned runner only, never raw mutmut):
+`MUTMAX=14 ./scripts/mutation-run.sh baseline`, final log
+`/home/agent/runs/b33-c8-run3.log`; generation done 244 files / 583,293 ms;
+run completed — `[mutation-run] done` TOTAL 68.1% line above. Guard:
+`guard-module2.sh` (NEW this campaign, see INCIDENT 2) attached to the live
+mutmut pid; its ticks recorded `sibling-drop=0` continuously through
+generation and re-check, `nonmod-holes=0`, stats present — the first run
+ever watched by a guard that can SEE deletions. (Runs 1–2 and their
+mid-flight deaths are INCIDENTS 1–2 below; nothing published from them.)
+
+**THE BATTERY** `backend/tests/unit/services/test_baseline_batch33_h.py` —
+38 tests, 1,035 lines. Gates at authoring (protocol): `ruff check` rc=0 +
+`ruff format` clean, `vulture` rc=0, `mypy` rc=0, zero `patch.object`
+(the only patching is a scoped module-`datetime` swap + a spy subclass →
+WP4.2 trivially satisfied), shipped-green control = 38/38 unmutated,
+green-scan in the mutant home under mutmut's own flags
+(`-x -q --tb=short -m not gpu -p no:randomly -p no:benchmark -o addopts=
+--timeout=120`): 38 passed (`/home/agent/runs/b33-c8-greenscan.log`).
+Machinery: real SQLite via `ActivityBaseline.metadata.create_all` (SQLAlchemy
+2.1.1 — `sa.create_all` does not exist), StaticPool `sqlite://`, cameras
+table omitted (JSONB), FKs unenforced; frozen NOW = 2026-09-15 08:00 UTC
+via a `_DT(datetime)` swap SCOPED inside `_run()` with try/finally (a leaked
+frozen clock into a pytest session is the failure mode); time decay is PER
+DAY (`d ** days_elapsed`), so hour offsets decay ≈0.908, not 0.1 — 17+9
+seeds corrected to day offsets when that slipped. Kill channels the ledger
+credits (each sweep-proven, not diff-shape — the standing rule):
+IntegrityError on dropped NOT NULL columns; `MultipleResultsFound` on a
+dropped `where` predicate with two rows (single-row geometries hide dropped
+predicates — added the second row per site); the z-bound `sqrt(n-1)`
+(`z > 1.5` unreachable for n ≤ 3; group [9,1,1,1] → z = 1.73; [2,10] →
+z = −1.0 exactly pins `>=`→`>`; equal rows → std 0 → ZeroDivisionError
+kills the unguarded variance); the `1 − 1/(thr+1)` cut (thr 2.0 → 2/3; the
+ghost-hour geometry cf = 0 kills the `==`/`!=` class-predicate flips);
+per-day decay exact pins 0.1/0.01/1.0; float-trap arithmetic `round(5.005,
+2)` = 5.0 and `round(12.345, 2)` = 12.35 (banker-ish float drift — seeds
+moved to 5.01 to pin the `+=` accumulators honestly: top-class `f`-not-`g`
+and `b`-at-20-not-10 prove `+=`, 6 classes prove the `[:5]` slice);
+`tf ≤ 1` polarity via freqs 0.3/0.7 at NOW-1d (the first draft's 3/7 made
+tf = 1.0000000000000002 — float-knife-edge caught by arithmetic, not luck).
+
+**DISPOSITION** (single-process trampoline sweep per the standing rule;
+bare mangled key names, foreign-key scoping control 8/8 GREEN —
+`/home/agent/runs/b33-c8-sweep-r1.log` RED 349, r2 after adding the
+`tf ≤ 1` test RED 351 / GREEN 17, and r3 on the NEW tree with the FULL
+768-key list RED 713 / GREEN 55 — the 55-vs-17 gap is legacy-test kills the
+sweep harness also exercises; bank ∩ sweep-GREEN = the 17 survivors exactly,
+and **no bank-survivor is sweep-RED** — reconcile proof at
+`b33-c8-sweep-r3.log` vs the final bank, per key).
+
+**THE 17 SURVIVORS = THE PRE-REGISTERED EQUIVALENTS** (by-construction, each
+with its argument in the battery docstring; new-tree key numbers verified
+against the final bank — content-verified, see AUDIT):
+`_update_activity_baseline__mutmut_25` + `_update_class_baseline__mutmut_25`
+(`(1.0 − decay) + decay·x` ≡ `1.0 + decay·(x − 1.0)` at the pinned seeds),
+`get_current_deviation__mutmut_2` + `__mutmut_63` (now-None family;
+z-shape bound), `get_daily_patterns__mutmut_42` (`dow == 7` forbidden by the
+model CHECK), `get_hourly_patterns__mutmut_16/19/20`,
+`get_object_baselines__mutmut_18/20/22/27/33` (non-empty-group guards;
+`len == 1` variance-is-zero), `is_anomalous__mutmut_28` (now-None family),
+`__mutmut_36` (init overwritten before read), `__mutmut_62` (unreachable
+else), `__mutmut_80` (the 1.0 cap never binds — see AUDIT renumber). The
+`update_baseline__mutmut_4` candidate was REGISTERED pre-sweep and
+DE-REGISTERED when the sweep went RED on it: the tz-aware `now` identity
+pin (`is NOW`) makes naive-vs-aware observable — honesty ledger corrected by
+measurement before the docstring shipped.
+
+**AUDIT + ONE RENumber ADJUDICATED** (bank verdicts are the score's source of
+truth): the scoped audit vs preC8 printed non-baseline rows CLEAN, vanished
+keys 0, flips(0→kt) = 352, re-kill re-verdicts 0, new keys 2 — and flagged
+`UNEXPLAINED: 2`, both `is_anomalous`: `__mutmut_78` as "0→1 but not
+sweep-RED" and `__mutmut_80` as "kill lost". Content adjudication (spans
+diffed name-normalized against the function's orig body, this session): the
+battery's coverage growth RE-ENUMERATED `is_anomalous`'s tail at generation;
+the preC8-era key 78 (the cap-never-binds equivalent) is now bank key 80
+(the diff is exactly `min(1.0, 1.0 − rel)` → `min(2.0, 1.0 − rel)`, a true
+equivalent — rel ∈ [0, 1]), and the NEW slot 78 is the single-argument
+`min(1.0 − rel)` → TypeError → killed. The r3 sweep against the new tree
+with the new full key list closes the loop per key: bank-survivors ∩
+sweep-GREEN = exactly the 17, nothing killed-but-sweep-green, nothing
+survivor-but-sweep-RED. So UNEXPLAINED = 0 as of the renumber ruling; the
+transition is recorded here rather than papered over (`1`→`1` and `0`→`1`
+slot-shifts of the SAME physical mutant are bank artifacts of coverage
+growth — the same class as campaign #7's stale-verdict family, one campaign
+later, this time in the NEW-numbering direction).
+
+**INCIDENT 1 — the twelfth `also_copy` path-read member (run 1).**
+Generation completed (244 files / 557 s, verdicts intact) then the
+incremental "Found 130 new tests" stats re-run died "runner returned 1" —
+root cause REPRODUCED exactly: exactly one of the 121 collectible new tests
+is red in the mutant home:
+`backend/tests/unit/synthbench/test_replay.py::test_every_bench_env_key_is_one_compose_reads`
+reads `Path(cli.__file__).parents[1] / ".env.bench"` — `cli.__file__`
+resolves INSIDE `mutants/` (the copied package), so `parents[1]` = the
+mutant-home root, which had no `.env.bench` → FileNotFoundError → pytest
+`-x` aborts the pass. Full without `-x`: 1 failed / 120 passed — the reader
+is alone; with the copy: 121/121 green. The same red had ALSO been killing
+run 1's coverage gather (see INCIDENT 2's mechanism). Fix:
+`.env.bench` also_copy entry, pyproject commit `581d0f23` (outside
+`source_paths` → zero mutants, the copy is inert; also_copy is not in
+`config_fingerprint` → zero verdicts invalidated; the commit message carries
+the family number — twelfth). The runner + fallback were killed BEFORE the
+`api.routes` fallback's generation could re-copy pristine source over the
+mutated tree (the fallback chain in `mutation-run.sh` is a live hazard: a
+first-run death silently launches a SECOND generation).
+
+**INCIDENT 2 — run 1's silent strip + the poisoned guard-restore archive
+(run 2), the repair, and the new guard.** The coverage-gather red truncated
+the covered set mid-generation, so generation RE-ENUMERATED 7 sibling metas
+against it and the uncovered keys were DELETED, not nulled: tree total
+71,733 → 70,891 (trajectory_analyzer 452 → 0, calibration_monitor 201 → 0,
+session_service 60 → 0, auth_service 124 → 3, api/routes/auth 9 → 1,
+ha_discovery 2 → 0, one auth.py row −8) while `outside-holes` stayed at 2 —
+the hole counter CANNOT see a deletion, and the module guard has no key
+floor. I then refreshed `guard-restore.tgz` from that silently-stripped tree
+(stats-death "banks nothing" had always meant VERDICTS were intact — true —
+and I over-trusted it for the COVERED SET baked into re-enumerated metas),
+so run 2's healthy generation re-adding the stripped keys as `None` read to
+the old guard as a strip (outside-holes 0 → 844 in one tick — that reading
+was actually the REPAIR in progress) and its restore RE-DAMAGED the tree
+from the poisoned archive. Repair, measured not assumed: all 244 metas +
+stats restored from `/home/agent/runs/b33-preC8/` (the pre-run named
+snapshot — the only clean era once the live tree is poisoned) → keys 71,733
+kt 48,529 = the PUBLISHED M9 score EXACTLY (byte-match was replaced by
+published-score match as the archive-verify rule: byte-equality to a damaged
+tree proves nothing); the 7 damaged siblings' `.py` + `.spans` were
+pristine, so the next GREEN generation healed spans+metas together
+(verified: spans-definitions == meta-keys on all 6 rows). The honest full
+precondition ran post-repair: serial `backend/tests/unit` in the mutant
+home under mutmut's exact flags → **27,961 passed / 124 skipped / rc=0**
+(`/home/agent/runs/b33-c8-fullscan.log`, 437 s). NEW GUARD
+`/home/agent/runs/guard-module2.sh`: snapshots every NON-module meta's key
+COUNT at start (siblings cannot legitimately lose keys during a
+module-scoped run) and kills + restores on any per-file drop > 20 / total
+drop > 100 — self-calibrating, no era-dependent floor to forget to
+re-calibrate; plus the stats-missing pre-kill and the hole backstop. Run 3
+ran under it: `sibling-drop=0` at every tick, and the sibling rows came out
+byte-identical to preC8 (audit section (1) CLEAN).
+
+**SIBLING HEALING vs the sticky trio** (stated plainly): the healthy
+generation re-added the trio + ha_discovery + auth keys (bank counts back
+to 452/201/60/2/124/9), but they re-enter as `None` → `no_tests` — they are
+NOT decided (their covering tests are exactly the ones run 1's gather
+truncated; their keys never re-verify inside a `baseline.*`-filtered run).
+The score JSON shows them as `no_tests` (trajectory 452, calibration 201,
+session 60, ha_discovery 2) — that is why the score denominator is 71,735
+and kt did NOT get 715 free kills from the heal, and why the trio-recovery
+campaign stays in the plan. The sticky-33 verdicts (skip-marked) were
+themselves pre-existing stale-era rows; recovery = module-filtered runs,
+still pending.
+
+**NOT PUBLISHED FROM:** the run-2 guard-restore read (70,891-key damaged
+tree), the 121/130-test repro partials, the r1/r2 sweep counts as badge
+claims, or any completed=false / mid-run read. Commands + snapshots listed;
+every number measured THIS session.
