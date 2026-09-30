@@ -24,8 +24,21 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND = REPO_ROOT / "backend"
+
+# ABOUTME: 600s, not the harness's per-test --timeout=120, because under mutmut this scan parses
+# mutants/backend/**.py -- 244 of them are all-mutants files (prompts.py alone carries 3,422
+# mutants), and the AST walk then takes ~190s (measured 2026-09-29). The marker only ever applies
+# where this file runs WHOLE: dependency tracking associates these tests with NO mutant (they
+# import no backend module), so per-mutant checks never execute them -- the only runs it widens
+# are mutmut's stats pass and clean gate, which bank no verdicts. Same ruling as the
+# mutmut-stats hypothesis-deadline profile in tests/conftest.py: harness wall-clock there is
+# noise by construction. Without the raise: -x aborts stats ("runner returned 1") and the whole
+# run dies. CI on the clean tree pays nothing: 520 plain files parse in seconds.
+pytestmark = pytest.mark.timeout(600)
 
 
 def shipped_python() -> list[Path]:
