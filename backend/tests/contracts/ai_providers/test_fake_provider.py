@@ -1,22 +1,28 @@
 """WP8.2: the deterministic FakeProvider — reference implementation + fixture source.
 
-A FastAPI app implementing ALL 37 registry operations with fixed, seeded,
+A FastAPI app implementing EVERY registry operation with fixed, seeded,
 byte-deterministic outputs, served over httpx.ASGITransport (never respx:
 the fake IS an app, and driving it through ASGITransport exercises the real
 request/response path the contract speaks). No weights, no GPU, no network.
+"Every" is derived from OPERATIONS, not counted — the registry has moved from
+37 ops at drafting to 9 after R8 S3, and every count that used to be asserted
+here is gone rather than re-numbered (WP4.2's doctrine).
 
 The plan's Done-when properties, tested here:
 
   * two identical requests produce BYTE-IDENTICAL responses (seeded
     generators; no wall-clock, no randomness, no set-iteration anywhere);
   * the fake satisfies the WP8.1 Protocol — register_provider(FAKE, ...)
-    accepts it against the fake column (the SPEC: all 37);
+    accepts it against the fake column (the SPEC column);
   * it emits shipped-correct values: the 9-class SECURITY_CLASSES profile
     AND the unfiltered 80-name gateway profile (the divergence is the point;
-    both expressible), dict-of-int bbox for yolo26, list-of-float bbox for
-    florence (4 coords; OCR 8-coord quads on the ocr-with-regions path),
-    inference_time_ms and NEVER processing_time_ms, L2-normalized 768-dim
-    CLIP embeddings, and `class` as the wire key;
+    both expressible), dict-of-int bbox for the yolo family, the light lane's
+    512-dim L2-normalized reid embedding, inference_time_ms and NEVER
+    processing_time_ms, and `class` as the wire key. R8 S3 moved two of those
+    bullets: the florence list-of-floats/8-coord-quad shapes and the 768-dim
+    CLIP embedding retired with their ops — the first now carried by a
+    tombstone test that states the arity hazard, the second retargeted to the
+    surviving reid lane.
   * every response validates against the committed WP7.2 JSON-Schema
     snapshot (schema-driven: the fake cannot drift from the contract without
     reddening this suite).
@@ -129,12 +135,22 @@ class TestFakeProviderDeterminism:
     async def test_digest_stable_across_app_rebuild(self, fake_app) -> None:
         """Seeded from the registry, not from process state: a second app
         instance must replay byte-for-byte (pytest-randomly may import the
-        fixture in any order; a hash-seeded dict order would leak through)."""
+        fixture in any order; a hash-seeded dict order would leak through).
+
+        R8 S3 retarget: the three probe ops were yolo26_detect,
+        florence_ocr_with_regions and clip_embed - two of the three retired
+        with the slice. DERIVED from the registry instead of hand-listed (the
+        WP4.2 doctrine this file's sibling suites already follow): the whole
+        fake column is replayed across two app instances, which is strictly
+        more coverage than three hand-picked names and cannot rot when a
+        provider's op set moves. The slice guard is the non-vacuity."""
         from backend.ai_contract.fake import create_fake_app
 
         app2 = create_fake_app()
+        ops = sorted(operations_for_slot("fake", OPERATIONS))
+        assert ops, "the fake column is empty - this replay would prove nothing"
         async with AsyncClient(transport=ASGITransport(app=app2), base_url="http://fake") as c2:
-            for op_id in ("yolo26_detect", "florence_ocr_with_regions", "clip_embed"):
+            for op_id in ops:
                 op = OPERATIONS[op_id]
                 kw = _request_kwargs(op_id)
                 ra = await fake_client_request(fake_app, op, kw)
@@ -165,8 +181,8 @@ async def fake_client_request(app, op, kw) -> bytes:
 class TestFakeProviderProtocol:
     def test_fake_satisfies_the_wp81_protocol(self) -> None:
         """The other half of the Done-when: the fake IS a provider —
-        register_provider(FAKE, ...) against the fake column (all 37, the
-        SPEC column) accepts it. Signature conformance is checked by the
+        register_provider(FAKE, ...) against the fake column (the SPEC
+        column) accepts it. Signature conformance is checked by the
         SAME mechanism as every other provider."""
         from backend.ai_contract.fake import fake_provider_ops
 
@@ -177,11 +193,20 @@ class TestFakeProviderProtocol:
 
     def test_dropping_one_op_fails_naming_it(self) -> None:
         """The fake obeys the same import-time rule as the live providers:
-        36 of 37 must fail, naming the hole."""
+        len-1 of the column must fail, naming the hole.
+
+        R8 S3 retarget: the victim op was hand-named (florence_dense_caption)
+        and retired with the provider. Deriving it is the WP4.2 lesson again -
+        a named victim forces a test edit on every legitimate op-set move -
+        and the len >= 2 guard is the non-vacuity: with one op the "drop one"
+        registration is empty, which fails for a different reason and would let
+        the naming assertion pass without checking anything.
+        """
         from backend.ai_contract.fake import fake_provider_ops
 
         ops = fake_provider_ops()
-        dropped = "florence_dense_caption"
+        assert len(ops) >= 2, f"fake column has {len(ops)} ops; the drop-one shape needs 2+"
+        dropped = sorted(ops)[0]
         del ops[dropped]
         with pytest.raises(ProviderContractError) as excinfo:
             register_provider(ProviderId.FAKE, ops, OPERATIONS)
@@ -229,26 +254,45 @@ class TestFakeProviderShippedCorrect:
         # a security-class profile is a strict subset of the 80-name table
         assert set(profiles["gateway"]) > WP82_SECURITY_CLASSES
 
-    async def test_florence_list_bbox_and_ocr_quads(self, fake_client) -> None:
-        """bbox list-of-floats [x1,y1,x2,y2]; the OCR-with-regions path
-        returns EIGHT floats (quad corners, ai/florence/model.py:190,1101).
-        A fake emitting 4 there would train consumers on the wrong arity."""
-        r = await fake_client.post("/florence/detect", **_request_kwargs("florence_detect"))
-        for d in r.json()["detections"]:
-            assert isinstance(d["bbox"], list) and len(d["bbox"]) == 4
-            assert all(isinstance(v, float) for v in d["bbox"])
-        r2 = await fake_client.post(
-            "/florence/ocr-with-regions", **_request_kwargs("florence_ocr_with_regions")
-        )
-        regions = r2.json()["regions"]
-        assert regions
-        for reg in regions:
-            assert isinstance(reg["bbox"], list) and len(reg["bbox"]) == 8
+    def test_florence_list_bbox_and_ocr_quads_retired_with_the_provider(self) -> None:
+        """TOMBSTONE (R8 S3, owner ruling 1). This test drove the fake's
+        /florence/detect and /florence/ocr-with-regions paths and pinned the
+        arity hazard the plan calls out: Florence bboxes are list-of-FLOATS
+        [x1,y1,x2,y2] while the OCR-with-regions path returns EIGHT floats
+        (flattened quad corners, ai/florence/model.py:190,1101) — a fake
+        emitting 4 there trains consumers on the wrong arity.
 
-    async def test_clip_embedding_768_dims_l2_normalized(self, fake_client) -> None:
-        r = await fake_client.post("/clip/embed", **_request_kwargs("clip_embed"))
-        emb = r.json()["embedding"]
-        assert len(emb) == 768
+        It cannot retarget: no surviving op carries a list-of-floats bbox (the
+        kept surface is yolo dict-of-ints and the light lane's embedding /
+        threat-flag shapes), so there is no text or path left to point it at —
+        the S2b V3 precedent. The generator's _florence_bbox helper survives as
+        the record of the shape; the ops that exercised it are absent from the
+        registry, which is what this asserts. Dropping the test without a word
+        would lose the arity lesson; skipping it would be a suppression.
+        """
+        from backend.ai_contract.operations import OPERATION_IDS
+
+        assert "florence_ocr_with_regions" not in OPERATION_IDS
+        assert "florence_detect" not in OPERATION_IDS
+        # Non-vacuity: the yolo dict-of-ints bullet below still drives a live
+        # path, so this class is not now entirely about deleted surface.
+        assert "yolo26_detect" in OPERATION_IDS
+
+    async def test_unit_norm_embedding_at_the_surviving_home(self, fake_client) -> None:
+        """Retargeted (R8 S3), not loosened: this bullet used to drive
+        /clip/embed and pin 768 dims (the CLIP/SigLIP width). CLIP retired as a
+        prune consequence (ruling 5), and the fake's remaining
+        L2-normalized-embedding surface is the light reid lane at 512 dims —
+        the dim the committed snapshot's `embedding_dimension` field declares,
+        so the assertion cross-checks the payload against the contract instead
+        of against a remembered number."""
+        reid_op = OPERATIONS["enrich_lt_person_reid"]
+        r = await fake_client.request(
+            reid_op.method, reid_op.path, **_request_kwargs("enrich_lt_person_reid")
+        )
+        body = r.json()
+        emb = body["embedding"]
+        assert len(emb) == body["embedding_dimension"] == 512
         assert math.isclose(math.sqrt(sum(x * x for x in emb)), 1.0, abs_tol=1e-6)
 
     async def test_inference_time_ms_never_processing_time_ms(self, fake_client) -> None:

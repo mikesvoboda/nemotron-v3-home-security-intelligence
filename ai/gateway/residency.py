@@ -15,17 +15,16 @@ later start selects a wider set. Nothing is deleted, so switching sets is
 idempotent and reversible without an image rebuild, which is exactly what
 the A5500 bring-up (1.7: "no retired model loads") and any rollback need.
 
-The bare-module fallback is ``full`` — today's complete 14-model
-repository — but that only bites a manual ``python -m ai.gateway.residency``
-run that sets no env. A DEPLOYMENT never hits it: 1.5 (owner ruling, ledger
-1.4 review item 2) flipped the shipped default to ``vlm`` in BOTH
+R8 S3 (owner ruling, 2026-09-29): the ``full`` set is RETIRED and there is no
+bare-module fallback — an unset GATEWAY_MODEL_SET raises at container start,
+the same doctrine as PIPELINE_MODE's hard raise (S1). The fallback had already
+stopped mattering to deployments (1.5 flipped the shipped default to ``vlm`` in
 docker-compose.prod.yml and .env.example, and compose always passes
-``${GATEWAY_MODEL_SET:-vlm}``, so a real boot selects ``vlm`` and agrees
-with the backend's ``PIPELINE_MODE=vlm`` (the pair is pinned together in
-backend/tests/unit/core/test_gateway_model_set_compose.py). ``full`` now
-serves only the legacy pipeline (unsupported, code stays until R8) and a
-deliberate dev bring-the-whole-repo-up run; the repository narrows because
-1.5/1.7 select ``vlm``, not because this fallback changed.
+``${GATEWAY_MODEL_SET:-vlm}`` — the pair is pinned together in
+backend/tests/unit/core/test_gateway_model_set_compose.py); what it kept
+serving was the legacy pipeline's "bring the whole repo up" affordance, and R8
+deleted the pipeline that needed it. Silence is now treated as what it is: a
+misconfigured container, not a deliberate choice.
 
 This module is import-light on purpose (no yaml, no tritonclient): the
 entrypoint calls it as ``python -m ai.gateway.residency`` and the unit tier
@@ -39,25 +38,21 @@ import os
 import shutil
 from pathlib import Path
 
-# Today's complete Triton model repository — the behavior-preserving
-# default. Kept in sync with ai/gateway/main.py ALL_MODELS by test
-# (test_residency.TestNamedSets); if they drift, a deployment would serve a
-# repository the gateway's own /health does not describe.
+# The names this deployment manages — what R8 S3 leaves of the 14-model
+# rev-6 repository after the legacy prune (goal prompt S3: KEEP
+# yolo26/reid/threat or S1's PASS is void). It is no longer a "full" SELECTABLE
+# set (ruling 3 retired that name); it is the universe apply_model_set is
+# allowed to move, and the list main.py derives ALL_MODELS from so /health can
+# never describe a model the repository does not ship. The 11 retired dirs were
+# removed with `git rm` in the same slice: apply_model_set only moves names
+# inside THIS tuple, so a pruned set over an unpruned repository would have
+# made Triton serve the leftovers as foreign directories — the residency trap
+# the prune exists to close. Kept in sync with ai/gateway/main.py ALL_MODELS by
+# test (test_residency.TestNamedSets).
 FULL_MODEL_SET: tuple[str, ...] = (
     "yolo26",
-    "clip",
-    "clip_text",
-    "florence2",
-    "vehicle",
-    "fashion_clip",
-    "demographics_age",
-    "demographics_gender",
-    "pet",
-    "depth",
     "reid",
-    "pose",
     "threat",
-    "stgcn_action",
 )
 
 # The unconditional members of the `vlm` repository: the YOLO26 gate and the
@@ -76,24 +71,28 @@ def get_model_set(name: str, *, threat_enabled: bool = False) -> tuple[str, ...]
 
     Raises:
         KeyError: for an unknown set name — a typo in GATEWAY_MODEL_SET must
-            stop the container, not silently serve the wrong footprint.
+            stop the container, not silently serve the wrong footprint. Since
+            R8 S3 (owner ruling) ``full`` is in that class too: the name is no
+            longer an accepted selection, so an operator who reaches for the
+            old "bring everything up" set gets a named refusal instead of a
+            repository whose models no longer exist in the image.
     """
-    if name == "full":
-        return FULL_MODEL_SET
     if name == "vlm":
         if threat_enabled:
             return (*VLM_MODEL_BASE, VLM_THREAT_MODEL)
         return VLM_MODEL_BASE
-    raise KeyError(f"unknown GATEWAY_MODEL_SET: {name!r} (expected 'vlm' or 'full')")
+    raise KeyError(f"unknown GATEWAY_MODEL_SET: {name!r} (expected 'vlm')")
 
 
 def resolve_active_set() -> tuple[str, ...]:
     """The set selected by the environment (entrypoint/GATEWAY_MODEL_SET).
 
-    Default ``full``: see the module docstring for why narrowing is an
-    explicit selection, not a side effect of this change.
+    No default: R8 S3 retired ``full``, and with no default left to fall back
+    to, an unset variable is a misconfigured container — it raises through
+    ``get_model_set`` (empty name is unknown) rather than serving a surprise
+    footprint. Same fail-at-start doctrine as PIPELINE_MODE (S1).
     """
-    name = os.getenv("GATEWAY_MODEL_SET", "full").strip().lower()
+    name = os.getenv("GATEWAY_MODEL_SET", "").strip().lower()
     threat = os.getenv("GATEWAY_ENABLE_THREAT", "").strip().lower() in _TRUTHY
     return get_model_set(name, threat_enabled=threat)
 
@@ -152,7 +151,7 @@ def main() -> None:
     keep = resolve_active_set()
     apply_model_set(args.repository, retired, keep)
     print(
-        f"[residency] model set={os.getenv('GATEWAY_MODEL_SET', 'full')} "
+        f"[residency] model set={os.getenv('GATEWAY_MODEL_SET', '<unset>')} "
         f"serving {len(keep)} model(s): {', '.join(sorted(keep))}",
         flush=True,
     )

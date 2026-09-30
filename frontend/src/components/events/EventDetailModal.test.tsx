@@ -438,12 +438,16 @@ describe('EventDetailModal', () => {
     });
   });
 
-  describe('retired-enrichment empty state (1.6, spec §4)', () => {
-    // Spec §4: "Retired-enrichment panels (pose skeleton, clothing,
-    // demographics) show a 'not analyzed in VLM mode' empty state" and
-    // "Legacy events have no verification row" - so the row is the mode
-    // signal the panel reads, no new plumbing needed. R8: empty states,
-    // not deletions.
+  describe('enrichment panels retired (R8 S5)', () => {
+    // 1.6 spec §4 shipped an EMPTY STATE here ("not analyzed in VLM mode"),
+    // gated on the verification row. The owner ruling of 2026-09-29 overrode
+    // it: roadmap docs/vss-integration/12-postponed-roadmap.md:120-121 says
+    // "the design's empty states become deletions", so S5 deletes both the
+    // panels and 1.6's tombstone. These tests are RETARGETED to that end
+    // state, not deleted - the assertions below are what a future "restore the
+    // panels" change has to pass through, and the neighbours of the removed
+    // block are asserted because the likely bug in a block deletion is the
+    // section next to it.
     const vlmEvent = {
       ...mockEvent,
       verification: {
@@ -453,23 +457,20 @@ describe('EventDetailModal', () => {
       },
     };
 
-    it('vlm-mode event with no enrichment data shows the empty state', async () => {
+    it('renders no enrichment UI for a vlm-mode event', async () => {
       renderWithQueryClient(<EventDetailModal {...mockProps} event={vlmEvent} />);
-      await waitFor(() => {
-        expect(screen.getByTestId('enrichment-retired-state')).toBeInTheDocument();
-      });
-      expect(screen.getByText(/not analyzed in VLM mode/i)).toBeInTheDocument();
-    });
-
-    it('legacy event (no verification row) shows no empty state', async () => {
-      renderWithQueryClient(<EventDetailModal {...mockProps} event={mockEvent} />);
       await waitFor(() => {
         expect(screen.getByText('Event Details')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('enrichment-retired-state')).not.toBeInTheDocument();
+      expect(screen.queryByText(/not analyzed in VLM mode/i)).not.toBeInTheDocument();
     });
 
-    it('vlm-mode event with real enrichment data still renders the panels', async () => {
+    it('renders no enrichment UI even when a detection carries enrichment_data', async () => {
+      // The API still returns enrichment_data on a detection from a pipeline
+      // that ran the retired models; the modal no longer renders it. Pinning
+      // this is what keeps the deletion from being quietly reverted by someone
+      // who "just restores the panel".
       const enriched = {
         ...vlmEvent,
         detections: [
@@ -482,8 +483,18 @@ describe('EventDetailModal', () => {
       };
       renderWithQueryClient(<EventDetailModal {...mockProps} event={enriched} />);
       await waitFor(() => {
-        expect(screen.queryByTestId('enrichment-retired-state')).not.toBeInTheDocument();
+        expect(screen.getByText('Detected Objects (1)')).toBeInTheDocument();
       });
+      expect(screen.queryByTestId('enrichment-summary-section')).not.toBeInTheDocument();
+      expect(screen.queryByText(/red jacket/)).not.toBeInTheDocument();
+    });
+
+    it('keeps the sections around the removed block', async () => {
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={vlmEvent} />);
+      await waitFor(() => {
+        expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Event Details')).toBeInTheDocument();
     });
   });
 

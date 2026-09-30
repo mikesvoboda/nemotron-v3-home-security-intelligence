@@ -368,10 +368,31 @@ class TestVramGpuInfo:
         assert data["utilization_percent"] == 30.9
 
     def test_vram_gpu_info_json_schema_example(self) -> None:
-        """VramGpuInfo should have a valid JSON schema example."""
+        """VramGpuInfo's documented example must describe the shipped lane.
+
+        This pin read gpu_id == 0 / ai-enrichment while the heavy lane existed.
+        R8 S3 retired that lane, so the schema's own example moved to the only
+        service that still serves models -- ai-enrichment-light on GPU 1, with
+        the light lane's budget and its two models. Pinning the whole example
+        (not just gpu_id) is what catches a doc example drifting back onto a
+        retired service: a JSON example is shown to API consumers verbatim.
+        """
         schema = VramGpuInfo.model_json_schema()
         assert "example" in schema
-        assert schema["example"]["gpu_id"] == 0
+        example = schema["example"]
+        assert example["gpu_id"] == 1
+        assert example["service"] == "ai-enrichment-light"
+        assert example["budget_mb"] == 1200
+        assert set(example["loaded_models"]) == {
+            "threat-detection-yolov8n",
+            "osnet-ain-x1-0",
+        }
+        # Arithmetic the example must satisfy, or it teaches consumers a lie.
+        assert example["available_mb"] == example["budget_mb"] - example["used_mb"]
+        # No retired service name survives in the example. Exact-value
+        # comparison, not a substring test: "ai-enrichment" is inside
+        # "ai-enrichment-light", so `not in str(example)` would always fail.
+        assert "ai-enrichment" not in example.values()
 
 
 # =============================================================================
@@ -749,9 +770,16 @@ class TestServiceName:
     """Tests for ServiceName enum."""
 
     def test_service_name_values(self) -> None:
-        """ServiceName should have expected service values."""
-        assert ServiceName.AI_ENRICHMENT.value == "ai-enrichment"
+        """ServiceName should have expected service values.
+
+        R8 S3 deleted AI_ENRICHMENT ("ai-enrichment") with the heavy lane --
+        the census below is what makes its absence a pin rather than an
+        oversight: an enum that silently loses a member fails here.
+        """
+        assert {m.value for m in ServiceName} == {"ai-enrichment-light", "ai-gateway"}
         assert ServiceName.AI_ENRICHMENT_LIGHT.value == "ai-enrichment-light"
+        assert ServiceName.AI_GATEWAY.value == "ai-gateway"
+        assert not hasattr(ServiceName, "AI_ENRICHMENT")
 
 
 class TestServiceStatus:

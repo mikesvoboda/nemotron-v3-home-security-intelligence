@@ -183,40 +183,20 @@ class AIServicesHealthResponse(BaseModel):
                         "url": "http://ai-yolo26:8095",
                         "error": None,
                     },
-                    "nemotron": {
-                        "status": "healthy",
-                        "circuit_state": "closed",
-                        "last_health_check": "2026-01-20T12:00:00Z",
-                        "error_rate_1h": 0.01,
-                        "latency_p99_ms": 2500,
-                        "url": "http://llm-analyzer:8080",
-                        "error": None,
-                    },
-                    "florence": {
-                        "status": "healthy",
-                        "circuit_state": "closed",
-                        "last_health_check": "2026-01-20T12:00:00Z",
-                        "error_rate_1h": 0.0,
-                        "latency_p99_ms": 350,
-                        "url": "http://florence-service:8091",
-                        "error": None,
-                    },
-                    "clip": {
-                        "status": "healthy",
-                        "circuit_state": "closed",
-                        "last_health_check": "2026-01-20T12:00:00Z",
-                        "error_rate_1h": 0.0,
-                        "latency_p99_ms": 200,
-                        "url": "http://clip-service:8092",
-                        "error": None,
-                    },
-                    "enrichment": {
+                    # R8 S3: the nemotron/florence/clip/enrichment rows this
+                    # example carried are retired with the services themselves
+                    # (ai_fallback.AIService is {yolo26} only; the endpoint's
+                    # AI_SERVICES_CONFIG is {yolo26, ai-vlm} — same source the
+                    # retargeted health tests pin). ai-vlm is the surviving
+                    # non-critical row; url in the Docker form the yolo26 row
+                    # above already uses.
+                    "ai-vlm": {
                         "status": "degraded",
                         "circuit_state": "half_open",
                         "last_health_check": "2026-01-20T11:55:00Z",
                         "error_rate_1h": 0.15,
                         "latency_p99_ms": 1200,
-                        "url": "http://enrichment-service:8093",
+                        "url": "http://ai-vlm:8098",
                         "error": "Intermittent connection issues",
                     },
                 },

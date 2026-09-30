@@ -168,9 +168,11 @@ class TestRealTree:
     def test_all_services_modules_classified(self, real: dict) -> None:
         mods = real["modules"]
         # 212 at the WP5.5 measurement; R8 S2 (2026-09-29) deleted the nemotron
-        # analyzer, the enrichment tier and 19 loaders, taking it to 182. The
-        # floor is a scope canary, not a count to defend - it moves WITH an
-        # authorized retirement, never under an unexplained one.
+        # analyzer, the enrichment tier and 19 loaders, taking it to 182; R8 S3
+        # swept the Florence/CLIP/enrichment surface and scene_ocr_service on
+        # top of that, taking it to 177. The floor is a scope canary, not a
+        # count to defend - it moves WITH an authorized retirement, never under
+        # an unexplained one.
         assert len(mods) >= 170, f"only {len(mods)} modules — census scope too narrow"
         for name, m in mods.items():
             assert m["bucket"] in {"HTTP-AI", "INPROC-AI", "DOMAIN", "DEAD"}, name
@@ -222,16 +224,39 @@ class TestRealTree:
 
     def test_known_http_surface(self, real: dict) -> None:
         mods = real["modules"]
-        # the gateway-facing HTTP clients that survive R8 S2
-        for name in ("detector_client", "florence_client", "clip_client"):
-            assert mods[name]["bucket"] == "HTTP-AI", name
-        # R8 S2 deleted nemotron_streaming outright, and scene_ocr_service's
-        # ONLY consumer was enrichment_pipeline - so the census now (honestly)
-        # buckets the still-present module DEAD. Absence-of-consumer, not
-        # absence-of-file: the module and its PaddleOCR loader stay for the
-        # day OCR is re-wired to the shipped path.
-        assert "nemotron_streaming" not in mods, "R8 S2 deleted it; reappeared?"
-        assert mods["scene_ocr_service"]["bucket"] == "DEAD"
+        # R8 S2 left three gateway-facing HTTP clients; R8 S3 (owner rulings 1
+        # and 5) deleted two of them with their providers — florence_client
+        # with the Florence surface, clip_client with CLIP's, which retired as
+        # a prune consequence of narrowing GATEWAY_MODEL_SET to 3. detector_client
+        # is the survivor: yolo26 is kept, so its client is live HTTP-AI.
+        assert mods["detector_client"]["bucket"] == "HTTP-AI"
+        # Absence, not a bucket: a deleted module is not in the census at all,
+        # so the old `mods[name]["bucket"] == "HTTP-AI"` / `== "DEAD"` pins on
+        # these names would KeyError. Stating the absence is the honest form
+        # (V3 tombstone doctrine) — and it is the stronger claim: a resurrected
+        # module fails here even if it comes back in the "right" bucket.
+        for name in (
+            "florence_client",
+            "clip_client",
+            "enrichment_client",
+            "nemotron_streaming",
+            "scene_ocr_service",
+        ):
+            assert name not in mods, f"{name} was deleted; reappeared?"
+        # scene_ocr_service's last consumer went with the enrichment tier in S2
+        # (bucket DEAD) and the module itself went in S3 with the OCR leg, so
+        # the "absent from the census, present in the tree" split no longer
+        # exists for it. Assert the file is really gone, else the absence above
+        # would only be proving the census lost scope:
+        assert not (REPO_ROOT / "backend" / "services" / "scene_ocr_service.py").exists(), (
+            "module is on disk but absent from the census — that is a census "
+            "scope bug, not a retirement"
+        )
+        # Non-vacuity: the HTTP-AI bucket the surviving pin reads is not empty,
+        # and the gateway-facing VLM client is in it.
+        http = {n for n, m in mods.items() if m["bucket"] == "HTTP-AI"}
+        assert len(http) >= 4, f"HTTP-AI bucket collapsed to {sorted(http)}"
+        assert "vlm_client" in http, sorted(http)
 
     def test_json_totals_shape(self, real: dict) -> None:
         t = real["totals"]

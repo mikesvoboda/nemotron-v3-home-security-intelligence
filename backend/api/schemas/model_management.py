@@ -8,6 +8,8 @@ See docs/plans/2025-01-31-model-zoo-management-design.md for design details.
 Related Issues:
     - NEM-4780: Model Zoo Management Epic
     - NEM-4782: Backend API endpoint unit tests
+    - R8 S3 (2026-09-29): the heavy enrichment lane retired; the enum and the
+      examples below describe the one surviving lane plus the gateway root.
 """
 
 from datetime import datetime
@@ -45,15 +47,21 @@ class ModelCategory(StrEnum):
 
 
 class ServiceName(StrEnum):
-    """Enrichment service names.
+    """Service names a model can be attributed to.
 
-    Models are split across two enrichment services based on resource requirements:
-    - AI_ENRICHMENT: Heavy models on GPU 0 (6.8 GB VRAM budget)
-    - AI_ENRICHMENT_LIGHT: Light models on GPU 1 (1.2 GB VRAM budget)
+    R8 S3 (2026-09-29): the heavy enrichment lane retired with the gateway
+    router that served it, so AI_ENRICHMENT is gone -- an enum member that no
+    response can carry is documentation for a topology that does not exist.
+    The two remaining answers:
+    - AI_ENRICHMENT_LIGHT: the models the /enrich-lt router serves
+      (threat + re-ID), on the AI-services GPU (1.2 GB VRAM budget)
+    - AI_GATEWAY: everything whose readiness the gateway root /health answers
+      -- yolo26 (served on the gateway's own detections router) and the
+      backend-process models
     """
 
-    AI_ENRICHMENT = "ai-enrichment"
     AI_ENRICHMENT_LIGHT = "ai-enrichment-light"
+    AI_GATEWAY = "ai-gateway"
 
 
 class ServiceStatus(StrEnum):
@@ -131,11 +139,11 @@ class ModelStatus(BaseModel):
     )
     service: str = Field(
         ...,
-        description="Enrichment service handling this model (ai-enrichment or ai-enrichment-light)",
+        description="Service serving this model (ai-enrichment-light or ai-gateway)",
     )
     gpu_id: int = Field(
         ...,
-        description="GPU index assigned to this model (0 for heavy, 1 for light)",
+        description="GPU index assigned to this model (the AI-services GPU; one lane after R8 S3)",
         ge=0,
     )
     runtime: ModelRuntimeInfo = Field(
@@ -167,8 +175,9 @@ class ModelStatus(BaseModel):
 class ModelListResponse(BaseModel):
     """Response schema for GET /api/system/models.
 
-    Returns all models from the registry with their runtime state,
-    plus service health status for both enrichment services.
+    Returns all models from the registry with their runtime state, plus a
+    health status per service the endpoint could actually answer for (after
+    R8 S3: the light router and the gateway root).
     """
 
     models: list[ModelStatus] = Field(
@@ -177,7 +186,7 @@ class ModelListResponse(BaseModel):
     )
     service_status: dict[str, str] = Field(
         ...,
-        description="Health status of each enrichment service (healthy/unhealthy/unknown)",
+        description="Health status of each serving surface (healthy/unhealthy/unknown)",
     )
 
     model_config = ConfigDict(
@@ -200,14 +209,14 @@ class ModelListResponse(BaseModel):
                         },
                     },
                     {
-                        "name": "vehicle-segment-classification",
-                        "category": "classification",
-                        "estimated_vram_mb": 1500,
+                        "name": "yolo26",
+                        "category": "detection",
+                        "estimated_vram_mb": 500,
                         "enabled": True,
-                        "service": "ai-enrichment",
-                        "gpu_id": 0,
+                        "service": "ai-gateway",
+                        "gpu_id": 1,
                         "runtime": {
-                            "loaded": False,
+                            "loaded": True,
                             "actual_vram_mb": None,
                             "last_used": None,
                             "load_count": 0,
@@ -215,8 +224,8 @@ class ModelListResponse(BaseModel):
                     },
                 ],
                 "service_status": {
-                    "ai-enrichment": "healthy",
                     "ai-enrichment-light": "healthy",
+                    "ai-gateway": "healthy",
                 },
             }
         },
@@ -269,13 +278,13 @@ class VramGpuInfo(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "example": {
-                "gpu_id": 0,
-                "service": "ai-enrichment",
-                "budget_mb": 6800,
-                "used_mb": 2100,
-                "available_mb": 4700,
-                "utilization_percent": 30.9,
-                "loaded_models": ["fashion-clip", "vehicle-segment-classification"],
+                "gpu_id": 1,
+                "service": "ai-enrichment-light",
+                "budget_mb": 1200,
+                "used_mb": 450,
+                "available_mb": 750,
+                "utilization_percent": 37.5,
+                "loaded_models": ["threat-detection-yolov8n", "osnet-ain-x1-0"],
             }
         },
     )
@@ -338,15 +347,6 @@ class VramSummaryResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "gpus": [
-                    {
-                        "gpu_id": 0,
-                        "service": "ai-enrichment",
-                        "budget_mb": 6800,
-                        "used_mb": 2100,
-                        "available_mb": 4700,
-                        "utilization_percent": 30.9,
-                        "loaded_models": ["fashion-clip", "vehicle-segment-classification"],
-                    },
                     {
                         "gpu_id": 1,
                         "service": "ai-enrichment-light",
@@ -482,7 +482,6 @@ class UnloadAllResponse(BaseModel):
                 "unloaded_count": 4,
                 "freed_vram_mb": 2550,
                 "services": {
-                    "ai-enrichment": 2,
                     "ai-enrichment-light": 2,
                 },
             }

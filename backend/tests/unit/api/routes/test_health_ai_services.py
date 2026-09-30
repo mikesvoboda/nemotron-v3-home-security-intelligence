@@ -66,37 +66,58 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
         yield client
 
 
+#: The settings field each shipped table row probes, read off the live table in
+#: table order. R8 S3 deleted the florence/clip/enrichment rows and their
+#: settings fields together (owner rulings 1 + 5), so "which url attrs does the
+#: mock need" now has a one-word answer: whichever ones the table names.
+#: Deriving it here is what stops this file from re-growing an arg for a
+#: provider that is gone.
+_URL_ATTRS: list[str] = [cfg["url_attr"] for cfg in AI_SERVICES_CONFIG]
+
+
 def create_mock_settings(
     yolo26_url: str = "http://ai-yolo26:8095",
     ai_vlm_url: str = "http://ai-vlm:8098",
-    florence_url: str = "http://florence-service:8091",
-    clip_url: str = "http://clip-service:8092",
-    enrichment_url: str = "http://enrichment-service:8093",
+    **extra_url_attrs: str,
 ) -> MagicMock:
     """Create mock settings with AI service URLs.
 
-    One url attr per row of the shipped table — there is no ``nemotron_url``
-    arg because R8 S2 deleted that setting along with the retired LLM's row.
+    One url attr per row of the shipped table, derived from
+    ``AI_SERVICES_CONFIG`` above — there is no ``nemotron_url`` arg because
+    R8 S2 deleted that setting along with the retired LLM's row, and no
+    ``florence_url`` / ``clip_url`` / ``enrichment_url`` arg because R8 S3
+    deleted those three settings along with their providers. Handing a real
+    ``Settings`` one of those names is silently inert (``extra="ignore"``), so
+    the honest mock is one that does not answer them at all: on a mock, an
+    unanswered attr comes back as an auto-created child MagicMock, which
+    pydantic then rejects as a non-string ``AIServiceHealthDetail.url`` — a
+    table row still reading a deleted field therefore fails loudly in this
+    file instead of quietly reporting UNKNOWN forever.
 
     Args:
         yolo26_url: URL for YOLO26 service (empty string for unconfigured)
         ai_vlm_url: URL for the VLM verdict service (empty for unconfigured)
-        florence_url: URL for Florence service
-        clip_url: URL for CLIP service
-        enrichment_url: URL for Enrichment service
+        **extra_url_attrs: override for a url_attr this signature has not
+            caught up with yet; a name no shipped row reads is a loud TypeError
 
     Returns:
         MagicMock configured with the specified URLs
     """
+    values = {"yolo26_url": yolo26_url, "ai_vlm_url": ai_vlm_url, **extra_url_attrs}
+    unknown = set(values) - set(_URL_ATTRS)
+    if unknown:
+        raise TypeError(
+            f"create_mock_settings: no shipped AI-services row reads {sorted(unknown)}; "
+            f"the table reads {_URL_ATTRS}"
+        )
+    missing = [attr for attr in _URL_ATTRS if attr not in values]
+    assert not missing, f"shipped AI-services row has no mock url attr: {missing}"
     mock = MagicMock()
     # Handle empty strings as None for "unconfigured" behavior
-    mock.yolo26_url = yolo26_url if yolo26_url else None
-    mock.ai_vlm_url = ai_vlm_url if ai_vlm_url else None
-    mock.florence_url = florence_url if florence_url else None
-    mock.clip_url = clip_url if clip_url else None
-    mock.enrichment_url = enrichment_url if enrichment_url else None
+    for attr in _URL_ATTRS:
+        setattr(mock, attr, values[attr] if values[attr] else None)
     # No `pipeline_mode` on the mock: R8 left one mode, and the mock's job is
-    # the URL attrs. ai_vlm_url must be spelled anyway — a MagicMock attr
+    # the URL attrs. Every url attr must be spelled anyway — a MagicMock attr
     # would leak a mock object into AIServiceHealthDetail.url, which pydantic
     # validates as a string.
     return mock
@@ -625,54 +646,50 @@ class TestQueueDepths:
 class TestOverallStatusCalculation:
     """Tests for overall status calculation."""
 
-    # The five keys below are the SHIPPED table's names (R8 S2: ai-vlm took the
-    # retired Nemotron row). Only yolo26 is critical, so the CRITICAL cases pin
-    # yolo26 and the DEGRADED cases pin ai-vlm or one of the other three.
+    # Every case below builds its health map from the SHIPPED table: one entry
+    # per row, HEALTHY unless overridden. R8 S3 retired florence, clip and
+    # enrichment (owner rulings 1 + 5), and because ``_calculate_overall_status``
+    # treats any key that is not a critical row as non-critical, hand-typed keys
+    # for those three were what made the DEGRADED cases fire — they would have
+    # stayed green through a table change while describing a topology that no
+    # longer ships. The critical/non-critical split now comes from the live
+    # ``critical`` flags, and the helper refuses a name the table does not have.
+    @staticmethod
+    def _health(overrides: dict[str, AIServiceStatus]) -> dict[str, AIServiceHealthDetail]:
+        """A health entry for every shipped table row, HEALTHY by default."""
+        names = {cfg["name"] for cfg in AI_SERVICES_CONFIG}
+        assert names, "AI_SERVICES_CONFIG has no rows to build health for"
+        unknown = set(overrides) - names
+        assert not unknown, f"override names a row the shipped table lacks: {sorted(unknown)}"
+        return {
+            name: AIServiceHealthDetail(status=overrides.get(name, AIServiceStatus.HEALTHY))
+            for name in names
+        }
+
     def test_all_healthy(self) -> None:
         """Test overall status is healthy when all services are healthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
-
-        assert _calculate_overall_status(services) == AIServiceOverallStatus.HEALTHY
+        assert _calculate_overall_status(self._health({})) == AIServiceOverallStatus.HEALTHY
 
     def test_critical_service_unhealthy(self) -> None:
-        """Test overall status is critical when critical service is unhealthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is critical when the critical service is unhealthy."""
+        critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]}
+        assert critical, "shipped table has no critical row: nothing could ever be CRITICAL"
+        services = self._health({sorted(critical)[0]: AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
     def test_critical_service_unknown(self) -> None:
-        """Test overall status is critical when critical service is unknown."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNKNOWN),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is critical when the critical service is unknown."""
+        victim = sorted({cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]})[0]
+        services = self._health({victim: AIServiceStatus.UNKNOWN})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
     def test_non_critical_service_unhealthy(self) -> None:
-        """Test overall status is degraded when non-critical service is unhealthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test overall status is degraded when a non-critical service is unhealthy."""
+        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
+        assert non_critical, "shipped table has no non-critical row: nothing could ever DEGRADE"
+        services = self._health({sorted(non_critical)[0]: AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
@@ -683,49 +700,36 @@ class TestOverallStatusCalculation:
         main.py's degradation-manager registration, so a down verdict engine
         costs a degraded badge and not a 503.
         """
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        services = self._health({"ai-vlm": AIServiceStatus.UNHEALTHY})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
     def test_non_critical_service_degraded(self) -> None:
-        """Test overall status is degraded when non-critical service is degraded."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.DEGRADED),
-        }
+        """Test overall status is degraded when a non-critical service is degraded."""
+        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
+        services = self._health({sorted(non_critical)[0]: AIServiceStatus.DEGRADED})
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.DEGRADED
 
     def test_critical_service_unhealthy_outranks_non_critical(self) -> None:
-        """Test yolo26 down wins CRITICAL even when a non-critical row is down too."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
-        }
+        """Test the critical row wins CRITICAL even when a non-critical row is down too."""
+        critical = sorted({cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]})
+        non_critical = sorted(cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"])
+        assert critical and non_critical, "table needs both a critical and a non-critical row"
+        services = self._health(
+            {
+                critical[0]: AIServiceStatus.UNHEALTHY,
+                non_critical[0]: AIServiceStatus.UNHEALTHY,
+            }
+        )
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
     def test_all_services_unhealthy(self) -> None:
-        """Test overall status is critical when all services are unhealthy."""
-        services = {
-            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "ai-vlm": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "florence": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "clip": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-            "enrichment": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
-        }
+        """Test overall status is critical when every service is unhealthy."""
+        services = self._health(
+            dict.fromkeys((cfg["name"] for cfg in AI_SERVICES_CONFIG), AIServiceStatus.UNHEALTHY)
+        )
 
         assert _calculate_overall_status(services) == AIServiceOverallStatus.CRITICAL
 
@@ -785,11 +789,7 @@ class TestAIServicesHealthEndpoint:
     @pytest.mark.asyncio
     async def test_endpoint_returns_503_when_critical(self, async_client: AsyncClient) -> None:
         """Test endpoint returns 503 when critical services are unhealthy."""
-        mock_settings = create_mock_settings(
-            florence_url="",
-            clip_url="",
-            enrichment_url="",
-        )
+        mock_settings = create_mock_settings()
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
         ) as mock_get_settings:
@@ -815,10 +815,14 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_all_services(self, async_client: AsyncClient) -> None:
-        """Test endpoint includes all 5 services of the SHIPPED table.
+        """Test the response covers every row of the SHIPPED table, exactly.
 
-        ai-vlm is a row of AI_SERVICES_CONFIG itself (R8 S2), so this asserts
-        the shipped five and proves the retired LLM never comes back.
+        The property is "one entry per table row, and nothing else": the key
+        set is read off ``AI_SERVICES_CONFIG`` rather than hand-listed, so this
+        cannot drift when a row is retired and it still fails if the endpoint
+        drops a row or invents one. The literal absent pins are the two
+        retirements this endpoint has actually been through — the Nemotron LLM
+        (R8 S2) and the three providers the S3 prune unmounted (rulings 1 + 5).
         """
         mock_settings = create_mock_settings()
         with patch(
@@ -852,12 +856,22 @@ class TestAIServicesHealthEndpoint:
                     assert response.status_code == 200
                     data = response.json()
                     services = data["services"]
-                    assert "yolo26" in services
-                    assert "ai-vlm" in services
+
+                    # Non-vacuity: the table this is derived from is not empty,
+                    # so an equality pin here can be false.
+                    expected = {cfg["name"] for cfg in AI_SERVICES_CONFIG}
+                    assert expected, "AI_SERVICES_CONFIG has no rows to report"
+                    assert set(services) == expected, (
+                        f"endpoint reported {sorted(services)}, table is {sorted(expected)}"
+                    )
+
+                    # The two retirements this endpoint has been through. Each
+                    # was once a row here; a re-added row would reappear in
+                    # `services` and fail the equality pin above as well as
+                    # these, which name the specific regression.
                     assert "nemotron" not in services
-                    assert "florence" in services
-                    assert "clip" in services
-                    assert "enrichment" in services
+                    for retired in ("florence", "clip", "enrichment"):
+                        assert retired not in services
 
     @pytest.mark.asyncio
     async def test_endpoint_includes_queue_info(self, async_client: AsyncClient) -> None:
@@ -865,9 +879,6 @@ class TestAIServicesHealthEndpoint:
         mock_settings = create_mock_settings(
             yolo26_url="",
             ai_vlm_url="",
-            florence_url="",
-            clip_url="",
-            enrichment_url="",
         )
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
@@ -890,8 +901,29 @@ class TestAIServicesHealthEndpoint:
 
     @pytest.mark.asyncio
     async def test_endpoint_degraded_non_critical_service(self, async_client: AsyncClient) -> None:
-        """Test endpoint returns 200 with degraded status when non-critical service fails."""
+        """Test endpoint returns 200 with degraded status when a non-critical
+        service fails.
+
+        The failing row is picked off the live table (every row with
+        ``critical`` false) instead of naming florence, which was this test's
+        non-critical victim until R8 S3 retired the row and the settings field
+        its url_attr named — the probe could no longer reach any URL containing
+        "florence", so the old fixture silently answered 200 everywhere and the
+        degraded assert was green about nothing.
+        """
+        non_critical_rows = [cfg for cfg in AI_SERVICES_CONFIG if not cfg["critical"]]
+        assert non_critical_rows, "shipped table has no non-critical row to fail"
+
         mock_settings = create_mock_settings()
+        # The exact URLs the endpoint will probe for the non-critical rows —
+        # read from the same mock that answers get_settings, so the fail below
+        # is keyed on the shipped probe target rather than a hand-typed name.
+        non_critical_probe_urls = {
+            getattr(mock_settings, cfg["url_attr"]) for cfg in non_critical_rows
+        }
+        non_critical_probe_urls.discard(None)
+        assert non_critical_probe_urls, "non-critical rows have no configured url to fail"
+
         with patch(
             "backend.api.routes.health_ai_services.get_settings", autospec=True
         ) as mock_get_settings:
@@ -914,10 +946,10 @@ class TestAIServicesHealthEndpoint:
                 ) as mock_client:
                     mock_context = AsyncMock()
 
-                    # Make florence fail (non-critical)
+                    # A non-critical row answers 500; critical rows stay 200.
                     async def mock_get(url: str, *args, **kwargs):
                         mock_response = MagicMock()
-                        if "florence" in url:
+                        if any(url.startswith(f"{u}/health") for u in non_critical_probe_urls):
                             mock_response.status_code = 500
                         else:
                             mock_response.status_code = 200
@@ -931,6 +963,13 @@ class TestAIServicesHealthEndpoint:
                     assert response.status_code == 200
                     data = response.json()
                     assert data["overall_status"] == "degraded"
+                    # The degraded badge was earned by a non-critical row going
+                    # unhealthy, not by a silent all-200 response: pin that the
+                    # row we failed actually reported unhealthy.
+                    for cfg in non_critical_rows:
+                        url = getattr(mock_settings, cfg["url_attr"])
+                        if url:
+                            assert data["services"][cfg["name"]]["status"] == "unhealthy"
 
 
 # =============================================================================
@@ -955,16 +994,49 @@ class TestAIServicesConfig:
         assert critical_services == {"yolo26"}
 
     def test_config_has_correct_non_critical_services(self) -> None:
-        """Test ai-vlm, florence, clip, and enrichment are not critical."""
-        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
-        assert "ai-vlm" in non_critical
-        assert "florence" in non_critical
-        assert "clip" in non_critical
-        assert "enrichment" in non_critical
+        """Every non-critical row, read off the table.
 
-    def test_config_count(self) -> None:
-        """Test that there are exactly 5 AI services configured."""
-        assert len(AI_SERVICES_CONFIG) == 5
+        The pin's FOR was "a row can never quietly become critical", which the
+        old hand-listed four names expressed for a 5-row table. R8 S3 (owner
+        rulings 1 + 5) retired florence, clip and enrichment, so three of those
+        four names no longer exist to be non-critical about. The durable form
+        scans the table: the non-critical bucket is exactly the rows whose
+        ``critical`` is false, ai-vlm is in it, and the bucket is not empty —
+        an empty bucket would make every membership assert below vacuous.
+        """
+        non_critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if not cfg["critical"]}
+        critical = {cfg["name"] for cfg in AI_SERVICES_CONFIG if cfg["critical"]}
+        all_names = {cfg["name"] for cfg in AI_SERVICES_CONFIG}
+
+        assert non_critical, "no non-critical row exists: nothing would ever degrade, only 503"
+        assert "ai-vlm" in non_critical
+        assert non_critical | critical == all_names
+        assert not (non_critical & critical)
+
+    def test_config_rows_all_point_at_settings_fields_that_exist(self) -> None:
+        """The count pin's purpose, restated structurally.
+
+        ``len(AI_SERVICES_CONFIG) == 5`` was never about the number: it was the
+        guard that kept the table honest as providers came and went. R8 S3
+        proved what the real failure looks like — the three retired providers
+        each left a row whose url_attr named a Settings field that
+        ``extra="ignore"`` then swallowed, so the row could only ever report
+        UNKNOWN: a permanently green probe of nothing. So the durable pin is
+        the one the number stood for — every row names a field the shipped
+        Settings actually carries — plus a floor so the scanned bucket cannot be
+        emptied out from under the assertion. The exact shipped shape is pinned
+        in TestRetiredLlmRow.test_the_table_itself_is_the_shipped_shape.
+        """
+        from backend.core.config import Settings
+
+        assert AI_SERVICES_CONFIG, "AI_SERVICES_CONFIG is empty"
+        assert len(AI_SERVICES_CONFIG) >= 2, (
+            "the table's own two live rows (yolo26 + ai-vlm) are the floor; "
+            "a smaller table means a row was dropped, not retired"
+        )
+        settings_fields = set(Settings.model_fields)
+        dead = {cfg["url_attr"] for cfg in AI_SERVICES_CONFIG} - settings_fields
+        assert not dead, f"health rows probe deleted Settings fields: {sorted(dead)}"
 
 
 # =============================================================================
@@ -988,12 +1060,15 @@ class TestRetiredLlmRow:
     it and no service key is ever named for it.
     """
 
+    #: One entry per shipped table row. R8 S3 deleted the florence / clip /
+    #: enrichment Settings fields, and ``Settings.model_config`` runs
+    #: ``extra="ignore"``, so passing those three names here was accepted
+    #: silently and then thrown away — the "refused" fixture they fed could
+    #: never be reached, because no row probes a field that does not exist.
+    #: Pruning to the live two is what makes ``down=`` mean something again.
     URLS: ClassVar[dict[str, str]] = {
         "yolo26_url": "http://ai-gateway:8090/yolo26",
         "ai_vlm_url": "http://ai-vlm:8098",
-        "florence_url": "http://florence:8092",
-        "clip_url": "http://clip:8093",
-        "enrichment_url": "http://enrichment:8094",
     }
     RETIRED_LLM_URL: ClassVar[str] = "http://ai-llm:8091"
 
@@ -1041,6 +1116,14 @@ class TestRetiredLlmRow:
         data = response.json()
         assert data["overall_status"] == "healthy"
         assert "nemotron" not in data["services"]
+        # The three S3 retirements are absent for the same reason the LLM is:
+        # no row, therefore no key, therefore no probe. Non-vacuity: the
+        # response is reporting a live service, so this is an absence from a
+        # populated map and not from an empty one.
+        assert data["services"], "endpoint reported no services at all"
+        for retired in ("florence", "clip", "enrichment"):
+            assert retired not in data["services"]
+            assert not [u for u in probed if retired in u], probed
         assert data["services"]["ai-vlm"]["status"] == "healthy"
         assert data["services"]["ai-vlm"]["url"] == self.URLS["ai_vlm_url"]
         assert not [u for u in probed if u.startswith(self.RETIRED_LLM_URL)], probed
@@ -1056,18 +1139,19 @@ class TestRetiredLlmRow:
 
     def test_the_table_itself_is_the_shipped_shape(self) -> None:
         """The table is the shipped shape — ai-vlm sits in the retired LLM's
-        slot, same count, yolo26 alone critical, and every url_attr is a setting
-        that still exists. Pinning the whole ordered lists is what stops a future
-        edit from adding a second row (or dropping one) behind this class's back;
-        the S1 swap helper is gone, so this reads AI_SERVICES_CONFIG directly."""
+        slot, yolo26 alone critical, and every url_attr is a setting that still
+        exists. Pinning the whole ordered lists is what stops a future edit from
+        adding a row (or dropping one) behind this class's back; the S1 swap
+        helper is gone, so this reads AI_SERVICES_CONFIG directly.
+
+        R8 S3 pruned the ordered lists to the two rows the gateway still mounts.
+        The three retired names are pinned absent rather than dropped: they are
+        the reason the lists shrank, and a re-added row would trip both the
+        equality pin and these."""
         names = [cfg["name"] for cfg in AI_SERVICES_CONFIG]
 
-        assert names == ["yolo26", "ai-vlm", "florence", "clip", "enrichment"]
+        assert names == ["yolo26", "ai-vlm"]
         assert {c["name"] for c in AI_SERVICES_CONFIG if c["critical"]} == {"yolo26"}
-        assert [c["url_attr"] for c in AI_SERVICES_CONFIG] == [
-            "yolo26_url",
-            "ai_vlm_url",
-            "florence_url",
-            "clip_url",
-            "enrichment_url",
-        ]
+        assert [c["url_attr"] for c in AI_SERVICES_CONFIG] == ["yolo26_url", "ai_vlm_url"]
+        for retired in ("nemotron", "florence", "clip", "enrichment"):
+            assert retired not in names

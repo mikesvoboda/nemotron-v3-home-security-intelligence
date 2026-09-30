@@ -11,12 +11,12 @@ The no-ai-at-runtime rule (see __init__.py) constrains HOW providers are
 built, not that they may not exist:
 
   * gateway / gateway_light: ai/gateway/main.py is ONE app mounting every
-    adapter (prefixes /yolo26 /clip /florence /enrichment /enrich-lt,
-    ai/gateway/main.py:181-185); its availability column is exactly the ops
-    its adapters implement. The gateway's backend-reachable behavior IS the
-    bound client methods - the clients switch their base URL to the gateway
-    under settings.use_ai_gateway - so a gateway provider callable is the
-    bound client method itself.
+    adapter (prefixes /yolo26 /enrich-lt since the R8 S3 prune; before it
+    /clip /florence /enrichment as well); its availability column is exactly
+    the ops its adapters implement. The gateway's backend-reachable behavior
+    IS the bound client methods - the clients switch their base URL to the
+    gateway under settings.use_ai_gateway - so a gateway provider callable is
+    the bound client method itself.
   * per_model_http: the same client-bound callables dispatched through the
     native-host URLs; matrix-declared UNDEPLOYED in prod compose.
   * llamacpp_llm: llama.cpp serve speaks /completion and /chat/completions
@@ -48,12 +48,13 @@ from backend.ai_contract.provider import (
 # contract-test fixtures exist.
 _CLIENT_MODULES = {
     "DetectorClient": "backend.services.detector_client",
-    "CLIPClient": "backend.services.clip_client",
     # R8 S2 (2026-09-29): EnrichmentClient retired with the legacy tier.
-    # Its operations stay in the registry (deployed gateway surface until
-    # their provider slice) and resolve through the NOT-WIRED sentinel;
-    # a module entry for a deleted class would be a pointer at nothing.
-    "FlorenceClient": "backend.services.florence_client",
+    # R8 S3 (2026-09-29, owner rulings 1 + 5): FlorenceClient retired as the
+    # slice's provider; CLIPClient retired as a prune consequence -- the Triton
+    # prune to yolo26/reid/threat plus the GATEWAY_MODEL_SET hard-raise means
+    # no deployment can boot clip/clip_text, so its five ops cannot register
+    # non-vacuously and the row would have been a deployed provider declaring
+    # nothing. A module entry for a deleted class would be a pointer at nothing.
     "VlmClient": "backend.services.vlm_client",
 }
 
@@ -82,9 +83,9 @@ def _bound_or_reject(op_id: str) -> Any:
     two-method case is unreachable and fails LOUD rather than silently
     picking one. Ops with no bound client method (WP7.3 candidates kept as
     deployed surface: yolo26_detect_batch, yolo26_segment (A7.2 - client
-    deleted, route stays), the enrich_lt_* trio; florence_analyze_scene
-    left the contract entirely under A7.2) get a NOT-WIRED sentinel that
-    raises on call:
+    deleted, route stays); florence_analyze_scene left the contract entirely
+    under A7.2; R8 S3 retired the enrich_lt_* bound trio with their models and
+    clients) get a NOT-WIRED sentinel that raises on call:
     registration still verifies their slot membership and count, but no
     live path claims them. The call path is WP8.2 FakeProvider / real
     server territory - fabricating a bound callable here would be another

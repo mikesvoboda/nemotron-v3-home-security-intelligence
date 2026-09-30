@@ -1,18 +1,43 @@
 """Unit tests for the AI Gateway FastAPI application.
 
 Tests the top-level endpoints and configuration defined in ai/gateway/main.py:
-- GET /health         - aggregated health across all Triton models
+- GET /health         - aggregated health across the active Triton models
 - GET /metrics        - merged Prometheus + Triton metrics
 - CORS middleware     - allowed origins / methods
-- Lifespan           - startup connectivity check and shutdown cleanup
-- Router mounting    - adapter prefixes are reachable
+- Lifespan            - startup connectivity check and shutdown cleanup
+- Router mounting     - adapter prefixes are reachable
 
 All Triton and adapter internals are mocked so the tests run purely on CPU
 with no real Triton server.
+
+R8 S3 (2026-09-29, owner rulings 1/3/4/5) swept the clip, florence and heavy
+enrichment adapters, and this suite's pins over those three prefixes retired
+with them BY DELETION rather than by a re-litigating tombstone here: the
+historical record for that retirement lives in exactly one place,
+``backend/tests/unit/test_r8_s3_florence_provider_retirement.py``
+(``TestFlorenceProviderRowRetired.test_adapter_module_is_gone`` and
+``test_gateway_main_no_longer_mounts_florence``,
+``TestTritonRepositoryPruned.test_adapters_whose_models_are_all_pruned_retire_with_them``,
+``test_clip_the_debug_endpoint_retires_with_the_prune``). A second copy of
+"the route is gone" in the tier that owned the route would be a pin with no
+owner.
+
+What was RETARGETED instead is the gateway-level property those deleted tests
+pinned, because that property does not die with a model:
+* prefix reachability + a ``status`` field on an adapter health route
+  -> the two mounts main.py still performs (/yolo26, /enrich-lt), discovered
+  from the live route table rather than remembered;
+* "a route taking a JSON body with a base64 image answers inference through
+  the mounted app and the mocked Triton seam, in its product shape"
+  -> the light adapter's JSON-body inference routes (multipart uploads were
+  already pinned by the /yolo26 detect tests, and stay pinned there);
+* "an adapter health payload reports all-ready as healthy with a models map"
+  -> the light adapter's health route, over the probe set it actually builds.
 """
 
 from __future__ import annotations
 
+import contextlib
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,13 +55,16 @@ from PIL import Image
 _PATCH_TARGET = "ai.gateway.triton_client.get_triton_client"
 
 # Each adapter module imports get_triton_client at the top level, creating a
-# local binding. To override in tests that need a specific mock per-adapter,
-# we also need to patch the adapter-level references.
+# local binding, so an adapter-level patch is still needed per surviving module.
+# R8 S3: this list is exactly the adapter modules ai/gateway/adapters ships
+# (measured: yolo26.py + enrichment_light.py). The three entries naming the
+# swept modules are gone, because patch() resolves its target eagerly — a dead
+# module name is an AttributeError out of the fixture, which is how 29 tests in
+# this file and test_metrics_middleware.py were erroring at setup. The list is
+# a patch-target list, not evidence: it stays explicit, and
+# TestPatchSurface below pins that it covers every live adapter binding.
 _ADAPTER_PATCH_TARGETS = [
     "ai.gateway.adapters.yolo26.get_triton_client",
-    "ai.gateway.adapters.clip.get_triton_client",
-    "ai.gateway.adapters.florence.get_triton_client",
-    "ai.gateway.adapters.enrichment.get_triton_client",
     "ai.gateway.adapters.enrichment_light.get_triton_client",
 ]
 
@@ -47,6 +75,16 @@ def _make_test_image_bytes(width: int = 64, height: int = 64) -> bytes:
     buf = io.BytesIO()
     img.save(buf, format="JPEG")
     return buf.getvalue()
+
+
+def _make_b64_image(width: int = 224, height: int = 224) -> str:
+    """Create a small PNG image encoded as base64 (JSON-body routes)."""
+    import base64
+
+    img = Image.new("RGB", (width, height), color=(100, 150, 200))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
 def _make_mock_triton_client(
@@ -68,24 +106,20 @@ def _make_mock_triton_client(
         }
     )
     # Default infer returns an empty-ish detection array (no detections).
-    # WP6.4: "result" and "pooler_output" are the REAL deployed output names
-    # the florence/clip adapters request (florence.py:228 result=["result"];
-    # model_repository/clip/config.pbtxt output "pooler_output", echoed by
-    # export/export_clip.py:12). Without them the adapters' result["..."]
-    # lookups KeyError inside the handler and both smoke tests died.
+    # Every key here is read by a module that ships, by name:
+    #   "output0"   adapters/yolo26.py:370/:420/:495 and adapters/
+    #               enrichment_light.py:153 both index it after requesting
+    #               outputs=["output0"];
+    #   "embedding" adapters/enrichment_light.py:200 indexes it after
+    #               requesting outputs=["embedding"].
+    # The pre-S3 default also carried "result", "pooler_output", "OUTPUT_*" and
+    # "text_embedding". Their only readers were the swept adapters' handlers,
+    # so those keys were a mock describing a surface no shipped code reads —
+    # kept alive by a comment that justified them with files the slice deleted.
     mock.infer = AsyncMock(
         return_value={
             "output0": np.zeros((1, 84, 8400), dtype=np.float32),
-            "output": np.zeros((1, 768), dtype=np.float32),
-            "result": np.array(
-                [b'{"result": "a test caption", "prompt": "<CAPTION>"}'], dtype=object
-            ),
-            "pooler_output": np.zeros((1, 768), dtype=np.float32),
-            "OUTPUT_TEXT": np.array(["test output"], dtype=object),
-            "OUTPUT_KEYPOINTS": np.array(["[]"], dtype=object),
-            "OUTPUT_DETECTIONS": np.array(["[]"], dtype=object),
-            "OUTPUT_ACTIONS": np.array(["[]"], dtype=object),
-            "text_embedding": np.zeros((1, 768), dtype=np.float32),
+            "embedding": np.zeros((1, 512), dtype=np.float32),
         }
     )
     return mock
@@ -93,7 +127,6 @@ def _make_mock_triton_client(
 
 def _patch_all_get_triton_client(mock_tc: MagicMock):
     """Return a combined context manager that patches get_triton_client everywhere."""
-    import contextlib
 
     @contextlib.contextmanager
     def _combined():
@@ -108,6 +141,24 @@ def _patch_all_get_triton_client(mock_tc: MagicMock):
                     p.stop()
 
     return _combined()
+
+
+def _live_adapter_prefixes() -> set[str]:
+    """Adapter prefixes the app actually mounts, read from the live route table.
+
+    ``app.openapi()["paths"]`` is generated from the routers mounted on ``app``,
+    so a prefix appears here only if ``include_router`` ran. Two-segment paths
+    are adapter routes; ``/health`` and ``/metrics`` are the app's own top-level
+    endpoints and have no tail segment.
+    """
+    from ai.gateway.main import app
+
+    prefixes: set[str] = set()
+    for path in app.openapi()["paths"]:
+        head, _, tail = path.lstrip("/").partition("/")
+        if tail:
+            prefixes.add(f"/{head}")
+    return prefixes
 
 
 @pytest.fixture(autouse=True)
@@ -137,6 +188,46 @@ async def client(mock_triton: MagicMock) -> AsyncClient:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
             yield ac
+
+
+# ---------------------------------------------------------------------------
+# The patch seam itself
+# ---------------------------------------------------------------------------
+
+
+class TestPatchSurface:
+    """The fixture's patch list must match the adapters that ship.
+
+    Not decoration: a stale entry raises AttributeError at fixture setup (the
+    pre-S3 state, 29 errors), and a MISSING entry is worse and silent — that
+    adapter would keep talking to a real TritonClient during the test.
+    """
+
+    def test_targets_cover_every_shipped_adapter(self) -> None:
+        import importlib
+        import pkgutil
+
+        import ai.gateway.adapters as adapters_pkg
+
+        live_modules = {
+            info.name for info in pkgutil.iter_modules(adapters_pkg.__path__) if not info.ispkg
+        }
+        # Non-vacuity: the scan sees the modules, so a missing target is a real
+        # miss rather than an empty-set equality.
+        assert {"yolo26", "enrichment_light"} <= live_modules, sorted(live_modules)
+
+        targeted: set[str] = set()
+        for target in _ADAPTER_PATCH_TARGETS:
+            module_name, _, attr = target.rpartition(".")
+            assert attr == "get_triton_client", target
+            module = importlib.import_module(module_name)
+            targeted.add(module.__name__.rpartition(".")[2])
+            assert hasattr(module, attr), target
+
+        assert targeted == live_modules, (
+            f"_ADAPTER_PATCH_TARGETS covers {sorted(targeted)}, adapters ship "
+            f"{sorted(live_modules)} — an untargeted adapter reaches real gRPC"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +453,9 @@ class TestLifespan:
 
         # Every model the ACTIVE residency set serves should have been checked
         assert model_names_checked == list(ACTIVE_MODELS)
+        # Non-vacuity: the active set this tier boots under is not empty, so
+        # the equality above is a real coverage statement.
+        assert len(ACTIVE_MODELS) >= 2
 
     async def test_lifespan_checks_the_active_residency_set(
         self, monkeypatch: pytest.MonkeyPatch
@@ -393,10 +487,11 @@ class TestLifespan:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """/health models map covers the ACTIVE set only; a vlm-mode gateway
-        reports healthy with 2/2, not degraded 2/14."""
+        reports healthy with a full 2/2, not degraded 2/14."""
         import ai.gateway.main as main_mod
 
-        monkeypatch.setattr(main_mod, "ACTIVE_MODELS", ("yolo26", "reid"))
+        active = ("yolo26", "reid")
+        monkeypatch.setattr(main_mod, "ACTIVE_MODELS", active)
         mock_tc = _make_mock_triton_client()
         with _patch_all_get_triton_client(mock_tc):
             transport = ASGITransport(app=main_mod.app)
@@ -404,8 +499,10 @@ class TestLifespan:
                 resp = await ac.get("/health")
         body = resp.json()
         assert body["status"] == "healthy"
-        assert set(body["models"]) == {"yolo26", "reid"}
-        assert body["models_total"] == 2
+        assert set(body["models"]) == set(active)
+        # Derived from the set the monkeypatch installed, not a remembered 2.
+        assert body["models_total"] == len(active)
+        assert body["models_loaded"] == len(active)
 
     async def test_lifespan_handles_server_never_ready(self) -> None:
         """Startup completes even if Triton never becomes ready."""
@@ -429,7 +526,16 @@ class TestLifespan:
 
 
 class TestRouterMounting:
-    """Verify that adapter routers are mounted at expected prefixes."""
+    """Verify that adapter routers are mounted at expected prefixes.
+
+    Pre-S3 this class probed five prefixes. Three of them (the clip, florence
+    and heavy-enrichment mounts) died with their adapters, and the per-prefix
+    tests were deleted rather than tombstoned — the guard file owns that record
+    (module docstring). What they pinned collectively, "every mount answers
+    /health with a status field", is retargeted onto the whole LIVE mount set:
+    the prefixes are derived from the live route table, so the test covers
+    today's mounts and would follow a future one instead of remembering five.
+    """
 
     async def test_yolo26_health(self, client: AsyncClient) -> None:
         """GET /yolo26/health is reachable."""
@@ -439,33 +545,32 @@ class TestRouterMounting:
         assert "status" in body
         assert body["model"] == "yolo26"
 
-    async def test_clip_health(self, client: AsyncClient) -> None:
-        """GET /clip/health is reachable."""
-        resp = await client.get("/clip/health")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "status" in body
-
-    async def test_florence_health(self, client: AsyncClient) -> None:
-        """GET /florence/health is reachable."""
-        resp = await client.get("/florence/health")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "status" in body
-
-    async def test_enrichment_health(self, client: AsyncClient) -> None:
-        """GET /enrichment/health is reachable."""
-        resp = await client.get("/enrichment/health")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert "status" in body
-
     async def test_enrichment_light_health(self, client: AsyncClient) -> None:
         """GET /enrich-lt/health is reachable."""
         resp = await client.get("/enrich-lt/health")
         assert resp.status_code == 200
         body = resp.json()
         assert "status" in body
+
+    async def test_every_live_mount_answers_health(self, client: AsyncClient) -> None:
+        """Prefix reachability + response shape, over the derived mount set."""
+        prefixes = _live_adapter_prefixes()
+        # Non-vacuity: if the derived set were empty the loop would prove nothing.
+        assert len(prefixes) >= 2, f"derived mount set {sorted(prefixes)}"
+        for prefix in sorted(prefixes):
+            resp = await client.get(f"{prefix}/health")
+            assert resp.status_code == 200, prefix
+            assert "status" in resp.json(), prefix
+
+    async def test_live_mounts_are_the_two_shipped_adapters(self) -> None:
+        """The mount set itself, as a SET EQUALITY (main.py:272-273).
+
+        Equality is the whole claim: it says these two are mounted AND that
+        nothing else is, so the retired prefixes need no separate "…is gone"
+        assertion in this file. Their deadness is the S3 guard's record (module
+        docstring), and a second copy here would be a pin with no owner.
+        """
+        assert _live_adapter_prefixes() == {"/yolo26", "/enrich-lt"}
 
 
 # ---------------------------------------------------------------------------
@@ -510,65 +615,95 @@ class TestYolo26Detect:
         assert resp.status_code == 503
 
 
-class TestClipEmbed:
-    """Smoke tests for CLIP embedding via the gateway."""
+class TestJsonBodyInferenceRoutes:
+    """JSON-body inference through the mounted app — retargeted.
 
-    async def test_embed_returns_200(self, client: AsyncClient) -> None:
-        """POST /clip/embed with a valid base64 image returns 200."""
-        import base64
+    Old subjects: the /clip/embed smoke (base64 image in a JSON body,
+    ``embedding`` + ``inference_time_ms`` out) and the /florence/extract smoke
+    (image + prompt in, ``result`` + ``prompt_used`` out). Both routes died with
+    their models in the Triton prune, and their absence is pinned by the guard
+    file, so they are not re-pinned here.
 
-        image_bytes = _make_test_image_bytes()
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+    What transfers is the gateway-level property neither the /yolo26 multipart
+    tests nor the adapter-tier tests cover on their own: a route mounted under
+    an adapter prefix that takes a **JSON body with a base64 image** still
+    reaches Triton through the gateway's middleware/mount stack and answers in
+    its shipped response shape. The light adapter's two survivors are the live
+    carriers of that property; the ``prompt_used`` echo had no heir, because no
+    surviving gateway route takes a text prompt.
+    """
 
-        resp = await client.post(
-            "/clip/embed",
-            json={"image": image_b64},
-        )
+    async def test_threat_detect_json_body_answers_in_product_shape(
+        self, client: AsyncClient, mock_triton: MagicMock
+    ) -> None:
+        """POST /enrich-lt/threat-detect: JSON base64 in, ThreatResponse out."""
+        output = np.zeros((1, 8, 8400), dtype=np.float32)
+        output[0, 0, 0] = 55.0  # cx
+        output[0, 1, 0] = 110.0  # cy
+        output[0, 2, 0] = 90.0  # w
+        output[0, 3, 0] = 180.0  # h
+        output[0, 4, 0] = 0.92  # class 0 (knife) score
+        mock_triton.infer = AsyncMock(return_value={"output0": output})
+
+        resp = await client.post("/enrich-lt/threat-detect", json={"image": _make_b64_image()})
+
         assert resp.status_code == 200
         body = resp.json()
-        assert "embedding" in body
-        assert "inference_time_ms" in body
+        assert set(body) == {
+            "threats_detected",
+            "is_threat",
+            "max_confidence",
+            "inference_time_ms",
+        }
+        assert body["is_threat"] is True
+        assert body["threats_detected"][0]["class"] == "knife"
+        # The Triton seam really was called with the resident threat model.
+        assert mock_triton.infer.await_args.kwargs["model_name"] == "threat"
 
+    async def test_person_reid_json_body_returns_normalized_vector(
+        self, client: AsyncClient, mock_triton: MagicMock
+    ) -> None:
+        """POST /enrich-lt/person-reid: JSON base64 in, unit-norm embedding out."""
+        import math
 
-class TestFlorenceExtract:
-    """Smoke tests for Florence-2 extraction via the gateway."""
+        raw = np.random.default_rng(7).standard_normal((1, 512)).astype(np.float32)
+        mock_triton.infer = AsyncMock(return_value={"embedding": raw})
 
-    async def test_extract_returns_200(self, client: AsyncClient) -> None:
-        """POST /florence/extract with valid payload returns 200."""
-        import base64
+        resp = await client.post("/enrich-lt/person-reid", json={"image": _make_b64_image()})
 
-        image_bytes = _make_test_image_bytes()
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-        resp = await client.post(
-            "/florence/extract",
-            json={"image": image_b64, "prompt": "<CAPTION>"},
-        )
         assert resp.status_code == 200
         body = resp.json()
-        assert "result" in body
-        assert "prompt_used" in body
-        assert body["prompt_used"] == "<CAPTION>"
+        assert set(body) == {"embedding", "embedding_dimension", "inference_time_ms"}
+        assert body["embedding_dimension"] == len(body["embedding"]) == raw.shape[1]
+        norm = math.sqrt(sum(x * x for x in body["embedding"]))
+        assert abs(norm - 1.0) < 1e-3
+        assert mock_triton.infer.await_args.kwargs["model_name"] == "reid"
 
 
-class TestEnrichmentHealth:
-    """Verify enrichment sub-health checks."""
+class TestLightAdapterHealth:
+    """The light adapter's health payload as served through the gateway mount.
 
-    async def test_enrichment_health_all_ready(self, client: AsyncClient) -> None:
-        """All models ready returns healthy."""
-        resp = await client.get("/enrichment/health")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["status"] == "healthy"
-        assert "models" in body
+    Retargeted from the heavy adapter's ``/enrichment/health`` all-ready test,
+    which pinned "an adapter health route reports healthy with a models map".
+    The heavy adapter is gone with its models; the light adapter's route is the
+    surviving carrier, and the probe set is derived from the residency set
+    rather than remembered — a pruned model left in that payload would report
+    ``degraded`` on every healthy boot.
+    """
 
     async def test_enrichment_light_health_all_ready(self, client: AsyncClient) -> None:
-        """All light models ready returns healthy."""
+        from ai.gateway.residency import FULL_MODEL_SET
+
+        expected_probes = {m for m in FULL_MODEL_SET if m != "yolo26"}
+        # Non-vacuity: the derivation must not collapse to an empty set.
+        assert len(expected_probes) >= 2, expected_probes
+
         resp = await client.get("/enrich-lt/health")
         assert resp.status_code == 200
         body = resp.json()
         assert body["status"] == "healthy"
-        assert "models" in body
+        assert set(body["models"]) == expected_probes
+        assert all(v is True for v in body["models"].values())
 
 
 # ---------------------------------------------------------------------------
@@ -592,13 +727,26 @@ class TestAppConfiguration:
         assert app.version == "1.0.0"
 
     def test_all_models_list(self) -> None:
-        """ALL_MODELS contains expected model names."""
+        """ALL_MODELS is the residency universe, derived — not a hand list.
+
+        Pre-S3 this test enumerated the 14-model repository by name and pinned
+        ``len(ALL_MODELS) > 5``. Both are unsatisfiable now that R8 S3 pruned
+        FULL_MODEL_SET to the kept three, and the count pin was hand-numbered
+        anyway (WP4.2). The retained ``yolo26`` membership line is the
+        kept-model pin the S3 guard requires to survive the retarget.
+        """
         from ai.gateway.main import ALL_MODELS
+        from ai.gateway.residency import FULL_MODEL_SET
 
         assert "yolo26" in ALL_MODELS
-        assert "clip" in ALL_MODELS
-        assert "florence2" in ALL_MODELS
-        assert len(ALL_MODELS) > 5  # Sanity check
+        # Contents come from the one source of truth: main.py derives this list
+        # from the tuple, so equality here is the drift pin for /health.
+        assert set(ALL_MODELS) == set(FULL_MODEL_SET)
+        # Derived sanity (replaces the retired ``len > 5`` hand pin): the
+        # universe describes a multi-model repository and has no duplicates,
+        # so /health cannot be reporting a single model or a doubled one.
+        assert len(ALL_MODELS) == len(set(ALL_MODELS)) == len(FULL_MODEL_SET)
+        assert len(ALL_MODELS) >= 2
 
     async def test_nonexistent_endpoint_returns_404(self, client: AsyncClient) -> None:
         """Unregistered paths return 404."""

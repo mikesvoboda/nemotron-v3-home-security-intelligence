@@ -1487,28 +1487,20 @@ class Settings(BaseSettings):
             ) from None
 
     # Florence-2, CLIP, and Enrichment service URLs
-    # Standalone ai-florence / ai-clip / ai-enrichment / ai-enrichment-light containers
-    # are retired; each model is a router on the AI gateway. Health probes GET {url}/health
-    # directly from these fields and every gateway router serves /health under its
-    # prefix, so the router suffix is required here. In gateway mode the API clients
-    # bypass these fields and build {ai_gateway_url}/{router} themselves.
-    # Development: http://localhost:8090/florence, /clip, /enrichment, /enrich-lt (local gateway)
-    # Docker: http://ai-gateway:8090/florence, /clip, /enrichment, /enrich-lt (via AI gateway)
-    florence_url: str = Field(
-        default="http://ai-gateway:8090/florence",
-        description="Florence-2 vision-language service URL. Development: http://localhost:8090/florence, Docker: http://ai-gateway:8090/florence",
-    )
-    clip_url: str = Field(
-        default="http://ai-gateway:8090/clip",
-        description="CLIP (SigLIP 2) embedding service URL for scene classification, threat-description matching, and scene-baseline embeddings; person re-ID vectors come from the resident OSNet-AIN x1.0 handle (full swap, ledger item 20). Development: http://localhost:8090/clip, Docker: http://ai-gateway:8090/clip",
-    )
-    enrichment_url: str = Field(
-        default="http://ai-gateway:8090/enrichment",
-        description="Heavy enrichment service URL for vehicle, clothing, demographics, action models. Development: http://localhost:8090/enrichment, Docker: http://ai-gateway:8090/enrichment",
-    )
+    # R8 S3 (2026-09-29): florence_url, clip_url and enrichment_url are DELETED
+    # with their providers (owner rulings 1 + 5 -- the prune to yolo26/reid/
+    # threat makes the /florence, /clip and /enrichment routers unbootable, and
+    # the heavy routing lane has had no member since S2). enrichment_light_url
+    # is the surviving router: /enrich-lt serves the KEPT threat + reid models.
+    # Health probes GET {url}/health directly from this field and the router
+    # serves /health under its prefix, so the suffix is required. In gateway
+    # mode the API clients bypass this field and build {ai_gateway_url}/
+    # {router} themselves.
+    # Development: http://localhost:8090/enrich-lt (local gateway)
+    # Docker: http://ai-gateway:8090/enrich-lt (via AI gateway)
     enrichment_light_url: str = Field(
         default="http://ai-gateway:8090/enrich-lt",
-        description="Light enrichment service URL for pose, threat, reid, pet, depth models. Development: http://localhost:8090/enrich-lt, Docker: http://ai-gateway:8090/enrich-lt",
+        description="Light enrichment service URL for the resident threat and re-ID specialists. Development: http://localhost:8090/enrich-lt, Docker: http://ai-gateway:8090/enrich-lt",
     )
 
     # AI Gateway (Triton Inference Server migration)
@@ -1576,113 +1568,14 @@ class Settings(BaseSettings):
         "typically localhost or the server's public IP/hostname. Development: http://localhost:8555",
     )
 
-    # Enrichment Model Assignment Configuration
-    # Each model can be assigned to "heavy" (ai-gateway /enrichment router) or "light" (ai-gateway /enrich-lt router)
-    # This allows flexible distribution of models across the gateway's two endpoints
-    # based on VRAM and compute requirements
-    enrichment_pose_service: str = Field(
-        default="light",
-        description="Service for pose estimation model: 'heavy' or 'light'. YOLOv8n-pose (~300MB) recommended for light.",
-    )
-    enrichment_threat_service: str = Field(
-        default="light",
-        description="Service for threat detection model: 'heavy' or 'light'. YOLOv8n (~400MB) recommended for light.",
-    )
-    enrichment_reid_service: str = Field(
-        default="light",
-        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-AIN x1.0 (~100MB) recommended for light.",
-    )
-    enrichment_pet_service: str = Field(
-        default="light",
-        description="Service for pet classification model: 'heavy' or 'light'. ResNet-18 (~200MB) recommended for light.",
-    )
-    enrichment_depth_service: str = Field(
-        default="light",
-        description="Service for depth estimation model: 'heavy' or 'light'. DepthAnything-small (~150MB) recommended for light.",
-    )
-    enrichment_vehicle_service: str = Field(
-        default="heavy",
-        description="Service for vehicle classification model: 'heavy' or 'light'. ResNet-50 (~1.5GB) recommended for heavy.",
-    )
-    enrichment_clothing_service: str = Field(
-        default="heavy",
-        description="Service for clothing classification model: 'heavy' or 'light'. FashionCLIP (~800MB) recommended for heavy.",
-    )
-    enrichment_action_service: str = Field(
-        default="heavy",
-        description="Service for action recognition model: 'heavy' or 'light'. ST-GCN++ (preferred, X-CLIP legacy) recommended for heavy.",
-    )
-    enrichment_demographics_service: str = Field(
-        default="heavy",
-        description="Service for demographics model: 'heavy' or 'light'. FairFace (~500MB) recommended for heavy.",
-    )
-
-    @field_validator(
-        "enrichment_pose_service",
-        "enrichment_threat_service",
-        "enrichment_reid_service",
-        "enrichment_pet_service",
-        "enrichment_depth_service",
-        "enrichment_vehicle_service",
-        "enrichment_clothing_service",
-        "enrichment_action_service",
-        "enrichment_demographics_service",
-        mode="before",
-    )
-    @classmethod
-    def validate_enrichment_service_assignment(cls, v: Any) -> str:
-        """Validate enrichment service assignment is 'heavy' or 'light'."""
-        if v is None:
-            return "heavy"  # Default to heavy service
-        value = str(v).lower().strip()
-        if value not in ("heavy", "light"):
-            raise ValueError(f"Invalid service assignment '{v}'. Must be 'heavy' or 'light'.")
-        return value
-
-    def get_enrichment_url_for_model(self, model: str) -> str:
-        """Get the enrichment service URL for a specific model.
-
-        Args:
-            model: Model name (pose, threat, reid, pet, depth, vehicle, clothing, action, demographics)
-
-        Returns:
-            The URL for the service hosting that model
-        """
-        service_map = {
-            "pose": self.enrichment_pose_service,
-            "threat": self.enrichment_threat_service,
-            "reid": self.enrichment_reid_service,
-            "pet": self.enrichment_pet_service,
-            "depth": self.enrichment_depth_service,
-            "vehicle": self.enrichment_vehicle_service,
-            "clothing": self.enrichment_clothing_service,
-            "action": self.enrichment_action_service,
-            "demographics": self.enrichment_demographics_service,
-        }
-        service = service_map.get(model, "heavy")
-        return self.enrichment_light_url if service == "light" else self.enrichment_url
-
-    def get_models_for_service(self, service: str) -> list[str]:
-        """Get list of models assigned to a specific service.
-
-        Args:
-            service: Service name ('heavy' or 'light')
-
-        Returns:
-            List of model names assigned to that service
-        """
-        all_models = {
-            "pose": self.enrichment_pose_service,
-            "threat": self.enrichment_threat_service,
-            "reid": self.enrichment_reid_service,
-            "pet": self.enrichment_pet_service,
-            "depth": self.enrichment_depth_service,
-            "vehicle": self.enrichment_vehicle_service,
-            "clothing": self.enrichment_clothing_service,
-            "action": self.enrichment_action_service,
-            "demographics": self.enrichment_demographics_service,
-        }
-        return [model for model, svc in all_models.items() if svc == service]
+    # R8 S3 (2026-09-29): the nine ``enrichment_*_service`` heavy/light
+    # assignment knobs are DELETED, and with them
+    # get_enrichment_url_for_model()/get_models_for_service(). Both readers
+    # measured to ZERO shipped callers (only their own definitions), and every
+    # knob but threat/reid named a model the Triton prune removed -- an
+    # assignment surface for routers that no longer mount. The surviving lane
+    # is enrichment_light_url itself, not a per-model choice between two
+    # routers when only one router exists.
 
     # Monitoring URLs
     # Note: Default /grafana uses nginx proxy for remote access compatibility.
@@ -1742,9 +1635,7 @@ class Settings(BaseSettings):
         "Docker: http://frontend:8080 (nginx-unprivileged on standard internal port 8080)",
     )
 
-    @field_validator(
-        "florence_url", "clip_url", "enrichment_url", "enrichment_light_url", mode="before"
-    )
+    @field_validator("enrichment_light_url", mode="before")
     @classmethod
     def validate_vision_service_urls(cls, v: Any) -> str:
         """Validate vision service URLs using Pydantic's AnyHttpUrl validator.

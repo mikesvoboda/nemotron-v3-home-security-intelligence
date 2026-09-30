@@ -20,18 +20,23 @@ Clusters covered:
     the NOT-WIRED sentinel as the THIRD matrix state (absent / not-wired /
     live) — plan §WP8.3 "Where the availability matrix says an operation is
     genuinely absent on a provider, assert the absence matches the matrix";
-  * O1 — OP 28 enrichment_action_classify, the only TEMPORAL frame-sequence
-    op (the plan's dedicated OP-28 property block; the plan's "only
-    multi-frame" wording is FALSE as literally spoken — florence_batch_extract
-    and yolo26_detect_batch also carry multiple images — the correction is
-    pinned, not propagated);
-  * O2 — the composite /enrich (ai/gateway/adapters/enrichment.py:899), the
-    highest-value single conformance target: which response keys the fan-out
-    actually returns per detection_type, vs what the free-form snapshot
-    claims, vs what the FakeProvider returns.
+  * multi-image ops — the surviving member driven LIVE. This cluster used to
+    carry O1 (OP 28 enrichment_action_classify, the only TEMPORAL
+    frame-sequence op) and O2 (the composite /enrich); R8 S3 retired both
+    with their models, so they are TOMBSTONED here (TestMultiImageRetirement)
+    and the properties that DID survive the prune — multipart undrivability,
+    per-file fan-out, per-item failure isolation — are driven against
+    yolo26_detect_batch (TestMultiImageOps). The two records, in full, are in
+    the OP-28 block below and TestMultiImageRetirement's docstrings; deleting
+    them without a word is the silent-deletion class this suite refuses (the
+    S2b grammar: retarget if surviving text exists, tombstone if not, never
+    skip — a skip IS a suppression).
 
 OP-28 DIVERGENCE RECORD (dossier cluster 4 F3/F4/F5; corrected against live
-code — the workflow prompt's "gateway 422 on empty frames" is wrong):
+code — the workflow prompt's "gateway 422 on empty frames" is wrong; the
+op-ids this record drove are RETIRED, the record is kept because the hazard
+classes it enumerates are general — per-side divergence pinning, echo-vs-
+generated fields, docstring-falsehood characterization):
   * gateway empty frames → **400** `{"detail": "Frames list cannot be
     empty"}` — handler-level HTTPException, ai/gateway/adapters/enrichment.py
     :893-894. 422 belongs to a MISSING or wrongly-typed `frames` field
@@ -58,15 +63,20 @@ code — the workflow prompt's "gateway 422 on empty frames" is wrong):
     branch (or makes the fake echo) reddens this suite.
 
 Driving shapes (dossier cluster 0 Q1b/Q2/Q5 — do NOT call registered
-gateway/per_model/llamacpp callables for live ops: 26+28+2 of them are real
-network paths; the suite drives the five adapter routers mounted with their
-production prefixes ai/gateway/main.py:181-185 under per-module
-`get_triton_client` patches — five DISTINCT targets (ai/gateway/adapters/
+gateway/per_model/llamacpp callables for live ops: they are real network
+paths; the suite drives the adapter routers mounted with their production
+prefixes ai/gateway/main.py:272-273 under per-module `get_triton_client`
+patches. The rule drafted five DISTINCT targets (ai/gateway/adapters/
 {yolo26,clip,florence,enrichment,enrichment_light}.get_triton_client), the
 yolo26 template at ai/gateway/tests/test_adapters_yolo26.py:98-104 extended
-to all five. Import cost verified live: ai.gateway adapters ~1.6s,
-backend.ai_contract ~3.7s cold — inside the 5s pytest-timeout, pyproject
-:495.)
+to all five; R8 S3's prune to yolo26/reid/threat took the middle three
+adapters with their models, so the list is now GATEWAY_PATCH_TARGETS —
+yolo26 + enrichment_light. The property the multi-target rule protects did
+not shrink with the count: patching one adapter's name leaves the other on
+the real gRPC client, so a third adapter entering means a row in
+GATEWAY_PATCH_TARGETS AND a row in GATEWAY_MOUNTS. Import cost verified live:
+ai.gateway adapters ~1.6s, backend.ai_contract ~3.7s cold — inside the 5s
+pytest-timeout, pyproject :495.)
 
 No xfail / skip / importorskip anywhere: every divergence below is either a
 per-provider green assertion or a pinned-divergence assertion.
@@ -74,18 +84,17 @@ per-provider green assertion or a pinned-divergence assertion.
 
 from __future__ import annotations
 
-import base64
 import inspect
 import io
 import json
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
-import jsonschema
 import numpy as np
 import pytest
-from backend.ai_contract.operations import OPERATIONS
+from backend.ai_contract.operations import OPERATION_IDS, OPERATIONS
 from backend.ai_contract.provider import (
     MATRIX_SLOTS,
     PROVIDER_SLOT,
@@ -96,8 +105,7 @@ from backend.ai_contract.provider import (
     registered_providers,
 )
 from fastapi import (
-    FastAPI,
-    UploadFile,  # multipart undrivability pin for detect-batch
+    FastAPI,  # multipart undrivability pin for detect-batch
 )
 from httpx import ASGITransport, AsyncClient
 from PIL import Image
@@ -134,74 +142,51 @@ EXPECTED_DEPLOYED = {
 }
 
 # Sentinel (NOT-WIRED) literals — dossier O3/F8 + live import. Pinned from
-# live output 2026-09-29 (R8 S2); UNVERIFIED at pytest level.
-# How the third state grew here: the pre-A7.2 baseline was 3/3/8 (the three
-# enrich_lt ops on every slot that serves them, plus the LLM/unload/mstatus
-# extras on per_model). ADDENDUM 2 A7.2 then added yolo26_segment to the
-# gateway set (client binding deleted, route deployed) — see the
-# DELETED_REGISTRY_OPS note below. R8 S2 (2026-09-29) retired EnrichmentClient,
-# NemotronAnalyzer and nemotron_streaming with the legacy tier, and
-# operations.py emptied every client_methods list that named one — a client
-# binding leaving, route intact, is precisely the third-state transition A7.2
-# established, so the census EXPLODES rather than shrinks: the 8 remaining
-# enrich ops join gateway and per_model, and the two enrich_lt lookups that
-# EnrichmentClient used to bind (person_reid, threat_detect) join every slot
-# that serves them. The LLM ops stay unbound on per_model for the same reason
-# they always were — the bound LLM path belongs to the llamacpp provider
-# (providers.py:77-85 _bound_or_reject) — except that llm_completion /
-# llm_chat_completion / model_status / model_preload / object_distance are now
-# joined by their former client's other paths.
-# Still NOT in any set: florence_analyze_scene — it left the CONTRACT (not just
-# its client binding) under A7.2, and a deleted op is ABSENT from every column,
-# never not-wired (test_ai_contract_registry.py DELETED_REGISTRY_OPS guards its
-# return). Same rule keeps yolo26_segment off per_model: gateway-only
-# (per_model_server: False), so there it is ABSENT (absent-guarded via ABSENT_*
-# above), not not-wired.
-# vlm_assess stays out too: 1.1 entered it unbound, 1.3's vlm_client bound it
-# (client_methods=["VlmClient.assess"], CLIENT_OP_MAP), so it leaves the third
-# state in every provider sharing this column — including the subset VLM
-# providers, whose callable is now the live client method (pinned in
-# test_conformance_vlm.py).
+# live output 2026-09-29 (R8 S3); UNVERIFIED at pytest level.
+# How the third state grew, then shrank: the pre-A7.2 baseline was 3/3/8 (the
+# three enrich_lt ops on every slot that serves them, plus the LLM/unload/
+# mstatus extras on per_model). ADDENDUM 2 A7.2 added yolo26_segment to the
+# gateway set (client binding deleted, route deployed). R8 S2 retired
+# EnrichmentClient, NemotronAnalyzer and nemotron_streaming with the legacy
+# tier, and operations.py emptied every client_methods list that named one — a
+# client binding leaving, route intact, is precisely the third-state transition
+# A7.2 established, so the census EXPLODED to 15/5/20.
+#
+# R8 S3 (2026-09-29, owner rulings 1 + 5) collapses it again, and the shape of
+# the collapse is the point: the third state holds a ROUTE that still serves
+# but has no client binding. Ops whose MODELS were pruned leave the CONTRACT
+# entirely (DELETED_REGISTRY_OPS in test_ai_contract_registry.py), and a deleted
+# op is ABSENT from every column, never not-wired. So the eight enrichment_*
+# ops, the enrich_lt depth/pet/pose trio and the model_*/object_distance four
+# leave these sets by DELETION, not by re-wiring; what is left is the honest
+# shipped surface: gateway 4 (its two light-lane lookups plus the two yolo
+# routes whose clients were deleted but whose routes stay), light 2 (its whole
+# column — EnrichmentClient was their only binding and it died in S2b),
+# per_model 5 (the same five: the column's LLM pair belongs to the llamacpp
+# provider's dispatch, not per_model_http's, and yolo26_detect_batch has no
+# client method).
+# Still NOT in any set: florence_analyze_scene and every other retired id —
+# absent from every column, guarded by name in DELETED_REGISTRY_OPS. Same rule
+# keeps yolo26_segment off per_model: gateway-only (per_model_server: False), so
+# there it is ABSENT (absent-guarded via ABSENT_* above), not not-wired.
+# vlm_assess stays out: 1.3's vlm_client binds it (client_methods=
+# ["VlmClient.assess"]), so it leaves the third state in every provider sharing
+# this column (pinned in test_conformance_vlm.py). yolo26_detect likewise.
 _ENRICH_LT_UNBOUND = {
-    "enrich_lt_depth_estimate",
     "enrich_lt_person_reid",
-    "enrich_lt_pet_classify",
-    "enrich_lt_pose_analyze",
     "enrich_lt_threat_detect",
 }
-_ENRICH_HEAVY_UNBOUND = {
-    "enrichment_action_classify",
-    "enrichment_clothing_classify",
-    "enrichment_demographics",
-    "enrichment_depth_estimate",
-    "enrichment_enrich",
-    "enrichment_pet_classify",
-    "enrichment_pose_analyze",
-    "enrichment_vehicle_classify",
-}
-SENTINELS_GATEWAY = (
-    _ENRICH_LT_UNBOUND
-    | _ENRICH_HEAVY_UNBOUND
-    | {
-        "yolo26_detect_batch",
-        "yolo26_segment",
-    }
-)
+SENTINELS_GATEWAY = _ENRICH_LT_UNBOUND | {"yolo26_detect_batch", "yolo26_segment"}
 SENTINELS_LIGHT = set(_ENRICH_LT_UNBOUND)
-SENTINELS_PER_MODEL = (
-    _ENRICH_LT_UNBOUND
-    | _ENRICH_HEAVY_UNBOUND
-    | {
-        "llm_completion",
-        "llm_chat_completion",
-        "model_status",
-        "model_preload",
-        "model_unload",
-        "object_distance",
-        "yolo26_detect_batch",
-        # yolo26_segment deliberately absent — gateway-only column, see above.
-    }
-)
+SENTINELS_PER_MODEL = _ENRICH_LT_UNBOUND | {
+    "llm_completion",
+    "llm_chat_completion",
+    "yolo26_detect_batch",
+    # yolo26_segment deliberately absent — gateway-only column, see above.
+    # model_status/model_preload/model_unload/object_distance were this set's
+    # fifth family; R8 S3 retired the ops (their evidence file is swept), so
+    # they are absent from the column rather than unbound in it.
+}
 SENTINELS_BY_PROVIDER: dict[ProviderId, set[str]] = {
     ProviderId.GATEWAY: SENTINELS_GATEWAY,
     ProviderId.GATEWAY_LIGHT: SENTINELS_LIGHT,
@@ -258,18 +243,104 @@ EXPECTED_SIZES = {
     ProviderId.RTVI_VLM: len(VLM_REQUIRED),
 }
 
-# OP-28 block + O2 literals.
-AC_OP = "enrichment_action_classify"
-ENRICH_OP = "enrichment_enrich"
-# dossier O1/F1 correction: multi-IMAGE ops are a 3-set; action-classify is
-# the only TEMPORAL frame-sequence one. yolo26_detect_batch is MULTIPART
-# (ai/gateway/adapters/yolo26.py:387 files: list[UploadFile]) — not
-# JSON-drivable against a real gateway by design.
-MULTI_IMAGE_OPS = {"enrichment_action_classify", "florence_batch_extract", "yolo26_detect_batch"}
+# dossier O1/F1 correction (the plan's "only multi-frame op" wording is FALSE as
+# literally spoken — several ops carry N images; only action-classify's list was
+# a TEMPORAL sequence). The corrected 3-set that block pinned —
+# enrichment_action_classify (`frames: list[str]`), florence_batch_extract
+# (`items: list[BatchExtractItem]`) and yolo26_detect_batch (multipart
+# `files: list[UploadFile]`) — has since gained a member (spec §3's vlm_assess,
+# `image_paths`) and lost two (R8 S3 retired them with their models). A literal
+# name set therefore rotted twice; the membership is now DERIVED from the two
+# structural shapes that carry N images:
+#   * MULTIPART: a route parameter annotated list[UploadFile] — plural, since
+#     yolo26_detect/segment take a singular `file: UploadFile` and are NOT
+#     multi-image (that distinction is the whole corrected claim, so it is read
+#     off the annotation, never off a name);
+#   * a request snapshot declaring an ARRAY of image values (vlm_assess's
+#     image_paths). Name-bearing deliberately: messages/texts/labels are TEXT
+#     lists that dossier O1/F1 itself carves out, so the list counts by what it
+#     holds, not by being a list.
+# A fourth multi-image op joins by existing; nothing here is edited.
+
+
+@lru_cache(maxsize=1)
+def _gateway_endpoints() -> dict[str, Any]:
+    """registry path -> live handler function, for every op a MOUNTED gateway
+    adapter router serves (mounted from GATEWAY_MOUNTS — the same table the app
+    fixtures use, so the map and the driven app can never disagree). An op
+    whose adapter is gone is simply not in the map: a retired adapter takes its
+    endpoints out by becoming unimportable, which is exactly how the retired
+    members left the derived set below."""
+    import importlib
+
+    out: dict[str, Any] = {}
+    for mod, attr, prefix in GATEWAY_MOUNTS:
+        router = getattr(importlib.import_module(mod), attr)
+        for route in router.routes:
+            path = getattr(route, "path", None)
+            endpoint = getattr(route, "endpoint", None)
+            if path and endpoint is not None:
+                out[f"{prefix}{path}"] = endpoint
+    return out
+
+
+@lru_cache(maxsize=1)
+def _multi_image_ops() -> frozenset[str]:
+    multi: set[str] = set()
+    for op_id, op in OPERATIONS.items():
+        endpoint = _gateway_endpoints().get(op.path)
+        if endpoint is not None and any(
+            "UploadFile" in str(p.annotation) and "list" in str(p.annotation).lower()
+            for p in inspect.signature(endpoint).parameters.values()
+        ):
+            multi.add(op_id)
+            continue
+        req_path = SCHEMA_DIR / f"{op_id}.request.json"
+        # the light-lane ops have no committed REQUEST schema at all (their
+        # handlers take a shared BBoxRequest the generator does not walk) —
+        # absence means "no JSON list field", the correct default here.
+        props = (
+            json.loads(req_path.read_text()).get("properties") or {} if req_path.exists() else {}
+        )
+        if any(
+            "image" in name.lower() and (kind or {}).get("type") == "array"
+            for name, kind in props.items()
+        ):
+            multi.add(op_id)
+    return frozenset(multi)
 
 
 def _snapshot(op_id: str, kind: str = "response") -> dict[str, Any]:
     return json.loads((SCHEMA_DIR / f"{op_id}.{kind}.json").read_text())
+
+
+@lru_cache(maxsize=1)
+def _deleted_registry_ops() -> frozenset[str]:
+    """The WP7.3 deleted-op ratchet, read out of the SIBLING suite's literal by
+    AST (test_ai_contract_registry.py owns it; importing a test module to reach
+    a constant is the cross-test coupling this file's imports avoid, and a
+    hand-copy would drift). A missing literal raises rather than returns empty:
+    'adopted by the ratchet' has to be able to fail loudly."""
+    import ast
+
+    src = (
+        REPO_ROOT / "backend/tests/contracts/ai_providers/test_ai_contract_registry.py"
+    ).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(src)):
+        # the literal is ANNOTATED (`DELETED_REGISTRY_OPS: frozenset[str] = ...`)
+        # — AnnAssign, not Assign. Matching only Assign is the classic version of
+        # this bug and it fails as 'not found', i.e. as a loud error rather than
+        # a silently empty set, which is the only reason it is cheap to survive.
+        names: list[str] = []
+        if isinstance(node, ast.Assign):
+            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names = [node.target.id]
+        if "DELETED_REGISTRY_OPS" not in names or node.value is None:
+            continue
+        (arg,) = node.value.args
+        return frozenset(ast.literal_eval(elt) for elt in arg.elts)
+    raise AssertionError("DELETED_REGISTRY_OPS literal not found in the registry suite")
 
 
 def _provider_ops(pid: ProviderId) -> dict[str, Any]:
@@ -296,56 +367,26 @@ def _mock_triton() -> AsyncMock:
     return client
 
 
-def _stgcn_pose_output(x: float = 300.0, confidence: float = 0.9) -> np.ndarray:
-    """YOLOv8-pose output (1, 56, 8400) with ONE person in anchor 0 whose 17
-    keypoints sit at x (y=200, visibility 0.8). Template:
-    ai/gateway/tests/test_adapters_enrichment.py::_make_pose_output."""
-    out = np.zeros((1, 56, 8400), dtype=np.float32)
-    out[0, 4, 0] = confidence
-    for i in range(17):
-        out[0, 5 + i * 3, 0] = x
-        out[0, 6 + i * 3, 0] = 200.0
-        out[0, 7 + i * 3, 0] = 0.8
-    return out
-
-
-def _action_pipeline_triton(action_idx: int = 42, order_probe: list[float] | None = None) -> Any:
-    """Route-aware side_effect for the RETIRED-xclip / live-ST-GCN action
-    pipeline (adapters/enrichment.py _infer_action :640+): Triton ``pose``
-    per frame, then ONE Triton ``stgcn_action`` call over the resampled
-    skeleton (ONNX logits over the 60 NTU-60 classes → softmax in the
-    adapter). ``order_probe`` makes frame i's keypoints sit at x=order_probe
-    [i] so the skeleton the adapter builds is order-inspectable."""
-    state = {"i": 0}
-
-    async def _infer(*, model_name: str, inputs: Any, outputs: Any) -> dict[str, Any]:
-        if model_name == "pose":
-            x = 300.0 if order_probe is None else order_probe[state["i"]]
-            state["i"] += 1
-            return {"output0": _stgcn_pose_output(x=x)}
-        logits = np.zeros((1, 60), dtype=np.float32)
-        logits[0, action_idx] = 5.0
-        return {"output": logits}
-
-    return _infer
-
-
-def _b64_image() -> str:
-    """Small deterministic PNG, same helper as
-    ai/gateway/tests/test_adapters_enrichment.py:33-38."""
-    img = Image.new("RGB", (8, 8), color=(100, 150, 200))
+def _png(width: int = 64, height: int = 64) -> bytes:
+    """Small deterministic PNG for the multipart drives (the gateway decodes
+    the upload with PIL, so the bytes must be a real image — the fake never
+    decodes them and takes the base64 golden string instead)."""
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
+    Image.new("RGB", (width, height), color=(100, 150, 200)).save(buf, format="PNG")
+    return buf.getvalue()
 
 
-# Five DISTINCT patch targets (dossier Q2 — patching one symbol silently
-# leaves four adapter modules on the real gRPC client). Exact strings verified
-# live from the module-level from-imports: yolo26.py:28, enrichment.py:31,
-# enrichment_light.py:30, florence.py:39, clip.py:40.
+# Two DISTINCT patch targets since the R8 S3 prune (dossier Q2 — patching one
+# symbol silently leaves the other adapter module on the real gRPC client).
+# Exact strings verified live from the module-level from-imports. The five-
+# target rule this file drafted under covered yolo26 / clip / florence /
+# enrichment / enrichment_light; the prune to yolo26/reid/threat took the
+# middle three adapters with their models, so the rule SHRINKS because the
+# surface does — not because a target was dropped on purpose. The
+# multi-target property the rule protects (one patch ≠ all adapters) stays:
+# a third adapter added back needs a row here AND in GATEWAY_MOUNTS below.
 GATEWAY_PATCH_TARGETS = tuple(
-    f"ai.gateway.adapters.{m}.get_triton_client"
-    for m in ("yolo26", "clip", "florence", "enrichment", "enrichment_light")
+    f"ai.gateway.adapters.{m}.get_triton_client" for m in ("yolo26", "enrichment_light")
 )
 
 
@@ -358,22 +399,20 @@ GATEWAY_PATCH_TARGETS = tuple(
 
 # Registry Operation.path ALREADY includes the mount prefix ('/yolo26/detect')
 # — the routers must be included with the production prefixes from
-# ai/gateway/main.py:181-185 (the yolo26 sibling template mounts WITHOUT a
+# ai/gateway/main.py:272-273 (the yolo26 sibling template mounts WITHOUT a
 # prefix; reusing its app shape verbatim would 404 every registry path).
 GATEWAY_MOUNTS = (
     ("ai.gateway.adapters.yolo26", "router", "/yolo26"),
-    ("ai.gateway.adapters.clip", "router", "/clip"),
-    ("ai.gateway.adapters.florence", "router", "/florence"),
-    ("ai.gateway.adapters.enrichment", "router", "/enrichment"),
     ("ai.gateway.adapters.enrichment_light", "router", "/enrich-lt"),
 )
 
 
 def _build_gateway_app(modules: tuple[str, ...] | None = None) -> FastAPI:
-    """Mount the FIVE adapter routers (or a subset by adapter module name)
-    with their production prefixes. Import of ai.gateway.* pulls CPU torch via
-    clip.py:36 (~1.6s verified) — done lazily inside fixtures, not at module
-    import, so collection stays cheap."""
+    """Mount the adapter routers (or a subset by adapter module name) with
+    their production prefixes. Two mounts since the R8 S3 prune — see
+    GATEWAY_PATCH_TARGETS for why the five-mount shape retired; a subset arg is
+    how light_app stays one-router. Imports stay lazy inside fixtures so
+    collection stays cheap."""
     import importlib
 
     app = FastAPI(title="WP8.3 conformance gateway app")
@@ -385,8 +424,8 @@ def _build_gateway_app(modules: tuple[str, ...] | None = None) -> FastAPI:
 
 @pytest.fixture(scope="module")
 def gateway_app() -> FastAPI:
-    """All five adapters on one app, production prefixes (driving shape:
-    'mount the FIVE adapter routers with their production prefixes')."""
+    """Every surviving adapter on one app, production prefixes (driving shape:
+    'mount the adapter routers with their production prefixes')."""
     return _build_gateway_app()
 
 
@@ -399,17 +438,16 @@ def light_app() -> FastAPI:
 
 @pytest.fixture
 async def gateway_client(gateway_app):
-    """(client, mock_triton) with ALL FIVE get_triton_client names patched.
-    Template: ai/gateway/tests/test_adapters_yolo26.py:98-104 extended to the
-    five-target rule (plan WP8.3 'Mechanical detail')."""
+    """(client, mock_triton) with EVERY adapter's get_triton_client name
+    patched. Template: ai/gateway/tests/test_adapters_yolo26.py:98-104 extended
+    to the multi-target rule (plan WP8.3 'Mechanical detail'); the target list
+    is GATEWAY_PATCH_TARGETS, so a mount added there is patched here too."""
+    from contextlib import ExitStack
+
     mock = _mock_triton()
-    with (
-        patch(GATEWAY_PATCH_TARGETS[0], return_value=mock),
-        patch(GATEWAY_PATCH_TARGETS[1], return_value=mock),
-        patch(GATEWAY_PATCH_TARGETS[2], return_value=mock),
-        patch(GATEWAY_PATCH_TARGETS[3], return_value=mock),
-        patch(GATEWAY_PATCH_TARGETS[4], return_value=mock),
-    ):
+    with ExitStack() as stack:
+        for target in GATEWAY_PATCH_TARGETS:
+            stack.enter_context(patch(target, return_value=mock))
         transport = ASGITransport(app=gateway_app)
         async with AsyncClient(transport=transport, base_url="http://gw") as c:
             yield c, mock
@@ -704,392 +742,281 @@ class TestMatrixNotWiredSentinels:
 
 
 # ===========================================================================
-# (d) O1 / OP-28 — action-classify: the only TEMPORAL frame-sequence op
+# (d) MULTI-IMAGE OPS — the surviving members driven LIVE, the retired pair
+#     tombstoned (clusters O1 and O2 used to live here; see the two tombstone
+#     classes at the end of this cluster for what they pinned and why they
+#     cannot retarget)
 # ===========================================================================
 
 
-class TestO1ActionClassifyMultiFrame:
-    """Plan's OP-28 dedicated property block. Registry identity
-    (operations.py:144-156), the multi-image uniqueness CORRECTION
-    (dossier O1/F1: the plan's 'only multi-frame op' wording is false —
-    florence_batch_extract items and yolo26_detect_batch multipart files also
-    carry N images; action-classify is the only one whose list is a TEMPORAL
-    sequence), and the empty-frames DIVERGENCE fake-vs-gateway, pinned per
-    side (module docstring carries the record: gateway 400 / fake 200)."""
+def _singleshot_triton() -> Any:
+    """Route-aware side_effect for the yolo26 detection path: an empty
+    (N, 300, 6) YOLO output tensor per call, where N is the FIRST axis of the
+    ``images`` input the adapter actually sent. Reading N back off the input is
+    the whole point — it makes the per-file fan-out (does a 3-file request
+    arrive as 3 calls of 1 image, or 1 call of 3?) inspectable instead of
+    assumed. Shape/format: ai/gateway/adapters/yolo26.py:421-427 (per-file
+    triton.infer(model_name='yolo26', inputs={'images': …}, outputs=['output0']))."""
+    seen: list[tuple[str, tuple[int, ...]]] = []
 
-    def test_action_classify_registry_identity(self) -> None:
-        """O1/F0. Source: backend/ai_contract/operations.py:144-156 (id,
-        POST, /enrichment/action-classify, availability
-        gateway=T/light=F/per_model=T/fake=T; client_methods
-        ['EnrichmentClient.classify_action']). Registry data — same on every
-        provider. PREDICTED-GREEN both. UNVERIFIED."""
-        op = OPERATIONS[AC_OP]
-        assert (op.method, op.path) == ("POST", "/enrichment/action-classify")
-        assert op.availability == {
-            "gateway": True,
-            "enrichment_light_adapter": False,
-            "per_model_server": True,
-            "fake": True,
-        }
-        assert op.client_methods == []  # EnrichmentClient retired with R8 S2
+    async def _infer(*, model_name: str, inputs: Any, outputs: Any, **kw: Any) -> dict[str, Any]:
+        arr = np.asarray(inputs["images"])
+        seen.append((model_name, tuple(arr.shape)))
+        return {"output0": np.zeros((arr.shape[0], 300, 6), dtype=np.float32)}
 
-    def test_action_classify_only_temporal_frame_sequence(self) -> None:
-        """O1/F1 correction as DATA, not prose: the multi-image op set is
-        exactly the 3-set; of those, only action-classify's request field is
-        a frame sequence — gateway ActionClassifyRequest.frames: list[str]
-        required + top_k: int = 5 (adapters/enrichment.py:343-345, field
-        model verified live), florence_batch_extract carries items:
-        list[BatchExtractItem] (adapters/florence.py:149-155 — verified live),
-        and yolo26_detect_batch is MULTIPART UploadFile (adapters/yolo26.py
-        :387 — inspect-pinned below; JSON payload dispatch cannot drive it,
-        which is WHY it is fake-side/not-wired on the gateway). A naive 'one
-        image per request' assertion would fail on batch-extract — we assert
-        the corrected statement. PREDICTED-GREEN both. UNVERIFIED."""
-        # membership pin (the registry carries no request-shape data, so the
-        # uniqueness claim decomposes into: these 3 EXIST and carry list-
-        # valued request fields — pinned via the request models below — and
-        # single-image peers are single-image, pinned via their models):
-        assert MULTI_IMAGE_OPS <= ALL_OPS  # registry membership. UNVERIFIED.
-        # request-field proof of the CORRECTED claim (the 3-set is exactly
-        # what carries >1 image; the field models below are the witnesses,
-        # and e.g. clip_classify texts/labels are TEXT lists, not frames —
-        # dossier O1/F1):
-        from ai.gateway.adapters.enrichment import ActionClassifyRequest
-
-        fields = ActionClassifyRequest.model_fields
-        assert set(fields) == {"frames", "top_k"}  # :343-345. UNVERIFIED.
-        assert fields["frames"].is_required()
-        assert fields["top_k"].default == 5
-
-        from ai.gateway.adapters.florence import BatchExtractRequest
-
-        assert set(BatchExtractRequest.model_fields) == {"items"}  # :149-155. UNVERIFIED.
-
-        from ai.gateway.adapters.yolo26 import detect_batch
-
-        sig = inspect.signature(detect_batch)
-        # multipart: the payload is files: list[UploadFile] = File(...) — not
-        # a JSON body; the suite must not JSON-drive it (dossier O1/F1).
-        ann = str(sig.parameters["files"].annotation)
-        assert UploadFile.__name__ in ann  # source: yolo26.py:387 (files:
-        # list[UploadFile] = File(...)) — a JSON payload can never bind it, so
-        # payload-dispatch conformance for this op runs against the fake only.
-        # UNVERIFIED.
-
-    async def test_action_classify_fake_frame_count_invariance(self) -> None:
-        """Fake side of the OP-28 divergence (dossier O3/F3): the fake parses
-        the body only for model_name echo (fake/app.py:69-83), so N frames,
-        1 frame, [] and payload=None are BYTE-IDENTICAL through the provider
-        callable, and the raw HTTP bytes match too (create_fake_app driven
-        directly — snapshot-walked body, generators.py entry point). This
-        invariance IS the fake's determinism property, asserted — not a
-        divergence to skip. PREDICTED-GREEN fake side (observed in probe:
-        empty == 4-frame == None). UNVERIFIED."""
-        ops = _fake_callables()
-        b_empty = await ops[AC_OP]({"frames": []})
-        b_one = await ops[AC_OP]({"frames": ["a"]})
-        b_four = await ops[AC_OP]({"frames": ["a", "b", "c", "d"]})
-        b_none = await ops[AC_OP]()
-        assert b_empty == b_one == b_four == b_none  # source: fake/app.py:69. UNVERIFIED.
-
-        from backend.ai_contract.fake.app import create_fake_app
-
-        async with AsyncClient(
-            transport=ASGITransport(app=create_fake_app()), base_url="http://fake"
-        ) as fc:
-            r0 = await fc.post("/enrichment/action-classify", json={"frames": []})
-            r4 = await fc.post("/enrichment/action-classify", json={"frames": ["x"] * 4})
-        assert r0.status_code == 200  # fake 200-seeds on empty frames (divergence vs
-        # gateway's 400). PREDICTED-GREEN fake side. UNVERIFIED.
-        assert r0.content == r4.content  # byte identity at the HTTP layer. UNVERIFIED.
-        jsonschema.validate(r0.json(), _snapshot(AC_OP))  # snapshot-valid even
-        # for the body-ignored empty request. PREDICTED-GREEN fake side. UNVERIFIED.
-
-    async def test_action_classify_gateway_rejects_empty_frames_400(self, gateway_client) -> None:
-        """Gateway side of the OP-28 divergence, pinned at its TRUE status:
-        {'frames': []} → 400 'Frames list cannot be empty' — handler-level
-        HTTPException, adapters/enrichment.py:749-750 (status + detail string
-        observed live in the patched app). THE WORKFLOW PROMPT'S 'gateway 422'
-        IS WRONG for this payload: 422 is pydantic's verdict for a MISSING or
-        non-list `frames` FIELD (:343-345), pinned as its own case below.
-        Native server diverges again (ai/enrichment/model.py:2898-2899, 400
-        after decode, different message) — not drivable here, recorded only.
-        PREDICTED-GREEN gateway-app side (this NEVER runs against the fake —
-        per-provider expectation by construction; against the fake it would
-        PREDICTED-RED 200-vs-400, which is exactly the divergence the module
-        docstring records). UNVERIFIED."""
-        client, _ = gateway_client
-        r = await client.post("/enrichment/action-classify", json={"frames": []})
-        assert r.status_code == 400  # :749-750, NOT 422. UNVERIFIED.
-        assert r.json()["detail"] == "Frames list cannot be empty"  # UNVERIFIED.
-        # distinct field-level case: frames absent entirely → 422 (pydantic
-        # 'Field required'); wrong type → 422 'Input should be a valid list'.
-        r_missing = await client.post("/enrichment/action-classify", json={})
-        assert r_missing.status_code == 422  # :344 required field. UNVERIFIED.
-        r_bad = await client.post("/enrichment/action-classify", json={"frames": 7})
-        assert r_bad.status_code == 422  # UNVERIFIED.
-
-    async def test_action_classify_gateway_driven_response_validates(self, gateway_client) -> None:
-        """OP-28 driven gateway response conformance: 4-frame payload → 200,
-        validates against the committed WP7.2 snapshot
-        (schemas/enrichment_action_classify.response.json — required
-        action/confidence/inference_time_ms), all_scores is dict[str, float]
-        (dossier O1/F2 assertion), and the is_suspicious/risk_weight pair is
-        derived from the winning NTU-60 INDEX (STGCN_HIGH_RISK_INDICES,
-        adapters/enrichment.py:630-632 — index 42 'falling' → True / 0.8).
-        The xclip python backend is RETIRED (NEM-5563): the handler now runs
-        every frame through Triton ``pose`` and classifies the resampled
-        skeleton with Triton ``stgcn_action`` (ONNX logits → softmax). The
-        mock is a route-aware side_effect — an unshaped AsyncMock
-        AttributeError's inside the handler (observed), so the mock IS part
-        of the property. GREEN at pytest."""
-        client, mock = gateway_client
-        mock.infer.side_effect = _action_pipeline_triton(action_idx=42)
-        frames = [_b64_image() for _ in range(4)]  # intersection payload ONLY:
-        # gateway takes frames+top_k, the NATIVE server takes frames+labels
-        # (model.py:2838-2843) — send just frames, the shared surface
-        # (dossier O1/F2 divergence). Frames must be REAL images: the pose
-        # stage decodes each one (undecodable → 400).
-        r = await client.post("/enrichment/action-classify", json={"frames": frames})
-        assert r.status_code == 200, r.text
-        body = r.json()
-        jsonschema.validate(body, _snapshot(AC_OP))  # committed snapshot.
-        assert isinstance(body["all_scores"], dict) and all(
-            isinstance(v, float) for v in body["all_scores"].values()
-        )  # dossier O1/F2.
-        assert body["action"] == "falling"  # NTU60_LABELS[42]
-        assert (
-            body["is_suspicious"] is True and body["risk_weight"] == 0.8
-        )  # :630-632 high-risk index pair.
-
-    async def test_action_classify_gateway_preserves_frame_order(self, gateway_client) -> None:
-        """OP-28's real content: ORDER is the contract for a temporal
-        sequence. xclip retired, the frames no longer ride one JSON blob:
-        the handler infers pose PER FRAME in request order and resamples the
-        per-frame keypoints to the (1, 2, 100, 17, 3) tensor stgcn_action
-        receives (adapters/enrichment.py:755-777 _build_skeleton_sequence).
-        Order is pinned two ways: the pose call SEQUENCE (one call per frame
-        — the xclip-era single-blob call is gone) and the SKELETON itself —
-        frame i carries x=100+100i, and linspace resampling maps sample 0 to
-        frame 0 and the last sample to frame N-1, so the track's x-coords
-        must start at frame 0's and end at the LAST frame's. Gateway-only
-        (the fake body-ignores — frame ORDER is unobservable there, dossier
-        O3/F3; live-Triton order is WP8.4). GREEN at pytest."""
-        client, mock = gateway_client
-        sent = [_b64_image() for _ in range(3)]  # identical bytes; ORDER is
-        # carried by the handler's iteration order, so distinguish frames by
-        # what the pose mock returns per call, not by payload:
-        mock.infer.side_effect = _action_pipeline_triton(order_probe=[100.0, 200.0, 300.0])
-        r = await client.post("/enrichment/action-classify", json={"frames": sent})
-        assert r.status_code == 200, r.text
-        calls = [c.kwargs["model_name"] for c in mock.infer.call_args_list]
-        assert calls == ["pose", "pose", "pose", "stgcn_action"]
-        skeleton = mock.infer.call_args_list[-1].kwargs["inputs"]["input"]
-        assert skeleton.shape == (1, 2, 100, 17, 3)
-        xs = skeleton[0, 0, :, 0, 0]  # person slot 1 (slot 2 is zero pad)
-        assert xs[0] == pytest.approx(100.0)  # first sample = FIRST frame
-        assert xs[-1] == pytest.approx(300.0)  # last sample = LAST frame
-        assert np.all(np.diff(skeleton[0, 0, :, 0, 0]) >= 0)  # monotone in order
+    _infer.seen = seen  # type: ignore[attr-defined]
+    return _infer
 
 
-# ===========================================================================
-# (e) O2 — composite /enrich: aggregated shape vs claimed sub-schemas
-# ===========================================================================
+class TestMultiImageOps:
+    """The properties the OP-28 block carried that DID survive the prune,
+    retargeted (not loosened) onto the surviving multi-image surface: the
+    membership correction as DATA, multipart undrivability, per-file fan-out,
+    per-item failure isolation, and the fake's payload-blindness.
 
-# EnrichmentResponse.enrichments is additionalProperties:true in the
-# committed snapshot — sub-shapes are NOT schema-pinned, so the joint
-# property must be KEY-SET driven (dossier O2/F4). EnrichRequest{image req,
-# detection_type req, bbox|None, extra|None} + EnrichmentResponse{
-# detection_type, enrichments, inference_time_ms} at
-# ai/gateway/adapters/enrichment.py:357-367 (route :899, def :900 — the
-# plan's ~:899 cite is EXACT, verified live).
-ENRICH_SUBSHAPES = {
-    "clothing": {
-        "clothing_type",
-        "color",
-        "style",
-        "confidence",
-        "top_category",
-        "description",
-        "is_suspicious",
-        "is_service_uniform",
-        "inference_time_ms",
-    },  # _infer_clothing placeholder/zero-shot return, :451-490 (placeholder
-    # literal return :481-490, reached when the text-encoder seam returns None at :474)
-    "demographics": {
-        "age_range",
-        "age_confidence",
-        "gender",
-        "gender_confidence",
-        "inference_time_ms",
-    },  # _infer_demographics literal return :541-546
-    "vehicle": {
-        "vehicle_type",
-        "display_name",
-        "confidence",
-        "is_commercial",
-        "all_scores",
-        "inference_time_ms",
-    },  # _infer_vehicle literal return :441-447
-    "pet": {"pet_type", "confidence", "is_household_pet"},  # inline enrich() pet branch :957-961
-}
+    R8 S3 retarget note: this class drives yolo26_detect_batch against a
+    mounted adapter app — the retired pair could only be driven against the
+    fake (their client bindings were already gone), so the live-adapter half
+    of the coverage is NEW here, and the fake half is a CONTRAST test rather
+    than a repetition."""
 
-
-def _patched_person_triton() -> Any:
-    """Side-effect router for the person fan-out (clothing + age + gender —
-    three triton calls under asyncio.gather, :915-918). clothing via the
-    'embedding' output key (:466), demographics via 'output' (:514-523)."""
-    age = np.zeros(8, dtype=np.float32)
-    age[2] = 5.0
-
-    def _se(model_name: str | None = None, inputs: Any = None, outputs: Any = None, **kw: Any):
-        if model_name == "fashion_clip":
-            return {"embedding": np.zeros((1, 768), dtype=np.float32)}
-        if model_name == "demographics_age":
-            return {"output": np.array([age])}
-        return {"output": np.array([np.array([5.0, 1.0], dtype=np.float32)])}
-
-    return _se
-
-
-class TestO2CompositeEnrich:
-    """O2/F4+F5: which response keys the composite FAN-OUT returns per
-    detection_type vs what the free-form snapshot claims vs what the fake
-    returns. The handler does NOT route action-classify, pose, or depth for
-    the enrich path (:908-968) — and its docstring's 'other: basic depth
-    estimation' (:907) is a recorded FALSEHOOD pinned as enrichments == {}."""
-
-    @pytest.mark.parametrize(
-        ("detection_type", "expected_keys", "case"),
-        [
-            ("person", {"clothing", "demographics"}, "person"),
-            ("vehicle", {"vehicle"}, "vehicle"),
-            ("car", {"vehicle"}, "vehicle"),
-            ("cat", {"pet"}, "pet"),
-            ("dog", {"pet"}, "pet"),
-            ("chair", set(), "none"),  # docstring-falsehood pin
-        ],
-        ids=["person", "vehicle", "car", "cat", "dog", "chair-empty"],
-    )
-    async def test_composite_enrich_gateway_keyset_per_detection_type(
-        self, gateway_client, detection_type: str, expected_keys: set[str], case: str
-    ) -> None:
-        """Gateway fan-out key-set == {clothing,demographics} / {vehicle} /
-        {pet} / {} — observed live on every case in the patched app; the
-        gateway ECHOES request.detection_type (:966, observed) — a fake
-        assertion of this exact shape PREDICTED-REDs against the fake
-        (generated dt + free-form {'alpha','bravo'} — dossier O2/F5), so it
-        is written gateway-side only, fake pinned in its own test below.
-        Sub-shape key-sets from ENRICH_SUBSHAPES (sources cited at the
-        table). clothing-classify needs the zero-shot text-encoder seam
-        patched (return_value=None → placeholder branch, :474 + :481-490) exactly
-        like the sibling suite (test_adapters_enrichment.py:638-642 —
-        unpatched it loads FashionSigLIP weights from the network mid-test).
+    def test_multi_image_membership_is_derived(self) -> None:
+        """O1/F1's correction as DATA, derived. The corrected claim was: the
+        multi-image op set is exactly {action_classify, florence_batch_extract,
+        yolo26_detect_batch} and of those only action-classify's list is a
+        TEMPORAL sequence; the plan's 'only multi-frame op' wording was false.
+        Today the derived set is {yolo26_detect_batch (multipart), vlm_assess
+        (image_paths)}: two of the 3-set retired with their models and spec
+        §3's VLM op joined with a path list. Pinned members + non-vacuity:
+          * yolo26_detect and yolo26_segment take a SINGULAR UploadFile
+            (measured: annotations 'UploadFile') and must be OUT — that is the
+            plural/singular distinction the whole correction turned on, and
+            without this half the predicate 'mentions UploadFile' would pass
+            while being wrong;
+          * llm_chat_completion's `messages` and vlm_assess's per-image
+            DETECTION-ID list are the text/nested carve-outs dossier O1/F1 made
+            and are still OUT;
+          * the two retired names are absent from the registry AND adopted by
+            the ratchet (no silent drop).
         UNVERIFIED at pytest level."""
-        client, mock = gateway_client
-        if case == "vehicle":
-            logits = np.zeros(11, dtype=np.float32)
-            logits[4] = 5.0  # 'car' index in the adapter's class table :405-417
-            mock.infer.return_value = {"output": np.array([logits])}
-        elif case == "pet":
-            mock.infer.return_value = {"output": np.array([np.array([5.0, 1.0], dtype=np.float32)])}
-        elif case == "person":
-            mock.infer.side_effect = _patched_person_triton()
+        assert _multi_image_ops() == {"yolo26_detect_batch", "vlm_assess"}
+        assert "yolo26_detect" not in _multi_image_ops()  # singular UploadFile
+        assert "yolo26_segment" not in _multi_image_ops()  # singular UploadFile
+        assert "llm_chat_completion" not in _multi_image_ops()  # messages: TEXT list
+        # vlm_assess qualifies through image_paths, NOT through its other list
+        # field (frame_detection_ids is list<list<int>> — ids, not images). The
+        # predicate is 'array + image-bearing name', so the field that fires it
+        # is pinned by name and the one that must not is pinned as a non-array
+        # of images.
+        vl = _snapshot("vlm_assess", "request")["properties"]
+        assert vl["image_paths"]["type"] == "array"
+        assert vl["frame_detection_ids"].get("type") != "array"  # anyOf(array,null)
+        for retired in ("enrichment_action_classify", "florence_batch_extract"):
+            assert retired not in OPERATION_IDS
+            assert retired in _deleted_registry_ops(), f"{retired} dropped from the ratchet"
 
-        seams = ("ai.gateway.adapters.enrichment._ensure_clothing_text_embeddings",)
-        with patch(seams[0], return_value=None):
-            r = await client.post(
-                "/enrichment/enrich", json={"image": _b64_image(), "detection_type": detection_type}
-            )
-        assert r.status_code == 200  # UNVERIFIED (observed live per case).
-        body = r.json()
-        jsonschema.validate(body, _snapshot(ENRICH_OP))  # free-form enrichments
-        # validates trivially — the snapshot CANNOT catch this property (the
-        # point of the key-set assertion). PREDICTED-GREEN. UNVERIFIED.
-        assert body["detection_type"] == detection_type  # gateway echo :966.
-        # FAKE DIVERGENCE: fk['detection_type'] != sent (generator string,
-        # dossier O2/F5) — asserted on the fake side, not shared.
-        assert set(body["enrichments"]) == expected_keys  # UNVERIFIED (observed).
-        for key, sub in body["enrichments"].items():
-            assert set(sub) == ENRICH_SUBSHAPES[key]  # UNVERIFIED (observed).
-
-    async def test_composite_enrich_gateway_tolerates_partial_subop_failure(
+    async def test_detect_batch_is_multipart_so_json_dispatch_cannot_drive_it(
         self, gateway_client
     ) -> None:
-        """Dossier O2/F4's PARTIAL-FAILURE property: person fan-out runs
-        asyncio.gather(..., return_exceptions=True) (:915-918) — a failed
-        sub-op's key is simply ABSENT (:920-930). clothing raises
-        TritonClientError, demographics succeeds → 200 with enrichments ==
-        {'demographics'} only (observed live). This is a DEPLOYED-SEMANTICS
-        pin: a provider that 500s on partial failure would match the naive
-        'all-or-nothing' expectation and break downstream consumers. The
-        FakeProvider trivially satisfies the KEY-SHAPE ({}-shaped free-form)
-        but cannot exhibit fan-out at all — per-provider expectation, fake
-        covered below. PREDICTED-GREEN gateway-app. UNVERIFIED."""
+        """O1/F1's inspection pin, retargeted from a retired op to the live
+        one. `files: list[UploadFile]` (ai/gateway/adapters/yolo26.py:386-387,
+        annotation read live) means NO JSON body can bind this route — which is
+        exactly why the op sits in the third matrix state (SENTINELS_GATEWAY:
+        route deployed, no client binding) instead of being wired. Driven both
+        ways: the annotation, and the gateway's own verdict on a JSON body
+        (422 on the missing multipart field, NOT a 200 with an empty batch — a
+        silent-empty parse would make the payload-dispatch story a lie)."""
+        endpoint = _gateway_endpoints()[OPERATIONS["yolo26_detect_batch"].path]
+        params = inspect.signature(endpoint).parameters
+        assert "files" in params
+        ann = str(params["files"].annotation)
+        assert "UploadFile" in ann and "list" in ann.lower(), ann
+        client, _ = gateway_client
+        r = await client.post(OPERATIONS["yolo26_detect_batch"].path, json={"image_base64": "x"})
+        assert r.status_code == 422, r.text[:200]
+        assert any("files" in err.get("loc", ()) for err in r.json()["detail"]), r.text[:200]
+
+    @pytest.mark.parametrize("n_files", [1, 2, 3], ids=["n1", "n2", "n3"])
+    async def test_detect_batch_fans_out_one_triton_call_per_file(
+        self, gateway_client, n_files: int
+    ) -> None:
+        """'batch' is a client-side LOOP, not a server-side batch (O1/F1's
+        per-file claim, live now): n uploads must be n Triton calls whose image
+        input carries ONE image each (measured: 3 files → 3 calls of
+        (1, 3, 640, 640)), and batch_size / len(results) both == n. A
+        regression that stacks the images into one (n,3,640,640) call would
+        return the right COUNT and the wrong ENGINE BEHAVIOUR — the shapes the
+        mock records are what catch it."""
         client, mock = gateway_client
+        probe = _singleshot_triton()
+        mock.infer.side_effect = probe
+        files = [("files", (f"{i}.png", _png(), "image/png")) for i in range(n_files)]
+        r = await client.post("/yolo26/detect/batch", files=files)
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        assert body["batch_size"] == n_files
+        assert len(body["results"]) == n_files
+        assert probe.seen == [("yolo26", (1, 3, 640, 640))] * n_files
 
-        def _se(model_name: str | None = None, **kw: Any):
-            from ai.gateway.triton_client import TritonClientError
+    async def test_detect_batch_isolates_a_bad_image_per_item(self, gateway_client) -> None:
+        """Per-item failure ISOLATION (O1's per-row parse property for the
+        retired batch-extract op, which carried it as JSON rows): one
+        undecodable upload must not 4xx or void the batch. Observed live: 200,
+        batch_size counts every file, the bad item is {detections: [], error:
+        …} and its healthy neighbours keep their full item shape. The
+        sibling's 'all-succeed' case above is the non-vacuity — without it this
+        could pass on an endpoint that always errors."""
+        client, mock = gateway_client
+        mock.infer.side_effect = _singleshot_triton()
+        files = [
+            ("files", ("good.png", _png(), "image/png")),
+            ("files", ("bad.jpg", b"definitely-not-an-image", "image/jpeg")),
+            ("files", ("good2.png", _png(32, 32), "image/png")),
+        ]
+        r = await client.post("/yolo26/detect/batch", files=files)
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        assert body["batch_size"] == 3 and len(body["results"]) == 3
+        items = body["results"]
+        assert "error" not in items[0] and "error" not in items[2], items
+        assert items[1]["error"] and items[1]["detections"] == []
 
-            if model_name == "fashion_clip":
-                raise TritonClientError("clothing model down (conftest draft scenario)")
-            if model_name == "demographics_age":
-                age = np.zeros(8, dtype=np.float32)
-                age[2] = 5.0
-                return {"output": np.array([age])}
-            return {"output": np.array([np.array([5.0, 1.0], dtype=np.float32)])}
+    async def test_detect_batch_item_shape_carries_timing_only_in_the_total(
+        self, gateway_client
+    ) -> None:
+        """WP7.4's timing doctrine on the BATCH item shape, live: the per-item
+        dict is {detections, image_width, image_height} with NO per-item
+        inference_time_ms (adapters/yolo26.py:421-427 — the total carries it),
+        and the envelope is {results, total_inference_time_ms, batch_size}.
+        This is the live key-set pin for a BARE-DICT route — the class of
+        property O2 had to assert as a key set because a
+        `additionalProperties: true` snapshot validates anything (its record
+        below). Schema-side the route declares a bare dict + x-deployed-keys,
+        so the snapshot CANNOT catch a key rename; this test is the only
+        guard."""
+        client, mock = gateway_client
+        mock.infer.side_effect = _singleshot_triton()
+        files = [("files", (f"{i}.png", _png(), "image/png")) for i in range(2)]
+        body = (await client.post("/yolo26/detect/batch", files=files)).json()
+        assert set(body) == {"results", "total_inference_time_ms", "batch_size"}
+        assert body["total_inference_time_ms"] >= 0
+        for item in body["results"]:
+            assert set(item) == {"detections", "image_width", "image_height"}, item
+            assert "inference_time_ms" not in item
+        # the snapshot's x-deployed-keys must not drift from what is served:
+        snapshot = _snapshot("yolo26_detect_batch")
+        assert set(snapshot["x-deployed-keys"]) == set(body)
 
-        mock.infer.side_effect = _se
-        with patch(
-            "ai.gateway.adapters.enrichment._ensure_clothing_text_embeddings",
-            return_value=None,
-            autospec=True,
-        ):
-            r = await client.post(
-                "/enrichment/enrich", json={"image": _b64_image(), "detection_type": "person"}
+    async def test_fake_side_is_payload_blind_where_the_gateway_is_not(self) -> None:
+        """The fake half of the multi-image story, as a CONTRAST: the fake's
+        determinism is seeded by op id + path + profile (fake/app.py:10-14), so
+        the same op replayed with 1 and with 4 uploaded files is BYTE-IDENTICAL
+        — while the gateway's own answer above varies with the file count
+        (batch_size 1 vs 3). Both halves are pinned in one test because the
+        point is the divergence: the fake exercises the SHAPE, never the
+        payload. Frame/payload-count invariance is the retired fake-side OP-28
+        property (fake 200 on empty frames + 0/1/4/None frames byte-identical)
+        retargeted to the op that still exists."""
+        from backend.ai_contract.fake import create_fake_app
+
+        op = OPERATIONS["yolo26_detect_batch"]
+        async with AsyncClient(
+            transport=ASGITransport(app=create_fake_app()), base_url="http://fake"
+        ) as fake:
+            r1 = await fake.post(op.path, files=[("files", ("a.png", _png(), "image/png"))])
+            r4 = await fake.post(
+                op.path, files=[("files", (f"{i}.png", _png(), "image/png")) for i in range(4)]
             )
-        assert r.status_code == 200  # partial failure tolerated. UNVERIFIED.
-        assert set(r.json()["enrichments"]) == {"demographics"}  # failed key absent. UNVERIFIED.
+            assert (r1.status_code, r4.status_code) == (200, 200)
+            assert r1.content == r4.content, "the fake's batch answer moved with the file count"
+            # ...and its shape is the literal deployed envelope, not filler:
+            assert set(r1.json()) == {"results", "total_inference_time_ms", "batch_size"}
+        # non-vacuity: the SAME count change DOES move the gateway (driven
+        # above; asserted here on the derived set so a fake that ignored EVERY
+        # input would not be what this test proves):
+        assert "yolo26_detect_batch" in _multi_image_ops()
 
-    async def test_composite_enrich_fake_free_form_and_no_echo(self) -> None:
-        """Fake side of O2 (dossier O2/F5, observed live): /enrich through
-        the fake is the generic snapshot-walk — enrichments == {'alpha',
-        'bravo'} free-form (generators.py:348-353), detection_type ==
-        generated 'detection_type_NNN' ≠ the sent 'person' (fake parses the
-        body only for model_name, fake/app.py:69-83), person and vehicle
-        payloads return IDENTICAL bytes (no dt-keyed fan-out exists on the
-        fake), and everything is deterministic + snapshot-valid. PREDICTED-
-        GREEN fake side; the naive joint assertions ('dt echoed', 'dt-keyed
-        keys') PREDICTED-RED against the fake — which is the divergence the
-        next test pins explicitly. UNVERIFIED at pytest level."""
-        ops = _fake_callables()
-        person = await ops[ENRICH_OP]({"image": "x", "detection_type": "person"})
-        vehicle = await ops[ENRICH_OP]({"image": "x", "detection_type": "vehicle"})
-        assert person["detection_type"] != "person"  # generator, not echo. UNVERIFIED.
-        assert set(person["enrichments"]) == {"alpha", "bravo"}  # free-form map. UNVERIFIED.
-        assert person == vehicle  # body-ignored: no dt fan-out on the fake. UNVERIFIED.
-        again = await ops[ENRICH_OP]({"image": "x", "detection_type": "person"})
-        assert person == again  # determinism. UNVERIFIED.
-        jsonschema.validate(person, _snapshot(ENRICH_OP))  # additionalProperties:true
-        # snapshot accepts the free-form map — the schema is the reason the
-        # suite needs the gateway-side key-set test above. PREDICTED-GREEN. UNVERIFIED.
 
-    async def test_composite_enrich_divergence_echo_vs_generated(self, gateway_client) -> None:
-        """THE pinned joint divergence (dossier O2/F5 'assertion'): same
-        payload through BOTH surfaces in one test — gateway echoes
-        detection_type, fake generates it. A future 'fix' that makes the
-        fake echo (or makes the gateway generate) reddens this and forces a
-        RULING; it is NOT parked as a skip. Gateway vehicle branch (single
-        triton call, shaped logits, observed live). PREDICTED-GREEN as
-        written (both halves observed live). UNVERIFIED at pytest level."""
-        client, mock = gateway_client
-        logits = np.zeros(11, dtype=np.float32)
-        logits[4] = 5.0
-        mock.infer.return_value = {"output": np.array([logits])}
-        payload = {"image": _b64_image(), "detection_type": "truck"}
-        gw = (await client.post("/enrichment/enrich", json=payload)).json()
-        fk = await _fake_callables()[ENRICH_OP](payload)
-        assert gw["detection_type"] == "truck"  # echo (:966). UNVERIFIED.
-        assert fk["detection_type"] != "truck"  # generated (app.py:69). UNVERIFIED.
-        assert set(gw["enrichments"]) == {"vehicle"}  # fan-out … UNVERIFIED.
-        assert set(fk["enrichments"]) == {"alpha", "bravo"}  # … vs free-form. UNVERIFIED.
+class TestO1ActionClassifyTombstone:
+    """TOMBSTONE (R8 S3, owner rulings 1 + 5). This block drove
+    `enrichment_action_classify` — OP 28, the only op whose multi-image list
+    was a TEMPORAL frame SEQUENCE — against a mounted adapter, with a two-stage
+    Triton mock (pose per frame, then ONE stgcn_action call over the resampled
+    skeleton) and a per-side divergence pin.
+
+    What it established, kept because the hazards are general:
+      * the empty-frames DIVERGENCE, corrected against live code: gateway
+        empty list → **400** `{"detail": "Frames list cannot be empty"}`
+        (handler-level HTTPException), NOT the 422 the workflow prompt claimed
+        — 422 belongs to a MISSING or wrongly-typed `frames` field (a pydantic
+        model), a different case, and both were pinned separately;
+      * fake empty frames → **200** with the seeded body, and frame-count
+        invariance (0/1/4/None → byte-identical) — the fake's determinism
+        property, not a bug. Its live descendant is
+        TestMultiImageOps.test_fake_side_is_payload_blind_where_the_gateway_is_not;
+      * order-sensitivity: the drive fed frames whose keypoints sat at
+        x = order_probe[i] so the skeleton the adapter built was
+        order-inspectable. A frame-sequence op whose consumer assumes list
+        order is a silent-corruption hazard, and mocking one flat Triton output
+        hides it completely.
+
+    It cannot retarget: no surviving op carries a frame sequence (the derived
+    multi-image set is a multipart file set and an unordered path list), and
+    ai/gateway/adapters/enrichment.py — the module holding
+    ActionClassifyRequest, the 400/422 pair and the pose→stgcn pipeline — is
+    swept, so there is no text left to point the assertions at (the S2b V3
+    precedent: tombstone, not skip).
+    """
+
+    def test_action_classify_retired_and_adopted_by_the_ratchet(self) -> None:
+        from backend.ai_contract.operations import OPERATION_IDS as IDS
+
+        assert "enrichment_action_classify" not in IDS
+        assert "enrichment_action_classify" in _deleted_registry_ops()
+        assert not (REPO_ROOT / "ai/gateway/adapters/enrichment.py").exists()
+        # Non-vacuity: the multi-image class itself is NOT dead — the derived
+        # set is non-empty and this file drives one of its members live above.
+        assert _multi_image_ops(), "the multi-image class died; this tombstone is alone"
+
+
+class TestO2CompositeEnrichTombstone:
+    """TOMBSTONE (R8 S3, rulings 1 + 5). This block drove the composite
+    `/enrichment/enrich` fan-out — the highest-value single conformance target
+    at drafting, because it is the one route whose response is a FREE-FORM map.
+
+    What it established, kept because the hazard is general:
+      * **a free-form snapshot cannot catch a key-set regression.**
+        EnrichResponse.enrichments is `additionalProperties: true`, so every
+        wrong-key body validated green; the only load-bearing assertion was the
+        KEY SET per detection_type ({clothing, demographics} for person,
+        {vehicle} for vehicle/car, {pet} for cat/dog, {} for anything else).
+        The live heir of that argument is
+        TestMultiImageOps.test_detect_batch_item_shape_carries_timing_only_in_the_total:
+        the yolo family routes declare a BARE dict too, and their key sets are
+        asserted there, not by the schema.
+      * echo-vs-generated divergence, pinned per side and jointly: the gateway
+        ECHOES request.detection_type; the fake GENERATES one
+        ('detection_type_NNN' from the string walker) and returns a free-form
+        {'alpha','bravo'} enrichments map with no dt-keyed fan-out. A test that
+        asserted only one side would let a client that reads the echo break
+        silently when pointed at the fake.
+      * a docstring FALSEHOOD pinned as behavior: the handler's '- other:
+        basic depth estimation' claim was false (unknown types got
+        enrichments == {}), characterized so a 'fix' that ADDED the depth
+        branch reddened the suite rather than silently changing the contract.
+
+    It cannot retarget: enrichment_enrich left the contract with the
+    enrichment provider's pruned models, its fan-out had no surviving peer
+    route, and the adapter module that held the docstring is swept.
+    """
+
+    def test_composite_enrich_retired_and_adopted_by_the_ratchet(self) -> None:
+        from backend.ai_contract.operations import OPERATION_IDS as IDS
+
+        assert "enrichment_enrich" not in IDS
+        assert "enrichment_enrich" in _deleted_registry_ops()
+        # The echo-vs-generated hazard is not orphaned: the fake's generated
+        # (never echoed) string fields are still what the fake column produces
+        # for every walked op — pinned by the fake suite's own
+        # shipped-correct class.
+        assert "vlm_assess" in _multi_image_ops(), "the class lost its second member"

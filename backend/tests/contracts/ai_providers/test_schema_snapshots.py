@@ -86,6 +86,52 @@ def _sides_with_schemas() -> list[tuple[str, str]]:
     ]
 
 
+#: A key the rename ratchet can rename: present in a live response schema AND in
+#: that op's golden payload example. inference_time_ms is the natural choice (it
+#: is a real emitted field on every lane that reports timing), but the candidate
+#: set is not hardcoded to one name -- any key shared by schema and payload works,
+#: so a future rename of inference_time_ms itself cannot silently disarm the proof.
+def _rename_subject() -> tuple[str, str, str]:
+    """(op_id, side, key) for the ratchet, derived from the shipped goldens."""
+    candidates: list[tuple[str, str, str]] = []
+    for op_id, side in _sides_with_schemas():
+        payload_path = PAYLOAD_DIR / f"{op_id}.{side}.example.json"
+        if not payload_path.exists():
+            continue
+        schema = _contract_schema(op_id, side) or {}
+        props = set(schema.get("properties", {}))
+        if not props:
+            continue
+        # Keys actually present in the example payload.
+        try:
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        # Rename a REQUIRED key. That is what makes the payload leg bite: a
+        # renamed required key fails validation with "'<old>' is a required
+        # property", which names the old spelling — the assertion below. Rename
+        # an OPTIONAL key on a schema that permits extras (the three yolo26
+        # response schemas set additionalProperties: true) and validation stays
+        # silent, the payload leg produces no message, and the ratchet's proof
+        # evaporates without anyone touching a contract. Measured: the two
+        # /enrich-lt responses and vlm_assess are the schemas whose required keys
+        # also appear in their golden payloads.
+        shared = sorted(set(schema.get("required", [])) & props & set(payload))[:1]
+        candidates += [(op_id, side, k) for k in shared]
+    assert candidates, (
+        "no live op has a response key that also appears in its golden payload — "
+        "the rename ratchet cannot prove itself; this is a golden-artifact gap"
+    )
+    # Prefer the timing key when it still exists (it was the committed choice),
+    # else take the deterministic first candidate.
+    for op_id, side, key in candidates:
+        if key == "inference_time_ms":
+            return op_id, side, key
+    return candidates[0]
+
+
 class TestGoldenArtifactsPresent:
     def test_golden_dir_exists_and_is_marked_generated(self) -> None:
         readme = GOLDEN_DIR / "README.md"
@@ -179,13 +225,31 @@ class TestSnapshotsAreShapeDiffs:
         """Prove the mechanism, not just the current green: copy a committed
         snapshot, rename one key in the CONTRACT it is diffed against, and
         show the failure message names BOTH key spellings. This is the
-        Done-when statement executed as an assertion."""
-        op_id, side = "clip_embed", "response"
+        Done-when statement executed as an assertion.
+
+        The subject is DERIVED, not named. This test used to hardcode
+        ``op_id = "clip_embed"``, which made the ratchet's own proof a
+        single-point-of-failure on one op's continued existence: R8 S3 pruned
+        CLIP (owner ruling 5), _contract_schema returned None for it, and the
+        test died with an AttributeError inside the digest helper -- a crash in
+        the mechanism that is supposed to REPORT drift, which is a worse
+        outcome than the drift itself. It now walks the live schema directory
+        and takes the first response schema whose key ALSO appears in that op's
+        golden payload (the payload leg below needs the key present in the
+        example, and that pairing is not universal: yolo26_detect.response.json
+        declares inference_time_ms but its example payload omits it). A ratchet
+        that must survive every future prune cannot name a subject.
+        """
+        op_id, side, old = _rename_subject()
         schema = _contract_schema(op_id, side)
+        assert schema is not None, f"{op_id}.{side} vanished mid-test"
         committed = _digest(op_id, side, schema)
         renamed = dict(schema)
         props = dict(schema["properties"])
-        old, new = "inference_time_ms", "inference_time_millis"
+        # The tamper name is derived from the derived subject, so this leg stays
+        # wired to whatever _rename_subject picked.
+        new = f"{old}_millis"
+        assert new not in props, f"{new} already in {op_id}.{side} - pick another tamper"
         props[new] = props.pop(old)
         renamed["properties"] = props
         tampered = _digest(op_id, side, renamed)

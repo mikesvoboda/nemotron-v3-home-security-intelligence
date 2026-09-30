@@ -9,17 +9,21 @@ Tests for new Prometheus metrics:
 Tests cover:
 - Metric definitions and registration
 - Helper functions for recording metrics
-- Instrumentation in florence_client.py
 - Instrumentation in events.py
 
 R8 (2026-09-29) retired enrichment_pipeline and nemotron_analyzer; the classes
-that pinned THEIR call sites went with them. The metric definitions themselves
-survive (they live in backend.core.metrics), so the definition/helper pins stay.
+that pinned THEIR call sites went with them. R8 S3 then took
+TestFlorenceClientInstrumentation with backend/services/florence_client.py
+(ruling 1 — the module is deleted, so there is no call site left to instrument,
+and a test that patches a module which cannot be imported errors at collection
+and takes the whole unit tier with it). The metric definitions themselves
+survive (they live in backend.core.metrics, and the Grafana panels still query
+hsi_florence_task_total), so the definition/helper pins stay.
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -181,142 +185,6 @@ class TestBusinessMetricsInEndpoint:
 
         response = get_metrics_response().decode("utf-8")
         assert "hsi_events_reviewed_total" in response
-
-
-# =============================================================================
-# Florence Client Instrumentation Tests
-# =============================================================================
-
-
-class TestFlorenceClientInstrumentation:
-    """Test that florence_client.py records Florence task metrics."""
-
-    @pytest.fixture
-    def mock_settings(self):
-        """Create mock settings for FlorenceClient."""
-        with patch("backend.services.florence_client.get_settings", autospec=True) as mock:
-            mock.return_value.florence_url = "http://localhost:8092"
-            mock.return_value.ai_connect_timeout = 10.0
-            mock.return_value.ai_health_timeout = 5.0
-            yield mock
-
-    @pytest.fixture
-    def sample_image(self):
-        """Create a sample PIL image for testing."""
-        from PIL import Image
-
-        return Image.new("RGB", (224, 224), color=(128, 128, 128))
-
-    @pytest.mark.asyncio
-    async def test_extract_records_florence_task_caption(self, mock_settings, sample_image) -> None:
-        """extract() with <CAPTION> should record 'caption' task."""
-
-        from backend.services.florence_client import FlorenceClient
-
-        client = FlorenceClient()
-
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"result": "A gray square image"}
-
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
-
-        try:
-            with patch(
-                "backend.services.florence_client.record_florence_task", autospec=True
-            ) as mock_record:
-                await client.extract(sample_image, "<CAPTION>")
-                mock_record.assert_called_once_with("caption")
-        finally:
-            client._http_client = original_client
-
-    @pytest.mark.asyncio
-    async def test_ocr_records_florence_task_ocr(self, mock_settings, sample_image) -> None:
-        """ocr() should record 'ocr' task."""
-        from backend.services.florence_client import FlorenceClient
-
-        client = FlorenceClient()
-
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"text": "Hello World"}
-
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
-
-        try:
-            with patch(
-                "backend.services.florence_client.record_florence_task", autospec=True
-            ) as mock_record:
-                await client.ocr(sample_image)
-                mock_record.assert_called_once_with("ocr")
-        finally:
-            client._http_client = original_client
-
-    @pytest.mark.asyncio
-    async def test_detect_records_florence_task_detect(self, mock_settings, sample_image) -> None:
-        """detect() should record 'detect' task."""
-        from backend.services.florence_client import FlorenceClient
-
-        client = FlorenceClient()
-
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"detections": []}
-
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
-
-        try:
-            with patch(
-                "backend.services.florence_client.record_florence_task", autospec=True
-            ) as mock_record:
-                await client.detect(sample_image)
-                mock_record.assert_called_once_with("detect")
-        finally:
-            client._http_client = original_client
-
-    @pytest.mark.asyncio
-    async def test_dense_caption_records_florence_task_dense_caption(
-        self, mock_settings, sample_image
-    ) -> None:
-        """dense_caption() should record 'dense_caption' task."""
-        from backend.services.florence_client import FlorenceClient
-
-        client = FlorenceClient()
-
-        # Mock the persistent HTTP client directly (NEM-1721 pattern)
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"regions": []}
-
-        original_client = client._http_client
-        mock_http = AsyncMock()
-        mock_http.post = AsyncMock(return_value=mock_response)
-        client._http_client = mock_http
-
-        try:
-            with patch(
-                "backend.services.florence_client.record_florence_task", autospec=True
-            ) as mock_record:
-                await client.dense_caption(sample_image)
-                mock_record.assert_called_once_with("dense_caption")
-        finally:
-            client._http_client = original_client
 
 
 # =============================================================================

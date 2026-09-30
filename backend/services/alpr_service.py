@@ -2,13 +2,17 @@
 
 This module provides the ALPRService class for managing license plate
 recognition operations, including:
-- Processing plate images with PaddleOCR
+- Processing plate images through an injected plate-OCR engine (retired leg —
+  see _PlateOCRHolder; the endpoint answers 503 while nothing is injected)
 - Storing plate reads to the database
 - Querying plate read history
 - Computing recognition statistics
 
-The service integrates with the PlateOCR model from the AI enrichment
-pipeline for text extraction and quality assessment.
+The service integrates with an injected plate-OCR instance for text
+extraction and quality assessment; R8 S3 retired the module that produced
+one, so see _PlateOCRHolder for the current state of that leg. The plate-read
+STORAGE half (create/query/search/statistics/retention) is unaffected — plate
+records are DB lookups, which the VLM path keeps.
 """
 
 from __future__ import annotations
@@ -43,7 +47,7 @@ class ALPRService:
     """Service for Automatic License Plate Recognition operations.
 
     This service handles:
-    - Processing images through PaddleOCR for plate text extraction
+    - Processing images through the plate-OCR engine for text extraction
     - Storing and retrieving plate read records
     - Computing statistics for monitoring and analytics
     - Managing plate read retention and cleanup
@@ -108,17 +112,10 @@ class ALPRService:
             PlateRecognizeResponse with recognition results.
 
         Raises:
-            ImportError: If PaddleOCR is not installed.
+            ImportError: when no OCR back end is wired (R8 S3: always, from
+                _PlateOCRHolder.get). backend/api/routes/plate_reads.py maps
+                that to 503, so the endpoint's contract is unchanged.
         """
-        # Import PlateOCR lazily to avoid import errors when not installed
-        try:
-            from ai.enrichment.models import plate_ocr as _plate_ocr_module  # noqa: F401
-        except ImportError as e:
-            logger.error("PaddleOCR not installed. Install with: pip install paddleocr")
-            raise ImportError(
-                "paddleocr required for ALPR. Install with: pip install paddleocr"
-            ) from e
-
         # Convert image data to numpy array if needed
         if isinstance(image_data, bytes):
             image = Image.open(BytesIO(image_data))
@@ -525,19 +522,43 @@ class ALPRService:
 
 # Singleton holder for PlateOCR to avoid reloading model on every request
 class _PlateOCRHolder:
-    """Singleton holder for PlateOCR instance."""
+    """Singleton holder for PlateOCR instance.
+
+    R8 S3 (owner ruling 4 — ALL retired serving dirs swept) deleted the module
+    that produced the OCR back end, so this holder can no longer construct one
+    and does not pretend otherwise: ``get()`` raises with an honest message
+    when nothing has been injected. It is NOT a re-import of a deleted module
+    dressed up as a "not installed" error — telling an operator to install
+    paddleocr would be advice they cannot act on, since the file is gone rather
+    than absent from the environment.
+
+    Why the class stays at all (rather than the recognize leg being deleted
+    with it): the plate READS half of this service — create, query, search,
+    statistics, retention — is DB lookup work the VLM path keeps (the plate
+    TABLES are explicitly out of S3's scope; see the S3 guard's negative
+    space), and the recognize endpoint's 503 mapping
+    (backend/api/routes/plate_reads.py) still answers truthfully. Injection
+    also keeps the seam live: ``backend/services/fast_alpr_loader.py`` survives
+    and is still wired in ``model_zoo._LOADER_MAP``, so a future ALPR back end
+    can be installed here without reopening the endpoint.
+    """
 
     _instance: Any = None
 
     @classmethod
     def get(cls) -> Any:
-        """Get or create the PlateOCR instance."""
-        if cls._instance is None:
-            from ai.enrichment.models.plate_ocr import PlateOCR
+        """Return the injected OCR instance, or state that none can exist.
 
-            cls._instance = PlateOCR()
-            cls._instance.load_model()
-            logger.info("PlateOCR model loaded for ALPR service")
+        Raises:
+            ImportError: always, while nothing is injected. The endpoint's
+                handler maps ImportError to 503 Service Unavailable, which is
+                the accurate answer for a retired model — not a 500.
+        """
+        if cls._instance is None:
+            raise ImportError(
+                "plate-OCR back end retired in R8 S3 (ai/enrichment swept); "
+                "no license-plate OCR engine ships in this build"
+            )
         return cls._instance
 
     @classmethod

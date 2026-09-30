@@ -760,7 +760,7 @@ async def run_constrained_startup_check(container: Any) -> str:
     )
 
     try:
-        analyzer = await container.get_async("nemotron_analyzer")
+        analyzer = await container.get_async("vlm_analyzer")
         # VlmAnalyzer (the only analyzer there is): the gate lives on the
         # client. R8 S2 deleted the legacy analyzer's enforcement-flag arm
         # with the class - an arm whose true side no longer exists.

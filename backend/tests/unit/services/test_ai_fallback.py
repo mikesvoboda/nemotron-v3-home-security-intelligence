@@ -1,5 +1,18 @@
 """Unit tests for AI fallback service.
 
+R8 S3 (owner rulings 1 + 5, 2026-09-29) retired the two non-survivor arms of
+this module -- the captioning provider and the embedding/re-ID provider -- so
+their enum members, breaker configs and health arms are gone from
+``backend/services/ai_fallback.py``. The module itself is kept-and-DEAD (zero
+shipped importers) and its final deletion belongs to a later dead-code slice,
+so the SURVIVOR's properties stay pinned here with their teeth intact: the
+detector health arm, degradation levels, the risk-score cache, fallback risk
+analysis, status callbacks, breaker registration, ``should_skip_detection``,
+availability queries, ``get_available_features``, ``ServiceState.to_dict`` and
+the start/stop lifecycle. The retirement history itself is pinned by
+``backend/tests/unit/test_r8_s3_florence_provider_retirement.py`` -- nothing
+here re-litigates it.
+
 Tests cover:
 - AIService, DegradationLevel, ServiceStatus enum values
 - ServiceState dataclass and to_dict() serialization
@@ -9,11 +22,11 @@ Tests cover:
 - Circuit breaker registration
 - Status callback registration and notification
 - Health check loop lifecycle (start/stop)
-- Service health checks for all AI services
+- Detector health checks and the no-client healthy default
 - Service availability checks
 - Degradation level calculation based on service states
 - Available features based on service health
-- Fallback methods (risk analysis, captions, embeddings)
+- Fallback methods (risk analysis, detector-derived caption, zero vector)
 - Global instance management (get/reset functions)
 """
 
@@ -41,6 +54,12 @@ from backend.services.ai_fallback import (
 )
 from backend.services.circuit_breaker import CircuitBreaker, CircuitState
 
+# The service census, DERIVED from the module rather than hand-numbered: S3
+# left exactly one member, and every count below is restated from this set so
+# a future slice that re-adds (or deletes) an arm moves these pins with the
+# module instead of silently holding a stale number.
+SHIPPED_SERVICES: set[AIService] = set(AIService)
+
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -63,32 +82,17 @@ def mock_detector_client():
 
 
 @pytest.fixture
-def mock_florence_client():
-    """Create a mock Florence-2 client."""
-    client = MagicMock()
-    client.check_health = AsyncMock(return_value=True)
-    return client
+def mock_analyzer():
+    """Create a mock VLM analyzer (the shipped analyzer side of the ctor)."""
+    return MagicMock()
 
 
 @pytest.fixture
-def mock_clip_client():
-    """Create a mock CLIP client."""
-    client = MagicMock()
-    client.check_health = AsyncMock(return_value=True)
-    return client
-
-
-@pytest.fixture
-def fallback_service(
-    mock_detector_client,
-    mock_florence_client,
-    mock_clip_client,
-):
-    """Create an AIFallbackService with mock clients."""
+def fallback_service(mock_detector_client, mock_analyzer):
+    """Create an AIFallbackService on the shipped constructor surface."""
     return AIFallbackService(
         detector_client=mock_detector_client,
-        florence_client=mock_florence_client,
-        clip_client=mock_clip_client,
+        analyzer=mock_analyzer,
         health_check_interval=0.05,  # Fast for testing
     )
 
@@ -102,19 +106,32 @@ class TestAIServiceEnum:
     """Tests for AIService enum."""
 
     def test_service_enum_values(self) -> None:
-        """Test that AIService enum has expected values."""
+        """Test that AIService enum has expected values.
+
+        Every member's value is a lowercase wire slug (the string form
+        ``is_service_available()`` and ``get_degradation_status()`` expose);
+        the pin is looped over the module's own members so a newly added arm
+        cannot arrive with a mis-cased value. Non-vacuity: the loop is proven
+        to have run.
+        """
         assert AIService.YOLO26.value == "yolo26"
-        assert AIService.FLORENCE.value == "florence"
-        assert AIService.CLIP.value == "clip"
+        members = list(AIService)
+        assert members, "AIService enumerated no members -- the slug pin below is vacuous"
+        for member in members:
+            assert member.value == member.value.lower()
+            assert member.value
+            assert member.name == member.name.upper()
 
     def test_service_enum_count(self) -> None:
-        """Test that AIService has exactly the three surviving services.
+        """Test that AIService has exactly the surviving services.
 
-        R8 S2b deleted the legacy analyzer, so its enum member is gone: the
-        count IS the census - the detector, the gateway Florence-2 client and
-        the CLIP client.
+        This was written as a three-member census. R8 S3's rulings 1 and 5
+        retired the other two arms' providers, so the count dropped to the
+        detector alone -- the census IS the point of the test, so the expected
+        set is literal here (deriving it from the enum would compare the module
+        to itself) and it stays an equality pin, not a membership pin.
         """
-        assert {s.value for s in AIService} == {"yolo26", "florence", "clip"}
+        assert {s.value for s in AIService} == {"yolo26"}
 
 
 class TestDegradationLevelEnum:
@@ -158,10 +175,15 @@ class TestServiceState:
         assert state.last_check is None
 
     def test_custom_initialization(self) -> None:
-        """Test ServiceState with custom values."""
+        """Test ServiceState with custom values.
+
+        Carried on the survivor member: which service the record keys on is
+        incidental to what this dataclass is FOR -- holding a non-default
+        status, circuit state, timestamps, failure count and error message.
+        """
         now = datetime.now(UTC)
         state = ServiceState(
-            service=AIService.CLIP,
+            service=AIService.YOLO26,
             status=ServiceStatus.DEGRADED,
             circuit_state=CircuitState.HALF_OPEN,
             last_success=now,
@@ -169,7 +191,7 @@ class TestServiceState:
             error_message="Timeout error",
             last_check=now,
         )
-        assert state.service == AIService.CLIP
+        assert state.service == AIService.YOLO26
         assert state.status == ServiceStatus.DEGRADED
         assert state.circuit_state == CircuitState.HALF_OPEN
         assert state.last_success == now
@@ -181,7 +203,7 @@ class TestServiceState:
         """Test to_dict() serialization with timestamps."""
         now = datetime.now(UTC)
         state = ServiceState(
-            service=AIService.FLORENCE,
+            service=AIService.YOLO26,
             status=ServiceStatus.UNAVAILABLE,
             last_success=now,
             failure_count=5,
@@ -189,7 +211,16 @@ class TestServiceState:
         )
         result = state.to_dict()
 
-        assert result["service"] == "florence"
+        assert set(result) == {
+            "service",
+            "status",
+            "circuit_state",
+            "last_success",
+            "failure_count",
+            "error_message",
+            "last_check",
+        }
+        assert result["service"] == "yolo26"
         assert result["status"] == "unavailable"
         assert result["circuit_state"] == "closed"
         assert result["last_success"] == now.isoformat()
@@ -200,11 +231,12 @@ class TestServiceState:
     def test_to_dict_without_timestamps(self) -> None:
         """Test to_dict() serialization without timestamps."""
         state = ServiceState(
-            service=AIService.CLIP,
+            service=AIService.YOLO26,
             status=ServiceStatus.HEALTHY,
         )
         result = state.to_dict()
 
+        assert result["service"] == "yolo26"
         assert result["last_success"] is None
         assert result["last_check"] is None
 
@@ -335,24 +367,19 @@ class TestAIFallbackServiceInit:
 
         assert service._detector_client is None
         assert service._analyzer is None
-        assert service._florence_client is None
-        assert service._clip_client is None
         assert service._health_check_interval == 15.0
         assert service._running is False
 
     def test_initialization_with_all_clients(self, fallback_service) -> None:
-        """Test initialization with all clients."""
+        """Test initialization with every client the shipped ctor accepts."""
         assert fallback_service._detector_client is not None
-        assert fallback_service._florence_client is not None
-        assert fallback_service._clip_client is not None
+        assert fallback_service._analyzer is not None
 
     def test_initialization_creates_service_states(self, fallback_service) -> None:
         """Test that initialization creates states for all services."""
-        assert set(fallback_service._service_states) == {
-            AIService.YOLO26,
-            AIService.FLORENCE,
-            AIService.CLIP,
-        }
+        assert SHIPPED_SERVICES, "AIService is empty -- the state census below is vacuous"
+        assert set(fallback_service._service_states) == SHIPPED_SERVICES
+        assert fallback_service._service_states[AIService.YOLO26].service is AIService.YOLO26
 
     def test_initialization_creates_risk_cache(self, fallback_service) -> None:
         """Test that initialization creates risk cache."""
@@ -360,8 +387,14 @@ class TestAIFallbackServiceInit:
         assert isinstance(fallback_service._risk_cache, RiskScoreCache)
 
     def test_initialization_creates_empty_circuit_breakers(self, fallback_service) -> None:
-        """Test that initialization creates empty circuit breaker dict."""
-        assert len(fallback_service._circuit_breakers) == 3
+        """Test that initialization creates empty circuit breaker dict.
+
+        One slot per enumerated service, each unwired -- the count is derived
+        from the module, and the non-empty guard is what keeps "all values are
+        None" from passing on an empty dict.
+        """
+        assert SHIPPED_SERVICES, "AIService is empty -- the breaker-slot census is vacuous"
+        assert set(fallback_service._circuit_breakers) == SHIPPED_SERVICES
         assert all(v is None for v in fallback_service._circuit_breakers.values())
 
     def test_custom_health_check_interval(self) -> None:
@@ -386,15 +419,33 @@ class TestCircuitBreakerRegistration:
         assert fallback_service._circuit_breakers[AIService.YOLO26] is cb
 
     def test_register_multiple_circuit_breakers(self, fallback_service) -> None:
-        """Test registering circuit breakers for multiple services."""
-        cb_yolo26 = CircuitBreaker(name="yolo26", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
-        cb_florence = CircuitBreaker(name="florence", config=DEFAULT_CB_CONFIGS[AIService.FLORENCE])
+        """Test registering circuit breakers for every enumerated service.
 
-        fallback_service.register_circuit_breaker(AIService.YOLO26, cb_yolo26)
-        fallback_service.register_circuit_breaker(AIService.FLORENCE, cb_florence)
+        Written when the census held three services, so this proved two
+        breakers coexisted under distinct keys. With the shipped census the
+        loop runs once -- what still has teeth here is (a) every service that
+        has a breaker config can be registered and is stored under its own
+        key, and (b) re-registering replaces only that key's entry.
+        """
+        services = set(DEFAULT_CB_CONFIGS)
+        assert services, "DEFAULT_CB_CONFIGS is empty -- the registration loop is vacuous"
 
-        assert fallback_service._circuit_breakers[AIService.YOLO26] is cb_yolo26
-        assert fallback_service._circuit_breakers[AIService.FLORENCE] is cb_florence
+        breakers = {
+            service: CircuitBreaker(name=service.value, config=config)
+            for service, config in DEFAULT_CB_CONFIGS.items()
+        }
+        for service, cb in breakers.items():
+            fallback_service.register_circuit_breaker(service, cb)
+
+        for service, cb in breakers.items():
+            assert fallback_service._circuit_breakers[service] is cb
+
+        replacement = CircuitBreaker(
+            name="replacement", config=DEFAULT_CB_CONFIGS[AIService.YOLO26]
+        )
+        fallback_service.register_circuit_breaker(AIService.YOLO26, replacement)
+        assert fallback_service._circuit_breakers[AIService.YOLO26] is replacement
+        assert breakers[AIService.YOLO26] is not replacement
 
 
 # =============================================================================
@@ -457,6 +508,22 @@ class TestStatusCallbacks:
 
         # Success callback should still be called
         success_callback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_notify_status_change_broadcasts_the_status_payload(
+        self, fallback_service
+    ) -> None:
+        """The callback receives the degradation-status dict, not a bare flag."""
+        callback = AsyncMock()
+        fallback_service.register_status_callback(callback)
+
+        await fallback_service._notify_status_change()
+
+        callback.assert_called_once()
+        (payload,) = callback.call_args.args
+        assert payload["degradation_mode"] == DegradationLevel.NORMAL.value
+        assert payload["services"], "the broadcast carried no per-service state"
+        assert payload["services"]["yolo26"]["status"] == ServiceStatus.HEALTHY.value
 
 
 # =============================================================================
@@ -521,7 +588,9 @@ class TestLifecycleManagement:
 
         await fallback_service.start()
         try:
-            await asyncio.wait_for(two_checks_done.wait(), timeout=5.0)
+            # 0.05s interval -> two rounds in well under a second; the bound is
+            # kept inside the 5s per-test tier timeout rather than at it.
+            await asyncio.wait_for(two_checks_done.wait(), timeout=2.0)
         finally:
             await fallback_service.stop()
 
@@ -534,7 +603,12 @@ class TestLifecycleManagement:
 
 
 class TestHealthChecks:
-    """Tests for service health checks."""
+    """Tests for the detector health arm.
+
+    S3 left exactly one service whose backend still boots, so every case here
+    keys on the survivor; the module's no-circuit-breaker path (the counting
+    arm) is pinned in full.
+    """
 
     @pytest.mark.asyncio
     async def test_check_service_health_with_circuit_breaker(self, fallback_service) -> None:
@@ -547,6 +621,8 @@ class TestHealthChecks:
         state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.HEALTHY
         assert state.circuit_state == CircuitState.CLOSED
+        # The breaker arm wins over the client arm: no health_check() call.
+        fallback_service._detector_client.health_check.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_check_service_health_circuit_open(self, fallback_service) -> None:
@@ -564,6 +640,7 @@ class TestHealthChecks:
 
         state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.UNAVAILABLE
+        assert state.circuit_state == CircuitState.OPEN
 
     @pytest.mark.asyncio
     async def test_check_service_health_without_circuit_breaker_healthy(
@@ -577,6 +654,7 @@ class TestHealthChecks:
         state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.HEALTHY
         assert state.failure_count == 0
+        assert state.last_check is not None
 
     @pytest.mark.asyncio
     async def test_check_service_health_without_circuit_breaker_unhealthy(
@@ -599,6 +677,24 @@ class TestHealthChecks:
         assert state.failure_count == 3
 
     @pytest.mark.asyncio
+    async def test_check_service_health_recovers_after_healthy_check(
+        self, fallback_service
+    ) -> None:
+        """A healthy check clears the counting arm's failure bookkeeping."""
+        fallback_service._detector_client.health_check = AsyncMock(return_value=False)
+        await fallback_service._check_service_health(AIService.YOLO26)
+        assert fallback_service._service_states[AIService.YOLO26].failure_count == 1
+
+        fallback_service._detector_client.health_check = AsyncMock(return_value=True)
+        await fallback_service._check_service_health(AIService.YOLO26)
+
+        state = fallback_service._service_states[AIService.YOLO26]
+        assert state.status == ServiceStatus.HEALTHY
+        assert state.failure_count == 0
+        assert state.last_success is not None
+        assert state.error_message is None
+
+    @pytest.mark.asyncio
     async def test_check_service_health_exception(self, fallback_service) -> None:
         """Test health check when exception is raised."""
         fallback_service._detector_client.health_check = AsyncMock(
@@ -617,18 +713,7 @@ class TestHealthChecks:
         """Test performing health check for YOLO26."""
         result = await fallback_service._perform_health_check(AIService.YOLO26)
         assert result is True
-
-    @pytest.mark.asyncio
-    async def test_perform_health_check_florence(self, fallback_service) -> None:
-        """Test performing health check for Florence-2."""
-        result = await fallback_service._perform_health_check(AIService.FLORENCE)
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_perform_health_check_clip(self, fallback_service) -> None:
-        """Test performing health check for CLIP."""
-        result = await fallback_service._perform_health_check(AIService.CLIP)
-        assert result is True
+        fallback_service._detector_client.health_check.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_perform_health_check_no_client(self) -> None:
@@ -638,11 +723,26 @@ class TestHealthChecks:
         assert result is True
 
     @pytest.mark.asyncio
+    async def test_perform_health_check_routes_every_enumerated_service(self) -> None:
+        """The survivor arm is the only one: every enumerated service routes to
+        the detector client when one is wired. Derived from the census, so an
+        added service cannot be silently left unrouted; the guard proves the
+        loop has something to iterate."""
+        assert SHIPPED_SERVICES, "AIService is empty -- the routing loop would be vacuous"
+        service = AIFallbackService(detector_client=MagicMock())
+        service._detector_client.health_check = AsyncMock(return_value=True)
+
+        for member in SHIPPED_SERVICES:
+            assert await service._perform_health_check(member) is True
+        service._detector_client.health_check.assert_awaited()
+
+    @pytest.mark.asyncio
     async def test_check_all_services(self, fallback_service) -> None:
         """Test checking all services at once."""
         await fallback_service._check_all_services()
 
         # All services should have been checked
+        assert SHIPPED_SERVICES, "AIService is empty -- the last_check sweep is vacuous"
         for service in AIService:
             state = fallback_service._service_states[service]
             assert state.last_check is not None
@@ -662,6 +762,16 @@ class TestHealthChecks:
 
         # Should have been notified
         assert callback.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_check_all_services_stable_state_does_not_notify(self, fallback_service) -> None:
+        """An unchanged status must not spam the WebSocket broadcasters."""
+        callback = AsyncMock()
+        fallback_service.register_status_callback(callback)
+
+        await fallback_service._check_all_services()
+
+        callback.assert_not_called()
 
 
 # =============================================================================
@@ -689,8 +799,14 @@ class TestServiceAvailability:
 
     def test_is_service_available_string_parameter(self, fallback_service) -> None:
         """Test availability with string parameter."""
-        fallback_service._service_states[AIService.CLIP].status = ServiceStatus.HEALTHY
-        assert fallback_service.is_service_available("clip") is True
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.HEALTHY
+        assert fallback_service.is_service_available("yolo26") is True
+
+    def test_is_service_available_rejects_an_unknown_slug(self, fallback_service) -> None:
+        """The string form is coerced through the enum, so a slug the shipped
+        census does not own raises rather than reporting availability."""
+        with pytest.raises(ValueError, match="not-a-shipped-service"):
+            fallback_service.is_service_available("not-a-shipped-service")
 
 
 # =============================================================================
@@ -703,13 +819,22 @@ class TestGetServiceState:
 
     def test_get_service_state_enum(self, fallback_service) -> None:
         """Test getting service state with enum."""
-        state = fallback_service.get_service_state(AIService.FLORENCE)
-        assert state.service == AIService.FLORENCE
+        state = fallback_service.get_service_state(AIService.YOLO26)
+        assert state.service == AIService.YOLO26
 
     def test_get_service_state_string(self, fallback_service) -> None:
         """Test getting service state with string."""
-        state = fallback_service.get_service_state("clip")
-        assert state.service == AIService.CLIP
+        state = fallback_service.get_service_state("yolo26")
+        assert state.service == AIService.YOLO26
+
+    def test_get_service_state_returns_the_live_object(self, fallback_service) -> None:
+        """The accessor hands back the stored state, not a copy -- callers
+        mutate through it (the degradation tests in this file depend on it)."""
+        state = fallback_service.get_service_state(AIService.YOLO26)
+        state.status = ServiceStatus.UNAVAILABLE
+
+        assert fallback_service._service_states[AIService.YOLO26] is state
+        assert fallback_service.is_service_available(AIService.YOLO26) is False
 
 
 # =============================================================================
@@ -725,25 +850,63 @@ class TestDegradationLevel:
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.NORMAL
 
-    def test_degradation_level_non_critical_down(self, fallback_service) -> None:
-        """Test degradation level when non-critical service is down."""
-        fallback_service._service_states[AIService.FLORENCE].status = ServiceStatus.UNAVAILABLE
-        level = fallback_service.get_degradation_level()
-        assert level == DegradationLevel.DEGRADED
-
     def test_degradation_level_all_critical_down(self, fallback_service) -> None:
-        """Test degradation level when all critical services are down."""
-        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
+        """Test degradation level when all critical services are down.
+
+        Census-driven rather than hard-numbered: every critical service is
+        taken down, and the loop is proven to have run.
+        """
+        assert CRITICAL_SERVICES, "CRITICAL_SERVICES is empty -- taking them all down is vacuous"
+        for service in CRITICAL_SERVICES:
+            fallback_service._service_states[service].status = ServiceStatus.UNAVAILABLE
+
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.OFFLINE
+
+    def test_partial_critical_outage_takes_the_system_offline(self, fallback_service) -> None:
+        """An outage of any single critical service is an outage of the critical
+        tier: with the shipped census the critical set has one member, so a
+        one-service outage IS the full critical outage. Loop guard proves the
+        census is not empty."""
+        assert CRITICAL_SERVICES, "CRITICAL_SERVICES is empty -- the per-service loop is vacuous"
+        for service in CRITICAL_SERVICES:
+            # Fresh service per iteration would be the same object here; reset
+            # the whole board first so each round is a one-outage scenario.
+            for other in fallback_service._service_states:
+                fallback_service._service_states[other].status = ServiceStatus.HEALTHY
+            fallback_service._service_states[service].status = ServiceStatus.UNAVAILABLE
+            assert fallback_service.get_degradation_level() == DegradationLevel.OFFLINE
 
     def test_critical_services_constant(self) -> None:
         """Test that CRITICAL_SERVICES contains expected services."""
         assert AIService.YOLO26 in CRITICAL_SERVICES
-        # R8 S2b: the analyzer's membership left with its enum member, leaving
-        # a singleton - which is why 'one critical down' and 'all critical
-        # down' are now the same scenario and only the latter is pinned.
+        # R8 S2b: the analyzer's membership left with its enum member; R8 S3
+        # rulings 1 + 5 took the two arms that were NOT critical with theirs.
+        # What is left is a singleton census -- which is why 'one critical
+        # down' and 'all critical down' are the same scenario, and why the
+        # level below is pinned as structurally unreachable rather than driven.
         assert {AIService.YOLO26} == CRITICAL_SERVICES
+
+    def test_no_non_critical_service_remains_so_degraded_is_unreachable(
+        self, fallback_service
+    ) -> None:
+        """Restates, on the shipped surface, the property the old 'non-critical
+        service is down -> DEGRADED' case drove.
+
+        That case needed a non-critical service to knock over and S3 left none,
+        so the DEGRADED and MINIMAL arms of get_degradation_level() cannot be
+        reached by state any more -- they are pinned here structurally: the
+        critical set covers the whole census, and the two levels that keyed on
+        a partial outage stay reachable only as enum values (pinned in
+        TestDegradationLevelEnum). A slice that adds a non-critical service has
+        to bring the behavioural case back with it.
+        """
+        assert SHIPPED_SERVICES, "AIService is empty -- the coverage pin below is vacuous"
+        assert set(CRITICAL_SERVICES) == SHIPPED_SERVICES
+        non_critical = SHIPPED_SERVICES - set(CRITICAL_SERVICES)
+        assert non_critical == set()
+        assert DegradationLevel.DEGRADED.value == "degraded"
+        assert DegradationLevel.MINIMAL.value == "minimal"
 
 
 # =============================================================================
@@ -755,18 +918,23 @@ class TestAvailableFeatures:
     """Tests for get_available_features method."""
 
     def test_get_available_features_all_healthy(self, fallback_service) -> None:
-        """Test available features when all services are healthy."""
+        """Test available features when the detector is up.
+
+        Pinned as an exact set, not a membership list: S3 retired the arms that
+        once contributed here, so the shipped surface emits exactly the
+        detection pair plus the always-on trio, and a resurrected arm would
+        have to be added to this pin on purpose.
+        """
         features = fallback_service.get_available_features()
 
-        assert "object_detection" in features
-        assert "detection_alerts" in features
-        assert "image_captioning" in features
-        assert "ocr" in features
-        assert "entity_tracking" in features
-        assert "re_identification" in features
-        assert "event_history" in features
-        assert "camera_feeds" in features
-        assert "system_monitoring" in features
+        assert set(features) == {
+            "object_detection",
+            "detection_alerts",
+            "event_history",
+            "camera_feeds",
+            "system_monitoring",
+        }
+        assert len(features) == len(set(features)), "a feature is emitted twice"
 
     def test_get_available_features_yolo26_down(self, fallback_service) -> None:
         """Test available features when YOLO26 is down."""
@@ -775,23 +943,19 @@ class TestAvailableFeatures:
 
         assert "object_detection" not in features
         assert "detection_alerts" not in features
-        assert "event_history" in features  # Basic features always available
+        # Basic features always available -- and the container is proven
+        # non-empty, so the two absences above are not an empty-list artifact.
+        assert set(features) == {"event_history", "camera_feeds", "system_monitoring"}
 
-    def test_get_available_features_florence_down(self, fallback_service) -> None:
-        """Test available features when Florence-2 is down."""
-        fallback_service._service_states[AIService.FLORENCE].status = ServiceStatus.UNAVAILABLE
-        features = fallback_service.get_available_features()
+    def test_always_on_features_survive_both_states(self, fallback_service) -> None:
+        """The always-on trio is exactly the intersection of the healthy and
+        detector-down feature lists."""
+        healthy = set(fallback_service.get_available_features())
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
+        down = set(fallback_service.get_available_features())
 
-        assert "image_captioning" not in features
-        assert "ocr" not in features
-
-    def test_get_available_features_clip_down(self, fallback_service) -> None:
-        """Test available features when CLIP is down."""
-        fallback_service._service_states[AIService.CLIP].status = ServiceStatus.UNAVAILABLE
-        features = fallback_service.get_available_features()
-
-        assert "entity_tracking" not in features
-        assert "re_identification" not in features
+        assert healthy > down
+        assert healthy - down == {"object_detection", "detection_alerts"}
 
 
 # =============================================================================
@@ -816,15 +980,22 @@ class TestDegradationStatus:
         status = fallback_service.get_degradation_status()
 
         assert status["degradation_mode"] == "normal"
-        assert len(status["services"]) == 3
+        assert SHIPPED_SERVICES, "AIService is empty -- the service-count pin would be vacuous"
+        assert len(status["services"]) == len(SHIPPED_SERVICES)
+        assert status["available_features"], "normal mode reported no features"
 
     def test_get_degradation_status_service_details(self, fallback_service) -> None:
-        """Test that service details are included in status."""
+        """Test that service details are included in status.
+
+        The keys are pinned against the enum's own wire spellings rather than a
+        hand-written list, so the report and the census cannot drift apart.
+        """
         status = fallback_service.get_degradation_status()
 
+        assert SHIPPED_SERVICES, "AIService is empty -- the key pin below is vacuous"
+        assert set(status["services"]) == {s.value for s in SHIPPED_SERVICES}
         assert "yolo26" in status["services"]
-        assert "florence" in status["services"]
-        assert "clip" in status["services"]
+        assert status["services"]["yolo26"]["status"] == ServiceStatus.HEALTHY.value
 
 
 # =============================================================================
@@ -882,6 +1053,18 @@ class TestGetFallbackRiskAnalysisMethod:
         assert result.risk_score == 90
         assert result.source == "cache"
 
+    def test_fallback_risk_analysis_expired_cache_falls_through(self, fallback_service) -> None:
+        """A stale cached score is not served: the estimator arm answers."""
+        fallback_service._risk_cache.ttl_seconds = 0
+        fallback_service.cache_risk_score("attic", 99)
+
+        result = fallback_service.get_fallback_risk_analysis(
+            camera_name="attic", object_types=["person"]
+        )
+
+        assert result.risk_score == 60
+        assert result.source == "object_type_estimate"
+
 
 class TestCacheRiskScore:
     """Tests for cache_risk_score method."""
@@ -895,7 +1078,11 @@ class TestCacheRiskScore:
 
 
 class TestFallbackCaption:
-    """Tests for get_fallback_caption method."""
+    """Tests for get_fallback_caption method.
+
+    Since S3 this is the shipped caption path -- it is built from detector
+    outputs, so all four shapes stay with their exact-string teeth.
+    """
 
     def test_fallback_caption_with_objects_and_camera(self, fallback_service) -> None:
         """Test fallback caption with objects and camera name."""
@@ -903,21 +1090,19 @@ class TestFallbackCaption:
             object_types=["person", "vehicle"], camera_name="front_door"
         )
 
-        assert "person" in caption.lower() or "vehicle" in caption.lower()
-        assert "front_door" in caption
+        assert caption == "Person, vehicle detected at front_door"
 
     def test_fallback_caption_with_objects_only(self, fallback_service) -> None:
         """Test fallback caption with objects but no camera."""
         caption = fallback_service.get_fallback_caption(object_types=["dog", "cat"])
 
-        assert "dog" in caption.lower() or "cat" in caption.lower()
+        assert caption == "Dog, cat detected"
 
     def test_fallback_caption_with_camera_only(self, fallback_service) -> None:
         """Test fallback caption with camera but no objects."""
         caption = fallback_service.get_fallback_caption(camera_name="back_door")
 
-        assert "back_door" in caption
-        assert "activity detected" in caption.lower()
+        assert caption == "Activity detected at back_door"
 
     def test_fallback_caption_no_info(self, fallback_service) -> None:
         """Test fallback caption with no information."""
@@ -932,18 +1117,26 @@ class TestFallbackEmbedding:
     def test_fallback_embedding_returns_zero_vector(self, fallback_service) -> None:
         """Test that fallback embedding returns zero vector.
 
-        512 dims — the OSNet-AIN x1.0 space the full swap (ledger item 20)
-        made the only person-vector space; a 768-dim stub could never be
-        compared against anything the store holds.
+        512 dims -- the OSNet-AIN x1.0 space the full swap (ledger item 20)
+        made the only person-vector space; a stub in any other space could
+        never be compared against anything the store holds. The dimension is
+        pinned against the vector's own length so a shape change here reads as
+        the store-wide migration it would be, not a one-line edit.
         """
         embedding = fallback_service.get_fallback_embedding()
 
+        assert embedding, "the fallback vector is empty -- the checks below are vacuous"
         assert len(embedding) == 512
         assert all(v == 0.0 for v in embedding)
+        assert all(isinstance(v, float) for v in embedding)
 
 
-class TestShouldSkipMethods:
-    """Tests for should_skip_* convenience methods."""
+class TestShouldSkipDetection:
+    """Tests for the should_skip_detection convenience method.
+
+    S3 deleted the sibling skip helpers with the enum members they keyed on;
+    this one keys on the survivor and stays.
+    """
 
     def test_should_skip_detection(self, fallback_service) -> None:
         """Test should_skip_detection method."""
@@ -953,21 +1146,18 @@ class TestShouldSkipMethods:
         fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.HEALTHY
         assert fallback_service.should_skip_detection() is False
 
-    def test_should_skip_captions(self, fallback_service) -> None:
-        """Test should_skip_captions method."""
-        fallback_service._service_states[AIService.FLORENCE].status = ServiceStatus.UNAVAILABLE
-        assert fallback_service.should_skip_captions() is True
-
-        fallback_service._service_states[AIService.FLORENCE].status = ServiceStatus.HEALTHY
-        assert fallback_service.should_skip_captions() is False
-
-    def test_should_skip_reid(self, fallback_service) -> None:
-        """Test should_skip_reid method."""
-        fallback_service._service_states[AIService.CLIP].status = ServiceStatus.UNAVAILABLE
-        assert fallback_service.should_skip_reid() is True
-
-        fallback_service._service_states[AIService.CLIP].status = ServiceStatus.HEALTHY
-        assert fallback_service.should_skip_reid() is False
+    def test_should_skip_detection_matches_availability(self, fallback_service) -> None:
+        """The skip flag is the detector arm's availability, inverted -- pinned
+        across every status the arm can hold (the loop guard proves the status
+        enum is not empty)."""
+        statuses = list(ServiceStatus)
+        assert statuses, "ServiceStatus is empty -- the sweep below is vacuous"
+        for status in statuses:
+            fallback_service._service_states[AIService.YOLO26].status = status
+            assert fallback_service.should_skip_detection() is (status is ServiceStatus.UNAVAILABLE)
+            assert fallback_service.should_skip_detection() is not (
+                fallback_service.is_service_available(AIService.YOLO26)
+            )
 
 
 # =============================================================================
@@ -998,7 +1188,9 @@ class TestGlobalInstance:
         service = get_ai_fallback_service()
 
         assert isinstance(service, AIFallbackService)
-        assert len(service._service_states) == 3
+        assert SHIPPED_SERVICES, "AIService is empty -- the state-count pin would be vacuous"
+        assert len(service._service_states) == len(SHIPPED_SERVICES)
+        assert set(service._service_states) == SHIPPED_SERVICES
 
 
 # =============================================================================
@@ -1010,10 +1202,14 @@ class TestDefaultConfigs:
     """Tests for DEFAULT_CB_CONFIGS constant."""
 
     def test_default_cb_configs_has_all_services(self) -> None:
-        """Test that DEFAULT_CB_CONFIGS has configs for all services."""
+        """Test that DEFAULT_CB_CONFIGS has configs for all services.
+
+        Pinned as an equality against the enum so no enumerated service can
+        lose its breaker config (and no config can outlive its service).
+        """
+        assert SHIPPED_SERVICES, "AIService is empty -- the coverage pin below is vacuous"
+        assert set(DEFAULT_CB_CONFIGS) == SHIPPED_SERVICES
         assert AIService.YOLO26 in DEFAULT_CB_CONFIGS
-        assert AIService.FLORENCE in DEFAULT_CB_CONFIGS
-        assert AIService.CLIP in DEFAULT_CB_CONFIGS
 
     def test_yolo26_config(self) -> None:
         """Test YOLO26 circuit breaker config."""

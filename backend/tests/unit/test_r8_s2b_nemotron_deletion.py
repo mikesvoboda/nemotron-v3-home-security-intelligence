@@ -17,11 +17,12 @@ first. This file is the red-first pin of the DELETE half, written before any `rm
   at :95 - it must be edited BEFORE the rm or every `from backend.services import ...`
   in the app dies at the package boundary),
 * the VLM path still imports the hoisted symbols from their ONE home, and
-* the DI name `"nemotron_analyzer"` SURVIVES as a string: `pipeline_factory` is the
-  only class-choice seam, two shipped call sites resolve the singleton by that name,
-  and `test_p03_constrained_verdict.py` pins `container.lookups == ["nemotron_analyzer"]`
-  - deleting the module must not silently rename the wiring (S2 retires the class, the
-  name is load-bearing until a slice that says otherwise owns it).
+* the DI name SURVIVES as a string (S2b retires the class, the name is
+  load-bearing until a slice that says otherwise owns it - S2b's own comment
+  said that, and S3 IS that slice: see the retarget note on
+  `TestDiNameIsDeliberate` below. What this file pins is the CLASS deletion;
+  the registry string it originally pinned was the retired tier's own name and
+  now reads `vlm_analyzer`).
 """
 
 from __future__ import annotations
@@ -180,6 +181,17 @@ class TestDeadModulesAreGone:
                 hits.append(f"{path.relative_to(BACKEND)}: {match.group(0).strip()}")
         assert not hits, "surviving shipped modules still import retired code:\n" + "\n".join(hits)
 
+    # 600s, not the harness's --timeout=120: under mutmut this scan ast.parses the
+    # mutants/backend/** copies, and 244 of those are all-mutants files (prompts.py
+    # alone carries 3,422 mutants), which takes ~190s (measured 2026-09-29; it breaches
+    # 120s -> -x aborts mutmut's stats pass, "runner returned 1"). The raise cannot
+    # touch a verdict: mutmut's dependency tracking associates ZERO functions with this
+    # file in either era's stats map (measured over tests_by_mangled_function_name for
+    # both the pre-run and live maps), so per-mutant checks never run it -- the only
+    # passes it widens are the stats pass and the clean gate, which bank no verdicts
+    # (same ruling as the mutmut-stats hypothesis-deadline profile in
+    # tests/conftest.py). On the clean tree the scan takes seconds.
+    @pytest.mark.timeout(600)
     def test_no_analyzer_type_remains_anywhere_in_shipped_code(self) -> None:
         # The annotations are runtime-invisible (`from __future__ import annotations`)
         # but mypy resolves them, and a reader must not meet a class that no longer
@@ -314,14 +326,25 @@ class TestVlmPathSurvives:
 
 
 class TestDiNameIsDeliberate:
+    """RETARGETED by R8 S3, not deleted (which is the point of keeping it).
+    S2b wrote this pin against the retired tier's own name and said the string
+    was load-bearing "until a slice that says otherwise owns it"; ledger item
+    45's close pointer made S3 that slice, so the name is now "vlm_analyzer".
+    The property is unchanged - a class deletion must not silently rename the
+    wiring - only the spelling the pin reads. S3's own guard
+    (test_r8_s3_florence_provider_retirement.py::TestDiRenameLands) checks this
+    file still carries the class and the new name, so retargeting by deletion
+    fails there."""
+
     def test_container_still_wires_the_name(self) -> None:
         # pipeline_factory is the only class-choice seam; the registry NAME is
         # the load-bearing string (main.py's startup gate + core/dependencies
-        # resolve by it, and test_p03 pins container.lookups). This asserts it
-        # survived the class deletion ON PURPOSE, so a future rename is a
-        # decision someone has to take, not drift.
+        # resolve by it, and TestStartupGateSurvives below pins the lookup the
+        # gate actually performs). This asserts it survived the class deletion
+        # ON PURPOSE, so a future rename is a decision someone has to take,
+        # not drift.
         src = (BACKEND / "core" / "container.py").read_text(encoding="utf-8")
-        assert 'register_async_singleton("nemotron_analyzer"' in src
+        assert 'register_async_singleton("vlm_analyzer"' in src
         # ...and the enrichment registration is GONE: container.py:508's legacy
         # gate is what made the tier unreachable, S2 deletes what it fed.
         assert 'register_async_singleton("enrichment_pipeline"' not in src
@@ -366,8 +389,10 @@ class TestStartupGateSurvives:
         container = self._fake_container(analyzer)
 
         assert await run_constrained_startup_check(container) == "enforced"
-        # the gate crosses the RETIRED SPELLING as a string, on purpose
-        assert type(container).lookups == ["nemotron_analyzer"]
+        # the gate crosses the registry by NAME, and the name it crosses is the
+        # one S3 renamed it to (see TestDiNameIsDeliberate for why that rename
+        # was a decision rather than drift)
+        assert type(container).lookups == ["vlm_analyzer"]
         client._probe_enforcement.assert_awaited_once()
 
     @pytest.mark.asyncio

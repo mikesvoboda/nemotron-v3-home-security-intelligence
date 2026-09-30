@@ -21,16 +21,18 @@ registry is parsed as literals rather than imported.
   ai/*/model.py                         per-model-server native surface
                                         (ai/nemotron ships model_hf.py — out of
                                         the model.py glob by design)
-  the six backend caller modules: detector_client.py, clip_client.py,
-  florence_client.py, enrichment_client.py, nemotron_analyzer.py,
-  api/routes/model_management.py — which URLs they build, from which base
-  (gateway branch / settings / hardcoded host), with which JSON payload keys
-  docker-compose.prod.yml                  the DEPLOYED topology: which service
+  the surviving backend caller modules (R8 S3 swept the other four):
+                                        detector_client.py,
+                                        api/routes/model_management.py —
+                                        which URLs they build, from which base
+                                        (gateway branch / settings / hardcoded
+                                        host), with which JSON payload keys
+  docker-compose.prod.yml               the DEPLOYED topology: which service
                                         hostnames exist and which AI URL
                                         settings the deployment rewrites to
                                         gateway-prefixed URLs (compose's
-                                        backend env ENRICHMENT_URL=http://
-                                        ai-gateway:8090/enrichment — the
+                                        backend env YOLO26_URL=http://
+                                        ai-gateway:8090/yolo26 — the
                                         rewrite that makes D1/D2 live). Read as
                                         data; absent compose (fixture trees)
                                         means "no rewrites, all hosts exist".
@@ -125,40 +127,55 @@ REPO_ROOT_DEFAULT = Path(__file__).resolve().parent.parent
 GOLDEN_DEFAULT_NAME = ".github/ai-parity-baseline.json"
 OPERATIONS_REL = "backend/ai_contract/operations.py"
 COMPOSE_REL = "docker-compose.prod.yml"
+# R8 S3 (owner rulings 1, 4 and 5): the clip / florence / heavy-enrichment
+# entries are gone from these maps, not left pointing at a swept dir. A map
+# entry is a POINTER here — collect_gateway walks ai/gateway/adapters/*.py by
+# stem, collect_native walks ai/*/model.py by directory, and the fallbacks are
+# consulted for any stem/dir not mounted in main.py — so an entry whose target
+# is deleted is exactly the "registry pointing at nothing" the
+# backend/ai_contract/providers.py comment refuses for _CLIENT_MODULES. What
+# the sweep leaves is the two mounted adapters and the one surviving native
+# model server.
 ADAPTER_PREFIXES_FALLBACK = {
     "yolo26": "/yolo26",
-    "clip": "/clip",
-    "florence": "/florence",
-    "enrichment": "/enrichment",
     "enrichment_light": "/enrich-lt",
 }
-NATIVE_FAMILY_PREFIX = {
+# family -> mount prefix for every provider surface the checker can ROUTE a URL
+# through. R8 S3 leaves two families: yolo26 (gateway adapter AND native
+# ai/yolo26/model.py) and the light lane, which is now GATEWAY-ONLY — its native
+# twin ai/enrichment-light/model.py was swept, but compose still rewrites
+# ENRICHMENT_LIGHT_URL to http://ai-gateway:8090/enrich-lt, so /enrich-lt stays
+# a mount prefix the D2 mechanism can fire on. The hyphen spelling is kept
+# because module_bases' hardcoded-host scan derives family names from
+# model_management.py's service labels ("ai-enrichment-light"), which are
+# hyphenated like the swept container dir was; the adapter stem
+# ("enrichment_light") is looked up through ADAPTER_PREFIXES_FALLBACK instead.
+PROVIDER_FAMILY_PREFIX = {
     "yolo26": "/yolo26",
-    "clip": "/clip",
-    "florence": "/florence",
-    "enrichment": "/enrichment",
     "enrichment-light": "/enrich-lt",
-    "nemotron": "",
 }
-MOUNT_PREFIXES = {p for p in NATIVE_FAMILY_PREFIX.values() if p}
+# The NATIVE half is narrower still: collect_native walks ai/<dir>/model.py,
+# and yolo26 is the only model server left standing after the sweep.
+NATIVE_FAMILY_DIRS = {"yolo26": "/yolo26"}
+MOUNT_PREFIXES = {p for p in PROVIDER_FAMILY_PREFIX.values() if p}
 # settings attribute -> compose/env var that can rewrite it to a
 # gateway-prefixed URL in the deployed topology (compose backend env;
 # .env.example mirrors it)
+# R8 S3 deleted the Settings fields behind the other three AI URLs, so those
+# env vars exist nowhere to be read from: pydantic-settings runs extra="ignore",
+# so an assignment whose field is gone is silently dropped — and a checker that
+# still mapped it would be reporting a deploy mechanism that cannot fire.
 SETTING_ENV = {
     "yolo26_url": "YOLO26_URL",
-    "clip_url": "CLIP_URL",
-    "florence_url": "FLORENCE_URL",
-    "enrichment_url": "ENRICHMENT_URL",
     "enrichment_light_url": "ENRICHMENT_LIGHT_URL",
 }
 INFRA_ROUTES = {"/health", "/metrics", "/readiness", "/models/registry"}
 PRIMITIVES = {"str", "int", "float", "bool", "bytes"}
+# The caller modules that survive R8 S3. The swept clients' methods left
+# backend/ai_contract/operations.py's client_methods map with them, so a
+# reference here would have nothing left to attribute to an operation.
 CLIENT_MODULE_RELS = (
     "backend/services/detector_client.py",
-    "backend/services/clip_client.py",
-    "backend/services/florence_client.py",
-    "backend/services/enrichment_client.py",
-    "backend/services/nemotron_analyzer.py",
     "backend/api/routes/model_management.py",
 )
 
@@ -418,7 +435,7 @@ def load_registry(root: Path) -> dict[str, Op]:
 
 
 def op_family(o: Op) -> str:
-    for fam, p in NATIVE_FAMILY_PREFIX.items():
+    for fam, p in PROVIDER_FAMILY_PREFIX.items():
         if p and o.path.startswith(p + "/"):
             return fam
     return ""
@@ -511,7 +528,7 @@ def match_op(ops: dict[str, Op], full: str, raw: str, family: str | None) -> Op 
         if op.path == raw:
             return op
     if family:
-        pfx = NATIVE_FAMILY_PREFIX.get(family, "")
+        pfx = PROVIDER_FAMILY_PREFIX.get(family, "")
         if pfx:
             for op in ops.values():
                 if (
@@ -581,7 +598,7 @@ def collect_native(root: Path, ops: dict[str, Op]) -> tuple[list[Served], list[s
             continue
         schemas = extract_schemas(tree, fam)
         model_classes |= set(schemas)
-        pfx = NATIVE_FAMILY_PREFIX.get(fam, "")
+        pfx = NATIVE_FAMILY_DIRS.get(fam, "")
         for r in extract_routes(tree):
             r.module, r.kind = fam, "native"
             full = pfx + r.raw_path
@@ -684,7 +701,7 @@ def module_bases(tree: ast.Module, deploy: Deploy) -> dict[str, list[Base]]:
     def compose_base(setting: str) -> Base | None:
         if setting in deploy.setting_prefix:
             pfx = deploy.setting_prefix[setting]
-            fam = next((f for f, p in NATIVE_FAMILY_PREFIX.items() if p == pfx), "")
+            fam = next((f for f, p in PROVIDER_FAMILY_PREFIX.items() if p == pfx), "")
             return Base(
                 "settings", f"settings:{setting} -> {pfx} (compose rewrite)", fam, null=True
             )
@@ -722,7 +739,7 @@ def module_bases(tree: ast.Module, deploy: Deploy) -> dict[str, list[Base]]:
                                 tail = str(x.value)
                         if tail in MOUNT_PREFIXES:
                             fam = next(
-                                (f for f, p in NATIVE_FAMILY_PREFIX.items() if p == tail), ""
+                                (f for f, p in PROVIDER_FAMILY_PREFIX.items() if p == tail), ""
                             )
                             out.setdefault(t.attr, []).append(
                                 Base("gateway", f"use_ai_gateway -> {tail}", fam, null=True)
@@ -753,11 +770,13 @@ def module_bases(tree: ast.Module, deploy: Deploy) -> dict[str, list[Base]]:
     for name, url in consts.items():
         host = url.split("://", 1)[1].split("/", 1)[0].split(":", 1)[0]
         exists = host in deploy.services if deploy.compose_found else True
-        fam = (
-            "enrichment-light"
-            if "light" in host
-            else ("enrichment" if host.startswith("ai-enrichment") else "")
-        )
+        # R8 S3: the "ai-enrichment" branch is gone with the heavy lane's
+        # serving dir and compose service. model_management.py's surviving
+        # service label is "ai-enrichment-light" (it still matches "light"),
+        # and it is now a gateway ROUTER label, not a container: only
+        # ai-gateway / ai-vlm / ai-llm-vllm are deployed services, so anything
+        # else resolves to a null base — the D2 mechanism, unchanged.
+        fam = "enrichment-light" if "light" in host else ""
         out.setdefault(name, []).append(Base("hardcoded", url, fam, null=not exists))
     # module-level routing helpers (get_service_for_model) alias their constants
     for fn in (
@@ -1181,13 +1200,10 @@ def analyze(root: Path) -> dict:
             return True
         if not deploy.compose_found:
             return True  # fixture trees: all surfaces deployed
-        fam_service = {
-            "yolo26": "ai-yolo26",
-            "clip": "ai-clip",
-            "florence": "ai-florence",
-            "enrichment": "ai-enrichment",
-            "enrichment-light": "ai-enrichment-light",
-        }.get(op_family(s.op), "")
+        # R8 S3 swept the ai-clip / ai-florence / ai-enrichment(-light)
+        # compose services along with their serving dirs, so the only native
+        # family with a compose service left is yolo26's.
+        fam_service = {"yolo26": "ai-yolo26"}.get(op_family(s.op), "")
         return bool(fam_service) and fam_service in deploy.services
 
     # ---- client payload keys vs DEPLOYED provider schemas (KEY)
@@ -1230,7 +1246,7 @@ def analyze(root: Path) -> dict:
             seg_suffix = seg_suffix.split("*")[0] if seg_suffix.split("*")[0] else seg_suffix
         plain_segs = {p for p in seg_suffix.split("/") if p and "{" not in p and p != "*"}
         for b in c.bases:
-            pfx = NATIVE_FAMILY_PREFIX.get(b.family)
+            pfx = PROVIDER_FAMILY_PREFIX.get(b.family)
             url = (
                 ((pfx or "") + seg_suffix)
                 if (b.kind in ("gateway", "settings") and pfx is not None)
@@ -1249,7 +1265,7 @@ def analyze(root: Path) -> dict:
                     for o in ops.values()
                     if {p for p in o.path.split("/") if p} <= plain_segs
                     and (op_family(o) == "" or op_family(o) == b.family)
-                    and o.path != NATIVE_FAMILY_PREFIX.get(b.family, "") + seg_suffix
+                    and o.path != PROVIDER_FAMILY_PREFIX.get(b.family, "") + seg_suffix
                 ]
                 if cands:
                     best = sorted(

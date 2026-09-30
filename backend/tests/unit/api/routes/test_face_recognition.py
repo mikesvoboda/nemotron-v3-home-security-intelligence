@@ -9,15 +9,23 @@ Tests the face recognition endpoints including:
 Implements NEM-4688 Phase 1: Face Recognition UI Backend Support
 Implements NEM-4688 Phase 2: Face Event Identify Endpoint
 
+The CLIP-backed compare debug tool (NEM-4955) that used to live at
+POST /api/face-events/compare is retired - see
+TestFaceSimilarityCompareRetired for the pins that replaced its tests.
+
 These tests follow TDD methodology - tests written before implementation.
 """
 
 from datetime import UTC, datetime
+from typing import ClassVar
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
+from fastapi import status
 
+from backend.api.routes import face_recognition
+from backend.api.schemas import face_recognition as face_schemas
 from backend.models.detection import Detection
 from backend.models.face_identity import FaceDetectionEvent, FaceEmbedding, KnownPerson
 
@@ -1482,273 +1490,103 @@ class TestIdentifyFaceEventService:
 
 
 # =============================================================================
-# Face Similarity Comparison Debug Tool Tests (NEM-4955)
+# The CLIP face-comparison debug tool: retired by R8 S3 (owner ruling 5)
 # =============================================================================
 
 
-def _create_mock_upload_file(filename: str, content: bytes, content_type: str) -> MagicMock:
-    """Create a mock UploadFile with the given parameters."""
-    from io import BytesIO
+class TestFaceSimilarityCompareRetired:
+    """POST /api/face-events/compare is GONE from the mounted surface.
 
-    mock_file = MagicMock()
-    mock_file.filename = filename
-    mock_file.content_type = content_type
-    mock_file.file = BytesIO(content)
+    The debug tool's whole body was CLIP: it imported
+    ``backend.services.clip_client``, embedded both uploads and scored the
+    cosine similarity of two 768-dim CLIP vectors. R8 S3 (2026-09-29, owner
+    ruling 5 — the CLIP prune, with ruling 1 retiring Florence and ruling 4
+    sweeping ai/clip and ai/enrichment) deleted the provider, so the endpoint
+    had no embedder left to call and shipped source deleted it outright:
+    ``compare_faces`` and ``FaceSimilarityCompareResponse`` are both gone from
+    backend/api/routes/face_recognition.py and backend/api/schemas/
+    face_recognition.py.
 
-    # Make read() return the content
-    async def async_read():
-        return content
+    What survives is the DB-LOOKUP half of face recognition (owner ruling: the
+    lookups stay, the re-perception goes) — ArcFace gallery matching behind
+    ``POST /api/face-events/match``, which refuses client-computed vectors with
+    410 because a vector the server did not compute has no model_id. This class
+    pins the retirement the same way test_household_matcher.py pins D-1: the
+    path is not mounted, its schema name is not exported, and the lookup path
+    that replaces it is still answering.
+    """
 
-    mock_file.read = AsyncMock(return_value=content)
-    return mock_file
+    #: Every route the face-recognition router actually mounts, read from the
+    #: live table so the absence pin below has something to be false about.
+    REGISTERED_PATHS: ClassVar[frozenset[str]] = frozenset(
+        route.path for route in face_recognition.router.routes
+    )
 
+    def test_the_retired_compare_path_is_not_mounted(self) -> None:
+        """The debug tool's path no longer exists on the router.
 
-class TestCompareFaces:
-    """Tests for POST /api/face-events/compare endpoint (Debug Tool)."""
+        A request to it is a 404 from FastAPI's router, not a 410: 410 is what
+        a *deliberately* retired handler answers (see
+        test_match_endpoint_still_refuses_client_vectors). Nothing was left to
+        answer here, so nothing is mounted.
+        """
+        assert self.REGISTERED_PATHS, "face-recognition router mounted no routes at all"
+        assert "/api/face-events/compare" not in self.REGISTERED_PATHS
 
-    @pytest.mark.asyncio
-    async def test_compare_faces_success_match(self) -> None:
-        """Test successful face comparison that results in a match."""
-        import numpy as np
+    def test_the_clip_response_schema_is_not_exported(self) -> None:
+        """The schema named the CLIP embedder's output, so it went with it.
 
-        from backend.api.routes.face_recognition import compare_faces
-
-        # Create mock image files
-        file1 = _create_mock_upload_file("face1.jpg", b"fake image content 1", "image/jpeg")
-        file2 = _create_mock_upload_file("face2.jpg", b"fake image content 2", "image/jpeg")
-
-        # Mock PIL Image and CLIP client - these are imported inside the function
-        with (
-            patch("PIL.Image.open", autospec=True) as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
-        ):
-            # Mock PIL Image.open
-            mock_image = MagicMock()
-            mock_image.convert.return_value = mock_image
-            mock_pil_open.return_value = mock_image
-
-            # Mock CLIP client returning similar embeddings
-            mock_clip = MagicMock()
-            embedding1 = np.random.rand(768).astype(np.float32).tolist()
-            # Create embedding2 very similar to embedding1
-            embedding2 = [e + 0.01 for e in embedding1]
-            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
-            mock_get_clip.return_value = mock_clip
-
-            result = await compare_faces(
-                image1=file1,
-                image2=file2,
-                threshold=0.7,
-            )
-
-        assert result.similarity_score > 0.9  # Very similar
-        assert result.is_match is True
-        assert result.threshold == 0.7
-        assert result.embedding_dimension == 768
-        assert result.processing_time_ms >= 0
-        assert result.error is None
+        ``embedding_dimension`` existed to carry the literal 768 of a CLIP
+        vector; with no CLIP there is no dimension to report. Pin the name's
+        absence on the module that used to define it, and pin that the module
+        is not an empty husk — the ArcFace lookup schemas it kept are all
+        still exported.
+        """
+        assert not hasattr(face_schemas, "FaceSimilarityCompareResponse")
+        assert not hasattr(face_recognition, "compare_faces")
+        survivors = {name for name in dir(face_schemas) if name.endswith("Response")}
+        assert survivors, "face-recognition schema module exports no response models"
+        assert {
+            "FaceMatchResponse",
+            "KnownPersonResponse",
+            "PersonAppearancesResponse",
+        } <= survivors
 
     @pytest.mark.asyncio
-    async def test_compare_faces_success_no_match(self) -> None:
-        """Test successful face comparison that does not match."""
-        from backend.api.routes.face_recognition import compare_faces
+    async def test_match_endpoint_still_refuses_client_vectors(self) -> None:
+        """The surviving face-matching door: a posted vector is refused 410.
 
-        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
-        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
-
-        with (
-            patch("PIL.Image.open", autospec=True) as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
-        ):
-            mock_image = MagicMock()
-            mock_image.convert.return_value = mock_image
-            mock_pil_open.return_value = mock_image
-
-            # Create very different embeddings (near orthogonal)
-            mock_clip = MagicMock()
-            embedding1 = [1.0] + [0.0] * 767
-            embedding2 = [0.0] + [1.0] + [0.0] * 766
-            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
-            mock_get_clip.return_value = mock_clip
-
-            result = await compare_faces(
-                image1=file1,
-                image2=file2,
-                threshold=0.7,
-            )
-
-        assert result.similarity_score < 0.7
-        assert result.is_match is False
-        assert result.error is None
-
-    @pytest.mark.asyncio
-    async def test_compare_faces_invalid_content_type(self) -> None:
-        """Test that invalid content type returns 400 error."""
+        Retargeted from test_compare_faces_success_match, which asked the CLIP
+        tool what two uploads scored. That question can no longer be answered,
+        but its successor can: the shipped surface matches faces ONLY where
+        the server computed the vector, so the honest restatement of "how does
+        the API decide two faces are the same person" is the refusal at the one
+        endpoint that used to accept a caller's arithmetic.
+        """
         from fastapi import HTTPException
 
-        from backend.api.routes.face_recognition import compare_faces
-
-        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
-        file2 = _create_mock_upload_file("face2.txt", b"not an image", "text/plain")  # Invalid
+        from backend.api.schemas.face_recognition import FaceMatchRequest
 
         with pytest.raises(HTTPException) as exc_info:
-            await compare_faces(
-                image1=file1,
-                image2=file2,
-                threshold=0.7,
+            await face_recognition.match_face(
+                data=FaceMatchRequest(embedding=[0.0] * 512, threshold=0.7),
+                session=AsyncMock(),
             )
 
-        assert exc_info.value.status_code == 400
-        assert "content type" in exc_info.value.detail.lower()
+        assert exc_info.value.status_code == status.HTTP_410_GONE
+        assert "model_id" in exc_info.value.detail
 
-    @pytest.mark.asyncio
-    async def test_compare_faces_clip_unavailable(self) -> None:
-        """Test that CLIP service unavailable returns error in response."""
-        from backend.api.routes.face_recognition import compare_faces
-        from backend.services.clip_client import CLIPUnavailableError
+    def test_match_route_is_registered_deprecated_with_410(self) -> None:
+        """The refusal is visible in OpenAPI, not just at runtime.
 
-        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
-        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
-
-        with (
-            patch("PIL.Image.open", autospec=True) as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
-        ):
-            mock_image = MagicMock()
-            mock_image.convert.return_value = mock_image
-            mock_pil_open.return_value = mock_image
-
-            mock_clip = MagicMock()
-            mock_clip.embed = AsyncMock(side_effect=CLIPUnavailableError("Service down"))
-            mock_get_clip.return_value = mock_clip
-
-            result = await compare_faces(
-                image1=file1,
-                image2=file2,
-                threshold=0.7,
-            )
-
-        assert result.similarity_score == 0.0
-        assert result.is_match is False
-        assert result.error is not None
-        assert "CLIP" in result.error
-
-    @pytest.mark.asyncio
-    async def test_compare_faces_threshold_parameter(self) -> None:
-        """Test that custom threshold is applied correctly."""
-        import numpy as np
-
-        from backend.api.routes.face_recognition import compare_faces
-
-        file1 = _create_mock_upload_file("face1.jpg", b"fake image 1", "image/jpeg")
-        file2 = _create_mock_upload_file("face2.jpg", b"fake image 2", "image/jpeg")
-
-        with (
-            patch("PIL.Image.open", autospec=True) as mock_pil_open,
-            patch("backend.services.clip_client.get_clip_client", autospec=True) as mock_get_clip,
-        ):
-            mock_image = MagicMock()
-            mock_image.convert.return_value = mock_image
-            mock_pil_open.return_value = mock_image
-
-            # Create embeddings that give ~0.75 similarity
-            mock_clip = MagicMock()
-            embedding1 = np.array([1.0, 1.0, 0.0, 0.0] + [0.0] * 764, dtype=np.float32)
-            embedding1 = (embedding1 / np.linalg.norm(embedding1)).tolist()
-            embedding2 = np.array([1.0, 0.5, 0.5, 0.0] + [0.0] * 764, dtype=np.float32)
-            embedding2 = (embedding2 / np.linalg.norm(embedding2)).tolist()
-            mock_clip.embed = AsyncMock(side_effect=[embedding1, embedding2])
-            mock_get_clip.return_value = mock_clip
-
-            # Test with low threshold - should match
-            result_low = await compare_faces(
-                image1=file1,
-                image2=file2,
-                threshold=0.5,
-            )
-
-        assert result_low.threshold == 0.5
-
-
-class TestFaceSimilarityCompareResponseSchema:
-    """Tests for FaceSimilarityCompareResponse schema."""
-
-    def test_schema_valid_match(self) -> None:
-        """Test schema with valid match data."""
-        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
-
-        response = FaceSimilarityCompareResponse(
-            similarity_score=0.85,
-            is_match=True,
-            threshold=0.7,
-            embedding_dimension=768,
-            processing_time_ms=245,
-            error=None,
+        The retired CLIP tool used to advertise a 200 similarity response
+        model; the endpoint standing on its route advertises 410 and the
+        deprecated flag instead.
+        """
+        route = next(
+            route
+            for route in face_recognition.router.routes
+            if getattr(route, "path", None) == "/api/face-events/match"
         )
-
-        assert response.similarity_score == 0.85
-        assert response.is_match is True
-        assert response.threshold == 0.7
-        assert response.embedding_dimension == 768
-        assert response.processing_time_ms == 245
-        assert response.error is None
-
-    def test_schema_valid_no_match(self) -> None:
-        """Test schema with valid no-match data."""
-        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
-
-        response = FaceSimilarityCompareResponse(
-            similarity_score=0.45,
-            is_match=False,
-            threshold=0.7,
-            embedding_dimension=768,
-            processing_time_ms=180,
-            error=None,
-        )
-
-        assert response.similarity_score == 0.45
-        assert response.is_match is False
-
-    def test_schema_with_error(self) -> None:
-        """Test schema with error message."""
-        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
-
-        response = FaceSimilarityCompareResponse(
-            similarity_score=0.0,
-            is_match=False,
-            threshold=0.7,
-            embedding_dimension=768,
-            processing_time_ms=50,
-            error="CLIP service unavailable",
-        )
-
-        assert response.error == "CLIP service unavailable"
-        assert response.similarity_score == 0.0
-
-    def test_schema_similarity_score_bounds(self) -> None:
-        """Test schema enforces similarity score bounds."""
-        from pydantic import ValidationError
-
-        from backend.api.schemas.face_recognition import FaceSimilarityCompareResponse
-
-        # Test lower bound
-        with pytest.raises(ValidationError):
-            FaceSimilarityCompareResponse(
-                similarity_score=-0.1,  # Invalid
-                is_match=False,
-                threshold=0.7,
-                embedding_dimension=768,
-                processing_time_ms=100,
-                error=None,
-            )
-
-        # Test upper bound
-        with pytest.raises(ValidationError):
-            FaceSimilarityCompareResponse(
-                similarity_score=1.5,  # Invalid
-                is_match=True,
-                threshold=0.7,
-                embedding_dimension=768,
-                processing_time_ms=100,
-                error=None,
-            )
+        assert route.deprecated is True
+        assert 410 in route.responses or "410" in route.responses

@@ -64,20 +64,21 @@
 #                   Triton models (e.g. siglip2 exports both clip and clip_text).
 #                   Use instead of top-level triton_name/triton_kind for 1:many mappings.
 
+# R8 S3 (owner ruling 2, 2026-09-29): the legacy rows are DELETED, not flipped
+# to `enabled: false`. The owner chose this over the evidence doc's
+# enabled:false provenance default and specifically declined to follow the
+# X-CLIP precedent, so a reviewer who "restores provenance" here is overriding
+# a ruling. Provenance is git history plus the ledger entry; the three rows
+# that left here are the retired LLM's, florence-2-base (its Triton dir and
+# gateway adapter died in the same slice) and yolov8n-pose (its `pose` Triton
+# model is pruned, so no boot can serve it). setup_lib/model_downloader.py's
+# DEPRECATED hardcoded lists still name some of them — those lists are the
+# pre-models.yml artifact and are consulted by nothing in the shipped path.
+
 models:
   # ===========================================================
   # PHASE 0 — REQUIRED (system cannot function without these)
   # ===========================================================
-
-  - name: nemotron-3-nano-30b-a3b-q4km
-    description: 'Nemotron-3-Nano-30B LLM for risk reasoning (Q4_K_M quantization, ~14.7 GB)'
-    service: ai-llm
-    hf_repo: unsloth/Nemotron-3-Nano-30B-A3B-GGUF
-    local_path: nemotron/nemotron-3-nano-30b-a3b-q4km
-    size_mb: 15073
-    download_phase: 0
-    required: true
-    download_method: nemotron_gguf
 
   - name: yolo26
     description: 'YOLO26 primary object detection (n/s/m variants) — backend calls via HTTP'
@@ -95,19 +96,6 @@ models:
     preload: false
     never_evict: false
     triton_name: yolo26
-    triton_kind: KIND_GPU
-
-  - name: florence-2-base
-    description: 'Florence-2-base vision-language model for ai-gateway Triton'
-    service: ai-gateway
-    hf_repo: microsoft/Florence-2-base
-    local_path: model-zoo/florence-2-base
-    size_mb: 1024
-    download_phase: 0
-    required: true
-    device: cuda:0
-    device_env_var: FLORENCE_DEVICE
-    triton_name: florence2
     triton_kind: KIND_GPU
 
   # ===========================================================
@@ -202,24 +190,6 @@ models:
     # the leg answering "unavailable". Ledger items 24 and 32.
     preload: true
     never_evict: false
-
-  - name: yolov8n-pose
-    description: 'YOLOv8n-pose human pose estimation, 17 COCO keypoints'
-    service: both
-    hf_repo: ultralytics/yolov8n-pose
-    local_path: model-zoo/yolov8n-pose
-    size_mb: 6
-    download_phase: 1
-    required: false
-    category: pose
-    vram_mb: 200
-    enabled: true
-    priority: medium
-    preload: false
-    never_evict: false
-    runtime_file: yolov8n-pose.pt
-    triton_name: pose
-    triton_kind: KIND_GPU
 
   - name: threat-detection-yolov8n
     description: 'YOLOv8n threat/weapon detection (knives, guns, bats)'

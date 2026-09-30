@@ -16,6 +16,28 @@ if TYPE_CHECKING:
     from setup_lib.model_downloader import ModelSpec
 
 
+def generic_hf_rows() -> set[str]:
+    """models.yml rows that reach the generic snapshot_download path.
+
+    R8 S3 deleted the florence-2-base and nemotron rows from models.yml (rulings
+    1 and 2), so the download tests derive their expectations from the live
+    catalogue — build_model_specs(), which is what prompt_and_download_models
+    consumes — instead of naming rows. That way a row added later with no
+    dedicated handler must show up here, and a row whose dispatch changes must
+    disappear. `dedicated` mirrors the method dispatch in
+    prompt_and_download_models (setup_lib/model_downloader.py:1039-1073);
+    yolov8n-pose is matched there by name, not by download_method.
+    """
+    from setup_lib.model_downloader import build_model_specs
+
+    dedicated = {"nemotron_gguf", "yolo26", "osnet", "stgcn", "yolo_world", "hf_cache"}
+    return {
+        m.name
+        for m in build_model_specs()
+        if m.download_method not in dedicated and m.name != "yolov8n-pose"
+    }
+
+
 class TestModelSpecConstants:
     """Tests for model specification constants."""
 
@@ -34,15 +56,40 @@ class TestModelSpecConstants:
             assert model.required is True, f"Model {model.name} should have required=True"
 
     def test_required_models_contain_essential_models(self) -> None:
-        """REQUIRED_MODELS should contain essential models for the system."""
-        from setup_lib.model_downloader import REQUIRED_MODELS
+        """The REQUIRED rows are what setup refuses to boot without.
 
-        model_names = [m.name for m in REQUIRED_MODELS]
-        # The three phase-0 required rows in models.yml: the LLM, primary object
-        # detection, and the vision-language model.
-        assert "nemotron-3-nano-30b-a3b-q4km" in model_names
-        assert "yolo26" in model_names
-        assert "florence-2-base" in model_names
+        R8 S3 retargets this off REQUIRED_MODELS and onto build_model_specs(),
+        which is what prompt_and_download_models actually consumes and what
+        models.yml actually says. The old pin read the module's DEPRECATED
+        hardcoded list and claimed those were "the phase-0 required rows in
+        models.yml" — a claim that was already untrue of the yaml (the
+        deprecated list and the catalogue are different sources; the list is
+        dead code kept only for direct-script-execution compat, see
+        setup_lib/model_downloader.py:44). Reading the live source is both the
+        truth and the stronger pin: it fails when a row leaves the catalogue.
+
+        Ruling 2 (owner, 2026-09-29) DELETED the florence-2-base and nemotron
+        rows from models.yml rather than parking them at enabled:false, so both
+        spellings are asserted GONE here — a re-appearing row is loud. The
+        LLM/model weights still download, just not from this catalogue: the
+        deployed engines name their own model (compose gives ai-llm-vllm
+        VLLM_MODEL=.../NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 and ai-vlm
+        MODEL_PATH=...Qwen3VL-8B...gguf), and the Nemotron GGUF downloader
+        helper survives for that path.
+        """
+        from setup_lib.model_downloader import build_model_specs
+
+        specs = build_model_specs()
+        assert specs, "models.yml yielded no downloadable rows — the catalogue read is broken"
+        required = {m.name for m in specs if m.required}
+        assert required == {"yolo26"}, required
+        gone = {m.name for m in specs}
+        assert "florence-2-base" not in gone, sorted(gone)
+        assert "nemotron-3-nano-30b-a3b-q4km" not in gone, sorted(gone)
+        # the three Triton names the gateway can actually boot are downloadable
+        # (yolo26 + the light lane's reid/threat) — KEEP SET, S1's PASS depends
+        # on these being fetchable.
+        assert {"yolo26", "osnet-ain-x1-0", "threat-detection-yolov8n"} <= gone, sorted(gone)
 
     def test_phase1_models_exists(self) -> None:
         """PHASE1_MODELS should be a list."""
@@ -676,13 +723,13 @@ class TestPromptAndDownloadModels:
                 "setup_lib.model_downloader.download_yolo26_models",
                 return_value=True,
                 autospec=True,
-            ),
+            ) as mock_yolo26,
             patch(
                 "setup_lib.model_downloader.download_yolov8n_pose", return_value=True, autospec=True
             ),
             patch(
                 "setup_lib.model_downloader.download_osnet_reid", return_value=True, autospec=True
-            ),
+            ) as mock_osnet,
             # Live alternative-download handlers: unreachable while models.yml has no
             # stgcn / yolo_world / hf_cache rows, but patched so a re-added row can
             # never reach the network from a unit test.
@@ -710,11 +757,23 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Function auto-downloads all missing models; every models.yml row that
-            # carries an hf_repo must reach download_hf_model — phase 0 (required)
-            # and phase 1 (optional core enrichment) alike.
-            assert "florence-2-base" in downloaded_models
-            assert "threat-detection-yolov8n" in downloaded_models
+        # Function auto-downloads all missing models. R8 S3 (rulings 1 and 2)
+        # deleted florence-2-base and the nemotron row from models.yml, so this
+        # derives its expectation from the live catalogue instead of naming rows
+        # (see generic_hf_rows). Deriving it means a row added to models.yml with
+        # no handler wired in is caught here rather than silently skipped.
+        expected = generic_hf_rows()
+        assert expected, "models.yml has no rows on the generic HF path"
+        assert set(downloaded_models) == expected, (
+            f"generic HF path saw {sorted(downloaded_models)}, expected {sorted(expected)}"
+        )
+        # KEEP SET (S1's PASS depends on all three being fetchable): yolo26 via
+        # its own handler, the light lane's reid via the osnet handler, threat via
+        # the generic path (asserted above).
+        assert mock_yolo26.called, "required row yolo26 was never fetched"
+        assert mock_osnet.called, "light-lane reid row was never fetched"
+        assert "florence-2-base" not in downloaded_models
+        assert "nemotron-3-nano-30b-a3b-q4km" not in downloaded_models
 
     def test_uses_default_path_when_not_provided(self) -> None:
         """Should use default ai_models_path when not in config."""
@@ -755,8 +814,20 @@ class TestPromptAndDownloadModels:
             assert any("Permission denied" in str(c) for c in print_calls)
 
     def test_disk_space_warning(self) -> None:
-        """Should warn when disk space is low."""
-        from setup_lib.model_downloader import prompt_and_download_models
+        """Should warn when disk space is low.
+
+        The free-space figure is derived from the live catalogue, not hardcoded.
+        It used to be a hand-picked "1 GB free, need much more", which was true
+        only while models.yml carried the 15 GB nemotron GGUF row; R8 S3's
+        ruling-2 deletions brought the total under a gigabyte and 1 GB free
+        stopped being low, so the warning simply stopped firing and the pin was
+        red for the wrong reason. Half the derived need keeps it low whatever the
+        catalogue says.
+        """
+        from setup_lib.model_downloader import build_model_specs, prompt_and_download_models
+
+        need_gb = sum(m.size_mb for m in build_model_specs()) / 1024 * 1.2
+        assert need_gb > 0, "empty catalogue — the warning below could never fire"
 
         with (
             patch(
@@ -806,14 +877,14 @@ class TestPromptAndDownloadModels:
                 autospec=True,
             ),
         ):
-            # Only 1GB free, need much more for models
-            mock_disk.return_value = MagicMock(free=1 * 1024**3)
+            # Half the derived need: below the threshold by construction.
+            mock_disk.return_value = MagicMock(free=int(need_gb / 2 * 1024**3))
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
             # Should print warning about low disk space
             print_calls = [str(c) for c in mock_print.call_args_list]
-            assert any("Warning" in str(c) or "free" in str(c) for c in print_calls)
+            assert any("Warning" in c and "free" in c for c in print_calls), print_calls
 
     def test_installs_huggingface_hub_if_missing(self) -> None:
         """Should attempt to install huggingface_hub if not available."""
@@ -1124,9 +1195,19 @@ class TestPromptAndDownloadModels:
             downloaded_models.append(model.name)
             return True
 
+        # The exemplar is derived, not named: florence-2-base was the old one and
+        # is now a deleted row (ruling 1), which left this test asserting that a
+        # model nobody offers to download was not downloaded — always true. Using
+        # the first generic-path row guarantees the "already exists" branch is
+        # taken on a row the loop would otherwise fetch.
+        from setup_lib.model_downloader import build_model_specs
+
+        all_rows = {m.name for m in build_model_specs()}
+        existing = sorted(all_rows & generic_hf_rows())[:1]
+        assert existing, "no generic-path row available to use as the already-downloaded exemplar"
+
         def mock_check_exists(path: Path, name: str) -> bool:
-            # florence-2-base already exists
-            return name == "florence-2-base"
+            return name in existing
 
         with (
             patch(
@@ -1186,8 +1267,15 @@ class TestPromptAndDownloadModels:
 
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # florence-2-base should not be in downloaded list (already exists)
-            assert "florence-2-base" not in downloaded_models
+        # The exemplar row must NOT have been re-fetched (it already exists), and
+        # the rest of the generic path must still have run — otherwise this would
+        # pass on a loop that downloaded nothing.
+        for name in existing:
+            assert name not in downloaded_models, f"{name} exists on disk but was re-downloaded"
+        assert set(downloaded_models) == generic_hf_rows() - set(existing), (
+            f"downloaded {sorted(downloaded_models)}, expected the generic path minus {existing}"
+        )
+        assert "florence-2-base" not in all_rows, "florence-2-base is a deleted row (ruling 1)"
 
     def test_downloads_all_missing_models_without_input(self) -> None:
         """Should auto-download all missing models without requiring any input."""
@@ -1256,10 +1344,19 @@ class TestPromptAndDownloadModels:
             # No input mock needed - function no longer prompts for options
             prompt_and_download_models({"ai_models_path": "/export/ai_models"})
 
-            # Should download all required models automatically, and the optional
-            # phase-1 HF row alongside them.
-            assert "florence-2-base" in downloaded_models
-            assert "yolo11-face" in downloaded_models
+        # Every catalogue row on the generic path must have been fetched with no
+        # prompting at all — that is the property this test exists for, and it is
+        # the same property test_downloads_all_missing_models pins when a prompt
+        # *is* possible. Enumerating "florence-2-base"/"yolo11-face" by name was
+        # possible only while those rows existed; florence-2-base is now deleted
+        # outright (ruling 1) and its absence is asserted below so the pin gets
+        # stronger, not weaker.
+        expected = generic_hf_rows()
+        assert expected, "models.yml has no rows on the generic HF path"
+        assert set(downloaded_models) == expected, (
+            f"unprompted run fetched {sorted(downloaded_models)}, expected {sorted(expected)}"
+        )
+        assert "florence-2-base" not in downloaded_models
 
 
 class TestHfHubAvailability:
