@@ -28,12 +28,12 @@ __all__ = [
     "get_entity_repository",
     "get_face_detector_service_dependency",
     "get_hybrid_entity_storage",
-    "get_nemotron_analyzer_dependency",
     "get_ocr_service_dependency",
     "get_pagination_limits",
     "get_plate_detector_service_dependency",
     "get_redis_dependency",
     "get_reid_service_dependency",
+    "get_vlm_analyzer_dependency",
 ]
 
 from collections.abc import AsyncGenerator
@@ -82,17 +82,18 @@ async def get_context_enricher_dependency() -> AsyncGenerator[ContextEnricher]:
     yield enricher
 
 
-async def get_nemotron_analyzer_dependency() -> AsyncGenerator[VlmAnalyzer]:
+async def get_vlm_analyzer_dependency() -> AsyncGenerator[VlmAnalyzer]:
     """FastAPI dependency for the per-event analyzer (the shipped VlmAnalyzer).
 
-    The function NAME mirrors the container key, load-bearing wiring - see
-    the registration in container.py for why R8 S2 kept the retired spelling.
+    The function NAME mirrors the container key, load-bearing wiring - R8 S3
+    (2026-09-29) moved both from the retired nemotron spelling to "vlm_analyzer"
+    (see the registration in container.py for the ruling's history).
 
     Yields:
         the analyzer instance from the container
     """
     container = get_container()
-    analyzer = await container.get_async("nemotron_analyzer")
+    analyzer = await container.get_async("vlm_analyzer")
     yield analyzer
 
 

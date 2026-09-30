@@ -1,4 +1,4 @@
-"""WP8.3 conformance — cluster "numeric-invariants" (N1a-N6). DRAFT — NOT IN THE REPO.
+"""WP8.3 conformance — cluster "numeric-invariants" (N1a-N6).
 
 Drafted per docs/superpowers/plans/2026-09-19-swap-readiness-72h.md §WP8.3
 ("Numeric invariants" bullets) against the verified dossier
@@ -8,66 +8,87 @@ Drafted per docs/superpowers/plans/2026-09-19-swap-readiness-72h.md §WP8.3
 parametrized backend/tests/contracts/ai_providers/test_conformance.py; it
 carries ONLY the numeric-invariant properties.
 
-STATUS: every assertion is UNVERIFIED — nothing here was executed under pytest
-(a full validate.sh tier was running while this was drafted; the only live
-executions allowed were one-shot `.venv/bin/python` import probes, and each
-runtime-verified behavior below says so in its comment). Each block carries:
-source (file:line from the dossier), predicted RED/GREEN against the fake,
-predicted gateway behavior, and "UNVERIFIED".
+R8 S3 REWRITE (2026-09-29, owner rulings 1-5). The prune to three models
+(GATEWAY_MODEL_SET = yolo26 / reid / threat) made gateway CLIP unbootable, so
+CLIP's whole surface retired in S3 as a prune consequence: the five adapter
+mounts became two, the five Triton patch targets became two, and the five ops
+this cluster drove numerically (``clip_embed``, ``clip_classify``,
+``clip_similarity``, ``clip_anomaly_score``, ``clip_batch_similarity``) became
+one (``enrich_lt_person_reid``). Every property below is RETARGETED onto
+surviving shipped surface or TOMBSTONED with its hazard stated in full —
+never skipped, never silently deleted (the S2b grammar; the tier's own
+precedents are TestO1ActionClassifyTombstone / TestO2CompositeEnrichTombstone
+in test_conformance_ops.py). The "UNVERIFIED / predicted RED" status the draft
+carried is gone: every assertion here is executed.
+
+WHAT THE CLUSTER LOOKS AT NOW
+  * the embedding numeric property (fixed dim + L2 unit norm + declared dim ==
+    vector length) drives the one surviving embedding route, the light lane's
+    ``/enrich-lt/person-reid``, on both sides of the matrix;
+  * the classify/similarity/anomaly NUMERIC CONTRACT survives as shape
+    arithmetic (a distribution, and the sigmoid head that is not one) while
+    the CLIP routes that carried it are tombstones;
+  * the range/which-layer-enforces-it finding reproduces on the surviving
+    lane's confidence number, whose response model is just as bare as CLIP's
+    was;
+  * the dim-confusion hazard (N5) is graded against the surviving 512-d slot,
+    where the RAISE side and the SILENT side are both live and now asserted as
+    one pair on one seam, and the retired multi-slot claim's METHOD survives
+    as a four-way agreement over the shipped artifacts that name the width;
+  * the three source/schema characterizations (N1b fixture-corpus anti-pin,
+    N4 risk-score layer disagreement, N6 summary maxLength) survive intact —
+    diagnosed, not assumed: their subjects are LLM schema modules, one ORM
+    model and one live test fixture, none of which the vision prune touches.
 
 DIVERGENCE POLICY (plan §WP8.3 procedure + goal rule):
   * NO xfail, NO skip, NO importorskip anywhere in this file — ever.
-  * Where a property cannot hold TODAY against the fake (N2a: the fake's
-    clip_classify is snapshot-WALKED, not a literal op, so its scores are
-    {alpha, bravo} free-form U(0.1,0.9) — dossier N2a;
-    backend/ai_contract/fake/generators.py:347-352 emits the free-form map and
-    :342 the generic 'top_label_NNN' string), THIS DRAFT asserts the property
-    so it lands RED against the fake. The red IS the generator fix (add a
-    clip_classify softmax/literal path), per the plan: "land each divergence
-    as (a) a fix, making a real assertion green... The branch ends green."
-  * Where a plan cite is WRONG, this file cites the corrected line (dossier
-    cite-corrections): the plan's backend/models/llm_response.py does NOT
-    exist — the file is backend/api/schemas/llm_response.py (field :393 and
-    coerce_risk_score :436 are EXACT there).
+  * Every divergence between providers is asserted as a per-provider green
+    assertion or as a pinned-divergence assertion. The one red this file used
+    to carry (N2a: the fake's ``clip_classify`` was snapshot-WALKED, so it
+    answered ``{alpha, bravo}`` / ``top_label_544`` for requested labels
+    ``[person, dog, car]``) retired with its op; its lesson — a distribution
+    must key EXACTLY the labels it was asked for — now runs as the shipped
+    arithmetic invariant in TestN2NumericContractShape.
 
-DRIVING SHAPES (dossier mechanics Q1b/Q4/Q5, verified there):
+DRIVING SHAPES (dossier mechanics Q1b/Q4/Q5):
   * fake    — create_fake_app() driven over httpx.ASGITransport; when the
               registry record is needed: register_provider(ProviderId.FAKE,
-              fake_provider_ops(), OPERATIONS) IN-TEST — the fake is NOT
-              registered at import (backend/ai_contract/providers.py module
-              docstring). Its callables are uniform async fn(payload=None)->dict
-              (fake/app.py:109-127) but this file drives the app directly,
-              mirroring test_fake_provider.py:101-112.
-  * gateway — the FIVE adapter routers with their PRODUCTION prefixes
-              (ai/gateway/main.py:181-185: /yolo26 /clip /florence
-              /enrichment /enrich-lt) onto one FastAPI app; ALL FIVE
-              module-level get_triton_client names patched (five distinct
-              from-import sites — adapters/yolo26.py:28, enrichment.py:31,
-              enrichment_light.py:30, florence.py:39, clip.py:40; patching the
-              original in ai.gateway.triton_client hits NONE of them,
-              dossier Q2). Template: ai/gateway/tests/
-              test_adapters_yolo26.py:98-104, extended with the clip
-              text-encoder patches of ai/gateway/tests/test_adapters_clip.py:88-101.
-  * gateway_light — the SAME enrichment_light router ALONE at /enrich-lt: the
-              full app cannot express "gateway_light's column lacks every /clip
-              op" as a 404, because the clip router answers on the full app —
-              the mounted routers ARE the provider's availability surface, so
-              absence is graded against a light-only app.
-  * per_model_http / llamacpp_llm — MATRIX-GUARD ONLY: set(rec.operations())
-              vs the slot column (equality; subset for llamacpp's
-              evidence-derived set) and rec.deployed. Never network — the
-              registered callables are unbound client methods / live httpx
-              closures (dossier Q1a/Q5). This suite NEVER INVOKES
-              registered_providers()['gateway'].operations() callables.
-  * absent ops — registry absence AND (app-driven) a real 404. Green guards,
-              never skips.
+              fake_provider_ops(), OPERATIONS, deployed=True) IN-TEST — the
+              fake is NOT registered at import (backend/ai_contract/
+              providers.py module docstring).
+  * gateway — the surviving adapter routers with their PRODUCTION prefixes
+              (ai/gateway/main.py:272-273: /yolo26 and /enrich-lt) onto one
+              FastAPI app, with BOTH module-level get_triton_client names
+              patched (adapters/yolo26.py:28, adapters/enrichment_light.py:27
+              — two DISTINCT from-import sites: patching one silently leaves
+              the other on real gRPC, and patching the original in
+              ai.gateway.triton_client hits neither). The target list is
+              DERIVED from the mount table, and the mount table is checked
+              against ai/gateway/main.py by AST.
+  * gateway_light — the enrichment_light router ALONE at /enrich-lt. It
+              survives for the reason the draft gave: the mounted routers ARE
+              a provider's availability surface, so "this column lacks op X"
+              is only assertable as a 404 on an app that lacks the router. On
+              the merged app a /yolo26 path answers 422 (the route exists and
+              wants a multipart file), which would grade pydantic, not
+              availability. The VICTIMS are derived from the column delta
+              (the yolo26 ops) instead of the retired ``/clip`` list.
+  * per_model_http / llamacpp_llm / the VLM engines — MATRIX-GUARD ONLY:
+              set(rec.operations()) vs the slot column (equality; subset for
+              the evidence-derived sets) and rec.deployed. Never network —
+              their registered callables are unbound client methods / live
+              httpx closures (dossier Q1a/Q5). This suite NEVER INVOKES
+              registered_providers()[...].operations() callables.
 
-UNIT-NORM TOLERANCE: abs_tol=1e-5, NOT 1e-9 — ai/clip/model.py:801-804 divides
-by (norm + 1e-8) so the legacy server's true norm is ~1-1e-8; the fake's
-override generator is exact (fake/generators.py:173-177, :242-244); the
-gateway's ai/gateway/utils.py l2_normalize (:172-184) is epsilon-FREE and
-returns the RAW vector when norm < 1e-12 (:182-183) — 1e-5 absorbs the legacy
-epsilon but still catches an unnormalized vector.
+UNIT-NORM TOLERANCE: abs_tol=1e-5, NOT 1e-9, and the reason is now SHIPPED.
+The light reid adapter normalizes behind a ``if norm > 1e-8`` guard at
+ai/gateway/adapters/enrichment_light.py:205-207 — a below-threshold input
+leaks the RAW (non-unit) vector, which is exactly what a 1e-9 budget would be
+too tight to see and a 1e-3 budget too loose to see. The fake's override is
+exact (unit_embedding 512, backend/ai_contract/fake/generators.py:222-223)
+and the face loader's own normalizer REFUSES the zero vector outright
+(backend/services/face_recognizer_loader.py:249-252): three providers, three
+answers to "what is a zero vector", one tolerance.
 """
 
 from __future__ import annotations
@@ -76,8 +97,8 @@ import ast
 import base64
 import contextlib
 import io
+import json
 import math
-import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -85,7 +106,7 @@ from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pytest
-from backend.ai_contract.operations import OPERATIONS
+from backend.ai_contract.operations import OPERATION_IDS, OPERATIONS
 from backend.ai_contract.provider import (
     ProviderId,
     operations_for_slot,
@@ -99,6 +120,7 @@ from backend.api.schemas.llm_response import (
 from backend.api.schemas.llm_response import (
     LLMRiskResponse as StrictRiskResponse,
 )
+from backend.core.exceptions import InvalidEmbeddingError
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
@@ -107,31 +129,57 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 SCHEMA_DIR = REPO_ROOT / "backend" / "ai_contract" / "schemas"
 
 # ---------------------------------------------------------------------------
-# numeric-invariant op subsets of the registry (ids/methods/paths verified
-# live against OPERATIONS; UNVERIFIED only in the sense that registry drift
-# must re-run this file)
+# op subsets of the registry. The driven set is DERIVED, not remembered: a
+# numeric-response op joins by having a committed snapshot with a numeric
+# ``embedding`` array (WP4.2 — a hand-numbered op table is the rot this tier
+# already removed elsewhere; the draft's NUMERIC_OPS was exactly such a table).
 # ---------------------------------------------------------------------------
-CLASSIFY_OPS = ("clip_classify",)
-RANGE_OPS = ("clip_similarity", "clip_anomaly_score", "clip_batch_similarity")
-# ops whose RESPONSE this cluster grades numerically (fake + gateway):
-NUMERIC_OPS = ("clip_embed", "enrich_lt_person_reid", *CLASSIFY_OPS, *RANGE_OPS)
 
-# Production mounts (ai/gateway/main.py:181-185, verified). This cluster needs
-# /clip and /enrich-lt; carry all five (dossier Q5) so sibling clusters merge
-# into one app/fixture set.
+
+def _snapshot(op_id: str, kind: str = "response") -> dict[str, Any]:
+    return json.loads((SCHEMA_DIR / f"{op_id}.{kind}.json").read_text(encoding="utf-8"))
+
+
+def _embedding_ops() -> frozenset[str]:
+    """Registry ops whose COMMITTED response snapshot carries a numeric
+    embedding vector. Today exactly one; a future embedding op joins without
+    an edit here."""
+    out: set[str] = set()
+    for op_id in OPERATION_IDS:
+        if (SCHEMA_DIR / f"{op_id}.response.json").exists():
+            emb = (_snapshot(op_id).get("properties") or {}).get("embedding") or {}
+            if emb.get("type") == "array" and emb.get("items", {}).get("type") == "number":
+                out.add(op_id)
+    return frozenset(out)
+
+
+EMBEDDING_OPS = _embedding_ops()
+REID_OP = "enrich_lt_person_reid"
+THREAT_OP = "enrich_lt_threat_detect"
+
+# ops this cluster grades numerically for the matrix guards (derived, above).
+NUMERIC_OPS = tuple(sorted(EMBEDDING_OPS))
+
+# Production mounts, mirrored from ai/gateway/main.py:272-273 — and pinned
+# against that file by AST in
+# TestMatrixNumericSurface.test_matrix_mount_table_is_derived_from_main, so
+# the mirror cannot rot. GATEWAY_PATCH_TARGETS folds off this table: adding a
+# third adapter forces a patch target with it (dossier Q2's "one patch != all
+# adapters" hazard survives the shrink from five to two — the rule shrank
+# because the SURFACE did, not because a target was dropped on purpose).
 GATEWAY_MOUNTS: tuple[tuple[str, str], ...] = (
     ("ai.gateway.adapters.yolo26", "/yolo26"),
-    ("ai.gateway.adapters.clip", "/clip"),
-    ("ai.gateway.adapters.florence", "/florence"),
-    ("ai.gateway.adapters.enrichment", "/enrichment"),
     ("ai.gateway.adapters.enrichment_light", "/enrich-lt"),
 )
 
-# Dossier Q2: five DISTINCT module-level names; patching one adapter silently
-# leaves the other four on the real gRPC Triton client.
 GATEWAY_PATCH_TARGETS: tuple[str, ...] = tuple(
     f"{module}.get_triton_client" for module, _prefix in GATEWAY_MOUNTS
 )
+
+LIGHT_TARGETS: tuple[str, ...] = tuple(
+    target for target in GATEWAY_PATCH_TARGETS if "enrichment_light" in target
+)
+assert len(LIGHT_TARGETS) == 1, "the light lane must have exactly one patch target"
 
 # provider id -> matrix slot (backend/ai_contract/provider.py PROVIDER_SLOT,
 # dossier Q7; the three subset providers and PER_MODEL_HTTP share the union
@@ -159,64 +207,118 @@ SUBSET_REQUIRED = {
     "rtvi_vlm": {"vlm_assess"},
 }
 
-# the label set the classify tests REQUEST (the property is "a softmax over
-# EXACTLY the requested labels" — dossier N2a)
-CLASSIFY_LABELS = ["person", "dog", "car"]
+
+# ---------------------------------------------------------------------------
+# Shipped literals this cluster's fixtures are built FROM (AST, never
+# transcribed) — defined first because the canned-shape defaults below read
+# them at def time.
+# ---------------------------------------------------------------------------
+
+
+def _shipped_threat_table() -> list[str]:
+    """The light adapter's threat vocabulary, read from shipped source — the
+    tensor channel count derived from it can then never drift away from the
+    names it indexes (WP4.2: a hand-numbered channel count is the rot)."""
+    src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment_light.py").read_text(
+        encoding="utf-8"
+    )
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id == "THREAT_CLASSES":
+                return list(ast.literal_eval(node.value))
+    raise AssertionError("THREAT_CLASSES no longer shipped in the light adapter")
+
+
+def _shipped_reid_dim() -> int:
+    """``OSNET_EMBEDDING_DIM`` read out of backend/services/osnet_loader.py by
+    AST — the shipped width of the one embedding space. AST rather than import
+    because that module costs ~2.3s to import and this tier's budget is
+    per-test; the width's registry-side twin is pinned by
+    test_conformance_dbvocabulary.py's embedding-dim registry test."""
+    src = (REPO_ROOT / "backend" / "services" / "osnet_loader.py").read_text(encoding="utf-8")
+    for node in ast.parse(src).body:
+        targets = node.targets if isinstance(node, ast.Assign) else []
+        for target in targets:
+            if isinstance(target, ast.Name) and target.id == "OSNET_EMBEDDING_DIM":
+                return int(ast.literal_eval(node.value))
+    raise AssertionError("OSNET_EMBEDDING_DIM no longer a module-level literal")
+
+
+# Derived fixture shapes: nothing below hand-pins a dimensionality or a class
+# count — both follow the shipped weights.
+_THREAT_CLASS_COUNT = len(_shipped_threat_table())
+_CANNED_REID_DIM = _shipped_reid_dim()
 
 
 # ---------------------------------------------------------------------------
 # canned vectors / payloads — deterministic and MODULE-LEVEL so the exact
-# value behind every prediction below is greppable, not fixture-order
-# dependent. The runtime predictions (sum 1.3106 etc.) were pulled once with
-# `.venv/bin/python` + generators.generate(); UNVERIFIED under pytest.
+# value behind every assertion below is greppable, not fixture-order
+# dependent.
 # ---------------------------------------------------------------------------
 
 
-def _canned_vision_embedding() -> np.ndarray:
-    """Canned 768-dim vision output shaped as the clip adapter consumes it:
-    ai/gateway/adapters/clip.py:295-297 reads result["pooler_output"][0]
-    .tolist() then l2_normalize()s it — the ADAPTER DOES NORMALIZE
-    (dossier N1a; this pins that fact). Deliberately NOT pre-normalized (norm
-    ~3*sqrt(768)) so the /embed unit-norm assertion actually grades the
-    adapter's normalize step (ai/gateway/utils.py:172-184)."""
-    rng = np.random.RandomState(42)
-    return (rng.randn(1, 768) * 3.0).astype(np.float32)
-
-
-def _canned_reid_embedding() -> np.ndarray:
-    """Canned 512-dim OSNet output (same [0] row indexing at
-    adapters/enrichment_light.py:440) with norm ~2.5*sqrt(512), so the
-    inline >1e-8-guarded normalization at enrichment_light.py:443-445 is
-    what produces the unit vector the N1a test asserts."""
+def _canned_reid_embedding(dim: int = _CANNED_REID_DIM) -> np.ndarray:
+    """Canned OSNet-shaped Triton output ``[1, dim]`` with norm
+    ~2.5*sqrt(dim), i.e. deliberately NOT unit. The guarded inline
+    normalization at ai/gateway/adapters/enrichment_light.py:205-207 is
+    therefore the thing producing the unit vector N1a asserts — an adapter
+    that stopped normalizing would leak this vector verbatim and trip the
+    1e-5 tolerance."""
     rng = np.random.RandomState(7)
-    return (rng.randn(1, 512) * 2.5).astype(np.float32)
+    return (rng.randn(1, dim) * 2.5).astype(np.float32)
 
 
-def _canned_infer(inputs: dict[str, Any], model_name: str = "", **kw: Any) -> dict[str, Any]:
-    """AsyncMock side_effect dispatching by model name — vision ('clip',
-    adapters/clip.py:48 VISION_MODEL_NAME) vs reid ('reid',
-    adapters/enrichment_light.py:436). Name-dispatch (not per-test
-    return_value mutation) keeps the shared mock fixed for every test."""
+# (class id, class score) rows for the canned threat tensor. Three classes,
+# three different scores, all above the adapter's 0.25 threshold: enough to
+# grade the emitted numbers and the envelope max, and a `rifle` row on
+# purpose — rifle is legal in the light adapter's table and ILLEGAL in the DB
+# CHECK the same word flows toward (test_conformance_dbvocabulary.py pins that
+# seam; this file's job is only the numeric shape).
+_THREAT_ROWS: tuple[tuple[int, float], ...] = ((0, 0.91), (1, 0.62), (2, 0.31))
+
+
+def _canned_threat_output(rows: tuple[tuple[int, float], ...] = _THREAT_ROWS) -> np.ndarray:
+    """Threat tensor in the orientation the light adapter normalizes at
+    adapters/enrichment_light.py:87-88: ``preds.shape[0] < preds.shape[1]``
+    triggers a transpose, so the shipped post-processor is fed
+    ``[1, 4 + n_classes, n_candidates]`` here — channels x candidates, the
+    same layout its docstring's ``(1, 8, 8400)`` describes, where the 4 is the
+    box-channel half of that 8. Each candidate is
+    ``[cx, cy, w, h, *class_scores]``, so ``np.argmax(class_scores, axis=1)``
+    — the INDEX that becomes the emitted class name at :107-108 — is exactly
+    what the row asks for. Filler sub-threshold rows keep the candidate count
+    off a round power of two so a shape assumption cannot pass by accident."""
+    n = len(rows) + 13
+    out = np.zeros((1, 4 + _THREAT_CLASS_COUNT, n), dtype=np.float32)
+    for i, (cls_id, conf) in enumerate(rows):
+        assert cls_id < _THREAT_CLASS_COUNT, f"class id {cls_id} is off the shipped table"
+        out[0, 0:4, i] = (320.0, 240.0, 60.0, 120.0)
+        out[0, 4 + cls_id, i] = conf
+    return out
+
+
+def _canned_infer(
+    inputs: dict[str, Any],
+    model_name: str = "",
+    reid_dim: int = _CANNED_REID_DIM,
+    **kw: Any,
+) -> dict[str, Any]:
+    """AsyncMock side_effect dispatching by Triton model name. The shipped
+    GATEWAY_MODEL_SET is exactly three residents (owner ruling 5's prune):
+    yolo26, reid and threat — this answers all three at their real output
+    keys. An unknown model name is a loud error, never a silently-shared
+    default vector (the same silent-drift class the N5 dim guard refuses).
+    ``reid_dim`` is the one knob the N5 pair needs: the shipped adapter never
+    counts the vector it forwards."""
     if model_name == "reid":
-        return {"embedding": _canned_reid_embedding()}
-    return {"pooler_output": _canned_vision_embedding()}
-
-
-def _make_text_embeddings(texts: list[str]) -> np.ndarray:
-    """Deterministic per-text L2-normalized 768-dim rows for the clip text
-    fallback (patched in as _encode_texts_siglip, priority-2 at
-    adapters/clip.py:360-366). Same idea as ai/gateway/tests/
-    test_adapters_clip.py:75-84, but seeded by text CONTENT, not hash() —
-    hash() is PYTHONHASHSEED-random per process, so those fixtures' scores are
-    not reproducible; ours are."""
-    import hashlib
-
-    rows = []
-    for text in texts:
-        seed = int(hashlib.sha256(text.encode()).hexdigest()[:8], 16)
-        v = np.random.RandomState(seed).randn(768).astype(np.float32)
-        rows.append(v / (np.linalg.norm(v) + 1e-8))
-    return np.stack(rows)
+        return {"embedding": _canned_reid_embedding(reid_dim)}
+    if model_name == "threat":
+        return {"output0": _canned_threat_output()}
+    if model_name == "yolo26":
+        return {"output0": np.zeros((1, 300, 6), dtype=np.float32)}
+    raise AssertionError(f"unpinned gateway Triton model name {model_name!r}")
 
 
 def _b64_png(width: int = 224, height: int = 224) -> str:
@@ -228,35 +330,18 @@ def _b64_png(width: int = 224, height: int = 224) -> str:
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-# built once at import (~ms PIL; the gateway adapters decode + preprocess it —
-# ai/gateway/utils.py decode_base64_image (:17) + preprocess_clip (:102-126)
-# expect uint8 RGB (H,W,3))
+# built once at import (~ms PIL; the gateway adapters decode it —
+# ai/gateway/utils.py decode_base64_image (:17) expects uint8 RGB (H,W,3))
 _B64_IMAGE = _b64_png()
 
 
-# Gateway request payloads. Gateway request models verified: EmbedRequest
-# {image} at ai/gateway/adapters/clip.py:209-210; ClassifyRequest {image,
-# labels, use_ensemble, camera_type} :218-222; SimilarityRequest {image,text}
-# (~:231-234); AnomalyScoreRequest {image, baseline_embedding} :252-254;
-# BatchSimilarityRequest {image, texts} :242-244; reid BBoxRequest {image
-# (alias image_base64), bbox?} at adapters/enrichment_light.py:60-69
-# (populate_by_name=True accepts the field name; extras ignored).
+# Gateway request payloads. The light adapter's request model is BBoxRequest
+# (ai/gateway/adapters/enrichment_light.py:40-52): field ``image`` with alias
+# ``image_base64``, extras ignored. The yolo26 routes take multipart uploads,
+# not JSON, so they are driven where their own cluster drives them; this
+# cluster's JSON surface is the light lane.
 def _gateway_payload(op_id: str) -> dict[str, Any]:
-    if op_id == "clip_embed":
-        return {"image": _B64_IMAGE}
-    if op_id == "clip_classify":
-        return {"image": _B64_IMAGE, "labels": CLASSIFY_LABELS}
-    if op_id == "clip_similarity":
-        return {"image": _B64_IMAGE, "text": "a person near the fence"}
-    if op_id == "clip_anomaly_score":
-        # 768-dim REQUIRED or the adapter 400s first (clip.py:503-507);
-        # [0.1]*768 is fine unnormalized — _cosine_similarity divides by both
-        # norms (clip.py:303-311). (Yes: this is the N1b mislabeled literal —
-        # the gateway is exactly the surface that tolerates it.)
-        return {"image": _B64_IMAGE, "baseline_embedding": [0.1] * 768}
-    if op_id == "clip_batch_similarity":
-        return {"image": _B64_IMAGE, "texts": ["a person", "a dog"]}
-    if op_id == "enrich_lt_person_reid":
+    if op_id in (REID_OP, THREAT_OP):
         return {"image": _B64_IMAGE}
     raise AssertionError(f"no gateway payload for {op_id}")
 
@@ -265,16 +350,9 @@ def _gateway_payload(op_id: str) -> dict[str, Any]:
 # (backend/ai_contract/fake/app.py:71-80) — these documents exist so a future
 # echo-driven fake still receives contract-shaped requests.
 def _fake_payload(op_id: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {"image_base64": "ZmFrZS1pbWFnZQ=="}
-    if op_id == "clip_classify":
-        payload["labels"] = CLASSIFY_LABELS
-    elif op_id == "clip_similarity":
-        payload["text"] = "a person near the fence"
-    elif op_id == "clip_anomaly_score":
-        payload["baseline_embedding"] = [0.1] * 768
-    elif op_id == "clip_batch_similarity":
-        payload["texts"] = ["a person", "a dog"]
-    return payload
+    if op_id in (REID_OP, THREAT_OP):
+        return {"image_base64": "ZmFrZS1pbWFnZQ=="}
+    raise AssertionError(f"no fake payload for {op_id}")
 
 
 async def _drive(provider_id: str, client: AsyncClient, op_id: str) -> dict[str, Any]:
@@ -286,8 +364,7 @@ async def _drive(provider_id: str, client: AsyncClient, op_id: str) -> dict[str,
     assert r.status_code == 200, f"{provider_id}/{op_id}: {r.status_code} {r.text[:200]}" + (
         ""
         if provider_id == "fake"
-        else " — check the five get_triton_client patch targets (dossier "
-        "Q2) and the clip text-encoder fallback patches"
+        else " — check the get_triton_client patch targets derived from GATEWAY_MOUNTS (dossier Q2)"
     )
     return r.json()
 
@@ -307,94 +384,63 @@ def fake_app() -> FastAPI:
     return create_fake_app()
 
 
-@pytest.fixture(scope="module")
-def gateway_app() -> FastAPI:
-    """Five adapter routers, production prefixes, one app, so Operation.path
-    values (prefix already included — dossier Q7) route. Importing ai.gateway.*
-    pulls torch via adapters/clip.py:36; CPU wheel, import verified rc=0
-    ~1.6s (dossier Q3) — UNVERIFIED against the global 5s pytest-timeout
-    (pyproject.toml:495) for the first test that pays it."""
+def _build_gateway_app(modules: tuple[str, ...] | None = None) -> FastAPI:
+    """Mount the adapter routers (or a subset by adapter module name) with
+    their production prefixes. Imports stay inside the fixture/helper so
+    collection stays cheap; both surviving adapters import in ~0.35s (the
+    module that pulled torch was CLIP's, and it is gone)."""
     import importlib
 
-    app = FastAPI()
+    app = FastAPI(title="WP8.3 numeric conformance gateway app")
     for module, prefix in GATEWAY_MOUNTS:
-        app.include_router(importlib.import_module(module).router, prefix=prefix)
+        if modules is None or module.rsplit(".", 1)[1] in modules:
+            app.include_router(importlib.import_module(module).router, prefix=prefix)
     return app
+
+
+@pytest.fixture(scope="module")
+def gateway_app() -> FastAPI:
+    """Every surviving adapter, production prefixes, one app, so
+    Operation.path values (prefix already included — dossier Q7) route."""
+    return _build_gateway_app()
 
 
 @pytest.fixture(scope="module")
 def gateway_light_app() -> FastAPI:
-    """The enrichment_light router ALONE at /enrich-lt — gateway_light's whole
-    column is enrich_lt_* (5 ops, dossier Q5), so /clip paths legitimately 404
-    here while the SAME patched mock still serves /enrich-lt/person-reid."""
-    from ai.gateway.adapters.enrichment_light import router as light_router
-
-    app = FastAPI()
-    app.include_router(light_router, prefix="/enrich-lt")
-    return app
+    """enrichment_light ALONE at /enrich-lt — gateway_light's real surface,
+    and the only app on which its column's ABSENCES are assertable as 404s."""
+    return _build_gateway_app(modules=("enrichment_light",))
 
 
-def _mock_triton() -> AsyncMock:
+def _mock_triton(reid_dim: int = _CANNED_REID_DIM) -> AsyncMock:
     """AsyncMock with .infer/.is_model_ready/.get_model_metadata (template:
-    ai/gateway/tests/test_adapters_yolo26.py:76-87). is_model_ready=False
-    forces the clip adapter onto its priority-2 text path
-    (adapters/clip.py:360-366), whose encoder we patch below — no tokenizer,
-    no SigLIP weights, no network."""
+    ai/gateway/tests/test_adapters_yolo26.py:76-87), dispatching canned
+    per-model outputs so the three residents' shapes stay distinct."""
     mock = AsyncMock()
-    mock.infer = AsyncMock(side_effect=_canned_infer)
-    mock.is_model_ready = AsyncMock(return_value=False)
+    mock.infer = AsyncMock(
+        side_effect=lambda inputs=None, model_name="", **kw: _canned_infer(
+            inputs or {}, model_name=model_name, reid_dim=reid_dim, **kw
+        )
+    )
+    mock.is_model_ready = AsyncMock(return_value=True)
     mock.get_model_metadata = AsyncMock(return_value={})
     return mock
 
 
-async def _patched_http(app: FastAPI, patch_targets: tuple[str, ...]) -> AsyncIterator[AsyncClient]:
-    mock_triton = _mock_triton()
-    with contextlib.ExitStack() as tx:
+@contextlib.asynccontextmanager
+async def _patched_http(
+    app: FastAPI,
+    patch_targets: tuple[str, ...],
+    mock_triton: AsyncMock | None = None,
+) -> AsyncIterator[AsyncClient]:
+    mock_triton = mock_triton if mock_triton is not None else _mock_triton()
+    async with contextlib.AsyncExitStack() as tx:
         # ALL named targets patched — one missed module = a silent real gRPC
         # connect attempt (dossier Q2 divergence).
         for target in patch_targets:
             tx.enter_context(patch(target, return_value=mock_triton))
-        # clip text-encoder fallback, per ai/gateway/tests/
-        # test_adapters_clip.py:88-101 (module-scoped names; harmless no-op
-        # for apps that never hit /clip). autospec (WP4.2 ratchet): the
-        # side_effect mirrors _encode_texts_siglip's (list[str]) -> ndarray
-        # signature, clip.py:177.
-        tx.enter_context(
-            patch(
-                "ai.gateway.adapters.clip._ensure_text_encoder",
-                return_value=True,
-                autospec=True,
-            )
-        )
-        tx.enter_context(
-            patch(
-                "ai.gateway.adapters.clip._encode_texts_siglip",
-                side_effect=_make_text_embeddings,
-                autospec=True,
-            )
-        )
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as client:
             yield client
-
-
-@pytest.fixture
-async def fake_http(fake_app) -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(transport=ASGITransport(app=fake_app), base_url="http://fake") as client:
-        yield client
-
-
-@pytest.fixture
-async def gateway_http(gateway_app) -> AsyncIterator[AsyncClient]:
-    async for client in _patched_http(gateway_app, GATEWAY_PATCH_TARGETS):
-        yield client
-
-
-@pytest.fixture
-async def gateway_light_http(gateway_light_app) -> AsyncIterator[AsyncClient]:
-    async for client in _patched_http(
-        gateway_light_app, ("ai.gateway.adapters.enrichment_light.get_triton_client",)
-    ):
-        yield client
 
 
 @pytest.fixture
@@ -411,7 +457,7 @@ async def provider_client(request: pytest.FixtureRequest):
             yield provider_id, client
     elif provider_id == "gateway":
         app = request.getfixturevalue("gateway_app")
-        async for client in _patched_http(app, GATEWAY_PATCH_TARGETS):
+        async with _patched_http(app, GATEWAY_PATCH_TARGETS) as client:
             yield provider_id, client
     else:  # pragma: no cover - table guard
         raise AssertionError(f"provider_client: unhandled id {provider_id!r}")
@@ -421,68 +467,129 @@ async def provider_client(request: pytest.FixtureRequest):
 PROVIDER_PARAMS = ["fake", "gateway"]
 
 
+def _retired_registry_ops() -> frozenset[str]:
+    """The WP7.3 deleted-op ratchet, read out of the sibling suite's literal by
+    AST (test_ai_contract_registry.py owns it; importing a test module to reach
+    a constant is the cross-test coupling this file's imports avoid, and a
+    hand-copy would drift). A missing literal raises rather than returns
+    empty: "adopted by the ratchet" has to be able to fail loudly."""
+    src = (
+        REPO_ROOT / "backend/tests/contracts/ai_providers/test_ai_contract_registry.py"
+    ).read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(src)):
+        names: list[str] = []
+        if isinstance(node, ast.Assign):
+            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names = [node.target.id]
+        if "DELETED_REGISTRY_OPS" not in names or node.value is None:
+            continue
+        (arg,) = node.value.args
+        return frozenset(ast.literal_eval(elt) for elt in arg.elts)
+    raise AssertionError("DELETED_REGISTRY_OPS literal not found in the registry suite")
+
+
 # ---------------------------------------------------------------------------
-# N1a — CLIP/reid embeddings: fixed dim AND L2 unit norm (epsilon story)
+# N1a — the surviving embedding surface: fixed dim AND L2 unit norm, plus the
+# adapter's own "declared dim == vector length" construction
 # ---------------------------------------------------------------------------
 
 
 class TestN1aEmbeddingsUnitNorm:
-    """N1a source (dossier N1a): ai/clip/model.py:801-804 epsilon=1e-8
-    normalize inside extract_embedding (def :762); EMBEDDING_DIMENSION=768 at
-    ai/clip/model.py:227. Gateway normalizes via ai/gateway/utils.py:172-184
-    l2_normalize — epsilon-FREE, RAW passthrough when norm<1e-12 at :182-183 —
-    called at ai/gateway/adapters/clip.py:297 (PIN: the clip adapter DOES
-    normalize). reid adapter normalizes inline behind a >1e-8 guard at
-    adapters/enrichment_light.py:443-445."""
+    """N1a, RETARGETED (R8 S3). It used to drive two embedding ops — CLIP's
+    768-d ``/clip/embed`` and the light lane's 512-d reid — and to pin that
+    BOTH normalized, in three different layers: the legacy CLIP server's
+    epsilon-divided normalize (ai/clip/model.py:801-804, epsilon 1e-8), the
+    gateway's epsilon-FREE ``l2_normalize`` (ai/gateway/utils.py:172-184,
+    RAW passthrough when norm < 1e-12 at :182-183 — that helper is now
+    uncalled, its only caller being the swept clip adapter), and the light
+    adapter's inline guarded normalize.
 
-    # fake: GREEN — semantic overrides ('unit_embedding', 768) for clip_embed
-    #   and ('unit_embedding', 512) + ('const', 512) for enrich_lt_person_reid
-    #   at backend/ai_contract/fake/generators.py:242-244; _unit_embedding
-    #   (generators.py:173-177) is exact unit norm. Live-pulled: clip_embed
-    #   len 768 norm 1.0; person_reid len 512 dim 512 norm 1.0. UNVERIFIED.
-    # gateway: GREEN — the adapters normalize the canned non-unit vectors
-    #   above; a norm<1e-12 input would leak RAW (utils.py:182-183) and trip
-    #   abs_tol=1e-5. UNVERIFIED.
+    The CLIP half is retired (ruling 5); the property is not. ``EMBEDDING_OPS``
+    is DERIVED from the committed response snapshots, so the cluster grades
+    whatever embedding surface ships, and today that is
+    ``/enrich-lt/person-reid``: 512-d, L2-normalized at
+    adapters/enrichment_light.py:202-207, with
+    ``embedding_dimension=len(embedding)`` at :213. The fake-side half of this
+    same 768→512 retarget is already pinned by
+    test_fake_provider.py::test_unit_norm_embedding_at_the_surviving_home —
+    cited, not repeated."""
+
     @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
     async def test_N1a_embeddings_are_fixed_dim_and_unit_norm(self, provider_client) -> None:
         provider_id, client = provider_client
-        expected_dim = {"clip_embed": 768, "enrich_lt_person_reid": 512}
-        for op_id in ("clip_embed", "enrich_lt_person_reid"):
+        assert EMBEDDING_OPS, (
+            "no registry op declares a numeric embedding vector — this "
+            "cluster has lost its subject; the derived set, not a remembered "
+            "op list, is the guard"
+        )
+        for op_id in sorted(EMBEDDING_OPS):
             body = await _drive(provider_id, client, op_id)
             emb = body["embedding"]
-            # length is the schema-visible half (768: ai/clip/model.py:227 +
-            # adapters/clip.py:50; 512: OSNET_EMBEDDING_DIM,
-            # backend/services/osnet_loader.py:41)...
-            assert len(emb) == expected_dim[op_id], (
-                f"{provider_id}/{op_id}: len={len(emb)} != {expected_dim[op_id]}"
+            # length is the schema-visible half ...
+            assert len(emb) == body["embedding_dimension"], (
+                f"{provider_id}/{op_id}: len={len(emb)} != declared {body['embedding_dimension']}"
             )
             # ...unit L2 norm is the half NO committed response schema
-            # declares (backend/ai_contract/schemas/clip_embed.response.json
-            # items are bare {"type": "number"}) — precisely what a provider
-            # swap breaks silently, and what none of the repo's 145 fixed-dim
-            # test literals ever checked (see TestN1b).
+            # declares (schemas/enrich_lt_person_reid.response.json items are
+            # bare {"type": "number"}) — precisely what a provider swap breaks
+            # silently, and what none of the repo's fixed-dim test literals
+            # ever checked (see TestN1b).
             norm = math.sqrt(sum(x * x for x in emb))
             assert abs(norm - 1.0) <= 1e-5, (
                 f"{provider_id}/{op_id}: L2 norm {norm!r} is not unit "
-                "(tol 1e-5, NOT 1e-9 — legacy ai/clip/model.py:801-804 "
-                "epsilon yields 1-~1e-8; gateway utils.py:182-183 returns the "
-                "RAW vector when norm<1e-12, which this also catches)"
+                "(tol 1e-5, NOT 1e-9 — the adapter's normalize is guarded by "
+                "`norm > 1e-8` at adapters/enrichment_light.py:206, so a "
+                "below-threshold input leaks the RAW vector; 1e-9 would also "
+                "be tighter than the float32 arithmetic here is accurate to)"
             )
 
-    # fake: GREEN — embedding_dimension is ('const', 512) (generators.py:244).
-    # gateway: GREEN — adapters/enrichment_light.py:449-451 sets
-    #   embedding_dimension=len(embedding): the self-report equals the vector
-    #   BY CONSTRUCTION there; that construction is the property a swap could
-    #   break (an osnet-padded provider could report the pre-pad dim).
-    #   UNVERIFIED.
     @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
     async def test_N1a_person_reid_declared_dim_matches_vector(self, provider_client) -> None:
+        """Two DIFFERENT constructions of one property. The gateway's is
+        ``embedding_dimension=len(embedding)``
+        (adapters/enrichment_light.py:213) — the self-report equals the vector
+        BY CONSTRUCTION, and that construction is what a swap can break (an
+        osnet-padded provider could report the pre-pad dim). The fake's is two
+        independent override entries — ('unit_embedding', 512) generating the
+        vector and ('const', 512) declaring the dim
+        (backend/ai_contract/fake/generators.py:222-223) — so a re-dim of one
+        without the other reddens here."""
         provider_id, client = provider_client
-        body = await _drive(provider_id, client, "enrich_lt_person_reid")
+        body = await _drive(provider_id, client, REID_OP)
         assert body["embedding_dimension"] == len(body["embedding"]), (
             f"{provider_id}: declared dim {body['embedding_dimension']} != "
-            f"vector len {len(body['embedding'])} — the reid op is the 512 "
-            "column of the dim-confusion matrix (TestN5DimConfusion)"
+            f"vector len {len(body['embedding'])} — the reid op is the only "
+            "surviving embedding slot, so a mismatch here is the whole "
+            "dim-confusion matrix collapsing into one unverified number"
+        )
+
+    def test_N1a_the_declared_dimension_is_still_derived_by_ast(self) -> None:
+        """Source-side half, read by AST (live forms only): the response's
+        ``embedding_dimension`` keyword is built from ``len()`` of the vector
+        it describes, not from a constant. ``ReIDResponse`` declares the field
+        as a bare ``int``, so nothing schema-side refuses a wrong declaration —
+        this pin is what notices the by-construction equality turning into a
+        remembered number (the drift N1a's assertion cannot see from the wire:
+        see TestN5DimConfusion's wrong-dim pair)."""
+        src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment_light.py").read_text(
+            encoding="utf-8"
+        )
+        tree = ast.parse(src)
+        reported: list[str] = []
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+                continue
+            if node.func.id != "ReIDResponse":
+                continue
+            for kw in node.keywords:
+                if kw.arg == "embedding_dimension":
+                    reported.append(ast.unparse(kw.value))
+        assert reported == ["len(embedding)"], (
+            f"ReIDResponse(embedding_dimension=...) reads {reported} — the "
+            "declaration stopped being derived from its own vector "
+            "(adapters/enrichment_light.py:213), which is the exact drift the "
+            "wire-visible equality cannot detect"
         )
 
 
@@ -513,9 +620,8 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
     ``([0.1] * 512, "osnet-test@weights@abc123")`` one line down at :385 —
     this is precisely the anti-pin's own escape hatch ("if someone fixed the
     literal, rewrite against the NEW canonical literal"). The property is
-    unchanged: 0.1*sqrt(512) = 2.263 ≠ 1, so N1a's unit-norm provider still
-    contradicts the fixture corpus. (Scene-baseline/fashion fixtures keep
-    their real CLIP-768 dims — CLIP is not retired, only as re-ID producer.
+    unchanged: 0.1*sqrt(512) = 2.263 != 1, so N1a's unit-norm provider still
+    contradicts the fixture corpus.
 
     RE-ARMED AGAIN 2026-09-29 by R8 S2: backend/tests/integration/
     test_enrichment_pipeline.py was deleted with the enrichment tier, and the
@@ -524,10 +630,14 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
     [0.1] * 512 feeding the (vector, "osnet-test@weights@abc123") AsyncMock
     return — the same B5 producer tuple, spelled across the mock's
     return_value instead of one line). Same escape hatch as always: fix the
-    literal and this reddens by name.)"""
+    literal and this reddens by name.
 
-    # no provider (characterization). fake n/a, gateway n/a. Predicted GREEN
-    # (pure math + file read). UNVERIFIED under pytest.
+    R8 S3 DIAGNOSIS: the property is arithmetic plus a read of a LIVE test
+    file, so neither the CLIP prune nor the adapter sweep touches it — no
+    retarget needed. The dossier's dead-literal prose was corrected out of the
+    docstring (prose may name the dead; assertions may not read dead forms)."""
+
+    # no provider (characterization). fake n/a, gateway n/a.
     def test_N1b_canonical_literal_norm_is_2_26_not_1(self) -> None:
         # The swap's canonical person-vector fixture literal (OSNet 512-dim).
         v = [0.1] * 512
@@ -553,188 +663,309 @@ class TestN1bLegacyLiteralsAreNotUnitNorm:
 
 
 # ---------------------------------------------------------------------------
-# N2a — /classify scores = softmax over EXACTLY the requested labels:
-# keys == labels, sum == 1.0, top_label is a member
+# N2 — the classify/similarity NUMERIC CONTRACT, as shape arithmetic
+# (retarget) and as tombstones (the CLIP routes that carried it)
 # ---------------------------------------------------------------------------
 
 
-class TestN2aClassifySoftmaxOverRequestedLabels:
-    """N2a source (dossier N2a): legacy CLIP server ai/clip/model.py classify()
-    def :875, torch.softmax(logits_per_image, dim=-1) :919, scores =
-    dict(zip(labels, ...)) :925, top_label = labels[argmax] :928. Gateway:
-    manual softmax exp(s - s.max())/(sum + 1e-8) at
-    ai/gateway/adapters/clip.py:427-428, round(·, 6) at :430, top_label =
-    labels[argmax] :431-432.
-    fake output (live-pulled from generators.generate('clip_classify')):
-        scores {'alpha': 0.5655, 'bravo': 0.7451}   (sum 1.3106; keys ignore
-        the request)   top_label 'top_label_544'
-    — all three properties below VIOLATED (dossier N2a divergence:
-    clip_classify is absent from _LITERAL_OPS at generators.py:490-498, so it
-    is WALKED; the free-form-object branch :347-352 and string generator :342
-    produce exactly this).
+def _softmax(logits: list[float]) -> list[float]:
+    """The shipped softmax spelling this cluster pinned: ``exp(s - s.max())``
+    over ``sum(...) + 1e-8``. The max-subtraction is what makes it
+    overflow-safe and the denominator epsilon is why a softmax sums to
+    1 - ~1e-8 and NEVER exactly 1.0 — which is why the drafted N2a refused
+    ``== 1.0`` (dossier N2b)."""
+    top = max(logits)
+    exps = [math.exp(x - top) for x in logits]
+    total = sum(exps) + 1e-8
+    return [e / total for e in exps]
 
-    RESOLVED (discovery run 2026-09-19, red count 11/422): the fake now
-    softmaxes over payload labels — generators._softmax_over_labels, seeded
-    from the labels so byte-identity holds; payload None keeps the walked
-    shape (WP8.2 direct-generate path). fake GREEN."""
 
-    # fake: GREEN post-fix (_softmax_over_labels picks labels[argmax]).
-    # gateway: GREEN (top_label chosen from request.labels, clip.py:431-432).
-    @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
-    async def test_N2a_classify_top_label_is_a_requested_label(self, provider_client) -> None:
-        provider_id, client = provider_client
-        body = await _drive(provider_id, client, "clip_classify")
-        assert body["top_label"] in CLASSIFY_LABELS, (
-            f"{provider_id}: top_label {body['top_label']!r} not among the "
-            f"REQUESTED labels {CLASSIFY_LABELS} — the softmax-over-"
-            "requested-labels contract (ai/clip/model.py:925-928). Known fake "
-            "cause: generic string generator 'top_label_NNN' "
-            "(backend/ai_contract/fake/generators.py:342)."
+class TestN2NumericContractShape:
+    """N2a/N2b RETARGETED onto the shape, not the dead routes.
+
+    What the classify bullets established, kept because the shape is general:
+    (1) a classify answer has ONE score per requested label, keyed by the
+    REQUESTED labels, and its top label is the argmax — the fake used to
+    answer ``top_label_544`` for labels ``[person, dog, car]``, the divergence
+    that made N2a land red and then forced a label-seeded softmax into the
+    shipped generator; (2) a softmax sums to 1 within the producer's rounding
+    budget and never exactly; (3) N2b's swap lesson — a SIGMOID-headed
+    provider returns independent per-label probabilities that do NOT sum to 1
+    while staying fully schema-valid, because the response model was bare
+    pydantic: the schema is silent, only the number catches drift.
+
+    None of that requires a CLIP route to be assertable, and the fake's
+    classify op is gone, so there is nothing left to be red against. The
+    shipped softmax went with its adapter, so the invariant now runs as the
+    arithmetic pin those two route-level assertions were shorthand for, with
+    the sigmoid counterexample asserted as DATA beside it."""
+
+    def test_N2_softmax_over_requested_labels_is_a_distribution(self) -> None:
+        labels = ["person", "dog", "car"]
+        scores = _softmax([2.0, 0.5, -1.0])
+        assert len(scores) == len(labels), (
+            "a softmax answers one score per label ASKED FOR — the fake's "
+            "walked answer keyed {alpha, bravo} regardless of the request, "
+            "which shifted every per-label confidence table silently"
         )
-
-    # fake: PREDICTED RED (scores keyed {alpha, bravo} regardless of request —
-    #   dossier N2a; pred_red_fake). gateway: GREEN (dict keyed over
-    #   request.labels, clip.py:430). UNVERIFIED.
-    @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
-    async def test_N2a_classify_scores_keyed_by_requested_labels(self, provider_client) -> None:
-        provider_id, client = provider_client
-        body = await _drive(provider_id, client, "clip_classify")
-        assert set(body["scores"]) == set(CLASSIFY_LABELS), (
-            f"{provider_id}: score keys {sorted(body['scores'])} != the "
-            "requested labels — downstream thresholds are PER-LABEL "
-            "(two confidence tables filter the stream by class name), so a "
-            "provider keying scores anything else silently shifts every "
-            "threshold with no schema noticing."
-        )
-
-    # fake: PREDICTED RED (alpha+bravo sum 1.3106 — no tolerance saves it;
-    #   pred_red_fake → generator fix). gateway: GREEN at abs=1e-4 — the
-    #   round(·,6) at adapters/clip.py:430 costs ≤ n_labels*5e-7 (1.5e-6 for
-    #   3 labels); NEVER assert == 1.0 exactly (dossier N2b forbids it).
-    #   UNVERIFIED.
-    @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
-    async def test_N2a_classify_scores_sum_to_one(self, provider_client) -> None:
-        provider_id, client = provider_client
-        body = await _drive(provider_id, client, "clip_classify")
-        total = sum(body["scores"].values())
+        total = sum(scores)
         assert abs(total - 1.0) <= 1e-4, (
-            f"{provider_id}: scores sum {total!r} — /classify is a SOFTMAX "
-            "over the labels (torch.softmax ai/clip/model.py:919; gateway "
-            "manual exp/sum adapters/clip.py:427-428). tol 1e-4 ONLY for the "
-            "gateway's 6dp rounding; a SigLIP sigmoid-head provider returns "
-            "INDEPENDENT per-label probs that do not sum to 1 (plan N2b) — "
-            "this is the assertion that catches that swap."
+            f"softmax sum {total!r} — the 1e-4 (not zero) budget is the "
+            "gateway's own: round(., 6) per label costs <= n*5e-7, and the "
+            "denominator epsilon costs ~1e-8"
+        )
+        assert 1.0 - total > 0.0, (
+            f"a softmax summing to EXACTLY {total!r} means the epsilon/"
+            "max-subtraction left the formula — every producer this bullet "
+            "pinned was 1-minus-1e-8-ish, which is why N2a never asserted "
+            "== 1.0 (dossier N2b forbade it)"
+        )
+        assert scores.index(max(scores)) == 0, (
+            "top_label = labels[argmax] — an argmax that ignores score order "
+            "is how a classify provider 'passes' while naming a random label"
+        )
+
+    def test_N2_a_sigmoid_head_is_schema_valid_and_does_not_sum_to_one(self) -> None:
+        """N2b's finding as DATA: the swap that mattered was not "softmax vs
+        no softmax" in the schema — it was that a SigLIP-style sigmoid head
+        answers three INDEPENDENT probabilities for the same request. Both
+        spellings are legal against a bare {label: number} map, so only the
+        SUM can tell them apart."""
+        sigmoid = [0.9, 0.7, 0.6]
+        softmax = _softmax([2.0, 0.5, -1.0])
+        assert abs(sum(sigmoid) - 1.0) > 0.1, (
+            f"a sigmoid head's sum {sum(sigmoid)!r} read as a distribution — "
+            "an over-permissive tolerance turns a head swap into a passing "
+            "confidence number"
+        )
+        assert abs(sum(softmax) - 1.0) <= 1e-4
+        assert len(sigmoid) == len(softmax), (
+            "both heads answer len(labels) floats: the SHAPE is identical, "
+            "which is precisely why the sum (not a key or type check) is the "
+            "tripwire"
+        )
+        assert max(softmax) < max(sigmoid), (
+            "the same class ranked by softmax and by sigmoid gives different "
+            "rankings at the top — a threshold tuned on one head is "
+            "mis-scaled on the other, with the schema unchanged"
         )
 
 
-# ---------------------------------------------------------------------------
-# N2b — the gateway ALREADY swapped CLIP ViT-L for SigLIP-2 at 768 dims yet
-# still presents a softmax contract — pin the adapter behavior
-# ---------------------------------------------------------------------------
+class TestN2aClassifyTombstone:
+    """TOMBSTONE (R8 S3, owner ruling 5). ``clip_classify`` drove a softmax
+    over EXACTLY the requested labels against both app-driven providers, with
+    three assertions: ``scores`` keys == ``request.labels``, ``sum(scores)``
+    within the 6dp rounding budget, and ``top_label`` a MEMBER of the
+    requested list. The hazard under them was the per-label confidence
+    tables: two downstream tables filter the stream by class name, so a
+    provider keying scores anything else (the fake did — ``{alpha, bravo}``,
+    plus the generic ``top_label_NNN`` string generator) silently shifted
+    every threshold with nothing schema-side to refuse it. Sources: gateway
+    manual softmax ``exp(s - s.max())/(sum + 1e-8)`` with ``round(., 6)`` and
+    ``top_label = labels[argmax]``; legacy server ``torch.softmax`` +
+    ``dict(zip(labels, ...))``.
+
+    It cannot retarget: no surviving op is a classify op. The derived
+    embedding set is the whole numeric response surface, and the fake's one
+    remaining free-form map (``enrich_lt_threat_detect``'s
+    ``threats_detected`` items, walked as ``{"alpha": .., "bravo": ..}``) is
+    not a label-indexed distribution — there is no requested-label set for it
+    to echo. The shape its three assertions graded now runs as a live
+    assertion in TestN2NumericContractShape."""
+
+    def test_classify_retired_and_the_ratchet_adopted_it(self) -> None:
+        assert "clip_classify" not in OPERATION_IDS
+        assert "clip_classify" in _retired_registry_ops()
+        # Its response snapshot went with it: a leftover snapshot would mean
+        # the contract generator still walks a dead route.
+        assert not (SCHEMA_DIR / "clip_classify.response.json").exists()
+        # Non-vacuity: the label-distribution class is not dead — the shape
+        # above asserts it, and this file still drives a JSON response whose
+        # numbers the same tolerance discipline grades.
+        assert NUMERIC_OPS, "no numeric op survives; this tombstone is alone"
 
 
-class TestN2bGatewaySigLipStillSoftmax:
-    """N2b source (dossier N2b): ai/triton/model_repository/clip/config.pbtxt
-    :1-2 'SigLIP 2 Base ... Replaces CLIP ViT-L/14', output dims [768] at
-    :22-25. The gateway never surfaces SigLIP's sigmoid head: it does its own
-    dot + manual softmax at adapters/clip.py:423-427, and the
-    response_model=ClassifyResponse is bare pydantic (clip.py:225-229) — the
-    schema is SILENT; only the number catches drift. Gateway-specific red
-    prediction: NONE (softmax holds; sum off-by ≤ 4*5e-7 at round-6dp —
-    dossier: 'passes except exact-equality'). fake: n/a here (covered by N2a).
-    UNVERIFIED."""
+class TestN2bGatewaySigLipTombstone:
+    """TOMBSTONE (R8 S3, owner ruling 5). This drove ``/clip/classify`` on the
+    GATEWAY ALONE and pinned that the gateway had already swapped CLIP
+    ViT-L/14 for SigLIP-2 at 768 dims (the Triton clip config said so at
+    :1-2, with output dims [768] at :22-25) while still presenting a SOFTMAX
+    contract: it did its own dot plus a manual softmax, never surfaced
+    SigLIP's sigmoid head, and answered through a bare pydantic
+    ``ClassifyResponse`` — so the only thing standing between a head swap and
+    a wrong confidence number was the sum of four labels' scores.
 
-    async def test_N2b_gateway_classify_sum_survives_siglip_swap(self, gateway_http) -> None:
-        r = await gateway_http.post(
-            "/clip/classify", json={"image": _B64_IMAGE, "labels": ["a", "b", "c", "d"]}
+    It cannot retarget: the route, its adapter (``adapters/clip.py``) and the
+    Triton model directory it read are all swept, and no surviving gateway
+    adapter emits a label-indexed distribution (yolo26 emits COCO detections,
+    enrichment_light emits 4 threat classes — neither normalized across the
+    label set). The swap lesson survives as data in
+    TestN2NumericContractShape.test_N2_a_sigmoid_head_...; the Triton
+    repository sweep is pinned by backend/tests/unit/
+    test_r8_s3_florence_provider_retirement.py."""
+
+    def test_the_siglip_era_surface_is_gone_from_the_shipped_gateway(self) -> None:
+        assert not (REPO_ROOT / "ai" / "gateway" / "adapters" / "clip.py").exists()
+        assert not (REPO_ROOT / "ai" / "triton" / "model_repository" / "clip").exists()
+        assert "clip_embed" not in OPERATION_IDS
+        # Non-vacuity: the mounted gateway still offers a numeric surface for
+        # a future head-swap check to land on, read off the live app.
+        mounted_paths = _mounted_paths()
+        assert OPERATIONS[REID_OP].path in mounted_paths, (
+            "the gateway app no longer mounts the op this cluster drives — "
+            "the tombstone's non-vacuity claim would be its only live one"
         )
-        assert r.status_code == 200, r.text[:200]
-        body = r.json()
-        assert set(body["scores"]) == {"a", "b", "c", "d"}
-        assert abs(sum(body["scores"].values()) - 1.0) <= 1e-4, body["scores"]
-        assert body["top_label"] in {"a", "b", "c", "d"}
+
+
+def _mounted_paths() -> set[str]:
+    """Every path the mount table's routers actually answer, prefix included —
+    read from the same table the app fixtures mount, so the map and the driven
+    app can never disagree."""
+    import importlib
+
+    paths: set[str] = set()
+    for module, prefix in GATEWAY_MOUNTS:
+        router = importlib.import_module(module).router
+        paths |= {f"{prefix}{route.path}" for route in router.routes}
+    return paths
 
 
 # ---------------------------------------------------------------------------
-# N3 — similarity ∈ [-1,1], anomaly_score ∈ [0,1]: value ranges PLUS which
-# layer actually ENFORCES them (pydantic ge/le vs bare floats vs schema none)
+# N3 — value ranges AND which layer actually ENFORCES them (pydantic ge/le vs
+# bare floats vs schema none)
 # ---------------------------------------------------------------------------
 
 
 class TestN3RangesAndConstraintPresence:
-    """N3 source (dossier N3): legacy server ai/clip/model.py
-    AnomalyScoreResponse anomaly_score ge=0.0/le=1.0 at :359-361 and
-    similarity_to_baseline ge=-1.0/le=1.0 at :362-364; anomaly clamped
-    max(0,min(1,1-sim)) at :869 with inputs re-normalized at :855-859.
-    Backend consumer schema backend/api/schemas/baseline.py:225-228
-    AnomalyEvent.anomaly_score ge=0/le=1. backend/api/schemas/reid.py:91
-    SimilarityMatch.similarity ge=0/le=1 — NON-negative, NARROWER than the
-    [-1,1] cosine math (dossier N3: same quantity, two contracts).
-    GAP (the finding): the gateway's OWN response models are bare floats —
-    SimilarityResponse.similarity at ai/gateway/adapters/clip.py:237-238,
-    AnomalyScoreResponse at :257-260, BatchSimilarityResponse :247-248 — and
-    its _cosine_similarity (:303-311, float32 dot) can exceed 1.0 (no
-    epsilon) or 0.0-out zero-vectors with nothing schema-side to refuse:
-    a float32 dot >1.0 would 500 the legacy server (pydantic le=1.0) but
-    SAILS THROUGH the gateway."""
+    """N3 source (dossier N3): the legacy CLIP server enforced
+    ``anomaly_score`` ge=0/le=1 and ``similarity`` ge=-1/le=1 in ITS OWN
+    pydantic models, and the finding was that the GATEWAY's response models
+    were bare floats — the range lived only in a clamp formula, and a float32
+    dot that landed at 1.0000001 500'd the legacy server while sailing
+    through the gateway. Same quantity, three answers depending on which
+    provider answered, and the committed WP7.2 snapshots could catch none of
+    it.
 
-    # fake: GREEN TRIVIALLY — the generic number walker emits U(0.1,0.9),
-    #   never negative (generators.py:336; live-pulled: similarity 0.1088,
-    #   anomaly 0.2454 / similarity_to_baseline 0.5448, batch {alpha 0.7339,
-    #   bravo 0.8299}). Dossier warning stands: the fake MASKS out-of-range
-    #   bugs — green here is no evidence about ranges. UNVERIFIED.
-    # gateway: GREEN for the canned vectors — unit-vs-unit float32 dot of
-    #   INDEPENDENT random 768-rows lands near 0, so the >1.0 hazard is not
-    #   reproducible with isotropic fixtures (it needs near-parallel float32
-    #   unit rows); the clamp at clip.py:514 keeps anomaly in [0,1] by
-    #   construction. The hazard itself is pinned only by the constraint-
-    #   asymmetry characterization below. UNVERIFIED.
+    RETARGETED (R8 S3). The range-carrying numeric that survives is the light
+    lane's CONFIDENCE: ``round(float(confidences[i]), 4)`` per detection at
+    ai/gateway/adapters/enrichment_light.py:112 (the argmax class score) and
+    ``max_confidence=round(max_confidence, 4)`` at :158-163, answered through
+    ``ThreatResponse`` whose ``max_confidence`` is a BARE
+    ``float = Field(default=0.0)`` (:58) and whose committed snapshot says
+    ``{"type": "number"}`` with no bound. The asymmetry reproduces on the
+    surviving lane, one column over: a model emitting a >1.0 score, or a
+    provider swapping sigmoid for raw logits, puts an out-of-range confidence
+    on the wire with nothing schema-side to refuse it — and the DB refuses it
+    only at INSERT (ck_threat_detections_confidence_range), which is WP8.5's
+    whole "enforced too late" thesis. The CLIP-side bullets (anomaly in [0,1],
+    batch-similarity items in [-1,1]) are tombstoned in TestN3RangeTombstone."""
+
+    async def test_N3_gateway_confidence_is_within_its_mathematical_range(
+        self, gateway_app
+    ) -> None:
+        """One request, three checks on PRODUCED numbers: bounded [0,1],
+        rounded to the 4dp the adapter claims, and internally consistent (the
+        envelope's max equals the max of the items). Non-vacuity first: the
+        canned class scores sit above the adapter's 0.25 threshold, so an
+        empty list here means the fixture died and this test would otherwise
+        grade nothing."""
+        async with _patched_http(gateway_app, GATEWAY_PATCH_TARGETS) as client:
+            body = await _drive("gateway", client, THREAT_OP)
+        items = body["threats_detected"]
+        assert items, (
+            "the canned threat rows all fell below the adapter's "
+            "conf_threshold — a pass here would grade the empty list, not the "
+            "number this class exists to bound"
+        )
+        assert len(items) == len(_THREAT_ROWS), (
+            f"emitted {len(items)} of the {len(_THREAT_ROWS)} above-threshold "
+            "rows the fixture supplied — the post-processor's mask moved"
+        )
+        for item in items:
+            conf = item["confidence"]
+            assert 0.0 <= conf <= 1.0, (
+                f"gateway confidence {conf!r} outside [0,1] — nothing "
+                "schema-side refuses it (ThreatResponse declares a bare "
+                "float), so the range survives only as producer arithmetic"
+            )
+            assert conf == round(conf, 4), (
+                f"{conf!r} is not 4dp-rounded: "
+                "adapters/enrichment_light.py:112 is the rounding site; a "
+                "provider that stops rounding changes the wire bytes with no "
+                "schema noticing"
+            )
+        assert body["max_confidence"] == max(item["confidence"] for item in items), (
+            f"envelope max_confidence {body['max_confidence']!r} disagrees "
+            f"with the emitted items {[i['confidence'] for i in items]} — a "
+            "consumer alerting on the envelope while filtering on the items "
+            "would disagree silently"
+        )
+
     @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
-    async def test_N3_similarity_and_anomaly_within_mathematical_range(
+    async def test_N3_embedding_component_range_is_invisible_to_the_contract(
         self, provider_client
     ) -> None:
+        """The N3 shape finding, on the op that survived: a unit vector's
+        components are bounded by 1.0 in magnitude, and the committed contract
+        says nothing of the kind — ``items`` is a bare ``{"type": "number"}``.
+        Green here is no evidence about ranges; that IS the finding, restated
+        for the lane that is still shipped. Both providers are graded because
+        the fake's unit embedding is drawn from U(-1,1) normalized (it DOES
+        carry negative components, which is why the bound is on magnitude)
+        while the gateway's comes from a float32 tensor."""
         provider_id, client = provider_client
-        sim = (await _drive(provider_id, client, "clip_similarity"))["similarity"]
-        assert -1.0 <= sim <= 1.0, f"{provider_id}: clip_similarity {sim!r} outside [-1,1]"
-        anomaly_body = await _drive(provider_id, client, "clip_anomaly_score")
-        assert 0.0 <= anomaly_body["anomaly_score"] <= 1.0, (
-            f"{provider_id}: anomaly_score {anomaly_body['anomaly_score']!r} "
-            "— legacy enforces ge=0/le=1 via pydantic (ai/clip/model.py:"
-            "359-361); the gateway enforces it ONLY via the clamp at "
-            "adapters/clip.py:514"
+        body = await _drive(provider_id, client, REID_OP)
+        emb = body["embedding"]
+        items = _snapshot(REID_OP)["properties"]["embedding"]["items"]
+        assert items == {"type": "number"}, (
+            f"the committed embedding item schema gained keywords ({items!r}) "
+            "— if a range ever lands here, N3's 'schema can catch none of "
+            "this' premise changed; promote the range checks into schema "
+            "validation and cite the snapshot edit"
         )
-        assert -1.0 <= anomaly_body["similarity_to_baseline"] <= 1.0, (
-            f"{provider_id}: similarity_to_baseline {anomaly_body['similarity_to_baseline']!r}"
-        )
-        for text, s in (await _drive(provider_id, client, "clip_batch_similarity"))[
-            "similarities"
-        ].items():
-            assert -1.0 <= s <= 1.0, f"{provider_id}: batch_similarity[{text!r}] {s!r}"
-
-    # no provider — schema-presence characterization: the committed WP7.2
-    # response snapshots are TYPE-ONLY, so the committed contract carries NO
-    # range at all; the range lives only in producer pydantic — and only in
-    # SOME producers. Predicted GREEN (snapshots read verbatim from
-    # backend/ai_contract/schemas/). fake n/a, gateway n/a. UNVERIFIED.
-    def test_N3_committed_contract_snapshots_declare_no_range(self) -> None:
-        blob = "\n".join(
-            (SCHEMA_DIR / f"{op}.response.json").read_text(encoding="utf-8") for op in RANGE_OPS
-        )
-        assert '"maximum"' not in blob and '"minimum"' not in blob, (
-            "a range keyword appeared in the committed snapshots — N3's "
-            "'schema can catch none of this' premise changed; promote the "
-            "range checks into schema validation and cite the snapshot edit."
+        assert max(abs(x) for x in emb) <= 1.0, (
+            f"{provider_id}: a component of {max(abs(x) for x in emb)!r} in a "
+            "UNIT vector cannot exceed 1.0 — this is the bound the snapshot "
+            "cannot express, and the first thing a non-normalized provider "
+            "trips (the DB-side analogue is where the refusal actually "
+            "happens: too late)"
         )
 
-    def test_N3_legacy_server_and_backend_schemas_carry_the_bounds(self) -> None:
-        clip_src = (REPO_ROOT / "ai" / "clip" / "model.py").read_text(encoding="utf-8")
-        assert "ge=-1.0, le=1.0" in clip_src, (
-            "ai/clip/model.py similarity_to_baseline lost its ge=-1.0/le=1.0 "
-            "(dossier cite :362-364) — the ONLY place [-1,1] is enforced"
+    def test_N3_committed_snapshots_declare_no_range_on_the_vision_lane(self) -> None:
+        """The contrast IS the finding, DERIVED off the whole schema
+        directory: a range keyword IS expressible in this contract format —
+        the VLM op's snapshot expresses ``minimum``/``maximum`` on
+        ``risk_score`` — and none of the light-lane snapshots expresses one. A
+        range landing on a light-lane snapshot reddens here (premise changed:
+        promote to schema validation and cite the edit); so does the format
+        losing ranges EVERYWHERE, because then the contrast stopped existing."""
+        bounded = sorted(
+            p.name.removesuffix(".response.json")
+            for p in SCHEMA_DIR.glob("*.response.json")
+            if '"maximum"' in p.read_text(encoding="utf-8")
+            or '"minimum"' in p.read_text(encoding="utf-8")
         )
-        assert "ge=0.0, le=1.0" in clip_src, (
-            "ai/clip/model.py anomaly_score lost its ge=0.0/le=1.0 (cite :359-361)"
+        light_lane = set(operations_for_slot("enrichment_light_adapter", OPERATIONS))
+        assert light_lane, "the light slot went empty — the derived comparison is vacuous"
+        assert not (light_lane & set(bounded)), (
+            f"light-lane ops {sorted(light_lane & set(bounded))} gained range "
+            "keywords — promote the range checks into schema validation and "
+            "cite the snapshot edit"
         )
+        assert bounded, (
+            "no committed snapshot expresses a range anywhere — the premise "
+            "below (ranges ARE expressible, just not here) stopped holding; "
+            "re-cite what enforces boundedness now"
+        )
+
+    def test_N3_backend_schemas_still_carry_the_bounds_the_gateway_does_not(self) -> None:
+        """Consumer-side half of the asymmetry, on surviving files only: the
+        backend's own response models DO carry ge/le for the quantities the
+        wire leaves unbounded, and the reid lane's bound is NARROWER than the
+        cosine math (ge=0, not ge=-1) — same quantity, two contracts, which is
+        what dossier N3 recorded and what still ships. The final leg is the
+        anti-pin: the gateway-side model must still be BARE next to them, or
+        the asymmetry closed and this becomes a range-PRESENCE assertion."""
         baseline_src = (REPO_ROOT / "backend/api/schemas/baseline.py").read_text(encoding="utf-8")
         assert "ge=0.0" in baseline_src and "le=1.0" in baseline_src, (
             "backend/api/schemas/baseline.py AnomalyEvent.anomaly_score "
@@ -742,28 +973,61 @@ class TestN3RangesAndConstraintPresence:
         )
         reid_src = (REPO_ROOT / "backend/api/schemas/reid.py").read_text(encoding="utf-8")
         assert "ge=0.0" in reid_src, (
-            "backend/api/schemas/reid.py:91 lost its ge=0.0 — NOTE the reid "
-            "lane constrains cosine to NON-negative (ge=0/le=1), narrower "
-            "than the [-1,1] the /clip endpoints promise (dossier N3)."
+            "backend/api/schemas/reid.py lost its ge=0.0 — NOTE the reid lane "
+            "constrains cosine to NON-negative (ge=0/le=1), narrower than the "
+            "[-1,1] cosine arithmetic promises (dossier N3)."
+        )
+        adapter_src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment_light.py").read_text(
+            encoding="utf-8"
+        )
+        assert "max_confidence: float = Field(default=0.0)" in adapter_src, (
+            "ThreatResponse.max_confidence gained a constraint — the "
+            "asymmetry (backend ge/le vs gateway bare float) CLOSED; flip "
+            "this into a range-PRESENCE assertion and cite the fix"
         )
 
-    # characterization of the GAP (anti-pin on the gateway's bare response
-    # models; dossier N3). Predicted GREEN — they ARE bare today; if someone
-    # closes the gap this reds and must flip into a range-PRESENCE assertion.
-    # fake n/a, gateway n/a (source read, no request). UNVERIFIED.
-    def test_N3_gateway_response_models_are_still_bare_floats(self) -> None:
-        src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "clip.py").read_text(encoding="utf-8")
-        for cls in ("SimilarityResponse", "BatchSimilarityResponse", "AnomalyScoreResponse"):
-            body = re.search(rf"class {cls}\(BaseModel\):\n((?:[ \t].*\n|\n)+)", src)
-            assert body, f"class {cls} missing from ai/gateway/adapters/clip.py"
-            assert "le=1.0" not in body.group(1) and "ge=-1.0" not in body.group(1), (
-                f"gateway {cls} now carries range constraints — the dossier "
-                "N3 asymmetry (legacy ge/le vs gateway bare float) was CLOSED; "
-                "flip this into a range-PRESENCE assertion and cite the fix."
-            )
-        assert "anomaly = max(0.0, min(1.0, 1.0 - sim))" in src, (
-            "gateway anomaly clamp (adapters/clip.py:514) changed formula — it "
-            "is the ONLY thing keeping anomaly_score in [0,1] on the gateway"
+
+class TestN3RangeTombstone:
+    """TOMBSTONE (R8 S3, owner ruling 5). ``clip_similarity``,
+    ``clip_anomaly_score`` and ``clip_batch_similarity`` graded three value
+    ranges at once — similarity in [-1,1], anomaly_score in [0,1] (clamped
+    ``max(0.0, min(1.0, 1.0 - sim))``, with both inputs re-normalized before
+    the dot), and a batch map whose every item was a cosine — AND pinned
+    which layer enforced each: the legacy server by pydantic ``ge``/``le``,
+    the gateway by that clamp formula and nothing else, the committed WP7.2
+    snapshots by nothing at all. The concrete failure mode was a float32 dot
+    landing at 1.0000001: it 500'd the legacy server (``le=1.0``) and passed
+    the gateway, so WHICH PROVIDER ANSWERED decided whether an out-of-range
+    score was an error or a stored fact.
+
+    It cannot retarget: no surviving op emits a cosine, an anomaly score or a
+    batch similarity map — the remaining numeric surface is the embedding
+    vector and the threat confidences above. The METHOD (read the response
+    model for a constraint, then grade the number against the range the model
+    cannot express) is alive in TestN3RangesAndConstraintPresence."""
+
+    def test_the_range_ops_are_gone_and_the_ratchet_owns_them(self) -> None:
+        retired = _retired_registry_ops()
+        victims = sorted(
+            op_id for op_id in retired if op_id.endswith(("_similarity", "_anomaly_score"))
+        )
+        assert len(victims) >= 2, f"the retired range family derived to {victims}"
+        for op_id in victims:
+            assert op_id not in OPERATION_IDS, op_id
+            assert not (SCHEMA_DIR / f"{op_id}.response.json").exists(), op_id
+        # Derived victim identity (WP4.2: sorted(x)[0] with a len guard, not a
+        # hand-typed id list): the anomaly op is the one whose legacy producer
+        # alone enforced [0,1] in pydantic.
+        assert sorted(victims)[0] == "clip_anomaly_score"
+        # Non-vacuity: producer-side clamp/max enforcement still has a live
+        # instance, so "only the producer bounds the range" is not a
+        # retired-only story.
+        src = (REPO_ROOT / "ai" / "gateway" / "adapters" / "enrichment_light.py").read_text(
+            encoding="utf-8"
+        )
+        assert "max_confidence = max(" in src, (
+            "the surviving producer-side max went away — the hazard this "
+            "tombstone records has no live instance left"
         )
 
 
@@ -786,31 +1050,32 @@ class TestN4RiskScoreLayersDisagree:
         risk_score {'type':'integer','minimum':0,'maximum':100} at :37-42 —
         the only layer that rejects a non-integer at the SOURCE (NIM).
       L2 pydantic LLMRiskResponse: risk_score int ge=0 le=100 at :393-397 +
-        BEFORE-validator coerce_risk_score at :434-460: float → int(v)
-        TRUNCATES; str → int(float(v)); ge/le runs AFTER coercion, so
+        BEFORE-validator coerce_risk_score at :434-460: float -> int(v)
+        TRUNCATES; str -> int(float(v)); ge/le runs AFTER coercion, so
         out-of-range still raises.
       L3 Postgres CHECK ck_events_risk_score_range
         'risk_score IS NULL OR (risk_score >= 0 AND risk_score <= 100)' at
         backend/models/event.py:241-243.
     RIVAL schema backend/api/schemas/llm.py LLMRiskResponse (class :227,
     Annotated int ge=0 le=100 at :288) has a DIFFERENT before-validator at
-    :305-326 that CLAMPS (150→100, -10→0; 'return max(0, min(100, score))'
+    :305-326 that CLAMPS (150->100, -10->0; 'return max(0, min(100, score))'
     at :326) instead of rejecting, plus a model-validator that REWRITES
-    risk_level from the coerced score (:371-415 region)."""
+    risk_level from the coerced score (:371-415 region).
+
+    R8 S3 DIAGNOSIS (not assumed): all four tests survive untouched. Every
+    subject here is the LLM risk layer — two schema modules and one ORM model
+    — none of which the vision prune touches. The only provider-shaped claim
+    in the class is the ABSENCE of a provider assertion (a generic int
+    walker's output reads as a plausible risk score and catches nothing), and
+    that warning is still true of the fake's llm ops."""
 
     # All four tests: no provider drives them — contract-layer
     # characterization (fake/gateway n/a for the pydantic layers; the fake's
     # llm ops are chat-completion snapshots whose response schemas carry NO
     # risk_score at all — llm_completion.response.json = {content,
-    # tokens_predicted}). Dossier runtime-verified (0.5→0 both schemas;
-    # llm_response 150 raises; llm.py 150→100) AND re-probed once-shot while
-    # drafting this file. UNVERIFIED under pytest. The dossier's suite-side
-    # warning is why there is NO parametrized "provider risk_score in
-    # [0,100]" assertion here: the fake's generic int walker emits U[1,8]
-    # ints that read as plausible risk scores and catch nothing.
+    # tokens_predicted}). Dossier runtime-verified (0.5->0 both schemas;
+    # llm_response 150 raises; llm.py 150->100).
 
-    # Runtime-probed: LLMRiskResponse(risk_score=0.5).risk_score == 0 and
-    # '0.5' → 0 on llm_response.py. Predicted GREEN.
     def test_N4_before_validator_truncates_floats_silently(self) -> None:
         r = StrictRiskResponse(risk_score=0.5, risk_level="low", summary="s", reasoning="r")
         assert r.risk_score == 0, (
@@ -823,13 +1088,10 @@ class TestN4RiskScoreLayersDisagree:
         )
         r2 = StrictRiskResponse(risk_score="0.9", risk_level="low", summary="s", reasoning="r")
         assert r2.risk_score == 0, (
-            "str '0.9' → int(float('0.9')) == 0 (llm_response.py:453-457) — "
+            "str '0.9' -> int(float('0.9')) == 0 (llm_response.py:453-457) — "
             "stringly risk payloads truncate identically"
         )
 
-    # Runtime-probed: strict REJECTS 150 (ValidationError); rival CLAMPS to
-    # 100; rival 0.75/'high' → (0, RiskLevel.LOW) — the level rewritten from
-    # the coerced score (llm.py model-validator :371-415). Predicted GREEN.
     def test_N4_out_of_range_rejected_by_strict_clamped_by_rival(self) -> None:
         with pytest.raises(ValidationError):
             StrictRiskResponse(risk_score=150, risk_level="low", summary="s", reasoning="r")
@@ -844,7 +1106,7 @@ class TestN4RiskScoreLayersDisagree:
         rival2 = RivalRiskResponse(risk_score=0.75, risk_level="high", summary="s", reasoning="r")
         assert rival2.risk_score == 0, "int(float(0.75)) truncates in the rival too (llm.py:321)"
         assert str(rival2.risk_level).lower().endswith("low"), (
-            f"risk_level 'high' rewritten from the coerced score → "
+            f"risk_level 'high' rewritten from the coerced score -> "
             f"{rival2.risk_level!r} (llm.py model-validator :371-415) — "
             "truncation cascades into the label"
         )
@@ -870,102 +1132,60 @@ class TestN4RiskScoreLayersDisagree:
 
 
 # ---------------------------------------------------------------------------
-# N5 — competing dimensionalities with THREE inconsistent failure modes
-# (raise / dead-default + silent 0.0 / silent pad) + the per-provider dim
-# matrix as green guards
+# N5 — competing dimensionalities with INCONSISTENT failure modes (raise /
+# silent 0.0 / silent passthrough), graded on the one surviving slot
 # ---------------------------------------------------------------------------
 
 
 class TestN5DimConfusion:
-    """N5 source (dossier N5a/N5b/N5c/N5d):
-      N5a backend/services/scene_baseline.py:260-263 (update_baseline) and
-        :327-330 (set_baseline) RAISE InvalidEmbeddingError (class :75) unless
-        len == EMBEDDING_DIMENSION (768, :47).
-      N5b reid_matcher: DEFAULT_EMBEDDING_DIMENSION = 512 at :57 is DEAD
-        (dossier grep: no consumer — the plan's 'defaults 512' mode is FALSE);
-        store records len(embedding) verbatim (:312-313) and
-        ReIDMatcher._cosine_similarity (:244) SILENTLY returns 0.0 for unequal
-        lengths (:255-256).
-      N5c backend/services/osnet_loader.py SILENTLY truncated (flatten()[:512])
-        / zero-PADs to OSNET_EMBEDDING_DIM=512 and re-normalized the mangled
-        vector (pre-swap :347-363 + batch twin :446-453). CLOSED by the re-ID
-        full swap (D-5): a wrong dim now RAISES (test_N5c below).
-      N5d backend/models/face_identity.py:116: 'Stores 512-dimensional
-        ArcFace embeddings' is DOCSTRING only — no validator rejects 768-dim
-        faces (dimension is convention, not constraint).
-    Provider-side (assertable per provider from driven responses): the dim
-    matrix clip_embed=768 vs enrich_lt_person_reid=512."""
+    """N5's dossier table had four columns. The prune took the provider-side
+    multi-slot claim (CLIP's 768-d slot retired with its model — tombstoned in
+    TestN5MultiSlotTombstone) and left the three failure-mode columns
+    standing on live code, one of them newly EXECUTABLE.
 
-    # fake: GREEN — overrides pin 768 vs 512 exactly (generators.py:242-244);
-    #   the fake NEVER exercises osnet's pad branch (dossier N5c divergence:
-    #   it always returns exact 512). UNVERIFIED.
-    # gateway: GREEN — the clip adapter 500s on any len != 768
-    #   (adapters/clip.py:385-389) and reid reports len(embedding); with the
-    #   canned 768/512 rows both answer at their slot's dim. UNVERIFIED.
-    @pytest.mark.parametrize("provider_client", PROVIDER_PARAMS, indirect=True)
-    async def test_N5_provider_dims_are_the_distinct_slots(self, provider_client) -> None:
-        provider_id, client = provider_client
-        clip_emb = (await _drive(provider_id, client, "clip_embed"))["embedding"]
-        reid_body = await _drive(provider_id, client, "enrich_lt_person_reid")
-        assert len(clip_emb) == 768
-        assert len(reid_body["embedding"]) == 512
-        assert len(clip_emb) != len(reid_body["embedding"]), (
-            f"{provider_id}: clip and reid collapsed to ONE dimensionality — "
-            "cross-space cosines would start LOOKING comparable instead of "
-            "silently scoring 0.0 (reid_matcher.py:255-256). Dims differ per "
-            "op per schema: clip 768 (schemas/clip_embed.response.json + "
-            "adapter clip.py:50), reid 512 (schemas/enrich_lt_person_reid."
-            "response.json + osnet :41)."
-        )
+      RAISE-ON-WRONG-DIM. The service that owned this mode
+      (``backend/services/scene_baseline.py``, which raised
+      ``InvalidEmbeddingError`` unless len == its 768 constant) is gone with
+      the CLIP surface, but the MODE is still shipped in two live places and
+      its EXCEPTION still ships in backend/core/exceptions.py: the face
+      loader refuses a 768-d vector against its 512-d gallery space
+      (face_recognizer_loader.py:239-244) and
+      ``osnet_loader._enforce_embedding_dim`` refuses anything but 512
+      (:160-180, D-5). ``test_N5a_wrong_dim_raises_in_the_matcher_and_passes_
+      the_adapter`` grades the contrast across the seam where it still
+      matters: the SAME mismatched vector raises at the backend and 200s at
+      the gateway adapter.
+      SILENT 0.0. ``reid_matcher._cosine_similarity`` still returns exactly
+      0.0 for unequal lengths (:255-256), and
+      ``DEFAULT_EMBEDDING_DIMENSION`` (:57) is still a constant with no
+      consumer — asserted from the AST, not from a remembered grep.
+      RAISE, NEVER PAD. The re-ID full swap's D-5 ruling turned osnet's
+      silent pad/truncate into a raise, so this column is no longer a source
+      characterization: it is executed.
+      DOCUMENTATION-ONLY 512. ``backend/models/face_identity.py`` gained no
+      validator; dimension remains convention, not constraint.
 
-    # backend-internal (matrix-only in the dossier — no provider drives it).
-    # Runtime-probed once-shot while drafting: SceneBaselineService(
-    # redis_client=None) constructs (guard runs BEFORE any redis use —
-    # :260/:327 are the first statements after the docstring) and both calls
-    # raise InvalidEmbeddingError. Import cost 3.09s probe — UNVERIFIED
-    # against the 5s tier for the first payer. Predicted GREEN.
-    async def test_N5a_scene_baseline_raises_on_wrong_dim(self) -> None:
-        from backend.services.scene_baseline import InvalidEmbeddingError, SceneBaselineService
+      Provider side: one slot remains (see TestN5MultiSlotTombstone), and the
+      fake-side 768->512 bullet is already
+      test_fake_provider.py::test_unit_norm_embedding_at_the_surviving_home
+      — cited, not repeated."""
 
-        svc = SceneBaselineService(redis_client=None)
-        with pytest.raises(InvalidEmbeddingError):
-            await svc.set_baseline("cam-x", [0.1] * 512)  # guard at :327-330
-        with pytest.raises(InvalidEmbeddingError):
-            await svc.update_baseline("cam-x", [0.1] * 769)  # guard at :260-263
-
-    # backend-internal. Runtime-probed: _cosine_similarity([0.1]*512,
-    # [0.1]*768) == 0.0 exactly. Predicted GREEN. UNVERIFIED under pytest.
-    def test_N5b_reid_matcher_dim_mismatch_is_silent_zero(self) -> None:
-        from backend.services.reid_matcher import ReIDMatcher
-
-        assert ReIDMatcher._cosine_similarity([0.1] * 512, [0.1] * 768) == 0.0, (
-            "reid_matcher.py:255-256 returns 0.0 for unequal lengths — the "
-            "plan's 'defaults 512' mode is FALSE (dossier N5b: "
-            "DEFAULT_EMBEDDING_DIMENSION at :57 is a DEAD constant); a dim "
-            "mistake in the reid lane reads as 'no match', never an error — "
-            "the WORST of the three failure modes for swap readiness."
-        )
-
-    # backend-internal characterization via AST (the RAISE path would need
-    # model weights to EXERCISE — same one-shot-safety note as before; a
-    # source pin is the honest drift-sensitive stand-in). Predicted GREEN.
+    # backend-internal, executed (the pre-swap version of this test could only
+    # characterize source because exercising the pad path needed weights).
     def test_N5c_osnet_loader_raises_on_wrong_dim(self) -> None:
-        """N5c's silent pad/truncate was one of the three dim-failure modes;
-        the re-ID full swap retired it by owner ruling (D-5: "a wrong
-        checkpoint must never become a plausible vector"). The guard now
-        RAISES naming the expected 512. If pad/truncate ever comes back,
-        this pin reddens — the N5 table's C column changes mode, it never
-        goes blank."""
+        """D-5: "a wrong checkpoint must never become a plausible vector". The
+        raise path needs only an array, so this is now the real behaviour plus
+        the source pins that keep the RETIRED pad/truncate branches from
+        coming back (the N5 table's pad column changes mode, it never goes
+        blank). Import cost of this module is ~2.3s, inside the tier budget."""
+        from backend.services.osnet_loader import OSNET_EMBEDDING_DIM, _enforce_embedding_dim
+
+        assert OSNET_EMBEDDING_DIM == 512
+        assert _enforce_embedding_dim(np.zeros((1, 512))).shape == (512,)
+        for wrong in (511, 768, 1024):
+            with pytest.raises(RuntimeError, match=str(OSNET_EMBEDDING_DIM)):
+                _enforce_embedding_dim(np.zeros((1, wrong)))
         src = (REPO_ROOT / "backend/services/osnet_loader.py").read_text(encoding="utf-8")
-        tree = ast.parse(src)
-        consts = {
-            t.id: ast.literal_eval(n.value)
-            for n in ast.walk(tree)
-            if isinstance(n, ast.Assign)
-            for t in n.targets
-            if isinstance(t, ast.Name) and t.id == "OSNET_EMBEDDING_DIM"
-        }
-        assert consts.get("OSNET_EMBEDDING_DIM") == 512
         assert "np.pad(" not in src, (
             "the retired silent-pad path came back (pre-swap osnet_loader "
             ":352-355) — D-5 ruled a wrong dim RAISES, never pads"
@@ -973,14 +1193,163 @@ class TestN5DimConfusion:
         assert "embedding.flatten()[:OSNET_EMBEDDING_DIM]" not in src, (
             "the retired silent-truncate path came back (pre-swap :350)"
         )
-        assert "_enforce_embedding_dim" in src, (
-            "the D-5 raise guard drifted out of the extraction path"
+
+    def test_N5b_reid_matcher_dim_mismatch_is_silent_zero(self) -> None:
+        from backend.services.reid_matcher import ReIDMatcher
+
+        assert ReIDMatcher._cosine_similarity([0.1] * 512, [0.1] * 768) == 0.0, (
+            "reid_matcher.py:255-256 returns 0.0 for unequal lengths — the "
+            "plan's 'defaults 512' mode is FALSE (the module-level "
+            "DEFAULT_EMBEDDING_DIMENSION is asserted dead below by AST); a "
+            "dim mistake in the reid lane reads as 'no match', never an "
+            "error — the WORST of the three failure modes for swap readiness."
         )
 
-    # backend-internal characterization (dossier N5d: 512 is documentation +
-    # service convention, not a constraint). Predicted GREEN (docstring
-    # present, validators absent — the asymmetry IS the finding). UNVERIFIED.
+    def test_N5b_the_default_dimension_constant_is_still_dead(self) -> None:
+        """The dossier's N5b claim — the 512 default is a DEAD constant — is a
+        grep-shaped claim, so it is graded from the AST: the name is defined at
+        module level and has ZERO other mentions in its own module. Wiring it
+        up later turns 'defaults 512' from FALSE into TRUE, which is a FOURTH
+        failure mode (silent defaulting) and has to restate this."""
+        src = (REPO_ROOT / "backend/services/reid_matcher.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        defined = any(
+            isinstance(n, (ast.Assign, ast.AnnAssign))
+            and any(
+                t.id == "DEFAULT_EMBEDDING_DIMENSION"
+                for t in (n.targets if isinstance(n, ast.Assign) else [n.target])
+                if isinstance(t, ast.Name)
+            )
+            for n in tree.body
+        )
+        uses = sum(
+            1
+            for n in ast.walk(tree)
+            if isinstance(n, ast.Name) and n.id == "DEFAULT_EMBEDDING_DIMENSION"
+        )
+        assert defined, (
+            "the constant this property calls dead is not defined at module "
+            "level any more — re-cite which module carries the reid default "
+            "dimension"
+        )
+        assert uses == 1, (
+            f"DEFAULT_EMBEDDING_DIMENSION appears {uses}x (1 == definition "
+            "only): it gained a consumer, so 'no code defaults to 512' is "
+            "stale and the N5 failure-mode table gains a DEFAULTING column"
+        )
+
+    async def test_N5a_wrong_dim_raises_in_the_backend_and_passes_the_adapter(
+        self, gateway_app
+    ) -> None:
+        """The surviving half of N5a, as ONE pair on ONE seam, because the
+        contrast — not either leg — is the finding.
+
+        Raising side: ``InvalidEmbeddingError(expected_dim=512,
+        actual_dim=511)`` carries BOTH dimensions into its details payload.
+        That exception class is the shipped backend answer to a dimension
+        mistake, and it survives the sweep that took the service which used to
+        raise it (backend/core/exceptions.py:893).
+
+        Passing side: the same 511-vs-512 mismatch driven through the shipped
+        light adapter returns 200 with a 511-vector and
+        ``embedding_dimension == 511``. The adapter takes
+        ``result["embedding"][0]`` (adapters/enrichment_light.py:200) and
+        nothing between there and the wire counts anything; the response model
+        declares ``embedding: list[float]`` and a bare ``int`` dim, so the
+        declaration faithfully reports the wrong size it carries. That is why
+        N1a's ``declared == len(vector)`` equality — green, correct, worth
+        keeping — CANNOT catch a wrong-slot provider: it is an internal
+        consistency check, and this is its blind spot, pinned rather than
+        assumed."""
+        err = InvalidEmbeddingError(expected_dim=512, actual_dim=511)
+        assert err.details == {"expected_dim": 512, "actual_dim": 511}, (
+            "N5a's raising side lost both dimensions from the error it names "
+            f"— details now {err.details!r}"
+        )
+
+        async with _patched_http(
+            gateway_app, GATEWAY_PATCH_TARGETS, mock_triton=_mock_triton(reid_dim=511)
+        ) as client:
+            op = OPERATIONS[REID_OP]
+            r = await client.request(op.method, op.path, json={"image": _B64_IMAGE})
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        assert len(body["embedding"]) == 511, (
+            "the adapter's tensor row is 511 long — if the response is not, "
+            "something between the Triton mock and the wire changed the "
+            "vector and this pair is no longer grading one input shape"
+        )
+        assert body["embedding_dimension"] == 511, (
+            "the declared dim followed the tensor instead of refusing it — "
+            "if this ever raises/4xx, the adapter gained a dimension gate and "
+            "N5a's silent side CLOSED; restate this leg as a raises-check "
+            "and cite the gate"
+        )
+
+    def test_N5_the_single_slot_is_one_number_across_four_shipped_artifacts(self) -> None:
+        """The RETARGETED half of the retired multi-slot claim. What that test
+        actually bought was "the per-op dimensions are pinned against shipped
+        artifacts, not against each other" (it read clip's 768 from its
+        snapshot AND its adapter constant, reid's 512 from its snapshot AND its
+        loader constant). With one slot left, the live form of that property is
+        the AGREEMENT of the shipped artifacts that describe it — four
+        independent places a width is written down, none derived from another:
+
+          1. the Triton weights' own width (``OSNET_EMBEDDING_DIM``, AST-read
+             from backend/services/osnet_loader.py);
+          2. the fake's generator override that BUILDS the vector;
+          3. the fake's separate ``const`` override that DECLARES the dim
+             (generators.py:222-223 — two entries, so a re-dim of one without
+             the other is exactly what this catches);
+          4. the number the fake actually SERVES, both as vector length and as
+             ``embedding_dimension``, driven over ASGI (the committed snapshot
+             pins only the field TYPE — ``integer``, no size — which the wire
+             leg above is the size-half of).
+
+        Non-vacuity is structural: four independent sources are compared, and
+        the wire is driven, so a provider that declares what it does not emit
+        reddens as well as a registry that re-dims one artifact."""
+        from backend.ai_contract.fake import create_fake_app
+        from backend.ai_contract.fake.generators import _OVERRIDES
+
+        vector_override = _OVERRIDES[(REID_OP, "embedding")]
+        declared_override = _OVERRIDES[(REID_OP, "embedding_dimension")]
+        assert vector_override[0] == "unit_embedding", (
+            f"the fake's embedding generator is now {vector_override!r} — the "
+            "unit-norm guarantee this cluster asserts comes from that speller"
+        )
+        assert vector_override[1] == declared_override[1] == _CANNED_REID_DIM, (
+            f"weights {_CANNED_REID_DIM} / built {vector_override[1]} / "
+            f"declared {declared_override[1]} — the fake's build and declare "
+            "entries drifted apart, which is the silent half of a dim change"
+        )
+        snapshot_dim = _snapshot(REID_OP)["properties"]["embedding_dimension"]
+        assert snapshot_dim["type"] == "integer", snapshot_dim
+
+        async def drive() -> tuple[int, int]:
+            from httpx import ASGITransport, AsyncClient
+
+            async with AsyncClient(
+                transport=ASGITransport(app=create_fake_app()), base_url="http://f"
+            ) as client:
+                op = OPERATIONS[REID_OP]
+                body = (
+                    await client.request(op.method, op.path, json=_fake_payload(REID_OP))
+                ).json()
+            return len(body["embedding"]), body["embedding_dimension"]
+
+        import asyncio
+
+        built, declared = asyncio.run(drive())
+        assert built == declared == _CANNED_REID_DIM, (
+            f"wire: {built} built / {declared} declared vs weights "
+            f"{_CANNED_REID_DIM} — all four artifacts must name ONE slot"
+        )
+
     def test_N5d_face_identity_512_is_documentation_only(self) -> None:
+        """(dossier N5d: 512 is documentation + service convention, not a
+        constraint.) Verified: docstring present, validators absent — the
+        asymmetry IS the finding."""
         src = (REPO_ROOT / "backend/models/face_identity.py").read_text(encoding="utf-8")
         assert "512-dimensional ArcFace" in src, "face_identity.py:116 doc drifted"
         tree = ast.parse(src)
@@ -1010,6 +1379,65 @@ class TestN5DimConfusion:
         )
 
 
+class TestN5MultiSlotTombstone:
+    """TOMBSTONE (R8 S3, owner ruling 5). ``test_N5_provider_dims_are_the_
+    distinct_slots`` drove BOTH embedding ops against both app-driven
+    providers and asserted ``len(clip_embedding) == 768``,
+    ``len(reid_embedding) == 512`` and — the load-bearing one —
+    ``len(clip) != len(reid)``. Its point was that the two embedding spaces
+    were different sizes ON PURPOSE: a cross-space cosine was then
+    detectably meaningless because the shapes disagreed and the matcher
+    returned its documented silent 0.0. If the two ever collapsed to one
+    dimensionality, cross-space scores would start LOOKING comparable and
+    nothing on either side would say so. Per-op dims were pinned per schema
+    (clip 768 via its snapshot + the adapter's constant; reid 512 via its
+    snapshot + the loader constant).
+
+    It cannot retarget as a multi-slot claim: CLIP's 768-d slot retired with
+    its model (ruling 5), so the shipped registry has exactly ONE embedding
+    slot and there is no second dimensionality left to be distinct from. Two
+    things survive it, both live in TestN5DimConfusion: the single-slot
+    HAZARDS (a wrong dim passing the adapter; silent 0.0 in the matcher; the
+    dead default constant; the raise-never-pad guard), and the claim's METHOD
+    — per-op dims pinned against shipped artifacts, which with one slot is the
+    four-way AGREEMENT test ``test_N5_the_single_slot_is_one_number_across_four_
+    shipped_artifacts``. The fake-side half of the width retarget — the
+    surviving slot's width pinned against the committed snapshot's own
+    ``embedding_dimension`` instead of a remembered 768 — is
+    test_fake_provider.py::test_unit_norm_embedding_at_the_surviving_home; this
+    file cites it rather than repeating it."""
+
+    def test_the_second_embedding_slot_is_gone_and_the_ratchet_owns_it(self) -> None:
+        assert "clip_embed" not in OPERATION_IDS
+        assert "clip_embed" in _retired_registry_ops()
+        assert not (SCHEMA_DIR / "clip_embed.response.json").exists()
+        assert len(_embedding_ops()) == 1, (
+            f"{sorted(_embedding_ops())} — a second embedding op came back; "
+            "the multi-slot claim has a live subject again and must be "
+            "restored, not left as this tombstone"
+        )
+
+    def test_the_surviving_slot_is_the_one_every_column_names(self) -> None:
+        """Non-vacuity for the whole N5 cluster, derived off the matrix rather
+        than asserted as a count: every slot that serves the embedding op
+        serves it by PATH, so the slot this cluster's numeric properties grade
+        exists on the wire — and a column that quietly lost it reddens."""
+        embedding_ops = _embedding_ops()
+        assert embedding_ops == {REID_OP}
+        mounted = _mounted_paths()
+        for slot in ("gateway", "enrichment_light_adapter", "per_model_server", "fake"):
+            column = set(operations_for_slot(slot, OPERATIONS))
+            assert column & embedding_ops == embedding_ops, (
+                f"slot {slot!r} lost the surviving embedding op — the dim "
+                "this cluster pins would have no column to be pinned in"
+            )
+        assert OPERATIONS[REID_OP].path in mounted, (
+            f"{OPERATIONS[REID_OP].path} is in every column but no mounted "
+            "router — a decorative column is the class gen-ai-contract's "
+            "phantom check refuses"
+        )
+
+
 # ---------------------------------------------------------------------------
 # N6 — guided schema summary maxLength 200; the pydantic model does NOT
 # enforce it (generation-time contract, invisible at runtime)
@@ -1023,10 +1451,12 @@ class TestN6SummaryMaxLengthUnenforced:
     schemas/llm.py summary carries min_length=1 only (:336-342 region). A
     201+ char summary is contract-violating yet PARSES AND STORES. The fake
     never trips it: the generic string generator emits ~11 chars
-    ('summary_NNN', generators.py:342) — invisible to any provider-
-    parametrized assertion, hence a contract-layer characterization (dossier
-    providers: matrix-only). Runtime-probed once-shot: 'x'*250 passthrough
-    True. Predicted GREEN. UNVERIFIED under pytest."""
+    ('summary_NNN') — invisible to any provider-parametrized assertion, hence
+    a contract-layer characterization (dossier providers: matrix-only).
+    Runtime-probed: 'x'*250 passes straight through.
+
+    R8 S3 DIAGNOSIS (not assumed): both subjects are LLM schema modules; the
+    prune retired vision surface only, so nothing here moves."""
 
     def test_N6_summary_250_chars_passes_pydantic_alongside_schema_maxlength(self) -> None:
         s = "x" * 250
@@ -1045,27 +1475,29 @@ class TestN6SummaryMaxLengthUnenforced:
 
 # ---------------------------------------------------------------------------
 # Matrix guards — presence == slot column, absence == 404 (green guards,
-# never skips). per_model_http + llamacpp_llm appear ONLY here (hard rule:
-# their registered callables do real network — dossier Q5 — never invoked).
+# never skips). per_model_http + llamacpp_llm + the VLM engines appear ONLY
+# here (hard rule: their registered callables do real network — dossier Q5 —
+# never invoked).
 # ---------------------------------------------------------------------------
 
 
 class TestMatrixNumericSurface:
-    """The availability half of every numeric op, for all five ids."""
+    """The availability half of every numeric op — for every numeric op the
+    registry actually has (``NUMERIC_OPS`` is derived; the draft hand-listed
+    five ids whose numeric surface was mostly CLIP's, which is exactly the
+    hand-numbered-table rot WP4.2 removed elsewhere in this tier)."""
 
-    # Predicted GREEN for all five ids (the presence direction is already
-    # import-time-enforced by register_provider; the per-op column fold and
-    # the llamacpp equality-of-derived-subset are this test's own).
-    # UNVERIFIED.
     def test_matrix_registered_op_set_matches_slot_column(self) -> None:
         from backend.ai_contract.fake import fake_provider_ops
 
         reg = registered_providers()
         # fake joins the registry the way the suite registers it (the fake is
         # NOT import-registered — providers.py docstring;
-        # test_fake_provider.py:166-175 is the in-test precedent). Repeated
-        # registration is idempotent: _PROVIDERS keys by ProviderId.value
-        # (provider.py:244) and the write just replaces the record.
+        # test_fake_provider.py:166-175 is the in-test precedent).
+        # register_provider stores by ProviderId.value, so a repeat call is a
+        # replace, not an accumulation; `reg` is the COPY registered_providers
+        # hands back (provider.py:261), so the local binding below is what this
+        # test reads and no provider table is mutated behind another test.
         reg["fake"] = register_provider(
             ProviderId.FAKE, fake_provider_ops(), OPERATIONS, deployed=True
         )
@@ -1087,19 +1519,15 @@ class TestMatrixNumericSurface:
             for op_id in NUMERIC_OPS:
                 if provider_id in SUBSET_REQUIRED:
                     # union-slot rule (asserted above): a subset provider
-                    # declares only its required subset ⊆ column, so per-op
-                    # column EQUALITY is the wrong guard — it claims NO
-                    # numeric op. Discovery fix: the drafted loop ran
-                    # equality on this subset slot too and failed on clip_embed.
+                    # declares only its required subset (a subset of the
+                    # column), so per-op column EQUALITY is the wrong guard —
+                    # it would claim NO numeric op.
                     assert op_id not in declared, f"{provider_id}/{op_id}"
                 else:
                     assert (op_id in declared) == (op_id in column), (
                         f"{provider_id}/{op_id}: presence disagrees with the column"
                     )
 
-    # Predicted GREEN (providers.py _register_all: PER_MODEL_HTTP deployed
-    # False — matrix-declared UNDEPLOYED; the rest True; fake registered
-    # here with deployed=True). UNVERIFIED.
     def test_matrix_deployed_flags(self) -> None:
         reg = registered_providers()
         assert reg["per_model_http"].deployed is False
@@ -1112,25 +1540,117 @@ class TestMatrixNumericSurface:
         assert reg["openai_vlm"].deployed is False
         assert reg["rtvi_vlm"].deployed is False
 
-    # GREEN guard on the light-only app: gateway_light's column holds the 5
+    def test_matrix_mount_table_is_derived_from_main(self) -> None:
+        """The mount list and the patch-target list are the same fact stated
+        twice, so the mount list is checked against the shipped composition
+        root by AST instead of remembered: an adapter added to
+        ai/gateway/main.py reddens HERE, which is what forces a patch target
+        alongside it (dossier Q2's real hazard — one adapter patched, one
+        silently on real gRPC)."""
+        src = (REPO_ROOT / "ai" / "gateway" / "main.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        # router aliases: `from X import router as Y` — main.py mounts the
+        # ALIAS, so resolve alias -> (module, original name) before comparing.
+        aliases: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                for alias in node.names:
+                    aliases[alias.asname or alias.name] = node.module
+        shipped: set[tuple[str, str]] = set()
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "include_router"
+                and node.args
+            ):
+                continue
+            arg = node.args[0]
+            if not (isinstance(arg, ast.Name) and arg.id in aliases):
+                continue
+            prefixes = [kw.value.value for kw in node.keywords if kw.arg == "prefix"]
+            if prefixes:
+                shipped.add((aliases[arg.id], prefixes[0]))
+        assert shipped, "no aliased, prefix-bearing include_router in the gateway main"
+        assert shipped == set(GATEWAY_MOUNTS), (
+            f"gateway/main.py mounts {sorted(shipped)} but this cluster mounts "
+            f"{sorted(GATEWAY_MOUNTS)} — an unmounted adapter grades an "
+            "availability column against an app that cannot answer it, and an "
+            "unpatched adapter answers on real gRPC"
+        )
+        assert tuple(f"{module}.get_triton_client" for module, _ in GATEWAY_MOUNTS) == (
+            GATEWAY_PATCH_TARGETS
+        )
+        assert len(GATEWAY_PATCH_TARGETS) == len(set(GATEWAY_PATCH_TARGETS)) >= 2, (
+            "the multi-target rule needs at least two DISTINCT module-level "
+            "names — a single-target list is the shape that silently leaves "
+            "an adapter on real gRPC"
+        )
 
-    # enrich_lt_* ops (person_reid among them) and NONE of the /clip numeric
-    # ops; each /clip path answers a REAL 404 (plan procedure: absence must
-    # MATCH the matrix — asserted, never skipped). The positive control on the
-    # same app (200 + 512-dim reid) proves the 404s are ABSENCE, not a dead
-    # mount. fake n/a; gateway_light predicted GREEN. UNVERIFIED.
-    async def test_matrix_gateway_light_has_reid_not_clip(self, gateway_light_http) -> None:
+    async def test_matrix_gateway_light_column_absences_are_real_404s(
+        self, gateway_light_app
+    ) -> None:
+        """Absence == 404, graded against the light-only app, with a positive
+        control on the SAME client so the 404s read as ABSENCE rather than a
+        dead mount or a dead patch.
+
+        The VICTIM list is DERIVED off the columns
+        (``gateway - gateway_light``) instead of the drafted hand-list of four
+        ``/clip`` ids: today the derived victims are the three /yolo26 ops,
+        and on the merged gateway app they answer 422 (the route EXISTS and
+        wants a multipart upload), which would grade pydantic instead of
+        availability — so the light-only app earns its keep for the reason the
+        draft gave, with a different retired-free victim set."""
         reg = registered_providers()
         light_ops = set(reg["gateway_light"].operations())
-        assert "enrich_lt_person_reid" in light_ops
-        for op_id in ("clip_embed", "clip_classify", "clip_similarity", "clip_anomaly_score"):
-            assert op_id not in light_ops, f"gateway_light claims {op_id}"
-            r = await gateway_light_http.request(
-                OPERATIONS[op_id].method, OPERATIONS[op_id].path, json={}
-            )
-            assert r.status_code == 404, (
-                f"gateway_light {op_id}: expected 404 (column says absent), got {r.status_code}"
-            )
-        r = await gateway_light_http.post("/enrich-lt/person-reid", json={"image": _B64_IMAGE})
-        assert r.status_code == 200, r.text[:200]
-        assert len(r.json()["embedding"]) == 512
+        gateway_ops = set(reg["gateway"].operations())
+        assert REID_OP in light_ops
+        victims = sorted(gateway_ops - light_ops)
+        assert len(victims) >= 2, (
+            f"the derived absence set is {victims} — a single victim is a "
+            "brittle pin, and an empty one would make this whole test vacuous"
+        )
+        async with _patched_http(gateway_light_app, LIGHT_TARGETS) as client:
+            for op_id in victims:
+                op = OPERATIONS[op_id]
+                r = await client.request(op.method, op.path, json={})
+                assert r.status_code == 404, (
+                    f"{op_id}: expected 404 on gateway_light's surface "
+                    f"(its column says absent), got {r.status_code}"
+                )
+            # Positive control: the same patched client answers a claimed op.
+            r = await client.post(OPERATIONS[REID_OP].path, json={"image": _B64_IMAGE})
+            assert r.status_code == 200, r.text[:200]
+            assert len(r.json()["embedding"]) == _CANNED_REID_DIM
+
+    async def test_matrix_the_light_column_holds_exactly_its_own_routes(
+        self, gateway_light_app
+    ) -> None:
+        """The other direction of the same column: no route the light adapter
+        mounts is outside the column, and no column op lacks a route. Derived
+        both ways (the router's real paths, the slot's real column), so a
+        route added without a registry row — or a row without a route —
+        reddens. ``/health`` is the adapter's liveness route (the residency
+        probe reads it), not a registry op: excluded as DATA rather than by
+        loosening the comparison."""
+        import importlib
+
+        light_module = importlib.import_module("ai.gateway.adapters.enrichment_light")
+        mounted = {f"/enrich-lt{route.path}" for route in light_module.router.routes}
+        column_paths = {
+            OPERATIONS[op_id].path
+            for op_id in operations_for_slot("enrichment_light_adapter", OPERATIONS)
+        }
+        assert column_paths <= mounted, (
+            f"column ops with no route: {sorted(column_paths - mounted)}"
+        )
+        assert mounted - column_paths == {"/enrich-lt/health"}, (
+            f"light-adapter routes outside the column: "
+            f"{sorted(mounted - column_paths)} — either an unregistered op is "
+            "being served or the non-op liveness-route exclusion needs "
+            "restating (it is the residency probe's target)"
+        )
+        assert len(column_paths) >= 2, "the light column went singular; re-derive"
+        async with _patched_http(gateway_light_app, LIGHT_TARGETS) as client:
+            body = await _drive("gateway", client, THREAT_OP)
+        assert "is_threat" in body, sorted(body)

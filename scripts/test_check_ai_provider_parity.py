@@ -21,10 +21,13 @@ pins:
     fails CI until adjudicated into the golden list; a VANISHING one fails
     as GOLDEN-LOST so fixes re-ratchet instead of rotting the baseline.
 
-Fixture families use REAL family names (clip/...) on purpose: the checker's
-family routing is keyed by the same NATIVE_FAMILY_PREFIX map the real tree
+Fixture families use REAL family names on purpose: the checker's family
+routing is keyed by the same PROVIDER_FAMILY_PREFIX map the real tree
 exercises, so a synthetic family name would silently route nothing and test
-nothing.
+nothing. R8 S3 retargeted the fixture from the (then-real) clip family to the
+surviving yolo26 one — the clip dir and adapter are swept, and a fixture that
+speaks a family the checker no longer routes through is a fixture that asserts
+nothing while looking green.
 
 Conventions ride check-mock-spec/check-ratchet: subprocess-only (the gate
 is never imported — it must survive trees it cannot import), --json report,
@@ -104,44 +107,44 @@ def tree(tmp_path: Path, files: dict[str, str]) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# the base fixture: one family (clip), two providers, one client, one matrix.
+# the base fixture: one family (yolo26), two providers, one client, one matrix.
 # GREEN by construction — every RED test is a one-line drift on top of it.
 # ---------------------------------------------------------------------------
 
 OPS = """
 from typing import Any
 OPERATIONS: dict[str, Any] = {
-    "clip_do": Operation(
-        id="clip_do",
+    "yolo26_do": Operation(
+        id="yolo26_do",
         method="POST",
-        path="/clip/do",
+        path="/yolo26/do",
         availability={"gateway": True, "enrichment_light_adapter": False,
                       "per_model_server": True, "fake": True},
-        client_methods=["ClipClient.do"],
+        client_methods=["DetectorClient.do"],
         evidence="fixture",
     ),
-    "clip_seg": Operation(
-        id="clip_seg",
+    "yolo26_seg": Operation(
+        id="yolo26_seg",
         method="POST",
-        path="/clip/seg",
+        path="/yolo26/seg",
         availability={"gateway": True, "enrichment_light_adapter": False,
                       "per_model_server": False, "fake": True},
-        client_methods=["ClipClient.seg"],
+        client_methods=["DetectorClient.seg"],
         evidence="fixture",
     ),
-    "clip_batch": Operation(
-        id="clip_batch",
+    "yolo26_batch": Operation(
+        id="yolo26_batch",
         method="POST",
-        path="/clip/batch",
+        path="/yolo26/batch",
         availability={"gateway": True, "enrichment_light_adapter": False,
                       "per_model_server": True, "fake": True},
         client_methods=[],
         evidence="fixture",
     ),
-    "clip_flag": Operation(
-        id="clip_flag",
+    "yolo26_flag": Operation(
+        id="yolo26_flag",
         method="POST",
-        path="/clip/flag",
+        path="/yolo26/flag",
         availability={"gateway": True, "enrichment_light_adapter": False,
                       "per_model_server": True, "fake": True},
         client_methods=[],
@@ -153,7 +156,7 @@ OPERATIONS: dict[str, Any] = {
         path="/models/status",
         availability={"gateway": False, "enrichment_light_adapter": False,
                       "per_model_server": True, "fake": True},
-        client_methods=["ClipClient.status"],
+        client_methods=["DetectorClient.status"],
         evidence="fixture",
     ),
     "model_unload": Operation(
@@ -169,8 +172,8 @@ OPERATIONS: dict[str, Any] = {
 """
 
 MAIN = """
-from ai.gateway.adapters.clip import router as clip_router
-app.include_router(clip_router, prefix="/clip")
+from ai.gateway.adapters.yolo26 import router as yolo26_router
+app.include_router(yolo26_router, prefix="/yolo26")
 """
 
 GW_ADAPTER = """
@@ -275,15 +278,15 @@ async def health():
 """
 
 CLIENT = """
-class ClipClient:
+class DetectorClient:
     def __init__(self, settings):
         gw = getattr(settings, "ai_gateway_url", None)
         self._use_gw = getattr(settings, "use_ai_gateway", False) is True and isinstance(gw, str)
         if self._use_gw:
-            self._base_url = f"{gw.rstrip('/')}/clip"
+            self._base_url = f"{gw.rstrip('/')}/yolo26"
         else:
-            self._base_url = settings.clip_url.rstrip("/")
-        self._status_url = settings.clip_url.rstrip("/") + "/models/status"
+            self._base_url = settings.yolo26_url.rstrip("/")
+        self._status_url = settings.yolo26_url.rstrip("/") + "/models/status"
         self._http_client = None
 
     def do(self, image):
@@ -307,9 +310,9 @@ def clean_tree(tmp_path: Path) -> Path:
         {
             "backend/ai_contract/operations.py": OPS,
             "ai/gateway/main.py": MAIN,
-            "ai/gateway/adapters/clip.py": GW_ADAPTER,
-            "ai/clip/model.py": NATIVE_MODEL,
-            "backend/services/clip_client.py": CLIENT,
+            "ai/gateway/adapters/yolo26.py": GW_ADAPTER,
+            "ai/yolo26/model.py": NATIVE_MODEL,
+            "backend/services/detector_client.py": CLIENT,
         },
     )
 
@@ -326,12 +329,12 @@ def test_clean_tree_is_green(tmp_path):
 
 
 def test_declared_split_is_informational(tmp_path):
-    # clip_seg (gateway:True per_model_server:False, like yolo26_segment/D4)
+    # yolo26_seg (gateway:True per_model_server:False, like yolo26_segment/D4)
     # and bare_status/model_unload show up under "declared", never "divergences"
     rc, report = scan(clean_tree(tmp_path))
     declared = {d["op"]: d for d in report["declared"]}
-    assert "clip_seg" in declared
-    assert declared["clip_seg"]["served_gateway"] and not declared["clip_seg"]["served_native"]
+    assert "yolo26_seg" in declared
+    assert declared["yolo26_seg"]["served_gateway"] and not declared["yolo26_seg"]["served_native"]
     assert rc == 0
 
 
@@ -340,14 +343,14 @@ def test_declared_absence_is_never_a_violation(tmp_path):
     # resolves there: exactly what the False slot declares -> green
     root = clean_tree(tmp_path)
     client = (
-        (root / "backend/services/clip_client.py")
+        (root / "backend/services/detector_client.py")
         .read_text()
         .replace(
             "    def status(self):\n        response = self._http_client.get(self._status_url)\n        return response.json()\n",
             "",
         )
     )
-    (root / "backend/services/clip_client.py").write_text(client)
+    (root / "backend/services/detector_client.py").write_text(client)
     rc, report = scan(root)
     assert rc == 0, ids(report)
 
@@ -360,37 +363,37 @@ def test_declared_absence_is_never_a_violation(tmp_path):
 def test_provider_renames_a_request_key_is_red(tmp_path):
     root = clean_tree(tmp_path)
     native = (
-        (root / "ai/clip/model.py")
+        (root / "ai/yolo26/model.py")
         .read_text()
         .replace(
             '    image: str = Field(..., description="b64")',
             '    image_src: str = Field(..., description="b64")',
         )
     )
-    (root / "ai/clip/model.py").write_text(native)
+    (root / "ai/yolo26/model.py").write_text(native)
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-KEY-clip_do-image" in ids(report)
+    assert "AI-PARITY-KEY-yolo26_do-image" in ids(report)
     detail = next(
-        d["detail"] for d in report["divergences"] if d["id"] == "AI-PARITY-KEY-clip_do-image"
+        d["detail"] for d in report["divergences"] if d["id"] == "AI-PARITY-KEY-yolo26_do-image"
     )
-    assert "ai/clip/model.py" in detail  # evidence points AT the renamed provider
+    assert "ai/yolo26/model.py" in detail  # evidence points AT the renamed provider
 
 
 def test_gateway_renamed_response_key_is_red(tmp_path):
     root = clean_tree(tmp_path)
     gw = (
-        (root / "ai/gateway/adapters/clip.py")
+        (root / "ai/gateway/adapters/yolo26.py")
         .read_text()
         .replace(
             "class DoResponse(BaseModel):\n    label: str = Field(...)",
             "class DoResponse(BaseModel):\n    label_v2: str = Field(...)",
         )
     )
-    (root / "ai/gateway/adapters/clip.py").write_text(gw)
+    (root / "ai/gateway/adapters/yolo26.py").write_text(gw)
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-KEY-clip_do-response" in ids(report)
+    assert "AI-PARITY-KEY-yolo26_do-response" in ids(report)
 
 
 # ---------------------------------------------------------------------------
@@ -400,18 +403,18 @@ def test_gateway_renamed_response_key_is_red(tmp_path):
 
 
 def _add_bbox(root: Path, gw_type: str, nat_type: str) -> None:
-    gw = (root / "ai/gateway/adapters/clip.py").read_text()
+    gw = (root / "ai/gateway/adapters/yolo26.py").read_text()
     gw = gw.replace(
         'class DoRequest(BaseModel):\n    image: str = Field(..., description="b64")',
         f'class DoRequest(BaseModel):\n    image: str = Field(..., description="b64")\n    bbox: {gw_type} = Field(default=None)',
     )
-    (root / "ai/gateway/adapters/clip.py").write_text(gw)
-    nat = (root / "ai/clip/model.py").read_text()
+    (root / "ai/gateway/adapters/yolo26.py").write_text(gw)
+    nat = (root / "ai/yolo26/model.py").read_text()
     nat = nat.replace(
         'class DoRequest(BaseModel):\n    image: str = Field(..., description="b64")',
         f'class DoRequest(BaseModel):\n    image: str = Field(..., description="b64")\n    bbox: {nat_type} = Field(default=None)',
     )
-    (root / "ai/clip/model.py").write_text(nat)
+    (root / "ai/yolo26/model.py").write_text(nat)
 
 
 def test_shape_divergence_is_red(tmp_path):
@@ -419,7 +422,7 @@ def test_shape_divergence_is_red(tmp_path):
     _add_bbox(root, "dict[str, float] | None", "list[float] | None")
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-SHAPE-clip_do-bbox" in ids(report)
+    assert "AI-PARITY-SHAPE-yolo26_do-bbox" in ids(report)
 
 
 def test_gateway_accepting_superset_shape_is_green(tmp_path):
@@ -438,7 +441,7 @@ def test_gateway_accepting_superset_shape_is_green(tmp_path):
 
 
 def _drop_gw_batch_guard(root: Path) -> None:
-    gw = (root / "ai/gateway/adapters/clip.py").read_text()
+    gw = (root / "ai/gateway/adapters/yolo26.py").read_text()
     gw = gw.replace(
         """    @field_validator("texts")
     @classmethod
@@ -449,7 +452,7 @@ def _drop_gw_batch_guard(root: Path) -> None:
 """,
         "",
     )
-    (root / "ai/gateway/adapters/clip.py").write_text(gw)
+    (root / "ai/gateway/adapters/yolo26.py").write_text(gw)
 
 
 def test_native_guard_missing_at_gateway_is_red(tmp_path):
@@ -457,7 +460,7 @@ def test_native_guard_missing_at_gateway_is_red(tmp_path):
     _drop_gw_batch_guard(root)
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-GUARD-clip_batch-texts" in ids(report)
+    assert "AI-PARITY-GUARD-yolo26_batch-texts" in ids(report)
 
 
 def test_literal_capped_native_guard_is_invisible_by_design(tmp_path):
@@ -466,13 +469,13 @@ def test_literal_capped_native_guard_is_invisible_by_design(tmp_path):
     root = clean_tree(tmp_path)
     _drop_gw_batch_guard(root)
     nat = (
-        (root / "ai/clip/model.py")
+        (root / "ai/yolo26/model.py")
         .read_text()
         .replace("if len(v) > MAX_BATCH_SIZE:", "if len(v) > 30:")
     )
-    (root / "ai/clip/model.py").write_text(nat)
+    (root / "ai/yolo26/model.py").write_text(nat)
     rc, report = scan(root)
-    assert "AI-PARITY-GUARD-clip_batch-texts" not in ids(report)
+    assert "AI-PARITY-GUARD-yolo26_batch-texts" not in ids(report)
     assert rc == 0
 
 
@@ -484,24 +487,24 @@ def test_literal_capped_native_guard_is_invisible_by_design(tmp_path):
 def test_widened_never_read_flag_is_red(tmp_path):
     root = clean_tree(tmp_path)
     gw = (
-        (root / "ai/gateway/adapters/clip.py")
+        (root / "ai/gateway/adapters/yolo26.py")
         .read_text()
         .replace(
             'async def flag(request: FlagRequest):\n    return {"ok": request.camera_type}',
             'async def flag(request: FlagRequest):\n    return {"ok": True}',
         )
     )
-    (root / "ai/gateway/adapters/clip.py").write_text(gw)
+    (root / "ai/gateway/adapters/yolo26.py").write_text(gw)
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-TYPE-UNUSED-clip_flag-camera_type" in ids(report)
+    assert "AI-PARITY-TYPE-UNUSED-yolo26_flag-camera_type" in ids(report)
 
 
 def test_widened_but_actually_read_flag_is_green(tmp_path):
     # the base fixture IS this case: str at the gateway, handler reads it ->
     # declared behaviour, not a silent-semantics bug
     _, report = scan(clean_tree(tmp_path))
-    assert "AI-PARITY-TYPE-UNUSED-clip_flag-camera_type" not in ids(report)
+    assert "AI-PARITY-TYPE-UNUSED-yolo26_flag-camera_type" not in ids(report)
 
 
 # ---------------------------------------------------------------------------
@@ -511,20 +514,20 @@ def test_widened_but_actually_read_flag_is_green(tmp_path):
 
 def test_native_serving_matrix_forbidden_op_is_red(tmp_path):
     root = clean_tree(tmp_path)
-    # clip_seg declares per_model_server:False; if the native server grows
+    # yolo26_seg declares per_model_server:False; if the native server grows
     # the route, the matrix must shrink (update) or CI fails
     nat = (
-        (root / "ai/clip/model.py").read_text()
+        (root / "ai/yolo26/model.py").read_text()
         + """
 @app.post("/seg")
 async def seg2(file: str):
     return {"mask": "m"}
 """
     )
-    (root / "ai/clip/model.py").write_text(nat)
+    (root / "ai/yolo26/model.py").write_text(nat)
     rc, report = scan(root)
     assert rc == 1
-    assert "AI-PARITY-CLAIM-AVAILABILITY-clip_seg" in ids(report)
+    assert "AI-PARITY-CLAIM-AVAILABILITY-yolo26_seg" in ids(report)
 
 
 # ---------------------------------------------------------------------------
@@ -557,30 +560,30 @@ def test_phantom_path_caller_is_red(tmp_path):
 
 def test_gateway_branch_calling_gateway_false_op_is_red(tmp_path):
     # D2 mechanism A (in-code): the use_ai_gateway branch builds
-    # {gateway}/clip/models/status although bare_status declares gateway:False
+    # {gateway}/yolo26/models/status although bare_status declares gateway:False
     root = clean_tree(tmp_path)
     client = (
-        (root / "backend/services/clip_client.py")
+        (root / "backend/services/detector_client.py")
         .read_text()
         .replace(
             "        response = self._http_client.get(self._status_url)",
             '        response = self._http_client.get(f"{self._base_url}/models/status")',
         )
     )
-    (root / "backend/services/clip_client.py").write_text(client)
+    (root / "backend/services/detector_client.py").write_text(client)
     rc, report = scan(root)
     assert rc == 1
     assert "AI-PARITY-CLAIM-GW404-bare_status" in ids(report)
 
 
-NO_GW_BRANCH = """        self._base_url = settings.clip_url.rstrip("/")"""
+NO_GW_BRANCH = """        self._base_url = settings.yolo26_url.rstrip("/")"""
 
 GW_BRANCH = """        gw = getattr(settings, "ai_gateway_url", None)
         self._use_gw = getattr(settings, "use_ai_gateway", False) is True and isinstance(gw, str)
         if self._use_gw:
-            self._base_url = f"{gw.rstrip('/')}/clip"
+            self._base_url = f"{gw.rstrip('/')}/yolo26"
         else:
-            self._base_url = settings.clip_url.rstrip("/")"""
+            self._base_url = settings.yolo26_url.rstrip("/")"""
 
 STATUS_VIA_BASE = '        response = self._http_client.get(f"{self._base_url}/models/status")'
 
@@ -589,28 +592,28 @@ def test_settings_base_without_compose_rewrite_is_green(tmp_path):
     # same call shape minus the gateway branch, and NO compose in the tree:
     # the settings URL may legitimately point at a native host -> no claim
     root = clean_tree(tmp_path)
-    client = (root / "backend/services/clip_client.py").read_text()
+    client = (root / "backend/services/detector_client.py").read_text()
     client = client.replace(
         "        response = self._http_client.get(self._status_url)", STATUS_VIA_BASE
     )
     client = client.replace(GW_BRANCH, NO_GW_BRANCH)
-    (root / "backend/services/clip_client.py").write_text(client)
+    (root / "backend/services/detector_client.py").write_text(client)
     _, report = scan(root)
     assert "AI-PARITY-CLAIM-GW404-bare_status" not in ids(report)
 
 
 def test_compose_rewritten_settings_base_is_red(tmp_path):
     # D2 mechanism B (the LIVE production one): no gateway flag in the client
-    # at all — compose rewrites CLIP_URL to http://ai-gateway:8090/clip, so
-    # settings.clip_url IS gateway-prefixed as deployed, and the caller hits a
+    # at all — compose rewrites YOLO26_URL to http://ai-gateway:8090/yolo26, so
+    # settings.yolo26_url IS gateway-prefixed as deployed, and the caller hits a
     # gateway path for an op the gateway does not serve
     root = clean_tree(tmp_path)
-    client = (root / "backend/services/clip_client.py").read_text()
+    client = (root / "backend/services/detector_client.py").read_text()
     client = client.replace(
         "        response = self._http_client.get(self._status_url)", STATUS_VIA_BASE
     )
     client = client.replace(GW_BRANCH, NO_GW_BRANCH)
-    (root / "backend/services/clip_client.py").write_text(client)
+    (root / "backend/services/detector_client.py").write_text(client)
     tree(
         root,
         {
@@ -618,7 +621,7 @@ def test_compose_rewritten_settings_base_is_red(tmp_path):
 services:
   backend:
     environment:
-      - CLIP_URL=http://ai-gateway:8090/clip
+      - YOLO26_URL=http://ai-gateway:8090/yolo26
   ai-gateway:
     image: x
 """,
@@ -650,7 +653,7 @@ def test_plain_mode_summary(tmp_path):
     r = gate("--root", str(clean_tree(tmp_path)))
     assert r.returncode == 0
     assert "divergences detected: 0" in r.stdout
-    assert "DECLARED clip_seg" in r.stdout
+    assert "DECLARED yolo26_seg" in r.stdout
 
 
 def test_json_report_shape(tmp_path):
@@ -672,9 +675,9 @@ def test_expect_roundtrip_and_drift(tmp_path):
     data = json.loads(golden.read_text())
     data["divergences"].append(
         {
-            "id": "AI-PARITY-KEY-clip_do-gone",
+            "id": "AI-PARITY-KEY-yolo26_do-gone",
             "kind": "KEY",
-            "op": "clip_do",
+            "op": "yolo26_do",
             "detail": "fixed upstream",
         }
     )
@@ -696,45 +699,49 @@ def test_expect_roundtrip_and_drift(tmp_path):
 # THE WP9.1 MEASURE — the REAL tree reproduces Tier A (D1-D6) exactly
 # ---------------------------------------------------------------------------
 
-# The adjudicated 21: D1-D6 from the WP8.4 dossier plus 9 verified-true drift
-# findings the checker surfaced while being built (each re-read against the
-# tree at drafting time; none suppressed). Pinning by EQUALITY is the point:
-# every entry is ground truth, so both a lost one (silent fix) and a new one
-# (drift) must fail loudly.
-REAL_TIER_A_IDS = {
-    # D1: heavy-gateway bbox — client/native send list, gateway accepts dict -> 422
-    "AI-PARITY-SHAPE-enrichment_vehicle_classify-bbox",  # pragma: allowlist secret
-    "AI-PARITY-SHAPE-enrichment_clothing_classify-bbox",  # pragma: allowlist secret
-    "AI-PARITY-SHAPE-enrichment_demographics-bbox",  # pragma: allowlist secret
-    "AI-PARITY-SHAPE-enrichment_pet_classify-bbox",  # pragma: allowlist secret
-    "AI-PARITY-SHAPE-enrichment_pose_analyze-bbox",  # pragma: allowlist secret
-    # D2 (gateway:False ops whose deployed caller URLs landed on the gateway):
-    # EMPTIED by R8 S2 (2026-09-29). The three callers that produced those
-    # ids lived in enrichment_client / package_tracking_service, both deleted
-    # with the enrichment tier - the drift cannot recur because the calling
-    # surface is gone. If a future slice re-introduces a caller for these
-    # ops, the checker re-raises the ids and this set has to grow back.
-    # D3 (phantom path /models/{model_name}/unload vs POST /models/unload) and
-    # the model_unload half of D2: RESOLVED by the gateway-consolidation
-    # model-management rework (2026-09-22, PR #6645). The load/unload/reload
-    # endpoints no longer proxy a phantom path — they raise 501 (Triton runs
-    # --model-control-mode=none, so the surface does not exist to call), and
-    # the checker therefore finds no model_unload caller at all. See
-    # test_real_tree_unanchored_phantom_routes_are_gone for the pin that
-    # replaced them; a regression that re-introduces a phantom caller re-raises
-    # both ids and re-ratchets loud.
-    # D5: camera_type widened to str at the gateway, handler never reads it
-    "AI-PARITY-TYPE-UNUSED-clip_classify-camera_type",  # pragma: allowlist secret
-    # D6: MAX_BATCH_TEXTS_SIZE native-only list guard
-    "AI-PARITY-GUARD-clip_batch_similarity-texts",
-    # verified extras (real provider drift, reported not suppressed):
-    "AI-PARITY-KEY-enrich_lt_person_reid-response",
-    "AI-PARITY-KEY-enrich_lt_pet_classify-response",
-    "AI-PARITY-KEY-enrich_lt_pose_analyze-response",
-    "AI-PARITY-KEY-enrichment_enrich-response",
-    "AI-PARITY-KEY-enrichment_pet_classify-response",
-    "AI-PARITY-KEY-enrichment_pose_analyze-response",
-}
+# Pinning by EQUALITY is still the point — what changed in R8 S3 is the value.
+#
+# The adjudicated set was 12 here (D1's five bbox SHAPEs, D5, D6 and six KEY
+# extras; D2 and D3 had already been emptied/resolved by R8 S2 and PR #6645, and
+# those two histories are kept below because they explain the shape of the set,
+# not because they name live ids). R8 S3 (2026-09-29, owner rulings 1/4/5) swept
+# the surface every remaining id was measured ON, so the honest golden set is
+# EMPTY — and each id is named here with what took it, because a golden entry
+# that vanishes without a named cause is exactly the "silent fix" this equality
+# was built to catch:
+#
+#   AI-PARITY-SHAPE-enrichment_{vehicle_classify,clothing_classify,demographics,
+#     pet_classify,pose_analyze}-bbox        (D1) gateway adapters/enrichment.py
+#     and ai/enrichment/model.py both swept with the heavy lane (ruling 4); the
+#     two providers whose dict-vs-list bbox disagreement this measured cannot
+#     both exist any more.
+#   AI-PARITY-TYPE-UNUSED-clip_classify-camera_type  (D5) CLIP's whole surface
+#     retired as the prune consequence of narrowing GATEWAY_MODEL_SET to
+#     yolo26/reid/threat (ruling 5) — adapters/clip.py is gone.
+#   AI-PARITY-GUARD-clip_batch_similarity-texts      (D6) same prune consequence:
+#     the native ai/clip/model.py validator and the gateway schema are both gone.
+#   AI-PARITY-KEY-enrichment_{enrich,pet_classify,pose_analyze}-response
+#     same as D1 — both sides swept.
+#   AI-PARITY-KEY-enrich_lt_{pet_classify,pose_analyze}-response
+#     the light adapter's pet/pose routes were pruned with their Triton models;
+#     /enrich-lt now serves threat-detect and person-reid only.
+#   AI-PARITY-KEY-enrich_lt_person_reid-response
+#     RETIRED-BUT-NEAR-MISS: the gateway key drift was embedding_dimension vs
+#     native embedding_dim. ai/gateway/adapters/enrichment_light.py still emits
+#     embedding_dimension; its native twin ai/enrichment-light/model.py is swept,
+#     so there is no second response schema to disagree with. A gateway-vs-native
+#     KEY finding structurally requires two providers, and the sweep leaves the
+#     light lane gateway-only.
+#
+# D2 (emptied by R8 S2 — enrichment_client / package_tracking_service deleted
+# with the enrichment tier) and D3 (resolved by the model-management rework, PR
+# #6645, lifecycle routes answer 501) stay empty for the same reason they were
+# already empty: the calling surface is gone.
+#
+# An empty golden set is only honest if the checker still has eyes, so
+# test_real_tree_reproduces_tier_a_exactly pairs it with coverage counts — the
+# zero-divergence result must come from a tree the checker actually walked.
+REAL_TIER_A_IDS: set[str] = set()
 
 
 def real_report() -> tuple[int, dict]:
@@ -744,8 +751,11 @@ def real_report() -> tuple[int, dict]:
 
 
 def test_real_tree_reproduces_tier_a_exactly():
+    # rc: the golden set is empty now, so parity means rc 0 — but the empty set
+    # is asserted BELOW by equality either way, and an empty-detected-set-with-
+    # rc-1 would be a different (drifted-golden) failure worth its own signal.
     rc, report = real_report()
-    assert rc == 1
+    assert rc == 0, report.get("divergences")
     got = ids(report)
     missing = REAL_TIER_A_IDS - got
     extra = got - REAL_TIER_A_IDS
@@ -753,6 +763,18 @@ def test_real_tree_reproduces_tier_a_exactly():
         f"checker LOST Tier-A ids — the checker is wrong, not the tree: {sorted(missing)}"
     )
     assert not extra, f"new drift detected — adjudicate it into the golden list: {sorted(extra)}"
+    # NON-VACUITY of the empty set (the whole risk of a zero-golden baseline is
+    # a checker that reports clean because it went blind). These are the
+    # checker's own walk counters, from the same --json report: the zero above
+    # means "the surfaces it found agree", never "it found nothing". Thresholds
+    # are floors keyed to the post-S3 measurement (5 gateway routes, 2 native,
+    # 3 caller URLs), so a checker whose adapter glob or caller list silently
+    # empties fails HERE instead of shipping a green blind spot.
+    s = report["surfaces"]
+    assert s["gateway_routes_matched"] >= 4, s
+    assert s["native_routes_matched"] >= 1, s
+    assert s["caller_urls"] >= 3, s
+    assert report["registry_ops"] >= 9, report["registry_ops"]
 
 
 def test_real_tree_d4_stays_declared_green():
@@ -820,9 +842,17 @@ def test_real_tree_registry_and_deploy_facts():
     # the compose rewrite IS the D1/D2 live-ness mechanism; pin the dossier's
     # topology facts as data so a compose edit that changes them is loud
     rewritten = dict(dep["compose_rewritten_settings"])
-    assert rewritten.get("enrichment_url") == "/enrichment"
     assert rewritten.get("enrichment_light_url") == "/enrich-lt"
-    # the native per-model servers are NOT deployed services (only the gateway is)
+    assert rewritten.get("yolo26_url") == "/yolo26"
+    # R8 S3: the third rewrite the dossier recorded (ENRICHMENT_URL ->
+    # /enrichment) is GONE, because the compose line and the Settings field it
+    # fed were both deleted with the heavy lane (rulings 1/4/5). Pinned absent
+    # so a re-added assignment is loud: the checker only records a rewrite whose
+    # env var is in SETTING_ENV, and SETTING_ENV only holds fields Settings
+    # still defines (extra="ignore" makes a deleted field's assignment inert).
+    assert "enrichment_url" not in rewritten, sorted(rewritten)
+    # the native per-model servers are NOT deployed services (only the gateway
+    # is) — and after the sweep neither is the heavy lane's container at all
     assert "ai-enrichment" not in dep["native_services"]
     assert "ai-gateway" in dep["native_services"]
 
@@ -867,5 +897,7 @@ def test_real_tree_runtime_under_30s():
     # kill it at 5 — the budget could never be exercised. 35 = 30 + headroom.
     start = time.monotonic()
     rc, _ = real_report()
-    assert rc == 1
+    # rc 0: the golden set went empty with R8 S3's sweep (see REAL_TIER_A_IDS).
+    # The budget this test cares about is the SCAN, not the verdict.
+    assert rc == 0
     assert time.monotonic() - start < 30

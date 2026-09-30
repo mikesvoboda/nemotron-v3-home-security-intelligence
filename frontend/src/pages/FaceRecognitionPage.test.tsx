@@ -8,7 +8,9 @@
  *
  * This test suite covers:
  * - Page rendering with proper structure
- * - Tab navigation (Known Persons, Face Events, Person Tracking, Debug Tools)
+ * - Tab navigation (Known Persons, Face Events, Person Tracking; R8 S3
+ *   retired the Debug Tools tab with its only member, the CLIP face-
+ *   similarity panel, whose endpoint died with the Triton prune)
  * - Tab switching behavior
  * - Accessibility requirements
  * - Unknown stranger alert integration (Phase 4)
@@ -193,13 +195,16 @@ describe('FaceRecognitionPage', () => {
   // ==========================================================================
 
   describe('tab navigation', () => {
-    it('displays all four tabs', () => {
+    it('displays all three tabs', () => {
       renderWithProviders(<FaceRecognitionPage />);
 
       expect(screen.getByRole('tab', { name: /Known Persons/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Face Events/i })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: /Person Tracking/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /Debug Tools/i })).toBeInTheDocument();
+      // R8 S3: the Debug Tools tab is gone with its only member. Asserted as
+      // absent, not silently dropped -- a tab that comes back with no member
+      // is the empty-group failure the same slice refused in MODEL_CATEGORIES.
+      expect(screen.queryByRole('tab', { name: /Debug Tools/i })).not.toBeInTheDocument();
     });
 
     it('has Known Persons tab selected by default', () => {

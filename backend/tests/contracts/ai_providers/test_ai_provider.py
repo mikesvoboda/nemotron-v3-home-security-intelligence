@@ -50,7 +50,11 @@ class TestProviderContract:
 
     def test_gateway_provider_covers_gateway_slot(self) -> None:
         """The gateway is a single app (ai/gateway/main.py mounts every
-        adapter): its declared set must equal the gateway column - 31 ops."""
+        adapter): its declared set must equal the gateway column. The count
+        moved with every retirement (31 at drafting, 29 after A7.2 + the
+        client-method retirements, 5 after R8 S3's prune to yolo26/reid/threat)
+        - the set equality below is the guard, so the pin that used to state
+        the number lives here as prose and nowhere in an assert."""
         rec = registered_providers()["gateway"]
         required = set(operations_for_slot("gateway", OPERATIONS))
         assert set(rec.operations()) == required
@@ -69,9 +73,9 @@ class TestProviderContract:
         rec = registered_providers()["llamacpp_llm"]
         assert set(rec.operations()) == {"llm_completion", "llm_chat_completion"}
 
-    def test_per_model_http_declares_undeployed_36(self) -> None:
+    def test_per_model_http_declares_undeployed(self) -> None:
         """per-model-http is matrix-declared UNDEPLOYED (plan); its op set is
-        the whole per_model_server column (36), dispatched by URL prefix."""
+        the whole per_model_server column, dispatched by URL prefix."""
         rec = registered_providers()["per_model_http"]
         assert rec.deployed is False
         assert set(rec.operations()) == set(operations_for_slot("per_model_server", OPERATIONS))
@@ -91,9 +95,20 @@ class TestProviderContract:
 
     def test_missing_operation_error_names_the_missing_op(self) -> None:
         """Sharper form: full light set minus one, registered as light -
-        the error must name exactly the dropped operation."""
+        the error must name exactly the dropped operation.
+
+        R8 S3 retarget: the victim was enrich_lt_pet_classify, one of the three
+        light-lane ops whose Triton models got pruned. Deriving it from the
+        column instead of naming it is the same lesson as WP4.2's DERIVED sizes
+        - the light column is now two ops (person_reid, threat_detect), and a
+        hand-named victim forces a test edit on every legitimate column move.
+        The len >= 2 guard is the non-vacuity: a one-op column would make
+        "full set minus one" a zero-op registration, which fails for a
+        different reason and would let the naming assertion pass vacuously.
+        """
         ops = _provider_ops(ProviderId.GATEWAY_LIGHT)
-        dropped = "enrich_lt_pet_classify"
+        assert len(ops) >= 2, f"light column has {len(ops)} ops; the drop-one shape needs 2+"
+        dropped = sorted(ops)[0]
         del ops[dropped]
         with pytest.raises(ProviderContractError) as excinfo:
             register_provider(ProviderId.GATEWAY_LIGHT, ops, OPERATIONS)

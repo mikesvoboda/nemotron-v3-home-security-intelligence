@@ -653,76 +653,10 @@ export function useFaceRecognitionApi() {
 }
 
 // ============================================================================
-// Face Similarity Comparison API (NEM-4955 Debug Tool)
-// ============================================================================
-
-/**
- * Response from the face similarity comparison endpoint.
- */
-export interface FaceSimilarityCompareResponse {
-  /** Cosine similarity score between the two faces (0-1) */
-  similarity_score: number;
-  /** Whether the similarity exceeds the threshold (same person) */
-  is_match: boolean;
-  /** The threshold used for matching */
-  threshold: number;
-  /** Dimension of the embeddings (768 for CLIP) */
-  embedding_dimension: number;
-  /** Time taken to process both images in milliseconds */
-  processing_time_ms: number;
-  /** Error message if comparison failed */
-  error: string | null;
-}
-
-/**
- * Compare similarity between two face images (Debug Tool).
- *
- * @param image1 - First face image file
- * @param image2 - Second face image file
- * @param threshold - Similarity threshold for match decision (default: 0.7)
- * @returns Promise with comparison result
- */
-export async function compareFaceSimilarity(
-  image1: File,
-  image2: File,
-  threshold: number = 0.7
-): Promise<FaceSimilarityCompareResponse> {
-  const formData = new FormData();
-  formData.append('image1', image1);
-  formData.append('image2', image2);
-  formData.append('threshold', String(threshold));
-
-  const headers: Record<string, string> = {};
-  if (API_KEY) {
-    headers['X-API-Key'] = API_KEY;
-  }
-
-  const response = await fetch(`${BASE_URL}/api/face-events/compare`, {
-    method: 'POST',
-    headers,
-    body: formData,
-  });
-
-  return handleResponse<FaceSimilarityCompareResponse>(response);
-}
-
-/**
- * Hook to compare face similarity between two images.
- */
-export function useCompareFaceSimilarity() {
-  return useMutation({
-    mutationFn: ({
-      image1,
-      image2,
-      threshold,
-    }: {
-      image1: File;
-      image2: File;
-      threshold?: number;
-    }) => compareFaceSimilarity(image1, image2, threshold),
-  });
-}
-
+// R8 S3 (2026-09-29): the NEM-4955 face-similarity comparison client
+// (compareFaceSimilarity / useCompareFaceSimilarity and its response
+// interface) retired with the CLIP provider -- the endpoint posted to the
+// gateway /clip router the Triton prune unmounts (owner ruling 5).
 // ============================================================================
 // Bulk Enrollment API (NEM-4954)
 // ============================================================================

@@ -24,10 +24,9 @@
 
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { ScanFace, Users, Activity, Wrench } from 'lucide-react';
+import { ScanFace, Users, Activity } from 'lucide-react';
 import { useState, useCallback } from 'react';
 
-import { FaceSimilarityDebugTool } from '../components/face-recognition';
 import AddPersonModal from '../components/face-recognition/AddPersonModal';
 import FaceEventsTab from '../components/face-recognition/FaceEventsTab';
 import KnownPersonDetailModal from '../components/face-recognition/KnownPersonDetailModal';
@@ -153,17 +152,9 @@ function PersonTrackingTabContent() {
   );
 }
 
-/**
- * Debug Tools tab content.
- * Contains developer tools for testing and debugging face recognition features.
- */
-function DebugToolsTabContent() {
-  return (
-    <div data-testid="debug-tools-tab-content">
-      <FaceSimilarityDebugTool />
-    </div>
-  );
-}
+// R8 S3 (2026-09-29): the "Debug Tools" tab retired with its only member —
+// the CLIP face-similarity debug tool, whose backend endpoint died with the
+// Triton prune (owner ruling 5). An empty tab is worse than an absent one.
 
 // ============================================================================
 // Tab Configuration
@@ -197,12 +188,6 @@ const tabs: TabConfig[] = [
     name: 'Person Tracking',
     icon: Activity,
     component: PersonTrackingTabContent,
-  },
-  {
-    id: 'debug-tools',
-    name: 'Debug Tools',
-    icon: Wrench,
-    component: DebugToolsTabContent,
   },
 ];
 

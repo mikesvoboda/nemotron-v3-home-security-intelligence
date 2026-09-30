@@ -117,15 +117,17 @@ fi
 # ---------------------------------------------------------------------------
 # 0d. Prune the Triton repository to the active residency set (rev 6)
 # ---------------------------------------------------------------------------
-# Residency control IS the repository: GATEWAY_MODEL_SET (vlm | full,
-# default full) selects the models that stay in ${TRITON_MODEL_REPO}; the
+# Residency control IS the repository: GATEWAY_MODEL_SET (vlm only since R8 S3
+# retired `full`) selects the models that stay in ${TRITON_MODEL_REPO}; the
 # rest are MOVED (not deleted) to ${TRITON_MODEL_REPO}.retired so switching
 # sets is idempotent and needs no rebuild. --model-control-mode stays
 # `none` — absent models cannot load. NO '|| true' here: a failed prune
 # would leave retired models in Triton's scan path, which rev 6 forbids,
-# so the container stops instead of serving a wrong footprint.
+# so the container stops instead of serving a wrong footprint. Since R8 S3 an
+# UNSET GATEWAY_MODEL_SET lands in that same stop-the-container class: the
+# module raises, and the echo below deliberately does not paper over silence.
 
-echo "[entrypoint] Pruning Triton repository to residency set '${GATEWAY_MODEL_SET:-full}'..."
+echo "[entrypoint] Pruning Triton repository to residency set '${GATEWAY_MODEL_SET:-<unset: residency will refuse>}'..."
 python3 -m ai.gateway.residency
 
 # ---------------------------------------------------------------------------

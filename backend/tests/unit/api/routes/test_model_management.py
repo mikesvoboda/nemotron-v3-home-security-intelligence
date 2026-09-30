@@ -1,23 +1,37 @@
 """Unit tests for Model Management API routes.
 
-These tests pin the post-consolidation behavior of
+These tests pin the post-R8-S3 behavior of
 backend/api/routes/model_management.py:
 
 - Read/health endpoints aggregate registry metadata with Triton readiness
-  unioned across the gateway root health payload (GET {root}/health, keyed by
-  the gateway's full Triton registry — the only surface that reports
-  clip/clip_text/stgcn_action) and the ai-gateway router health payloads (GET
-  {router}/health, keyed by the triton_name values from models.yml), and, for
-  backend-process models, from the in-process ModelManager. A Triton name
-  reported by NO payload logs a warning instead of silently reporting
-  not-loaded.
+  unioned across TWO surfaces (there are no longer three): the gateway root
+  health payload (GET {root}/health, which iterates the gateway's ACTIVE
+  residency set — after the S3 prune that set is exactly the KEEP SET
+  yolo26/reid/threat, the three Triton models that must stay served because
+  S1's PASS depends on them) and the ONE mounted router's health payload
+  (GET {router}/health of /enrich-lt, which reports threat/reid only). The
+  heavy /enrichment router was unmounted by R8 S3 (owner rulings 1 + 5) and
+  the clip/florence/action routers with it, so no payload any more reports
+  clip/clip_text/stgcn_action — those Triton models were pruned from the
+  repository. yolo26 is now the name the root answers and NO router reports
+  (it is served through the gateway's own /yolo26 router), which is the
+  shipped counterpart of the retired "root-only clip/stgcn" case this file
+  used to pin. For backend-process models, state comes from the in-process
+  ModelManager. A Triton name reported by NO payload logs a warning instead of
+  silently reporting not-loaded.
+- Service labelling has exactly two answers — "ai-enrichment-light" (models
+  the /enrich-lt router serves) and "ai-gateway" (everything the root answers:
+  yolo26 and the backend-process models). "ai-enrichment" is not an available
+  answer: it named the router S3 unmounted.
+- VRAM accounting is one lane: gpu 1, budget LIGHT_VRAM_BUDGET_MB (1200), the
+  heavy lane's 6800 MB budget and its lane-0 device retired with the router.
 - Load/unload/reload/unload-all return 501: Triton runs with
   --model-control-mode=none and the gateway exposes no preload/unload API,
   so the retired enrichment-service proxies cannot survive honestly.
 
 Related Issues:
     - NEM-4780: Model Zoo Management Epic
-    - NEM-4782: Backend API endpoint unit tests
+    - NEM-4782: Backend API endpoints unit tests
 
 Endpoints Tested:
     - GET  /api/system/models           - List all models with runtime state
@@ -31,9 +45,11 @@ Endpoints Tested:
 
 from __future__ import annotations
 
+import re
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 import yaml
 from fastapi import FastAPI, HTTPException
@@ -51,66 +67,76 @@ from backend.services.model_zoo import ModelConfig
 # Test Constants
 # =============================================================================
 
-# Gateway router URLs resolved from settings (mocked settings below use the
-# retired container-style host names purely so URL assertions stay distinct).
-# The router suffixes are load-bearing: the gateway ROOT /health — the only
-# readiness surface reporting clip/clip_text/stgcn_action — is derived by
-# stripping the suffix from these URLs, so GATEWAY_ROOT_URL is what the root
-# probe must hit.
-HEAVY_ROUTER_URL = "http://ai-enrichment:8094/enrichment"
+# The one router URL, resolved from settings. The fake settings below keep the
+# retired container-style host name purely so the root and router probe URLs
+# stay textually distinct assertions — root is derived by stripping the
+# "/enrich-lt" suffix, so it is this same base without the suffix.
 LIGHT_ROUTER_URL = "http://ai-enrichment-light:8096/enrich-lt"
-GATEWAY_ROOT_URL = "http://ai-enrichment:8094"
+GATEWAY_ROOT_URL = "http://ai-enrichment-light:8096"
 
-# Heavy lane models (gateway /enrichment router). R8 S2b: shipped HEAVY_MODELS
-# is now EMPTY — the heavy router's whole attribute/classification zoo retired
-# with the enrichment tier, so lane 0 is every registry name that is not
-# light-tier. The exemplars are models.yml survivors pinning that fall-through
-# rule (the retired names they replace no longer exist in the catalogue).
-# yolov8n-pose is deliberately NOT exemplified either lane: its Triton model is
-# only ever reported by the /enrich-lt payload yet S2b moved it out of the light
-# set, so its lane is unpinned until S3 rules.
-HEAVY_MODELS = frozenset(
-    {
-        "florence-2-base",
-        "face-recognizer",
-        "yolo11-license-plate",
-        "fast-alpr",
-    }
-)
+# The two service labels this endpoint can answer with, and the retired one
+# that must never come back (R8 S3 owner ruling 1: the heavy router is gone, so
+# a row labelled with it would render a card permanently stuck on unreachable).
+LIGHT_SERVICE = "ai-enrichment-light"
+GATEWAY_SERVICE = "ai-gateway"
+RETIRED_HEAVY_SERVICE = "ai-enrichment"
+SERVICE_LABELS = frozenset({LIGHT_SERVICE, GATEWAY_SERVICE})
 
-# Light lane models (gateway /enrich-lt router) — mirrors shipped LIGHT_MODELS
-# post R8 S2b: depth/pet/pose left with the enrichment tier, threat + reid stay.
-LIGHT_MODELS = frozenset(
-    {
-        "threat-detection-yolov8n",
-        "osnet-ain-x1-0",
-    }
-)
+# Shipped one-lane geometry (mirrors model_management._GPU_LANE_ID /
+# LIGHT_VRAM_BUDGET_MB, which come from docker-compose's
+# CUDA_VISIBLE_DEVICES=${GPU_AI_SERVICES:-1} for ai-gateway). Lane 0 was the
+# heavy lane's device and no longer exists.
+LANE_GPU_ID = 1
+LANE_BUDGET_MB = 1200
+RETIRED_LANE_GPU_ID = 0
 
-# models.yml fragment exercising the readiness name mapping: triton-mapped
-# entries (registry name != triton name), no Triton model (backend-process),
-# a 1:many triton_models mapping, and the two catalogue entries whose Triton
-# names (clip/clip_text, stgcn_action) NO router /health payload reports — they
-# are only in the gateway root /health registry.
+# Shipped membership of the one lane (mirrors model_management.LIGHT_MODELS).
+SHIPPED_LIGHT_MEMBERS = frozenset({"threat-detection-yolov8n", "osnet-ain-x1-0"})
+
+# The Triton models the gateway still boots — the KEEP SET. The root /health
+# iterates the ACTIVE residency set and the /enrich-lt adapter declares exactly
+# threat/reid, so these two fake payloads below are shapes the shipped
+# endpoints can actually produce (ai/gateway/main.py health_check,
+# ai/gateway/adapters/enrichment_light.py health).
+KEEP_SET = frozenset({"yolo26", "reid", "threat"})
+LIGHT_ROUTER_REPORTS = frozenset({"threat", "reid"})
+
+# Models outside the light lane whose readiness the gateway root answers: a
+# Triton-backed one (yolo26), a 1:many Triton mapping (the stand-in below) and
+# backend-process models with no Triton mapping at all. Used as the routing /
+# labelling census — the retired exemplars (florence-2-base, face-recognizer on
+# the heavy lane, fast-alpr "on the heavy router") named the unmounted router.
+NON_LIGHT_EXEMPLARS = frozenset({"yolo26", "triton-pair-standin", "face-recognizer", "fast-alpr"})
+
+# Routing/labelling census, and the non-vacuity claim it depends on: it holds
+# at least one light member AND at least one non-light name, so a test looping
+# it cannot pass on an empty or one-sided set.
+ROUTING_CENSUS = SHIPPED_LIGHT_MEMBERS | NON_LIGHT_EXEMPLARS
+
+# models.yml stand-in exercising the readiness name mapping on shipped Triton
+# names: a root-only Triton name (yolo26 — reported by the gateway root, never
+# by /enrich-lt), the two light-lane names (threat, reid), a 1:many
+# triton_models mapping (a catalogue format models.yml still documents and
+# _load_triton_name_map still parses, though no shipped row uses it — the row
+# name is a stand-in that exists only in this file), a name with no triton_name
+# (backend process), and a name NO payload reports (catalogue drift).
 CATALOGUE_ENTRIES = [
-    {"name": "vehicle-segment-classification", "triton_name": "vehicle"},
-    {"name": "fashion-clip", "triton_name": "fashion_clip"},
+    {"name": "yolo26", "triton_name": "yolo26"},
     {"name": "threat-detection-yolov8n", "triton_name": "threat"},
     {"name": "osnet-ain-x1-0", "triton_name": "reid"},
-    {"name": "yolov8n-pose", "triton_name": "pose"},
-    {"name": "weather-classification"},  # no triton_name — backend process
-    {"name": "florence-2-large"},  # no triton_name — backend process
     {
-        "name": "siglip2-base-patch16-224",
-        "triton_models": [{"triton_name": "clip"}, {"triton_name": "clip_text"}],
+        "name": "triton-pair-standin",
+        "triton_models": [{"triton_name": "reid"}, {"triton_name": "threat"}],
     },
-    {"name": "stgcn-plus-plus", "triton_name": "stgcn_action"},
+    {"name": "face-recognizer"},  # no triton_name — backend process
+    {"name": "fast-alpr"},  # no triton_name — backend process
+    {"name": "yolo26-general"},  # no triton_name — backend process, disabled
     {"name": "ghost-model", "triton_name": "phantom"},  # reported by no payload
 ]
 
 
 def make_health(models: dict[str, bool]) -> dict:
-    """Build a gateway router /health payload like the adapters serve."""
+    """Build a gateway /health payload like the root and the router serve."""
     return {
         "status": "healthy" if all(models.values()) else "degraded",
         "models": models,
@@ -124,9 +150,13 @@ def make_health(models: dict[str, bool]) -> dict:
 
 @pytest.fixture(autouse=True)
 def isolate_settings_and_catalogue(tmp_path):
-    """Point module settings/lookup at fake enrichment URLs and a fake models.yml."""
+    """Point module settings/lookup at the one fake router URL and a fake models.yml.
+
+    enrichment_url is NOT in the fake settings: the field was deleted with the
+    heavy router (backend/core/config.py), so get_router_urls has exactly one
+    source left.
+    """
     fake_settings = SimpleNamespace(
-        enrichment_url=HEAVY_ROUTER_URL,
         enrichment_light_url=LIGHT_ROUTER_URL,
         ai_gateway_url=None,
         use_ai_gateway=False,
@@ -173,114 +203,70 @@ def registry_entry(
 
 @pytest.fixture
 def sample_model_configs() -> dict[str, ModelConfig]:
-    """Create sample model configs from the model zoo (realistic registry names)."""
+    """Create sample model configs from the registry (shipped catalogue names).
+
+    Names mirror the post-S3 models.yml rows; the vram_mb values are chosen
+    distinct from one another so lane sums prove they were actually added.
+    yolo26 and yolo26-general carry their catalogue's enabled: false.
+    """
     return {
-        "vehicle-segment-classification": registry_entry(
-            "vehicle-segment-classification", "classification", 1500
-        ),
-        "fashion-clip": registry_entry("fashion-clip", "classification", 500),
+        # Triton-backed, readiness answered ONLY by the gateway root /health.
+        "yolo26": registry_entry("yolo26", "detection", 1400, enabled=False),
         "threat-detection-yolov8n": registry_entry("threat-detection-yolov8n", "detection", 300),
         "osnet-ain-x1-0": registry_entry("osnet-ain-x1-0", "embedding", 100),
-        "yolov8n-pose": registry_entry("yolov8n-pose", "pose", 200),
-        "weather-classification": registry_entry("weather-classification", "classification", 200),
-        "florence-2-large": registry_entry(
-            "florence-2-large", "vision-language", 1200, enabled=False
-        ),
-        # Gateway-served entries whose Triton names are reported ONLY by the
-        # gateway root /health (no router health payload carries them).
-        "siglip2-base-patch16-224": registry_entry("siglip2-base-patch16-224", "embedding", 200),
-        "stgcn-plus-plus": registry_entry("stgcn-plus-plus", "action-recognition", 20),
+        # 1:many Triton mapping (readiness needs BOTH of reid + threat).
+        "triton-pair-standin": registry_entry("triton-pair-standin", "embedding", 400),
+        # Backend-process models: no Triton mapping, answered by ModelManager.
+        "face-recognizer": registry_entry("face-recognizer", "recognition", 200),
+        "fast-alpr": registry_entry("fast-alpr", "ocr", 28),
+        "yolo26-general": registry_entry("yolo26-general", "detection", 400, enabled=False),
     }
 
 
 @pytest.fixture
-def heavy_health() -> dict:
-    """Heavy router health payload — vehicle/fashion/demographics/pet/depth ready.
-
-    Mirrors the real /enrichment adapter: clip/clip_text/stgcn_action are
-    deliberately absent — this router does not report them (ai/gateway/
-    adapters/enrichment.py health()).
-    """
-    return make_health(
-        {
-            "vehicle": True,
-            "fashion_clip": True,
-            "demographics_age": True,
-            "demographics_gender": True,
-            "pet": True,
-            "depth": True,
-        }
-    )
-
-
-@pytest.fixture
 def light_health() -> dict:
-    """Light router health payload — reid (osnet) NOT ready.
+    """The /enrich-lt router health payload — exactly threat/reid, reid NOT ready.
 
-    Mirrors the real /enrich-lt adapter (pose/threat/reid/pet/depth only).
+    Mirrors ai/gateway/adapters/enrichment_light.py health(), which after the
+    S3 prune declares exactly these two models: pose/pet/depth left with the
+    pruned Triton repository, so a payload carrying them would describe a
+    surface that cannot boot.
     """
-    return make_health(
-        {
-            "pose": True,
-            "threat": True,
-            "reid": False,
-            "pet": True,
-            "depth": True,
-        }
-    )
+    return make_health({"threat": True, "reid": False})
 
 
 @pytest.fixture
 def root_health() -> dict:
-    """Gateway ROOT health payload — the full Triton registry.
+    """Gateway ROOT health payload — exactly the KEEP SET.
 
-    Mirrors ai/gateway/main.py /health iterating ALL_MODELS. clip/clip_text
-    (siglip2-base-patch16-224) and stgcn_action (stgcn-plus-plus) are ready
-    here but are reported by NO router payload; reid is not ready (matching
-    the light router fixture) and yolo26 is not (its catalogue entry is
-    disabled). "phantom" is absent — ghost-model's Triton name is reported by
+    Mirrors ai/gateway/main.py /health iterating the ACTIVE residency set.
+    yolo26 is ready here and appears in NO router payload (it is served on the
+    gateway's own /yolo26 router), reid is not ready (matching the light router
+    fixture), and "phantom" is absent — ghost-model's Triton name is reported by
     no payload at all.
     """
-    return make_health(
-        {
-            "yolo26": False,
-            "clip": True,
-            "clip_text": True,
-            "florence2": True,
-            "vehicle": True,
-            "fashion_clip": True,
-            "demographics_age": True,
-            "demographics_gender": True,
-            "pet": True,
-            "depth": True,
-            "reid": False,
-            "pose": True,
-            "threat": True,
-            "stgcn_action": True,
-        }
-    )
+    return make_health({"yolo26": True, "reid": False, "threat": True})
 
 
 def make_url_router_client(
     client: AsyncMock,
     root: dict | None,
-    heavy: dict | None,
     light: dict | None,
 ) -> AsyncMock:
-    """Route GET {url}/health on the mock client to root/heavy/light payloads.
+    """Route GET {url}/health on the mock client to the root and light payloads.
 
     A payload of None simulates that surface being unreachable (connection
-    error), matching what _fetch_router_health tolerates.
+    error), matching what _fetch_router_health tolerates. Any OTHER URL is a
+    loud test failure: the heavy router's URL is no longer a probe target, and
+    a probe to a base the fake settings do not produce means the derivation
+    under test changed underneath this file.
     """
-    import httpx
 
     async def mock_get(url: str, **kwargs):
         if url == f"{GATEWAY_ROOT_URL}/health":
             payload, reachable = root, root is not None
         elif url == f"{LIGHT_ROUTER_URL}/health":
             payload, reachable = light, light is not None
-        elif url == f"{HEAVY_ROUTER_URL}/health":
-            payload, reachable = heavy, heavy is not None
         else:
             raise AssertionError(f"unexpected health probe URL: {url}")
         if not reachable:
@@ -298,11 +284,15 @@ def make_url_router_client(
 def healthy_client(
     mock_enrichment_client: AsyncMock,
     root_health: dict,
-    heavy_health: dict,
     light_health: dict,
 ):
-    """Mock client routing GET /health to root-registry and per-lane payloads."""
-    return make_url_router_client(mock_enrichment_client, root_health, heavy_health, light_health)
+    """Mock client routing GET /health to the gateway root and the one router."""
+    return make_url_router_client(mock_enrichment_client, root_health, light_health)
+
+
+def probed_urls(client: AsyncMock) -> set[str]:
+    """The exact set of URLs the mock client was asked to probe."""
+    return {call.args[0] for call in client.get.call_args_list}
 
 
 # =============================================================================
@@ -313,63 +303,123 @@ def healthy_client(
 class TestListModels:
     """Tests for GET /api/system/models endpoint."""
 
+    def test_payload_surfaces_are_the_two_shipped_health_shapes(
+        self,
+        root_health: dict,
+        light_health: dict,
+    ) -> None:
+        """The fake payloads this file drives readiness with are the shipped shapes.
+
+        Non-vacuity: both key sets are non-empty, and KEEP_SET is checked
+        against the gateway's own residency tuple rather than against itself,
+        so the equality claims below are about shipped code and not about two
+        local constants agreeing.
+        """
+        from ai.gateway.residency import FULL_MODEL_SET
+
+        root_models = root_health["models"]
+        light_models = light_health["models"]
+        assert root_models, "root health fixture must report at least one Triton model"
+        assert light_models, "router health fixture must report at least one Triton model"
+        assert frozenset(FULL_MODEL_SET) == KEEP_SET, (
+            "the KEEP SET these fixtures mirror must stay the gateway's pruned "
+            "universe — if residency moves, these payloads move with it"
+        )
+        assert set(root_models) == KEEP_SET, (
+            "the gateway root /health iterates the ACTIVE residency set — the "
+            "KEEP SET yolo26/reid/threat and nothing else after the S3 prune"
+        )
+        assert set(light_models) == LIGHT_ROUTER_REPORTS, (
+            "the /enrich-lt adapter declares exactly threat/reid inline (pose/pet/"
+            "depth were pruned, and a stale key would report degraded on every "
+            "healthy boot)"
+        )
+        assert LIGHT_ROUTER_REPORTS <= KEEP_SET, (
+            "the router reports only models the gateway still boots"
+        )
+        assert KEEP_SET.difference(LIGHT_ROUTER_REPORTS) == frozenset({"yolo26"}), (
+            "yolo26 is the name only the root answers — the shipped case the "
+            "retired root-only clip/clip_text/stgcn_action pins used to cover"
+        )
+
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_list_models_reports_triton_readiness_and_manager_state(
         self,
         mock_get_model_zoo: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
+        light_health: dict,
     ) -> None:
-        """Registry models merge Triton readiness and backend-manager load state."""
+        """Registry models merge unioned Triton readiness and backend-manager state."""
         mock_get_model_zoo.return_value = sample_model_configs
+        assert sample_model_configs, "the fake registry must not be empty"
 
         response = await model_management.list_models(http_client=healthy_client)
 
         assert isinstance(response, ModelListResponse)
         assert len(response.models) == len(sample_model_configs)
 
-        # Triton-mapped model reported ready by the heavy router
-        vehicle = next(m for m in response.models if m.name == "vehicle-segment-classification")
-        assert vehicle.runtime.loaded is True
-        assert vehicle.service == "ai-enrichment"
-        assert vehicle.gpu_id == 0
+        # Root-only Triton name: yolo26 appears in the /enrich-lt payload not
+        # at all, so it is ready only because the gateway root /health reports
+        # it (non-vacuity: the absent key below is what makes the root probe
+        # load-bearing). Its catalogue row is disabled, which readiness does not
+        # consult — Triton's answer, not the enabled flag.
+        assert "yolo26" not in light_health["models"]
+        yolo26 = next(m for m in response.models if m.name == "yolo26")
+        assert yolo26.runtime.loaded is True
+        assert yolo26.enabled is False
+        assert yolo26.service == GATEWAY_SERVICE
+        assert yolo26.gpu_id == LANE_GPU_ID
 
-        # Triton-mapped light model reported ready
+        # Light-lane model reported ready by the router that serves it
         threat = next(m for m in response.models if m.name == "threat-detection-yolov8n")
         assert threat.runtime.loaded is True
-        assert threat.service == "ai-enrichment-light"
-        assert threat.gpu_id == 1
+        assert threat.service == LIGHT_SERVICE
+        assert threat.gpu_id == LANE_GPU_ID
 
-        # Triton-mapped model whose readiness is False (reid)
+        # Triton-mapped light model reported not ready
         osnet = next(m for m in response.models if m.name == "osnet-ain-x1-0")
         assert osnet.runtime.loaded is False
+        assert osnet.service == LIGHT_SERVICE
+
+        # A 1:many triton_models mapping needs EVERY name: threat is ready,
+        # reid is not, so the pair is not — the False must not be masked.
+        pair = next(m for m in response.models if m.name == "triton-pair-standin")
+        assert pair.runtime.loaded is False
+        assert threat.runtime.loaded is True, (
+            "threat alone being ready is what makes the pair's False a real "
+            "'needs every name' answer rather than an all-not-ready answer"
+        )
 
         # Triton exposes no per-model VRAM/usage over HTTP
         assert threat.runtime.actual_vram_mb is None
         assert threat.runtime.load_count == 0
 
         # Backend-process model, not loaded in the manager
-        weather = next(m for m in response.models if m.name == "weather-classification")
-        assert weather.runtime.loaded is False
+        face = next(m for m in response.models if m.name == "face-recognizer")
+        assert face.runtime.loaded is False
 
-        # Root-only Triton names: clip/clip_text and stgcn_action appear in NO
-        # router payload, so these two enabled models are ready only because
-        # the gateway root /health registry reports them (the pre-fix bug made
-        # them permanently loaded=False).
-        siglip = next(m for m in response.models if m.name == "siglip2-base-patch16-224")
-        assert siglip.runtime.loaded is True
-        stgcn = next(m for m in response.models if m.name == "stgcn-plus-plus")
-        assert stgcn.runtime.loaded is True
+        # Every model sits on the one lane: the retired lane 0 never appears.
+        lanes = {m.gpu_id for m in response.models}
+        assert lanes == {LANE_GPU_ID}, "one serving lane — the heavy lane's device 0 is gone"
 
-        assert response.service_status["ai-enrichment"] == "healthy"
-        assert response.service_status["ai-enrichment-light"] == "healthy"
+        # Service labels are exactly the two shipped answers, and the retired
+        # heavy label is not among them.
+        labels = {m.service for m in response.models}
+        assert labels == set(SERVICE_LABELS)
+        assert RETIRED_HEAVY_SERVICE not in labels
 
-        # Health probes go to the gateway routers' and the gateway root's
-        # /health endpoints
-        probed = [call.args[0] for call in healthy_client.get.call_args_list]
-        assert f"{HEAVY_ROUTER_URL}/health" in probed
-        assert f"{LIGHT_ROUTER_URL}/health" in probed
-        assert f"{GATEWAY_ROOT_URL}/health" in probed
+        # One row per label this endpoint can actually answer for.
+        assert set(response.service_status) == set(SERVICE_LABELS)
+        assert response.service_status[LIGHT_SERVICE] == "healthy"
+        assert response.service_status[GATEWAY_SERVICE] == "healthy"
+
+        # Health probes go to the gateway root and the ONE mounted router —
+        # exact census, so a probe of the unmounted /enrichment router fails.
+        assert probed_urls(healthy_client) == {
+            f"{GATEWAY_ROOT_URL}/health",
+            f"{LIGHT_ROUTER_URL}/health",
+        }
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     @patch("backend.api.routes.model_management.get_model_manager", autospec=True)
@@ -383,15 +433,15 @@ class TestListModels:
         """Backend-process models loaded in ModelManager report loaded=True."""
         mock_get_model_zoo.return_value = sample_model_configs
         manager = MagicMock()
-        manager.is_loaded.side_effect = lambda name: name == "weather-classification"
+        manager.is_loaded.side_effect = lambda name: name == "face-recognizer"
         mock_get_manager.return_value = manager
 
         response = await model_management.list_models(http_client=healthy_client)
 
-        weather = next(m for m in response.models if m.name == "weather-classification")
-        assert weather.runtime.loaded is True
+        face = next(m for m in response.models if m.name == "face-recognizer")
+        assert face.runtime.loaded is True
         # Estimate basis matches ModelManager.total_loaded_vram
-        assert weather.runtime.actual_vram_mb == 200
+        assert face.runtime.actual_vram_mb == 200
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_list_models_handles_routers_down(
@@ -400,9 +450,7 @@ class TestListModels:
         sample_model_configs: dict[str, ModelConfig],
         mock_enrichment_client: AsyncMock,
     ) -> None:
-        """Unreachable routers yield loaded=False and unhealthy service status."""
-        import httpx
-
+        """Unreachable surfaces yield loaded=False and unhealthy service status."""
         mock_get_model_zoo.return_value = sample_model_configs
         mock_enrichment_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
@@ -410,12 +458,13 @@ class TestListModels:
 
         assert isinstance(response, ModelListResponse)
         assert len(response.models) == len(sample_model_configs)
+        assert response.models, "the census below is vacuous on an empty list"
         for model in response.models:
             assert model.runtime.loaded is False
             assert model.runtime.actual_vram_mb is None
 
-        assert response.service_status["ai-enrichment"] == "unhealthy"
-        assert response.service_status["ai-enrichment-light"] == "unhealthy"
+        assert set(response.service_status) == set(SERVICE_LABELS)
+        assert set(response.service_status.values()) == {"unhealthy"}
 
 
 # =============================================================================
@@ -433,8 +482,8 @@ class TestGetModelStatus:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        """Detail status reads readiness from the serving router's health payload."""
-        model_name = "vehicle-segment-classification"
+        """Detail status reads readiness from the one router, unioned with the root."""
+        model_name = "threat-detection-yolov8n"
         mock_get_model_config.return_value = sample_model_configs[model_name]
 
         result = await model_management.get_model_status(
@@ -444,17 +493,18 @@ class TestGetModelStatus:
 
         assert isinstance(result, ModelDetailResponse)
         assert result.name == model_name
-        assert result.category == "classification"
-        assert result.path == "/models/model-zoo/vehicle-segment-classification"
-        assert result.estimated_vram_mb == 1500
+        assert result.category == "detection"
+        assert result.path == "/models/model-zoo/threat-detection-yolov8n"
+        assert result.estimated_vram_mb == 300
         assert result.enabled is True
-        assert result.service == "ai-enrichment"
-        assert result.gpu_id == 0
+        assert result.service == LIGHT_SERVICE
+        assert result.gpu_id == LANE_GPU_ID
         assert result.runtime.loaded is True
 
-        probed = [call.args[0] for call in healthy_client.get.call_args_list]
-        assert f"{HEAVY_ROUTER_URL}/health" in probed
-        assert f"{GATEWAY_ROOT_URL}/health" in probed
+        assert probed_urls(healthy_client) == {
+            f"{LIGHT_ROUTER_URL}/health",
+            f"{GATEWAY_ROOT_URL}/health",
+        }
 
     @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_get_model_status_backend_model_skips_router(
@@ -463,8 +513,8 @@ class TestGetModelStatus:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        """Backend-process models (no Triton mapping) are not probed on routers."""
-        model_name = "weather-classification"
+        """Backend-process models (no Triton mapping) are not probed at all."""
+        model_name = "face-recognizer"
         mock_get_model_config.return_value = sample_model_configs[model_name]
 
         result = await model_management.get_model_status(
@@ -473,6 +523,7 @@ class TestGetModelStatus:
         )
 
         assert result.runtime.loaded is False
+        assert result.service == GATEWAY_SERVICE
         assert healthy_client.get.await_count == 0
 
     @patch("backend.api.routes.model_management.get_model_config", autospec=True)
@@ -494,19 +545,20 @@ class TestGetModelStatus:
 
 
 # =============================================================================
-# Gateway ROOT Health Readiness Tests (root + router union)
+# Gateway ROOT Health Readiness Tests (root + the one router, unioned)
 # =============================================================================
 
 
 class TestRootHealthReadiness:
-    """Readiness for Triton names that NO router /health payload reports.
+    """Readiness for the Triton name NO router /health payload reports.
 
-    siglip2-base-patch16-224 maps to Triton names clip/clip_text and
-    stgcn-plus-plus maps to stgcn_action; the /enrichment and /enrich-lt
-    health payloads never carry those keys (they live behind the /clip and
-    action routers), so only the gateway root /health — which iterates the
-    gateway's full Triton registry — can make these enabled models report
-    loaded=True. Probing only the routers made them permanently false.
+    After R8 S3 that name is yolo26: it is Triton-backed and resident (it is in
+    the KEEP SET), but it is served through the gateway's own /yolo26 router, so
+    the /enrich-lt payload never carries it — only the gateway root /health,
+    which iterates the ACTIVE residency set, can make it report loaded=True.
+    Probing only the router would have made it permanently false, which is the
+    same bug the retired clip/clip_text/stgcn_action pins covered on the wider
+    pre-S3 registry.
     """
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
@@ -515,50 +567,49 @@ class TestRootHealthReadiness:
         mock_get_model_zoo: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
         root_health: dict,
+        light_health: dict,
     ) -> None:
-        """Router-omitted names report loaded=True when root health says ready.
+        """The router-omitted name reports loaded=True when root health says ready.
 
-        Both routers are unreachable here so the root payload is the only
-        readiness surface that answers at all.
+        The router is unreachable here, so the root payload is the only
+        readiness surface that answers at all — non-vacuity: "yolo26" is absent
+        from the router payload that WOULD have been consulted.
         """
         mock_get_model_zoo.return_value = sample_model_configs
-        client = make_url_router_client(AsyncMock(), root_health, None, None)
+        assert "yolo26" not in light_health["models"]
+        assert root_health["models"]["yolo26"] is True
+        client = make_url_router_client(AsyncMock(), root_health, None)
 
         response = await model_management.list_models(http_client=client)
 
-        siglip = next(m for m in response.models if m.name == "siglip2-base-patch16-224")
-        assert siglip.runtime.loaded is True
-        stgcn = next(m for m in response.models if m.name == "stgcn-plus-plus")
-        assert stgcn.runtime.loaded is True
+        yolo26 = next(m for m in response.models if m.name == "yolo26")
+        assert yolo26.runtime.loaded is True
+        # The unreachable router is still reported honestly.
+        assert response.service_status[LIGHT_SERVICE] == "unhealthy"
+        assert response.service_status[GATEWAY_SERVICE] == "healthy"
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_root_health_not_ready_reports_loaded_false_in_list(
         self,
         mock_get_model_zoo: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
-        heavy_health: dict,
         light_health: dict,
     ) -> None:
-        """Root health reporting those names False flips loaded back to False."""
+        """Root health reporting yolo26 False flips loaded back to False.
+
+        threat stays ready on both surfaces, so the yolo26 False is the only
+        thing that can produce the expected loaded=False.
+        """
         mock_get_model_zoo.return_value = sample_model_configs
-        root = make_health(
-            {
-                "clip": False,
-                "clip_text": True,
-                "stgcn_action": False,
-                "threat": True,
-                "pose": True,
-                "vehicle": True,
-            }
-        )
-        client = make_url_router_client(AsyncMock(), root, heavy_health, light_health)
+        root = make_health({"yolo26": False, "reid": False, "threat": True})
+        client = make_url_router_client(AsyncMock(), root, light_health)
 
         response = await model_management.list_models(http_client=client)
 
-        siglip = next(m for m in response.models if m.name == "siglip2-base-patch16-224")
-        assert siglip.runtime.loaded is False
-        stgcn = next(m for m in response.models if m.name == "stgcn-plus-plus")
-        assert stgcn.runtime.loaded is False
+        yolo26 = next(m for m in response.models if m.name == "yolo26")
+        assert yolo26.runtime.loaded is False
+        threat = next(m for m in response.models if m.name == "threat-detection-yolov8n")
+        assert threat.runtime.loaded is True
 
     @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_root_health_ready_in_detail_status(
@@ -568,35 +619,37 @@ class TestRootHealthReadiness:
         healthy_client: AsyncMock,
     ) -> None:
         """Detail status unions root health with its one router probe."""
-        mock_get_model_config.return_value = sample_model_configs["stgcn-plus-plus"]
+        mock_get_model_config.return_value = sample_model_configs["yolo26"]
 
         result = await model_management.get_model_status(
-            model_name="stgcn-plus-plus",
+            model_name="yolo26",
             http_client=healthy_client,
         )
 
         assert result.runtime.loaded is True
-        # stgcn-plus-plus is a heavy-lane model, so its router probe and the
-        # root probe are the same container's two endpoints.
-        probed = [call.args[0] for call in healthy_client.get.call_args_list]
-        assert f"{GATEWAY_ROOT_URL}/health" in probed
+        # yolo26 is not a light-lane model, but its probe target IS the one
+        # mounted router — get_service_for_model returns a probe address, not an
+        # ownership claim, and the root payload is what answers for it.
+        assert result.service == GATEWAY_SERVICE
+        assert probed_urls(healthy_client) == {
+            f"{LIGHT_ROUTER_URL}/health",
+            f"{GATEWAY_ROOT_URL}/health",
+        }
 
     @patch("backend.api.routes.model_management.get_model_config", autospec=True)
     async def test_root_health_not_ready_in_detail_status(
         self,
         mock_get_model_config: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
-        heavy_health: dict,
+        light_health: dict,
     ) -> None:
         """Detail status reports loaded=False when root health says not ready."""
-        mock_get_model_config.return_value = sample_model_configs["siglip2-base-patch16-224"]
-        root = make_health({"clip": True, "clip_text": False, "vehicle": True})
-        # siglip2 is a heavy-lane model: the detail probe hits that router and
-        # the derived root, and the router payload never carries clip names.
-        client = make_url_router_client(AsyncMock(), root, heavy_health, None)
+        mock_get_model_config.return_value = sample_model_configs["yolo26"]
+        root = make_health({"yolo26": False, "reid": False, "threat": True})
+        client = make_url_router_client(AsyncMock(), root, light_health)
 
         result = await model_management.get_model_status(
-            model_name="siglip2-base-patch16-224",
+            model_name="yolo26",
             http_client=client,
         )
 
@@ -614,7 +667,7 @@ class TestReadinessVisibility:
         healthy_client: AsyncMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """A name missing from root AND both router payloads logs a warning."""
+        """A name missing from the root AND the router payload logs one warning."""
         mock_get_model_zoo.return_value = {
             **sample_model_configs,
             "ghost-model": registry_entry("ghost-model", "classification", 100),
@@ -625,11 +678,19 @@ class TestReadinessVisibility:
 
         ghost = next(m for m in response.models if m.name == "ghost-model")
         assert ghost.runtime.loaded is False
-        warnings = [r.message for r in caplog.records if "phantom" in r.getMessage()]
-        assert warnings, (
+        warned = [
+            r.getMessage()
+            for r in caplog.records
+            if "reported by no gateway health payload" in r.getMessage()
+        ]
+        assert warned, (
             "a Triton name reported by no health payload must log a warning rather "
             "than silently report not-ready"
         )
+        # Exact census: only the drifted name warns, so every shipped name in
+        # the fake payloads is genuinely being recognised by the union.
+        drift_names = {re.search(r"'([^']+)'", msg).group(1) for msg in warned}
+        assert drift_names == {"phantom"}
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_all_surfaces_down_does_not_spam_drift_warnings(
@@ -645,8 +706,6 @@ class TestReadinessVisibility:
         answered — that is an outage, not catalogue drift, and must not bury
         the connection warnings _fetch_router_health already logs.
         """
-        import httpx
-
         mock_get_model_zoo.return_value = {
             **sample_model_configs,
             "ghost-model": registry_entry("ghost-model", "classification", 100),
@@ -656,6 +715,7 @@ class TestReadinessVisibility:
         with caplog.at_level("WARNING", logger="backend.api.routes.model_management"):
             response = await model_management.list_models(http_client=mock_enrichment_client)
 
+        assert response.models, "the census below is vacuous on an empty list"
         assert all(m.runtime.loaded is False for m in response.models)
         assert not [r for r in caplog.records if "no gateway health payload" in r.getMessage()]
 
@@ -664,16 +724,20 @@ class TestGatewayRootUrlDerivation:
     """The root probe URL is derived from the router URLs, never guessed."""
 
     def test_root_url_stripped_from_router_settings(self) -> None:
-        """Suffixed router settings fields yield the gateway root base."""
+        """The suffixed router settings field yields the gateway root base."""
+        assert model_management.ROUTER_SUFFIXES == ("/enrich-lt",), (
+            "the heavy router's suffix left with the settings field it was "
+            "derived from, so exactly the surviving suffix is strippable"
+        )
         root = model_management.get_gateway_root_url()
         assert root == GATEWAY_ROOT_URL
+        # The two probes are distinct surfaces: the root base is the router
+        # base with the suffix removed, not the router URL itself.
+        assert root != LIGHT_ROUTER_URL
 
-    def test_root_url_follows_gateway_mode_base(
-        self, isolate_settings_and_catalogue: MagicMock
-    ) -> None:
+    def test_root_url_follows_gateway_mode(self, isolate_settings_and_catalogue: MagicMock) -> None:
         """Gateway mode derives the root from ai_gateway_url itself."""
         isolate_settings_and_catalogue.return_value = SimpleNamespace(
-            enrichment_url="http://stale:1/enrichment",
             enrichment_light_url="http://stale:1/enrich-lt",
             ai_gateway_url="http://ai-gateway:8090/",
             use_ai_gateway=True,
@@ -687,7 +751,6 @@ class TestGatewayRootUrlDerivation:
     ) -> None:
         """A suffixless router URL skips the root probe instead of guessing."""
         isolate_settings_and_catalogue.return_value = SimpleNamespace(
-            enrichment_url="http://gateway-host:8090",
             enrichment_light_url="http://gateway-host:8090",
             ai_gateway_url=None,
             use_ai_gateway=False,
@@ -713,10 +776,10 @@ class TestLifecycleUnsupported:
         healthy_client: AsyncMock,
     ) -> None:
         """Load must not fabricate success against the gateway — it has no load API."""
-        mock_get_model_config.return_value = sample_model_configs["vehicle-segment-classification"]
+        mock_get_model_config.return_value = sample_model_configs["face-recognizer"]
 
         with pytest.raises(HTTPException) as exc_info:
-            await model_management.load_model(model_name="vehicle-segment-classification")
+            await model_management.load_model(model_name="face-recognizer")
 
         assert exc_info.value.status_code == 501
         assert "not supported" in exc_info.value.detail.lower()
@@ -738,10 +801,10 @@ class TestLifecycleUnsupported:
         sample_model_configs: dict[str, ModelConfig],
     ) -> None:
         """Loading a disabled model should return 400 error."""
-        mock_get_model_config.return_value = sample_model_configs["florence-2-large"]
+        mock_get_model_config.return_value = sample_model_configs["yolo26-general"]
 
         with pytest.raises(HTTPException) as exc_info:
-            await model_management.load_model(model_name="florence-2-large")
+            await model_management.load_model(model_name="yolo26-general")
 
         assert exc_info.value.status_code == 400
         assert "disabled" in exc_info.value.detail.lower()
@@ -780,10 +843,10 @@ class TestLifecycleUnsupported:
         mock_get_model_config: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
     ) -> None:
-        mock_get_model_config.return_value = sample_model_configs["vehicle-segment-classification"]
+        mock_get_model_config.return_value = sample_model_configs["face-recognizer"]
 
         with pytest.raises(HTTPException) as exc_info:
-            await model_management.reload_model(model_name="vehicle-segment-classification")
+            await model_management.reload_model(model_name="face-recognizer")
 
         assert exc_info.value.status_code == 501
 
@@ -793,10 +856,10 @@ class TestLifecycleUnsupported:
         mock_get_model_config: MagicMock,
         sample_model_configs: dict[str, ModelConfig],
     ) -> None:
-        mock_get_model_config.return_value = sample_model_configs["florence-2-large"]
+        mock_get_model_config.return_value = sample_model_configs["yolo26-general"]
 
         with pytest.raises(HTTPException) as exc_info:
-            await model_management.reload_model(model_name="florence-2-large")
+            await model_management.reload_model(model_name="yolo26-general")
 
         assert exc_info.value.status_code == 400
 
@@ -823,35 +886,42 @@ class TestVramSummary:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        """used_mb sums registry estimates of Triton-ready models per lane."""
+        """used_mb sums registry estimates of the router-ready models of the lane."""
         mock_get_model_zoo.return_value = sample_model_configs
+        assert SHIPPED_LIGHT_MEMBERS == model_management.LIGHT_MODELS, (
+            "this file mirrors the shipped lane membership; the sums below "
+            "are only meaningful while that mirror holds"
+        )
 
         result = await model_management.get_vram_summary(http_client=healthy_client)
 
         assert isinstance(result, VramSummaryResponse)
-        assert len(result.gpus) == 2
+        # One lane, exactly: the heavy row would report a 6800 MB budget
+        # against a router that no longer mounts (R8 S3).
+        assert len(result.gpus) == 1
+        lane = result.gpus[0]
+        assert (lane.gpu_id, lane.service) == (LANE_GPU_ID, LIGHT_SERVICE)
+        assert lane.budget_mb == LANE_BUDGET_MB
 
-        gpu0 = next(g for g in result.gpus if g.gpu_id == 0)
-        assert gpu0.service == "ai-enrichment"
-        assert gpu0.budget_mb == 6800
-        assert gpu0.loaded_models == ["vehicle-segment-classification", "fashion-clip"]
-        assert gpu0.used_mb == 2000
-        assert gpu0.available_mb == 4800
+        # threat is the lane's only ready member. The census is exact, so each
+        # of the other three exclusions is pinned for its own reason: osnet is a
+        # lane member whose Triton model (reid) is not ready, and yolo26 /
+        # triton-pair-standin / the backend-process rows are not lane members at
+        # all — yolo26 notwithstanding that the gateway root says it is ready,
+        # because the lane row reads the ROUTER payload (see the probe pin).
+        assert lane.loaded_models == ["threat-detection-yolov8n"]
+        assert lane.used_mb == 300
+        assert lane.available_mb == LANE_BUDGET_MB - 300
+        assert lane.utilization_percent == 25.0
 
-        # R8 S2b: the light lane's only registry members are threat + osnet
-        # (pose/pet/depth retired with the enrichment tier), and osnet's Triton
-        # model (reid) is not ready — so threat alone is loaded on lane 1.
-        gpu1 = next(g for g in result.gpus if g.gpu_id == 1)
-        assert gpu1.service == "ai-enrichment-light"
-        assert gpu1.budget_mb == 1200
-        assert gpu1.loaded_models == ["threat-detection-yolov8n"]
-        assert gpu1.used_mb == 300
-        assert gpu1.available_mb == 900
+        # Totals are the sum of that one lane — no heavy budget is folded in.
+        assert result.totals.budget_mb == LANE_BUDGET_MB
+        assert result.totals.used_mb == 300
+        assert result.totals.available_mb == 900
+        assert result.totals.model_count == 1
 
-        assert result.totals.budget_mb == 8000
-        assert result.totals.used_mb == 2300
-        assert result.totals.available_mb == 5700
-        assert result.totals.model_count == 3
+        # The lane row is answered by router health alone (no root probe).
+        assert probed_urls(healthy_client) == {f"{LIGHT_ROUTER_URL}/health"}
 
     @patch("backend.api.routes.model_management.get_model_zoo", autospec=True)
     async def test_vram_summary_with_routers_down(
@@ -860,16 +930,16 @@ class TestVramSummary:
         sample_model_configs: dict[str, ModelConfig],
         mock_enrichment_client: AsyncMock,
     ) -> None:
-        """Unreachable routers report budgets with zero usage."""
-        import httpx
-
+        """Unreachable routers report the one budget with zero usage."""
         mock_get_model_zoo.return_value = sample_model_configs
         mock_enrichment_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
 
         result = await model_management.get_vram_summary(http_client=mock_enrichment_client)
 
+        assert len(result.gpus) == 1
+        assert result.totals.budget_mb == LANE_BUDGET_MB
         assert result.totals.used_mb == 0
-        assert result.totals.available_mb == 8000
+        assert result.totals.available_mb == LANE_BUDGET_MB
         assert result.totals.model_count == 0
 
 
@@ -879,44 +949,83 @@ class TestVramSummary:
 
 
 class TestServiceRouting:
-    """Tests for model-to-router routing logic."""
+    """Tests for model-to-router routing and labelling logic."""
 
-    def test_heavy_model_routes_to_enrichment_router(self) -> None:
-        """Heavy-lane models should resolve to the gateway heavy router."""
-        for model_name in HEAVY_MODELS:
+    def test_routing_census_covers_both_sides_of_the_lane(self) -> None:
+        """The census every routing pin loops is non-empty and two-sided."""
+        assert ROUTING_CENSUS, "an empty census would make every loop below vacuous"
+        assert ROUTING_CENSUS & SHIPPED_LIGHT_MEMBERS
+        assert ROUTING_CENSUS - SHIPPED_LIGHT_MEMBERS
+        assert SHIPPED_LIGHT_MEMBERS <= ROUTING_CENSUS
+
+    def test_light_lane_membership_is_the_shipped_one_lane(self) -> None:
+        """LIGHT_MODELS is the shipped membership; the retired lane members are gone."""
+        assert model_management.LIGHT_MODELS == SHIPPED_LIGHT_MEMBERS
+        # depth/pet/pose left with the enrichment tier in S2b and never came back
+        assert (
+            not {"yolov8n-pose", "pet-detector", "depth-estimator"} & model_management.LIGHT_MODELS
+        )
+
+    def test_every_model_routes_to_the_one_mounted_router(self) -> None:
+        """get_service_for_model returns the only router for every name.
+
+        Retargeted from the retired "heavy models route to the heavy router"
+        pin. The shipped function is a probe-target lookup, not an ownership
+        claim: with one mounted router it answers for light and non-light names
+        alike, and a non-light name's readiness comes from the gateway root
+        instead (see TestRootHealthReadiness).
+        """
+        assert ROUTING_CENSUS, "the loop below is vacuous on an empty census"
+        for model_name in sorted(ROUTING_CENSUS):
             url = model_management.get_service_for_model(model_name)
-            assert url == HEAVY_ROUTER_URL, f"{model_name} should route to the heavy router"
+            assert url == LIGHT_ROUTER_URL, f"{model_name} should route to the only mounted router"
+
+    def test_get_router_urls_returns_the_single_router(self) -> None:
+        """The probe fan-out is a one-entry tuple, not a heavy/light pair."""
+        urls = model_management.get_router_urls()
+        assert urls == (LIGHT_ROUTER_URL,)
+        assert len(urls) == 1, "the heavy router's entry left with its settings field"
 
     def test_light_model_routes_to_enrichment_light_router(self) -> None:
-        """Light-lane models should resolve to the gateway light router."""
-        for model_name in LIGHT_MODELS:
-            url = model_management.get_service_for_model(model_name)
-            assert url == LIGHT_ROUTER_URL, f"{model_name} should route to the light router"
+        """Light-lane models are labelled with the router that serves them."""
+        assert SHIPPED_LIGHT_MEMBERS, "the light set must not be empty"
+        for model_name in sorted(SHIPPED_LIGHT_MEMBERS):
+            label = model_management.get_service_name_for_model(model_name)
+            assert label == LIGHT_SERVICE, f"{model_name} should be labelled {LIGHT_SERVICE}"
 
     def test_get_gpu_id_for_model(self) -> None:
-        """Lane ids follow the heavy/light split."""
-        for model_name in HEAVY_MODELS:
-            assert model_management.get_gpu_id_for_model(model_name) == 0, (
-                f"{model_name} should be on lane 0"
-            )
-        for model_name in LIGHT_MODELS:
-            assert model_management.get_gpu_id_for_model(model_name) == 1, (
-                f"{model_name} should be on lane 1"
-            )
+        """Every model resolves to the one lane — the heavy lane's device is gone."""
+        assert ROUTING_CENSUS, "the loop below is vacuous on an empty census"
+        lanes = set()
+        for model_name in sorted(ROUTING_CENSUS):
+            gpu_id = model_management.get_gpu_id_for_model(model_name)
+            assert gpu_id == LANE_GPU_ID, f"{model_name} should be on the only lane"
+            lanes.add(gpu_id)
+        assert lanes == {LANE_GPU_ID}, f"lane {RETIRED_LANE_GPU_ID} no longer exists"
+
+    def test_service_labels_are_the_two_shipped_answers(self) -> None:
+        """The label census is exactly the two surviving services."""
+        assert ROUTING_CENSUS, "the loop below is vacuous on an empty census"
+        # Both labels are reachable only if the census spans the lane boundary.
+        assert ROUTING_CENSUS & model_management.LIGHT_MODELS
+        assert ROUTING_CENSUS - model_management.LIGHT_MODELS
+        labels = {model_management.get_service_name_for_model(name) for name in ROUTING_CENSUS}
+        assert labels == set(SERVICE_LABELS), (
+            "every name is labelled either by the router that serves it or by "
+            "the gateway root that answers for it — nothing else"
+        )
+        assert RETIRED_HEAVY_SERVICE not in labels, RETIRED_HEAVY_SERVICE
 
     def test_router_urls_follow_gateway_mode(
         self, isolate_settings_and_catalogue: MagicMock
     ) -> None:
-        """AI Gateway mode builds router URLs from ai_gateway_url (client parity)."""
+        """AI Gateway mode builds the one router URL from ai_gateway_url (client parity)."""
         isolate_settings_and_catalogue.return_value = SimpleNamespace(
-            enrichment_url="http://stale:1/enrichment",
             enrichment_light_url="http://stale:1/enrich-lt",
             ai_gateway_url="http://ai-gateway:8090/",
             use_ai_gateway=True,
         )
-        heavy, light = model_management.get_router_urls()
-        assert heavy == "http://ai-gateway:8090/enrichment"
-        assert light == "http://ai-gateway:8090/enrich-lt"
+        assert model_management.get_router_urls() == ("http://ai-gateway:8090/enrich-lt",)
 
 
 # =============================================================================
@@ -962,7 +1071,10 @@ class TestModelManagementRouterIntegration:
         assert response.status_code == 200
         body = response.json()
         assert len(body["models"]) == len(sample_model_configs)
-        assert body["service_status"]["ai-enrichment"] == "healthy"
+        # Serialized over HTTP: the two surviving service rows, both healthy.
+        assert set(body["service_status"]) == set(SERVICE_LABELS)
+        assert body["service_status"][LIGHT_SERVICE] == "healthy"
+        assert body["service_status"][GATEWAY_SERVICE] == "healthy"
 
     def test_get_model_status_unknown_model_returns_404(
         self,
@@ -984,31 +1096,36 @@ class TestModelManagementRouterIntegration:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        config = sample_model_configs["vehicle-segment-classification"]
+        config = sample_model_configs["yolo26"]
         with patch(
             "backend.api.routes.model_management.get_model_config",
             return_value=config,
             autospec=True,
         ):
             client = self._make_client(sample_model_configs, healthy_client)
-            response = client.get("/api/system/models/vehicle-segment-classification/status")
+            response = client.get("/api/system/models/yolo26/status")
 
         assert response.status_code == 200
-        assert response.json()["runtime"]["loaded"] is True
+        body = response.json()
+        # Readiness the route read from the gateway ROOT payload (the router
+        # payload never carries yolo26), serialized on the one lane.
+        assert body["runtime"]["loaded"] is True
+        assert body["service"] == GATEWAY_SERVICE
+        assert body["gpu_id"] == LANE_GPU_ID
 
     def test_load_endpoint_returns_501(
         self,
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        config = sample_model_configs["vehicle-segment-classification"]
+        config = sample_model_configs["threat-detection-yolov8n"]
         with patch(
             "backend.api.routes.model_management.get_model_config",
             return_value=config,
             autospec=True,
         ):
             client = self._make_client(sample_model_configs, healthy_client)
-            response = client.post("/api/system/models/vehicle-segment-classification/load")
+            response = client.post("/api/system/models/threat-detection-yolov8n/load")
 
         assert response.status_code == 501
         assert "not supported" in response.json()["detail"].lower()
@@ -1018,14 +1135,14 @@ class TestModelManagementRouterIntegration:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        config = sample_model_configs["vehicle-segment-classification"]
+        config = sample_model_configs["threat-detection-yolov8n"]
         with patch(
             "backend.api.routes.model_management.get_model_config",
             return_value=config,
             autospec=True,
         ):
             client = self._make_client(sample_model_configs, healthy_client)
-            response = client.post("/api/system/models/vehicle-segment-classification/unload")
+            response = client.post("/api/system/models/threat-detection-yolov8n/unload")
 
         assert response.status_code == 501
 
@@ -1034,14 +1151,14 @@ class TestModelManagementRouterIntegration:
         sample_model_configs: dict[str, ModelConfig],
         healthy_client: AsyncMock,
     ) -> None:
-        config = sample_model_configs["vehicle-segment-classification"]
+        config = sample_model_configs["threat-detection-yolov8n"]
         with patch(
             "backend.api.routes.model_management.get_model_config",
             return_value=config,
             autospec=True,
         ):
             client = self._make_client(sample_model_configs, healthy_client)
-            response = client.post("/api/system/models/vehicle-segment-classification/reload")
+            response = client.post("/api/system/models/threat-detection-yolov8n/reload")
 
         assert response.status_code == 501
 
@@ -1070,4 +1187,7 @@ class TestModelManagementRouterIntegration:
 
         assert response.status_code == 200
         body = response.json()
-        assert body["totals"]["budget_mb"] == 8000
+        # The totals the endpoint serializes are the one surviving lane's.
+        assert len(body["gpus"]) == 1
+        assert body["gpus"][0]["service"] == LIGHT_SERVICE
+        assert body["totals"]["budget_mb"] == LANE_BUDGET_MB

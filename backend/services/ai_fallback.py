@@ -1,8 +1,15 @@
 """AI service fallback strategies for graceful degradation.
 
 This module provides fallback behavior when AI services (YOLO26v2, the VLM
-analyzer, Florence-2, CLIP) become unavailable. It integrates with circuit breakers
+analyzer) become unavailable. It integrates with circuit breakers
 and the degradation manager to provide seamless degradation.
+
+R8 S3 (2026-09-29, owner rulings 1 + 5): the Florence-2 and CLIP members are
+DELETED -- their provider rows, clients and Triton models retired with the
+slice, and an enum member naming a service no deployment can boot is the
+decorative-config class this repo refuses. The module itself stays
+kept-and-DEAD (zero shipped importers, ledgered as flagged-not-deleted; its
+final deletion is a dead-code slice's to make).
 
 Features:
     - Per-service fallback strategies
@@ -41,9 +48,7 @@ from backend.services.circuit_breaker import (
 )
 
 if TYPE_CHECKING:
-    from backend.services.clip_client import CLIPClient
     from backend.services.detector_client import DetectorClient
-    from backend.services.florence_client import FlorenceClient
     from backend.services.vlm_analyzer import VlmAnalyzer
 
 logger = get_logger(__name__)
@@ -53,8 +58,6 @@ class AIService(StrEnum):
     """AI service identifiers."""
 
     YOLO26 = "yolo26"
-    FLORENCE = "florence"
-    CLIP = "clip"
 
 
 class DegradationLevel(StrEnum):
@@ -190,18 +193,6 @@ DEFAULT_CB_CONFIGS: dict[AIService, CircuitBreakerConfig] = {
         half_open_max_calls=2,
         success_threshold=2,
     ),
-    AIService.FLORENCE: CircuitBreakerConfig(
-        failure_threshold=5,
-        recovery_timeout=60.0,
-        half_open_max_calls=3,
-        success_threshold=2,
-    ),
-    AIService.CLIP: CircuitBreakerConfig(
-        failure_threshold=5,
-        recovery_timeout=60.0,
-        half_open_max_calls=3,
-        success_threshold=2,
-    ),
 }
 
 # Critical services that affect degradation level more severely
@@ -227,8 +218,6 @@ class AIFallbackService:
         self,
         detector_client: DetectorClient | None = None,
         analyzer: VlmAnalyzer | None = None,
-        florence_client: FlorenceClient | None = None,
-        clip_client: CLIPClient | None = None,
         health_check_interval: float = 15.0,
     ) -> None:
         """Initialize the AI fallback service.
@@ -236,14 +225,10 @@ class AIFallbackService:
         Args:
             detector_client: YOLO26v2 client (optional, for health checks)
             analyzer: the shipped VLM analyzer (optional, for health checks)
-            florence_client: Florence-2 client (optional, for health checks)
-            clip_client: CLIP client (optional, for health checks)
             health_check_interval: Interval between health checks in seconds
         """
         self._detector_client = detector_client
         self._analyzer = analyzer
-        self._florence_client = florence_client
-        self._clip_client = clip_client
         self._health_check_interval = health_check_interval
 
         # Initialize service states
@@ -421,10 +406,6 @@ class AIFallbackService:
         """
         if service == AIService.YOLO26 and self._detector_client:
             return await self._detector_client.health_check()
-        elif service == AIService.FLORENCE and self._florence_client:
-            return await self._florence_client.check_health()
-        elif service == AIService.CLIP and self._clip_client:
-            return await self._clip_client.check_health()
 
         # No client registered, assume healthy
         return True
@@ -505,13 +486,10 @@ class AIFallbackService:
         if self.is_service_available(AIService.YOLO26):
             features.extend(["object_detection", "detection_alerts"])
 
-        # Caption features (requires Florence-2)
-        if self.is_service_available(AIService.FLORENCE):
-            features.extend(["image_captioning", "ocr", "dense_captioning"])
-
-        # Re-identification features (requires CLIP)
-        if self.is_service_available(AIService.CLIP):
-            features.extend(["entity_tracking", "re_identification", "anomaly_detection"])
+        # R8 S3: the captioning arm (Florence-2) and the re-ID/anomaly arm
+        # (CLIP) retire with their providers. Person re-ID vectors come from
+        # the resident OSNet handle (ledger item 20), not a degradation-gated
+        # service flag, so no replacement arm is honest here.
 
         # Basic features always available
         features.extend(["event_history", "camera_feeds", "system_monitoring"])
@@ -604,7 +582,11 @@ class AIFallbackService:
         object_types: list[str] | None = None,
         camera_name: str | None = None,
     ) -> str:
-        """Get fallback caption when Florence-2 is unavailable.
+        """Build a caption from YOLO detections alone (no vision-language model).
+
+        Since R8 S3 there is no captioning model to be unavailable: Florence-2
+        retired with its provider, and this detector-derived caption is the
+        shipped behavior, not a degradation.
 
         Args:
             object_types: Detected object types
@@ -644,21 +626,9 @@ class AIFallbackService:
         """
         return not self.is_service_available(AIService.YOLO26)
 
-    def should_skip_captions(self) -> bool:
-        """Check if caption generation should be skipped.
-
-        Returns:
-            True if Florence-2 is unavailable
-        """
-        return not self.is_service_available(AIService.FLORENCE)
-
-    def should_skip_reid(self) -> bool:
-        """Check if re-identification should be skipped.
-
-        Returns:
-            True if CLIP is unavailable
-        """
-        return not self.is_service_available(AIService.CLIP)
+    # R8 S3: should_skip_captions()/should_skip_reid() are DELETED with the
+    # enum members they keyed on (Florence-2, CLIP). The caption fallback above
+    # stays -- it is built from YOLO detections, not from a retired service.
 
 
 # Global instance

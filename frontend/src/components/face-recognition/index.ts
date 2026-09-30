@@ -19,12 +19,9 @@
 export { default as KnownPersonCard } from './KnownPersonCard';
 export { default as FaceEventCard } from './FaceEventCard';
 
-// ============================================================================
-// Debug Tools (NEM-4955)
-// ============================================================================
-
-export { default as FaceSimilarityDebugTool } from './FaceSimilarityDebugTool';
-export type { FaceSimilarityDebugToolProps } from './FaceSimilarityDebugTool';
+// R8 S3 (2026-09-29): FaceSimilarityDebugTool (NEM-4955) retired with the
+// CLIP provider -- its endpoint POSTed to the gateway /clip router the Triton
+// prune unmounts.
 
 // ============================================================================
 // Type Exports
