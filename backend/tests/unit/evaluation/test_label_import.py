@@ -397,6 +397,47 @@ class TestSyntheticIncidentImport:
 # =============================================================================
 
 
+class TestDeclaredTimestamp:
+    """Synthbench P5a: a generated set may declare its capture moment. The replay prompt shows the
+    stored string verbatim (vlm_replay pins camera_timezone=None), so it is stored as written."""
+
+    @staticmethod
+    def _set(tmp_path: Path, stamp: object) -> None:
+        d = _make_corpus(
+            tmp_path, "threats", "knife_visible", risk={"min_score": 70, "max_score": 95}
+        )
+        labels = json.loads((d / "expected_labels.json").read_text())
+        labels["timestamp"] = stamp
+        (d / "expected_labels.json").write_text(json.dumps(labels))
+
+    def test_a_declared_timestamp_is_stored_verbatim(self, store, tmp_path):
+        self._set(tmp_path, "2026-04-15T14:32:00-04:00")
+        row = import_generated_items(corpus_dir=tmp_path, store=store)[0]
+        assert not row.skipped, row.reason
+        assert store.get_item(row.item_id).snapshot.timestamp == "2026-04-15T14:32:00-04:00"
+
+    def test_no_timestamp_keeps_the_epoch_sentinel(self, store, tmp_path):
+        _make_corpus(tmp_path, "threats", "knife_visible", risk={"min_score": 70, "max_score": 95})
+        row = import_generated_items(corpus_dir=tmp_path, store=store)[0]
+        assert not row.skipped, row.reason
+        assert store.get_item(row.item_id).snapshot.timestamp == "1970-01-01T00:00:00+00:00"
+
+    @pytest.mark.parametrize(
+        ("stamp", "why"),
+        [
+            ("2026-04-15T14:32:00", "no UTC offset"),
+            ("15 April, 2:32 pm", "not ISO-8601"),
+            (1776277920, "not an ISO-8601 string"),
+        ],
+    )
+    def test_a_malformed_timestamp_refuses_the_set(self, store, tmp_path, stamp, why):
+        self._set(tmp_path, stamp)
+        row = import_generated_items(corpus_dir=tmp_path, store=store)[0]
+        assert row.skipped
+        assert why in row.reason
+        assert store.get_item(row.item_id) is None
+
+
 def _put_labelled_item(store, item_id: str, label: str, score: int = 0):
     from backend.evaluation.assess_input import AssessInput, EvalItem
 
