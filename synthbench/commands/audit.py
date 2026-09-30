@@ -44,21 +44,22 @@ def audit_log(version: str, env: Mapping[str, str]) -> Path:
     return root / "audits" / version / "audit.jsonl"
 
 
-def build_app(version: str, export: Path, env: Mapping[str, str]) -> AuditApp:
-    """The page over this export's audit sample and this version's answer log."""
+def build_app(version: str, export: Path, env: Mapping[str, str], port: int) -> AuditApp:
+    """The page over this export's audit sample and this version's answer log, served on
+    127.0.0.1:`port` (it takes answers only from that origin)."""
     sets = read_sets(export)
     if not sets:
         raise RequestError(f"no exported sets under {export}; run `export vss` first")
     items = [AuditItem(exported, questions(exported.facts)) for exported in sample(sets)]
-    return AuditApp(items, audit_log(version, env), now_iso)
+    return AuditApp(items, audit_log(version, env), now_iso, port=port)
 
 
 def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     tax = taxonomy()
     export: Path = args.export if args.export is not None else export_dir(tax.version, env)
-    app = build_app(tax.version, export, env)
-    done = sum(1 for item in app.items if app.answered(item))
     port = args.port
+    app = build_app(tax.version, export, env, port)
+    done = sum(1 for item in app.items if app.answered(item))
     sys.stdout.write(
         f"audit {tax.version}: {len(app.items)} stills, {done} fully answered; answers go to "
         f"{app.log}\n  open http://127.0.0.1:{port}/ (remote: ssh -L {port}:127.0.0.1:{port} "
@@ -66,7 +67,7 @@ def run(args: argparse.Namespace, env: Mapping[str, str]) -> int:
     )
     sys.stdout.flush()
     try:
-        serve(app, port)
+        serve(app)
     except KeyboardInterrupt:
         pass
     except OSError as error:

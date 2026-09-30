@@ -1,14 +1,14 @@
 """The audit page (P5a design §4): one still at a time, keyboard answers, an append-only log.
 
-`AuditApp.handle(method, path, body)` is the whole application and is tested without a socket;
-`serve()` puts it behind `http.server` on 127.0.0.1 only.
+`AuditApp.handle(method, path, body, headers)` is the whole application and is tested without a
+socket; `serve()` puts it behind `http.server` on 127.0.0.1 only.
 """
 
 from __future__ import annotations
 
 import json
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -51,10 +51,13 @@ def load_answers(log: Path) -> dict[tuple[str, str], str]:
 class AuditApp:
     """The page's routes over a fixed list of items and one answer log."""
 
-    def __init__(self, items: Sequence[AuditItem], log: Path, now: Callable[[], str]) -> None:
+    def __init__(
+        self, items: Sequence[AuditItem], log: Path, now: Callable[[], str], *, port: int
+    ) -> None:
         self.items = list(items)
         self.log = log
         self.now = now
+        self.port = port
         self.answers = load_answers(log)
         self._lock = threading.Lock()
 
@@ -65,7 +68,11 @@ class AuditApp:
         """The first item with an unanswered question, or -1 when every item is answered."""
         return next((i for i, item in enumerate(self.items) if not self.answered(item)), -1)
 
-    def handle(self, method: str, path: str, body: bytes) -> Response:
+    def handle(
+        self, method: str, path: str, body: bytes, headers: Mapping[str, str] | None = None
+    ) -> Response:
+        """One request. `headers` matter only to `POST /answer`, which the page's own origin
+        alone may send: without them it is refused."""
         if method == "GET" and path in ("", "/"):
             return self._page(self.next_open())
         if method == "GET" and path.startswith("/item/"):
@@ -78,13 +85,26 @@ class AuditApp:
             data = self.items[index].exported.still.read_bytes()
             return Response(200, "image/jpeg", data)
         if method == "POST" and path == "/answer":
-            return self._answer(body)
+            return self._answer(body, headers or {})
         return _not_found()
+
+    def _same_origin(self, headers: Mapping[str, str]) -> bool:
+        """Loopback binding does not stop a page open elsewhere in the owner's browser from
+        POSTing a simple request here, nor a rebound DNS name from reaching it: the Host must
+        name this server, and an Origin, when sent, must be this page's."""
+        named = {key.lower(): value for key, value in headers.items()}
+        hosts = {f"127.0.0.1:{self.port}", f"localhost:{self.port}"}
+        origin = named.get("origin")
+        return named.get("host") in hosts and (
+            origin is None or origin in {f"http://{host}" for host in hosts}
+        )
 
     def _index(self, text: str) -> int | None:
         return int(text) if text.isdigit() and int(text) < len(self.items) else None
 
-    def _answer(self, body: bytes) -> Response:
+    def _answer(self, body: bytes, headers: Mapping[str, str]) -> Response:
+        if not self._same_origin(headers):
+            return Response(403, "text/plain", b"answers come only from this page")
         try:
             request = json.loads(body)
             item = self.items[int(request["index"])]
@@ -135,6 +155,7 @@ let selected = items.findIndex(li => li.querySelector('b').textContent === '·')
 if (selected < 0) selected = 0;
 items[selected].style.outline = '2px solid #36c';
 document.addEventListener('keydown', async (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === '[' && %(index)d > 0) location.href = '/item/' + (%(index)d - 1);
   if (e.key === ']' && %(index)d < %(last)d) location.href = '/item/' + (%(index)d + 1);
   if ('1234'.includes(e.key) && items[+e.key - 1]) {
@@ -164,8 +185,8 @@ def _not_found() -> Response:
     return Response(404, "text/plain", b"not found")
 
 
-def serve(app: AuditApp, port: int) -> None:
-    """Serve `app` on 127.0.0.1:`port` until interrupted."""
+def serve(app: AuditApp) -> None:
+    """Serve `app` on 127.0.0.1 at its port until interrupted."""
 
     class Handler(BaseHTTPRequestHandler):
         def _respond(self, response: Response) -> None:
@@ -176,14 +197,15 @@ def serve(app: AuditApp, port: int) -> None:
             self.wfile.write(response.body)
 
         def do_GET(self) -> None:
-            self._respond(app.handle("GET", self.path, b""))
+            self._respond(app.handle("GET", self.path, b"", dict(self.headers.items())))
 
         def do_POST(self) -> None:
             length = int(self.headers.get("Content-Length", "0"))
-            self._respond(app.handle("POST", self.path, self.rfile.read(length)))
+            body = self.rfile.read(length)
+            self._respond(app.handle("POST", self.path, body, dict(self.headers.items())))
 
         def log_message(self, format: str, *args: object) -> None:
             del format, args  # quiet: the command prints its own progress
 
-    with ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
+    with ThreadingHTTPServer(("127.0.0.1", app.port), Handler) as server:
         server.serve_forever()

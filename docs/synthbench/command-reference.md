@@ -248,8 +248,13 @@ values, drawn with a fixed seed. It runs until Ctrl-C.
   stop and resume, and change an answer.
 - **Questions** (`y` yes, `n` no, `u` unclear): scene ("Does this show …?"), prop (threat scenes:
   "Is the … visible?"), people ("Exactly N person(s)?") and conditions (lighting and weather).
+  A key pressed with Ctrl, Alt or Meta held answers nothing.
+- **Same origin only:** an answer is refused (403, not logged) unless its `Host` is
+  `127.0.0.1:<port>` or `localhost:<port>` and its `Origin`, when sent, is `http://` one of
+  those. Other pages open in the browser cannot answer for the owner.
 - **From another machine:** `ssh -L 8765:127.0.0.1:8765 <this host>`, then open
-  `http://127.0.0.1:8765/`.
+  `http://127.0.0.1:8765/`. Keep the same port on both ends of the tunnel: the page takes answers
+  only at its own port.
 - **Exit 1:** the export has no sets, or the port cannot be opened.
 
 ## `replay`

@@ -79,17 +79,26 @@ def test_a_threat_gets_a_prop_question_and_a_benign_scene_does_not(tmp_path: Pat
     assert asked[2].text == "ir night light and snow weather?"
 
 
+PORT = 8765
+# What the owner's browser sends with the page's own answer.
+SAME_ORIGIN = {"Host": f"127.0.0.1:{PORT}", "Origin": f"http://127.0.0.1:{PORT}"}
+
+
 def _app(tmp_path: Path, n: int = 2) -> AuditApp:
     items = [
         AuditItem(s, questions(s.facts))
         for s in (_set(tmp_path, i, "threat", "day") for i in range(n))
     ]
-    return AuditApp(items, tmp_path / "audits" / "audit.jsonl", lambda: "2026-09-29T20:00:00Z")
+    log = tmp_path / "audits" / "audit.jsonl"
+    return AuditApp(items, log, lambda: "2026-09-29T20:00:00Z", port=PORT)
+
+
+def _body(index: int, question: str, answer: str) -> bytes:
+    return json.dumps({"index": index, "question": question, "answer": answer}).encode()
 
 
 def _answer(app: AuditApp, index: int, question: str, answer: str) -> Any:
-    body = json.dumps({"index": index, "question": question, "answer": answer}).encode()
-    return app.handle("POST", "/answer", body)
+    return app.handle("POST", "/answer", _body(index, question, answer), SAME_ORIGIN)
 
 
 def test_the_page_shows_the_first_open_still(tmp_path: Path) -> None:
@@ -134,8 +143,52 @@ def test_answers_append_and_the_latest_wins(tmp_path: Path) -> None:
 )
 def test_a_bad_answer_is_refused_and_not_logged(tmp_path: Path, body: bytes) -> None:
     app = _app(tmp_path)
-    assert app.handle("POST", "/answer", body).status == 400
+    assert app.handle("POST", "/answer", body, SAME_ORIGIN).status == 400
     assert not app.log.exists()
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {"Host": f"127.0.0.1:{PORT}", "Origin": "http://evil.example"},  # a page elsewhere
+        {"Host": f"127.0.0.1:{PORT}", "Origin": "null"},  # a sandboxed frame or a file
+        {"Host": f"evil.example:{PORT}"},  # DNS rebinding: the name, not the address
+        {"Host": "127.0.0.1:9999", "Origin": "http://127.0.0.1:9999"},  # another port
+        {},  # no Host at all
+    ],
+    ids=["foreign-origin", "null-origin", "foreign-host", "other-port", "no-host"],
+)
+def test_a_cross_origin_answer_is_refused_and_not_logged(
+    tmp_path: Path, headers: dict[str, str]
+) -> None:
+    """Any page open in the owner's browser can POST a simple request to the loopback page;
+    only the page itself may answer."""
+    app = _app(tmp_path)
+    assert app.handle("POST", "/answer", _body(0, "scene", "y"), headers).status == 403
+    assert not app.log.exists()
+    assert app.answers == {}
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        SAME_ORIGIN,
+        {"host": f"localhost:{PORT}", "origin": f"http://localhost:{PORT}"},
+        {"Host": f"localhost:{PORT}"},  # a browser may send no Origin on a same-origin POST
+    ],
+    ids=["127.0.0.1", "localhost-lowercase-names", "no-origin"],
+)
+def test_a_same_origin_answer_is_logged(tmp_path: Path, headers: dict[str, str]) -> None:
+    app = _app(tmp_path)
+    assert app.handle("POST", "/answer", _body(0, "scene", "y"), headers).status == 200
+    assert load_answers(app.log) == {(app.items[0].event_id, "scene"): "y"}
+
+
+def test_the_keys_ignore_modifier_combinations(tmp_path: Path) -> None:
+    """Ctrl+U (view source) must not answer `u`: the handler returns before reading the key."""
+    page = _app(tmp_path).handle("GET", "/", b"").body.decode()
+    guard = page.index("if (e.ctrlKey || e.metaKey || e.altKey) return;")
+    assert guard < page.index("e.key") and guard < page.index("fetch(")
 
 
 def test_every_still_answered_says_so(tmp_path: Path) -> None:
