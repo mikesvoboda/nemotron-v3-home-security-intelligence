@@ -94,6 +94,16 @@ this plan uses its `synthbench/audit/`). Rebase onto `main` after #6732 merges.
   takes more than 270 s, C7's fallback applies. Task 1 then stops and asks the owner, with the
   longest grid length that fits.
 
+  **Amended after Task 1 (2026-09-30):**
+
+  - **What the probe found.** A 243-frame clip took 327-329 s beside the flagship, so 2× no
+    longer fits the 600 s call.
+  - **The owner's call.** The owner watched the clips, judged them good, and kept 10 s.
+  - **The new margin.** It is 1.5×: `CLIP_TIMEOUT_S = 500`. Three clips varied by 1.7 s.
+  - **The effect.** One clip per `clip render` call.
+  - **The other constants.** `H3_PEAK_GIB = 49` (48.3 measured). `WARMUP_TIMEOUT_S = 240`,
+    where the rule's 130 would leave no room for a cold weight load.
+
 - **H3-R8. PyAV is declared.** `av` reaches the environment today only through `supervision`;
   the clip loop depends on it, so `pyproject.toml` names it (`av>=18.1`) and `uv.lock` is
   relocked.
@@ -126,7 +136,11 @@ this plan uses its `synthbench/audit/`). Rebase onto `main` after #6732 merges.
   family is `h3` or `other`. An empty history needs no `/free`.
 
 - **H3-R16. The memory check** runs only on a switch: after `/free`, before the warm-up. The
-  peak includes H3's own weights, so the check is meaningless once they are loaded.
+  peak includes H3's own weights, so the check is meaningless once they are loaded. **Amended
+  after the Task 1 probe:** `/free` answers at once but releases the memory within about 5 s
+  (52,058 MiB to 892 MiB between t+2 s and t+5 s). So both `clip render` and the stills'
+  `render` poll `/system_stats` every second, for up to 30 s (`wait_for_free`), until the room
+  they need is free. `render` needs 60 GiB for FLUX.2, the renderer precheck's figure.
 - **H3-R17. Switches are logged** in `rounds/<r>/switches.jsonl`, one row per switch, so
   `clip report` can list them (spec §3.4). `CorpusStore.append_jsonl` writes any `.jsonl` inside
   the version; `append_index` and `append_clip_index` use it.
@@ -317,7 +331,7 @@ attempt in `provenance.json`. Then:
 ```bash
 bash $SCRATCH/gpu-sampler.sh > $SCRATCH/gpu.csv & SAMPLER=$!
 ( while :; do date +%s; curl -s -o /dev/null -w '%{http_code}\n' 127.0.0.1:8000/health; sleep 5; done ) > $SCRATCH/flagship.log & HEALTH=$!
-uv run python $SCRATCH/h3probe.py <render1> <render2> <render3> | tee $SCRATCH/probe.jsonl
+PYTHONPATH=$PWD uv run python $SCRATCH/h3probe.py <render1> <render2> <render3> | tee $SCRATCH/probe.jsonl
 kill $SAMPLER $HEALTH
 journalctl --user -u synthbench-guard --since -2h --no-pager | grep -v -i 'healthy' | tail -20
 ```
@@ -2832,11 +2846,16 @@ def test_upload_png_sends_the_bytes_and_returns_the_stored_name() -> None:
     assert b"\x89PNG payload" in seen[0]
 ```
 
-Add to `backend/tests/unit/synthbench/test_render.py`: in `FakeComfy.__init__`, add
-`self.history: dict[str, Any] = {}` and `self.freed = 0`, and in `__call__`, before the
-`/prompt` branch:
+Add to `backend/tests/unit/synthbench/test_render.py`:
+
+- in `FakeComfy.__init__`, add `self.history: dict[str, Any] = {}`, `self.freed = 0` and
+  `self.free_gib = 200.0`;
+- in `__call__`, replace the `/system_stats` branch and add two, before the `/prompt` branch:
 
 ```python
+        if path == "/system_stats":
+            devices = [{"vram_free": int(self.free_gib * 2**30)}]
+            return httpx.Response(200, json={"system": {}, "devices": devices})
         if path == "/history":
             return httpx.Response(200, json=self.history)
         if path == "/free":
@@ -2865,6 +2884,18 @@ def test_render_leaves_a_flux_renderer_alone(tmp_path: Path) -> None:
     fake.history = _last(graphs.flux2_dev_t2i("x", seed=0, width=1280, height=720))
     assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
     assert fake.freed == 0
+
+
+def test_a_freed_renderer_without_room_for_flux_stops_render(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock)
+    fake.history = _last(graphs.minimax_h3_turbo_i2v("x", image="i", seed=0, width=1344, height=768, frames=22))
+    fake.free_gib = 10.0
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_ASK
+    assert "FLUX.2 needs 60 GiB" in capsys.readouterr().err
+    assert fake.graphs == []
 ```
 
 (Import `from synthbench.generate.comfy import graphs` in `test_render.py`.)
@@ -2948,10 +2979,15 @@ class FakeComfy:
         free_gib: float = 200.0,
         clip: bytes = CLIP,
         fail: frozenset[int] = frozenset(),
+        release_polls: int = 0,
     ) -> None:
         self.clock = clock
         self.seconds = seconds
         self.free_gib = free_gib
+        # Like ComfyUI (clips probe): after /free, the first `release_polls` readings still
+        # show the old models' memory.
+        self.release_polls = release_polls
+        self.polls_since_free: int | None = None
         self.clip = clip
         self.fail = fail
         self.graphs: list[Graph] = []
@@ -2962,12 +2998,18 @@ class FakeComfy:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
         if path == "/system_stats":
-            devices = [{"vram_free": int(self.free_gib * 2**30)}]
+            free = self.free_gib
+            if self.polls_since_free is not None:
+                self.polls_since_free += 1
+                if self.polls_since_free <= self.release_polls:
+                    free = 5.0
+            devices = [{"vram_free": int(free * 2**30)}]
             return httpx.Response(200, json={"system": {}, "devices": devices})
         if path == "/history":
             return httpx.Response(200, json=self.history)
         if path == "/free":
             self.freed += 1
+            self.polls_since_free = 0
             return httpx.Response(200, json={})
         if path == "/upload/image":
             self.uploads += 1
@@ -3089,6 +3131,14 @@ def test_an_empty_history_warms_up_without_freeing(tmp_path: Path) -> None:
     fake = FakeComfy(clock)
     assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
     assert fake.freed == 0
+    assert _length(fake.graphs[0]) == WARMUP_FRAMES
+
+
+def test_the_switch_waits_for_the_freed_memory(tmp_path: Path) -> None:
+    _, clock = _ready(tmp_path, 1)
+    fake = FakeComfy(clock, last=_flux(), release_polls=3)
+    assert _render(tmp_path, _deps(clock, fake)) == cli.EXIT_OK
+    assert clock.sleeps[:3] == [1.0, 1.0, 1.0]
     assert _length(fake.graphs[0]) == WARMUP_FRAMES
 
 
@@ -3275,35 +3325,68 @@ def last_family(client: ComfyClient) -> Family | None:
     """The family of the renderer's newest job; None when it has run nothing yet."""
     graph = client.last_prompt()
     return None if graph is None else family(graph)
+
+
+FREE_POLL_S = 1.0
+FREE_WAIT_S = 30.0  # the clips probe: /free answers at once; the memory returns within ~5 s
+FLUX2_NEED_GIB = 60.0  # FLUX.2's 56.2 GiB peak plus --reserve-vram 4 (the renderer precheck)
+
+
+def wait_for_free(
+    client: ComfyClient,
+    need_gib: float,
+    *,
+    clock: Callable[[], float],
+    sleep: Callable[[float], None],
+    timeout_s: float = FREE_WAIT_S,
+) -> float:
+    """Poll the GPU's free memory every second until it reaches need_gib or timeout_s passes;
+    returns the last reading. ComfyUI's /free answers before it releases (ruling H3-R16)."""
+    deadline = clock() + timeout_s
+    while True:
+        free = client.free_vram_gib()
+        if free >= need_gib or clock() >= deadline:
+            return free
+        sleep(FREE_POLL_S)
 ```
 
 - [ ] **Step 7: The stills' `render` frees an H3 renderer**
 
-In `synthbench/commands/render.py`, import `last_family` from `synthbench.generate.render`, add:
+In `synthbench/commands/render.py`, import `FLUX2_NEED_GIB`, `last_family` and `wait_for_free`
+from `synthbench.generate.render`, add:
 
 ```python
-def _leave_clip_mode(client: ComfyClient) -> None:
-    """Free the renderer when its last job was not FLUX.2 (ruling H3-R13). FLUX.2 then loads
-    with the first image: the unit's warm-up measured 24-48 s, inside RENDER_TIMEOUT_S."""
+def _leave_clip_mode(client: ComfyClient, deps: Deps) -> None:
+    """Free the renderer when its last job was not FLUX.2 (ruling H3-R13), and wait until the
+    memory is back (H3-R16). FLUX.2 then loads with the first image: the unit's warm-up
+    measured 24-48 s, inside RENDER_TIMEOUT_S."""
     try:
         last = last_family(client)
-        if last in ("h3", "other"):
-            client.free()
-            sys.stdout.write(
-                f"render: the renderer last ran {last} models; freed them, so FLUX.2 loads "
-                "with the first image\n"
-            )
+        if last not in ("h3", "other"):
+            return
+        client.free()
+        free = wait_for_free(client, FLUX2_NEED_GIB, clock=deps.clock, sleep=deps.sleep)
     except httpx.TransportError as error:
         raise AskOwner(
             f"the renderer stopped answering ({type(error).__name__}: {error})."
         ) from error
-    except (httpx.HTTPStatusError, ComfyError) as error:
+    except (httpx.HTTPStatusError, ComfyError, KeyError) as error:
         raise AskOwner(
-            f"cannot read the renderer's history ({type(error).__name__}: {error})."
+            f"cannot switch the renderer back to FLUX.2 ({type(error).__name__}: {error})."
         ) from error
+    if free < FLUX2_NEED_GIB:
+        raise AskOwner(
+            f"after freeing the renderer the GPU has {free:.1f} GiB free; FLUX.2 needs "
+            f"{FLUX2_NEED_GIB:.0f} GiB: something else holds GPU memory."
+        )
+    sys.stdout.write(
+        f"render: the renderer last ran {last} models; freed them ({free:.1f} GiB free), so "
+        "FLUX.2 loads with the first image\n"
+    )
 ```
 
-and call it first inside `_render_todo`'s `try:`, before the `for spec, prov in todo:` loop.
+and call `_leave_clip_mode(client, deps)` first inside `_render_todo`'s `try:`, before the
+`for spec, prov in todo:` loop.
 
 - [ ] **Step 8: Write `synthbench/clips/render.py`**
 
@@ -3488,13 +3571,17 @@ from synthbench.generate.render import (
     comfy_url,
     last_family,
     wait_for_flagship,
+    wait_for_free,
 )
 from synthbench.status import FlagshipUnknown, flagship_file
 
 CALL_LIMIT_S = 570.0  # the agent's Bash call is 600 s (P3-R10); start-up and downloads take the rest
-CLIP_TIMEOUT_S = 360.0  # Task 1 (clips-probes.md): twice a 243-frame clip's seconds, <= 540
-WARMUP_TIMEOUT_S = 300.0  # Task 1: twice H3's load plus a 22-frame clip, <= 540
-H3_PEAK_GIB = 52.0  # Task 1: the renderer's peak during a 243-frame clip, rounded up
+# Measured by the clips probe beside the flagship (docs/benchmarks/synthbench/clips-probes.md):
+# 243-frame clips took 327.0-328.7 s; H3's load plus a 22-frame clip 61.2 s; the renderer's
+# peak was 48.3 GiB.
+CLIP_TIMEOUT_S = 500.0  # 1.5 x 328.7 s, rounded up to 10 (ruling H3-R7, amended)
+WARMUP_TIMEOUT_S = 240.0  # 61.2 s with warm page cache; room for a cold load of the weights
+H3_PEAK_GIB = 49.0  # 48.3 GiB, rounded up
 RESERVE_GIB = 4.0  # the renderer's --reserve-vram 4 (agent-driven design §1)
 
 
@@ -3612,8 +3699,8 @@ def _enter_clip_mode(
             return
         if last is not None:
             client.free()
-        free_gib = client.free_vram_gib()
         need = H3_PEAK_GIB + RESERVE_GIB
+        free_gib = wait_for_free(client, need, clock=deps.clock, sleep=deps.sleep)
         if free_gib < need:
             raise AskOwner(
                 f"after freeing the renderer the GPU has {free_gib:.1f} GiB free, and H3 needs "
